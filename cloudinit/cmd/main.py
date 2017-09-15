@@ -764,16 +764,25 @@ def main(sysv_args=None):
     parser_devel = subparsers.add_parser(
         'devel', help='Run development tools')
 
+    parser_collect_logs = subparsers.add_parser(
+        'collect-logs', help='Collect and tar all cloud-init debug info')
+
     if sysv_args:
         # Only load subparsers if subcommand is specified to avoid load cost
         if sysv_args[0] == 'analyze':
             from cloudinit.analyze.__main__ import get_parser as analyze_parser
             # Construct analyze subcommand parser
             analyze_parser(parser_analyze)
-        if sysv_args[0] == 'devel':
+        elif sysv_args[0] == 'devel':
             from cloudinit.cmd.devel.parser import get_parser as devel_parser
             # Construct devel subcommand parser
             devel_parser(parser_devel)
+        elif sysv_args[0] == 'collect-logs':
+            from cloudinit.cmd.devel.logs import (
+                get_parser as logs_parser, handle_collect_logs_args)
+            logs_parser(parser_collect_logs)
+            parser_collect_logs.set_defaults(
+                action=('collect-logs', handle_collect_logs_args))
 
     args = parser.parse_args(args=sysv_args)
 

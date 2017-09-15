@@ -1742,6 +1742,31 @@ def delete_dir_contents(dirname):
             del_file(node_fullpath)
 
 
+def subp_blob_in_tempfile(blob, *args, **kwargs):
+    """Write blob to a tempfile, and call subp with args, kwargs. Then cleanup.
+
+    'basename' as a kwarg allows providing the basename for the file.
+    The 'args' argument to subp will be updated with the full path to the
+    filename as the first argument.
+    """
+    basename = kwargs.pop('basename', "subp_blob")
+
+    if len(args) == 0 and 'args' not in kwargs:
+        args = [tuple()]
+
+    # Use tmpdir over tmpfile to avoid 'text file busy' on execute
+    with temp_utils.tempdir() as tmpd:
+        tmpf = os.path.join(tmpd, basename)
+        if 'args' in kwargs:
+            kwargs['args'] = [tmpf] + list(kwargs['args'])
+        else:
+            args = list(args)
+            args[0] = [tmpf] + args[0]
+
+        write_file(tmpf, blob, mode=0o700)
+        return subp(*args, **kwargs)
+
+
 def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
          logstring=False, decode="replace", target=None, update_env=None):
 

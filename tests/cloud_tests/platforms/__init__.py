@@ -3,8 +3,10 @@
 """Main init."""
 
 from tests.cloud_tests.platforms import lxd
+from tests.cloud_tests.platforms import nocloudkvm
 
 PLATFORMS = {
+    'nocloud-kvm': nocloudkvm.NoCloudKVMPlatform,
     'lxd': lxd.LXDPlatform,
 }
 

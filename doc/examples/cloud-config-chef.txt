@@ -94,6 +94,10 @@ chef:
  # if install_type is 'omnibus', change the url to download
  omnibus_url: "https://www.chef.io/chef/install.sh"
 
+ # if install_type is 'omnibus', pass pinned version string
+ # to the install script
+ omnibus_version: "12.3.0"
+
 
 # Capture all subprocess output into a logfile
 # Useful for troubleshooting cloud-init issues

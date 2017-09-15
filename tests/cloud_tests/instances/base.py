@@ -23,7 +23,7 @@ class Instance(object):
         self.config = config
         self.features = features
 
-    def execute(self, command, stdout=None, stderr=None, env={},
+    def execute(self, command, stdout=None, stderr=None, env=None,
                 rcs=None, description=None):
         """Execute command in instance, recording output, error and exit code.
 
@@ -31,6 +31,8 @@ class Instance(object):
         target filesystem being available at /.
 
         @param command: the command to execute as root inside the image
+            if command is a string, then it will be executed as:
+            ['sh', '-c', command]
         @param stdout, stderr: file handles to write output and error to
         @param env: environment variables
         @param rcs: allowed return codes from command
@@ -88,7 +90,7 @@ class Instance(object):
             return self.execute(
                 ['/bin/bash', script_path], rcs=rcs, description=description)
         finally:
-            self.execute(['rm', script_path], rcs=rcs)
+            self.execute(['rm', '-f', script_path], rcs=rcs)
 
     def tmpfile(self):
         """Get a tmp file in the target.
@@ -137,9 +139,9 @@ class Instance(object):
             tests.append(self.config['cloud_init_ready_script'])
 
         formatted_tests = ' && '.join(clean_test(t) for t in tests)
-        test_cmd = ('for ((i=0;i<{time};i++)); do {test} && exit 0; sleep 1; '
-                    'done; exit 1;').format(time=time, test=formatted_tests)
-        cmd = ['/bin/bash', '-c', test_cmd]
+        cmd = ('i=0; while [ $i -lt {time} ] && i=$(($i+1)); do {test} && '
+               'exit 0; sleep 1; done; exit 1').format(time=time,
+                                                       test=formatted_tests)
 
         if self.execute(cmd, rcs=(0, 1))[-1] != 0:
             raise OSError('timeout: after {}s system not started'.format(time))

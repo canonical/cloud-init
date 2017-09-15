@@ -9,22 +9,48 @@ import logging
 import os
 import re
 
+from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit import util
 
 logger = logging.getLogger(__name__)
 
 
+def gen_subnet(ip, netmask):
+    """
+    Return the subnet for a given ip address and a netmask
+    @return (str): the subnet
+    @param ip: ip address
+    @param netmask: netmask
+    """
+    ip_array = ip.split(".")
+    mask_array = netmask.split(".")
+    result = []
+    for index in list(range(4)):
+        result.append(int(ip_array[index]) & int(mask_array[index]))
+
+    return ".".join([str(x) for x in result])
+
+
 class NicConfigurator(object):
-    def __init__(self, nics):
+    def __init__(self, nics, use_system_devices=True):
         """
         Initialize the Nic Configurator
         @param nics (list) an array of nics to configure
+        @param use_system_devices (Bool) Get the MAC names from the system
+        if this is True. If False, then mac names will be retrieved from
+         the specified nics.
         """
         self.nics = nics
         self.mac2Name = {}
         self.ipv4PrimaryGateway = None
         self.ipv6PrimaryGateway = None
-        self.find_devices()
+
+        if use_system_devices:
+            self.find_devices()
+        else:
+            for nic in self.nics:
+                self.mac2Name[nic.mac.lower()] = nic.name
+
         self._primaryNic = self.get_primary_nic()
 
     def get_primary_nic(self):
@@ -61,138 +87,163 @@ class NicConfigurator(object):
 
     def gen_one_nic(self, nic):
         """
-        Return the lines needed to configure a nic
-        @return (str list): the string list to configure the nic
+        Return the config list needed to configure a nic
+        @return (list): the subnets and routes list to configure the nic
         @param nic (NicBase): the nic to configure
         """
-        lines = []
-        name = self.mac2Name.get(nic.mac.lower())
+        mac = nic.mac.lower()
+        name = self.mac2Name.get(mac)
         if not name:
             raise ValueError('No known device has MACADDR: %s' % nic.mac)
 
-        if nic.onboot:
-            lines.append('auto %s' % name)
+        nics_cfg_list = []
+
+        cfg = {'type': 'physical', 'name': name, 'mac_address': mac}
+
+        subnet_list = []
+        route_list = []
 
         # Customize IPv4
-        lines.extend(self.gen_ipv4(name, nic))
+        (subnets, routes) = self.gen_ipv4(name, nic)
+        subnet_list.extend(subnets)
+        route_list.extend(routes)
 
         # Customize IPv6
-        lines.extend(self.gen_ipv6(name, nic))
+        (subnets, routes) = self.gen_ipv6(name, nic)
+        subnet_list.extend(subnets)
+        route_list.extend(routes)
 
-        lines.append('')
+        cfg.update({'subnets': subnet_list})
 
-        return lines
+        nics_cfg_list.append(cfg)
+        if route_list:
+            nics_cfg_list.extend(route_list)
+
+        return nics_cfg_list
 
     def gen_ipv4(self, name, nic):
         """
-        Return the lines needed to configure the IPv4 setting of a nic
-        @return (str list): the string list to configure the gateways
-        @param name (str): name of the nic
+        Return the set of subnets and routes needed to configure the
+        IPv4 settings of a nic
+        @return (set): the set of subnet and routes to configure the gateways
+        @param name (str): subnet and route list for the nic
         @param nic (NicBase): the nic to configure
         """
-        lines = []
+
+        subnet = {}
+        route_list = []
+
+        if nic.onboot:
+            subnet.update({'control': 'auto'})
 
         bootproto = nic.bootProto.lower()
         if nic.ipv4_mode.lower() == 'disabled':
             bootproto = 'manual'
-        lines.append('iface %s inet %s' % (name, bootproto))
 
         if bootproto != 'static':
-            return lines
+            subnet.update({'type': 'dhcp'})
+            return ([subnet], route_list)
+        else:
+            subnet.update({'type': 'static'})
 
         # Static Ipv4
         addrs = nic.staticIpv4
         if not addrs:
-            return lines
+            return ([subnet], route_list)
 
         v4 = addrs[0]
         if v4.ip:
-            lines.append('    address %s' % v4.ip)
+            subnet.update({'address': v4.ip})
         if v4.netmask:
-            lines.append('    netmask %s' % v4.netmask)
+            subnet.update({'netmask': v4.netmask})
 
         # Add the primary gateway
         if nic.primary and v4.gateways:
             self.ipv4PrimaryGateway = v4.gateways[0]
-            lines.append('    gateway %s metric 0' % self.ipv4PrimaryGateway)
-            return lines
+            subnet.update({'gateway': self.ipv4PrimaryGateway})
+            return [subnet]
 
         # Add routes if there is no primary nic
         if not self._primaryNic:
-            lines.extend(self.gen_ipv4_route(nic, v4.gateways))
+            route_list.extend(self.gen_ipv4_route(nic,
+                                                  v4.gateways,
+                                                  v4.netmask))
 
-        return lines
+        return ([subnet], route_list)
 
-    def gen_ipv4_route(self, nic, gateways):
+    def gen_ipv4_route(self, nic, gateways, netmask):
         """
-        Return the lines needed to configure additional Ipv4 route
-        @return (str list): the string list to configure the gateways
+        Return the routes list needed to configure additional Ipv4 route
+        @return (list): the route list to configure the gateways
         @param nic (NicBase): the nic to configure
         @param gateways (str list): the list of gateways
         """
-        lines = []
+        route_list = []
+
+        cidr = mask_to_net_prefix(netmask)
 
         for gateway in gateways:
-            lines.append('    up route add default gw %s metric 10000' %
-                         gateway)
+            destination = "%s/%d" % (gen_subnet(gateway, netmask), cidr)
+            route_list.append({'destination': destination,
+                               'type': 'route',
+                               'gateway': gateway,
+                               'metric': 10000})
 
-        return lines
+        return route_list
 
     def gen_ipv6(self, name, nic):
         """
-        Return the lines needed to configure the gateways for a nic
-        @return (str list): the string list to configure the gateways
+        Return the set of subnets and routes needed to configure the
+        gateways for a nic
+        @return (set): the set of subnets and routes to configure the gateways
         @param name (str): name of the nic
         @param nic (NicBase): the nic to configure
         """
-        lines = []
 
         if not nic.staticIpv6:
-            return lines
+            return ([], [])
 
+        subnet_list = []
         # Static Ipv6
         addrs = nic.staticIpv6
-        lines.append('iface %s inet6 static' % name)
-        lines.append('    address %s' % addrs[0].ip)
-        lines.append('    netmask %s' % addrs[0].netmask)
-
-        for addr in addrs[1:]:
-            lines.append('    up ifconfig %s inet6 add %s/%s' % (name, addr.ip,
-                                                                 addr.netmask))
-        # Add the primary gateway
-        if nic.primary:
-            for addr in addrs:
-                if addr.gateway:
-                    self.ipv6PrimaryGateway = addr.gateway
-                    lines.append('    gateway %s' % self.ipv6PrimaryGateway)
-                    return lines
-
-        # Add routes if there is no primary nic
-        if not self._primaryNic:
-            lines.extend(self._genIpv6Route(name, nic, addrs))
-
-        return lines
-
-    def _genIpv6Route(self, name, nic, addrs):
-        lines = []
 
         for addr in addrs:
-            lines.append('    up route -A inet6 add default gw '
-                         '%s metric 10000' % addr.gateway)
+            subnet = {'type': 'static6',
+                      'address': addr.ip,
+                      'netmask': addr.netmask}
+            subnet_list.append(subnet)
 
-        return lines
+        # TODO: Add the primary gateway
 
-    def generate(self):
-        """Return the lines that is needed to configure the nics"""
-        lines = []
-        lines.append('iface lo inet loopback')
-        lines.append('auto lo')
-        lines.append('')
+        route_list = []
+        # TODO: Add routes if there is no primary nic
+        # if not self._primaryNic:
+        #    route_list.extend(self._genIpv6Route(name, nic, addrs))
+
+        return (subnet_list, route_list)
+
+    def _genIpv6Route(self, name, nic, addrs):
+        route_list = []
+
+        for addr in addrs:
+            route_list.append({'type': 'route',
+                               'gateway': addr.gateway,
+                               'metric': 10000})
+
+        return route_list
+
+    def generate(self, configure=False, osfamily=None):
+        """Return the config elements that are needed to configure the nics"""
+        if configure:
+            logger.info("Configuring the interfaces file")
+            self.configure(osfamily)
+
+        nics_cfg_list = []
 
         for nic in self.nics:
-            lines.extend(self.gen_one_nic(nic))
+            nics_cfg_list.extend(self.gen_one_nic(nic))
 
-        return lines
+        return nics_cfg_list
 
     def clear_dhcp(self):
         logger.info('Clearing DHCP leases')
@@ -201,11 +252,16 @@ class NicConfigurator(object):
         util.subp(["pkill", "dhclient"], rcs=[0, 1])
         util.subp(["rm", "-f", "/var/lib/dhcp/*"])
 
-    def configure(self):
+    def configure(self, osfamily=None):
         """
-        Configure the /etc/network/intefaces
+        Configure the /etc/network/interfaces
         Make a back up of the original
         """
+
+        if not osfamily or osfamily != "debian":
+            logger.info("Debian OS not detected. Skipping the configure step")
+            return
+
         containingDir = '/etc/network'
 
         interfaceFile = os.path.join(containingDir, 'interfaces')
@@ -215,10 +271,13 @@ class NicConfigurator(object):
         if not os.path.exists(originalFile) and os.path.exists(interfaceFile):
             os.rename(interfaceFile, originalFile)
 
-        lines = self.generate()
-        with open(interfaceFile, 'w') as fp:
-            for line in lines:
-                fp.write('%s\n' % line)
+        lines = [
+            "# DO NOT EDIT THIS FILE BY HAND --"
+            " AUTOMATICALLY GENERATED BY cloud-init",
+            "source /etc/network/interfaces.d/*.cfg",
+        ]
+
+        util.write_file(interfaceFile, content='\n'.join(lines))
 
         self.clear_dhcp()
 

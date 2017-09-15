@@ -6,31 +6,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Resizefs
---------
-**Summary:** resize filesystem
+"""Resizefs: cloud-config module which resizes the filesystem"""
 
-Resize a filesystem to use all avaliable space on partition. This module is
-useful along with ``cc_growpart`` and will ensure that if the root partition
-has been resized the root filesystem will be resized along with it. By default,
-``cc_resizefs`` will resize the root partition and will block the boot process
-while the resize command is running. Optionally, the resize operation can be
-performed in the background while cloud-init continues running modules. This
-can be enabled by setting ``resize_rootfs`` to ``true``. This module can be
-disabled altogether by setting ``resize_rootfs`` to ``false``.
-
-**Internal name:** ``cc_resizefs``
-
-**Module frequency:** per always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    resize_rootfs: <true/false/"noblock">
-    resize_rootfs_tmp: <directory>
-"""
 
 import errno
 import getopt
@@ -38,11 +15,47 @@ import os
 import re
 import shlex
 import stat
+from textwrap import dedent
 
+from cloudinit.config.schema import (
+    get_schema_doc, validate_cloudconfig_schema)
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import util
 
+NOBLOCK = "noblock"
+
 frequency = PER_ALWAYS
+distros = ['all']
+
+schema = {
+    'id': 'cc_resizefs',
+    'name': 'Resizefs',
+    'title': 'Resize filesystem',
+    'description': dedent("""\
+        Resize a filesystem to use all avaliable space on partition. This
+        module is useful along with ``cc_growpart`` and will ensure that if the
+        root partition has been resized the root filesystem will be resized
+        along with it. By default, ``cc_resizefs`` will resize the root
+        partition and will block the boot process while the resize command is
+        running. Optionally, the resize operation can be performed in the
+        background while cloud-init continues running modules. This can be
+        enabled by setting ``resize_rootfs`` to ``true``. This module can be
+        disabled altogether by setting ``resize_rootfs`` to ``false``."""),
+    'distros': distros,
+    'examples': [
+        'resize_rootfs: false  # disable root filesystem resize operation'],
+    'frequency': PER_ALWAYS,
+    'type': 'object',
+    'properties': {
+        'resize_rootfs': {
+            'enum': [True, False, NOBLOCK],
+            'description': dedent("""\
+                Whether to resize the root partition. Default: 'true'""")
+        }
+    }
+}
+
+__doc__ = get_schema_doc(schema)  # Supplement python help()
 
 
 def _resize_btrfs(mount_point, devpth):
@@ -54,7 +67,7 @@ def _resize_ext(mount_point, devpth):
 
 
 def _resize_xfs(mount_point, devpth):
-    return ('xfs_growfs', devpth)
+    return ('xfs_growfs', mount_point)
 
 
 def _resize_ufs(mount_point, devpth):
@@ -131,8 +144,6 @@ RESIZE_FS_PRECHECK_CMDS = {
     'ufs': _can_skip_resize_ufs
 }
 
-NOBLOCK = "noblock"
-
 
 def rootdev_from_cmdline(cmdline):
     found = None
@@ -161,19 +172,63 @@ def can_skip_resize(fs_type, resize_what, devpth):
     return False
 
 
+def is_device_path_writable_block(devpath, info, log):
+    """Return True if devpath is a writable block device.
+
+    @param devpath: Path to the root device we want to resize.
+    @param info: String representing information about the requested device.
+    @param log: Logger to which logs will be added upon error.
+
+    @returns Boolean True if block device is writable
+    """
+    container = util.is_container()
+
+    # Ensure the path is a block device.
+    if (devpath == "/dev/root" and not os.path.exists(devpath) and
+            not container):
+        devpath = util.rootdev_from_cmdline(util.get_cmdline())
+        if devpath is None:
+            log.warn("Unable to find device '/dev/root'")
+            return False
+        log.debug("Converted /dev/root to '%s' per kernel cmdline", devpath)
+
+    if devpath == 'overlayroot':
+        log.debug("Not attempting to resize devpath '%s': %s", devpath, info)
+        return False
+
+    try:
+        statret = os.stat(devpath)
+    except OSError as exc:
+        if container and exc.errno == errno.ENOENT:
+            log.debug("Device '%s' did not exist in container. "
+                      "cannot resize: %s", devpath, info)
+        elif exc.errno == errno.ENOENT:
+            log.warn("Device '%s' did not exist. cannot resize: %s",
+                     devpath, info)
+        else:
+            raise exc
+        return False
+
+    if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
+        if container:
+            log.debug("device '%s' not a block device in container."
+                      " cannot resize: %s" % (devpath, info))
+        else:
+            log.warn("device '%s' not a block device. cannot resize: %s" %
+                     (devpath, info))
+        return False
+    return True
+
+
 def handle(name, cfg, _cloud, log, args):
     if len(args) != 0:
         resize_root = args[0]
     else:
         resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)
-
+    validate_cloudconfig_schema(cfg, schema)
     if not util.translate_bool(resize_root, addons=[NOBLOCK]):
         log.debug("Skipping module named %s, resizing disabled", name)
         return
-
-    # TODO(harlowja) is the directory ok to be used??
-    resize_root_d = util.get_cfg_option_str(cfg, "resize_rootfs_tmp", "/run")
-    util.ensure_dir(resize_root_d)
 
     # TODO(harlowja): allow what is to be resized to be configurable??
     resize_what = "/"
@@ -187,45 +242,7 @@ def handle(name, cfg, _cloud, log, args):
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
     log.debug("resize_info: %s" % info)
 
-    container = util.is_container()
-
-    # Ensure the path is a block device.
-    if (devpth == "/dev/root" and not os.path.exists(devpth) and
-            not container):
-        devpth = util.rootdev_from_cmdline(util.get_cmdline())
-        if devpth is None:
-            log.warn("Unable to find device '/dev/root'")
-            return
-        log.debug("Converted /dev/root to '%s' per kernel cmdline", devpth)
-
-    try:
-        statret = os.stat(devpth)
-    except OSError as exc:
-        if container and exc.errno == errno.ENOENT:
-            log.debug("Device '%s' did not exist in container. "
-                      "cannot resize: %s", devpth, info)
-        elif exc.errno == errno.ENOENT:
-            log.warn("Device '%s' did not exist. cannot resize: %s",
-                     devpth, info)
-        else:
-            raise exc
-        return
-
-    if not os.access(devpth, os.W_OK):
-        if container:
-            log.debug("'%s' not writable in container. cannot resize: %s",
-                      devpth, info)
-        else:
-            log.warn("'%s' not writable. cannot resize: %s", devpth, info)
-        return
-
-    if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
-        if container:
-            log.debug("device '%s' not a block device in container."
-                      " cannot resize: %s" % (devpth, info))
-        else:
-            log.warn("device '%s' not a block device. cannot resize: %s" %
-                     (devpth, info))
+    if not is_device_path_writable_block(devpth, info, log):
         return
 
     resizer = None
