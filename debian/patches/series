@@ -1,1 +1,2 @@
 stable-release-no-jsonschema-dep.patch
+cpick-a2f8ce9c-Do-not-provide-systemd-fsck-drop-in-which-could-cause
