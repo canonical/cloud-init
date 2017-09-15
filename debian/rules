@@ -17,6 +17,6 @@ override_dh_systemd_start:
 
 override_dh_auto_install:
 	dh_auto_install --destdir=debian/cloud-init
-	install -D ./tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
+	install -D -m 0644 ./tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
 	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init/etc/profile.d/Z99-cloud-locale-test.sh
 	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init/etc/profile.d/Z99-cloudinit-warnings.sh
