@@ -14,6 +14,7 @@ import re
 import sys
 import yaml
 
+_YAML_MAP = {True: 'true', False: 'false', None: 'null'}
 SCHEMA_UNDEFINED = b'UNDEFINED'
 CLOUD_CONFIG_HEADER = b'#cloud-config'
 SCHEMA_DOC_TMPL = """
@@ -34,6 +35,8 @@ SCHEMA_DOC_TMPL = """
 {examples}
 """
 SCHEMA_PROPERTY_TMPL = '{prefix}**{prop_name}:** ({type}) {description}'
+SCHEMA_EXAMPLES_HEADER = '\n**Examples**::\n\n'
+SCHEMA_EXAMPLES_SPACER_TEMPLATE = '\n    # --- Example{0} ---'
 
 
 class SchemaValidationError(ValueError):
@@ -212,6 +215,9 @@ def _schemapath_for_cloudconfig(config, original_content):
 def _get_property_type(property_dict):
     """Return a string representing a property type from a given jsonschema."""
     property_type = property_dict.get('type', SCHEMA_UNDEFINED)
+    if property_type == SCHEMA_UNDEFINED and property_dict.get('enum'):
+        property_type = [
+            str(_YAML_MAP.get(k, k)) for k in property_dict['enum']]
     if isinstance(property_type, list):
         property_type = '/'.join(property_type)
     items = property_dict.get('items', {})
@@ -249,15 +255,14 @@ def _get_schema_examples(schema, prefix=''):
     examples = schema.get('examples')
     if not examples:
         return ''
-    rst_content = '\n**Examples**::\n\n'
-    for example in examples:
-        if isinstance(example, str):
-            example_content = example
-        else:
-            example_content = yaml.dump(example, default_flow_style=False)
+    rst_content = SCHEMA_EXAMPLES_HEADER
+    for count, example in enumerate(examples):
         # Python2.6 is missing textwrapper.indent
-        lines = example_content.split('\n')
+        lines = example.split('\n')
         indented_lines = ['    {0}'.format(line) for line in lines]
+        if rst_content != SCHEMA_EXAMPLES_HEADER:
+            indented_lines.insert(
+                0, SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(count + 1))
         rst_content += '\n'.join(indented_lines)
     return rst_content
 

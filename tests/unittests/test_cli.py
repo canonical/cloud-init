@@ -72,18 +72,22 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
 
     def test_conditional_subcommands_from_entry_point_sys_argv(self):
         """Subcommands from entry-point are properly parsed from sys.argv."""
+        stdout = six.StringIO()
+        self.patchStdoutAndStderr(stdout=stdout)
+
         expected_errors = [
-            'usage: cloud-init analyze', 'usage: cloud-init devel']
-        conditional_subcommands = ['analyze', 'devel']
+            'usage: cloud-init analyze', 'usage: cloud-init collect-logs',
+            'usage: cloud-init devel']
+        conditional_subcommands = ['analyze', 'collect-logs', 'devel']
         # The cloud-init entrypoint calls main without passing sys_argv
         for subcommand in conditional_subcommands:
-            with mock.patch('sys.argv', ['cloud-init', subcommand]):
+            with mock.patch('sys.argv', ['cloud-init', subcommand, '-h']):
                 try:
                     cli.main()
                 except SystemExit as e:
-                    self.assertEqual(2, e.code)  # exit 2 on proper usage docs
+                    self.assertEqual(0, e.code)  # exit 2 on proper -h usage
         for error_message in expected_errors:
-            self.assertIn(error_message, self.stderr.getvalue())
+            self.assertIn(error_message, stdout.getvalue())
 
     def test_analyze_subcommand_parser(self):
         """The subcommand cloud-init analyze calls the correct subparser."""
@@ -93,6 +97,14 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         error = self.stderr.getvalue()
         for subcommand in expected_subcommands:
             self.assertIn(subcommand, error)
+
+    def test_collect_logs_subcommand_parser(self):
+        """The subcommand cloud-init collect-logs calls the subparser."""
+        # Provide -h param to collect-logs to avoid having to mock behavior.
+        stdout = six.StringIO()
+        self.patchStdoutAndStderr(stdout=stdout)
+        self._call_main(['cloud-init', 'collect-logs', '-h'])
+        self.assertIn('usage: cloud-init collect-log', stdout.getvalue())
 
     def test_devel_subcommand_parser(self):
         """The subcommand cloud-init devel calls the correct subparser."""

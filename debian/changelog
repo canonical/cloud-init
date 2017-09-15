@@ -1,3 +1,31 @@
+cloud-init (0.7.9-280-ge626966e-0ubuntu1) artful; urgency=medium
+
+  * debian/rules: install rsyslog file with 0644 mode instead of 0755.
+  * debian/rules, debian/apport-launcher.py: add an apport hook. (LP: #1607345)
+  * New upstream snapshot.
+    - cmdline: add collect-logs subcommand. [Chad Smith] (LP: #1607345)
+    - CloudStack: consider dhclient lease files named with a hyphen.
+      (LP: #1717147)
+    - resizefs: Drop check for read-only device file, do not warn on
+      overlayroot. [Chad Smith]
+    - Do not provide systemd-fsck drop-in which could cause ordering cycles.
+      [Balint Reczey] (LP: #1717477)
+    - tests: Enable the NoCloud KVM platform [Joshua Powers]
+    - resizefs: pass mount point to xfs_growfs [Dusty Mabe]
+    - vmware: Enable nics before sending the SUCCESS event. [Sankar Tanguturi]
+    - cloud-config modules: honor distros definitions in each module
+      [Chad Smith] (LP: #1715738, #1715690)
+    - chef: Add option to pin chef omnibus install version
+      [Ethan Apodaca] (LP: #1462693)
+    - tests: execute: support command as string [Joshua Powers]
+    - schema and docs: Add jsonschema to resizefs and bootcmd modules
+      [Chad Smith]
+    - tools: Add xkvm script, wrapper around qemu-system [Joshua Powers]
+    - vmware customization: return network config format
+      [Sankar Tanguturi] (LP: #1675063)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Sep 2017 16:09:07 -0400
+
 cloud-init (0.7.9-267-g922c3c5c-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.

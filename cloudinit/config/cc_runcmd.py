@@ -8,7 +8,9 @@
 
 """Runcmd: run arbitrary commands at rc.local with output to the console"""
 
-from cloudinit.config.schema import validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    get_schema_doc, validate_cloudconfig_schema)
+from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 
@@ -22,7 +24,7 @@ from textwrap import dedent
 # configuration options before actually attempting to deploy with said
 # configuration.
 
-distros = ['all']
+distros = [ALL_DISTROS]
 
 schema = {
     'id': 'cc_runcmd',
@@ -66,6 +68,8 @@ schema = {
         }
     }
 }
+
+__doc__ = get_schema_doc(schema)  # Supplement python help()
 
 
 def handle(name, cfg, cloud, log, _args):

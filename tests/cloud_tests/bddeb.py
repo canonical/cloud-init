@@ -28,8 +28,7 @@ def build_deb(args, instance):
     # update remote system package list and install build deps
     LOG.debug('installing pre-reqs')
     pkgs = ' '.join(pre_reqs)
-    cmd = 'apt-get update && apt-get install --yes {}'.format(pkgs)
-    instance.execute(['/bin/sh', '-c', cmd])
+    instance.execute('apt-get update && apt-get install --yes {}'.format(pkgs))
 
     # local tmpfile that must be deleted
     local_tarball = tempfile.NamedTemporaryFile().name
