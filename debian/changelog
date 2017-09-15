@@ -1,6 +1,7 @@
 cloud-init (0.7.9-267-g922c3c5c-0ubuntu2) UNRELEASED; urgency=medium
 
   * debian/rules: install rsyslog file with 0644 mode instead of 0755.
+  * debian/rules, debian/apport-launcher.py: add an apport hook. (LP: #1607345)
 
  -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Sep 2017 15:52:20 -0400
 
