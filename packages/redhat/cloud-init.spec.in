@@ -115,12 +115,6 @@ rm -rf $RPM_BUILD_ROOT%{python_sitelib}/tests
 mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
 mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
 
-# LP: #1691489: Remove systemd-fsck dropin (currently not expected to work)
-%if "%{init_system}" == "systemd"
-rm $RPM_BUILD_ROOT/usr/lib/systemd/system/systemd-fsck@.service.d/cloud-init.conf
-%endif
-
-
 %clean
 rm -rf $RPM_BUILD_ROOT
 
