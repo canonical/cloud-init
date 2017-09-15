@@ -1,9 +1,9 @@
-cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
   * cherry-pick a2f8ce9c: Do not provide systemd-fsck drop-in which
     could cause systemd ordering loops (LP: #1717477).
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Sep 2017 15:23:18 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Sep 2017 15:23:38 -0400
 
 cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
