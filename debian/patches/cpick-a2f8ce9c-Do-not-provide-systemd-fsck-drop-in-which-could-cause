@@ -1,0 +1,65 @@
+From a2f8ce9c80debdb788e7ab37401aa98c2c270f26 Mon Sep 17 00:00:00 2001
+From: Balint Reczey <balint.reczey@canonical.com>
+Date: Fri, 15 Sep 2017 17:50:52 +0200
+Subject: [PATCH] Do not provide systemd-fsck drop-in which could cause
+ ordering cycles.
+
+Revert "centos: do not package systemd-fsck drop-in."
+Revert "systemd: make systemd-fsck run after cloud-init.service"
+
+The systemd-fsck drop-in caused regressions by introducing ordering
+The change reverts the original commit that added systemd-fsck drop-in
+and another commit that had removed that from the centos packaging:
+   1f5489c258a26f4e26261c40786537951d67df1e
+   8a5296c41db45be3a172862f324ad44e732a2250
+
+The result is to no longer provide the systemd-fsck drop-in.
+
+LP: #1717477
+---
+ packages/redhat/cloud-init.spec.in              | 6 ------
+ setup.py                                        | 4 ----
+ systemd/systemd-fsck@.service.d/cloud-init.conf | 2 --
+ 3 files changed, 12 deletions(-)
+ delete mode 100644 systemd/systemd-fsck@.service.d/cloud-init.conf
+
+--- a/packages/redhat/cloud-init.spec.in
++++ b/packages/redhat/cloud-init.spec.in
+@@ -115,12 +115,6 @@ rm -rf $RPM_BUILD_ROOT%{python_sitelib}/
+ mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
+ mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
+ 
+-# LP: #1691489: Remove systemd-fsck dropin (currently not expected to work)
+-%if "%{init_system}" == "systemd"
+-rm $RPM_BUILD_ROOT/usr/lib/systemd/system/systemd-fsck@.service.d/cloud-init.conf
+-%endif
+-
+-
+ %clean
+ rm -rf $RPM_BUILD_ROOT
+ 
+--- a/setup.py
++++ b/setup.py
+@@ -125,7 +125,6 @@ INITSYS_FILES = {
+                 for f in (glob('systemd/*.tmpl') +
+                           glob('systemd/*.service') +
+                           glob('systemd/*.target')) if is_f(f)],
+-    'systemd.fsck-dropin': ['systemd/systemd-fsck@.service.d/cloud-init.conf'],
+     'systemd.generators': [f for f in glob('systemd/*-generator') if is_f(f)],
+     'upstart': [f for f in glob('upstart/*') if is_f(f)],
+ }
+@@ -135,9 +134,6 @@ INITSYS_ROOTS = {
+     'sysvinit_deb': 'etc/init.d',
+     'sysvinit_openrc': 'etc/init.d',
+     'systemd': pkg_config_read('systemd', 'systemdsystemunitdir'),
+-    'systemd.fsck-dropin': (
+-        os.path.sep.join([pkg_config_read('systemd', 'systemdsystemunitdir'),
+-                          'systemd-fsck@.service.d'])),
+     'systemd.generators': pkg_config_read('systemd',
+                                           'systemdsystemgeneratordir'),
+     'upstart': 'etc/init/',
+--- a/systemd/systemd-fsck@.service.d/cloud-init.conf
++++ /dev/null
+@@ -1,2 +0,0 @@
+-[Unit]
+-After=cloud-init.service
