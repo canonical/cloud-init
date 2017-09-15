@@ -1,4 +1,4 @@
-cloud-init (0.7.9-280-ge626966e-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-280-ge626966e-0ubuntu1) artful; urgency=medium
 
   * debian/rules: install rsyslog file with 0644 mode instead of 0755.
   * debian/rules, debian/apport-launcher.py: add an apport hook. (LP: #1607345)
@@ -24,7 +24,7 @@ cloud-init (0.7.9-280-ge626966e-0ubuntu1) UNRELEASED; urgency=medium
     - vmware customization: return network config format
       [Sankar Tanguturi] (LP: #1675063)
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Sep 2017 16:08:22 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Sep 2017 16:09:07 -0400
 
 cloud-init (0.7.9-267-g922c3c5c-0ubuntu1) artful; urgency=medium
 
