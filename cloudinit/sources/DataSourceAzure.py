@@ -317,9 +317,13 @@ class DataSourceAzure(sources.DataSource):
                 LOG.debug("ssh authentication: "
                           "using fingerprint from fabirc")
 
-        missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
+        # wait very long for public SSH keys to arrive
+        # https://bugs.launchpad.net/cloud-init/+bug/1717611
+        missing = util.log_time(logfunc=LOG.debug,
+                                msg="waiting for SSH public key files",
                                 func=wait_for_files,
-                                args=(fp_files,))
+                                args=(fp_files, 900))
+
         if len(missing):
             LOG.warning("Did not find files, but going on: %s", missing)
 
@@ -656,7 +660,7 @@ def pubkeys_from_crt_files(flist):
     return pubkeys
 
 
-def wait_for_files(flist, maxwait=60, naplen=.5, log_pre=""):
+def wait_for_files(flist, maxwait, naplen=.5, log_pre=""):
     need = set(flist)
     waited = 0
     while True:
