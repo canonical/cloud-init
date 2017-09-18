@@ -1,3 +1,10 @@
+cloud-init (0.7.9-233-ge586fe35-0ubuntu1~17.04.3) UNRELEASED; urgency=medium
+
+  * drop the following cherry picks, now incorporated in snapshot.
+    + debian/patches/cpick-a2f8ce9c-Do-not-provide-systemd-fsck-drop...
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 18 Sep 2017 17:00:21 -0400
+
 cloud-init (0.7.9-233-ge586fe35-0ubuntu1~17.04.2) zesty; urgency=medium
 
   * cherry-pick a2f8ce9c: Do not provide systemd-fsck drop-in which
