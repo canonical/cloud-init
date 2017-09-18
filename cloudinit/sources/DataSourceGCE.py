@@ -62,7 +62,7 @@ class DataSourceGCE(sources.DataSource):
                 LOG.debug(ret['reason'])
             return False
         self.metadata = ret['meta-data']
-        self.userdata = ret['user-data']
+        self.userdata_raw = ret['user-data']
         return True
 
     @property
@@ -79,9 +79,6 @@ class DataSourceGCE(sources.DataSource):
     def get_hostname(self, fqdn=False, resolve_ip=False):
         # GCE has long FDQN's and has asked for short hostnames
         return self.metadata['local-hostname'].split('.')[0]
-
-    def get_userdata_raw(self):
-        return self.userdata
 
     @property
     def availability_zone(self):
@@ -202,6 +199,9 @@ def get_datasource_list(depends):
 if __name__ == "__main__":
     import argparse
     import json
+    import sys
+
+    from base64 import b64encode
 
     parser = argparse.ArgumentParser(description='Query GCE Metadata Service')
     parser.add_argument("--endpoint", metavar="URL",
@@ -211,8 +211,20 @@ if __name__ == "__main__":
                         help="Ignore smbios platform check",
                         action='store_false', default=True)
     args = parser.parse_args()
-    print(json.dumps(
-        read_md(address=args.endpoint, platform_check=args.platform_check),
-        indent=1, sort_keys=True, separators=(',', ': ')))
+    data = read_md(address=args.endpoint, platform_check=args.platform_check)
+    if 'user-data' in data:
+        # user-data is bytes not string like other things. Handle it specially.
+        # if it can be represented as utf-8 then do so.  Otherwise print base64
+        # encoded value in the key user-data-b64.
+        try:
+            data['user-data'] = data['user-data'].decode()
+        except UnicodeDecodeError:
+            sys.stderr.write("User-data cannot be decoded. "
+                             "Writing as base64\n")
+            del data['user-data']
+            # b64encode returns a bytes value. decode to get the string.
+            data['user-data-b64'] = b64encode(data['user-data']).decode()
+
+    print(json.dumps(data, indent=1, sort_keys=True, separators=(',', ': ')))
 
 # vi: ts=4 expandtab
