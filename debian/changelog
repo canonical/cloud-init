@@ -1,3 +1,10 @@
+cloud-init (0.7.9-281-g10f067d8-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - GCE: Fix usage of user-data. (LP: #1717598)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 18 Sep 2017 17:03:10 -0400
+
 cloud-init (0.7.9-280-ge626966e-0ubuntu1) artful; urgency=medium
 
   * debian/rules: install rsyslog file with 0644 mode instead of 0755.
