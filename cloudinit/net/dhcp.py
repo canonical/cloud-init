@@ -48,8 +48,9 @@ def maybe_perform_dhcp_discovery(nic=None):
     if not dhclient_path:
         LOG.debug('Skip dhclient configuration: No dhclient command found.')
         return {}
-    with temp_utils.tempdir(prefix='cloud-init-dhcp-') as tmpdir:
-        return dhcp_discovery(dhclient_path, nic, tmpdir)
+    with temp_utils.tempdir(prefix='cloud-init-dhcp-', needs_exe=True) as tdir:
+        # Use /var/tmp because /run/cloud-init/tmp is mounted noexec
+        return dhcp_discovery(dhclient_path, nic, tdir)
 
 
 def parse_dhcp_lease_file(lease_file):
