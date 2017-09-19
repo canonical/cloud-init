@@ -1,4 +1,4 @@
-cloud-init (0.7.9-283-g7eb3460b-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-283-g7eb3460b-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - ec2: Fix maybe_perform_dhcp_discovery to use /var/tmp as a tmpdir
@@ -6,7 +6,7 @@ cloud-init (0.7.9-283-g7eb3460b-0ubuntu1) UNRELEASED; urgency=medium
     - Azure: wait longer for SSH pub keys to arrive.
       [Paul Meyer] (LP: #1717611)
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 18 Sep 2017 20:41:40 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 18 Sep 2017 20:41:53 -0400
 
 cloud-init (0.7.9-281-g10f067d8-0ubuntu1) artful; urgency=medium
 
