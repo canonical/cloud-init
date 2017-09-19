@@ -8,7 +8,7 @@ from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError, maybe_perform_dhcp_discovery,
     parse_dhcp_lease_file, dhcp_discovery)
 from cloudinit.util import ensure_file, write_file
-from cloudinit.tests.helpers import CiTestCase
+from cloudinit.tests.helpers import CiTestCase, wrap_and_call
 
 
 class TestParseDHCPLeasesFile(CiTestCase):
@@ -91,21 +91,27 @@ class TestDHCPDiscoveryClean(CiTestCase):
             'Skip dhclient configuration: No dhclient command found.',
             self.logs.getvalue())
 
+    @mock.patch('cloudinit.temp_utils.os.getuid')
     @mock.patch('cloudinit.net.dhcp.dhcp_discovery')
     @mock.patch('cloudinit.net.dhcp.util.which')
     @mock.patch('cloudinit.net.dhcp.find_fallback_nic')
-    def test_dhclient_run_with_tmpdir(self, m_fallback, m_which, m_dhcp):
+    def test_dhclient_run_with_tmpdir(self, m_fback, m_which, m_dhcp, m_uid):
         """maybe_perform_dhcp_discovery passes tmpdir to dhcp_discovery."""
-        m_fallback.return_value = 'eth9'
+        m_uid.return_value = 0  # Fake root user for tmpdir
+        m_fback.return_value = 'eth9'
         m_which.return_value = '/sbin/dhclient'
         m_dhcp.return_value = {'address': '192.168.2.2'}
-        self.assertEqual(
-            {'address': '192.168.2.2'}, maybe_perform_dhcp_discovery())
+        retval = wrap_and_call(
+            'cloudinit.temp_utils',
+            {'_TMPDIR': {'new': None},
+             'os.getuid': 0},
+            maybe_perform_dhcp_discovery)
+        self.assertEqual({'address': '192.168.2.2'}, retval)
         m_dhcp.assert_called_once()
         call = m_dhcp.call_args_list[0]
         self.assertEqual('/sbin/dhclient', call[0][0])
         self.assertEqual('eth9', call[0][1])
-        self.assertIn('/tmp/cloud-init-dhcp-', call[0][2])
+        self.assertIn('/var/tmp/cloud-init/cloud-init-dhcp-', call[0][2])
 
     @mock.patch('cloudinit.net.dhcp.util.subp')
     def test_dhcp_discovery_run_in_sandbox(self, m_subp):

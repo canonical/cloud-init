@@ -1755,7 +1755,7 @@ def subp_blob_in_tempfile(blob, *args, **kwargs):
         args = [tuple()]
 
     # Use tmpdir over tmpfile to avoid 'text file busy' on execute
-    with temp_utils.tempdir() as tmpd:
+    with temp_utils.tempdir(needs_exe=True) as tmpd:
         tmpf = os.path.join(tmpd, basename)
         if 'args' in kwargs:
             kwargs['args'] = [tmpf] + list(kwargs['args'])
