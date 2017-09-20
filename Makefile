@@ -51,7 +51,7 @@ unittest: clean_pyc
 	nosetests $(noseopts) tests/unittests cloudinit
 
 unittest3: clean_pyc
-	nosetests3 $(noseopts) tests/unittests
+	nosetests3 $(noseopts) tests/unittests cloudinit
 
 ci-deps-ubuntu:
 	@$(PYVER) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro

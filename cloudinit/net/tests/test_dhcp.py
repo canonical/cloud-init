@@ -107,7 +107,8 @@ class TestDHCPDiscoveryClean(CiTestCase):
              'os.getuid': 0},
             maybe_perform_dhcp_discovery)
         self.assertEqual({'address': '192.168.2.2'}, retval)
-        m_dhcp.assert_called_once()
+        self.assertEqual(
+            1, m_dhcp.call_count, 'dhcp_discovery not called once')
         call = m_dhcp.call_args_list[0]
         self.assertEqual('/sbin/dhclient', call[0][0])
         self.assertEqual('eth9', call[0][1])
