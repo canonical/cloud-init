@@ -84,6 +84,9 @@ cloud_config_modules:
  - apt-pipelining
  - apt-configure
 {% endif %}
+{% if variant in ["suse"] %}
+ - zypper-add-repo
+{% endif %}
 {% if variant not in ["freebsd"] %}
  - ntp
 {% endif %}
