@@ -598,6 +598,8 @@ def system_info():
             var = 'ubuntu'
         elif linux_dist == 'redhat':
             var = 'rhel'
+        elif linux_dist == 'suse':
+            var = 'suse'
         else:
             var = 'linux'
     elif system in ('windows', 'darwin', "freebsd"):

@@ -127,7 +127,7 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["centos", "debian", "fedora", "rhel", "ubuntu", "freebsd"] %}
+{% if variant in ["centos", "debian", "fedora", "rhel", "suse", "ubuntu", "freebsd"] %}
    distro: {{ variant }}
 {% else %}
    # Unknown/fallback distro.
@@ -163,13 +163,17 @@ system_info:
          primary: http://ports.ubuntu.com/ubuntu-ports
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
-{% elif variant in ["centos", "rhel", "fedora"] %}
+{% elif variant in ["centos", "rhel", "fedora", "suse"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
      name: {{ variant }}
      lock_passwd: True
      gecos: {{ variant }} Cloud User
+{% if variant == "suse" %}
+     groups: [cdrom, users]
+{% else %}
      groups: [wheel, adm, systemd-journal]
+{% endif %}
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/bash
    # Other config here will be given to the distro class and/or path classes
