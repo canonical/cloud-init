@@ -121,6 +121,7 @@ INITSYS_FILES = {
     'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
     'sysvinit_openrc': [f for f in glob('sysvinit/gentoo/*') if is_f(f)],
+    'sysvinit_suse': [f for f in glob('sysvinit/suse/*') if is_f(f)],
     'systemd': [render_tmpl(f)
                 for f in (glob('systemd/*.tmpl') +
                           glob('systemd/*.service') +
@@ -133,6 +134,7 @@ INITSYS_ROOTS = {
     'sysvinit_freebsd': 'usr/local/etc/rc.d',
     'sysvinit_deb': 'etc/init.d',
     'sysvinit_openrc': 'etc/init.d',
+    'sysvinit_suse': 'etc/init.d',
     'systemd': pkg_config_read('systemd', 'systemdsystemunitdir'),
     'systemd.generators': pkg_config_read('systemd',
                                           'systemdsystemgeneratordir'),
