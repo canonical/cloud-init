@@ -29,6 +29,7 @@ class FakeExtendedTempFile(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.handle.close()
+        util.del_file(self.handle.name)
 
 
 class TestBootcmd(CiTestCase):
