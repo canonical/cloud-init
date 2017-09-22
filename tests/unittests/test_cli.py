@@ -125,6 +125,21 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
             'Expected either --config-file argument or --doc\n',
             self.stderr.getvalue())
 
+    def test_wb_devel_schema_subcommand_doc_content(self):
+        """Validate that doc content is sane from known examples."""
+        stdout = six.StringIO()
+        self.patchStdoutAndStderr(stdout=stdout)
+        self._call_main(['cloud-init', 'devel', 'schema', '--doc'])
+        expected_doc_sections = [
+            '**Supported distros:** all',
+            '**Supported distros:** centos, debian, fedora',
+            '**Config schema**:\n    **resize_rootfs:** (true/false/noblock)',
+            '**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n'
+        ]
+        stdout = stdout.getvalue()
+        for expected in expected_doc_sections:
+            self.assertIn(expected, stdout)
+
     @mock.patch('cloudinit.cmd.main.main_single')
     def test_single_subcommand(self, m_main_single):
         """The subcommand 'single' calls main_single with valid args."""
