@@ -1,4 +1,4 @@
-cloud-init (17.1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.1-0ubuntu1) artful; urgency=medium
 
   * New upstream release.
     - doc: document GCE datasource. [Arnd Hannemann]
@@ -11,7 +11,7 @@ cloud-init (17.1-0ubuntu1) UNRELEASED; urgency=medium
     - Makefile: No longer look for yaml files in obsolete ./bin/.
     - tests: fix ds-identify unit tests to set EC2_STRICT_ID_DEFAULT.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 22 Sep 2017 12:19:39 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 22 Sep 2017 12:21:18 -0400
 
 cloud-init (0.7.9-283-g7eb3460b-0ubuntu1) artful; urgency=medium
 
