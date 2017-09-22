@@ -8,6 +8,7 @@ from cloudinit.util import find_modules, read_file_or_url
 
 import argparse
 from collections import defaultdict
+from copy import deepcopy
 import logging
 import os
 import re
@@ -273,12 +274,13 @@ def get_schema_doc(schema):
     @param schema: Dict of jsonschema to render.
     @raise KeyError: If schema lacks an expected key.
     """
-    schema['property_doc'] = _get_property_doc(schema)
-    schema['examples'] = _get_schema_examples(schema)
-    schema['distros'] = ', '.join(schema['distros'])
+    schema_copy = deepcopy(schema)
+    schema_copy['property_doc'] = _get_property_doc(schema)
+    schema_copy['examples'] = _get_schema_examples(schema)
+    schema_copy['distros'] = ', '.join(schema['distros'])
     # Need an underbar of the same length as the name
-    schema['title_underbar'] = re.sub(r'.', '-', schema['name'])
-    return SCHEMA_DOC_TMPL.format(**schema)
+    schema_copy['title_underbar'] = re.sub(r'.', '-', schema['name'])
+    return SCHEMA_DOC_TMPL.format(**schema_copy)
 
 
 FULL_SCHEMA = None

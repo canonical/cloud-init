@@ -4,7 +4,7 @@ PYVER ?= $(shell for p in python3 python2; do \
 
 noseopts ?= -v
 
-YAML_FILES=$(shell find cloudinit bin tests tools -name "*.yaml" -type f )
+YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
 PIP_INSTALL := pip install
@@ -51,7 +51,7 @@ unittest: clean_pyc
 	nosetests $(noseopts) tests/unittests cloudinit
 
 unittest3: clean_pyc
-	nosetests3 $(noseopts) tests/unittests
+	nosetests3 $(noseopts) tests/unittests cloudinit
 
 ci-deps-ubuntu:
 	@$(PYVER) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro

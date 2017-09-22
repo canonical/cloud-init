@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-__VERSION__ = "0.7.9"
+__VERSION__ = "17.1"
 
 FEATURES = [
     # supports network config version 1

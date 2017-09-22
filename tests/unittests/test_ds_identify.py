@@ -31,6 +31,7 @@ POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
 POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
 DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=enabled"
 DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=all,notfound=disabled"
+DI_EC2_STRICT_ID_DEFAULT = "true"
 
 SHELL_MOCK_TMPL = """\
 %(name)s() {
@@ -62,7 +63,8 @@ class TestDsIdentify(CiTestCase):
 
     def call(self, rootd=None, mocks=None, args=None, files=None,
              policy_dmi=DI_DEFAULT_POLICY,
-             policy_no_dmi=DI_DEFAULT_POLICY_NO_DMI):
+             policy_no_dmi=DI_DEFAULT_POLICY_NO_DMI,
+             ec2_strict_id=DI_EC2_STRICT_ID_DEFAULT):
         if args is None:
             args = []
         if mocks is None:
@@ -89,6 +91,7 @@ class TestDsIdentify(CiTestCase):
             ". " + self.dsid_path,
             'DI_DEFAULT_POLICY="%s"' % policy_dmi,
             'DI_DEFAULT_POLICY_NO_DMI="%s"' % policy_no_dmi,
+            'DI_EC2_STRICT_ID_DEFAULT="%s"' % ec2_strict_id,
             ""
         ]
 

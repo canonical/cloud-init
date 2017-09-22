@@ -94,5 +94,6 @@ Follow for more information.
    datasources/ovf.rst
    datasources/smartos.rst
    datasources/fallback.rst
+   datasources/gce.rst
 
 .. vi: textwidth=78
