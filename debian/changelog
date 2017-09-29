@@ -2,6 +2,8 @@ cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
 
   * drop the following cherry picks, now incorporated in snapshot.
     + debian/patches/cpick-a2f8ce9c-Do-not-provide-systemd-fsck-drop...
+  * debian/copyright: dep5 updates, reorganize, add Apache 2.0 license.
+    (LP: #1718681)
 
  -- Scott Moser <smoser@ubuntu.com>  Mon, 18 Sep 2017 16:57:20 -0400
 
