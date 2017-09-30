@@ -4,6 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import configobj
 import logging
 import os
 import re
@@ -11,8 +12,11 @@ import re
 from cloudinit.net import find_fallback_nic, get_devicelist
 from cloudinit import temp_utils
 from cloudinit import util
+from six import StringIO
 
 LOG = logging.getLogger(__name__)
+
+NETWORKD_LEASES_DIR = '/run/systemd/netif/leases'
 
 
 class InvalidDHCPLeaseFileError(Exception):
@@ -117,5 +121,43 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
     util.subp(cmd, capture=True)
     return parse_dhcp_lease_file(lease_file)
 
+
+def networkd_parse_lease(content):
+    """Parse a systemd lease file content as in /run/systemd/netif/leases/
+
+    Parse this (almost) ini style file even though it says:
+      # This is private data. Do not parse.
+
+    Simply return a dictionary of key/values."""
+
+    return dict(configobj.ConfigObj(StringIO(content), list_values=False))
+
+
+def networkd_load_leases(leases_d=None):
+    """Return a dictionary of dictionaries representing each lease
+    found in lease_d.i
+
+    The top level key will be the filename, which is typically the ifindex."""
+
+    if leases_d is None:
+        leases_d = NETWORKD_LEASES_DIR
+
+    ret = {}
+    if not os.path.isdir(leases_d):
+        return ret
+    for lfile in os.listdir(leases_d):
+        ret[lfile] = networkd_parse_lease(
+            util.load_file(os.path.join(leases_d, lfile)))
+    return ret
+
+
+def networkd_get_option_from_leases(keyname, leases_d=None):
+    if leases_d is None:
+        leases_d = NETWORKD_LEASES_DIR
+    leases = networkd_load_leases(leases_d=leases_d)
+    for ifindex, data in sorted(leases.items()):
+        if data.get(keyname):
+            return data[keyname]
+    return None
 
 # vi: ts=4 expandtab

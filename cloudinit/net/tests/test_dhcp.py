@@ -6,9 +6,9 @@ from textwrap import dedent
 
 from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError, maybe_perform_dhcp_discovery,
-    parse_dhcp_lease_file, dhcp_discovery)
+    parse_dhcp_lease_file, dhcp_discovery, networkd_load_leases)
 from cloudinit.util import ensure_file, write_file
-from cloudinit.tests.helpers import CiTestCase, wrap_and_call
+from cloudinit.tests.helpers import CiTestCase, wrap_and_call, populate_dir
 
 
 class TestParseDHCPLeasesFile(CiTestCase):
@@ -149,3 +149,112 @@ class TestDHCPDiscoveryClean(CiTestCase):
                 [os.path.join(tmpdir, 'dhclient'), '-1', '-v', '-lf',
                  lease_file, '-pf', os.path.join(tmpdir, 'dhclient.pid'),
                  'eth9', '-sf', '/bin/true'], capture=True)])
+
+
+class TestSystemdParseLeases(CiTestCase):
+
+    lxd_lease = dedent("""\
+    # This is private data. Do not parse.
+    ADDRESS=10.75.205.242
+    NETMASK=255.255.255.0
+    ROUTER=10.75.205.1
+    SERVER_ADDRESS=10.75.205.1
+    NEXT_SERVER=10.75.205.1
+    BROADCAST=10.75.205.255
+    T1=1580
+    T2=2930
+    LIFETIME=3600
+    DNS=10.75.205.1
+    DOMAINNAME=lxd
+    HOSTNAME=a1
+    CLIENTID=ffe617693400020000ab110c65a6a0866931c2
+    """)
+
+    lxd_parsed = {
+        'ADDRESS': '10.75.205.242',
+        'NETMASK': '255.255.255.0',
+        'ROUTER': '10.75.205.1',
+        'SERVER_ADDRESS': '10.75.205.1',
+        'NEXT_SERVER': '10.75.205.1',
+        'BROADCAST': '10.75.205.255',
+        'T1': '1580',
+        'T2': '2930',
+        'LIFETIME': '3600',
+        'DNS': '10.75.205.1',
+        'DOMAINNAME': 'lxd',
+        'HOSTNAME': 'a1',
+        'CLIENTID': 'ffe617693400020000ab110c65a6a0866931c2',
+    }
+
+    azure_lease = dedent("""\
+    # This is private data. Do not parse.
+    ADDRESS=10.132.0.5
+    NETMASK=255.255.255.255
+    ROUTER=10.132.0.1
+    SERVER_ADDRESS=169.254.169.254
+    NEXT_SERVER=10.132.0.1
+    MTU=1460
+    T1=43200
+    T2=75600
+    LIFETIME=86400
+    DNS=169.254.169.254
+    NTP=169.254.169.254
+    DOMAINNAME=c.ubuntu-foundations.internal
+    DOMAIN_SEARCH_LIST=c.ubuntu-foundations.internal google.internal
+    HOSTNAME=tribaal-test-171002-1349.c.ubuntu-foundations.internal
+    ROUTES=10.132.0.1/32,0.0.0.0 0.0.0.0/0,10.132.0.1
+    CLIENTID=ff405663a200020000ab11332859494d7a8b4c
+    OPTION_245=624c3620
+    """)
+
+    azure_parsed = {
+        'ADDRESS': '10.132.0.5',
+        'NETMASK': '255.255.255.255',
+        'ROUTER': '10.132.0.1',
+        'SERVER_ADDRESS': '169.254.169.254',
+        'NEXT_SERVER': '10.132.0.1',
+        'MTU': '1460',
+        'T1': '43200',
+        'T2': '75600',
+        'LIFETIME': '86400',
+        'DNS': '169.254.169.254',
+        'NTP': '169.254.169.254',
+        'DOMAINNAME': 'c.ubuntu-foundations.internal',
+        'DOMAIN_SEARCH_LIST': 'c.ubuntu-foundations.internal google.internal',
+        'HOSTNAME': 'tribaal-test-171002-1349.c.ubuntu-foundations.internal',
+        'ROUTES': '10.132.0.1/32,0.0.0.0 0.0.0.0/0,10.132.0.1',
+        'CLIENTID': 'ff405663a200020000ab11332859494d7a8b4c',
+        'OPTION_245': '624c3620'}
+
+    def setUp(self):
+        super(TestSystemdParseLeases, self).setUp()
+        self.lease_d = self.tmp_dir()
+
+    def test_no_leases_returns_empty_dict(self):
+        """A leases dir with no lease files should return empty dictionary."""
+        self.assertEqual({}, networkd_load_leases(self.lease_d))
+
+    def test_no_leases_dir_returns_empty_dict(self):
+        """A non-existing leases dir should return empty dict."""
+        enodir = os.path.join(self.lease_d, 'does-not-exist')
+        self.assertEqual({}, networkd_load_leases(enodir))
+
+    def test_single_leases_file(self):
+        """A leases dir with one leases file."""
+        populate_dir(self.lease_d, {'2': self.lxd_lease})
+        self.assertEqual(
+            {'2': self.lxd_parsed}, networkd_load_leases(self.lease_d))
+
+    def test_single_azure_leases_file(self):
+        """On Azure, option 245 should be present, verify it specifically."""
+        populate_dir(self.lease_d, {'1': self.azure_lease})
+        self.assertEqual(
+            {'1': self.azure_parsed}, networkd_load_leases(self.lease_d))
+
+    def test_multiple_files(self):
+        """Multiple leases files on azure with one found return that value."""
+        self.maxDiff = None
+        populate_dir(self.lease_d, {'1': self.azure_lease,
+                                    '9': self.lxd_lease})
+        self.assertEqual({'1': self.azure_parsed, '9': self.lxd_parsed},
+                         networkd_load_leases(self.lease_d))
