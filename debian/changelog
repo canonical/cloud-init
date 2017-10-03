@@ -2,6 +2,7 @@ cloud-init (17.1-13-g7fd0425-0ubuntu1) UNRELEASED; urgency=medium
 
   * debian/copyright: dep5 updates, reorganize, add Apache 2.0 license.
     (LP: #1718681)
+  * debian/control: drop dependency on python3-prettytable
   * New upstream snapshot.
     - systemd: remove limit on tasks created by cloud-init-final.service.
       [Robert Schweikert] (LP: #1717969)
