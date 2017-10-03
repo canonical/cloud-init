@@ -1,4 +1,4 @@
-cloud-init (17.1-13-g7fd0425-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.1-13-g7fd0425-0ubuntu1) artful; urgency=medium
 
   * debian/copyright: dep5 updates, reorganize, add Apache 2.0 license.
     (LP: #1718681)
@@ -25,7 +25,7 @@ cloud-init (17.1-13-g7fd0425-0ubuntu1) UNRELEASED; urgency=medium
       [Ryan Harper] (LP: #1718287)
     - tests: remove a temp file used in bootcmd tests.
 
- -- Ryan Harper <ryan.harper@canonical.com>  Tue, 03 Oct 2017 10:48:05 -0500
+ -- Ryan Harper <ryan.harper@canonical.com>  Tue, 03 Oct 2017 10:59:52 -0500
 
 cloud-init (17.1-0ubuntu1) artful; urgency=medium
 
