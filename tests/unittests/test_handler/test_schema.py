@@ -27,7 +27,13 @@ class GetSchemaTest(CiTestCase):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
         self.assertItemsEqual(
-            ['cc_bootcmd', 'cc_ntp', 'cc_resizefs', 'cc_runcmd'],
+            [
+                'cc_bootcmd',
+                'cc_ntp',
+                'cc_resizefs',
+                'cc_runcmd',
+                'cc_zypper_add_repo'
+            ],
             [subschema['id'] for subschema in schema['allOf']])
         self.assertEqual('cloud-config-schema', schema['id'])
         self.assertEqual(

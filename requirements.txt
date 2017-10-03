@@ -3,9 +3,6 @@
 # Used for untemplating any files or strings with parameters.
 jinja2
 
-# This is used for any pretty printing of tabular data.
-PrettyTable
-
 # This one is currently only used by the MAAS datasource. If that
 # datasource is removed, this is no longer needed
 oauthlib

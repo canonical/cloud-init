@@ -23,13 +23,16 @@ class TestCloudStackPasswordFetching(CiTestCase):
         default_gw = "192.201.20.0"
         get_latest_lease = mock.MagicMock(return_value=None)
         self.patches.enter_context(mock.patch(
-            'cloudinit.sources.DataSourceCloudStack.get_latest_lease',
-            get_latest_lease))
+            mod_name + '.get_latest_lease', get_latest_lease))
 
         get_default_gw = mock.MagicMock(return_value=default_gw)
         self.patches.enter_context(mock.patch(
-            'cloudinit.sources.DataSourceCloudStack.get_default_gateway',
-            get_default_gw))
+            mod_name + '.get_default_gateway', get_default_gw))
+
+        get_networkd_server_address = mock.MagicMock(return_value=None)
+        self.patches.enter_context(mock.patch(
+            mod_name + '.dhcp.networkd_get_option_from_leases',
+            get_networkd_server_address))
 
     def _set_password_server_response(self, response_string):
         subp = mock.MagicMock(return_value=(response_string, ''))

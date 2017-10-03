@@ -7,7 +7,7 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTCASES_DIR = os.path.join(BASE_DIR, 'testcases')
-TEST_CONF_DIR = os.path.join(BASE_DIR, 'configs')
+TEST_CONF_DIR = os.path.join(BASE_DIR, 'testcases')
 TREE_BASE = os.sep.join(BASE_DIR.split(os.sep)[:-2])
 
 
