@@ -756,6 +756,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                                 eth3: 50
                                 eth4: 75
                             priority: 22
+                            stp: false
                         routes:
                         -   to: ::/0
                             via: 2001:4800:78ff:1b::1
@@ -820,7 +821,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PRIO=22
-                STP=off
+                STP=no
                 TYPE=Bridge
                 USERCTL=no"""),
             'ifcfg-eth0': textwrap.dedent("""\
@@ -1296,7 +1297,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PRIO=22
-                STP=off
+                STP=no
                 TYPE=Bridge
                 USERCTL=no
                 """),

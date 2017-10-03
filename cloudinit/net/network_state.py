@@ -48,6 +48,7 @@ NET_CONFIG_TO_V2 = {
                'bridge_maxwait': None,
                'bridge_pathcost': 'path-cost',
                'bridge_portprio': None,
+               'bridge_stp': 'stp',
                'bridge_waitport': None}}
 
 
@@ -465,6 +466,18 @@ class NetworkStateInterpreter(object):
         for param, val in command.get('params', {}).items():
             iface.update({param: val})
 
+        # convert value to boolean
+        bridge_stp = iface.get('bridge_stp')
+        if bridge_stp and type(bridge_stp) != bool:
+            if bridge_stp in ['on', '1', 1]:
+                bridge_stp = True
+            elif bridge_stp in ['off', '0', 0]:
+                bridge_stp = False
+            else:
+                raise ValueError("Cannot convert bridge_stp value"
+                                 "(%s) to boolean", bridge_stp)
+            iface.update({'bridge_stp': bridge_stp})
+
         interfaces.update({iface['name']: iface})
 
     @ensure_command_keys(['address'])
@@ -525,8 +538,8 @@ class NetworkStateInterpreter(object):
         v2_command = {
           br0: {
             'interfaces': ['interface0', 'interface1'],
-            'fd': 0,
-            'stp': 'off',
+            'forward-delay': 0,
+            'stp': False,
             'maxwait': 0,
           }
         }
