@@ -1,4 +1,4 @@
-cloud-init (17.1-13-g7fd0425-0ubuntu1) artful; urgency=medium
+cloud-init (17.1-13-g7fd04255-0ubuntu1) artful; urgency=medium
 
   * debian/copyright: dep5 updates, reorganize, add Apache 2.0 license.
     (LP: #1718681)
