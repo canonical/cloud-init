@@ -104,6 +104,16 @@ class TestCase(unittest2.TestCase):
         super(TestCase, self).setUp()
         self.reset_global_state()
 
+    def add_patch(self, target, attr, **kwargs):
+        """Patches specified target object and sets it as attr on test
+        instance also schedules cleanup"""
+        if 'autospec' not in kwargs:
+            kwargs['autospec'] = True
+        m = mock.patch(target, **kwargs)
+        p = m.start()
+        self.addCleanup(m.stop)
+        setattr(self, attr, p)
+
 
 class CiTestCase(TestCase):
     """This is the preferred test case base class unless user

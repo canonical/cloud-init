@@ -4,7 +4,6 @@
 
 import os
 import paramiko
-import shlex
 import socket
 import subprocess
 import time
@@ -83,10 +82,10 @@ class NoCloudKVMInstance(base.Instance):
 
     def mount_image_callback(self, cmd):
         """Run mount-image-callback."""
-        mic = ('sudo mount-image-callback --system-mounts --system-resolvconf '
-               '%s -- chroot _MOUNTPOINT_ ' % self.name)
-
-        out, err = c_util.subp(shlex.split(mic) + cmd)
+        out, err = c_util.subp(['sudo', 'mount-image-callback',
+                                '--system-mounts', '--system-resolvconf',
+                                self.name, '--', 'chroot',
+                                '_MOUNTPOINT_'] + cmd)
 
         return out, err
 
@@ -122,11 +121,11 @@ class NoCloudKVMInstance(base.Instance):
         if self.pid:
             super(NoCloudKVMInstance, self).push_file()
         else:
-            cmd = ("sudo mount-image-callback --system-mounts "
-                   "--system-resolvconf %s -- chroot _MOUNTPOINT_ "
-                   "/bin/sh -c 'cat - > %s'" % (self.name, remote_path))
             local_file = open(local_path)
-            p = subprocess.Popen(shlex.split(cmd),
+            p = subprocess.Popen(['sudo', 'mount-image-callback',
+                                  '--system-mounts', '--system-resolvconf',
+                                  self.name, '--', 'chroot', '_MOUNTPOINT_',
+                                  '/bin/sh', '-c', 'cat - > %s' % remote_path],
                                  stdin=local_file,
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
@@ -186,12 +185,14 @@ class NoCloudKVMInstance(base.Instance):
         self.pid_file = os.path.join(tmpdir, '%s.pid' % self.name)
         self.ssh_port = self.get_free_port()
 
-        cmd = ('./tools/xkvm --disk %s,cache=unsafe --disk %s,cache=unsafe '
-               '--netdev user,hostfwd=tcp::%s-:22 '
-               '-- -pidfile %s -vnc none -m 2G -smp 2'
-               % (self.name, seed, self.ssh_port, self.pid_file))
-
-        subprocess.Popen(shlex.split(cmd), close_fds=True,
+        subprocess.Popen(['./tools/xkvm',
+                          '--disk', '%s,cache=unsafe' % self.name,
+                          '--disk', '%s,cache=unsafe' % seed,
+                          '--netdev',
+                          'user,hostfwd=tcp::%s-:22' % self.ssh_port,
+                          '--', '-pidfile', self.pid_file, '-vnc', 'none',
+                          '-m', '2G', '-smp', '2'],
+                         close_fds=True,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)

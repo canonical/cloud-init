@@ -19,6 +19,7 @@ import time
 
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
+from cloudinit.net import dhcp
 from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
@@ -224,20 +225,28 @@ def get_vr_address():
     # Get the address of the virtual router via dhcp leases
     # If no virtual router is detected, fallback on default gateway.
     # See http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/4.8/virtual_machines/user-data.html # noqa
+
+    # Try networkd first...
+    latest_address = dhcp.networkd_get_option_from_leases('SERVER_ADDRESS')
+    if latest_address:
+        LOG.debug("Found SERVER_ADDRESS '%s' via networkd_leases",
+                  latest_address)
+        return latest_address
+
+    # Try dhcp lease files next...
     lease_file = get_latest_lease()
     if not lease_file:
         LOG.debug("No lease file found, using default gateway")
         return get_default_gateway()
 
-    latest_address = None
     with open(lease_file, "r") as fd:
         for line in fd:
             if "dhcp-server-identifier" in line:
                 words = line.strip(" ;\r\n").split(" ")
                 if len(words) > 2:
-                    dhcp = words[2]
-                    LOG.debug("Found DHCP identifier %s", dhcp)
-                    latest_address = dhcp
+                    dhcptok = words[2]
+                    LOG.debug("Found DHCP identifier %s", dhcptok)
+                    latest_address = dhcptok
     if not latest_address:
         # No virtual router found, fallback on default gateway
         LOG.debug("No DHCP found, using default gateway")

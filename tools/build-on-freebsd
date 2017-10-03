@@ -18,7 +18,6 @@ pkgs="
    py27-jsonpatch
    py27-jsonpointer
    py27-oauthlib
-   py27-prettytable
    py27-requests
    py27-serial
    py27-six

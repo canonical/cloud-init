@@ -13,7 +13,7 @@ import re
 from cloudinit import log as logging
 from cloudinit import util
 
-from prettytable import PrettyTable
+from cloudinit.simpletable import SimpleTable
 
 LOG = logging.getLogger()
 
@@ -170,7 +170,7 @@ def netdev_pformat():
         lines.append(util.center("Net device info failed", '!', 80))
     else:
         fields = ['Device', 'Up', 'Address', 'Mask', 'Scope', 'Hw-Address']
-        tbl = PrettyTable(fields)
+        tbl = SimpleTable(fields)
         for (dev, d) in netdev.items():
             tbl.add_row([dev, d["up"], d["addr"], d["mask"], ".", d["hwaddr"]])
             if d.get('addr6'):
@@ -194,7 +194,7 @@ def route_pformat():
         if routes.get('ipv4'):
             fields_v4 = ['Route', 'Destination', 'Gateway',
                          'Genmask', 'Interface', 'Flags']
-            tbl_v4 = PrettyTable(fields_v4)
+            tbl_v4 = SimpleTable(fields_v4)
             for (n, r) in enumerate(routes.get('ipv4')):
                 route_id = str(n)
                 tbl_v4.add_row([route_id, r['destination'],
@@ -207,7 +207,7 @@ def route_pformat():
         if routes.get('ipv6'):
             fields_v6 = ['Route', 'Proto', 'Recv-Q', 'Send-Q',
                          'Local Address', 'Foreign Address', 'State']
-            tbl_v6 = PrettyTable(fields_v6)
+            tbl_v6 = SimpleTable(fields_v6)
             for (n, r) in enumerate(routes.get('ipv6')):
                 route_id = str(n)
                 tbl_v6.add_row([route_id, r['proto'],

@@ -1,3 +1,32 @@
+cloud-init (17.1-13-g7fd04255-0ubuntu1) artful; urgency=medium
+
+  * debian/copyright: dep5 updates, reorganize, add Apache 2.0 license.
+    (LP: #1718681)
+  * debian/control: drop dependency on python3-prettytable
+  * New upstream snapshot.
+    - systemd: remove limit on tasks created by cloud-init-final.service.
+      [Robert Schweikert] (LP: #1717969)
+    - suse: Support addition of zypper repos via cloud-config.
+      [Robert Schweikert] (LP: #1718675)
+    - tests: Combine integration configs and testcases [Joshua Powers]
+    - Azure, CloudStack: Support reading dhcp options from systemd-networkd.
+      [Dimitri John Ledkov] (LP: #1718029)
+    - packages/debian/copyright: remove mention of boto and MIT license
+    - systemd: only mention Before=apt-daily.service on debian based distros.
+      [Robert Schweikert]
+    - Add missing simpletable and simpletable tests for failed merge
+      [Chad Smith]
+    - Remove prettytable dependency, introduce simpletable [Andrew Jorgensen]
+    - debian/copyright: dep5 updates, reorganize, add Apache 2.0 license.
+      [Joshua Powers] (LP: #1718681)
+    - tests: remove dependency on shlex [Joshua Powers]
+    - AltCloud: Trust PATH for udevadm and modprobe.
+    - DataSourceOVF: use util.find_devs_with(TYPE=iso9660)
+      [Ryan Harper] (LP: #1718287)
+    - tests: remove a temp file used in bootcmd tests.
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Tue, 03 Oct 2017 10:59:52 -0500
+
 cloud-init (17.1-0ubuntu1) artful; urgency=medium
 
   * New upstream release.
