@@ -468,7 +468,7 @@ class NetworkStateInterpreter(object):
 
         # convert value to boolean
         bridge_stp = iface.get('bridge_stp')
-        if bridge_stp and type(bridge_stp) != bool:
+        if bridge_stp is not None and type(bridge_stp) != bool:
             if bridge_stp in ['on', '1', 1]:
                 bridge_stp = True
             elif bridge_stp in ['off', '0', 0]:

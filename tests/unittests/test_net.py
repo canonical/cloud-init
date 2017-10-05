@@ -1283,7 +1283,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                   - eth0
                   - eth1
                 params:
-                  bridge_stp: 'off'
+                  bridge_stp: 0
                   bridge_bridgeprio: 22
                 subnets:
                   - type: static
