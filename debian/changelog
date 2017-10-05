@@ -1,3 +1,14 @@
+cloud-init (17.1-17-g45d361cb-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - net: Handle bridge stp values of 0 and convert to boolean type
+      [Chad Smith]
+    - tools: Give specific --abbrev=8 to "git describe"
+    - network: bridge_stp value not always correct [Ryan Harper] (LP: #1721157)
+    - tests: re-enable tox with nocloud-kvm support [Joshua Powers]
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Thu, 05 Oct 2017 16:11:54 -0500
+
 cloud-init (17.1-13-g7fd04255-0ubuntu1) artful; urgency=medium
 
   * debian/copyright: dep5 updates, reorganize, add Apache 2.0 license.
