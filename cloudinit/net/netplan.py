@@ -244,9 +244,9 @@ class Renderer(renderer.Renderer):
 
         for config in network_state.iter_interfaces():
             ifname = config.get('name')
-            # filter None entries up front so we can do simple if key in dict
+            # filter None (but not False) entries up front
             ifcfg = dict((key, value) for (key, value) in config.items()
-                         if value)
+                         if value is not None)
 
             if_type = ifcfg.get('type')
             if if_type == 'physical':
@@ -318,6 +318,7 @@ class Renderer(renderer.Renderer):
                             (port, cost) = costval.split()
                             newvalue[port] = int(cost)
                         br_config.update({newname: newvalue})
+
                 if len(br_config) > 0:
                     bridge.update({'parameters': br_config})
                 _extract_addresses(ifcfg, bridge)
