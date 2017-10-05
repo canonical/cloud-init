@@ -85,9 +85,8 @@ pkg_name=$(dpkg-parsechangelog --show-field Source) ||
 t=${prev_pkg_ver%-*}
 prev_pkg_hash=${t##*-g}
 
-new_pkg_upstream=$(git describe master)
 new_pkg_debian="0ubuntu1"
-new_upstream_ver=$(git describe "${from_ref}")
+new_upstream_ver=$(git describe --abbrev=8 "${from_ref}")
 new_pkg_ver="${new_upstream_ver}-${new_pkg_debian}"
 
 prev_upstream_ver=${prev_pkg_ver%-*}
