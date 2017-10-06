@@ -6,6 +6,7 @@ cloud-init (17.1-17-g45d361cb-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     (LP: #1718681)
   * debian/control: drop dependency on python3-prettytable
   * debian/rules: install rsyslog file with 0644 mode instead of 0755.
+  * debian/rules, debian/apport-launcher.py: add an apport hook. (LP: #1607345)
   * New upstream snapshot. (LP: #1721847)
     - net: Handle bridge stp values of 0 and convert to boolean type
       [Chad Smith]
