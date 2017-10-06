@@ -379,20 +379,22 @@ class SubscriptionManager(object):
         # Creating a list of repoids to be enabled
         enable_list = []
         enable_list_fail = []
-        for repoid in erepos:
-            if (repoid in inactive_repos):
-                enable_list.append("--enable={0}".format(repoid))
-            else:
-                enable_list_fail.append(repoid)
+        if not erepos is None:
+            for repoid in erepos:
+                if (repoid in inactive_repos):
+                    enable_list.append("--enable={0}".format(repoid))
+                else:
+                    enable_list_fail.append(repoid)
 
         # Creating a list of repoids to be disabled
         disable_list = []
         disable_list_fail = []
-        for repoid in drepos:
-            if repoid in active_repos:
-                disable_list.append("--disable={0}".format(repoid))
-            else:
-                disable_list_fail.append(repoid)
+        if not drepos is None:
+            for repoid in drepos:
+                if repoid in active_repos:
+                    disable_list.append("--disable={0}".format(repoid))
+                else:
+                    disable_list_fail.append(repoid)
 
         # Logging any repos that are already enabled or disabled
         if len(enable_list_fail) > 0:
