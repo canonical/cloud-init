@@ -5,9 +5,9 @@ import httpretty
 import mock
 import os
 
-from .. import helpers as test_helpers
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay
+from cloudinit.tests import helpers as test_helpers
 
 DEFAULT_METADATA = {
     'instance-id': 'aliyun-test-vm-00',
@@ -70,7 +70,6 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
         paths = helpers.Paths({})
         self.ds = ay.DataSourceAliYun(cfg, distro, paths)
         self.metadata_address = self.ds.metadata_urls[0]
-        self.api_ver = self.ds.api_ver
 
     @property
     def default_metadata(self):
@@ -82,13 +81,15 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
 
     @property
     def metadata_url(self):
-        return os.path.join(self.metadata_address,
-                            self.api_ver, 'meta-data') + '/'
+        return os.path.join(
+            self.metadata_address,
+            self.ds.min_metadata_version, 'meta-data') + '/'
 
     @property
     def userdata_url(self):
-        return os.path.join(self.metadata_address,
-                            self.api_ver, 'user-data')
+        return os.path.join(
+            self.metadata_address,
+            self.ds.min_metadata_version, 'user-data')
 
     def regist_default_server(self):
         register_mock_metaserver(self.metadata_url, self.default_metadata)

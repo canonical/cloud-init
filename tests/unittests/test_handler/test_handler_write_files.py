@@ -4,7 +4,7 @@ from cloudinit.config.cc_write_files import write_files, decode_perms
 from cloudinit import log as logging
 from cloudinit import util
 
-from ..helpers import CiTestCase, FilesystemMockingTestCase
+from cloudinit.tests.helpers import CiTestCase, FilesystemMockingTestCase
 
 import base64
 import gzip

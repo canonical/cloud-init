@@ -24,7 +24,7 @@ from cloudinit.sources import DataSourceNone
 
 from cloudinit.distros.debian import Distro
 
-from .. import helpers as t_help
+from cloudinit.tests import helpers as t_help
 
 LOG = logging.getLogger(__name__)
 

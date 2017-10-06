@@ -34,9 +34,6 @@
          "jsonschema" : {
             "3" : "python34-jsonschema"
          },
-         "prettytable" : {
-            "3" : "python34-prettytable"
-         },
          "pyflakes" : {
             "2" : "pyflakes",
             "3" : "python34-pyflakes"

@@ -18,7 +18,7 @@ import tempfile
 from cloudinit import helpers
 from cloudinit import util
 
-from ..helpers import TestCase
+from cloudinit.tests.helpers import TestCase
 
 import cloudinit.sources.DataSourceAltCloud as dsac
 
@@ -280,8 +280,8 @@ class TestUserDataRhevm(TestCase):
             pass
 
         dsac.CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
-        dsac.CMD_PROBE_FLOPPY = ['/sbin/modprobe', 'floppy']
-        dsac.CMD_UDEVADM_SETTLE = ['/sbin/udevadm', 'settle',
+        dsac.CMD_PROBE_FLOPPY = ['modprobe', 'floppy']
+        dsac.CMD_UDEVADM_SETTLE = ['udevadm', 'settle',
                                    '--quiet', '--timeout=5']
 
     def test_mount_cb_fails(self):

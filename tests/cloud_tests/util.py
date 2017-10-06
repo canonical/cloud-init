@@ -2,12 +2,14 @@
 
 """Utilities for re-use across integration tests."""
 
+import base64
 import copy
 import glob
 import os
 import random
 import shutil
 import string
+import subprocess
 import tempfile
 import yaml
 
@@ -240,6 +242,47 @@ def update_user_data(user_data, updates, dump_to_yaml=True):
     user_data.update(updates)
     return (yaml_format(user_data, content_type='cloud-config')
             if dump_to_yaml else user_data)
+
+
+def shell_safe(cmd):
+    """Produce string safe shell string.
+
+    Create a string that can be passed to:
+         set -- <string>
+    to produce the same array that cmd represents.
+
+    Internally we utilize 'getopt's ability/knowledge on how to quote
+    strings to be safe for shell.  This implementation could be changed
+    to be pure python.  It is just a matter of correctly escaping
+    or quoting characters like: ' " ^ & $ ; ( ) ...
+
+    @param cmd: command as a list
+    """
+    out = subprocess.check_output(
+        ["getopt", "--shell", "sh", "--options", "", "--", "--"] + list(cmd))
+    # out contains ' -- <data>\n'. drop the ' -- ' and the '\n'
+    return out[4:-1].decode()
+
+
+def shell_pack(cmd):
+    """Return a string that can shuffled through 'sh' and execute cmd.
+
+    In Python subprocess terms:
+        check_output(cmd) == check_output(shell_pack(cmd), shell=True)
+
+    @param cmd: list or string of command to pack up
+    """
+
+    if isinstance(cmd, str):
+        cmd = [cmd]
+    else:
+        cmd = list(cmd)
+
+    stuffed = shell_safe(cmd)
+    # for whatever reason b64encode returns bytes when it is clearly
+    # representable as a string by nature of being base64 encoded.
+    b64 = base64.b64encode(stuffed.encode()).decode()
+    return 'eval set -- "$(echo %s | base64 --decode)" && exec "$@"' % b64
 
 
 class InTargetExecuteError(c_util.ProcessExecutionError):

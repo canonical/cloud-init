@@ -33,7 +33,7 @@ import six
 from cloudinit import helpers as c_helpers
 from cloudinit.util import b64e
 
-from ..helpers import mock, FilesystemMockingTestCase, TestCase
+from cloudinit.tests.helpers import mock, FilesystemMockingTestCase, TestCase
 
 SDC_NICS = json.loads("""
 [

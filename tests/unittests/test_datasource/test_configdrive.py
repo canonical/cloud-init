@@ -15,7 +15,7 @@ from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
-from ..helpers import TestCase, ExitStack, mock
+from cloudinit.tests.helpers import TestCase, ExitStack, mock
 
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'

@@ -95,6 +95,9 @@ def _iface_add_attrs(iface, index):
         ignore_map.append('mac_address')
 
     for key, value in iface.items():
+        # convert bool to string for eni
+        if type(value) == bool:
+            value = 'on' if iface[key] else 'off'
         if not value or key in ignore_map:
             continue
         if key in multiline_keys:

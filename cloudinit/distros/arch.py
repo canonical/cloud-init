@@ -14,6 +14,8 @@ from cloudinit.distros.parsers.hostname import HostnameConf
 
 from cloudinit.settings import PER_INSTANCE
 
+import os
+
 LOG = logging.getLogger(__name__)
 
 
@@ -52,31 +54,10 @@ class Distro(distros.Distro):
         entries = net_util.translate_network(settings)
         LOG.debug("Translated ubuntu style network settings %s into %s",
                   settings, entries)
-        dev_names = entries.keys()
-        # Format for netctl
-        for (dev, info) in entries.items():
-            nameservers = []
-            net_fn = self.network_conf_dir + dev
-            net_cfg = {
-                'Connection': 'ethernet',
-                'Interface': dev,
-                'IP': info.get('bootproto'),
-                'Address': "('%s/%s')" % (info.get('address'),
-                                          info.get('netmask')),
-                'Gateway': info.get('gateway'),
-                'DNS': str(tuple(info.get('dns-nameservers'))).replace(',', '')
-            }
-            util.write_file(net_fn, convert_netctl(net_cfg))
-            if info.get('auto'):
-                self._enable_interface(dev)
-            if 'dns-nameservers' in info:
-                nameservers.extend(info['dns-nameservers'])
-
-        if nameservers:
-            util.write_file(self.resolve_conf_fn,
-                            convert_resolv_conf(nameservers))
-
-        return dev_names
+        return _render_network(
+            entries, resolv_conf=self.resolve_conf_fn,
+            conf_dir=self.network_conf_dir,
+            enable_func=self._enable_interface)
 
     def _enable_interface(self, device_name):
         cmd = ['netctl', 'reenable', device_name]
@@ -173,13 +154,60 @@ class Distro(distros.Distro):
                          ["-y"], freq=PER_INSTANCE)
 
 
+def _render_network(entries, target="/", conf_dir="etc/netctl",
+                    resolv_conf="etc/resolv.conf", enable_func=None):
+    """Render the translate_network format into netctl files in target.
+    Paths will be rendered under target.
+    """
+
+    devs = []
+    nameservers = []
+    resolv_conf = util.target_path(target, resolv_conf)
+    conf_dir = util.target_path(target, conf_dir)
+
+    for (dev, info) in entries.items():
+        if dev == 'lo':
+            # no configuration should be rendered for 'lo'
+            continue
+        devs.append(dev)
+        net_fn = os.path.join(conf_dir, dev)
+        net_cfg = {
+            'Connection': 'ethernet',
+            'Interface': dev,
+            'IP': info.get('bootproto'),
+            'Address': "%s/%s" % (info.get('address'),
+                                  info.get('netmask')),
+            'Gateway': info.get('gateway'),
+            'DNS': info.get('dns-nameservers', []),
+        }
+        util.write_file(net_fn, convert_netctl(net_cfg))
+        if enable_func and info.get('auto'):
+            enable_func(dev)
+        if 'dns-nameservers' in info:
+            nameservers.extend(info['dns-nameservers'])
+
+    if nameservers:
+        util.write_file(resolv_conf,
+                        convert_resolv_conf(nameservers))
+    return devs
+
+
 def convert_netctl(settings):
-    """Returns a settings string formatted for netctl."""
-    result = ''
-    if isinstance(settings, dict):
-        for k, v in settings.items():
-            result = result + '%s=%s\n' % (k, v)
-        return result
+    """Given a dictionary, returns a string in netctl profile format.
+
+    netctl profile is described at:
+    https://git.archlinux.org/netctl.git/tree/docs/netctl.profile.5.txt
+
+    Note that the 'Special Quoting Rules' are not handled here."""
+    result = []
+    for key in sorted(settings):
+        val = settings[key]
+        if val is None:
+            val = ""
+        elif isinstance(val, (tuple, list)):
+            val = "(" + ' '.join("'%s'" % v for v in val) + ")"
+        result.append("%s=%s\n" % (key, val))
+    return ''.join(result)
 
 
 def convert_resolv_conf(settings):

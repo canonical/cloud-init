@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from . import helpers
+from cloudinit.tests import helpers
 
 from cloudinit.handlers import cloud_config
 from cloudinit.handlers import (CONTENT_START, CONTENT_END)

@@ -12,7 +12,6 @@ import contextlib
 import copy as obj_copy
 import ctypes
 import email
-import errno
 import glob
 import grp
 import gzip
@@ -31,8 +30,9 @@ import stat
 import string
 import subprocess
 import sys
-import tempfile
 import time
+
+from errno import ENOENT, ENOEXEC
 
 from base64 import b64decode, b64encode
 from six.moves.urllib import parse as urlparse
@@ -44,6 +44,7 @@ from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import mergers
 from cloudinit import safeyaml
+from cloudinit import temp_utils
 from cloudinit import type_utils
 from cloudinit import url_helper
 from cloudinit import version
@@ -239,7 +240,10 @@ class ProcessExecutionError(IOError):
             self.cmd = cmd
 
         if not description:
-            self.description = 'Unexpected error while running command.'
+            if not exit_code and errno == ENOEXEC:
+                self.description = 'Exec format error. Missing #! in script?'
+            else:
+                self.description = 'Unexpected error while running command.'
         else:
             self.description = description
 
@@ -345,26 +349,6 @@ class DecompressionError(Exception):
     pass
 
 
-def ExtendedTemporaryFile(**kwargs):
-    fh = tempfile.NamedTemporaryFile(**kwargs)
-    # Replace its unlink with a quiet version
-    # that does not raise errors when the
-    # file to unlink has been unlinked elsewhere..
-    LOG.debug("Created temporary file %s", fh.name)
-    fh.unlink = del_file
-
-    # Add a new method that will unlink
-    # right 'now' but still lets the exit
-    # method attempt to remove it (which will
-    # not throw due to our del file being quiet
-    # about files that are not there)
-    def unlink_now():
-        fh.unlink(fh.name)
-
-    setattr(fh, 'unlink_now', unlink_now)
-    return fh
-
-
 def fork_cb(child_cb, *args, **kwargs):
     fid = os.fork()
     if fid == 0:
@@ -433,7 +417,7 @@ def read_conf(fname):
     try:
         return load_yaml(load_file(fname), default={})
     except IOError as e:
-        if e.errno == errno.ENOENT:
+        if e.errno == ENOENT:
             return {}
         else:
             raise
@@ -614,6 +598,8 @@ def system_info():
             var = 'ubuntu'
         elif linux_dist == 'redhat':
             var = 'rhel'
+        elif linux_dist == 'suse':
+            var = 'suse'
         else:
             var = 'linux'
     elif system in ('windows', 'darwin', "freebsd"):
@@ -786,18 +772,6 @@ def umask(n_msk):
         os.umask(old)
 
 
-@contextlib.contextmanager
-def tempdir(**kwargs):
-    # This seems like it was only added in python 3.2
-    # Make it since its useful...
-    # See: http://bugs.python.org/file12970/tempdir.patch
-    tdir = tempfile.mkdtemp(**kwargs)
-    try:
-        yield tdir
-    finally:
-        del_dir(tdir)
-
-
 def center(text, fill, max_len):
     return '{0:{fill}{align}{size}}'.format(text, fill=fill,
                                             align="^", size=max_len)
@@ -901,7 +875,7 @@ def read_file_or_url(url, timeout=5, retries=10,
             contents = load_file(file_path, decode=False)
         except IOError as e:
             code = e.errno
-            if e.errno == errno.ENOENT:
+            if e.errno == ENOENT:
                 code = url_helper.NOT_FOUND
             raise url_helper.UrlError(cause=e, code=code, headers=None,
                                       url=url)
@@ -1247,7 +1221,7 @@ def find_devs_with(criteria=None, oformat='device',
     try:
         (out, _err) = subp(cmd, rcs=[0, 2])
     except ProcessExecutionError as e:
-        if e.errno == errno.ENOENT:
+        if e.errno == ENOENT:
             # blkid not found...
             out = ""
         else:
@@ -1285,7 +1259,7 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
     except IOError as e:
         if not quiet:
             raise
-        if e.errno != errno.ENOENT:
+        if e.errno != ENOENT:
             raise
     contents = ofh.getvalue()
     LOG.debug("Read %s bytes from %s", len(contents), fname)
@@ -1583,7 +1557,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
         mtypes = ['']
 
     mounted = mounts()
-    with tempdir() as tmpd:
+    with temp_utils.tempdir() as tmpd:
         umount = False
         if os.path.realpath(device) in mounted:
             mountpoint = mounted[os.path.realpath(device)]['mountpoint']
@@ -1653,7 +1627,7 @@ def del_file(path):
     try:
         os.unlink(path)
     except OSError as e:
-        if e.errno != errno.ENOENT:
+        if e.errno != ENOENT:
             raise e
 
 
@@ -1768,6 +1742,31 @@ def delete_dir_contents(dirname):
             del_dir(node_fullpath)
         else:
             del_file(node_fullpath)
+
+
+def subp_blob_in_tempfile(blob, *args, **kwargs):
+    """Write blob to a tempfile, and call subp with args, kwargs. Then cleanup.
+
+    'basename' as a kwarg allows providing the basename for the file.
+    The 'args' argument to subp will be updated with the full path to the
+    filename as the first argument.
+    """
+    basename = kwargs.pop('basename', "subp_blob")
+
+    if len(args) == 0 and 'args' not in kwargs:
+        args = [tuple()]
+
+    # Use tmpdir over tmpfile to avoid 'text file busy' on execute
+    with temp_utils.tempdir(needs_exe=True) as tmpd:
+        tmpf = os.path.join(tmpd, basename)
+        if 'args' in kwargs:
+            kwargs['args'] = [tmpf] + list(kwargs['args'])
+        else:
+            args = list(args)
+            args[0] = [tmpf] + args[0]
+
+        write_file(tmpf, blob, mode=0o700)
+        return subp(*args, **kwargs)
 
 
 def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
@@ -2281,7 +2280,7 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
         try:
             ret[f] = load_file(base + delim + f, quiet=False, decode=False)
         except IOError as e:
-            if e.errno != errno.ENOENT:
+            if e.errno != ENOENT:
                 raise
             if f in required:
                 missing.append(f)

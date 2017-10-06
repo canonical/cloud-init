@@ -6,15 +6,15 @@ import os
 import re
 import socket
 import struct
-import tempfile
 import time
 
+from cloudinit.net import dhcp
 from cloudinit import stages
+from cloudinit import temp_utils
 from contextlib import contextmanager
 from xml.etree import ElementTree
 
 from cloudinit import util
-
 
 LOG = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ class OpenSSLManager(object):
     }
 
     def __init__(self):
-        self.tmpdir = tempfile.mkdtemp()
+        self.tmpdir = temp_utils.mkdtemp()
         self.certificate = None
         self.generate_certificate()
 
@@ -239,6 +239,11 @@ class WALinuxAgentShim(object):
         return socket.inet_ntoa(packed_bytes)
 
     @staticmethod
+    def _networkd_get_value_from_leases(leases_d=None):
+        return dhcp.networkd_get_option_from_leases(
+            'OPTION_245', leases_d=leases_d)
+
+    @staticmethod
     def _get_value_from_leases_file(fallback_lease_file):
         leases = []
         content = util.load_file(fallback_lease_file)
@@ -287,12 +292,15 @@ class WALinuxAgentShim(object):
 
     @staticmethod
     def find_endpoint(fallback_lease_file=None):
-        LOG.debug('Finding Azure endpoint...')
         value = None
-        # Option-245 stored in /run/cloud-init/dhclient.hooks/<ifc>.json
-        # a dhclient exit hook that calls cloud-init-dhclient-hook
-        dhcp_options = WALinuxAgentShim._load_dhclient_json()
-        value = WALinuxAgentShim._get_value_from_dhcpoptions(dhcp_options)
+        LOG.debug('Finding Azure endpoint from networkd...')
+        value = WALinuxAgentShim._networkd_get_value_from_leases()
+        if value is None:
+            # Option-245 stored in /run/cloud-init/dhclient.hooks/<ifc>.json
+            # a dhclient exit hook that calls cloud-init-dhclient-hook
+            LOG.debug('Finding Azure endpoint from hook json...')
+            dhcp_options = WALinuxAgentShim._load_dhclient_json()
+            value = WALinuxAgentShim._get_value_from_dhcpoptions(dhcp_options)
         if value is None:
             # Fallback and check the leases file if unsuccessful
             LOG.debug("Unable to find endpoint in dhclient logs. "

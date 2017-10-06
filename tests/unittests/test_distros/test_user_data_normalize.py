@@ -5,7 +5,7 @@ from cloudinit.distros import ug_util
 from cloudinit import helpers
 from cloudinit import settings
 
-from ..helpers import TestCase
+from cloudinit.tests.helpers import TestCase
 import mock
 
 

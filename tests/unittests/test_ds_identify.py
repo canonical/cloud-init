@@ -6,10 +6,15 @@ from uuid import uuid4
 
 from cloudinit import safeyaml
 from cloudinit import util
-from .helpers import CiTestCase, dir2dict, json_dumps, populate_dir
+from cloudinit.tests.helpers import (
+    CiTestCase, dir2dict, json_dumps, populate_dir)
 
 UNAME_MYSYS = ("Linux bart 4.4.0-62-generic #83-Ubuntu "
                "SMP Wed Jan 18 14:10:15 UTC 2017 x86_64 GNU/Linux")
+UNAME_PPC64EL = ("Linux diamond 4.4.0-83-generic #106-Ubuntu SMP "
+                 "Mon Jun 26 17:53:54 UTC 2017 "
+                 "ppc64le ppc64le ppc64le GNU/Linux")
+
 BLKID_EFI_ROOT = """
 DEVNAME=/dev/sda1
 UUID=8B36-5390
@@ -22,8 +27,11 @@ TYPE=ext4
 PARTUUID=30c65c77-e07d-4039-b2fb-88b1fb5fa1fc
 """
 
+POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
+POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
 DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=enabled"
 DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=all,notfound=disabled"
+DI_EC2_STRICT_ID_DEFAULT = "true"
 
 SHELL_MOCK_TMPL = """\
 %(name)s() {
@@ -47,6 +55,7 @@ P_SEED_DIR = "var/lib/cloud/seed"
 P_DSID_CFG = "etc/cloud/ds-identify.cfg"
 
 MOCK_VIRT_IS_KVM = {'name': 'detect_virt', 'RET': 'kvm', 'ret': 0}
+MOCK_UNAME_IS_PPC64 = {'name': 'uname', 'out': UNAME_PPC64EL, 'ret': 0}
 
 
 class TestDsIdentify(CiTestCase):
@@ -54,7 +63,8 @@ class TestDsIdentify(CiTestCase):
 
     def call(self, rootd=None, mocks=None, args=None, files=None,
              policy_dmi=DI_DEFAULT_POLICY,
-             policy_nodmi=DI_DEFAULT_POLICY_NO_DMI):
+             policy_no_dmi=DI_DEFAULT_POLICY_NO_DMI,
+             ec2_strict_id=DI_EC2_STRICT_ID_DEFAULT):
         if args is None:
             args = []
         if mocks is None:
@@ -80,7 +90,8 @@ class TestDsIdentify(CiTestCase):
             "PATH_ROOT='%s'" % rootd,
             ". " + self.dsid_path,
             'DI_DEFAULT_POLICY="%s"' % policy_dmi,
-            'DI_DEFAULT_POLICY_NO_DMI="%s"' % policy_nodmi,
+            'DI_DEFAULT_POLICY_NO_DMI="%s"' % policy_no_dmi,
+            'DI_EC2_STRICT_ID_DEFAULT="%s"' % ec2_strict_id,
             ""
         ]
 
@@ -136,7 +147,7 @@ class TestDsIdentify(CiTestCase):
     def _call_via_dict(self, data, rootd=None, **kwargs):
         # return output of self.call with a dict input like VALID_CFG[item]
         xwargs = {'rootd': rootd}
-        for k in ('mocks', 'args', 'policy_dmi', 'policy_nodmi', 'files'):
+        for k in ('mocks', 'args', 'policy_dmi', 'policy_no_dmi', 'files'):
             if k in data:
                 xwargs[k] = data[k]
             if k in kwargs:
@@ -260,6 +271,31 @@ class TestDsIdentify(CiTestCase):
         self._check_via_dict(mydata, rc=RC_FOUND, dslist=['AliYun', DS_NONE],
                              policy_dmi=policy)
 
+    def test_default_openstack_intel_is_found(self):
+        """On Intel, openstack must be identified."""
+        self._test_ds_found('OpenStack')
+
+    def test_openstack_on_non_intel_is_maybe(self):
+        """On non-Intel, openstack without dmi info is maybe.
+
+        nova does not identify itself on platforms other than intel.
+           https://bugs.launchpad.net/cloud-init/+bugs?field.tag=dsid-nova"""
+
+        data = VALID_CFG['OpenStack'].copy()
+        del data['files'][P_PRODUCT_NAME]
+        data.update({'policy_dmi': POLICY_FOUND_OR_MAYBE,
+                     'policy_no_dmi': POLICY_FOUND_OR_MAYBE})
+
+        # this should show not found as default uname in tests is intel.
+        # and intel openstack requires positive identification.
+        self._check_via_dict(data, RC_NOT_FOUND, dslist=None)
+
+        # updating the uname to ppc64 though should get a maybe.
+        data.update({'mocks': [MOCK_VIRT_IS_KVM, MOCK_UNAME_IS_PPC64]})
+        (_, _, err, _, _) = self._check_via_dict(
+            data, RC_FOUND, dslist=['OpenStack', 'None'])
+        self.assertIn("check for 'OpenStack' returned maybe", err)
+
 
 def blkid_out(disks=None):
     """Convert a list of disk dictionaries into blkid content."""
@@ -339,6 +375,13 @@ VALID_CFG = {
         'ds': 'GCE',
         'files': {P_PRODUCT_SERIAL: 'GoogleCloud-8f2e88f\n'},
         'mocks': [MOCK_VIRT_IS_KVM],
+    },
+    'OpenStack': {
+        'ds': 'OpenStack',
+        'files': {P_PRODUCT_NAME: 'OpenStack Nova\n'},
+        'mocks': [MOCK_VIRT_IS_KVM],
+        'policy_dmi': POLICY_FOUND_ONLY,
+        'policy_no_dmi': POLICY_FOUND_ONLY,
     },
     'ConfigDrive': {
         'ds': 'ConfigDrive',

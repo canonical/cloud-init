@@ -121,11 +121,11 @@ INITSYS_FILES = {
     'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
     'sysvinit_openrc': [f for f in glob('sysvinit/gentoo/*') if is_f(f)],
+    'sysvinit_suse': [f for f in glob('sysvinit/suse/*') if is_f(f)],
     'systemd': [render_tmpl(f)
                 for f in (glob('systemd/*.tmpl') +
                           glob('systemd/*.service') +
                           glob('systemd/*.target')) if is_f(f)],
-    'systemd.fsck-dropin': ['systemd/systemd-fsck@.service.d/cloud-init.conf'],
     'systemd.generators': [f for f in glob('systemd/*-generator') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
@@ -134,10 +134,8 @@ INITSYS_ROOTS = {
     'sysvinit_freebsd': 'usr/local/etc/rc.d',
     'sysvinit_deb': 'etc/init.d',
     'sysvinit_openrc': 'etc/init.d',
+    'sysvinit_suse': 'etc/init.d',
     'systemd': pkg_config_read('systemd', 'systemdsystemunitdir'),
-    'systemd.fsck-dropin': (
-        os.path.sep.join([pkg_config_read('systemd', 'systemdsystemunitdir'),
-                          'systemd-fsck@.service.d'])),
     'systemd.generators': pkg_config_read('systemd',
                                           'systemdsystemgeneratordir'),
     'upstart': 'etc/init/',
@@ -191,6 +189,8 @@ class InitsysInstallData(install):
             datakeys = [k for k in INITSYS_ROOTS
                         if k.partition(".")[0] == system]
             for k in datakeys:
+                if not INITSYS_FILES[k]:
+                    continue
                 self.distribution.data_files.append(
                     (INITSYS_ROOTS[k], INITSYS_FILES[k]))
         # Force that command to reinitalize (with new file list)

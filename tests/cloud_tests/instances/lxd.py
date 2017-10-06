@@ -31,7 +31,7 @@ class LXDInstance(base.Instance):
         self._pylxd_container.sync()
         return self._pylxd_container
 
-    def execute(self, command, stdout=None, stderr=None, env={},
+    def execute(self, command, stdout=None, stderr=None, env=None,
                 rcs=None, description=None):
         """Execute command in instance, recording output, error and exit code.
 
@@ -39,6 +39,8 @@ class LXDInstance(base.Instance):
         target filesystem being available at /.
 
         @param command: the command to execute as root inside the image
+            if command is a string, then it will be executed as:
+            ['sh', '-c', command]
         @param stdout: file handler to write output
         @param stderr: file handler to write error
         @param env: environment variables
@@ -46,6 +48,12 @@ class LXDInstance(base.Instance):
         @param description: purpose of command
         @return_value: tuple containing stdout data, stderr data, exit code
         """
+        if env is None:
+            env = {}
+
+        if isinstance(command, str):
+            command = ['sh', '-c', command]
+
         # ensure instance is running and execute the command
         self.start()
         res = self.pylxd_container.execute(command, environment=env)

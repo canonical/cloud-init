@@ -3,7 +3,7 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceNoCloud
 from cloudinit import util
-from ..helpers import TestCase, populate_dir, mock, ExitStack
+from cloudinit.tests.helpers import TestCase, populate_dir, mock, ExitStack
 
 import os
 import shutil

@@ -3,7 +3,7 @@
 from cloudinit.distros.parsers import resolv_conf
 from cloudinit.distros import rhel_util
 
-from ..helpers import TestCase
+from cloudinit.tests.helpers import TestCase
 
 import re
 import tempfile

@@ -13,7 +13,7 @@ from cloudinit import settings
 from cloudinit.sources import DataSourceDigitalOcean
 from cloudinit.sources.helpers import digitalocean
 
-from ..helpers import mock, TestCase
+from cloudinit.tests.helpers import mock, TestCase
 
 DO_MULTIPLE_KEYS = ["ssh-rsa AAAAB3NzaC1yc2EAAAA... test1@do.co",
                     "ssh-rsa AAAAB3NzaC1yc2EAAAA... test2@do.co"]

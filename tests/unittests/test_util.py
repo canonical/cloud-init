@@ -12,7 +12,7 @@ import six
 import yaml
 
 from cloudinit import importer, util
-from . import helpers
+from cloudinit.tests import helpers
 
 try:
     from unittest import mock
@@ -568,7 +568,8 @@ class TestReadSeeded(helpers.TestCase):
         self.assertEqual(found_ud, ud)
 
 
-class TestSubp(helpers.TestCase):
+class TestSubp(helpers.CiTestCase):
+    with_logs = True
 
     stdin2err = [BASH, '-c', 'cat >&2']
     stdin2out = ['cat']
@@ -649,6 +650,16 @@ class TestSubp(helpers.TestCase):
 
         self.assertEqual(
             ['FOO=BAR', 'HOME=/myhome', 'K1=V1', 'K2=V2'], out.splitlines())
+
+    def test_subp_warn_missing_shebang(self):
+        """Warn on no #! in script"""
+        noshebang = self.tmp_path('noshebang')
+        util.write_file(noshebang, 'true\n')
+
+        os.chmod(noshebang, os.stat(noshebang).st_mode | stat.S_IEXEC)
+        self.assertRaisesRegexp(util.ProcessExecutionError,
+                                'Missing #! in script\?',
+                                util.subp, (noshebang,))
 
     def test_returns_none_if_no_capture(self):
         (out, err) = util.subp(self.stdin2out, data=b'', capture=False)

@@ -27,7 +27,7 @@ from cloudinit import stages
 from cloudinit import user_data as ud
 from cloudinit import util
 
-from . import helpers
+from cloudinit.tests import helpers
 
 
 INSTANCE_ID = "i-testing"

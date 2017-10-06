@@ -58,6 +58,9 @@ file).
       log_level:
       log_location:
       node_name:
+      omnibus_url:
+      omnibus_url_retries:
+      omnibus_version:
       pid_file:
       server_url:
       show_time:
@@ -279,6 +282,31 @@ def run_chef(chef_cfg, log):
     util.subp(cmd, capture=False)
 
 
+def install_chef_from_omnibus(url=None, retries=None, omnibus_version=None):
+    """Install an omnibus unified package from url.
+
+    @param url: URL where blob of chef content may be downloaded. Defaults to
+        OMNIBUS_URL.
+    @param retries: Number of retries to perform when attempting to read url.
+        Defaults to OMNIBUS_URL_RETRIES
+    @param omnibus_version: Optional version string to require for omnibus
+        install.
+    """
+    if url is None:
+        url = OMNIBUS_URL
+    if retries is None:
+        retries = OMNIBUS_URL_RETRIES
+
+    if omnibus_version is None:
+        args = []
+    else:
+        args = ['-v', omnibus_version]
+    content = url_helper.readurl(url=url, retries=retries).contents
+    return util.subp_blob_in_tempfile(
+        blob=content, args=args,
+        basename='chef-omnibus-install', capture=False)
+
+
 def install_chef(cloud, chef_cfg, log):
     # If chef is not installed, we install chef based on 'install_type'
     install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
@@ -297,17 +325,11 @@ def install_chef(cloud, chef_cfg, log):
         # This will install and run the chef-client from packages
         cloud.distro.install_packages(('chef',))
     elif install_type == 'omnibus':
-        # This will install as a omnibus unified package
-        url = util.get_cfg_option_str(chef_cfg, "omnibus_url", OMNIBUS_URL)
-        retries = max(0, util.get_cfg_option_int(chef_cfg,
-                                                 "omnibus_url_retries",
-                                                 default=OMNIBUS_URL_RETRIES))
-        content = url_helper.readurl(url=url, retries=retries).contents
-        with util.tempdir() as tmpd:
-            # Use tmpdir over tmpfile to avoid 'text file busy' on execute
-            tmpf = "%s/chef-omnibus-install" % tmpd
-            util.write_file(tmpf, content, mode=0o700)
-            util.subp([tmpf], capture=False)
+        omnibus_version = util.get_cfg_option_str(chef_cfg, "omnibus_version")
+        install_chef_from_omnibus(
+            url=util.get_cfg_option_str(chef_cfg, "omnibus_url"),
+            retries=util.get_cfg_option_int(chef_cfg, "omnibus_url_retries"),
+            omnibus_version=omnibus_version)
     else:
         log.warn("Unknown chef install type '%s'", install_type)
         run = False

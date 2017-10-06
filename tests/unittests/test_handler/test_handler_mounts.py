@@ -6,7 +6,7 @@ import tempfile
 
 from cloudinit.config import cc_mounts
 
-from .. import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 try:
     from unittest import mock

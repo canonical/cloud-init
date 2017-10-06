@@ -9,12 +9,13 @@ from cloudinit.net import network_state
 from cloudinit.net import renderers
 from cloudinit.net import sysconfig
 from cloudinit.sources.helpers import openstack
+from cloudinit import temp_utils
 from cloudinit import util
 
-from .helpers import CiTestCase
-from .helpers import dir2dict
-from .helpers import mock
-from .helpers import populate_dir
+from cloudinit.tests.helpers import CiTestCase
+from cloudinit.tests.helpers import dir2dict
+from cloudinit.tests.helpers import mock
+from cloudinit.tests.helpers import populate_dir
 
 import base64
 import copy
@@ -755,6 +756,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                                 eth3: 50
                                 eth4: 75
                             priority: 22
+                            stp: false
                         routes:
                         -   to: ::/0
                             via: 2001:4800:78ff:1b::1
@@ -819,7 +821,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PRIO=22
-                STP=off
+                STP=no
                 TYPE=Bridge
                 USERCTL=no"""),
             'ifcfg-eth0': textwrap.dedent("""\
@@ -1059,6 +1061,100 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                   - type: static
                     address: 2001:1::1/92
             """),
+        'expected_netplan': textwrap.dedent("""
+         network:
+             version: 2
+             ethernets:
+                 bond0s0:
+                     match:
+                         macaddress: aa:bb:cc:dd:e8:00
+                     set-name: bond0s0
+                 bond0s1:
+                     match:
+                         macaddress: aa:bb:cc:dd:e8:01
+                     set-name: bond0s1
+             bonds:
+                 bond0:
+                     addresses:
+                     - 192.168.0.2/24
+                     - 192.168.1.2/24
+                     - 2001:1::1/92
+                     gateway4: 192.168.0.1
+                     interfaces:
+                     - bond0s0
+                     - bond0s1
+                     parameters:
+                         mii-monitor-interval: 100
+                         mode: active-backup
+                         transmit-hash-policy: layer3+4
+                     routes:
+                     -   to: 10.1.3.0/24
+                         via: 192.168.0.3
+        """),
+        'yaml-v2': textwrap.dedent("""
+            version: 2
+            ethernets:
+              eth0:
+                match:
+                    driver: "virtio_net"
+                    macaddress: "aa:bb:cc:dd:e8:00"
+              vf0:
+                set-name: vf0
+                match:
+                    driver: "e1000"
+                    macaddress: "aa:bb:cc:dd:e8:01"
+            bonds:
+              bond0:
+                addresses:
+                - 192.168.0.2/24
+                - 192.168.1.2/24
+                - 2001:1::1/92
+                gateway4: 192.168.0.1
+                interfaces:
+                - eth0
+                - vf0
+                parameters:
+                    mii-monitor-interval: 100
+                    mode: active-backup
+                    primary: vf0
+                    transmit-hash-policy: "layer3+4"
+                routes:
+                -   to: 10.1.3.0/24
+                    via: 192.168.0.3
+            """),
+        'expected_netplan-v2': textwrap.dedent("""
+         network:
+             bonds:
+                 bond0:
+                     addresses:
+                     - 192.168.0.2/24
+                     - 192.168.1.2/24
+                     - 2001:1::1/92
+                     gateway4: 192.168.0.1
+                     interfaces:
+                     - eth0
+                     - vf0
+                     parameters:
+                         mii-monitor-interval: 100
+                         mode: active-backup
+                         primary: vf0
+                         transmit-hash-policy: layer3+4
+                     routes:
+                     -   to: 10.1.3.0/24
+                         via: 192.168.0.3
+             ethernets:
+                 eth0:
+                     match:
+                         driver: virtio_net
+                         macaddress: aa:bb:cc:dd:e8:00
+                 vf0:
+                     match:
+                         driver: e1000
+                         macaddress: aa:bb:cc:dd:e8:01
+                     set-name: vf0
+             version: 2
+        """),
+
         'expected_sysconfig': {
             'ifcfg-bond0': textwrap.dedent("""\
         BONDING_MASTER=yes
@@ -1187,7 +1283,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                   - eth0
                   - eth1
                 params:
-                  bridge_stp: 'off'
+                  bridge_stp: 0
                   bridge_bridgeprio: 22
                 subnets:
                   - type: static
@@ -1201,7 +1297,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PRIO=22
-                STP=off
+                STP=no
                 TYPE=Bridge
                 USERCTL=no
                 """),
@@ -1683,6 +1779,9 @@ USERCTL=no
             ns = network_state.parse_net_config_data(network_cfg,
                                                      skip_broken=False)
             renderer = sysconfig.Renderer()
+            # render a multiple times to simulate reboots
+            renderer.render_network_state(ns, render_dir)
+            renderer.render_network_state(ns, render_dir)
             renderer.render_network_state(ns, render_dir)
             for fn, expected_content in os_sample.get('out_sysconfig', []):
                 with open(os.path.join(render_dir, fn)) as fh:
@@ -2053,7 +2152,7 @@ class TestCmdlineConfigParsing(CiTestCase):
         static['mac_address'] = macs['eth1']
 
         expected = {'version': 1, 'config': [dhcp, static]}
-        with util.tempdir() as tmpd:
+        with temp_utils.tempdir() as tmpd:
             for fname, content in pairs:
                 fp = os.path.join(tmpd, fname)
                 files.append(fp)
@@ -2155,6 +2254,27 @@ class TestNetplanRoundTrip(CiTestCase):
 
         renderer.render_network_state(ns, target)
         return dir2dict(target)
+
+    def testsimple_render_bond_netplan(self):
+        entry = NETWORK_CONFIGS['bond']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        print(entry['expected_netplan'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_bond_v2_input_netplan(self):
+        entry = NETWORK_CONFIGS['bond']
+        files = self._render_and_read(
+            network_config=yaml.load(entry['yaml-v2']))
+        print(entry['expected_netplan-v2'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
+        self.assertEqual(
+            entry['expected_netplan-v2'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
     def testsimple_render_small_netplan(self):
         entry = NETWORK_CONFIGS['small']

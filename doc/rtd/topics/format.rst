@@ -85,6 +85,7 @@ This content is a ``include`` file.
 The file contains a list of urls, one per line.
 Each of the URLs will be read, and their content will be passed through this same set of rules.
 Ie, the content read from the URL can be gzipped, mime-multi-part, or plain text.
+If an error occurs reading a file the remaining files will not be read.
 
 Begins with: ``#include`` or ``Content-Type: text/x-include-url``  when using a MIME archive.
 

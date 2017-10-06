@@ -120,6 +120,7 @@ def collect_image(args, platform, os_name):
     os_config = config.load_os_config(
         platform.platform_name, os_name, require_enabled=True,
         feature_overrides=args.feature_override)
+    LOG.debug('os config: %s', os_config)
     component = PlatformComponent(
         partial(images.get_image, platform, os_config))
 
@@ -144,6 +145,8 @@ def collect_platform(args, platform_name):
 
     platform_config = config.load_platform_config(
         platform_name, require_enabled=True)
+    platform_config['data_dir'] = args.data_dir
+    LOG.debug('platform config: %s', platform_config)
     component = PlatformComponent(
         partial(platforms.get_platform, platform_name, platform_config))
 

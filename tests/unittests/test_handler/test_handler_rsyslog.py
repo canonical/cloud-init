@@ -9,7 +9,7 @@ from cloudinit.config.cc_rsyslog import (
     parse_remotes_line, remotes_to_rsyslog_cfg)
 from cloudinit import util
 
-from .. import helpers as t_help
+from cloudinit.tests import helpers as t_help
 
 
 class TestLoadConfig(t_help.TestCase):

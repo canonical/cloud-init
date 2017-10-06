@@ -5,7 +5,7 @@ from cloudinit.config import cc_ca_certs
 from cloudinit import helpers
 from cloudinit import util
 
-from ..helpers import TestCase
+from cloudinit.tests.helpers import TestCase
 
 import logging
 import shutil

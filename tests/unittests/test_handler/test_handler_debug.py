@@ -11,7 +11,7 @@ from cloudinit import util
 
 from cloudinit.sources import DataSourceNone
 
-from .. import helpers as t_help
+from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock)
 
 import logging
 import shutil
@@ -20,7 +20,8 @@ import tempfile
 LOG = logging.getLogger(__name__)
 
 
-class TestDebug(t_help.FilesystemMockingTestCase):
+@mock.patch('cloudinit.distros.debian.read_system_locale')
+class TestDebug(FilesystemMockingTestCase):
     def setUp(self):
         super(TestDebug, self).setUp()
         self.new_root = tempfile.mkdtemp()
@@ -36,7 +37,8 @@ class TestDebug(t_help.FilesystemMockingTestCase):
             ds.metadata.update(metadata)
         return cloud.Cloud(ds, paths, {}, d, None)
 
-    def test_debug_write(self):
+    def test_debug_write(self, m_locale):
+        m_locale.return_value = 'en_US.UTF-8'
         cfg = {
             'abc': '123',
             'c': u'\u20a0',
@@ -54,7 +56,8 @@ class TestDebug(t_help.FilesystemMockingTestCase):
         for k in cfg.keys():
             self.assertIn(k, contents)
 
-    def test_debug_no_write(self):
+    def test_debug_no_write(self, m_locale):
+        m_locale.return_value = 'en_US.UTF-8'
         cfg = {
             'abc': '123',
             'debug': {

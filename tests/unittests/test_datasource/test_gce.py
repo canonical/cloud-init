@@ -15,7 +15,7 @@ from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.sources import DataSourceGCE
 
-from .. import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 
 GCE_META = {
@@ -23,7 +23,8 @@ GCE_META = {
     'instance/zone': 'foo/bar',
     'project/attributes/sshKeys': 'user:ssh-rsa AA2..+aRD0fyVw== root@server',
     'instance/hostname': 'server.project-foo.local',
-    'instance/attributes/user-data': b'/bin/echo foo\n',
+    # UnicodeDecodeError below if set to ds.userdata instead of userdata_raw
+    'instance/attributes/user-data': b'/bin/echo \xff\n',
 }
 
 GCE_META_PARTIAL = {

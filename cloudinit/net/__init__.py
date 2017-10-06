@@ -175,13 +175,8 @@ def is_disabled_cfg(cfg):
     return cfg.get('config') == "disabled"
 
 
-def generate_fallback_config(blacklist_drivers=None, config_driver=None):
-    """Determine which attached net dev is most likely to have a connection and
-       generate network state to run dhcp on that interface"""
-
-    if not config_driver:
-        config_driver = False
-
+def find_fallback_nic(blacklist_drivers=None):
+    """Return the name of the 'fallback' network device."""
     if not blacklist_drivers:
         blacklist_drivers = []
 
@@ -233,15 +228,24 @@ def generate_fallback_config(blacklist_drivers=None, config_driver=None):
     if DEFAULT_PRIMARY_INTERFACE in names:
         names.remove(DEFAULT_PRIMARY_INTERFACE)
         names.insert(0, DEFAULT_PRIMARY_INTERFACE)
-    target_name = None
-    target_mac = None
+
+    # pick the first that has a mac-address
     for name in names:
-        mac = read_sys_net_safe(name, 'address')
-        if mac:
-            target_name = name
-            target_mac = mac
-            break
-    if target_mac and target_name:
+        if read_sys_net_safe(name, 'address'):
+            return name
+    return None
+
+
+def generate_fallback_config(blacklist_drivers=None, config_driver=None):
+    """Determine which attached net dev is most likely to have a connection and
+       generate network state to run dhcp on that interface"""
+
+    if not config_driver:
+        config_driver = False
+
+    target_name = find_fallback_nic(blacklist_drivers=blacklist_drivers)
+    if target_name:
+        target_mac = read_sys_net_safe(target_name, 'address')
         nconf = {'config': [], 'version': 1}
         cfg = {'type': 'physical', 'name': target_name,
                'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]}
@@ -511,21 +515,7 @@ def get_interfaces_by_mac():
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret = {}
-    devs = get_devicelist()
-    empty_mac = '00:00:00:00:00:00'
-    for name in devs:
-        if not interface_has_own_mac(name):
-            continue
-        if is_bridge(name):
-            continue
-        if is_vlan(name):
-            continue
-        mac = get_interface_mac(name)
-        # some devices may not have a mac (tun0)
-        if not mac:
-            continue
-        if mac == empty_mac and name != 'lo':
-            continue
+    for name, mac, _driver, _devid in get_interfaces():
         if mac in ret:
             raise RuntimeError(
                 "duplicate mac found! both '%s' and '%s' have mac '%s'" %
@@ -599,6 +589,7 @@ class EphemeralIPv4Network(object):
             self._bringup_router()
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
+        """Teardown anything we set up."""
         for cmd in self.cleanup_cmds:
             util.subp(cmd, capture=True)
 
