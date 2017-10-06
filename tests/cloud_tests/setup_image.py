@@ -5,6 +5,7 @@
 from functools import partial
 import os
 
+from cloudinit import util as c_util
 from tests.cloud_tests import LOG
 from tests.cloud_tests import stage, util
 
@@ -19,7 +20,7 @@ def installed_package_version(image, package, ensure_installed=True):
     """
     os_family = util.get_os_family(image.properties['os'])
     if os_family == 'debian':
-        cmd = ['dpkg-query', '-W', "--showformat='${Version}'", package]
+        cmd = ['dpkg-query', '-W', "--showformat=${Version}", package]
     elif os_family == 'redhat':
         cmd = ['rpm', '-q', '--queryformat', "'%{VERSION}'", package]
     else:
@@ -49,11 +50,11 @@ def install_deb(args, image):
     LOG.debug(msg)
     remote_path = os.path.join('/tmp', os.path.basename(args.deb))
     image.push_file(args.deb, remote_path)
-    cmd = 'dpkg -i {} || apt-get install --yes -f'.format(remote_path)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    cmd = 'dpkg -i {}; apt-get install --yes -f'.format(remote_path)
+    image.execute(cmd, description=msg)
 
     # check installed deb version matches package
-    fmt = ['-W', "--showformat='${Version}'"]
+    fmt = ['-W', "--showformat=${Version}"]
     (out, err, exit) = image.execute(['dpkg-deb'] + fmt + [remote_path])
     expected_version = out.strip()
     found_version = installed_package_version(image, 'cloud-init')
@@ -113,7 +114,7 @@ def upgrade(args, image):
 
     msg = 'upgrading cloud-init'
     LOG.debug(msg)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    image.execute(cmd, description=msg)
 
 
 def upgrade_full(args, image):
@@ -134,7 +135,7 @@ def upgrade_full(args, image):
 
     msg = 'full system upgrade'
     LOG.debug(msg)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    image.execute(cmd, description=msg)
 
 
 def run_script(args, image):
@@ -165,7 +166,7 @@ def enable_ppa(args, image):
     msg = 'enable ppa: "{}" in target'.format(ppa)
     LOG.debug(msg)
     cmd = 'add-apt-repository --yes {} && apt-get update'.format(ppa)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    image.execute(cmd, description=msg)
 
 
 def enable_repo(args, image):
@@ -188,7 +189,21 @@ def enable_repo(args, image):
 
     msg = 'enable repo: "{}" in target'.format(args.repo)
     LOG.debug(msg)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    image.execute(cmd, description=msg)
+
+
+def generate_ssh_keys(data_dir):
+    """Generate SSH keys to be used with image."""
+    LOG.info('generating SSH keys')
+    filename = os.path.join(data_dir, 'id_rsa')
+
+    if os.path.exists(filename):
+        c_util.del_file(filename)
+
+    c_util.subp(['ssh-keygen', '-t', 'rsa', '-b', '4096',
+                 '-f', filename, '-P', '',
+                 '-C', 'ubuntu@cloud_test'],
+                capture=True)
 
 
 def setup_image(args, image):
@@ -226,6 +241,7 @@ def setup_image(args, image):
         'set up for {}'.format(image), calls, continue_after_error=False)
     LOG.debug('after setup complete, installed cloud-init version is: %s',
               installed_package_version(image, 'cloud-init'))
+    generate_ssh_keys(args.data_dir)
     return res
 
 # vi: ts=4 expandtab

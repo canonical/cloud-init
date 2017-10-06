@@ -59,14 +59,16 @@ def set_customization_status(custstate, custerror, errormessage=None):
     return (out, err)
 
 
-# This will read the file nics.txt in the specified directory
-# and return the content
-def get_nics_to_enable(dirpath):
-    if not dirpath:
+def get_nics_to_enable(nicsfilepath):
+    """Reads the NICS from the specified file path and returns the content
+
+    @param nicsfilepath: Absolute file path to the NICS.txt file.
+    """
+
+    if not nicsfilepath:
         return None
 
     NICS_SIZE = 1024
-    nicsfilepath = os.path.join(dirpath, "nics.txt")
     if not os.path.exists(nicsfilepath):
         return None
 

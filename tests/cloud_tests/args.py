@@ -170,9 +170,9 @@ def normalize_collect_args(args):
     @param args: parsed args
     @return_value: updated args, or None if errors occurred
     """
-    # platform should default to all supported
+    # platform should default to lxd
     if len(args.platform) == 0:
-        args.platform = config.ENABLED_PLATFORMS
+        args.platform = ['lxd']
     args.platform = util.sorted_unique(args.platform)
 
     # os name should default to all enabled

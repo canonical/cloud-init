@@ -6,7 +6,7 @@ from cloudinit.cs_utils import Cepko
 from cloudinit import sources
 from cloudinit.sources import DataSourceCloudSigma
 
-from .. import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 SERVER_CONTEXT = {
     "cpu": 1000,

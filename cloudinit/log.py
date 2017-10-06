@@ -19,6 +19,8 @@ import sys
 import six
 from six import StringIO
 
+import time
+
 # Logging levels for easy access
 CRITICAL = logging.CRITICAL
 FATAL = logging.FATAL
@@ -31,6 +33,9 @@ NOTSET = logging.NOTSET
 
 # Default basic format
 DEF_CON_FORMAT = '%(asctime)s - %(filename)s[%(levelname)s]: %(message)s'
+
+# Always format logging timestamps as UTC time
+logging.Formatter.converter = time.gmtime
 
 
 def setupBasicLogging(level=DEBUG):

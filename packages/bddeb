@@ -21,8 +21,9 @@ def find_root():
 if "avoid-pep8-E402-import-not-top-of-file":
     # Use the util functions from cloudinit
     sys.path.insert(0, find_root())
-    from cloudinit import templater
     from cloudinit import util
+    from cloudinit import temp_utils
+    from cloudinit import templater
 
 DEBUILD_ARGS = ["-S", "-d"]
 
@@ -112,8 +113,7 @@ def get_parser():
     parser.add_argument("--init-system", dest="init_system",
                         help=("build deb with INIT_SYSTEM=xxx"
                               " (default: %(default)s"),
-                        default=os.environ.get("INIT_SYSTEM",
-                                               "upstart,systemd"))
+                        default=os.environ.get("INIT_SYSTEM", "systemd"))
 
     parser.add_argument("--release", dest="release",
                         help=("build with changelog referencing RELEASE"),
@@ -149,7 +149,7 @@ def main():
         capture = False
 
     templ_data = {'debian_release': args.release}
-    with util.tempdir() as tdir:
+    with temp_utils.tempdir() as tdir:
 
         # output like 0.7.6-1022-g36e92d3
         ver_data = read_version()

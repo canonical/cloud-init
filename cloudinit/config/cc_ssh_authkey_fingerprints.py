@@ -28,7 +28,7 @@ the keys can be specified, but defaults to ``md5``.
 import base64
 import hashlib
 
-from prettytable import PrettyTable
+from cloudinit.simpletable import SimpleTable
 
 from cloudinit.distros import ug_util
 from cloudinit import ssh_util
@@ -74,7 +74,7 @@ def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5',
         return
     tbl_fields = ['Keytype', 'Fingerprint (%s)' % (hash_meth), 'Options',
                   'Comment']
-    tbl = PrettyTable(tbl_fields)
+    tbl = SimpleTable(tbl_fields)
     for entry in key_entries:
         if _is_printable_key(entry):
             row = []

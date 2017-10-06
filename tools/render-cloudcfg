@@ -4,6 +4,8 @@ import argparse
 import os
 import sys
 
+VARIANTS = ["bsd", "centos", "fedora", "rhel", "suse", "ubuntu", "unknown"]
+
 if "avoid-pep8-E402-import-not-top-of-file":
     _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.insert(0, _tdir)
@@ -14,11 +16,10 @@ if "avoid-pep8-E402-import-not-top-of-file":
 
 def main():
     parser = argparse.ArgumentParser()
-    variants = ["bsd", "centos", "fedora", "rhel", "ubuntu", "unknown"]
     platform = util.system_info()
     parser.add_argument(
         "--variant", default=platform['variant'], action="store",
-        help="define the variant.", choices=variants)
+        help="define the variant.", choices=VARIANTS)
     parser.add_argument(
         "template", nargs="?", action="store",
         default='./config/cloud.cfg.tmpl',

@@ -1,6 +1,6 @@
 ## template:basic
 #!/usr/bin/make -f
-INIT_SYSTEM ?= upstart,systemd
+INIT_SYSTEM ?= systemd
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 PYVER ?= python${pyver}
 
@@ -10,6 +10,7 @@ PYVER ?= python${pyver}
 override_dh_install:
 	dh_install
 	install -d debian/cloud-init/etc/rsyslog.d
+	install -d debian/cloud-init/usr/share/apport/package-hooks
 	cp tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
 	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init/etc/profile.d/Z99-cloud-locale-test.sh
 	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init/etc/profile.d/Z99-cloudinit-warnings.sh

@@ -25,6 +25,8 @@ from cloudinit.sources.helpers.vmware.imc.config_file \
     import ConfigFile
 from cloudinit.sources.helpers.vmware.imc.config_nic \
     import NicConfigurator
+from cloudinit.sources.helpers.vmware.imc.config_passwd \
+    import PasswordConfigurator
 from cloudinit.sources.helpers.vmware.imc.guestcust_error \
     import GuestCustErrorEnum
 from cloudinit.sources.helpers.vmware.imc.guestcust_event \
@@ -49,6 +51,10 @@ class DataSourceOVF(sources.DataSource):
         self.cfg = {}
         self.supported_seed_starts = ("/", "file://")
         self.vmware_customization_supported = True
+        self._network_config = None
+        self._vmware_nics_to_enable = None
+        self._vmware_cust_conf = None
+        self._vmware_cust_found = False
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -58,8 +64,8 @@ class DataSourceOVF(sources.DataSource):
         found = []
         md = {}
         ud = ""
-        vmwarePlatformFound = False
-        vmwareImcConfigFilePath = ''
+        vmwareImcConfigFilePath = None
+        nicspath = None
 
         defaults = {
             "instance-id": "iid-dsovf",
@@ -99,53 +105,88 @@ class DataSourceOVF(sources.DataSource):
                         logfunc=LOG.debug,
                         msg="waiting for configuration file",
                         func=wait_for_imc_cfg_file,
-                        args=("/var/run/vmware-imc", "cust.cfg", max_wait))
+                        args=("cust.cfg", max_wait))
 
                 if vmwareImcConfigFilePath:
                     LOG.debug("Found VMware Customization Config File at %s",
                               vmwareImcConfigFilePath)
+                    nicspath = wait_for_imc_cfg_file(
+                        filename="nics.txt", maxwait=10, naplen=5)
                 else:
                     LOG.debug("Did not find VMware Customization Config File")
             else:
                 LOG.debug("Customization for VMware platform is disabled.")
 
         if vmwareImcConfigFilePath:
-            nics = ""
+            self._vmware_nics_to_enable = ""
             try:
                 cf = ConfigFile(vmwareImcConfigFilePath)
-                conf = Config(cf)
-                (md, ud, cfg) = read_vmware_imc(conf)
-                dirpath = os.path.dirname(vmwareImcConfigFilePath)
-                nics = get_nics_to_enable(dirpath)
+                self._vmware_cust_conf = Config(cf)
+                (md, ud, cfg) = read_vmware_imc(self._vmware_cust_conf)
+                self._vmware_nics_to_enable = get_nics_to_enable(nicspath)
+                markerid = self._vmware_cust_conf.marker_id
+                markerexists = check_marker_exists(markerid)
             except Exception as e:
                 LOG.debug("Error parsing the customization Config File")
                 LOG.exception(e)
                 set_customization_status(
                     GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                     GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
-                enable_nics(nics)
-                return False
+                raise e
             finally:
                 util.del_dir(os.path.dirname(vmwareImcConfigFilePath))
-
             try:
-                LOG.debug("Applying the Network customization")
-                nicConfigurator = NicConfigurator(conf.nics)
-                nicConfigurator.configure()
+                LOG.debug("Preparing the Network configuration")
+                self._network_config = get_network_config_from_conf(
+                    self._vmware_cust_conf,
+                    True,
+                    True,
+                    self.distro.osfamily)
             except Exception as e:
-                LOG.debug("Error applying the Network Configuration")
                 LOG.exception(e)
                 set_customization_status(
                     GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                     GuestCustEventEnum.GUESTCUST_EVENT_NETWORK_SETUP_FAILED)
-                enable_nics(nics)
-                return False
+                raise e
 
-            vmwarePlatformFound = True
+            if markerid and not markerexists:
+                LOG.debug("Applying password customization")
+                pwdConfigurator = PasswordConfigurator()
+                adminpwd = self._vmware_cust_conf.admin_password
+                try:
+                    resetpwd = self._vmware_cust_conf.reset_password
+                    if adminpwd or resetpwd:
+                        pwdConfigurator.configure(adminpwd, resetpwd,
+                                                  self.distro)
+                    else:
+                        LOG.debug("Changing password is not needed")
+                except Exception as e:
+                    LOG.debug("Error applying Password Configuration: %s", e)
+                    set_customization_status(
+                        GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+                        GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
+                    return False
+            if markerid:
+                LOG.debug("Handle marker creation")
+                try:
+                    setup_marker_files(markerid)
+                except Exception as e:
+                    LOG.debug("Error creating marker files: %s", e)
+                    set_customization_status(
+                        GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+                        GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
+                    return False
+
+            self._vmware_cust_found = True
+            found.append('vmware-tools')
+
+            # TODO: Need to set the status to DONE only when the
+            # customization is done successfully.
+            enable_nics(self._vmware_nics_to_enable)
             set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
-            enable_nics(nics)
+
         else:
             np = {'iso': transport_iso9660,
                   'vmware-guestd': transport_vmware_guestd, }
@@ -160,7 +201,7 @@ class DataSourceOVF(sources.DataSource):
                 found.append(name)
 
         # There was no OVF transports found
-        if len(found) == 0 and not vmwarePlatformFound:
+        if len(found) == 0:
             return False
 
         if 'seedfrom' in md and md['seedfrom']:
@@ -205,6 +246,10 @@ class DataSourceOVF(sources.DataSource):
     def get_config_obj(self):
         return self.cfg
 
+    @property
+    def network_config(self):
+        return self._network_config
+
 
 class DataSourceOVFNet(DataSourceOVF):
     def __init__(self, sys_cfg, distro, paths):
@@ -236,17 +281,38 @@ def get_max_wait_from_cfg(cfg):
     return max_wait
 
 
-def wait_for_imc_cfg_file(dirpath, filename, maxwait=180, naplen=5):
+def wait_for_imc_cfg_file(filename, maxwait=180, naplen=5,
+                          dirpath="/var/run/vmware-imc"):
     waited = 0
 
     while waited < maxwait:
-        fileFullPath = search_file(dirpath, filename)
-        if fileFullPath:
+        fileFullPath = os.path.join(dirpath, filename)
+        if os.path.isfile(fileFullPath):
             return fileFullPath
         LOG.debug("Waiting for VMware Customization Config File")
         time.sleep(naplen)
         waited += naplen
     return None
+
+
+def get_network_config_from_conf(config, use_system_devices=True,
+                                 configure=False, osfamily=None):
+    nicConfigurator = NicConfigurator(config.nics, use_system_devices)
+    nics_cfg_list = nicConfigurator.generate(configure, osfamily)
+
+    return get_network_config(nics_cfg_list,
+                              config.name_servers,
+                              config.dns_suffixes)
+
+
+def get_network_config(nics=None, nameservers=None, search=None):
+    config_list = nics
+
+    if nameservers or search:
+        config_list.append({'type': 'nameserver', 'address': nameservers,
+                            'search': search})
+
+    return {'version': 1, 'config': config_list}
 
 
 # This will return a dict with some content
@@ -264,6 +330,9 @@ def read_vmware_imc(config):
     if config.timezone:
         cfg['timezone'] = config.timezone
 
+    # Generate a unique instance-id so that re-customization will
+    # happen in cloud-init
+    md['instance-id'] = "iid-vmware-" + util.rand_str(strlen=8)
     return (md, ud, cfg)
 
 
@@ -306,18 +375,48 @@ def get_ovf_env(dirname):
     return (None, False)
 
 
+def maybe_cdrom_device(devname):
+    """Test if devname matches known list of devices which may contain iso9660
+       filesystems.
+
+    Be helpful in accepting either knames (with no leading /dev/) or full path
+    names, but do not allow paths outside of /dev/, like /dev/foo/bar/xxx.
+    """
+    if not devname:
+        return False
+    elif not isinstance(devname, util.string_types):
+        raise ValueError("Unexpected input for devname: %s" % devname)
+
+    # resolve '..' and multi '/' elements
+    devname = os.path.normpath(devname)
+
+    # drop leading '/dev/'
+    if devname.startswith("/dev/"):
+        # partition returns tuple (before, partition, after)
+        devname = devname.partition("/dev/")[-1]
+
+    # ignore leading slash (/sr0), else fail on / in name (foo/bar/xvdc)
+    if devname.startswith("/"):
+        devname = devname.split("/")[-1]
+    elif devname.count("/") > 0:
+        return False
+
+    # if empty string
+    if not devname:
+        return False
+
+    # default_regex matches values in /lib/udev/rules.d/60-cdrom_id.rules
+    # KERNEL!="sr[0-9]*|hd[a-z]|xvd*", GOTO="cdrom_end"
+    default_regex = r"^(sr[0-9]+|hd[a-z]|xvd.*)"
+    devname_regex = os.environ.get("CLOUD_INIT_CDROM_DEV_REGEX", default_regex)
+    cdmatch = re.compile(devname_regex)
+
+    return cdmatch.match(devname) is not None
+
+
 # Transport functions take no input and return
 # a 3 tuple of content, path, filename
 def transport_iso9660(require_iso=True):
-
-    # default_regex matches values in
-    # /lib/udev/rules.d/60-cdrom_id.rules
-    # KERNEL!="sr[0-9]*|hd[a-z]|xvd*", GOTO="cdrom_end"
-    envname = "CLOUD_INIT_CDROM_DEV_REGEX"
-    default_regex = "^(sr[0-9]+|hd[a-z]|xvd.*)"
-
-    devname_regex = os.environ.get(envname, default_regex)
-    cdmatch = re.compile(devname_regex)
 
     # Go through mounts to see if it was already mounted
     mounts = util.mounts()
@@ -325,7 +424,7 @@ def transport_iso9660(require_iso=True):
         fstype = info['fstype']
         if fstype != "iso9660" and require_iso:
             continue
-        if cdmatch.match(dev[5:]) is None:  # take off '/dev/'
+        if not maybe_cdrom_device(dev):
             continue
         mp = info['mountpoint']
         (fname, contents) = get_ovf_env(mp)
@@ -337,29 +436,19 @@ def transport_iso9660(require_iso=True):
     else:
         mtype = None
 
-    devs = os.listdir("/dev/")
-    devs.sort()
+    # generate a list of devices with mtype filesystem, filter by regex
+    devs = [dev for dev in
+            util.find_devs_with("TYPE=%s" % mtype if mtype else None)
+            if maybe_cdrom_device(dev)]
     for dev in devs:
-        fullp = os.path.join("/dev/", dev)
-
-        if (fullp in mounts or
-                not cdmatch.match(dev) or os.path.isdir(fullp)):
-            continue
-
         try:
-            # See if we can read anything at all...??
-            util.peek_file(fullp, 512)
-        except IOError:
-            continue
-
-        try:
-            (fname, contents) = util.mount_cb(fullp, get_ovf_env, mtype=mtype)
+            (fname, contents) = util.mount_cb(dev, get_ovf_env, mtype=mtype)
         except util.MountFailedError:
-            LOG.debug("%s not mountable as iso9660", fullp)
+            LOG.debug("%s not mountable as iso9660", dev)
             continue
 
         if contents is not False:
-            return (contents, fullp, fname)
+            return (contents, dev, fname)
 
     return (False, None, None)
 
@@ -444,5 +533,34 @@ datasources = (
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+# To check if marker file exists
+def check_marker_exists(markerid):
+    """
+    Check the existence of a marker file.
+    Presence of marker file determines whether a certain code path is to be
+    executed. It is needed for partial guest customization in VMware.
+    """
+    if not markerid:
+        return False
+    markerfile = "/.markerfile-" + markerid
+    if os.path.exists(markerfile):
+        return True
+    return False
+
+
+# Create a marker file
+def setup_marker_files(markerid):
+    """
+    Create a new marker file.
+    Marker files are unique to a full customization workflow in VMware
+    environment.
+    """
+    if not markerid:
+        return
+    markerfile = "/.markerfile-" + markerid
+    util.del_file("/.markerfile-*.txt")
+    open(markerfile, 'w').close()
 
 # vi: ts=4 expandtab

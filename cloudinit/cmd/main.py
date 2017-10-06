@@ -50,13 +50,6 @@ WELCOME_MSG_TPL = ("Cloud-init v. {version} running '{action}' at "
 # Module section template
 MOD_SECTION_TPL = "cloud_%s_modules"
 
-# Things u can query on
-QUERY_DATA_TYPES = [
-    'data',
-    'data_raw',
-    'instance_id',
-]
-
 # Frequency shortname to full name
 # (so users don't have to remember the full name...)
 FREQ_SHORT_NAMES = {
@@ -510,11 +503,6 @@ def main_modules(action_name, args):
     return run_module_section(mods, name, name)
 
 
-def main_query(name, _args):
-    raise NotImplementedError(("Action '%s' is not"
-                               " currently implemented") % (name))
-
-
 def main_single(name, args):
     # Cloud-init single stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
@@ -688,11 +676,10 @@ def main_features(name, args):
 
 
 def main(sysv_args=None):
-    if sysv_args is not None:
-        parser = argparse.ArgumentParser(prog=sysv_args[0])
-        sysv_args = sysv_args[1:]
-    else:
-        parser = argparse.ArgumentParser()
+    if not sysv_args:
+        sysv_args = sys.argv
+    parser = argparse.ArgumentParser(prog=sysv_args[0])
+    sysv_args = sysv_args[1:]
 
     # Top level args
     parser.add_argument('--version', '-v', action='version',
@@ -713,7 +700,8 @@ def main(sysv_args=None):
                         default=False)
 
     parser.set_defaults(reporter=None)
-    subparsers = parser.add_subparsers()
+    subparsers = parser.add_subparsers(title='Subcommands', dest='subcommand')
+    subparsers.required = True
 
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser('init',
@@ -736,17 +724,6 @@ def main(sysv_args=None):
                             default='config',
                             choices=('init', 'config', 'final'))
     parser_mod.set_defaults(action=('modules', main_modules))
-
-    # These settings are used when you want to query information
-    # stored in the cloud-init data objects/directories/files
-    parser_query = subparsers.add_parser('query',
-                                         help=('query information stored '
-                                               'in cloud-init'))
-    parser_query.add_argument("--name", '-n', action="store",
-                              help="item name to query on",
-                              required=True,
-                              choices=QUERY_DATA_TYPES)
-    parser_query.set_defaults(action=('query', main_query))
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser('single',
@@ -781,15 +758,39 @@ def main(sysv_args=None):
                                             help=('list defined features'))
     parser_features.set_defaults(action=('features', main_features))
 
+    parser_analyze = subparsers.add_parser(
+        'analyze', help='Devel tool: Analyze cloud-init logs and data')
+
+    parser_devel = subparsers.add_parser(
+        'devel', help='Run development tools')
+
+    parser_collect_logs = subparsers.add_parser(
+        'collect-logs', help='Collect and tar all cloud-init debug info')
+
+    if sysv_args:
+        # Only load subparsers if subcommand is specified to avoid load cost
+        if sysv_args[0] == 'analyze':
+            from cloudinit.analyze.__main__ import get_parser as analyze_parser
+            # Construct analyze subcommand parser
+            analyze_parser(parser_analyze)
+        elif sysv_args[0] == 'devel':
+            from cloudinit.cmd.devel.parser import get_parser as devel_parser
+            # Construct devel subcommand parser
+            devel_parser(parser_devel)
+        elif sysv_args[0] == 'collect-logs':
+            from cloudinit.cmd.devel.logs import (
+                get_parser as logs_parser, handle_collect_logs_args)
+            logs_parser(parser_collect_logs)
+            parser_collect_logs.set_defaults(
+                action=('collect-logs', handle_collect_logs_args))
+
     args = parser.parse_args(args=sysv_args)
 
-    try:
-        (name, functor) = args.action
-    except AttributeError:
-        parser.error('too few arguments')
+    # Subparsers.required = True and each subparser sets action=(name, functor)
+    (name, functor) = args.action
 
     # Setup basic logging to start (until reinitialized)
-    # iff in debug mode...
+    # iff in debug mode.
     if args.debug:
         logging.setupBasicLogging()
 

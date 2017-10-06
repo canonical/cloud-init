@@ -3,19 +3,24 @@
 
 from __future__ import print_function
 
-from cloudinit.util import read_file_or_url
+from cloudinit import importer
+from cloudinit.util import find_modules, read_file_or_url
 
 import argparse
+from collections import defaultdict
+from copy import deepcopy
 import logging
 import os
+import re
 import sys
 import yaml
 
+_YAML_MAP = {True: 'true', False: 'false', None: 'null'}
 SCHEMA_UNDEFINED = b'UNDEFINED'
 CLOUD_CONFIG_HEADER = b'#cloud-config'
 SCHEMA_DOC_TMPL = """
 {name}
----
+{title_underbar}
 **Summary:** {title}
 
 {description}
@@ -31,6 +36,8 @@ SCHEMA_DOC_TMPL = """
 {examples}
 """
 SCHEMA_PROPERTY_TMPL = '{prefix}**{prop_name}:** ({type}) {description}'
+SCHEMA_EXAMPLES_HEADER = '\n**Examples**::\n\n'
+SCHEMA_EXAMPLES_SPACER_TEMPLATE = '\n    # --- Example{0} ---'
 
 
 class SchemaValidationError(ValueError):
@@ -83,11 +90,49 @@ def validate_cloudconfig_schema(config, schema, strict=False):
             logging.warning('Invalid config:\n%s', '\n'.join(messages))
 
 
-def validate_cloudconfig_file(config_path, schema):
+def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
+    """Return contents of the cloud-config file annotated with schema errors.
+
+    @param cloudconfig: YAML-loaded object from the original_content.
+    @param original_content: The contents of a cloud-config file
+    @param schema_errors: List of tuples from a JSONSchemaValidationError. The
+        tuples consist of (schemapath, error_message).
+    """
+    if not schema_errors:
+        return original_content
+    schemapaths = _schemapath_for_cloudconfig(cloudconfig, original_content)
+    errors_by_line = defaultdict(list)
+    error_count = 1
+    error_footer = []
+    annotated_content = []
+    for path, msg in schema_errors:
+        errors_by_line[schemapaths[path]].append(msg)
+        error_footer.append('# E{0}: {1}'.format(error_count, msg))
+        error_count += 1
+    lines = original_content.decode().split('\n')
+    error_count = 1
+    for line_number, line in enumerate(lines):
+        errors = errors_by_line[line_number + 1]
+        if errors:
+            error_label = ','.join(
+                ['E{0}'.format(count + error_count)
+                 for count in range(0, len(errors))])
+            error_count += len(errors)
+            annotated_content.append(line + '\t\t# ' + error_label)
+        else:
+            annotated_content.append(line)
+    annotated_content.append(
+        '# Errors: -------------\n{0}\n\n'.format('\n'.join(error_footer)))
+    return '\n'.join(annotated_content)
+
+
+def validate_cloudconfig_file(config_path, schema, annotate=False):
     """Validate cloudconfig file adheres to a specific jsonschema.
 
     @param config_path: Path to the yaml cloud-config file to parse.
     @param schema: Dict describing a valid jsonschema to validate against.
+    @param annotate: Boolean set True to print original config file with error
+        annotations on the offending lines.
 
     @raises SchemaValidationError containing any of schema_errors encountered.
     @raises RuntimeError when config_path does not exist.
@@ -108,18 +153,83 @@ def validate_cloudconfig_file(config_path, schema):
             ('format', 'File {0} is not valid yaml. {1}'.format(
                 config_path, str(e))),)
         raise SchemaValidationError(errors)
-    validate_cloudconfig_schema(
-        cloudconfig, schema, strict=True)
+
+    try:
+        validate_cloudconfig_schema(
+            cloudconfig, schema, strict=True)
+    except SchemaValidationError as e:
+        if annotate:
+            print(annotated_cloudconfig_file(
+                cloudconfig, content, e.schema_errors))
+        raise
+
+
+def _schemapath_for_cloudconfig(config, original_content):
+    """Return a dictionary mapping schemapath to original_content line number.
+
+    @param config: The yaml.loaded config dictionary of a cloud-config file.
+    @param original_content: The simple file content of the cloud-config file
+    """
+    # FIXME Doesn't handle multi-line lists or multi-line strings
+    content_lines = original_content.decode().split('\n')
+    schema_line_numbers = {}
+    list_index = 0
+    RE_YAML_INDENT = r'^(\s*)'
+    scopes = []
+    for line_number, line in enumerate(content_lines):
+        indent_depth = len(re.match(RE_YAML_INDENT, line).groups()[0])
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        if scopes:
+            previous_depth, path_prefix = scopes[-1]
+        else:
+            previous_depth = -1
+            path_prefix = ''
+        if line.startswith('- '):
+            key = str(list_index)
+            value = line[1:]
+            list_index += 1
+        else:
+            list_index = 0
+            key, value = line.split(':', 1)
+        while indent_depth <= previous_depth:
+            if scopes:
+                previous_depth, path_prefix = scopes.pop()
+            else:
+                previous_depth = -1
+                path_prefix = ''
+        if path_prefix:
+            key = path_prefix + '.' + key
+        scopes.append((indent_depth, key))
+        if value:
+            value = value.strip()
+            if value.startswith('['):
+                scopes.append((indent_depth + 2, key + '.0'))
+                for inner_list_index in range(0, len(yaml.safe_load(value))):
+                    list_key = key + '.' + str(inner_list_index)
+                    schema_line_numbers[list_key] = line_number + 1
+        schema_line_numbers[key] = line_number + 1
+    return schema_line_numbers
 
 
 def _get_property_type(property_dict):
     """Return a string representing a property type from a given jsonschema."""
     property_type = property_dict.get('type', SCHEMA_UNDEFINED)
+    if property_type == SCHEMA_UNDEFINED and property_dict.get('enum'):
+        property_type = [
+            str(_YAML_MAP.get(k, k)) for k in property_dict['enum']]
     if isinstance(property_type, list):
         property_type = '/'.join(property_type)
-    item_type = property_dict.get('items', {}).get('type')
-    if item_type:
-        property_type = '{0} of {1}'.format(property_type, item_type)
+    items = property_dict.get('items', {})
+    sub_property_type = items.get('type', '')
+    # Collect each item type
+    for sub_item in items.get('oneOf', {}):
+        if sub_property_type:
+            sub_property_type += '/'
+        sub_property_type += '(' + _get_property_type(sub_item) + ')'
+    if sub_property_type:
+        return '{0} of {1}'.format(property_type, sub_property_type)
     return property_type
 
 
@@ -146,12 +256,14 @@ def _get_schema_examples(schema, prefix=''):
     examples = schema.get('examples')
     if not examples:
         return ''
-    rst_content = '\n**Examples**::\n\n'
-    for example in examples:
-        example_yaml = yaml.dump(example, default_flow_style=False)
+    rst_content = SCHEMA_EXAMPLES_HEADER
+    for count, example in enumerate(examples):
         # Python2.6 is missing textwrapper.indent
-        lines = example_yaml.split('\n')
+        lines = example.split('\n')
         indented_lines = ['    {0}'.format(line) for line in lines]
+        if rst_content != SCHEMA_EXAMPLES_HEADER:
+            indented_lines.insert(
+                0, SCHEMA_EXAMPLES_SPACER_TEMPLATE.format(count + 1))
         rst_content += '\n'.join(indented_lines)
     return rst_content
 
@@ -162,61 +274,87 @@ def get_schema_doc(schema):
     @param schema: Dict of jsonschema to render.
     @raise KeyError: If schema lacks an expected key.
     """
-    schema['property_doc'] = _get_property_doc(schema)
-    schema['examples'] = _get_schema_examples(schema)
-    schema['distros'] = ', '.join(schema['distros'])
-    return SCHEMA_DOC_TMPL.format(**schema)
+    schema_copy = deepcopy(schema)
+    schema_copy['property_doc'] = _get_property_doc(schema)
+    schema_copy['examples'] = _get_schema_examples(schema)
+    schema_copy['distros'] = ', '.join(schema['distros'])
+    # Need an underbar of the same length as the name
+    schema_copy['title_underbar'] = re.sub(r'.', '-', schema['name'])
+    return SCHEMA_DOC_TMPL.format(**schema_copy)
 
 
-def get_schema(section_key=None):
-    """Return a dict of jsonschema defined in any cc_* module.
+FULL_SCHEMA = None
 
-    @param: section_key: Optionally limit schema to a specific top-level key.
-    """
-    # TODO use util.find_modules in subsequent branch
-    from cloudinit.config.cc_ntp import schema
-    return schema
+
+def get_schema():
+    """Return jsonschema coalesced from all cc_* cloud-config module."""
+    global FULL_SCHEMA
+    if FULL_SCHEMA:
+        return FULL_SCHEMA
+    full_schema = {
+        '$schema': 'http://json-schema.org/draft-04/schema#',
+        'id': 'cloud-config-schema', 'allOf': []}
+
+    configs_dir = os.path.dirname(os.path.abspath(__file__))
+    potential_handlers = find_modules(configs_dir)
+    for (fname, mod_name) in potential_handlers.items():
+        mod_locs, looked_locs = importer.find_module(
+            mod_name, ['cloudinit.config'], ['schema'])
+        if mod_locs:
+            mod = importer.import_module(mod_locs[0])
+            full_schema['allOf'].append(mod.schema)
+    FULL_SCHEMA = full_schema
+    return full_schema
 
 
 def error(message):
     print(message, file=sys.stderr)
-    return 1
+    sys.exit(1)
 
 
-def get_parser():
+def get_parser(parser=None):
     """Return a parser for supported cmdline arguments."""
-    parser = argparse.ArgumentParser()
+    if not parser:
+        parser = argparse.ArgumentParser(
+            prog='cloudconfig-schema',
+            description='Validate cloud-config files or document schema')
     parser.add_argument('-c', '--config-file',
                         help='Path of the cloud-config yaml file to validate')
     parser.add_argument('-d', '--doc', action="store_true", default=False,
                         help='Print schema documentation')
-    parser.add_argument('-k', '--key',
-                        help='Limit validation or docs to a section key')
+    parser.add_argument('--annotate', action="store_true", default=False,
+                        help='Annotate existing cloud-config file with errors')
     return parser
+
+
+def handle_schema_args(name, args):
+    """Handle provided schema args and perform the appropriate actions."""
+    exclusive_args = [args.config_file, args.doc]
+    if not any(exclusive_args) or all(exclusive_args):
+        error('Expected either --config-file argument or --doc')
+    full_schema = get_schema()
+    if args.config_file:
+        try:
+            validate_cloudconfig_file(
+                args.config_file, full_schema, args.annotate)
+        except (SchemaValidationError, RuntimeError) as e:
+            if not args.annotate:
+                error(str(e))
+        else:
+            print("Valid cloud-config file {0}".format(args.config_file))
+    if args.doc:
+        for subschema in full_schema['allOf']:
+            print(get_schema_doc(subschema))
 
 
 def main():
     """Tool to validate schema of a cloud-config file or print schema docs."""
     parser = get_parser()
-    args = parser.parse_args()
-    exclusive_args = [args.config_file, args.doc]
-    if not any(exclusive_args) or all(exclusive_args):
-        return error('Expected either --config-file argument or --doc')
-
-    schema = get_schema()
-    if args.config_file:
-        try:
-            validate_cloudconfig_file(args.config_file, schema)
-        except (SchemaValidationError, RuntimeError) as e:
-            return error(str(e))
-        print("Valid cloud-config file {0}".format(args.config_file))
-    if args.doc:
-        print(get_schema_doc(schema))
+    handle_schema_args('cloudconfig-schema', parser.parse_args())
     return 0
 
 
 if __name__ == '__main__':
     sys.exit(main())
-
 
 # vi: ts=4 expandtab

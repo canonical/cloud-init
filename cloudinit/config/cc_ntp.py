@@ -4,39 +4,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-NTP
----
-**Summary:** enable and configure ntp
+"""NTP: enable and configure ntp"""
 
-Handle ntp configuration. If ntp is not installed on the system and ntp
-configuration is specified, ntp will be installed. If there is a default ntp
-config file in the image or one is present in the distro's ntp package, it will
-be copied to ``/etc/ntp.conf.dist`` before any changes are made. A list of ntp
-pools and ntp servers can be provided under the ``ntp`` config key. If no ntp
-servers or pools are provided, 4 pools will be used in the format
-``{0-3}.{distro}.pool.ntp.org``.
-
-**Internal name:** ``cc_ntp``
-
-**Module frequency:** per instance
-
-**Supported distros:** centos, debian, fedora, opensuse, ubuntu
-
-**Config keys**::
-
-    ntp:
-        pools:
-            - 0.company.pool.ntp.org
-            - 1.company.pool.ntp.org
-            - ntp.myorg.org
-        servers:
-            - my.ntp.server.local
-            - ntp.ubuntu.com
-            - 192.168.23.2
-"""
-
-from cloudinit.config.schema import validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    get_schema_doc, validate_cloudconfig_schema)
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import templater
@@ -50,6 +21,7 @@ LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 NTP_CONF = '/etc/ntp.conf'
+TIMESYNCD_CONF = '/etc/systemd/timesyncd.conf.d/cloud-init.conf'
 NR_POOL_SERVERS = 4
 distros = ['centos', 'debian', 'fedora', 'opensuse', 'ubuntu']
 
@@ -75,10 +47,13 @@ schema = {
         ``{0-3}.{distro}.pool.ntp.org``."""),
     'distros': distros,
     'examples': [
-        {'ntp': {'pools': ['0.company.pool.ntp.org', '1.company.pool.ntp.org',
-                           'ntp.myorg.org'],
-                 'servers': ['my.ntp.server.local', 'ntp.ubuntu.com',
-                             '192.168.23.2']}}],
+        dedent("""\
+        ntp:
+          pools: [0.int.pool.ntp.org, 1.int.pool.ntp.org, ntp.myorg.org]
+          servers:
+            - ntp.server.local
+            - ntp.ubuntu.com
+            - 192.168.23.2""")],
     'frequency': PER_INSTANCE,
     'type': 'object',
     'properties': {
@@ -116,6 +91,8 @@ schema = {
     }
 }
 
+__doc__ = get_schema_doc(schema)  # Supplement python help()
+
 
 def handle(name, cfg, cloud, log, _args):
     """Enable and configure ntp."""
@@ -132,18 +109,48 @@ def handle(name, cfg, cloud, log, _args):
                             " is a %s %instead"), type_utils.obj_name(ntp_cfg))
 
     validate_cloudconfig_schema(cfg, schema)
+    if ntp_installable():
+        service_name = 'ntp'
+        confpath = NTP_CONF
+        template_name = None
+        packages = ['ntp']
+        check_exe = 'ntpd'
+    else:
+        service_name = 'systemd-timesyncd'
+        confpath = TIMESYNCD_CONF
+        template_name = 'timesyncd.conf'
+        packages = []
+        check_exe = '/lib/systemd/systemd-timesyncd'
+
     rename_ntp_conf()
     # ensure when ntp is installed it has a configuration file
     # to use instead of starting up with packaged defaults
-    write_ntp_config_template(ntp_cfg, cloud)
-    install_ntp(cloud.distro.install_packages, packages=['ntp'],
-                check_exe="ntpd")
-    # if ntp was already installed, it may not have started
+    write_ntp_config_template(ntp_cfg, cloud, confpath, template=template_name)
+    install_ntp(cloud.distro.install_packages, packages=packages,
+                check_exe=check_exe)
+
     try:
-        reload_ntp(systemd=cloud.distro.uses_systemd())
+        reload_ntp(service_name, systemd=cloud.distro.uses_systemd())
     except util.ProcessExecutionError as e:
         LOG.exception("Failed to reload/start ntp service: %s", e)
         raise
+
+
+def ntp_installable():
+    """Check if we can install ntp package
+
+    Ubuntu-Core systems do not have an ntp package available, so
+    we always return False.  Other systems require package managers to install
+    the ntp package If we fail to find one of the package managers, then we
+    cannot install ntp.
+    """
+    if util.system_is_snappy():
+        return False
+
+    if any(map(util.which, ['apt-get', 'dnf', 'yum', 'zypper'])):
+        return True
+
+    return False
 
 
 def install_ntp(install_func, packages=None, check_exe="ntpd"):
@@ -156,7 +163,7 @@ def install_ntp(install_func, packages=None, check_exe="ntpd"):
 
 
 def rename_ntp_conf(config=None):
-    """Rename any existing ntp.conf file and render from template"""
+    """Rename any existing ntp.conf file"""
     if config is None:  # For testing
         config = NTP_CONF
     if os.path.exists(config):
@@ -171,7 +178,7 @@ def generate_server_names(distro):
     return names
 
 
-def write_ntp_config_template(cfg, cloud):
+def write_ntp_config_template(cfg, cloud, path, template=None):
     servers = cfg.get('servers', [])
     pools = cfg.get('pools', [])
 
@@ -185,19 +192,20 @@ def write_ntp_config_template(cfg, cloud):
         'pools': pools,
     }
 
-    template_fn = cloud.get_template_filename('ntp.conf.%s' %
-                                              (cloud.distro.name))
+    if template is None:
+        template = 'ntp.conf.%s' % cloud.distro.name
+
+    template_fn = cloud.get_template_filename(template)
     if not template_fn:
         template_fn = cloud.get_template_filename('ntp.conf')
         if not template_fn:
             raise RuntimeError(("No template found, "
-                                "not rendering %s"), NTP_CONF)
+                                "not rendering %s"), path)
 
-    templater.render_to_file(template_fn, NTP_CONF, params)
+    templater.render_to_file(template_fn, path, params)
 
 
-def reload_ntp(systemd=False):
-    service = 'ntp'
+def reload_ntp(service, systemd=False):
     if systemd:
         cmd = ['systemctl', 'reload-or-restart', service]
     else:

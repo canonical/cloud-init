@@ -11,7 +11,7 @@ from tests.cloud_tests import (config, LOG)
 from tests.cloud_tests import (platforms, images, snapshots, instances)
 from tests.cloud_tests.stage import (PlatformComponent, run_stage, run_single)
 
-build_deps = ['devscripts', 'equivs', 'git', 'tar']
+pre_reqs = ['devscripts', 'equivs', 'git', 'tar']
 
 
 def _out(cmd_res):
@@ -26,13 +26,9 @@ def build_deb(args, instance):
     @return_value: tuple of results and fail count
     """
     # update remote system package list and install build deps
-    LOG.debug('installing build deps')
-    pkgs = ' '.join(build_deps)
-    cmd = 'apt-get update && apt-get install --yes {}'.format(pkgs)
-    instance.execute(['/bin/sh', '-c', cmd])
-    # TODO Remove this call once we have a ci-deps Makefile target
-    instance.execute(['mk-build-deps', '--install', '-t',
-                      'apt-get --no-install-recommends --yes', 'cloud-init'])
+    LOG.debug('installing pre-reqs')
+    pkgs = ' '.join(pre_reqs)
+    instance.execute('apt-get update && apt-get install --yes {}'.format(pkgs))
 
     # local tmpfile that must be deleted
     local_tarball = tempfile.NamedTemporaryFile().name
@@ -40,7 +36,7 @@ def build_deb(args, instance):
     # paths to use in remote system
     output_link = '/root/cloud-init_all.deb'
     remote_tarball = _out(instance.execute(['mktemp']))
-    extract_dir = _out(instance.execute(['mktemp', '--directory']))
+    extract_dir = '/root'
     bddeb_path = os.path.join(extract_dir, 'packages', 'bddeb')
     git_env = {'GIT_DIR': os.path.join(extract_dir, '.git'),
                'GIT_WORK_TREE': extract_dir}
@@ -55,6 +51,11 @@ def build_deb(args, instance):
     instance.execute(['tar', 'xf', remote_tarball, '-C', extract_dir])
     instance.execute(['git', 'commit', '-a', '-m', 'tmp', '--allow-empty'],
                      env=git_env)
+
+    LOG.debug('installing deps')
+    deps_path = os.path.join(extract_dir, 'tools', 'read-dependencies')
+    instance.execute([deps_path, '--install', '--test-distro',
+                      '--distro', 'ubuntu', '--python-version', '3'])
 
     LOG.debug('building deb in remote system at: %s', output_link)
     bddeb_args = args.bddeb_args.split() if args.bddeb_args else []

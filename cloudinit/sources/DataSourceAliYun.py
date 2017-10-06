@@ -6,17 +6,20 @@ from cloudinit import sources
 from cloudinit.sources import DataSourceEc2 as EC2
 from cloudinit import util
 
-DEF_MD_VERSION = "2016-01-01"
 ALIYUN_PRODUCT = "Alibaba Cloud ECS"
 
 
 class DataSourceAliYun(EC2.DataSourceEc2):
-    metadata_urls = ["http://100.100.100.200"]
+
+    metadata_urls = ['http://100.100.100.200']
+
+    # The minimum supported metadata_version from the ec2 metadata apis
+    min_metadata_version = '2016-01-01'
+    extended_metadata_versions = []
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceAliYun, self).__init__(sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, "AliYun")
-        self.api_ver = DEF_MD_VERSION
 
     def get_hostname(self, fqdn=False, _resolve_ip=False):
         return self.metadata.get('hostname', 'localhost.localdomain')

@@ -7,9 +7,9 @@ from cloudinit.config.cc_snap_config import (
 from cloudinit import (distros, helpers, cloud, util)
 from cloudinit.config.cc_snap_config import handle as snap_handle
 from cloudinit.sources import DataSourceNone
-from ..helpers import FilesystemMockingTestCase, mock
+from cloudinit.tests.helpers import FilesystemMockingTestCase, mock
 
-from .. import helpers as t_help
+from cloudinit.tests import helpers as t_help
 
 import logging
 import os

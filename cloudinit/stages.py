@@ -821,28 +821,35 @@ class Modules(object):
         skipped = []
         forced = []
         overridden = self.cfg.get('unverified_modules', [])
+        active_mods = []
+        all_distros = set([distros.ALL_DISTROS])
         for (mod, name, _freq, _args) in mostly_mods:
-            worked_distros = set(mod.distros)
+            worked_distros = set(mod.distros)  # Minimally [] per fixup_modules
             worked_distros.update(
                 distros.Distro.expand_osfamily(mod.osfamilies))
 
-            # module does not declare 'distros' or lists this distro
-            if not worked_distros or d_name in worked_distros:
-                continue
-
-            if name in overridden:
-                forced.append(name)
-            else:
-                skipped.append(name)
+            # Skip only when the following conditions are all met:
+            #  - distros are defined in the module != ALL_DISTROS
+            #  - the current d_name isn't in distros
+            #  - and the module is unverified and not in the unverified_modules
+            #    override list
+            if worked_distros and worked_distros != all_distros:
+                if d_name not in worked_distros:
+                    if name not in overridden:
+                        skipped.append(name)
+                        continue
+                    forced.append(name)
+            active_mods.append([mod, name, _freq, _args])
 
         if skipped:
-            LOG.info("Skipping modules %s because they are not verified "
+            LOG.info("Skipping modules '%s' because they are not verified "
                      "on distro '%s'.  To run anyway, add them to "
-                     "'unverified_modules' in config.", skipped, d_name)
+                     "'unverified_modules' in config.",
+                     ','.join(skipped), d_name)
         if forced:
-            LOG.info("running unverified_modules: %s", forced)
+            LOG.info("running unverified_modules: '%s'", ', '.join(forced))
 
-        return self._run_modules(mostly_mods)
+        return self._run_modules(active_mods)
 
 
 def read_runtime_config():

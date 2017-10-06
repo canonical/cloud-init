@@ -30,12 +30,16 @@ from cloudinit import util
 from cloudinit.distros.parsers import hosts
 
 
+# Used when a cloud-config module can be run on all cloud-init distibutions.
+# The value 'all' is surfaced in module documentation for distro support.
+ALL_DISTROS = 'all'
+
 OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'redhat': ['centos', 'fedora', 'rhel'],
     'gentoo': ['gentoo'],
     'freebsd': ['freebsd'],
-    'suse': ['sles'],
+    'suse': ['opensuse', 'sles'],
     'arch': ['arch'],
 }
 
@@ -187,6 +191,9 @@ class Distro(object):
 
     def _get_localhost_ip(self):
         return "127.0.0.1"
+
+    def get_locale(self):
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def _read_hostname(self, filename, default=None):

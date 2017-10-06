@@ -23,6 +23,34 @@ NETWORK_V2_KEY_FILTER = [
     'match', 'mtu', 'nameservers', 'renderer', 'set-name', 'wakeonlan'
 ]
 
+NET_CONFIG_TO_V2 = {
+    'bond': {'bond-ad-select': 'ad-select',
+             'bond-arp-interval': 'arp-interval',
+             'bond-arp-ip-target': 'arp-ip-target',
+             'bond-arp-validate': 'arp-validate',
+             'bond-downdelay': 'down-delay',
+             'bond-fail-over-mac': 'fail-over-mac-policy',
+             'bond-lacp-rate': 'lacp-rate',
+             'bond-miimon': 'mii-monitor-interval',
+             'bond-min-links': 'min-links',
+             'bond-mode': 'mode',
+             'bond-num-grat-arp': 'gratuitious-arp',
+             'bond-primary': 'primary',
+             'bond-primary-reselect': 'primary-reselect-policy',
+             'bond-updelay': 'up-delay',
+             'bond-xmit-hash-policy': 'transmit-hash-policy'},
+    'bridge': {'bridge_ageing': 'ageing-time',
+               'bridge_bridgeprio': 'priority',
+               'bridge_fd': 'forward-delay',
+               'bridge_gcint': None,
+               'bridge_hello': 'hello-time',
+               'bridge_maxage': 'max-age',
+               'bridge_maxwait': None,
+               'bridge_pathcost': 'path-cost',
+               'bridge_portprio': None,
+               'bridge_stp': 'stp',
+               'bridge_waitport': None}}
+
 
 def parse_net_config_data(net_config, skip_broken=True):
     """Parses the config, returns NetworkState object
@@ -120,6 +148,10 @@ class NetworkState(object):
         self.use_ipv6 = network_state.get('use_ipv6', False)
 
     @property
+    def config(self):
+        return self._network_state['config']
+
+    @property
     def version(self):
         return self._version
 
@@ -166,12 +198,14 @@ class NetworkStateInterpreter(object):
             'search': [],
         },
         'use_ipv6': False,
+        'config': None,
     }
 
     def __init__(self, version=NETWORK_STATE_VERSION, config=None):
         self._version = version
         self._config = config
         self._network_state = copy.deepcopy(self.initial_network_state)
+        self._network_state['config'] = config
         self._parsed = False
 
     @property
@@ -432,6 +466,18 @@ class NetworkStateInterpreter(object):
         for param, val in command.get('params', {}).items():
             iface.update({param: val})
 
+        # convert value to boolean
+        bridge_stp = iface.get('bridge_stp')
+        if bridge_stp is not None and type(bridge_stp) != bool:
+            if bridge_stp in ['on', '1', 1]:
+                bridge_stp = True
+            elif bridge_stp in ['off', '0', 0]:
+                bridge_stp = False
+            else:
+                raise ValueError("Cannot convert bridge_stp value"
+                                 "(%s) to boolean", bridge_stp)
+            iface.update({'bridge_stp': bridge_stp})
+
         interfaces.update({iface['name']: iface})
 
     @ensure_command_keys(['address'])
@@ -460,12 +506,15 @@ class NetworkStateInterpreter(object):
         v2_command = {
           bond0: {
             'interfaces': ['interface0', 'interface1'],
-            'miimon': 100,
-            'mode': '802.3ad',
-            'xmit_hash_policy': 'layer3+4'},
+            'parameters': {
+               'mii-monitor-interval': 100,
+               'mode': '802.3ad',
+               'xmit_hash_policy': 'layer3+4'}},
           bond1: {
             'bond-slaves': ['interface2', 'interface7'],
-            'mode': 1
+            'parameters': {
+                'mode': 1,
+            }
           }
         }
 
@@ -489,8 +538,8 @@ class NetworkStateInterpreter(object):
         v2_command = {
           br0: {
             'interfaces': ['interface0', 'interface1'],
-            'fd': 0,
-            'stp': 'off',
+            'forward-delay': 0,
+            'stp': False,
             'maxwait': 0,
           }
         }
@@ -554,6 +603,7 @@ class NetworkStateInterpreter(object):
             if not mac_address:
                 LOG.debug('NetworkState Version2: missing "macaddress" info '
                           'in config entry: %s: %s', eth, str(cfg))
+            phy_cmd.update({'mac_address': mac_address})
 
             for key in ['mtu', 'match', 'wakeonlan']:
                 if key in cfg:
@@ -598,8 +648,8 @@ class NetworkStateInterpreter(object):
             self.handle_vlan(vlan_cmd)
 
     def handle_wifis(self, command):
-        raise NotImplementedError("NetworkState V2: "
-                                  "Skipping wifi configuration")
+        LOG.warning('Wifi configuration is only available to distros with'
+                    'netplan rendering support.')
 
     def _v2_common(self, cfg):
         LOG.debug('v2_common: handling config:\n%s', cfg)
@@ -616,6 +666,11 @@ class NetworkStateInterpreter(object):
 
     def _handle_bond_bridge(self, command, cmd_type=None):
         """Common handler for bond and bridge types"""
+
+        # inverse mapping for v2 keynames to v1 keynames
+        v2key_to_v1 = dict((v, k) for k, v in
+                           NET_CONFIG_TO_V2.get(cmd_type).items())
+
         for item_name, item_cfg in command.items():
             item_params = dict((key, value) for (key, value) in
                                item_cfg.items() if key not in
@@ -624,14 +679,20 @@ class NetworkStateInterpreter(object):
                 'type': cmd_type,
                 'name': item_name,
                 cmd_type + '_interfaces': item_cfg.get('interfaces'),
-                'params': item_params,
+                'params': dict((v2key_to_v1[k], v) for k, v in
+                               item_params.get('parameters', {}).items())
             }
             subnets = self._v2_to_v1_ipcfg(item_cfg)
             if len(subnets) > 0:
                 v1_cmd.update({'subnets': subnets})
 
-            LOG.debug('v2(%ss) -> v1(%s):\n%s', cmd_type, cmd_type, v1_cmd)
-            self.handle_bridge(v1_cmd)
+            LOG.debug('v2(%s) -> v1(%s):\n%s', cmd_type, cmd_type, v1_cmd)
+            if cmd_type == "bridge":
+                self.handle_bridge(v1_cmd)
+            elif cmd_type == "bond":
+                self.handle_bond(v1_cmd)
+            else:
+                raise ValueError('Unknown command type: %s', cmd_type)
 
     def _v2_to_v1_ipcfg(self, cfg):
         """Common ipconfig extraction from v2 to v1 subnets array."""
@@ -651,12 +712,6 @@ class NetworkStateInterpreter(object):
                 'address': address,
             }
 
-            routes = []
-            for route in cfg.get('routes', []):
-                routes.append(_normalize_route(
-                    {'address': route.get('to'), 'gateway': route.get('via')}))
-            subnet['routes'] = routes
-
             if ":" in address:
                 if 'gateway6' in cfg and gateway6 is None:
                     gateway6 = cfg.get('gateway6')
@@ -667,6 +722,17 @@ class NetworkStateInterpreter(object):
                     subnet.update({'gateway': gateway4})
 
             subnets.append(subnet)
+
+        routes = []
+        for route in cfg.get('routes', []):
+            routes.append(_normalize_route(
+                {'destination': route.get('to'), 'gateway': route.get('via')}))
+
+        # v2 routes are bound to the interface, in v1 we add them under
+        # the first subnet since there isn't an equivalent interface level.
+        if len(subnets) and len(routes):
+            subnets[0]['routes'] = routes
+
         return subnets
 
 
@@ -721,7 +787,7 @@ def _normalize_net_keys(network, address_keys=()):
     elif netmask:
         prefix = mask_to_net_prefix(netmask)
     elif 'prefix' in net:
-        prefix = int(prefix)
+        prefix = int(net['prefix'])
     else:
         prefix = 64 if ipv6 else 24
 

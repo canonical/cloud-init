@@ -45,9 +45,6 @@ datasource_list: ['ConfigDrive', 'Azure', 'OpenStack', 'Ec2']
 # The modules that run in the 'init' stage
 cloud_init_modules:
  - migrator
-{% if variant in ["ubuntu", "unknown", "debian"] %}
- - ubuntu-init-switch
-{% endif %}
  - seed_random
  - bootcmd
  - write-files
@@ -86,6 +83,9 @@ cloud_config_modules:
  - grub-dpkg
  - apt-pipelining
  - apt-configure
+{% endif %}
+{% if variant in ["suse"] %}
+ - zypper-add-repo
 {% endif %}
 {% if variant not in ["freebsd"] %}
  - ntp
@@ -130,7 +130,7 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["centos", "debian", "fedora", "rhel", "ubuntu", "freebsd"] %}
+{% if variant in ["centos", "debian", "fedora", "rhel", "suse", "ubuntu", "freebsd"] %}
    distro: {{ variant }}
 {% else %}
    # Unknown/fallback distro.
@@ -166,13 +166,17 @@ system_info:
          primary: http://ports.ubuntu.com/ubuntu-ports
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
-{% elif variant in ["centos", "rhel", "fedora"] %}
+{% elif variant in ["centos", "rhel", "fedora", "suse"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
      name: {{ variant }}
      lock_passwd: True
      gecos: {{ variant }} Cloud User
+{% if variant == "suse" %}
+     groups: [cdrom, users]
+{% else %}
      groups: [wheel, adm, systemd-journal]
+{% endif %}
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/bash
    # Other config here will be given to the distro class and/or path classes

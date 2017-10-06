@@ -3,7 +3,7 @@
 from cloudinit import distros
 from cloudinit import util
 
-from .. import helpers
+from cloudinit.tests import helpers
 
 import os
 import shutil
@@ -227,6 +227,22 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         os.makedirs('/run/systemd')
         os.symlink('/', '/run/systemd/system')
         self.assertFalse(d.uses_systemd())
+
+    @mock.patch('cloudinit.distros.debian.read_system_locale')
+    def test_get_locale_ubuntu(self, m_locale):
+        """Test ubuntu distro returns locale set to C.UTF-8"""
+        m_locale.return_value = 'C.UTF-8'
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        locale = d.get_locale()
+        self.assertEqual('C.UTF-8', locale)
+
+    def test_get_locale_rhel(self):
+        """Test rhel distro returns NotImplementedError exception"""
+        cls = distros.fetch("rhel")
+        d = cls("rhel", {}, None)
+        with self.assertRaises(NotImplementedError):
+            d.get_locale()
 
 
 # vi: ts=4 expandtab

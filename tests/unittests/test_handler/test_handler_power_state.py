@@ -4,8 +4,8 @@ import sys
 
 from cloudinit.config import cc_power_state_change as psc
 
-from .. import helpers as t_help
-from ..helpers import mock
+from cloudinit.tests import helpers as t_help
+from cloudinit.tests.helpers import mock
 
 
 class TestLoadPowerState(t_help.TestCase):

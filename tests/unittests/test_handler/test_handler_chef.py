@@ -1,11 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import httpretty
 import json
 import logging
 import os
-import shutil
 import six
-import tempfile
 
 from cloudinit import cloud
 from cloudinit.config import cc_chef
@@ -14,18 +13,83 @@ from cloudinit import helpers
 from cloudinit.sources import DataSourceNone
 from cloudinit import util
 
-from .. import helpers as t_help
+from cloudinit.tests.helpers import (
+    CiTestCase, FilesystemMockingTestCase, mock, skipIf)
 
 LOG = logging.getLogger(__name__)
 
 CLIENT_TEMPL = os.path.sep.join(["templates", "chef_client.rb.tmpl"])
 
 
-class TestChef(t_help.FilesystemMockingTestCase):
+class TestInstallChefOmnibus(CiTestCase):
+
+    def setUp(self):
+        self.new_root = self.tmp_dir()
+
+    @httpretty.activate
+    def test_install_chef_from_omnibus_runs_chef_url_content(self):
+        """install_chef_from_omnibus runs downloaded OMNIBUS_URL as script."""
+        chef_outfile = self.tmp_path('chef.out', self.new_root)
+        response = '#!/bin/bash\necho "Hi Mom" > {0}'.format(chef_outfile)
+        httpretty.register_uri(
+            httpretty.GET, cc_chef.OMNIBUS_URL, body=response, status=200)
+        cc_chef.install_chef_from_omnibus()
+        self.assertEqual('Hi Mom\n', util.load_file(chef_outfile))
+
+    @mock.patch('cloudinit.config.cc_chef.url_helper.readurl')
+    @mock.patch('cloudinit.config.cc_chef.util.subp_blob_in_tempfile')
+    def test_install_chef_from_omnibus_retries_url(self, m_subp_blob, m_rdurl):
+        """install_chef_from_omnibus retries OMNIBUS_URL upon failure."""
+
+        class FakeURLResponse(object):
+            contents = '#!/bin/bash\necho "Hi Mom" > {0}/chef.out'.format(
+                self.new_root)
+
+        m_rdurl.return_value = FakeURLResponse()
+
+        cc_chef.install_chef_from_omnibus()
+        expected_kwargs = {'retries': cc_chef.OMNIBUS_URL_RETRIES,
+                           'url': cc_chef.OMNIBUS_URL}
+        self.assertItemsEqual(expected_kwargs, m_rdurl.call_args_list[0][1])
+        cc_chef.install_chef_from_omnibus(retries=10)
+        expected_kwargs = {'retries': 10,
+                           'url': cc_chef.OMNIBUS_URL}
+        self.assertItemsEqual(expected_kwargs, m_rdurl.call_args_list[1][1])
+        expected_subp_kwargs = {
+            'args': ['-v', '2.0'],
+            'basename': 'chef-omnibus-install',
+            'blob': m_rdurl.return_value.contents,
+            'capture': False
+        }
+        self.assertItemsEqual(
+            expected_subp_kwargs,
+            m_subp_blob.call_args_list[0][1])
+
+    @httpretty.activate
+    @mock.patch('cloudinit.config.cc_chef.util.subp_blob_in_tempfile')
+    def test_install_chef_from_omnibus_has_omnibus_version(self, m_subp_blob):
+        """install_chef_from_omnibus provides version arg to OMNIBUS_URL."""
+        chef_outfile = self.tmp_path('chef.out', self.new_root)
+        response = '#!/bin/bash\necho "Hi Mom" > {0}'.format(chef_outfile)
+        httpretty.register_uri(
+            httpretty.GET, cc_chef.OMNIBUS_URL, body=response)
+        cc_chef.install_chef_from_omnibus(omnibus_version='2.0')
+
+        called_kwargs = m_subp_blob.call_args_list[0][1]
+        expected_kwargs = {
+            'args': ['-v', '2.0'],
+            'basename': 'chef-omnibus-install',
+            'blob': response,
+            'capture': False
+        }
+        self.assertItemsEqual(expected_kwargs, called_kwargs)
+
+
+class TestChef(FilesystemMockingTestCase):
+
     def setUp(self):
         super(TestChef, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
+        self.tmp = self.tmp_dir()
 
     def fetch_cloud(self, distro_kind):
         cls = distros.fetch(distro_kind)
@@ -43,8 +107,8 @@ class TestChef(t_help.FilesystemMockingTestCase):
         for d in cc_chef.CHEF_DIRS:
             self.assertFalse(os.path.isdir(d))
 
-    @t_help.skipIf(not os.path.isfile(CLIENT_TEMPL),
-                   CLIENT_TEMPL + " is not available")
+    @skipIf(not os.path.isfile(CLIENT_TEMPL),
+            CLIENT_TEMPL + " is not available")
     def test_basic_config(self):
         """
         test basic config looks sane
@@ -122,8 +186,8 @@ class TestChef(t_help.FilesystemMockingTestCase):
                 'c': 'd',
             }, json.loads(c))
 
-    @t_help.skipIf(not os.path.isfile(CLIENT_TEMPL),
-                   CLIENT_TEMPL + " is not available")
+    @skipIf(not os.path.isfile(CLIENT_TEMPL),
+            CLIENT_TEMPL + " is not available")
     def test_template_deletes(self):
         tpl_file = util.load_file('templates/chef_client.rb.tmpl')
         self.patchUtils(self.tmp)
@@ -143,8 +207,8 @@ class TestChef(t_help.FilesystemMockingTestCase):
         self.assertNotIn('json_attribs', c)
         self.assertNotIn('Formatter.show_time', c)
 
-    @t_help.skipIf(not os.path.isfile(CLIENT_TEMPL),
-                   CLIENT_TEMPL + " is not available")
+    @skipIf(not os.path.isfile(CLIENT_TEMPL),
+            CLIENT_TEMPL + " is not available")
     def test_validation_cert_and_validation_key(self):
         # test validation_cert content is written to validation_key path
         tpl_file = util.load_file('templates/chef_client.rb.tmpl')

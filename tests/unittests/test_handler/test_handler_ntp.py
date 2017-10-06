@@ -3,7 +3,7 @@
 from cloudinit.config import cc_ntp
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
-from ..helpers import FilesystemMockingTestCase, mock, skipIf
+from cloudinit.tests.helpers import FilesystemMockingTestCase, mock, skipIf
 
 
 import os
@@ -14,6 +14,14 @@ NTP_TEMPLATE = b"""\
 ## template: jinja
 servers {{servers}}
 pools {{pools}}
+"""
+
+TIMESYNCD_TEMPLATE = b"""\
+## template:jinja
+[Time]
+{% if servers or pools -%}
+NTP={% for host in servers|list + pools|list %}{{ host }} {% endfor -%}
+{% endif -%}
 """
 
 try:
@@ -59,6 +67,14 @@ class TestNtp(FilesystemMockingTestCase):
         cc_ntp.install_ntp(install_func, packages=['ntp'], check_exe='ntpd')
         install_func.assert_not_called()
 
+    @mock.patch("cloudinit.config.cc_ntp.util")
+    def test_ntp_install_no_op_with_empty_pkg_list(self, mock_util):
+        """ntp_install calls install_func with empty list"""
+        mock_util.which.return_value = None  # check_exe not found
+        install_func = mock.MagicMock()
+        cc_ntp.install_ntp(install_func, packages=[], check_exe='timesyncd')
+        install_func.assert_called_once_with([])
+
     def test_ntp_rename_ntp_conf(self):
         """When NTP_CONF exists, rename_ntp moves it."""
         ntpconf = self.tmp_path("ntp.conf", self.new_root)
@@ -67,6 +83,30 @@ class TestNtp(FilesystemMockingTestCase):
             cc_ntp.rename_ntp_conf()
         self.assertFalse(os.path.exists(ntpconf))
         self.assertTrue(os.path.exists("{0}.dist".format(ntpconf)))
+
+    @mock.patch("cloudinit.config.cc_ntp.util")
+    def test_reload_ntp_defaults(self, mock_util):
+        """Test service is restarted/reloaded (defaults)"""
+        service = 'ntp'
+        cmd = ['service', service, 'restart']
+        cc_ntp.reload_ntp(service)
+        mock_util.subp.assert_called_with(cmd, capture=True)
+
+    @mock.patch("cloudinit.config.cc_ntp.util")
+    def test_reload_ntp_systemd(self, mock_util):
+        """Test service is restarted/reloaded (systemd)"""
+        service = 'ntp'
+        cmd = ['systemctl', 'reload-or-restart', service]
+        cc_ntp.reload_ntp(service, systemd=True)
+        mock_util.subp.assert_called_with(cmd, capture=True)
+
+    @mock.patch("cloudinit.config.cc_ntp.util")
+    def test_reload_ntp_systemd_timesycnd(self, mock_util):
+        """Test service is restarted/reloaded (systemd/timesyncd)"""
+        service = 'systemd-timesycnd'
+        cmd = ['systemctl', 'reload-or-restart', service]
+        cc_ntp.reload_ntp(service, systemd=True)
+        mock_util.subp.assert_called_with(cmd, capture=True)
 
     def test_ntp_rename_ntp_conf_skip_missing(self):
         """When NTP_CONF doesn't exist rename_ntp doesn't create a file."""
@@ -94,7 +134,7 @@ class TestNtp(FilesystemMockingTestCase):
         with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
             stream.write(NTP_TEMPLATE)
         with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
-            cc_ntp.write_ntp_config_template(cfg, mycloud)
+            cc_ntp.write_ntp_config_template(cfg, mycloud, ntp_conf)
         content = util.read_file_or_url('file://' + ntp_conf).contents
         self.assertEqual(
             "servers ['192.168.2.1', '192.168.2.2']\npools []\n",
@@ -120,7 +160,7 @@ class TestNtp(FilesystemMockingTestCase):
         with open('{0}.{1}.tmpl'.format(ntp_conf, distro), 'wb') as stream:
             stream.write(NTP_TEMPLATE)
         with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
-            cc_ntp.write_ntp_config_template(cfg, mycloud)
+            cc_ntp.write_ntp_config_template(cfg, mycloud, ntp_conf)
         content = util.read_file_or_url('file://' + ntp_conf).contents
         self.assertEqual(
             "servers []\npools ['10.0.0.1', '10.0.0.2']\n",
@@ -139,7 +179,7 @@ class TestNtp(FilesystemMockingTestCase):
         with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
             stream.write(NTP_TEMPLATE)
         with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
-            cc_ntp.write_ntp_config_template({}, mycloud)
+            cc_ntp.write_ntp_config_template({}, mycloud, ntp_conf)
         content = util.read_file_or_url('file://' + ntp_conf).contents
         default_pools = [
             "{0}.{1}.pool.ntp.org".format(x, distro)
@@ -152,7 +192,8 @@ class TestNtp(FilesystemMockingTestCase):
                 ",".join(default_pools)),
             self.logs.getvalue())
 
-    def test_ntp_handler_mocked_template(self):
+    @mock.patch("cloudinit.config.cc_ntp.ntp_installable")
+    def test_ntp_handler_mocked_template(self, m_ntp_install):
         """Test ntp handler renders ubuntu ntp.conf template."""
         pools = ['0.mycompany.pool.ntp.org', '3.mycompany.pool.ntp.org']
         servers = ['192.168.23.3', '192.168.23.4']
@@ -164,6 +205,8 @@ class TestNtp(FilesystemMockingTestCase):
         }
         mycloud = self._get_cloud('ubuntu')
         ntp_conf = self.tmp_path('ntp.conf', self.new_root)  # Doesn't exist
+        m_ntp_install.return_value = True
+
         # Create ntp.conf.tmpl
         with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
             stream.write(NTP_TEMPLATE)
@@ -174,6 +217,34 @@ class TestNtp(FilesystemMockingTestCase):
         content = util.read_file_or_url('file://' + ntp_conf).contents
         self.assertEqual(
             'servers {0}\npools {1}\n'.format(servers, pools),
+            content.decode())
+
+    @mock.patch("cloudinit.config.cc_ntp.util")
+    def test_ntp_handler_mocked_template_snappy(self, m_util):
+        """Test ntp handler renders timesycnd.conf template on snappy."""
+        pools = ['0.mycompany.pool.ntp.org', '3.mycompany.pool.ntp.org']
+        servers = ['192.168.23.3', '192.168.23.4']
+        cfg = {
+            'ntp': {
+                'pools': pools,
+                'servers': servers
+            }
+        }
+        mycloud = self._get_cloud('ubuntu')
+        m_util.system_is_snappy.return_value = True
+
+        # Create timesyncd.conf.tmpl
+        tsyncd_conf = self.tmp_path("timesyncd.conf", self.new_root)
+        template = '{0}.tmpl'.format(tsyncd_conf)
+        with open(template, 'wb') as stream:
+            stream.write(TIMESYNCD_TEMPLATE)
+
+        with mock.patch('cloudinit.config.cc_ntp.TIMESYNCD_CONF', tsyncd_conf):
+            cc_ntp.handle('notimportant', cfg, mycloud, None, None)
+
+        content = util.read_file_or_url('file://' + tsyncd_conf).contents
+        self.assertEqual(
+            "[Time]\nNTP=%s %s \n" % (" ".join(servers), " ".join(pools)),
             content.decode())
 
     def test_ntp_handler_real_distro_templates(self):
@@ -332,5 +403,31 @@ class TestNtp(FilesystemMockingTestCase):
             "servers ['10.0.0.1', '10.0.0.1']\n"
             "pools ['0.mypool.org', '0.mypool.org']\n",
             content)
+
+    @mock.patch("cloudinit.config.cc_ntp.ntp_installable")
+    def test_ntp_handler_timesyncd(self, m_ntp_install):
+        """Test ntp handler configures timesyncd"""
+        m_ntp_install.return_value = False
+        distro = 'ubuntu'
+        cfg = {
+            'servers': ['192.168.2.1', '192.168.2.2'],
+            'pools': ['0.mypool.org'],
+        }
+        mycloud = self._get_cloud(distro)
+        tsyncd_conf = self.tmp_path("timesyncd.conf", self.new_root)
+        # Create timesyncd.conf.tmpl
+        template = '{0}.tmpl'.format(tsyncd_conf)
+        print(template)
+        with open(template, 'wb') as stream:
+            stream.write(TIMESYNCD_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.TIMESYNCD_CONF', tsyncd_conf):
+            cc_ntp.write_ntp_config_template(cfg, mycloud, tsyncd_conf,
+                                             template='timesyncd.conf')
+
+        content = util.read_file_or_url('file://' + tsyncd_conf).contents
+        self.assertEqual(
+            "[Time]\nNTP=192.168.2.1 192.168.2.2 0.mypool.org \n",
+            content.decode())
+
 
 # vi: ts=4 expandtab
