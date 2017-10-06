@@ -1,4 +1,4 @@
-cloud-init (17.1-17-g45d361cb-0ubuntu1~17.04.1) UNRELEASED; urgency=medium
+cloud-init (17.1-17-g45d361cb-0ubuntu1~17.04.1) zesty-proposed; urgency=medium
 
   * drop the following cherry picks, now incorporated in snapshot.
     + debian/patches/cpick-a2f8ce9c-Do-not-provide-systemd-fsck-drop...
@@ -121,7 +121,7 @@ cloud-init (17.1-17-g45d361cb-0ubuntu1~17.04.1) UNRELEASED; urgency=medium
       [Ryan Harper]
     - archlinux: Fix bug with empty dns, do not render 'lo' devices.
 
- --  <chad.smith@canonical.com>  Fri, 06 Oct 2017 14:27:05 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 06 Oct 2017 14:42:58 -0600
 
 cloud-init (0.7.9-233-ge586fe35-0ubuntu1~17.04.2) zesty; urgency=medium
 
