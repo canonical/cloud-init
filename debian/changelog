@@ -1,3 +1,125 @@
+cloud-init (17.1-17-g45d361cb-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot. (LP: #1721847)
+    - net: Handle bridge stp values of 0 and convert to boolean type
+      [Chad Smith]
+    - tools: Give specific --abbrev=8 to "git describe"
+    - network: bridge_stp value not always correct [Ryan Harper] (LP: #1721157)
+    - tests: re-enable tox with nocloud-kvm support [Joshua Powers]
+    - systemd: remove limit on tasks created by cloud-init-final.service.
+      [Robert Schweikert] (LP: #1717969)
+    - suse: Support addition of zypper repos via cloud-config.
+      [Robert Schweikert] (LP: #1718675)
+    - tests: Combine integration configs and testcases [Joshua Powers]
+    - Azure, CloudStack: Support reading dhcp options from systemd-networkd.
+      [Dimitri John Ledkov] (LP: #1718029)
+    - packages/debian/copyright: remove mention of boto and MIT license
+    - systemd: only mention Before=apt-daily.service on debian based distros.
+      [Robert Schweikert]
+    - Add missing simpletable and simpletable tests for failed merge
+      [Chad Smith]
+    - Remove prettytable dependency, introduce simpletable [Andrew Jorgensen]
+    - debian/copyright: dep5 updates, reorganize, add Apache 2.0 license.
+      [Joshua Powers] (LP: #1718681)
+    - tests: remove dependency on shlex [Joshua Powers]
+    - AltCloud: Trust PATH for udevadm and modprobe.
+    - DataSourceOVF: use util.find_devs_with(TYPE=iso9660)
+      [Ryan Harper] (LP: #1718287)
+    - tests: remove a temp file used in bootcmd tests.
+    - release 17.1
+    - doc: document GCE datasource. [Arnd Hannemann]
+    - suse: updates to templates to support openSUSE and SLES.
+      [Robert Schweikert] (LP: #1718640)
+    - suse: Copy sysvinit files from redhat with slight changes.
+      [Robert Schweikert] (LP: #1718649)
+    - docs: fix sphinx module schema documentation [Chad Smith]
+    - tests: Add cloudinit package to all test targets [Chad Smith]
+    - Makefile: No longer look for yaml files in obsolete ./bin/.
+    - tests: fix ds-identify unit tests to set EC2_STRICT_ID_DEFAULT.
+    - ec2: Fix maybe_perform_dhcp_discovery to use /var/tmp as a tmpdir
+      [Chad Smith] (LP: #1717627)
+    - Azure: wait longer for SSH pub keys to arrive.
+      [Paul Meyer] (LP: #1717611)
+    - GCE: Fix usage of user-data. (LP: #1717598)
+    - cmdline: add collect-logs subcommand. [Chad Smith] (LP: #1607345)
+    - CloudStack: consider dhclient lease files named with a hyphen.
+      (LP: #1717147)
+    - resizefs: Drop check for read-only device file, do not warn on
+      overlayroot. [Chad Smith]
+    - tests: Enable the NoCloud KVM platform [Joshua Powers]
+    - resizefs: pass mount point to xfs_growfs [Dusty Mabe]
+    - vmware: Enable nics before sending the SUCCESS event. [Sankar Tanguturi]
+    - cloud-config modules: honor distros definitions in each module
+      [Chad Smith] (LP: #1715738, #1715690)
+    - chef: Add option to pin chef omnibus install version
+      [Ethan Apodaca] (LP: #1462693)
+    - tests: execute: support command as string [Joshua Powers]
+    - schema and docs: Add jsonschema to resizefs and bootcmd modules
+      [Chad Smith]
+    - tools: Add xkvm script, wrapper around qemu-system [Joshua Powers]
+    - vmware customization: return network config format
+      [Sankar Tanguturi] (LP: #1675063)
+    - Ec2: only attempt to operate at local mode on known platforms.
+      (LP: #1715128)
+    - Use /run/cloud-init for tempfile operations. (LP: #1707222)
+    - ds-identify: Make OpenStack return maybe on arch other than intel.
+      (LP: #1715241)
+    - tests: mock missed openstack metadata uri network_data.json
+      [Chad Smith] (LP: #1714376)
+    - relocate tests/unittests/helpers.py to cloudinit/tests
+      [Lars Kellogg-Stedman]
+    - tox: add nose timer output [Joshua Powers]
+    - upstart: do not package upstart jobs, drop ubuntu-init-switch module.
+    - tests: Stop leaking calls through unmocked metadata addresses
+      [Chad Smith] (LP: #1714117)
+    - distro: allow distro to specify a default locale [Ryan Harper]
+    - tests: fix two recently added tests for sles distro.
+    - url_helper: dynamically import oauthlib import from inside oauth_headers
+      [Chad Smith]
+    - tox: make xenial environment run with python3.6
+    - suse: Add support for openSUSE and return SLES to a working state.
+      [Robert Schweikert]
+    - GCE: Add a main to the GCE Datasource.
+    - ec2: Add IPv6 dhcp support to Ec2DataSource. [Chad Smith] (LP: #1639030)
+    - url_helper: fail gracefully if oauthlib is not available
+      [Lars Kellogg-Stedman] (LP: #1713760)
+    - cloud-init analyze: fix issues running under python 2. [Andrew Jorgensen]
+    - Configure logging module to always use UTC time.
+      [Ryan Harper] (LP: #1713158)
+    - Log a helpful message if a user script does not include shebang.
+      [Andrew Jorgensen]
+    - cli: Fix command line parsing of coniditionally loaded subcommands.
+      [Chad Smith] (LP: #1712676)
+    - doc: Explain error behavior in user data include file format.
+      [Jason Butz]
+    - cc_landscape & cc_puppet: Fix six.StringIO use in writing configs
+      [Chad Smith] (LP: #1699282, #1710932)
+    - schema cli: Add schema subcommand to cloud-init cli and cc_runcmd schema
+      [Chad Smith]
+    - Debian: Remove non-free repositories from apt sources template.
+      [Joonas Kylmälä] (LP: #1700091)
+    - tools: Add tooling for basic cloud-init performance analysis.
+      [Chad Smith] (LP: #1709761)
+    - network: add v2 passthrough and fix parsing v2 config with bonds/bridge
+      params [Ryan Harper] (LP: #1709180)
+    - doc: update capabilities with features available, link doc reference,
+      cli example [Ryan Harper]
+    - vcloud directory: Guest Customization support for passwords
+      [Maitreyee Saikia]
+    - ec2: Allow Ec2 to run in init-local using dhclient in a sandbox.
+      [Chad Smith] (LP: #1709772)
+    - cc_ntp: fallback on timesyncd configuration if ntp is not installable
+      [Ryan Harper] (LP: #1686485)
+    - net: Reduce duplicate code. Have get_interfaces_by_mac use
+      get_interfaces.
+    - tests: Fix build tree integration tests [Joshua Powers]
+    - sysconfig: Dont repeat header when rendering resolv.conf
+      [Ryan Harper] (LP: #1701420)
+    - archlinux: Fix bug with empty dns, do not render 'lo' devices.
+      (LP: #1663045, #1706593)
+
+ --  <chad.smith@canonical.com>  Fri, 06 Oct 2017 13:22:54 -0600
+
 cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
 
   * drop the following cherry picks, now incorporated in snapshot.
