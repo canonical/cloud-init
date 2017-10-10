@@ -171,7 +171,7 @@ def netdev_pformat():
     else:
         fields = ['Device', 'Up', 'Address', 'Mask', 'Scope', 'Hw-Address']
         tbl = SimpleTable(fields)
-        for (dev, d) in netdev.items():
+        for (dev, d) in sorted(netdev.items()):
             tbl.add_row([dev, d["up"], d["addr"], d["mask"], ".", d["hwaddr"]])
             if d.get('addr6'):
                 tbl.add_row([dev, d["up"],
