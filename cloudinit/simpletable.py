@@ -59,4 +59,4 @@ class SimpleTable(object):
         return '\n'.join(lines)
 
     def get_string(self):
-        return repr(self)
+        return self.__str__()

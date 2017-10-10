@@ -97,4 +97,10 @@ class TestSimpleTable(CiTestCase):
         table = SimpleTable(AUTHORIZED_KEYS_FIELDS)
         for row in AUTHORIZED_KEYS_ROWS:
             table.add_row(row)
-        self.assertEqual(str(table), AUTHORIZED_KEYS_TABLE)
+
+    def test_get_string(self):
+        """get_string() method returns the same content as str()."""
+        table = SimpleTable(AUTHORIZED_KEYS_FIELDS)
+        for row in AUTHORIZED_KEYS_ROWS:
+            table.add_row(row)
+        self.assertEqual(table.get_string(), str(table))
