@@ -40,4 +40,10 @@ class TestUserGroups(base.CloudTestCase):
         out = self.get_data_file('user_cloudy')
         self.assertRegex(out, r'cloudy:x:[0-9]{3,4}:')
 
+    def test_user_root_in_secret(self):
+        """Test root user is in 'secret' group."""
+        user, _, groups = self.get_data_file('root_groups').partition(":")
+        self.assertIn("secret", groups.split(),
+                      msg="User root is not in group 'secret'")
+
 # vi: ts=4 expandtab

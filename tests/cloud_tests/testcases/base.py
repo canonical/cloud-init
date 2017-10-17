@@ -72,6 +72,10 @@ class CloudTestCase(unittest.TestCase):
         result = self.get_status_data(self.get_data_file('result.json'))
         self.assertEqual(len(result['errors']), 0)
 
+    def test_no_warnings_in_log(self):
+        """Warnings should not be found in the log."""
+        self.assertNotIn("WARN", self.get_data_file('cloud-init.log'))
+
 
 class PasswordListTest(CloudTestCase):
     """Base password test case class."""
