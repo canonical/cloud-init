@@ -1,3 +1,10 @@
+cloud-init (17.1-18-gd4f70470-0ubuntu1~16.04.1ubuntu1) UNRELEASED; urgency=medium
+
+  * cherry-pick 41152f1: schema: Log debug instead of warning when
+    jsonschema is absent (LP: #1724354)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 18 Oct 2017 15:10:32 -0600
+
 cloud-init (17.1-18-gd4f70470-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * drop the following cherry picks, now incorporated in snapshot.
