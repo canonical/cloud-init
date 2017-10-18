@@ -1,9 +1,9 @@
-cloud-init (17.1-18-gd4f70470-0ubuntu1~17.04.1ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.1-18-gd4f70470-0ubuntu1~17.04.2) zesty-proposed; urgency=medium
 
   * cherry-pick 41152f1: schema: Log debug instead of warning when
     jsonschema is absent (LP: #1724354)
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 18 Oct 2017 15:04:33 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 18 Oct 2017 15:05:29 -0600
 
 cloud-init (17.1-18-gd4f70470-0ubuntu1~17.04.1) zesty-proposed; urgency=medium
 
