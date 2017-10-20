@@ -5,17 +5,16 @@ from cloudinit.sources import DataSourceNoCloud
 from cloudinit import (distros, helpers, cloud)
 from cloudinit.tests import helpers as t_help
 
-import logging
-
 try:
     from unittest import mock
 except ImportError:
     import mock
 
-LOG = logging.getLogger(__name__)
 
+class TestLxd(t_help.CiTestCase):
 
-class TestLxd(t_help.TestCase):
+    with_logs = True
+
     lxd_cfg = {
         'lxd': {
             'init': {
@@ -41,7 +40,7 @@ class TestLxd(t_help.TestCase):
     def test_lxd_init(self, mock_util):
         cc = self._get_cloud('ubuntu')
         mock_util.which.return_value = True
-        cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, LOG, [])
+        cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, self.logger, [])
         self.assertTrue(mock_util.which.called)
         init_call = mock_util.subp.call_args_list[0][0][0]
         self.assertEqual(init_call,
@@ -55,7 +54,8 @@ class TestLxd(t_help.TestCase):
         cc = self._get_cloud('ubuntu')
         cc.distro = mock.MagicMock()
         mock_util.which.return_value = None
-        cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, LOG, [])
+        cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, self.logger, [])
+        self.assertNotIn('WARN', self.logs.getvalue())
         self.assertTrue(cc.distro.install_packages.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
         self.assertEqual(sorted(install_pkg), ['lxd', 'zfs'])
@@ -64,7 +64,7 @@ class TestLxd(t_help.TestCase):
     def test_no_init_does_nothing(self, mock_util):
         cc = self._get_cloud('ubuntu')
         cc.distro = mock.MagicMock()
-        cc_lxd.handle('cc_lxd', {'lxd': {}}, cc, LOG, [])
+        cc_lxd.handle('cc_lxd', {'lxd': {}}, cc, self.logger, [])
         self.assertFalse(cc.distro.install_packages.called)
         self.assertFalse(mock_util.subp.called)
 
@@ -72,7 +72,7 @@ class TestLxd(t_help.TestCase):
     def test_no_lxd_does_nothing(self, mock_util):
         cc = self._get_cloud('ubuntu')
         cc.distro = mock.MagicMock()
-        cc_lxd.handle('cc_lxd', {'package_update': True}, cc, LOG, [])
+        cc_lxd.handle('cc_lxd', {'package_update': True}, cc, self.logger, [])
         self.assertFalse(cc.distro.install_packages.called)
         self.assertFalse(mock_util.subp.called)
 

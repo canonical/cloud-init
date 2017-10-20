@@ -72,7 +72,7 @@ def handle(name, cfg, cloud, log, args):
                  type(init_cfg))
         init_cfg = {}
 
-    bridge_cfg = lxd_cfg.get('bridge')
+    bridge_cfg = lxd_cfg.get('bridge', {})
     if not isinstance(bridge_cfg, dict):
         log.warn("lxd/bridge config must be a dictionary. found a '%s'",
                  type(bridge_cfg))

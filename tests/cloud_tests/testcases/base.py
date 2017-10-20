@@ -70,7 +70,11 @@ class CloudTestCase(unittest.TestCase):
 
     def test_no_warnings_in_log(self):
         """Warnings should not be found in the log."""
-        self.assertNotIn("WARN", self.get_data_file('cloud-init.log'))
+        self.assertEqual(
+            [],
+            [l for l in self.get_data_file('cloud-init.log').splitlines()
+             if 'WARN' in l],
+            msg="'WARN' found inside cloud-init.log")
 
 
 class PasswordListTest(CloudTestCase):
