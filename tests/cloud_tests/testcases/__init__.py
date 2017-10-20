@@ -5,6 +5,7 @@
 import importlib
 import inspect
 import unittest
+from unittest.util import strclass
 
 from tests.cloud_tests import config
 from tests.cloud_tests.testcases.base import CloudTestCase as base_test
@@ -36,6 +37,12 @@ def get_suite(test_name, data, conf):
     for test_class in discover_tests(test_name):
 
         class tmp(test_class):
+
+            _realclass = test_class
+
+            def __str__(self):
+                return "%s (%s)" % (self._testMethodName,
+                                    strclass(self._realclass))
 
             @classmethod
             def setUpClass(cls):

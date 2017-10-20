@@ -16,10 +16,6 @@ class CloudTestCase(unittest.TestCase):
     conf = None
     _cloud_config = None
 
-    def shortDescription(self):
-        """Prevent nose from using docstrings."""
-        return None
-
     @property
     def cloud_config(self):
         """Get the cloud-config used by the test."""
