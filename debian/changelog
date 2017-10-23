@@ -1,3 +1,17 @@
+cloud-init (17.1-25-g17a15f9e-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - resizefs: Fix regression when system booted with root=PARTUUID=
+      [Chad Smith] (LP: #1725067)
+    - tools: make yum package installation more reliable
+    - citest: fix remaining warnings raised by integration tests.
+    - citest: show the class actual class name in results.
+    - ntp: fix config module schema to allow empty ntp config
+      [Chad Smith] (LP: #1724951)
+    - tools: disable fastestmirror if using proxy [Joshua Powers]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 23 Oct 2017 14:46:12 -0600
+
 cloud-init (17.1-18-gd4f70470-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
   * cherry-pick 41152f1: schema: Log debug instead of warning when
