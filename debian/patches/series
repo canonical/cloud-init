@@ -1,2 +1,1 @@
 stable-release-no-jsonschema-dep.patch
-cpick-41152f1-schema-Log-debug-instead-of-warning-when-jsonschema-is
