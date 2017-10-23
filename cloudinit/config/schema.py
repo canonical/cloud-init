@@ -74,7 +74,7 @@ def validate_cloudconfig_schema(config, schema, strict=False):
     try:
         from jsonschema import Draft4Validator, FormatChecker
     except ImportError:
-        logging.warning(
+        logging.debug(
             'Ignoring schema validation. python-jsonschema is not present')
         return
     validator = Draft4Validator(schema, format_checker=FormatChecker())

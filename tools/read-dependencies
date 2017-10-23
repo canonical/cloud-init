@@ -30,9 +30,35 @@ DISTRO_PKG_TYPE_MAP = {
     'suse': 'suse'
 }
 
-DISTRO_INSTALL_PKG_CMD = {
+MAYBE_RELIABLE_YUM_INSTALL = [
+    'sh', '-c',
+    """
+    error() { echo "$@" 1>&2; }
+    n=0; max=10;
+    bcmd="yum install --downloadonly --assumeyes --setopt=keepcache=1"
+    while n=$(($n+1)); do
+       error ":: running $bcmd $* [$n/$max]"
+       $bcmd "$@"
+       r=$?
+       [ $r -eq 0 ] && break
+       [ $n -ge $max ] && { error "gave up on $bcmd"; exit $r; }
+       nap=$(($n*5))
+       error ":: failed [$r] ($n/$max). sleeping $nap."
+       sleep $nap
+    done
+    error ":: running yum install --cacheonly --assumeyes $*"
+    yum install --cacheonly --assumeyes "$@"
+    """,
+    'reliable-yum-install']
+
+DRY_DISTRO_INSTALL_PKG_CMD = {
     'centos': ['yum', 'install', '--assumeyes'],
     'redhat': ['yum', 'install', '--assumeyes'],
+}
+
+DISTRO_INSTALL_PKG_CMD = {
+    'centos': MAYBE_RELIABLE_YUM_INSTALL,
+    'redhat': MAYBE_RELIABLE_YUM_INSTALL,
     'debian': ['apt', 'install', '-y'],
     'ubuntu': ['apt', 'install', '-y'],
     'opensuse': ['zypper', 'install'],
@@ -80,8 +106,8 @@ def get_parser():
         help='Additionally install continuous integration system packages '
              'required for build and test automation.')
     parser.add_argument(
-        '-v', '--python-version', type=str, dest='python_version', default=None,
-        choices=["2", "3"],
+        '-v', '--python-version', type=str, dest='python_version',
+        default=None, choices=["2", "3"],
         help='Override the version of python we want to generate system '
              'package dependencies for. Defaults to the version of python '
              'this script is called with')
@@ -219,10 +245,15 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
           '(dryrun)' if dry_run else '', ' '.join(pkg_list)))
     install_cmd = []
     if dry_run:
-       install_cmd.append('echo')
+        install_cmd.append('echo')
     if os.geteuid() != 0:
         install_cmd.append('sudo')
-    install_cmd.extend(DISTRO_INSTALL_PKG_CMD[distro])
+
+    cmd = DISTRO_INSTALL_PKG_CMD[distro]
+    if dry_run and distro in DRY_DISTRO_INSTALL_PKG_CMD:
+        cmd = DRY_DISTRO_INSTALL_PKG_CMD[distro]
+    install_cmd.extend(cmd)
+
     if distro in ['centos', 'redhat']:
         # CentOS and Redhat need epel-release to access oauthlib and jsonschema
         subprocess.check_call(install_cmd + ['epel-release'])
