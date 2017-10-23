@@ -1,4 +1,4 @@
-cloud-init (17.1-25-g17a15f9e-0ubuntu1~17.04.1) UNRELEASED; urgency=medium
+cloud-init (17.1-25-g17a15f9e-0ubuntu1~17.04.1) zesty-proposed; urgency=medium
 
   * New upstream snapshot.
     - resizefs: Fix regression when system booted with root=PARTUUID=
@@ -10,7 +10,7 @@ cloud-init (17.1-25-g17a15f9e-0ubuntu1~17.04.1) UNRELEASED; urgency=medium
       (LP: #1724951)
     - tools: disable fastestmirror if using proxy [Joshua Powers]
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 23 Oct 2017 14:56:44 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 23 Oct 2017 14:57:46 -0600
 
 cloud-init (17.1-18-gd4f70470-0ubuntu1~17.04.2) zesty-proposed; urgency=medium
 
