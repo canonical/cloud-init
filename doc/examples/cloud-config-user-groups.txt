@@ -1,8 +1,8 @@
 # Add groups to the system
-# The following example adds the ubuntu group with members foo and bar and
-# the group cloud-users.
+# The following example adds the ubuntu group with members 'root' and 'sys'
+# and the empty group cloud-users.
 groups:
-  - ubuntu: [foo,bar]
+  - ubuntu: [root,sys]
   - cloud-users
 
 # Add users to the system. Users are added after groups are added.
