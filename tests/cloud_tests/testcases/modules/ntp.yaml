@@ -4,8 +4,8 @@
 cloud_config: |
   #cloud-config
   ntp:
-    pools: {}
-    servers: {}
+    pools: []
+    servers: []
 collect_scripts:
   ntp_installed: |
     #!/bin/bash

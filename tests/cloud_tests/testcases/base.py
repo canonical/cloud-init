@@ -16,10 +16,6 @@ class CloudTestCase(unittest.TestCase):
     conf = None
     _cloud_config = None
 
-    def shortDescription(self):
-        """Prevent nose from using docstrings."""
-        return None
-
     @property
     def cloud_config(self):
         """Get the cloud-config used by the test."""
@@ -71,6 +67,14 @@ class CloudTestCase(unittest.TestCase):
                              .format(status[stage]['errors'], stage))
         result = self.get_status_data(self.get_data_file('result.json'))
         self.assertEqual(len(result['errors']), 0)
+
+    def test_no_warnings_in_log(self):
+        """Warnings should not be found in the log."""
+        self.assertEqual(
+            [],
+            [l for l in self.get_data_file('cloud-init.log').splitlines()
+             if 'WARN' in l],
+            msg="'WARN' found inside cloud-init.log")
 
 
 class PasswordListTest(CloudTestCase):

@@ -100,7 +100,9 @@ def handle(name, cfg, cloud, log, _args):
         LOG.debug(
             "Skipping module named %s, not present or disabled by cfg", name)
         return
-    ntp_cfg = cfg.get('ntp', {})
+    ntp_cfg = cfg['ntp']
+    if ntp_cfg is None:
+        ntp_cfg = {}  # Allow empty config which will install the package
 
     # TODO drop this when validate_cloudconfig_schema is strict=True
     if not isinstance(ntp_cfg, (dict)):

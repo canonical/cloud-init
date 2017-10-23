@@ -15,7 +15,8 @@ options, see the ``Including users and groups`` config example.
 Groups to add to the system can be specified as a list under the ``groups``
 key. Each entry in the list should either contain a the group name as a string,
 or a dictionary with the group name as the key and a list of users who should
-be members of the group as the value.
+be members of the group as the value. **Note**: Groups are added before users,
+so any users in a group list must already exist on the system.
 
 The ``users`` config key takes a list of users to configure. The first entry in
 this list is used as the default user for the system. To preserve the standard
