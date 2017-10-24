@@ -1,4 +1,4 @@
-cloud-init (17.1-25-g17a15f9e-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.1-25-g17a15f9e-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - resizefs: Fix regression when system booted with root=PARTUUID=
@@ -12,7 +12,7 @@ cloud-init (17.1-25-g17a15f9e-0ubuntu1) UNRELEASED; urgency=medium
     - schema: Log debug instead of warning when jsonschema is not available.
       (LP: #1724354)
 
- -- Ryan Harper <ryan.harper@canonical.com>  Tue, 24 Oct 2017 10:39:14 -0500
+ -- Ryan Harper <ryan.harper@canonical.com>  Tue, 24 Oct 2017 10:40:00 -0500
 
 cloud-init (17.1-18-gd4f70470-0ubuntu1) artful; urgency=medium
 
