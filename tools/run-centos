@@ -123,7 +123,22 @@ prep() {
         return 0
     fi
     error "Installing prep packages: ${needed}"
-    yum install --assumeyes ${needed}
+    set -- $needed
+    local n max r
+    n=0; max=10;
+    bcmd="yum install --downloadonly --assumeyes --setopt=keepcache=1"
+    while n=$(($n+1)); do
+       error ":: running $bcmd $* [$n/$max]"
+       $bcmd "$@"
+       r=$?
+       [ $r -eq 0 ] && break
+       [ $n -ge $max ] && { error "gave up on $bcmd"; exit $r; }
+       nap=$(($n*5))
+       error ":: failed [$r] ($n/$max). sleeping $nap."
+       sleep $nap
+    done
+    error ":: running yum install --cacheonly --assumeyes $*"
+    yum install --cacheonly --assumeyes "$@"
 }
 
 start_container() {
@@ -153,6 +168,7 @@ start_container() {
     if [ ! -z "${http_proxy-}" ]; then
         debug 1 "configuring proxy ${http_proxy}"
         inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
+        inside "$name" sed -i s/enabled=1/enabled=0/ /etc/yum/pluginconf.d/fastestmirror.conf
     fi
 }
 
