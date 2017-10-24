@@ -145,25 +145,6 @@ RESIZE_FS_PRECHECK_CMDS = {
 }
 
 
-def rootdev_from_cmdline(cmdline):
-    found = None
-    for tok in cmdline.split():
-        if tok.startswith("root="):
-            found = tok[5:]
-            break
-    if found is None:
-        return None
-
-    if found.startswith("/dev/"):
-        return found
-    if found.startswith("LABEL="):
-        return "/dev/disk/by-label/" + found[len("LABEL="):]
-    if found.startswith("UUID="):
-        return "/dev/disk/by-uuid/" + found[len("UUID="):]
-
-    return "/dev/" + found
-
-
 def can_skip_resize(fs_type, resize_what, devpth):
     fstype_lc = fs_type.lower()
     for i, func in RESIZE_FS_PRECHECK_CMDS.items():
@@ -172,14 +153,15 @@ def can_skip_resize(fs_type, resize_what, devpth):
     return False
 
 
-def is_device_path_writable_block(devpath, info, log):
-    """Return True if devpath is a writable block device.
+def maybe_get_writable_device_path(devpath, info, log):
+    """Return updated devpath if the devpath is a writable block device.
 
-    @param devpath: Path to the root device we want to resize.
+    @param devpath: Requested path to the root device we want to resize.
     @param info: String representing information about the requested device.
     @param log: Logger to which logs will be added upon error.
 
-    @returns Boolean True if block device is writable
+    @returns devpath or updated devpath per kernel commandline if the device
+        path is a writable block device, returns None otherwise.
     """
     container = util.is_container()
 
@@ -189,12 +171,12 @@ def is_device_path_writable_block(devpath, info, log):
         devpath = util.rootdev_from_cmdline(util.get_cmdline())
         if devpath is None:
             log.warn("Unable to find device '/dev/root'")
-            return False
+            return None
         log.debug("Converted /dev/root to '%s' per kernel cmdline", devpath)
 
     if devpath == 'overlayroot':
         log.debug("Not attempting to resize devpath '%s': %s", devpath, info)
-        return False
+        return None
 
     try:
         statret = os.stat(devpath)
@@ -207,7 +189,7 @@ def is_device_path_writable_block(devpath, info, log):
                      devpath, info)
         else:
             raise exc
-        return False
+        return None
 
     if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
         if container:
@@ -216,8 +198,8 @@ def is_device_path_writable_block(devpath, info, log):
         else:
             log.warn("device '%s' not a block device. cannot resize: %s" %
                      (devpath, info))
-        return False
-    return True
+        return None
+    return devpath  # The writable block devpath
 
 
 def handle(name, cfg, _cloud, log, args):
@@ -242,8 +224,9 @@ def handle(name, cfg, _cloud, log, args):
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
     log.debug("resize_info: %s" % info)
 
-    if not is_device_path_writable_block(devpth, info, log):
-        return
+    devpth = maybe_get_writable_device_path(devpth, info, log)
+    if not devpth:
+        return  # devpath was not a writable block device
 
     resizer = None
     if can_skip_resize(fs_type, resize_what, devpth):

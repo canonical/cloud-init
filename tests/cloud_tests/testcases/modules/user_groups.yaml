@@ -7,7 +7,7 @@ cloud_config: |
   #cloud-config
   # Add groups to the system
   groups:
-    - secret: [foobar,barfoo]
+    - secret: [root]
     - cloud-users
 
   # Add users to the system. Users are added after groups are added.
@@ -23,7 +23,7 @@ cloud_config: |
     - name: barfoo
       gecos: Bar B. Foo
       sudo: ALL=(ALL) NOPASSWD:ALL
-      groups: cloud-users
+      groups: [cloud-users, secret]
       lock_passwd: true
     - name: cloudy
       gecos: Magic Cloud App Daemon User
@@ -48,5 +48,8 @@ collect_scripts:
   user_cloudy: |
     #!/bin/bash
     getent passwd cloudy
+  root_groups: |
+    #!/bin/bash
+    groups root
 
 # vi: ts=4 expandtab

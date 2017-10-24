@@ -293,23 +293,24 @@ class TestNtp(FilesystemMockingTestCase):
 
     def test_ntp_handler_schema_validation_allows_empty_ntp_config(self):
         """Ntp schema validation allows for an empty ntp: configuration."""
-        invalid_config = {'ntp': {}}
+        valid_empty_configs = [{'ntp': {}}, {'ntp': None}]
         distro = 'ubuntu'
         cc = self._get_cloud(distro)
         ntp_conf = os.path.join(self.new_root, 'ntp.conf')
         with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
             stream.write(NTP_TEMPLATE)
-        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
-            cc_ntp.handle('cc_ntp', invalid_config, cc, None, [])
+        for valid_empty_config in valid_empty_configs:
+            with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+                cc_ntp.handle('cc_ntp', valid_empty_config, cc, None, [])
+            with open(ntp_conf) as stream:
+                content = stream.read()
+            default_pools = [
+                "{0}.{1}.pool.ntp.org".format(x, distro)
+                for x in range(0, cc_ntp.NR_POOL_SERVERS)]
+            self.assertEqual(
+                "servers []\npools {0}\n".format(default_pools),
+                content)
         self.assertNotIn('Invalid config:', self.logs.getvalue())
-        with open(ntp_conf) as stream:
-            content = stream.read()
-        default_pools = [
-            "{0}.{1}.pool.ntp.org".format(x, distro)
-            for x in range(0, cc_ntp.NR_POOL_SERVERS)]
-        self.assertEqual(
-            "servers []\npools {0}\n".format(default_pools),
-            content)
 
     @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_ntp_handler_schema_validation_warns_non_string_item_type(self):

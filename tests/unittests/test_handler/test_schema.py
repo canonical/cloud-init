@@ -4,11 +4,12 @@ from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER, SchemaValidationError, annotated_cloudconfig_file,
     get_schema_doc, get_schema, validate_cloudconfig_file,
     validate_cloudconfig_schema, main)
-from cloudinit.util import write_file
+from cloudinit.util import subp, write_file
 
 from cloudinit.tests.helpers import CiTestCase, mock, skipIf
 
 from copy import copy
+import os
 from six import StringIO
 from textwrap import dedent
 from yaml import safe_load
@@ -363,5 +364,39 @@ class MainTest(CiTestCase):
                 self.assertEqual(0, main(), 'Expected 0 exit code')
         self.assertIn(
             'Valid cloud-config file {0}'.format(myyaml), m_stdout.getvalue())
+
+
+class CloudTestsIntegrationTest(CiTestCase):
+    """Validate all cloud-config yaml schema provided in integration tests.
+
+    It is less expensive to have unittests validate schema of all cloud-config
+    yaml provided to integration tests, than to run an integration test which
+    raises Warnings or errors on invalid cloud-config schema.
+    """
+
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    def test_all_integration_test_cloud_config_schema(self):
+        """Validate schema of cloud_tests yaml files looking for warnings."""
+        schema = get_schema()
+        testsdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        integration_testdir = os.path.sep.join(
+            [testsdir, 'cloud_tests', 'testcases'])
+        errors = []
+        out, _ = subp(['find', integration_testdir, '-name', '*yaml'])
+        for filename in out.splitlines():
+            test_cfg = safe_load(open(filename))
+            cloud_config = test_cfg.get('cloud_config')
+            if cloud_config:
+                cloud_config = safe_load(
+                    cloud_config.replace("#cloud-config\n", ""))
+                try:
+                    validate_cloudconfig_schema(
+                        cloud_config, schema, strict=True)
+                except SchemaValidationError as e:
+                    errors.append(
+                        '{0}: {1}'.format(
+                            filename, e))
+        if errors:
+            raise AssertionError(', '.join(errors))
 
 # vi: ts=4 expandtab syntax=python
