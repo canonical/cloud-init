@@ -24,7 +24,7 @@ class Distro(distros.Distro):
     network_conf_fn = '/etc/conf.d/net'
     resolve_conf_fn = '/etc/resolv.conf'
     hostname_conf_fn = '/etc/conf.d/hostname'
-    init_cmd = ['service']  # init scripts
+    init_cmd = ['rc-service']  # init scripts
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
