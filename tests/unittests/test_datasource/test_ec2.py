@@ -51,6 +51,29 @@ DEFAULT_METADATA = {
                     "vpc-ipv4-cidr-block": "172.31.0.0/16",
                     "vpc-ipv4-cidr-blocks": "172.31.0.0/16",
                     "vpc-ipv6-cidr-blocks": "2600:1f16:aeb:b200::/56"
+                },
+                "06:17:04:d7:26:0A": {
+                    "device-number": "1",   # Only IPv4 local config
+                    "interface-id": "eni-e44ef49f",
+                    "ipv4-associations": {"": "172.3.3.16"},
+                    "ipv6s": "",  # No IPv6 config
+                    "local-hostname": ("ip-172-3-3-16.us-east-2."
+                                       "compute.internal"),
+                    "local-ipv4s": "172.3.3.16",
+                    "mac": "06:17:04:d7:26:0A",
+                    "owner-id": "950047163771",
+                    "public-hostname": ("ec2-172-3-3-16.us-east-2."
+                                        "compute.amazonaws.com"),
+                    "public-ipv4s": "",  # No public ipv4 config
+                    "security-group-ids": "sg-5a61d333",
+                    "security-groups": "wide-open",
+                    "subnet-id": "subnet-20b8565b",
+                    "subnet-ipv4-cidr-block": "172.31.16.0/20",
+                    "subnet-ipv6-cidr-blocks": "",
+                    "vpc-id": "vpc-87e72bee",
+                    "vpc-ipv4-cidr-block": "172.31.0.0/16",
+                    "vpc-ipv4-cidr-blocks": "172.31.0.0/16",
+                    "vpc-ipv6-cidr-blocks": ""
                 }
             }
         }
@@ -209,12 +232,20 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
     @httpretty.activate
     def test_network_config_property_returns_version_1_network_data(self):
-        """network_config property returns network version 1 for metadata."""
+        """network_config property returns network version 1 for metadata.
+
+        Only one device is configured even when multiple exist in metadata.
+        """
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
             md=DEFAULT_METADATA)
-        ds.get_data()
+        find_fallback_path = (
+            'cloudinit.sources.DataSourceEc2.net.find_fallback_nic')
+        with mock.patch(find_fallback_path) as m_find_fallback:
+            m_find_fallback.return_value = 'eth9'
+            ds.get_data()
+
         mac1 = '06:17:04:d7:26:09'  # Defined in DEFAULT_METADATA
         expected = {'version': 1, 'config': [
             {'mac_address': '06:17:04:d7:26:09', 'name': 'eth9',
@@ -222,9 +253,48 @@ class TestEc2(test_helpers.HttprettyTestCase):
              'type': 'physical'}]}
         patch_path = (
             'cloudinit.sources.DataSourceEc2.net.get_interfaces_by_mac')
+        get_interface_mac_path = (
+            'cloudinit.sources.DataSourceEc2.net.get_interface_mac')
         with mock.patch(patch_path) as m_get_interfaces_by_mac:
-            m_get_interfaces_by_mac.return_value = {mac1: 'eth9'}
-            self.assertEqual(expected, ds.network_config)
+            with mock.patch(find_fallback_path) as m_find_fallback:
+                with mock.patch(get_interface_mac_path) as m_get_mac:
+                    m_get_interfaces_by_mac.return_value = {mac1: 'eth9'}
+                    m_find_fallback.return_value = 'eth9'
+                    m_get_mac.return_value = mac1
+                    self.assertEqual(expected, ds.network_config)
+
+    @httpretty.activate
+    def test_network_config_property_set_dhcp4_on_private_ipv4(self):
+        """network_config property configures dhcp4 on private ipv4 nics.
+
+        Only one device is configured even when multiple exist in metadata.
+        """
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
+            md=DEFAULT_METADATA)
+        find_fallback_path = (
+            'cloudinit.sources.DataSourceEc2.net.find_fallback_nic')
+        with mock.patch(find_fallback_path) as m_find_fallback:
+            m_find_fallback.return_value = 'eth9'
+            ds.get_data()
+
+        mac1 = '06:17:04:d7:26:0A'  # IPv4 only in DEFAULT_METADATA
+        expected = {'version': 1, 'config': [
+            {'mac_address': '06:17:04:d7:26:0A', 'name': 'eth9',
+             'subnets': [{'type': 'dhcp4'}],
+             'type': 'physical'}]}
+        patch_path = (
+            'cloudinit.sources.DataSourceEc2.net.get_interfaces_by_mac')
+        get_interface_mac_path = (
+            'cloudinit.sources.DataSourceEc2.net.get_interface_mac')
+        with mock.patch(patch_path) as m_get_interfaces_by_mac:
+            with mock.patch(find_fallback_path) as m_find_fallback:
+                with mock.patch(get_interface_mac_path) as m_get_mac:
+                    m_get_interfaces_by_mac.return_value = {mac1: 'eth9'}
+                    m_find_fallback.return_value = 'eth9'
+                    m_get_mac.return_value = mac1
+                    self.assertEqual(expected, ds.network_config)
 
     def test_network_config_property_is_cached_in_datasource(self):
         """network_config property is cached in DataSourceEc2."""
@@ -321,9 +391,11 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
     @httpretty.activate
     @mock.patch('cloudinit.net.EphemeralIPv4Network')
+    @mock.patch('cloudinit.net.find_fallback_nic')
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     @mock.patch('cloudinit.sources.DataSourceEc2.util.is_FreeBSD')
-    def test_ec2_local_performs_dhcp_on_non_bsd(self, m_is_bsd, m_dhcp, m_net):
+    def test_ec2_local_performs_dhcp_on_non_bsd(self, m_is_bsd, m_dhcp,
+                                                m_fallback_nic, m_net):
         """Ec2Local returns True for valid platform data on non-BSD with dhcp.
 
         DataSourceEc2Local will setup initial IPv4 network via dhcp discovery.
@@ -331,6 +403,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         When the platform data is valid, return True.
         """
 
+        m_fallback_nic.return_value = 'eth9'
         m_is_bsd.return_value = False
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
@@ -344,7 +417,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
         ret = ds.get_data()
         self.assertTrue(ret)
-        m_dhcp.assert_called_once_with()
+        m_dhcp.assert_called_once_with('eth9')
         m_net.assert_called_once_with(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
             prefix_or_mask='255.255.255.0', router='192.168.2.1')
@@ -388,6 +461,57 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
             expected,
             ec2.convert_ec2_metadata_network_config(
                 network_metadata_ipv6, macs_to_nics))
+
+    def test_convert_ec2_metadata_network_config_handles_local_dhcp4(self):
+        """Config dhcp4 when there are no public addresses in public-ipv4s."""
+        macs_to_nics = {self.mac1: 'eth9'}
+        network_metadata_ipv6 = copy.deepcopy(self.network_metadata)
+        nic1_metadata = (
+            network_metadata_ipv6['interfaces']['macs'][self.mac1])
+        nic1_metadata['local-ipv4s'] = '172.3.3.15'
+        nic1_metadata.pop('public-ipv4s')
+        expected = {'version': 1, 'config': [
+            {'mac_address': self.mac1, 'type': 'physical',
+             'name': 'eth9', 'subnets': [{'type': 'dhcp4'}]}]}
+        self.assertEqual(
+            expected,
+            ec2.convert_ec2_metadata_network_config(
+                network_metadata_ipv6, macs_to_nics))
+
+    def test_convert_ec2_metadata_network_config_handles_absent_dhcp4(self):
+        """Config dhcp4 on fallback_nic when there are no ipv4 addresses."""
+        macs_to_nics = {self.mac1: 'eth9'}
+        network_metadata_ipv6 = copy.deepcopy(self.network_metadata)
+        nic1_metadata = (
+            network_metadata_ipv6['interfaces']['macs'][self.mac1])
+        nic1_metadata['public-ipv4s'] = ''
+
+        # When no ipv4 or ipv6 content but fallback_nic set, set dhcp4 config.
+        expected = {'version': 1, 'config': [
+            {'mac_address': self.mac1, 'type': 'physical',
+             'name': 'eth9', 'subnets': [{'type': 'dhcp4'}]}]}
+        self.assertEqual(
+            expected,
+            ec2.convert_ec2_metadata_network_config(
+                network_metadata_ipv6, macs_to_nics, fallback_nic='eth9'))
+
+    def test_convert_ec2_metadata_network_config_handles_local_v4_and_v6(self):
+        """When dhcp6 is public and dhcp4 is set to local enable both."""
+        macs_to_nics = {self.mac1: 'eth9'}
+        network_metadata_both = copy.deepcopy(self.network_metadata)
+        nic1_metadata = (
+            network_metadata_both['interfaces']['macs'][self.mac1])
+        nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
+        nic1_metadata.pop('public-ipv4s')
+        nic1_metadata['local-ipv4s'] = '10.0.0.42'  # Local ipv4 only on vpc
+        expected = {'version': 1, 'config': [
+            {'mac_address': self.mac1, 'type': 'physical',
+             'name': 'eth9',
+             'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]}]}
+        self.assertEqual(
+            expected,
+            ec2.convert_ec2_metadata_network_config(
+                network_metadata_both, macs_to_nics))
 
     def test_convert_ec2_metadata_network_config_handles_dhcp4_and_dhcp6(self):
         """Config both dhcp4 and dhcp6 when both vpc-ipv6 and ipv4 exists."""
