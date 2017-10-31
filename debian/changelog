@@ -1,3 +1,13 @@
+cloud-init (17.1-27-geb292c18-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - EC2: Limit network config to fallback nic, fix local-ipv4 only
+      instances. (LP: #1728152)
+    - Gentoo: Use "rc-service" rather than "service".
+      [ckonstanski] (LP: #1727121)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 31 Oct 2017 13:10:21 -0600
+
 cloud-init (17.1-25-g17a15f9e-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * New upstream snapshot.
