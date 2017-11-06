@@ -9,11 +9,6 @@ class TestSshKeysGenerate(base.CloudTestCase):
 
     # TODO: Check cloud-init-output for the correct keys being generated
 
-    def test_ubuntu_authorized_keys(self):
-        """Test passed in key is not in list for ubuntu."""
-        out = self.get_data_file('auth_keys_ubuntu')
-        self.assertEqual('', out)
-
     def test_dsa_public(self):
         """Test dsa public key not generated."""
         out = self.get_data_file('dsa_public')

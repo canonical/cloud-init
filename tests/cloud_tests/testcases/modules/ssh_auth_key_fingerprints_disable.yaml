@@ -5,7 +5,6 @@ required_features:
   - syslog
 cloud_config: |
   #cloud-config
-  ssh_genkeytypes: []
   no_ssh_fingerprints: true
 collect_scripts:
   syslog: |

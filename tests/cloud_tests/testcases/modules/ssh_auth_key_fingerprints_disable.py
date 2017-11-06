@@ -13,12 +13,4 @@ class TestSshKeyFingerprintsDisable(base.CloudTestCase):
         self.assertIn('Skipping module named ssh-authkey-fingerprints, '
                       'logging of ssh fingerprints disabled', out)
 
-    def test_syslog(self):
-        """Verify output of syslog."""
-        out = self.get_data_file('syslog')
-        self.assertNotRegex(out, r'256 SHA256:.*(ECDSA)')
-        self.assertNotRegex(out, r'256 SHA256:.*(ED25519)')
-        self.assertNotRegex(out, r'1024 SHA256:.*(DSA)')
-        self.assertNotRegex(out, r'2048 SHA256:.*(RSA)')
-
 # vi: ts=4 expandtab

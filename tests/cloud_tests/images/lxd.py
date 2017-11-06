@@ -24,7 +24,7 @@ class LXDImage(base.Image):
         @param config: image configuration
         """
         self.modified = False
-        self._instance = None
+        self._img_instance = None
         self._pylxd_image = None
         self.pylxd_image = pylxd_image
         super(LXDImage, self).__init__(platform, config)
@@ -38,9 +38,9 @@ class LXDImage(base.Image):
 
     @pylxd_image.setter
     def pylxd_image(self, pylxd_image):
-        if self._instance:
+        if self._img_instance:
             self._instance.destroy()
-            self._instance = None
+            self._img_instance = None
         if (self._pylxd_image and
                 (self._pylxd_image is not pylxd_image) and
                 (not self.config.get('cache_base_image') or self.modified)):
@@ -49,15 +49,19 @@ class LXDImage(base.Image):
         self._pylxd_image = pylxd_image
 
     @property
-    def instance(self):
-        """Property function."""
-        if not self._instance:
-            self._instance = self.platform.launch_container(
+    def _instance(self):
+        """Internal use only, returns a instance
+
+        This starts an lxc instance from the image, so it is "dirty".
+        Better would be some way to modify this "at rest".
+        lxc-pstart would be an option."""
+        if not self._img_instance:
+            self._img_instance = self.platform.launch_container(
                 self.properties, self.config, self.features,
                 use_desc='image-modification', image_desc=str(self),
                 image=self.pylxd_image.fingerprint)
-        self._instance.start()
-        return self._instance
+            self._img_instance.start()
+        return self._img_instance
 
     @property
     def properties(self):
@@ -144,20 +148,20 @@ class LXDImage(base.Image):
             shutil.rmtree(export_dir)
             shutil.rmtree(extract_dir)
 
-    def execute(self, *args, **kwargs):
+    def _execute(self, *args, **kwargs):
         """Execute command in image, modifying image."""
-        return self.instance.execute(*args, **kwargs)
+        return self._instance._execute(*args, **kwargs)
 
     def push_file(self, local_path, remote_path):
         """Copy file at 'local_path' to instance at 'remote_path'."""
-        return self.instance.push_file(local_path, remote_path)
+        return self._instance.push_file(local_path, remote_path)
 
     def run_script(self, *args, **kwargs):
         """Run script in image, modifying image.
 
         @return_value: script output
         """
-        return self.instance.run_script(*args, **kwargs)
+        return self._instance.run_script(*args, **kwargs)
 
     def snapshot(self):
         """Create snapshot of image, block until done."""
@@ -169,7 +173,7 @@ class LXDImage(base.Image):
         # clone current instance
         instance = self.platform.launch_container(
             self.properties, self.config, self.features,
-            container=self.instance.name, image_desc=str(self),
+            container=self._instance.name, image_desc=str(self),
             use_desc='snapshot', container_config=conf)
         # wait for cloud-init before boot_clean_script is run to ensure
         # /var/lib/cloud is removed cleanly

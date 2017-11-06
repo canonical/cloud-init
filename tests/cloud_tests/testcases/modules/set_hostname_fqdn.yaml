@@ -6,8 +6,8 @@ required_features:
 cloud_config: |
   #cloud-config
   manage_etc_hosts: true
-  hostname: myhostname
-  fqdn: host.myorg.com
+  hostname: cloudinit1
+  fqdn: cloudinit2.i9n.brickies.net
 collect_scripts:
   hosts: |
     #!/bin/bash

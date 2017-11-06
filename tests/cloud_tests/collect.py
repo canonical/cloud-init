@@ -22,9 +22,19 @@ def collect_script(instance, base_dir, script, script_name):
     """
     LOG.debug('running collect script: %s', script_name)
     (out, err, exit) = instance.run_script(
-        script, rcs=range(0, 256),
+        script.encode(), rcs=False,
         description='collect: {}'.format(script_name))
     c_util.write_file(os.path.join(base_dir, script_name), out)
+
+
+def collect_console(instance, base_dir):
+    LOG.debug('getting console log')
+    try:
+        data = instance.console_log()
+    except NotImplementedError as e:
+        data = 'Not Implemented: %s' % e
+    with open(os.path.join(base_dir, 'console.log'), "wb") as fp:
+        fp.write(data)
 
 
 def collect_test_data(args, snapshot, os_name, test_name):
@@ -79,8 +89,12 @@ def collect_test_data(args, snapshot, os_name, test_name):
                                          test_output_dir, script, script_name))
                          for script_name, script in test_scripts.items()]
 
+        console_log = partial(
+            run_single, 'collect console',
+            partial(collect_console, instance, test_output_dir))
+
         res = run_stage('collect for test: {}'.format(test_name),
-                        [start_call] + collect_calls)
+                        [start_call] + collect_calls + [console_log])
 
     return res
 

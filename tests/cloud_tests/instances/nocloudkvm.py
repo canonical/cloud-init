@@ -12,11 +12,19 @@ from cloudinit import util as c_util
 from tests.cloud_tests.instances import base
 from tests.cloud_tests import util
 
+# This domain contains reverse lookups for hostnames that are used.
+# The primary reason is so sudo will return quickly when it attempts
+# to look up the hostname.  i9n is just short for 'integration'.
+# use i9n.brickies.net until i9n.cloud-init.io is popualted:
+#   https://portal.admin.canonical.com/107125
+CI_DOMAIN = "i9n.brickies.net"
+
 
 class NoCloudKVMInstance(base.Instance):
     """NoCloud KVM backed instance."""
 
     platform_name = "nocloud-kvm"
+    _ssh_client = None
 
     def __init__(self, platform, name, properties, config, features,
                  user_data, meta_data):
@@ -35,6 +43,7 @@ class NoCloudKVMInstance(base.Instance):
         self.ssh_port = None
         self.pid = None
         self.pid_file = None
+        self.console_file = None
 
         super(NoCloudKVMInstance, self).__init__(
             platform, name, properties, config, features)
@@ -51,43 +60,18 @@ class NoCloudKVMInstance(base.Instance):
             os.remove(self.pid_file)
 
         self.pid = None
+        if self._ssh_client:
+            self._ssh_client.close()
+            self._ssh_client = None
+
         super(NoCloudKVMInstance, self).destroy()
 
-    def execute(self, command, stdout=None, stderr=None, env=None,
-                rcs=None, description=None):
-        """Execute command in instance.
+    def _execute(self, command, stdin=None, env=None):
+        env_args = []
+        if env:
+            env_args = ['env'] + ["%s=%s" for k, v in env.items()]
 
-        Assumes functional networking and execution as root with the
-        target filesystem being available at /.
-
-        @param command: the command to execute as root inside the image
-            if command is a string, then it will be executed as:
-            ['sh', '-c', command]
-        @param stdout, stderr: file handles to write output and error to
-        @param env: environment variables
-        @param rcs: allowed return codes from command
-        @param description: purpose of command
-        @return_value: tuple containing stdout data, stderr data, exit code
-        """
-        if env is None:
-            env = {}
-
-        if isinstance(command, str):
-            command = ['sh', '-c', command]
-
-        if self.pid:
-            return self.ssh(command)
-        else:
-            return self.mount_image_callback(command) + (0,)
-
-    def mount_image_callback(self, cmd):
-        """Run mount-image-callback."""
-        out, err = c_util.subp(['sudo', 'mount-image-callback',
-                                '--system-mounts', '--system-resolvconf',
-                                self.name, '--', 'chroot',
-                                '_MOUNTPOINT_'] + cmd)
-
-        return out, err
+        return self.ssh(['sudo'] + env_args + list(command), stdin=stdin)
 
     def generate_seed(self, tmpdir):
         """Generate nocloud seed from user-data"""
@@ -109,57 +93,31 @@ class NoCloudKVMInstance(base.Instance):
         s.close()
         return num
 
-    def push_file(self, local_path, remote_path):
-        """Copy file at 'local_path' to instance at 'remote_path'.
-
-        If we have a pid then SSH is up, otherwise, use
-        mount-image-callback.
-
-        @param local_path: path on local instance
-        @param remote_path: path on remote instance
-        """
-        if self.pid:
-            super(NoCloudKVMInstance, self).push_file()
-        else:
-            local_file = open(local_path)
-            p = subprocess.Popen(['sudo', 'mount-image-callback',
-                                  '--system-mounts', '--system-resolvconf',
-                                  self.name, '--', 'chroot', '_MOUNTPOINT_',
-                                  '/bin/sh', '-c', 'cat - > %s' % remote_path],
-                                 stdin=local_file,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
-            p.wait()
-
-    def sftp_put(self, path, data):
-        """SFTP put a file."""
-        client = self._ssh_connect()
-        sftp = client.open_sftp()
-
-        with sftp.open(path, 'w') as f:
-            f.write(data)
-
-        client.close()
-
-    def ssh(self, command):
+    def ssh(self, command, stdin=None):
         """Run a command via SSH."""
         client = self._ssh_connect()
 
+        cmd = util.shell_pack(command)
         try:
-            _, out, err = client.exec_command(util.shell_pack(command))
-        except paramiko.SSHException:
-            raise util.InTargetExecuteError('', '', -1, command, self.name)
+            fp_in, fp_out, fp_err = client.exec_command(cmd)
+            channel = fp_in.channel
+            if stdin is not None:
+                fp_in.write(stdin)
+                fp_in.close()
 
-        exit = out.channel.recv_exit_status()
-        out = ''.join(out.readlines())
-        err = ''.join(err.readlines())
-        client.close()
-
-        return out, err, exit
+            channel.shutdown_write()
+            rc = channel.recv_exit_status()
+            return (fp_out.read(), fp_err.read(), rc)
+        except paramiko.SSHException as e:
+            raise util.InTargetExecuteError(
+                b'', b'', -1, command, self.name, reason=e)
 
     def _ssh_connect(self, hostname='localhost', username='ubuntu',
                      banner_timeout=120, retry_attempts=30):
         """Connect via SSH."""
+        if self._ssh_client:
+            return self._ssh_client
+
         private_key = paramiko.RSAKey.from_private_key_file(self.ssh_key_file)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -168,6 +126,7 @@ class NoCloudKVMInstance(base.Instance):
                 client.connect(hostname=hostname, username=username,
                                port=self.ssh_port, pkey=private_key,
                                banner_timeout=banner_timeout)
+                self._ssh_client = client
                 return client
             except (paramiko.SSHException, TypeError):
                 time.sleep(1)
@@ -183,15 +142,19 @@ class NoCloudKVMInstance(base.Instance):
         tmpdir = self.platform.config['data_dir']
         seed = self.generate_seed(tmpdir)
         self.pid_file = os.path.join(tmpdir, '%s.pid' % self.name)
+        self.console_file = os.path.join(tmpdir, '%s-console.log' % self.name)
         self.ssh_port = self.get_free_port()
 
-        subprocess.Popen(['./tools/xkvm',
-                          '--disk', '%s,cache=unsafe' % self.name,
-                          '--disk', '%s,cache=unsafe' % seed,
-                          '--netdev',
-                          'user,hostfwd=tcp::%s-:22' % self.ssh_port,
-                          '--', '-pidfile', self.pid_file, '-vnc', 'none',
-                          '-m', '2G', '-smp', '2'],
+        cmd = ['./tools/xkvm',
+               '--disk', '%s,cache=unsafe' % self.name,
+               '--disk', '%s,cache=unsafe' % seed,
+               '--netdev', ','.join(['user',
+                                     'hostfwd=tcp::%s-:22' % self.ssh_port,
+                                     'dnssearch=%s' % CI_DOMAIN]),
+               '--', '-pidfile', self.pid_file, '-vnc', 'none',
+               '-m', '2G', '-smp', '2', '-nographic',
+               '-serial', 'file:' + self.console_file]
+        subprocess.Popen(cmd,
                          close_fds=True,
                          stdin=subprocess.PIPE,
                          stdout=subprocess.PIPE,
@@ -206,12 +169,10 @@ class NoCloudKVMInstance(base.Instance):
         if wait:
             self._wait_for_system(wait_for_cloud_init)
 
-    def write_data(self, remote_path, data):
-        """Write data to instance filesystem.
-
-        @param remote_path: path in instance
-        @param data: data to write, either str or bytes
-        """
-        self.sftp_put(remote_path, data)
+    def console_log(self):
+        if not self.console_file:
+            return b''
+        with open(self.console_file, "rb") as fp:
+            return fp.read()
 
 # vi: ts=4 expandtab
