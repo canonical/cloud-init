@@ -345,7 +345,7 @@ class TargetBase(object):
 
         This is intended to be implemented by the Image or Instance.
         Many callers will use the higher level 'execute'."""
-        raise NotImplementedError
+        raise NotImplementedError("_execute must be implemented by subclass.")
 
     def read_data(self, remote_path, decode=False):
         """Read data from instance filesystem.
