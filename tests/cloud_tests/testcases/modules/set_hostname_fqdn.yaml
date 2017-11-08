@@ -7,7 +7,8 @@ cloud_config: |
   #cloud-config
   manage_etc_hosts: true
   hostname: cloudinit1
-  fqdn: cloudinit2.i9n.brickies.net
+  # this needs changing if CI_DOMAIN were updated.
+  fqdn: cloudinit2.i9n.cloud-init.io
 collect_scripts:
   hosts: |
     #!/bin/bash

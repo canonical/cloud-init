@@ -15,10 +15,8 @@ from tests.cloud_tests import util
 # This domain contains reverse lookups for hostnames that are used.
 # The primary reason is so sudo will return quickly when it attempts
 # to look up the hostname.  i9n is just short for 'integration'.
-# use i9n.brickies.net until i9n.cloud-init.io is populated:
-#   https://portal.admin.canonical.com/107125
 # see also bug 1730744 for why we had to do this.
-CI_DOMAIN = "i9n.brickies.net"
+CI_DOMAIN = "i9n.cloud-init.io"
 
 
 class NoCloudKVMInstance(base.Instance):

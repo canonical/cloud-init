@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """cloud-init Integration Test Verify Script."""
+from tests.cloud_tests.instances.nocloudkvm import CI_DOMAIN
 from tests.cloud_tests.testcases import base
 
 
@@ -8,7 +9,7 @@ class TestHostnameFqdn(base.CloudTestCase):
     """Test Hostname module."""
 
     ex_hostname = "cloudinit1"
-    ex_fqdn = "cloudinit2.i9n.brickies.net"
+    ex_fqdn = "cloudinit2." + CI_DOMAIN
 
     def test_hostname(self):
         """Test hostname output."""
