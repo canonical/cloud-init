@@ -236,7 +236,12 @@ class UserDataProcessor(object):
                                      " a invalid http code of %s"),
                                     include_url, resp.code)
                 except UrlError as urle:
-                    LOG.warning(urle)
+                    message = str(urle)
+                    # Older versions of requests.exceptions.HTTPError may not
+                    # include the errant url. Append it for clarity in logs.
+                    if include_url not in message:
+                        message += ' for url: {0}'.format(include_url)
+                    LOG.warning(message)
                 except IOError as ioe:
                     LOG.warning("Fetching from %s resulted in %s",
                                 include_url, ioe)
