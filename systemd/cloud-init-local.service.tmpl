@@ -13,12 +13,6 @@ Before=shutdown.target
 Before=sysinit.target
 Conflicts=shutdown.target
 {% endif %}
-{% if variant in ["suse"] %}
-# Other distros use Before=sysinit.target. There is not a clearly identified
-# reason for usage of basic.target instead.
-Before=basic.target
-Conflicts=shutdown.target
-{% endif %}
 RequiresMountsFor=/var/lib/cloud
 
 [Service]
