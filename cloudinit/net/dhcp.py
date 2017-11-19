@@ -8,6 +8,7 @@ import configobj
 import logging
 import os
 import re
+import signal
 
 from cloudinit.net import find_fallback_nic, get_devicelist
 from cloudinit import temp_utils
@@ -119,7 +120,13 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
     cmd = [sandbox_dhclient_cmd, '-1', '-v', '-lf', lease_file,
            '-pf', pid_file, interface, '-sf', '/bin/true']
     util.subp(cmd, capture=True)
-    return parse_dhcp_lease_file(lease_file)
+    pid = None
+    try:
+        pid = int(util.load_file(pid_file).strip())
+        return parse_dhcp_lease_file(lease_file)
+    finally:
+        if pid:
+            os.kill(pid, signal.SIGKILL)
 
 
 def networkd_parse_lease(content):
