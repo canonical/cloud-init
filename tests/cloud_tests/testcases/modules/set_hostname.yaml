@@ -5,7 +5,8 @@ required_features:
   - hostname
 cloud_config: |
   #cloud-config
-  hostname: myhostname
+  hostname: cloudinit2
+
 collect_scripts:
   hosts: |
     #!/bin/bash

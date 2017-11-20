@@ -307,6 +307,39 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
     @httpretty.activate
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+    def test_network_config_cached_property_refreshed_on_upgrade(self, m_dhcp):
+        """Refresh the network_config Ec2 cache if network key is absent.
+
+        This catches an upgrade issue where obj.pkl contained stale metadata
+        which lacked newly required network key.
+        """
+        old_metadata = copy.deepcopy(DEFAULT_METADATA)
+        old_metadata.pop('network')
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
+            md=old_metadata)
+        self.assertTrue(ds.get_data())
+        # Provide new revision of metadata that contains network data
+        register_mock_metaserver(
+            'http://169.254.169.254/2009-04-04/meta-data/', DEFAULT_METADATA)
+        mac1 = '06:17:04:d7:26:09'  # Defined in DEFAULT_METADATA
+        get_interface_mac_path = (
+            'cloudinit.sources.DataSourceEc2.net.get_interface_mac')
+        ds.fallback_nic = 'eth9'
+        with mock.patch(get_interface_mac_path) as m_get_interface_mac:
+            m_get_interface_mac.return_value = mac1
+            ds.network_config  # Will re-crawl network metadata
+        self.assertIn('Re-crawl of metadata service', self.logs.getvalue())
+        expected = {'version': 1, 'config': [
+            {'mac_address': '06:17:04:d7:26:09',
+             'name': 'eth9',
+             'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}],
+             'type': 'physical'}]}
+        self.assertEqual(expected, ds.network_config)
+
+    @httpretty.activate
+    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_valid_platform_with_strict_true(self, m_dhcp):
         """Valid platform data should return true with strict_id true."""
         ds = self._setup_ds(

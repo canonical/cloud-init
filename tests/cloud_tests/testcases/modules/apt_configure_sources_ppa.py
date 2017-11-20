@@ -11,13 +11,13 @@ class TestAptconfigureSourcesPPA(base.CloudTestCase):
         """Test specific ppa added."""
         out = self.get_data_file('sources.list')
         self.assertIn(
-            'http://ppa.launchpad.net/curtin-dev/test-archive/ubuntu', out)
+            'http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu', out)
 
     def test_ppa_key(self):
         """Test ppa key added."""
         out = self.get_data_file('apt-key')
         self.assertIn(
-            '1BC3 0F71 5A3B 8612 47A8  1A5E 55FE 7C8C 0165 013E', out)
-        self.assertIn('Launchpad PPA for curtin developers', out)
+            '1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF', out)
+        self.assertIn('Launchpad PPA for cloud init development team', out)
 
 # vi: ts=4 expandtab

@@ -2,6 +2,7 @@
 
 """Tests for registering RHEL subscription via rh_subscription."""
 
+import copy
 import logging
 
 from cloudinit.config import cc_rh_subscription
@@ -67,6 +68,20 @@ class GoodTests(TestCase):
 
         self.assertEqual(self.SM.log_success.call_count, 1)
         self.assertEqual(self.SM._sub_man_cli.call_count, 2)
+
+    @mock.patch.object(cc_rh_subscription.SubscriptionManager, "_getRepos")
+    @mock.patch.object(cc_rh_subscription.SubscriptionManager, "_sub_man_cli")
+    def test_update_repos_disable_with_none(self, m_sub_man_cli, m_get_repos):
+        cfg = copy.deepcopy(self.config)
+        m_get_repos.return_value = ([], ['repo1'])
+        m_sub_man_cli.return_value = (b'', b'')
+        cfg['rh_subscription'].update(
+            {'enable-repo': ['repo1'], 'disable-repo': None})
+        mysm = cc_rh_subscription.SubscriptionManager(cfg)
+        self.assertEqual(True, mysm.update_repos())
+        m_get_repos.assert_called_with()
+        self.assertEqual(m_sub_man_cli.call_args_list,
+                         [mock.call(['repos', '--enable=repo1'])])
 
     def test_full_registration(self):
         '''

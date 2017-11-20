@@ -23,8 +23,8 @@ using the template located in ``/etc/cloud/templates/hosts.tmpl``. In the
 
 If ``manage_etc_hosts`` is set to ``localhost``, then cloud-init will not
 rewrite ``/etc/hosts`` entirely, but rather will ensure that a entry for the
-fqdn with ip ``127.0.1.1`` is present in ``/etc/hosts`` (i.e.
-``ping <hostname>`` will ping ``127.0.1.1``).
+fqdn with a distribution dependent ip is present in ``/etc/hosts`` (i.e.
+``ping <hostname>`` will ping ``127.0.0.1`` or ``127.0.1.1`` or other ip).
 
 .. note::
     if ``manage_etc_hosts`` is set ``true`` or ``template``, the contents

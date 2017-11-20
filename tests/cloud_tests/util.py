@@ -7,6 +7,7 @@ import copy
 import glob
 import os
 import random
+import shlex
 import shutil
 import string
 import subprocess
@@ -285,20 +286,165 @@ def shell_pack(cmd):
     return 'eval set -- "$(echo %s | base64 --decode)" && exec "$@"' % b64
 
 
+def shell_quote(cmd):
+    if isinstance(cmd, (tuple, list)):
+        return ' '.join([shlex.quote(x) for x in cmd])
+    return shlex.quote(cmd)
+
+
+class TargetBase(object):
+    _tmp_count = 0
+
+    def execute(self, command, stdin=None, env=None,
+                rcs=None, description=None):
+        """Execute command in instance, recording output, error and exit code.
+
+        Assumes functional networking and execution as root with the
+        target filesystem being available at /.
+
+        @param command: the command to execute as root inside the image
+            if command is a string, then it will be executed as:
+            ['sh', '-c', command]
+        @param stdin: bytes content for standard in
+        @param env: environment variables
+        @param rcs: return codes.
+                    None (default): non-zero exit code will raise exception.
+                    False: any is allowed (No execption raised).
+                    list of int: any rc not in the list will raise exception.
+        @param description: purpose of command
+        @return_value: tuple containing stdout data, stderr data, exit code
+        """
+        if isinstance(command, str):
+            command = ['sh', '-c', command]
+
+        if rcs is None:
+            rcs = (0,)
+
+        if description:
+            LOG.debug('Executing "%s"', description)
+        else:
+            LOG.debug("Executing command: %s", shell_quote(command))
+
+        out, err, rc = self._execute(command=command, stdin=stdin, env=env)
+
+        # False means accept anything.
+        if (rcs is False or rc in rcs):
+            return out, err, rc
+
+        raise InTargetExecuteError(out, err, rc, command, description)
+
+    def _execute(self, command, stdin=None, env=None):
+        """Execute command in inside, return stdout, stderr and exit code.
+
+        Assumes functional networking and execution as root with the
+        target filesystem being available at /.
+
+        @param stdin: bytes content for standard in
+        @param env: environment variables
+        @return_value: tuple containing stdout data, stderr data, exit code
+
+        This is intended to be implemented by the Image or Instance.
+        Many callers will use the higher level 'execute'."""
+        raise NotImplementedError("_execute must be implemented by subclass.")
+
+    def read_data(self, remote_path, decode=False):
+        """Read data from instance filesystem.
+
+        @param remote_path: path in instance
+        @param decode: decode data before returning.
+        @return_value: content of remote_path as bytes if 'decode' is False,
+                       and as string if 'decode' is True.
+        """
+        # when sh is invoked with '-c', then the first argument is "$0"
+        # which is commonly understood as the "program name".
+        # 'read_data' is the program name, and 'remote_path' is '$1'
+        stdout, stderr, rc = self._execute(
+            ["sh", "-c", 'exec cat "$1"', 'read_data', remote_path])
+        if rc != 0:
+            raise RuntimeError("Failed to read file '%s'" % remote_path)
+
+        if decode:
+            return stdout.decode()
+        return stdout
+
+    def write_data(self, remote_path, data):
+        """Write data to instance filesystem.
+
+        @param remote_path: path in instance
+        @param data: data to write in bytes
+        """
+        # when sh is invoked with '-c', then the first argument is "$0"
+        # which is commonly understood as the "program name".
+        # 'write_data' is the program name, and 'remote_path' is '$1'
+        _, _, rc = self._execute(
+            ["sh", "-c", 'exec cat >"$1"', 'write_data', remote_path],
+            stdin=data)
+
+        if rc != 0:
+            raise RuntimeError("Failed to write to '%s'" % remote_path)
+        return
+
+    def pull_file(self, remote_path, local_path):
+        """Copy file at 'remote_path', from instance to 'local_path'.
+
+        @param remote_path: path on remote instance
+        @param local_path: path on local instance
+        """
+        with open(local_path, 'wb') as fp:
+            fp.write(self.read_data(remote_path))
+
+    def push_file(self, local_path, remote_path):
+        """Copy file at 'local_path' to instance at 'remote_path'.
+
+        @param local_path: path on local instance
+        @param remote_path: path on remote instance"""
+        with open(local_path, "rb") as fp:
+            self.write_data(remote_path, data=fp.read())
+
+    def run_script(self, script, rcs=None, description=None):
+        """Run script in target and return stdout.
+
+        @param script: script contents
+        @param rcs: allowed return codes from script
+        @param description: purpose of script
+        @return_value: stdout from script
+        """
+        # Just write to a file, add execute, run it, then remove it.
+        shblob = '; '.join((
+            'set -e',
+            's="$1"',
+            'shift',
+            'cat > "$s"',
+            'trap "rm -f $s" EXIT',
+            'chmod +x "$s"',
+            '"$s" "$@"'))
+        return self.execute(
+            ['sh', '-c', shblob, 'runscript', self.tmpfile()],
+            stdin=script, description=description, rcs=rcs)
+
+    def tmpfile(self):
+        """Get a tmp file in the target.
+
+        @return_value: path to new file in target
+        """
+        path = "/tmp/%s-%04d" % (type(self).__name__, self._tmp_count)
+        self._tmp_count += 1
+        return path
+
+
 class InTargetExecuteError(c_util.ProcessExecutionError):
     """Error type for in target commands that fail."""
 
-    default_desc = 'Unexpected error while running command in target instance'
+    default_desc = 'Unexpected error while running command.'
 
-    def __init__(self, stdout, stderr, exit_code, cmd, instance,
-                 description=None):
+    def __init__(self, stdout, stderr, exit_code, cmd, description=None,
+                 reason=None):
         """Init error and parent error class."""
-        if isinstance(cmd, (tuple, list)):
-            cmd = ' '.join(cmd)
         super(InTargetExecuteError, self).__init__(
-            stdout=stdout, stderr=stderr, exit_code=exit_code, cmd=cmd,
-            reason="Instance: {}".format(instance),
-            description=description if description else self.default_desc)
+            stdout=stdout, stderr=stderr, exit_code=exit_code,
+            cmd=shell_quote(cmd),
+            description=description if description else self.default_desc,
+            reason=reason)
 
 
 class TempDir(object):
