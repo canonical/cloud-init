@@ -1,9 +1,31 @@
-cloud-init (17.1-27-geb292c18-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (17.1-41-g76243487-0ubuntu1) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: Fix capitilazation in 'AliYun' name.
     (LP: #1728186)
+  * New upstream snapshot.
+    - integration test: replace curtin test ppa with cloud-init test ppa.
+    - EC2: Fix bug using fallback_nic and metadata when restoring from cache.
+      (LP: #1732917)
+    - EC2: Kill dhclient process used in sandbox dhclient. (LP: #1732964)
+    - ntp: fix configuration template rendering for openSUSE and SLES
+      (LP: #1726572)
+    - centos: Provide the failed #include url in error messages
+    - Catch UrlError when #include'ing URLs [Andrew Jorgensen]
+    - hosts: Fix openSUSE and SLES setup for /etc/hosts and clarify docs.
+      [Robert Schweikert] (LP: #1731022)
+    - rh_subscription: Perform null checks for enabled and disabled repos.
+      [Dave Mulford]
+    - Improve warning message when a template is not found.
+      [Robert Schweikert] (LP: #1731035)
+    - Replace the temporary i9n.brickies.net with i9n.cloud-init.io.
+    - Azure: don't generate network configuration for SRIOV devices
+      (LP: #1721579)
+    - tests: address some minor feedback missed in last merge.
+    - tests: integration test cleanup and full pass of nocloud-kvm.
+    - Gentoo: chmod +x on all files in sysvinit/gentoo/
+      [ckonstanski] (LP: #1727126)
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 31 Oct 2017 17:11:17 -0400
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 20 Nov 2017 15:17:41 -0700
 
 cloud-init (17.1-27-geb292c18-0ubuntu1) bionic; urgency=medium
 
