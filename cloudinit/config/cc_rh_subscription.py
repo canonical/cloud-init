@@ -38,14 +38,16 @@ Subscription`` example config.
         server-hostname: <hostname>
 """
 
+from cloudinit import log as logging
 from cloudinit import util
+
+LOG = logging.getLogger(__name__)
 
 distros = ['fedora', 'rhel']
 
 
 def handle(name, cfg, _cloud, log, _args):
-    sm = SubscriptionManager(cfg)
-    sm.log = log
+    sm = SubscriptionManager(cfg, log=log)
     if not sm.is_configured():
         log.debug("%s: module not configured.", name)
         return None
@@ -86,10 +88,9 @@ def handle(name, cfg, _cloud, log, _args):
                 if not return_stat:
                     raise SubscriptionError("Unable to attach pools {0}"
                                             .format(sm.pools))
-            if (sm.enable_repo is not None) or (sm.disable_repo is not None):
-                return_stat = sm.update_repos(sm.enable_repo, sm.disable_repo)
-                if not return_stat:
-                    raise SubscriptionError("Unable to add or remove repos")
+            return_stat = sm.update_repos()
+            if not return_stat:
+                raise SubscriptionError("Unable to add or remove repos")
             sm.log_success("rh_subscription plugin completed successfully")
         except SubscriptionError as e:
             sm.log_warn(str(e))
@@ -108,7 +109,10 @@ class SubscriptionManager(object):
                      'rhsm-baseurl', 'server-hostname',
                      'auto-attach', 'service-level']
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, log=None):
+        if log is None:
+            log = LOG
+        self.log = log
         self.cfg = cfg
         self.rhel_cfg = self.cfg.get('rh_subscription', {})
         self.rhsm_baseurl = self.rhel_cfg.get('rhsm-baseurl')
@@ -130,7 +134,7 @@ class SubscriptionManager(object):
 
     def log_warn(self, msg):
         '''Simple wrapper for logging warning messages. Useful for unittests'''
-        self.log.warn(msg)
+        self.log.warning(msg)
 
     def _verify_keys(self):
         '''
@@ -245,7 +249,7 @@ class SubscriptionManager(object):
             return False
 
         reg_id = return_out.split("ID: ")[1].rstrip()
-        self.log.debug("Registered successfully with ID {0}".format(reg_id))
+        self.log.debug("Registered successfully with ID %s", reg_id)
         return True
 
     def _set_service_level(self):
@@ -347,7 +351,7 @@ class SubscriptionManager(object):
             try:
                 self._sub_man_cli(cmd)
                 self.log.debug("Attached the following pools to your "
-                               "system: %s" % (", ".join(pool_list))
+                               "system: %s", (", ".join(pool_list))
                                .replace('--pool=', ''))
                 return True
             except util.ProcessExecutionError as e:
@@ -355,18 +359,24 @@ class SubscriptionManager(object):
                               "due to {1}".format(pool, e))
                 return False
 
-    def update_repos(self, erepos, drepos):
+    def update_repos(self):
         '''
         Takes a list of yum repo ids that need to be disabled or enabled; then
         it verifies if they are already enabled or disabled and finally
         executes the action to disable or enable
         '''
 
-        if (erepos is not None) and (not isinstance(erepos, list)):
+        erepos = self.enable_repo
+        drepos = self.disable_repo
+        if erepos is None:
+            erepos = []
+        if drepos is None:
+            drepos = []
+        if not isinstance(erepos, list):
             self.log_warn("Repo IDs must in the format of a list.")
             return False
 
-        if (drepos is not None) and (not isinstance(drepos, list)):
+        if not isinstance(drepos, list):
             self.log_warn("Repo IDs must in the format of a list.")
             return False
 
@@ -399,14 +409,14 @@ class SubscriptionManager(object):
             for fail in enable_list_fail:
                 # Check if the repo exists or not
                 if fail in active_repos:
-                    self.log.debug("Repo {0} is already enabled".format(fail))
+                    self.log.debug("Repo %s is already enabled", fail)
                 else:
                     self.log_warn("Repo {0} does not appear to "
                                   "exist".format(fail))
         if len(disable_list_fail) > 0:
             for fail in disable_list_fail:
-                self.log.debug("Repo {0} not disabled "
-                               "because it is not enabled".format(fail))
+                self.log.debug("Repo %s not disabled "
+                               "because it is not enabled", fail)
 
         cmd = ['repos']
         if len(disable_list) > 0:
@@ -422,10 +432,10 @@ class SubscriptionManager(object):
             return False
 
         if len(enable_list) > 0:
-            self.log.debug("Enabled the following repos: %s" %
+            self.log.debug("Enabled the following repos: %s",
                            (", ".join(enable_list)).replace('--enable=', ''))
         if len(disable_list) > 0:
-            self.log.debug("Disabled the following repos: %s" %
+            self.log.debug("Disabled the following repos: %s",
                            (", ".join(disable_list)).replace('--disable=', ''))
         return True
 

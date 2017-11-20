@@ -2,6 +2,7 @@
 
 import mock
 import os
+import signal
 from textwrap import dedent
 
 from cloudinit.net.dhcp import (
@@ -114,8 +115,9 @@ class TestDHCPDiscoveryClean(CiTestCase):
         self.assertEqual('eth9', call[0][1])
         self.assertIn('/var/tmp/cloud-init/cloud-init-dhcp-', call[0][2])
 
+    @mock.patch('cloudinit.net.dhcp.os.kill')
     @mock.patch('cloudinit.net.dhcp.util.subp')
-    def test_dhcp_discovery_run_in_sandbox(self, m_subp):
+    def test_dhcp_discovery_run_in_sandbox(self, m_subp, m_kill):
         """dhcp_discovery brings up the interface and runs dhclient.
 
         It also returns the parsed dhcp.leases file generated in the sandbox.
@@ -134,6 +136,10 @@ class TestDHCPDiscoveryClean(CiTestCase):
         """)
         lease_file = os.path.join(tmpdir, 'dhcp.leases')
         write_file(lease_file, lease_content)
+        pid_file = os.path.join(tmpdir, 'dhclient.pid')
+        my_pid = 1
+        write_file(pid_file, "%d\n" % my_pid)
+
         self.assertItemsEqual(
             [{'interface': 'eth9', 'fixed-address': '192.168.2.74',
               'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1'}],
@@ -149,6 +155,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
                 [os.path.join(tmpdir, 'dhclient'), '-1', '-v', '-lf',
                  lease_file, '-pf', os.path.join(tmpdir, 'dhclient.pid'),
                  'eth9', '-sf', '/bin/true'], capture=True)])
+        m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
 
 
 class TestSystemdParseLeases(CiTestCase):

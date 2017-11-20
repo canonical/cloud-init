@@ -65,7 +65,7 @@ class DataSourceEc2(sources.DataSource):
     get_network_metadata = False
 
     # Track the discovered fallback nic for use in configuration generation.
-    fallback_nic = None
+    _fallback_interface = None
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -92,18 +92,17 @@ class DataSourceEc2(sources.DataSource):
         elif self.cloud_platform == Platforms.NO_EC2_METADATA:
             return False
 
-        self.fallback_nic = net.find_fallback_nic()
         if self.get_network_metadata:  # Setup networking in init-local stage.
             if util.is_FreeBSD():
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            dhcp_leases = dhcp.maybe_perform_dhcp_discovery(self.fallback_nic)
+            dhcp_leases = dhcp.maybe_perform_dhcp_discovery(
+                self.fallback_interface)
             if not dhcp_leases:
                 # DataSourceEc2Local failed in init-local stage. DataSourceEc2
                 # will still run in init-network stage.
                 return False
             dhcp_opts = dhcp_leases[-1]
-            self.fallback_nic = dhcp_opts.get('interface')
             net_params = {'interface': dhcp_opts.get('interface'),
                           'ip': dhcp_opts.get('fixed-address'),
                           'prefix_or_mask': dhcp_opts.get('subnet-mask'),
@@ -301,20 +300,43 @@ class DataSourceEc2(sources.DataSource):
             return None
 
         result = None
-        net_md = self.metadata.get('network')
+        no_network_metadata_on_aws = bool(
+            'network' not in self.metadata and
+            self.cloud_platform == Platforms.AWS)
+        if no_network_metadata_on_aws:
+            LOG.debug("Metadata 'network' not present:"
+                      " Refreshing stale metadata from prior to upgrade.")
+            util.log_time(
+                logfunc=LOG.debug, msg='Re-crawl of metadata service',
+                func=self._crawl_metadata)
+
         # Limit network configuration to only the primary/fallback nic
-        macs_to_nics = {
-            net.get_interface_mac(self.fallback_nic): self.fallback_nic}
+        iface = self.fallback_interface
+        macs_to_nics = {net.get_interface_mac(iface): iface}
+        net_md = self.metadata.get('network')
         if isinstance(net_md, dict):
             result = convert_ec2_metadata_network_config(
-                net_md, macs_to_nics=macs_to_nics,
-                fallback_nic=self.fallback_nic)
+                net_md, macs_to_nics=macs_to_nics, fallback_nic=iface)
         else:
-            LOG.warning("unexpected metadata 'network' key not valid: %s",
-                        net_md)
+            LOG.warning("Metadata 'network' key not valid: %s.", net_md)
         self._network_config = result
 
         return self._network_config
+
+    @property
+    def fallback_interface(self):
+        if self._fallback_interface is None:
+            # fallback_nic was used at one point, so restored objects may
+            # have an attribute there. respect that if found.
+            _legacy_fbnic = getattr(self, 'fallback_nic', None)
+            if _legacy_fbnic:
+                self._fallback_interface = _legacy_fbnic
+                self.fallback_nic = None
+            else:
+                self._fallback_interface = net.find_fallback_nic()
+                if self._fallback_interface is None:
+                    LOG.warning("Did not find a fallback interface on EC2.")
+        return self._fallback_interface
 
     def _crawl_metadata(self):
         """Crawl metadata service when available.
