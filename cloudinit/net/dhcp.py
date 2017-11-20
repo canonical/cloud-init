@@ -42,8 +42,7 @@ def maybe_perform_dhcp_discovery(nic=None):
     if nic is None:
         nic = find_fallback_nic()
         if nic is None:
-            LOG.debug(
-                'Skip dhcp_discovery: Unable to find fallback nic.')
+            LOG.debug('Skip dhcp_discovery: Unable to find fallback nic.')
             return {}
     elif nic not in get_devicelist():
         LOG.debug(
