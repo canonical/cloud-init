@@ -1,4 +1,4 @@
-cloud-init (17.1-41-g76243487-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.1-41-g76243487-0ubuntu1) bionic; urgency=medium
 
   * debian/cloud-init.templates: Fix capitilazation in 'AliYun' name.
     (LP: #1728186)
@@ -25,7 +25,7 @@ cloud-init (17.1-41-g76243487-0ubuntu1) UNRELEASED; urgency=medium
     - Gentoo: chmod +x on all files in sysvinit/gentoo/
       [ckonstanski] (LP: #1727126)
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 20 Nov 2017 15:17:41 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 20 Nov 2017 15:18:52 -0700
 
 cloud-init (17.1-27-geb292c18-0ubuntu1) bionic; urgency=medium
 
