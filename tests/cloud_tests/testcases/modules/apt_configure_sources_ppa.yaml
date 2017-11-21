@@ -2,7 +2,7 @@
 # Add a PPA to source.list
 #
 # NOTE: on older ubuntu releases the sources file added is named
-#       'curtin-dev-test-archive-trusty', without 'ubuntu' in the middle
+#       'cloud-init-dev-test-archive-trusty', without 'ubuntu' in the middle
 required_features:
   - apt
   - ppa
@@ -14,11 +14,11 @@ cloud_config: |
       source1:
         keyid: 0165013E
         keyserver: keyserver.ubuntu.com
-        source: "ppa:curtin-dev/test-archive"
+        source: "ppa:cloud-init-dev/test-archive"
 collect_scripts:
   sources.list: |
     #!/bin/bash
-    cat /etc/apt/sources.list.d/curtin-dev-ubuntu-test-archive-*.list
+    cat /etc/apt/sources.list.d/cloud-init-dev-ubuntu-test-archive-*.list
   apt-key: |
     #!/bin/bash
     apt-key finger

@@ -18,6 +18,6 @@ class TestPasswordExpire(base.CloudTestCase):
     def test_sshd_config(self):
         """Test sshd config allows passwords."""
         out = self.get_data_file('sshd_config')
-        self.assertIn('PasswordAuthentication no', out)
+        self.assertIn('PasswordAuthentication yes', out)
 
 # vi: ts=4 expandtab

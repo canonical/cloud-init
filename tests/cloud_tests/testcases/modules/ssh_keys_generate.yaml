@@ -10,12 +10,6 @@ cloud_config: |
   - ed25519
   authkey_hash: sha512
 collect_scripts:
-  auth_keys_root: |
-    #!/bin/bash
-    cat /root/.ssh/authorized_keys
-  auth_keys_ubuntu: |
-    #!/bin/bash
-    cat /home/ubuntu/ssh/authorized_keys
   dsa_public: |
     #!/bin/bash
     cat /etc/ssh/ssh_host_dsa_key.pub

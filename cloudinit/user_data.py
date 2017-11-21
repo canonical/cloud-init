@@ -19,6 +19,7 @@ import six
 
 from cloudinit import handlers
 from cloudinit import log as logging
+from cloudinit.url_helper import UrlError
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -222,16 +223,28 @@ class UserDataProcessor(object):
             if include_once_on and os.path.isfile(include_once_fn):
                 content = util.load_file(include_once_fn)
             else:
-                resp = util.read_file_or_url(include_url,
-                                             ssl_details=self.ssl_details)
-                if include_once_on and resp.ok():
-                    util.write_file(include_once_fn, resp.contents, mode=0o600)
-                if resp.ok():
-                    content = resp.contents
-                else:
-                    LOG.warning(("Fetching from %s resulted in"
-                                 " a invalid http code of %s"),
-                                include_url, resp.code)
+                try:
+                    resp = util.read_file_or_url(include_url,
+                                                 ssl_details=self.ssl_details)
+                    if include_once_on and resp.ok():
+                        util.write_file(include_once_fn, resp.contents,
+                                        mode=0o600)
+                    if resp.ok():
+                        content = resp.contents
+                    else:
+                        LOG.warning(("Fetching from %s resulted in"
+                                     " a invalid http code of %s"),
+                                    include_url, resp.code)
+                except UrlError as urle:
+                    message = str(urle)
+                    # Older versions of requests.exceptions.HTTPError may not
+                    # include the errant url. Append it for clarity in logs.
+                    if include_url not in message:
+                        message += ' for url: {0}'.format(include_url)
+                    LOG.warning(message)
+                except IOError as ioe:
+                    LOG.warning("Fetching from %s resulted in %s",
+                                include_url, ioe)
 
             if content is not None:
                 new_msg = convert_string(content)

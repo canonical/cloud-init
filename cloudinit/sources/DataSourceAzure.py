@@ -465,10 +465,8 @@ class DataSourceAzure(sources.DataSource):
 
            1. Probe the drivers of the net-devices present and inject them in
               the network configuration under params: driver: <driver> value
-           2. If the driver value is 'mlx4_core', the control mode should be
-              set to manual.  The device will be later used to build a bond,
-              for now we want to ensure the device gets named but does not
-              break any network configuration
+           2. Generate a fallback network config that does not include any of
+              the blacklisted devices.
         """
         blacklist = ['mlx4_core']
         if not self._network_config:
@@ -476,25 +474,6 @@ class DataSourceAzure(sources.DataSource):
             # generate a network config, blacklist picking any mlx4_core devs
             netconfig = net.generate_fallback_config(
                 blacklist_drivers=blacklist, config_driver=True)
-
-            # if we have any blacklisted devices, update the network_config to
-            # include the device, mac, and driver values, but with no ip
-            # config; this ensures udev rules are generated but won't affect
-            # ip configuration
-            bl_found = 0
-            for bl_dev in [dev for dev in net.get_devicelist()
-                           if net.device_driver(dev) in blacklist]:
-                bl_found += 1
-                cfg = {
-                    'type': 'physical',
-                    'name': 'vf%d' % bl_found,
-                    'mac_address': net.get_interface_mac(bl_dev),
-                    'params': {
-                        'driver': net.device_driver(bl_dev),
-                        'device_id': net.device_devid(bl_dev),
-                    },
-                }
-                netconfig['config'].append(cfg)
 
             self._network_config = netconfig
 

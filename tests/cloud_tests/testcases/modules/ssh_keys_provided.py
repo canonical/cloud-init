@@ -7,17 +7,6 @@ from tests.cloud_tests.testcases import base
 class TestSshKeysProvided(base.CloudTestCase):
     """Test ssh keys module."""
 
-    def test_ubuntu_authorized_keys(self):
-        """Test passed in key is not in list for ubuntu."""
-        out = self.get_data_file('auth_keys_ubuntu')
-        self.assertEqual('', out)
-
-    def test_root_authorized_keys(self):
-        """Test passed in key is in authorized list for root."""
-        out = self.get_data_file('auth_keys_root')
-        self.assertIn('lzrkPqONphoZx0LDV86w7RUz1ksDzAdcm0tvmNRFMN1a0frDs50'
-                      '6oA3aWK0oDk4Nmvk8sXGTYYw3iQSkOvDUUlIsqdaO+w==', out)
-
     def test_dsa_public(self):
         """Test dsa public key passed in."""
         out = self.get_data_file('dsa_public')

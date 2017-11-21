@@ -2,6 +2,8 @@
 
 """NoCloud KVM Image Base Class."""
 
+from cloudinit import util as c_util
+
 from tests.cloud_tests.images import base
 from tests.cloud_tests.snapshots import nocloudkvm as nocloud_kvm_snapshot
 
@@ -19,22 +21,9 @@ class NoCloudKVMImage(base.Image):
         @param img_path: path to the image
         """
         self.modified = False
-        self._instance = None
         self._img_path = img_path
 
         super(NoCloudKVMImage, self).__init__(platform, config)
-
-    @property
-    def instance(self):
-        """Returns an instance of an image."""
-        if not self._instance:
-            if not self._img_path:
-                raise RuntimeError()
-
-            self._instance = self.platform.create_image(
-                self.properties, self.config, self.features, self._img_path,
-                image_desc=str(self), use_desc='image-modification')
-        return self._instance
 
     @property
     def properties(self):
@@ -46,20 +35,26 @@ class NoCloudKVMImage(base.Image):
             'version': self.config['version'],
         }
 
-    def execute(self, *args, **kwargs):
+    def _execute(self, command, stdin=None, env=None):
         """Execute command in image, modifying image."""
-        return self.instance.execute(*args, **kwargs)
+        return self.mount_image_callback(command, stdin=stdin, env=env)
 
-    def push_file(self, local_path, remote_path):
-        """Copy file at 'local_path' to instance at 'remote_path'."""
-        return self.instance.push_file(local_path, remote_path)
+    def mount_image_callback(self, command, stdin=None, env=None):
+        """Run mount-image-callback."""
 
-    def run_script(self, *args, **kwargs):
-        """Run script in image, modifying image.
+        env_args = []
+        if env:
+            env_args = ['env'] + ["%s=%s" for k, v in env.items()]
 
-        @return_value: script output
-        """
-        return self.instance.run_script(*args, **kwargs)
+        mic_chroot = ['sudo', 'mount-image-callback', '--system-mounts',
+                      '--system-resolvconf', self._img_path,
+                      '--', 'chroot', '_MOUNTPOINT_']
+        try:
+            out, err = c_util.subp(mic_chroot + env_args + list(command),
+                                   data=stdin, decode=False)
+            return (out, err, 0)
+        except c_util.ProcessExecutionError as e:
+            return (e.stdout, e.stderr, e.exit_code)
 
     def snapshot(self):
         """Create snapshot of image, block until done."""
@@ -82,7 +77,6 @@ class NoCloudKVMImage(base.Image):
         framework decide whether to keep or destroy everything.
         """
         self._img_path = None
-        self._instance.destroy()
         super(NoCloudKVMImage, self).destroy()
 
 # vi: ts=4 expandtab

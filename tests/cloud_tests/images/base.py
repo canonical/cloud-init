@@ -2,8 +2,10 @@
 
 """Base class for images."""
 
+from ..util import TargetBase
 
-class Image(object):
+
+class Image(TargetBase):
     """Base class for images."""
 
     platform_name = None
@@ -42,21 +44,6 @@ class Image(object):
         """
         # NOTE: more sophisticated options may be requied at some point
         return self.config.get('setup_overrides', {})
-
-    def execute(self, *args, **kwargs):
-        """Execute command in image, modifying image."""
-        raise NotImplementedError
-
-    def push_file(self, local_path, remote_path):
-        """Copy file at 'local_path' to instance at 'remote_path'."""
-        raise NotImplementedError
-
-    def run_script(self, *args, **kwargs):
-        """Run script in image, modifying image.
-
-        @return_value: script output
-        """
-        raise NotImplementedError
 
     def snapshot(self):
         """Create snapshot of image, block until done."""

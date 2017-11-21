@@ -430,5 +430,31 @@ class TestNtp(FilesystemMockingTestCase):
             "[Time]\nNTP=192.168.2.1 192.168.2.2 0.mypool.org \n",
             content.decode())
 
+    def test_write_ntp_config_template_defaults_pools_empty_lists_sles(self):
+        """write_ntp_config_template defaults pools servers upon empty config.
+
+        When both pools and servers are empty, default NR_POOL_SERVERS get
+        configured.
+        """
+        distro = 'sles'
+        mycloud = self._get_cloud(distro)
+        ntp_conf = self.tmp_path('ntp.conf', self.new_root)  # Doesn't exist
+        # Create ntp.conf.tmpl
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            cc_ntp.write_ntp_config_template({}, mycloud, ntp_conf)
+        content = util.read_file_or_url('file://' + ntp_conf).contents
+        default_pools = [
+            "{0}.opensuse.pool.ntp.org".format(x)
+            for x in range(0, cc_ntp.NR_POOL_SERVERS)]
+        self.assertEqual(
+            "servers []\npools {0}\n".format(default_pools),
+            content.decode())
+        self.assertIn(
+            "Adding distro default ntp pool servers: {0}".format(
+                ",".join(default_pools)),
+            self.logs.getvalue())
+
 
 # vi: ts=4 expandtab
