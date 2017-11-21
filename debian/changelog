@@ -1,3 +1,29 @@
+cloud-init (17.1-41-g76243487-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+
+  * cherry-pick 1110f30: debian/cloud-init.templates: Fix capitilazation
+    in 'AliYun' (LP: #1728186)
+  * New upstream snapshot (LP: #1733653)
+    - integration test: replace curtin test ppa with cloud-init test ppa.
+    - EC2: Fix bug using fallback_nic and metadata when restoring from cache.
+    - EC2: Kill dhclient process used in sandbox dhclient.
+    - ntp: fix configuration template rendering for openSUSE and SLES
+    - centos: Provide the failed #include url in error messages
+    - Catch UrlError when #include'ing URLs [Andrew Jorgensen]
+    - hosts: Fix openSUSE and SLES setup for /etc/hosts and clarify docs.
+      [Robert Schweikert]
+    - rh_subscription: Perform null checks for enabled and disabled repos.
+      [Dave Mulford]
+    - Improve warning message when a template is not found.
+      [Robert Schweikert]
+    - Replace the temporary i9n.brickies.net with i9n.cloud-init.io.
+    - Azure: don't generate network configuration for SRIOV devices
+    - tests: address some minor feedback missed in last merge.
+    - tests: integration test cleanup and full pass of nocloud-kvm.
+    - Gentoo: chmod +x on all files in sysvinit/gentoo/
+      [Carlos Konstanski]
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 21 Nov 2017 11:43:26 -0700
+
 cloud-init (17.1-27-geb292c18-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * New upstream snapshot.
