@@ -23,7 +23,7 @@ frequency = PER_INSTANCE
 NTP_CONF = '/etc/ntp.conf'
 TIMESYNCD_CONF = '/etc/systemd/timesyncd.conf.d/cloud-init.conf'
 NR_POOL_SERVERS = 4
-distros = ['centos', 'debian', 'fedora', 'opensuse', 'ubuntu']
+distros = ['centos', 'debian', 'fedora', 'opensuse', 'sles', 'ubuntu']
 
 
 # The schema definition for each cloud-config module is a strict contract for
@@ -174,8 +174,13 @@ def rename_ntp_conf(config=None):
 
 def generate_server_names(distro):
     names = []
+    pool_distro = distro
+    # For legal reasons x.pool.sles.ntp.org does not exist,
+    # use the opensuse pool
+    if distro == 'sles':
+        pool_distro = 'opensuse'
     for x in range(0, NR_POOL_SERVERS):
-        name = "%d.%s.pool.ntp.org" % (x, distro)
+        name = "%d.%s.pool.ntp.org" % (x, pool_distro)
         names.append(name)
     return names
 

@@ -18,6 +18,8 @@ from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 
+import httpretty
+
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
 from cloudinit import log
@@ -521,6 +523,54 @@ c: 4
         cfg = util.load_yaml(fs[ci.paths.get_ipath("cloud_config")])
         self.assertEqual(cfg.get('password'), 'gocubs')
         self.assertEqual(cfg.get('locale'), 'chicago')
+
+    @httpretty.activate
+    @mock.patch('cloudinit.url_helper.time.sleep')
+    def test_include(self, mock_sleep):
+        """Test #include."""
+        included_url = 'http://hostname/path'
+        included_data = '#cloud-config\nincluded: true\n'
+        httpretty.register_uri(httpretty.GET, included_url, included_data)
+
+        blob = '#include\n%s\n' % included_url
+
+        self.reRoot()
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(blob)
+        ci.fetch()
+        ci.consume_data()
+        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        cc = util.load_yaml(cc_contents)
+        self.assertTrue(cc.get('included'))
+
+    @httpretty.activate
+    @mock.patch('cloudinit.url_helper.time.sleep')
+    def test_include_bad_url(self, mock_sleep):
+        """Test #include with a bad URL."""
+        bad_url = 'http://bad/forbidden'
+        bad_data = '#cloud-config\nbad: true\n'
+        httpretty.register_uri(httpretty.GET, bad_url, bad_data, status=403)
+
+        included_url = 'http://hostname/path'
+        included_data = '#cloud-config\nincluded: true\n'
+        httpretty.register_uri(httpretty.GET, included_url, included_data)
+
+        blob = '#include\n%s\n%s' % (bad_url, included_url)
+
+        self.reRoot()
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(blob)
+        log_file = self.capture_log(logging.WARNING)
+        ci.fetch()
+        ci.consume_data()
+
+        self.assertIn("403 Client Error: Forbidden for url: %s" % bad_url,
+                      log_file.getvalue())
+
+        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        cc = util.load_yaml(cc_contents)
+        self.assertIsNone(cc.get('bad'))
+        self.assertTrue(cc.get('included'))
 
 
 class TestUDProcess(helpers.ResourceUsingTestCase):
