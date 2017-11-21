@@ -1,7 +1,7 @@
 cloud-init (17.1-41-g76243487-0ubuntu1~17.10.1) UNRELEASED; urgency=medium
 
-  * cherry-pick 1110f30: debian/cloud-init.templates: Fix capitilazation
-    in 'AliYun' (LP: #1728186)
+  * debian/cloud-init.templates: Fix capitilazation in 'AliYun'
+    (LP: #1728186)
   * New upstream snapshot (LP: #1733653)
     - integration test: replace curtin test ppa with cloud-init test ppa.
     - EC2: Fix bug using fallback_nic and metadata when restoring from cache.
