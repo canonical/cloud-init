@@ -2,8 +2,11 @@
 
 """Base LXD instance."""
 
-from tests.cloud_tests.instances import base
-from tests.cloud_tests import util
+from . import base
+
+import os
+import shutil
+from tempfile import mkdtemp
 
 
 class LXDInstance(base.Instance):
@@ -24,6 +27,8 @@ class LXDInstance(base.Instance):
         self._pylxd_container = pylxd_container
         super(LXDInstance, self).__init__(
             platform, name, properties, config, features)
+        self.tmpd = mkdtemp(prefix="%s-%s" % (type(self).__name__, name))
+        self._setup_console_log()
 
     @property
     def pylxd_container(self):
@@ -31,74 +36,69 @@ class LXDInstance(base.Instance):
         self._pylxd_container.sync()
         return self._pylxd_container
 
-    def execute(self, command, stdout=None, stderr=None, env=None,
-                rcs=None, description=None):
-        """Execute command in instance, recording output, error and exit code.
+    def _setup_console_log(self):
+        logf = os.path.join(self.tmpd, "console.log")
 
-        Assumes functional networking and execution as root with the
-        target filesystem being available at /.
+        # doing this ensures we can read it. Otherwise it ends up root:root.
+        with open(logf, "w") as fp:
+            fp.write("# %s\n" % self.name)
 
-        @param command: the command to execute as root inside the image
-            if command is a string, then it will be executed as:
-            ['sh', '-c', command]
-        @param stdout: file handler to write output
-        @param stderr: file handler to write error
-        @param env: environment variables
-        @param rcs: allowed return codes from command
-        @param description: purpose of command
-        @return_value: tuple containing stdout data, stderr data, exit code
-        """
+        cfg = "lxc.console.logfile=%s" % logf
+        orig = self._pylxd_container.config.get('raw.lxc', "")
+        if orig:
+            orig += "\n"
+        self._pylxd_container.config['raw.lxc'] = orig + cfg
+        self._pylxd_container.save()
+        self._console_log_file = logf
+
+    def _execute(self, command, stdin=None, env=None):
         if env is None:
             env = {}
 
-        if isinstance(command, str):
-            command = ['sh', '-c', command]
+        if stdin is not None:
+            # pylxd does not support input to execute.
+            # https://github.com/lxc/pylxd/issues/244
+            #
+            # The solution here is write a tmp file in the container
+            # and then execute a shell that sets it standard in to
+            # be from that file, removes it, and calls the comand.
+            tmpf = self.tmpfile()
+            self.write_data(tmpf, stdin)
+            ncmd = 'exec <"{tmpf}"; rm -f "{tmpf}"; exec "$@"'
+            command = (['sh', '-c', ncmd.format(tmpf=tmpf), 'stdinhack'] +
+                       list(command))
 
         # ensure instance is running and execute the command
         self.start()
+        # execute returns a ContainerExecuteResult, named tuple
+        # (exit_code, stdout, stderr)
         res = self.pylxd_container.execute(command, environment=env)
 
         # get out, exit and err from pylxd return
-        if hasattr(res, 'exit_code'):
-            # pylxd 2.2 returns ContainerExecuteResult, named tuple of
-            # (exit_code, out, err)
-            (exit, out, err) = res
-        else:
+        if not hasattr(res, 'exit_code'):
             # pylxd 2.1.3 and earlier only return out and err, no exit
-            # LOG.warning('using pylxd version < 2.2')
-            (out, err) = res
-            exit = 0
+            raise RuntimeError(
+                "No 'exit_code' in pylxd.container.execute return.\n"
+                "pylxd > 2.2 is required.")
 
-        # write data to file descriptors if needed
-        if stdout:
-            stdout.write(out)
-        if stderr:
-            stderr.write(err)
-
-        # if the command exited with a code not allowed in rcs, then fail
-        if exit not in (rcs if rcs else (0,)):
-            error_desc = ('Failed command to: {}'.format(description)
-                          if description else None)
-            raise util.InTargetExecuteError(
-                out, err, exit, command, self.name, error_desc)
-
-        return (out, err, exit)
+        return res.stdout, res.stderr, res.exit_code
 
     def read_data(self, remote_path, decode=False):
         """Read data from instance filesystem.
 
         @param remote_path: path in instance
-        @param decode: return as string
-        @return_value: data as str or bytes
+        @param decode: decode data before returning.
+        @return_value: content of remote_path as bytes if 'decode' is False,
+                       and as string if 'decode' is True.
         """
         data = self.pylxd_container.files.get(remote_path)
-        return data.decode() if decode and isinstance(data, bytes) else data
+        return data.decode() if decode else data
 
     def write_data(self, remote_path, data):
         """Write data to instance filesystem.
 
         @param remote_path: path in instance
-        @param data: data to write, either str or bytes
+        @param data: data to write in bytes
         """
         self.pylxd_container.files.put(remote_path, data)
 
@@ -107,7 +107,14 @@ class LXDInstance(base.Instance):
 
         @return_value: bytes of this instance’s console
         """
-        raise NotImplementedError
+        if not os.path.exists(self._console_log_file):
+            raise NotImplementedError(
+                "Console log '%s' does not exist. If this is a remote "
+                "lxc, then this is really NotImplementedError.  If it is "
+                "A local lxc, then this is a RuntimeError."
+                "https://github.com/lxc/lxd/issues/1129")
+        with open(self._console_log_file, "rb") as fp:
+            return fp.read()
 
     def reboot(self, wait=True):
         """Reboot instance."""
@@ -144,6 +151,7 @@ class LXDInstance(base.Instance):
         if self.platform.container_exists(self.name):
             raise OSError('container {} was not properly removed'
                           .format(self.name))
+        shutil.rmtree(self.tmpd)
         super(LXDInstance, self).destroy()
 
 # vi: ts=4 expandtab

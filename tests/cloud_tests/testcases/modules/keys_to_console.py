@@ -10,13 +10,13 @@ class TestKeysToConsole(base.CloudTestCase):
     def test_excluded_keys(self):
         """Test excluded keys missing."""
         out = self.get_data_file('syslog')
-        self.assertNotIn('DSA', out)
-        self.assertNotIn('ECDSA', out)
+        self.assertNotIn('(DSA)', out)
+        self.assertNotIn('(ECDSA)', out)
 
     def test_expected_keys(self):
         """Test expected keys exist."""
         out = self.get_data_file('syslog')
-        self.assertIn('ED25519', out)
-        self.assertIn('RSA', out)
+        self.assertIn('(ED25519)', out)
+        self.assertIn('(RSA)', out)
 
 # vi: ts=4 expandtab

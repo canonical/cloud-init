@@ -71,12 +71,6 @@ cloud_config: |
       -----END EC PRIVATE KEY-----
     ecdsa_public: ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFsS5Tvky/IC/dXhE/afxxUG6kdQOvdQJCYGZN42OZqWasYF+L3IG+3/wrV7jOrNrL3AyagHl6+lpPDiSXDMcpQ= root@xenial-lxd
 collect_scripts:
-  auth_keys_root: |
-    #!/bin/bash
-    cat /root/.ssh/authorized_keys
-  auth_keys_ubuntu: |
-    #!/bin/bash
-    cat /home/ubuntu/ssh/authorized_keys
   dsa_public: |
     #!/bin/bash
     cat /etc/ssh/ssh_host_dsa_key.pub
