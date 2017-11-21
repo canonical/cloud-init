@@ -64,6 +64,9 @@ class DataSourceEc2(sources.DataSource):
     # Whether we want to get network configuration from the metadata service.
     get_network_metadata = False
 
+    # Track the discovered fallback nic for use in configuration generation.
+    fallback_nic = None
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.metadata_address = None
@@ -89,16 +92,18 @@ class DataSourceEc2(sources.DataSource):
         elif self.cloud_platform == Platforms.NO_EC2_METADATA:
             return False
 
+        self.fallback_nic = net.find_fallback_nic()
         if self.get_network_metadata:  # Setup networking in init-local stage.
             if util.is_FreeBSD():
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            dhcp_leases = dhcp.maybe_perform_dhcp_discovery()
+            dhcp_leases = dhcp.maybe_perform_dhcp_discovery(self.fallback_nic)
             if not dhcp_leases:
                 # DataSourceEc2Local failed in init-local stage. DataSourceEc2
                 # will still run in init-network stage.
                 return False
             dhcp_opts = dhcp_leases[-1]
+            self.fallback_nic = dhcp_opts.get('interface')
             net_params = {'interface': dhcp_opts.get('interface'),
                           'ip': dhcp_opts.get('fixed-address'),
                           'prefix_or_mask': dhcp_opts.get('subnet-mask'),
@@ -297,8 +302,13 @@ class DataSourceEc2(sources.DataSource):
 
         result = None
         net_md = self.metadata.get('network')
+        # Limit network configuration to only the primary/fallback nic
+        macs_to_nics = {
+            net.get_interface_mac(self.fallback_nic): self.fallback_nic}
         if isinstance(net_md, dict):
-            result = convert_ec2_metadata_network_config(net_md)
+            result = convert_ec2_metadata_network_config(
+                net_md, macs_to_nics=macs_to_nics,
+                fallback_nic=self.fallback_nic)
         else:
             LOG.warning("unexpected metadata 'network' key not valid: %s",
                         net_md)
@@ -458,15 +468,18 @@ def _collect_platform_data():
     return data
 
 
-def convert_ec2_metadata_network_config(network_md, macs_to_nics=None):
+def convert_ec2_metadata_network_config(network_md, macs_to_nics=None,
+                                        fallback_nic=None):
     """Convert ec2 metadata to network config version 1 data dict.
 
     @param: network_md: 'network' portion of EC2 metadata.
        generally formed as {"interfaces": {"macs": {}} where
        'macs' is a dictionary with mac address as key and contents like:
        {"device-number": "0", "interface-id": "...", "local-ipv4s": ...}
-    @param: macs_to_name: Optional dict mac addresses and the nic name. If
+    @param: macs_to_nics: Optional dict of mac addresses and nic names. If
        not provided, get_interfaces_by_mac is called to get it from the OS.
+    @param: fallback_nic: Optionally provide the primary nic interface name.
+       This nic will be guaranteed to minimally have a dhcp4 configuration.
 
     @return A dict of network config version 1 based on the metadata and macs.
     """
@@ -480,7 +493,8 @@ def convert_ec2_metadata_network_config(network_md, macs_to_nics=None):
             continue  # Not a physical nic represented in metadata
         nic_cfg = {'type': 'physical', 'name': nic_name, 'subnets': []}
         nic_cfg['mac_address'] = mac
-        if nic_metadata.get('public-ipv4s'):
+        if (nic_name == fallback_nic or nic_metadata.get('public-ipv4s') or
+                nic_metadata.get('local-ipv4s')):
             nic_cfg['subnets'].append({'type': 'dhcp4'})
         if nic_metadata.get('ipv6s'):
             nic_cfg['subnets'].append({'type': 'dhcp6'})
