@@ -122,6 +122,22 @@ features:
 
 releases:
     # UBUNTU =================================================================
+    bionic:
+        # EOL: Apr 2023
+        default:
+            enabled: true
+            release: bionic
+            version: 18.04
+            family: ubuntu
+            feature_groups:
+                - base
+                - debian_base
+                - ubuntu_specific
+        lxd:
+            sstreams_server: https://cloud-images.ubuntu.com/daily
+            alias: bionic
+            setup_overrides: null
+            override_templates: false
     artful:
         # EOL: Jul 2018
         default:
