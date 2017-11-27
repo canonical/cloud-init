@@ -154,7 +154,12 @@ class DataSourceEc2(sources.DataSource):
         return self.min_metadata_version
 
     def get_instance_id(self):
-        return self.metadata['instance-id']
+        if self.cloud_platform == Platforms.AWS:
+            # Prefer the ID from the instance identity document, but fall back
+            return self.identity.get(
+                'instanceId', self.metadata['instance-id'])
+        else:
+            return self.metadata['instance-id']
 
     def _get_url_settings(self):
         mcfg = self.ds_cfg
@@ -268,15 +273,27 @@ class DataSourceEc2(sources.DataSource):
     @property
     def availability_zone(self):
         try:
-            return self.metadata['placement']['availability-zone']
+            if self.cloud_platform == Platforms.AWS:
+                return self.identity.get(
+                    'availabilityZone',
+                    self.metadata['placement']['availability-zone'])
+            else:
+                return self.metadata['placement']['availability-zone']
         except KeyError:
             return None
 
     @property
     def region(self):
-        az = self.availability_zone
-        if az is not None:
-            return az[:-1]
+        if self.cloud_platform == Platforms.AWS:
+            region = self.identity.get('region')
+            # Fallback to trimming the availability zone if region is missing
+            if self.availability_zone and not region:
+                region = self.availability_zone[:-1]
+            return region
+        else:
+            az = self.availability_zone
+            if az is not None:
+                return az[:-1]
         return None
 
     @property
@@ -357,6 +374,9 @@ class DataSourceEc2(sources.DataSource):
                 api_version, self.metadata_address)
             self.metadata = ec2.get_instance_metadata(
                 api_version, self.metadata_address)
+            if self.cloud_platform == Platforms.AWS:
+                self.identity = ec2.get_instance_identity(
+                    api_version, self.metadata_address).get('document', {})
         except Exception:
             util.logexc(
                 LOG, "Failed reading from metadata address %s",

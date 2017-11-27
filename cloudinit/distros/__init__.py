@@ -45,6 +45,10 @@ OSFAMILIES = {
 
 LOG = logging.getLogger(__name__)
 
+# This is a best guess regex, based on current EC2 AZs on 2017-12-11.
+# It could break when Amazon adds new regions and new AZs.
+_EC2_AZ_RE = re.compile('^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$')
+
 
 @six.add_metaclass(abc.ABCMeta)
 class Distro(object):
@@ -683,18 +687,13 @@ def _get_package_mirror_info(mirror_info, data_source=None,
     if not mirror_info:
         mirror_info = {}
 
-    # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
-    # the region is us-east-1. so region = az[0:-1]
-    directions_re = '|'.join([
-        'central', 'east', 'north', 'northeast', 'northwest',
-        'south', 'southeast', 'southwest', 'west'])
-    ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" % directions_re)
-
     subst = {}
     if data_source and data_source.availability_zone:
         subst['availability_zone'] = data_source.availability_zone
 
-        if re.match(ec2_az_re, data_source.availability_zone):
+        # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
+        # the region is us-east-1. so region = az[0:-1]
+        if _EC2_AZ_RE.match(data_source.availability_zone):
             subst['ec2_region'] = "%s" % data_source.availability_zone[0:-1]
 
     if data_source and data_source.region:
