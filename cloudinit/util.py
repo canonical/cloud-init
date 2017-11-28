@@ -2059,7 +2059,7 @@ def expand_package_list(version_fmt, pkgs):
     return pkglist
 
 
-def parse_mount_info(path, mountinfo_lines, log=LOG):
+def parse_mount_info(path, mountinfo_lines, log=LOG, get_mnt_opts=False):
     """Return the mount information for PATH given the lines from
     /proc/$$/mountinfo."""
 
@@ -2121,11 +2121,16 @@ def parse_mount_info(path, mountinfo_lines, log=LOG):
 
         match_mount_point = mount_point
         match_mount_point_elements = mount_point_elements
+        mount_options = parts[5]
 
-    if devpth and fs_type and match_mount_point:
-        return (devpth, fs_type, match_mount_point)
+    if get_mnt_opts:
+        if devpth and fs_type and match_mount_point and mount_options:
+            return (devpth, fs_type, match_mount_point, mount_options)
     else:
-        return None
+        if devpth and fs_type and match_mount_point:
+            return (devpth, fs_type, match_mount_point)
+
+    return None
 
 
 def parse_mtab(path):
@@ -2195,7 +2200,7 @@ def parse_mount(path):
     return None
 
 
-def get_mount_info(path, log=LOG):
+def get_mount_info(path, log=LOG, get_mnt_opts=False):
     # Use /proc/$$/mountinfo to find the device where path is mounted.
     # This is done because with a btrfs filesystem using os.stat(path)
     # does not return the ID of the device.
@@ -2227,7 +2232,7 @@ def get_mount_info(path, log=LOG):
     mountinfo_path = '/proc/%s/mountinfo' % os.getpid()
     if os.path.exists(mountinfo_path):
         lines = load_file(mountinfo_path).splitlines()
-        return parse_mount_info(path, lines, log)
+        return parse_mount_info(path, lines, log, get_mnt_opts)
     elif os.path.exists("/etc/mtab"):
         return parse_mtab(path)
     else:
@@ -2612,5 +2617,11 @@ def wait_for_files(flist, maxwait, naplen=.5, log_pre=""):
               log_pre, maxwait, need)
     return need
 
+
+def mount_is_read_write(mount_point):
+    """Check whether the given mount point is mounted rw"""
+    result = get_mount_info(mount_point, get_mnt_opts=True)
+    mount_opts = result[-1].split(',')
+    return mount_opts[0] == 'rw'
 
 # vi: ts=4 expandtab
