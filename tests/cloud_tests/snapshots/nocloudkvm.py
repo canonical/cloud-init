@@ -2,6 +2,8 @@
 
 """Base NoCloud KVM snapshot."""
 import os
+import shutil
+import tempfile
 
 from tests.cloud_tests.snapshots import base
 
@@ -11,16 +13,19 @@ class NoCloudKVMSnapshot(base.Snapshot):
 
     platform_name = "nocloud-kvm"
 
-    def __init__(self, platform, properties, config, features,
-                 instance):
+    def __init__(self, platform, properties, config, features, image_path):
         """Set up snapshot.
 
         @param platform: platform object
         @param properties: image properties
         @param config: image config
         @param features: supported feature flags
+        @param image_path: image file to snapshot.
         """
-        self.instance = instance
+        self._workd = tempfile.mkdtemp(prefix='NoCloudKVMSnapshot')
+        snapshot = os.path.join(self._workd, 'snapshot')
+        shutil.copyfile(image_path, snapshot)
+        self._image_path = snapshot
 
         super(NoCloudKVMSnapshot, self).__init__(
             platform, properties, config, features)
@@ -40,9 +45,9 @@ class NoCloudKVMSnapshot(base.Snapshot):
                                 self.platform.config['public_key'])
         user_data = self.inject_ssh_key(user_data, key_file)
 
-        instance = self.platform.create_image(
+        instance = self.platform.create_instance(
             self.properties, self.config, self.features,
-            self.instance.name, image_desc=str(self), use_desc=use_desc,
+            self._image_path, image_desc=str(self), use_desc=use_desc,
             user_data=user_data, meta_data=meta_data)
 
         if start:
@@ -68,7 +73,7 @@ class NoCloudKVMSnapshot(base.Snapshot):
 
     def destroy(self):
         """Clean up snapshot data."""
-        self.instance.destroy()
+        shutil.rmtree(self._workd)
         super(NoCloudKVMSnapshot, self).destroy()
 
 # vi: ts=4 expandtab

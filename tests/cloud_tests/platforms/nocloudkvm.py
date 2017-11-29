@@ -55,19 +55,20 @@ class NoCloudKVMPlatform(base.Platform):
         for fname in glob.iglob(search_d, recursive=True):
             images.append(fname)
 
-        if len(images) != 1:
-            raise Exception('No unique images found')
+        if len(images) < 1:
+            raise RuntimeError("No images found under '%s'" % search_d)
+        if len(images) > 1:
+            raise RuntimeError(
+                "Multiple images found in '%s': %s" % (search_d,
+                                                       ' '.join(images)))
 
         image = nocloud_kvm_image.NoCloudKVMImage(self, img_conf, images[0])
-        if img_conf.get('override_templates', False):
-            image.update_templates(self.config.get('template_overrides', {}),
-                                   self.config.get('template_files', {}))
         return image
 
-    def create_image(self, properties, config, features,
-                     src_img_path, image_desc=None, use_desc=None,
-                     user_data=None, meta_data=None):
-        """Create an image
+    def create_instance(self, properties, config, features,
+                        src_img_path, image_desc=None, use_desc=None,
+                        user_data=None, meta_data=None):
+        """Create an instance
 
         @param src_img_path: image path to launch from
         @param properties: image properties
@@ -82,7 +83,7 @@ class NoCloudKVMPlatform(base.Platform):
         c_util.subp(['qemu-img', 'create', '-f', 'qcow2',
                     '-b', src_img_path, img_path])
 
-        return nocloud_kvm_instance.NoCloudKVMInstance(self, img_path,
+        return nocloud_kvm_instance.NoCloudKVMInstance(self, name, img_path,
                                                        properties, config,
                                                        features, user_data,
                                                        meta_data)
