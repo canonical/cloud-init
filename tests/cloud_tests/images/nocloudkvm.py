@@ -4,6 +4,10 @@
 
 from cloudinit import util as c_util
 
+import os
+import shutil
+import tempfile
+
 from tests.cloud_tests.images import base
 from tests.cloud_tests.snapshots import nocloudkvm as nocloud_kvm_snapshot
 
@@ -13,7 +17,7 @@ class NoCloudKVMImage(base.Image):
 
     platform_name = "nocloud-kvm"
 
-    def __init__(self, platform, config, img_path):
+    def __init__(self, platform, config, orig_img_path):
         """Set up image.
 
         @param platform: platform object
@@ -21,7 +25,13 @@ class NoCloudKVMImage(base.Image):
         @param img_path: path to the image
         """
         self.modified = False
-        self._img_path = img_path
+        self._workd = tempfile.mkdtemp(prefix='NoCloudKVMImage')
+        self._orig_img_path = orig_img_path
+        self._img_path = os.path.join(self._workd,
+                                      os.path.basename(self._orig_img_path))
+
+        c_util.subp(['qemu-img', 'create', '-f', 'qcow2',
+                    '-b', orig_img_path, self._img_path])
 
         super(NoCloudKVMImage, self).__init__(platform, config)
 
@@ -61,13 +71,9 @@ class NoCloudKVMImage(base.Image):
         if not self._img_path:
             raise RuntimeError()
 
-        instance = self.platform.create_image(
-            self.properties, self.config, self.features,
-            self._img_path, image_desc=str(self), use_desc='snapshot')
-
         return nocloud_kvm_snapshot.NoCloudKVMSnapshot(
             self.platform, self.properties, self.config,
-            self.features, instance)
+            self.features, self._img_path)
 
     def destroy(self):
         """Unset path to signal image is no longer used.
@@ -77,6 +83,8 @@ class NoCloudKVMImage(base.Image):
         framework decide whether to keep or destroy everything.
         """
         self._img_path = None
+        shutil.rmtree(self._workd)
+
         super(NoCloudKVMImage, self).destroy()
 
 # vi: ts=4 expandtab

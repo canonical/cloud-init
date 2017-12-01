@@ -11,7 +11,6 @@ from functools import partial
 import os
 import os.path
 import re
-import time
 from xml.dom import minidom
 import xml.etree.ElementTree as ET
 
@@ -321,7 +320,7 @@ class DataSourceAzure(sources.DataSource):
         # https://bugs.launchpad.net/cloud-init/+bug/1717611
         missing = util.log_time(logfunc=LOG.debug,
                                 msg="waiting for SSH public key files",
-                                func=wait_for_files,
+                                func=util.wait_for_files,
                                 args=(fp_files, 900))
 
         if len(missing):
@@ -556,8 +555,8 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
                              is_new_instance=False):
     # wait for ephemeral disk to come up
     naplen = .2
-    missing = wait_for_files([devpath], maxwait=maxwait, naplen=naplen,
-                             log_pre="Azure ephemeral disk: ")
+    missing = util.wait_for_files([devpath], maxwait=maxwait, naplen=naplen,
+                                  log_pre="Azure ephemeral disk: ")
 
     if missing:
         LOG.warning("ephemeral device '%s' did not appear after %d seconds.",
@@ -637,28 +636,6 @@ def pubkeys_from_crt_files(flist):
         LOG.warning("failed to convert the crt files to pubkey: %s", errors)
 
     return pubkeys
-
-
-def wait_for_files(flist, maxwait, naplen=.5, log_pre=""):
-    need = set(flist)
-    waited = 0
-    while True:
-        need -= set([f for f in need if os.path.exists(f)])
-        if len(need) == 0:
-            LOG.debug("%sAll files appeared after %s seconds: %s",
-                      log_pre, waited, flist)
-            return []
-        if waited == 0:
-            LOG.info("%sWaiting up to %s seconds for the following files: %s",
-                     log_pre, maxwait, flist)
-        if waited + naplen > maxwait:
-            break
-        time.sleep(naplen)
-        waited += naplen
-
-    LOG.warning("%sStill missing files after %s seconds: %s",
-                log_pre, maxwait, need)
-    return need
 
 
 def write_files(datadir, files, dirmode=None):

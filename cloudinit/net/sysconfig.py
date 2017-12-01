@@ -7,11 +7,14 @@ import six
 
 from cloudinit.distros.parsers import networkmanager_conf
 from cloudinit.distros.parsers import resolv_conf
+from cloudinit import log as logging
 from cloudinit import util
 
 from . import renderer
 from .network_state import (
     is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6)
+
+LOG = logging.getLogger(__name__)
 
 
 def _make_header(sep='#'):
@@ -346,6 +349,18 @@ class Renderer(renderer.Renderer):
                         iface_cfg['IPV6_DEFAULTGW'] = subnet['gateway']
                     else:
                         iface_cfg['GATEWAY'] = subnet['gateway']
+
+                if 'dns_search' in subnet:
+                    iface_cfg['DOMAIN'] = ' '.join(subnet['dns_search'])
+
+                if 'dns_nameservers' in subnet:
+                    if len(subnet['dns_nameservers']) > 3:
+                        # per resolv.conf(5) MAXNS sets this to 3.
+                        LOG.debug("%s has %d entries in dns_nameservers. "
+                                  "Only 3 are used.", iface_cfg.name,
+                                  len(subnet['dns_nameservers']))
+                    for i, k in enumerate(subnet['dns_nameservers'][:3], 1):
+                        iface_cfg['DNS' + str(i)] = k
 
     @classmethod
     def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):

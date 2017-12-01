@@ -2541,4 +2541,26 @@ def load_shell_content(content, add_empty=False, empty_val=None):
     return data
 
 
+def wait_for_files(flist, maxwait, naplen=.5, log_pre=""):
+    need = set(flist)
+    waited = 0
+    while True:
+        need -= set([f for f in need if os.path.exists(f)])
+        if len(need) == 0:
+            LOG.debug("%sAll files appeared after %s seconds: %s",
+                      log_pre, waited, flist)
+            return []
+        if waited == 0:
+            LOG.debug("%sWaiting up to %s seconds for the following files: %s",
+                      log_pre, maxwait, flist)
+        if waited + naplen > maxwait:
+            break
+        time.sleep(naplen)
+        waited += naplen
+
+    LOG.debug("%sStill missing files after %s seconds: %s",
+              log_pre, maxwait, need)
+    return need
+
+
 # vi: ts=4 expandtab
