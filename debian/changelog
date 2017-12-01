@@ -1,3 +1,16 @@
+cloud-init (17.1-46-g7acc9e68-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - ec2: Fix sandboxed dhclient background process cleanup.
+      (LP: #1735331)
+    - tests: NoCloudKVMImage do not modify the original local cache image.
+    - tests: Enable bionic in integration tests. [Joshua Powers]
+    - tests: Use apt-get to install a deb so that depends get resolved.
+    - sysconfig: Correctly render dns and dns search info.
+      [Ryan McCabe]
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 01 Dec 2017 10:04:25 -0700
+
 cloud-init (17.1-41-g76243487-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/cloud-init.templates: Fix capitilazation in 'AliYun'
