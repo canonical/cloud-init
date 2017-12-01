@@ -746,6 +746,14 @@ def _normalize_subnet(subnet):
             _normalize_net_keys(normal_subnet, address_keys=('address',)))
     normal_subnet['routes'] = [_normalize_route(r)
                                for r in subnet.get('routes', [])]
+
+    def listify(snet, name):
+        if name in snet and not isinstance(snet[name], list):
+            snet[name] = snet[name].split()
+
+    for k in ('dns_search', 'dns_nameservers'):
+        listify(normal_subnet, k)
+
     return normal_subnet
 
 
