@@ -36,22 +36,23 @@ def maybe_perform_dhcp_discovery(nic=None):
     skip dhcp_discovery and return an empty dict.
 
     @param nic: Name of the network interface we want to run dhclient on.
-    @return: A dict of dhcp options from the dhclient discovery if run,
-        otherwise an empty dict is returned.
+    @return: A list of dicts representing dhcp options for each lease obtained
+        from the dhclient discovery if run, otherwise an empty list is
+        returned.
     """
     if nic is None:
         nic = find_fallback_nic()
         if nic is None:
             LOG.debug('Skip dhcp_discovery: Unable to find fallback nic.')
-            return {}
+            return []
     elif nic not in get_devicelist():
         LOG.debug(
             'Skip dhcp_discovery: nic %s not found in get_devicelist.', nic)
-        return {}
+        return []
     dhclient_path = util.which('dhclient')
     if not dhclient_path:
         LOG.debug('Skip dhclient configuration: No dhclient command found.')
-        return {}
+        return []
     with temp_utils.tempdir(prefix='cloud-init-dhcp-', needs_exe=True) as tdir:
         # Use /var/tmp because /run/cloud-init/tmp is mounted noexec
         return dhcp_discovery(dhclient_path, nic, tdir)
@@ -60,8 +61,8 @@ def maybe_perform_dhcp_discovery(nic=None):
 def parse_dhcp_lease_file(lease_file):
     """Parse the given dhcp lease file for the most recent lease.
 
-    Return a dict of dhcp options as key value pairs for the most recent lease
-    block.
+    Return a list of dicts of dhcp options. Each dict contains key value pairs
+    a specific lease in order from oldest to newest.
 
     @raises: InvalidDHCPLeaseFileError on empty of unparseable leasefile
         content.
@@ -96,8 +97,8 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
     @param cleandir: The directory from which to run dhclient as well as store
         dhcp leases.
 
-    @return: A dict of dhcp options parsed from the dhcp.leases file or empty
-        dict.
+    @return: A list of dicts of representing the dhcp leases parsed from the
+        dhcp.leases file or empty list.
     """
     LOG.debug('Performing a dhcp discovery on %s', interface)
 
@@ -119,13 +120,26 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
     cmd = [sandbox_dhclient_cmd, '-1', '-v', '-lf', lease_file,
            '-pf', pid_file, interface, '-sf', '/bin/true']
     util.subp(cmd, capture=True)
-    pid = None
+
+    # dhclient doesn't write a pid file until after it forks when it gets a
+    # proper lease response. Since cleandir is a temp directory that gets
+    # removed, we need to wait for that pidfile creation before the
+    # cleandir is removed, otherwise we get FileNotFound errors.
+    missing = util.wait_for_files(
+        [pid_file, lease_file], maxwait=5, naplen=0.01)
+    if missing:
+        LOG.warning("dhclient did not produce expected files: %s",
+                    ', '.join(os.path.basename(f) for f in missing))
+        return []
+    pid_content = util.load_file(pid_file).strip()
     try:
-        pid = int(util.load_file(pid_file).strip())
-        return parse_dhcp_lease_file(lease_file)
-    finally:
-        if pid:
-            os.kill(pid, signal.SIGKILL)
+        pid = int(pid_content)
+    except ValueError:
+        LOG.debug(
+            "pid file contains non-integer content '%s'", pid_content)
+    else:
+        os.kill(pid, signal.SIGKILL)
+    return parse_dhcp_lease_file(lease_file)
 
 
 def networkd_parse_lease(content):

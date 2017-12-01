@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import mock
 import os
 import signal
 from textwrap import dedent
@@ -9,7 +8,8 @@ from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError, maybe_perform_dhcp_discovery,
     parse_dhcp_lease_file, dhcp_discovery, networkd_load_leases)
 from cloudinit.util import ensure_file, write_file
-from cloudinit.tests.helpers import CiTestCase, wrap_and_call, populate_dir
+from cloudinit.tests.helpers import (
+    CiTestCase, mock, populate_dir, wrap_and_call)
 
 
 class TestParseDHCPLeasesFile(CiTestCase):
@@ -69,14 +69,14 @@ class TestDHCPDiscoveryClean(CiTestCase):
     def test_no_fallback_nic_found(self, m_fallback_nic):
         """Log and do nothing when nic is absent and no fallback is found."""
         m_fallback_nic.return_value = None  # No fallback nic found
-        self.assertEqual({}, maybe_perform_dhcp_discovery())
+        self.assertEqual([], maybe_perform_dhcp_discovery())
         self.assertIn(
             'Skip dhcp_discovery: Unable to find fallback nic.',
             self.logs.getvalue())
 
     def test_provided_nic_does_not_exist(self):
         """When the provided nic doesn't exist, log a message and no-op."""
-        self.assertEqual({}, maybe_perform_dhcp_discovery('idontexist'))
+        self.assertEqual([], maybe_perform_dhcp_discovery('idontexist'))
         self.assertIn(
             'Skip dhcp_discovery: nic idontexist not found in get_devicelist.',
             self.logs.getvalue())
@@ -87,7 +87,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         """When dhclient doesn't exist in the OS, log the issue and no-op."""
         m_fallback.return_value = 'eth9'
         m_which.return_value = None  # dhclient isn't found
-        self.assertEqual({}, maybe_perform_dhcp_discovery())
+        self.assertEqual([], maybe_perform_dhcp_discovery())
         self.assertIn(
             'Skip dhclient configuration: No dhclient command found.',
             self.logs.getvalue())
@@ -114,6 +114,62 @@ class TestDHCPDiscoveryClean(CiTestCase):
         self.assertEqual('/sbin/dhclient', call[0][0])
         self.assertEqual('eth9', call[0][1])
         self.assertIn('/var/tmp/cloud-init/cloud-init-dhcp-', call[0][2])
+
+    @mock.patch('cloudinit.net.dhcp.os.kill')
+    @mock.patch('cloudinit.net.dhcp.util.subp')
+    def test_dhcp_discovery_run_in_sandbox_warns_invalid_pid(self, m_subp,
+                                                             m_kill):
+        """dhcp_discovery logs a warning when pidfile contains invalid content.
+
+        Lease processing still occurs and no proc kill is attempted.
+        """
+        tmpdir = self.tmp_dir()
+        dhclient_script = os.path.join(tmpdir, 'dhclient.orig')
+        script_content = '#!/bin/bash\necho fake-dhclient'
+        write_file(dhclient_script, script_content, mode=0o755)
+        write_file(self.tmp_path('dhclient.pid', tmpdir), '')  # Empty pid ''
+        lease_content = dedent("""
+            lease {
+              interface "eth9";
+              fixed-address 192.168.2.74;
+              option subnet-mask 255.255.255.0;
+              option routers 192.168.2.1;
+            }
+        """)
+        write_file(self.tmp_path('dhcp.leases', tmpdir), lease_content)
+
+        self.assertItemsEqual(
+            [{'interface': 'eth9', 'fixed-address': '192.168.2.74',
+              'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1'}],
+            dhcp_discovery(dhclient_script, 'eth9', tmpdir))
+        self.assertIn(
+            "pid file contains non-integer content ''", self.logs.getvalue())
+        m_kill.assert_not_called()
+
+    @mock.patch('cloudinit.net.dhcp.os.kill')
+    @mock.patch('cloudinit.net.dhcp.util.wait_for_files')
+    @mock.patch('cloudinit.net.dhcp.util.subp')
+    def test_dhcp_discovery_run_in_sandbox_waits_on_lease_and_pid(self,
+                                                                  m_subp,
+                                                                  m_wait,
+                                                                  m_kill):
+        """dhcp_discovery waits for the presence of pidfile and dhcp.leases."""
+        tmpdir = self.tmp_dir()
+        dhclient_script = os.path.join(tmpdir, 'dhclient.orig')
+        script_content = '#!/bin/bash\necho fake-dhclient'
+        write_file(dhclient_script, script_content, mode=0o755)
+        # Don't create pid or leases file
+        pidfile = self.tmp_path('dhclient.pid', tmpdir)
+        leasefile = self.tmp_path('dhcp.leases', tmpdir)
+        m_wait.return_value = [pidfile]  # Return the missing pidfile wait for
+        self.assertEqual([], dhcp_discovery(dhclient_script, 'eth9', tmpdir))
+        self.assertEqual(
+            mock.call([pidfile, leasefile], maxwait=5, naplen=0.01),
+            m_wait.call_args_list[0])
+        self.assertIn(
+            'WARNING: dhclient did not produce expected files: dhclient.pid',
+            self.logs.getvalue())
+        m_kill.assert_not_called()
 
     @mock.patch('cloudinit.net.dhcp.os.kill')
     @mock.patch('cloudinit.net.dhcp.util.subp')

@@ -171,7 +171,6 @@ scbus-1 on xpt0 bus 0
         self.apply_patches([
             (dsaz, 'list_possible_azure_ds_devs', dsdevs),
             (dsaz, 'invoke_agent', _invoke_agent),
-            (dsaz, 'wait_for_files', _wait_for_files),
             (dsaz, 'pubkeys_from_crt_files', _pubkeys_from_crt_files),
             (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
             (dsaz, 'get_hostname', mock.MagicMock()),
@@ -179,6 +178,8 @@ scbus-1 on xpt0 bus 0
             (dsaz, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
             (dsaz.util, 'read_dmi_data', mock.MagicMock(
                 side_effect=_dmi_mocks)),
+            (dsaz.util, 'wait_for_files', mock.MagicMock(
+                side_effect=_wait_for_files)),
         ])
 
         dsrc = dsaz.DataSourceAzure(
@@ -647,7 +648,7 @@ class TestAzureBounce(TestCase):
         self.patches.enter_context(
             mock.patch.object(dsaz, 'invoke_agent'))
         self.patches.enter_context(
-            mock.patch.object(dsaz, 'wait_for_files'))
+            mock.patch.object(dsaz.util, 'wait_for_files'))
         self.patches.enter_context(
             mock.patch.object(dsaz, 'list_possible_azure_ds_devs',
                               mock.MagicMock(return_value=[])))
