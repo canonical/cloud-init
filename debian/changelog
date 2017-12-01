@@ -1,4 +1,4 @@
-cloud-init (17.1-46-g7acc9e68-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.1-46-g7acc9e68-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - ec2: Fix sandboxed dhclient background process cleanup.
@@ -9,7 +9,7 @@ cloud-init (17.1-46-g7acc9e68-0ubuntu1) UNRELEASED; urgency=medium
     - sysconfig: Correctly render dns and dns search info.
       [Ryan McCabe] (LP: #1705804)
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 30 Nov 2017 21:59:36 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 30 Nov 2017 21:59:55 -0500
 
 cloud-init (17.1-41-g76243487-0ubuntu1) bionic; urgency=medium
 
