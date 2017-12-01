@@ -50,9 +50,9 @@ def install_deb(args, image):
     LOG.debug(msg)
     remote_path = os.path.join('/tmp', os.path.basename(args.deb))
     image.push_file(args.deb, remote_path)
-    cmd = 'dpkg -i {}; apt-get install --yes -f'.format(remote_path)
-    image.execute(cmd, description=msg)
-
+    image.execute(
+        ['apt-get', 'install', '--allow-downgrades', '--assume-yes',
+         remote_path], description=msg)
     # check installed deb version matches package
     fmt = ['-W', "--showformat=${Version}"]
     (out, err, exit) = image.execute(['dpkg-deb'] + fmt + [remote_path])

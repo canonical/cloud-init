@@ -25,12 +25,13 @@ class NoCloudKVMInstance(base.Instance):
     platform_name = "nocloud-kvm"
     _ssh_client = None
 
-    def __init__(self, platform, name, properties, config, features,
-                 user_data, meta_data):
+    def __init__(self, platform, name, image_path, properties, config,
+                 features, user_data, meta_data):
         """Set up instance.
 
         @param platform: platform object
         @param name: image path
+        @param image_path: path to disk image to boot.
         @param properties: dictionary of properties
         @param config: dictionary of configuration values
         @param features: dictionary of supported feature flags
@@ -43,6 +44,7 @@ class NoCloudKVMInstance(base.Instance):
         self.pid = None
         self.pid_file = None
         self.console_file = None
+        self.disk = image_path
 
         super(NoCloudKVMInstance, self).__init__(
             platform, name, properties, config, features)
@@ -145,7 +147,7 @@ class NoCloudKVMInstance(base.Instance):
         self.ssh_port = self.get_free_port()
 
         cmd = ['./tools/xkvm',
-               '--disk', '%s,cache=unsafe' % self.name,
+               '--disk', '%s,cache=unsafe' % self.disk,
                '--disk', '%s,cache=unsafe' % seed,
                '--netdev', ','.join(['user',
                                      'hostfwd=tcp::%s-:22' % self.ssh_port,
