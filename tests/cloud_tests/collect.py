@@ -8,7 +8,7 @@ import os
 from cloudinit import util as c_util
 from tests.cloud_tests import (config, LOG, setup_image, util)
 from tests.cloud_tests.stage import (PlatformComponent, run_stage, run_single)
-from tests.cloud_tests import (platforms, images, snapshots, instances)
+from tests.cloud_tests import platforms
 
 
 def collect_script(instance, base_dir, script, script_name):
@@ -77,7 +77,7 @@ def collect_test_data(args, snapshot, os_name, test_name):
 
     # create test instance
     component = PlatformComponent(
-        partial(instances.get_instance, snapshot, user_data,
+        partial(platforms.get_instance, snapshot, user_data,
                 block=True, start=False, use_desc=test_name))
 
     LOG.info('collecting test data for test: %s', test_name)
@@ -108,7 +108,7 @@ def collect_snapshot(args, image, os_name):
     """
     res = ({}, 1)
 
-    component = PlatformComponent(partial(snapshots.get_snapshot, image))
+    component = PlatformComponent(partial(platforms.get_snapshot, image))
 
     LOG.debug('creating snapshot for %s', os_name)
     with component as snapshot:
@@ -136,7 +136,7 @@ def collect_image(args, platform, os_name):
         feature_overrides=args.feature_override)
     LOG.debug('os config: %s', os_config)
     component = PlatformComponent(
-        partial(images.get_image, platform, os_config))
+        partial(platforms.get_image, platform, os_config))
 
     LOG.info('acquiring image for os: %s', os_name)
     with component as image:

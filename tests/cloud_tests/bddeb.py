@@ -8,7 +8,8 @@ import tempfile
 
 from cloudinit import util as c_util
 from tests.cloud_tests import (config, LOG)
-from tests.cloud_tests import (platforms, images, snapshots, instances)
+from tests.cloud_tests.platforms import (platforms, images, snapshots,
+                                         instances)
 from tests.cloud_tests.stage import (PlatformComponent, run_stage, run_single)
 
 pre_reqs = ['devscripts', 'equivs', 'git', 'tar']

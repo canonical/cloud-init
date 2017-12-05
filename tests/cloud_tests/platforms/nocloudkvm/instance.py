@@ -8,8 +8,8 @@ import socket
 import subprocess
 import time
 
+from ..instances import Instance
 from cloudinit import util as c_util
-from tests.cloud_tests.instances import base
 from tests.cloud_tests import util
 
 # This domain contains reverse lookups for hostnames that are used.
@@ -19,7 +19,7 @@ from tests.cloud_tests import util
 CI_DOMAIN = "i9n.cloud-init.io"
 
 
-class NoCloudKVMInstance(base.Instance):
+class NoCloudKVMInstance(Instance):
     """NoCloud KVM backed instance."""
 
     platform_name = "nocloud-kvm"

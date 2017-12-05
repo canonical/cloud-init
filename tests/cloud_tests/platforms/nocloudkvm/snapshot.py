@@ -5,10 +5,10 @@ import os
 import shutil
 import tempfile
 
-from tests.cloud_tests.snapshots import base
+from ..snapshots import Snapshot
 
 
-class NoCloudKVMSnapshot(base.Snapshot):
+class NoCloudKVMSnapshot(Snapshot):
     """NoCloud KVM image copy backed snapshot."""
 
     platform_name = "nocloud-kvm"
