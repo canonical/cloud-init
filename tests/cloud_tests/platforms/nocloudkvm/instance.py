@@ -2,13 +2,16 @@
 
 """Base NoCloud KVM instance."""
 
+import copy
 import os
 import paramiko
 import socket
 import subprocess
 import time
+import uuid
 
 from ..instances import Instance
+from cloudinit.atomic_helper import write_json
 from cloudinit import util as c_util
 from tests.cloud_tests import util
 
@@ -37,14 +40,38 @@ class NoCloudKVMInstance(Instance):
         @param features: dictionary of supported feature flags
         """
         self.user_data = user_data
-        self.meta_data = meta_data
-        self.ssh_key_file = os.path.join(platform.config['data_dir'],
-                                         platform.config['private_key'])
+        if meta_data:
+            meta_data = copy.deepcopy(meta_data)
+        else:
+            meta_data = {}
+
+        if 'instance-id' in meta_data:
+            iid = meta_data['instance-id']
+        else:
+            iid = str(uuid.uuid1())
+            meta_data['instance-id'] = iid
+
+        self.instance_id = iid
+        self.ssh_key_file = os.path.join(
+            platform.config['data_dir'], platform.config['private_key'])
+        self.ssh_pubkey_file = os.path.join(
+            platform.config['data_dir'], platform.config['public_key'])
+
+        self.ssh_pubkey = None
+        if self.ssh_pubkey_file:
+            with open(self.ssh_pubkey_file, "r") as fp:
+                self.ssh_pubkey = fp.read().rstrip('\n')
+
+            if not meta_data.get('public-keys'):
+                meta_data['public-keys'] = []
+            meta_data['public-keys'].append(self.ssh_pubkey)
+
         self.ssh_port = None
         self.pid = None
         self.pid_file = None
         self.console_file = None
         self.disk = image_path
+        self.meta_data = meta_data
 
         super(NoCloudKVMInstance, self).__init__(
             platform, name, properties, config, features)
@@ -78,11 +105,15 @@ class NoCloudKVMInstance(Instance):
         """Generate nocloud seed from user-data"""
         seed_file = os.path.join(tmpdir, '%s_seed.img' % self.name)
         user_data_file = os.path.join(tmpdir, '%s_user_data' % self.name)
+        meta_data_file = os.path.join(tmpdir, '%s_meta_data' % self.name)
 
         with open(user_data_file, "w") as ud_file:
             ud_file.write(self.user_data)
 
-        c_util.subp(['cloud-localds', seed_file, user_data_file])
+        # meta-data can be yaml, but more easily pretty printed with json
+        write_json(meta_data_file, self.meta_data)
+        c_util.subp(['cloud-localds', seed_file, user_data_file,
+                     meta_data_file])
 
         return seed_file
 
