@@ -1398,6 +1398,32 @@ def get_output_cfg(cfg, mode):
     return ret
 
 
+def get_config_logfiles(cfg):
+    """Return a list of log file paths from the configuration dictionary.
+
+    @param cfg: The cloud-init merged configuration dictionary.
+    """
+    logs = []
+    if not cfg or not isinstance(cfg, dict):
+        return logs
+    default_log = cfg.get('def_log_file')
+    if default_log:
+        logs.append(default_log)
+    for fmt in get_output_cfg(cfg, None):
+        if not fmt:
+            continue
+        match = re.match('(?P<type>\||>+)\s*(?P<target>.*)', fmt)
+        if not match:
+            continue
+        target = match.group('target')
+        parts = target.split()
+        if len(parts) == 1:
+            logs.append(target)
+        elif ['tee', '-a'] == parts[:2]:
+            logs.append(parts[2])
+    return list(set(logs))
+
+
 def logexc(log, msg, *args):
     # Setting this here allows this to change
     # levels easily (not always error level)

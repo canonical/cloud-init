@@ -477,6 +477,44 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self.assertIsNone(util.read_dmi_data("system-product-name"))
 
 
+class TestGetConfigLogfiles(helpers.CiTestCase):
+
+    def test_empty_cfg_returns_empty_list(self):
+        """An empty config passed to get_config_logfiles returns empty list."""
+        self.assertEqual([], util.get_config_logfiles(None))
+        self.assertEqual([], util.get_config_logfiles({}))
+
+    def test_default_log_file_present(self):
+        """When default_log_file is set get_config_logfiles finds it."""
+        self.assertEqual(
+            ['/my.log'],
+            util.get_config_logfiles({'def_log_file': '/my.log'}))
+
+    def test_output_logs_parsed_when_teeing_files(self):
+        """When output configuration is parsed when teeing files."""
+        self.assertEqual(
+            ['/himom.log', '/my.log'],
+            sorted(util.get_config_logfiles({
+                'def_log_file': '/my.log',
+                'output': {'all': '|tee -a /himom.log'}})))
+
+    def test_output_logs_parsed_when_redirecting(self):
+        """When output configuration is parsed when redirecting to a file."""
+        self.assertEqual(
+            ['/my.log', '/test.log'],
+            sorted(util.get_config_logfiles({
+                'def_log_file': '/my.log',
+                'output': {'all': '>/test.log'}})))
+
+    def test_output_logs_parsed_when_appending(self):
+        """When output configuration is parsed when appending to a file."""
+        self.assertEqual(
+            ['/my.log', '/test.log'],
+            sorted(util.get_config_logfiles({
+                'def_log_file': '/my.log',
+                'output': {'all': '>> /test.log'}})))
+
+
 class TestMultiLog(helpers.FilesystemMockingTestCase):
 
     def _createConsole(self, root):

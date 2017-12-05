@@ -767,6 +767,12 @@ def main(sysv_args=None):
     parser_collect_logs = subparsers.add_parser(
         'collect-logs', help='Collect and tar all cloud-init debug info')
 
+    parser_clean = subparsers.add_parser(
+        'clean', help='Remove logs and artifacts so cloud-init can re-run.')
+
+    parser_status = subparsers.add_parser(
+        'status', help='Report cloud-init status or wait on completion.')
+
     if sysv_args:
         # Only load subparsers if subcommand is specified to avoid load cost
         if sysv_args[0] == 'analyze':
@@ -783,6 +789,18 @@ def main(sysv_args=None):
             logs_parser(parser_collect_logs)
             parser_collect_logs.set_defaults(
                 action=('collect-logs', handle_collect_logs_args))
+        elif sysv_args[0] == 'clean':
+            from cloudinit.cmd.clean import (
+                get_parser as clean_parser, handle_clean_args)
+            clean_parser(parser_clean)
+            parser_clean.set_defaults(
+                action=('clean', handle_clean_args))
+        elif sysv_args[0] == 'status':
+            from cloudinit.cmd.status import (
+                get_parser as status_parser, handle_status_args)
+            status_parser(parser_status)
+            parser_status.set_defaults(
+                action=('status', handle_status_args))
 
     args = parser.parse_args(args=sysv_args)
 
