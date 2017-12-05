@@ -11,9 +11,7 @@ from cloudinit.tests.helpers import (CiTestCase, TestCase, populate_dir, mock,
 
 import crypt
 import os
-import shutil
 import stat
-import tempfile
 import xml.etree.ElementTree as ET
 import yaml
 
@@ -84,11 +82,11 @@ class TestAzureDataSource(CiTestCase):
         super(TestAzureDataSource, self).setUp()
         if PY26:
             raise SkipTest("Does not work on python 2.6")
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
+        self.tmp = self.tmp_dir()
 
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
-        self.paths = helpers.Paths({'cloud_dir': self.tmp})
+        self.paths = helpers.Paths(
+            {'cloud_dir': self.tmp, 'run_dir': self.tmp})
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
 
         self.patches = ExitStack()
@@ -642,7 +640,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         self.assertEqual(netconfig, expected_config)
 
 
-class TestAzureBounce(TestCase):
+class TestAzureBounce(CiTestCase):
 
     def mock_out_azure_moving_parts(self):
         self.patches.enter_context(
@@ -669,10 +667,10 @@ class TestAzureBounce(TestCase):
 
     def setUp(self):
         super(TestAzureBounce, self).setUp()
-        self.tmp = tempfile.mkdtemp()
+        self.tmp = self.tmp_dir()
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
-        self.paths = helpers.Paths({'cloud_dir': self.tmp})
-        self.addCleanup(shutil.rmtree, self.tmp)
+        self.paths = helpers.Paths(
+            {'cloud_dir': self.tmp, 'run_dir': self.tmp})
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
         self.patches = ExitStack()
         self.mock_out_azure_moving_parts()
@@ -714,21 +712,24 @@ class TestAzureBounce(TestCase):
 
     def test_disabled_bounce_does_not_change_hostname(self):
         cfg = {'hostname_bounce': {'policy': 'off'}}
-        self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg)).get_data()
+        ds = self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg))
+        ds.get_data()
         self.assertEqual(0, self.set_hostname.call_count)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
     def test_disabled_bounce_does_not_perform_bounce(
             self, perform_hostname_bounce):
         cfg = {'hostname_bounce': {'policy': 'off'}}
-        self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg)).get_data()
+        ds = self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg))
+        ds.get_data()
         self.assertEqual(0, perform_hostname_bounce.call_count)
 
     def test_same_hostname_does_not_change_hostname(self):
         host_name = 'unchanged-host-name'
         self.get_hostname.return_value = host_name
         cfg = {'hostname_bounce': {'policy': 'yes'}}
-        self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg)).get_data()
+        ds = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
+        ds.get_data()
         self.assertEqual(0, self.set_hostname.call_count)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
@@ -737,7 +738,8 @@ class TestAzureBounce(TestCase):
         host_name = 'unchanged-host-name'
         self.get_hostname.return_value = host_name
         cfg = {'hostname_bounce': {'policy': 'yes'}}
-        self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg)).get_data()
+        ds = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
+        ds.get_data()
         self.assertEqual(0, perform_hostname_bounce.call_count)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')

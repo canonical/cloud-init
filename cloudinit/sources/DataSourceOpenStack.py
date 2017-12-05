@@ -24,6 +24,9 @@ DEFAULT_METADATA = {
 
 
 class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
+
+    dsname = "OpenStack"
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceOpenStack, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
@@ -96,7 +99,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         self.metadata_address = url2base.get(avail_url)
         return bool(avail_url)
 
-    def get_data(self):
+    def _get_data(self):
         try:
             if not self.wait_for_metadata_service():
                 return False

@@ -3,12 +3,10 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import util
-from cloudinit.tests.helpers import mock, populate_dir, TestCase
+from cloudinit.tests.helpers import mock, populate_dir, CiTestCase
 
 import os
 import pwd
-import shutil
-import tempfile
 import unittest
 
 
@@ -36,14 +34,14 @@ PUBLIC_IP = '10.0.0.3'
 DS_PATH = "cloudinit.sources.DataSourceOpenNebula"
 
 
-class TestOpenNebulaDataSource(TestCase):
+class TestOpenNebulaDataSource(CiTestCase):
     parsed_user = None
 
     def setUp(self):
         super(TestOpenNebulaDataSource, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
-        self.paths = helpers.Paths({'cloud_dir': self.tmp})
+        self.tmp = self.tmp_dir()
+        self.paths = helpers.Paths(
+            {'cloud_dir': self.tmp, 'run_dir': self.tmp})
 
         # defaults for few tests
         self.ds = ds.DataSourceOpenNebula

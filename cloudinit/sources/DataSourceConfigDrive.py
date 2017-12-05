@@ -32,6 +32,9 @@ OPTICAL_DEVICES = tuple(('/dev/%s%s' % (z, i) for z in POSSIBLE_MOUNTS
 
 
 class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
+
+    dsname = 'ConfigDrive'
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceConfigDrive, self).__init__(sys_cfg, distro, paths)
         self.source = None
@@ -50,7 +53,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         mstr += "[source=%s]" % (self.source)
         return mstr
 
-    def get_data(self):
+    def _get_data(self):
         found = None
         md = {}
         results = {}

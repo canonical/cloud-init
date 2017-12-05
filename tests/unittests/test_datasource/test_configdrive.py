@@ -725,8 +725,9 @@ class TestConvertNetworkData(TestCase):
 
 
 def cfg_ds_from_dir(seed_d):
+    tmp = tempfile.mkdtemp()
     cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN, None,
-                                      helpers.Paths({}))
+                                      helpers.Paths({'run_dir': tmp}))
     cfg_ds.seed_dir = seed_d
     cfg_ds.known_macs = KNOWN_MACS.copy()
     if not cfg_ds.get_data():

@@ -43,6 +43,9 @@ LOG = logging.getLogger(__name__)
 
 
 class DataSourceOVF(sources.DataSource):
+
+    dsname = "OVF"
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed = None
@@ -60,7 +63,7 @@ class DataSourceOVF(sources.DataSource):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.seed)
 
-    def get_data(self):
+    def _get_data(self):
         found = []
         md = {}
         ud = ""

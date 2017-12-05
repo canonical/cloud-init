@@ -131,6 +131,10 @@ def _read_metadata_service():
 class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
     VERSION = 'latest'
 
+    def setUp(self):
+        super(TestOpenStackDataSource, self).setUp()
+        self.tmp = self.tmp_dir()
+
     @hp.activate
     def test_successful(self):
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
@@ -232,7 +236,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
         ds_os = ds.DataSourceOpenStack(settings.CFG_BUILTIN,
                                        None,
-                                       helpers.Paths({}))
+                                       helpers.Paths({'run_dir': self.tmp}))
         self.assertIsNone(ds_os.version)
         found = ds_os.get_data()
         self.assertTrue(found)
@@ -256,7 +260,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, {}, {}, os_files)
         ds_os = ds.DataSourceOpenStack(settings.CFG_BUILTIN,
                                        None,
-                                       helpers.Paths({}))
+                                       helpers.Paths({'run_dir': self.tmp}))
         self.assertIsNone(ds_os.version)
         found = ds_os.get_data()
         self.assertFalse(found)
@@ -271,7 +275,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, {}, {}, os_files)
         ds_os = ds.DataSourceOpenStack(settings.CFG_BUILTIN,
                                        None,
-                                       helpers.Paths({}))
+                                       helpers.Paths({'run_dir': self.tmp}))
         ds_os.ds_cfg = {
             'max_wait': 0,
             'timeout': 0,
@@ -294,7 +298,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, {}, {}, os_files)
         ds_os = ds.DataSourceOpenStack(settings.CFG_BUILTIN,
                                        None,
-                                       helpers.Paths({}))
+                                       helpers.Paths({'run_dir': self.tmp}))
         ds_os.ds_cfg = {
             'max_wait': 0,
             'timeout': 0,

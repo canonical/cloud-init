@@ -67,7 +67,7 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
         super(TestAliYunDatasource, self).setUp()
         cfg = {'datasource': {'AliYun': {'timeout': '1', 'max_wait': '1'}}}
         distro = {}
-        paths = helpers.Paths({})
+        paths = helpers.Paths({'run_dir': self.tmp_dir()})
         self.ds = ay.DataSourceAliYun(cfg, distro, paths)
         self.metadata_address = self.ds.metadata_urls[0]
 

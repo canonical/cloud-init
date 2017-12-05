@@ -186,6 +186,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         super(TestEc2, self).setUp()
         self.datasource = ec2.DataSourceEc2
         self.metadata_addr = self.datasource.metadata_urls[0]
+        self.tmp = self.tmp_dir()
 
     def data_url(self, version):
         """Return a metadata url based on the version provided."""
@@ -199,7 +200,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
     def _setup_ds(self, sys_cfg, platform_data, md, md_version=None):
         self.uris = []
         distro = {}
-        paths = helpers.Paths({})
+        paths = helpers.Paths({'run_dir': self.tmp})
         if sys_cfg is None:
             sys_cfg = {}
         ds = self.datasource(sys_cfg=sys_cfg, distro=distro, paths=paths)

@@ -2,10 +2,10 @@
 
 import os
 
-from cloudinit.tests import helpers
 
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import stages
+from cloudinit.tests import helpers
 from cloudinit import util
 
 
@@ -23,6 +23,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             'datasource_list': ['None'],
             'runcmd': ['ls /etc'],  # test ALL_DISTROS
             'spacewalk': {},  # test non-ubuntu distros module definition
+            'system_info': {'paths': {'run_dir': self.new_root}},
             'write_files': [
                 {
                     'path': '/etc/blah.ini',

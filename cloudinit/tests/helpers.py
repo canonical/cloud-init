@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 import functools
-import json
 import logging
 import os
 import shutil
@@ -335,12 +334,6 @@ def dir2dict(startdir, prefix=None):
             key = fpath[len(prefix):]
             flist[key] = util.load_file(fpath)
     return flist
-
-
-def json_dumps(data):
-    # print data in nicely formatted json.
-    return json.dumps(data, indent=1, sort_keys=True,
-                      separators=(',', ': '))
 
 
 def wrap_and_call(prefix, mocks, func, *args, **kwargs):

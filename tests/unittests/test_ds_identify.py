@@ -7,7 +7,7 @@ from uuid import uuid4
 from cloudinit import safeyaml
 from cloudinit import util
 from cloudinit.tests.helpers import (
-    CiTestCase, dir2dict, json_dumps, populate_dir)
+    CiTestCase, dir2dict, populate_dir)
 
 UNAME_MYSYS = ("Linux bart 4.4.0-62-generic #83-Ubuntu "
                "SMP Wed Jan 18 14:10:15 UTC 2017 x86_64 GNU/Linux")
@@ -319,7 +319,7 @@ def _print_run_output(rc, out, err, cfg, files):
         '-- rc = %s --' % rc,
         '-- out --', str(out),
         '-- err --', str(err),
-        '-- cfg --', json_dumps(cfg)]))
+        '-- cfg --', util.json_dumps(cfg)]))
     print('-- files --')
     for k, v in files.items():
         if "/_shwrap" in k:
