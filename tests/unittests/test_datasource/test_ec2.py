@@ -330,7 +330,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds.fallback_nic = 'eth9'
         with mock.patch(get_interface_mac_path) as m_get_interface_mac:
             m_get_interface_mac.return_value = mac1
-            ds.network_config  # Will re-crawl network metadata
+            nc = ds.network_config  # Will re-crawl network metadata
+            self.assertIsNotNone(nc)
         self.assertIn('Re-crawl of metadata service', self.logs.getvalue())
         expected = {'version': 1, 'config': [
             {'mac_address': '06:17:04:d7:26:09',

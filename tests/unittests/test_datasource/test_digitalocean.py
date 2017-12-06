@@ -199,9 +199,8 @@ class TestDataSourceDigitalOcean(CiTestCase):
 
 class TestNetworkConvert(CiTestCase):
 
-    @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    def _get_networking(self, m_get_by_mac):
-        m_get_by_mac.return_value = {
+    def _get_networking(self):
+        self.m_get_by_mac.return_value = {
             '04:01:57:d1:9e:01': 'ens1',
             '04:01:57:d1:9e:02': 'ens2',
             'b8:ae:ed:75:5f:9a': 'enp0s25',
@@ -210,6 +209,10 @@ class TestNetworkConvert(CiTestCase):
             DO_META['interfaces'], DO_META['dns']['nameservers'])
         self.assertIn('config', netcfg)
         return netcfg
+
+    def setUp(self):
+        super(TestNetworkConvert, self).setUp()
+        self.add_patch('cloudinit.net.get_interfaces_by_mac', 'm_get_by_mac')
 
     def test_networking_defined(self):
         netcfg = self._get_networking()

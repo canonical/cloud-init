@@ -151,7 +151,7 @@ class TestClean(CiTestCase):
                  'sys.argv': {'new': ['clean', '--logs']}},
                 clean.main)
 
-        self.assertEqual(0, context_manager.exception.code)
+        self.assertRaisesCodeEqual(0, context_manager.exception.code)
         self.assertFalse(
             os.path.exists(self.log1), 'Unexpected log {0}'.format(self.log1))
 

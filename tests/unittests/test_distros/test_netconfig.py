@@ -188,9 +188,6 @@ hn0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
         status: active
 """
 
-    def setUp(self):
-        super(TestNetCfgDistro, self).setUp()
-
     def _get_distro(self, dname, renderers=None):
         cls = distros.fetch(dname)
         cfg = settings.CFG_BUILTIN

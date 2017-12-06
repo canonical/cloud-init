@@ -9,10 +9,6 @@ from cloudinit import util
 from cloudinit.tests import helpers
 from cloudinit.tests.helpers import mock
 
-try:
-    from configparser import ConfigParser
-except ImportError:
-    from ConfigParser import ConfigParser
 import logging
 from six import StringIO
 
@@ -70,8 +66,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         root_d = self.tmp_dir()
         cc_zypper_add_repo._write_repos(cfg['repos'], root_d)
         contents = util.load_file("%s/testing-foo.repo" % root_d)
-        parser = ConfigParser()
-        parser.readfp(StringIO(contents))
+        parser = self.parse_and_read(StringIO(contents))
         expected = {
             'testing-foo': {
                 'name': 'test-foo',

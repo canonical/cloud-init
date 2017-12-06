@@ -36,9 +36,9 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
     """
     for key, dval in data.items():
         if isinstance(dval, dict):
-            val = dval.get('text')
-            attrs = ' ' + ' '.join(["%s='%s'" % (k, v) for k, v in dval.items()
-                                    if k != 'text'])
+            val = dict(dval).get('text')
+            attrs = ' ' + ' '.join(["%s='%s'" % (k, v) for k, v
+                                    in dict(dval).items() if k != 'text'])
         else:
             val = dval
             attrs = ""
@@ -897,9 +897,6 @@ class TestCanDevBeReformatted(CiTestCase):
         setattr(self, sattr, patcher.start())
         self.addCleanup(patcher.stop)
 
-    def setUp(self):
-        super(TestCanDevBeReformatted, self).setUp()
-
     def patchup(self, devs):
         bypath = {}
         for path, data in devs.items():
@@ -954,14 +951,14 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda3': {'num': 3},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertFalse(False, value)
+        self.assertFalse(value)
         self.assertIn("3 or more", msg.lower())
 
     def test_no_partitions_is_false(self):
         """A disk with no partitions can not be formatted."""
         self.patchup({'/dev/sda': {}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(False, value)
+        self.assertFalse(value)
         self.assertIn("not partitioned", msg.lower())
 
     def test_two_partitions_not_ntfs_false(self):
@@ -973,7 +970,7 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda2': {'num': 2, 'fs': 'ext4', 'files': []},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertFalse(False, value)
+        self.assertFalse(value)
         self.assertIn("not ntfs", msg.lower())
 
     def test_two_partitions_ntfs_populated_false(self):
@@ -986,7 +983,7 @@ class TestCanDevBeReformatted(CiTestCase):
                                   'files': ['secret.txt']},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertFalse(False, value)
+        self.assertFalse(value)
         self.assertIn("files on it", msg.lower())
 
     def test_two_partitions_ntfs_empty_is_true(self):
@@ -998,7 +995,7 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda2': {'num': 2, 'fs': 'ntfs', 'files': []},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(True, value)
+        self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
     def test_one_partition_not_ntfs_false(self):
@@ -1009,7 +1006,7 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1, 'fs': 'zfs'},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(False, value)
+        self.assertFalse(value)
         self.assertIn("not ntfs", msg.lower())
 
     def test_one_partition_ntfs_populated_false(self):
@@ -1021,7 +1018,7 @@ class TestCanDevBeReformatted(CiTestCase):
                                   'files': ['file1.txt', 'file2.exe']},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(False, value)
+        self.assertFalse(value)
         self.assertIn("files on it", msg.lower())
 
     def test_one_partition_ntfs_empty_is_true(self):
@@ -1032,7 +1029,7 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1, 'fs': 'ntfs', 'files': []}
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(True, value)
+        self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
     def test_one_partition_ntfs_empty_with_dataloss_file_is_true(self):
@@ -1044,7 +1041,7 @@ class TestCanDevBeReformatted(CiTestCase):
                                   'files': ['dataloss_warning_readme.txt']}
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(True, value)
+        self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
     def test_one_partition_through_realpath_is_true(self):
@@ -1059,7 +1056,7 @@ class TestCanDevBeReformatted(CiTestCase):
                         'realpath': '/dev/sdb1'}
                 }}})
         value, msg = dsaz.can_dev_be_reformatted(epath)
-        self.assertEqual(True, value)
+        self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
     def test_three_partition_through_realpath_is_false(self):
@@ -1078,7 +1075,7 @@ class TestCanDevBeReformatted(CiTestCase):
                                        'realpath': '/dev/sdb3'}
                 }}})
         value, msg = dsaz.can_dev_be_reformatted(epath)
-        self.assertEqual(False, value)
+        self.assertFalse(value)
         self.assertIn("3 or more", msg.lower())
 
 

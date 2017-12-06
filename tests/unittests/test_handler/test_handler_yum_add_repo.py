@@ -5,10 +5,6 @@ from cloudinit import util
 
 from cloudinit.tests import helpers
 
-try:
-    from configparser import ConfigParser
-except ImportError:
-    from ConfigParser import ConfigParser
 import logging
 import shutil
 from six import StringIO
@@ -58,8 +54,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
         contents = util.load_file("/etc/yum.repos.d/epel_testing.repo")
-        parser = ConfigParser()
-        parser.readfp(StringIO(contents))
+        parser = self.parse_and_read(StringIO(contents))
         expected = {
             'epel_testing': {
                 'name': 'Extra Packages for Enterprise Linux 5 - Testing',
@@ -95,8 +90,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
         contents = util.load_file("/etc/yum.repos.d/puppetlabs_products.repo")
-        parser = ConfigParser()
-        parser.readfp(StringIO(contents))
+        parser = self.parse_and_read(StringIO(contents))
         expected = {
             'puppetlabs_products': {
                 'name': 'Puppet Labs Products El 6 - $basearch',

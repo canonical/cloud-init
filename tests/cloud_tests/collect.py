@@ -64,9 +64,9 @@ def collect_test_data(args, snapshot, os_name, test_name):
     # skip the testcase with a warning
     req_features = test_config.get('required_features', [])
     if any(feature not in snapshot.features for feature in req_features):
-        LOG.warn('test config %s requires features not supported by image, '
-                 'skipping.\nrequired features: %s\nsupported features: %s',
-                 test_name, req_features, snapshot.features)
+        LOG.warning('test config %s requires features not supported by image, '
+                    'skipping.\nrequired features: %s\nsupported features: %s',
+                    test_name, req_features, snapshot.features)
         return ({}, 0)
 
     # if there are user data overrides required for this test case, apply them

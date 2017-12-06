@@ -347,7 +347,7 @@ class TestStatus(CiTestCase):
                      '_is_cloudinit_disabled': (False, ''),
                      'Init': {'side_effect': self.init_class}},
                     status.main)
-        self.assertEqual(0, context_manager.exception.code)
+        self.assertRaisesCodeEqual(0, context_manager.exception.code)
         self.assertEqual('status: running\n', m_stdout.getvalue())
 
 # vi: ts=4 expandtab syntax=python

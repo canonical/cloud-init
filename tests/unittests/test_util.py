@@ -695,9 +695,9 @@ class TestSubp(helpers.CiTestCase):
         util.write_file(noshebang, 'true\n')
 
         os.chmod(noshebang, os.stat(noshebang).st_mode | stat.S_IEXEC)
-        self.assertRaisesRegexp(util.ProcessExecutionError,
-                                'Missing #! in script\?',
-                                util.subp, (noshebang,))
+        self.assertRaisesRegex(util.ProcessExecutionError,
+                               'Missing #! in script\?',
+                               util.subp, (noshebang,))
 
     def test_returns_none_if_no_capture(self):
         (out, err) = util.subp(self.stdin2out, data=b'', capture=False)

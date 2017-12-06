@@ -133,7 +133,8 @@ class TestVmwareConfigFile(CiTestCase):
 
         conf = Config(cf)
         with self.assertRaises(ValueError):
-            conf.reset_password()
+            pw = conf.reset_password
+            self.assertIsNone(pw)
 
         cf.clear()
         cf._insertKey("PASSWORD|RESET", "yes")
