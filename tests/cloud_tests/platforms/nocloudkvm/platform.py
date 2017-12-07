@@ -21,6 +21,10 @@ class NoCloudKVMPlatform(Platform):
 
     platform_name = 'nocloud-kvm'
 
+    def __init__(self, config):
+        """Set up platform."""
+        super(NoCloudKVMPlatform, self).__init__(config)
+
     def get_image(self, img_conf):
         """Get image using specified image configuration.
 

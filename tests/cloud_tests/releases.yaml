@@ -27,10 +27,14 @@ default_release_config:
         # features groups and additional feature settings
         feature_groups: []
         features: {}
-    nocloud-kvm:
         mirror_url: https://cloud-images.ubuntu.com/daily
-        mirror_dir: '/srv/citest/nocloud-kvm'
+        mirror_dir: '/srv/citest/images'
         keyring: /usr/share/keyrings/ubuntu-cloudimage-keyring.gpg
+    ec2:
+        # Choose from: [ebs, instance-store]
+        root-store: ebs
+        boot_timeout: 300
+    nocloud-kvm:
         setup_overrides: null
         override_templates: false
     # lxd specific default configuration options
