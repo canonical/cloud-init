@@ -32,6 +32,7 @@ POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
 DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=enabled"
 DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=all,notfound=disabled"
 DI_EC2_STRICT_ID_DEFAULT = "true"
+OVF_MATCH_STRING = 'http://schemas.dmtf.org/ovf/environment/1'
 
 SHELL_MOCK_TMPL = """\
 %(name)s() {
@@ -55,6 +56,7 @@ P_SEED_DIR = "var/lib/cloud/seed"
 P_DSID_CFG = "etc/cloud/ds-identify.cfg"
 
 MOCK_VIRT_IS_KVM = {'name': 'detect_virt', 'RET': 'kvm', 'ret': 0}
+MOCK_VIRT_IS_VMWARE = {'name': 'detect_virt', 'RET': 'vmware', 'ret': 0}
 MOCK_UNAME_IS_PPC64 = {'name': 'uname', 'out': UNAME_PPC64EL, 'ret': 0}
 
 
@@ -296,6 +298,48 @@ class TestDsIdentify(CiTestCase):
             data, RC_FOUND, dslist=['OpenStack', 'None'])
         self.assertIn("check for 'OpenStack' returned maybe", err)
 
+    def test_default_ovf_is_found(self):
+        """OVF is identified found when ovf/ovf-env.xml seed file exists."""
+        self._test_ds_found('OVF-seed')
+
+    def test_default_ovf_with_detect_virt_none_not_found(self):
+        """OVF identifies not found when detect_virt returns "none"."""
+        self._check_via_dict(
+            {'ds': 'OVF'}, rc=RC_NOT_FOUND, policy_dmi="disabled")
+
+    def test_default_ovf_returns_not_found_on_azure(self):
+        """OVF datasource won't be found as false positive on Azure."""
+        ovfonazure = copy.deepcopy(VALID_CFG['OVF'])
+        # Set azure asset tag to assert OVF content not found
+        ovfonazure['files'][P_CHASSIS_ASSET_TAG] = (
+            '7783-7084-3265-9085-8269-3286-77\n')
+        self._check_via_dict(
+            ovfonazure, RC_FOUND, dslist=['Azure', DS_NONE])
+
+    def test_ovf_on_vmware_iso_found_by_cdrom_with_ovf_schema_match(self):
+        """OVF is identified when iso9660 cdrom path contains ovf schema."""
+        self._test_ds_found('OVF')
+
+    def test_ovf_on_vmware_iso_found_when_vmware_customization(self):
+        """OVF is identified when vmware customization is enabled."""
+        self._test_ds_found('OVF-vmware-customization')
+
+    def test_ovf_on_vmware_iso_found_by_cdrom_with_matching_fs_label(self):
+        """OVF is identified when iso9660 cdrom  label has ovf-transport."""
+        ovf_cdrom_by_label = copy.deepcopy(VALID_CFG['OVF'])
+        # Unset matching cdrom ovf schema content
+        ovf_cdrom_by_label['files']['dev/sr0'] = 'No content match'
+        self._check_via_dict(
+            ovf_cdrom_by_label, rc=RC_NOT_FOUND, policy_dmi="disabled")
+
+        # Add recognized labels
+        for valid_fs_label in ['ovf-transport', 'OVF-TRANSPORT']:
+            ovf_cdrom_by_label['mocks'][0]['out'] = blkid_out([
+                {'DEVNAME': 'sr0', 'TYPE': 'iso9660',
+                 'LABEL': valid_fs_label}])
+            self._check_via_dict(
+                ovf_cdrom_by_label, rc=RC_FOUND, dslist=['OVF', DS_NONE])
+
 
 def blkid_out(disks=None):
     """Convert a list of disk dictionaries into blkid content."""
@@ -305,7 +349,9 @@ def blkid_out(disks=None):
     for disk in disks:
         if not disk["DEVNAME"].startswith("/dev/"):
             disk["DEVNAME"] = "/dev/" + disk["DEVNAME"]
-        for key in disk:
+        # devname needs to be first.
+        lines.append("%s=%s" % ("DEVNAME", disk["DEVNAME"]))
+        for key in [d for d in disk if d != "DEVNAME"]:
             lines.append("%s=%s" % (key, disk[key]))
         lines.append("")
     return '\n'.join(lines)
@@ -382,6 +428,43 @@ VALID_CFG = {
         'mocks': [MOCK_VIRT_IS_KVM],
         'policy_dmi': POLICY_FOUND_ONLY,
         'policy_no_dmi': POLICY_FOUND_ONLY,
+    },
+    'OVF-seed': {
+        'ds': 'OVF',
+        'files': {
+            os.path.join(P_SEED_DIR, 'ovf', 'ovf-env.xml'): 'present\n',
+        }
+    },
+    'OVF-vmware-customization': {
+        'ds': 'OVF',
+        'mocks': [
+            # Include a mockes iso9660 potential, even though content not ovf
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'sr0', 'TYPE': 'iso9660', 'LABEL': ''}])
+             },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+        'files': {
+            'dev/sr0': 'no match',
+            # Setup vmware customization enabled
+            'usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so': 'here',
+            'etc/cloud/cloud.cfg': 'disable_vmware_customization: false\n',
+        }
+    },
+    'OVF': {
+        'ds': 'OVF',
+        'mocks': [
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'sr0', 'TYPE': 'iso9660', 'LABEL': ''}])
+             },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+        'files': {
+            'dev/sr0': 'pretend ovf iso has ' + OVF_MATCH_STRING + '\n',
+        }
     },
     'ConfigDrive': {
         'ds': 'ConfigDrive',
