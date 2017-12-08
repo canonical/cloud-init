@@ -1,4 +1,4 @@
-cloud-init (17.1-53-ga5dc0f42-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.1-53-ga5dc0f42-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - OVF: improve ds-identify to support finding OVF iso transport.
@@ -6,7 +6,7 @@ cloud-init (17.1-53-ga5dc0f42-0ubuntu1) UNRELEASED; urgency=medium
     - VMware: Support for user provided pre and post-customization scripts
       [Maitreyee Saikia]
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 08 Dec 2017 14:45:27 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 08 Dec 2017 14:46:36 -0700
 
 cloud-init (17.1-51-g05b2308a-0ubuntu1) bionic; urgency=medium
 
