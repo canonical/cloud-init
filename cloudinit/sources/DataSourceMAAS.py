@@ -39,6 +39,9 @@ class DataSourceMAAS(sources.DataSource):
       hostname
       vendor-data
     """
+
+    dsname = "MAAS"
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.base_url = None
@@ -62,7 +65,7 @@ class DataSourceMAAS(sources.DataSource):
         root = sources.DataSource.__str__(self)
         return "%s [%s]" % (root, self.base_url)
 
-    def get_data(self):
+    def _get_data(self):
         mcfg = self.ds_cfg
 
         try:

@@ -159,6 +159,9 @@ LEGACY_USER_D = "/var/db"
 
 
 class DataSourceSmartOS(sources.DataSource):
+
+    dsname = "Joyent"
+
     _unset = "_unset"
     smartos_type = _unset
     md_client = _unset
@@ -211,7 +214,7 @@ class DataSourceSmartOS(sources.DataSource):
             os.rename('/'.join([svc_path, 'provisioning']),
                       '/'.join([svc_path, 'provision_success']))
 
-    def get_data(self):
+    def _get_data(self):
         self._init()
 
         md = {}

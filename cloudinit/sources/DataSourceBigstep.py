@@ -16,13 +16,16 @@ LOG = logging.getLogger(__name__)
 
 
 class DataSourceBigstep(sources.DataSource):
+
+    dsname = 'Bigstep'
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.metadata = {}
         self.vendordata_raw = ""
         self.userdata_raw = ""
 
-    def get_data(self, apply_filter=False):
+    def _get_data(self, apply_filter=False):
         url = get_url_from_file()
         if url is None:
             return False

@@ -6,6 +6,8 @@ import argparse
 import re
 import sys
 
+from cloudinit.util import json_dumps
+
 from . import dump
 from . import show
 
@@ -112,7 +114,7 @@ def analyze_show(name, args):
 def analyze_dump(name, args):
     """Dump cloud-init events in json format"""
     (infh, outfh) = configure_io(args)
-    outfh.write(dump.json_dumps(_get_events(infh)) + '\n')
+    outfh.write(json_dumps(_get_events(infh)) + '\n')
 
 
 def _get_events(infile):

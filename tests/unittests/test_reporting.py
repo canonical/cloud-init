@@ -126,7 +126,7 @@ class TestBaseReportingHandler(TestCase):
 
     def test_base_reporting_handler_is_abstract(self):
         regexp = r".*abstract.*publish_event.*"
-        self.assertRaisesRegexp(TypeError, regexp, handlers.ReportingHandler)
+        self.assertRaisesRegex(TypeError, regexp, handlers.ReportingHandler)
 
 
 class TestLogHandler(TestCase):

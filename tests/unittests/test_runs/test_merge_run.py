@@ -23,6 +23,7 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         cfg = {
             'datasource_list': ['None'],
             'cloud_init_modules': ['write-files'],
+            'system_info': {'paths': {'run_dir': new_root}}
         }
         ud = self.readResource('user_data.1.txt')
         cloud_cfg = util.yaml_dumps(cfg)

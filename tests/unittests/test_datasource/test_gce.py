@@ -70,9 +70,10 @@ def _set_mock_metadata(gce_meta=None):
 class TestDataSourceGCE(test_helpers.HttprettyTestCase):
 
     def setUp(self):
+        tmp = self.tmp_dir()
         self.ds = DataSourceGCE.DataSourceGCE(
             settings.CFG_BUILTIN, None,
-            helpers.Paths({}))
+            helpers.Paths({'run_dir': tmp}))
         ppatch = self.m_platform_reports_gce = mock.patch(
             'cloudinit.sources.DataSourceGCE.platform_reports_gce')
         self.m_platform_reports_gce = ppatch.start()

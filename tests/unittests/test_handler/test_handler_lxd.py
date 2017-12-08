@@ -25,9 +25,6 @@ class TestLxd(t_help.CiTestCase):
         }
     }
 
-    def setUp(self):
-        super(TestLxd, self).setUp()
-
     def _get_cloud(self, distro):
         cls = distros.fetch(distro)
         paths = helpers.Paths({})

@@ -3,6 +3,7 @@
 import copy
 
 from cloudinit.cs_utils import Cepko
+from cloudinit import helpers
 from cloudinit import sources
 from cloudinit.sources import DataSourceCloudSigma
 
@@ -38,10 +39,12 @@ class CepkoMock(Cepko):
         return self
 
 
-class DataSourceCloudSigmaTest(test_helpers.TestCase):
+class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
     def setUp(self):
         super(DataSourceCloudSigmaTest, self).setUp()
-        self.datasource = DataSourceCloudSigma.DataSourceCloudSigma("", "", "")
+        self.paths = helpers.Paths({'run_dir': self.tmp_dir()})
+        self.datasource = DataSourceCloudSigma.DataSourceCloudSigma(
+            "", "", paths=self.paths)
         self.datasource.is_running_in_cloudsigma = lambda: True
         self.datasource.cepko = CepkoMock(SERVER_CONTEXT)
         self.datasource.get_data()
@@ -85,7 +88,8 @@ class DataSourceCloudSigmaTest(test_helpers.TestCase):
     def test_lack_of_vendor_data(self):
         stripped_context = copy.deepcopy(SERVER_CONTEXT)
         del stripped_context["vendor_data"]
-        self.datasource = DataSourceCloudSigma.DataSourceCloudSigma("", "", "")
+        self.datasource = DataSourceCloudSigma.DataSourceCloudSigma(
+            "", "", paths=self.paths)
         self.datasource.cepko = CepkoMock(stripped_context)
         self.datasource.get_data()
 
@@ -94,7 +98,8 @@ class DataSourceCloudSigmaTest(test_helpers.TestCase):
     def test_lack_of_cloudinit_key_in_vendor_data(self):
         stripped_context = copy.deepcopy(SERVER_CONTEXT)
         del stripped_context["vendor_data"]["cloudinit"]
-        self.datasource = DataSourceCloudSigma.DataSourceCloudSigma("", "", "")
+        self.datasource = DataSourceCloudSigma.DataSourceCloudSigma(
+            "", "", paths=self.paths)
         self.datasource.cepko = CepkoMock(stripped_context)
         self.datasource.get_data()
 

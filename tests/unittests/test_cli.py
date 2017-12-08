@@ -2,9 +2,9 @@
 
 import six
 
+from cloudinit.cmd import main as cli
 from cloudinit.tests import helpers as test_helpers
 
-from cloudinit.cmd import main as cli
 
 mock = test_helpers.mock
 
@@ -45,8 +45,8 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         """All known subparsers are represented in the cloud-int help doc."""
         self._call_main()
         error = self.stderr.getvalue()
-        expected_subcommands = ['analyze', 'init', 'modules', 'single',
-                                'dhclient-hook', 'features', 'devel']
+        expected_subcommands = ['analyze', 'clean', 'devel', 'dhclient-hook',
+                                'features', 'init', 'modules', 'single']
         for subcommand in expected_subcommands:
             self.assertIn(subcommand, error)
 
@@ -76,9 +76,11 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self.patchStdoutAndStderr(stdout=stdout)
 
         expected_errors = [
-            'usage: cloud-init analyze', 'usage: cloud-init collect-logs',
-            'usage: cloud-init devel']
-        conditional_subcommands = ['analyze', 'collect-logs', 'devel']
+            'usage: cloud-init analyze', 'usage: cloud-init clean',
+            'usage: cloud-init collect-logs', 'usage: cloud-init devel',
+            'usage: cloud-init status']
+        conditional_subcommands = [
+            'analyze', 'clean', 'collect-logs', 'devel', 'status']
         # The cloud-init entrypoint calls main without passing sys_argv
         for subcommand in conditional_subcommands:
             with mock.patch('sys.argv', ['cloud-init', subcommand, '-h']):
@@ -105,6 +107,22 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self.patchStdoutAndStderr(stdout=stdout)
         self._call_main(['cloud-init', 'collect-logs', '-h'])
         self.assertIn('usage: cloud-init collect-log', stdout.getvalue())
+
+    def test_clean_subcommand_parser(self):
+        """The subcommand cloud-init clean calls the subparser."""
+        # Provide -h param to clean to avoid having to mock behavior.
+        stdout = six.StringIO()
+        self.patchStdoutAndStderr(stdout=stdout)
+        self._call_main(['cloud-init', 'clean', '-h'])
+        self.assertIn('usage: cloud-init clean', stdout.getvalue())
+
+    def test_status_subcommand_parser(self):
+        """The subcommand cloud-init status calls the subparser."""
+        # Provide -h param to clean to avoid having to mock behavior.
+        stdout = six.StringIO()
+        self.patchStdoutAndStderr(stdout=stdout)
+        self._call_main(['cloud-init', 'status', '-h'])
+        self.assertIn('usage: cloud-init status', stdout.getvalue())
 
     def test_devel_subcommand_parser(self):
         """The subcommand cloud-init devel calls the correct subparser."""

@@ -8,11 +8,11 @@ import os
 import shutil
 import tempfile
 
-from tests.cloud_tests.images import base
-from tests.cloud_tests.snapshots import nocloudkvm as nocloud_kvm_snapshot
+from ..images import Image
+from .snapshot import NoCloudKVMSnapshot
 
 
-class NoCloudKVMImage(base.Image):
+class NoCloudKVMImage(Image):
     """NoCloud KVM backed image."""
 
     platform_name = "nocloud-kvm"
@@ -71,9 +71,8 @@ class NoCloudKVMImage(base.Image):
         if not self._img_path:
             raise RuntimeError()
 
-        return nocloud_kvm_snapshot.NoCloudKVMSnapshot(
-            self.platform, self.properties, self.config,
-            self.features, self._img_path)
+        return NoCloudKVMSnapshot(self.platform, self.properties, self.config,
+                                  self.features, self._img_path)
 
     def destroy(self):
         """Unset path to signal image is no longer used.

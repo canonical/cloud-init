@@ -6,13 +6,13 @@ import os
 import shutil
 import tempfile
 
+from ..images import Image
+from .snapshot import LXDSnapshot
 from cloudinit import util as c_util
-from tests.cloud_tests.images import base
-from tests.cloud_tests.snapshots import lxd as lxd_snapshot
 from tests.cloud_tests import util
 
 
-class LXDImage(base.Image):
+class LXDImage(Image):
     """LXD backed image."""
 
     platform_name = "lxd"
@@ -182,9 +182,8 @@ class LXDImage(base.Image):
             instance.run_script(self.config.get('boot_clean_script'))
         # freeze current instance and return snapshot
         instance.freeze()
-        return lxd_snapshot.LXDSnapshot(
-            self.platform, self.properties, self.config,
-            self.features, instance)
+        return LXDSnapshot(self.platform, self.properties, self.config,
+                           self.features, instance)
 
     def destroy(self):
         """Clean up data associated with image."""

@@ -42,6 +42,9 @@ class GoogleMetadataFetcher(object):
 
 
 class DataSourceGCE(sources.DataSource):
+
+    dsname = 'GCE'
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.metadata = dict()
@@ -50,7 +53,7 @@ class DataSourceGCE(sources.DataSource):
             BUILTIN_DS_CONFIG])
         self.metadata_address = self.ds_cfg['metadata_url']
 
-    def get_data(self):
+    def _get_data(self):
         ret = util.log_time(
             LOG.debug, 'Crawl of GCE metadata service',
             read_md, kwargs={'address': self.metadata_address})

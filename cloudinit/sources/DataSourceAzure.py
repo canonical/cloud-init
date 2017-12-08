@@ -246,6 +246,8 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
 
 
 class DataSourceAzure(sources.DataSource):
+
+    dsname = 'Azure'
     _negotiated = False
 
     def __init__(self, sys_cfg, distro, paths):
@@ -330,7 +332,7 @@ class DataSourceAzure(sources.DataSource):
         metadata['public-keys'] = key_value or pubkeys_from_crt_files(fp_files)
         return metadata
 
-    def get_data(self):
+    def _get_data(self):
         # azure removes/ejects the cdrom containing the ovf-env.xml
         # file on reboot.  So, in order to successfully reboot we
         # need to look in the datadir and consider that valid

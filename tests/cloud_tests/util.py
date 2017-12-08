@@ -262,7 +262,7 @@ def shell_safe(cmd):
     out = subprocess.check_output(
         ["getopt", "--shell", "sh", "--options", "", "--", "--"] + list(cmd))
     # out contains ' -- <data>\n'. drop the ' -- ' and the '\n'
-    return out[4:-1].decode()
+    return out.decode()[4:-1]
 
 
 def shell_pack(cmd):

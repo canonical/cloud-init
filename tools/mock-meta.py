@@ -17,6 +17,7 @@ Then:
   ec2metadata --instance-id
 """
 
+import argparse
 import functools
 import json
 import logging
@@ -26,8 +27,6 @@ import socket
 import string
 import sys
 import yaml
-
-from optparse import OptionParser
 
 try:
     from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
@@ -415,29 +414,27 @@ def setup_logging(log_level, fmt='%(levelname)s: @%(name)s : %(message)s'):
 
 
 def extract_opts():
-    parser = OptionParser()
-    parser.add_option("-p", "--port", dest="port", action="store", type=int,
-                      default=80, metavar="PORT",
-                      help=("port from which to serve traffic"
-                            " (default: %default)"))
-    parser.add_option("-a", "--addr", dest="address", action="store", type=str,
-                      default='::', metavar="ADDRESS",
-                      help=("address from which to serve traffic"
-                            " (default: %default)"))
-    parser.add_option("-f", '--user-data-file', dest='user_data_file',
-                      action='store', metavar='FILE',
-                      help=("user data filename to serve back to"
-                            "incoming requests"))
-    (options, args) = parser.parse_args()
-    out = dict()
-    out['extra'] = args
-    out['port'] = options.port
-    out['user_data_file'] = None
-    out['address'] = options.address
-    if options.user_data_file:
-        if not os.path.isfile(options.user_data_file):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--port", dest="port", action="store", type=int,
+                        default=80, metavar="PORT",
+                        help=("port from which to serve traffic"
+                              " (default: %default)"))
+    parser.add_argument("-a", "--addr", dest="address", action="store",
+                        type=str, default='::', metavar="ADDRESS",
+                        help=("address from which to serve traffic"
+                              " (default: %default)"))
+    parser.add_argument("-f", '--user-data-file', dest='user_data_file',
+                        action='store', metavar='FILE',
+                        help=("user data filename to serve back to"
+                              "incoming requests"))
+    parser.add_argument('extra', nargs='*')
+    args = parser.parse_args()
+    out = {'port': args.port, 'address': args.address, 'extra': args.extra,
+           'user_data_file': None}
+    if args.user_data_file:
+        if not os.path.isfile(args.user_data_file):
             parser.error("Option -f specified a non-existent file")
-        with open(options.user_data_file, 'rb') as fh:
+        with open(args.user_data_file, 'rb') as fh:
             out['user_data_file'] = fh.read()
     return out
 

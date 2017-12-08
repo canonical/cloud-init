@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 import functools
-import json
 import logging
 import os
 import shutil
@@ -19,6 +18,11 @@ try:
     from contextlib import ExitStack
 except ImportError:
     from contextlib2 import ExitStack
+
+try:
+    from configparser import ConfigParser
+except ImportError:
+    from ConfigParser import ConfigParser
 
 from cloudinit import helpers as ch
 from cloudinit import util
@@ -114,6 +118,16 @@ class TestCase(unittest2.TestCase):
         self.addCleanup(m.stop)
         setattr(self, attr, p)
 
+    # prefer python3 read_file over readfp but allow fallback
+    def parse_and_read(self, contents):
+        parser = ConfigParser()
+        if hasattr(parser, 'read_file'):
+            parser.read_file(contents)
+        elif hasattr(parser, 'readfp'):
+            # pylint: disable=W1505
+            parser.readfp(contents)
+        return parser
+
 
 class CiTestCase(TestCase):
     """This is the preferred test case base class unless user
@@ -158,6 +172,18 @@ class CiTestCase(TestCase):
         if dir is None:
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
+
+    def assertRaisesCodeEqual(self, expected, found):
+        """Handle centos6 having different context manager for assertRaises.
+            with assertRaises(Exception) as e:
+                raise Exception("BOO")
+
+            centos6 will have e.exception as an integer.
+            anything nwere will have it as something with a '.code'"""
+        if isinstance(found, int):
+            self.assertEqual(expected, found)
+        else:
+            self.assertEqual(expected, found.code)
 
 
 class ResourceUsingTestCase(CiTestCase):
@@ -337,12 +363,6 @@ def dir2dict(startdir, prefix=None):
     return flist
 
 
-def json_dumps(data):
-    # print data in nicely formatted json.
-    return json.dumps(data, indent=1, sort_keys=True,
-                      separators=(',', ': '))
-
-
 def wrap_and_call(prefix, mocks, func, *args, **kwargs):
     """
     call func(args, **kwargs) with mocks applied, then unapplies mocks
@@ -401,5 +421,13 @@ if not hasattr(mock.Mock, 'assert_not_called'):
             raise AssertionError(msg)
     mock.Mock.assert_not_called = __mock_assert_not_called
 
+
+# older unittest2.TestCase (centos6) do not have assertRaisesRegex
+# And setting assertRaisesRegex to assertRaisesRegexp causes
+# https://github.com/PyCQA/pylint/issues/1653 . So the workaround.
+if not hasattr(unittest2.TestCase, 'assertRaisesRegex'):
+    def _tricky(*args, **kwargs):
+        return unittest2.TestCase.assertRaisesRegexp
+    unittest2.TestCase.assertRaisesRegex = _tricky
 
 # vi: ts=4 expandtab
