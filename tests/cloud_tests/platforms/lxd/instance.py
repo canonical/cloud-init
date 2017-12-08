@@ -2,14 +2,14 @@
 
 """Base LXD instance."""
 
-from . import base
-
 import os
 import shutil
 from tempfile import mkdtemp
 
+from ..instances import Instance
 
-class LXDInstance(base.Instance):
+
+class LXDInstance(Instance):
     """LXD container backed instance."""
 
     platform_name = "lxd"

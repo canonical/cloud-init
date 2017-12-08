@@ -102,11 +102,8 @@ class Distro(object):
         self._apply_hostname(writeable_hostname)
 
     def uses_systemd(self):
-        try:
-            res = os.lstat('/run/systemd/system')
-            return stat.S_ISDIR(res.st_mode)
-        except Exception:
-            return False
+        """Wrapper to report whether this distro uses systemd or sysvinit."""
+        return uses_systemd()
 
     @abc.abstractmethod
     def package_command(self, cmd, args=None, pkgs=None):
@@ -760,5 +757,14 @@ def set_etc_timezone(tz, tz_file=None, tz_conf="/etc/timezone",
         else:
             util.copy(tz_file, tz_local)
     return
+
+
+def uses_systemd():
+    try:
+        res = os.lstat('/run/systemd/system')
+        return stat.S_ISDIR(res.st_mode)
+    except Exception:
+        return False
+
 
 # vi: ts=4 expandtab

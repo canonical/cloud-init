@@ -13,7 +13,7 @@ from cloudinit import settings
 from cloudinit.sources import DataSourceDigitalOcean
 from cloudinit.sources.helpers import digitalocean
 
-from cloudinit.tests.helpers import mock, TestCase
+from cloudinit.tests.helpers import mock, CiTestCase
 
 DO_MULTIPLE_KEYS = ["ssh-rsa AAAAB3NzaC1yc2EAAAA... test1@do.co",
                     "ssh-rsa AAAAB3NzaC1yc2EAAAA... test2@do.co"]
@@ -135,14 +135,17 @@ def _mock_dmi():
     return (True, DO_META.get('id'))
 
 
-class TestDataSourceDigitalOcean(TestCase):
+class TestDataSourceDigitalOcean(CiTestCase):
     """
     Test reading the meta-data
     """
+    def setUp(self):
+        super(TestDataSourceDigitalOcean, self).setUp()
+        self.tmp = self.tmp_dir()
 
     def get_ds(self, get_sysinfo=_mock_dmi):
         ds = DataSourceDigitalOcean.DataSourceDigitalOcean(
-            settings.CFG_BUILTIN, None, helpers.Paths({}))
+            settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
         ds.use_ip4LL = False
         if get_sysinfo is not None:
             ds._get_sysinfo = get_sysinfo
@@ -194,11 +197,10 @@ class TestDataSourceDigitalOcean(TestCase):
         self.assertIsInstance(ds.get_public_ssh_keys(), list)
 
 
-class TestNetworkConvert(TestCase):
+class TestNetworkConvert(CiTestCase):
 
-    @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    def _get_networking(self, m_get_by_mac):
-        m_get_by_mac.return_value = {
+    def _get_networking(self):
+        self.m_get_by_mac.return_value = {
             '04:01:57:d1:9e:01': 'ens1',
             '04:01:57:d1:9e:02': 'ens2',
             'b8:ae:ed:75:5f:9a': 'enp0s25',
@@ -207,6 +209,10 @@ class TestNetworkConvert(TestCase):
             DO_META['interfaces'], DO_META['dns']['nameservers'])
         self.assertIn('config', netcfg)
         return netcfg
+
+    def setUp(self):
+        super(TestNetworkConvert, self).setUp()
+        self.add_patch('cloudinit.net.get_interfaces_by_mac', 'm_get_by_mac')
 
     def test_networking_defined(self):
         netcfg = self._get_networking()

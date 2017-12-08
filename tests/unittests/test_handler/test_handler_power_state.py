@@ -9,9 +9,6 @@ from cloudinit.tests.helpers import mock
 
 
 class TestLoadPowerState(t_help.TestCase):
-    def setUp(self):
-        super(self.__class__, self).setUp()
-
     def test_no_config(self):
         # completely empty config should mean do nothing
         (cmd, _timeout, _condition) = psc.load_power_state({})

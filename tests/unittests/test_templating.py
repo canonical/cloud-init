@@ -14,7 +14,7 @@ from cloudinit import templater
 try:
     import Cheetah
     HAS_CHEETAH = True
-    Cheetah  # make pyflakes happy, as Cheetah is not used here
+    c = Cheetah  # make pyflakes and pylint happy, as Cheetah is not used here
 except ImportError:
     HAS_CHEETAH = False
 

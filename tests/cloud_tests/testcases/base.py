@@ -12,7 +12,8 @@ from cloudinit import util as c_util
 class CloudTestCase(unittest.TestCase):
     """Base test class for verifiers."""
 
-    data = None
+    # data gets populated in get_suite.setUpClass
+    data = {}
     conf = None
     _cloud_config = None
 

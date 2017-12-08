@@ -2,7 +2,6 @@
 
 import calendar
 from datetime import datetime
-import json
 import sys
 
 from cloudinit import util
@@ -132,11 +131,6 @@ def parse_ci_logline(line):
     return event
 
 
-def json_dumps(data):
-    return json.dumps(data, indent=1, sort_keys=True,
-                      separators=(',', ': '))
-
-
 def dump_events(cisource=None, rawdata=None):
     events = []
     event = None
@@ -169,7 +163,7 @@ def main():
     else:
         cisource = sys.stdin
 
-    return json_dumps(dump_events(cisource))
+    return util.json_dumps(dump_events(cisource))
 
 
 if __name__ == "__main__":

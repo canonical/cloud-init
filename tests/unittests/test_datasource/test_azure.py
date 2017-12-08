@@ -11,9 +11,7 @@ from cloudinit.tests.helpers import (CiTestCase, TestCase, populate_dir, mock,
 
 import crypt
 import os
-import shutil
 import stat
-import tempfile
 import xml.etree.ElementTree as ET
 import yaml
 
@@ -38,9 +36,9 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
     """
     for key, dval in data.items():
         if isinstance(dval, dict):
-            val = dval.get('text')
-            attrs = ' ' + ' '.join(["%s='%s'" % (k, v) for k, v in dval.items()
-                                    if k != 'text'])
+            val = dict(dval).get('text')
+            attrs = ' ' + ' '.join(["%s='%s'" % (k, v) for k, v
+                                    in dict(dval).items() if k != 'text'])
         else:
             val = dval
             attrs = ""
@@ -84,11 +82,11 @@ class TestAzureDataSource(CiTestCase):
         super(TestAzureDataSource, self).setUp()
         if PY26:
             raise SkipTest("Does not work on python 2.6")
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
+        self.tmp = self.tmp_dir()
 
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
-        self.paths = helpers.Paths({'cloud_dir': self.tmp})
+        self.paths = helpers.Paths(
+            {'cloud_dir': self.tmp, 'run_dir': self.tmp})
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
 
         self.patches = ExitStack()
@@ -642,7 +640,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         self.assertEqual(netconfig, expected_config)
 
 
-class TestAzureBounce(TestCase):
+class TestAzureBounce(CiTestCase):
 
     def mock_out_azure_moving_parts(self):
         self.patches.enter_context(
@@ -669,10 +667,10 @@ class TestAzureBounce(TestCase):
 
     def setUp(self):
         super(TestAzureBounce, self).setUp()
-        self.tmp = tempfile.mkdtemp()
+        self.tmp = self.tmp_dir()
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
-        self.paths = helpers.Paths({'cloud_dir': self.tmp})
-        self.addCleanup(shutil.rmtree, self.tmp)
+        self.paths = helpers.Paths(
+            {'cloud_dir': self.tmp, 'run_dir': self.tmp})
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
         self.patches = ExitStack()
         self.mock_out_azure_moving_parts()
@@ -714,21 +712,24 @@ class TestAzureBounce(TestCase):
 
     def test_disabled_bounce_does_not_change_hostname(self):
         cfg = {'hostname_bounce': {'policy': 'off'}}
-        self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg)).get_data()
+        ds = self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg))
+        ds.get_data()
         self.assertEqual(0, self.set_hostname.call_count)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
     def test_disabled_bounce_does_not_perform_bounce(
             self, perform_hostname_bounce):
         cfg = {'hostname_bounce': {'policy': 'off'}}
-        self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg)).get_data()
+        ds = self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg))
+        ds.get_data()
         self.assertEqual(0, perform_hostname_bounce.call_count)
 
     def test_same_hostname_does_not_change_hostname(self):
         host_name = 'unchanged-host-name'
         self.get_hostname.return_value = host_name
         cfg = {'hostname_bounce': {'policy': 'yes'}}
-        self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg)).get_data()
+        ds = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
+        ds.get_data()
         self.assertEqual(0, self.set_hostname.call_count)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
@@ -737,7 +738,8 @@ class TestAzureBounce(TestCase):
         host_name = 'unchanged-host-name'
         self.get_hostname.return_value = host_name
         cfg = {'hostname_bounce': {'policy': 'yes'}}
-        self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg)).get_data()
+        ds = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
+        ds.get_data()
         self.assertEqual(0, perform_hostname_bounce.call_count)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
@@ -895,9 +897,6 @@ class TestCanDevBeReformatted(CiTestCase):
         setattr(self, sattr, patcher.start())
         self.addCleanup(patcher.stop)
 
-    def setUp(self):
-        super(TestCanDevBeReformatted, self).setUp()
-
     def patchup(self, devs):
         bypath = {}
         for path, data in devs.items():
@@ -952,14 +951,14 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda3': {'num': 3},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertFalse(False, value)
+        self.assertFalse(value)
         self.assertIn("3 or more", msg.lower())
 
     def test_no_partitions_is_false(self):
         """A disk with no partitions can not be formatted."""
         self.patchup({'/dev/sda': {}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(False, value)
+        self.assertFalse(value)
         self.assertIn("not partitioned", msg.lower())
 
     def test_two_partitions_not_ntfs_false(self):
@@ -971,7 +970,7 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda2': {'num': 2, 'fs': 'ext4', 'files': []},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertFalse(False, value)
+        self.assertFalse(value)
         self.assertIn("not ntfs", msg.lower())
 
     def test_two_partitions_ntfs_populated_false(self):
@@ -984,7 +983,7 @@ class TestCanDevBeReformatted(CiTestCase):
                                   'files': ['secret.txt']},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertFalse(False, value)
+        self.assertFalse(value)
         self.assertIn("files on it", msg.lower())
 
     def test_two_partitions_ntfs_empty_is_true(self):
@@ -996,7 +995,7 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda2': {'num': 2, 'fs': 'ntfs', 'files': []},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(True, value)
+        self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
     def test_one_partition_not_ntfs_false(self):
@@ -1007,7 +1006,7 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1, 'fs': 'zfs'},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(False, value)
+        self.assertFalse(value)
         self.assertIn("not ntfs", msg.lower())
 
     def test_one_partition_ntfs_populated_false(self):
@@ -1019,7 +1018,7 @@ class TestCanDevBeReformatted(CiTestCase):
                                   'files': ['file1.txt', 'file2.exe']},
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(False, value)
+        self.assertFalse(value)
         self.assertIn("files on it", msg.lower())
 
     def test_one_partition_ntfs_empty_is_true(self):
@@ -1030,7 +1029,7 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1, 'fs': 'ntfs', 'files': []}
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(True, value)
+        self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
     def test_one_partition_ntfs_empty_with_dataloss_file_is_true(self):
@@ -1042,7 +1041,7 @@ class TestCanDevBeReformatted(CiTestCase):
                                   'files': ['dataloss_warning_readme.txt']}
                 }}})
         value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertEqual(True, value)
+        self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
     def test_one_partition_through_realpath_is_true(self):
@@ -1057,7 +1056,7 @@ class TestCanDevBeReformatted(CiTestCase):
                         'realpath': '/dev/sdb1'}
                 }}})
         value, msg = dsaz.can_dev_be_reformatted(epath)
-        self.assertEqual(True, value)
+        self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
     def test_three_partition_through_realpath_is_false(self):
@@ -1076,7 +1075,7 @@ class TestCanDevBeReformatted(CiTestCase):
                                        'realpath': '/dev/sdb3'}
                 }}})
         value, msg = dsaz.can_dev_be_reformatted(epath)
-        self.assertEqual(False, value)
+        self.assertFalse(value)
         self.assertIn("3 or more", msg.lower())
 
 

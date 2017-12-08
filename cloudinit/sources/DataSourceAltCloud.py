@@ -74,6 +74,9 @@ def read_user_data_callback(mount_dir):
 
 
 class DataSourceAltCloud(sources.DataSource):
+
+    dsname = 'AltCloud'
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed = None
@@ -112,7 +115,7 @@ class DataSourceAltCloud(sources.DataSource):
 
         return 'UNKNOWN'
 
-    def get_data(self):
+    def _get_data(self):
         '''
         Description:
             User Data is passed to the launching instance which

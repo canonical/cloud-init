@@ -4,15 +4,15 @@
 
 from pylxd import (Client, exceptions)
 
-from tests.cloud_tests.images import lxd as lxd_image
-from tests.cloud_tests.instances import lxd as lxd_instance
-from tests.cloud_tests.platforms import base
+from ..platforms import Platform
+from .image import LXDImage
+from .instance import LXDInstance
 from tests.cloud_tests import util
 
 DEFAULT_SSTREAMS_SERVER = "https://images.linuxcontainers.org:8443"
 
 
-class LXDPlatform(base.Platform):
+class LXDPlatform(Platform):
     """LXD test platform."""
 
     platform_name = 'lxd'
@@ -33,7 +33,7 @@ class LXDPlatform(base.Platform):
         pylxd_image = self.client.images.create_from_simplestreams(
             img_conf.get('sstreams_server', DEFAULT_SSTREAMS_SERVER),
             img_conf['alias'])
-        image = lxd_image.LXDImage(self, img_conf, pylxd_image)
+        image = LXDImage(self, img_conf, pylxd_image)
         if img_conf.get('override_templates', False):
             image.update_templates(self.config.get('template_overrides', {}),
                                    self.config.get('template_files', {}))
@@ -69,8 +69,8 @@ class LXDPlatform(base.Platform):
             'source': ({'type': 'image', 'fingerprint': image} if image else
                        {'type': 'copy', 'source': container})
         }, wait=block)
-        return lxd_instance.LXDInstance(self, container.name, properties,
-                                        config, features, container)
+        return LXDInstance(self, container.name, properties, config, features,
+                           container)
 
     def container_exists(self, container_name):
         """Check if container with name 'container_name' exists.
