@@ -100,4 +100,8 @@ class Config(object):
         """Returns marker id."""
         return self._configFile.get(Config.MARKERID, None)
 
+    @property
+    def custom_script_name(self):
+        """Return the name of custom (pre/post) script."""
+        return self._configFile.get(Config.CUSTOM_SCRIPT, None)
 # vi: ts=4 expandtab

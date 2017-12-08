@@ -5,11 +5,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
+import os
+
 from collections import OrderedDict
+from textwrap import dedent
 
-from cloudinit.tests import helpers as test_helpers
-
+from cloudinit import util
+from cloudinit.tests.helpers import CiTestCase, wrap_and_call
+from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceOVF as dsovf
+from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
+    CustomScriptNotFound)
 
 OVF_ENV_CONTENT = """<?xml version="1.0" encoding="UTF-8"?>
 <Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
@@ -42,7 +48,7 @@ def fill_properties(props, template=OVF_ENV_CONTENT):
     return template.format(properties=properties)
 
 
-class TestReadOvfEnv(test_helpers.TestCase):
+class TestReadOvfEnv(CiTestCase):
     def test_with_b64_userdata(self):
         user_data = "#!/bin/sh\necho hello world\n"
         user_data_b64 = base64.b64encode(user_data.encode()).decode()
@@ -72,7 +78,104 @@ class TestReadOvfEnv(test_helpers.TestCase):
         self.assertIsNone(ud)
 
 
-class TestTransportIso9660(test_helpers.CiTestCase):
+class TestMarkerFiles(CiTestCase):
+
+    def setUp(self):
+        super(TestMarkerFiles, self).setUp()
+        self.tdir = self.tmp_dir()
+
+    def test_false_when_markerid_none(self):
+        """Return False when markerid provided is None."""
+        self.assertFalse(
+            dsovf.check_marker_exists(markerid=None, marker_dir=self.tdir))
+
+    def test_markerid_file_exist(self):
+        """Return False when markerid file path does not exist,
+        True otherwise."""
+        self.assertFalse(
+            dsovf.check_marker_exists('123', self.tdir))
+
+        marker_file = self.tmp_path('.markerfile-123.txt', self.tdir)
+        util.write_file(marker_file, '')
+        self.assertTrue(
+            dsovf.check_marker_exists('123', self.tdir)
+        )
+
+    def test_marker_file_setup(self):
+        """Test creation of marker files."""
+        markerfilepath = self.tmp_path('.markerfile-hi.txt', self.tdir)
+        self.assertFalse(os.path.exists(markerfilepath))
+        dsovf.setup_marker_files(markerid='hi', marker_dir=self.tdir)
+        self.assertTrue(os.path.exists(markerfilepath))
+
+
+class TestDatasourceOVF(CiTestCase):
+
+    with_logs = True
+
+    def setUp(self):
+        super(TestDatasourceOVF, self).setUp()
+        self.datasource = dsovf.DataSourceOVF
+        self.tdir = self.tmp_dir()
+
+    def test_get_data_false_on_none_dmi_data(self):
+        """When dmi for system-product-name is None, get_data returns False."""
+        paths = Paths({'seed_dir': self.tdir})
+        ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
+        retcode = wrap_and_call(
+            'cloudinit.sources.DataSourceOVF',
+            {'util.read_dmi_data': None},
+            ds.get_data)
+        self.assertFalse(retcode, 'Expected False return from ds.get_data')
+        self.assertIn(
+            'DEBUG: No system-product-name found', self.logs.getvalue())
+
+    def test_get_data_no_vmware_customization_disabled(self):
+        """When vmware customization is disabled via sys_cfg log a message."""
+        paths = Paths({'seed_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': True}, distro={},
+            paths=paths)
+        retcode = wrap_and_call(
+            'cloudinit.sources.DataSourceOVF',
+            {'util.read_dmi_data': 'vmware'},
+            ds.get_data)
+        self.assertFalse(retcode, 'Expected False return from ds.get_data')
+        self.assertIn(
+            'DEBUG: Customization for VMware platform is disabled.',
+            self.logs.getvalue())
+
+    def test_get_data_vmware_customization_disabled(self):
+        """When cloud-init workflow for vmware is enabled via sys_cfg log a
+        message.
+        """
+        paths = Paths({'seed_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+        conf_file = self.tmp_path('test-cust', self.tdir)
+        conf_content = dedent("""\
+            [CUSTOM-SCRIPT]
+            SCRIPT-NAME = test-script
+            [MISC]
+            MARKER-ID = 12345345
+            """)
+        util.write_file(conf_file, conf_content)
+        with self.assertRaises(CustomScriptNotFound) as context:
+            wrap_and_call(
+                'cloudinit.sources.DataSourceOVF',
+                {'util.read_dmi_data': 'vmware',
+                 'util.del_dir': True,
+                 'search_file': self.tdir,
+                 'wait_for_imc_cfg_file': conf_file,
+                 'get_nics_to_enable': ''},
+                ds.get_data)
+        customscript = self.tmp_path('test-script', self.tdir)
+        self.assertIn('Script %s not found!!' % customscript,
+                      str(context.exception))
+
+
+class TestTransportIso9660(CiTestCase):
 
     def setUp(self):
         super(TestTransportIso9660, self).setUp()
