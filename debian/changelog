@@ -1,3 +1,16 @@
+cloud-init (17.1-51-g05b2308a-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - citest: In NoCloudKVM provide keys via metadata not userdata.
+    - pylint: Update pylint to 1.7.1, run on tests/ and tools and fix
+      complaints. [Ryan Harper]
+    - Datasources: Formalize DataSource get_data and related properties.
+      [Chad Smith]
+    - cli: Add clean and status subcommands [Chad Smith]
+    - tests: consolidate platforms into specific dirs
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 07 Dec 2017 22:58:20 -0500
+
 cloud-init (17.1-46-g7acc9e68-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
