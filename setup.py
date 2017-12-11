@@ -18,10 +18,13 @@ import tempfile
 
 import setuptools
 from setuptools.command.install import install
+from setuptools.command.egg_info import egg_info
 
 from distutils.errors import DistutilsArgError
 
 import subprocess
+
+RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
 
 
 def is_f(p):
@@ -107,7 +110,7 @@ def render_tmpl(template):
         return template
 
     topdir = os.path.dirname(sys.argv[0])
-    tmpd = tempfile.mkdtemp(dir=topdir)
+    tmpd = tempfile.mkdtemp(dir=topdir, prefix=RENDERED_TMPD_PREFIX)
     atexit.register(shutil.rmtree, tmpd)
     bname = os.path.basename(template).rstrip(tmpl_ext)
     fpath = os.path.join(tmpd, bname)
@@ -154,6 +157,25 @@ if os.uname()[0] == 'FreeBSD':
     USR_LIB_EXEC = "usr/local/lib"
 elif os.path.isfile('/etc/redhat-release'):
     USR_LIB_EXEC = "usr/libexec"
+
+
+class MyEggInfo(egg_info):
+    """This makes sure to not include the rendered files in SOURCES.txt."""
+
+    def find_sources(self):
+        ret = egg_info.find_sources(self)
+        # update the self.filelist.
+        self.filelist.exclude_pattern(RENDERED_TMPD_PREFIX + ".*",
+                                      is_regex=True)
+        # but since mfname is already written we have to update it also.
+        mfname = os.path.join(self.egg_info, "SOURCES.txt")
+        if os.path.exists(mfname):
+            with open(mfname) as fp:
+                files = [f for f in fp
+                         if not f.startswith(RENDERED_TMPD_PREFIX)]
+            with open(mfname, "w") as fp:
+                fp.write(''.join(files))
+        return ret
 
 
 # TODO: Is there a better way to do this??
@@ -229,6 +251,7 @@ if os.uname()[0] != 'FreeBSD':
 # adding on the right init system configuration files
 cmdclass = {
     'install': InitsysInstallData,
+    'egg_info': MyEggInfo,
 }
 
 requirements = read_requires()

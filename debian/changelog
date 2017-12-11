@@ -1,3 +1,15 @@
+cloud-init (17.1-58-g703241a3-0ubuntu1) bionic; urgency=medium
+
+  * New upstream snapshot.
+    - ec2: Use instance-identity doc for region and instance-id
+      [Andrew Jorgensen]
+    - tests: remove leaked tmp files in config drive tests.
+    - setup.py: Do not include rendered files in SOURCES.txt
+    - SUSE: remove delta in systemd local template for SUSE [Robert Schweikert]
+    - tests: move to using tox 1.7.5
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 11 Dec 2017 18:30:56 -0500
+
 cloud-init (17.1-53-ga5dc0f42-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
