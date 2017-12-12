@@ -31,8 +31,8 @@ def collect_console(instance, base_dir):
     LOG.debug('getting console log')
     try:
         data = instance.console_log()
-    except NotImplementedError as e:
-        data = 'Not Implemented: %s' % e
+    except NotImplementedError:
+        data = b'instance.console_log: not implemented'
     with open(os.path.join(base_dir, 'console.log'), "wb") as fp:
         fp.write(data)
 
