@@ -657,7 +657,7 @@ is_cdrom_ovf() {
     # skip devices that don't look like cdrom paths.
     case "$dev" in
         /dev/sr[0-9]|/dev/hd[a-z]) :;;
-        *) debug 1 "skipping iso dev $d"
+        *) debug 1 "skipping iso dev $dev"
            return 1;;
     esac
 
@@ -666,7 +666,7 @@ is_cdrom_ovf() {
 
     # explicitly skip known labels of other types. rd_rdfe is azure.
     case "$label" in
-        config-2|rd_rdfe_stable*) return 1;;
+        config-2|rd_rdfe_stable*|cidata) return 1;;
     esac
 
     local idstr="http://schemas.dmtf.org/ovf/environment/1"

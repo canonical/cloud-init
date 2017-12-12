@@ -1,3 +1,12 @@
+cloud-init (17.1-60-ga30a3bb5-0ubuntu1) bionic; urgency=medium
+
+  * New upstream snapshot.
+    - ds-identify: failure in NoCloud due to unset variable usage.
+      (LP: #1737704)
+    - tests: fix collect_console when not implemented [Joshua Powers]
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 12 Dec 2017 12:03:08 -0700
+
 cloud-init (17.1-58-g703241a3-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
