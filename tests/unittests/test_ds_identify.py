@@ -27,6 +27,14 @@ TYPE=ext4
 PARTUUID=30c65c77-e07d-4039-b2fb-88b1fb5fa1fc
 """
 
+# this is a Ubuntu 18.04 disk.img output (dual uefi and bios bootable)
+BLKID_UEFI_UBUNTU = [
+    {'DEVNAME': 'vda1', 'TYPE': 'ext4', 'PARTUUID': uuid4(), 'UUID': uuid4()},
+    {'DEVNAME': 'vda14', 'PARTUUID': uuid4()},
+    {'DEVNAME': 'vda15', 'TYPE': 'vfat', 'LABEL': 'UEFI', 'PARTUUID': uuid4(),
+     'UUID': '5F55-129B'}]
+
+
 POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
 POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
 DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=enabled"
@@ -340,6 +348,10 @@ class TestDsIdentify(CiTestCase):
             self._check_via_dict(
                 ovf_cdrom_by_label, rc=RC_FOUND, dslist=['OVF', DS_NONE])
 
+    def test_default_nocloud_as_vdb_iso9660(self):
+        """NoCloud is found with iso9660 filesystem on non-cdrom disk."""
+        self._test_ds_found('NoCloud')
+
 
 def blkid_out(disks=None):
     """Convert a list of disk dictionaries into blkid content."""
@@ -421,6 +433,19 @@ VALID_CFG = {
         'ds': 'GCE',
         'files': {P_PRODUCT_SERIAL: 'GoogleCloud-8f2e88f\n'},
         'mocks': [MOCK_VIRT_IS_KVM],
+    },
+    'NoCloud': {
+        'ds': 'NoCloud',
+        'mocks': [
+            MOCK_VIRT_IS_KVM,
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 BLKID_UEFI_UBUNTU +
+                 [{'DEVNAME': 'vdb', 'TYPE': 'iso9660', 'LABEL': 'cidata'}])},
+        ],
+        'files': {
+            'dev/vdb': 'pretend iso content for cidata\n',
+        }
     },
     'OpenStack': {
         'ds': 'OpenStack',
