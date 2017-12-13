@@ -18,7 +18,7 @@ SYS_CLASS_NET = "/sys/class/net/"
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
 
 
-def _natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
+def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
     """Sorting for Humans: natural sort order. Can be use as the key to sort
     functions.
     This will sort ['eth0', 'ens3', 'ens10', 'ens12', 'ens8', 'ens0'] as
@@ -224,7 +224,7 @@ def find_fallback_nic(blacklist_drivers=None):
 
     # if eth0 exists use it above anything else, otherwise get the interface
     # that we can read 'first' (using the sorted defintion of first).
-    names = list(sorted(potential_interfaces, key=_natural_sort_key))
+    names = list(sorted(potential_interfaces, key=natural_sort_key))
     if DEFAULT_PRIMARY_INTERFACE in names:
         names.remove(DEFAULT_PRIMARY_INTERFACE)
         names.insert(0, DEFAULT_PRIMARY_INTERFACE)
