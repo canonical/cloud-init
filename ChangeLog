@@ -1,3 +1,88 @@
+17.2:
+ - ds-identify: failure in NoCloud due to unset variable usage.
+   (LP: #1737704)
+ - tests: fix collect_console when not implemented [Joshua Powers]
+ - ec2: Use instance-identity doc for region and instance-id
+   [Andrew Jorgensen]
+ - tests: remove leaked tmp files in config drive tests.
+ - setup.py: Do not include rendered files in SOURCES.txt
+ - SUSE: remove delta in systemd local template for SUSE [Robert Schweikert]
+ - tests: move to using tox 1.7.5
+ - OVF: improve ds-identify to support finding OVF iso transport.
+   (LP: #1731868)
+ - VMware: Support for user provided pre and post-customization scripts
+   [Maitreyee Saikia]
+ - citest: In NoCloudKVM provide keys via metadata not userdata.
+ - pylint: Update pylint to 1.7.1, run on tests/ and tools and fix
+   complaints.
+ - Datasources: Formalize DataSource get_data and related properties.
+ - cli: Add clean and status subcommands
+ - tests: consolidate platforms into specific dirs
+ - ec2: Fix sandboxed dhclient background process cleanup. (LP: #1735331)
+ - tests: NoCloudKVMImage do not modify the original local cache image.
+ - tests: Enable bionic in integration tests. [Joshua Powers]
+ - tests: Use apt-get to install a deb so that depends get resolved.
+ - sysconfig: Correctly render dns and dns search info.
+   [Ryan McCabe] (LP: #1705804)
+ - integration test: replace curtin test ppa with cloud-init test ppa.
+ - EC2: Fix bug using fallback_nic and metadata when restoring from cache.
+   (LP: #1732917)
+ - EC2: Kill dhclient process used in sandbox dhclient. (LP: #1732964)
+ - ntp: fix configuration template rendering for openSUSE and SLES
+   (LP: #1726572)
+ - centos: Provide the failed #include url in error messages
+ - Catch UrlError when #include'ing URLs [Andrew Jorgensen]
+ - hosts: Fix openSUSE and SLES setup for /etc/hosts and clarify docs.
+   [Robert Schweikert] (LP: #1731022)
+ - rh_subscription: Perform null checks for enabled and disabled repos.
+   [Dave Mulford]
+ - Improve warning message when a template is not found.
+   [Robert Schweikert] (LP: #1731035)
+ - Replace the temporary i9n.brickies.net with i9n.cloud-init.io.
+ - Azure: don't generate network configuration for SRIOV devices
+   (LP: #1721579)
+ - tests: address some minor feedback missed in last merge.
+ - tests: integration test cleanup and full pass of nocloud-kvm.
+ - Gentoo: chmod +x on all files in sysvinit/gentoo/
+   [ckonstanski] (LP: #1727126)
+ - EC2: Limit network config to fallback nic, fix local-ipv4 only
+   instances. (LP: #1728152)
+ - Gentoo: Use "rc-service" rather than "service".
+   [Carlos Konstanski] (LP: #1727121)
+ - resizefs: Fix regression when system booted with root=PARTUUID=
+   (LP: #1725067)
+ - tools: make yum package installation more reliable
+ - citest: fix remaining warnings raised by integration tests.
+ - citest: show the class actual class name in results.
+ - ntp: fix config module schema to allow empty ntp config (LP: #1724951)
+ - tools: disable fastestmirror if using proxy [Joshua Powers]
+ - schema: Log debug instead of warning when jsonschema is not available.
+   (LP: #1724354)
+ - simpletable: Fix get_string method to return table-formatted string
+   (LP: #1722566)
+ - net: Handle bridge stp values of 0 and convert to boolean type
+ - tools: Give specific --abbrev=8 to "git describe"
+ - network: bridge_stp value not always correct (LP: #1721157)
+ - tests: re-enable tox with nocloud-kvm support [Joshua Powers]
+ - systemd: remove limit on tasks created by cloud-init-final.service.
+   [Robert Schweikert] (LP: #1717969)
+ - suse: Support addition of zypper repos via cloud-config.
+   [Robert Schweikert] (LP: #1718675)
+ - tests: Combine integration configs and testcases [Joshua Powers]
+ - Azure, CloudStack: Support reading dhcp options from systemd-networkd.
+   [Dimitri John Ledkov] (LP: #1718029)
+ - packages/debian/copyright: remove mention of boto and MIT license
+ - systemd: only mention Before=apt-daily.service on debian based distros.
+   [Robert Schweikert]
+ - Add missing simpletable and simpletable tests for failed merge
+ - Remove prettytable dependency, introduce simpletable [Andrew Jorgensen]
+ - debian/copyright: dep5 updates, reorganize, add Apache 2.0 license.
+   [Joshua Powers] (LP: #1718681)
+ - tests: remove dependency on shlex [Joshua Powers]
+ - AltCloud: Trust PATH for udevadm and modprobe.
+ - DataSourceOVF: use util.find_devs_with(TYPE=iso9660) (LP: #1718287)
+ - tests: remove a temp file used in bootcmd tests.
+
 17.1:
  - doc: document GCE datasource. [Arnd Hannemann]
  - suse: updates to templates to support openSUSE and SLES.

@@ -1,15 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from collections import namedtuple
+import os
 import six
 
 from cloudinit.cmd import main as cli
 from cloudinit.tests import helpers as test_helpers
+from cloudinit.util import load_file, load_json
 
 
 mock = test_helpers.mock
 
 
 class TestCLI(test_helpers.FilesystemMockingTestCase):
+
+    with_logs = True
 
     def setUp(self):
         super(TestCLI, self).setUp()
@@ -23,6 +28,76 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
             return cli.main(sysv_args=sysv_args)
         except SystemExit as e:
             return e.code
+
+    def test_status_wrapper_errors_on_invalid_name(self):
+        """status_wrapper will error when the name parameter is not valid.
+
+        Valid name values are only init and modules.
+        """
+        tmpd = self.tmp_dir()
+        data_d = self.tmp_path('data', tmpd)
+        link_d = self.tmp_path('link', tmpd)
+        FakeArgs = namedtuple('FakeArgs', ['action', 'local', 'mode'])
+
+        def myaction():
+            raise Exception('Should not call myaction')
+
+        myargs = FakeArgs(('doesnotmatter', myaction), False, 'bogusmode')
+        with self.assertRaises(ValueError) as cm:
+            cli.status_wrapper('init1', myargs, data_d, link_d)
+        self.assertEqual('unknown name: init1', str(cm.exception))
+        self.assertNotIn('Should not call myaction', self.logs.getvalue())
+
+    def test_status_wrapper_errors_on_invalid_modes(self):
+        """status_wrapper will error if a parameter combination is invalid."""
+        tmpd = self.tmp_dir()
+        data_d = self.tmp_path('data', tmpd)
+        link_d = self.tmp_path('link', tmpd)
+        FakeArgs = namedtuple('FakeArgs', ['action', 'local', 'mode'])
+
+        def myaction():
+            raise Exception('Should not call myaction')
+
+        myargs = FakeArgs(('modules_name', myaction), False, 'bogusmode')
+        with self.assertRaises(ValueError) as cm:
+            cli.status_wrapper('modules', myargs, data_d, link_d)
+        self.assertEqual(
+            "Invalid cloud init mode specified 'modules-bogusmode'",
+            str(cm.exception))
+        self.assertNotIn('Should not call myaction', self.logs.getvalue())
+
+    def test_status_wrapper_init_local_writes_fresh_status_info(self):
+        """When running in init-local mode, status_wrapper writes status.json.
+
+        Old status and results artifacts are also removed.
+        """
+        tmpd = self.tmp_dir()
+        data_d = self.tmp_path('data', tmpd)
+        link_d = self.tmp_path('link', tmpd)
+        status_link = self.tmp_path('status.json', link_d)
+        # Write old artifacts which will be removed or updated.
+        for _dir in data_d, link_d:
+            test_helpers.populate_dir(
+                _dir, {'status.json': 'old', 'result.json': 'old'})
+
+        FakeArgs = namedtuple('FakeArgs', ['action', 'local', 'mode'])
+
+        def myaction(name, args):
+            # Return an error to watch status capture them
+            return 'SomeDatasource', ['an error']
+
+        myargs = FakeArgs(('ignored_name', myaction), True, 'bogusmode')
+        cli.status_wrapper('init', myargs, data_d, link_d)
+        # No errors reported in status
+        status_v1 = load_json(load_file(status_link))['v1']
+        self.assertEqual(['an error'], status_v1['init-local']['errors'])
+        self.assertEqual('SomeDatasource', status_v1['datasource'])
+        self.assertFalse(
+            os.path.exists(self.tmp_path('result.json', data_d)),
+            'unexpected result.json found')
+        self.assertFalse(
+            os.path.exists(self.tmp_path('result.json', link_d)),
+            'unexpected result.json link found')
 
     def test_no_arguments_shows_usage(self):
         exit_code = self._call_main()

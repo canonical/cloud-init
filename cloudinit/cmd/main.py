@@ -603,7 +603,11 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     else:
         raise ValueError("unknown name: %s" % name)
 
-    modes = ('init', 'init-local', 'modules-config', 'modules-final')
+    modes = ('init', 'init-local', 'modules-init', 'modules-config',
+             'modules-final')
+    if mode not in modes:
+        raise ValueError(
+            "Invalid cloud init mode specified '{0}'".format(mode))
 
     status = None
     if mode == 'init-local':
@@ -615,16 +619,18 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         except Exception:
             pass
 
+    nullstatus = {
+        'errors': [],
+        'start': None,
+        'finished': None,
+    }
     if status is None:
-        nullstatus = {
-            'errors': [],
-            'start': None,
-            'finished': None,
-        }
         status = {'v1': {}}
         for m in modes:
             status['v1'][m] = nullstatus.copy()
         status['v1']['datasource'] = None
+    elif mode not in status['v1']:
+        status['v1'][mode] = nullstatus.copy()
 
     v1 = status['v1']
     v1['stage'] = mode
