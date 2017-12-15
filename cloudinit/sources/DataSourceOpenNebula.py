@@ -332,8 +332,9 @@ def read_context_disk_dir(source_dir, asuser=None):
             try:
                 pwd.getpwnam(asuser)
             except KeyError as e:
-                raise BrokenContextDiskDir("configured user '%s' "
-                                           "does not exist", asuser)
+                raise BrokenContextDiskDir(
+                    "configured user '{user}' does not exist".format(
+                        user=asuser))
         try:
             path = os.path.join(source_dir, 'context.sh')
             content = util.load_file(path)

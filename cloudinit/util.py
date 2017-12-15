@@ -2327,7 +2327,8 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
                 missing.append(f)
 
     if len(missing):
-        raise ValueError("Missing required files: %s", ','.join(missing))
+        raise ValueError(
+            'Missing required files: {files}'.format(files=','.join(missing)))
 
     return ret
 

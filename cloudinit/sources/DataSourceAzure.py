@@ -582,12 +582,12 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
         if os.path.exists(sempath):
             try:
                 os.unlink(sempath)
-                LOG.debug(bmsg + " removed.")
+                LOG.debug('%s removed.', bmsg)
             except Exception as e:
                 # python3 throws FileNotFoundError, python2 throws OSError
-                LOG.warning(bmsg + ": remove failed! (%s)", e)
+                LOG.warning('%s: remove failed! (%s)', bmsg, e)
         else:
-            LOG.debug(bmsg + " did not exist.")
+            LOG.debug('%s did not exist.', bmsg)
     return
 
 
