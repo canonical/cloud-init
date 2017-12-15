@@ -1,3 +1,12 @@
+cloud-init (17.2-1-g4089e20c-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - cli: Fix error in cloud-init modules --mode=init.
+      (LP: #1736600)
+    - release 17.2
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 15 Dec 2017 10:10:41 -0700
+
 cloud-init (17.1-60-ga30a3bb5-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
