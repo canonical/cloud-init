@@ -33,7 +33,7 @@ class Platform(object):
 
     def _generate_ssh_keys(self, data_dir):
         """Generate SSH keys to be used with image."""
-        filename = os.path.join(data_dir, 'id_rsa')
+        filename = os.path.join(data_dir, self.config['private_key'])
 
         if os.path.exists(filename):
             c_util.del_file(filename)

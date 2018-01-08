@@ -6,8 +6,8 @@ default_platform_config:
     get_image_timeout: 300
     # maximum time to create instance (before waiting for cloud-init)
     create_instance_timeout: 60
-    private_key: id_rsa
-    public_key: id_rsa.pub
+    private_key: cloud_init_rsa
+    public_key: cloud_init_rsa.pub
 platforms:
     ec2:
         enabled: true
