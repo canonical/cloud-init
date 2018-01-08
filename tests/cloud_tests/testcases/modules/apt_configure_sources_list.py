@@ -10,6 +10,11 @@ class TestAptconfigureSourcesList(base.CloudTestCase):
     def test_sources_list(self):
         """Test sources.list includes sources."""
         out = self.get_data_file('sources.list')
+
+        # Verify we have 6 entires
+        self.assertEqual(6, len(out.rstrip().split('\n')))
+
+        # Verify the keys generated the list correctly
         self.assertRegex(out, r'deb http:\/\/archive.ubuntu.com\/ubuntu '
                          '[a-z].* main restricted')
         self.assertRegex(out, r'deb-src http:\/\/archive.ubuntu.com\/ubuntu '
