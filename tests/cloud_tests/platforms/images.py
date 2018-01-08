@@ -26,7 +26,8 @@ class Image(TargetBase):
     @property
     def properties(self):
         """{} containing: 'arch', 'os', 'version', 'release'."""
-        raise NotImplementedError
+        return {k: self.config[k]
+                for k in ('arch', 'os', 'release', 'version')}
 
     @property
     def features(self):

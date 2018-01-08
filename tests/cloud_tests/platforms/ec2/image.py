@@ -33,16 +33,6 @@ class EC2Image(Image):
             self._img_instance.start(wait=True, wait_for_cloud_init=True)
         return self._img_instance
 
-    @property
-    def properties(self):
-        """Dictionary containing: 'arch', 'os', 'version', 'release'."""
-        return {
-            'arch': self.config['arch'],
-            'os': self.config['family'],
-            'release': self.config['release'],
-            'version': self.config['version'],
-        }
-
     def destroy(self):
         """Delete the instance used to create a custom image."""
         if self._img_instance:

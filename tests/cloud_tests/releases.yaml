@@ -132,7 +132,7 @@ releases:
             enabled: true
             release: bionic
             version: 18.04
-            family: ubuntu
+            os: ubuntu
             feature_groups:
                 - base
                 - debian_base
@@ -148,7 +148,7 @@ releases:
             enabled: true
             release: artful
             version: 17.10
-            family: ubuntu
+            os: ubuntu
             feature_groups:
                 - base
                 - debian_base
@@ -164,7 +164,7 @@ releases:
             enabled: true
             release: zesty
             version: 17.04
-            family: ubuntu
+            os: ubuntu
             feature_groups:
                 - base
                 - debian_base
@@ -180,7 +180,7 @@ releases:
             enabled: true
             release: xenial
             version: 16.04
-            family: ubuntu
+            os: ubuntu
             feature_groups:
                 - base
                 - debian_base
@@ -196,7 +196,7 @@ releases:
             enabled: true
             release: trusty
             version: 14.04
-            family: ubuntu
+            os: ubuntu
             feature_groups:
                 - base
                 - debian_base
