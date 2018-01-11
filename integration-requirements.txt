@@ -12,7 +12,9 @@ boto3==1.5.9
 paramiko==2.4.0
 
 # lxd backend
-pylxd==2.2.4
+# 01/10/2018: enables use of lxd as snap support
+git+https://github.com/lxc/pylxd.git@0722955260a6557e6d2ffde1896bfe0707bbca27
+
 
 # finds latest image information
 bzr+lp:simplestreams
