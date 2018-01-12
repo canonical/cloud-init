@@ -891,17 +891,17 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                   "of length %s with allowed root types %s",
                   len(blob), allowed)
         converted = safeyaml.load(blob)
-        if not isinstance(converted, allowed):
+        if converted is None:
+            LOG.debug("loaded blob returned None, returning default.")
+            converted = default
+        elif not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
             raise TypeError(("Yaml load allows %s root types,"
                              " but got %s instead") %
                             (allowed, type_utils.obj_name(converted)))
         loaded = converted
     except (yaml.YAMLError, TypeError, ValueError):
-        if len(blob) == 0:
-            LOG.debug("load_yaml given empty string, returning default")
-        else:
-            logexc(LOG, "Failed loading yaml blob")
+        logexc(LOG, "Failed loading yaml blob")
     return loaded
 
 
