@@ -35,16 +35,6 @@ class NoCloudKVMImage(Image):
 
         super(NoCloudKVMImage, self).__init__(platform, config)
 
-    @property
-    def properties(self):
-        """Dictionary containing: 'arch', 'os', 'version', 'release'."""
-        return {
-            'arch': self.config['arch'],
-            'os': self.config['family'],
-            'release': self.config['release'],
-            'version': self.config['version'],
-        }
-
     def _execute(self, command, stdin=None, env=None):
         """Execute command in image, modifying image."""
         return self.mount_image_callback(command, stdin=stdin, env=env)

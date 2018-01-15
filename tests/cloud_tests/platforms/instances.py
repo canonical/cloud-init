@@ -1,14 +1,21 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Base instance."""
+import time
+
+import paramiko
+from paramiko.ssh_exception import (
+    BadHostKeyException, AuthenticationException, SSHException)
 
 from ..util import TargetBase
+from tests.cloud_tests import LOG, util
 
 
 class Instance(TargetBase):
     """Base instance object."""
 
     platform_name = None
+    _ssh_client = None
 
     def __init__(self, platform, name, properties, config, features):
         """Set up instance.
@@ -25,6 +32,11 @@ class Instance(TargetBase):
         self.config = config
         self.features = features
         self._tmp_count = 0
+
+        self.ssh_ip = None
+        self.ssh_port = None
+        self.ssh_key_file = None
+        self.ssh_username = 'ubuntu'
 
     def console_log(self):
         """Instance console.
@@ -47,7 +59,63 @@ class Instance(TargetBase):
 
     def destroy(self):
         """Clean up instance."""
-        pass
+        self._ssh_close()
+
+    def _ssh(self, command, stdin=None):
+        """Run a command via SSH."""
+        client = self._ssh_connect()
+
+        cmd = util.shell_pack(command)
+        fp_in, fp_out, fp_err = client.exec_command(cmd)
+        channel = fp_in.channel
+
+        if stdin is not None:
+            fp_in.write(stdin)
+            fp_in.close()
+
+        channel.shutdown_write()
+        rc = channel.recv_exit_status()
+
+        return (fp_out.read(), fp_err.read(), rc)
+
+    def _ssh_close(self):
+        if self._ssh_client:
+            try:
+                self._ssh_client.close()
+            except SSHException:
+                LOG.warning('Failed to close SSH connection.')
+            self._ssh_client = None
+
+    def _ssh_connect(self):
+        """Connect via SSH."""
+        if self._ssh_client:
+            return self._ssh_client
+
+        if not self.ssh_ip or not self.ssh_port:
+            raise ValueError
+
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        private_key = paramiko.RSAKey.from_private_key_file(self.ssh_key_file)
+
+        retries = 30
+        while retries:
+            try:
+                client.connect(username=self.ssh_username,
+                               hostname=self.ssh_ip, port=self.ssh_port,
+                               pkey=private_key, banner_timeout=30)
+                self._ssh_client = client
+                return client
+            except (ConnectionRefusedError, AuthenticationException,
+                    BadHostKeyException, ConnectionResetError, SSHException,
+                    OSError) as e:
+                retries -= 1
+                time.sleep(10)
+
+        ssh_cmd = 'Failed ssh connection to %s@%s:%s after 300 seconds' % (
+            self.ssh_username, self.ssh_ip, self.ssh_port
+        )
+        raise util.InTargetExecuteError(b'', b'', 1, ssh_cmd, 'ssh')
 
     def _wait_for_system(self, wait_for_cloud_init):
         """Wait until system has fully booted and cloud-init has finished.

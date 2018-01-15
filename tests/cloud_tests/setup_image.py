@@ -5,7 +5,6 @@
 from functools import partial
 import os
 
-from cloudinit import util as c_util
 from tests.cloud_tests import LOG
 from tests.cloud_tests import stage, util
 
@@ -192,20 +191,6 @@ def enable_repo(args, image):
     image.execute(cmd, description=msg)
 
 
-def generate_ssh_keys(data_dir):
-    """Generate SSH keys to be used with image."""
-    LOG.info('generating SSH keys')
-    filename = os.path.join(data_dir, 'id_rsa')
-
-    if os.path.exists(filename):
-        c_util.del_file(filename)
-
-    c_util.subp(['ssh-keygen', '-t', 'rsa', '-b', '4096',
-                 '-f', filename, '-P', '',
-                 '-C', 'ubuntu@cloud_test'],
-                capture=True)
-
-
 def setup_image(args, image):
     """Set up image as specified in args.
 
@@ -239,9 +224,6 @@ def setup_image(args, image):
     LOG.info('setting up %s', image)
     res = stage.run_stage(
         'set up for {}'.format(image), calls, continue_after_error=False)
-    LOG.debug('after setup complete, installed cloud-init version is: %s',
-              installed_package_version(image, 'cloud-init'))
-    generate_ssh_keys(args.data_dir)
     return res
 
 # vi: ts=4 expandtab

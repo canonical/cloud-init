@@ -1,3 +1,18 @@
+cloud-init (17.2-9-gdf24daa8-0ubuntu1) bionic; urgency=medium
+
+  * New upstream snapshot.
+    - tests: update apt sources list test [Joshua Powers]
+    - tests: clean up image properties [Joshua Powers]
+    - tests: rename test ssh keys to avoid appearance of leaking private keys.
+      [Joshua Powers]
+    - tests: Enable AWS EC2 Integration Testing [Joshua Powers]
+    - cli: cloud-init clean handles symlinks [Chad Smith] (LP: #1741093)
+    - SUSE: Add a basic test of network config rendering. [Robert Schweikert]
+    - Azure: Only bounce network when necessary. [Chad Smith] (LP: #1722668)
+    - lint: Fix lints seen by pylint version 1.8.1. [Chad Smith]
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 15 Jan 2018 06:42:30 -0500
+
 cloud-init (17.2-1-g4089e20c-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.

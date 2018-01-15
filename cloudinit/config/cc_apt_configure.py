@@ -275,8 +275,9 @@ def handle(name, ocfg, cloud, log, _):
     cfg = ocfg.get('apt', {})
 
     if not isinstance(cfg, dict):
-        raise ValueError("Expected dictionary for 'apt' config, found %s",
-                         type(cfg))
+        raise ValueError(
+            "Expected dictionary for 'apt' config, found {config_type}".format(
+                config_type=type(cfg)))
 
     apply_debconf_selections(cfg, target)
     apply_apt(cfg, cloud, target)

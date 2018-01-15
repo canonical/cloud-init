@@ -474,8 +474,9 @@ class NetworkStateInterpreter(object):
             elif bridge_stp in ['off', '0', 0]:
                 bridge_stp = False
             else:
-                raise ValueError("Cannot convert bridge_stp value"
-                                 "(%s) to boolean", bridge_stp)
+                raise ValueError(
+                    'Cannot convert bridge_stp value ({stp}) to'
+                    ' boolean'.format(stp=bridge_stp))
             iface.update({'bridge_stp': bridge_stp})
 
         interfaces.update({iface['name']: iface})
@@ -692,7 +693,8 @@ class NetworkStateInterpreter(object):
             elif cmd_type == "bond":
                 self.handle_bond(v1_cmd)
             else:
-                raise ValueError('Unknown command type: %s', cmd_type)
+                raise ValueError('Unknown command type: {cmd_type}'.format(
+                    cmd_type=cmd_type))
 
     def _v2_to_v1_ipcfg(self, cfg):
         """Common ipconfig extraction from v2 to v1 subnets array."""
