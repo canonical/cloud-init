@@ -299,6 +299,14 @@ class TestLoadYaml(helpers.TestCase):
                                         default=self.mydefault),
                          myobj)
 
+    def test_none_returns_default(self):
+        """If yaml.load returns None, then default should be returned."""
+        blobs = ("", " ", "# foo\n", "#")
+        mdef = self.mydefault
+        self.assertEqual(
+            [(b, self.mydefault) for b in blobs],
+            [(b, util.load_yaml(blob=b, default=mdef)) for b in blobs])
+
 
 class TestMountinfoParsing(helpers.ResourceUsingTestCase):
     def test_invalid_mountinfo(self):
