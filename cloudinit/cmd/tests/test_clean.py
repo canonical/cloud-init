@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.cmd import clean
-from cloudinit.util import ensure_dir, write_file
+from cloudinit.util import ensure_dir, sym_link, write_file
 from cloudinit.tests.helpers import CiTestCase, wrap_and_call, mock
 from collections import namedtuple
 import os
@@ -59,6 +59,23 @@ class TestClean(CiTestCase):
         self.assertTrue(os.path.exists(self.log1), 'Missing expected file')
         self.assertTrue(os.path.exists(self.log2), 'Missing expected file')
         self.assertEqual(0, retcode)
+
+    def test_remove_artifacts_removes_unlinks_symlinks(self):
+        """remove_artifacts cleans artifacts dir unlinking any symlinks."""
+        dir1 = os.path.join(self.artifact_dir, 'dir1')
+        ensure_dir(dir1)
+        symlink = os.path.join(self.artifact_dir, 'mylink')
+        sym_link(dir1, symlink)
+
+        retcode = wrap_and_call(
+            'cloudinit.cmd.clean',
+            {'Init': {'side_effect': self.init_class}},
+            clean.remove_artifacts, remove_logs=False)
+        self.assertEqual(0, retcode)
+        for path in (dir1, symlink):
+            self.assertFalse(
+                os.path.exists(path),
+                'Unexpected {0} dir'.format(path))
 
     def test_remove_artifacts_removes_artifacts_skipping_seed(self):
         """remove_artifacts cleans artifacts dir with exception of seed dir."""

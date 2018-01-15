@@ -174,6 +174,7 @@ scbus-1 on xpt0 bus 0
             (dsaz, 'get_hostname', mock.MagicMock()),
             (dsaz, 'set_hostname', mock.MagicMock()),
             (dsaz, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
+            (dsaz.util, 'which', lambda x: True),
             (dsaz.util, 'read_dmi_data', mock.MagicMock(
                 side_effect=_dmi_mocks)),
             (dsaz.util, 'wait_for_files', mock.MagicMock(
@@ -642,6 +643,8 @@ fdescfs            /dev/fd          fdescfs rw              0 0
 
 class TestAzureBounce(CiTestCase):
 
+    with_logs = True
+
     def mock_out_azure_moving_parts(self):
         self.patches.enter_context(
             mock.patch.object(dsaz, 'invoke_agent'))
@@ -653,6 +656,8 @@ class TestAzureBounce(CiTestCase):
         self.patches.enter_context(
             mock.patch.object(dsaz, 'get_metadata_from_fabric',
                               mock.MagicMock(return_value={})))
+        self.patches.enter_context(
+            mock.patch.object(dsaz.util, 'which', lambda x: True))
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
@@ -753,6 +758,22 @@ class TestAzureBounce(CiTestCase):
         self.assertTrue(ret)
         self.assertEqual(1, perform_hostname_bounce.call_count)
 
+    def test_bounce_skipped_on_ifupdown_absent(self):
+        host_name = 'unchanged-host-name'
+        self.get_hostname.return_value = host_name
+        cfg = {'hostname_bounce': {'policy': 'force'}}
+        dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg),
+                            agent_command=['not', '__builtin__'])
+        patch_path = 'cloudinit.sources.DataSourceAzure.util.which'
+        with mock.patch(patch_path) as m_which:
+            m_which.return_value = None
+            ret = self._get_and_setup(dsrc)
+        self.assertEqual([mock.call('ifup')], m_which.call_args_list)
+        self.assertTrue(ret)
+        self.assertIn(
+            "Skipping network bounce: ifupdown utils aren't present.",
+            self.logs.getvalue())
+
     def test_different_hostnames_sets_hostname(self):
         expected_hostname = 'azure-expected-host-name'
         self.get_hostname.return_value = 'default-host-name'
@@ -817,9 +838,7 @@ class TestAzureBounce(CiTestCase):
         self.assertEqual(hostname, bounce_env['hostname'])
         self.assertEqual(old_hostname, bounce_env['old_hostname'])
 
-    def test_default_bounce_command_used_by_default(self):
-        cmd = 'default-bounce-command'
-        dsaz.BUILTIN_DS_CONFIG['hostname_bounce']['command'] = cmd
+    def test_default_bounce_command_ifup_used_by_default(self):
         cfg = {'hostname_bounce': {'policy': 'force'}}
         data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
         dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
@@ -827,7 +846,8 @@ class TestAzureBounce(CiTestCase):
         self.assertTrue(ret)
         self.assertEqual(1, self.subp.call_count)
         bounce_args = self.subp.call_args[1]['args']
-        self.assertEqual(cmd, bounce_args)
+        self.assertEqual(
+            dsaz.BOUNCE_COMMAND_IFUP, bounce_args)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
     def test_set_hostname_option_can_disable_bounce(

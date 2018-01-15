@@ -10,7 +10,8 @@ import sys
 
 from cloudinit.stages import Init
 from cloudinit.util import (
-    ProcessExecutionError, chdir, del_dir, del_file, get_config_logfiles, subp)
+    ProcessExecutionError, chdir, del_dir, del_file, get_config_logfiles,
+    is_link, subp)
 
 
 def error(msg):
@@ -65,7 +66,7 @@ def remove_artifacts(remove_logs, remove_seed=False):
             if path == 'seed' and not remove_seed:
                 continue
             try:
-                if os.path.isdir(path):
+                if os.path.isdir(path) and not is_link(path):
                     del_dir(path)
                 else:
                     del_file(path)

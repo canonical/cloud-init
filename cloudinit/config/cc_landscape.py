@@ -94,10 +94,10 @@ def handle(_name, cfg, cloud, log, _args):
     ls_cloudcfg = cfg.get("landscape", {})
 
     if not isinstance(ls_cloudcfg, (dict)):
-        raise RuntimeError(("'landscape' key existed in config,"
-                            " but not a dictionary type,"
-                            " is a %s instead"),
-                           type_utils.obj_name(ls_cloudcfg))
+        raise RuntimeError(
+            "'landscape' key existed in config, but not a dictionary type,"
+            " is a {_type} instead".format(
+                _type=type_utils.obj_name(ls_cloudcfg)))
     if not ls_cloudcfg:
         return
 

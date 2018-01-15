@@ -274,7 +274,8 @@ class WALinuxAgentShim(object):
                 name = os.path.basename(hook_file).replace('.json', '')
                 dhcp_options[name] = json.loads(util.load_file((hook_file)))
             except ValueError:
-                raise ValueError("%s is not valid JSON data", hook_file)
+                raise ValueError(
+                    '{_file} is not valid JSON data'.format(_file=hook_file))
         return dhcp_options
 
     @staticmethod

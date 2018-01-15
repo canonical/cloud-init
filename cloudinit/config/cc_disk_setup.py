@@ -788,7 +788,8 @@ def mkpart(device, definition):
     # This prevents you from overwriting the device
     LOG.debug("Checking if device %s is a valid device", device)
     if not is_device_valid(device):
-        raise Exception("Device %s is not a disk device!", device)
+        raise Exception(
+            'Device {device} is not a disk device!'.format(device=device))
 
     # Remove the partition table entries
     if isinstance(layout, str) and layout.lower() == "remove":
@@ -945,8 +946,9 @@ def mkfs(fs_cfg):
 
     # Check that we can create the FS
     if not (fs_type or fs_cmd):
-        raise Exception("No way to create filesystem '%s'. fs_type or fs_cmd "
-                        "must be set.", label)
+        raise Exception(
+            "No way to create filesystem '{label}'. fs_type or fs_cmd "
+            "must be set.".format(label=label))
 
     # Create the commands
     shell = False

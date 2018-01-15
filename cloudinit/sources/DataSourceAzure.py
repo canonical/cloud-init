@@ -26,10 +26,16 @@ DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
 AGENT_START_BUILTIN = "__builtin__"
-BOUNCE_COMMAND = [
+BOUNCE_COMMAND_IFUP = [
     'sh', '-xc',
     "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"
 ]
+BOUNCE_COMMAND_FREEBSD = [
+    'sh', '-xc',
+    ("i=$interface; x=0; ifconfig down $i || x=$?; "
+     "ifconfig up $i || x=$?; exit $x")
+]
+
 # azure systems will always have a resource disk, and 66-azure-ephemeral.rules
 # ensures that it gets linked to this path.
 RESOURCE_DISK_PATH = '/dev/disk/cloud/azure_resource'
@@ -177,11 +183,6 @@ if util.is_FreeBSD():
         RESOURCE_DISK_PATH = "/dev/" + res_disk
     else:
         LOG.debug("resource disk is None")
-    BOUNCE_COMMAND = [
-        'sh', '-xc',
-        ("i=$interface; x=0; ifconfig down $i || x=$?; "
-         "ifconfig up $i || x=$?; exit $x")
-    ]
 
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START_BUILTIN,
@@ -190,7 +191,7 @@ BUILTIN_DS_CONFIG = {
     'hostname_bounce': {
         'interface': DEFAULT_PRIMARY_NIC,
         'policy': True,
-        'command': BOUNCE_COMMAND,
+        'command': 'builtin',
         'hostname_command': 'hostname',
     },
     'disk_aliases': {'ephemeral0': RESOURCE_DISK_PATH},
@@ -582,12 +583,12 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
         if os.path.exists(sempath):
             try:
                 os.unlink(sempath)
-                LOG.debug(bmsg + " removed.")
+                LOG.debug('%s removed.', bmsg)
             except Exception as e:
                 # python3 throws FileNotFoundError, python2 throws OSError
-                LOG.warning(bmsg + ": remove failed! (%s)", e)
+                LOG.warning('%s: remove failed! (%s)', bmsg, e)
         else:
-            LOG.debug(bmsg + " did not exist.")
+            LOG.debug('%s did not exist.', bmsg)
     return
 
 
@@ -606,8 +607,14 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
     env['old_hostname'] = prev_hostname
 
     if command == "builtin":
-        command = BOUNCE_COMMAND
-
+        if util.is_FreeBSD():
+            command = BOUNCE_COMMAND_FREEBSD
+        elif util.which('ifup'):
+            command = BOUNCE_COMMAND_IFUP
+        else:
+            LOG.debug(
+                "Skipping network bounce: ifupdown utils aren't present.")
+            return  # Don't bounce as networkd handles hostname DDNS updates
     LOG.debug("pubhname: publishing hostname [%s]", msg)
     shell = not isinstance(command, (list, tuple))
     # capture=False, see comments in bug 1202758 and bug 1206164.

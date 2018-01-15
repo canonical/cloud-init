@@ -28,12 +28,18 @@ def collect_script(instance, base_dir, script, script_name):
 
 
 def collect_console(instance, base_dir):
-    LOG.debug('getting console log')
+    """Collect instance console log.
+
+    @param instance: instance to get console log for
+    @param base_dir: directory to write console log to
+    """
+    logfile = os.path.join(base_dir, 'console.log')
+    LOG.debug('getting console log for %s to %s', instance, logfile)
     try:
         data = instance.console_log()
     except NotImplementedError:
         data = b'instance.console_log: not implemented'
-    with open(os.path.join(base_dir, 'console.log'), "wb") as fp:
+    with open(logfile, "wb") as fp:
         fp.write(data)
 
 
@@ -89,12 +95,11 @@ def collect_test_data(args, snapshot, os_name, test_name):
                                          test_output_dir, script, script_name))
                          for script_name, script in test_scripts.items()]
 
-        console_log = partial(
-            run_single, 'collect console',
-            partial(collect_console, instance, test_output_dir))
-
         res = run_stage('collect for test: {}'.format(test_name),
-                        [start_call] + collect_calls + [console_log])
+                        [start_call] + collect_calls)
+
+        instance.shutdown()
+        collect_console(instance, test_output_dir)
 
     return res
 

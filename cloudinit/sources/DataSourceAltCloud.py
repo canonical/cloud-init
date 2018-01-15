@@ -145,7 +145,7 @@ class DataSourceAltCloud(sources.DataSource):
         else:
             cloud_type = self.get_cloud_type()
 
-        LOG.debug('cloud_type: ' + str(cloud_type))
+        LOG.debug('cloud_type: %s', str(cloud_type))
 
         if 'RHEV' in cloud_type:
             if self.user_data_rhevm():
