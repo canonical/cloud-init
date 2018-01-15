@@ -1,4 +1,4 @@
-cloud-init (17.2-9-gdf24daa8-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.2-9-gdf24daa8-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - tests: update apt sources list test [Joshua Powers]
@@ -11,7 +11,7 @@ cloud-init (17.2-9-gdf24daa8-0ubuntu1) UNRELEASED; urgency=medium
     - Azure: Only bounce network when necessary. [Chad Smith] (LP: #1722668)
     - lint: Fix lints seen by pylint version 1.8.1. [Chad Smith]
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 15 Jan 2018 06:40:43 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 15 Jan 2018 06:42:30 -0500
 
 cloud-init (17.2-1-g4089e20c-0ubuntu1) bionic; urgency=medium
 
