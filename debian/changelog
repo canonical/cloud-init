@@ -1,4 +1,4 @@
-cloud-init (17.2-13-g6299e8d0-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.2-13-g6299e8d0-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - Do not log warning on config files that represent None. (LP: #1742479)
@@ -6,7 +6,7 @@ cloud-init (17.2-13-g6299e8d0-0ubuntu1) UNRELEASED; urgency=medium
     - tests: add integration requirements text file [Joshua Powers]
     - MAAS: add check_instance_id based off oauth tokens. (LP: #1712680)
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 15 Jan 2018 10:14:52 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 15 Jan 2018 10:15:05 -0500
 
 cloud-init (17.2-9-gdf24daa8-0ubuntu1) bionic; urgency=medium
 
