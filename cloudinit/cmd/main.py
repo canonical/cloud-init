@@ -421,7 +421,13 @@ def di_report_warn(datasource, cfg):
         LOG.debug("no di_report found in config.")
         return
 
-    dicfg = cfg.get('di_report', {})
+    dicfg = cfg['di_report']
+    if dicfg is None:
+        # ds-identify may write 'di_report:\n #comment\n'
+        # which reads as {'di_report': None}
+        LOG.debug("di_report was None.")
+        return
+
     if not isinstance(dicfg, dict):
         LOG.warning("di_report config not a dictionary: %s", dicfg)
         return
