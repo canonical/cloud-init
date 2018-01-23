@@ -458,6 +458,12 @@ class TestConfigDriveDataSource(CiTestCase):
             self.assertEqual(["/dev/vdb3"],
                              ds.find_candidate_devs())
 
+            # Verify that uppercase labels are also found.
+            devs_with_answers = {"TYPE=vfat": [],
+                                 "TYPE=iso9660": ["/dev/vdb"],
+                                 "LABEL=CONFIG-2": ["/dev/vdb"]}
+            self.assertEqual(["/dev/vdb"], ds.find_candidate_devs())
+
         finally:
             util.find_devs_with = orig_find_devs_with
             util.is_partition = orig_is_partition

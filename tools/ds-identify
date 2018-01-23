@@ -579,6 +579,8 @@ dscheck_NoCloud() {
 check_configdrive_v2() {
     if has_fs_with_label "config-2"; then
         return ${DS_FOUND}
+    elif has_fs_with_label "CONFIG-2"; then
+        return ${DS_FOUND}
     fi
     # look in /config-drive <vlc>/seed/config_drive for a directory
     # openstack/YYYY-MM-DD format with a file meta_data.json
@@ -666,7 +668,7 @@ is_cdrom_ovf() {
 
     # explicitly skip known labels of other types. rd_rdfe is azure.
     case "$label" in
-        config-2|rd_rdfe_stable*|cidata) return 1;;
+        config-2|CONFIG-2|rd_rdfe_stable*|cidata) return 1;;
     esac
 
     local idstr="http://schemas.dmtf.org/ovf/environment/1"
