@@ -448,7 +448,7 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
 # Return an ordered list of classes that match (if any)
 def list_sources(cfg_list, depends, pkg_list):
     src_list = []
-    LOG.debug(("Looking for for data source in: %s,"
+    LOG.debug(("Looking for data source in: %s,"
                " via packages %s that matches dependencies %s"),
               cfg_list, pkg_list, depends)
     for ds_name in cfg_list:

@@ -425,7 +425,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
             self.logs.getvalue())
 
     @httpretty.activate
-    @mock.patch('cloudinit.net.EphemeralIPv4Network')
+    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
     @mock.patch('cloudinit.net.find_fallback_nic')
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     @mock.patch('cloudinit.sources.DataSourceEc2.util.is_FreeBSD')

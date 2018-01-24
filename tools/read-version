@@ -45,6 +45,19 @@ def which(program):
     return None
 
 
+def is_gitdir(path):
+    # Return boolean indicating if path is a git tree.
+    git_meta = os.path.join(path, '.git')
+    if os.path.isdir(git_meta):
+        return True
+    if os.path.exists(git_meta):
+        # in a git worktree, .git is a file with 'gitdir: x'
+        with open(git_meta, "rb") as fp:
+            if b'gitdir:' in fp.read():
+                return True
+    return False
+
+
 use_long = '--long' in sys.argv or os.environ.get('CI_RV_LONG')
 use_tags = '--tags' in sys.argv or os.environ.get('CI_RV_TAGS')
 output_json = '--json' in sys.argv
@@ -52,7 +65,7 @@ output_json = '--json' in sys.argv
 src_version = ci_version.version_string()
 version_long = None
 
-if os.path.isdir(os.path.join(_tdir, ".git")) and which("git"):
+if is_gitdir(_tdir) and which("git"):
     flags = []
     if use_tags:
         flags = ['--tags']
