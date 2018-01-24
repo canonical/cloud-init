@@ -1,4 +1,4 @@
-cloud-init (17.2-20-g32a6a176-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.2-20-g32a6a176-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - tests: Fix EC2 Platform to return console output as bytes.
@@ -10,7 +10,7 @@ cloud-init (17.2-20-g32a6a176-0ubuntu1) UNRELEASED; urgency=medium
     - Recognize uppercase vfat disk labels [James Penick] (LP: #1598783)
     - tests: remove zesty as supported OS to test
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 23 Jan 2018 20:06:14 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 23 Jan 2018 20:10:44 -0700
 
 cloud-init (17.2-13-g6299e8d0-0ubuntu1) bionic; urgency=medium
 
