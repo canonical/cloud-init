@@ -253,12 +253,18 @@ class ProcessExecutionError(IOError):
             self.exit_code = exit_code
 
         if not stderr:
-            self.stderr = self.empty_attr
+            if stderr is None:
+                self.stderr = self.empty_attr
+            else:
+                self.stderr = stderr
         else:
             self.stderr = self._indent_text(stderr)
 
         if not stdout:
-            self.stdout = self.empty_attr
+            if stdout is None:
+                self.stdout = self.empty_attr
+            else:
+                self.stdout = stdout
         else:
             self.stdout = self._indent_text(stdout)
 
@@ -1829,57 +1835,59 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         env = env.copy()
         env.update(update_env)
 
+    if target_path(target) != "/":
+        args = ['chroot', target] + list(args)
+
+    if not logstring:
+        LOG.debug(("Running command %s with allowed return codes %s"
+                   " (shell=%s, capture=%s)"), args, rcs, shell, capture)
+    else:
+        LOG.debug(("Running hidden command to protect sensitive "
+                   "input/output logstring: %s"), logstring)
+
+    stdin = None
+    stdout = None
+    stderr = None
+    if capture:
+        stdout = subprocess.PIPE
+        stderr = subprocess.PIPE
+    if data is None:
+        # using devnull assures any reads get null, rather
+        # than possibly waiting on input.
+        devnull_fp = open(os.devnull)
+        stdin = devnull_fp
+    else:
+        stdin = subprocess.PIPE
+        if not isinstance(data, bytes):
+            data = data.encode()
+
     try:
-        if target_path(target) != "/":
-            args = ['chroot', target] + list(args)
-
-        if not logstring:
-            LOG.debug(("Running command %s with allowed return codes %s"
-                       " (shell=%s, capture=%s)"), args, rcs, shell, capture)
-        else:
-            LOG.debug(("Running hidden command to protect sensitive "
-                       "input/output logstring: %s"), logstring)
-
-        stdin = None
-        stdout = None
-        stderr = None
-        if capture:
-            stdout = subprocess.PIPE
-            stderr = subprocess.PIPE
-        if data is None:
-            # using devnull assures any reads get null, rather
-            # than possibly waiting on input.
-            devnull_fp = open(os.devnull)
-            stdin = devnull_fp
-        else:
-            stdin = subprocess.PIPE
-            if not isinstance(data, bytes):
-                data = data.encode()
-
         sp = subprocess.Popen(args, stdout=stdout,
                               stderr=stderr, stdin=stdin,
                               env=env, shell=shell)
         (out, err) = sp.communicate(data)
-
-        # Just ensure blank instead of none.
-        if not out and capture:
-            out = b''
-        if not err and capture:
-            err = b''
-        if decode:
-            def ldecode(data, m='utf-8'):
-                if not isinstance(data, bytes):
-                    return data
-                return data.decode(m, decode)
-
-            out = ldecode(out)
-            err = ldecode(err)
     except OSError as e:
-        raise ProcessExecutionError(cmd=args, reason=e,
-                                    errno=e.errno)
+        raise ProcessExecutionError(
+            cmd=args, reason=e, errno=e.errno,
+            stdout="-" if decode else b"-",
+            stderr="-" if decode else b"-")
     finally:
         if devnull_fp:
             devnull_fp.close()
+
+    # Just ensure blank instead of none.
+    if not out and capture:
+        out = b''
+    if not err and capture:
+        err = b''
+    if decode:
+        def ldecode(data, m='utf-8'):
+            if not isinstance(data, bytes):
+                return data
+            return data.decode(m, decode)
+
+        out = ldecode(out)
+        err = ldecode(err)
 
     rc = sp.returncode
     if rc not in rcs:
