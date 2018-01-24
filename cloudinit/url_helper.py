@@ -273,7 +273,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
 
 def wait_for_url(urls, max_wait=None, timeout=None,
                  status_cb=None, headers_cb=None, sleep_time=1,
-                 exception_cb=None):
+                 exception_cb=None, sleep_time_cb=None):
     """
     urls:      a list of urls to try
     max_wait:  roughly the maximum time to wait before giving up
@@ -286,6 +286,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                 for request.
     exception_cb: call method with 2 arguments 'msg' (per status_cb) and
                   'exception', the exception that occurred.
+    sleep_time_cb: call method with 2 arguments (response, loop_n) that
+                   generates the next sleep time.
 
     the idea of this routine is to wait for the EC2 metdata service to
     come up.  On both Eucalyptus and EC2 we have seen the case where
@@ -301,6 +303,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     service but is not going to find one.  It is possible that the instance
     data host (169.254.169.254) may be firewalled off Entirely for a sytem,
     meaning that the connection will block forever unless a timeout is set.
+
+    A value of None for max_wait will retry indefinitely.
     """
     start_time = time.time()
 
@@ -311,18 +315,24 @@ def wait_for_url(urls, max_wait=None, timeout=None,
         status_cb = log_status_cb
 
     def timeup(max_wait, start_time):
-        return ((max_wait <= 0 or max_wait is None) or
-                (time.time() - start_time > max_wait))
+        if (max_wait is None):
+            return False
+        return ((max_wait <= 0) or (time.time() - start_time > max_wait))
 
     loop_n = 0
+    response = None
     while True:
-        sleep_time = int(loop_n / 5) + 1
+        if sleep_time_cb is not None:
+            sleep_time = sleep_time_cb(response, loop_n)
+        else:
+            sleep_time = int(loop_n / 5) + 1
         for url in urls:
             now = time.time()
             if loop_n != 0:
                 if timeup(max_wait, start_time):
                     break
-                if timeout and (now + timeout > (start_time + max_wait)):
+                if (max_wait is not None and
+                        timeout and (now + timeout > (start_time + max_wait))):
                     # shorten timeout to not run way over max_time
                     timeout = int((start_time + max_wait) - now)
 
@@ -354,10 +364,11 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                 url_exc = e
 
             time_taken = int(time.time() - start_time)
-            status_msg = "Calling '%s' failed [%s/%ss]: %s" % (url,
-                                                               time_taken,
-                                                               max_wait,
-                                                               reason)
+            max_wait_str = "%ss" % max_wait if max_wait else "unlimited"
+            status_msg = "Calling '%s' failed [%s/%s]: %s" % (url,
+                                                              time_taken,
+                                                              max_wait_str,
+                                                              reason)
             status_cb(status_msg)
             if exception_cb:
                 # This can be used to alter the headers that will be sent

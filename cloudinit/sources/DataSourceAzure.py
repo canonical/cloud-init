@@ -11,13 +11,16 @@ from functools import partial
 import os
 import os.path
 import re
+from time import time
 from xml.dom import minidom
 import xml.etree.ElementTree as ET
 
 from cloudinit import log as logging
 from cloudinit import net
+from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers.azure import get_metadata_from_fabric
+from cloudinit.url_helper import readurl, wait_for_url, UrlError
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -44,6 +47,9 @@ LEASE_FILE = '/var/lib/dhcp/dhclient.eth0.leases'
 DEFAULT_FS = 'ext4'
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = '7783-7084-3265-9085-8269-3286-77'
+REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
+IMDS_URL = "http://169.254.169.254/metadata/reprovisiondata"
+IMDS_RETRIES = 5
 
 
 def find_storvscid_from_sysctl_pnpinfo(sysctl_out, deviceid):
@@ -276,19 +282,20 @@ class DataSourceAzure(sources.DataSource):
 
         with temporary_hostname(azure_hostname, self.ds_cfg,
                                 hostname_command=hostname_command) \
-                as previous_hostname:
-            if (previous_hostname is not None and
+                as previous_hn:
+            if (previous_hn is not None and
                     util.is_true(self.ds_cfg.get('set_hostname'))):
                 cfg = self.ds_cfg['hostname_bounce']
 
                 # "Bouncing" the network
                 try:
-                    perform_hostname_bounce(hostname=azure_hostname,
-                                            cfg=cfg,
-                                            prev_hostname=previous_hostname)
+                    return perform_hostname_bounce(hostname=azure_hostname,
+                                                   cfg=cfg,
+                                                   prev_hostname=previous_hn)
                 except Exception as e:
                     LOG.warning("Failed publishing hostname: %s", e)
                     util.logexc(LOG, "handling set_hostname failed")
+        return False
 
     def get_metadata_from_agent(self):
         temp_hostname = self.metadata.get('local-hostname')
@@ -345,15 +352,20 @@ class DataSourceAzure(sources.DataSource):
         ddir = self.ds_cfg['data_dir']
 
         candidates = [self.seed_dir]
+        if os.path.isfile(REPROVISION_MARKER_FILE):
+            candidates.insert(0, "IMDS")
         candidates.extend(list_possible_azure_ds_devs())
         if ddir:
             candidates.append(ddir)
 
         found = None
-
+        reprovision = False
         for cdev in candidates:
             try:
-                if cdev.startswith("/dev/"):
+                if cdev == "IMDS":
+                    ret = None
+                    reprovision = True
+                elif cdev.startswith("/dev/"):
                     if util.is_FreeBSD():
                         ret = util.mount_cb(cdev, load_azure_ds_dir,
                                             mtype="udf", sync=False)
@@ -370,6 +382,8 @@ class DataSourceAzure(sources.DataSource):
                 LOG.warning("%s was not mountable", cdev)
                 continue
 
+            if reprovision or self._should_reprovision(ret):
+                ret = self._reprovision()
             (md, self.userdata_raw, cfg, files) = ret
             self.seed = cdev
             self.metadata = util.mergemanydict([md, DEFAULT_METADATA])
@@ -428,6 +442,83 @@ class DataSourceAzure(sources.DataSource):
             LOG.debug("negotiating already done for %s",
                       self.get_instance_id())
 
+    def _poll_imds(self, report_ready=True):
+        """Poll IMDS for the new provisioning data until we get a valid
+        response. Then return the returned JSON object."""
+        url = IMDS_URL + "?api-version=2017-04-02"
+        headers = {"Metadata": "true"}
+        LOG.debug("Start polling IMDS")
+
+        def sleep_cb(response, loop_n):
+            return 1
+
+        def exception_cb(msg, exception):
+            if isinstance(exception, UrlError) and exception.code == 404:
+                return
+            LOG.warning("Exception during polling. Will try DHCP.",
+                        exc_info=True)
+
+            # If we get an exception while trying to call IMDS, we
+            # call DHCP and setup the ephemeral network to acquire the new IP.
+            raise exception
+
+        need_report = report_ready
+        for i in range(IMDS_RETRIES):
+            try:
+                with EphemeralDHCPv4() as lease:
+                    if need_report:
+                        self._report_ready(lease=lease)
+                        need_report = False
+                    wait_for_url([url], max_wait=None, timeout=60,
+                                 status_cb=LOG.info,
+                                 headers_cb=lambda url: headers, sleep_time=1,
+                                 exception_cb=exception_cb,
+                                 sleep_time_cb=sleep_cb)
+                    return str(readurl(url, headers=headers))
+            except Exception:
+                LOG.debug("Exception during polling-retrying dhcp" +
+                          " %d more time(s).", (IMDS_RETRIES - i),
+                          exc_info=True)
+
+    def _report_ready(self, lease):
+        """Tells the fabric provisioning has completed
+           before we go into our polling loop."""
+        try:
+            get_metadata_from_fabric(None, lease['unknown-245'])
+        except Exception as exc:
+            LOG.warning(
+                "Error communicating with Azure fabric; You may experience."
+                "connectivity issues.", exc_info=True)
+
+    def _should_reprovision(self, ret):
+        """Whether or not we should poll IMDS for reprovisioning data.
+        Also sets a marker file to poll IMDS.
+
+        The marker file is used for the following scenario: the VM boots into
+        this polling loop, which we expect to be proceeding infinitely until
+        the VM is picked. If for whatever reason the platform moves us to a
+        new host (for instance a hardware issue), we need to keep polling.
+        However, since the VM reports ready to the Fabric, we will not attach
+        the ISO, thus cloud-init needs to have a way of knowing that it should
+        jump back into the polling loop in order to retrieve the ovf_env."""
+        if not ret:
+            return False
+        (md, self.userdata_raw, cfg, files) = ret
+        path = REPROVISION_MARKER_FILE
+        if (cfg.get('PreprovisionedVm') is True or
+                os.path.isfile(path)):
+            if not os.path.isfile(path):
+                LOG.info("Creating a marker file to poll imds")
+                util.write_file(path, "%s: %s\n" % (os.getpid(), time()))
+            return True
+        return False
+
+    def _reprovision(self):
+        """Initiate the reprovisioning workflow."""
+        contents = self._poll_imds()
+        md, ud, cfg = read_azure_ovf(contents)
+        return (md, ud, cfg, {'ovf-env.xml': contents})
+
     def _negotiate(self):
         """Negotiate with fabric and return data from it.
 
@@ -453,7 +544,7 @@ class DataSourceAzure(sources.DataSource):
                 "Error communicating with Azure fabric; You may experience."
                 "connectivity issues.", exc_info=True)
             return False
-
+        util.del_file(REPROVISION_MARKER_FILE)
         return fabric_data
 
     def activate(self, cfg, is_new_instance):
@@ -595,6 +686,7 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
 def perform_hostname_bounce(hostname, cfg, prev_hostname):
     # set the hostname to 'hostname' if it is not already set to that.
     # then, if policy is not off, bounce the interface using command
+    # Returns True if the network was bounced, False otherwise.
     command = cfg['command']
     interface = cfg['interface']
     policy = cfg['policy']
@@ -614,7 +706,8 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
         else:
             LOG.debug(
                 "Skipping network bounce: ifupdown utils aren't present.")
-            return  # Don't bounce as networkd handles hostname DDNS updates
+            # Don't bounce as networkd handles hostname DDNS updates
+            return False
     LOG.debug("pubhname: publishing hostname [%s]", msg)
     shell = not isinstance(command, (list, tuple))
     # capture=False, see comments in bug 1202758 and bug 1206164.
@@ -622,6 +715,7 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
                   get_uptime=True, func=util.subp,
                   kwargs={'args': command, 'shell': shell, 'capture': False,
                           'env': env})
+    return True
 
 
 def crtfile_to_pubkey(fname, data=None):
@@ -838,7 +932,33 @@ def read_azure_ovf(contents):
     if 'ssh_pwauth' not in cfg and password:
         cfg['ssh_pwauth'] = True
 
+    cfg['PreprovisionedVm'] = _extract_preprovisioned_vm_setting(dom)
+
     return (md, ud, cfg)
+
+
+def _extract_preprovisioned_vm_setting(dom):
+    """Read the preprovision flag from the ovf. It should not
+       exist unless true."""
+    platform_settings_section = find_child(
+        dom.documentElement,
+        lambda n: n.localName == "PlatformSettingsSection")
+    if not platform_settings_section or len(platform_settings_section) == 0:
+        LOG.debug("PlatformSettingsSection not found")
+        return False
+    platform_settings = find_child(
+        platform_settings_section[0],
+        lambda n: n.localName == "PlatformSettings")
+    if not platform_settings or len(platform_settings) == 0:
+        LOG.debug("PlatformSettings not found")
+        return False
+    preprovisionedVm = find_child(
+        platform_settings[0],
+        lambda n: n.localName == "PreprovisionedVm")
+    if not preprovisionedVm or len(preprovisionedVm) == 0:
+        LOG.debug("PreprovisionedVm not found")
+        return False
+    return util.translate_bool(preprovisionedVm[0].firstChild.nodeValue)
 
 
 def encrypt_pass(password, salt_id="$6$"):

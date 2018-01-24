@@ -28,13 +28,18 @@ def _tempfile_dir_arg(odir=None, needs_exe=False):
     if odir is not None:
         return odir
 
+    if needs_exe:
+        tdir = _EXE_ROOT_TMPDIR
+        if not os.path.isdir(tdir):
+            os.makedirs(tdir)
+            os.chmod(tdir, 0o1777)
+        return tdir
+
     global _TMPDIR
     if _TMPDIR:
         return _TMPDIR
 
-    if needs_exe:
-        tdir = _EXE_ROOT_TMPDIR
-    elif os.getuid() == 0:
+    if os.getuid() == 0:
         tdir = _ROOT_TMPDIR
     else:
         tdir = os.environ.get('TMPDIR', '/tmp')

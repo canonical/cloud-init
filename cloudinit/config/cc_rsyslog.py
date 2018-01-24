@@ -20,15 +20,15 @@ which defaults to ``20-cloud-config.conf``. The rsyslog config directory to
 write config files to may be specified in ``config_dir``, which defaults to
 ``/etc/rsyslog.d``.
 
-A list of configurations for for rsyslog can be specified under the ``configs``
-key in the ``rsyslog`` config. Each entry in ``configs`` is either a string or
-a dictionary. Each config entry contains a configuration string and a file to
+A list of configurations for rsyslog can be specified under the ``configs`` key
+in the ``rsyslog`` config. Each entry in ``configs`` is either a string or a
+dictionary. Each config entry contains a configuration string and a file to
 write it to. For config entries that are a dictionary, ``filename`` sets the
 target filename and ``content`` specifies the config string to write. For
 config entries that are only a string, the string is used as the config string
 to write. If the filename to write the config to is not specified, the value of
-the ``config_filename`` key is used. A file with the selected filename will
-be written inside the directory specified by ``config_dir``.
+the ``config_filename`` key is used. A file with the selected filename will be
+written inside the directory specified by ``config_dir``.
 
 The command to use to reload the rsyslog service after the config has been
 updated can be specified in ``service_reload_command``. If this is set to

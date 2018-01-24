@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.config.cc_resizefs import (
-    can_skip_resize, handle, maybe_get_writable_device_path)
+    can_skip_resize, handle, maybe_get_writable_device_path, _resize_btrfs)
 
 from collections import namedtuple
 import logging
@@ -292,6 +292,26 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             "DEBUG: Converted /dev/root to '/dev/disk/by-uuid/my-uuid'"
             " per kernel cmdline",
             self.logs.getvalue())
+
+    @mock.patch('cloudinit.util.mount_is_read_write')
+    @mock.patch('cloudinit.config.cc_resizefs.os.path.isdir')
+    def test_resize_btrfs_mount_is_ro(self, m_is_dir, m_is_rw):
+        """Do not resize / directly if it is read-only. (LP: #1734787)."""
+        m_is_rw.return_value = False
+        m_is_dir.return_value = True
+        self.assertEqual(
+            ('btrfs', 'filesystem', 'resize', 'max', '//.snapshots'),
+            _resize_btrfs("/", "/dev/sda1"))
+
+    @mock.patch('cloudinit.util.mount_is_read_write')
+    @mock.patch('cloudinit.config.cc_resizefs.os.path.isdir')
+    def test_resize_btrfs_mount_is_rw(self, m_is_dir, m_is_rw):
+        """Do not resize / directly if it is read-only. (LP: #1734787)."""
+        m_is_rw.return_value = True
+        m_is_dir.return_value = True
+        self.assertEqual(
+            ('btrfs', 'filesystem', 'resize', 'max', '/'),
+            _resize_btrfs("/", "/dev/sda1"))
 
 
 # vi: ts=4 expandtab

@@ -1,3 +1,16 @@
+cloud-init (17.2-25-gc03bdd3d-0ubuntu1) bionic; urgency=medium
+
+  * New upstream snapshot.
+    - Azure VM Preprovisioning support. [Douglas Jordan] (LP: #1734991)
+    - tools/read-version: Fix read-version when in a git worktree.
+    - docs: Fix typos in docs and one debug message. [Florian Grignon]
+    - btrfs: support resizing if root is mounted ro.
+      [Robert Schweikert] (LP: #1734787)
+    - OpenNebula: Improve network configuration support.
+      [Akihiko Ota] (LP: #1719157, #1716397, #1736750)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 24 Jan 2018 16:39:23 -0700
+
 cloud-init (17.2-20-g32a6a176-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.

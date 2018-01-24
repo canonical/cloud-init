@@ -10,7 +10,9 @@ import os
 import re
 import signal
 
-from cloudinit.net import find_fallback_nic, get_devicelist
+from cloudinit.net import (
+    EphemeralIPv4Network, find_fallback_nic, get_devicelist)
+from cloudinit.net.network_state import mask_and_ipv4_to_bcast_addr as bcip
 from cloudinit import temp_utils
 from cloudinit import util
 from six import StringIO
@@ -27,6 +29,45 @@ class InvalidDHCPLeaseFileError(Exception):
     boot to scrape metadata.
     """
     pass
+
+
+class NoDHCPLeaseError(Exception):
+    """Raised when unable to get a DHCP lease."""
+    pass
+
+
+class EphemeralDHCPv4(object):
+    def __init__(self, iface=None):
+        self.iface = iface
+        self._ephipv4 = None
+
+    def __enter__(self):
+        try:
+            leases = maybe_perform_dhcp_discovery(self.iface)
+        except InvalidDHCPLeaseFileError:
+            raise NoDHCPLeaseError()
+        if not leases:
+            raise NoDHCPLeaseError()
+        lease = leases[-1]
+        LOG.debug("Received dhcp lease on %s for %s/%s",
+                  lease['interface'], lease['fixed-address'],
+                  lease['subnet-mask'])
+        nmap = {'interface': 'interface', 'ip': 'fixed-address',
+                'prefix_or_mask': 'subnet-mask',
+                'broadcast': 'broadcast-address',
+                'router': 'routers'}
+        kwargs = dict([(k, lease.get(v)) for k, v in nmap.items()])
+        if not kwargs['broadcast']:
+            kwargs['broadcast'] = bcip(kwargs['prefix_or_mask'], kwargs['ip'])
+        ephipv4 = EphemeralIPv4Network(**kwargs)
+        ephipv4.__enter__()
+        self._ephipv4 = ephipv4
+        return lease
+
+    def __exit__(self, excp_type, excp_value, excp_traceback):
+        if not self._ephipv4:
+            return
+        self._ephipv4.__exit__(excp_type, excp_value, excp_traceback)
 
 
 def maybe_perform_dhcp_discovery(nic=None):

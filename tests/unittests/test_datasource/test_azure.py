@@ -5,7 +5,7 @@ from cloudinit.util import b64e, decode_binary, load_file, write_file
 from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.util import find_freebsd_part
 from cloudinit.util import get_path_dev_freebsd
-
+from cloudinit.version import version_string as vs
 from cloudinit.tests.helpers import (CiTestCase, TestCase, populate_dir, mock,
                                      ExitStack, PY26, SkipTest)
 
@@ -16,7 +16,8 @@ import xml.etree.ElementTree as ET
 import yaml
 
 
-def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
+def construct_valid_ovf_env(data=None, pubkeys=None,
+                            userdata=None, platform_settings=None):
     if data is None:
         data = {'HostName': 'FOOHOST'}
     if pubkeys is None:
@@ -66,10 +67,12 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
   xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
  <KmsServerHostname>kms.core.windows.net</KmsServerHostname>
  <ProvisionGuestAgent>false</ProvisionGuestAgent>
- <GuestAgentPackageName i:nil="true" />
- </PlatformSettings></wa:PlatformSettingsSection>
-</Environment>
-    """
+ <GuestAgentPackageName i:nil="true" />"""
+    if platform_settings:
+        for k, v in platform_settings.items():
+            content += "<%s>%s</%s>\n" % (k, v, k)
+    content += """</PlatformSettings></wa:PlatformSettingsSection>
+</Environment>"""
 
     return content
 
@@ -1105,6 +1108,148 @@ class TestAzureNetExists(CiTestCase):
         """DataSourceAzureNet must exist for old obj.pkl files
            that reference it."""
         self.assertTrue(hasattr(dsaz, "DataSourceAzureNet"))
+
+
+@mock.patch('cloudinit.sources.DataSourceAzure.util.subp')
+@mock.patch.object(dsaz, 'get_hostname')
+@mock.patch.object(dsaz, 'set_hostname')
+class TestAzureDataSourcePreprovisioning(CiTestCase):
+
+    def setUp(self):
+        super(TestAzureDataSourcePreprovisioning, self).setUp()
+        tmp = self.tmp_dir()
+        self.waagent_d = self.tmp_path('/var/lib/waagent', tmp)
+        self.paths = helpers.Paths({'cloud_dir': tmp})
+        dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
+
+    def test_read_azure_ovf_with_true_flag(self, *args):
+        """The read_azure_ovf method should set the PreprovisionedVM
+           cfg flag if the proper setting is present."""
+        content = construct_valid_ovf_env(
+            platform_settings={"PreprovisionedVm": "True"})
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertTrue(cfg['PreprovisionedVm'])
+
+    def test_read_azure_ovf_with_false_flag(self, *args):
+        """The read_azure_ovf method should set the PreprovisionedVM
+           cfg flag to false if the proper setting is false."""
+        content = construct_valid_ovf_env(
+            platform_settings={"PreprovisionedVm": "False"})
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertFalse(cfg['PreprovisionedVm'])
+
+    def test_read_azure_ovf_without_flag(self, *args):
+        """The read_azure_ovf method should not set the
+           PreprovisionedVM cfg flag."""
+        content = construct_valid_ovf_env()
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertFalse(cfg['PreprovisionedVm'])
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.is_FreeBSD')
+    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
+    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+    @mock.patch('requests.Session.request')
+    def test_poll_imds_returns_ovf_env(self, fake_resp, m_dhcp, m_net,
+                                       m_is_bsd, *args):
+        """The _poll_imds method should return the ovf_env.xml."""
+        m_is_bsd.return_value = False
+        m_dhcp.return_value = [{
+            'interface': 'eth9', 'fixed-address': '192.168.2.9',
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0'}]
+        url = 'http://{0}/metadata/reprovisiondata?api-version=2017-04-02'
+        host = "169.254.169.254"
+        full_url = url.format(host)
+        fake_resp.return_value = mock.MagicMock(status_code=200, text="ovf")
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        self.assertTrue(len(dsa._poll_imds()) > 0)
+        self.assertEqual(fake_resp.call_args_list,
+                         [mock.call(allow_redirects=True,
+                                    headers={'Metadata': 'true',
+                                             'User-Agent':
+                                             'Cloud-Init/%s' % vs()
+                                             }, method='GET', timeout=60.0,
+                                    url=full_url),
+                          mock.call(allow_redirects=True,
+                                    headers={'Metadata': 'true',
+                                             'User-Agent':
+                                             'Cloud-Init/%s' % vs()
+                                             }, method='GET', url=full_url)])
+        self.assertEqual(m_dhcp.call_count, 1)
+        m_net.assert_any_call(
+            broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
+            prefix_or_mask='255.255.255.0', router='192.168.2.1')
+        self.assertEqual(m_net.call_count, 1)
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.is_FreeBSD')
+    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
+    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+    @mock.patch('requests.Session.request')
+    def test__reprovision_calls__poll_imds(self, fake_resp, m_dhcp, m_net,
+                                           m_is_bsd, *args):
+        """The _reprovision method should call poll IMDS."""
+        m_is_bsd.return_value = False
+        m_dhcp.return_value = [{
+            'interface': 'eth9', 'fixed-address': '192.168.2.9',
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+            'unknown-245': '624c3620'}]
+        url = 'http://{0}/metadata/reprovisiondata?api-version=2017-04-02'
+        host = "169.254.169.254"
+        full_url = url.format(host)
+        hostname = "myhost"
+        username = "myuser"
+        odata = {'HostName': hostname, 'UserName': username}
+        content = construct_valid_ovf_env(data=odata)
+        fake_resp.return_value = mock.MagicMock(status_code=200, text=content)
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        md, ud, cfg, d = dsa._reprovision()
+        self.assertEqual(md['local-hostname'], hostname)
+        self.assertEqual(cfg['system_info']['default_user']['name'], username)
+        self.assertEqual(fake_resp.call_args_list,
+                         [mock.call(allow_redirects=True,
+                                    headers={'Metadata': 'true',
+                                             'User-Agent':
+                                             'Cloud-Init/%s' % vs()},
+                                    method='GET', timeout=60.0, url=full_url),
+                          mock.call(allow_redirects=True,
+                                    headers={'Metadata': 'true',
+                                             'User-Agent':
+                                             'Cloud-Init/%s' % vs()},
+                                    method='GET', url=full_url)])
+        self.assertEqual(m_dhcp.call_count, 1)
+        m_net.assert_any_call(
+            broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
+            prefix_or_mask='255.255.255.0', router='192.168.2.1')
+        self.assertEqual(m_net.call_count, 1)
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+    @mock.patch('os.path.isfile')
+    def test__should_reprovision_with_true_cfg(self, isfile, write_f, *args):
+        """The _should_reprovision method should return true with config
+           flag present."""
+        isfile.return_value = False
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        self.assertTrue(dsa._should_reprovision(
+            (None, None, {'PreprovisionedVm': True}, None)))
+
+    @mock.patch('os.path.isfile')
+    def test__should_reprovision_with_file_existing(self, isfile, *args):
+        """The _should_reprovision method should return True if the sentinal
+           exists."""
+        isfile.return_value = True
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        self.assertTrue(dsa._should_reprovision(
+            (None, None, {'preprovisionedvm': False}, None)))
+
+    @mock.patch('os.path.isfile')
+    def test__should_reprovision_returns_false(self, isfile, *args):
+        """The _should_reprovision method should return False
+           if config and sentinal are not present."""
+        isfile.return_value = False
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        self.assertFalse(dsa._should_reprovision((None, None, {}, None)))
 
 
 # vi: ts=4 expandtab
