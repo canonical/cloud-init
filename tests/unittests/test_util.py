@@ -623,6 +623,7 @@ class TestSubp(helpers.CiTestCase):
     utf8_valid = b'start \xc3\xa9 end'
     utf8_valid_2 = b'd\xc3\xa9j\xc8\xa7'
     printenv = [BASH, '-c', 'for n in "$@"; do echo "$n=${!n}"; done', '--']
+    bogus_command = 'this-is-not-expected-to-be-a-program-name'
 
     def printf_cmd(self, *args):
         # bash's printf supports \xaa.  So does /usr/bin/printf
@@ -711,6 +712,20 @@ class TestSubp(helpers.CiTestCase):
         (out, err) = util.subp(self.stdin2out, data=b'', capture=False)
         self.assertIsNone(err)
         self.assertIsNone(out)
+
+    def test_exception_has_out_err_are_bytes_if_decode_false(self):
+        """Raised exc should have stderr, stdout as bytes if no decode."""
+        with self.assertRaises(util.ProcessExecutionError) as cm:
+            util.subp([self.bogus_command], decode=False)
+        self.assertTrue(isinstance(cm.exception.stdout, bytes))
+        self.assertTrue(isinstance(cm.exception.stderr, bytes))
+
+    def test_exception_has_out_err_are_bytes_if_decode_true(self):
+        """Raised exc should have stderr, stdout as string if no decode."""
+        with self.assertRaises(util.ProcessExecutionError) as cm:
+            util.subp([self.bogus_command], decode=True)
+        self.assertTrue(isinstance(cm.exception.stdout, six.string_types))
+        self.assertTrue(isinstance(cm.exception.stderr, six.string_types))
 
     def test_bunch_of_slashes_in_path(self):
         self.assertEqual("/target/my/path/",
