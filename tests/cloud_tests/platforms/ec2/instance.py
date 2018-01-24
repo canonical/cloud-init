@@ -46,9 +46,15 @@ class EC2Instance(Instance):
         may return empty string.
         """
         try:
-            return self.instance.console_output()['Output'].encode()
+            # OutputBytes comes from platform._decode_console_output_as_bytes
+            response = self.instance.console_output()
+            return response['OutputBytes']
         except KeyError:
-            return b''
+            if 'Output' in response:
+                msg = ("'OutputBytes' did not exist in console_output() but "
+                       "'Output' did: %s..." % response['Output'][0:128])
+                raise util.PlatformError('console_log', msg)
+            return ('No Console Output [%s]' % self.instance).encode()
 
     def destroy(self):
         """Clean up instance."""

@@ -22,6 +22,6 @@ collect_scripts:
     grep '^server' /etc/ntp.conf
   ntpq_servers: |
     #!/bin/sh
-    ntpq -p -w
+    ntpq -p -w -n
 
 # vi: ts=4 expandtab

@@ -232,6 +232,11 @@ class TestDsIdentify(CiTestCase):
         self._test_ds_found('ConfigDrive')
         return
 
+    def test_config_drive_upper(self):
+        """ConfigDrive datasource has a disk with LABEL=CONFIG-2."""
+        self._test_ds_found('ConfigDriveUpper')
+        return
+
     def test_policy_disabled(self):
         """A Builtin policy of 'disabled' should return not found.
 
@@ -500,6 +505,18 @@ VALID_CFG = {
                   {'DEVNAME': 'vda2', 'TYPE': 'ext4',
                    'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()},
                   {'DEVNAME': 'vdb', 'TYPE': 'vfat', 'LABEL': 'config-2'}])
+             },
+        ],
+    },
+    'ConfigDriveUpper': {
+        'ds': 'ConfigDrive',
+        'mocks': [
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'vda2', 'TYPE': 'ext4',
+                   'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'vdb', 'TYPE': 'vfat', 'LABEL': 'CONFIG-2'}])
              },
         ],
     },

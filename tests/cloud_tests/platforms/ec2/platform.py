@@ -6,6 +6,8 @@ import os
 
 import boto3
 import botocore
+from botocore import session, handlers
+import base64
 
 from ..platforms import Platform
 from .image import EC2Image
@@ -28,9 +30,10 @@ class EC2Platform(Platform):
         self.instance_type = config['instance-type']
 
         try:
-            self.ec2_client = boto3.client('ec2')
-            self.ec2_resource = boto3.resource('ec2')
-            self.ec2_region = boto3.Session().region_name
+            b3session = get_session()
+            self.ec2_client = b3session.client('ec2')
+            self.ec2_resource = b3session.resource('ec2')
+            self.ec2_region = b3session.region_name
             self.key_name = self._upload_public_key(config)
         except botocore.exceptions.NoRegionError:
             raise RuntimeError(
@@ -227,5 +230,29 @@ class EC2Platform(Platform):
                                         PublicKeyMaterial=public_key)
 
         return self.tag
+
+
+def _decode_console_output_as_bytes(parsed, **kwargs):
+    """Provide console output as bytes in OutputBytes.
+
+       For this to be useful, the session has to have had the
+       decode_console_output handler unregistered already.
+
+       https://github.com/boto/botocore/issues/1351 ."""
+    if 'Output' not in parsed:
+        return
+    orig = parsed['Output']
+    handlers.decode_console_output(parsed, **kwargs)
+    parsed['OutputBytes'] = base64.b64decode(orig)
+
+
+def get_session():
+    mysess = session.get_session()
+    mysess.unregister('after-call.ec2.GetConsoleOutput',
+                      handlers.decode_console_output)
+    mysess.register('after-call.ec2.GetConsoleOutput',
+                    _decode_console_output_as_bytes)
+    return boto3.Session(botocore_session=mysess)
+
 
 # vi: ts=4 expandtab

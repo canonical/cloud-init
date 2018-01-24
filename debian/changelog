@@ -1,3 +1,17 @@
+cloud-init (17.2-20-g32a6a176-0ubuntu1) bionic; urgency=medium
+
+  * New upstream snapshot.
+    - tests: Fix EC2 Platform to return console output as bytes.
+    - tests: Fix attempted use of /run in a test case.
+    - GCE: Improvements and changes to ssh key behavior for default user.
+      [Max Illfelder] (LP: #1670456, #1707033, #1707037, #1707039)
+    - subp: make ProcessExecutionError have expected types in stderr, stdout.
+    - tests: when querying ntp server, do not do dns resolution.
+    - Recognize uppercase vfat disk labels [James Penick] (LP: #1598783)
+    - tests: remove zesty as supported OS to test
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 23 Jan 2018 20:10:44 -0700
+
 cloud-init (17.2-13-g6299e8d0-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
