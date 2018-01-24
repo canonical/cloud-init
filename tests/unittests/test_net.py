@@ -2948,4 +2948,16 @@ class TestRenameInterfaces(CiTestCase):
         mock_subp.assert_has_calls(expected)
 
 
+class TestNetworkState(CiTestCase):
+
+    def test_bcast_addr(self):
+        """Test mask_and_ipv4_to_bcast_addr proper execution."""
+        bcast_addr = network_state.mask_and_ipv4_to_bcast_addr
+        self.assertEqual("192.168.1.255",
+                         bcast_addr("255.255.255.0", "192.168.1.1"))
+        self.assertEqual("128.42.7.255",
+                         bcast_addr("255.255.248.0", "128.42.5.4"))
+        self.assertEqual("10.1.21.255",
+                         bcast_addr("255.255.255.0", "10.1.21.4"))
+
 # vi: ts=4 expandtab

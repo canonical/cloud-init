@@ -14,7 +14,7 @@ import time
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.net import dhcp
+from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
@@ -102,22 +102,13 @@ class DataSourceEc2(sources.DataSource):
             if util.is_FreeBSD():
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            dhcp_leases = dhcp.maybe_perform_dhcp_discovery(
-                self.fallback_interface)
-            if not dhcp_leases:
-                # DataSourceEc2Local failed in init-local stage. DataSourceEc2
-                # will still run in init-network stage.
+            try:
+                with EphemeralDHCPv4(self.fallback_interface):
+                    return util.log_time(
+                        logfunc=LOG.debug, msg='Crawl of metadata service',
+                        func=self._crawl_metadata)
+            except NoDHCPLeaseError:
                 return False
-            dhcp_opts = dhcp_leases[-1]
-            net_params = {'interface': dhcp_opts.get('interface'),
-                          'ip': dhcp_opts.get('fixed-address'),
-                          'prefix_or_mask': dhcp_opts.get('subnet-mask'),
-                          'broadcast': dhcp_opts.get('broadcast-address'),
-                          'router': dhcp_opts.get('routers')}
-            with net.EphemeralIPv4Network(**net_params):
-                return util.log_time(
-                    logfunc=LOG.debug, msg='Crawl of metadata service',
-                    func=self._crawl_metadata)
         else:
             return self._crawl_metadata()
 
