@@ -194,7 +194,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         mock_ug_util.extract_default.return_value = 'ubuntu', None
         ubuntu_ds = DataSourceGCE.DataSourceGCE(
             settings.CFG_BUILTIN, self._make_distro('ubuntu'),
-            helpers.Paths({}))
+            helpers.Paths({'run_dir': self.tmp_dir()}))
 
         valid_key = 'ssh-rsa VALID {0}'
         invalid_key = 'ssh-rsa INVALID {0}'
