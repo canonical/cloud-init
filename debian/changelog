@@ -1,4 +1,4 @@
-cloud-init (17.2-25-gc03bdd3d-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.2-25-gc03bdd3d-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - Azure VM Preprovisioning support. [Douglas Jordan] (LP: #1734991)
