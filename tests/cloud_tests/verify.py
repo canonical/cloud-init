@@ -29,7 +29,7 @@ def verify_data(base_dir, tests):
         data = {}
         test_dir = os.path.join(base_dir, test_name)
         for script_name in os.listdir(test_dir):
-            with open(os.path.join(test_dir, script_name), 'r') as fp:
+            with open(os.path.join(test_dir, script_name), 'rb') as fp:
                 data[script_name] = fp.read()
 
         # get test suite and launch tests
