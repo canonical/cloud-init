@@ -93,6 +93,19 @@ class TestStatus(CiTestCase):
         self.assertTrue(is_disabled, 'expected disabled cloud-init')
         self.assertEqual('Cloud-init disabled by cloud-init-generator', reason)
 
+    def test__is_cloudinit_disabled_false_when_enabled_in_systemd(self):
+        '''Report enabled when systemd generator creates the enabled file.'''
+        enabled_file = os.path.join(self.paths.run_dir, 'enabled')
+        write_file(enabled_file, '')
+        (is_disabled, reason) = wrap_and_call(
+            'cloudinit.cmd.status',
+            {'uses_systemd': True,
+             'get_cmdline': 'something ignored'},
+            status._is_cloudinit_disabled, self.disable_file, self.paths)
+        self.assertFalse(is_disabled, 'expected enabled cloud-init')
+        self.assertEqual(
+            'Cloud-init enabled by systemd cloud-init-generator', reason)
+
     def test_status_returns_not_run(self):
         '''When status.json does not exist yet, return 'not run'.'''
         self.assertFalse(
@@ -137,8 +150,9 @@ class TestStatus(CiTestCase):
         self.assertEqual(expected, m_stdout.getvalue())
 
     def test_status_returns_running(self):
-        '''Report running when status file exists but isn't finished.'''
-        write_json(self.status_file, {'v1': {'init': {'finished': None}}})
+        '''Report running when status exists with an unfinished stage.'''
+        write_json(self.status_file,
+                   {'v1': {'init': {'start': 1, 'finished': None}}})
         cmdargs = myargs(long=False, wait=False)
         with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
             retcode = wrap_and_call(
@@ -338,7 +352,8 @@ class TestStatus(CiTestCase):
 
     def test_status_main(self):
         '''status.main can be run as a standalone script.'''
-        write_json(self.status_file, {'v1': {'init': {'finished': None}}})
+        write_json(self.status_file,
+                   {'v1': {'init': {'start': 1, 'finished': None}}})
         with self.assertRaises(SystemExit) as context_manager:
             with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
                 wrap_and_call(

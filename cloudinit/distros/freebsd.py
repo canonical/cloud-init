@@ -116,6 +116,7 @@ class Distro(distros.Distro):
         (out, err) = util.subp(['ifconfig', '-a'])
         ifconfigoutput = [x for x in (out.strip()).splitlines()
                           if len(x.split()) > 0]
+        bsddev = 'NOT_FOUND'
         for line in ifconfigoutput:
             m = re.match('^\w+', line)
             if m:
@@ -347,15 +348,9 @@ class Distro(distros.Distro):
             bymac[Distro.get_interface_mac(n)] = {
                 'name': n, 'up': self.is_up(n), 'downable': None}
 
+        nics_with_addresses = set()
         if check_downable:
-            nics_with_addresses = set()
-            ipv6 = self.get_ipv6()
-            ipv4 = self.get_ipv4()
-            for bytes_out in (ipv6, ipv4):
-                for i in ipv6:
-                    nics_with_addresses.update(i)
-                for i in ipv4:
-                    nics_with_addresses.update(i)
+            nics_with_addresses = set(self.get_ipv4() + self.get_ipv6())
 
         for d in bymac.values():
             d['downable'] = (d['up'] is False or
