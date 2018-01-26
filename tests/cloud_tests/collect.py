@@ -44,8 +44,9 @@ def collect_console(instance, base_dir):
     LOG.debug('getting console log for %s to %s', instance, logfile)
     try:
         data = instance.console_log()
-    except NotImplementedError:
-        data = b'instance.console_log: not implemented'
+    except NotImplementedError as e:
+        # args[0] is hacky, but thats all I see to get at the message.
+        data = b'NotImplementedError:' + e.args[0].encode()
     with open(logfile, "wb") as fp:
         fp.write(data)
 

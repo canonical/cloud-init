@@ -6,7 +6,9 @@ import os
 import shutil
 from tempfile import mkdtemp
 
-from cloudinit.util import subp, ProcessExecutionError
+from cloudinit.util import load_yaml, subp, ProcessExecutionError, which
+from tests.cloud_tests import LOG
+from tests.cloud_tests.util import PlatformError
 
 from ..instances import Instance
 
@@ -15,6 +17,8 @@ class LXDInstance(Instance):
     """LXD container backed instance."""
 
     platform_name = "lxd"
+    _console_log_method = None
+    _console_log_file = None
 
     def __init__(self, platform, name, properties, config, features,
                  pylxd_container):
@@ -30,29 +34,14 @@ class LXDInstance(Instance):
         super(LXDInstance, self).__init__(
             platform, name, properties, config, features)
         self.tmpd = mkdtemp(prefix="%s-%s" % (type(self).__name__, name))
-        self._setup_console_log()
         self.name = name
+        self._setup_console_log()
 
     @property
     def pylxd_container(self):
         """Property function."""
         self._pylxd_container.sync()
         return self._pylxd_container
-
-    def _setup_console_log(self):
-        logf = os.path.join(self.tmpd, "console.log")
-
-        # doing this ensures we can read it. Otherwise it ends up root:root.
-        with open(logf, "w") as fp:
-            fp.write("# %s\n" % self.name)
-
-        cfg = "lxc.console.logfile=%s" % logf
-        orig = self._pylxd_container.config.get('raw.lxc', "")
-        if orig:
-            orig += "\n"
-        self._pylxd_container.config['raw.lxc'] = orig + cfg
-        self._pylxd_container.save()
-        self._console_log_file = logf
 
     def _execute(self, command, stdin=None, env=None):
         if env is None:
@@ -97,19 +86,80 @@ class LXDInstance(Instance):
         """
         self.pylxd_container.files.put(remote_path, data)
 
+    @property
+    def console_log_method(self):
+        if self._console_log_method is not None:
+            return self._console_log_method
+
+        client = which('lxc')
+        if not client:
+            raise PlatformError("No 'lxc' client.")
+
+        elif _has_proper_console_support():
+            self._console_log_method = 'show-log'
+        elif client.startswith("/snap"):
+            self._console_log_method = 'logfile-snap'
+        else:
+            self._console_log_method = 'logfile-tmp'
+
+        LOG.debug("Set console log method to %s", self._console_log_method)
+        return self._console_log_method
+
+    def _setup_console_log(self):
+        method = self.console_log_method
+        if not method.startswith("logfile-"):
+            return
+
+        if method == "logfile-snap":
+            log_dir = "/var/snap/lxd/common/consoles"
+            if not os.path.exists(log_dir):
+                raise PlatformError(
+                    "Unable to log with snap lxc.  Please run:\n"
+                    "  sudo mkdir --mode=1777 -p %s" % log_dir)
+        elif method == "logfile-tmp":
+            log_dir = "/tmp"
+        else:
+            raise PlatformError(
+                "Unexpected value for console method: %s" % method)
+
+        # doing this ensures we can read it. Otherwise it ends up root:root.
+        log_file = os.path.join(log_dir, self.name)
+        with open(log_file, "w") as fp:
+            fp.write("# %s\n" % self.name)
+
+        cfg = "lxc.console.logfile=%s" % log_file
+        orig = self._pylxd_container.config.get('raw.lxc', "")
+        if orig:
+            orig += "\n"
+        self._pylxd_container.config['raw.lxc'] = orig + cfg
+        self._pylxd_container.save()
+        self._console_log_file = log_file
+
     def console_log(self):
         """Console log.
 
-        @return_value: bytes of this instance’s console
+        @return_value: bytes of this instance's console
         """
-        if not os.path.exists(self._console_log_file):
-            raise NotImplementedError(
-                "Console log '%s' does not exist. If this is a remote "
-                "lxc, then this is really NotImplementedError.  If it is "
-                "A local lxc, then this is a RuntimeError."
-                "https://github.com/lxc/lxd/issues/1129")
-        with open(self._console_log_file, "rb") as fp:
-            return fp.read()
+
+        if self._console_log_file:
+            if not os.path.exists(self._console_log_file):
+                raise NotImplementedError(
+                    "Console log '%s' does not exist. If this is a remote "
+                    "lxc, then this is really NotImplementedError.  If it is "
+                    "A local lxc, then this is a RuntimeError."
+                    "https://github.com/lxc/lxd/issues/1129")
+            with open(self._console_log_file, "rb") as fp:
+                return fp.read()
+
+        try:
+            stdout, stderr = subp(
+                ['lxc', 'console', '--show-log', self.name], decode=False)
+            return stdout
+        except ProcessExecutionError as e:
+            raise PlatformError(
+                "console log",
+                "Console log failed [%d]: stdout=%s stderr=%s" % (
+                    e.exit_code, e.stdout, e.stderr))
 
     def reboot(self, wait=True):
         """Reboot instance."""
@@ -146,7 +196,37 @@ class LXDInstance(Instance):
         if self.platform.container_exists(self.name):
             raise OSError('container {} was not properly removed'
                           .format(self.name))
+        if self._console_log_file and os.path.exists(self._console_log_file):
+            os.unlink(self._console_log_file)
         shutil.rmtree(self.tmpd)
         super(LXDInstance, self).destroy()
+
+
+def _has_proper_console_support():
+    stdout, _ = subp(['lxc', 'info'])
+    info = load_yaml(stdout)
+    reason = None
+    if 'console' not in info.get('api_extensions', []):
+        reason = "LXD server does not support console api extension"
+    else:
+        dver = info.get('environment', {}).get('driver_version', "")
+        if dver.startswith("2.") or dver.startwith("1."):
+            reason = "LXD Driver version not 3.x+ (%s)" % dver
+        else:
+            try:
+                stdout, stderr = subp(['lxc', 'console', '--help'],
+                                      decode=False)
+                if not (b'console' in stdout and b'log' in stdout):
+                    reason = "no '--log' in lxc console --help"
+            except ProcessExecutionError as e:
+                reason = "no 'console' command in lxc client"
+
+    if reason:
+        LOG.debug("no console-support: %s", reason)
+        return False
+    else:
+        LOG.debug("console-support looks good")
+        return True
+
 
 # vi: ts=4 expandtab
