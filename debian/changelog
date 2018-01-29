@@ -1,6 +1,8 @@
 cloud-init (17.1-46-g7acc9e68-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
 
   * debian/patches/ds-identify-behavior-xenial.patch: refresh patch.
+  * debian/grub-legacy-ec2.install: install post(inst|rm) files correctly.
+    [Simon Deziel] (LP: #1581416)
 
  -- Scott Moser <smoser@ubuntu.com>  Tue, 12 Dec 2017 14:29:46 -0500
 
