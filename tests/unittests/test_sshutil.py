@@ -126,6 +126,48 @@ class TestAuthKeyLineParser(test_helpers.TestCase):
         self.assertFalse(key.valid())
 
 
+class TestUpdateAuthorizedKeys(test_helpers.TestCase):
+
+    def test_new_keys_replace(self):
+        """new entries with the same base64 should replace old."""
+        orig_entries = [
+            ' '.join(('rsa', VALID_CONTENT['rsa'], 'orig_comment1')),
+            ' '.join(('dsa', VALID_CONTENT['dsa'], 'orig_comment2'))]
+
+        new_entries = [
+            ' '.join(('rsa', VALID_CONTENT['rsa'], 'new_comment1')), ]
+
+        expected = '\n'.join([new_entries[0], orig_entries[1]]) + '\n'
+
+        parser = ssh_util.AuthKeyLineParser()
+        found = ssh_util.update_authorized_keys(
+            [parser.parse(p) for p in orig_entries],
+            [parser.parse(p) for p in new_entries])
+
+        self.assertEqual(expected, found)
+
+    def test_new_invalid_keys_are_ignored(self):
+        """new entries that are invalid should be skipped."""
+        orig_entries = [
+            ' '.join(('rsa', VALID_CONTENT['rsa'], 'orig_comment1')),
+            ' '.join(('dsa', VALID_CONTENT['dsa'], 'orig_comment2'))]
+
+        new_entries = [
+            ' '.join(('rsa', VALID_CONTENT['rsa'], 'new_comment1')),
+            'xxx-invalid-thing1',
+            'xxx-invalid-blob2'
+        ]
+
+        expected = '\n'.join([new_entries[0], orig_entries[1]]) + '\n'
+
+        parser = ssh_util.AuthKeyLineParser()
+        found = ssh_util.update_authorized_keys(
+            [parser.parse(p) for p in orig_entries],
+            [parser.parse(p) for p in new_entries])
+
+        self.assertEqual(expected, found)
+
+
 class TestParseSSHConfig(test_helpers.TestCase):
 
     def setUp(self):
