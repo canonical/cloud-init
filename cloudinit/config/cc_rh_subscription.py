@@ -276,9 +276,8 @@ class SubscriptionManager(object):
         cmd = ['attach', '--auto']
         try:
             return_out, return_err = self._sub_man_cli(cmd)
-        except util.ProcessExecutionError:
-            self.log_warn("Auto-attach failed with: "
-                          "{0}]".format(return_err.strip()))
+        except util.ProcessExecutionError as e:
+            self.log_warn("Auto-attach failed with: {0}".format(e))
             return False
         for line in return_out.split("\n"):
             if line is not "":

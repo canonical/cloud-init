@@ -24,6 +24,13 @@ def collect_script(instance, base_dir, script, script_name):
     (out, err, exit) = instance.run_script(
         script.encode(), rcs=False,
         description='collect: {}'.format(script_name))
+    if err:
+        LOG.debug("collect script %s had stderr: %s", script_name, err)
+    if not isinstance(out, bytes):
+        raise util.PlatformError(
+            "Collection of '%s' returned type %s, expected bytes: %s" %
+            (script_name, type(out), out))
+
     c_util.write_file(os.path.join(base_dir, script_name), out)
 
 

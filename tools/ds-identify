@@ -664,7 +664,9 @@ is_cdrom_ovf() {
     esac
 
     # fast path known 'OVF' labels
-    [ "$label" = "OVF-TRANSPORT" -o "$label" = "ovf-transport" ] && return 0
+    case "$label" in
+        OVF-TRANSPORT|ovf-transport|OVFENV|ovfenv) return 0;;
+    esac
 
     # explicitly skip known labels of other types. rd_rdfe is azure.
     case "$label" in

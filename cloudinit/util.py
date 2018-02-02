@@ -1587,6 +1587,10 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
         mtypes = list(mtype)
     elif mtype is None:
         mtypes = None
+    else:
+        raise TypeError(
+            'Unsupported type provided for mtype parameter: {_type}'.format(
+                _type=type(mtype)))
 
     # clean up 'mtype' input a bit based on platform.
     platsys = platform.system().lower()
