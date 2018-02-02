@@ -6,8 +6,8 @@ Forwarded: not-needed
 Author: Scott Moser <smoser@ubuntu.com>
 --- a/cloudinit/sources/DataSourceAzure.py
 +++ b/cloudinit/sources/DataSourceAzure.py
-@@ -185,7 +185,7 @@ if util.is_FreeBSD():
-     ]
+@@ -191,7 +191,7 @@ if util.is_FreeBSD():
+         LOG.debug("resource disk is None")
  
  BUILTIN_DS_CONFIG = {
 -    'agent_command': AGENT_START_BUILTIN,

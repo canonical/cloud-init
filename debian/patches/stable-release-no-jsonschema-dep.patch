@@ -9,7 +9,7 @@ Author: Scott Moser <smoser@ubuntu.com>
 
 --- a/requirements.txt
 +++ b/requirements.txt
-@@ -34,7 +34,8 @@ requests
+@@ -31,7 +31,8 @@ requests
  jsonpatch
  
  # For validating cloud-config sections per schema definitions
