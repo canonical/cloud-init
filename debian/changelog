@@ -1,10 +1,62 @@
-cloud-init (17.1-46-g7acc9e68-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+cloud-init (17.2-30-gf7deaf15-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/patches/ds-identify-behavior-xenial.patch: refresh patch.
   * debian/grub-legacy-ec2.install: install post(inst|rm) files correctly.
     [Simon Deziel] (LP: #1581416)
+  * New upstream snapshot (LP: #1747059)
+    - docs: Update RTD content for cloud-init subcommands.
+    - OVF: Extend well-known labels to include OVFENV.
+    - Fix potential cases of uninitialized variables.
+    - tests: Collect script output as binary, collect systemd journal, fix lxd.
+    - HACKING.rst: mention setting user name and email via git config.
+    - Azure VM Preprovisioning support. [Douglas Jordan]
+    - tools/read-version: Fix read-version when in a git worktree.
+    - docs: Fix typos in docs and one debug message. [Florian Grignon]
+    - btrfs: support resizing if root is mounted ro.
+      [Robert Schweikert]
+    - OpenNebula: Improve network configuration support.
+      [Akihiko Ota]
+    - tests: Fix EC2 Platform to return console output as bytes.
+    - tests: Fix attempted use of /run in a test case.
+    - GCE: Improvements and changes to ssh key behavior for default user.
+      [Max Illfelder]
+    - subp: make ProcessExecutionError have expected types in stderr, stdout.
+    - tests: when querying ntp server, do not do dns resolution.
+    - Recognize uppercase vfat disk labels [James Penick]
+    - tests: remove zesty as supported OS to test
+    - Do not log warning on config files that represent None.
+    - tests: Use git hash pip dependency format for pylxd.
+    - tests: add integration requirements text file
+    - MAAS: add check_instance_id based off oauth tokens.
+    - tests: update apt sources list test
+    - tests: clean up image properties
+    - tests: rename test ssh keys to avoid appearance of leaking private keys.
+    - tests: Enable AWS EC2 Integration Testing
+    - cli: cloud-init clean handles symlinks
+    - SUSE: Add a basic test of network config rendering. [Robert Schweikert]
+    - Azure: Only bounce network when necessary.
+    - lint: Fix lints seen by pylint version 1.8.1.
+    - cli: Fix error in cloud-init modules --mode=init.
+    - release 17.2
+    - ds-identify: failure in NoCloud due to unset variable usage.
+    - tests: fix collect_console when not implemented
+    - ec2: Use instance-identity doc for region and instance-id
+      [Andrew Jorgensen]
+    - tests: remove leaked tmp files in config drive tests.
+    - setup.py: Do not include rendered files in SOURCES.txt
+    - SUSE: remove delta in systemd local template for SUSE [Robert Schweikert]
+    - tests: move to using tox 1.7.5
+    - OVF: improve ds-identify to support finding OVF iso transport.
+    - VMware: Support for user provided pre and post-customization scripts
+      [Maitreyee Saikia]
+    - citest: In NoCloudKVM provide keys via metadata not userdata.
+    - pylint: Update pylint to 1.7.1, run on tests/ and tools and fix
+      complaints.
+    - Datasources: Formalize DataSource get_data and related properties.
+    - cli: Add clean and status subcommands
+    - tests: consolidate platforms into specific dirs
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 12 Dec 2017 14:29:46 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 02 Feb 2018 11:11:36 -0700
 
 cloud-init (17.1-46-g7acc9e68-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
