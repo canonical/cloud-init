@@ -1,4 +1,4 @@
-cloud-init (17.2-30-gf7deaf15-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.2-30-gf7deaf15-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - docs: Update RTD content for cloud-init subcommands.
@@ -7,7 +7,7 @@ cloud-init (17.2-30-gf7deaf15-0ubuntu1) UNRELEASED; urgency=medium
     - tests: Collect script output as binary, collect systemd journal, fix lxd.
     - HACKING.rst: mention setting user name and email via git config.
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 02 Feb 2018 09:50:41 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 02 Feb 2018 09:51:14 -0700
 
 cloud-init (17.2-25-gc03bdd3d-0ubuntu1) bionic; urgency=medium
 
