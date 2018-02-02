@@ -6,6 +6,8 @@ import os
 import shutil
 from tempfile import mkdtemp
 
+from cloudinit.util import subp, ProcessExecutionError
+
 from ..instances import Instance
 
 
@@ -29,6 +31,7 @@ class LXDInstance(Instance):
             platform, name, properties, config, features)
         self.tmpd = mkdtemp(prefix="%s-%s" % (type(self).__name__, name))
         self._setup_console_log()
+        self.name = name
 
     @property
     def pylxd_container(self):
@@ -55,33 +58,25 @@ class LXDInstance(Instance):
         if env is None:
             env = {}
 
-        if stdin is not None:
-            # pylxd does not support input to execute.
-            # https://github.com/lxc/pylxd/issues/244
-            #
-            # The solution here is write a tmp file in the container
-            # and then execute a shell that sets it standard in to
-            # be from that file, removes it, and calls the comand.
-            tmpf = self.tmpfile()
-            self.write_data(tmpf, stdin)
-            ncmd = 'exec <"{tmpf}"; rm -f "{tmpf}"; exec "$@"'
-            command = (['sh', '-c', ncmd.format(tmpf=tmpf), 'stdinhack'] +
-                       list(command))
+        env_args = []
+        if env:
+            env_args = ['env'] + ["%s=%s" for k, v in env.items()]
 
         # ensure instance is running and execute the command
         self.start()
-        # execute returns a ContainerExecuteResult, named tuple
-        # (exit_code, stdout, stderr)
-        res = self.pylxd_container.execute(command, environment=env)
 
-        # get out, exit and err from pylxd return
-        if not hasattr(res, 'exit_code'):
-            # pylxd 2.1.3 and earlier only return out and err, no exit
-            raise RuntimeError(
-                "No 'exit_code' in pylxd.container.execute return.\n"
-                "pylxd > 2.2 is required.")
+        # Use cmdline client due to https://github.com/lxc/pylxd/issues/268
+        exit_code = 0
+        try:
+            stdout, stderr = subp(
+                ['lxc', 'exec', self.name, '--'] + env_args + list(command),
+                data=stdin, decode=False)
+        except ProcessExecutionError as e:
+            exit_code = e.exit_code
+            stdout = e.stdout
+            stderr = e.stderr
 
-        return res.stdout, res.stderr, res.exit_code
+        return stdout, stderr, exit_code
 
     def read_data(self, remote_path, decode=False):
         """Read data from instance filesystem.

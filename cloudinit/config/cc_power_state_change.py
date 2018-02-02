@@ -194,6 +194,7 @@ def doexit(sysexit):
 
 
 def execmd(exe_args, output=None, data_in=None):
+    ret = 1
     try:
         proc = subprocess.Popen(exe_args, stdin=subprocess.PIPE,
                                 stdout=output, stderr=subprocess.STDOUT)

@@ -338,7 +338,7 @@ class TestDsIdentify(CiTestCase):
         self._test_ds_found('OVF-vmware-customization')
 
     def test_ovf_on_vmware_iso_found_by_cdrom_with_matching_fs_label(self):
-        """OVF is identified when iso9660 cdrom  label has ovf-transport."""
+        """OVF is identified by well-known iso9660 labels."""
         ovf_cdrom_by_label = copy.deepcopy(VALID_CFG['OVF'])
         # Unset matching cdrom ovf schema content
         ovf_cdrom_by_label['files']['dev/sr0'] = 'No content match'
@@ -346,10 +346,12 @@ class TestDsIdentify(CiTestCase):
             ovf_cdrom_by_label, rc=RC_NOT_FOUND, policy_dmi="disabled")
 
         # Add recognized labels
-        for valid_fs_label in ['ovf-transport', 'OVF-TRANSPORT']:
+        valid_ovf_labels = ['ovf-transport', 'OVF-TRANSPORT',
+                            "OVFENV", "ovfenv"]
+        for valid_ovf_label in valid_ovf_labels:
             ovf_cdrom_by_label['mocks'][0]['out'] = blkid_out([
                 {'DEVNAME': 'sr0', 'TYPE': 'iso9660',
-                 'LABEL': valid_fs_label}])
+                 'LABEL': valid_ovf_label}])
             self._check_via_dict(
                 ovf_cdrom_by_label, rc=RC_FOUND, dslist=['OVF', DS_NONE])
 

@@ -93,6 +93,8 @@ def _is_cloudinit_disabled(disable_file, paths):
     elif not os.path.exists(os.path.join(paths.run_dir, 'enabled')):
         is_disabled = True
         reason = 'Cloud-init disabled by cloud-init-generator'
+    else:
+        reason = 'Cloud-init enabled by systemd cloud-init-generator'
     return (is_disabled, reason)
 
 
@@ -127,10 +129,11 @@ def _get_status_details(paths):
             status_detail = value
         elif isinstance(value, dict):
             errors.extend(value.get('errors', []))
+            start = value.get('start') or 0
             finished = value.get('finished') or 0
-            if finished == 0:
+            if finished == 0 and start != 0:
                 status = STATUS_RUNNING
-            event_time = max(value.get('start', 0), finished)
+            event_time = max(start, finished)
             if event_time > latest_event:
                 latest_event = event_time
     if errors:
