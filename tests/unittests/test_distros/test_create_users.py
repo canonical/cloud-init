@@ -7,7 +7,11 @@ from cloudinit.tests.helpers import (TestCase, mock)
 class MyBaseDistro(distros.Distro):
     # MyBaseDistro is here to test base Distro class implementations
 
-    def __init__(self, name="basedistro", cfg={}, paths={}):
+    def __init__(self, name="basedistro", cfg=None, paths=None):
+        if not cfg:
+            cfg = {}
+        if not paths:
+            paths = {}
         super(MyBaseDistro, self).__init__(name, cfg, paths)
 
     def install_packages(self, pkglist):
@@ -42,7 +46,6 @@ class MyBaseDistro(distros.Distro):
 @mock.patch("cloudinit.distros.util.subp")
 class TestCreateUser(TestCase):
     def setUp(self):
-        super(TestCase, self).setUp()
         self.dist = MyBaseDistro()
 
     def _useradd2call(self, args):

@@ -199,10 +199,10 @@ class WALinuxAgentShim(object):
         '  </Container>',
         '</Health>'])
 
-    def __init__(self, fallback_lease_file=None):
+    def __init__(self, fallback_lease_file=None, dhcp_options=None):
         LOG.debug('WALinuxAgentShim instantiated, fallback_lease_file=%s',
                   fallback_lease_file)
-        self.dhcpoptions = None
+        self.dhcpoptions = dhcp_options
         self._endpoint = None
         self.openssl_manager = None
         self.values = {}
@@ -220,7 +220,8 @@ class WALinuxAgentShim(object):
     @property
     def endpoint(self):
         if self._endpoint is None:
-            self._endpoint = self.find_endpoint(self.lease_file)
+            self._endpoint = self.find_endpoint(self.lease_file,
+                                                self.dhcpoptions)
         return self._endpoint
 
     @staticmethod
@@ -274,7 +275,8 @@ class WALinuxAgentShim(object):
                 name = os.path.basename(hook_file).replace('.json', '')
                 dhcp_options[name] = json.loads(util.load_file((hook_file)))
             except ValueError:
-                raise ValueError("%s is not valid JSON data", hook_file)
+                raise ValueError(
+                    '{_file} is not valid JSON data'.format(_file=hook_file))
         return dhcp_options
 
     @staticmethod
@@ -291,10 +293,14 @@ class WALinuxAgentShim(object):
         return _value
 
     @staticmethod
-    def find_endpoint(fallback_lease_file=None):
+    def find_endpoint(fallback_lease_file=None, dhcp245=None):
         value = None
-        LOG.debug('Finding Azure endpoint from networkd...')
-        value = WALinuxAgentShim._networkd_get_value_from_leases()
+        if dhcp245 is not None:
+            value = dhcp245
+            LOG.debug("Using Azure Endpoint from dhcp options")
+        if value is None:
+            LOG.debug('Finding Azure endpoint from networkd...')
+            value = WALinuxAgentShim._networkd_get_value_from_leases()
         if value is None:
             # Option-245 stored in /run/cloud-init/dhclient.hooks/<ifc>.json
             # a dhclient exit hook that calls cloud-init-dhclient-hook
@@ -366,8 +372,9 @@ class WALinuxAgentShim(object):
         LOG.info('Reported ready to Azure fabric.')
 
 
-def get_metadata_from_fabric(fallback_lease_file=None):
-    shim = WALinuxAgentShim(fallback_lease_file=fallback_lease_file)
+def get_metadata_from_fabric(fallback_lease_file=None, dhcp_opts=None):
+    shim = WALinuxAgentShim(fallback_lease_file=fallback_lease_file,
+                            dhcp_options=dhcp_opts)
     try:
         return shim.register_with_azure_and_fetch_data()
     finally:

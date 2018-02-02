@@ -12,7 +12,8 @@ from cloudinit import util as c_util
 class CloudTestCase(unittest.TestCase):
     """Base test class for verifiers."""
 
-    data = None
+    # data gets populated in get_suite.setUpClass
+    data = {}
     conf = None
     _cloud_config = None
 
@@ -29,12 +30,14 @@ class CloudTestCase(unittest.TestCase):
             raise AssertionError('Key "{}" not in cloud config'.format(name))
         return self.cloud_config[name]
 
-    def get_data_file(self, name):
+    def get_data_file(self, name, decode=True):
         """Get data file failing test if it is not present."""
         if name not in self.data:
             raise AssertionError('File "{}" missing from collect data'
                                  .format(name))
-        return self.data[name]
+        if not decode:
+            return self.data[name]
+        return self.data[name].decode('utf-8')
 
     def get_instance_id(self):
         """Get recorded instance id."""

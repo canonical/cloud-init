@@ -133,7 +133,8 @@ class TestVmwareConfigFile(CiTestCase):
 
         conf = Config(cf)
         with self.assertRaises(ValueError):
-            conf.reset_password()
+            pw = conf.reset_password
+            self.assertIsNone(pw)
 
         cf.clear()
         cf._insertKey("PASSWORD|RESET", "yes")
@@ -334,5 +335,12 @@ class TestVmwareConfigFile(CiTestCase):
         self.assertEqual('255.255.0.0', subnet.get('netmask'),
                          'Subnet netmask')
 
+    def test_custom_script(self):
+        cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
+        conf = Config(cf)
+        self.assertIsNone(conf.custom_script_name)
+        cf._insertKey("CUSTOM-SCRIPT|SCRIPT-NAME", "test-script")
+        conf = Config(cf)
+        self.assertEqual("test-script", conf.custom_script_name)
 
 # vi: ts=4 expandtab

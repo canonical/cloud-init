@@ -14,7 +14,7 @@ import time
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.net import dhcp
+from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
@@ -31,6 +31,7 @@ _unset = "_unset"
 
 
 class Platforms(object):
+    # TODO Rename and move to cloudinit.cloud.CloudNames
     ALIYUN = "AliYun"
     AWS = "AWS"
     BRIGHTBOX = "Brightbox"
@@ -45,6 +46,7 @@ class Platforms(object):
 
 class DataSourceEc2(sources.DataSource):
 
+    dsname = 'Ec2'
     # Default metadata urls that will be used if none are provided
     # They will be checked for 'resolveability' and some of the
     # following may be discarded if they do not resolve
@@ -68,11 +70,15 @@ class DataSourceEc2(sources.DataSource):
     _fallback_interface = None
 
     def __init__(self, sys_cfg, distro, paths):
-        sources.DataSource.__init__(self, sys_cfg, distro, paths)
+        super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
         self.seed_dir = os.path.join(paths.seed_dir, "ec2")
 
-    def get_data(self):
+    def _get_cloud_name(self):
+        """Return the cloud name as identified during _get_data."""
+        return self.cloud_platform
+
+    def _get_data(self):
         seed_ret = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
             self.userdata_raw = seed_ret['user-data']
@@ -96,22 +102,13 @@ class DataSourceEc2(sources.DataSource):
             if util.is_FreeBSD():
                 LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            dhcp_leases = dhcp.maybe_perform_dhcp_discovery(
-                self.fallback_interface)
-            if not dhcp_leases:
-                # DataSourceEc2Local failed in init-local stage. DataSourceEc2
-                # will still run in init-network stage.
+            try:
+                with EphemeralDHCPv4(self.fallback_interface):
+                    return util.log_time(
+                        logfunc=LOG.debug, msg='Crawl of metadata service',
+                        func=self._crawl_metadata)
+            except NoDHCPLeaseError:
                 return False
-            dhcp_opts = dhcp_leases[-1]
-            net_params = {'interface': dhcp_opts.get('interface'),
-                          'ip': dhcp_opts.get('fixed-address'),
-                          'prefix_or_mask': dhcp_opts.get('subnet-mask'),
-                          'broadcast': dhcp_opts.get('broadcast-address'),
-                          'router': dhcp_opts.get('routers')}
-            with net.EphemeralIPv4Network(**net_params):
-                return util.log_time(
-                    logfunc=LOG.debug, msg='Crawl of metadata service',
-                    func=self._crawl_metadata)
         else:
             return self._crawl_metadata()
 
@@ -148,7 +145,12 @@ class DataSourceEc2(sources.DataSource):
         return self.min_metadata_version
 
     def get_instance_id(self):
-        return self.metadata['instance-id']
+        if self.cloud_platform == Platforms.AWS:
+            # Prefer the ID from the instance identity document, but fall back
+            return self.identity.get(
+                'instanceId', self.metadata['instance-id'])
+        else:
+            return self.metadata['instance-id']
 
     def _get_url_settings(self):
         mcfg = self.ds_cfg
@@ -262,19 +264,31 @@ class DataSourceEc2(sources.DataSource):
     @property
     def availability_zone(self):
         try:
-            return self.metadata['placement']['availability-zone']
+            if self.cloud_platform == Platforms.AWS:
+                return self.identity.get(
+                    'availabilityZone',
+                    self.metadata['placement']['availability-zone'])
+            else:
+                return self.metadata['placement']['availability-zone']
         except KeyError:
             return None
 
     @property
     def region(self):
-        az = self.availability_zone
-        if az is not None:
-            return az[:-1]
+        if self.cloud_platform == Platforms.AWS:
+            region = self.identity.get('region')
+            # Fallback to trimming the availability zone if region is missing
+            if self.availability_zone and not region:
+                region = self.availability_zone[:-1]
+            return region
+        else:
+            az = self.availability_zone
+            if az is not None:
+                return az[:-1]
         return None
 
     @property
-    def cloud_platform(self):
+    def cloud_platform(self):  # TODO rename cloud_name
         if self._cloud_platform is None:
             self._cloud_platform = identify_platform()
         return self._cloud_platform
@@ -351,6 +365,9 @@ class DataSourceEc2(sources.DataSource):
                 api_version, self.metadata_address)
             self.metadata = ec2.get_instance_metadata(
                 api_version, self.metadata_address)
+            if self.cloud_platform == Platforms.AWS:
+                self.identity = ec2.get_instance_identity(
+                    api_version, self.metadata_address).get('document', {})
         except Exception:
             util.logexc(
                 LOG, "Failed reading from metadata address %s",

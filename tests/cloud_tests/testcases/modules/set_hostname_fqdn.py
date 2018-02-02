@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """cloud-init Integration Test Verify Script."""
-from tests.cloud_tests.instances.nocloudkvm import CI_DOMAIN
+from tests.cloud_tests import CI_DOMAIN
 from tests.cloud_tests.testcases import base
 
 

@@ -18,7 +18,7 @@ import tempfile
 from cloudinit import helpers
 from cloudinit import util
 
-from cloudinit.tests.helpers import TestCase
+from cloudinit.tests.helpers import CiTestCase
 
 import cloudinit.sources.DataSourceAltCloud as dsac
 
@@ -97,7 +97,7 @@ def _dmi_data(expected):
     return _data
 
 
-class TestGetCloudType(TestCase):
+class TestGetCloudType(CiTestCase):
     '''
     Test to exercise method: DataSourceAltCloud.get_cloud_type()
     '''
@@ -143,14 +143,16 @@ class TestGetCloudType(TestCase):
         self.assertEqual('UNKNOWN', dsrc.get_cloud_type())
 
 
-class TestGetDataCloudInfoFile(TestCase):
+class TestGetDataCloudInfoFile(CiTestCase):
     '''
     Test to exercise method: DataSourceAltCloud.get_data()
     With a contrived CLOUD_INFO_FILE
     '''
     def setUp(self):
         '''Set up.'''
-        self.paths = helpers.Paths({'cloud_dir': '/tmp'})
+        self.tmp = self.tmp_dir()
+        self.paths = helpers.Paths(
+            {'cloud_dir': self.tmp, 'run_dir': self.tmp})
         self.cloud_info_file = tempfile.mkstemp()[1]
         self.dmi_data = util.read_dmi_data
         dsac.CLOUD_INFO_FILE = self.cloud_info_file
@@ -207,14 +209,16 @@ class TestGetDataCloudInfoFile(TestCase):
         self.assertEqual(False, dsrc.get_data())
 
 
-class TestGetDataNoCloudInfoFile(TestCase):
+class TestGetDataNoCloudInfoFile(CiTestCase):
     '''
     Test to exercise method: DataSourceAltCloud.get_data()
     Without a CLOUD_INFO_FILE
     '''
     def setUp(self):
         '''Set up.'''
-        self.paths = helpers.Paths({'cloud_dir': '/tmp'})
+        self.tmp = self.tmp_dir()
+        self.paths = helpers.Paths(
+            {'cloud_dir': self.tmp, 'run_dir': self.tmp})
         self.dmi_data = util.read_dmi_data
         dsac.CLOUD_INFO_FILE = \
             'no such file'
@@ -254,7 +258,7 @@ class TestGetDataNoCloudInfoFile(TestCase):
         self.assertEqual(False, dsrc.get_data())
 
 
-class TestUserDataRhevm(TestCase):
+class TestUserDataRhevm(CiTestCase):
     '''
     Test to exercise method: DataSourceAltCloud.user_data_rhevm()
     '''
@@ -320,7 +324,7 @@ class TestUserDataRhevm(TestCase):
         self.assertEqual(False, dsrc.user_data_rhevm())
 
 
-class TestUserDataVsphere(TestCase):
+class TestUserDataVsphere(CiTestCase):
     '''
     Test to exercise method: DataSourceAltCloud.user_data_vsphere()
     '''
@@ -368,7 +372,7 @@ class TestUserDataVsphere(TestCase):
         self.assertEqual(1, m_mount_cb.call_count)
 
 
-class TestReadUserDataCallback(TestCase):
+class TestReadUserDataCallback(CiTestCase):
     '''
     Test to exercise method: DataSourceAltCloud.read_user_data_callback()
     '''

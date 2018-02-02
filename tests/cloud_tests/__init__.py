@@ -10,6 +10,12 @@ TESTCASES_DIR = os.path.join(BASE_DIR, 'testcases')
 TEST_CONF_DIR = os.path.join(BASE_DIR, 'testcases')
 TREE_BASE = os.sep.join(BASE_DIR.split(os.sep)[:-2])
 
+# This domain contains reverse lookups for hostnames that are used.
+# The primary reason is so sudo will return quickly when it attempts
+# to look up the hostname.  i9n is just short for 'integration'.
+# see also bug 1730744 for why we had to do this.
+CI_DOMAIN = "i9n.cloud-init.io"
+
 
 def _initialize_logging():
     """Configure logging for cloud_tests."""

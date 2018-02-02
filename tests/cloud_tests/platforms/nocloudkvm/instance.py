@@ -2,15 +2,17 @@
 
 """Base NoCloud KVM instance."""
 
+import copy
 import os
-import paramiko
 import socket
 import subprocess
 import time
+import uuid
 
+from ..instances import Instance
+from cloudinit.atomic_helper import write_json
 from cloudinit import util as c_util
-from tests.cloud_tests.instances import base
-from tests.cloud_tests import util
+from tests.cloud_tests import LOG, util
 
 # This domain contains reverse lookups for hostnames that are used.
 # The primary reason is so sudo will return quickly when it attempts
@@ -19,11 +21,10 @@ from tests.cloud_tests import util
 CI_DOMAIN = "i9n.cloud-init.io"
 
 
-class NoCloudKVMInstance(base.Instance):
+class NoCloudKVMInstance(Instance):
     """NoCloud KVM backed instance."""
 
     platform_name = "nocloud-kvm"
-    _ssh_client = None
 
     def __init__(self, platform, name, image_path, properties, config,
                  features, user_data, meta_data):
@@ -36,18 +37,72 @@ class NoCloudKVMInstance(base.Instance):
         @param config: dictionary of configuration values
         @param features: dictionary of supported feature flags
         """
+        super(NoCloudKVMInstance, self).__init__(
+            platform, name, properties, config, features
+        )
+
         self.user_data = user_data
-        self.meta_data = meta_data
-        self.ssh_key_file = os.path.join(platform.config['data_dir'],
-                                         platform.config['private_key'])
+        if meta_data:
+            meta_data = copy.deepcopy(meta_data)
+        else:
+            meta_data = {}
+
+        if 'instance-id' in meta_data:
+            iid = meta_data['instance-id']
+        else:
+            iid = str(uuid.uuid1())
+            meta_data['instance-id'] = iid
+
+        self.instance_id = iid
+        self.ssh_key_file = os.path.join(
+            platform.config['data_dir'], platform.config['private_key'])
+        self.ssh_pubkey_file = os.path.join(
+            platform.config['data_dir'], platform.config['public_key'])
+
+        self.ssh_pubkey = None
+        if self.ssh_pubkey_file:
+            with open(self.ssh_pubkey_file, "r") as fp:
+                self.ssh_pubkey = fp.read().rstrip('\n')
+
+            if not meta_data.get('public-keys'):
+                meta_data['public-keys'] = []
+            meta_data['public-keys'].append(self.ssh_pubkey)
+
+        self.ssh_ip = '127.0.0.1'
         self.ssh_port = None
         self.pid = None
         self.pid_file = None
         self.console_file = None
         self.disk = image_path
+        self.meta_data = meta_data
 
-        super(NoCloudKVMInstance, self).__init__(
-            platform, name, properties, config, features)
+    def shutdown(self, wait=True):
+        """Shutdown instance."""
+
+        if self.pid:
+            # This relies on _execute which uses sudo over ssh.  The ssh
+            # connection would get killed before sudo exited, so ignore errors.
+            cmd = ['shutdown', 'now']
+            try:
+                self._execute(cmd)
+            except util.InTargetExecuteError:
+                pass
+            self._ssh_close()
+
+            if wait:
+                LOG.debug("Executed shutdown. waiting on pid %s to end",
+                          self.pid)
+                time_for_shutdown = 120
+                give_up_at = time.time() + time_for_shutdown
+                pid_file_path = '/proc/%s' % self.pid
+                msg = ("pid %s did not exit in %s seconds after shutdown." %
+                       (self.pid, time_for_shutdown))
+                while True:
+                    if not os.path.exists(pid_file_path):
+                        break
+                    if time.time() > give_up_at:
+                        raise util.PlatformError("shutdown", msg)
+                self.pid = None
 
     def destroy(self):
         """Clean up instance."""
@@ -61,9 +116,7 @@ class NoCloudKVMInstance(base.Instance):
             os.remove(self.pid_file)
 
         self.pid = None
-        if self._ssh_client:
-            self._ssh_client.close()
-            self._ssh_client = None
+        self._ssh_close()
 
         super(NoCloudKVMInstance, self).destroy()
 
@@ -72,17 +125,21 @@ class NoCloudKVMInstance(base.Instance):
         if env:
             env_args = ['env'] + ["%s=%s" for k, v in env.items()]
 
-        return self.ssh(['sudo'] + env_args + list(command), stdin=stdin)
+        return self._ssh(['sudo'] + env_args + list(command), stdin=stdin)
 
     def generate_seed(self, tmpdir):
         """Generate nocloud seed from user-data"""
         seed_file = os.path.join(tmpdir, '%s_seed.img' % self.name)
         user_data_file = os.path.join(tmpdir, '%s_user_data' % self.name)
+        meta_data_file = os.path.join(tmpdir, '%s_meta_data' % self.name)
 
         with open(user_data_file, "w") as ud_file:
             ud_file.write(self.user_data)
 
-        c_util.subp(['cloud-localds', seed_file, user_data_file])
+        # meta-data can be yaml, but more easily pretty printed with json
+        write_json(meta_data_file, self.meta_data)
+        c_util.subp(['cloud-localds', seed_file, user_data_file,
+                     meta_data_file])
 
         return seed_file
 
@@ -93,50 +150,6 @@ class NoCloudKVMInstance(base.Instance):
         num = s.getsockname()[1]
         s.close()
         return num
-
-    def ssh(self, command, stdin=None):
-        """Run a command via SSH."""
-        client = self._ssh_connect()
-
-        cmd = util.shell_pack(command)
-        try:
-            fp_in, fp_out, fp_err = client.exec_command(cmd)
-            channel = fp_in.channel
-            if stdin is not None:
-                fp_in.write(stdin)
-                fp_in.close()
-
-            channel.shutdown_write()
-            rc = channel.recv_exit_status()
-            return (fp_out.read(), fp_err.read(), rc)
-        except paramiko.SSHException as e:
-            raise util.InTargetExecuteError(
-                b'', b'', -1, command, self.name, reason=e)
-
-    def _ssh_connect(self, hostname='localhost', username='ubuntu',
-                     banner_timeout=120, retry_attempts=30):
-        """Connect via SSH."""
-        if self._ssh_client:
-            return self._ssh_client
-
-        private_key = paramiko.RSAKey.from_private_key_file(self.ssh_key_file)
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        while retry_attempts:
-            try:
-                client.connect(hostname=hostname, username=username,
-                               port=self.ssh_port, pkey=private_key,
-                               banner_timeout=banner_timeout)
-                self._ssh_client = client
-                return client
-            except (paramiko.SSHException, TypeError):
-                time.sleep(1)
-                retry_attempts = retry_attempts - 1
-
-        error_desc = 'Failed command to: %s@%s:%s' % (username, hostname,
-                                                      self.ssh_port)
-        raise util.InTargetExecuteError('', '', -1, 'ssh connect',
-                                        self.name, error_desc)
 
     def start(self, wait=True, wait_for_cloud_init=False):
         """Start instance."""

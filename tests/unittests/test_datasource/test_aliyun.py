@@ -47,6 +47,9 @@ def register_mock_metaserver(base_url, data):
         elif isinstance(body, list):
             register(base_url.rstrip('/'), '\n'.join(body) + '\n')
         elif isinstance(body, dict):
+            if not body:
+                register(base_url.rstrip('/') + '/', 'not found',
+                         status_code=404)
             vals = []
             for k, v in body.items():
                 if isinstance(v, (str, list)):
@@ -67,7 +70,7 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
         super(TestAliYunDatasource, self).setUp()
         cfg = {'datasource': {'AliYun': {'timeout': '1', 'max_wait': '1'}}}
         distro = {}
-        paths = helpers.Paths({})
+        paths = helpers.Paths({'run_dir': self.tmp_dir()})
         self.ds = ay.DataSourceAliYun(cfg, distro, paths)
         self.metadata_address = self.ds.metadata_urls[0]
 
@@ -91,9 +94,22 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
             self.metadata_address,
             self.ds.min_metadata_version, 'user-data')
 
+    # EC2 provides an instance-identity document which must return 404 here
+    # for this test to pass.
+    @property
+    def default_identity(self):
+        return {}
+
+    @property
+    def identity_url(self):
+        return os.path.join(self.metadata_address,
+                            self.ds.min_metadata_version,
+                            'dynamic', 'instance-identity')
+
     def regist_default_server(self):
         register_mock_metaserver(self.metadata_url, self.default_metadata)
         register_mock_metaserver(self.userdata_url, self.default_userdata)
+        register_mock_metaserver(self.identity_url, self.default_identity)
 
     def _test_get_data(self):
         self.assertEqual(self.ds.metadata, self.default_metadata)

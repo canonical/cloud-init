@@ -349,7 +349,7 @@ For any network device (one of the Config Types) users can define a list of
 entries will create interface alias allowing a single interface to use
 different ip configurations.
 
-Valid keys for for ``subnets`` include the following:
+Valid keys for ``subnets`` include the following:
 
 - ``type``: Specify the subnet type.
 - ``control``: Specify manual, auto or hotplug.  Indicates how the interface

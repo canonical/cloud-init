@@ -6,8 +6,13 @@ default_platform_config:
     get_image_timeout: 300
     # maximum time to create instance (before waiting for cloud-init)
     create_instance_timeout: 60
-
+    private_key: cloud_init_rsa
+    public_key: cloud_init_rsa.pub
 platforms:
+    ec2:
+        enabled: true
+        instance-type: t2.micro
+        tag: cii
     lxd:
         enabled: true
         # overrides for image templates
@@ -61,9 +66,5 @@ platforms:
                 {{ config_get("user.vendor-data", properties.default) }}
     nocloud-kvm:
         enabled: true
-        private_key: id_rsa
-        public_key: id_rsa.pub
-    ec2: {}
-    azure: {}
 
 # vi: ts=4 expandtab

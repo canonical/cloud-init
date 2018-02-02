@@ -186,6 +186,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         super(TestEc2, self).setUp()
         self.datasource = ec2.DataSourceEc2
         self.metadata_addr = self.datasource.metadata_urls[0]
+        self.tmp = self.tmp_dir()
 
     def data_url(self, version):
         """Return a metadata url based on the version provided."""
@@ -199,7 +200,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
     def _setup_ds(self, sys_cfg, platform_data, md, md_version=None):
         self.uris = []
         distro = {}
-        paths = helpers.Paths({})
+        paths = helpers.Paths({'run_dir': self.tmp})
         if sys_cfg is None:
             sys_cfg = {}
         ds = self.datasource(sys_cfg=sys_cfg, distro=distro, paths=paths)
@@ -329,7 +330,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds.fallback_nic = 'eth9'
         with mock.patch(get_interface_mac_path) as m_get_interface_mac:
             m_get_interface_mac.return_value = mac1
-            ds.network_config  # Will re-crawl network metadata
+            nc = ds.network_config  # Will re-crawl network metadata
+            self.assertIsNotNone(nc)
         self.assertIn('Re-crawl of metadata service', self.logs.getvalue())
         expected = {'version': 1, 'config': [
             {'mac_address': '06:17:04:d7:26:09',
@@ -423,7 +425,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
             self.logs.getvalue())
 
     @httpretty.activate
-    @mock.patch('cloudinit.net.EphemeralIPv4Network')
+    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
     @mock.patch('cloudinit.net.find_fallback_nic')
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     @mock.patch('cloudinit.sources.DataSourceEc2.util.is_FreeBSD')

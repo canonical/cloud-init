@@ -92,7 +92,7 @@ def load_platform_config(platform_name, require_enabled=False):
 
 
 def load_os_config(platform_name, os_name, require_enabled=False,
-                   feature_overrides={}):
+                   feature_overrides=None):
     """Load configuration for os.
 
     @param platform_name: platform name to load os config for
@@ -101,6 +101,8 @@ def load_os_config(platform_name, os_name, require_enabled=False,
     @param feature_overrides: feature flag overrides to merge with features
     @return_value: config dict
     """
+    if feature_overrides is None:
+        feature_overrides = {}
     main_conf = c_util.read_conf(RELEASES_CONF)
     default = main_conf['default_release_config']
     image = main_conf['releases'][os_name]

@@ -7,6 +7,7 @@ Overview
 This topic will discuss general approaches for test and debug of cloud-init on
 deployed instances.
 
+.. _boot_time_analysis:
 
 Boot Time Analysis - cloud-init analyze
 ======================================

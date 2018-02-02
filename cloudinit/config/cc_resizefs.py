@@ -59,7 +59,17 @@ __doc__ = get_schema_doc(schema)  # Supplement python help()
 
 
 def _resize_btrfs(mount_point, devpth):
-    return ('btrfs', 'filesystem', 'resize', 'max', mount_point)
+    # If "/" is ro resize will fail. However it should be allowed since resize
+    # makes everything bigger and subvolumes that are not ro will benefit.
+    # Use a subvolume that is not ro to trick the resize operation to do the
+    # "right" thing. The use of ".snapshot" is specific to "snapper" a generic
+    # solution would be walk the subvolumes and find a rw mounted subvolume.
+    if (not util.mount_is_read_write(mount_point) and
+            os.path.isdir("%s/.snapshots" % mount_point)):
+        return ('btrfs', 'filesystem', 'resize', 'max',
+                '%s/.snapshots' % mount_point)
+    else:
+        return ('btrfs', 'filesystem', 'resize', 'max', mount_point)
 
 
 def _resize_ext(mount_point, devpth):

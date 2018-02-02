@@ -262,7 +262,7 @@ def shell_safe(cmd):
     out = subprocess.check_output(
         ["getopt", "--shell", "sh", "--options", "", "--", "--"] + list(cmd))
     # out contains ' -- <data>\n'. drop the ' -- ' and the '\n'
-    return out[4:-1].decode()
+    return out.decode()[4:-1]
 
 
 def shell_pack(cmd):
@@ -321,9 +321,9 @@ class TargetBase(object):
             rcs = (0,)
 
         if description:
-            LOG.debug('Executing "%s"', description)
+            LOG.debug('executing "%s"', description)
         else:
-            LOG.debug("Executing command: %s", shell_quote(command))
+            LOG.debug("executing command: %s", shell_quote(command))
 
         out, err, rc = self._execute(command=command, stdin=stdin, env=env)
 
@@ -445,6 +445,19 @@ class InTargetExecuteError(c_util.ProcessExecutionError):
             cmd=shell_quote(cmd),
             description=description if description else self.default_desc,
             reason=reason)
+
+
+class PlatformError(IOError):
+    """Error type for platform errors."""
+
+    default_desc = 'unexpected error in platform.'
+
+    def __init__(self, operation, description=None):
+        """Init error and parent error class."""
+        description = description if description else self.default_desc
+
+        message = '%s: %s' % (operation, description)
+        IOError.__init__(self, message)
 
 
 class TempDir(object):

@@ -11,6 +11,7 @@ ALIYUN_PRODUCT = "Alibaba Cloud ECS"
 
 class DataSourceAliYun(EC2.DataSourceEc2):
 
+    dsname = 'AliYun'
     metadata_urls = ['http://100.100.100.200']
 
     # The minimum supported metadata_version from the ec2 metadata apis

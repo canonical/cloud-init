@@ -2,10 +2,10 @@
 
 """Base LXD snapshot."""
 
-from tests.cloud_tests.snapshots import base
+from ..snapshots import Snapshot
 
 
-class LXDSnapshot(base.Snapshot):
+class LXDSnapshot(Snapshot):
     """LXD image copy backed snapshot."""
 
     platform_name = "lxd"

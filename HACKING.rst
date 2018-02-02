@@ -16,6 +16,14 @@ Do these things once
   When prompted for 'Project contact' or 'Canonical Project Manager' enter
   'Scott Moser'.
 
+* Configure git with your email and name for commit messages.
+
+  Your name will appear in commit messages and will also be used in
+  changelogs or release notes.  Give yourself credit!::
+
+    git config user.name "Your Name"
+    git config user.email "Your Email"
+
 * Clone the upstream `repository`_ on Launchpad::
 
     git clone https://git.launchpad.net/cloud-init

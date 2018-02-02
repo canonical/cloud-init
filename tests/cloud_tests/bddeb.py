@@ -8,7 +8,7 @@ import tempfile
 
 from cloudinit import util as c_util
 from tests.cloud_tests import (config, LOG)
-from tests.cloud_tests import (platforms, images, snapshots, instances)
+from tests.cloud_tests import platforms
 from tests.cloud_tests.stage import (PlatformComponent, run_stage, run_single)
 
 pre_reqs = ['devscripts', 'equivs', 'git', 'tar']
@@ -84,18 +84,18 @@ def setup_build(args):
         # set up image
         LOG.info('acquiring image for os: %s', args.build_os)
         img_conf = config.load_os_config(platform.platform_name, args.build_os)
-        image_call = partial(images.get_image, platform, img_conf)
+        image_call = partial(platforms.get_image, platform, img_conf)
         with PlatformComponent(image_call) as image:
 
             # set up snapshot
-            snapshot_call = partial(snapshots.get_snapshot, image)
+            snapshot_call = partial(platforms.get_snapshot, image)
             with PlatformComponent(snapshot_call) as snapshot:
 
                 # create instance with cloud-config to set it up
                 LOG.info('creating instance to build deb in')
                 empty_cloud_config = "#cloud-config\n{}"
                 instance_call = partial(
-                    instances.get_instance, snapshot, empty_cloud_config,
+                    platforms.get_instance, snapshot, empty_cloud_config,
                     use_desc='build cloud-init deb')
                 with PlatformComponent(instance_call) as instance:
 

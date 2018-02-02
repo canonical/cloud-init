@@ -25,13 +25,16 @@ DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
 }
 FS_TYPES = ('vfat', 'iso9660')
-LABEL_TYPES = ('config-2',)
+LABEL_TYPES = ('config-2', 'CONFIG-2')
 POSSIBLE_MOUNTS = ('sr', 'cd')
 OPTICAL_DEVICES = tuple(('/dev/%s%s' % (z, i) for z in POSSIBLE_MOUNTS
                         for i in range(0, 2)))
 
 
 class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
+
+    dsname = 'ConfigDrive'
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceConfigDrive, self).__init__(sys_cfg, distro, paths)
         self.source = None
@@ -50,7 +53,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         mstr += "[source=%s]" % (self.source)
         return mstr
 
-    def get_data(self):
+    def _get_data(self):
         found = None
         md = {}
         results = {}
@@ -221,7 +224,7 @@ def find_candidate_devs(probe_optical=True):
     config drive v2:
        Disk should be:
         * either vfat or iso9660 formated
-        * labeled with 'config-2'
+        * labeled with 'config-2' or 'CONFIG-2'
     """
     # query optical drive to get it in blkid cache for 2.6 kernels
     if probe_optical:

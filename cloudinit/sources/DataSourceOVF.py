@@ -21,6 +21,8 @@ from cloudinit import util
 
 from cloudinit.sources.helpers.vmware.imc.config \
     import Config
+from cloudinit.sources.helpers.vmware.imc.config_custom_script \
+    import PreCustomScript, PostCustomScript
 from cloudinit.sources.helpers.vmware.imc.config_file \
     import ConfigFile
 from cloudinit.sources.helpers.vmware.imc.config_nic \
@@ -30,7 +32,7 @@ from cloudinit.sources.helpers.vmware.imc.config_passwd \
 from cloudinit.sources.helpers.vmware.imc.guestcust_error \
     import GuestCustErrorEnum
 from cloudinit.sources.helpers.vmware.imc.guestcust_event \
-    import GuestCustEventEnum
+    import GuestCustEventEnum as GuestCustEvent
 from cloudinit.sources.helpers.vmware.imc.guestcust_state \
     import GuestCustStateEnum
 from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
@@ -43,6 +45,9 @@ LOG = logging.getLogger(__name__)
 
 
 class DataSourceOVF(sources.DataSource):
+
+    dsname = "OVF"
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed = None
@@ -60,7 +65,7 @@ class DataSourceOVF(sources.DataSource):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.seed)
 
-    def get_data(self):
+    def _get_data(self):
         found = []
         md = {}
         ud = ""
@@ -124,17 +129,31 @@ class DataSourceOVF(sources.DataSource):
                 self._vmware_cust_conf = Config(cf)
                 (md, ud, cfg) = read_vmware_imc(self._vmware_cust_conf)
                 self._vmware_nics_to_enable = get_nics_to_enable(nicspath)
-                markerid = self._vmware_cust_conf.marker_id
-                markerexists = check_marker_exists(markerid)
+                imcdirpath = os.path.dirname(vmwareImcConfigFilePath)
+                product_marker = self._vmware_cust_conf.marker_id
+                hasmarkerfile = check_marker_exists(
+                    product_marker, os.path.join(self.paths.cloud_dir, 'data'))
+                special_customization = product_marker and not hasmarkerfile
+                customscript = self._vmware_cust_conf.custom_script_name
             except Exception as e:
-                LOG.debug("Error parsing the customization Config File")
-                LOG.exception(e)
-                set_customization_status(
-                    GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
-                    GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
-                raise e
-            finally:
-                util.del_dir(os.path.dirname(vmwareImcConfigFilePath))
+                _raise_error_status(
+                    "Error parsing the customization Config File",
+                    e,
+                    GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                    vmwareImcConfigFilePath)
+
+            if special_customization:
+                if customscript:
+                    try:
+                        precust = PreCustomScript(customscript, imcdirpath)
+                        precust.execute()
+                    except Exception as e:
+                        _raise_error_status(
+                            "Error executing pre-customization script",
+                            e,
+                            GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                            vmwareImcConfigFilePath)
+
             try:
                 LOG.debug("Preparing the Network configuration")
                 self._network_config = get_network_config_from_conf(
@@ -143,13 +162,13 @@ class DataSourceOVF(sources.DataSource):
                     True,
                     self.distro.osfamily)
             except Exception as e:
-                LOG.exception(e)
-                set_customization_status(
-                    GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
-                    GuestCustEventEnum.GUESTCUST_EVENT_NETWORK_SETUP_FAILED)
-                raise e
+                _raise_error_status(
+                    "Error preparing Network Configuration",
+                    e,
+                    GuestCustEvent.GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
+                    vmwareImcConfigFilePath)
 
-            if markerid and not markerexists:
+            if special_customization:
                 LOG.debug("Applying password customization")
                 pwdConfigurator = PasswordConfigurator()
                 adminpwd = self._vmware_cust_conf.admin_password
@@ -161,27 +180,41 @@ class DataSourceOVF(sources.DataSource):
                     else:
                         LOG.debug("Changing password is not needed")
                 except Exception as e:
-                    LOG.debug("Error applying Password Configuration: %s", e)
-                    set_customization_status(
-                        GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
-                        GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
-                    return False
-            if markerid:
-                LOG.debug("Handle marker creation")
+                    _raise_error_status(
+                        "Error applying Password Configuration",
+                        e,
+                        GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                        vmwareImcConfigFilePath)
+
+                if customscript:
+                    try:
+                        postcust = PostCustomScript(customscript, imcdirpath)
+                        postcust.execute()
+                    except Exception as e:
+                        _raise_error_status(
+                            "Error executing post-customization script",
+                            e,
+                            GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                            vmwareImcConfigFilePath)
+
+            if product_marker:
                 try:
-                    setup_marker_files(markerid)
+                    setup_marker_files(
+                        product_marker,
+                        os.path.join(self.paths.cloud_dir, 'data'))
                 except Exception as e:
-                    LOG.debug("Error creating marker files: %s", e)
-                    set_customization_status(
-                        GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
-                        GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
-                    return False
+                    _raise_error_status(
+                        "Error creating marker files",
+                        e,
+                        GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                        vmwareImcConfigFilePath)
 
             self._vmware_cust_found = True
             found.append('vmware-tools')
 
             # TODO: Need to set the status to DONE only when the
             # customization is done successfully.
+            util.del_dir(os.path.dirname(vmwareImcConfigFilePath))
             enable_nics(self._vmware_nics_to_enable)
             set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
@@ -536,31 +569,52 @@ def get_datasource_list(depends):
 
 
 # To check if marker file exists
-def check_marker_exists(markerid):
+def check_marker_exists(markerid, marker_dir):
     """
     Check the existence of a marker file.
     Presence of marker file determines whether a certain code path is to be
     executed. It is needed for partial guest customization in VMware.
+    @param markerid: is an unique string representing a particular product
+                     marker.
+    @param: marker_dir: The directory in which markers exist.
     """
     if not markerid:
         return False
-    markerfile = "/.markerfile-" + markerid
+    markerfile = os.path.join(marker_dir, ".markerfile-" + markerid + ".txt")
     if os.path.exists(markerfile):
         return True
     return False
 
 
 # Create a marker file
-def setup_marker_files(markerid):
+def setup_marker_files(markerid, marker_dir):
     """
     Create a new marker file.
     Marker files are unique to a full customization workflow in VMware
     environment.
+    @param markerid: is an unique string representing a particular product
+                     marker.
+    @param: marker_dir: The directory in which markers exist.
+
     """
-    if not markerid:
-        return
-    markerfile = "/.markerfile-" + markerid
-    util.del_file("/.markerfile-*.txt")
+    LOG.debug("Handle marker creation")
+    markerfile = os.path.join(marker_dir, ".markerfile-" + markerid + ".txt")
+    for fname in os.listdir(marker_dir):
+        if fname.startswith(".markerfile"):
+            util.del_file(os.path.join(marker_dir, fname))
     open(markerfile, 'w').close()
+
+
+def _raise_error_status(prefix, error, event, config_file):
+    """
+    Raise error and send customization status to the underlying VMware
+    Virtualization Platform. Also, cleanup the imc directory.
+    """
+    LOG.debug('%s: %s', prefix, error)
+    set_customization_status(
+        GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+        event)
+    util.del_dir(os.path.dirname(config_file))
+    raise error
 
 # vi: ts=4 expandtab

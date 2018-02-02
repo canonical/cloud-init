@@ -299,6 +299,14 @@ class TestLoadYaml(helpers.TestCase):
                                         default=self.mydefault),
                          myobj)
 
+    def test_none_returns_default(self):
+        """If yaml.load returns None, then default should be returned."""
+        blobs = ("", " ", "# foo\n", "#")
+        mdef = self.mydefault
+        self.assertEqual(
+            [(b, self.mydefault) for b in blobs],
+            [(b, util.load_yaml(blob=b, default=mdef)) for b in blobs])
+
 
 class TestMountinfoParsing(helpers.ResourceUsingTestCase):
     def test_invalid_mountinfo(self):
@@ -477,6 +485,44 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self.assertIsNone(util.read_dmi_data("system-product-name"))
 
 
+class TestGetConfigLogfiles(helpers.CiTestCase):
+
+    def test_empty_cfg_returns_empty_list(self):
+        """An empty config passed to get_config_logfiles returns empty list."""
+        self.assertEqual([], util.get_config_logfiles(None))
+        self.assertEqual([], util.get_config_logfiles({}))
+
+    def test_default_log_file_present(self):
+        """When default_log_file is set get_config_logfiles finds it."""
+        self.assertEqual(
+            ['/my.log'],
+            util.get_config_logfiles({'def_log_file': '/my.log'}))
+
+    def test_output_logs_parsed_when_teeing_files(self):
+        """When output configuration is parsed when teeing files."""
+        self.assertEqual(
+            ['/himom.log', '/my.log'],
+            sorted(util.get_config_logfiles({
+                'def_log_file': '/my.log',
+                'output': {'all': '|tee -a /himom.log'}})))
+
+    def test_output_logs_parsed_when_redirecting(self):
+        """When output configuration is parsed when redirecting to a file."""
+        self.assertEqual(
+            ['/my.log', '/test.log'],
+            sorted(util.get_config_logfiles({
+                'def_log_file': '/my.log',
+                'output': {'all': '>/test.log'}})))
+
+    def test_output_logs_parsed_when_appending(self):
+        """When output configuration is parsed when appending to a file."""
+        self.assertEqual(
+            ['/my.log', '/test.log'],
+            sorted(util.get_config_logfiles({
+                'def_log_file': '/my.log',
+                'output': {'all': '>> /test.log'}})))
+
+
 class TestMultiLog(helpers.FilesystemMockingTestCase):
 
     def _createConsole(self, root):
@@ -577,6 +623,7 @@ class TestSubp(helpers.CiTestCase):
     utf8_valid = b'start \xc3\xa9 end'
     utf8_valid_2 = b'd\xc3\xa9j\xc8\xa7'
     printenv = [BASH, '-c', 'for n in "$@"; do echo "$n=${!n}"; done', '--']
+    bogus_command = 'this-is-not-expected-to-be-a-program-name'
 
     def printf_cmd(self, *args):
         # bash's printf supports \xaa.  So does /usr/bin/printf
@@ -657,14 +704,28 @@ class TestSubp(helpers.CiTestCase):
         util.write_file(noshebang, 'true\n')
 
         os.chmod(noshebang, os.stat(noshebang).st_mode | stat.S_IEXEC)
-        self.assertRaisesRegexp(util.ProcessExecutionError,
-                                'Missing #! in script\?',
-                                util.subp, (noshebang,))
+        self.assertRaisesRegex(util.ProcessExecutionError,
+                               'Missing #! in script\?',
+                               util.subp, (noshebang,))
 
     def test_returns_none_if_no_capture(self):
         (out, err) = util.subp(self.stdin2out, data=b'', capture=False)
         self.assertIsNone(err)
         self.assertIsNone(out)
+
+    def test_exception_has_out_err_are_bytes_if_decode_false(self):
+        """Raised exc should have stderr, stdout as bytes if no decode."""
+        with self.assertRaises(util.ProcessExecutionError) as cm:
+            util.subp([self.bogus_command], decode=False)
+        self.assertTrue(isinstance(cm.exception.stdout, bytes))
+        self.assertTrue(isinstance(cm.exception.stderr, bytes))
+
+    def test_exception_has_out_err_are_bytes_if_decode_true(self):
+        """Raised exc should have stderr, stdout as string if no decode."""
+        with self.assertRaises(util.ProcessExecutionError) as cm:
+            util.subp([self.bogus_command], decode=True)
+        self.assertTrue(isinstance(cm.exception.stdout, six.string_types))
+        self.assertTrue(isinstance(cm.exception.stderr, six.string_types))
 
     def test_bunch_of_slashes_in_path(self):
         self.assertEqual("/target/my/path/",
