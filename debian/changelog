@@ -1,4 +1,4 @@
-cloud-init (17.2-30-gf7deaf15-0ubuntu1~17.10.1) UNRELEASED; urgency=medium
+cloud-init (17.2-30-gf7deaf15-0ubuntu1~17.10.1) artful-proposed; urgency=medium
 
   * New upstream snapshot. (LP: #1747059)
     - docs: Update RTD content for cloud-init subcommands.
@@ -51,7 +51,7 @@ cloud-init (17.2-30-gf7deaf15-0ubuntu1~17.10.1) UNRELEASED; urgency=medium
     - cli: Add clean and status subcommands
     - tests: consolidate platforms into specific dirs
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 02 Feb 2018 12:38:57 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 02 Feb 2018 12:42:22 -0700
 
 cloud-init (17.1-46-g7acc9e68-0ubuntu1~17.10.1) artful-proposed; urgency=medium
 
