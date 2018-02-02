@@ -118,19 +118,19 @@ TreeRun and TreeCollect
 
 If working on a cloud-init feature or resolving a bug, it may be useful to
 run the current copy of cloud-init in the integration testing environment.
-The integration testing suite can automatically build a deb based on the 
+The integration testing suite can automatically build a deb based on the
 current working tree of cloud-init and run the test suite using this deb.
 
 The ``tree_run`` and ``tree_collect`` commands take the same arguments as
-the ``run`` and ``collect`` commands. These commands will build a deb and 
-write it into a temporary file, then start the test suite and pass that deb 
+the ``run`` and ``collect`` commands. These commands will build a deb and
+write it into a temporary file, then start the test suite and pass that deb
 in. To build a deb only, and not run the test suite, the ``bddeb`` command
 can be used.
 
 Note that code in the cloud-init working tree that has not been committed
 when the cloud-init deb is built will still be included. To build a
 cloud-init deb from or use the ``tree_run`` command using a copy of
-cloud-init located in a different directory, use the option ``--cloud-init 
+cloud-init located in a different directory, use the option ``--cloud-init
 /path/to/cloud-init``.
 
 .. code-block:: bash
@@ -383,7 +383,7 @@ Development Checklist
     * Valid unit tests validating output collected
     * Passes pylint & pep8 checks
     * Placed in the appropriate sub-folder in the test cases directory
-* Tested by running the test: 
+* Tested by running the test:
 
    .. code-block:: bash
 
@@ -391,6 +391,32 @@ Development Checklist
            --os-name <release target> \
            --test modules/your_test.yaml \
            [--deb <build of cloud-init>]
+
+
+Platforms
+=========
+
+EC2
+---
+To run on the EC2 platform it is required that the user has an AWS credentials
+configuration file specifying his or her access keys and a default region.
+These configuration files are the standard that the AWS cli and other AWS
+tools utilize for interacting directly with AWS itself and are normally
+generated when running ``aws configure``:
+
+.. code-block:: bash
+
+    $ cat $HOME/.aws/credentials
+    [default]
+    aws_access_key_id = <KEY HERE>
+    aws_secret_access_key = <KEY HERE>
+
+.. code-block:: bash
+
+    $ cat $HOME/.aws/config
+    [default]
+    region = us-west-2
+
 
 Architecture
 ============
@@ -455,7 +481,7 @@ replace the default. If the data is a dictionary then the value will be the
 result of merging that dictionary from the default config and that
 dictionary from the overrides.
 
-Merging is done using the function 
+Merging is done using the function
 ``tests.cloud_tests.config.merge_config``, which can be examined for more
 detail on config merging behavior.
 

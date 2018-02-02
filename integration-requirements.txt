@@ -1,0 +1,20 @@
+# PyPI requirements for cloud-init integration testing
+# https://cloudinit.readthedocs.io/en/latest/topics/tests.html
+#
+# Note: Changes to this requirements may require updates to
+# the packages/pkg-deps.json file as well.
+#
+
+# ec2 backend
+boto3==1.5.9
+
+# ssh communication
+paramiko==2.4.0
+
+# lxd backend
+# 01/10/2018: enables use of lxd as snap support
+git+https://github.com/lxc/pylxd.git@0722955260a6557e6d2ffde1896bfe0707bbca27
+
+
+# finds latest image information
+bzr+lp:simplestreams

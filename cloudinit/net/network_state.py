@@ -474,8 +474,9 @@ class NetworkStateInterpreter(object):
             elif bridge_stp in ['off', '0', 0]:
                 bridge_stp = False
             else:
-                raise ValueError("Cannot convert bridge_stp value"
-                                 "(%s) to boolean", bridge_stp)
+                raise ValueError(
+                    'Cannot convert bridge_stp value ({stp}) to'
+                    ' boolean'.format(stp=bridge_stp))
             iface.update({'bridge_stp': bridge_stp})
 
         interfaces.update({iface['name']: iface})
@@ -692,7 +693,8 @@ class NetworkStateInterpreter(object):
             elif cmd_type == "bond":
                 self.handle_bond(v1_cmd)
             else:
-                raise ValueError('Unknown command type: %s', cmd_type)
+                raise ValueError('Unknown command type: {cmd_type}'.format(
+                    cmd_type=cmd_type))
 
     def _v2_to_v1_ipcfg(self, cfg):
         """Common ipconfig extraction from v2 to v1 subnets array."""
@@ -957,6 +959,18 @@ def mask_to_net_prefix(mask):
         return ipv6_mask_to_net_prefix(mask)
     else:
         return ipv4_mask_to_net_prefix(mask)
+
+
+def mask_and_ipv4_to_bcast_addr(mask, ip):
+    """Calculate the broadcast address from the subnet mask and ip addr.
+
+    Supports ipv4 only."""
+    ip_bin = int(''.join([bin(int(x) + 256)[3:] for x in ip.split('.')]), 2)
+    mask_dec = ipv4_mask_to_net_prefix(mask)
+    bcast_bin = ip_bin | (2**(32 - mask_dec) - 1)
+    bcast_str = '.'.join([str(bcast_bin >> (i << 3) & 0xFF)
+                          for i in range(4)[::-1]])
+    return bcast_str
 
 
 # vi: ts=4 expandtab

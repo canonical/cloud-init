@@ -9,17 +9,21 @@ from simplestreams import mirrors
 from simplestreams import objectstores
 from simplestreams import util as s_util
 
+from ..platforms import Platform
+from .image import NoCloudKVMImage
+from .instance import NoCloudKVMInstance
 from cloudinit import util as c_util
-from tests.cloud_tests.images import nocloudkvm as nocloud_kvm_image
-from tests.cloud_tests.instances import nocloudkvm as nocloud_kvm_instance
-from tests.cloud_tests.platforms import base
 from tests.cloud_tests import util
 
 
-class NoCloudKVMPlatform(base.Platform):
+class NoCloudKVMPlatform(Platform):
     """NoCloud KVM test platform."""
 
     platform_name = 'nocloud-kvm'
+
+    def __init__(self, config):
+        """Set up platform."""
+        super(NoCloudKVMPlatform, self).__init__(config)
 
     def get_image(self, img_conf):
         """Get image using specified image configuration.
@@ -62,7 +66,7 @@ class NoCloudKVMPlatform(base.Platform):
                 "Multiple images found in '%s': %s" % (search_d,
                                                        ' '.join(images)))
 
-        image = nocloud_kvm_image.NoCloudKVMImage(self, img_conf, images[0])
+        image = NoCloudKVMImage(self, img_conf, images[0])
         return image
 
     def create_instance(self, properties, config, features,
@@ -83,9 +87,7 @@ class NoCloudKVMPlatform(base.Platform):
         c_util.subp(['qemu-img', 'create', '-f', 'qcow2',
                     '-b', src_img_path, img_path])
 
-        return nocloud_kvm_instance.NoCloudKVMInstance(self, name, img_path,
-                                                       properties, config,
-                                                       features, user_data,
-                                                       meta_data)
+        return NoCloudKVMInstance(self, name, img_path, properties, config,
+                                  features, user_data, meta_data)
 
 # vi: ts=4 expandtab

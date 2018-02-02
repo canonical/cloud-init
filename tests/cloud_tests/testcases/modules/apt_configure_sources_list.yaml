@@ -7,6 +7,12 @@ required_features:
 cloud_config: |
   #cloud-config
   apt:
+    primary:
+      - arches: [default]
+        uri: http://archive.ubuntu.com/ubuntu
+    security:
+      - arches: [default]
+        uri: http://security.ubuntu.com/ubuntu
     sources_list: |
       deb $MIRROR $RELEASE main restricted
       deb-src $MIRROR $RELEASE main restricted

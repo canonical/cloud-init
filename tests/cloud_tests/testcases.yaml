@@ -7,22 +7,37 @@ base_test_data:
         #cloud-config
     collect_scripts:
         cloud-init.log: |
-            #!/bin/bash
+            #!/bin/sh
             cat /var/log/cloud-init.log
         cloud-init-output.log: |
-            #!/bin/bash
+            #!/bin/sh
             cat /var/log/cloud-init-output.log
         instance-id: |
-            #!/bin/bash
+            #!/bin/sh
             cat /run/cloud-init/.instance-id
         result.json: |
-            #!/bin/bash
+            #!/bin/sh
             cat /run/cloud-init/result.json
         status.json: |
-            #!/bin/bash
+            #!/bin/sh
             cat /run/cloud-init/status.json
         cloud-init-version: |
-            #!/bin/bash
+            #!/bin/sh
             dpkg-query -W -f='${Version}' cloud-init
+        system.journal.gz: |
+            #!/bin/sh
+            [ -d /run/systemd ] || { echo "not systemd."; exit 0; }
+            fail() { echo "ERROR:" "$@" 1>&2; exit 1; }
+            journal=""
+            for d in /run/log/journal /var/log/journal; do
+                for f in $d/*/system.journal; do
+                    [ -f "$f" ] || continue
+                    [ -z "$journal" ] ||
+                        fail "multiple journal found: $f $journal."
+                    journal="$f"
+                done
+            done
+            [ -f "$journal" ] || fail "no journal file found."
+            gzip --to-stdout "$journal"
 
 # vi: ts=4 expandtab

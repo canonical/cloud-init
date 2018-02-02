@@ -12,6 +12,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import collections
 import os
 import pwd
 import re
@@ -19,6 +20,7 @@ import string
 
 from cloudinit import log as logging
 from cloudinit import net
+from cloudinit.net import eni
 from cloudinit import sources
 from cloudinit import util
 
@@ -31,6 +33,9 @@ CONTEXT_DISK_FILES = ["context.sh"]
 
 
 class DataSourceOpenNebula(sources.DataSource):
+
+    dsname = "OpenNebula"
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed = None
@@ -40,7 +45,7 @@ class DataSourceOpenNebula(sources.DataSource):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s][dsmode=%s]" % (root, self.seed, self.dsmode)
 
-    def get_data(self):
+    def _get_data(self):
         defaults = {"instance-id": DEFAULT_IID}
         results = None
         seed = None
@@ -86,10 +91,17 @@ class DataSourceOpenNebula(sources.DataSource):
             return False
 
         self.seed = seed
-        self.network_eni = results.get("network_config")
+        self.network_eni = results.get('network-interfaces')
         self.metadata = md
         self.userdata_raw = results.get('userdata')
         return True
+
+    @property
+    def network_config(self):
+        if self.network_eni is not None:
+            return eni.convert_eni_data(self.network_eni)
+        else:
+            return None
 
     def get_hostname(self, fqdn=False, resolve_ip=None):
         if resolve_ip is None:
@@ -113,58 +125,53 @@ class OpenNebulaNetwork(object):
         self.context = context
         if system_nics_by_mac is None:
             system_nics_by_mac = get_physical_nics_by_mac()
-        self.ifaces = system_nics_by_mac
+        self.ifaces = collections.OrderedDict(
+            [k for k in sorted(system_nics_by_mac.items(),
+                               key=lambda k: net.natural_sort_key(k[1]))])
+
+        # OpenNebula 4.14+ provide macaddr for ETHX in variable ETH_MAC.
+        # context_devname provides {mac.lower():ETHX, mac2.lower():ETHX}
+        self.context_devname = {}
+        for k, v in context.items():
+            m = re.match(r'^(.+)_MAC$', k)
+            if m:
+                self.context_devname[v.lower()] = m.group(1)
 
     def mac2ip(self, mac):
-        components = mac.split(':')[2:]
-        return [str(int(c, 16)) for c in components]
+        return '.'.join([str(int(c, 16)) for c in mac.split(':')[2:]])
 
-    def get_ip(self, dev, components):
-        var_name = dev.upper() + '_IP'
-        if var_name in self.context:
-            return self.context[var_name]
-        else:
-            return '.'.join(components)
-
-    def get_mask(self, dev):
-        var_name = dev.upper() + '_MASK'
-        if var_name in self.context:
-            return self.context[var_name]
-        else:
-            return '255.255.255.0'
-
-    def get_network(self, dev, components):
-        var_name = dev.upper() + '_NETWORK'
-        if var_name in self.context:
-            return self.context[var_name]
-        else:
-            return '.'.join(components[:-1]) + '.0'
-
-    def get_gateway(self, dev):
-        var_name = dev.upper() + '_GATEWAY'
-        if var_name in self.context:
-            return self.context[var_name]
-        else:
-            return None
+    def mac2network(self, mac):
+        return self.mac2ip(mac).rpartition(".")[0] + ".0"
 
     def get_dns(self, dev):
-        var_name = dev.upper() + '_DNS'
-        if var_name in self.context:
-            return self.context[var_name]
-        else:
-            return None
+        return self.get_field(dev, "dns", "").split()
 
     def get_domain(self, dev):
-        var_name = dev.upper() + '_DOMAIN'
-        if var_name in self.context:
-            return self.context[var_name]
-        else:
-            return None
+        return self.get_field(dev, "domain")
+
+    def get_ip(self, dev, mac):
+        return self.get_field(dev, "ip", self.mac2ip(mac))
+
+    def get_gateway(self, dev):
+        return self.get_field(dev, "gateway")
+
+    def get_mask(self, dev):
+        return self.get_field(dev, "mask", "255.255.255.0")
+
+    def get_network(self, dev, mac):
+        return self.get_field(dev, "network", self.mac2network(mac))
+
+    def get_field(self, dev, name, default=None):
+        """return the field name in context for device dev.
+
+        context stores <dev>_<NAME> (example: eth0_DOMAIN).
+        an empty string for value will return default."""
+        val = self.context.get('_'.join((dev, name,)).upper())
+        # allow empty string to return the default.
+        return default if val in (None, "") else val
 
     def gen_conf(self):
-        global_dns = []
-        if 'DNS' in self.context:
-            global_dns.append(self.context['DNS'])
+        global_dns = self.context.get('DNS', "").split()
 
         conf = []
         conf.append('auto lo')
@@ -172,29 +179,31 @@ class OpenNebulaNetwork(object):
         conf.append('')
 
         for mac, dev in self.ifaces.items():
-            ip_components = self.mac2ip(mac)
+            mac = mac.lower()
+
+            # c_dev stores name in context 'ETHX' for this device.
+            # dev stores the current system name.
+            c_dev = self.context_devname.get(mac, dev)
 
             conf.append('auto ' + dev)
             conf.append('iface ' + dev + ' inet static')
-            conf.append('  address ' + self.get_ip(dev, ip_components))
-            conf.append('  network ' + self.get_network(dev, ip_components))
-            conf.append('  netmask ' + self.get_mask(dev))
+            conf.append('  #hwaddress %s' % mac)
+            conf.append('  address ' + self.get_ip(c_dev, mac))
+            conf.append('  network ' + self.get_network(c_dev, mac))
+            conf.append('  netmask ' + self.get_mask(c_dev))
 
-            gateway = self.get_gateway(dev)
+            gateway = self.get_gateway(c_dev)
             if gateway:
                 conf.append('  gateway ' + gateway)
 
-            domain = self.get_domain(dev)
+            domain = self.get_domain(c_dev)
             if domain:
                 conf.append('  dns-search ' + domain)
 
             # add global DNS servers to all interfaces
-            dns = self.get_dns(dev)
+            dns = self.get_dns(c_dev)
             if global_dns or dns:
-                all_dns = global_dns
-                if dns:
-                    all_dns.append(dns)
-                conf.append('  dns-nameservers ' + ' '.join(all_dns))
+                conf.append('  dns-nameservers ' + ' '.join(global_dns + dns))
 
             conf.append('')
 
@@ -329,8 +338,9 @@ def read_context_disk_dir(source_dir, asuser=None):
             try:
                 pwd.getpwnam(asuser)
             except KeyError as e:
-                raise BrokenContextDiskDir("configured user '%s' "
-                                           "does not exist", asuser)
+                raise BrokenContextDiskDir(
+                    "configured user '{user}' does not exist".format(
+                        user=asuser))
         try:
             path = os.path.join(source_dir, 'context.sh')
             content = util.load_file(path)

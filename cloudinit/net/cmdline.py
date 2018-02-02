@@ -116,10 +116,11 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
             prev = names[name]['entry']
             if prev.get('mac_address') != entry.get('mac_address'):
                 raise ValueError(
-                    "device '%s' was defined multiple times (%s)"
-                    " but had differing mac addresses: %s -> %s.",
-                    (name, ' '.join(names[name]['files']),
-                     prev.get('mac_address'), entry.get('mac_address')))
+                    "device '{name}' was defined multiple times ({files})"
+                    " but had differing mac addresses: {old} -> {new}.".format(
+                        name=name, files=' '.join(names[name]['files']),
+                        old=prev.get('mac_address'),
+                        new=entry.get('mac_address')))
             prev['subnets'].extend(entry['subnets'])
             names[name]['files'].append(cfg_file)
         else:

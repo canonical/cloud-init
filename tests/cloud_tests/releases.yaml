@@ -27,10 +27,14 @@ default_release_config:
         # features groups and additional feature settings
         feature_groups: []
         features: {}
-    nocloud-kvm:
         mirror_url: https://cloud-images.ubuntu.com/daily
-        mirror_dir: '/srv/citest/nocloud-kvm'
+        mirror_dir: '/srv/citest/images'
         keyring: /usr/share/keyrings/ubuntu-cloudimage-keyring.gpg
+    ec2:
+        # Choose from: [ebs, instance-store]
+        root-store: ebs
+        boot_timeout: 300
+    nocloud-kvm:
         setup_overrides: null
         override_templates: false
     # lxd specific default configuration options
@@ -128,7 +132,7 @@ releases:
             enabled: true
             release: bionic
             version: 18.04
-            family: ubuntu
+            os: ubuntu
             feature_groups:
                 - base
                 - debian_base
@@ -144,7 +148,7 @@ releases:
             enabled: true
             release: artful
             version: 17.10
-            family: ubuntu
+            os: ubuntu
             feature_groups:
                 - base
                 - debian_base
@@ -154,29 +158,13 @@ releases:
             alias: artful
             setup_overrides: null
             override_templates: false
-    zesty:
-        # EOL: Jan 2018
-        default:
-            enabled: true
-            release: zesty
-            version: 17.04
-            family: ubuntu
-            feature_groups:
-                - base
-                - debian_base
-                - ubuntu_specific
-        lxd:
-            sstreams_server: https://cloud-images.ubuntu.com/daily
-            alias: zesty
-            setup_overrides: null
-            override_templates: false
     xenial:
         # EOL: Apr 2021
         default:
             enabled: true
             release: xenial
             version: 16.04
-            family: ubuntu
+            os: ubuntu
             feature_groups:
                 - base
                 - debian_base
@@ -192,7 +180,7 @@ releases:
             enabled: true
             release: trusty
             version: 14.04
-            family: ubuntu
+            os: ubuntu
             feature_groups:
                 - base
                 - debian_base

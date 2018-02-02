@@ -11,12 +11,15 @@ LOG = logging.getLogger(__name__)
 
 
 class DataSourceNone(sources.DataSource):
+
+    dsname = "None"
+
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         sources.DataSource.__init__(self, sys_cfg, distro, paths, ud_proc)
         self.metadata = {}
         self.userdata_raw = ''
 
-    def get_data(self):
+    def _get_data(self):
         # If the datasource config has any provided 'fallback'
         # userdata or metadata, use it...
         if 'userdata_raw' in self.ds_cfg:

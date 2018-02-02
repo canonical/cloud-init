@@ -33,6 +33,7 @@ class TestCloudStackPasswordFetching(CiTestCase):
         self.patches.enter_context(mock.patch(
             mod_name + '.dhcp.networkd_get_option_from_leases',
             get_networkd_server_address))
+        self.tmp = self.tmp_dir()
 
     def _set_password_server_response(self, response_string):
         subp = mock.MagicMock(return_value=(response_string, ''))
@@ -43,26 +44,30 @@ class TestCloudStackPasswordFetching(CiTestCase):
 
     def test_empty_password_doesnt_create_config(self):
         self._set_password_server_response('')
-        ds = DataSourceCloudStack({}, None, helpers.Paths({}))
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({'run_dir': self.tmp}))
         ds.get_data()
         self.assertEqual({}, ds.get_config_obj())
 
     def test_saved_password_doesnt_create_config(self):
         self._set_password_server_response('saved_password')
-        ds = DataSourceCloudStack({}, None, helpers.Paths({}))
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({'run_dir': self.tmp}))
         ds.get_data()
         self.assertEqual({}, ds.get_config_obj())
 
     def test_password_sets_password(self):
         password = 'SekritSquirrel'
         self._set_password_server_response(password)
-        ds = DataSourceCloudStack({}, None, helpers.Paths({}))
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({'run_dir': self.tmp}))
         ds.get_data()
         self.assertEqual(password, ds.get_config_obj()['password'])
 
     def test_bad_request_doesnt_stop_ds_from_working(self):
         self._set_password_server_response('bad_request')
-        ds = DataSourceCloudStack({}, None, helpers.Paths({}))
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({'run_dir': self.tmp}))
         self.assertTrue(ds.get_data())
 
     def assertRequestTypesSent(self, subp, expected_request_types):
@@ -77,14 +82,16 @@ class TestCloudStackPasswordFetching(CiTestCase):
     def test_valid_response_means_password_marked_as_saved(self):
         password = 'SekritSquirrel'
         subp = self._set_password_server_response(password)
-        ds = DataSourceCloudStack({}, None, helpers.Paths({}))
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({'run_dir': self.tmp}))
         ds.get_data()
         self.assertRequestTypesSent(subp,
                                     ['send_my_password', 'saved_password'])
 
     def _check_password_not_saved_for(self, response_string):
         subp = self._set_password_server_response(response_string)
-        ds = DataSourceCloudStack({}, None, helpers.Paths({}))
+        ds = DataSourceCloudStack(
+            {}, None, helpers.Paths({'run_dir': self.tmp}))
         ds.get_data()
         self.assertRequestTypesSent(subp, ['send_my_password'])
 

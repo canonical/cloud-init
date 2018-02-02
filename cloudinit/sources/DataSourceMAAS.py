@@ -8,6 +8,7 @@
 
 from __future__ import print_function
 
+import hashlib
 import os
 import time
 
@@ -39,30 +40,28 @@ class DataSourceMAAS(sources.DataSource):
       hostname
       vendor-data
     """
+
+    dsname = "MAAS"
+    id_hash = None
+    _oauth_helper = None
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.base_url = None
         self.seed_dir = os.path.join(paths.seed_dir, 'maas')
-        self.oauth_helper = self._get_helper()
+        self.id_hash = get_id_from_ds_cfg(self.ds_cfg)
 
-    def _get_helper(self):
-        mcfg = self.ds_cfg
-        # If we are missing token_key, token_secret or consumer_key
-        # then just do non-authed requests
-        for required in ('token_key', 'token_secret', 'consumer_key'):
-            if required not in mcfg:
-                return url_helper.OauthUrlHelper()
-
-        return url_helper.OauthUrlHelper(
-            consumer_key=mcfg['consumer_key'], token_key=mcfg['token_key'],
-            token_secret=mcfg['token_secret'],
-            consumer_secret=mcfg.get('consumer_secret'))
+    @property
+    def oauth_helper(self):
+        if not self._oauth_helper:
+            self._oauth_helper = get_oauth_helper(self.ds_cfg)
+        return self._oauth_helper
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
         return "%s [%s]" % (root, self.base_url)
 
-    def get_data(self):
+    def _get_data(self):
         mcfg = self.ds_cfg
 
         try:
@@ -143,6 +142,36 @@ class DataSourceMAAS(sources.DataSource):
                          urls, int(time.time() - starttime))
 
         return bool(url)
+
+    def check_instance_id(self, sys_cfg):
+        """locally check if the current system is the same instance.
+
+        MAAS doesn't provide a real instance-id, and if it did, it is
+        still only available over the network.  We need to check based
+        only on local resources.  So compute a hash based on Oauth tokens."""
+        if self.id_hash is None:
+            return False
+        ncfg = util.get_cfg_by_path(sys_cfg, ("datasource", self.dsname), {})
+        return (self.id_hash == get_id_from_ds_cfg(ncfg))
+
+
+def get_oauth_helper(cfg):
+    """Return an oauth helper instance for values in cfg.
+
+       @raises ValueError from OauthUrlHelper if some required fields have
+               true-ish values but others do not."""
+    keys = ('consumer_key', 'consumer_secret', 'token_key', 'token_secret')
+    kwargs = dict([(r, cfg.get(r)) for r in keys])
+    return url_helper.OauthUrlHelper(**kwargs)
+
+
+def get_id_from_ds_cfg(ds_cfg):
+    """Given a config, generate a unique identifier for this node."""
+    fields = ('consumer_key', 'token_key', 'token_secret')
+    idstr = '\0'.join([ds_cfg.get(f, "") for f in fields])
+    # store the encoding version as part of the hash in the event
+    # that it ever changed we can compute older versions.
+    return 'v1:' + hashlib.sha256(idstr.encode('utf-8')).hexdigest()
 
 
 def read_maas_seed_dir(seed_d):
@@ -319,7 +348,7 @@ if __name__ == "__main__":
             sys.stderr.write("Must provide a url or a config with url.\n")
             sys.exit(1)
 
-        oauth_helper = url_helper.OauthUrlHelper(**creds)
+        oauth_helper = get_oauth_helper(creds)
 
         def geturl(url):
             # the retry is to ensure that oauth timestamp gets fixed

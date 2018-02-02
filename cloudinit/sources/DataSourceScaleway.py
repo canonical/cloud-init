@@ -169,6 +169,8 @@ def query_data_api(api_type, api_address, retries, timeout):
 
 class DataSourceScaleway(sources.DataSource):
 
+    dsname = "Scaleway"
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceScaleway, self).__init__(sys_cfg, distro, paths)
 
@@ -184,7 +186,7 @@ class DataSourceScaleway(sources.DataSource):
         self.retries = int(self.ds_cfg.get('retries', DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get('timeout', DEF_MD_TIMEOUT))
 
-    def get_data(self):
+    def _get_data(self):
         if not on_scaleway():
             return False
 

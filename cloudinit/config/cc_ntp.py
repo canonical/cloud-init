@@ -106,9 +106,9 @@ def handle(name, cfg, cloud, log, _args):
 
     # TODO drop this when validate_cloudconfig_schema is strict=True
     if not isinstance(ntp_cfg, (dict)):
-        raise RuntimeError(("'ntp' key existed in config,"
-                            " but not a dictionary type,"
-                            " is a %s %instead"), type_utils.obj_name(ntp_cfg))
+        raise RuntimeError(
+            "'ntp' key existed in config, but not a dictionary type,"
+            " is a {_type} instead".format(_type=type_utils.obj_name(ntp_cfg)))
 
     validate_cloudconfig_schema(cfg, schema)
     if ntp_installable():
@@ -206,8 +206,8 @@ def write_ntp_config_template(cfg, cloud, path, template=None):
     if not template_fn:
         template_fn = cloud.get_template_filename('ntp.conf')
         if not template_fn:
-            raise RuntimeError(("No template found, "
-                                "not rendering %s"), path)
+            raise RuntimeError(
+                'No template found, not rendering {path}'.format(path=path))
 
     templater.render_to_file(template_fn, path, params)
 

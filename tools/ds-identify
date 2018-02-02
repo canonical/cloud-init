@@ -83,6 +83,7 @@ _DI_LOGGED=""
 # set DI_MAIN='noop' in environment to source this file with no main called.
 DI_MAIN=${DI_MAIN:-main}
 
+DI_BLKID_OUTPUT=""
 DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_DISABLED}"
 DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=all,notfound=${DI_ENABLED}"
 DI_DMI_CHASSIS_ASSET_TAG=""
@@ -91,6 +92,7 @@ DI_DMI_SYS_VENDOR=""
 DI_DMI_PRODUCT_SERIAL=""
 DI_DMI_PRODUCT_UUID=""
 DI_FS_LABELS=""
+DI_ISO9660_DEVS=""
 DI_KERNEL_CMDLINE=""
 DI_VIRT=""
 DI_PID_1_PRODUCT_NAME=""
@@ -181,42 +183,49 @@ block_dev_with_label() {
     return 0
 }
 
-read_fs_labels() {
-    cached "${DI_FS_LABELS}" && return 0
+read_fs_info() {
+    cached "${DI_BLKID_OUTPUT}" && return 0
     # do not rely on links in /dev/disk which might not be present yet.
     # note that older blkid versions do not report DEVNAME in 'export' output.
-    local out="" ret=0 oifs="$IFS" line="" delim=","
-    local labels=""
     if is_container; then
         # blkid will in a container, or at least currently in lxd
         # not provide useful information.
         DI_FS_LABELS="$UNAVAILABLE:container"
-    else
-        out=$(blkid -c /dev/null -o export) || {
-            ret=$?
-            error "failed running [$ret]: blkid -c /dev/null -o export"
-            return $ret
-        }
-        IFS="$CR"
-        set -- $out
-        IFS="$oifs"
-        for line in "$@"; do
-            case "${line}" in
-                LABEL=*) labels="${labels}${line#LABEL=}${delim}";;
-            esac
-        done
-        DI_FS_LABELS="${labels%${delim}}"
+        DI_ISO9660_DEVS="$UNAVAILABLE:container"
+        return
     fi
+    local oifs="$IFS" line="" delim=","
+    local ret=0 out="" labels="" dev="" label="" ftype="" isodevs=""
+    out=$(blkid -c /dev/null -o export) || {
+        ret=$?
+        error "failed running [$ret]: blkid -c /dev/null -o export"
+        DI_FS_LABELS="$UNAVAILABLE:error"
+        DI_ISO9660_DEVS="$UNAVAILABLE:error"
+        return $ret
+    }
+    IFS="$CR"
+    set -- $out
+    IFS="$oifs"
+    for line in "$@" ""; do
+        case "${line}" in
+            DEVNAME=*) dev=${line#DEVNAME=};;
+            LABEL=*) label="${line#LABEL=}";
+                     labels="${labels}${line#LABEL=}${delim}";;
+            TYPE=*) ftype=${line#TYPE=};;
+            "") if [ "$ftype" = "iso9660" ]; then
+                    isodevs="${isodevs} ${dev}=$label"
+                fi
+                ftype=""; devname=""; label="";
+        esac
+    done
+    DI_FS_LABELS="${labels%${delim}}"
+    DI_ISO9660_DEVS="${isodevs# }"
 }
 
 cached() {
     [ -n "$1" ] && _RET="$1" && return || return 1
 }
 
-
-has_cdrom() {
-    [ -e "${PATH_ROOT}/dev/cdrom" ]
-}
 
 detect_virt() {
     local virt="${UNAVAILABLE}" r="" out=""
@@ -570,6 +579,8 @@ dscheck_NoCloud() {
 check_configdrive_v2() {
     if has_fs_with_label "config-2"; then
         return ${DS_FOUND}
+    elif has_fs_with_label "CONFIG-2"; then
+        return ${DS_FOUND}
     fi
     # look in /config-drive <vlc>/seed/config_drive for a directory
     # openstack/YYYY-MM-DD format with a file meta_data.json
@@ -621,14 +632,13 @@ ovf_vmware_guest_customization() {
     [ "${DI_VIRT}" = "vmware" ] || return 1
 
     # we have to have the plugin to do vmware customization
-    local found="" pkg="" pre="/usr/lib"
+    local found="" pkg="" pre="${PATH_ROOT}/usr/lib"
     for pkg in vmware-tools open-vm-tools; do
         if [ -f "$pre/$pkg/plugins/vmsvc/libdeployPkgPlugin.so" ]; then
             found="$pkg"; break;
         fi
     done
     [ -n "$found" ] || return 1
-
     # vmware customization is disabled by default
     # (disable_vmware_customization=true). If it is set to false, then
     # user has requested customization.
@@ -644,20 +654,57 @@ ovf_vmware_guest_customization() {
     return 1
 }
 
+is_cdrom_ovf() {
+    local dev="$1" label="$2"
+    # skip devices that don't look like cdrom paths.
+    case "$dev" in
+        /dev/sr[0-9]|/dev/hd[a-z]) :;;
+        *) debug 1 "skipping iso dev $dev"
+           return 1;;
+    esac
+
+    # fast path known 'OVF' labels
+    case "$label" in
+        OVF-TRANSPORT|ovf-transport|OVFENV|ovfenv) return 0;;
+    esac
+
+    # explicitly skip known labels of other types. rd_rdfe is azure.
+    case "$label" in
+        config-2|CONFIG-2|rd_rdfe_stable*|cidata) return 1;;
+    esac
+
+    local idstr="http://schemas.dmtf.org/ovf/environment/1"
+    grep --quiet --ignore-case "$idstr" "${PATH_ROOT}$dev"
+}
+
 dscheck_OVF() {
-    local p=""
     check_seed_dir ovf ovf-env.xml && return "${DS_FOUND}"
+
+    [ "${DI_VIRT}" = "none" ] && return ${DS_NOT_FOUND}
+
+    # Azure provides ovf. Skip false positive by dis-allowing.
+    is_azure_chassis && return $DS_NOT_FOUND
+
+    local isodevs="${DI_ISO9660_DEVS}"
+    case "$isodevs" in
+        ""|$UNAVAILABLE:*) return ${DS_NOT_FOUND};;
+    esac
+
+    # DI_ISO9660_DEVS is <device>=label, like /dev/sr0=OVF-TRANSPORT
+    for tok in $isodevs; do
+        is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return $DS_FOUND
+    done
 
     if ovf_vmware_guest_customization; then
         return ${DS_FOUND}
     fi
 
-    has_cdrom || return ${DS_NOT_FOUND}
+    return ${DS_NOT_FOUND}
+}
 
-    # FIXME: currently just return maybe if there is a cdrom
-    # ovf iso9660 transport does not specify an fs label.
-    # better would be to check if
-    return ${DS_MAYBE}
+is_azure_chassis() {
+    local azure_chassis="7783-7084-3265-9085-8269-3286-77"
+    dmi_chassis_asset_tag_matches "${azure_chassis}"
 }
 
 dscheck_Azure() {
@@ -667,8 +714,7 @@ dscheck_Azure() {
     #  UUID="112D211272645f72" LABEL="rd_rdfe_stable.161212-1209"
     #  TYPE="udf">/dev/sr0</device>
     #
-    local azure_chassis="7783-7084-3265-9085-8269-3286-77"
-    dmi_chassis_asset_tag_matches "${azure_chassis}" && return $DS_FOUND
+    is_azure_chassis && return $DS_FOUND
     check_seed_dir azure ovf-env.xml && return ${DS_FOUND}
 
     [ "${DI_VIRT}" = "microsoft" ] || return ${DS_NOT_FOUND}
@@ -930,7 +976,7 @@ collect_info() {
     read_dmi_product_name
     read_dmi_product_serial
     read_dmi_product_uuid
-    read_fs_labels
+    read_fs_info
 }
 
 print_info() {
@@ -942,7 +988,7 @@ _print_info() {
     local n="" v="" vars=""
     vars="DMI_PRODUCT_NAME DMI_SYS_VENDOR DMI_PRODUCT_SERIAL"
     vars="$vars DMI_PRODUCT_UUID PID_1_PRODUCT_NAME DMI_CHASSIS_ASSET_TAG"
-    vars="$vars FS_LABELS KERNEL_CMDLINE VIRT"
+    vars="$vars FS_LABELS ISO9660_DEVS KERNEL_CMDLINE VIRT"
     vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_RELEASE UNAME_KERNEL_VERSION"
     vars="$vars UNAME_MACHINE UNAME_NODENAME UNAME_OPERATING_SYSTEM"
     vars="$vars DSNAME DSLIST"

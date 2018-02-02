@@ -8,7 +8,7 @@ import os
 from cloudinit import util as c_util
 from tests.cloud_tests import (config, LOG, setup_image, util)
 from tests.cloud_tests.stage import (PlatformComponent, run_stage, run_single)
-from tests.cloud_tests import (platforms, images, snapshots, instances)
+from tests.cloud_tests import platforms
 
 
 def collect_script(instance, base_dir, script, script_name):
@@ -24,16 +24,29 @@ def collect_script(instance, base_dir, script, script_name):
     (out, err, exit) = instance.run_script(
         script.encode(), rcs=False,
         description='collect: {}'.format(script_name))
+    if err:
+        LOG.debug("collect script %s had stderr: %s", script_name, err)
+    if not isinstance(out, bytes):
+        raise util.PlatformError(
+            "Collection of '%s' returned type %s, expected bytes: %s" %
+            (script_name, type(out), out))
+
     c_util.write_file(os.path.join(base_dir, script_name), out)
 
 
 def collect_console(instance, base_dir):
-    LOG.debug('getting console log')
+    """Collect instance console log.
+
+    @param instance: instance to get console log for
+    @param base_dir: directory to write console log to
+    """
+    logfile = os.path.join(base_dir, 'console.log')
+    LOG.debug('getting console log for %s to %s', instance, logfile)
     try:
         data = instance.console_log()
-    except NotImplementedError as e:
-        data = 'Not Implemented: %s' % e
-    with open(os.path.join(base_dir, 'console.log'), "wb") as fp:
+    except NotImplementedError:
+        data = b'instance.console_log: not implemented'
+    with open(logfile, "wb") as fp:
         fp.write(data)
 
 
@@ -64,9 +77,9 @@ def collect_test_data(args, snapshot, os_name, test_name):
     # skip the testcase with a warning
     req_features = test_config.get('required_features', [])
     if any(feature not in snapshot.features for feature in req_features):
-        LOG.warn('test config %s requires features not supported by image, '
-                 'skipping.\nrequired features: %s\nsupported features: %s',
-                 test_name, req_features, snapshot.features)
+        LOG.warning('test config %s requires features not supported by image, '
+                    'skipping.\nrequired features: %s\nsupported features: %s',
+                    test_name, req_features, snapshot.features)
         return ({}, 0)
 
     # if there are user data overrides required for this test case, apply them
@@ -77,7 +90,7 @@ def collect_test_data(args, snapshot, os_name, test_name):
 
     # create test instance
     component = PlatformComponent(
-        partial(instances.get_instance, snapshot, user_data,
+        partial(platforms.get_instance, snapshot, user_data,
                 block=True, start=False, use_desc=test_name))
 
     LOG.info('collecting test data for test: %s', test_name)
@@ -89,12 +102,11 @@ def collect_test_data(args, snapshot, os_name, test_name):
                                          test_output_dir, script, script_name))
                          for script_name, script in test_scripts.items()]
 
-        console_log = partial(
-            run_single, 'collect console',
-            partial(collect_console, instance, test_output_dir))
-
         res = run_stage('collect for test: {}'.format(test_name),
-                        [start_call] + collect_calls + [console_log])
+                        [start_call] + collect_calls)
+
+        instance.shutdown()
+        collect_console(instance, test_output_dir)
 
     return res
 
@@ -108,7 +120,7 @@ def collect_snapshot(args, image, os_name):
     """
     res = ({}, 1)
 
-    component = PlatformComponent(partial(snapshots.get_snapshot, image))
+    component = PlatformComponent(partial(platforms.get_snapshot, image))
 
     LOG.debug('creating snapshot for %s', os_name)
     with component as snapshot:
@@ -136,7 +148,7 @@ def collect_image(args, platform, os_name):
         feature_overrides=args.feature_override)
     LOG.debug('os config: %s', os_config)
     component = PlatformComponent(
-        partial(images.get_image, platform, os_config))
+        partial(platforms.get_image, platform, os_config))
 
     LOG.info('acquiring image for os: %s', os_name)
     with component as image:

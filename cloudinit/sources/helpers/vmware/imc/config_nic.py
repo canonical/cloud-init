@@ -161,7 +161,7 @@ class NicConfigurator(object):
         if nic.primary and v4.gateways:
             self.ipv4PrimaryGateway = v4.gateways[0]
             subnet.update({'gateway': self.ipv4PrimaryGateway})
-            return [subnet]
+            return ([subnet], route_list)
 
         # Add routes if there is no primary nic
         if not self._primaryNic:

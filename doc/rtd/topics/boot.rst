@@ -1,3 +1,5 @@
+.. _boot_stages:
+
 ***********
 Boot Stages
 ***********
@@ -74,7 +76,7 @@ Network
  * **systemd service**: ``cloud-init.service``
  * **runs**: After local stage and configured networking is up.
  * **blocks**: As much of remaining boot as possible.
- * **modules**: ``init_modules``
+ * **modules**: ``cloud_init_modules`` in **/etc/cloud/cloud.cfg**
 
 This stage requires all configured networking to be online, as it will fully
 process any user-data that is found.  Here, processing means:
@@ -104,7 +106,7 @@ Config
  * **systemd service**: ``cloud-config.service``
  * **runs**: After network stage.
  * **blocks**: None.
- * **modules**: ``config_modules``
+ * **modules**: ``cloud_config_modules`` in **/etc/cloud/cloud.cfg**
 
 This stage runs config modules only.  Modules that do not really have an
 effect on other stages of boot are run here.
@@ -115,7 +117,7 @@ Final
  * **systemd service**: ``cloud-final.service``
  * **runs**: As final part of boot (traditional "rc.local")
  * **blocks**: None.
- * **modules**: ``final_modules``
+ * **modules**: ``cloud_final_modules`` in **/etc/cloud/cloud.cfg**
 
 This stage runs as late in boot as possible.  Any scripts that a user is
 accustomed to running after logging into a system should run correctly here.
@@ -124,5 +126,10 @@ Things that run here include
  * package installations
  * configuration management plugins (puppet, chef, salt-minion)
  * user-scripts (including ``runcmd``).
+
+For scripts external to cloud-init looking to wait until cloud-init
+finished, the ``cloud-init status`` subcommand can help block external
+scripts until cloud-init is done without having to write your own systemd
+units dependency chains. See :ref:`cli_status` for more info.
 
 .. vi: textwidth=78

@@ -253,12 +253,18 @@ class ProcessExecutionError(IOError):
             self.exit_code = exit_code
 
         if not stderr:
-            self.stderr = self.empty_attr
+            if stderr is None:
+                self.stderr = self.empty_attr
+            else:
+                self.stderr = stderr
         else:
             self.stderr = self._indent_text(stderr)
 
         if not stdout:
-            self.stdout = self.empty_attr
+            if stdout is None:
+                self.stdout = self.empty_attr
+            else:
+                self.stdout = stdout
         else:
             self.stdout = self._indent_text(stdout)
 
@@ -531,15 +537,6 @@ def multi_log(text, console=True, stderr=True,
             log.log(log_level, text[:-1])
         else:
             log.log(log_level, text)
-
-
-def load_json(text, root_types=(dict,)):
-    decoded = json.loads(decode_binary(text))
-    if not isinstance(decoded, tuple(root_types)):
-        expected_types = ", ".join([str(t) for t in root_types])
-        raise TypeError("(%s) root types expected, got %s instead"
-                        % (expected_types, type(decoded)))
-    return decoded
 
 
 def is_ipv4(instr):
@@ -900,17 +897,17 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                   "of length %s with allowed root types %s",
                   len(blob), allowed)
         converted = safeyaml.load(blob)
-        if not isinstance(converted, allowed):
+        if converted is None:
+            LOG.debug("loaded blob returned None, returning default.")
+            converted = default
+        elif not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
             raise TypeError(("Yaml load allows %s root types,"
                              " but got %s instead") %
                             (allowed, type_utils.obj_name(converted)))
         loaded = converted
     except (yaml.YAMLError, TypeError, ValueError):
-        if len(blob) == 0:
-            LOG.debug("load_yaml given empty string, returning default")
-        else:
-            logexc(LOG, "Failed loading yaml blob")
+        logexc(LOG, "Failed loading yaml blob")
     return loaded
 
 
@@ -1398,6 +1395,32 @@ def get_output_cfg(cfg, mode):
     return ret
 
 
+def get_config_logfiles(cfg):
+    """Return a list of log file paths from the configuration dictionary.
+
+    @param cfg: The cloud-init merged configuration dictionary.
+    """
+    logs = []
+    if not cfg or not isinstance(cfg, dict):
+        return logs
+    default_log = cfg.get('def_log_file')
+    if default_log:
+        logs.append(default_log)
+    for fmt in get_output_cfg(cfg, None):
+        if not fmt:
+            continue
+        match = re.match('(?P<type>\||>+)\s*(?P<target>.*)', fmt)
+        if not match:
+            continue
+        target = match.group('target')
+        parts = target.split()
+        if len(parts) == 1:
+            logs.append(target)
+        elif ['tee', '-a'] == parts[:2]:
+            logs.append(parts[2])
+    return list(set(logs))
+
+
 def logexc(log, msg, *args):
     # Setting this here allows this to change
     # levels easily (not always error level)
@@ -1454,7 +1477,31 @@ def ensure_dirs(dirlist, mode=0o755):
         ensure_dir(d, mode)
 
 
+def load_json(text, root_types=(dict,)):
+    decoded = json.loads(decode_binary(text))
+    if not isinstance(decoded, tuple(root_types)):
+        expected_types = ", ".join([str(t) for t in root_types])
+        raise TypeError("(%s) root types expected, got %s instead"
+                        % (expected_types, type(decoded)))
+    return decoded
+
+
+def json_serialize_default(_obj):
+    """Handler for types which aren't json serializable."""
+    try:
+        return 'ci-b64:{0}'.format(b64e(_obj))
+    except AttributeError:
+        return 'Warning: redacted unserializable type {0}'.format(type(_obj))
+
+
+def json_dumps(data):
+    """Return data in nicely formatted json."""
+    return json.dumps(data, indent=1, sort_keys=True,
+                      separators=(',', ': '), default=json_serialize_default)
+
+
 def yaml_dumps(obj, explicit_start=True, explicit_end=True):
+    """Return data in nicely formatted yaml."""
     return yaml.safe_dump(obj,
                           line_break="\n",
                           indent=4,
@@ -1540,6 +1587,10 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
         mtypes = list(mtype)
     elif mtype is None:
         mtypes = None
+    else:
+        raise TypeError(
+            'Unsupported type provided for mtype parameter: {_type}'.format(
+                _type=type(mtype)))
 
     # clean up 'mtype' input a bit based on platform.
     platsys = platform.system().lower()
@@ -1788,57 +1839,59 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         env = env.copy()
         env.update(update_env)
 
+    if target_path(target) != "/":
+        args = ['chroot', target] + list(args)
+
+    if not logstring:
+        LOG.debug(("Running command %s with allowed return codes %s"
+                   " (shell=%s, capture=%s)"), args, rcs, shell, capture)
+    else:
+        LOG.debug(("Running hidden command to protect sensitive "
+                   "input/output logstring: %s"), logstring)
+
+    stdin = None
+    stdout = None
+    stderr = None
+    if capture:
+        stdout = subprocess.PIPE
+        stderr = subprocess.PIPE
+    if data is None:
+        # using devnull assures any reads get null, rather
+        # than possibly waiting on input.
+        devnull_fp = open(os.devnull)
+        stdin = devnull_fp
+    else:
+        stdin = subprocess.PIPE
+        if not isinstance(data, bytes):
+            data = data.encode()
+
     try:
-        if target_path(target) != "/":
-            args = ['chroot', target] + list(args)
-
-        if not logstring:
-            LOG.debug(("Running command %s with allowed return codes %s"
-                       " (shell=%s, capture=%s)"), args, rcs, shell, capture)
-        else:
-            LOG.debug(("Running hidden command to protect sensitive "
-                       "input/output logstring: %s"), logstring)
-
-        stdin = None
-        stdout = None
-        stderr = None
-        if capture:
-            stdout = subprocess.PIPE
-            stderr = subprocess.PIPE
-        if data is None:
-            # using devnull assures any reads get null, rather
-            # than possibly waiting on input.
-            devnull_fp = open(os.devnull)
-            stdin = devnull_fp
-        else:
-            stdin = subprocess.PIPE
-            if not isinstance(data, bytes):
-                data = data.encode()
-
         sp = subprocess.Popen(args, stdout=stdout,
                               stderr=stderr, stdin=stdin,
                               env=env, shell=shell)
         (out, err) = sp.communicate(data)
-
-        # Just ensure blank instead of none.
-        if not out and capture:
-            out = b''
-        if not err and capture:
-            err = b''
-        if decode:
-            def ldecode(data, m='utf-8'):
-                if not isinstance(data, bytes):
-                    return data
-                return data.decode(m, decode)
-
-            out = ldecode(out)
-            err = ldecode(err)
     except OSError as e:
-        raise ProcessExecutionError(cmd=args, reason=e,
-                                    errno=e.errno)
+        raise ProcessExecutionError(
+            cmd=args, reason=e, errno=e.errno,
+            stdout="-" if decode else b"-",
+            stderr="-" if decode else b"-")
     finally:
         if devnull_fp:
             devnull_fp.close()
+
+    # Just ensure blank instead of none.
+    if not out and capture:
+        out = b''
+    if not err and capture:
+        err = b''
+    if decode:
+        def ldecode(data, m='utf-8'):
+            if not isinstance(data, bytes):
+                return data
+            return data.decode(m, decode)
+
+        out = ldecode(out)
+        err = ldecode(err)
 
     rc = sp.returncode
     if rc not in rcs:
@@ -2010,7 +2063,7 @@ def expand_package_list(version_fmt, pkgs):
     return pkglist
 
 
-def parse_mount_info(path, mountinfo_lines, log=LOG):
+def parse_mount_info(path, mountinfo_lines, log=LOG, get_mnt_opts=False):
     """Return the mount information for PATH given the lines from
     /proc/$$/mountinfo."""
 
@@ -2072,11 +2125,16 @@ def parse_mount_info(path, mountinfo_lines, log=LOG):
 
         match_mount_point = mount_point
         match_mount_point_elements = mount_point_elements
+        mount_options = parts[5]
 
-    if devpth and fs_type and match_mount_point:
-        return (devpth, fs_type, match_mount_point)
+    if get_mnt_opts:
+        if devpth and fs_type and match_mount_point and mount_options:
+            return (devpth, fs_type, match_mount_point, mount_options)
     else:
-        return None
+        if devpth and fs_type and match_mount_point:
+            return (devpth, fs_type, match_mount_point)
+
+    return None
 
 
 def parse_mtab(path):
@@ -2146,7 +2204,7 @@ def parse_mount(path):
     return None
 
 
-def get_mount_info(path, log=LOG):
+def get_mount_info(path, log=LOG, get_mnt_opts=False):
     # Use /proc/$$/mountinfo to find the device where path is mounted.
     # This is done because with a btrfs filesystem using os.stat(path)
     # does not return the ID of the device.
@@ -2178,7 +2236,7 @@ def get_mount_info(path, log=LOG):
     mountinfo_path = '/proc/%s/mountinfo' % os.getpid()
     if os.path.exists(mountinfo_path):
         lines = load_file(mountinfo_path).splitlines()
-        return parse_mount_info(path, lines, log)
+        return parse_mount_info(path, lines, log, get_mnt_opts)
     elif os.path.exists("/etc/mtab"):
         return parse_mtab(path)
     else:
@@ -2286,7 +2344,8 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
                 missing.append(f)
 
     if len(missing):
-        raise ValueError("Missing required files: %s", ','.join(missing))
+        raise ValueError(
+            'Missing required files: {files}'.format(files=','.join(missing)))
 
     return ret
 
@@ -2562,5 +2621,11 @@ def wait_for_files(flist, maxwait, naplen=.5, log_pre=""):
               log_pre, maxwait, need)
     return need
 
+
+def mount_is_read_write(mount_point):
+    """Check whether the given mount point is mounted rw"""
+    result = get_mount_info(mount_point, get_mnt_opts=True)
+    mount_opts = result[-1].split(',')
+    return mount_opts[0] == 'rw'
 
 # vi: ts=4 expandtab

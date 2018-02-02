@@ -421,7 +421,13 @@ def di_report_warn(datasource, cfg):
         LOG.debug("no di_report found in config.")
         return
 
-    dicfg = cfg.get('di_report', {})
+    dicfg = cfg['di_report']
+    if dicfg is None:
+        # ds-identify may write 'di_report:\n #comment\n'
+        # which reads as {'di_report': None}
+        LOG.debug("di_report was None.")
+        return
+
     if not isinstance(dicfg, dict):
         LOG.warning("di_report config not a dictionary: %s", dicfg)
         return
@@ -603,7 +609,11 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     else:
         raise ValueError("unknown name: %s" % name)
 
-    modes = ('init', 'init-local', 'modules-config', 'modules-final')
+    modes = ('init', 'init-local', 'modules-init', 'modules-config',
+             'modules-final')
+    if mode not in modes:
+        raise ValueError(
+            "Invalid cloud init mode specified '{0}'".format(mode))
 
     status = None
     if mode == 'init-local':
@@ -615,16 +625,18 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         except Exception:
             pass
 
+    nullstatus = {
+        'errors': [],
+        'start': None,
+        'finished': None,
+    }
     if status is None:
-        nullstatus = {
-            'errors': [],
-            'start': None,
-            'finished': None,
-        }
         status = {'v1': {}}
         for m in modes:
             status['v1'][m] = nullstatus.copy()
         status['v1']['datasource'] = None
+    elif mode not in status['v1']:
+        status['v1'][mode] = nullstatus.copy()
 
     v1 = status['v1']
     v1['stage'] = mode
@@ -767,6 +779,12 @@ def main(sysv_args=None):
     parser_collect_logs = subparsers.add_parser(
         'collect-logs', help='Collect and tar all cloud-init debug info')
 
+    parser_clean = subparsers.add_parser(
+        'clean', help='Remove logs and artifacts so cloud-init can re-run.')
+
+    parser_status = subparsers.add_parser(
+        'status', help='Report cloud-init status or wait on completion.')
+
     if sysv_args:
         # Only load subparsers if subcommand is specified to avoid load cost
         if sysv_args[0] == 'analyze':
@@ -783,6 +801,18 @@ def main(sysv_args=None):
             logs_parser(parser_collect_logs)
             parser_collect_logs.set_defaults(
                 action=('collect-logs', handle_collect_logs_args))
+        elif sysv_args[0] == 'clean':
+            from cloudinit.cmd.clean import (
+                get_parser as clean_parser, handle_clean_args)
+            clean_parser(parser_clean)
+            parser_clean.set_defaults(
+                action=('clean', handle_clean_args))
+        elif sysv_args[0] == 'status':
+            from cloudinit.cmd.status import (
+                get_parser as status_parser, handle_status_args)
+            status_parser(parser_status)
+            parser_status.set_defaults(
+                action=('status', handle_status_args))
 
     args = parser.parse_args(args=sysv_args)
 

@@ -3,9 +3,6 @@
 from copy import copy, deepcopy
 import json
 import os
-import shutil
-import six
-import tempfile
 
 from cloudinit import helpers
 from cloudinit.net import eni
@@ -15,7 +12,7 @@ from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
-from cloudinit.tests.helpers import TestCase, ExitStack, mock
+from cloudinit.tests.helpers import CiTestCase, ExitStack, mock, populate_dir
 
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
@@ -223,12 +220,11 @@ CFG_DRIVE_FILES_V2 = {
     'openstack/2015-10-15/network_data.json': json.dumps(NETWORK_DATA)}
 
 
-class TestConfigDriveDataSource(TestCase):
+class TestConfigDriveDataSource(CiTestCase):
 
     def setUp(self):
         super(TestConfigDriveDataSource, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
+        self.tmp = self.tmp_dir()
 
     def test_ec2_metadata(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -462,6 +458,12 @@ class TestConfigDriveDataSource(TestCase):
             self.assertEqual(["/dev/vdb3"],
                              ds.find_candidate_devs())
 
+            # Verify that uppercase labels are also found.
+            devs_with_answers = {"TYPE=vfat": [],
+                                 "TYPE=iso9660": ["/dev/vdb"],
+                                 "LABEL=CONFIG-2": ["/dev/vdb"]}
+            self.assertEqual(["/dev/vdb"], ds.find_candidate_devs())
+
         finally:
             util.find_devs_with = orig_find_devs_with
             util.is_partition = orig_is_partition
@@ -469,31 +471,27 @@ class TestConfigDriveDataSource(TestCase):
     @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
     def test_pubkeys_v2(self, on_first_boot):
         """Verify that public-keys work in config-drive-v2."""
-        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
-        myds = cfg_ds_from_dir(self.tmp)
+        myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)
         self.assertEqual(myds.get_public_ssh_keys(),
                          [OSTACK_META['public_keys']['mykey']])
 
 
-class TestNetJson(TestCase):
+class TestNetJson(CiTestCase):
     def setUp(self):
         super(TestNetJson, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
+        self.tmp = self.tmp_dir()
         self.maxDiff = None
 
     @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
     def test_network_data_is_found(self, on_first_boot):
         """Verify that network_data is present in ds in config-drive-v2."""
-        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
-        myds = cfg_ds_from_dir(self.tmp)
+        myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)
         self.assertIsNotNone(myds.network_json)
 
     @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
     def test_network_config_is_converted(self, on_first_boot):
         """Verify that network_data is converted and present on ds object."""
-        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
-        myds = cfg_ds_from_dir(self.tmp)
+        myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)
         network_config = openstack.convert_net_json(NETWORK_DATA,
                                                     known_macs=KNOWN_MACS)
         self.assertEqual(myds.network_config, network_config)
@@ -598,11 +596,10 @@ class TestNetJson(TestCase):
             self.assertEqual(out_data, conv_data)
 
 
-class TestConvertNetworkData(TestCase):
+class TestConvertNetworkData(CiTestCase):
     def setUp(self):
         super(TestConvertNetworkData, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
+        self.tmp = self.tmp_dir()
 
     def _getnames_in_config(self, ncfg):
         return set([n['name'] for n in ncfg['config']
@@ -724,14 +721,18 @@ class TestConvertNetworkData(TestCase):
         self.assertEqual(expected, config_name2mac)
 
 
-def cfg_ds_from_dir(seed_d):
-    cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN, None,
-                                      helpers.Paths({}))
-    cfg_ds.seed_dir = seed_d
+def cfg_ds_from_dir(base_d, files=None):
+    run = os.path.join(base_d, "run")
+    os.mkdir(run)
+    cfg_ds = ds.DataSourceConfigDrive(
+        settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': run}))
+    cfg_ds.seed_dir = os.path.join(base_d, "seed")
+    if files:
+        populate_dir(cfg_ds.seed_dir, files)
     cfg_ds.known_macs = KNOWN_MACS.copy()
     if not cfg_ds.get_data():
         raise RuntimeError("Data source did not extract itself from"
-                           " seed directory %s" % seed_d)
+                           " seed directory %s" % cfg_ds.seed_dir)
     return cfg_ds
 
 
@@ -748,18 +749,5 @@ def populate_ds_from_read_config(cfg_ds, source, results):
     cfg_ds._network_config = openstack.convert_net_json(
         cfg_ds.network_json, known_macs=KNOWN_MACS)
 
-
-def populate_dir(seed_dir, files):
-    for (name, content) in files.items():
-        path = os.path.join(seed_dir, name)
-        dirname = os.path.dirname(path)
-        if not os.path.isdir(dirname):
-            os.makedirs(dirname)
-        if isinstance(content, six.text_type):
-            mode = "w"
-        else:
-            mode = "wb"
-        with open(path, mode) as fp:
-            fp.write(content)
 
 # vi: ts=4 expandtab

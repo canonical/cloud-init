@@ -2,6 +2,8 @@
 
 import os
 from six import StringIO
+import stat
+from textwrap import dedent
 
 try:
     from unittest import mock
@@ -12,13 +14,12 @@ try:
 except ImportError:
     from contextlib2 import ExitStack
 
-from cloudinit.tests.helpers import TestCase
-
 from cloudinit import distros
 from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit import helpers
 from cloudinit.net import eni
 from cloudinit import settings
+from cloudinit.tests.helpers import FilesystemMockingTestCase
 from cloudinit import util
 
 
@@ -175,7 +176,7 @@ class WriteBuffer(object):
         return self.buffer.getvalue()
 
 
-class TestNetCfgDistro(TestCase):
+class TestNetCfgDistro(FilesystemMockingTestCase):
 
     frbsd_ifout = """\
 hn0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
@@ -187,9 +188,6 @@ hn0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
         media: Ethernet autoselect (10Gbase-T <full-duplex>)
         status: active
 """
-
-    def setUp(self):
-        super(TestNetCfgDistro, self).setUp()
 
     def _get_distro(self, dname, renderers=None):
         cls = distros.fetch(dname)
@@ -773,5 +771,47 @@ ifconfig_vtnet0="DHCP"
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
             self.assertEqual(write_buf.mode, 0o644)
+
+    def test_simple_write_opensuse(self):
+        """Opensuse network rendering writes appropriate sysconfg files."""
+        tmpdir = self.tmp_dir()
+        self.patchOS(tmpdir)
+        self.patchUtils(tmpdir)
+        distro = self._get_distro('opensuse')
+
+        distro.apply_network(BASE_NET_CFG, False)
+
+        lo_path = os.path.join(tmpdir, 'etc/sysconfig/network/ifcfg-lo')
+        eth0_path = os.path.join(tmpdir, 'etc/sysconfig/network/ifcfg-eth0')
+        eth1_path = os.path.join(tmpdir, 'etc/sysconfig/network/ifcfg-eth1')
+        expected_cfgs = {
+            lo_path: dedent('''
+                STARTMODE="auto"
+                USERCONTROL="no"
+                FIREWALL="no"
+                '''),
+            eth0_path: dedent('''
+                BOOTPROTO="static"
+                BROADCAST="192.168.1.0"
+                GATEWAY="192.168.1.254"
+                IPADDR="192.168.1.5"
+                NETMASK="255.255.255.0"
+                STARTMODE="auto"
+                USERCONTROL="no"
+                ETHTOOL_OPTIONS=""
+                '''),
+            eth1_path: dedent('''
+                BOOTPROTO="dhcp"
+                STARTMODE="auto"
+                USERCONTROL="no"
+                ETHTOOL_OPTIONS=""
+                ''')
+        }
+        for cfgpath in (lo_path, eth0_path, eth1_path):
+            self.assertCfgEquals(
+                expected_cfgs[cfgpath],
+                util.load_file(cfgpath))
+            file_stat = os.stat(cfgpath)
+            self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
 
 # vi: ts=4 expandtab

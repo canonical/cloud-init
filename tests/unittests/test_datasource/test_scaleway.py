@@ -9,7 +9,7 @@ from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.sources import DataSourceScaleway
 
-from cloudinit.tests.helpers import mock, HttprettyTestCase, TestCase
+from cloudinit.tests.helpers import mock, HttprettyTestCase, CiTestCase
 
 
 class DataResponses(object):
@@ -63,7 +63,11 @@ class MetadataResponses(object):
         return 200, headers, json.dumps(cls.FAKE_METADATA)
 
 
-class TestOnScaleway(TestCase):
+class TestOnScaleway(CiTestCase):
+
+    def setUp(self):
+        super(TestOnScaleway, self).setUp()
+        self.tmp = self.tmp_dir()
 
     def install_mocks(self, fake_dmi, fake_file_exists, fake_cmdline):
         mock, faked = fake_dmi
@@ -91,7 +95,7 @@ class TestOnScaleway(TestCase):
 
         # When not on Scaleway, get_data() returns False.
         datasource = DataSourceScaleway.DataSourceScaleway(
-            settings.CFG_BUILTIN, None, helpers.Paths({})
+            settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp})
         )
         self.assertFalse(datasource.get_data())
 
@@ -159,8 +163,9 @@ def get_source_address_adapter(*args, **kwargs):
 class TestDataSourceScaleway(HttprettyTestCase):
 
     def setUp(self):
+        tmp = self.tmp_dir()
         self.datasource = DataSourceScaleway.DataSourceScaleway(
-            settings.CFG_BUILTIN, None, helpers.Paths({})
+            settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': tmp})
         )
         super(TestDataSourceScaleway, self).setUp()
 

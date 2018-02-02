@@ -1,9 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import net
-from cloudinit.net import _natural_sort_key
 from cloudinit.net import cmdline
 from cloudinit.net import eni
+from cloudinit.net import natural_sort_key
 from cloudinit.net import netplan
 from cloudinit.net import network_state
 from cloudinit.net import renderers
@@ -2708,11 +2708,11 @@ class TestInterfacesSorting(CiTestCase):
     def test_natural_order(self):
         data = ['ens5', 'ens6', 'ens3', 'ens20', 'ens13', 'ens2']
         self.assertEqual(
-            sorted(data, key=_natural_sort_key),
+            sorted(data, key=natural_sort_key),
             ['ens2', 'ens3', 'ens5', 'ens6', 'ens13', 'ens20'])
         data2 = ['enp2s0', 'enp2s3', 'enp0s3', 'enp0s13', 'enp0s8', 'enp1s2']
         self.assertEqual(
-            sorted(data2, key=_natural_sort_key),
+            sorted(data2, key=natural_sort_key),
             ['enp0s3', 'enp0s8', 'enp0s13', 'enp1s2', 'enp2s0', 'enp2s3'])
 
 
@@ -2947,5 +2947,17 @@ class TestRenameInterfaces(CiTestCase):
             for i in range(len(renames))]
         mock_subp.assert_has_calls(expected)
 
+
+class TestNetworkState(CiTestCase):
+
+    def test_bcast_addr(self):
+        """Test mask_and_ipv4_to_bcast_addr proper execution."""
+        bcast_addr = network_state.mask_and_ipv4_to_bcast_addr
+        self.assertEqual("192.168.1.255",
+                         bcast_addr("255.255.255.0", "192.168.1.1"))
+        self.assertEqual("128.42.7.255",
+                         bcast_addr("255.255.248.0", "128.42.5.4"))
+        self.assertEqual("10.1.21.255",
+                         bcast_addr("255.255.255.0", "10.1.21.4"))
 
 # vi: ts=4 expandtab

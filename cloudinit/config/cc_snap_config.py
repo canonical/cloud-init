@@ -87,7 +87,9 @@ def add_assertions(assertions=None):
         assertions = []
 
     if not isinstance(assertions, list):
-        raise ValueError('assertion parameter was not a list: %s', assertions)
+        raise ValueError(
+            'assertion parameter was not a list: {assertions}'.format(
+                assertions=assertions))
 
     snap_cmd = [SNAPPY_CMD, 'ack']
     combined = "\n".join(assertions)
@@ -115,7 +117,8 @@ def add_snap_user(cfg=None):
         cfg = {}
 
     if not isinstance(cfg, dict):
-        raise ValueError('configuration parameter was not a dict: %s', cfg)
+        raise ValueError(
+            'configuration parameter was not a dict: {cfg}'.format(cfg=cfg))
 
     snapuser = cfg.get('email', None)
     if not snapuser:
