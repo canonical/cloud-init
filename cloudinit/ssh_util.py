@@ -171,16 +171,13 @@ def parse_authorized_keys(fname):
 
 
 def update_authorized_keys(old_entries, keys):
-    to_add = list(keys)
-
+    to_add = list([k for k in keys if k.valid()])
     for i in range(0, len(old_entries)):
         ent = old_entries[i]
         if not ent.valid():
             continue
         # Replace those with the same base64
         for k in keys:
-            if not ent.valid():
-                continue
             if k.base64 == ent.base64:
                 # Replace it with our better one
                 ent = k

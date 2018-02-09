@@ -274,23 +274,52 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
     renames are only attempted for interfaces of type 'physical'.  It is
     expected that the network system will create other devices with the
     correct name in place."""
-    renames = []
-    for ent in netcfg.get('config', {}):
-        if ent.get('type') != 'physical':
-            continue
-        mac = ent.get('mac_address')
-        if not mac:
-            continue
-        name = ent.get('name')
-        driver = ent.get('params', {}).get('driver')
-        device_id = ent.get('params', {}).get('device_id')
-        if not driver:
-            driver = device_driver(name)
-        if not device_id:
-            device_id = device_devid(name)
-        renames.append([mac, name, driver, device_id])
 
-    return _rename_interfaces(renames)
+    def _version_1(netcfg):
+        renames = []
+        for ent in netcfg.get('config', {}):
+            if ent.get('type') != 'physical':
+                continue
+            mac = ent.get('mac_address')
+            if not mac:
+                continue
+            name = ent.get('name')
+            driver = ent.get('params', {}).get('driver')
+            device_id = ent.get('params', {}).get('device_id')
+            if not driver:
+                driver = device_driver(name)
+            if not device_id:
+                device_id = device_devid(name)
+            renames.append([mac, name, driver, device_id])
+        return renames
+
+    def _version_2(netcfg):
+        renames = []
+        for key, ent in netcfg.get('ethernets', {}).items():
+            # only rename if configured to do so
+            name = ent.get('set-name')
+            if not name:
+                continue
+            # cloud-init requires macaddress for renaming
+            mac = ent.get('match', {}).get('macaddress')
+            if not mac:
+                continue
+            driver = ent.get('match', {}).get('driver')
+            device_id = ent.get('match', {}).get('device_id')
+            if not driver:
+                driver = device_driver(name)
+            if not device_id:
+                device_id = device_devid(name)
+            renames.append([mac, name, driver, device_id])
+        return renames
+
+    if netcfg.get('version') == 1:
+        return _rename_interfaces(_version_1(netcfg))
+    elif netcfg.get('version') == 2:
+        return _rename_interfaces(_version_2(netcfg))
+
+    raise RuntimeError('Failed to apply network config names. Found bad'
+                       ' network config version: %s' % netcfg.get('version'))
 
 
 def interface_has_own_mac(ifname, strict=False):
