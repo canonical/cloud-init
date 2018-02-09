@@ -1,4 +1,4 @@
-cloud-init (17.2-34-g644048e3-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (17.2-34-g644048e3-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - EC2: Fix get_instance_id called against cached datasource pickle.
@@ -9,7 +9,7 @@ cloud-init (17.2-34-g644048e3-0ubuntu1) UNRELEASED; urgency=medium
       [Ryan Harper] (LP: #1709715)
     - Fix ssh keys validation in ssh_util [Tatiana Kholkina]
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Feb 2018 17:03:51 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Feb 2018 17:04:03 -0500
 
 cloud-init (17.2-30-gf7deaf15-0ubuntu1) bionic; urgency=medium
 
