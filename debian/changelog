@@ -1,3 +1,16 @@
+cloud-init (17.2-34-g644048e3-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - EC2: Fix get_instance_id called against cached datasource pickle.
+      [Chad Smith] (LP: #1748354)
+    - cli: fix cloud-init status to report running when before result.json
+      [Chad Smith] (LP: #1747965)
+    - net: accept network-config in netplan format for renaming interfaces
+      [Ryan Harper] (LP: #1709715)
+    - Fix ssh keys validation in ssh_util [Tatiana Kholkina]
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Feb 2018 17:03:51 -0500
+
 cloud-init (17.2-30-gf7deaf15-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
