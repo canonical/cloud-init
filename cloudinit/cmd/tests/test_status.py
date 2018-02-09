@@ -7,7 +7,7 @@ from textwrap import dedent
 
 from cloudinit.atomic_helper import write_json
 from cloudinit.cmd import status
-from cloudinit.util import write_file
+from cloudinit.util import ensure_file
 from cloudinit.tests.helpers import CiTestCase, wrap_and_call, mock
 
 mypaths = namedtuple('MyPaths', 'run_dir')
@@ -36,7 +36,7 @@ class TestStatus(CiTestCase):
 
     def test__is_cloudinit_disabled_false_on_sysvinit(self):
         '''When not in an environment using systemd, return False.'''
-        write_file(self.disable_file, '')  # Create the ignored disable file
+        ensure_file(self.disable_file)  # Create the ignored disable file
         (is_disabled, reason) = wrap_and_call(
             'cloudinit.cmd.status',
             {'uses_systemd': False},
@@ -47,7 +47,7 @@ class TestStatus(CiTestCase):
 
     def test__is_cloudinit_disabled_true_on_disable_file(self):
         '''When using systemd and disable_file is present return disabled.'''
-        write_file(self.disable_file, '')  # Create observed disable file
+        ensure_file(self.disable_file)  # Create observed disable file
         (is_disabled, reason) = wrap_and_call(
             'cloudinit.cmd.status',
             {'uses_systemd': True},
@@ -58,7 +58,7 @@ class TestStatus(CiTestCase):
 
     def test__is_cloudinit_disabled_false_on_kernel_cmdline_enable(self):
         '''Not disabled when using systemd and enabled via commandline.'''
-        write_file(self.disable_file, '')  # Create ignored disable file
+        ensure_file(self.disable_file)  # Create ignored disable file
         (is_disabled, reason) = wrap_and_call(
             'cloudinit.cmd.status',
             {'uses_systemd': True,
@@ -96,7 +96,7 @@ class TestStatus(CiTestCase):
     def test__is_cloudinit_disabled_false_when_enabled_in_systemd(self):
         '''Report enabled when systemd generator creates the enabled file.'''
         enabled_file = os.path.join(self.paths.run_dir, 'enabled')
-        write_file(enabled_file, '')
+        ensure_file(enabled_file)
         (is_disabled, reason) = wrap_and_call(
             'cloudinit.cmd.status',
             {'uses_systemd': True,
@@ -149,8 +149,25 @@ class TestStatus(CiTestCase):
         ''')
         self.assertEqual(expected, m_stdout.getvalue())
 
+    def test_status_returns_running_on_no_results_json(self):
+        '''Report running when status.json exists but result.json does not.'''
+        result_file = self.tmp_path('result.json', self.new_root)
+        write_json(self.status_file, {})
+        self.assertFalse(
+            os.path.exists(result_file), 'Unexpected result.json found')
+        cmdargs = myargs(long=False, wait=False)
+        with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
+            retcode = wrap_and_call(
+                'cloudinit.cmd.status',
+                {'_is_cloudinit_disabled': (False, ''),
+                 'Init': {'side_effect': self.init_class}},
+                status.handle_status_args, 'ignored', cmdargs)
+        self.assertEqual(0, retcode)
+        self.assertEqual('status: running\n', m_stdout.getvalue())
+
     def test_status_returns_running(self):
         '''Report running when status exists with an unfinished stage.'''
+        ensure_file(self.tmp_path('result.json', self.new_root))
         write_json(self.status_file,
                    {'v1': {'init': {'start': 1, 'finished': None}}})
         cmdargs = myargs(long=False, wait=False)
@@ -164,10 +181,11 @@ class TestStatus(CiTestCase):
         self.assertEqual('status: running\n', m_stdout.getvalue())
 
     def test_status_returns_done(self):
-        '''Reports done when stage is None and all stages are finished.'''
+        '''Report done results.json exists no stages are unfinished.'''
+        ensure_file(self.tmp_path('result.json', self.new_root))
         write_json(
             self.status_file,
-            {'v1': {'stage': None,
+            {'v1': {'stage': None,  # No current stage running
                     'datasource': (
                         'DataSourceNoCloud [seed=/var/.../seed/nocloud-net]'
                         '[dsmode=net]'),
@@ -187,6 +205,7 @@ class TestStatus(CiTestCase):
 
     def test_status_returns_done_long(self):
         '''Long format of done status includes datasource info.'''
+        ensure_file(self.tmp_path('result.json', self.new_root))
         write_json(
             self.status_file,
             {'v1': {'stage': None,
@@ -303,6 +322,8 @@ class TestStatus(CiTestCase):
                 write_json(self.status_file, running_json)
             elif self.sleep_calls == 3:
                 write_json(self.status_file, done_json)
+                result_file = self.tmp_path('result.json', self.new_root)
+                ensure_file(result_file)
 
         cmdargs = myargs(long=False, wait=True)
         with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
