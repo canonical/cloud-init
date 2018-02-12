@@ -313,7 +313,8 @@ main() {
 
     if [ -n "$unittest" ]; then
         debug 1 "running unit tests."
-        inside_as_cd "$name" "$user" "$cdir" nosetests tests/unittests ||
+        inside_as_cd "$name" "$user" "$cdir" \
+            nosetests tests/unittests cloudinit ||
             { errorrc "nosetests failed."; errors=$(($errors+1)); }
     fi
 

@@ -336,11 +336,13 @@ class MainTest(CiTestCase):
 
     def test_main_missing_args(self):
         """Main exits non-zero and reports an error on missing parameters."""
-        with mock.patch('sys.argv', ['mycmd']):
-            with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
-                with self.assertRaises(SystemExit) as context_manager:
-                    main()
-        self.assertEqual('1', str(context_manager.exception))
+        with mock.patch('sys.exit', side_effect=self.sys_exit):
+            with mock.patch('sys.argv', ['mycmd']):
+                with mock.patch('sys.stderr', new_callable=StringIO) as \
+                        m_stderr:
+                    with self.assertRaises(SystemExit) as context_manager:
+                        main()
+        self.assertEqual(1, context_manager.exception.code)
         self.assertEqual(
             'Expected either --config-file argument or --doc\n',
             m_stderr.getvalue())
