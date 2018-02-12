@@ -105,12 +105,12 @@ def _get_status_details(paths):
 
     Values are obtained from parsing paths.run_dir/status.json.
     """
-
     status = STATUS_ENABLED_NOT_RUN
     status_detail = ''
     status_v1 = {}
 
     status_file = os.path.join(paths.run_dir, 'status.json')
+    result_file = os.path.join(paths.run_dir, 'result.json')
 
     (is_disabled, reason) = _is_cloudinit_disabled(
         CLOUDINIT_DISABLED_FILE, paths)
@@ -118,12 +118,15 @@ def _get_status_details(paths):
         status = STATUS_DISABLED
         status_detail = reason
     if os.path.exists(status_file):
+        if not os.path.exists(result_file):
+            status = STATUS_RUNNING
         status_v1 = load_json(load_file(status_file)).get('v1', {})
     errors = []
     latest_event = 0
     for key, value in sorted(status_v1.items()):
         if key == 'stage':
             if value:
+                status = STATUS_RUNNING
                 status_detail = 'Running in stage: {0}'.format(value)
         elif key == 'datasource':
             status_detail = value

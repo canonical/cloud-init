@@ -147,6 +147,12 @@ class DataSourceEc2(sources.DataSource):
     def get_instance_id(self):
         if self.cloud_platform == Platforms.AWS:
             # Prefer the ID from the instance identity document, but fall back
+            if not getattr(self, 'identity', None):
+                # If re-using cached datasource, it's get_data run didn't
+                # setup self.identity. So we need to do that now.
+                api_version = self.get_metadata_api_version()
+                self.identity = ec2.get_instance_identity(
+                    api_version, self.metadata_address).get('document', {})
             return self.identity.get(
                 'instanceId', self.metadata['instance-id'])
         else:
