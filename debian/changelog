@@ -1,3 +1,14 @@
+cloud-init (17.2-35-gf576b2a2-0ubuntu1~17.10.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot. (LP: #1747059)
+    - tests: add support for logs with lxd from snap and future lxd 3.
+    - EC2: Fix get_instance_id called against cached datasource pickle.
+    - cli: fix cloud-init status to report running when before result.json
+    - net: accept network-config in netplan format for renaming interfaces
+    - Fix ssh keys validation in ssh_util [Tatiana Kholkina]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 12 Feb 2018 10:16:06 -0700
+
 cloud-init (17.2-30-gf7deaf15-0ubuntu1~17.10.1) artful-proposed; urgency=medium
 
   * New upstream snapshot. (LP: #1747059)
