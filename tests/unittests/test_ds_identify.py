@@ -359,6 +359,14 @@ class TestDsIdentify(CiTestCase):
         """NoCloud is found with iso9660 filesystem on non-cdrom disk."""
         self._test_ds_found('NoCloud')
 
+    def test_nocloud_seed(self):
+        """Nocloud seed directory."""
+        self._test_ds_found('NoCloud-seed')
+
+    def test_nocloud_seed_ubuntu_core_writable(self):
+        """Nocloud seed directory ubuntu core writable"""
+        self._test_ds_found('NoCloud-seed-ubuntu-core')
+
 
 def blkid_out(disks=None):
     """Convert a list of disk dictionaries into blkid content."""
@@ -452,6 +460,22 @@ VALID_CFG = {
         ],
         'files': {
             'dev/vdb': 'pretend iso content for cidata\n',
+        }
+    },
+    'NoCloud-seed': {
+        'ds': 'NoCloud',
+        'files': {
+            os.path.join(P_SEED_DIR, 'nocloud', 'user-data'): 'ud\n',
+            os.path.join(P_SEED_DIR, 'nocloud', 'meta-data'): 'md\n',
+        }
+    },
+    'NoCloud-seed-ubuntu-core': {
+        'ds': 'NoCloud',
+        'files': {
+            os.path.join('writable/system-data', P_SEED_DIR,
+                         'nocloud-net', 'user-data'): 'ud\n',
+            os.path.join('writable/system-data', P_SEED_DIR,
+                         'nocloud-net', 'meta-data'): 'md\n',
         }
     },
     'OpenStack': {

@@ -470,6 +470,16 @@ check_seed_dir() {
     return 0
 }
 
+check_writable_seed_dir() {
+    # ubuntu core bind-mounts /writable/system-data/var/lib/cloud
+    # over the top of /var/lib/cloud, but the mount might not be done yet.
+    local wdir="/writable/system-data"
+    [ -d "${PATH_ROOT}$wdir" ] || return 1
+    local sdir="${PATH_ROOT}$wdir${PATH_VAR_LIB_CLOUD#${PATH_ROOT}}"
+    local PATH_VAR_LIB_CLOUD="$sdir"
+    check_seed_dir "$@"
+}
+
 probe_floppy() {
     cached "${STATE_FLOPPY_PROBED}" && return "${STATE_FLOPPY_PROBED}"
     local fpath=/dev/floppy
@@ -569,6 +579,7 @@ dscheck_NoCloud() {
     esac
     for d in nocloud nocloud-net; do
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
+        check_writable_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
     done
     if has_fs_with_label "${fslabel}"; then
         return ${DS_FOUND}
