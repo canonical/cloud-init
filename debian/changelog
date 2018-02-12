@@ -1,3 +1,14 @@
+cloud-init (17.2-35-gf576b2a2-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot. (LP: #1747059)
+    - tests: add support for logs with lxd from snap and future lxd 3.
+    - EC2: Fix get_instance_id called against cached datasource pickle.
+    - cli: fix cloud-init status to report running when before result.json
+    - net: accept network-config in netplan format for renaming interfaces
+    - Fix ssh keys validation in ssh_util [Tatiana Kholkina]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 12 Feb 2018 10:17:35 -0700
+
 cloud-init (17.2-30-gf7deaf15-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/patches/ds-identify-behavior-xenial.patch: refresh patch.
