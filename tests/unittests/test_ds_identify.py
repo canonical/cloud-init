@@ -337,6 +337,16 @@ class TestDsIdentify(CiTestCase):
         """OVF is identified when vmware customization is enabled."""
         self._test_ds_found('OVF-vmware-customization')
 
+    def test_ovf_on_vmware_iso_found_open_vm_tools_64(self):
+        """OVF is identified when open-vm-tools installed in /usr/lib64."""
+        cust64 = copy.deepcopy(VALID_CFG['OVF-vmware-customization'])
+        p32 = 'usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so'
+        open64 = 'usr/lib64/open-vm-tools/plugins/vmsvc/libdeployPkgPlugin.so'
+        cust64['files'][open64] = cust64['files'][p32]
+        del cust64['files'][p32]
+        return self._check_via_dict(
+            cust64, RC_FOUND, dslist=[cust64.get('ds'), DS_NONE])
+
     def test_ovf_on_vmware_iso_found_by_cdrom_with_matching_fs_label(self):
         """OVF is identified by well-known iso9660 labels."""
         ovf_cdrom_by_label = copy.deepcopy(VALID_CFG['OVF'])

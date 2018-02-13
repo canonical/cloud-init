@@ -650,8 +650,9 @@ ovf_vmware_guest_customization() {
 
     # we have to have the plugin to do vmware customization
     local found="" pkg="" pre="${PATH_ROOT}/usr/lib"
+    local ppath="plugins/vmsvc/libdeployPkgPlugin.so"
     for pkg in vmware-tools open-vm-tools; do
-        if [ -f "$pre/$pkg/plugins/vmsvc/libdeployPkgPlugin.so" ]; then
+        if [ -f "$pre/$pkg/$ppath" -o -f "${pre}64/$pkg/$ppath" ]; then
             found="$pkg"; break;
         fi
     done
