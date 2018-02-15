@@ -134,24 +134,46 @@ def handle(_name, cfg, cloud, log, args):
 
         ch_in = '\n'.join(plist_in) + '\n'
         if users:
-            try:
-                log.debug("Changing password for %s:", users)
-                util.subp(['chpasswd'], ch_in)
-            except Exception as e:
-                errors.append(e)
-                util.logexc(
-                    log, "Failed to set passwords with chpasswd for %s", users)
+            if util.is_FreeBSD():
+                for line in plist_in:
+                    u, p = line.split(':', 1)
+                    try:
+                        log.debug("Changing password for %s:", u)
+                        util.subp(['pw', 'usermod', u, '-h', '0'], data=p)
+                    except Exception as e:
+                        errors.append(e)
+                        util.logexc(
+                            log, "Failed to set passwords with 'pw usermod -h 0' for %s", u)
+            else:
+                try:
+                    log.debug("Changing password for %s:", users)
+                    util.subp(['chpasswd'], ch_in)
+                except Exception as e:
+                    errors.append(e)
+                    util.logexc(
+                        log, "Failed to set passwords with chpasswd for %s", users)
 
         hashed_ch_in = '\n'.join(hashed_plist_in) + '\n'
         if hashed_users:
-            try:
-                log.debug("Setting hashed password for %s:", hashed_users)
-                util.subp(['chpasswd', '-e'], hashed_ch_in)
-            except Exception as e:
-                errors.append(e)
-                util.logexc(
-                    log, "Failed to set hashed passwords with chpasswd for %s",
-                    hashed_users)
+            if util.is_FreeBSD():
+                for line in hashed_plist_in:
+                    u, p = line.split(':', 1)
+                    try:
+                        log.debug("Changing password for %s:", u)
+                        util.subp(['pw', 'usermod', u, '-H', '0'], data=p)
+                    except Exception as e:
+                        errors.append(e)
+                        util.logexc(
+                            log, "Failed to set passwords with 'pw usermod -H 0' for %s", u)
+            else:
+                try:
+                    log.debug("Setting hashed password for %s:", hashed_users)
+                    util.subp(['chpasswd', '-e'], hashed_ch_in)
+                except Exception as e:
+                    errors.append(e)
+                    util.logexc(
+                        log, "Failed to set hashed passwords with chpasswd for %s",
+                        hashed_users)
 
         if len(randlist):
             blurb = ("Set the following 'random' passwords\n",
@@ -162,7 +184,11 @@ def handle(_name, cfg, cloud, log, args):
             expired_users = []
             for u in users:
                 try:
-                    util.subp(['passwd', '--expire', u])
+                    if util.is_FreeBSD():
+                        util.subp(['pw', 'usermod', u, '-p', '+1s'])
+                    else:
+                        util.subp(['passwd', '--expire', u])
+
                     expired_users.append(u)
                 except Exception as e:
                     errors.append(e)
