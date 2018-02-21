@@ -350,8 +350,10 @@ class TestDsIdentify(CiTestCase):
                             "OVFENV", "ovfenv"]
         for valid_ovf_label in valid_ovf_labels:
             ovf_cdrom_by_label['mocks'][0]['out'] = blkid_out([
+                {'DEVNAME': 'sda1', 'TYPE': 'ext4', 'LABEL': 'rootfs'},
                 {'DEVNAME': 'sr0', 'TYPE': 'iso9660',
-                 'LABEL': valid_ovf_label}])
+                 'LABEL': valid_ovf_label},
+                {'DEVNAME': 'vda1', 'TYPE': 'ntfs', 'LABEL': 'data'}])
             self._check_via_dict(
                 ovf_cdrom_by_label, rc=RC_FOUND, dslist=['OVF', DS_NONE])
 
@@ -513,8 +515,9 @@ VALID_CFG = {
         'mocks': [
             {'name': 'blkid', 'ret': 0,
              'out': blkid_out(
-                 [{'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
-                  {'DEVNAME': 'sr0', 'TYPE': 'iso9660', 'LABEL': ''}])
+                 [{'DEVNAME': 'sr0', 'TYPE': 'iso9660', 'LABEL': ''},
+                  {'DEVNAME': 'sr1', 'TYPE': 'iso9660', 'LABEL': 'ignoreme'},
+                  {'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()}]),
              },
             MOCK_VIRT_IS_VMWARE,
         ],

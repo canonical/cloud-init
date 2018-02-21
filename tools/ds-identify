@@ -186,7 +186,8 @@ block_dev_with_label() {
 read_fs_info() {
     cached "${DI_BLKID_OUTPUT}" && return 0
     # do not rely on links in /dev/disk which might not be present yet.
-    # note that older blkid versions do not report DEVNAME in 'export' output.
+    # Note that blkid < 2.22 (centos6, trusty) do not output DEVNAME.
+    # that means that DI_ISO9660_DEVS will not be set.
     if is_container; then
         # blkid will in a container, or at least currently in lxd
         # not provide useful information.
@@ -203,21 +204,26 @@ read_fs_info() {
         DI_ISO9660_DEVS="$UNAVAILABLE:error"
         return $ret
     }
-    IFS="$CR"
-    set -- $out
-    IFS="$oifs"
-    for line in "$@" ""; do
+    # 'set --' will collapse multiple consecutive entries in IFS for
+    # whitespace characters (\n, tab, " ") so we cannot rely on getting
+    # empty lines in "$@" below.
+    IFS="$CR"; set -- $out; IFS="$oifs"
+
+    for line in "$@"; do
         case "${line}" in
-            DEVNAME=*) dev=${line#DEVNAME=};;
+            DEVNAME=*)
+                [ -n "$dev" -a "$ftype" = "iso9660" ] &&
+                    isodevs="${isodevs} ${dev}=$label"
+                ftype=""; dev=""; label="";
+                dev=${line#DEVNAME=};;
             LABEL=*) label="${line#LABEL=}";
                      labels="${labels}${line#LABEL=}${delim}";;
             TYPE=*) ftype=${line#TYPE=};;
-            "") if [ "$ftype" = "iso9660" ]; then
-                    isodevs="${isodevs} ${dev}=$label"
-                fi
-                ftype=""; devname=""; label="";
         esac
     done
+    [ -n "$dev" -a "$ftype" = "iso9660" ] &&
+        isodevs="${isodevs} ${dev}=$label"
+
     DI_FS_LABELS="${labels%${delim}}"
     DI_ISO9660_DEVS="${isodevs# }"
 }
@@ -696,15 +702,12 @@ dscheck_OVF() {
     # Azure provides ovf. Skip false positive by dis-allowing.
     is_azure_chassis && return $DS_NOT_FOUND
 
-    local isodevs="${DI_ISO9660_DEVS}"
-    case "$isodevs" in
-        ""|$UNAVAILABLE:*) return ${DS_NOT_FOUND};;
-    esac
-
     # DI_ISO9660_DEVS is <device>=label, like /dev/sr0=OVF-TRANSPORT
-    for tok in $isodevs; do
-        is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return $DS_FOUND
-    done
+    if [ "${DI_ISO9660_DEVS#${UNAVAILABLE}:}" = "${DI_ISO9660_DEVS}" ]; then
+        for tok in ${DI_ISO9660_DEVS}; do
+            is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return $DS_FOUND
+        done
+    fi
 
     if ovf_vmware_guest_customization; then
         return ${DS_FOUND}
