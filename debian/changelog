@@ -1,3 +1,19 @@
+cloud-init (18.1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - release 18.1 (LP: #1751145)
+    - OVF: Fix VMware support for 64-bit platforms. [Sankar Tanguturi]
+    - ds-identify: Fix searching for iso9660 OVF cdroms. (LP: #1749980)
+    - SUSE: Fix groups used for ownership of cloud-init.log [Robert Schweikert]
+    - ds-identify: check /writable/system-data/ for nocloud seed.
+      (LP: #1747070)
+    - tests: run nosetests in cloudinit/ directory, fix py26 fallout.
+    - tools: run-centos: git clone rather than tar.
+    - tests: add support for logs with lxd from snap and future lxd 3.
+      (LP: #1745663)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 22 Feb 2018 15:41:25 -0700
+
 cloud-init (17.2-34-g644048e3-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
