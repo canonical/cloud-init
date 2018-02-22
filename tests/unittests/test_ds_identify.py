@@ -337,6 +337,16 @@ class TestDsIdentify(CiTestCase):
         """OVF is identified when vmware customization is enabled."""
         self._test_ds_found('OVF-vmware-customization')
 
+    def test_ovf_on_vmware_iso_found_open_vm_tools_64(self):
+        """OVF is identified when open-vm-tools installed in /usr/lib64."""
+        cust64 = copy.deepcopy(VALID_CFG['OVF-vmware-customization'])
+        p32 = 'usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so'
+        open64 = 'usr/lib64/open-vm-tools/plugins/vmsvc/libdeployPkgPlugin.so'
+        cust64['files'][open64] = cust64['files'][p32]
+        del cust64['files'][p32]
+        return self._check_via_dict(
+            cust64, RC_FOUND, dslist=[cust64.get('ds'), DS_NONE])
+
     def test_ovf_on_vmware_iso_found_by_cdrom_with_matching_fs_label(self):
         """OVF is identified by well-known iso9660 labels."""
         ovf_cdrom_by_label = copy.deepcopy(VALID_CFG['OVF'])
@@ -350,14 +360,24 @@ class TestDsIdentify(CiTestCase):
                             "OVFENV", "ovfenv"]
         for valid_ovf_label in valid_ovf_labels:
             ovf_cdrom_by_label['mocks'][0]['out'] = blkid_out([
+                {'DEVNAME': 'sda1', 'TYPE': 'ext4', 'LABEL': 'rootfs'},
                 {'DEVNAME': 'sr0', 'TYPE': 'iso9660',
-                 'LABEL': valid_ovf_label}])
+                 'LABEL': valid_ovf_label},
+                {'DEVNAME': 'vda1', 'TYPE': 'ntfs', 'LABEL': 'data'}])
             self._check_via_dict(
                 ovf_cdrom_by_label, rc=RC_FOUND, dslist=['OVF', DS_NONE])
 
     def test_default_nocloud_as_vdb_iso9660(self):
         """NoCloud is found with iso9660 filesystem on non-cdrom disk."""
         self._test_ds_found('NoCloud')
+
+    def test_nocloud_seed(self):
+        """Nocloud seed directory."""
+        self._test_ds_found('NoCloud-seed')
+
+    def test_nocloud_seed_ubuntu_core_writable(self):
+        """Nocloud seed directory ubuntu core writable"""
+        self._test_ds_found('NoCloud-seed-ubuntu-core')
 
 
 def blkid_out(disks=None):
@@ -454,6 +474,22 @@ VALID_CFG = {
             'dev/vdb': 'pretend iso content for cidata\n',
         }
     },
+    'NoCloud-seed': {
+        'ds': 'NoCloud',
+        'files': {
+            os.path.join(P_SEED_DIR, 'nocloud', 'user-data'): 'ud\n',
+            os.path.join(P_SEED_DIR, 'nocloud', 'meta-data'): 'md\n',
+        }
+    },
+    'NoCloud-seed-ubuntu-core': {
+        'ds': 'NoCloud',
+        'files': {
+            os.path.join('writable/system-data', P_SEED_DIR,
+                         'nocloud-net', 'user-data'): 'ud\n',
+            os.path.join('writable/system-data', P_SEED_DIR,
+                         'nocloud-net', 'meta-data'): 'md\n',
+        }
+    },
     'OpenStack': {
         'ds': 'OpenStack',
         'files': {P_PRODUCT_NAME: 'OpenStack Nova\n'},
@@ -489,8 +525,9 @@ VALID_CFG = {
         'mocks': [
             {'name': 'blkid', 'ret': 0,
              'out': blkid_out(
-                 [{'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
-                  {'DEVNAME': 'sr0', 'TYPE': 'iso9660', 'LABEL': ''}])
+                 [{'DEVNAME': 'sr0', 'TYPE': 'iso9660', 'LABEL': ''},
+                  {'DEVNAME': 'sr1', 'TYPE': 'iso9660', 'LABEL': 'ignoreme'},
+                  {'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()}]),
              },
             MOCK_VIRT_IS_VMWARE,
         ],

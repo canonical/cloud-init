@@ -173,17 +173,15 @@ class CiTestCase(TestCase):
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
-    def assertRaisesCodeEqual(self, expected, found):
-        """Handle centos6 having different context manager for assertRaises.
-            with assertRaises(Exception) as e:
-                raise Exception("BOO")
+    def sys_exit(self, code):
+        """Provide a wrapper around sys.exit for python 2.6
 
-            centos6 will have e.exception as an integer.
-            anything nwere will have it as something with a '.code'"""
-        if isinstance(found, int):
-            self.assertEqual(expected, found)
-        else:
-            self.assertEqual(expected, found.code)
+        In 2.6, this code would produce 'cm.exception' with value int(2)
+        rather than the SystemExit that was raised by sys.exit(2).
+            with assertRaises(SystemExit) as cm:
+                sys.exit(2)
+        """
+        raise SystemExit(code)
 
 
 class ResourceUsingTestCase(CiTestCase):

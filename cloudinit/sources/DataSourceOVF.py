@@ -95,11 +95,20 @@ class DataSourceOVF(sources.DataSource):
                           "VMware Customization support")
             elif not util.get_cfg_option_bool(
                     self.sys_cfg, "disable_vmware_customization", True):
-                deployPkgPluginPath = search_file("/usr/lib/vmware-tools",
-                                                  "libdeployPkgPlugin.so")
-                if not deployPkgPluginPath:
-                    deployPkgPluginPath = search_file("/usr/lib/open-vm-tools",
-                                                      "libdeployPkgPlugin.so")
+
+                search_paths = (
+                    "/usr/lib/vmware-tools", "/usr/lib64/vmware-tools",
+                    "/usr/lib/open-vm-tools", "/usr/lib64/open-vm-tools")
+
+                plugin = "libdeployPkgPlugin.so"
+                deployPkgPluginPath = None
+                for path in search_paths:
+                    deployPkgPluginPath = search_file(path, plugin)
+                    if deployPkgPluginPath:
+                        LOG.debug("Found the customization plugin at %s",
+                                  deployPkgPluginPath)
+                        break
+
                 if deployPkgPluginPath:
                     # When the VM is powered on, the "VMware Tools" daemon
                     # copies the customization specification file to
@@ -111,6 +120,8 @@ class DataSourceOVF(sources.DataSource):
                         msg="waiting for configuration file",
                         func=wait_for_imc_cfg_file,
                         args=("cust.cfg", max_wait))
+                else:
+                    LOG.debug("Did not find the customization plugin.")
 
                 if vmwareImcConfigFilePath:
                     LOG.debug("Found VMware Customization Config File at %s",

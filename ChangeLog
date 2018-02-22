@@ -1,3 +1,55 @@
+18.1:
+ - OVF: Fix VMware support for 64-bit platforms. [Sankar Tanguturi]
+ - ds-identify: Fix searching for iso9660 OVF cdroms. (LP: #1749980)
+ - SUSE: Fix groups used for ownership of cloud-init.log [Robert Schweikert]
+ - ds-identify: check /writable/system-data/ for nocloud seed.
+   (LP: #1747070)
+ - tests: run nosetests in cloudinit/ directory, fix py26 fallout.
+ - tools: run-centos: git clone rather than tar.
+ - tests: add support for logs with lxd from snap and future lxd 3.
+   (LP: #1745663)
+ - EC2: Fix get_instance_id called against cached datasource pickle.
+   (LP: #1748354)
+ - cli: fix cloud-init status to report running when before result.json
+   (LP: #1747965)
+ - net: accept network-config in netplan format for renaming interfaces
+   (LP: #1709715)
+ - Fix ssh keys validation in ssh_util [Tatiana Kholkina]
+ - docs: Update RTD content for cloud-init subcommands.
+ - OVF: Extend well-known labels to include OVFENV. (LP: #1698669)
+ - Fix potential cases of uninitialized variables. (LP: #1744796)
+ - tests: Collect script output as binary, collect systemd journal, fix lxd.
+ - HACKING.rst: mention setting user name and email via git config.
+ - Azure VM Preprovisioning support. [Douglas Jordan] (LP: #1734991)
+ - tools/read-version: Fix read-version when in a git worktree.
+ - docs: Fix typos in docs and one debug message. [Florian Grignon]
+ - btrfs: support resizing if root is mounted ro.
+   [Robert Schweikert] (LP: #1734787)
+ - OpenNebula: Improve network configuration support.
+   [Akihiko Ota] (LP: #1719157, #1716397, #1736750)
+ - tests: Fix EC2 Platform to return console output as bytes.
+ - tests: Fix attempted use of /run in a test case.
+ - GCE: Improvements and changes to ssh key behavior for default user.
+   [Max Illfelder] (LP: #1670456, #1707033, #1707037, #1707039)
+ - subp: make ProcessExecutionError have expected types in stderr, stdout.
+ - tests: when querying ntp server, do not do dns resolution.
+ - Recognize uppercase vfat disk labels [James Penick] (LP: #1598783)
+ - tests: remove zesty as supported OS to test [Joshua Powers]
+ - Do not log warning on config files that represent None. (LP: #1742479)
+ - tests: Use git hash pip dependency format for pylxd.
+ - tests: add integration requirements text file [Joshua Powers]
+ - MAAS: add check_instance_id based off oauth tokens. (LP: #1712680)
+ - tests: update apt sources list test [Joshua Powers]
+ - tests: clean up image properties [Joshua Powers]
+ - tests: rename test ssh keys to avoid appearance of leaking private keys.
+   [Joshua Powers]
+ - tests: Enable AWS EC2 Integration Testing [Joshua Powers]
+ - cli: cloud-init clean handles symlinks (LP: #1741093)
+ - SUSE: Add a basic test of network config rendering. [Robert Schweikert]
+ - Azure: Only bounce network when necessary. (LP: #1722668)
+ - lint: Fix lints seen by pylint version 1.8.1.
+ - cli: Fix error in cloud-init modules --mode=init. (LP: #1736600)
+
 17.2:
  - ds-identify: failure in NoCloud due to unset variable usage.
    (LP: #1737704)
