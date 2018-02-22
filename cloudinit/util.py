@@ -1746,7 +1746,7 @@ def chmod(path, mode):
 def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
     """
     Writes a file with the given content and sets the file mode as specified.
-    Resotres the SELinux context if possible.
+    Restores the SELinux context if possible.
 
     @param filename: The full path of the file to write.
     @param content: The content to write to the file.
