@@ -1,4 +1,4 @@
-cloud-init (18.1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.1-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - release 18.1 (LP: #1751145)
@@ -12,7 +12,7 @@ cloud-init (18.1-0ubuntu1) UNRELEASED; urgency=medium
     - tests: add support for logs with lxd from snap and future lxd 3.
       (LP: #1745663)
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 22 Feb 2018 15:41:25 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 22 Feb 2018 15:42:11 -0700
 
 cloud-init (17.2-34-g644048e3-0ubuntu1) bionic; urgency=medium
 
