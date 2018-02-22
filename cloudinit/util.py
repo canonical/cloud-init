@@ -1865,8 +1865,13 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         if not isinstance(data, bytes):
             data = data.encode()
 
+    # Popen converts entries in the arguments array from non-bytes to bytes.
+    # When locale is unset it may use ascii for that encoding which can
+    # cause UnicodeDecodeErrors. (LP: #1751051)
+    bytes_args = [x if isinstance(x, six.binary_type) else x.encode("utf-8")
+                  for x in args]
     try:
-        sp = subprocess.Popen(args, stdout=stdout,
+        sp = subprocess.Popen(bytes_args, stdout=stdout,
                               stderr=stderr, stdin=stdin,
                               env=env, shell=shell)
         (out, err) = sp.communicate(data)
