@@ -1,9 +1,9 @@
-cloud-init (17.2-35-gf576b2a2-0ubuntu1~17.10.2) UNRELEASED; urgency=medium
+cloud-init (17.2-35-gf576b2a2-0ubuntu1~17.10.2) artful-proposed; urgency=medium
 
   * cherry-pick 40e7738: GCE: fix reading of user-data that is not
     base64 encoded. (LP: #1752711)
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 01 Mar 2018 16:02:45 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 01 Mar 2018 16:03:46 -0700
 
 cloud-init (17.2-35-gf576b2a2-0ubuntu1~17.10.1) artful-proposed; urgency=medium
 
