@@ -546,7 +546,7 @@ def is_ipv4(instr):
         return False
 
     try:
-        toks = [x for x in toks if int(x) < 256 and int(x) >= 0]
+        toks = [x for x in toks if 0 <= int(x) < 256]
     except Exception:
         return False
 
