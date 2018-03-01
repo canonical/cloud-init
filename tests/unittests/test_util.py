@@ -8,7 +8,9 @@ import shutil
 import stat
 import tempfile
 
+import json
 import six
+import sys
 import yaml
 
 from cloudinit import importer, util
@@ -732,6 +734,38 @@ class TestSubp(helpers.CiTestCase):
                          util.target_path("/target/", "//my/path/"))
         self.assertEqual("/target/my/path/",
                          util.target_path("/target/", "///my/path/"))
+
+    def test_c_lang_can_take_utf8_args(self):
+        """Independent of system LC_CTYPE, args can contain utf-8 strings.
+
+        When python starts up, its default encoding gets set based on
+        the value of LC_CTYPE.  If no system locale is set, the default
+        encoding for both python2 and python3 in some paths will end up
+        being ascii.
+
+        Attempts to use setlocale or patching (or changing) os.environ
+        in the current environment seem to not be effective.
+
+        This test starts up a python with LC_CTYPE set to C so that
+        the default encoding will be set to ascii.  In such an environment
+        Popen(['command', 'non-ascii-arg']) would cause a UnicodeDecodeError.
+        """
+        python_prog = '\n'.join([
+            'import json, sys',
+            'from cloudinit.util import subp',
+            'data = sys.stdin.read()',
+            'cmd = json.loads(data)',
+            'subp(cmd, capture=False)',
+            ''])
+        cmd = [BASH, '-c', 'echo -n "$@"', '--',
+               self.utf8_valid.decode("utf-8")]
+        python_subp = [sys.executable, '-c', python_prog]
+
+        out, _err = util.subp(
+            python_subp, update_env={'LC_CTYPE': 'C'},
+            data=json.dumps(cmd).encode("utf-8"),
+            decode=False)
+        self.assertEqual(self.utf8_valid, out)
 
 
 class TestEncode(helpers.TestCase):

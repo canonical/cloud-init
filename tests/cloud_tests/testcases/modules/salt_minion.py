@@ -26,4 +26,9 @@ class Test(base.CloudTestCase):
         self.assertIn('<key data>', out)
         self.assertIn('------END PUBLIC KEY-------', out)
 
+    def test_grains(self):
+        """Test master value in config."""
+        out = self.get_data_file('grains')
+        self.assertIn('role: web', out)
+
 # vi: ts=4 expandtab

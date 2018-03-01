@@ -1746,7 +1746,7 @@ def chmod(path, mode):
 def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
     """
     Writes a file with the given content and sets the file mode as specified.
-    Resotres the SELinux context if possible.
+    Restores the SELinux context if possible.
 
     @param filename: The full path of the file to write.
     @param content: The content to write to the file.
@@ -1865,8 +1865,13 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         if not isinstance(data, bytes):
             data = data.encode()
 
+    # Popen converts entries in the arguments array from non-bytes to bytes.
+    # When locale is unset it may use ascii for that encoding which can
+    # cause UnicodeDecodeErrors. (LP: #1751051)
+    bytes_args = [x if isinstance(x, six.binary_type) else x.encode("utf-8")
+                  for x in args]
     try:
-        sp = subprocess.Popen(args, stdout=stdout,
+        sp = subprocess.Popen(bytes_args, stdout=stdout,
                               stderr=stderr, stdin=stdin,
                               env=env, shell=shell)
         (out, err) = sp.communicate(data)
