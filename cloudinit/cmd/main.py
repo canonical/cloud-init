@@ -215,12 +215,10 @@ def main_init(name, args):
     if args.local:
         deps = [sources.DEP_FILESYSTEM]
 
-    early_logs = []
-    early_logs.append(
-        attempt_cmdline_url(
-            path=os.path.join("%s.d" % CLOUD_CONFIG,
-                              "91_kernel_cmdline_url.cfg"),
-            network=not args.local))
+    early_logs = [attempt_cmdline_url(
+        path=os.path.join("%s.d" % CLOUD_CONFIG,
+                          "91_kernel_cmdline_url.cfg"),
+        network=not args.local)]
 
     # Cloud-init 'init' stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors

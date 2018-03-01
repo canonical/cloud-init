@@ -67,11 +67,10 @@ class Distro(distros.Distro):
         if pkgs is None:
             pkgs = []
 
-        cmd = ['zypper']
         # No user interaction possible, enable non-interactive mode
-        cmd.append('--non-interactive')
+        cmd = ['zypper', '--non-interactive']
 
-        # Comand is the operation, such as install
+        # Command is the operation, such as install
         if command == 'upgrade':
             command = 'update'
         cmd.append(command)

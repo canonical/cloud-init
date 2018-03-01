@@ -173,10 +173,7 @@ class OpenNebulaNetwork(object):
     def gen_conf(self):
         global_dns = self.context.get('DNS', "").split()
 
-        conf = []
-        conf.append('auto lo')
-        conf.append('iface lo inet loopback')
-        conf.append('')
+        conf = ['auto lo', 'iface lo inet loopback', '']
 
         for mac, dev in self.ifaces.items():
             mac = mac.lower()

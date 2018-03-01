@@ -132,8 +132,7 @@ class Init(object):
         return initial_dirs
 
     def purge_cache(self, rm_instance_lnk=False):
-        rm_list = []
-        rm_list.append(self.paths.boot_finished)
+        rm_list = [self.paths.boot_finished]
         if rm_instance_lnk:
             rm_list.append(self.paths.instance_link)
         for f in rm_list:

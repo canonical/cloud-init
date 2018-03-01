@@ -716,8 +716,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
 def make_url(scheme, host, port=None,
              path='', params='', query='', fragment=''):
 
-    pieces = []
-    pieces.append(scheme or '')
+    pieces = [scheme or '']
 
     netloc = ''
     if host:
