@@ -12,8 +12,8 @@
 
 # Key from https://packages.chef.io/chef.asc
 apt:
-  source1:
-    source: "deb http://packages.chef.io/repos/apt/stable $RELEASE main"
+  sources:
+    source1: "deb http://packages.chef.io/repos/apt/stable $RELEASE main"
     key: |
       -----BEGIN PGP PUBLIC KEY BLOCK-----
       Version: GnuPG v1.4.12 (Darwin)

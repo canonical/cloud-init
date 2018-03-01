@@ -1,3 +1,16 @@
+cloud-init (18.1-5-g40e77380-0ubuntu1) bionic; urgency=medium
+
+  * New upstream snapshot.
+    - GCE: fix reading of user-data that is not base64 encoded. (LP: #1752711)
+    - doc: fix chef install from apt packages example in RTD.
+    - Implement puppet 4 support [Romanos Skiadas] (LP: #1446804)
+    - subp: Fix subp usage with non-ascii characters when no system locale.
+      (LP: #1751051)
+    - salt: configure grains in grains file rather than in minion config.
+      [Daniel Wallace]
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 01 Mar 2018 15:47:04 -0700
+
 cloud-init (18.1-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.

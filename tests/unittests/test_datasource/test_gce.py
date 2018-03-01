@@ -38,8 +38,17 @@ GCE_META_ENCODING = {
     'instance/hostname': 'server.project-baz.local',
     'instance/zone': 'baz/bang',
     'instance/attributes': {
-        'user-data': b64encode(b'/bin/echo baz\n').decode('utf-8'),
+        'user-data': b64encode(b'#!/bin/echo baz\n').decode('utf-8'),
         'user-data-encoding': 'base64',
+    }
+}
+
+GCE_USER_DATA_TEXT = {
+    'instance/id': '12345',
+    'instance/hostname': 'server.project-baz.local',
+    'instance/zone': 'baz/bang',
+    'instance/attributes': {
+        'user-data': '#!/bin/sh\necho hi mom\ntouch /run/up-now\n',
     }
 }
 
@@ -135,7 +144,16 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         shostname = GCE_META_PARTIAL.get('instance/hostname').split('.')[0]
         self.assertEqual(shostname, self.ds.get_hostname())
 
+    def test_userdata_no_encoding(self):
+        """check that user-data is read."""
+        _set_mock_metadata(GCE_USER_DATA_TEXT)
+        self.ds.get_data()
+        self.assertEqual(
+            GCE_USER_DATA_TEXT['instance/attributes']['user-data'].encode(),
+            self.ds.get_userdata_raw())
+
     def test_metadata_encoding(self):
+        """user-data is base64 encoded if user-data-encoding is 'base64'."""
         _set_mock_metadata(GCE_META_ENCODING)
         self.ds.get_data()
 

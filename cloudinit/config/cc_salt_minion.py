@@ -25,6 +25,9 @@ specified with ``public_key`` and ``private_key`` respectively.
     salt_minion:
         conf:
             master: salt.example.com
+        grains:
+            role:
+                - web
         public_key: |
             ------BEGIN PUBLIC KEY-------
             <key data>
@@ -64,6 +67,12 @@ def handle(name, cfg, cloud, log, _args):
         minion_config = os.path.join(config_dir, 'minion')
         minion_data = util.yaml_dumps(salt_cfg.get('conf'))
         util.write_file(minion_config, minion_data)
+
+    if 'grains' in salt_cfg:
+        # add grains to /etc/salt/grains
+        grains_config = os.path.join(config_dir, 'grains')
+        grains_data = util.yaml_dumps(salt_cfg.get('grains'))
+        util.write_file(grains_config, grains_data)
 
     # ... copy the key pair if specified
     if 'public_key' in salt_cfg and 'private_key' in salt_cfg:
