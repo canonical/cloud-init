@@ -1,4 +1,4 @@
-cloud-init (18.1-5-g40e77380-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.1-5-g40e77380-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - GCE: fix reading of user-data that is not base64 encoded. (LP: #1752711)
@@ -9,7 +9,7 @@ cloud-init (18.1-5-g40e77380-0ubuntu1) UNRELEASED; urgency=medium
     - salt: configure grains in grains file rather than in minion config.
       [Daniel Wallace]
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 01 Mar 2018 15:46:49 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 01 Mar 2018 15:47:04 -0700
 
 cloud-init (18.1-0ubuntu1) bionic; urgency=medium
 
