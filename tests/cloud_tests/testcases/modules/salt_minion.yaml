@@ -3,7 +3,7 @@
 #
 # 2016-11-17: Currently takes >60 seconds results in test failure
 #
-enabled: False
+enabled: True
 cloud_config: |
   #cloud-config
   salt_minion:
@@ -35,5 +35,8 @@ collect_scripts:
   grains: |
     #!/bin/bash
     cat /etc/salt/grains
+  minion_installed: |
+    #!/bin/bash
+    dpkg -l | grep salt-minion | grep ii | wc -l
 
 # vi: ts=4 expandtab
