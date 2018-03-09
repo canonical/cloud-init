@@ -1922,6 +1922,11 @@ def abs_join(*paths):
 #    if it is an array, shell protect it (with single ticks)
 #    if it is a string, do nothing
 def shellify(cmdlist, add_header=True):
+    if not isinstance(cmdlist, (tuple, list)):
+        raise TypeError(
+            "Input to shellify was type '%s'. Expected list or tuple." %
+            (type_utils.obj_name(cmdlist)))
+
     content = ''
     if add_header:
         content += "#!/bin/sh\n"
@@ -1930,7 +1935,7 @@ def shellify(cmdlist, add_header=True):
     for args in cmdlist:
         # If the item is a list, wrap all items in single tick.
         # If its not, then just write it directly.
-        if isinstance(args, list):
+        if isinstance(args, (list, tuple)):
             fixed = []
             for f in args:
                 fixed.append("'%s'" % (six.text_type(f).replace("'", escaped)))
@@ -1940,9 +1945,10 @@ def shellify(cmdlist, add_header=True):
             content = "%s%s\n" % (content, args)
             cmds_made += 1
         else:
-            raise RuntimeError(("Unable to shellify type %s"
-                                " which is not a list or string")
-                               % (type_utils.obj_name(args)))
+            raise TypeError(
+                "Unable to shellify type '%s'. Expected list, string, tuple. "
+                "Got: %s" % (type_utils.obj_name(args), args))
+
     LOG.debug("Shellified %s commands.", cmds_made)
     return content
 

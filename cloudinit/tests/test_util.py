@@ -44,3 +44,26 @@ class TestUtil(CiTestCase):
         m_mount_info.return_value = ('/dev/sda1', 'btrfs', '/', 'ro,relatime')
         is_rw = util.mount_is_read_write('/')
         self.assertEqual(is_rw, False)
+
+
+class TestShellify(CiTestCase):
+
+    def test_input_dict_raises_type_error(self):
+        self.assertRaisesRegex(
+            TypeError, 'Input.*was.*dict.*xpected',
+            util.shellify, {'mykey': 'myval'})
+
+    def test_input_str_raises_type_error(self):
+        self.assertRaisesRegex(
+            TypeError, 'Input.*was.*str.*xpected', util.shellify, "foobar")
+
+    def test_value_with_int_raises_type_error(self):
+        self.assertRaisesRegex(
+            TypeError, 'shellify.*int', util.shellify, ["foo", 1])
+
+    def test_supports_strings_and_lists(self):
+        self.assertEqual(
+            '\n'.join(["#!/bin/sh", "echo hi mom", "'echo' 'hi dad'",
+                       "'echo' 'hi' 'sis'", ""]),
+            util.shellify(["echo hi mom", ["echo", "hi dad"],
+                           ('echo', 'hi', 'sis')]))
