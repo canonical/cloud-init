@@ -223,6 +223,8 @@ DEF_PASSWD_REDACTION = 'REDACTED'
 
 
 def get_hostname(hostname_command='hostname'):
+    if not isinstance(hostname_command, (list, tuple)):
+        hostname_command = (hostname_command,)
     return util.subp(hostname_command, capture=True)[0].strip()
 
 
