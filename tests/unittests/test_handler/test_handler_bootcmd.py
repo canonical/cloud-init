@@ -3,17 +3,11 @@
 from cloudinit.config import cc_bootcmd
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
-from cloudinit.tests.helpers import CiTestCase, mock, skipIf
+from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 import logging
 import tempfile
 
-try:
-    import jsonschema
-    assert jsonschema  # avoid pyflakes error F401: import unused
-    _missing_jsonschema_dep = False
-except ImportError:
-    _missing_jsonschema_dep = True
 
 LOG = logging.getLogger(__name__)
 
@@ -72,7 +66,7 @@ class TestBootcmd(CiTestCase):
             "Input to shellify was type 'int'. Expected list or tuple.",
             str(context_manager.exception))
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_handler_schema_validation_warns_non_array_type(self):
         """Schema validation warns of non-array type for bootcmd key.
 
@@ -88,7 +82,7 @@ class TestBootcmd(CiTestCase):
             self.logs.getvalue())
         self.assertIn('Failed to shellify', self.logs.getvalue())
 
-    @skipIf(_missing_jsonschema_dep, 'No python-jsonschema dependency')
+    @skipUnlessJsonSchema()
     def test_handler_schema_validation_warns_non_array_item_type(self):
         """Schema validation warns of non-array or string bootcmd items.
 
