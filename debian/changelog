@@ -1,3 +1,11 @@
+cloud-init (17.2-35-gf576b2a2-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
+
+  * Drop the following cherry picks in debian/patches. They are now
+    incorporated now incorporated in the upstream source:
+    + cpick-40e7738-GCE-fix-reading-of-user-data-that-is-not-base64-encoded
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 14 Mar 2018 10:26:22 -0400
+
 cloud-init (17.2-35-gf576b2a2-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
   * cherry-pick 40e7738: GCE: fix reading of user-data that is not
