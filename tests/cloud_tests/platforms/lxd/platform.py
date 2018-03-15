@@ -101,8 +101,4 @@ class LXDPlatform(Platform):
         """
         return self.client.images.get_by_alias(alias)
 
-    def destroy(self):
-        """Clean up platform data."""
-        super(LXDPlatform, self).destroy()
-
 # vi: ts=4 expandtab

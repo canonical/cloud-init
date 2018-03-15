@@ -409,6 +409,19 @@ except AttributeError:
         return decorator
 
 
+try:
+    import jsonschema
+    assert jsonschema  # avoid pyflakes error F401: import unused
+    _missing_jsonschema_dep = False
+except ImportError:
+    _missing_jsonschema_dep = True
+
+
+def skipUnlessJsonSchema():
+    return skipIf(
+        _missing_jsonschema_dep, "No python-jsonschema dependency present.")
+
+
 # older versions of mock do not have the useful 'assert_not_called'
 if not hasattr(mock.Mock, 'assert_not_called'):
     def __mock_assert_not_called(mmock):

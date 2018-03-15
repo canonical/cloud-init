@@ -3,17 +3,11 @@
 from cloudinit.config import cc_bootcmd
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
-from cloudinit.tests.helpers import CiTestCase, mock, skipIf
+from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 import logging
 import tempfile
 
-try:
-    import jsonschema
-    assert jsonschema  # avoid pyflakes error F401: import unused
-    _missing_jsonschema_dep = False
-except ImportError:
-    _missing_jsonschema_dep = True
 
 LOG = logging.getLogger(__name__)
 
@@ -69,10 +63,10 @@ class TestBootcmd(CiTestCase):
             cc_bootcmd.handle('cc_bootcmd', invalid_config, cc, LOG, [])
         self.assertIn('Failed to shellify bootcmd', self.logs.getvalue())
         self.assertEqual(
-            "'int' object is not iterable",
+            "Input to shellify was type 'int'. Expected list or tuple.",
             str(context_manager.exception))
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_handler_schema_validation_warns_non_array_type(self):
         """Schema validation warns of non-array type for bootcmd key.
 
@@ -88,7 +82,7 @@ class TestBootcmd(CiTestCase):
             self.logs.getvalue())
         self.assertIn('Failed to shellify', self.logs.getvalue())
 
-    @skipIf(_missing_jsonschema_dep, 'No python-jsonschema dependency')
+    @skipUnlessJsonSchema()
     def test_handler_schema_validation_warns_non_array_item_type(self):
         """Schema validation warns of non-array or string bootcmd items.
 
@@ -98,7 +92,7 @@ class TestBootcmd(CiTestCase):
         invalid_config = {
             'bootcmd': ['ls /', 20, ['wget', 'http://stuff/blah'], {'a': 'n'}]}
         cc = self._get_cloud('ubuntu')
-        with self.assertRaises(RuntimeError) as context_manager:
+        with self.assertRaises(TypeError) as context_manager:
             cc_bootcmd.handle('cc_bootcmd', invalid_config, cc, LOG, [])
         expected_warnings = [
             'bootcmd.1: 20 is not valid under any of the given schemas',
@@ -110,7 +104,8 @@ class TestBootcmd(CiTestCase):
             self.assertIn(warning, logs)
         self.assertIn('Failed to shellify', logs)
         self.assertEqual(
-            'Unable to shellify type int which is not a list or string',
+            ("Unable to shellify type 'int'. Expected list, string, tuple. "
+             "Got: 20"),
             str(context_manager.exception))
 
     def test_handler_creates_and_runs_bootcmd_script_with_instance_id(self):

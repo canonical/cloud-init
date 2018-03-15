@@ -39,8 +39,10 @@ schema = {
         using ``sh``.
 
         .. note::
-        all commands must be proper yaml, so you have to quote any characters
-        yaml would eat (':' can be problematic)"""),
+
+          all commands must be proper yaml, so you have to quote any characters
+          yaml would eat (':' can be problematic)
+    """),
     'distros': distros,
     'examples': [dedent("""\
         runcmd:

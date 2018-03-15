@@ -7,19 +7,11 @@ from collections import namedtuple
 import logging
 import textwrap
 
-from cloudinit.tests.helpers import (CiTestCase, mock, skipIf, util,
-                                     wrap_and_call)
+from cloudinit.tests.helpers import (
+    CiTestCase, mock, skipUnlessJsonSchema, util, wrap_and_call)
 
 
 LOG = logging.getLogger(__name__)
-
-
-try:
-    import jsonschema
-    assert jsonschema  # avoid pyflakes error F401: import unused
-    _missing_jsonschema_dep = False
-except ImportError:
-    _missing_jsonschema_dep = True
 
 
 class TestResizefs(CiTestCase):
@@ -76,7 +68,7 @@ class TestResizefs(CiTestCase):
             'DEBUG: Skipping module named cc_resizefs, resizing disabled\n',
             self.logs.getvalue())
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_handle_schema_validation_logs_invalid_resize_rootfs_value(self):
         """The handle reports json schema violations as a warning.
 

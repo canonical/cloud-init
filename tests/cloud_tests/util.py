@@ -460,6 +460,10 @@ class PlatformError(IOError):
         IOError.__init__(self, message)
 
 
+def mkdtemp(prefix='cloud_test_data'):
+    return tempfile.mkdtemp(prefix=prefix)
+
+
 class TempDir(object):
     """Configurable temporary directory like tempfile.TemporaryDirectory."""
 
@@ -480,7 +484,7 @@ class TempDir(object):
         @return_value: tempdir path
         """
         if not self.tmpdir:
-            self.tmpdir = tempfile.mkdtemp(prefix=self.prefix)
+            self.tmpdir = mkdtemp(prefix=self.prefix)
         LOG.debug('using tmpdir: %s', self.tmpdir)
         return self.tmpdir
 

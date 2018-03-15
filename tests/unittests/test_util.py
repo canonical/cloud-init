@@ -632,6 +632,24 @@ class TestSubp(helpers.CiTestCase):
         # but by using bash, we remove dependency on another program.
         return([BASH, '-c', 'printf "$@"', 'printf'] + list(args))
 
+    def test_subp_handles_bytestrings(self):
+        """subp can run a bytestring command if shell is True."""
+        tmp_file = self.tmp_path('test.out')
+        cmd = 'echo HI MOM >> {tmp_file}'.format(tmp_file=tmp_file)
+        (out, _err) = util.subp(cmd.encode('utf-8'), shell=True)
+        self.assertEqual(u'', out)
+        self.assertEqual(u'', _err)
+        self.assertEqual('HI MOM\n', util.load_file(tmp_file))
+
+    def test_subp_handles_strings(self):
+        """subp can run a string command if shell is True."""
+        tmp_file = self.tmp_path('test.out')
+        cmd = 'echo HI MOM >> {tmp_file}'.format(tmp_file=tmp_file)
+        (out, _err) = util.subp(cmd, shell=True)
+        self.assertEqual(u'', out)
+        self.assertEqual(u'', _err)
+        self.assertEqual('HI MOM\n', util.load_file(tmp_file))
+
     def test_subp_handles_utf8(self):
         # The given bytes contain utf-8 accented characters as seen in e.g.
         # the "deja dup" package in Ubuntu.
