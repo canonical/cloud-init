@@ -1,4 +1,4 @@
-cloud-init (18.1-17-g97012fbb-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.1-17-g97012fbb-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - util: Fix subp regression. Allow specifying subp command as a string.
@@ -18,7 +18,7 @@ cloud-init (18.1-17-g97012fbb-0ubuntu1) UNRELEASED; urgency=medium
     - Simplify some comparisions. [Rémy Léone]
     - Change some list creation and population to literal. [Rémy Léone]
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 15 Mar 2018 14:47:46 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 15 Mar 2018 14:48:29 -0600
 
 cloud-init (18.1-5-g40e77380-0ubuntu1) bionic; urgency=medium
 
