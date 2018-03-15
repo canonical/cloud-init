@@ -1,3 +1,25 @@
+cloud-init (18.1-17-g97012fbb-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - util: Fix subp regression. Allow specifying subp command as a string.
+      (LP: #1755965)
+    - doc: fix all warnings issued by 'tox -e doc'
+    - FreeBSD: Set hostname to FQDN. [Dominic Schlegel] (LP: #1753499)
+    - tests: fix run_tree and bddeb
+    - tests: Fix some warnings in tests that popped up with newer python.
+    - set_hostname: When present in metadata, set it before network bringup.
+      (LP: #1746455)
+    - tests: Centralize and re-use skipTest based on json schema presense.
+    - This commit fixes get_hostname on the AzureDataSource.
+      [Douglas Jordan] (LP: #1754495)
+    - shellify: raise TypeError on bad input.
+    - Make salt minion module work on FreeBSD.
+      [Dominic Schlegel] (LP: #1721503)
+    - Simplify some comparisions. [Rémy Léone]
+    - Change some list creation and population to literal. [Rémy Léone]
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 15 Mar 2018 14:47:46 -0600
+
 cloud-init (18.1-5-g40e77380-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
