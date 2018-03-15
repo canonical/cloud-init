@@ -546,7 +546,7 @@ def is_ipv4(instr):
         return False
 
     try:
-        toks = [x for x in toks if int(x) < 256 and int(x) >= 0]
+        toks = [x for x in toks if 0 <= int(x) < 256]
     except Exception:
         return False
 
@@ -716,8 +716,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
 def make_url(scheme, host, port=None,
              path='', params='', query='', fragment=''):
 
-    pieces = []
-    pieces.append(scheme or '')
+    pieces = [scheme or '']
 
     netloc = ''
     if host:
@@ -1026,9 +1025,16 @@ def dos2unix(contents):
     return contents.replace('\r\n', '\n')
 
 
-def get_hostname_fqdn(cfg, cloud):
-    # return the hostname and fqdn from 'cfg'.  If not found in cfg,
-    # then fall back to data from cloud
+def get_hostname_fqdn(cfg, cloud, metadata_only=False):
+    """Get hostname and fqdn from config if present and fallback to cloud.
+
+    @param cfg: Dictionary of merged user-data configuration (from init.cfg).
+    @param cloud: Cloud instance from init.cloudify().
+    @param metadata_only: Boolean, set True to only query cloud meta-data,
+        returning None if not present in meta-data.
+    @return: a Tuple of strings <hostname>, <fqdn>. Values can be none when
+        metadata_only is True and no cfg or metadata provides hostname info.
+    """
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
         fqdn = cfg['fqdn']
@@ -1042,11 +1048,11 @@ def get_hostname_fqdn(cfg, cloud):
         else:
             # no fqdn set, get fqdn from cloud.
             # get hostname from cfg if available otherwise cloud
-            fqdn = cloud.get_hostname(fqdn=True)
+            fqdn = cloud.get_hostname(fqdn=True, metadata_only=metadata_only)
             if "hostname" in cfg:
                 hostname = cfg['hostname']
             else:
-                hostname = cloud.get_hostname()
+                hostname = cloud.get_hostname(metadata_only=metadata_only)
     return (hostname, fqdn)
 
 
@@ -1868,8 +1874,14 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     # Popen converts entries in the arguments array from non-bytes to bytes.
     # When locale is unset it may use ascii for that encoding which can
     # cause UnicodeDecodeErrors. (LP: #1751051)
-    bytes_args = [x if isinstance(x, six.binary_type) else x.encode("utf-8")
-                  for x in args]
+    if isinstance(args, six.binary_type):
+        bytes_args = args
+    elif isinstance(args, six.string_types):
+        bytes_args = args.encode("utf-8")
+    else:
+        bytes_args = [
+            x if isinstance(x, six.binary_type) else x.encode("utf-8")
+            for x in args]
     try:
         sp = subprocess.Popen(bytes_args, stdout=stdout,
                               stderr=stderr, stdin=stdin,
@@ -1923,6 +1935,11 @@ def abs_join(*paths):
 #    if it is an array, shell protect it (with single ticks)
 #    if it is a string, do nothing
 def shellify(cmdlist, add_header=True):
+    if not isinstance(cmdlist, (tuple, list)):
+        raise TypeError(
+            "Input to shellify was type '%s'. Expected list or tuple." %
+            (type_utils.obj_name(cmdlist)))
+
     content = ''
     if add_header:
         content += "#!/bin/sh\n"
@@ -1931,7 +1948,7 @@ def shellify(cmdlist, add_header=True):
     for args in cmdlist:
         # If the item is a list, wrap all items in single tick.
         # If its not, then just write it directly.
-        if isinstance(args, list):
+        if isinstance(args, (list, tuple)):
             fixed = []
             for f in args:
                 fixed.append("'%s'" % (six.text_type(f).replace("'", escaped)))
@@ -1941,9 +1958,10 @@ def shellify(cmdlist, add_header=True):
             content = "%s%s\n" % (content, args)
             cmds_made += 1
         else:
-            raise RuntimeError(("Unable to shellify type %s"
-                                " which is not a list or string")
-                               % (type_utils.obj_name(args)))
+            raise TypeError(
+                "Unable to shellify type '%s'. Expected list, string, tuple. "
+                "Got: %s" % (type_utils.obj_name(args), args))
+
     LOG.debug("Shellified %s commands.", cmds_made)
     return content
 

@@ -113,9 +113,9 @@ cloud_final_modules:
 {% if variant not in ["freebsd"] %}
  - puppet
  - chef
- - salt-minion
  - mcollective
 {% endif %}
+ - salt-minion
  - rightscale_userdata
  - scripts-vendor
  - scripts-per-once

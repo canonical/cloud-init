@@ -63,9 +63,7 @@ def handle(name, cfg, cloud, log, _args):
                                              ["ssh-dss"])
 
     try:
-        cmd = [helper_path]
-        cmd.append(','.join(fp_blacklist))
-        cmd.append(','.join(key_blacklist))
+        cmd = [helper_path, ','.join(fp_blacklist), ','.join(key_blacklist)]
         (stdout, _stderr) = util.subp(cmd)
         util.multi_log("%s\n" % (stdout.strip()),
                        stderr=False, console=True)

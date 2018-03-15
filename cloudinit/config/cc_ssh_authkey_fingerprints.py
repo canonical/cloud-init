@@ -77,11 +77,10 @@ def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5',
     tbl = SimpleTable(tbl_fields)
     for entry in key_entries:
         if _is_printable_key(entry):
-            row = []
-            row.append(entry.keytype or '-')
-            row.append(_gen_fingerprint(entry.base64, hash_meth) or '-')
-            row.append(entry.options or '-')
-            row.append(entry.comment or '-')
+            row = [entry.keytype or '-',
+                   _gen_fingerprint(entry.base64, hash_meth) or '-',
+                   entry.options or '-',
+                   entry.comment or '-']
             tbl.add_row(row)
     authtbl_s = tbl.get_string()
     authtbl_lines = authtbl_s.splitlines()

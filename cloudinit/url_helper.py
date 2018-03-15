@@ -47,7 +47,7 @@ try:
     _REQ_VER = LooseVersion(_REQ.version)  # pylint: disable=no-member
     if _REQ_VER >= LooseVersion('0.8.8'):
         SSL_ENABLED = True
-    if _REQ_VER >= LooseVersion('0.7.0') and _REQ_VER < LooseVersion('1.0.0'):
+    if LooseVersion('0.7.0') <= _REQ_VER < LooseVersion('1.0.0'):
         CONFIG_ENABLED = True
 except ImportError:
     pass
@@ -121,7 +121,7 @@ class UrlResponse(object):
         upper = 300
         if redirects_ok:
             upper = 400
-        if self.code >= 200 and self.code < upper:
+        if 200 <= self.code < upper:
             return True
         else:
             return False

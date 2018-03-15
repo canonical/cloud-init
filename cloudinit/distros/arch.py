@@ -129,11 +129,8 @@ class Distro(distros.Distro):
         if pkgs is None:
             pkgs = []
 
-        cmd = ['pacman']
+        cmd = ['pacman', "-Sy", "--quiet", "--noconfirm"]
         # Redirect output
-        cmd.append("-Sy")
-        cmd.append("--quiet")
-        cmd.append("--noconfirm")
 
         if args and isinstance(args, str):
             cmd.append(args)

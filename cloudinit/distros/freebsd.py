@@ -132,6 +132,12 @@ class Distro(distros.Distro):
         LOG.debug("Using network interface %s", bsddev)
         return bsddev
 
+    def _select_hostname(self, hostname, fqdn):
+        # Should be FQDN if available. See rc.conf(5) in FreeBSD
+        if fqdn:
+            return fqdn
+        return hostname
+
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(filename=None)
         return ('rc.conf', sys_hostname)

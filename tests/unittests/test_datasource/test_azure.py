@@ -643,6 +643,21 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         expected_config['config'].append(blacklist_config)
         self.assertEqual(netconfig, expected_config)
 
+    @mock.patch("cloudinit.sources.DataSourceAzure.util.subp")
+    def test_get_hostname_with_no_args(self, subp):
+        dsaz.get_hostname()
+        subp.assert_called_once_with(("hostname",), capture=True)
+
+    @mock.patch("cloudinit.sources.DataSourceAzure.util.subp")
+    def test_get_hostname_with_string_arg(self, subp):
+        dsaz.get_hostname(hostname_command="hostname")
+        subp.assert_called_once_with(("hostname",), capture=True)
+
+    @mock.patch("cloudinit.sources.DataSourceAzure.util.subp")
+    def test_get_hostname_with_iterable_arg(self, subp):
+        dsaz.get_hostname(hostname_command=("hostname",))
+        subp.assert_called_once_with(("hostname",), capture=True)
+
 
 class TestAzureBounce(CiTestCase):
 
