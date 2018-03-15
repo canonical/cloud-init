@@ -46,7 +46,17 @@ reports=no
 # (useful for modules/projects where namespaces are manipulated during runtime
 # and thus existing member attributes cannot be deduced by static analysis. It
 # supports qualified module names, as well as Unix pattern matching.
-ignored-modules=six.moves,pkg_resources,httplib,http.client,paramiko,simplestreams
+ignored-modules=
+ http.client,
+ httplib,
+ pkg_resources,
+ six.moves,
+ # cloud_tests requirements.
+ boto3,
+ botocore,
+ paramiko,
+ pylxd,
+ simplestreams
 
 # List of class names for which member attributes should not be checked (useful
 # for classes with dynamically set attributes). This supports the use of
