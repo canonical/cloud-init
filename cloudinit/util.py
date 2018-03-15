@@ -1025,9 +1025,16 @@ def dos2unix(contents):
     return contents.replace('\r\n', '\n')
 
 
-def get_hostname_fqdn(cfg, cloud):
-    # return the hostname and fqdn from 'cfg'.  If not found in cfg,
-    # then fall back to data from cloud
+def get_hostname_fqdn(cfg, cloud, metadata_only=False):
+    """Get hostname and fqdn from config if present and fallback to cloud.
+
+    @param cfg: Dictionary of merged user-data configuration (from init.cfg).
+    @param cloud: Cloud instance from init.cloudify().
+    @param metadata_only: Boolean, set True to only query cloud meta-data,
+        returning None if not present in meta-data.
+    @return: a Tuple of strings <hostname>, <fqdn>. Values can be none when
+        metadata_only is True and no cfg or metadata provides hostname info.
+    """
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
         fqdn = cfg['fqdn']
@@ -1041,11 +1048,11 @@ def get_hostname_fqdn(cfg, cloud):
         else:
             # no fqdn set, get fqdn from cloud.
             # get hostname from cfg if available otherwise cloud
-            fqdn = cloud.get_hostname(fqdn=True)
+            fqdn = cloud.get_hostname(fqdn=True, metadata_only=metadata_only)
             if "hostname" in cfg:
                 hostname = cfg['hostname']
             else:
-                hostname = cloud.get_hostname()
+                hostname = cloud.get_hostname(metadata_only=metadata_only)
     return (hostname, fqdn)
 
 
