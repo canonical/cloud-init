@@ -21,7 +21,7 @@ Overview
 In order to avoid the need for dependencies and ease the setup and
 configuration users can run the integration tests via tox:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ git clone https://git.launchpad.net/cloud-init
     $ cd cloud-init
@@ -51,7 +51,7 @@ The first example will provide a complete end-to-end run of data
 collection and verification. There are additional examples below
 explaining how to run one or the other independently.
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ git clone https://git.launchpad.net/cloud-init
     $ cd cloud-init
@@ -93,7 +93,7 @@ If developing tests it may be necessary to see if cloud-config works as
 expected and the correct files are pulled down. In this case only a
 collect can be ran by running:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ tox -e citest -- collect -n xenial --data-dir /tmp/collection
 
@@ -106,7 +106,7 @@ Verify
 When developing tests it is much easier to simply rerun the verify scripts
 without the more lengthy collect process. This can be done by running:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ tox -e citest -- verify --data-dir /tmp/collection
 
@@ -133,7 +133,7 @@ cloud-init deb from or use the ``tree_run`` command using a copy of
 cloud-init located in a different directory, use the option ``--cloud-init
 /path/to/cloud-init``.
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ tox -e citest -- tree_run --verbose \
         --os-name xenial --os-name stretch \
@@ -331,7 +331,7 @@ Integration tests are located under the `tests/cloud_tests` directory.
 Test configurations are placed under `configs` and the test verification
 scripts under `testcases`:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     cloud-init$ tree -d tests/cloud_tests/
     tests/cloud_tests/
@@ -362,7 +362,7 @@ The following would create a test case named ``example`` under the
 ``modules`` category with the given description, and cloud config data read
 in from ``/tmp/user_data``.
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ tox -e citest -- create modules/example \
         -d "a simple example test case" -c "$(< /tmp/user_data)"
@@ -385,7 +385,7 @@ Development Checklist
     * Placed in the appropriate sub-folder in the test cases directory
 * Tested by running the test:
 
-   .. code-block:: bash
+   .. code-block:: shell-session
 
        $ tox -e citest -- run -verbose \
            --os-name <release target> \
@@ -404,14 +404,14 @@ These configuration files are the standard that the AWS cli and other AWS
 tools utilize for interacting directly with AWS itself and are normally
 generated when running ``aws configure``:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ cat $HOME/.aws/credentials
     [default]
     aws_access_key_id = <KEY HERE>
     aws_secret_access_key = <KEY HERE>
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ cat $HOME/.aws/config
     [default]
