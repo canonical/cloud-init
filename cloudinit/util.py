@@ -1874,8 +1874,14 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     # Popen converts entries in the arguments array from non-bytes to bytes.
     # When locale is unset it may use ascii for that encoding which can
     # cause UnicodeDecodeErrors. (LP: #1751051)
-    bytes_args = [x if isinstance(x, six.binary_type) else x.encode("utf-8")
-                  for x in args]
+    if isinstance(args, six.binary_type):
+        bytes_args = args
+    elif isinstance(args, six.string_types):
+        bytes_args = args.encode("utf-8")
+    else:
+        bytes_args = [
+            x if isinstance(x, six.binary_type) else x.encode("utf-8")
+            for x in args]
     try:
         sp = subprocess.Popen(bytes_args, stdout=stdout,
                               stderr=stderr, stdin=stdin,
