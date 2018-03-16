@@ -1,4 +1,4 @@
-cloud-init (18.1-23-gde34dc7c-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.1-23-gde34dc7c-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - net: recognize iscsi root cases without ip= on kernel command line.
@@ -10,7 +10,7 @@ cloud-init (18.1-23-gde34dc7c-0ubuntu1) UNRELEASED; urgency=medium
     - tests: Make pylint happy and fix python2.6 uses of assertRaisesRegex.
     - netplan: render bridge port-priority values (LP: #1735821)
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 16 Mar 2018 15:47:10 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 16 Mar 2018 15:48:04 -0600
 
 cloud-init (18.1-17-g97012fbb-0ubuntu1) bionic; urgency=medium
 
