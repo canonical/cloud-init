@@ -1,0 +1,18 @@
+#
+# Install snappy
+#
+required_features:
+  - snap
+cloud_config: |
+  #cloud-config
+  package_update: true
+  snap:
+    squashfuse_in_container: true
+    commands:
+      - snap install hello-world
+collect_scripts:
+  snaplist: |
+    #!/bin/bash
+    snap list
+
+# vi: ts=4 expandtab

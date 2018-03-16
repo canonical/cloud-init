@@ -1,3 +1,17 @@
+cloud-init (18.1-23-gde34dc7c-0ubuntu1) bionic; urgency=medium
+
+  * New upstream snapshot.
+    - net: recognize iscsi root cases without ip= on kernel command line.
+      (LP: #1752391)
+    - tests: fix flakes warning for unused variable
+    - tests: patch leaked stderr messages from snap unit tests
+    - cc_snap: Add new module to install and configure snapd and snap
+      packages.
+    - tests: Make pylint happy and fix python2.6 uses of assertRaisesRegex.
+    - netplan: render bridge port-priority values (LP: #1735821)
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 16 Mar 2018 15:48:04 -0600
+
 cloud-init (18.1-17-g97012fbb-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.

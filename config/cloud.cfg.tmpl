@@ -72,7 +72,8 @@ cloud_config_modules:
 # Emit the cloud config ready event
 # this can be used by upstart jobs for 'start on cloud-config'.
  - emit_upstart
- - snap_config
+ - snap
+ - snap_config  # DEPRECATED- Drop in version 18.2
 {% endif %}
  - ssh-import-id
  - locale
@@ -102,7 +103,7 @@ cloud_config_modules:
 # The modules that run in the 'final' stage
 cloud_final_modules:
 {% if variant in ["ubuntu", "unknown", "debian"] %}
- - snappy
+ - snappy  # DEPRECATED- Drop in version 18.2
 {% endif %}
  - package-update-upgrade-install
 {% if variant in ["ubuntu", "unknown", "debian"] %}

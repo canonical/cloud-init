@@ -47,7 +47,7 @@ NET_CONFIG_TO_V2 = {
                'bridge_maxage': 'max-age',
                'bridge_maxwait': None,
                'bridge_pathcost': 'path-cost',
-               'bridge_portprio': None,
+               'bridge_portprio': 'port-priority',
                'bridge_stp': 'stp',
                'bridge_waitport': None}}
 

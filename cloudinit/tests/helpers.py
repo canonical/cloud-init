@@ -283,10 +283,15 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def patchOS(self, new_root):
         patch_funcs = {
             os.path: [('isfile', 1), ('exists', 1),
-                      ('islink', 1), ('isdir', 1)],
+                      ('islink', 1), ('isdir', 1), ('lexists', 1)],
             os: [('listdir', 1), ('mkdir', 1),
-                 ('lstat', 1), ('symlink', 2)],
+                 ('lstat', 1), ('symlink', 2)]
         }
+
+        if hasattr(os, 'scandir'):
+            # py27 does not have scandir
+            patch_funcs[os].append(('scandir', 1))
+
         for (mod, funcs) in patch_funcs.items():
             for f, nargs in funcs:
                 func = getattr(mod, f)
@@ -433,12 +438,12 @@ if not hasattr(mock.Mock, 'assert_not_called'):
     mock.Mock.assert_not_called = __mock_assert_not_called
 
 
-# older unittest2.TestCase (centos6) do not have assertRaisesRegex
-# And setting assertRaisesRegex to assertRaisesRegexp causes
-# https://github.com/PyCQA/pylint/issues/1653 . So the workaround.
+# older unittest2.TestCase (centos6) have only the now-deprecated
+# assertRaisesRegexp. Simple assignment makes pylint complain, about
+# users of assertRaisesRegex so we use getattr to trick it.
+# https://github.com/PyCQA/pylint/issues/1946
 if not hasattr(unittest2.TestCase, 'assertRaisesRegex'):
-    def _tricky(*args, **kwargs):
-        return unittest2.TestCase.assertRaisesRegexp
-    unittest2.TestCase.assertRaisesRegex = _tricky
+    unittest2.TestCase.assertRaisesRegex = (
+        getattr(unittest2.TestCase, 'assertRaisesRegexp'))
 
 # vi: ts=4 expandtab
