@@ -444,7 +444,9 @@ class TestHandle(CiTestCase):
         cfg = {
             'snap': {'commands': ['echo "HI" >> %s' % outfile,
                                   'echo "MOM" >> %s' % outfile]}}
-        handle('snap', cfg=cfg, cloud=None, log=self.logger, args=None)
+        mock_path = 'cloudinit.config.cc_snap.sys.stderr'
+        with mock.patch(mock_path, new_callable=StringIO) as m_stderr:
+            handle('snap', cfg=cfg, cloud=None, log=self.logger, args=None)
         self.assertEqual('HI\nMOM\n', util.load_file(outfile))
 
     @mock.patch('cloudinit.config.cc_snap.util.subp')
