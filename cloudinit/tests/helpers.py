@@ -283,10 +283,15 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def patchOS(self, new_root):
         patch_funcs = {
             os.path: [('isfile', 1), ('exists', 1),
-                      ('islink', 1), ('isdir', 1)],
+                      ('islink', 1), ('isdir', 1), ('lexists', 1)],
             os: [('listdir', 1), ('mkdir', 1),
-                 ('lstat', 1), ('symlink', 2)],
+                 ('lstat', 1), ('symlink', 2)]
         }
+
+        if hasattr(os, 'scandir'):
+            # py27 does not have scandir
+            patch_funcs[os].append(('scandir', 1))
+
         for (mod, funcs) in patch_funcs.items():
             for f, nargs in funcs:
                 func = getattr(mod, f)

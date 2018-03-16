@@ -9,11 +9,14 @@ import base64
 import glob
 import gzip
 import io
+import os
 
 from . import get_devicelist
 from . import read_sys_net_safe
 
 from cloudinit import util
+
+_OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
 
 
 def _klibc_to_config_entry(content, mac_addrs=None):
@@ -103,9 +106,13 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     return name, iface
 
 
+def _get_klibc_net_cfg_files():
+    return glob.glob('/run/net-*.conf') + glob.glob('/run/net6-*.conf')
+
+
 def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     if files is None:
-        files = glob.glob('/run/net-*.conf') + glob.glob('/run/net6-*.conf')
+        files = _get_klibc_net_cfg_files()
 
     entries = []
     names = {}
@@ -160,9 +167,22 @@ def _b64dgz(b64str, gzipped="try"):
     return _decomp_gzip(blob, strict=gzipped != "try")
 
 
+def _is_initramfs_netconfig(files, cmdline):
+    if files:
+        if 'ip=' in cmdline or 'ip6=' in cmdline:
+            return True
+        if os.path.exists(_OPEN_ISCSI_INTERFACE_FILE):
+            # iBft can configure networking without ip=
+            return True
+    return False
+
+
 def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
     if cmdline is None:
         cmdline = util.get_cmdline()
+
+    if files is None:
+        files = _get_klibc_net_cfg_files()
 
     if 'network-config=' in cmdline:
         data64 = None
@@ -172,7 +192,7 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
         if data64:
             return util.load_yaml(_b64dgz(data64))
 
-    if 'ip=' not in cmdline and 'ip6=' not in cmdline:
+    if not _is_initramfs_netconfig(files, cmdline):
         return None
 
     if mac_addrs is None:
