@@ -569,7 +569,8 @@ class TestAptSourceConfig(TestCase):
         newcfg = cc_apt_configure.convert_to_v3_apt_format(cfg_3_only)
         self.assertEqual(newcfg, cfg_3_only)
         # collision (unequal)
-        with self.assertRaises(ValueError):
+        match = "Old and New.*unequal.*apt_proxy"
+        with self.assertRaisesRegex(ValueError, match):
             cc_apt_configure.convert_to_v3_apt_format(cfgconflict)
 
     def test_convert_to_new_format_dict_collision(self):

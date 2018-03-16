@@ -785,6 +785,39 @@ class TestSubp(helpers.CiTestCase):
             decode=False)
         self.assertEqual(self.utf8_valid, out)
 
+    def test_bogus_command_logs_status_messages(self):
+        """status_cb gets status messages logs on bogus commands provided."""
+        logs = []
+
+        def status_cb(log):
+            logs.append(log)
+
+        with self.assertRaises(util.ProcessExecutionError):
+            util.subp([self.bogus_command], status_cb=status_cb)
+
+        expected = [
+            'Begin run command: {cmd}\n'.format(cmd=self.bogus_command),
+            'ERROR: End run command: invalid command provided\n']
+        self.assertEqual(expected, logs)
+
+    def test_command_logs_exit_codes_to_status_cb(self):
+        """status_cb gets status messages containing command exit code."""
+        logs = []
+
+        def status_cb(log):
+            logs.append(log)
+
+        with self.assertRaises(util.ProcessExecutionError):
+            util.subp(['ls', '/I/dont/exist'], status_cb=status_cb)
+        util.subp(['ls'], status_cb=status_cb)
+
+        expected = [
+            'Begin run command: ls /I/dont/exist\n',
+            'ERROR: End run command: exit(2)\n',
+            'Begin run command: ls\n',
+            'End run command: exit(0)\n']
+        self.assertEqual(expected, logs)
+
 
 class TestEncode(helpers.TestCase):
     """Test the encoding functions"""

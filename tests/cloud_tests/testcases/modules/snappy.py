@@ -7,6 +7,8 @@ from tests.cloud_tests.testcases import base
 class TestSnappy(base.CloudTestCase):
     """Test snappy module"""
 
+    expected_warnings = ('DEPRECATION',)
+
     def test_snappy_version(self):
         """Test snappy version output"""
         out = self.get_data_file('snapd')

@@ -4,10 +4,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+# RELEASE_BLOCKER: Remove this deprecated module in 18.3
 """
 Snap Config
 -----------
 **Summary:** snap_config modules allows configuration of snapd.
+
+**Deprecated**: Use :ref:`snap` module instead. This module will not exist
+in cloud-init 18.3.
 
 This module uses the same ``snappy`` namespace for configuration but
 acts only only a subset of the configuration.
@@ -154,6 +158,9 @@ def handle(name, cfg, cloud, log, args):
         LOG.debug('No snappy config provided, skipping')
         return
 
+    log.warning(
+        'DEPRECATION: snap_config module will be dropped in 18.3 release.'
+        ' Use snap module instead')
     if not(util.system_is_snappy()):
         LOG.debug("%s: system not snappy", name)
         return

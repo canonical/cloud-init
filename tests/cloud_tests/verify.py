@@ -8,13 +8,16 @@ import unittest
 from tests.cloud_tests import (config, LOG, util, testcases)
 
 
-def verify_data(base_dir, tests):
+def verify_data(data_dir, platform, os_name, tests):
     """Verify test data is correct.
 
-    @param base_dir: base directory for data
+    @param data_dir: top level directory for all tests
+    @param platform: The platform name we for this test data (e.g. lxd)
+    @param os_name: The operating system under test (xenial, artful, etc.).
     @param tests: list of test names
     @return_value: {<test_name>: {passed: True/False, failures: []}}
     """
+    base_dir = os.sep.join((data_dir, platform, os_name))
     runner = unittest.TextTestRunner(verbosity=util.current_verbosity())
     res = {}
     for test_name in tests:
@@ -26,7 +29,7 @@ def verify_data(base_dir, tests):
         cloud_conf = test_conf['cloud_config']
 
         # load script outputs
-        data = {}
+        data = {'platform': platform, 'os_name': os_name}
         test_dir = os.path.join(base_dir, test_name)
         for script_name in os.listdir(test_dir):
             with open(os.path.join(test_dir, script_name), 'rb') as fp:
@@ -73,7 +76,7 @@ def verify(args):
 
             # run test
             res[platform][os_name] = verify_data(
-                os.sep.join((args.data_dir, platform, os_name)),
+                args.data_dir, platform, os_name,
                 tests[platform][os_name])
 
             # handle results
