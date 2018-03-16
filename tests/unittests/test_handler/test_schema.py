@@ -26,6 +26,7 @@ class GetSchemaTest(CiTestCase):
                 'cc_ntp',
                 'cc_resizefs',
                 'cc_runcmd',
+                'cc_snap',
                 'cc_zypper_add_repo'
             ],
             [subschema['id'] for subschema in schema['allOf']])

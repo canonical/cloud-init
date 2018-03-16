@@ -1827,7 +1827,8 @@ def subp_blob_in_tempfile(blob, *args, **kwargs):
 
 
 def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
-         logstring=False, decode="replace", target=None, update_env=None):
+         logstring=False, decode="replace", target=None, update_env=None,
+         status_cb=None):
 
     # not supported in cloud-init (yet), for now kept in the call signature
     # to ease maintaining code shared between cloud-init and curtin
@@ -1848,6 +1849,9 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     if target_path(target) != "/":
         args = ['chroot', target] + list(args)
 
+    if status_cb:
+        command = ' '.join(args) if isinstance(args, list) else args
+        status_cb('Begin run command: {command}\n'.format(command=command))
     if not logstring:
         LOG.debug(("Running command %s with allowed return codes %s"
                    " (shell=%s, capture=%s)"), args, rcs, shell, capture)
@@ -1888,6 +1892,8 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
                               env=env, shell=shell)
         (out, err) = sp.communicate(data)
     except OSError as e:
+        if status_cb:
+            status_cb('ERROR: End run command: invalid command provided\n')
         raise ProcessExecutionError(
             cmd=args, reason=e, errno=e.errno,
             stdout="-" if decode else b"-",
@@ -1912,9 +1918,14 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
 
     rc = sp.returncode
     if rc not in rcs:
+        if status_cb:
+            status_cb(
+                'ERROR: End run command: exit({code})\n'.format(code=rc))
         raise ProcessExecutionError(stdout=out, stderr=err,
                                     exit_code=rc,
                                     cmd=args)
+    if status_cb:
+        status_cb('End run command: exit({code})\n'.format(code=rc))
     return (out, err)
 
 

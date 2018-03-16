@@ -1,9 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+# RELEASE_BLOCKER: Remove this deprecated module in 18.3
 """
 Snappy
 ------
 **Summary:** snappy modules allows configuration of snappy.
+
+**Deprecated**: Use :ref:`snap` module instead. This module will not exist
+in cloud-init 18.3.
 
 The below example config config would install ``etcd``, and then install
 ``pkg2.smoser`` with a ``<config-file>`` argument where ``config-file`` has
@@ -270,6 +274,10 @@ def handle(name, cfg, cloud, log, args):
     if sys_snappy.lower() == "auto" and not(util.system_is_snappy()):
         LOG.debug("%s: 'auto' mode, and system not snappy", name)
         return
+
+    log.warning(
+        'DEPRECATION: snappy module will be dropped in 18.3 release.'
+        ' Use snap module instead')
 
     set_snappy_command()
 

@@ -140,8 +140,9 @@ def handle(name, cfg, cloud, log, _args):
         # (TODO(harlowja) is this really needed??)
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
         cleaned_contents = '\n'.join(cleaned_lines)
-        puppet_config.readfp(StringIO(cleaned_contents),
-                             filename=p_constants.conf_path)
+        puppet_config.readfp(   # pylint: disable=W1505
+            StringIO(cleaned_contents),
+            filename=p_constants.conf_path)
         for (cfg_name, cfg) in puppet_cfg['conf'].items():
             # Cert configuration is a special case
             # Dump the puppet master ca certificate in the correct place
@@ -149,8 +150,7 @@ def handle(name, cfg, cloud, log, _args):
                 # Puppet ssl sub-directory isn't created yet
                 # Create it with the proper permissions and ownership
                 util.ensure_dir(p_constants.ssl_dir, 0o771)
-                util.chownbyname(p_constants.ssl_dir, 'puppet', 'root')
-                util.ensure_dir(p_constants.ssl_cert_dir)
+
                 util.chownbyname(p_constants.ssl_cert_dir, 'puppet', 'root')
                 util.write_file(p_constants.ssl_cert_path, cfg)
                 util.chownbyname(p_constants.ssl_cert_path, 'puppet', 'root')
