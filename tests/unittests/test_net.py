@@ -758,6 +758,9 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                             path-cost:
                                 eth3: 50
                                 eth4: 75
+                            port-priority:
+                                eth3: 28
+                                eth4: 14
                             priority: 22
                             stp: false
                         routes:

@@ -311,12 +311,12 @@ class Renderer(renderer.Renderer):
                     if newname is None:
                         continue
                     br_config.update({newname: value})
-                    if newname == 'path-cost':
-                        # <interface> <cost> -> <interface>: int(<cost>)
+                    if newname in ['path-cost', 'port-priority']:
+                        # <interface> <value> -> <interface>: int(<value>)
                         newvalue = {}
-                        for costval in value:
-                            (port, cost) = costval.split()
-                            newvalue[port] = int(cost)
+                        for val in value:
+                            (port, portval) = val.split()
+                            newvalue[port] = int(portval)
                         br_config.update({newname: newvalue})
 
                 if len(br_config) > 0:
