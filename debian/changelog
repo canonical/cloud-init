@@ -1,3 +1,14 @@
+cloud-init (18.1-26-g685f9901-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - datasources: fix DataSource subclass get_hostname method signature
+      (LP: #1757176)
+    - OpenNebula: Update network to return v2 config rather than ENI.
+      [Akihiko Ota]
+    - Add Hetzner Cloud DataSource [Markus Schade]
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 20 Mar 2018 16:39:07 -0600
+
 cloud-init (18.1-23-gde34dc7c-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
