@@ -114,7 +114,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway"
+OVF SmartOS Scaleway Hetzner"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -976,6 +976,11 @@ dscheck_Scaleway() {
         return ${DS_FOUND}
     fi
 
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_Hetzner() {
+    dmi_sys_vendor_is Hetzner && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 

@@ -1,10 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import inspect
 import os
 import six
 import stat
 
 from cloudinit.helpers import Paths
+from cloudinit import importer
 from cloudinit.sources import (
     INSTANCE_JSON_FILE, DataSource)
 from cloudinit.tests.helpers import CiTestCase, skipIf, mock
@@ -268,3 +270,29 @@ class TestDataSource(CiTestCase):
             "WARNING: Error persisting instance-data.json: 'utf8' codec can't"
             " decode byte 0xaa in position 2: invalid start byte",
             self.logs.getvalue())
+
+    def test_get_hostname_subclass_support(self):
+        """Validate get_hostname signature on all subclasses of DataSource."""
+        # Use inspect.getfullargspec when we drop py2.6 and py2.7
+        get_args = inspect.getargspec  # pylint: disable=W1505
+        base_args = get_args(DataSource.get_hostname)  # pylint: disable=W1505
+        # Import all DataSource subclasses so we can inspect them.
+        modules = util.find_modules(os.path.dirname(os.path.dirname(__file__)))
+        for loc, name in modules.items():
+            mod_locs, _ = importer.find_module(name, ['cloudinit.sources'], [])
+            if mod_locs:
+                importer.import_module(mod_locs[0])
+        for child in DataSource.__subclasses__():
+            if 'Test' in child.dsname:
+                continue
+            self.assertEqual(
+                base_args,
+                get_args(child.get_hostname),  # pylint: disable=W1505
+                '%s does not implement DataSource.get_hostname params'
+                % child)
+            for grandchild in child.__subclasses__():
+                self.assertEqual(
+                    base_args,
+                    get_args(grandchild.get_hostname),  # pylint: disable=W1505
+                    '%s does not implement DataSource.get_hostname params'
+                    % grandchild)

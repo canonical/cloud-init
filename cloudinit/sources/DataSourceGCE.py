@@ -90,7 +90,7 @@ class DataSourceGCE(sources.DataSource):
         public_keys_data = self.metadata['public-keys-data']
         return _parse_public_keys(public_keys_data, self.default_user)
 
-    def get_hostname(self, fqdn=False, resolve_ip=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         # GCE has long FDQN's and has asked for short hostnames.
         return self.metadata['local-hostname'].split('.')[0]
 

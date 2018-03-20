@@ -215,7 +215,7 @@ class DataSourceScaleway(sources.DataSource):
     def get_public_ssh_keys(self):
         return [key['key'] for key in self.metadata['ssh_public_keys']]
 
-    def get_hostname(self, fqdn=False, resolve_ip=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         return self.metadata['hostname']
 
     @property
