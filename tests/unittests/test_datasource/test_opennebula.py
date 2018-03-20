@@ -4,7 +4,6 @@ from cloudinit import helpers
 from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import util
 from cloudinit.tests.helpers import mock, populate_dir, CiTestCase
-from textwrap import dedent
 
 import os
 import pwd
@@ -33,6 +32,11 @@ HOSTNAME = 'foo.example.com'
 PUBLIC_IP = '10.0.0.3'
 MACADDR = '02:00:0a:12:01:01'
 IP_BY_MACADDR = '10.18.1.1'
+IP4_PREFIX = '24'
+IP6_GLOBAL = '2001:db8:1:0:400:c0ff:fea8:1ba'
+IP6_ULA = 'fd01:dead:beaf:0:400:c0ff:fea8:1ba'
+IP6_GW = '2001:db8:1::ffff'
+IP6_PREFIX = '48'
 
 DS_PATH = "cloudinit.sources.DataSourceOpenNebula"
 
@@ -221,7 +225,9 @@ class TestOpenNebulaDataSource(CiTestCase):
             results = ds.read_context_disk_dir(self.seed_dir)
 
             self.assertTrue('network-interfaces' in results)
-            self.assertTrue(IP_BY_MACADDR in results['network-interfaces'])
+            self.assertTrue(
+                IP_BY_MACADDR + '/' + IP4_PREFIX in
+                results['network-interfaces']['ethernets'][dev]['addresses'])
 
             # ETH0_IP and ETH0_MAC
             populate_context_dir(
@@ -229,7 +235,9 @@ class TestOpenNebulaDataSource(CiTestCase):
             results = ds.read_context_disk_dir(self.seed_dir)
 
             self.assertTrue('network-interfaces' in results)
-            self.assertTrue(IP_BY_MACADDR in results['network-interfaces'])
+            self.assertTrue(
+                IP_BY_MACADDR + '/' + IP4_PREFIX in
+                results['network-interfaces']['ethernets'][dev]['addresses'])
 
             # ETH0_IP with empty string and ETH0_MAC
             # in the case of using Virtual Network contains
@@ -239,31 +247,9 @@ class TestOpenNebulaDataSource(CiTestCase):
             results = ds.read_context_disk_dir(self.seed_dir)
 
             self.assertTrue('network-interfaces' in results)
-            self.assertTrue(IP_BY_MACADDR in results['network-interfaces'])
-
-            # ETH0_NETWORK
-            populate_context_dir(
-                self.seed_dir, {
-                    'ETH0_IP': IP_BY_MACADDR,
-                    'ETH0_MAC': MACADDR,
-                    'ETH0_NETWORK': '10.18.0.0'
-                })
-            results = ds.read_context_disk_dir(self.seed_dir)
-
-            self.assertTrue('network-interfaces' in results)
-            self.assertTrue('10.18.0.0' in results['network-interfaces'])
-
-            # ETH0_NETWORK with empty string
-            populate_context_dir(
-                self.seed_dir, {
-                    'ETH0_IP': IP_BY_MACADDR,
-                    'ETH0_MAC': MACADDR,
-                    'ETH0_NETWORK': ''
-                })
-            results = ds.read_context_disk_dir(self.seed_dir)
-
-            self.assertTrue('network-interfaces' in results)
-            self.assertTrue('10.18.1.0' in results['network-interfaces'])
+            self.assertTrue(
+                IP_BY_MACADDR + '/' + IP4_PREFIX in
+                results['network-interfaces']['ethernets'][dev]['addresses'])
 
             # ETH0_MASK
             populate_context_dir(
@@ -275,7 +261,9 @@ class TestOpenNebulaDataSource(CiTestCase):
             results = ds.read_context_disk_dir(self.seed_dir)
 
             self.assertTrue('network-interfaces' in results)
-            self.assertTrue('255.255.0.0' in results['network-interfaces'])
+            self.assertTrue(
+                IP_BY_MACADDR + '/16' in
+                results['network-interfaces']['ethernets'][dev]['addresses'])
 
             # ETH0_MASK with empty string
             populate_context_dir(
@@ -287,7 +275,63 @@ class TestOpenNebulaDataSource(CiTestCase):
             results = ds.read_context_disk_dir(self.seed_dir)
 
             self.assertTrue('network-interfaces' in results)
-            self.assertTrue('255.255.255.0' in results['network-interfaces'])
+            self.assertTrue(
+                IP_BY_MACADDR + '/' + IP4_PREFIX in
+                results['network-interfaces']['ethernets'][dev]['addresses'])
+
+            # ETH0_IP6
+            populate_context_dir(
+                self.seed_dir, {
+                    'ETH0_IP6': IP6_GLOBAL,
+                    'ETH0_MAC': MACADDR,
+                })
+            results = ds.read_context_disk_dir(self.seed_dir)
+
+            self.assertTrue('network-interfaces' in results)
+            self.assertTrue(
+                IP6_GLOBAL + '/64' in
+                results['network-interfaces']['ethernets'][dev]['addresses'])
+
+            # ETH0_IP6_ULA
+            populate_context_dir(
+                self.seed_dir, {
+                    'ETH0_IP6_ULA': IP6_ULA,
+                    'ETH0_MAC': MACADDR,
+                })
+            results = ds.read_context_disk_dir(self.seed_dir)
+
+            self.assertTrue('network-interfaces' in results)
+            self.assertTrue(
+                IP6_ULA + '/64' in
+                results['network-interfaces']['ethernets'][dev]['addresses'])
+
+            # ETH0_IP6 and ETH0_IP6_PREFIX_LENGTH
+            populate_context_dir(
+                self.seed_dir, {
+                    'ETH0_IP6': IP6_GLOBAL,
+                    'ETH0_IP6_PREFIX_LENGTH': IP6_PREFIX,
+                    'ETH0_MAC': MACADDR,
+                })
+            results = ds.read_context_disk_dir(self.seed_dir)
+
+            self.assertTrue('network-interfaces' in results)
+            self.assertTrue(
+                IP6_GLOBAL + '/' + IP6_PREFIX in
+                results['network-interfaces']['ethernets'][dev]['addresses'])
+
+            # ETH0_IP6 and ETH0_IP6_PREFIX_LENGTH with empty string
+            populate_context_dir(
+                self.seed_dir, {
+                    'ETH0_IP6': IP6_GLOBAL,
+                    'ETH0_IP6_PREFIX_LENGTH': '',
+                    'ETH0_MAC': MACADDR,
+                })
+            results = ds.read_context_disk_dir(self.seed_dir)
+
+            self.assertTrue('network-interfaces' in results)
+            self.assertTrue(
+                IP6_GLOBAL + '/64' in
+                results['network-interfaces']['ethernets'][dev]['addresses'])
 
     def test_find_candidates(self):
         def my_devs_with(criteria):
@@ -310,108 +354,152 @@ class TestOpenNebulaNetwork(unittest.TestCase):
 
     system_nics = ('eth0', 'ens3')
 
-    def test_lo(self):
-        net = ds.OpenNebulaNetwork(context={}, system_nics_by_mac={})
-        self.assertEqual(net.gen_conf(), u'''\
-auto lo
-iface lo inet loopback
-''')
-
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_eth0(self, m_get_phys_by_mac):
         for nic in self.system_nics:
             m_get_phys_by_mac.return_value = {MACADDR: nic}
             net = ds.OpenNebulaNetwork({})
-            self.assertEqual(net.gen_conf(), dedent("""\
-                auto lo
-                iface lo inet loopback
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
 
-                auto {dev}
-                iface {dev} inet static
-                  #hwaddress {macaddr}
-                  address 10.18.1.1
-                  network 10.18.1.0
-                  netmask 255.255.255.0
-                """.format(dev=nic, macaddr=MACADDR)))
+            self.assertEqual(net.gen_conf(), expected)
 
     def test_eth0_override(self):
+        self.maxDiff = None
         context = {
             'DNS': '1.2.3.8',
-            'ETH0_IP': '10.18.1.1',
-            'ETH0_NETWORK': '10.18.0.0',
-            'ETH0_MASK': '255.255.0.0',
-            'ETH0_GATEWAY': '1.2.3.5',
-            'ETH0_DOMAIN': 'example.com',
             'ETH0_DNS': '1.2.3.6 1.2.3.7',
-            'ETH0_MAC': '02:00:0a:12:01:01'
+            'ETH0_GATEWAY': '1.2.3.5',
+            'ETH0_GATEWAY6': '',
+            'ETH0_IP': IP_BY_MACADDR,
+            'ETH0_IP6': '',
+            'ETH0_IP6_PREFIX_LENGTH': '',
+            'ETH0_IP6_ULA': '',
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_MASK': '255.255.0.0',
+            'ETH0_MTU': '',
+            'ETH0_NETWORK': '10.18.0.0',
+            'ETH0_SEARCH_DOMAIN': '',
         }
         for nic in self.system_nics:
-            expected = dedent("""\
-                auto lo
-                iface lo inet loopback
-
-                auto {dev}
-                iface {dev} inet static
-                  #hwaddress {macaddr}
-                  address 10.18.1.1
-                  network 10.18.0.0
-                  netmask 255.255.0.0
-                  gateway 1.2.3.5
-                  dns-search example.com
-                  dns-nameservers 1.2.3.8 1.2.3.6 1.2.3.7
-                  """).format(dev=nic, macaddr=MACADDR)
             net = ds.OpenNebulaNetwork(context,
                                        system_nics_by_mac={MACADDR: nic})
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/16'],
+                        'gateway4': '1.2.3.5',
+                        'gateway6': None,
+                        'nameservers': {
+                            'addresses': ['1.2.3.6', '1.2.3.7', '1.2.3.8']}}}}
+
+            self.assertEqual(expected, net.gen_conf())
+
+    def test_eth0_v4v6_override(self):
+        self.maxDiff = None
+        context = {
+            'DNS': '1.2.3.8',
+            'ETH0_DNS': '1.2.3.6 1.2.3.7',
+            'ETH0_GATEWAY': '1.2.3.5',
+            'ETH0_GATEWAY6': IP6_GW,
+            'ETH0_IP': IP_BY_MACADDR,
+            'ETH0_IP6': IP6_GLOBAL,
+            'ETH0_IP6_PREFIX_LENGTH': IP6_PREFIX,
+            'ETH0_IP6_ULA': IP6_ULA,
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_MASK': '255.255.0.0',
+            'ETH0_MTU': '1280',
+            'ETH0_NETWORK': '10.18.0.0',
+            'ETH0_SEARCH_DOMAIN': 'example.com example.org',
+        }
+        for nic in self.system_nics:
+            net = ds.OpenNebulaNetwork(context,
+                                       system_nics_by_mac={MACADDR: nic})
+
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [
+                            IP_BY_MACADDR + '/16',
+                            IP6_GLOBAL + '/' + IP6_PREFIX,
+                            IP6_ULA + '/' + IP6_PREFIX],
+                        'gateway4': '1.2.3.5',
+                        'gateway6': IP6_GW,
+                        'nameservers': {
+                            'addresses': ['1.2.3.6', '1.2.3.7', '1.2.3.8'],
+                            'search': ['example.com', 'example.org']},
+                        'mtu': '1280'}}}
+
             self.assertEqual(expected, net.gen_conf())
 
     def test_multiple_nics(self):
         """Test rendering multiple nics with names that differ from context."""
+        self.maxDiff = None
         MAC_1 = "02:00:0a:12:01:01"
         MAC_2 = "02:00:0a:12:01:02"
         context = {
             'DNS': '1.2.3.8',
-            'ETH0_IP': '10.18.1.1',
-            'ETH0_NETWORK': '10.18.0.0',
-            'ETH0_MASK': '255.255.0.0',
-            'ETH0_GATEWAY': '1.2.3.5',
-            'ETH0_DOMAIN': 'example.com',
             'ETH0_DNS': '1.2.3.6 1.2.3.7',
+            'ETH0_GATEWAY': '1.2.3.5',
+            'ETH0_GATEWAY6': IP6_GW,
+            'ETH0_IP': '10.18.1.1',
+            'ETH0_IP6': IP6_GLOBAL,
+            'ETH0_IP6_PREFIX_LENGTH': '',
+            'ETH0_IP6_ULA': IP6_ULA,
             'ETH0_MAC': MAC_2,
-            'ETH3_IP': '10.3.1.3',
-            'ETH3_NETWORK': '10.3.0.0',
-            'ETH3_MASK': '255.255.0.0',
-            'ETH3_GATEWAY': '10.3.0.1',
-            'ETH3_DOMAIN': 'third.example.com',
+            'ETH0_MASK': '255.255.0.0',
+            'ETH0_MTU': '1280',
+            'ETH0_NETWORK': '10.18.0.0',
+            'ETH0_SEARCH_DOMAIN': 'example.com',
             'ETH3_DNS': '10.3.1.2',
+            'ETH3_GATEWAY': '10.3.0.1',
+            'ETH3_GATEWAY6': '',
+            'ETH3_IP': '10.3.1.3',
+            'ETH3_IP6': '',
+            'ETH3_IP6_PREFIX_LENGTH': '',
+            'ETH3_IP6_ULA': '',
             'ETH3_MAC': MAC_1,
+            'ETH3_MASK': '255.255.0.0',
+            'ETH3_MTU': '',
+            'ETH3_NETWORK': '10.3.0.0',
+            'ETH3_SEARCH_DOMAIN': 'third.example.com third.example.org',
         }
         net = ds.OpenNebulaNetwork(
             context, system_nics_by_mac={MAC_1: 'enp0s25', MAC_2: 'enp1s2'})
 
-        expected = dedent("""\
-            auto lo
-            iface lo inet loopback
-
-            auto enp0s25
-            iface enp0s25 inet static
-              #hwaddress 02:00:0a:12:01:01
-              address 10.3.1.3
-              network 10.3.0.0
-              netmask 255.255.0.0
-              gateway 10.3.0.1
-              dns-search third.example.com
-              dns-nameservers 1.2.3.8 10.3.1.2
-
-            auto enp1s2
-            iface enp1s2 inet static
-              #hwaddress 02:00:0a:12:01:02
-              address 10.18.1.1
-              network 10.18.0.0
-              netmask 255.255.0.0
-              gateway 1.2.3.5
-              dns-search example.com
-              dns-nameservers 1.2.3.8 1.2.3.6 1.2.3.7
-            """)
+        expected = {
+            'version': 2,
+            'ethernets': {
+                'enp1s2': {
+                    'match': {'macaddress': MAC_2},
+                    'addresses': [
+                        '10.18.1.1/16',
+                        IP6_GLOBAL + '/64',
+                        IP6_ULA + '/64'],
+                    'gateway4': '1.2.3.5',
+                    'gateway6': IP6_GW,
+                    'nameservers': {
+                        'addresses': ['1.2.3.6', '1.2.3.7', '1.2.3.8'],
+                        'search': ['example.com']},
+                    'mtu': '1280'},
+                'enp0s25': {
+                    'match': {'macaddress': MAC_1},
+                    'addresses': ['10.3.1.3/16'],
+                    'gateway4': '10.3.0.1',
+                    'gateway6': None,
+                    'nameservers': {
+                        'addresses': ['10.3.1.2', '1.2.3.8'],
+                        'search': [
+                            'third.example.com',
+                            'third.example.org']}}}}
 
         self.assertEqual(expected, net.gen_conf())
 
