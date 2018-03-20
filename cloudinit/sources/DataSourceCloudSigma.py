@@ -84,7 +84,7 @@ class DataSourceCloudSigma(sources.DataSource):
 
         return True
 
-    def get_hostname(self, fqdn=False, resolve_ip=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         """
         Cleans up and uses the server's name if the latter is set. Otherwise
         the first part from uuid is being used.
