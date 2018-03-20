@@ -60,6 +60,7 @@ P_CHASSIS_ASSET_TAG = "sys/class/dmi/id/chassis_asset_tag"
 P_PRODUCT_NAME = "sys/class/dmi/id/product_name"
 P_PRODUCT_SERIAL = "sys/class/dmi/id/product_serial"
 P_PRODUCT_UUID = "sys/class/dmi/id/product_uuid"
+P_SYS_VENDOR = "sys/class/dmi/id/sys_vendor"
 P_SEED_DIR = "var/lib/cloud/seed"
 P_DSID_CFG = "etc/cloud/ds-identify.cfg"
 
@@ -379,6 +380,10 @@ class TestDsIdentify(CiTestCase):
         """Nocloud seed directory ubuntu core writable"""
         self._test_ds_found('NoCloud-seed-ubuntu-core')
 
+    def test_hetzner_found(self):
+        """Hetzner cloud is identified in sys_vendor."""
+        self._test_ds_found('Hetzner')
+
 
 def blkid_out(disks=None):
     """Convert a list of disk dictionaries into blkid content."""
@@ -558,6 +563,10 @@ VALID_CFG = {
                   {'DEVNAME': 'vdb', 'TYPE': 'vfat', 'LABEL': 'CONFIG-2'}])
              },
         ],
+    },
+    'Hetzner': {
+        'ds': 'Hetzner',
+        'files': {P_SYS_VENDOR: 'Hetzner\n'},
     },
 }
 
