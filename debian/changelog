@@ -1,4 +1,4 @@
-cloud-init (18.1-26-g685f9901-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.1-26-g685f9901-0ubuntu1) bionic; urgency=medium
 
   * debian/cloud-init.templates: Enable Hetzner Cloud datasource.
   * New upstream snapshot.
