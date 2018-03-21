@@ -1,5 +1,6 @@
 cloud-init (18.1-26-g685f9901-0ubuntu1) UNRELEASED; urgency=medium
 
+  * debian/cloud-init.templates: Enable Hetzner Cloud datasource.
   * New upstream snapshot.
     - datasources: fix DataSource subclass get_hostname method signature
       (LP: #1757176)
