@@ -393,12 +393,6 @@ NETWORK_CONFIGS = {
                     eth1:
                         match:
                             macaddress: cf:d6:af:48:e8:80
-                        nameservers:
-                            addresses:
-                            - 1.2.3.4
-                            - 5.6.7.8
-                            search:
-                            - wark.maas
                         set-name: eth1
                     eth99:
                         addresses:
@@ -410,12 +404,9 @@ NETWORK_CONFIGS = {
                             addresses:
                             - 8.8.8.8
                             - 8.8.4.4
-                            - 1.2.3.4
-                            - 5.6.7.8
                             search:
                             - barley.maas
                             - sach.maas
-                            - wark.maas
                         routes:
                         -   to: 0.0.0.0/0
                             via: 65.61.151.37
@@ -654,81 +645,27 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                     eth0:
                         match:
                             macaddress: c0:d6:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth0
                     eth1:
                         match:
                             macaddress: aa:d6:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth1
                     eth2:
                         match:
                             macaddress: c0:bb:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth2
                     eth3:
                         match:
                             macaddress: 66:bb:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth3
                     eth4:
                         match:
                             macaddress: 98:bb:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth4
                     eth5:
                         dhcp4: true
                         match:
                             macaddress: 98:bb:9f:2c:e8:8a
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth5
                 bonds:
                     bond0:
@@ -748,6 +685,15 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         interfaces:
                         - eth3
                         - eth4
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
                         parameters:
                             ageing-time: 250
                             forward-delay: 1
@@ -2334,6 +2280,9 @@ class TestNetplanRoundTrip(CiTestCase):
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS['all']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        print(entry['expected_netplan'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
         self.assertEqual(
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())
