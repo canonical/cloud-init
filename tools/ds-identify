@@ -894,6 +894,10 @@ dscheck_OpenStack() {
         return ${DS_FOUND}
     fi
 
+    if dmi_chassis_asset_tag_matches "OpenTelekomCloud"; then
+        return ${DS_FOUND}
+    fi
+
     # LP: #1715241 : arch other than intel are not identified properly.
     case "$DI_UNAME_MACHINE" in
         i?86|x86_64) :;;

@@ -66,6 +66,7 @@ P_DSID_CFG = "etc/cloud/ds-identify.cfg"
 
 MOCK_VIRT_IS_KVM = {'name': 'detect_virt', 'RET': 'kvm', 'ret': 0}
 MOCK_VIRT_IS_VMWARE = {'name': 'detect_virt', 'RET': 'vmware', 'ret': 0}
+MOCK_VIRT_IS_XEN = {'name': 'detect_virt', 'RET': 'xen', 'ret': 0}
 MOCK_UNAME_IS_PPC64 = {'name': 'uname', 'out': UNAME_PPC64EL, 'ret': 0}
 
 
@@ -291,6 +292,10 @@ class TestDsIdentify(CiTestCase):
         """On Intel, openstack must be identified."""
         self._test_ds_found('OpenStack')
 
+    def test_openstack_open_telekom_cloud(self):
+        """Open Telecom identification."""
+        self._test_ds_found('OpenStack-OpenTelekom')
+
     def test_openstack_on_non_intel_is_maybe(self):
         """On non-Intel, openstack without dmi info is maybe.
 
@@ -501,6 +506,12 @@ VALID_CFG = {
         'mocks': [MOCK_VIRT_IS_KVM],
         'policy_dmi': POLICY_FOUND_ONLY,
         'policy_no_dmi': POLICY_FOUND_ONLY,
+    },
+    'OpenStack-OpenTelekom': {
+        # OTC gen1 (Xen) hosts use OpenStack datasource, LP: #1756471
+        'ds': 'OpenStack',
+        'files': {P_CHASSIS_ASSET_TAG: 'OpenTelekomCloud\n'},
+        'mocks': [MOCK_VIRT_IS_XEN],
     },
     'OVF-seed': {
         'ds': 'OVF',
