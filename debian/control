@@ -46,16 +46,3 @@ XB-Python-Version: ${python:Versions}
 Description: Init scripts for cloud instances
  Cloud instances need special scripts to run during initialisation
  to retrieve and install ssh keys and to let the user run various scripts.
-
-Package: grub-legacy-ec2
-Depends: debconf | cdebconf,
-         ucf,
-         util-linux,
-         ${misc:Depends}
-Conflicts: grub
-Suggests: grub-legacy-doc
-Architecture: all
-Description: Handles update-grub for ec2 instances
- EC2 instances that use grub-legacy as a bootloader need a way to keep
- /boot/grub/menu.lst up to date while not conflicting with grub-pc.
- This package provides that.

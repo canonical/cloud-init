@@ -1,9 +1,0 @@
-Template: grub/update_grub_changeprompt_threeway
-Type: select
-# Translators, please keep translations *short* (less than 65 columns)
-__Choices: install the package maintainer's version, keep the local version currently installed, show the differences between the versions, show a side-by-side difference between the versions, show a 3-way difference between available versions, do a 3-way merge between available versions (experimental), start a new shell to examine the situation
-Choices-C: install_new, keep_current, diff, sdiff, diff_threeway, merge_threeway, shell
-Default: keep_current
-_Description: What would you like to do about ${BASENAME}?
- A new version of /boot/grub/menu.lst is available, but the version installed
- currently has been locally modified.
