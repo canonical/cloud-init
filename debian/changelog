@@ -1,3 +1,23 @@
+cloud-init (18.1-35-ge0f644b7-0ubuntu1) bionic; urgency=medium
+
+  * debian/cloud-init.templates: enable IBMCloud datasource.
+  * New upstream snapshot.
+    - IBMCloud: Initial IBM Cloud datasource.
+    - tests: remove jsonschema from xenial tox environment.
+    - tests: Fix newly added schema unit tests to skip if no jsonschema.
+    - ec2: Adjust ec2 datasource after exception_cb change.
+    - Reduce AzurePreprovisioning HTTP timeouts.
+      [Douglas Jordan] (LP: #1752977)
+    - Revert the logic of exception_cb in read_url.
+      [Kurt Garloff] (LP: #1702160, #1298921)
+    - ubuntu-advantage: Add new config module to support
+      ubuntu-advantage-tools
+    - Handle global dns entries in netplan (LP: #1750884)
+    - Identify OpenTelekomCloud Xen as OpenStack DS.
+      [Kurt Garloff] (LP: #1756471)
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 23 Mar 2018 17:20:47 -0600
+
 cloud-init (18.1-26-g685f9901-0ubuntu1) bionic; urgency=medium
 
   * debian/cloud-init.templates: Enable Hetzner Cloud datasource.
