@@ -336,22 +336,15 @@ class Renderer(renderer.Renderer):
                 _extract_addresses(ifcfg, vlan)
                 vlans.update({ifname: vlan})
 
-        # inject global nameserver values under each physical interface
-        if nameservers:
-            for _eth, cfg in ethernets.items():
-                nscfg = cfg.get('nameservers', {})
-                addresses = nscfg.get('addresses', [])
-                addresses += nameservers
-                nscfg.update({'addresses': addresses})
-                cfg.update({'nameservers': nscfg})
-
-        if searchdomains:
-            for _eth, cfg in ethernets.items():
-                nscfg = cfg.get('nameservers', {})
-                search = nscfg.get('search', [])
-                search += searchdomains
-                nscfg.update({'search': search})
-                cfg.update({'nameservers': nscfg})
+        # inject global nameserver values under each all interface which
+        # has addresses and do not already have a DNS configuration
+        if nameservers or searchdomains:
+            nscfg = {'addresses': nameservers, 'search': searchdomains}
+            for section in [ethernets, wifis, bonds, bridges, vlans]:
+                for _name, cfg in section.items():
+                    if 'nameservers' in cfg or 'addresses' not in cfg:
+                        continue
+                    cfg.update({'nameservers': nscfg})
 
         # workaround yaml dictionary key sorting when dumping
         def _render_section(name, section):

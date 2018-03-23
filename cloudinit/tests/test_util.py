@@ -3,6 +3,7 @@
 """Tests for cloudinit.util"""
 
 import logging
+from textwrap import dedent
 
 import cloudinit.util as util
 
@@ -139,5 +140,76 @@ class TestGetHostnameFqdn(CiTestCase):
         self.assertEqual(
             [{'fqdn': True, 'metadata_only': True},
              {'metadata_only': True}], mycloud.calls)
+
+
+class TestBlkid(CiTestCase):
+    ids = {
+        "id01": "1111-1111",
+        "id02": "22222222-2222",
+        "id03": "33333333-3333",
+        "id04": "44444444-4444",
+        "id05": "55555555-5555-5555-5555-555555555555",
+        "id06": "66666666-6666-6666-6666-666666666666",
+        "id07": "52894610484658920398",
+        "id08": "86753098675309867530",
+        "id09": "99999999-9999-9999-9999-999999999999",
+    }
+
+    blkid_out = dedent("""\
+        /dev/loop0: TYPE="squashfs"
+        /dev/loop1: TYPE="squashfs"
+        /dev/loop2: TYPE="squashfs"
+        /dev/loop3: TYPE="squashfs"
+        /dev/sda1: UUID="{id01}" TYPE="vfat" PARTUUID="{id02}"
+        /dev/sda2: UUID="{id03}" TYPE="ext4" PARTUUID="{id04}"
+        /dev/sda3: UUID="{id05}" TYPE="ext4" PARTUUID="{id06}"
+        /dev/sda4: LABEL="default" UUID="{id07}" UUID_SUB="{id08}" """
+                       """TYPE="zfs_member" PARTUUID="{id09}"
+        /dev/loop4: TYPE="squashfs"
+      """)
+
+    maxDiff = None
+
+    def _get_expected(self):
+        return ({
+            "/dev/loop0": {"DEVNAME": "/dev/loop0", "TYPE": "squashfs"},
+            "/dev/loop1": {"DEVNAME": "/dev/loop1", "TYPE": "squashfs"},
+            "/dev/loop2": {"DEVNAME": "/dev/loop2", "TYPE": "squashfs"},
+            "/dev/loop3": {"DEVNAME": "/dev/loop3", "TYPE": "squashfs"},
+            "/dev/loop4": {"DEVNAME": "/dev/loop4", "TYPE": "squashfs"},
+            "/dev/sda1": {"DEVNAME": "/dev/sda1", "TYPE": "vfat",
+                          "UUID": self.ids["id01"],
+                          "PARTUUID": self.ids["id02"]},
+            "/dev/sda2": {"DEVNAME": "/dev/sda2", "TYPE": "ext4",
+                          "UUID": self.ids["id03"],
+                          "PARTUUID": self.ids["id04"]},
+            "/dev/sda3": {"DEVNAME": "/dev/sda3", "TYPE": "ext4",
+                          "UUID": self.ids["id05"],
+                          "PARTUUID": self.ids["id06"]},
+            "/dev/sda4": {"DEVNAME": "/dev/sda4", "TYPE": "zfs_member",
+                          "LABEL": "default",
+                          "UUID": self.ids["id07"],
+                          "UUID_SUB": self.ids["id08"],
+                          "PARTUUID": self.ids["id09"]},
+        })
+
+    @mock.patch("cloudinit.util.subp")
+    def test_functional_blkid(self, m_subp):
+        m_subp.return_value = (
+            self.blkid_out.format(**self.ids), "")
+        self.assertEqual(self._get_expected(), util.blkid())
+        m_subp.assert_called_with(["blkid", "-o", "full"], capture=True,
+                                  decode="replace")
+
+    @mock.patch("cloudinit.util.subp")
+    def test_blkid_no_cache_uses_no_cache(self, m_subp):
+        """blkid should turn off cache if disable_cache is true."""
+        m_subp.return_value = (
+            self.blkid_out.format(**self.ids), "")
+        self.assertEqual(self._get_expected(),
+                         util.blkid(disable_cache=True))
+        m_subp.assert_called_with(["blkid", "-o", "full", "-c", "/dev/null"],
+                                  capture=True, decode="replace")
+
 
 # vi: ts=4 expandtab

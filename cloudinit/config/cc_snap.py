@@ -11,6 +11,7 @@ from cloudinit import log as logging
 from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit.settings import PER_INSTANCE
+from cloudinit.subp import prepend_base_command
 from cloudinit import util
 
 
@@ -160,50 +161,6 @@ def add_assertions(assertions):
     util.subp(snap_cmd + [ASSERTIONS_FILE], capture=True)
 
 
-def prepend_snap_commands(commands):
-    """Ensure user-provided commands start with SNAP_CMD, warn otherwise.
-
-    Each command is either a list or string. Perform the following:
-       - When the command is a list, pop the first element if it is None
-       - When the command is a list, insert SNAP_CMD as the first element if
-         not present.
-       - When the command is a string containing a non-snap command, warn.
-
-    Support cut-n-paste snap command sets from public snappy documentation.
-    Allow flexibility to provide non-snap environment/config setup if needed.
-
-    @commands: List of commands. Each command element is a list or string.
-
-    @return: List of 'fixed up' snap commands.
-    @raise: TypeError on invalid config item type.
-    """
-    warnings = []
-    errors = []
-    fixed_commands = []
-    for command in commands:
-        if isinstance(command, list):
-            if command[0] is None:  # Avoid warnings by specifying None
-                command = command[1:]
-            elif command[0] != SNAP_CMD:  # Automatically prepend SNAP_CMD
-                command.insert(0, SNAP_CMD)
-        elif isinstance(command, str):
-            if not command.startswith('%s ' % SNAP_CMD):
-                warnings.append(command)
-        else:
-            errors.append(str(command))
-            continue
-        fixed_commands.append(command)
-
-    if warnings:
-        LOG.warning(
-            'Non-snap commands in snap config:\n%s', '\n'.join(warnings))
-    if errors:
-        raise TypeError(
-            'Invalid snap config.'
-            ' These commands are not a string or list:\n' + '\n'.join(errors))
-    return fixed_commands
-
-
 def run_commands(commands):
     """Run the provided commands provided in snap:commands configuration.
 
@@ -224,7 +181,7 @@ def run_commands(commands):
             'commands parameter was not a list or dict: {commands}'.format(
                 commands=commands))
 
-    fixed_snap_commands = prepend_snap_commands(commands)
+    fixed_snap_commands = prepend_base_command('snap', commands)
 
     cmd_failures = []
     for command in fixed_snap_commands:

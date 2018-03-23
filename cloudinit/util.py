@@ -1237,6 +1237,37 @@ def find_devs_with(criteria=None, oformat='device',
     return entries
 
 
+def blkid(devs=None, disable_cache=False):
+    """Get all device tags details from blkid.
+
+    @param devs: Optional list of device paths you wish to query.
+    @param disable_cache: Bool, set True to start with clean cache.
+
+    @return: Dict of key value pairs of info for the device.
+    """
+    if devs is None:
+        devs = []
+    else:
+        devs = list(devs)
+
+    cmd = ['blkid', '-o', 'full']
+    if disable_cache:
+        cmd.extend(['-c', '/dev/null'])
+    cmd.extend(devs)
+
+    # we have to decode with 'replace' as shelx.split (called by
+    # load_shell_content) can't take bytes.  So this is potentially
+    # lossy of non-utf-8 chars in blkid output.
+    out, _ = subp(cmd, capture=True, decode="replace")
+    ret = {}
+    for line in out.splitlines():
+        dev, _, data = line.partition(":")
+        ret[dev] = load_shell_content(data)
+        ret[dev]["DEVNAME"] = dev
+
+    return ret
+
+
 def peek_file(fname, max_bytes):
     LOG.debug("Peeking at %s (max_bytes=%s)", fname, max_bytes)
     with open(fname, 'rb') as ifh:
