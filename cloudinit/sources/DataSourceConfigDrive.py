@@ -14,6 +14,7 @@ from cloudinit import util
 
 from cloudinit.net import eni
 
+from cloudinit.sources.DataSourceIBMCloud import get_ibm_platform
 from cloudinit.sources.helpers import openstack
 
 LOG = logging.getLogger(__name__)
@@ -255,6 +256,15 @@ def find_candidate_devs(probe_optical=True):
     # an unpartitioned block device (ex sda, not sda1)
     devices = [d for d in candidates
                if d in by_label or not util.is_partition(d)]
+
+    if devices:
+        # IBMCloud uses config-2 label, but limited to a single UUID.
+        ibm_platform, ibm_path = get_ibm_platform()
+        if ibm_path in devices:
+            devices.remove(ibm_path)
+            LOG.debug("IBMCloud device '%s' (%s) removed from candidate list",
+                      ibm_path, ibm_platform)
+
     return devices
 
 
