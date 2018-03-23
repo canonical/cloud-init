@@ -7,7 +7,7 @@ from cloudinit.config.cc_ubuntu_advantage import (
     handle, maybe_install_ua_tools, run_commands, schema)
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import util
-from cloudinit.tests.helpers import CiTestCase, mock
+from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 
 # Module path used in mocks
@@ -104,6 +104,7 @@ class TestRunCommands(CiTestCase):
         self.assertEqual('MOM\nHI\n', util.load_file(outfile))
 
 
+@skipUnlessJsonSchema()
 class TestSchema(CiTestCase):
 
     with_logs = True

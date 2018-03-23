@@ -8,7 +8,8 @@ from cloudinit.config.cc_snap import (
     run_commands, schema)
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import util
-from cloudinit.tests.helpers import CiTestCase, mock, wrap_and_call
+from cloudinit.tests.helpers import (
+    CiTestCase, mock, wrap_and_call, skipUnlessJsonSchema)
 
 
 SYSTEM_USER_ASSERTION = """\
@@ -243,6 +244,7 @@ class TestRunCommands(CiTestCase):
         self.assertEqual('MOM\nHI\n', util.load_file(outfile))
 
 
+@skipUnlessJsonSchema()
 class TestSchema(CiTestCase):
 
     with_logs = True
@@ -418,6 +420,7 @@ class TestHandle(CiTestCase):
             util.load_file(compare_file), util.load_file(assert_file))
 
     @mock.patch('cloudinit.config.cc_snap.util.subp')
+    @skipUnlessJsonSchema()
     def test_handle_validates_schema(self, m_subp):
         """Any provided configuration is runs validate_cloudconfig_schema."""
         assert_file = self.tmp_path('snapd.assertions', dir=self.tmp)
