@@ -4,8 +4,8 @@ import re
 from six import StringIO
 
 from cloudinit.config.cc_snap import (
-    ASSERTIONS_FILE, add_assertions, handle, prepend_snap_commands,
-    maybe_install_squashfuse, run_commands, schema)
+    ASSERTIONS_FILE, add_assertions, handle, maybe_install_squashfuse,
+    run_commands, schema)
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import util
 from cloudinit.tests.helpers import CiTestCase, mock, wrap_and_call
@@ -156,54 +156,6 @@ class TestAddAssertions(CiTestCase):
         util.write_file(compare_file, combined.encode('utf-8'))
         self.assertEqual(
             util.load_file(compare_file), util.load_file(assert_file))
-
-
-class TestPrepentSnapCommands(CiTestCase):
-
-    with_logs = True
-
-    def test_prepend_snap_commands_errors_on_neither_string_nor_list(self):
-        """Raise an error for each command which is not a string or list."""
-        orig_commands = ['ls', 1, {'not': 'gonna work'}, ['snap', 'list']]
-        with self.assertRaises(TypeError) as context_manager:
-            prepend_snap_commands(orig_commands)
-        self.assertEqual(
-            "Invalid snap config. These commands are not a string or list:\n"
-            "1\n{'not': 'gonna work'}",
-            str(context_manager.exception))
-
-    def test_prepend_snap_commands_warns_on_non_snap_string_commands(self):
-        """Warn on each non-snap for commands of type string."""
-        orig_commands = ['ls', 'snap list', 'touch /blah', 'snap install x']
-        fixed_commands = prepend_snap_commands(orig_commands)
-        self.assertEqual(
-            'WARNING: Non-snap commands in snap config:\n'
-            'ls\ntouch /blah\n',
-            self.logs.getvalue())
-        self.assertEqual(orig_commands, fixed_commands)
-
-    def test_prepend_snap_commands_prepends_on_non_snap_list_commands(self):
-        """Prepend 'snap' for each non-snap command of type list."""
-        orig_commands = [['ls'], ['snap', 'list'], ['snapa', '/blah'],
-                         ['snap', 'install', 'x']]
-        expected = [['snap', 'ls'], ['snap', 'list'],
-                    ['snap', 'snapa', '/blah'],
-                    ['snap', 'install', 'x']]
-        fixed_commands = prepend_snap_commands(orig_commands)
-        self.assertEqual('', self.logs.getvalue())
-        self.assertEqual(expected, fixed_commands)
-
-    def test_prepend_snap_commands_removes_first_item_when_none(self):
-        """Remove the first element of a non-snap command when it is None."""
-        orig_commands = [[None, 'ls'], ['snap', 'list'],
-                         [None, 'touch', '/blah'],
-                         ['snap', 'install', 'x']]
-        expected = [['ls'], ['snap', 'list'],
-                    ['touch', '/blah'],
-                    ['snap', 'install', 'x']]
-        fixed_commands = prepend_snap_commands(orig_commands)
-        self.assertEqual('', self.logs.getvalue())
-        self.assertEqual(expected, fixed_commands)
 
 
 class TestRunCommands(CiTestCase):

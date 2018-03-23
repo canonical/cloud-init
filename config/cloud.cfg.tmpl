@@ -87,6 +87,9 @@ cloud_config_modules:
  - apt-pipelining
  - apt-configure
 {% endif %}
+{% if variant in ["ubuntu"] %}
+ - ubuntu-advantage
+{% endif %}
 {% if variant in ["suse"] %}
  - zypper-add-repo
 {% endif %}
