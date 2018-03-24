@@ -1,5 +1,6 @@
 cloud-init (18.1-35-ge0f644b7-0ubuntu1) UNRELEASED; urgency=medium
 
+  * debian/cloud-init.templates: enable IBMCloud datasource.
   * New upstream snapshot.
     - IBMCloud: Initial IBM Cloud datasource.
     - tests: remove jsonschema from xenial tox environment.
