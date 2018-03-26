@@ -1,9 +1,9 @@
-cloud-init (18.1-35-ge0f644b7-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (18.1-35-ge0f644b7-0ubuntu2) bionic; urgency=medium
 
   * debian/: drop grub-legacy-ec2 package, which is now in its own source
     package (LP: #1758420).
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 26 Mar 2018 16:48:25 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 26 Mar 2018 16:54:34 -0400
 
 cloud-init (18.1-35-ge0f644b7-0ubuntu1) bionic; urgency=medium
 
