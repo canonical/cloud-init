@@ -1,8 +1,17 @@
-cloud-init (18.1-35-ge0f644b7-0ubuntu3) UNRELEASED; urgency=medium
+cloud-init (18.2-0ubuntu1) UNRELEASED; urgency=medium
 
   * debian/control: Add missing dependency on isc-dhcp-client (LP: #1759307).
+  * New upstream snapshot.
+    - release 18.2 (LP: #1759318)
+    - Hetzner: Exit early if dmi system-manufacturer is not Hetzner.
+    - Add missing dependency on isc-dhcp-client to trunk ubuntu packaging.
+      (LP: #1759307)
+    - FreeBSD: resizefs module now able to handle zfs/zpool.
+      [Dominic Schlegel] (LP: #1721243)
+    - cc_puppet: Revert regression of puppet creating ssl and ssl_cert dirs
+    - Enable IBMCloud datasource in settings.py.
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 27 Mar 2018 12:19:44 -0400
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 27 Mar 2018 14:58:58 -0600
 
 cloud-init (18.1-35-ge0f644b7-0ubuntu2) bionic; urgency=medium
 
