@@ -1,3 +1,61 @@
+18.2:
+ - Hetzner: Exit early if dmi system-manufacturer is not Hetzner.
+ - Add missing dependency on isc-dhcp-client to trunk ubuntu packaging.
+   (LP: #1759307)
+ - FreeBSD: resizefs module now able to handle zfs/zpool.
+   [Dominic Schlegel] (LP: #1721243)
+ - cc_puppet: Revert regression of puppet creating ssl and ssl_cert dirs
+ - Enable IBMCloud datasource in settings.py.
+ - IBMCloud: Initial IBM Cloud datasource.
+ - tests: remove jsonschema from xenial tox environment.
+ - tests: Fix newly added schema unit tests to skip if no jsonschema.
+ - ec2: Adjust ec2 datasource after exception_cb change.
+ - Reduce AzurePreprovisioning HTTP timeouts.
+   [Douglas Jordan] (LP: #1752977)
+ - Revert the logic of exception_cb in read_url.
+   [Kurt Garloff] (LP: #1702160, #1298921)
+ - ubuntu-advantage: Add new config module to support
+   ubuntu-advantage-tools
+ - Handle global dns entries in netplan (LP: #1750884)
+ - Identify OpenTelekomCloud Xen as OpenStack DS.
+   [Kurt Garloff] (LP: #1756471)
+ - datasources: fix DataSource subclass get_hostname method signature
+   (LP: #1757176)
+ - OpenNebula: Update network to return v2 config rather than ENI.
+   [Akihiko Ota]
+ - Add Hetzner Cloud DataSource
+ - net: recognize iscsi root cases without ip= on kernel command line.
+   (LP: #1752391)
+ - tests: fix flakes warning for unused variable
+ - tests: patch leaked stderr messages from snap unit tests
+ - cc_snap: Add new module to install and configure snapd and snap
+   packages.
+ - tests: Make pylint happy and fix python2.6 uses of assertRaisesRegex.
+ - netplan: render bridge port-priority values (LP: #1735821)
+ - util: Fix subp regression. Allow specifying subp command as a string.
+   (LP: #1755965)
+ - doc: fix all warnings issued by 'tox -e doc'
+ - FreeBSD: Set hostname to FQDN. [Dominic Schlegel] (LP: #1753499)
+ - tests: fix run_tree and bddeb
+ - tests: Fix some warnings in tests that popped up with newer python.
+ - set_hostname: When present in metadata, set it before network bringup.
+   (LP: #1746455)
+ - tests: Centralize and re-use skipTest based on json schema presense.
+ - This commit fixes get_hostname on the AzureDataSource.
+   [Douglas Jordan] (LP: #1754495)
+ - shellify: raise TypeError on bad input.
+ - Make salt minion module work on FreeBSD.
+   [Dominic Schlegel] (LP: #1721503)
+ - Simplify some comparisions. [Rémy Léone]
+ - Change some list creation and population to literal. [Rémy Léone]
+ - GCE: fix reading of user-data that is not base64 encoded. (LP: #1752711)
+ - doc: fix chef install from apt packages example in RTD.
+ - Implement puppet 4 support [Romanos Skiadas] (LP: #1446804)
+ - subp: Fix subp usage with non-ascii characters when no system locale.
+   (LP: #1751051)
+ - salt: configure grains in grains file rather than in minion config.
+   [Daniel Wallace]
+
 18.1:
  - OVF: Fix VMware support for 64-bit platforms. [Sankar Tanguturi]
  - ds-identify: Fix searching for iso9660 OVF cdroms. (LP: #1749980)
