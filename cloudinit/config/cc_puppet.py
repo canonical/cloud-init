@@ -140,6 +140,7 @@ def handle(name, cfg, cloud, log, _args):
         # (TODO(harlowja) is this really needed??)
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
         cleaned_contents = '\n'.join(cleaned_lines)
+        # Move to puppet_config.read_file when dropping py2.7
         puppet_config.readfp(   # pylint: disable=W1505
             StringIO(cleaned_contents),
             filename=p_constants.conf_path)
@@ -150,6 +151,8 @@ def handle(name, cfg, cloud, log, _args):
                 # Puppet ssl sub-directory isn't created yet
                 # Create it with the proper permissions and ownership
                 util.ensure_dir(p_constants.ssl_dir, 0o771)
+                util.chownbyname(p_constants.ssl_dir, 'puppet', 'root')
+                util.ensure_dir(p_constants.ssl_cert_dir)
 
                 util.chownbyname(p_constants.ssl_cert_dir, 'puppet', 'root')
                 util.write_file(p_constants.ssl_cert_path, cfg)

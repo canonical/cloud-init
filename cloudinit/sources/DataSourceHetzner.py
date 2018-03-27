@@ -44,6 +44,8 @@ class DataSourceHetzner(sources.DataSource):
         self.dsmode = sources.DSMODE_NETWORK
 
     def get_data(self):
+        if not on_hetzner():
+            return False
         nic = cloudnet.find_fallback_nic()
         with cloudnet.EphemeralIPv4Network(nic, "169.254.0.1", 16,
                                            "169.254.255.255"):
@@ -85,6 +87,10 @@ class DataSourceHetzner(sources.DataSource):
         self._network_config = _net_config
 
         return self._network_config
+
+
+def on_hetzner():
+    return util.read_dmi_data('system-manufacturer') == "Hetzner"
 
 
 # Used to match classes to dependencies

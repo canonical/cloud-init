@@ -2234,7 +2234,7 @@ def get_path_dev_freebsd(path, mnt_list):
     return path_found
 
 
-def get_mount_info_freebsd(path, log=LOG):
+def get_mount_info_freebsd(path):
     (result, err) = subp(['mount', '-p', path], rcs=[0, 1])
     if len(err):
         # find a path if the input is not a mounting point
@@ -2248,23 +2248,49 @@ def get_mount_info_freebsd(path, log=LOG):
     return "/dev/" + label_part, ret[2], ret[1]
 
 
+def get_device_info_from_zpool(zpool):
+    (zpoolstatus, err) = subp(['zpool', 'status', zpool])
+    if len(err):
+        return None
+    r = r'.*(ONLINE).*'
+    for line in zpoolstatus.split("\n"):
+        if re.search(r, line) and zpool not in line and "state" not in line:
+            disk = line.split()[0]
+            LOG.debug('found zpool "%s" on disk %s', zpool, disk)
+            return disk
+
+
 def parse_mount(path):
-    (mountoutput, _err) = subp("mount")
+    (mountoutput, _err) = subp(['mount'])
     mount_locs = mountoutput.splitlines()
+    # there are 2 types of mount outputs we have to parse therefore
+    # the regex is a bit complex. to better understand this regex see:
+    # https://regex101.com/r/2F6c1k/1
+    # https://regex101.com/r/T2en7a/1
+    regex = r'^(/dev/[\S]+|.*zroot\S*?) on (/[\S]*) ' + \
+            '(?=(?:type)[\s]+([\S]+)|\(([^,]*))'
     for line in mount_locs:
-        m = re.search(r'^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', line)
+        m = re.search(regex, line)
         if not m:
             continue
+        devpth = m.group(1)
+        mount_point = m.group(2)
+        # above regex will either fill the fs_type in group(3)
+        # or group(4) depending on the format we have.
+        fs_type = m.group(3)
+        if fs_type is None:
+            fs_type = m.group(4)
+        LOG.debug('found line in mount -> devpth: %s, mount_point: %s, '
+                  'fs_type: %s', devpth, mount_point, fs_type)
         # check whether the dev refers to a label on FreeBSD
         # for example, if dev is '/dev/label/rootfs', we should
         # continue finding the real device like '/dev/da0'.
-        devm = re.search('^(/dev/.+)p([0-9])$', m.group(1))
-        if (not devm and is_FreeBSD()):
+        # this is only valid for non zfs file systems as a zpool
+        # can have gpt labels as disk.
+        devm = re.search('^(/dev/.+)p([0-9])$', devpth)
+        if not devm and is_FreeBSD() and fs_type != 'zfs':
             return get_mount_info_freebsd(path)
-        devpth = m.group(1)
-        mount_point = m.group(2)
-        fs_type = m.group(3)
-        if mount_point == path:
+        elif mount_point == path:
             return devpth, fs_type, mount_point
     return None
 

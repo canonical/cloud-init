@@ -366,6 +366,56 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         expected = ('none', 'tmpfs', '/run/lock')
         self.assertEqual(expected, util.parse_mount_info('/run/lock', lines))
 
+    @mock.patch('cloudinit.util.subp')
+    def test_get_device_info_from_zpool(self, zpool_output):
+        # mock subp command from util.get_mount_info_fs_on_zpool
+        zpool_output.return_value = (
+            self.readResource('zpool_status_simple.txt'), ''
+        )
+        # save function return values and do asserts
+        ret = util.get_device_info_from_zpool('vmzroot')
+        self.assertEqual('gpt/system', ret)
+        self.assertIsNotNone(ret)
+
+    @mock.patch('cloudinit.util.subp')
+    def test_get_device_info_from_zpool_on_error(self, zpool_output):
+        # mock subp command from util.get_mount_info_fs_on_zpool
+        zpool_output.return_value = (
+            self.readResource('zpool_status_simple.txt'), 'error'
+        )
+        # save function return values and do asserts
+        ret = util.get_device_info_from_zpool('vmzroot')
+        self.assertIsNone(ret)
+
+    @mock.patch('cloudinit.util.subp')
+    def test_parse_mount_with_ext(self, mount_out):
+        mount_out.return_value = (self.readResource('mount_parse_ext.txt'), '')
+        # this one is valid and exists in mount_parse_ext.txt
+        ret = util.parse_mount('/var')
+        self.assertEqual(('/dev/mapper/vg00-lv_var', 'ext4', '/var'), ret)
+        # another one that is valid and exists
+        ret = util.parse_mount('/')
+        self.assertEqual(('/dev/mapper/vg00-lv_root', 'ext4', '/'), ret)
+        # this one exists in mount_parse_ext.txt
+        ret = util.parse_mount('/sys/kernel/debug')
+        self.assertIsNone(ret)
+        # this one does not even exist in mount_parse_ext.txt
+        ret = util.parse_mount('/not/existing/mount')
+        self.assertIsNone(ret)
+
+    @mock.patch('cloudinit.util.subp')
+    def test_parse_mount_with_zfs(self, mount_out):
+        mount_out.return_value = (self.readResource('mount_parse_zfs.txt'), '')
+        # this one is valid and exists in mount_parse_zfs.txt
+        ret = util.parse_mount('/var')
+        self.assertEqual(('vmzroot/ROOT/freebsd/var', 'zfs', '/var'), ret)
+        # this one is the root, valid and also exists in mount_parse_zfs.txt
+        ret = util.parse_mount('/')
+        self.assertEqual(('vmzroot/ROOT/freebsd', 'zfs', '/'), ret)
+        # this one does not even exist in mount_parse_ext.txt
+        ret = util.parse_mount('/not/existing/mount')
+        self.assertIsNone(ret)
+
 
 class TestReadDMIData(helpers.FilesystemMockingTestCase):
 

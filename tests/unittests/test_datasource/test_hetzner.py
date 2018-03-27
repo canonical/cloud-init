@@ -73,7 +73,10 @@ class TestDataSourceHetzner(CiTestCase):
     @mock.patch('cloudinit.net.find_fallback_nic')
     @mock.patch('cloudinit.sources.helpers.hetzner.read_metadata')
     @mock.patch('cloudinit.sources.helpers.hetzner.read_userdata')
-    def test_read_data(self, m_usermd, m_readmd, m_fallback_nic, m_net):
+    @mock.patch('cloudinit.sources.DataSourceHetzner.on_hetzner')
+    def test_read_data(self, m_on_hetzner, m_usermd, m_readmd, m_fallback_nic,
+                       m_net):
+        m_on_hetzner.return_value = True
         m_readmd.return_value = METADATA.copy()
         m_usermd.return_value = USERDATA
         m_fallback_nic.return_value = 'eth0'
@@ -97,3 +100,18 @@ class TestDataSourceHetzner(CiTestCase):
         self.assertIsInstance(ds.get_public_ssh_keys(), list)
         self.assertEqual(ds.get_userdata_raw(), USERDATA)
         self.assertEqual(ds.get_vendordata_raw(), METADATA.get('vendor_data'))
+
+    @mock.patch('cloudinit.sources.helpers.hetzner.read_metadata')
+    @mock.patch('cloudinit.net.find_fallback_nic')
+    @mock.patch('cloudinit.sources.DataSourceHetzner.on_hetzner')
+    def test_not_on_hetzner_returns_false(self, m_on_hetzner, m_find_fallback,
+                                          m_read_md):
+        """If helper 'on_hetzner' returns False, return False from get_data."""
+        m_on_hetzner.return_value = False
+        ds = self.get_ds()
+        ret = ds.get_data()
+
+        self.assertFalse(ret)
+        # These are a white box attempt to ensure it did not search.
+        m_find_fallback.assert_not_called()
+        m_read_md.assert_not_called()

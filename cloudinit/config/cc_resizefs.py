@@ -84,6 +84,10 @@ def _resize_ufs(mount_point, devpth):
     return ('growfs', devpth)
 
 
+def _resize_zfs(mount_point, devpth):
+    return ('zpool', 'online', '-e', mount_point, devpth)
+
+
 def _get_dumpfs_output(mount_point):
     dumpfs_res, err = util.subp(['dumpfs', '-m', mount_point])
     return dumpfs_res
@@ -148,6 +152,7 @@ RESIZE_FS_PREFIXES_CMDS = [
     ('ext', _resize_ext),
     ('xfs', _resize_xfs),
     ('ufs', _resize_ufs),
+    ('zfs', _resize_zfs),
 ]
 
 RESIZE_FS_PRECHECK_CMDS = {
@@ -187,6 +192,13 @@ def maybe_get_writable_device_path(devpath, info, log):
     if devpath == 'overlayroot':
         log.debug("Not attempting to resize devpath '%s': %s", devpath, info)
         return None
+
+    # FreeBSD zpool can also just use gpt/<label>
+    # with that in mind we can not do an os.stat on "gpt/whatever"
+    # therefore return the devpath already here.
+    if devpath.startswith('gpt/'):
+        log.debug('We have a gpt label - just go ahead')
+        return devpath
 
     try:
         statret = os.stat(devpath)
@@ -230,6 +242,16 @@ def handle(name, cfg, _cloud, log, args):
         return
 
     (devpth, fs_type, mount_point) = result
+
+    # if we have a zfs then our device path at this point
+    # is the zfs label. For example: vmzroot/ROOT/freebsd
+    # we will have to get the zpool name out of this
+    # and set the resize_what variable to the zpool
+    # so the _resize_zfs function gets the right attribute.
+    if fs_type == 'zfs':
+        zpool = devpth.split('/')[0]
+        devpth = util.get_device_info_from_zpool(zpool)
+        resize_what = zpool
 
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
     log.debug("resize_info: %s" % info)
