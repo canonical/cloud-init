@@ -1,3 +1,9 @@
+cloud-init (18.1-35-ge0f644b7-0ubuntu3) UNRELEASED; urgency=medium
+
+  * debian/control: Add missing dependency on isc-dhcp-client (LP: #1759307).
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 27 Mar 2018 12:19:44 -0400
+
 cloud-init (18.1-35-ge0f644b7-0ubuntu2) bionic; urgency=medium
 
   * debian/: drop grub-legacy-ec2 package, which is now in its own source
