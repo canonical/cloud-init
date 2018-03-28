@@ -276,21 +276,34 @@ class DataSource(object):
             return "iid-datasource"
         return str(self.metadata['instance-id'])
 
-    def get_hostname(self, fqdn=False, resolve_ip=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
+        """Get hostname or fqdn from the datasource. Look it up if desired.
+
+        @param fqdn: Boolean, set True to return hostname with domain.
+        @param resolve_ip: Boolean, set True to attempt to resolve an ipv4
+            address provided in local-hostname meta-data.
+        @param metadata_only: Boolean, set True to avoid looking up hostname
+            if meta-data doesn't have local-hostname present.
+
+        @return: hostname or qualified hostname. Optionally return None when
+            metadata_only is True and local-hostname data is not available.
+        """
         defdomain = "localdomain"
         defhost = "localhost"
         domain = defdomain
 
         if not self.metadata or 'local-hostname' not in self.metadata:
+            if metadata_only:
+                return None
             # this is somewhat questionable really.
             # the cloud datasource was asked for a hostname
             # and didn't have one. raising error might be more appropriate
             # but instead, basically look up the existing hostname
             toks = []
             hostname = util.get_hostname()
-            fqdn = util.get_fqdn_from_hosts(hostname)
-            if fqdn and fqdn.find(".") > 0:
-                toks = str(fqdn).split(".")
+            hosts_fqdn = util.get_fqdn_from_hosts(hostname)
+            if hosts_fqdn and hosts_fqdn.find(".") > 0:
+                toks = str(hosts_fqdn).split(".")
             elif hostname and hostname.find(".") > 0:
                 toks = str(hostname).split(".")
             elif hostname:

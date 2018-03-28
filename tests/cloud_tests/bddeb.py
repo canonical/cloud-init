@@ -16,7 +16,7 @@ pre_reqs = ['devscripts', 'equivs', 'git', 'tar']
 
 def _out(cmd_res):
     """Get clean output from cmd result."""
-    return cmd_res[0].strip()
+    return cmd_res[0].decode("utf-8").strip()
 
 
 def build_deb(args, instance):

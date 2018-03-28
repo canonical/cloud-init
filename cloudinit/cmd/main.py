@@ -40,6 +40,7 @@ from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
 
 from cloudinit import atomic_helper
 
+from cloudinit.config import cc_set_hostname
 from cloudinit.dhclient_hook import LogDhclient
 
 
@@ -215,12 +216,10 @@ def main_init(name, args):
     if args.local:
         deps = [sources.DEP_FILESYSTEM]
 
-    early_logs = []
-    early_logs.append(
-        attempt_cmdline_url(
-            path=os.path.join("%s.d" % CLOUD_CONFIG,
-                              "91_kernel_cmdline_url.cfg"),
-            network=not args.local))
+    early_logs = [attempt_cmdline_url(
+        path=os.path.join("%s.d" % CLOUD_CONFIG,
+                          "91_kernel_cmdline_url.cfg"),
+        network=not args.local)]
 
     # Cloud-init 'init' stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
@@ -354,6 +353,11 @@ def main_init(name, args):
     LOG.debug("[%s] %s will now be targeting instance id: %s. new=%s",
               mode, name, iid, init.is_new_instance())
 
+    if mode == sources.DSMODE_LOCAL:
+        # Before network comes up, set any configured hostname to allow
+        # dhcp clients to advertize this hostname to any DDNS services
+        # LP: #1746455.
+        _maybe_set_hostname(init, stage='local', retry_stage='network')
     init.apply_network_config(bring_up=bool(mode != sources.DSMODE_LOCAL))
 
     if mode == sources.DSMODE_LOCAL:
@@ -370,6 +374,7 @@ def main_init(name, args):
     init.setup_datasource()
     # update fully realizes user-data (pulling in #include if necessary)
     init.update()
+    _maybe_set_hostname(init, stage='init-net', retry_stage='modules:config')
     # Stage 7
     try:
         # Attempt to consume the data per instance.
@@ -681,6 +686,24 @@ def status_wrapper(name, args, data_d=None, link_d=None):
                       force=True)
 
     return len(v1[mode]['errors'])
+
+
+def _maybe_set_hostname(init, stage, retry_stage):
+    """Call set-hostname if metadata, vendordata or userdata provides it.
+
+    @param stage: String representing current stage in which we are running.
+    @param retry_stage: String represented logs upon error setting hostname.
+    """
+    cloud = init.cloudify()
+    (hostname, _fqdn) = util.get_hostname_fqdn(
+        init.cfg, cloud, metadata_only=True)
+    if hostname:  # meta-data or user-data hostname content
+        try:
+            cc_set_hostname.handle('set-hostname', init.cfg, cloud, LOG, None)
+        except cc_set_hostname.SetHostnameError as e:
+            LOG.debug(
+                'Failed setting hostname in %s stage. Will'
+                ' retry in %s stage. Error: %s.', stage, retry_stage, str(e))
 
 
 def main_features(name, args):

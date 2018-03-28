@@ -109,7 +109,7 @@ class NoCloudKVMInstance(Instance):
         if self.pid:
             try:
                 c_util.subp(['kill', '-9', self.pid])
-            except util.ProcessExectuionError:
+            except c_util.ProcessExecutionError:
                 pass
 
         if self.pid_file:

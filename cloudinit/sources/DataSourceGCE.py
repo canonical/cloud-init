@@ -90,7 +90,7 @@ class DataSourceGCE(sources.DataSource):
         public_keys_data = self.metadata['public-keys-data']
         return _parse_public_keys(public_keys_data, self.default_user)
 
-    def get_hostname(self, fqdn=False, resolve_ip=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         # GCE has long FDQN's and has asked for short hostnames.
         return self.metadata['local-hostname'].split('.')[0]
 
@@ -213,16 +213,15 @@ def read_md(address=None, platform_check=True):
     if md['availability-zone']:
         md['availability-zone'] = md['availability-zone'].split('/')[-1]
 
-    encoding = instance_data.get('user-data-encoding')
-    if encoding:
+    if 'user-data' in instance_data:
+        # instance_data was json, so values are all utf-8 strings.
+        ud = instance_data['user-data'].encode("utf-8")
+        encoding = instance_data.get('user-data-encoding')
         if encoding == 'base64':
-            md['user-data'] = b64decode(instance_data.get('user-data'))
-        else:
+            ud = b64decode(ud)
+        elif encoding:
             LOG.warning('unknown user-data-encoding: %s, ignoring', encoding)
-
-    if 'user-data' in md:
-        ret['user-data'] = md['user-data']
-        del md['user-data']
+        ret['user-data'] = ud
 
     ret['meta-data'] = md
     ret['success'] = True

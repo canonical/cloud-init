@@ -1,6 +1,6 @@
-**********************
+********************************
 Testing and debugging cloud-init
-**********************
+********************************
 
 Overview
 ========
@@ -10,7 +10,7 @@ deployed instances.
 .. _boot_time_analysis:
 
 Boot Time Analysis - cloud-init analyze
-======================================
+=======================================
 Occasionally instances don't appear as performant as we would like and
 cloud-init packages a simple facility to inspect what operations took
 cloud-init the longest during boot and setup.
@@ -22,9 +22,9 @@ determine the long-pole in cloud-init configuration and setup. These
 subcommands default to reading /var/log/cloud-init.log.
 
 * ``analyze show`` Parse and organize cloud-init.log events by stage and
-include each sub-stage granularity with time delta reports.
+  include each sub-stage granularity with time delta reports.
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ cloud-init analyze show -i my-cloud-init.log
     -- Boot Record 01 --
@@ -41,9 +41,9 @@ include each sub-stage granularity with time delta reports.
 
 
 * ``analyze dump`` Parse cloud-init.log into event records and return a list of
-dictionaries that can be consumed for other reporting needs.
+  dictionaries that can be consumed for other reporting needs.
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ cloud-init analyze blame -i my-cloud-init.log
     [
@@ -56,10 +56,10 @@ dictionaries that can be consumed for other reporting needs.
      },...
 
 * ``analyze blame`` Parse cloud-init.log into event records and sort them based
-on highest time cost for quick assessment of areas of cloud-init that may need
-improvement.
+  on highest time cost for quick assessment of areas of cloud-init that may
+  need improvement.
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ cloud-init analyze blame -i my-cloud-init.log
     -- Boot Record 11 --
@@ -73,31 +73,36 @@ Analyze quickstart - LXC
 ---------------------------
 To quickly obtain a cloud-init log try using lxc on any ubuntu system:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
-  $ lxc init ubuntu-daily:xenial x1
-  $ lxc start x1
-  # Take lxc's cloud-init.log and pipe it to the analyzer
-  $ lxc file pull x1/var/log/cloud-init.log - | cloud-init analyze dump -i -
-  $ lxc file pull x1/var/log/cloud-init.log - | \
-  python3 -m cloudinit.analyze dump -i -
+    $ lxc init ubuntu-daily:xenial x1
+    $ lxc start x1
+    $ # Take lxc's cloud-init.log and pipe it to the analyzer
+    $ lxc file pull x1/var/log/cloud-init.log - | cloud-init analyze dump -i -
+    $ lxc file pull x1/var/log/cloud-init.log - | \
+      python3 -m cloudinit.analyze dump -i -
+
 
 Analyze quickstart - KVM
 ---------------------------
 To quickly analyze a KVM a cloud-init log:
 
 1. Download the current cloud image
-  wget https://cloud-images.ubuntu.com/daily/server/xenial/current/xenial-server-cloudimg-amd64.img
+
+.. code-block:: shell-session
+
+    $ wget https://cloud-images.ubuntu.com/daily/server/xenial/current/xenial-server-cloudimg-amd64.img
+
 2. Create a snapshot image to preserve the original cloud-image
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ qemu-img create -b xenial-server-cloudimg-amd64.img -f qcow2 \
     test-cloudinit.qcow2
 
 3. Create a seed image with metadata using `cloud-localds`
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ cat > user-data <<EOF
       #cloud-config
@@ -108,18 +113,18 @@ To quickly analyze a KVM a cloud-init log:
 
 4. Launch your modified VM
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $  kvm -m 512 -net nic -net user -redir tcp:2222::22 \
-   -drive file=test-cloudinit.qcow2,if=virtio,format=qcow2 \
-   -drive file=my-seed.img,if=virtio,format=raw
+        -drive file=test-cloudinit.qcow2,if=virtio,format=qcow2 \
+        -drive file=my-seed.img,if=virtio,format=raw
 
 5. Analyze the boot (blame, dump, show)
 
-.. code-block:: bash
+.. code-block:: shell-session
 
     $ ssh -p 2222 ubuntu@localhost 'cat /var/log/cloud-init.log' | \
-   cloud-init analyze blame -i -
+       cloud-init analyze blame -i -
 
 
 Running single cloud config modules
@@ -136,7 +141,7 @@ prevents a module from running again if it has already been run. To ensure that
 a module is run again, the desired frequency can be overridden on the
 commandline:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
   $ sudo cloud-init single --name cc_ssh --frequency always
   ...

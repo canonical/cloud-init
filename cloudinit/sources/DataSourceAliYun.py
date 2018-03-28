@@ -22,7 +22,7 @@ class DataSourceAliYun(EC2.DataSourceEc2):
         super(DataSourceAliYun, self).__init__(sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, "AliYun")
 
-    def get_hostname(self, fqdn=False, _resolve_ip=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         return self.metadata.get('hostname', 'localhost.localdomain')
 
     def get_public_ssh_keys(self):

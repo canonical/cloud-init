@@ -165,10 +165,11 @@ class TestClean(CiTestCase):
             wrap_and_call(
                 'cloudinit.cmd.clean',
                 {'Init': {'side_effect': self.init_class},
+                 'sys.exit': {'side_effect': self.sys_exit},
                  'sys.argv': {'new': ['clean', '--logs']}},
                 clean.main)
 
-        self.assertRaisesCodeEqual(0, context_manager.exception.code)
+        self.assertEqual(0, context_manager.exception.code)
         self.assertFalse(
             os.path.exists(self.log1), 'Unexpected log {0}'.format(self.log1))
 

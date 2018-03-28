@@ -92,6 +92,7 @@ DI_DMI_SYS_VENDOR=""
 DI_DMI_PRODUCT_SERIAL=""
 DI_DMI_PRODUCT_UUID=""
 DI_FS_LABELS=""
+DI_FS_UUIDS=""
 DI_ISO9660_DEVS=""
 DI_KERNEL_CMDLINE=""
 DI_VIRT=""
@@ -114,7 +115,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway"
+OVF SmartOS Scaleway Hetzner IBMCloud"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -122,6 +123,8 @@ DI_ON_MAYBE=""
 DI_ON_NOTFOUND=""
 
 DI_EC2_STRICT_ID_DEFAULT="true"
+
+_IS_IBM_CLOUD=""
 
 error() {
     set -- "ERROR:" "$@";
@@ -186,7 +189,8 @@ block_dev_with_label() {
 read_fs_info() {
     cached "${DI_BLKID_OUTPUT}" && return 0
     # do not rely on links in /dev/disk which might not be present yet.
-    # note that older blkid versions do not report DEVNAME in 'export' output.
+    # Note that blkid < 2.22 (centos6, trusty) do not output DEVNAME.
+    # that means that DI_ISO9660_DEVS will not be set.
     if is_container; then
         # blkid will in a container, or at least currently in lxd
         # not provide useful information.
@@ -195,7 +199,7 @@ read_fs_info() {
         return
     fi
     local oifs="$IFS" line="" delim=","
-    local ret=0 out="" labels="" dev="" label="" ftype="" isodevs=""
+    local ret=0 out="" labels="" dev="" label="" ftype="" isodevs="" uuids=""
     out=$(blkid -c /dev/null -o export) || {
         ret=$?
         error "failed running [$ret]: blkid -c /dev/null -o export"
@@ -203,22 +207,29 @@ read_fs_info() {
         DI_ISO9660_DEVS="$UNAVAILABLE:error"
         return $ret
     }
-    IFS="$CR"
-    set -- $out
-    IFS="$oifs"
-    for line in "$@" ""; do
+    # 'set --' will collapse multiple consecutive entries in IFS for
+    # whitespace characters (\n, tab, " ") so we cannot rely on getting
+    # empty lines in "$@" below.
+    IFS="$CR"; set -- $out; IFS="$oifs"
+
+    for line in "$@"; do
         case "${line}" in
-            DEVNAME=*) dev=${line#DEVNAME=};;
+            DEVNAME=*)
+                [ -n "$dev" -a "$ftype" = "iso9660" ] &&
+                    isodevs="${isodevs} ${dev}=$label"
+                ftype=""; dev=""; label="";
+                dev=${line#DEVNAME=};;
             LABEL=*) label="${line#LABEL=}";
                      labels="${labels}${line#LABEL=}${delim}";;
             TYPE=*) ftype=${line#TYPE=};;
-            "") if [ "$ftype" = "iso9660" ]; then
-                    isodevs="${isodevs} ${dev}=$label"
-                fi
-                ftype=""; devname=""; label="";
+            UUID=*) uuids="${uuids}${line#UUID=}$delim";;
         esac
     done
+    [ -n "$dev" -a "$ftype" = "iso9660" ] &&
+        isodevs="${isodevs} ${dev}=$label"
+
     DI_FS_LABELS="${labels%${delim}}"
+    DI_FS_UUIDS="${uuids%${delim}}"
     DI_ISO9660_DEVS="${isodevs# }"
 }
 
@@ -431,11 +442,22 @@ dmi_sys_vendor_is() {
     [ "${DI_DMI_SYS_VENDOR}" = "$1" ]
 }
 
-has_fs_with_label() {
-    local label="$1"
-    case ",${DI_FS_LABELS}," in
-        *,$label,*) return 0;;
+has_fs_with_uuid() {
+    case ",${DI_FS_UUIDS}," in
+        *,$1,*) return 0;;
     esac
+    return 1
+}
+
+has_fs_with_label() {
+    # has_fs_with_label(label1[ ,label2 ..])
+    # return 0 if a there is a filesystem that matches any of the labels.
+    local label=""
+    for label in "$@"; do
+        case ",${DI_FS_LABELS}," in
+            *,$label,*) return 0;;
+        esac
+    done
     return 1
 }
 
@@ -468,6 +490,16 @@ check_seed_dir() {
         [ -f "$dir/$f" ] || return 1
     done
     return 0
+}
+
+check_writable_seed_dir() {
+    # ubuntu core bind-mounts /writable/system-data/var/lib/cloud
+    # over the top of /var/lib/cloud, but the mount might not be done yet.
+    local wdir="/writable/system-data"
+    [ -d "${PATH_ROOT}$wdir" ] || return 1
+    local sdir="${PATH_ROOT}$wdir${PATH_VAR_LIB_CLOUD#${PATH_ROOT}}"
+    local PATH_VAR_LIB_CLOUD="$sdir"
+    check_seed_dir "$@"
 }
 
 probe_floppy() {
@@ -567,8 +599,11 @@ dscheck_NoCloud() {
     case " ${DI_DMI_PRODUCT_SERIAL} " in
         *\ ds=nocloud*) return ${DS_FOUND};;
     esac
+
+    is_ibm_cloud && return ${DS_NOT_FOUND}
     for d in nocloud nocloud-net; do
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
+        check_writable_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
     done
     if has_fs_with_label "${fslabel}"; then
         return ${DS_FOUND}
@@ -577,9 +612,8 @@ dscheck_NoCloud() {
 }
 
 check_configdrive_v2() {
-    if has_fs_with_label "config-2"; then
-        return ${DS_FOUND}
-    elif has_fs_with_label "CONFIG-2"; then
+    is_ibm_cloud && return ${DS_NOT_FOUND}
+    if has_fs_with_label CONFIG-2 config-2; then
         return ${DS_FOUND}
     fi
     # look in /config-drive <vlc>/seed/config_drive for a directory
@@ -633,8 +667,9 @@ ovf_vmware_guest_customization() {
 
     # we have to have the plugin to do vmware customization
     local found="" pkg="" pre="${PATH_ROOT}/usr/lib"
+    local ppath="plugins/vmsvc/libdeployPkgPlugin.so"
     for pkg in vmware-tools open-vm-tools; do
-        if [ -f "$pre/$pkg/plugins/vmsvc/libdeployPkgPlugin.so" ]; then
+        if [ -f "$pre/$pkg/$ppath" -o -f "${pre}64/$pkg/$ppath" ]; then
             found="$pkg"; break;
         fi
     done
@@ -685,15 +720,12 @@ dscheck_OVF() {
     # Azure provides ovf. Skip false positive by dis-allowing.
     is_azure_chassis && return $DS_NOT_FOUND
 
-    local isodevs="${DI_ISO9660_DEVS}"
-    case "$isodevs" in
-        ""|$UNAVAILABLE:*) return ${DS_NOT_FOUND};;
-    esac
-
     # DI_ISO9660_DEVS is <device>=label, like /dev/sr0=OVF-TRANSPORT
-    for tok in $isodevs; do
-        is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return $DS_FOUND
-    done
+    if [ "${DI_ISO9660_DEVS#${UNAVAILABLE}:}" = "${DI_ISO9660_DEVS}" ]; then
+        for tok in ${DI_ISO9660_DEVS}; do
+            is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return $DS_FOUND
+        done
+    fi
 
     if ovf_vmware_guest_customization; then
         return ${DS_FOUND}
@@ -879,6 +911,10 @@ dscheck_OpenStack() {
         return ${DS_FOUND}
     fi
 
+    if dmi_chassis_asset_tag_matches "OpenTelekomCloud"; then
+        return ${DS_FOUND}
+    fi
+
     # LP: #1715241 : arch other than intel are not identified properly.
     case "$DI_UNAME_MACHINE" in
         i?86|x86_64) :;;
@@ -961,6 +997,41 @@ dscheck_Scaleway() {
         return ${DS_FOUND}
     fi
 
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_Hetzner() {
+    dmi_sys_vendor_is Hetzner && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+is_ibm_provisioning() {
+    [ -f "${PATH_ROOT}/root/provisioningConfiguration.cfg" ]
+}
+
+is_ibm_cloud() {
+    cached "${_IS_IBM_CLOUD}" && return ${_IS_IBM_CLOUD}
+    local ret=1
+    if [ "$DI_VIRT" = "xen" ]; then
+        if is_ibm_provisioning; then
+            ret=0
+        elif has_fs_with_label METADATA metadata; then
+            ret=0
+        elif has_fs_with_uuid 9796-932E &&
+            has_fs_with_label CONFIG-2 config-2; then
+            ret=0
+        fi
+    fi
+    _IS_IBM_CLOUD=$ret
+    return $ret
+}
+
+dscheck_IBMCloud() {
+    if is_ibm_provisioning; then
+        debug 1 "cloud-init disabled during provisioning on IBMCloud"
+        return ${DS_NOT_FOUND}
+    fi
+    is_ibm_cloud && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 

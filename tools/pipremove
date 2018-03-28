@@ -1,0 +1,14 @@
+#!/usr/bin/python3
+import subprocess
+import sys
+
+for pkg in sys.argv[1:]:
+    try:
+        exec('import %s' % pkg)  # pylint: disable=W0122
+    except ImportError:
+        continue
+    sys.stderr.write("%s removing package %s\n" % (sys.argv[0], pkg))
+    ret = subprocess.Popen(['pip', 'uninstall', '--yes', pkg]).wait()
+    if ret != 0:
+        sys.stderr.write("Failed to uninstall %s (%d)\n" % (pkg, ret))
+        sys.exit(ret)

@@ -6,20 +6,13 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema, main)
 from cloudinit.util import subp, write_file
 
-from cloudinit.tests.helpers import CiTestCase, mock, skipIf
+from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 from copy import copy
 import os
 from six import StringIO
 from textwrap import dedent
 from yaml import safe_load
-
-try:
-    import jsonschema
-    assert jsonschema  # avoid pyflakes error F401: import unused
-    _missing_jsonschema_dep = False
-except ImportError:
-    _missing_jsonschema_dep = True
 
 
 class GetSchemaTest(CiTestCase):
@@ -33,6 +26,8 @@ class GetSchemaTest(CiTestCase):
                 'cc_ntp',
                 'cc_resizefs',
                 'cc_runcmd',
+                'cc_snap',
+                'cc_ubuntu_advantage',
                 'cc_zypper_add_repo'
             ],
             [subschema['id'] for subschema in schema['allOf']])
@@ -73,7 +68,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
 
     with_logs = True
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_validateconfig_schema_non_strict_emits_warnings(self):
         """When strict is False validate_cloudconfig_schema emits warnings."""
         schema = {'properties': {'p1': {'type': 'string'}}}
@@ -82,7 +77,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
             "Invalid config:\np1: -1 is not of type 'string'\n",
             self.logs.getvalue())
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_validateconfig_schema_emits_warning_on_missing_jsonschema(self):
         """Warning from validate_cloudconfig_schema when missing jsonschema."""
         schema = {'properties': {'p1': {'type': 'string'}}}
@@ -92,7 +87,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
             'Ignoring schema validation. python-jsonschema is not present',
             self.logs.getvalue())
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_validateconfig_schema_strict_raises_errors(self):
         """When strict is True validate_cloudconfig_schema raises errors."""
         schema = {'properties': {'p1': {'type': 'string'}}}
@@ -102,7 +97,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
             "Cloud config schema errors: p1: -1 is not of type 'string'",
             str(context_mgr.exception))
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_validateconfig_schema_honors_formats(self):
         """With strict True, validate_cloudconfig_schema errors on format."""
         schema = {
@@ -153,7 +148,7 @@ class ValidateCloudConfigFileTest(CiTestCase):
                 self.config_file),
             str(context_mgr.exception))
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_validateconfig_file_sctricty_validates_schema(self):
         """validate_cloudconfig_file raises errors on invalid schema."""
         schema = {
@@ -336,11 +331,13 @@ class MainTest(CiTestCase):
 
     def test_main_missing_args(self):
         """Main exits non-zero and reports an error on missing parameters."""
-        with mock.patch('sys.argv', ['mycmd']):
-            with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
-                with self.assertRaises(SystemExit) as context_manager:
-                    main()
-        self.assertEqual('1', str(context_manager.exception))
+        with mock.patch('sys.exit', side_effect=self.sys_exit):
+            with mock.patch('sys.argv', ['mycmd']):
+                with mock.patch('sys.stderr', new_callable=StringIO) as \
+                        m_stderr:
+                    with self.assertRaises(SystemExit) as context_manager:
+                        main()
+        self.assertEqual(1, context_manager.exception.code)
         self.assertEqual(
             'Expected either --config-file argument or --doc\n',
             m_stderr.getvalue())
@@ -374,7 +371,7 @@ class CloudTestsIntegrationTest(CiTestCase):
     raises Warnings or errors on invalid cloud-config schema.
     """
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_all_integration_test_cloud_config_schema(self):
         """Validate schema of cloud_tests yaml files looking for warnings."""
         schema = get_schema()

@@ -20,7 +20,7 @@ from cloudinit import net
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers.azure import get_metadata_from_fabric
-from cloudinit.url_helper import readurl, wait_for_url, UrlError
+from cloudinit.url_helper import readurl, UrlError
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -49,7 +49,6 @@ DEFAULT_FS = 'ext4'
 AZURE_CHASSIS_ASSET_TAG = '7783-7084-3265-9085-8269-3286-77'
 REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
 IMDS_URL = "http://169.254.169.254/metadata/reprovisiondata"
-IMDS_RETRIES = 5
 
 
 def find_storvscid_from_sysctl_pnpinfo(sysctl_out, deviceid):
@@ -223,6 +222,8 @@ DEF_PASSWD_REDACTION = 'REDACTED'
 
 
 def get_hostname(hostname_command='hostname'):
+    if not isinstance(hostname_command, (list, tuple)):
+        hostname_command = (hostname_command,)
     return util.subp(hostname_command, capture=True)[0].strip()
 
 
@@ -449,36 +450,24 @@ class DataSourceAzure(sources.DataSource):
         headers = {"Metadata": "true"}
         LOG.debug("Start polling IMDS")
 
-        def sleep_cb(response, loop_n):
-            return 1
-
-        def exception_cb(msg, exception):
+        def exc_cb(msg, exception):
             if isinstance(exception, UrlError) and exception.code == 404:
-                return
-            LOG.warning("Exception during polling. Will try DHCP.",
-                        exc_info=True)
-
+                return True
             # If we get an exception while trying to call IMDS, we
             # call DHCP and setup the ephemeral network to acquire the new IP.
-            raise exception
+            return False
 
         need_report = report_ready
-        for i in range(IMDS_RETRIES):
+        while True:
             try:
                 with EphemeralDHCPv4() as lease:
                     if need_report:
                         self._report_ready(lease=lease)
                         need_report = False
-                    wait_for_url([url], max_wait=None, timeout=60,
-                                 status_cb=LOG.info,
-                                 headers_cb=lambda url: headers, sleep_time=1,
-                                 exception_cb=exception_cb,
-                                 sleep_time_cb=sleep_cb)
-                    return str(readurl(url, headers=headers))
-            except Exception:
-                LOG.debug("Exception during polling-retrying dhcp" +
-                          " %d more time(s).", (IMDS_RETRIES - i),
-                          exc_info=True)
+                    return readurl(url, timeout=1, headers=headers,
+                                   exception_cb=exc_cb, infinite=True).contents
+            except UrlError:
+                pass
 
     def _report_ready(self, lease):
         """Tells the fabric provisioning has completed

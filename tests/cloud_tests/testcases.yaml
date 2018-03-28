@@ -15,6 +15,9 @@ base_test_data:
         instance-id: |
             #!/bin/sh
             cat /run/cloud-init/.instance-id
+        instance-data.json: |
+            #!/bin/sh
+            cat /run/cloud-init/instance-data.json
         result.json: |
             #!/bin/sh
             cat /run/cloud-init/result.json

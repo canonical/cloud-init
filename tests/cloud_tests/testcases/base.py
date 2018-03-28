@@ -4,9 +4,13 @@
 
 import crypt
 import json
+import re
 import unittest
 
+
 from cloudinit import util as c_util
+
+SkipTest = unittest.SkipTest
 
 
 class CloudTestCase(unittest.TestCase):
@@ -16,6 +20,43 @@ class CloudTestCase(unittest.TestCase):
     data = {}
     conf = None
     _cloud_config = None
+    release_conf = {}    # The platform's os release configuration
+
+    expected_warnings = ()  # Subclasses set to ignore expected WARN logs
+
+    @property
+    def os_cfg(self):
+        return self.release_conf[self.os_name]['default']
+
+    def is_distro(self, distro_name):
+        return self.os_cfg['os'] == distro_name
+
+    def os_version_cmp(self, cmp_version):
+        """Compare the version of the test to comparison_version.
+
+        @param: cmp_version: Either a float or a string representing
+           a release os from releases.yaml (e.g. centos66)
+
+        @return: -1 when version < cmp_version, 0 when version=cmp_version and
+            1 when version > cmp_version.
+        """
+        version = self.release_conf[self.os_name]['default']['version']
+        if isinstance(cmp_version, str):
+            cmp_version = self.release_conf[cmp_version]['default']['version']
+        if version < cmp_version:
+            return -1
+        elif version == cmp_version:
+            return 0
+        else:
+            return 1
+
+    @property
+    def os_name(self):
+        return self.data.get('os_name', 'UNKNOWN')
+
+    @property
+    def platform(self):
+        return self.data.get('platform', 'UNKNOWN')
 
     @property
     def cloud_config(self):
@@ -72,12 +113,134 @@ class CloudTestCase(unittest.TestCase):
         self.assertEqual(len(result['errors']), 0)
 
     def test_no_warnings_in_log(self):
-        """Warnings should not be found in the log."""
+        """Unexpected warnings should not be found in the log."""
+        warnings = [
+            l for l in self.get_data_file('cloud-init.log').splitlines()
+            if 'WARN' in l]
+        joined_warnings = '\n'.join(warnings)
+        for expected_warning in self.expected_warnings:
+            self.assertIn(
+                expected_warning, joined_warnings,
+                msg="Did not find %s in cloud-init.log" % expected_warning)
+            # Prune expected from discovered warnings
+            warnings = [w for w in warnings if expected_warning not in w]
         self.assertEqual(
-            [],
-            [l for l in self.get_data_file('cloud-init.log').splitlines()
-             if 'WARN' in l],
-            msg="'WARN' found inside cloud-init.log")
+            [], warnings, msg="'WARN' found inside cloud-init.log")
+
+    def test_instance_data_json_ec2(self):
+        """Validate instance-data.json content by ec2 platform.
+
+        This content is sourced by snapd when determining snapstore endpoints.
+        We validate expected values per cloud type to ensure we don't break
+        snapd.
+        """
+        if self.platform != 'ec2':
+            raise SkipTest(
+                'Skipping ec2 instance-data.json on %s' % self.platform)
+        out = self.get_data_file('instance-data.json')
+        if not out:
+            if self.is_distro('ubuntu') and self.os_version_cmp('bionic') >= 0:
+                raise AssertionError(
+                    'No instance-data.json found on %s' % self.os_name)
+            raise SkipTest(
+                'Skipping instance-data.json test.'
+                ' OS: %s not bionic or newer' % self.os_name)
+        instance_data = json.loads(out)
+        self.assertEqual(
+            ['ds/user-data'], instance_data['base64-encoded-keys'])
+        ds = instance_data.get('ds', {})
+        macs = ds.get('network', {}).get('interfaces', {}).get('macs', {})
+        if not macs:
+            raise AssertionError('No network data from EC2 meta-data')
+        # Check meta-data items we depend on
+        expected_net_keys = [
+            'public-ipv4s', 'ipv4-associations', 'local-hostname',
+            'public-hostname']
+        for mac, mac_data in macs.items():
+            for key in expected_net_keys:
+                self.assertIn(key, mac_data)
+        self.assertIsNotNone(
+            ds.get('placement', {}).get('availability-zone'),
+            'Could not determine EC2 Availability zone placement')
+        ds = instance_data.get('ds', {})
+        v1_data = instance_data.get('v1', {})
+        self.assertIsNotNone(
+            v1_data['availability-zone'], 'expected ec2 availability-zone')
+        self.assertEqual('aws', v1_data['cloud-name'])
+        self.assertIn('i-', v1_data['instance-id'])
+        self.assertIn('ip-', v1_data['local-hostname'])
+        self.assertIsNotNone(v1_data['region'], 'expected ec2 region')
+
+    def test_instance_data_json_lxd(self):
+        """Validate instance-data.json content by lxd platform.
+
+        This content is sourced by snapd when determining snapstore endpoints.
+        We validate expected values per cloud type to ensure we don't break
+        snapd.
+        """
+        if self.platform != 'lxd':
+            raise SkipTest(
+                'Skipping lxd instance-data.json on %s' % self.platform)
+        out = self.get_data_file('instance-data.json')
+        if not out:
+            if self.is_distro('ubuntu') and self.os_version_cmp('bionic') >= 0:
+                raise AssertionError(
+                    'No instance-data.json found on %s' % self.os_name)
+            raise SkipTest(
+                'Skipping instance-data.json test.'
+                ' OS: %s not bionic or newer' % self.os_name)
+        instance_data = json.loads(out)
+        v1_data = instance_data.get('v1', {})
+        self.assertEqual(
+            ['ds/user-data', 'ds/vendor-data'],
+            sorted(instance_data['base64-encoded-keys']))
+        self.assertEqual('nocloud', v1_data['cloud-name'])
+        self.assertIsNone(
+            v1_data['availability-zone'],
+            'found unexpected lxd availability-zone %s' %
+            v1_data['availability-zone'])
+        self.assertIn('cloud-test', v1_data['instance-id'])
+        self.assertIn('cloud-test', v1_data['local-hostname'])
+        self.assertIsNone(
+            v1_data['region'],
+            'found unexpected lxd region %s' % v1_data['region'])
+
+    def test_instance_data_json_kvm(self):
+        """Validate instance-data.json content by nocloud-kvm platform.
+
+        This content is sourced by snapd when determining snapstore endpoints.
+        We validate expected values per cloud type to ensure we don't break
+        snapd.
+        """
+        if self.platform != 'nocloud-kvm':
+            raise SkipTest(
+                'Skipping nocloud-kvm instance-data.json on %s' %
+                self.platform)
+        out = self.get_data_file('instance-data.json')
+        if not out:
+            if self.is_distro('ubuntu') and self.os_version_cmp('bionic') >= 0:
+                raise AssertionError(
+                    'No instance-data.json found on %s' % self.os_name)
+            raise SkipTest(
+                'Skipping instance-data.json test.'
+                ' OS: %s not bionic or newer' % self.os_name)
+        instance_data = json.loads(out)
+        v1_data = instance_data.get('v1', {})
+        self.assertEqual(
+            ['ds/user-data'], instance_data['base64-encoded-keys'])
+        self.assertEqual('nocloud', v1_data['cloud-name'])
+        self.assertIsNone(
+            v1_data['availability-zone'],
+            'found unexpected kvm availability-zone %s' %
+            v1_data['availability-zone'])
+        self.assertIsNotNone(
+            re.match('[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}',
+                     v1_data['instance-id']),
+            'kvm instance-id is not a UUID: %s' % v1_data['instance-id'])
+        self.assertIn('ubuntu', v1_data['local-hostname'])
+        self.assertIsNone(
+            v1_data['region'],
+            'found unexpected lxd region %s' % v1_data['region'])
 
 
 class PasswordListTest(CloudTestCase):

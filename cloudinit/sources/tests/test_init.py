@@ -1,13 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import inspect
 import os
 import six
 import stat
 
 from cloudinit.helpers import Paths
+from cloudinit import importer
 from cloudinit.sources import (
     INSTANCE_JSON_FILE, DataSource)
-from cloudinit.tests.helpers import CiTestCase, skipIf
+from cloudinit.tests.helpers import CiTestCase, skipIf, mock
 from cloudinit.user_data import UserDataProcessor
 from cloudinit import util
 
@@ -108,6 +110,74 @@ class TestDataSource(CiTestCase):
         self.assertEqual('userdata_raw', datasource.userdata_raw)
         self.assertEqual('vendordata_raw', datasource.vendordata_raw)
 
+    def test_get_hostname_strips_local_hostname_without_domain(self):
+        """Datasource.get_hostname strips metadata local-hostname of domain."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
+        self.assertTrue(datasource.get_data())
+        self.assertEqual(
+            'test-subclass-hostname', datasource.metadata['local-hostname'])
+        self.assertEqual('test-subclass-hostname', datasource.get_hostname())
+        datasource.metadata['local-hostname'] = 'hostname.my.domain.com'
+        self.assertEqual('hostname', datasource.get_hostname())
+
+    def test_get_hostname_with_fqdn_returns_local_hostname_with_domain(self):
+        """Datasource.get_hostname with fqdn set gets qualified hostname."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
+        self.assertTrue(datasource.get_data())
+        datasource.metadata['local-hostname'] = 'hostname.my.domain.com'
+        self.assertEqual(
+            'hostname.my.domain.com', datasource.get_hostname(fqdn=True))
+
+    def test_get_hostname_without_metadata_uses_system_hostname(self):
+        """Datasource.gethostname runs util.get_hostname when no metadata."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
+        self.assertEqual({}, datasource.metadata)
+        mock_fqdn = 'cloudinit.sources.util.get_fqdn_from_hosts'
+        with mock.patch('cloudinit.sources.util.get_hostname') as m_gethost:
+            with mock.patch(mock_fqdn) as m_fqdn:
+                m_gethost.return_value = 'systemhostname.domain.com'
+                m_fqdn.return_value = None  # No maching fqdn in /etc/hosts
+                self.assertEqual('systemhostname', datasource.get_hostname())
+                self.assertEqual(
+                    'systemhostname.domain.com',
+                    datasource.get_hostname(fqdn=True))
+
+    def test_get_hostname_without_metadata_returns_none(self):
+        """Datasource.gethostname returns None when metadata_only and no MD."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
+        self.assertEqual({}, datasource.metadata)
+        mock_fqdn = 'cloudinit.sources.util.get_fqdn_from_hosts'
+        with mock.patch('cloudinit.sources.util.get_hostname') as m_gethost:
+            with mock.patch(mock_fqdn) as m_fqdn:
+                self.assertIsNone(datasource.get_hostname(metadata_only=True))
+                self.assertIsNone(
+                    datasource.get_hostname(fqdn=True, metadata_only=True))
+        self.assertEqual([], m_gethost.call_args_list)
+        self.assertEqual([], m_fqdn.call_args_list)
+
+    def test_get_hostname_without_metadata_prefers_etc_hosts(self):
+        """Datasource.gethostname prefers /etc/hosts to util.get_hostname."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
+        self.assertEqual({}, datasource.metadata)
+        mock_fqdn = 'cloudinit.sources.util.get_fqdn_from_hosts'
+        with mock.patch('cloudinit.sources.util.get_hostname') as m_gethost:
+            with mock.patch(mock_fqdn) as m_fqdn:
+                m_gethost.return_value = 'systemhostname.domain.com'
+                m_fqdn.return_value = 'fqdnhostname.domain.com'
+                self.assertEqual('fqdnhostname', datasource.get_hostname())
+                self.assertEqual('fqdnhostname.domain.com',
+                                 datasource.get_hostname(fqdn=True))
+
     def test_get_data_write_json_instance_data(self):
         """get_data writes INSTANCE_JSON_FILE to run_dir as readonly root."""
         tmp = self.tmp_dir()
@@ -200,3 +270,29 @@ class TestDataSource(CiTestCase):
             "WARNING: Error persisting instance-data.json: 'utf8' codec can't"
             " decode byte 0xaa in position 2: invalid start byte",
             self.logs.getvalue())
+
+    def test_get_hostname_subclass_support(self):
+        """Validate get_hostname signature on all subclasses of DataSource."""
+        # Use inspect.getfullargspec when we drop py2.6 and py2.7
+        get_args = inspect.getargspec  # pylint: disable=W1505
+        base_args = get_args(DataSource.get_hostname)  # pylint: disable=W1505
+        # Import all DataSource subclasses so we can inspect them.
+        modules = util.find_modules(os.path.dirname(os.path.dirname(__file__)))
+        for loc, name in modules.items():
+            mod_locs, _ = importer.find_module(name, ['cloudinit.sources'], [])
+            if mod_locs:
+                importer.import_module(mod_locs[0])
+        for child in DataSource.__subclasses__():
+            if 'Test' in child.dsname:
+                continue
+            self.assertEqual(
+                base_args,
+                get_args(child.get_hostname),  # pylint: disable=W1505
+                '%s does not implement DataSource.get_hostname params'
+                % child)
+            for grandchild in child.__subclasses__():
+                self.assertEqual(
+                    base_args,
+                    get_args(grandchild.get_hostname),  # pylint: disable=W1505
+                    '%s does not implement DataSource.get_hostname params'
+                    % grandchild)

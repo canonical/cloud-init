@@ -10,7 +10,8 @@ Standards-Version: 3.9.6
 Package: cloud-init
 Architecture: all
 Depends: ${misc:Depends},
-         ${${python}:Depends}
+         ${${python}:Depends},
+         isc-dhcp-client
 Recommends: eatmydata, sudo, software-properties-common, gdisk
 XB-Python-Version: ${python:Versions}
 Description: Init scripts for cloud instances

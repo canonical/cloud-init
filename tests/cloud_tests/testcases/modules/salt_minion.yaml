@@ -3,7 +3,7 @@
 #
 # 2016-11-17: Currently takes >60 seconds results in test failure
 #
-enabled: False
+enabled: True
 cloud_config: |
   #cloud-config
   salt_minion:
@@ -17,6 +17,8 @@ cloud_config: |
           ------BEGIN PRIVATE KEY------
           <key data>
           ------END PRIVATE KEY-------
+      grains:
+          role: web
 collect_scripts:
   minion: |
     #!/bin/bash
@@ -30,5 +32,11 @@ collect_scripts:
   minion.pub: |
     #!/bin/bash
     cat /etc/salt/pki/minion/minion.pub
+  grains: |
+    #!/bin/bash
+    cat /etc/salt/grains
+  minion_installed: |
+    #!/bin/bash
+    dpkg -l | grep salt-minion | grep ii | wc -l
 
 # vi: ts=4 expandtab

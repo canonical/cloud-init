@@ -546,7 +546,7 @@ def is_ipv4(instr):
         return False
 
     try:
-        toks = [x for x in toks if int(x) < 256 and int(x) >= 0]
+        toks = [x for x in toks if 0 <= int(x) < 256]
     except Exception:
         return False
 
@@ -716,8 +716,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
 def make_url(scheme, host, port=None,
              path='', params='', query='', fragment=''):
 
-    pieces = []
-    pieces.append(scheme or '')
+    pieces = [scheme or '']
 
     netloc = ''
     if host:
@@ -1026,9 +1025,16 @@ def dos2unix(contents):
     return contents.replace('\r\n', '\n')
 
 
-def get_hostname_fqdn(cfg, cloud):
-    # return the hostname and fqdn from 'cfg'.  If not found in cfg,
-    # then fall back to data from cloud
+def get_hostname_fqdn(cfg, cloud, metadata_only=False):
+    """Get hostname and fqdn from config if present and fallback to cloud.
+
+    @param cfg: Dictionary of merged user-data configuration (from init.cfg).
+    @param cloud: Cloud instance from init.cloudify().
+    @param metadata_only: Boolean, set True to only query cloud meta-data,
+        returning None if not present in meta-data.
+    @return: a Tuple of strings <hostname>, <fqdn>. Values can be none when
+        metadata_only is True and no cfg or metadata provides hostname info.
+    """
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
         fqdn = cfg['fqdn']
@@ -1042,11 +1048,11 @@ def get_hostname_fqdn(cfg, cloud):
         else:
             # no fqdn set, get fqdn from cloud.
             # get hostname from cfg if available otherwise cloud
-            fqdn = cloud.get_hostname(fqdn=True)
+            fqdn = cloud.get_hostname(fqdn=True, metadata_only=metadata_only)
             if "hostname" in cfg:
                 hostname = cfg['hostname']
             else:
-                hostname = cloud.get_hostname()
+                hostname = cloud.get_hostname(metadata_only=metadata_only)
     return (hostname, fqdn)
 
 
@@ -1229,6 +1235,37 @@ def find_devs_with(criteria=None, oformat='device',
         if line:
             entries.append(line)
     return entries
+
+
+def blkid(devs=None, disable_cache=False):
+    """Get all device tags details from blkid.
+
+    @param devs: Optional list of device paths you wish to query.
+    @param disable_cache: Bool, set True to start with clean cache.
+
+    @return: Dict of key value pairs of info for the device.
+    """
+    if devs is None:
+        devs = []
+    else:
+        devs = list(devs)
+
+    cmd = ['blkid', '-o', 'full']
+    if disable_cache:
+        cmd.extend(['-c', '/dev/null'])
+    cmd.extend(devs)
+
+    # we have to decode with 'replace' as shelx.split (called by
+    # load_shell_content) can't take bytes.  So this is potentially
+    # lossy of non-utf-8 chars in blkid output.
+    out, _ = subp(cmd, capture=True, decode="replace")
+    ret = {}
+    for line in out.splitlines():
+        dev, _, data = line.partition(":")
+        ret[dev] = load_shell_content(data)
+        ret[dev]["DEVNAME"] = dev
+
+    return ret
 
 
 def peek_file(fname, max_bytes):
@@ -1746,7 +1783,7 @@ def chmod(path, mode):
 def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
     """
     Writes a file with the given content and sets the file mode as specified.
-    Resotres the SELinux context if possible.
+    Restores the SELinux context if possible.
 
     @param filename: The full path of the file to write.
     @param content: The content to write to the file.
@@ -1821,7 +1858,8 @@ def subp_blob_in_tempfile(blob, *args, **kwargs):
 
 
 def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
-         logstring=False, decode="replace", target=None, update_env=None):
+         logstring=False, decode="replace", target=None, update_env=None,
+         status_cb=None):
 
     # not supported in cloud-init (yet), for now kept in the call signature
     # to ease maintaining code shared between cloud-init and curtin
@@ -1842,6 +1880,9 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     if target_path(target) != "/":
         args = ['chroot', target] + list(args)
 
+    if status_cb:
+        command = ' '.join(args) if isinstance(args, list) else args
+        status_cb('Begin run command: {command}\n'.format(command=command))
     if not logstring:
         LOG.debug(("Running command %s with allowed return codes %s"
                    " (shell=%s, capture=%s)"), args, rcs, shell, capture)
@@ -1865,12 +1906,25 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         if not isinstance(data, bytes):
             data = data.encode()
 
+    # Popen converts entries in the arguments array from non-bytes to bytes.
+    # When locale is unset it may use ascii for that encoding which can
+    # cause UnicodeDecodeErrors. (LP: #1751051)
+    if isinstance(args, six.binary_type):
+        bytes_args = args
+    elif isinstance(args, six.string_types):
+        bytes_args = args.encode("utf-8")
+    else:
+        bytes_args = [
+            x if isinstance(x, six.binary_type) else x.encode("utf-8")
+            for x in args]
     try:
-        sp = subprocess.Popen(args, stdout=stdout,
+        sp = subprocess.Popen(bytes_args, stdout=stdout,
                               stderr=stderr, stdin=stdin,
                               env=env, shell=shell)
         (out, err) = sp.communicate(data)
     except OSError as e:
+        if status_cb:
+            status_cb('ERROR: End run command: invalid command provided\n')
         raise ProcessExecutionError(
             cmd=args, reason=e, errno=e.errno,
             stdout="-" if decode else b"-",
@@ -1895,9 +1949,14 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
 
     rc = sp.returncode
     if rc not in rcs:
+        if status_cb:
+            status_cb(
+                'ERROR: End run command: exit({code})\n'.format(code=rc))
         raise ProcessExecutionError(stdout=out, stderr=err,
                                     exit_code=rc,
                                     cmd=args)
+    if status_cb:
+        status_cb('End run command: exit({code})\n'.format(code=rc))
     return (out, err)
 
 
@@ -1918,6 +1977,11 @@ def abs_join(*paths):
 #    if it is an array, shell protect it (with single ticks)
 #    if it is a string, do nothing
 def shellify(cmdlist, add_header=True):
+    if not isinstance(cmdlist, (tuple, list)):
+        raise TypeError(
+            "Input to shellify was type '%s'. Expected list or tuple." %
+            (type_utils.obj_name(cmdlist)))
+
     content = ''
     if add_header:
         content += "#!/bin/sh\n"
@@ -1926,7 +1990,7 @@ def shellify(cmdlist, add_header=True):
     for args in cmdlist:
         # If the item is a list, wrap all items in single tick.
         # If its not, then just write it directly.
-        if isinstance(args, list):
+        if isinstance(args, (list, tuple)):
             fixed = []
             for f in args:
                 fixed.append("'%s'" % (six.text_type(f).replace("'", escaped)))
@@ -1936,9 +2000,10 @@ def shellify(cmdlist, add_header=True):
             content = "%s%s\n" % (content, args)
             cmds_made += 1
         else:
-            raise RuntimeError(("Unable to shellify type %s"
-                                " which is not a list or string")
-                               % (type_utils.obj_name(args)))
+            raise TypeError(
+                "Unable to shellify type '%s'. Expected list, string, tuple. "
+                "Got: %s" % (type_utils.obj_name(args), args))
+
     LOG.debug("Shellified %s commands.", cmds_made)
     return content
 
@@ -2169,7 +2234,7 @@ def get_path_dev_freebsd(path, mnt_list):
     return path_found
 
 
-def get_mount_info_freebsd(path, log=LOG):
+def get_mount_info_freebsd(path):
     (result, err) = subp(['mount', '-p', path], rcs=[0, 1])
     if len(err):
         # find a path if the input is not a mounting point
@@ -2183,23 +2248,49 @@ def get_mount_info_freebsd(path, log=LOG):
     return "/dev/" + label_part, ret[2], ret[1]
 
 
+def get_device_info_from_zpool(zpool):
+    (zpoolstatus, err) = subp(['zpool', 'status', zpool])
+    if len(err):
+        return None
+    r = r'.*(ONLINE).*'
+    for line in zpoolstatus.split("\n"):
+        if re.search(r, line) and zpool not in line and "state" not in line:
+            disk = line.split()[0]
+            LOG.debug('found zpool "%s" on disk %s', zpool, disk)
+            return disk
+
+
 def parse_mount(path):
-    (mountoutput, _err) = subp("mount")
+    (mountoutput, _err) = subp(['mount'])
     mount_locs = mountoutput.splitlines()
+    # there are 2 types of mount outputs we have to parse therefore
+    # the regex is a bit complex. to better understand this regex see:
+    # https://regex101.com/r/2F6c1k/1
+    # https://regex101.com/r/T2en7a/1
+    regex = r'^(/dev/[\S]+|.*zroot\S*?) on (/[\S]*) ' + \
+            '(?=(?:type)[\s]+([\S]+)|\(([^,]*))'
     for line in mount_locs:
-        m = re.search(r'^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', line)
+        m = re.search(regex, line)
         if not m:
             continue
+        devpth = m.group(1)
+        mount_point = m.group(2)
+        # above regex will either fill the fs_type in group(3)
+        # or group(4) depending on the format we have.
+        fs_type = m.group(3)
+        if fs_type is None:
+            fs_type = m.group(4)
+        LOG.debug('found line in mount -> devpth: %s, mount_point: %s, '
+                  'fs_type: %s', devpth, mount_point, fs_type)
         # check whether the dev refers to a label on FreeBSD
         # for example, if dev is '/dev/label/rootfs', we should
         # continue finding the real device like '/dev/da0'.
-        devm = re.search('^(/dev/.+)p([0-9])$', m.group(1))
-        if (not devm and is_FreeBSD()):
+        # this is only valid for non zfs file systems as a zpool
+        # can have gpt labels as disk.
+        devm = re.search('^(/dev/.+)p([0-9])$', devpth)
+        if not devm and is_FreeBSD() and fs_type != 'zfs':
             return get_mount_info_freebsd(path)
-        devpth = m.group(1)
-        mount_point = m.group(2)
-        fs_type = m.group(3)
-        if mount_point == path:
+        elif mount_point == path:
             return devpth, fs_type, mount_point
     return None
 

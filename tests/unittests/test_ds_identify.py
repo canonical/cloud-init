@@ -9,6 +9,8 @@ from cloudinit import util
 from cloudinit.tests.helpers import (
     CiTestCase, dir2dict, populate_dir)
 
+from cloudinit.sources import DataSourceIBMCloud as dsibm
+
 UNAME_MYSYS = ("Linux bart 4.4.0-62-generic #83-Ubuntu "
                "SMP Wed Jan 18 14:10:15 UTC 2017 x86_64 GNU/Linux")
 UNAME_PPC64EL = ("Linux diamond 4.4.0-83-generic #106-Ubuntu SMP "
@@ -37,8 +39,8 @@ BLKID_UEFI_UBUNTU = [
 
 POLICY_FOUND_ONLY = "search,found=all,maybe=none,notfound=disabled"
 POLICY_FOUND_OR_MAYBE = "search,found=all,maybe=all,notfound=disabled"
-DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=enabled"
-DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=all,notfound=disabled"
+DI_DEFAULT_POLICY = "search,found=all,maybe=all,notfound=disabled"
+DI_DEFAULT_POLICY_NO_DMI = "search,found=all,maybe=all,notfound=enabled"
 DI_EC2_STRICT_ID_DEFAULT = "true"
 OVF_MATCH_STRING = 'http://schemas.dmtf.org/ovf/environment/1'
 
@@ -60,11 +62,16 @@ P_CHASSIS_ASSET_TAG = "sys/class/dmi/id/chassis_asset_tag"
 P_PRODUCT_NAME = "sys/class/dmi/id/product_name"
 P_PRODUCT_SERIAL = "sys/class/dmi/id/product_serial"
 P_PRODUCT_UUID = "sys/class/dmi/id/product_uuid"
+P_SYS_VENDOR = "sys/class/dmi/id/sys_vendor"
 P_SEED_DIR = "var/lib/cloud/seed"
 P_DSID_CFG = "etc/cloud/ds-identify.cfg"
 
+IBM_PROVISIONING_CHECK_PATH = "/root/provisioningConfiguration.cfg"
+IBM_CONFIG_UUID = "9796-932E"
+
 MOCK_VIRT_IS_KVM = {'name': 'detect_virt', 'RET': 'kvm', 'ret': 0}
 MOCK_VIRT_IS_VMWARE = {'name': 'detect_virt', 'RET': 'vmware', 'ret': 0}
+MOCK_VIRT_IS_XEN = {'name': 'detect_virt', 'RET': 'xen', 'ret': 0}
 MOCK_UNAME_IS_PPC64 = {'name': 'uname', 'out': UNAME_PPC64EL, 'ret': 0}
 
 
@@ -237,6 +244,57 @@ class TestDsIdentify(CiTestCase):
         self._test_ds_found('ConfigDriveUpper')
         return
 
+    def test_ibmcloud_template_userdata_in_provisioning(self):
+        """Template provisioned with user-data during provisioning stage.
+
+        Template provisioning with user-data has METADATA disk,
+        datasource should return not found."""
+        data = copy.deepcopy(VALID_CFG['IBMCloud-metadata'])
+        data['files'] = {IBM_PROVISIONING_CHECK_PATH: 'xxx'}
+        return self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_ibmcloud_template_userdata(self):
+        """Template provisioned with user-data first boot.
+
+        Template provisioning with user-data has METADATA disk.
+        datasource should return found."""
+        self._test_ds_found('IBMCloud-metadata')
+
+    def test_ibmcloud_template_no_userdata_in_provisioning(self):
+        """Template provisioned with no user-data during provisioning.
+
+        no disks attached.  Datasource should return not found."""
+        data = copy.deepcopy(VALID_CFG['IBMCloud-nodisks'])
+        data['files'] = {IBM_PROVISIONING_CHECK_PATH: 'xxx'}
+        return self._check_via_dict(data, RC_NOT_FOUND)
+
+    def test_ibmcloud_template_no_userdata(self):
+        """Template provisioned with no user-data first boot.
+
+        no disks attached.  Datasource should return found."""
+        self._check_via_dict(VALID_CFG['IBMCloud-nodisks'], RC_NOT_FOUND)
+
+    def test_ibmcloud_os_code(self):
+        """Launched by os code always has config-2 disk."""
+        self._test_ds_found('IBMCloud-config-2')
+
+    def test_ibmcloud_os_code_different_uuid(self):
+        """IBM cloud config-2 disks must be explicit match on UUID.
+
+        If the UUID is not 9796-932E then we actually expect ConfigDrive."""
+        data = copy.deepcopy(VALID_CFG['IBMCloud-config-2'])
+        offset = None
+        for m, d in enumerate(data['mocks']):
+            if d.get('name') == "blkid":
+                offset = m
+                break
+        if not offset:
+            raise ValueError("Expected to find 'blkid' mock, but did not.")
+        data['mocks'][offset]['out'] = d['out'].replace(dsibm.IBM_CONFIG_UUID,
+                                                        "DEAD-BEEF")
+        self._check_via_dict(
+            data, rc=RC_FOUND, dslist=['ConfigDrive', DS_NONE])
+
     def test_policy_disabled(self):
         """A Builtin policy of 'disabled' should return not found.
 
@@ -290,6 +348,10 @@ class TestDsIdentify(CiTestCase):
         """On Intel, openstack must be identified."""
         self._test_ds_found('OpenStack')
 
+    def test_openstack_open_telekom_cloud(self):
+        """Open Telecom identification."""
+        self._test_ds_found('OpenStack-OpenTelekom')
+
     def test_openstack_on_non_intel_is_maybe(self):
         """On non-Intel, openstack without dmi info is maybe.
 
@@ -337,6 +399,16 @@ class TestDsIdentify(CiTestCase):
         """OVF is identified when vmware customization is enabled."""
         self._test_ds_found('OVF-vmware-customization')
 
+    def test_ovf_on_vmware_iso_found_open_vm_tools_64(self):
+        """OVF is identified when open-vm-tools installed in /usr/lib64."""
+        cust64 = copy.deepcopy(VALID_CFG['OVF-vmware-customization'])
+        p32 = 'usr/lib/vmware-tools/plugins/vmsvc/libdeployPkgPlugin.so'
+        open64 = 'usr/lib64/open-vm-tools/plugins/vmsvc/libdeployPkgPlugin.so'
+        cust64['files'][open64] = cust64['files'][p32]
+        del cust64['files'][p32]
+        return self._check_via_dict(
+            cust64, RC_FOUND, dslist=[cust64.get('ds'), DS_NONE])
+
     def test_ovf_on_vmware_iso_found_by_cdrom_with_matching_fs_label(self):
         """OVF is identified by well-known iso9660 labels."""
         ovf_cdrom_by_label = copy.deepcopy(VALID_CFG['OVF'])
@@ -350,14 +422,28 @@ class TestDsIdentify(CiTestCase):
                             "OVFENV", "ovfenv"]
         for valid_ovf_label in valid_ovf_labels:
             ovf_cdrom_by_label['mocks'][0]['out'] = blkid_out([
+                {'DEVNAME': 'sda1', 'TYPE': 'ext4', 'LABEL': 'rootfs'},
                 {'DEVNAME': 'sr0', 'TYPE': 'iso9660',
-                 'LABEL': valid_ovf_label}])
+                 'LABEL': valid_ovf_label},
+                {'DEVNAME': 'vda1', 'TYPE': 'ntfs', 'LABEL': 'data'}])
             self._check_via_dict(
                 ovf_cdrom_by_label, rc=RC_FOUND, dslist=['OVF', DS_NONE])
 
     def test_default_nocloud_as_vdb_iso9660(self):
         """NoCloud is found with iso9660 filesystem on non-cdrom disk."""
         self._test_ds_found('NoCloud')
+
+    def test_nocloud_seed(self):
+        """Nocloud seed directory."""
+        self._test_ds_found('NoCloud-seed')
+
+    def test_nocloud_seed_ubuntu_core_writable(self):
+        """Nocloud seed directory ubuntu core writable"""
+        self._test_ds_found('NoCloud-seed-ubuntu-core')
+
+    def test_hetzner_found(self):
+        """Hetzner cloud is identified in sys_vendor."""
+        self._test_ds_found('Hetzner')
 
 
 def blkid_out(disks=None):
@@ -422,7 +508,7 @@ VALID_CFG = {
     },
     'Ec2-xen': {
         'ds': 'Ec2',
-        'mocks': [{'name': 'detect_virt', 'RET': 'xen', 'ret': 0}],
+        'mocks': [MOCK_VIRT_IS_XEN],
         'files': {
             'sys/hypervisor/uuid': 'ec2c6e2f-5fac-4fc7-9c82-74127ec14bbb\n'
         },
@@ -454,12 +540,34 @@ VALID_CFG = {
             'dev/vdb': 'pretend iso content for cidata\n',
         }
     },
+    'NoCloud-seed': {
+        'ds': 'NoCloud',
+        'files': {
+            os.path.join(P_SEED_DIR, 'nocloud', 'user-data'): 'ud\n',
+            os.path.join(P_SEED_DIR, 'nocloud', 'meta-data'): 'md\n',
+        }
+    },
+    'NoCloud-seed-ubuntu-core': {
+        'ds': 'NoCloud',
+        'files': {
+            os.path.join('writable/system-data', P_SEED_DIR,
+                         'nocloud-net', 'user-data'): 'ud\n',
+            os.path.join('writable/system-data', P_SEED_DIR,
+                         'nocloud-net', 'meta-data'): 'md\n',
+        }
+    },
     'OpenStack': {
         'ds': 'OpenStack',
         'files': {P_PRODUCT_NAME: 'OpenStack Nova\n'},
         'mocks': [MOCK_VIRT_IS_KVM],
         'policy_dmi': POLICY_FOUND_ONLY,
         'policy_no_dmi': POLICY_FOUND_ONLY,
+    },
+    'OpenStack-OpenTelekom': {
+        # OTC gen1 (Xen) hosts use OpenStack datasource, LP: #1756471
+        'ds': 'OpenStack',
+        'files': {P_CHASSIS_ASSET_TAG: 'OpenTelekomCloud\n'},
+        'mocks': [MOCK_VIRT_IS_XEN],
     },
     'OVF-seed': {
         'ds': 'OVF',
@@ -489,8 +597,9 @@ VALID_CFG = {
         'mocks': [
             {'name': 'blkid', 'ret': 0,
              'out': blkid_out(
-                 [{'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
-                  {'DEVNAME': 'sr0', 'TYPE': 'iso9660', 'LABEL': ''}])
+                 [{'DEVNAME': 'sr0', 'TYPE': 'iso9660', 'LABEL': ''},
+                  {'DEVNAME': 'sr1', 'TYPE': 'iso9660', 'LABEL': 'ignoreme'},
+                  {'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()}]),
              },
             MOCK_VIRT_IS_VMWARE,
         ],
@@ -519,6 +628,52 @@ VALID_CFG = {
                   {'DEVNAME': 'vda2', 'TYPE': 'ext4',
                    'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()},
                   {'DEVNAME': 'vdb', 'TYPE': 'vfat', 'LABEL': 'CONFIG-2'}])
+             },
+        ],
+    },
+    'Hetzner': {
+        'ds': 'Hetzner',
+        'files': {P_SYS_VENDOR: 'Hetzner\n'},
+    },
+    'IBMCloud-metadata': {
+        'ds': 'IBMCloud',
+        'mocks': [
+            MOCK_VIRT_IS_XEN,
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'xvda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'xvda2', 'TYPE': 'ext4',
+                   'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'xvdb', 'TYPE': 'vfat', 'LABEL': 'METADATA'}]),
+             },
+        ],
+    },
+    'IBMCloud-config-2': {
+        'ds': 'IBMCloud',
+        'mocks': [
+            MOCK_VIRT_IS_XEN,
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'xvda1', 'TYPE': 'ext3', 'PARTUUID': uuid4(),
+                   'UUID': uuid4(), 'LABEL': 'cloudimg-bootfs'},
+                  {'DEVNAME': 'xvdb', 'TYPE': 'vfat', 'LABEL': 'config-2',
+                   'UUID': dsibm.IBM_CONFIG_UUID},
+                  {'DEVNAME': 'xvda2', 'TYPE': 'ext4',
+                   'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4(),
+                   'UUID': uuid4()},
+                  ]),
+             },
+        ],
+    },
+    'IBMCloud-nodisks': {
+        'ds': 'IBMCloud',
+        'mocks': [
+            MOCK_VIRT_IS_XEN,
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'xvda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'xvda2', 'TYPE': 'ext4',
+                   'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()}]),
              },
         ],
     },

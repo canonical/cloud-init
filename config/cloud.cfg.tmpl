@@ -4,6 +4,8 @@
 
 {% if variant in ["freebsd"] %}
 syslog_fix_perms: root:wheel
+{% elif variant in ["suse"] %}
+syslog_fix_perms: root:root
 {% endif %}
 # A set of users which may be applied and/or used by various modules
 # when a 'default' entry is found it will reference the 'default_user'
@@ -70,7 +72,8 @@ cloud_config_modules:
 # Emit the cloud config ready event
 # this can be used by upstart jobs for 'start on cloud-config'.
  - emit_upstart
- - snap_config
+ - snap
+ - snap_config  # DEPRECATED- Drop in version 18.2
 {% endif %}
  - ssh-import-id
  - locale
@@ -83,6 +86,9 @@ cloud_config_modules:
  - grub-dpkg
  - apt-pipelining
  - apt-configure
+{% endif %}
+{% if variant in ["ubuntu"] %}
+ - ubuntu-advantage
 {% endif %}
 {% if variant in ["suse"] %}
  - zypper-add-repo
@@ -100,7 +106,7 @@ cloud_config_modules:
 # The modules that run in the 'final' stage
 cloud_final_modules:
 {% if variant in ["ubuntu", "unknown", "debian"] %}
- - snappy
+ - snappy  # DEPRECATED- Drop in version 18.2
 {% endif %}
  - package-update-upgrade-install
 {% if variant in ["ubuntu", "unknown", "debian"] %}
@@ -111,9 +117,9 @@ cloud_final_modules:
 {% if variant not in ["freebsd"] %}
  - puppet
  - chef
- - salt-minion
  - mcollective
 {% endif %}
+ - salt-minion
  - rightscale_userdata
  - scripts-vendor
  - scripts-per-once
