@@ -1,4 +1,4 @@
-cloud-init (18.2-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (18.2-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * Drop the following cherry picks in debian/patches. They are now
     incorporated now incorporated in the upstream source:
@@ -58,7 +58,7 @@ cloud-init (18.2-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - tests: run nosetests in cloudinit/ directory, fix py26 fallout.
     - tools: run-centos: git clone rather than tar.
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 28 Mar 2018 12:29:04 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 28 Mar 2018 12:32:23 -0600
 
 cloud-init (17.2-35-gf576b2a2-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
