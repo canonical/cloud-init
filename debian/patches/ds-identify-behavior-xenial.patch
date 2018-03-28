@@ -21,12 +21,12 @@ Bug-ubuntu: http://bugs.launchpad.net/bugs/1660385
  DI_DMI_CHASSIS_ASSET_TAG=""
  DI_DMI_PRODUCT_NAME=""
  DI_DMI_SYS_VENDOR=""
-@@ -121,7 +121,7 @@ DI_ON_FOUND=""
+@@ -122,7 +122,7 @@ DI_ON_FOUND=""
  DI_ON_MAYBE=""
  DI_ON_NOTFOUND=""
  
 -DI_EC2_STRICT_ID_DEFAULT="true"
 +DI_EC2_STRICT_ID_DEFAULT="warn"
  
- error() {
-     set -- "ERROR:" "$@";
+ _IS_IBM_CLOUD=""
+ 
