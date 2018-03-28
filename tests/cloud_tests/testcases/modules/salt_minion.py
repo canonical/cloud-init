@@ -26,4 +26,14 @@ class Test(base.CloudTestCase):
         self.assertIn('<key data>', out)
         self.assertIn('------END PUBLIC KEY-------', out)
 
+    def test_grains(self):
+        """Test master value in config."""
+        out = self.get_data_file('grains')
+        self.assertIn('role: web', out)
+
+    def test_minion_installed(self):
+        """Test if the salt-minion package is installed"""
+        out = self.get_data_file('minion_installed')
+        self.assertEqual(1, int(out))
+
 # vi: ts=4 expandtab

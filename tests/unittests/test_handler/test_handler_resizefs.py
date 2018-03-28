@@ -1,25 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.config.cc_resizefs import (
-    can_skip_resize, handle, maybe_get_writable_device_path, _resize_btrfs)
+    can_skip_resize, handle, maybe_get_writable_device_path, _resize_btrfs,
+    _resize_zfs, _resize_xfs, _resize_ext, _resize_ufs)
 
 from collections import namedtuple
 import logging
 import textwrap
 
-from cloudinit.tests.helpers import (CiTestCase, mock, skipIf, util,
-                                     wrap_and_call)
+from cloudinit.tests.helpers import (
+    CiTestCase, mock, skipUnlessJsonSchema, util, wrap_and_call)
 
 
 LOG = logging.getLogger(__name__)
-
-
-try:
-    import jsonschema
-    assert jsonschema  # avoid pyflakes error F401: import unused
-    _missing_jsonschema_dep = False
-except ImportError:
-    _missing_jsonschema_dep = True
 
 
 class TestResizefs(CiTestCase):
@@ -68,6 +61,9 @@ class TestResizefs(CiTestCase):
         res = can_skip_resize(fs_type, resize_what, devpth)
         self.assertTrue(res)
 
+    def test_can_skip_resize_ext(self):
+        self.assertFalse(can_skip_resize('ext', '/', '/dev/sda1'))
+
     def test_handle_noops_on_disabled(self):
         """The handle function logs when the configuration disables resize."""
         cfg = {'resize_rootfs': False}
@@ -76,7 +72,7 @@ class TestResizefs(CiTestCase):
             'DEBUG: Skipping module named cc_resizefs, resizing disabled\n',
             self.logs.getvalue())
 
-    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
+    @skipUnlessJsonSchema()
     def test_handle_schema_validation_logs_invalid_resize_rootfs_value(self):
         """The handle reports json schema violations as a warning.
 
@@ -129,6 +125,51 @@ class TestResizefs(CiTestCase):
                 args=[])
         logs = self.logs.getvalue()
         self.assertIn("WARNING: Unable to find device '/dev/root'", logs)
+
+    def test_resize_zfs_cmd_return(self):
+        zpool = 'zroot'
+        devpth = 'gpt/system'
+        self.assertEqual(('zpool', 'online', '-e', zpool, devpth),
+                         _resize_zfs(zpool, devpth))
+
+    def test_resize_xfs_cmd_return(self):
+        mount_point = '/mnt/test'
+        devpth = '/dev/sda1'
+        self.assertEqual(('xfs_growfs', mount_point),
+                         _resize_xfs(mount_point, devpth))
+
+    def test_resize_ext_cmd_return(self):
+        mount_point = '/'
+        devpth = '/dev/sdb1'
+        self.assertEqual(('resize2fs', devpth),
+                         _resize_ext(mount_point, devpth))
+
+    def test_resize_ufs_cmd_return(self):
+        mount_point = '/'
+        devpth = '/dev/sda2'
+        self.assertEqual(('growfs', devpth),
+                         _resize_ufs(mount_point, devpth))
+
+    @mock.patch('cloudinit.util.get_mount_info')
+    @mock.patch('cloudinit.util.get_device_info_from_zpool')
+    @mock.patch('cloudinit.util.parse_mount')
+    def test_handle_zfs_root(self, mount_info, zpool_info, parse_mount):
+        devpth = 'vmzroot/ROOT/freebsd'
+        disk = 'gpt/system'
+        fs_type = 'zfs'
+        mount_point = '/'
+
+        mount_info.return_value = (devpth, fs_type, mount_point)
+        zpool_info.return_value = disk
+        parse_mount.return_value = (devpth, fs_type, mount_point)
+
+        cfg = {'resize_rootfs': True}
+
+        with mock.patch('cloudinit.config.cc_resizefs.do_resize') as dresize:
+            handle('cc_resizefs', cfg, _cloud=None, log=LOG, args=[])
+            ret = dresize.call_args[0][0]
+
+        self.assertEqual(('zpool', 'online', '-e', 'vmzroot', disk), ret)
 
 
 class TestRootDevFromCmdline(CiTestCase):
@@ -312,6 +353,13 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
         self.assertEqual(
             ('btrfs', 'filesystem', 'resize', 'max', '/'),
             _resize_btrfs("/", "/dev/sda1"))
+
+    @mock.patch('cloudinit.util.is_FreeBSD')
+    def test_maybe_get_writable_device_path_zfs_freebsd(self, freebsd):
+        freebsd.return_value = True
+        info = 'dev=gpt/system mnt_point=/ path=/'
+        devpth = maybe_get_writable_device_path('gpt/system', info, LOG)
+        self.assertEqual('gpt/system', devpth)
 
 
 # vi: ts=4 expandtab

@@ -12,10 +12,8 @@ from cloudinit.sources.helpers import openstack
 from cloudinit import temp_utils
 from cloudinit import util
 
-from cloudinit.tests.helpers import CiTestCase
-from cloudinit.tests.helpers import dir2dict
-from cloudinit.tests.helpers import mock
-from cloudinit.tests.helpers import populate_dir
+from cloudinit.tests.helpers import (
+    CiTestCase, FilesystemMockingTestCase, dir2dict, mock, populate_dir)
 
 import base64
 import copy
@@ -395,12 +393,6 @@ NETWORK_CONFIGS = {
                     eth1:
                         match:
                             macaddress: cf:d6:af:48:e8:80
-                        nameservers:
-                            addresses:
-                            - 1.2.3.4
-                            - 5.6.7.8
-                            search:
-                            - wark.maas
                         set-name: eth1
                     eth99:
                         addresses:
@@ -412,12 +404,9 @@ NETWORK_CONFIGS = {
                             addresses:
                             - 8.8.8.8
                             - 8.8.4.4
-                            - 1.2.3.4
-                            - 5.6.7.8
                             search:
                             - barley.maas
                             - sach.maas
-                            - wark.maas
                         routes:
                         -   to: 0.0.0.0/0
                             via: 65.61.151.37
@@ -656,81 +645,27 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                     eth0:
                         match:
                             macaddress: c0:d6:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth0
                     eth1:
                         match:
                             macaddress: aa:d6:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth1
                     eth2:
                         match:
                             macaddress: c0:bb:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth2
                     eth3:
                         match:
                             macaddress: 66:bb:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth3
                     eth4:
                         match:
                             macaddress: 98:bb:9f:2c:e8:80
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth4
                     eth5:
                         dhcp4: true
                         match:
                             macaddress: 98:bb:9f:2c:e8:8a
-                        nameservers:
-                            addresses:
-                            - 8.8.8.8
-                            - 4.4.4.4
-                            - 8.8.4.4
-                            search:
-                            - barley.maas
-                            - wark.maas
-                            - foobar.maas
                         set-name: eth5
                 bonds:
                     bond0:
@@ -750,6 +685,15 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         interfaces:
                         - eth3
                         - eth4
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
                         parameters:
                             ageing-time: 250
                             forward-delay: 1
@@ -758,6 +702,9 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                             path-cost:
                                 eth3: 50
                                 eth4: 75
+                            port-priority:
+                                eth3: 28
+                                eth4: 14
                             priority: 22
                             stp: false
                         routes:
@@ -2183,27 +2130,49 @@ class TestCmdlineConfigParsing(CiTestCase):
         self.assertEqual(found, self.simple_cfg)
 
 
-class TestCmdlineReadKernelConfig(CiTestCase):
+class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
     macs = {
         'eth0': '14:02:ec:42:48:00',
         'eno1': '14:02:ec:42:48:01',
     }
 
-    def test_ip_cmdline_read_kernel_cmdline_ip(self):
-        content = {'net-eth0.conf': DHCP_CONTENT_1}
-        files = sorted(populate_dir(self.tmp_dir(), content))
-        found = cmdline.read_kernel_cmdline_config(
-            files=files, cmdline='foo ip=dhcp', mac_addrs=self.macs)
+    def test_ip_cmdline_without_ip(self):
+        content = {'/run/net-eth0.conf': DHCP_CONTENT_1,
+                   cmdline._OPEN_ISCSI_INTERFACE_FILE: "eth0\n"}
         exp1 = copy.deepcopy(DHCP_EXPECTED_1)
         exp1['mac_address'] = self.macs['eth0']
+
+        root = self.tmp_dir()
+        populate_dir(root, content)
+        self.reRoot(root)
+
+        found = cmdline.read_kernel_cmdline_config(
+            cmdline='foo root=/root/bar', mac_addrs=self.macs)
+        self.assertEqual(found['version'], 1)
+        self.assertEqual(found['config'], [exp1])
+
+    def test_ip_cmdline_read_kernel_cmdline_ip(self):
+        content = {'/run/net-eth0.conf': DHCP_CONTENT_1}
+        exp1 = copy.deepcopy(DHCP_EXPECTED_1)
+        exp1['mac_address'] = self.macs['eth0']
+
+        root = self.tmp_dir()
+        populate_dir(root, content)
+        self.reRoot(root)
+
+        found = cmdline.read_kernel_cmdline_config(
+            cmdline='foo ip=dhcp', mac_addrs=self.macs)
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], [exp1])
 
     def test_ip_cmdline_read_kernel_cmdline_ip6(self):
-        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
-        files = sorted(populate_dir(self.tmp_dir(), content))
+        content = {'/run/net6-eno1.conf': DHCP6_CONTENT_1}
+        root = self.tmp_dir()
+        populate_dir(root, content)
+        self.reRoot(root)
+
         found = cmdline.read_kernel_cmdline_config(
-            files=files, cmdline='foo ip6=dhcp root=/dev/sda',
+            cmdline='foo ip6=dhcp root=/dev/sda',
             mac_addrs=self.macs)
         self.assertEqual(
             found,
@@ -2223,18 +2192,23 @@ class TestCmdlineReadKernelConfig(CiTestCase):
         self.assertIsNone(found)
 
     def test_ip_cmdline_both_ip_ip6(self):
-        content = {'net-eth0.conf': DHCP_CONTENT_1,
-                   'net6-eth0.conf': DHCP6_CONTENT_1.replace('eno1', 'eth0')}
-        files = sorted(populate_dir(self.tmp_dir(), content))
-        found = cmdline.read_kernel_cmdline_config(
-            files=files, cmdline='foo ip=dhcp ip6=dhcp', mac_addrs=self.macs)
-
+        content = {
+            '/run/net-eth0.conf': DHCP_CONTENT_1,
+            '/run/net6-eth0.conf': DHCP6_CONTENT_1.replace('eno1', 'eth0')}
         eth0 = copy.deepcopy(DHCP_EXPECTED_1)
         eth0['mac_address'] = self.macs['eth0']
         eth0['subnets'].append(
             {'control': 'manual', 'type': 'dhcp6',
              'netmask': '64', 'dns_nameservers': ['2001:67c:1562:8010::2:1']})
         expected = [eth0]
+
+        root = self.tmp_dir()
+        populate_dir(root, content)
+        self.reRoot(root)
+
+        found = cmdline.read_kernel_cmdline_config(
+            cmdline='foo ip=dhcp ip6=dhcp', mac_addrs=self.macs)
+
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], expected)
 
@@ -2306,6 +2280,9 @@ class TestNetplanRoundTrip(CiTestCase):
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS['all']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        print(entry['expected_netplan'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
         self.assertEqual(
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())

@@ -29,6 +29,7 @@ project = 'Cloud-Init'
 extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosectionlabel',
     'sphinx.ext.viewcode',
 ]
 

@@ -36,6 +36,8 @@ CFG_BUILTIN = {
         'SmartOS',
         'Bigstep',
         'Scaleway',
+        'Hetzner',
+        'IBMCloud',
         # At the end to act as a 'catch' when none of the above work...
         'None',
     ],

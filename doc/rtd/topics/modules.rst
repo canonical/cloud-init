@@ -45,6 +45,7 @@ Modules
 .. automodule:: cloudinit.config.cc_seed_random
 .. automodule:: cloudinit.config.cc_set_hostname
 .. automodule:: cloudinit.config.cc_set_passwords
+.. automodule:: cloudinit.config.cc_snap
 .. automodule:: cloudinit.config.cc_snappy
 .. automodule:: cloudinit.config.cc_snap_config
 .. automodule:: cloudinit.config.cc_spacewalk
@@ -52,6 +53,7 @@ Modules
 .. automodule:: cloudinit.config.cc_ssh_authkey_fingerprints
 .. automodule:: cloudinit.config.cc_ssh_import_id
 .. automodule:: cloudinit.config.cc_timezone
+.. automodule:: cloudinit.config.cc_ubuntu_advantage
 .. automodule:: cloudinit.config.cc_update_etc_hosts
 .. automodule:: cloudinit.config.cc_update_hostname
 .. automodule:: cloudinit.config.cc_users_groups

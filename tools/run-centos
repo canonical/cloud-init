@@ -23,6 +23,9 @@ Usage: ${0##*/} [ options ] version
 
     options:
       -a | --artifact keep .rpm artifacts
+           --dirty    apply local changes before running tests.
+                      If not provided, a clean checkout of branch is tested.
+                      Inside container, changes are in local-changes.diff.
       -k | --keep     keep container after tests
       -r | --rpm      build .rpm
       -s | --srpm     build .src.rpm
@@ -80,25 +83,84 @@ inside() {
 inject_cloud_init(){
     # take current cloud-init git dir and put it inside $name at
     # ~$user/cloud-init.
-    local name="$1" user="$2" top_d="" dname="" pstat=""
-    top_d=$(git rev-parse --show-toplevel) || {
-        errorrc "Failed to get git top level in $PWD";
+    local name="$1" user="$2" dirty="$3"
+    local changes="" top_d="" dname="cloud-init" pstat=""
+    local gitdir="" commitish=""
+    gitdir=$(git rev-parse --git-dir) || {
+        errorrc "Failed to get git dir in $PWD";
         return
     }
-    dname=$(basename "${top_d}") || return
-    debug 1 "collecting ${top_d} ($dname) into user $user in $name."
-    tar -C "${top_d}/.." -cpf - "$dname" |
+    local t=${gitdir%/*}
+    case "$t" in
+        */worktrees) 
+            if [ -f "${t%worktrees}/config" ]; then
+                gitdir="${t%worktrees}"
+            fi
+    esac
+
+    # attempt to get branch name.
+    commitish=$(git rev-parse --abbrev-ref HEAD) || {
+        errorrc "Failed git rev-parse --abbrev-ref HEAD"
+        return
+    }
+    if [ "$commitish" = "HEAD" ]; then
+        # detached head
+        commitish=$(git rev-parse HEAD) || {
+            errorrc "failed git rev-parse HEAD"
+            return
+        }
+    fi
+
+    local local_changes=false
+    if ! git diff --quiet "$commitish"; then
+        # there are local changes not committed.
+        local_changes=true
+        if [ "$dirty" = "false" ]; then
+            error "WARNING: You had uncommitted changes.  Those changes will "
+            error "be put into 'local-changes.diff' inside the container. "
+            error "To test these changes you must pass --dirty."
+        fi
+    fi
+
+    debug 1 "collecting ${gitdir} ($dname) into user $user in $name."
+    tar -C "${gitdir}" -cpf - . |
         inside_as "$name" "$user" sh -ec '
             dname=$1
+            commitish=$2
             rm -Rf "$dname"
+            mkdir -p $dname/.git
+            cd $dname/.git
             tar -xpf -
-            [ "$dname" = "cloud-init" ] || mv "$dname" cloud-init' \
-            extract "$dname"
+            cd ..
+            git config core.bare false
+            out=$(git checkout $commitish 2>&1) ||
+                { echo "failed git checkout $commitish: $out" 1>&2; exit 1; }
+            out=$(git checkout . 2>&1) ||
+                { echo "failed git checkout .: $out" 1>&2; exit 1; }
+            ' extract "$dname" "$commitish"
     [ "${PIPESTATUS[*]}" = "0 0" ] || {
-        error "Failed to push tarball of '$top_d' into $name" \
+        error "Failed to push tarball of '$gitdir' into $name" \
             " for user $user (dname=$dname)"
         return 1
     }
+
+    echo "local_changes=$local_changes dirty=$dirty"
+    if [ "$local_changes" = "true" ]; then
+        git diff "$commitish" |
+            inside_as "$name" "$user" sh -exc '
+                cd "$1"
+                if [ "$2" = "true" ]; then
+                    git apply
+                else
+                    cat > local-changes.diff
+                fi
+                ' insert_changes "$dname" "$dirty"
+        [ "${PIPESTATUS[*]}" = "0 0" ] || {
+            error "Failed to apply local changes."
+            return 1
+        }
+    fi
+
     return 0
 }
 
@@ -179,7 +241,7 @@ delete_container() {
 
 main() {
     local short_opts="ahkrsuv"
-    local long_opts="artifact,help,keep,rpm,srpm,unittest,verbose"
+    local long_opts="artifact,dirty,help,keep,rpm,srpm,unittest,verbose"
     local getopt_out=""
     getopt_out=$(getopt --name "${0##*/}" \
         --options "${short_opts}" --long "${long_opts}" -- "$@") &&
@@ -188,11 +250,13 @@ main() {
 
     local cur="" next=""
     local artifact="" keep="" rpm="" srpm="" unittest="" version=""
+    local dirty=false
 
     while [ $# -ne 0 ]; do
         cur="${1:-}"; next="${2:-}";
         case "$cur" in
             -a|--artifact) artifact=1;;
+               --dirty) dirty=true;;
             -h|--help) Usage ; exit 0;;
             -k|--keep) KEEP=true;;
             -r|--rpm) rpm=1;;
@@ -231,7 +295,7 @@ main() {
     inside "$name" useradd "$user"
 
     debug 1 "inserting cloud-init"
-    inject_cloud_init "$name" "$user" || {
+    inject_cloud_init "$name" "$user" "$dirty" || {
         errorrc "FAIL: injecting cloud-init into $name failed."
         return
     }
@@ -244,12 +308,13 @@ main() {
 
     local errors=0
     inside_as_cd "$name" "$user" "$cdir" \
-        sh -ec "git checkout .; git status" ||
+        sh -ec "git status" ||
             { errorrc "git checkout failed."; errors=$(($errors+1)); }
 
     if [ -n "$unittest" ]; then
         debug 1 "running unit tests."
-        inside_as_cd "$name" "$user" "$cdir" nosetests tests/unittests ||
+        inside_as_cd "$name" "$user" "$cdir" \
+            nosetests tests/unittests cloudinit ||
             { errorrc "nosetests failed."; errors=$(($errors+1)); }
     fi
 

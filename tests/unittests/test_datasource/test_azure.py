@@ -643,6 +643,21 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         expected_config['config'].append(blacklist_config)
         self.assertEqual(netconfig, expected_config)
 
+    @mock.patch("cloudinit.sources.DataSourceAzure.util.subp")
+    def test_get_hostname_with_no_args(self, subp):
+        dsaz.get_hostname()
+        subp.assert_called_once_with(("hostname",), capture=True)
+
+    @mock.patch("cloudinit.sources.DataSourceAzure.util.subp")
+    def test_get_hostname_with_string_arg(self, subp):
+        dsaz.get_hostname(hostname_command="hostname")
+        subp.assert_called_once_with(("hostname",), capture=True)
+
+    @mock.patch("cloudinit.sources.DataSourceAzure.util.subp")
+    def test_get_hostname_with_iterable_arg(self, subp):
+        dsaz.get_hostname(hostname_command=("hostname",))
+        subp.assert_called_once_with(("hostname",), capture=True)
+
 
 class TestAzureBounce(CiTestCase):
 
@@ -1162,7 +1177,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         url = 'http://{0}/metadata/reprovisiondata?api-version=2017-04-02'
         host = "169.254.169.254"
         full_url = url.format(host)
-        fake_resp.return_value = mock.MagicMock(status_code=200, text="ovf")
+        fake_resp.return_value = mock.MagicMock(status_code=200, text="ovf",
+                                                content="ovf")
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         self.assertTrue(len(dsa._poll_imds()) > 0)
         self.assertEqual(fake_resp.call_args_list,
@@ -1170,13 +1186,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                                     headers={'Metadata': 'true',
                                              'User-Agent':
                                              'Cloud-Init/%s' % vs()
-                                             }, method='GET', timeout=60.0,
-                                    url=full_url),
-                          mock.call(allow_redirects=True,
-                                    headers={'Metadata': 'true',
-                                             'User-Agent':
-                                             'Cloud-Init/%s' % vs()
-                                             }, method='GET', url=full_url)])
+                                             }, method='GET', timeout=1,
+                                    url=full_url)])
         self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
@@ -1202,7 +1213,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         username = "myuser"
         odata = {'HostName': hostname, 'UserName': username}
         content = construct_valid_ovf_env(data=odata)
-        fake_resp.return_value = mock.MagicMock(status_code=200, text=content)
+        fake_resp.return_value = mock.MagicMock(status_code=200, text=content,
+                                                content=content)
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         md, ud, cfg, d = dsa._reprovision()
         self.assertEqual(md['local-hostname'], hostname)
@@ -1212,12 +1224,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                                     headers={'Metadata': 'true',
                                              'User-Agent':
                                              'Cloud-Init/%s' % vs()},
-                                    method='GET', timeout=60.0, url=full_url),
-                          mock.call(allow_redirects=True,
-                                    headers={'Metadata': 'true',
-                                             'User-Agent':
-                                             'Cloud-Init/%s' % vs()},
-                                    method='GET', url=full_url)])
+                                    method='GET', timeout=1, url=full_url)])
         self.assertEqual(m_dhcp.call_count, 1)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',

@@ -311,12 +311,12 @@ class Renderer(renderer.Renderer):
                     if newname is None:
                         continue
                     br_config.update({newname: value})
-                    if newname == 'path-cost':
-                        # <interface> <cost> -> <interface>: int(<cost>)
+                    if newname in ['path-cost', 'port-priority']:
+                        # <interface> <value> -> <interface>: int(<value>)
                         newvalue = {}
-                        for costval in value:
-                            (port, cost) = costval.split()
-                            newvalue[port] = int(cost)
+                        for val in value:
+                            (port, portval) = val.split()
+                            newvalue[port] = int(portval)
                         br_config.update({newname: newvalue})
 
                 if len(br_config) > 0:
@@ -336,22 +336,15 @@ class Renderer(renderer.Renderer):
                 _extract_addresses(ifcfg, vlan)
                 vlans.update({ifname: vlan})
 
-        # inject global nameserver values under each physical interface
-        if nameservers:
-            for _eth, cfg in ethernets.items():
-                nscfg = cfg.get('nameservers', {})
-                addresses = nscfg.get('addresses', [])
-                addresses += nameservers
-                nscfg.update({'addresses': addresses})
-                cfg.update({'nameservers': nscfg})
-
-        if searchdomains:
-            for _eth, cfg in ethernets.items():
-                nscfg = cfg.get('nameservers', {})
-                search = nscfg.get('search', [])
-                search += searchdomains
-                nscfg.update({'search': search})
-                cfg.update({'nameservers': nscfg})
+        # inject global nameserver values under each all interface which
+        # has addresses and do not already have a DNS configuration
+        if nameservers or searchdomains:
+            nscfg = {'addresses': nameservers, 'search': searchdomains}
+            for section in [ethernets, wifis, bonds, bridges, vlans]:
+                for _name, cfg in section.items():
+                    if 'nameservers' in cfg or 'addresses' not in cfg:
+                        continue
+                    cfg.update({'nameservers': nscfg})
 
         # workaround yaml dictionary key sorting when dumping
         def _render_section(name, section):

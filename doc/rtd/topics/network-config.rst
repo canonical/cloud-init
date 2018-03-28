@@ -202,7 +202,7 @@ is helpful for examining expected output for a given input format.
 
 CLI Interface :
 
-.. code-block:: bash
+.. code-block:: shell-session
 
   % tools/net-convert.py --help
   usage: net-convert.py [-h] --network-data PATH --kind
@@ -222,7 +222,7 @@ CLI Interface :
 
 Example output converting V2 to sysconfig:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
   % tools/net-convert.py --network-data v2.yaml --kind yaml \
       --output-kind sysconfig -d target

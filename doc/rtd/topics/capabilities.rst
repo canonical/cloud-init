@@ -44,13 +44,14 @@ Currently defined feature names include:
 CLI Interface
 =============
 
-   The command line documentation is accessible on any cloud-init
-installed system:
+The command line documentation is accessible on any cloud-init installed
+system:
 
-.. code-block:: bash
+.. code-block:: shell-session
 
   % cloud-init --help
   usage: cloud-init [-h] [--version] [--file FILES]
+
                     [--debug] [--force]
                     {init,modules,single,dhclient-hook,features,analyze,devel,collect-logs,clean,status}
                     ...
@@ -88,7 +89,7 @@ Print out each feature supported.  If cloud-init does not have the
 features subcommand, it also does not support any features described in
 this document.
 
-.. code-block:: bash
+.. code-block:: shell-session
 
   % cloud-init features
   NETWORK_CONFIG_V1
@@ -100,10 +101,11 @@ cloud-init status
 -----------------
 Report whether cloud-init is running, done, disabled or errored. Exits
 non-zero if an error is detected in cloud-init.
+
  * **--long**: Detailed status information.
  * **--wait**: Block until cloud-init completes.
 
-.. code-block:: bash
+.. code-block:: shell-session
 
   % cloud-init status --long
   status: done
@@ -214,7 +216,7 @@ of once-per-instance:
  * **--frequency**: Optionally override the declared module frequency
    with one of (always|once-per-instance|once)
 
-.. code-block:: bash
+.. code-block:: shell-session
 
   % cloud-init single --name set_hostname --frequency always
 

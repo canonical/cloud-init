@@ -173,17 +173,15 @@ class CiTestCase(TestCase):
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
-    def assertRaisesCodeEqual(self, expected, found):
-        """Handle centos6 having different context manager for assertRaises.
-            with assertRaises(Exception) as e:
-                raise Exception("BOO")
+    def sys_exit(self, code):
+        """Provide a wrapper around sys.exit for python 2.6
 
-            centos6 will have e.exception as an integer.
-            anything nwere will have it as something with a '.code'"""
-        if isinstance(found, int):
-            self.assertEqual(expected, found)
-        else:
-            self.assertEqual(expected, found.code)
+        In 2.6, this code would produce 'cm.exception' with value int(2)
+        rather than the SystemExit that was raised by sys.exit(2).
+            with assertRaises(SystemExit) as cm:
+                sys.exit(2)
+        """
+        raise SystemExit(code)
 
 
 class ResourceUsingTestCase(CiTestCase):
@@ -285,10 +283,15 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def patchOS(self, new_root):
         patch_funcs = {
             os.path: [('isfile', 1), ('exists', 1),
-                      ('islink', 1), ('isdir', 1)],
+                      ('islink', 1), ('isdir', 1), ('lexists', 1)],
             os: [('listdir', 1), ('mkdir', 1),
-                 ('lstat', 1), ('symlink', 2)],
+                 ('lstat', 1), ('symlink', 2)]
         }
+
+        if hasattr(os, 'scandir'):
+            # py27 does not have scandir
+            patch_funcs[os].append(('scandir', 1))
+
         for (mod, funcs) in patch_funcs.items():
             for f, nargs in funcs:
                 func = getattr(mod, f)
@@ -411,6 +414,19 @@ except AttributeError:
         return decorator
 
 
+try:
+    import jsonschema
+    assert jsonschema  # avoid pyflakes error F401: import unused
+    _missing_jsonschema_dep = False
+except ImportError:
+    _missing_jsonschema_dep = True
+
+
+def skipUnlessJsonSchema():
+    return skipIf(
+        _missing_jsonschema_dep, "No python-jsonschema dependency present.")
+
+
 # older versions of mock do not have the useful 'assert_not_called'
 if not hasattr(mock.Mock, 'assert_not_called'):
     def __mock_assert_not_called(mmock):
@@ -422,12 +438,12 @@ if not hasattr(mock.Mock, 'assert_not_called'):
     mock.Mock.assert_not_called = __mock_assert_not_called
 
 
-# older unittest2.TestCase (centos6) do not have assertRaisesRegex
-# And setting assertRaisesRegex to assertRaisesRegexp causes
-# https://github.com/PyCQA/pylint/issues/1653 . So the workaround.
+# older unittest2.TestCase (centos6) have only the now-deprecated
+# assertRaisesRegexp. Simple assignment makes pylint complain, about
+# users of assertRaisesRegex so we use getattr to trick it.
+# https://github.com/PyCQA/pylint/issues/1946
 if not hasattr(unittest2.TestCase, 'assertRaisesRegex'):
-    def _tricky(*args, **kwargs):
-        return unittest2.TestCase.assertRaisesRegexp
-    unittest2.TestCase.assertRaisesRegex = _tricky
+    unittest2.TestCase.assertRaisesRegex = (
+        getattr(unittest2.TestCase, 'assertRaisesRegexp'))
 
 # vi: ts=4 expandtab

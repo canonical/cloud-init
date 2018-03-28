@@ -20,7 +20,6 @@ import string
 
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.net import eni
 from cloudinit import sources
 from cloudinit import util
 
@@ -91,19 +90,19 @@ class DataSourceOpenNebula(sources.DataSource):
             return False
 
         self.seed = seed
-        self.network_eni = results.get('network-interfaces')
+        self.network = results.get('network-interfaces')
         self.metadata = md
         self.userdata_raw = results.get('userdata')
         return True
 
     @property
     def network_config(self):
-        if self.network_eni is not None:
-            return eni.convert_eni_data(self.network_eni)
+        if self.network is not None:
+            return self.network
         else:
             return None
 
-    def get_hostname(self, fqdn=False, resolve_ip=None):
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         if resolve_ip is None:
             if self.dsmode == sources.DSMODE_NETWORK:
                 resolve_ip = True
@@ -143,17 +142,41 @@ class OpenNebulaNetwork(object):
     def mac2network(self, mac):
         return self.mac2ip(mac).rpartition(".")[0] + ".0"
 
-    def get_dns(self, dev):
-        return self.get_field(dev, "dns", "").split()
+    def get_nameservers(self, dev):
+        nameservers = {}
+        dns = self.get_field(dev, "dns", "").split()
+        dns.extend(self.context.get('DNS', "").split())
+        if dns:
+            nameservers['addresses'] = dns
+        search_domain = self.get_field(dev, "search_domain", "").split()
+        if search_domain:
+            nameservers['search'] = search_domain
+        return nameservers
 
-    def get_domain(self, dev):
-        return self.get_field(dev, "domain")
+    def get_mtu(self, dev):
+        return self.get_field(dev, "mtu")
 
     def get_ip(self, dev, mac):
         return self.get_field(dev, "ip", self.mac2ip(mac))
 
+    def get_ip6(self, dev):
+        addresses6 = []
+        ip6 = self.get_field(dev, "ip6")
+        if ip6:
+            addresses6.append(ip6)
+        ip6_ula = self.get_field(dev, "ip6_ula")
+        if ip6_ula:
+            addresses6.append(ip6_ula)
+        return addresses6
+
+    def get_ip6_prefix(self, dev):
+        return self.get_field(dev, "ip6_prefix_length", "64")
+
     def get_gateway(self, dev):
         return self.get_field(dev, "gateway")
+
+    def get_gateway6(self, dev):
+        return self.get_field(dev, "gateway6")
 
     def get_mask(self, dev):
         return self.get_field(dev, "mask", "255.255.255.0")
@@ -171,13 +194,11 @@ class OpenNebulaNetwork(object):
         return default if val in (None, "") else val
 
     def gen_conf(self):
-        global_dns = self.context.get('DNS', "").split()
+        netconf = {}
+        netconf['version'] = 2
+        netconf['ethernets'] = {}
 
-        conf = []
-        conf.append('auto lo')
-        conf.append('iface lo inet loopback')
-        conf.append('')
-
+        ethernets = {}
         for mac, dev in self.ifaces.items():
             mac = mac.lower()
 
@@ -185,29 +206,49 @@ class OpenNebulaNetwork(object):
             # dev stores the current system name.
             c_dev = self.context_devname.get(mac, dev)
 
-            conf.append('auto ' + dev)
-            conf.append('iface ' + dev + ' inet static')
-            conf.append('  #hwaddress %s' % mac)
-            conf.append('  address ' + self.get_ip(c_dev, mac))
-            conf.append('  network ' + self.get_network(c_dev, mac))
-            conf.append('  netmask ' + self.get_mask(c_dev))
+            devconf = {}
 
+            # Set MAC address
+            devconf['match'] = {'macaddress': mac}
+
+            # Set IPv4 address
+            devconf['addresses'] = []
+            mask = self.get_mask(c_dev)
+            prefix = str(net.mask_to_net_prefix(mask))
+            devconf['addresses'].append(
+                self.get_ip(c_dev, mac) + '/' + prefix)
+
+            # Set IPv6 Global and ULA address
+            addresses6 = self.get_ip6(c_dev)
+            if addresses6:
+                prefix6 = self.get_ip6_prefix(c_dev)
+                devconf['addresses'].extend(
+                    [i + '/' + prefix6 for i in addresses6])
+
+            # Set IPv4 default gateway
             gateway = self.get_gateway(c_dev)
             if gateway:
-                conf.append('  gateway ' + gateway)
+                devconf['gateway4'] = gateway
 
-            domain = self.get_domain(c_dev)
-            if domain:
-                conf.append('  dns-search ' + domain)
+            # Set IPv6 default gateway
+            gateway6 = self.get_gateway6(c_dev)
+            if gateway:
+                devconf['gateway6'] = gateway6
 
-            # add global DNS servers to all interfaces
-            dns = self.get_dns(c_dev)
-            if global_dns or dns:
-                conf.append('  dns-nameservers ' + ' '.join(global_dns + dns))
+            # Set DNS servers and search domains
+            nameservers = self.get_nameservers(c_dev)
+            if nameservers:
+                devconf['nameservers'] = nameservers
 
-            conf.append('')
+            # Set MTU size
+            mtu = self.get_mtu(c_dev)
+            if mtu:
+                devconf['mtu'] = mtu
 
-        return "\n".join(conf)
+            ethernets[dev] = devconf
+
+        netconf['ethernets'] = ethernets
+        return(netconf)
 
 
 def find_candidate_devs():
@@ -393,10 +434,10 @@ def read_context_disk_dir(source_dir, asuser=None):
             except TypeError:
                 LOG.warning("Failed base64 decoding of userdata")
 
-    # generate static /etc/network/interfaces
+    # generate Network Configuration v2
     # only if there are any required context variables
-    # http://opennebula.org/documentation:rel3.8:cong#network_configuration
-    ipaddr_keys = [k for k in context if re.match(r'^ETH\d+_IP$', k)]
+    # http://docs.opennebula.org/5.4/operation/references/template.html#context-section
+    ipaddr_keys = [k for k in context if re.match(r'^ETH\d+_IP.*$', k)]
     if ipaddr_keys:
         onet = OpenNebulaNetwork(context)
         results['network-interfaces'] = onet.gen_conf()

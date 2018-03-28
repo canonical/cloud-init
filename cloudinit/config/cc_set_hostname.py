@@ -32,7 +32,20 @@ will be used.
     hostname: <fqdn/hostname>
 """
 
+import os
+
+
+from cloudinit.atomic_helper import write_json
 from cloudinit import util
+
+
+class SetHostnameError(Exception):
+    """Raised when the distro runs into an exception when setting hostname.
+
+    This may happen if we attempt to set the hostname early in cloud-init's
+    init-local timeframe as certain services may not be running yet.
+    """
+    pass
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -40,14 +53,30 @@ def handle(name, cfg, cloud, log, _args):
         log.debug(("Configuration option 'preserve_hostname' is set,"
                    " not setting the hostname in module %s"), name)
         return
-
     (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+    # Check for previous successful invocation of set-hostname
+
+    # set-hostname artifact file accounts for both hostname and fqdn
+    # deltas. As such, it's format is different than cc_update_hostname's
+    # previous-hostname file which only contains the base hostname.
+    # TODO consolidate previous-hostname and set-hostname artifact files and
+    # distro._read_hostname implementation so we only validate  one artifact.
+    prev_fn = os.path.join(cloud.get_cpath('data'), "set-hostname")
+    prev_hostname = {}
+    if os.path.exists(prev_fn):
+        prev_hostname = util.load_json(util.load_file(prev_fn))
+    hostname_changed = (hostname != prev_hostname.get('hostname') or
+                        fqdn != prev_hostname.get('fqdn'))
+    if not hostname_changed:
+        log.debug('No hostname changes. Skipping set-hostname')
+        return
+    log.debug("Setting the hostname to %s (%s)", fqdn, hostname)
     try:
-        log.debug("Setting the hostname to %s (%s)", fqdn, hostname)
         cloud.distro.set_hostname(hostname, fqdn)
-    except Exception:
-        util.logexc(log, "Failed to set the hostname to %s (%s)", fqdn,
-                    hostname)
-        raise
+    except Exception as e:
+        msg = "Failed to set the hostname to %s (%s)" % (fqdn, hostname)
+        util.logexc(log, msg)
+        raise SetHostnameError("%s: %s" % (msg, e))
+    write_json(prev_fn, {'hostname': hostname, 'fqdn': fqdn})
 
 # vi: ts=4 expandtab

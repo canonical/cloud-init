@@ -2,11 +2,14 @@
 
 """Base platform class."""
 import os
+import shutil
 
 from simplestreams import filters, mirrors
 from simplestreams import util as s_util
 
 from cloudinit import util as c_util
+
+from tests.cloud_tests import util
 
 
 class Platform(object):
@@ -17,7 +20,14 @@ class Platform(object):
     def __init__(self, config):
         """Set up platform."""
         self.config = config
-        self._generate_ssh_keys(config['data_dir'])
+        self.tmpdir = util.mkdtemp()
+        if 'data_dir' in config:
+            self.data_dir = config['data_dir']
+        else:
+            self.data_dir = os.path.join(self.tmpdir, "data_dir")
+            os.mkdir(self.data_dir)
+
+        self._generate_ssh_keys(self.data_dir)
 
     def get_image(self, img_conf):
         """Get image using specified image configuration.
@@ -29,7 +39,7 @@ class Platform(object):
 
     def destroy(self):
         """Clean up platform data."""
-        pass
+        shutil.rmtree(self.tmpdir)
 
     def _generate_ssh_keys(self, data_dir):
         """Generate SSH keys to be used with image."""

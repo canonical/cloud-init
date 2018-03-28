@@ -7,6 +7,8 @@ import inspect
 import unittest
 from unittest.util import strclass
 
+from cloudinit.util import read_conf
+
 from tests.cloud_tests import config
 from tests.cloud_tests.testcases.base import CloudTestCase as base_test
 
@@ -48,6 +50,7 @@ def get_suite(test_name, data, conf):
             def setUpClass(cls):
                 cls.data = data
                 cls.conf = conf
+                cls.release_conf = read_conf(config.RELEASES_CONF)['releases']
 
         suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(tmp))
 

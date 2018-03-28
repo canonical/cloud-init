@@ -113,9 +113,9 @@ def query_data_api_once(api_address, timeout, requests_session):
             retries=0,
             session=requests_session,
             # If the error is a HTTP/404 or a ConnectionError, go into raise
-            # block below.
-            exception_cb=lambda _, exc: exc.code == 404 or (
-                isinstance(exc.cause, requests.exceptions.ConnectionError)
+            # block below and don't bother retrying.
+            exception_cb=lambda _, exc: exc.code != 404 and (
+                not isinstance(exc.cause, requests.exceptions.ConnectionError)
             )
         )
         return util.decode_binary(resp.contents)
@@ -215,7 +215,7 @@ class DataSourceScaleway(sources.DataSource):
     def get_public_ssh_keys(self):
         return [key['key'] for key in self.metadata['ssh_public_keys']]
 
-    def get_hostname(self, fqdn=False, resolve_ip=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         return self.metadata['hostname']
 
     @property

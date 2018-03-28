@@ -16,7 +16,7 @@ import time
 
 from email.utils import parsedate
 from functools import partial
-
+from itertools import count
 from requests import exceptions
 
 from six.moves.urllib.parse import (
@@ -47,7 +47,7 @@ try:
     _REQ_VER = LooseVersion(_REQ.version)  # pylint: disable=no-member
     if _REQ_VER >= LooseVersion('0.8.8'):
         SSL_ENABLED = True
-    if _REQ_VER >= LooseVersion('0.7.0') and _REQ_VER < LooseVersion('1.0.0'):
+    if LooseVersion('0.7.0') <= _REQ_VER < LooseVersion('1.0.0'):
         CONFIG_ENABLED = True
 except ImportError:
     pass
@@ -121,7 +121,7 @@ class UrlResponse(object):
         upper = 300
         if redirects_ok:
             upper = 400
-        if self.code >= 200 and self.code < upper:
+        if 200 <= self.code < upper:
             return True
         else:
             return False
@@ -172,7 +172,7 @@ def _get_ssl_args(url, ssl_details):
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             headers=None, headers_cb=None, ssl_details=None,
             check_status=True, allow_redirects=True, exception_cb=None,
-            session=None):
+            session=None, infinite=False):
     url = _cleanurl(url)
     req_args = {
         'url': url,
@@ -220,7 +220,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     excps = []
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
-    for i in range(0, manual_tries):
+    # Infinitely retry if infinite is True
+    for i in count() if infinite else range(0, manual_tries):
         req_args['headers'] = headers_cb(url)
         filtered_req_args = {}
         for (k, v) in req_args.items():
@@ -229,7 +230,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             filtered_req_args[k] = v
         try:
             LOG.debug("[%s/%s] open '%s' with %s configuration", i,
-                      manual_tries, url, filtered_req_args)
+                      "infinite" if infinite else manual_tries, url,
+                      filtered_req_args)
 
             if session is None:
                 session = requests.Session()
@@ -258,11 +260,13 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                     # ssl exceptions are not going to get fixed by waiting a
                     # few seconds
                     break
-            if exception_cb and exception_cb(req_args.copy(), excps[-1]):
-                # if an exception callback was given it should return None
-                # a true-ish value means to break and re-raise the exception
+            if exception_cb and not exception_cb(req_args.copy(), excps[-1]):
+                # if an exception callback was given, it should return True
+                # to continue retrying and False to break and re-raise the
+                # exception
                 break
-            if i + 1 < manual_tries and sec_between > 0:
+            if (infinite and sec_between > 0) or \
+               (i + 1 < manual_tries and sec_between > 0):
                 LOG.debug("Please wait %s seconds while we wait to try again",
                           sec_between)
                 time.sleep(sec_between)

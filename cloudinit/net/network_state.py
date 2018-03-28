@@ -47,7 +47,7 @@ NET_CONFIG_TO_V2 = {
                'bridge_maxage': 'max-age',
                'bridge_maxwait': None,
                'bridge_pathcost': 'path-cost',
-               'bridge_portprio': None,
+               'bridge_portprio': 'port-priority',
                'bridge_stp': 'stp',
                'bridge_waitport': None}}
 
@@ -708,6 +708,7 @@ class NetworkStateInterpreter(object):
 
         gateway4 = None
         gateway6 = None
+        nameservers = {}
         for address in cfg.get('addresses', []):
             subnet = {
                 'type': 'static',
@@ -722,6 +723,15 @@ class NetworkStateInterpreter(object):
                 if 'gateway4' in cfg and gateway4 is None:
                     gateway4 = cfg.get('gateway4')
                     subnet.update({'gateway': gateway4})
+
+            if 'nameservers' in cfg and not nameservers:
+                addresses = cfg.get('nameservers').get('addresses')
+                if addresses:
+                    nameservers['dns_nameservers'] = addresses
+                search = cfg.get('nameservers').get('search')
+                if search:
+                    nameservers['dns_search'] = search
+                subnet.update(nameservers)
 
             subnets.append(subnet)
 
