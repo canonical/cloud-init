@@ -1,3 +1,9 @@
+cloud-init (18.2-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+
+  * debian/new-upstream-snapshot: Remove script, now maintained elsewhere.
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Mar 2018 16:09:50 -0400
+
 cloud-init (18.2-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * Drop the following cherry picks in debian/patches. They are now
