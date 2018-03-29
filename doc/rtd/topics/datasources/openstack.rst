@@ -5,7 +5,7 @@ OpenStack
 
 This datasource supports reading data from the
 `OpenStack Metadata Service
-<http://docs.openstack.org/admin-guide/compute-networking-nova.html#metadata-service>`_.
+<https://docs.openstack.org/nova/latest/admin/networking-nova.html#metadata-service>`_.
 
 Configuration
 -------------
@@ -59,6 +59,6 @@ upgrade packages and install ``htop`` on all instances:
   {"cloud-init": "#cloud-config\npackage_upgrade: True\npackages:\n - htop"}
 
 For more general information about how cloud-init handles vendor data,
-including how it can be disabled by users on instances, see `Vendor Data`_.
+including how it can be disabled by users on instances, see :doc:`/topics/vendordata`.
 
 .. vi: textwidth=78
