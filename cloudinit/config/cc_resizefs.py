@@ -251,6 +251,8 @@ def handle(name, cfg, _cloud, log, args):
     if fs_type == 'zfs':
         zpool = devpth.split('/')[0]
         devpth = util.get_device_info_from_zpool(zpool)
+        if not devpth:
+            return  # could not find device from zpool
         resize_what = zpool
 
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
