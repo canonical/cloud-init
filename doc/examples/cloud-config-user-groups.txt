@@ -10,20 +10,20 @@ users:
   - default
   - name: foobar
     gecos: Foo B. Bar
-    primary-group: foobar
+    primary_group: foobar
     groups: users
-    selinux-user: staff_u
+    selinux_user: staff_u
     expiredate: 2012-09-01
-    ssh-import-id: foobar
+    ssh_import_id: foobar
     lock_passwd: false
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
   - name: barfoo
     gecos: Bar B. Foo
     sudo: ALL=(ALL) NOPASSWD:ALL
     groups: users, admin
-    ssh-import-id: None
+    ssh_import_id: None
     lock_passwd: true
-    ssh-authorized-keys:
+    ssh_authorized_keys:
       - <ssh pub key 1>
       - <ssh pub key 2>
   - name: cloudy
@@ -37,10 +37,10 @@ users:
 #   gecos: The user name's real name, i.e. "Bob B. Smith"
 #   homedir: Optional. Set to the local path you want to use. Defaults to
 #           /home/<username>
-#   primary-group: define the primary group. Defaults to a new group created
+#   primary_group: define the primary group. Defaults to a new group created
 #           named after the user.
 #   groups:  Optional. Additional groups to add the user to. Defaults to none
-#   selinux-user:  Optional. The SELinux user for the user's login, such as
+#   selinux_user:  Optional. The SELinux user for the user's login, such as
 #           "staff_u". When this is omitted the system will select the default
 #           SELinux user.
 #   lock_passwd: Defaults to true. Lock the password to disable password login
@@ -66,11 +66,11 @@ users:
 #               should use SSH authentication only.
 #
 #               You have thus been warned.
-#   no-create-home: When set to true, do not create home directory.
-#   no-user-group: When set to true, do not create a group named after the user.
-#   no-log-init: When set to true, do not initialize lastlog and faillog database.
-#   ssh-import-id: Optional. Import SSH ids
-#   ssh-authorized-keys: Optional. [list] Add keys to user's authorized keys file
+#   no_create_home: When set to true, do not create home directory.
+#   no_user_group: When set to true, do not create a group named after the user.
+#   no_log_init: When set to true, do not initialize lastlog and faillog database.
+#   ssh_import_id: Optional. Import SSH ids
+#   ssh_authorized_keys: Optional. [list] Add keys to user's authorized keys file
 #   sudo: Defaults to none. Set to the sudo string you want to use, i.e.
 #           ALL=(ALL) NOPASSWD:ALL. To add multiple rules, use the following
 #           format.
