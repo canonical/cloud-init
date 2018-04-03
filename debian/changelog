@@ -1,4 +1,4 @@
-cloud-init (18.2-4-g05926e48-0ubuntu1~17.10.1) UNRELEASED; urgency=medium
+cloud-init (18.2-4-g05926e48-0ubuntu1~17.10.1) artful-proposed; urgency=medium
 
   * debian/new-upstream-snapshot: Remove script, now maintained elsewhere.
   * New upstream snapshot. (LP: #1759406)
@@ -8,7 +8,7 @@ cloud-init (18.2-4-g05926e48-0ubuntu1~17.10.1) UNRELEASED; urgency=medium
     - cc_resizefs, util: handle no /dev/zfs
     - doc: Fix links in OpenStack datasource documentation. [Dominic Schlegel]
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 03 Apr 2018 17:00:23 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 03 Apr 2018 17:00:47 -0600
 
 cloud-init (18.2-0ubuntu1~17.10.1) artful-proposed; urgency=medium
 
