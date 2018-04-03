@@ -6,11 +6,11 @@ users:
   - sue
   - name: foobar_jr
     gecos: Foo B. Bar Jr
-    primary-group: foobar
+    primary_group: foobar
     groups: users
-    selinux-user: staff_u
+    selinux_user: staff_u
     expiredate: 2012-09-01
-    ssh-import-id: foobar
+    ssh_import_id: foobar
     lock-passwd: false
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
 

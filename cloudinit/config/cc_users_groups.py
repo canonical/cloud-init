@@ -34,16 +34,16 @@ config keys for an entry in ``users`` are as follows:
     - ``homedir``: Optional. Home dir for user. Default is ``/home/<username>``
     - ``inactive``: Optional. Mark user inactive. Default: false
     - ``lock_passwd``: Optional. Disable password login. Default: true
-    - ``no-create-home``: Optional. Do not create home directory. Default:
+    - ``no_create_home``: Optional. Do not create home directory. Default:
       false
-    - ``no-log-init``: Optional. Do not initialize lastlog and faillog for
+    - ``no_log_init``: Optional. Do not initialize lastlog and faillog for
       user. Default: false
-    - ``no-user-group``: Optional. Do not create group named after user.
+    - ``no_user_group``: Optional. Do not create group named after user.
       Default: false
     - ``passwd``: Hash of user password
-    - ``primary-group``: Optional. Primary group for user. Default to new group
+    - ``primary_group``: Optional. Primary group for user. Default to new group
       named after user.
-    - ``selinux-user``: Optional. SELinux user for user's login. Default to
+    - ``selinux_user``: Optional. SELinux user for user's login. Default to
       default SELinux user.
     - ``shell``: Optional. The user's login shell. The default is to set no
       shell, which results in a system-specific default being used.
@@ -51,9 +51,9 @@ config keys for an entry in ``users`` are as follows:
       a Snappy user through ``snap create-user``. If an Ubuntu SSO account is
       associated with the address, username and SSH keys will be requested from
       there. Default: none
-    - ``ssh-authorized-keys``: Optional. List of ssh keys to add to user's
+    - ``ssh_authorized_keys``: Optional. List of ssh keys to add to user's
       authkeys file. Default: none
-    - ``ssh-import-id``: Optional. SSH id to import for user. Default: none
+    - ``ssh_import_id``: Optional. SSH id to import for user. Default: none
     - ``sudo``: Optional. Sudo rule to use, or list of sudo rules to use.
       Default: none.
     - ``system``: Optional. Create user as system user with no home directory.
@@ -89,18 +89,18 @@ config keys for an entry in ``users`` are as follows:
           homedir: <home directory>
           inactive: <true/false>
           lock_passwd: <true/false>
-          no-create-home: <true/false>
-          no-log-init: <true/false>
-          no-user-group: <true/false>
+          no_create_home: <true/false>
+          no_log_init: <true/false>
+          no_user_group: <true/false>
           passwd: <password>
-          primary-group: <primary group>
-          selinux-user: <selinux username>
+          primary_group: <primary group>
+          selinux_user: <selinux username>
           shell: <shell path>
           snapuser: <email>
-          ssh-authorized-keys:
+          ssh_authorized_keys:
               - <key>
               - <key>
-          ssh-import-id: <id>
+          ssh_import_id: <id>
           sudo: <sudo config>
           system: <true/false>
           uid: <user id>
