@@ -15,7 +15,7 @@ cloud_config: |
     - default
     - name: foobar
       gecos: Foo B. Bar
-      primary-group: foobar
+      primary_group: foobar
       groups: users
       expiredate: 2038-01-19
       lock_passwd: false
