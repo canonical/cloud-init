@@ -1,8 +1,14 @@
-cloud-init (18.2-0ubuntu1~17.10.2) UNRELEASED; urgency=medium
+cloud-init (18.2-4-g05926e48-0ubuntu1~17.10.1) UNRELEASED; urgency=medium
 
   * debian/new-upstream-snapshot: Remove script, now maintained elsewhere.
+  * New upstream snapshot. (LP: #1759406)
+    - tests: fix integration tests to support lxd 3.0 release
+    - correct documentation to match correct attribute name usage.
+      [Dominic Schlegel]
+    - cc_resizefs, util: handle no /dev/zfs
+    - doc: Fix links in OpenStack datasource documentation. [Dominic Schlegel]
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Mar 2018 16:11:04 -0400
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 03 Apr 2018 17:00:23 -0600
 
 cloud-init (18.2-0ubuntu1~17.10.1) artful-proposed; urgency=medium
 
