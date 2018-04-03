@@ -1,3 +1,15 @@
+cloud-init (18.2-4-g05926e48-0ubuntu1) bionic; urgency=medium
+
+  * New upstream snapshot.
+    - tests: fix integration tests to support lxd 3.0 release
+    - correct documentation to match correct attribute name usage.
+      [Dominic Schlegel] (LP: #1420018)
+    - cc_resizefs, util: handle no /dev/zfs
+    - doc: Fix links in OpenStack datasource documentation.
+      [Dominic Schlegel] (LP: #1721660)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 03 Apr 2018 16:54:45 -0600
+
 cloud-init (18.2-0ubuntu1) bionic; urgency=medium
 
   * debian/control: Add missing dependency on isc-dhcp-client (LP: #1759307).
