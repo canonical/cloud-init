@@ -2249,7 +2249,15 @@ def get_mount_info_freebsd(path):
 
 
 def get_device_info_from_zpool(zpool):
-    (zpoolstatus, err) = subp(['zpool', 'status', zpool])
+    # zpool has 10 second timeout waiting for /dev/zfs LP: #1760173
+    if not os.path.exists('/dev/zfs'):
+        LOG.debug('Cannot get zpool info, no /dev/zfs')
+        return None
+    try:
+        (zpoolstatus, err) = subp(['zpool', 'status', zpool])
+    except ProcessExecutionError as err:
+        LOG.warning("Unable to get zpool status of %s: %s", zpool, err)
+        return None
     if len(err):
         return None
     r = r'.*(ONLINE).*'
