@@ -210,7 +210,7 @@ def _has_proper_console_support():
         reason = "LXD server does not support console api extension"
     else:
         dver = info.get('environment', {}).get('driver_version', "")
-        if dver.startswith("2.") or dver.startwith("1."):
+        if dver.startswith("2.") or dver.startswith("1."):
             reason = "LXD Driver version not 3.x+ (%s)" % dver
         else:
             try:
