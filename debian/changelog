@@ -1,4 +1,4 @@
-cloud-init (18.2-9-g49b562c9-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.2-9-g49b562c9-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
     - tools: Fix make-tarball cli tool usage for development
@@ -8,7 +8,7 @@ cloud-init (18.2-9-g49b562c9-0ubuntu1) UNRELEASED; urgency=medium
     - Apport: add Brightbox, IBM, LXD, and OpenTelekomCloud to list of clouds.
     - tests: fix ec2 integration network metadata validation
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Apr 2018 15:56:01 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Apr 2018 16:06:24 -0600
 
 cloud-init (18.2-4-g05926e48-0ubuntu2) bionic; urgency=medium
 
