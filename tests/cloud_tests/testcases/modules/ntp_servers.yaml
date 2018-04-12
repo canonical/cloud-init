@@ -6,6 +6,7 @@ required_features:
 cloud_config: |
   #cloud-config
   ntp:
+    ntp_client: ntp
     servers:
         - 172.16.15.14
         - 172.16.17.18

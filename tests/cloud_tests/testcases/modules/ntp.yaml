@@ -4,6 +4,7 @@
 cloud_config: |
   #cloud-config
   ntp:
+    ntp_client: ntp
     pools: []
     servers: []
 collect_scripts:
