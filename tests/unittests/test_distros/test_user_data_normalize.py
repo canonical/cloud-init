@@ -22,6 +22,12 @@ bcfg = {
 
 class TestUGNormalize(TestCase):
 
+    def setUp(self):
+        super(TestUGNormalize, self).setUp()
+        self.add_patch('cloudinit.util.system_is_snappy', 'm_snappy')
+        self.add_patch('cloudinit.util.system_info', 'm_sysinfo')
+        self.m_sysinfo.return_value = {'dist': ('Distro', '99.1', 'Codename')}
+
     def _make_distro(self, dtype, def_user=None):
         cfg = dict(settings.CFG_BUILTIN)
         cfg['system_info']['distro'] = dtype
