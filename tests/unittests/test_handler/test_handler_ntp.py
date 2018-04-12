@@ -272,12 +272,12 @@ class TestNtp(FilesystemMockingTestCase):
                     expected_servers = '\n'.join([
                         'server {0} iburst'.format(srv) for srv in servers])
                     print('distro=%s client=%s' % (distro, client))
-                    self.assertIn(expected_servers, content.decode(),
+                    self.assertIn(expected_servers, content.decode('utf-8'),
                                   ('failed to render {0} conf'
                                    ' for distro:{1}'.format(client, distro)))
                     expected_pools = '\n'.join([
                         'pool {0} iburst'.format(pool) for pool in pools])
-                    self.assertIn(expected_pools, content.decode(),
+                    self.assertIn(expected_pools, content.decode('utf-8'),
                                   ('failed to render {0} conf'
                                    ' for distro:{1}'.format(client, distro)))
                 elif client == 'systemd-timesyncd':
