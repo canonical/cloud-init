@@ -208,4 +208,28 @@ class Distro(distros.Distro):
                                             nameservers, searchservers)
         return dev_names
 
+    @property
+    def preferred_ntp_clients(self):
+        """The preferred ntp client is dependent on the version."""
+
+        """Allow distro to determine the preferred ntp client list"""
+        if not self._preferred_ntp_clients:
+            distro_info = util.system_info()['dist']
+            name = distro_info[0]
+            major_ver = int(distro_info[1].split('.')[0])
+
+            # This is horribly complicated because of a case of
+            # "we do not care if versions should be increasing syndrome"
+            if (
+                (major_ver >= 15 and 'openSUSE' not in name) or
+                (major_ver >= 15 and 'openSUSE' in name and major_ver != 42)
+            ):
+                self._preferred_ntp_clients = ['chrony',
+                                               'systemd-timesyncd', 'ntp']
+            else:
+                self._preferred_ntp_clients = ['ntp',
+                                               'systemd-timesyncd', 'chrony']
+
+        return self._preferred_ntp_clients
+
 # vi: ts=4 expandtab

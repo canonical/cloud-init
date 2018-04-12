@@ -149,7 +149,10 @@ class CloudTestCase(unittest.TestCase):
         self.assertEqual(
             ['ds/user-data'], instance_data['base64-encoded-keys'])
         ds = instance_data.get('ds', {})
-        macs = ds.get('network', {}).get('interfaces', {}).get('macs', {})
+        v1_data = instance_data.get('v1', {})
+        metadata = ds.get('meta-data', {})
+        macs = metadata.get(
+            'network', {}).get('interfaces', {}).get('macs', {})
         if not macs:
             raise AssertionError('No network data from EC2 meta-data')
         # Check meta-data items we depend on
@@ -160,10 +163,8 @@ class CloudTestCase(unittest.TestCase):
             for key in expected_net_keys:
                 self.assertIn(key, mac_data)
         self.assertIsNotNone(
-            ds.get('placement', {}).get('availability-zone'),
+            metadata.get('placement', {}).get('availability-zone'),
             'Could not determine EC2 Availability zone placement')
-        ds = instance_data.get('ds', {})
-        v1_data = instance_data.get('v1', {})
         self.assertIsNotNone(
             v1_data['availability-zone'], 'expected ec2 availability-zone')
         self.assertEqual('aws', v1_data['cloud-name'])
