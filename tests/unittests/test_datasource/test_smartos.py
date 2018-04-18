@@ -1,4 +1,5 @@
 # Copyright (C) 2013 Canonical Ltd.
+# Copyright (c) 2018, Joyent, Inc.
 #
 # Author: Ben Howard <ben.howard@canonical.com>
 #
@@ -324,6 +325,7 @@ class PsuedoJoyentClient(object):
         if data is None:
             data = MOCK_RETURNS.copy()
         self.data = data
+        self._is_open = False
         return
 
     def get(self, key, default=None, strip=False):
@@ -343,6 +345,14 @@ class PsuedoJoyentClient(object):
 
     def exists(self):
         return True
+
+    def open_transport(self):
+        assert(not self._is_open)
+        self._is_open = True
+
+    def close_transport(self):
+        assert(self._is_open)
+        self._is_open = False
 
 
 class TestSmartOSDataSource(FilesystemMockingTestCase):
@@ -592,7 +602,45 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
                          mydscfg['disk_aliases']['FOO'])
 
 
+class ShortReader(object):
+    """Implements a 'read' interface for bytes provided.
+    much like io.BytesIO but the 'endbyte' acts as if EOF.
+    When it is reached a short will be returned."""
+    def __init__(self, initial_bytes, endbyte=b'\0'):
+        self.data = initial_bytes
+        self.index = 0
+        self.len = len(self.data)
+        self.endbyte = endbyte
+
+    @property
+    def emptied(self):
+        return self.index >= self.len
+
+    def read(self, size=-1):
+        """Read size bytes but not past a null."""
+        if size == 0 or self.index >= self.len:
+            return b''
+
+        rsize = size
+        if size < 0 or size + self.index > self.len:
+            rsize = self.len - self.index
+
+        next_null = self.data.find(self.endbyte, self.index, rsize)
+        if next_null >= 0:
+            rsize = next_null - self.index + 1
+        i = self.index
+        self.index += rsize
+        ret = self.data[i:i + rsize]
+        if len(ret) and ret[-1:] == self.endbyte:
+            ret = ret[:-1]
+        return ret
+
+
 class TestJoyentMetadataClient(FilesystemMockingTestCase):
+
+    invalid = b'invalid command\n'
+    failure = b'FAILURE\n'
+    v2_ok = b'V2_OK\n'
 
     def setUp(self):
         super(TestJoyentMetadataClient, self).setUp()
@@ -636,6 +684,11 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
         return DataSourceSmartOS.JoyentMetadataClient(
             fp=self.serial, smartos_type=DataSourceSmartOS.SMARTOS_ENV_KVM)
 
+    def _get_serial_client(self):
+        self.serial.timeout = 1
+        return DataSourceSmartOS.JoyentMetadataSerialClient(None,
+                                                            fp=self.serial)
+
     def assertEndsWith(self, haystack, prefix):
         self.assertTrue(haystack.endswith(prefix),
                         "{0} does not end with '{1}'".format(
@@ -646,12 +699,14 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
                         "{0} does not start with '{1}'".format(
                             repr(haystack), prefix))
 
+    def assertNoMoreSideEffects(self, obj):
+        self.assertRaises(StopIteration, obj)
+
     def test_get_metadata_writes_a_single_line(self):
         client = self._get_client()
         client.get('some_key')
         self.assertEqual(1, self.serial.write.call_count)
         written_line = self.serial.write.call_args[0][0]
-        print(type(written_line))
         self.assertEndsWith(written_line.decode('ascii'),
                             b'\n'.decode('ascii'))
         self.assertEqual(1, written_line.count(b'\n'))
@@ -736,6 +791,52 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
         client = self._get_client()
         client._checksum = lambda _: self.response_parts['crc']
         self.assertIsNone(client.get('some_key'))
+
+    def test_negotiate(self):
+        client = self._get_client()
+        reader = ShortReader(self.v2_ok)
+        client.fp.read.side_effect = reader.read
+        client._negotiate()
+        self.assertTrue(reader.emptied)
+
+    def test_negotiate_short_response(self):
+        client = self._get_client()
+        # chopped '\n' from v2_ok.
+        reader = ShortReader(self.v2_ok[:-1] + b'\0')
+        client.fp.read.side_effect = reader.read
+        self.assertRaises(DataSourceSmartOS.JoyentMetadataTimeoutException,
+                          client._negotiate)
+        self.assertTrue(reader.emptied)
+
+    def test_negotiate_bad_response(self):
+        client = self._get_client()
+        reader = ShortReader(b'garbage\n' + self.v2_ok)
+        client.fp.read.side_effect = reader.read
+        self.assertRaises(DataSourceSmartOS.JoyentMetadataFetchException,
+                          client._negotiate)
+        self.assertEqual(self.v2_ok, client.fp.read())
+
+    def test_serial_open_transport(self):
+        client = self._get_serial_client()
+        reader = ShortReader(b'garbage\0' + self.invalid + self.v2_ok)
+        client.fp.read.side_effect = reader.read
+        client.open_transport()
+        self.assertTrue(reader.emptied)
+
+    def test_flush_failure(self):
+        client = self._get_serial_client()
+        reader = ShortReader(b'garbage' + b'\0' + self.failure +
+                             self.invalid + self.v2_ok)
+        client.fp.read.side_effect = reader.read
+        client.open_transport()
+        self.assertTrue(reader.emptied)
+
+    def test_flush_many_timeouts(self):
+        client = self._get_serial_client()
+        reader = ShortReader(b'\0' * 100 + self.invalid + self.v2_ok)
+        client.fp.read.side_effect = reader.read
+        client.open_transport()
+        self.assertTrue(reader.emptied)
 
 
 class TestNetworkConversion(TestCase):
