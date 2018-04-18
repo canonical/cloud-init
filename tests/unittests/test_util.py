@@ -800,7 +800,7 @@ class TestSubp(helpers.CiTestCase):
 
         os.chmod(noshebang, os.stat(noshebang).st_mode | stat.S_IEXEC)
         self.assertRaisesRegex(util.ProcessExecutionError,
-                               'Missing #! in script\?',
+                               r'Missing #! in script\?',
                                util.subp, (noshebang,))
 
     def test_returns_none_if_no_capture(self):
