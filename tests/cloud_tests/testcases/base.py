@@ -235,7 +235,7 @@ class CloudTestCase(unittest.TestCase):
             'found unexpected kvm availability-zone %s' %
             v1_data['availability-zone'])
         self.assertIsNotNone(
-            re.match('[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}',
+            re.match(r'[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}',
                      v1_data['instance-id']),
             'kvm instance-id is not a UUID: %s' % v1_data['instance-id'])
         self.assertIn('ubuntu', v1_data['local-hostname'])

@@ -190,35 +190,11 @@ class ResourceUsingTestCase(CiTestCase):
         super(ResourceUsingTestCase, self).setUp()
         self.resource_path = None
 
-    def resourceLocation(self, subname=None):
-        if self.resource_path is None:
-            paths = [
-                os.path.join('tests', 'data'),
-                os.path.join('data'),
-                os.path.join(os.pardir, 'tests', 'data'),
-                os.path.join(os.pardir, 'data'),
-            ]
-            for p in paths:
-                if os.path.isdir(p):
-                    self.resource_path = p
-                    break
-        self.assertTrue((self.resource_path and
-                         os.path.isdir(self.resource_path)),
-                        msg="Unable to locate test resource data path!")
-        if not subname:
-            return self.resource_path
-        return os.path.join(self.resource_path, subname)
-
-    def readResource(self, name):
-        where = self.resourceLocation(name)
-        with open(where, 'r') as fh:
-            return fh.read()
-
     def getCloudPaths(self, ds=None):
         tmpdir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmpdir)
         cp = ch.Paths({'cloud_dir': tmpdir,
-                       'templates_dir': self.resourceLocation()},
+                       'templates_dir': resourceLocation()},
                       ds=ds)
         return cp
 
@@ -234,7 +210,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
         ResourceUsingTestCase.tearDown(self)
 
     def replicateTestRoot(self, example_root, target_root):
-        real_root = self.resourceLocation()
+        real_root = resourceLocation()
         real_root = os.path.join(real_root, 'roots', example_root)
         for (dir_path, _dirnames, filenames) in os.walk(real_root):
             real_path = dir_path
@@ -397,6 +373,18 @@ def wrap_and_call(prefix, mocks, func, *args, **kwargs):
     finally:
         for p in unwraps:
             p.stop()
+
+
+def resourceLocation(subname=None):
+    path = os.path.join('tests', 'data')
+    if not subname:
+        return path
+    return os.path.join(path, subname)
+
+
+def readResource(name, mode='r'):
+    with open(resourceLocation(name), mode) as fh:
+        return fh.read()
 
 
 try:

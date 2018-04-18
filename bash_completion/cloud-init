@@ -1,0 +1,77 @@
+# Copyright (C) 2018 Canonical Ltd.
+#
+# This file is part of cloud-init. See LICENSE file for license information.
+
+# bash completion for cloud-init cli
+_cloudinit_complete()
+{
+
+    local cur_word prev_word
+    cur_word="${COMP_WORDS[COMP_CWORD]}"
+    prev_word="${COMP_WORDS[COMP_CWORD-1]}"
+
+    subcmds="analyze clean collect-logs devel dhclient-hook features init modules single status"
+    base_params="--help --file --version --debug --force"
+    case ${COMP_CWORD} in
+        1)
+            COMPREPLY=($(compgen -W "$base_params $subcmds" -- $cur_word))
+            ;;
+        2)
+            case ${prev_word} in
+                analyze)
+                    COMPREPLY=($(compgen -W "--help blame dump show" -- $cur_word))
+                    ;;
+                clean)
+                    COMPREPLY=($(compgen -W "--help --logs --reboot --seed" -- $cur_word))
+                    ;;
+                collect-logs)
+                    COMPREPLY=($(compgen -W "--help --tarfile --include-userdata" -- $cur_word))
+                    ;;
+                devel)
+                    COMPREPLY=($(compgen -W "--help schema" -- $cur_word))
+                    ;;
+                dhclient-hook|features)
+                    COMPREPLY=($(compgen -W "--help" -- $cur_word))
+                    ;;
+                init)
+                    COMPREPLY=($(compgen -W "--help --local" -- $cur_word))
+                    ;;
+                modules)
+                    COMPREPLY=($(compgen -W "--help --mode" -- $cur_word))
+                    ;;
+
+                single)
+                    COMPREPLY=($(compgen -W "--help --name --frequency --report" -- $cur_word))
+                    ;;
+                status)
+                    COMPREPLY=($(compgen -W "--help --long --wait" -- $cur_word))
+                    ;;
+            esac
+            ;;
+        3)
+            case ${prev_word} in
+                blame|dump)
+                    COMPREPLY=($(compgen -W "--help --infile --outfile" -- $cur_word))
+                    ;;
+                --mode)
+                    COMPREPLY=($(compgen -W "--help init config final" -- $cur_word))
+                    ;;
+                --frequency)
+                    COMPREPLY=($(compgen -W "--help instance always once" -- $cur_word))
+                    ;;
+                schema)
+                    COMPREPLY=($(compgen -W "--help --config-file --doc --annotate" -- $cur_word))
+                    ;;
+                show)
+                    COMPREPLY=($(compgen -W "--help --format --infile --outfile" -- $cur_word))
+                    ;;
+            esac
+            ;;
+        *)
+            COMPREPLY=()
+            ;;
+    esac
+}
+complete -F _cloudinit_complete cloud-init
+
+# vi: syntax=bash expandtab

@@ -136,6 +136,7 @@ mkdir -p %{buildroot}/var/lib/cloud
 %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/README
 %dir               %{_sysconfdir}/cloud/templates
 %config(noreplace) %{_sysconfdir}/cloud/templates/*
+%{_sysconfdir}/bash_completion.d/cloud-init
 
 # Python code is here...
 %{python_sitelib}/*
