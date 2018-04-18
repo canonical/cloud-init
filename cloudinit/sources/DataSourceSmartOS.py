@@ -108,7 +108,7 @@ BUILTIN_CLOUD_CONFIG = {
                        'overwrite': False}
     },
     'fs_setup': [{'label': 'ephemeral0',
-                  'filesystem': 'ext3',
+                  'filesystem': 'ext4',
                   'device': 'ephemeral0'}],
 }
 

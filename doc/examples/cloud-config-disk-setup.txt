@@ -37,7 +37,7 @@ fs_setup:
 # Default disk definitions for SmartOS
 # ------------------------------------
 
-device_aliases: {'ephemeral0': '/dev/sdb'}
+device_aliases: {'ephemeral0': '/dev/vdb'}
 disk_setup:
     ephemeral0:
          table_type: mbr
@@ -46,7 +46,7 @@ disk_setup:
 
 fs_setup:
     - label: ephemeral0
-      filesystem: ext3
+      filesystem: ext4
       device: ephemeral0.0
 
 # Cavaut for SmartOS: if ephemeral disk is not defined, then the disk will
