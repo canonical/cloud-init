@@ -325,7 +325,7 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
 
     def test_precise_ext4_root(self):
 
-        lines = self.readResource('mountinfo_precise_ext4.txt').splitlines()
+        lines = helpers.readResource('mountinfo_precise_ext4.txt').splitlines()
 
         expected = ('/dev/mapper/vg0-root', 'ext4', '/')
         self.assertEqual(expected, util.parse_mount_info('/', lines))
@@ -347,7 +347,7 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         self.assertEqual(expected, util.parse_mount_info('/run/lock', lines))
 
     def test_raring_btrfs_root(self):
-        lines = self.readResource('mountinfo_raring_btrfs.txt').splitlines()
+        lines = helpers.readResource('mountinfo_raring_btrfs.txt').splitlines()
 
         expected = ('/dev/vda1', 'btrfs', '/')
         self.assertEqual(expected, util.parse_mount_info('/', lines))
@@ -373,7 +373,7 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         m_os.path.exists.return_value = True
         # mock subp command from util.get_mount_info_fs_on_zpool
         zpool_output.return_value = (
-            self.readResource('zpool_status_simple.txt'), ''
+            helpers.readResource('zpool_status_simple.txt'), ''
         )
         # save function return values and do asserts
         ret = util.get_device_info_from_zpool('vmzroot')
@@ -406,7 +406,7 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         m_os.path.exists.return_value = True
         # mock subp command from util.get_mount_info_fs_on_zpool
         zpool_output.return_value = (
-            self.readResource('zpool_status_simple.txt'), 'error'
+            helpers.readResource('zpool_status_simple.txt'), 'error'
         )
         # save function return values and do asserts
         ret = util.get_device_info_from_zpool('vmzroot')
@@ -414,7 +414,8 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
 
     @mock.patch('cloudinit.util.subp')
     def test_parse_mount_with_ext(self, mount_out):
-        mount_out.return_value = (self.readResource('mount_parse_ext.txt'), '')
+        mount_out.return_value = (
+            helpers.readResource('mount_parse_ext.txt'), '')
         # this one is valid and exists in mount_parse_ext.txt
         ret = util.parse_mount('/var')
         self.assertEqual(('/dev/mapper/vg00-lv_var', 'ext4', '/var'), ret)
@@ -430,7 +431,8 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
 
     @mock.patch('cloudinit.util.subp')
     def test_parse_mount_with_zfs(self, mount_out):
-        mount_out.return_value = (self.readResource('mount_parse_zfs.txt'), '')
+        mount_out.return_value = (
+            helpers.readResource('mount_parse_zfs.txt'), '')
         # this one is valid and exists in mount_parse_zfs.txt
         ret = util.parse_mount('/var')
         self.assertEqual(('vmzroot/ROOT/freebsd/var', 'zfs', '/var'), ret)
