@@ -1,5 +1,6 @@
 include *.py MANIFEST.in LICENSE* ChangeLog
 global-include *.txt *.rst *.ini *.in *.conf *.cfg *.sh
+graft bash_completion
 graft config
 graft doc
 graft packages

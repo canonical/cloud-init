@@ -1,3 +1,16 @@
+cloud-init (18.2-14-g6d48d265-0ubuntu1) bionic; urgency=medium
+
+  * New upstream snapshot.
+    - net: Depend on iproute2's ip instead of net-tools ifconfig or route
+    - DataSourceSmartOS: fix hang when metadata service is down
+      [Mike Gerdts] (LP: #1667735)
+    - DataSourceSmartOS: change default fs on ephemeral disk from ext3 to
+      ext4. [Mike Gerdts] (LP: #1763511)
+    - pycodestyle: Fix invalid escape sequences in string literals.
+    - Implement bash completion script for cloud-init command line
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 18 Apr 2018 15:25:53 -0600
+
 cloud-init (18.2-9-g49b562c9-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.

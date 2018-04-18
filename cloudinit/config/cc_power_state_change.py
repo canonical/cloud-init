@@ -74,7 +74,7 @@ def givecmdline(pid):
         if util.is_FreeBSD():
             (output, _err) = util.subp(['procstat', '-c', str(pid)])
             line = output.splitlines()[1]
-            m = re.search('\d+ (\w|\.|-)+\s+(/\w.+)', line)
+            m = re.search(r'\d+ (\w|\.|-)+\s+(/\w.+)', line)
             return m.group(2)
         else:
             return util.load_file("/proc/%s/cmdline" % pid)

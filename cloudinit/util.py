@@ -1446,7 +1446,7 @@ def get_config_logfiles(cfg):
     for fmt in get_output_cfg(cfg, None):
         if not fmt:
             continue
-        match = re.match('(?P<type>\||>+)\s*(?P<target>.*)', fmt)
+        match = re.match(r'(?P<type>\||>+)\s*(?P<target>.*)', fmt)
         if not match:
             continue
         target = match.group('target')
@@ -2275,8 +2275,8 @@ def parse_mount(path):
     # the regex is a bit complex. to better understand this regex see:
     # https://regex101.com/r/2F6c1k/1
     # https://regex101.com/r/T2en7a/1
-    regex = r'^(/dev/[\S]+|.*zroot\S*?) on (/[\S]*) ' + \
-            '(?=(?:type)[\s]+([\S]+)|\(([^,]*))'
+    regex = (r'^(/dev/[\S]+|.*zroot\S*?) on (/[\S]*) '
+             r'(?=(?:type)[\s]+([\S]+)|\(([^,]*))')
     for line in mount_locs:
         m = re.search(regex, line)
         if not m:
