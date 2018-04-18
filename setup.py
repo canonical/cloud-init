@@ -228,6 +228,7 @@ if not in_virtualenv():
         INITSYS_ROOTS[k] = "/" + INITSYS_ROOTS[k]
 
 data_files = [
+    (ETC + '/bash_completion.d', ['bash_completion/cloud-init']),
     (ETC + '/cloud', [render_tmpl("config/cloud.cfg.tmpl")]),
     (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
     (ETC + '/cloud/templates', glob('templates/*')),
