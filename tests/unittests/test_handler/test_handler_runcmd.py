@@ -1,10 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_runcmd
+from cloudinit.config import cc_runcmd, schema
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
 from cloudinit.tests.helpers import (
-    FilesystemMockingTestCase, skipUnlessJsonSchema)
+    CiTestCase, FilesystemMockingTestCase, skipUnlessJsonSchema)
 
 import logging
 import os
@@ -98,5 +98,26 @@ class TestRuncmd(FilesystemMockingTestCase):
         file_stat = os.stat(runcmd_file)
         self.assertEqual(0o700, stat.S_IMODE(file_stat.st_mode))
 
+
+class TestSchema(CiTestCase):
+    """Directly test schema rather than through handle."""
+
+    def test_duplicates_are_fine_array(self):
+        """Duplicated array entries are allowed."""
+        try:
+            byebye = ["echo", "bye"]
+            schema.validate_cloudconfig_schema(
+                {'runcmd': [byebye, byebye]}, cc_runcmd.schema, strict=True)
+        except schema.SchemaValidationError as e:
+            self.fail("runcmd entries as list are allowed to be duplicates.")
+
+    def test_duplicates_are_fine_string(self):
+        """Duplicated string entries are allowed."""
+        try:
+            byebye = "echo bye"
+            schema.validate_cloudconfig_schema(
+                {'runcmd': [byebye, byebye]}, cc_runcmd.schema, strict=True)
+        except schema.SchemaValidationError as e:
+            self.fail("runcmd entries are allowed to be duplicates.")
 
 # vi: ts=4 expandtab

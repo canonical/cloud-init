@@ -340,6 +340,42 @@ class TestSchema(CiTestCase):
             {'snap': {'assertions': {'01': 'also valid'}}}, schema)
         self.assertEqual('', self.logs.getvalue())
 
+    def test_duplicates_are_fine_array_array(self):
+        """Duplicated commands array/array entries are allowed."""
+        byebye = ["echo", "bye"]
+        try:
+            cfg = {'snap': {'commands': [byebye, byebye]}}
+            validate_cloudconfig_schema(cfg, schema, strict=True)
+        except schema.SchemaValidationError as e:
+            self.fail("command entries can be duplicate.")
+
+    def test_duplicates_are_fine_array_string(self):
+        """Duplicated commands array/string entries are allowed."""
+        byebye = "echo bye"
+        try:
+            cfg = {'snap': {'commands': [byebye, byebye]}}
+            validate_cloudconfig_schema(cfg, schema, strict=True)
+        except schema.SchemaValidationError as e:
+            self.fail("command entries can be duplicate.")
+
+    def test_duplicates_are_fine_dict_array(self):
+        """Duplicated commands dict/array entries are allowed."""
+        byebye = ["echo", "bye"]
+        try:
+            cfg = {'snap': {'commands': {'00': byebye, '01': byebye}}}
+            validate_cloudconfig_schema(cfg, schema, strict=True)
+        except schema.SchemaValidationError as e:
+            self.fail("command entries can be duplicate.")
+
+    def test_duplicates_are_fine_dict_string(self):
+        """Duplicated commands dict/string entries are allowed."""
+        byebye = "echo bye"
+        try:
+            cfg = {'snap': {'commands': {'00': byebye, '01': byebye}}}
+            validate_cloudconfig_schema(cfg, schema, strict=True)
+        except schema.SchemaValidationError as e:
+            self.fail("command entries can be duplicate.")
+
 
 class TestHandle(CiTestCase):
 

@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_bootcmd
+from cloudinit.config import cc_bootcmd, schema
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
 from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
@@ -136,6 +136,28 @@ class TestBootcmd(CiTestCase):
         self.assertIn(
             'Failed to run bootcmd module does-not-matter',
             self.logs.getvalue())
+
+
+class TestSchema(CiTestCase):
+    """Directly test schema rather than through handle."""
+
+    def test_duplicates_are_fine_array_array(self):
+        """Duplicated array entries are allowed."""
+        try:
+            byebye = ["echo", "bye"]
+            schema.validate_cloudconfig_schema(
+                {'bootcmd': [byebye, byebye]}, cc_bootcmd.schema, strict=True)
+        except schema.SchemaValidationError as e:
+            self.fail("runcmd entries as list are allowed to be duplicates.")
+
+    def test_duplicates_are_fine_array_string(self):
+        """Duplicated array entries entries are allowed in values of array."""
+        try:
+            byebye = "echo bye"
+            schema.validate_cloudconfig_schema(
+                {'bootcmd': [byebye, byebye]}, cc_bootcmd.schema, strict=True)
+        except schema.SchemaValidationError as e:
+            self.fail("runcmd entries are allowed to be duplicates.")
 
 
 # vi: ts=4 expandtab

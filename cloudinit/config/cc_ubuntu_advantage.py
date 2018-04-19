@@ -87,7 +87,6 @@ schema = {
                     'additionalItems': False,  # Reject non-string & non-list
                     'minItems': 1,
                     'minProperties': 1,
-                    'uniqueItems': True
                 }
             },
             'additionalProperties': False,  # Reject keys not in schema

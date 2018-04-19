@@ -110,7 +110,6 @@ schema = {
                     'additionalItems': False,  # Reject non-string & non-list
                     'minItems': 1,
                     'minProperties': 1,
-                    'uniqueItems': True
                 },
                 'squashfuse_in_container': {
                     'type': 'boolean'
