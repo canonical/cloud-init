@@ -295,7 +295,7 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
 
     def _version_2(netcfg):
         renames = []
-        for key, ent in netcfg.get('ethernets', {}).items():
+        for ent in netcfg.get('ethernets', {}).values():
             # only rename if configured to do so
             name = ent.get('set-name')
             if not name:

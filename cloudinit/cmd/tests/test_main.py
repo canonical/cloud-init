@@ -56,7 +56,7 @@ class TestMain(FilesystemMockingTestCase):
         cmdargs = myargs(
             debug=False, files=None, force=False, local=False, reporter=None,
             subcommand='init')
-        (item1, item2) = wrap_and_call(
+        (_item1, item2) = wrap_and_call(
             'cloudinit.cmd.main',
             {'util.close_stdin': True,
              'netinfo.debug_info': 'my net debug info',
@@ -85,7 +85,7 @@ class TestMain(FilesystemMockingTestCase):
         cmdargs = myargs(
             debug=False, files=None, force=False, local=False, reporter=None,
             subcommand='init')
-        (item1, item2) = wrap_and_call(
+        (_item1, item2) = wrap_and_call(
             'cloudinit.cmd.main',
             {'util.close_stdin': True,
              'netinfo.debug_info': 'my net debug info',
@@ -133,7 +133,7 @@ class TestMain(FilesystemMockingTestCase):
             self.assertEqual(main.LOG, log)
             self.assertIsNone(args)
 
-        (item1, item2) = wrap_and_call(
+        (_item1, item2) = wrap_and_call(
             'cloudinit.cmd.main',
             {'util.close_stdin': True,
              'netinfo.debug_info': 'my net debug info',

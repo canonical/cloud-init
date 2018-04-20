@@ -334,7 +334,7 @@ def dir2dict(startdir, prefix=None):
     flist = {}
     if prefix is None:
         prefix = startdir
-    for root, dirs, files in os.walk(startdir):
+    for root, _dirs, files in os.walk(startdir):
         for fname in files:
             fpath = os.path.join(root, fname)
             key = fpath[len(prefix):]

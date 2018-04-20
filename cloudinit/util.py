@@ -2214,7 +2214,7 @@ def parse_mtab(path):
 def find_freebsd_part(label_part):
     if label_part.startswith("/dev/label/"):
         target_label = label_part[5:]
-        (label_part, err) = subp(['glabel', 'status', '-s'])
+        (label_part, _err) = subp(['glabel', 'status', '-s'])
         for labels in label_part.split("\n"):
             items = labels.split()
             if len(items) > 0 and items[0].startswith(target_label):

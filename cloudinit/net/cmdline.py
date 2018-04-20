@@ -65,7 +65,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         iface['mac_address'] = mac_addrs[name]
 
     # Handle both IPv4 and IPv6 values
-    for v, pre in (('ipv4', 'IPV4'), ('ipv6', 'IPV6')):
+    for pre in ('IPV4', 'IPV6'):
         # if no IPV4ADDR or IPV6ADDR, then go on.
         if pre + "ADDR" not in data:
             continue

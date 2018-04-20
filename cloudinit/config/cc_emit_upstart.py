@@ -43,7 +43,7 @@ def is_upstart_system():
         del myenv['UPSTART_SESSION']
     check_cmd = ['initctl', 'version']
     try:
-        (out, err) = util.subp(check_cmd, env=myenv)
+        (out, _err) = util.subp(check_cmd, env=myenv)
         return 'upstart' in out
     except util.ProcessExecutionError as e:
         LOG.debug("'%s' returned '%s', not using upstart",

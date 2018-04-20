@@ -364,7 +364,7 @@ class Renderer(renderer.Renderer):
 
     @classmethod
     def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
-        for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
+        for _, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             for route in subnet.get('routes', []):
                 is_ipv6 = subnet.get('ipv6') or is_ipv6_addr(route['gateway'])
 

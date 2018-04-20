@@ -774,11 +774,11 @@ class TestSubp(helpers.CiTestCase):
 
     def test_subp_reads_env(self):
         with mock.patch.dict("os.environ", values={'FOO': 'BAR'}):
-            out, err = util.subp(self.printenv + ['FOO'], capture=True)
+            out, _err = util.subp(self.printenv + ['FOO'], capture=True)
         self.assertEqual('FOO=BAR', out.splitlines()[0])
 
     def test_subp_env_and_update_env(self):
-        out, err = util.subp(
+        out, _err = util.subp(
             self.printenv + ['FOO', 'HOME', 'K1', 'K2'], capture=True,
             env={'FOO': 'BAR'},
             update_env={'HOME': '/myhome', 'K2': 'V2'})
@@ -788,7 +788,7 @@ class TestSubp(helpers.CiTestCase):
     def test_subp_update_env(self):
         extra = {'FOO': 'BAR', 'HOME': '/root', 'K1': 'V1'}
         with mock.patch.dict("os.environ", values=extra):
-            out, err = util.subp(
+            out, _err = util.subp(
                 self.printenv + ['FOO', 'HOME', 'K1', 'K2'], capture=True,
                 update_env={'HOME': '/myhome', 'K2': 'V2'})
 

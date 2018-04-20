@@ -203,12 +203,12 @@ def maybe_install_squashfuse(cloud):
         return
     try:
         cloud.distro.update_package_sources()
-    except Exception as e:
+    except Exception:
         util.logexc(LOG, "Package update failed")
         raise
     try:
         cloud.distro.install_packages(['squashfuse'])
-    except Exception as e:
+    except Exception:
         util.logexc(LOG, "Failed to install squashfuse")
         raise
 

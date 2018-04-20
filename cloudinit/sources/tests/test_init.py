@@ -278,7 +278,7 @@ class TestDataSource(CiTestCase):
         base_args = get_args(DataSource.get_hostname)  # pylint: disable=W1505
         # Import all DataSource subclasses so we can inspect them.
         modules = util.find_modules(os.path.dirname(os.path.dirname(__file__)))
-        for loc, name in modules.items():
+        for _loc, name in modules.items():
             mod_locs, _ = importer.find_module(name, ['cloudinit.sources'], [])
             if mod_locs:
                 importer.import_module(mod_locs[0])

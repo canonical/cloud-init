@@ -135,7 +135,7 @@ class TestGetHostnameFqdn(CiTestCase):
     def test_get_hostname_fqdn_from_passes_metadata_only_to_cloud(self):
         """Calls to cloud.get_hostname pass the metadata_only parameter."""
         mycloud = FakeCloud('cloudhost', 'cloudhost.mycloud.com')
-        hostname, fqdn = util.get_hostname_fqdn(
+        _hn, _fqdn = util.get_hostname_fqdn(
             cfg={}, cloud=mycloud, metadata_only=True)
         self.assertEqual(
             [{'fqdn': True, 'metadata_only': True},

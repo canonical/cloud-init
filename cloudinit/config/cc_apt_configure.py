@@ -378,7 +378,7 @@ def apply_debconf_selections(cfg, target=None):
 
     # get a complete list of packages listed in input
     pkgs_cfgd = set()
-    for key, content in selsets.items():
+    for _key, content in selsets.items():
         for line in content.splitlines():
             if line.startswith("#"):
                 continue

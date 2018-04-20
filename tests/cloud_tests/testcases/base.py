@@ -159,7 +159,7 @@ class CloudTestCase(unittest.TestCase):
         expected_net_keys = [
             'public-ipv4s', 'ipv4-associations', 'local-hostname',
             'public-hostname']
-        for mac, mac_data in macs.items():
+        for mac_data in macs.values():
             for key in expected_net_keys:
                 self.assertIn(key, mac_data)
         self.assertIsNotNone(

@@ -25,7 +25,7 @@ class Distro(debian.Distro):
     def preferred_ntp_clients(self):
         """The preferred ntp client is dependent on the version."""
         if not self._preferred_ntp_clients:
-            (name, version, codename) = util.system_info()['dist']
+            (_name, _version, codename) = util.system_info()['dist']
             # Xenial cloud-init only installed ntp, UbuntuCore has timesyncd.
             if codename == "xenial" and not util.system_is_snappy():
                 self._preferred_ntp_clients = ['ntp']

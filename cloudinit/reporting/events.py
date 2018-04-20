@@ -192,7 +192,7 @@ class ReportEventStack(object):
 
     def _childrens_finish_info(self):
         for cand_result in (status.FAIL, status.WARN):
-            for name, (value, msg) in self.children.items():
+            for _name, (value, _msg) in self.children.items():
                 if value == cand_result:
                     return (value, self.message)
         return (self.result, self.message)

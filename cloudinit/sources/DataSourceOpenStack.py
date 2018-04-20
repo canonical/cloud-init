@@ -86,7 +86,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             md_urls.append(md_url)
             url2base[md_url] = url
 
-        (max_wait, timeout, retries) = self._get_url_settings()
+        (max_wait, timeout, _retries) = self._get_url_settings()
         start_time = time.time()
         avail_url = url_helper.wait_for_url(urls=md_urls, max_wait=max_wait,
                                             timeout=timeout)
@@ -106,7 +106,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         except IOError:
             return False
 
-        (max_wait, timeout, retries) = self._get_url_settings()
+        (_max_wait, timeout, retries) = self._get_url_settings()
 
         try:
             results = util.log_time(LOG.debug,
