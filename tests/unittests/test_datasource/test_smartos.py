@@ -437,6 +437,34 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
         self.assertEqual(MOCK_RETURNS['hostname'],
                          dsrc.metadata['local-hostname'])
 
+    def test_hostname_if_no_sdc_hostname(self):
+        my_returns = MOCK_RETURNS.copy()
+        my_returns['sdc:hostname'] = 'sdc-' + my_returns['hostname']
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(my_returns['hostname'],
+                         dsrc.metadata['local-hostname'])
+
+    def test_sdc_hostname_if_no_hostname(self):
+        my_returns = MOCK_RETURNS.copy()
+        my_returns['sdc:hostname'] = 'sdc-' + my_returns['hostname']
+        del my_returns['hostname']
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(my_returns['sdc:hostname'],
+                         dsrc.metadata['local-hostname'])
+
+    def test_sdc_uuid_if_no_hostname_or_sdc_hostname(self):
+        my_returns = MOCK_RETURNS.copy()
+        del my_returns['hostname']
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(my_returns['sdc:uuid'],
+                         dsrc.metadata['local-hostname'])
+
     def test_userdata(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()

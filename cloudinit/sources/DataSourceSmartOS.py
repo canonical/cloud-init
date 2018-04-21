@@ -11,7 +11,7 @@
 #    SmartOS hosts use a serial console (/dev/ttyS1) on KVM Linux Guests
 #        The meta-data is transmitted via key/value pairs made by
 #        requests on the console. For example, to get the hostname, you
-#        would send "GET hostname" on /dev/ttyS1.
+#        would send "GET sdc:hostname" on /dev/ttyS1.
 #        For Linux Guests running in LX-Brand Zones on SmartOS hosts
 #        a socket (/native/.zonecontrol/metadata.sock) is used instead
 #        of a serial console.
@@ -273,8 +273,14 @@ class DataSourceSmartOS(sources.DataSource):
         write_boot_content(u_data, u_data_f)
 
         # Handle the cloud-init regular meta
+
+        # The hostname may or may not be qualified with the local domain name.
+        # This follows section 3.14 of RFC 2132.
         if not md['local-hostname']:
-            md['local-hostname'] = md['instance-id']
+            if md['hostname']:
+                md['local-hostname'] = md['hostname']
+            else:
+                md['local-hostname'] = md['instance-id']
 
         ud = None
         if md['user-data']:
