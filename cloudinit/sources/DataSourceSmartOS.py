@@ -455,9 +455,9 @@ class JoyentMetadataClient(object):
 
     def list(self):
         result = self.request(rtype='KEYS')
-        if result:
-            result = result.split('\n')
-        return result
+        if not result:
+            return []
+        return result.split('\n')
 
     def put(self, key, val):
         param = b' '.join([base64.b64encode(i.encode())

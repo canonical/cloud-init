@@ -319,6 +319,12 @@ MOCK_RETURNS = {
 
 DMI_DATA_RETURN = 'smartdc'
 
+# Useful for calculating the length of a frame body.  A SUCCESS body will be
+# followed by more characters or be one character less if SUCCESS with no
+# payload.  See Section 4.3 of https://eng.joyent.com/mdata/protocol.html.
+SUCCESS_LEN = len('0123abcd SUCCESS ')
+NOTFOUND_LEN = len('0123abcd NOTFOUND')
+
 
 class PsuedoJoyentClient(object):
     def __init__(self, data=None):
@@ -651,7 +657,7 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
         self.response_parts = {
             'command': 'SUCCESS',
             'crc': 'b5a9ff00',
-            'length': 17 + len(b64e(self.metadata_value)),
+            'length': SUCCESS_LEN + len(b64e(self.metadata_value)),
             'payload': b64e(self.metadata_value),
             'request_id': '{0:08x}'.format(self.request_id),
         }
@@ -787,7 +793,7 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
     def test_get_metadata_returns_None_if_value_not_found(self):
         self.response_parts['payload'] = ''
         self.response_parts['command'] = 'NOTFOUND'
-        self.response_parts['length'] = 17
+        self.response_parts['length'] = NOTFOUND_LEN
         client = self._get_client()
         client._checksum = lambda _: self.response_parts['crc']
         self.assertIsNone(client.get('some_key'))
@@ -837,6 +843,22 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
         client.fp.read.side_effect = reader.read
         client.open_transport()
         self.assertTrue(reader.emptied)
+
+    def test_list_metadata_returns_list(self):
+        parts = ['foo', 'bar']
+        value = b64e('\n'.join(parts))
+        self.response_parts['payload'] = value
+        self.response_parts['crc'] = '40873553'
+        self.response_parts['length'] = SUCCESS_LEN + len(value)
+        client = self._get_client()
+        self.assertEqual(client.list(), parts)
+
+    def test_list_metadata_returns_empty_list_if_no_customer_metadata(self):
+        del self.response_parts['payload']
+        self.response_parts['length'] = SUCCESS_LEN - 1
+        self.response_parts['crc'] = '14e563ba'
+        client = self._get_client()
+        self.assertEqual(client.list(), [])
 
 
 class TestNetworkConversion(TestCase):
