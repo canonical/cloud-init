@@ -24,6 +24,8 @@ try:
 except ImportError:
     from ConfigParser import ConfigParser
 
+from cloudinit.config.schema import (
+    SchemaValidationError, validate_cloudconfig_schema)
 from cloudinit import helpers as ch
 from cloudinit import util
 
@@ -310,6 +312,23 @@ class HttprettyTestCase(CiTestCase):
         if self.restore_proxy:
             os.environ['http_proxy'] = self.restore_proxy
         super(HttprettyTestCase, self).tearDown()
+
+
+class SchemaTestCaseMixin(unittest2.TestCase):
+
+    def assertSchemaValid(self, cfg, msg="Valid Schema failed validation."):
+        """Assert the config is valid per self.schema.
+
+        If there is only one top level key in the schema properties, then
+        the cfg will be put under that key."""
+        props = list(self.schema.get('properties'))
+        # put cfg under top level key if there is only one in the schema
+        if len(props) == 1:
+            cfg = {props[0]: cfg}
+        try:
+            validate_cloudconfig_schema(cfg, self.schema, strict=True)
+        except SchemaValidationError:
+            self.fail(msg)
 
 
 def populate_dir(path, files):

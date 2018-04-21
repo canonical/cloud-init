@@ -9,7 +9,7 @@ from cloudinit.config.cc_snap import (
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import util
 from cloudinit.tests.helpers import (
-    CiTestCase, mock, wrap_and_call, skipUnlessJsonSchema)
+    CiTestCase, SchemaTestCaseMixin, mock, wrap_and_call, skipUnlessJsonSchema)
 
 
 SYSTEM_USER_ASSERTION = """\
@@ -245,9 +245,10 @@ class TestRunCommands(CiTestCase):
 
 
 @skipUnlessJsonSchema()
-class TestSchema(CiTestCase):
+class TestSchema(CiTestCase, SchemaTestCaseMixin):
 
     with_logs = True
+    schema = schema
 
     def test_schema_warns_on_snap_not_as_dict(self):
         """If the snap configuration is not a dict, emit a warning."""
@@ -342,39 +343,27 @@ class TestSchema(CiTestCase):
 
     def test_duplicates_are_fine_array_array(self):
         """Duplicated commands array/array entries are allowed."""
-        byebye = ["echo", "bye"]
-        try:
-            cfg = {'snap': {'commands': [byebye, byebye]}}
-            validate_cloudconfig_schema(cfg, schema, strict=True)
-        except schema.SchemaValidationError as e:
-            self.fail("command entries can be duplicate.")
+        self.assertSchemaValid(
+            {'commands': [["echo", "bye"], ["echo" "bye"]]},
+            "command entries can be duplicate.")
 
     def test_duplicates_are_fine_array_string(self):
         """Duplicated commands array/string entries are allowed."""
-        byebye = "echo bye"
-        try:
-            cfg = {'snap': {'commands': [byebye, byebye]}}
-            validate_cloudconfig_schema(cfg, schema, strict=True)
-        except schema.SchemaValidationError as e:
-            self.fail("command entries can be duplicate.")
+        self.assertSchemaValid(
+            {'commands': ["echo bye", "echo bye"]},
+            "command entries can be duplicate.")
 
     def test_duplicates_are_fine_dict_array(self):
         """Duplicated commands dict/array entries are allowed."""
-        byebye = ["echo", "bye"]
-        try:
-            cfg = {'snap': {'commands': {'00': byebye, '01': byebye}}}
-            validate_cloudconfig_schema(cfg, schema, strict=True)
-        except schema.SchemaValidationError as e:
-            self.fail("command entries can be duplicate.")
+        self.assertSchemaValid(
+            {'commands': {'00': ["echo", "bye"], '01': ["echo", "bye"]}},
+            "command entries can be duplicate.")
 
     def test_duplicates_are_fine_dict_string(self):
         """Duplicated commands dict/string entries are allowed."""
-        byebye = "echo bye"
-        try:
-            cfg = {'snap': {'commands': {'00': byebye, '01': byebye}}}
-            validate_cloudconfig_schema(cfg, schema, strict=True)
-        except schema.SchemaValidationError as e:
-            self.fail("command entries can be duplicate.")
+        self.assertSchemaValid(
+            {'commands': {'00': "echo bye", '01': "echo bye"}},
+            "command entries can be duplicate.")
 
 
 class TestHandle(CiTestCase):
