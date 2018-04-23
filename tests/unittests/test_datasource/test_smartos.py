@@ -16,23 +16,27 @@ from __future__ import print_function
 
 from binascii import crc32
 import json
+import multiprocessing
 import os
 import os.path
 import re
 import shutil
+import signal
 import stat
 import tempfile
+import unittest2
 import uuid
 
 from cloudinit import serial
 from cloudinit.sources import DataSourceSmartOS
 from cloudinit.sources.DataSourceSmartOS import (
-    convert_smartos_network_data as convert_net)
+    convert_smartos_network_data as convert_net,
+    SMARTOS_ENV_KVM, SERIAL_DEVICE, get_smartos_environ)
 
 import six
 
 from cloudinit import helpers as c_helpers
-from cloudinit.util import b64e
+from cloudinit.util import (b64e, subp)
 
 from cloudinit.tests.helpers import mock, FilesystemMockingTestCase, TestCase
 
@@ -1022,5 +1026,64 @@ class TestNetworkConversion(TestCase):
                               'type': 'static'}]}]}
         found = convert_net(SDC_NICS_SINGLE_GATEWAY)
         self.assertEqual(expected, found)
+
+
+@unittest2.skipUnless(get_smartos_environ() == SMARTOS_ENV_KVM,
+                      "Only supported on KVM and bhyve guests under SmartOS")
+@unittest2.skipUnless(os.access(SERIAL_DEVICE, os.W_OK),
+                      "Requires write access to " + SERIAL_DEVICE)
+class TestSerialConcurrency(TestCase):
+    """
+       This class tests locking on an actual serial port, and as such can only
+       be run in a kvm or bhyve guest running on a SmartOS host.  A test run on
+       a metadata socket will not be valid because a metadata socket ensures
+       there is only one session over a connection.  In contrast, in the
+       absence of proper locking multiple processes opening the same serial
+       port can corrupt each others' exchanges with the metadata server.
+    """
+    def setUp(self):
+        self.mdata_proc = multiprocessing.Process(target=self.start_mdata_loop)
+        self.mdata_proc.start()
+        super(TestSerialConcurrency, self).setUp()
+
+    def tearDown(self):
+        # os.kill() rather than mdata_proc.terminate() to avoid console spam.
+        os.kill(self.mdata_proc.pid, signal.SIGKILL)
+        self.mdata_proc.join()
+        super(TestSerialConcurrency, self).tearDown()
+
+    def start_mdata_loop(self):
+        """
+           The mdata-get command is repeatedly run in a separate process so
+           that it may try to race with metadata operations performed in the
+           main test process.  Use of mdata-get is better than two processes
+           using the protocol implementation in DataSourceSmartOS because we
+           are testing to be sure that cloud-init and mdata-get respect each
+           others locks.
+        """
+        rcs = list(range(0, 256))
+        while True:
+            subp(['mdata-get', 'sdc:routes'], rcs=rcs)
+
+    def test_all_keys(self):
+        self.assertIsNotNone(self.mdata_proc.pid)
+        ds = DataSourceSmartOS
+        keys = [tup[0] for tup in ds.SMARTOS_ATTRIB_MAP.values()]
+        keys.extend(ds.SMARTOS_ATTRIB_JSON.values())
+
+        client = ds.jmc_client_factory()
+        self.assertIsNotNone(client)
+
+        # The behavior that we are testing for was observed mdata-get running
+        # 10 times at roughly the same time as cloud-init fetched each key
+        # once.  cloud-init would regularly see failures before making it
+        # through all keys once.
+        for _ in range(0, 3):
+            for key in keys:
+                # We don't care about the return value, just that it doesn't
+                # thrown any exceptions.
+                client.get(key)
+
+        self.assertIsNone(self.mdata_proc.exitcode)
 
 # vi: ts=4 expandtab

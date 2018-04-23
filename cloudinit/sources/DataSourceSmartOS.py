@@ -23,6 +23,7 @@
 import base64
 import binascii
 import errno
+import fcntl
 import json
 import os
 import random
@@ -526,6 +527,7 @@ class JoyentMetadataSerialClient(JoyentMetadataClient):
             if not ser.isOpen():
                 raise SystemError("Unable to open %s" % self.device)
             self.fp = ser
+            fcntl.lockf(ser, fcntl.LOCK_EX)
         self._flush()
         self._negotiate()
 
