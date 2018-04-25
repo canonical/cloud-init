@@ -35,6 +35,7 @@ Package: cloud-init
 Architecture: all
 Depends: cloud-guest-utils | cloud-utils,
          isc-dhcp-client,
+         iproute2,
          nplan | ifupdown,
          procps,
          python3,
