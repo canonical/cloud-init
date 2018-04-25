@@ -30,11 +30,73 @@ There are 2 different api exposed launch methods.
    mean that 1 in 8^16 (~4 billion) Xen ConfigDrive systems will be
    incorrectly identified as IBMCloud.
 
+The combination of these 2 launch methods and with or without user-data
+creates 6 boot scenarios.
+ A. os_code with user-data
+ B. os_code without user-data
+    Cloud-init is fully operational in this mode.
+
+    There is a block device attached with label 'config-2'.
+    As it differs from OpenStack's config-2, we have to differentiate.
+    We do so by requiring the UUID on the filesystem to be "9796-932E".
+
+    This disk will have the following files. Specifically note, there
+    is no versioned path to the meta-data, only 'latest':
+      openstack/latest/meta_data.json
+      openstack/latest/network_data.json
+      openstack/latest/user_data [optional]
+      openstack/latest/vendor_data.json
+
+    vendor_data.json as of 2018-04 looks like this:
+      {"cloud-init":"#!/bin/bash\necho 'root:$6$<snip>' | chpasswd -e"}
+
+    The only difference between A and B in this mode is the presence
+    of user_data on the config disk.
+
+ C. template, provisioning boot with user-data
+ D. template, provisioning boot without user-data.
+    With ds-identify cloud-init is fully disabled in this mode.
+    Without ds-identify, cloud-init None datasource will be used.
+
+    This is currently identified by the presence of
+    /root/provisioningConfiguration.cfg . That file is placed into the
+    system before it is booted.
+
+    The difference between C and D is the presence of the METADATA disk
+    as described in E below.  There is no METADATA disk attached unless
+    user-data is provided.
+
+ E. template, post-provisioning boot with user-data.
+    Cloud-init is fully operational in this mode.
+
+    This is identified by a block device with filesystem label "METADATA".
+    The looks similar to a version-1 OpenStack config drive.  It will
+    have the following files:
+
+       openstack/latest/user_data
+       openstack/latest/meta_data.json
+       openstack/content/interfaces
+       meta.js
+
+    meta.js contains something similar to user_data.  cloud-init ignores it.
+    cloud-init ignores the 'interfaces' style file here.
+    In this mode, cloud-init has networking code disabled.  It relies
+    on the provisioning boot to have configured networking.
+
+ F. template, post-provisioning boot without user-data.
+    With ds-identify, cloud-init will be fully disabled.
+    Without ds-identify, cloud-init None datasource will be used.
+
+    There is no information available to identify this scenario.
+
+    The user will be able to ssh in as as root with their public keys that
+    have been installed into /root/ssh/.authorized_keys
+    during the provisioning stage.
+
 TODO:
  * is uuid (/sys/hypervisor/uuid) stable for life of an instance?
    it seems it is not the same as data's uuid in the os_code case
    but is in the template case.
-
 """
 import base64
 import json
