@@ -287,7 +287,6 @@ class Renderer(renderer.Renderer):
             if subnet_type == 'dhcp6':
                 iface_cfg['IPV6INIT'] = True
                 iface_cfg['DHCPV6C'] = True
-                iface_cfg['BOOTPROTO'] = 'dhcp'
             elif subnet_type in ['dhcp4', 'dhcp']:
                 iface_cfg['BOOTPROTO'] = 'dhcp'
             elif subnet_type == 'static':

@@ -553,6 +553,43 @@ NETWORK_CONFIGS = {
                 """),
         },
     },
+    'dhcpv6_only': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    iface0:
+                        dhcp6: true
+        """).rstrip(' '),
+        'yaml': textwrap.dedent("""\
+            version: 1
+            config:
+              - type: 'physical'
+                name: 'iface0'
+                subnets:
+                - {'type': 'dhcp6'}
+        """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=iface0
+                DHCPV6C=yes
+                IPV6INIT=yes
+                DEVICE=iface0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+        },
+    },
     'all': {
         'expected_eni': ("""\
 auto lo
@@ -740,7 +777,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                                            """miimon=100"
                 BONDING_SLAVE0=eth1
                 BONDING_SLAVE1=eth2
-                BOOTPROTO=dhcp
+                BOOTPROTO=none
                 DEVICE=bond0
                 DHCPV6C=yes
                 IPV6INIT=yes
@@ -1829,6 +1866,12 @@ USERCTL=no
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
 
+    def test_dhcpv6_only_config(self):
+        entry = NETWORK_CONFIGS['dhcpv6_only']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
+
 
 class TestEniNetRendering(CiTestCase):
 
@@ -2277,6 +2320,13 @@ class TestNetplanRoundTrip(CiTestCase):
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
+    def testsimple_render_dhcpv6_only(self):
+        entry = NETWORK_CONFIGS['dhcpv6_only']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS['all']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
@@ -2340,6 +2390,13 @@ class TestEniRoundTrip(CiTestCase):
 
     def testsimple_render_v4_and_v6(self):
         entry = NETWORK_CONFIGS['v4_and_v6']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_dhcpv6_only(self):
+        entry = NETWORK_CONFIGS['dhcpv6_only']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),
