@@ -2727,4 +2727,19 @@ def mount_is_read_write(mount_point):
     mount_opts = result[-1].split(',')
     return mount_opts[0] == 'rw'
 
+
+def udevadm_settle(exists=None, timeout=None):
+    """Invoke udevadm settle with optional exists and timeout parameters"""
+    settle_cmd = ["udevadm", "settle"]
+    if exists:
+        # skip the settle if the requested path already exists
+        if os.path.exists(exists):
+            return
+        settle_cmd.extend(['--exit-if-exists=%s' % exists])
+    if timeout:
+        settle_cmd.extend(['--timeout=%s' % timeout])
+
+    return subp(settle_cmd)
+
+
 # vi: ts=4 expandtab

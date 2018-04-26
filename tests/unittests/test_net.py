@@ -1442,6 +1442,7 @@ DEFAULT_DEV_ATTRS = {
         "address": "07-1C-C6-75-A4-BE",
         "device/driver": None,
         "device/device": None,
+        "name_assign_type": "4",
     }
 }
 
@@ -1489,11 +1490,14 @@ class TestGenerateFallbackConfig(CiTestCase):
             'eth0': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'hv_netsvc', 'device/device': '0x3'},
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': '4'},
             'eth1': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'mlx4_core', 'device/device': '0x7'},
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
         }
 
         tmp_dir = self.tmp_dir()
@@ -1549,11 +1553,13 @@ iface eth0 inet dhcp
             'eth1': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'hv_netsvc', 'device/device': '0x3'},
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': '4'},
             'eth0': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'mlx4_core', 'device/device': '0x7'},
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
         }
 
         tmp_dir = self.tmp_dir()
@@ -1601,6 +1607,65 @@ iface eth1 inet dhcp
             'NAME="eth1"',
         ]
         self.assertEqual(", ".join(expected_rule) + '\n', contents.lstrip())
+
+    @mock.patch("cloudinit.util.udevadm_settle")
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_unstable_names(self, mock_get_devicelist, mock_read_sys_net,
+                            mock_sys_dev_path, mock_settle):
+        """verify that udevadm settle is called when we find unstable names"""
+        devices = {
+            'eth0': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': False},
+            'ens4': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
+        }
+
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path,
+                    dev_attrs=devices)
+        net.generate_fallback_config(config_driver=True)
+        self.assertEqual(1, mock_settle.call_count)
+
+    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.util.udevadm_settle")
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_unstable_names_disabled(self, mock_get_devicelist,
+                                     mock_read_sys_net, mock_sys_dev_path,
+                                     mock_settle, m_get_cmdline):
+        """verify udevadm settle not called when cmdline has net.ifnames=0"""
+        devices = {
+            'eth0': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': False},
+            'ens4': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
+        }
+
+        m_get_cmdline.return_value = 'net.ifnames=0'
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path,
+                    dev_attrs=devices)
+        net.generate_fallback_config(config_driver=True)
+        self.assertEqual(0, mock_settle.call_count)
 
 
 class TestSysConfigRendering(CiTestCase):

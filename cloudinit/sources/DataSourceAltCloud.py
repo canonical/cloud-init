@@ -29,7 +29,6 @@ CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
 
 # Shell command lists
 CMD_PROBE_FLOPPY = ['modprobe', 'floppy']
-CMD_UDEVADM_SETTLE = ['udevadm', 'settle', '--timeout=5']
 
 META_DATA_NOT_SUPPORTED = {
     'block-device-mapping': {},
@@ -196,9 +195,7 @@ class DataSourceAltCloud(sources.DataSource):
 
         # udevadm settle for floppy device
         try:
-            cmd = CMD_UDEVADM_SETTLE
-            cmd.append('--exit-if-exists=' + floppy_dev)
-            (cmd_out, _err) = util.subp(cmd)
+            (cmd_out, _err) = util.udevadm_settle(exists=floppy_dev, timeout=5)
             LOG.debug('Command: %s\nOutput%s', ' '.join(cmd), cmd_out)
         except ProcessExecutionError as _err:
             util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
