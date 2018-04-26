@@ -1,3 +1,28 @@
+cloud-init (18.2-27-g6ef92c98-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - IBMCloud: recognize provisioning environment during debug boots.
+      (LP: #1767166)
+    - net: detect unstable network names and trigger a settle if needed
+      (LP: #1766287)
+    - IBMCloud: improve documentation in datasource.
+    - sysconfig: dhcp6 subnet type should not imply dhcpv4 [Vitaly Kuznetsov]
+    - packages/debian/control.in: add missing dependency on iproute2.
+      (LP: #1766711)
+    - DataSourceSmartOS: add locking of serial device.
+      [Mike Gerdts] (LP: #1746605)
+    - DataSourceSmartOS: sdc:hostname is ignored [Mike Gerdts] (LP: #1765085)
+    - DataSourceSmartOS: list() should always return a list
+      [Mike Gerdts] (LP: #1763480)
+    - schema: in validation, raise ImportError if strict but no jsonschema.
+    - set_passwords: Add newline to end of sshd config, only restart if
+      updated. (LP: #1677205)
+    - pylint: pay attention to unused variable warnings.
+    - doc: Add documentation for AliYun datasource. [Junjie Wang]
+    - Schema: do not warn on duplicate items in commands. (LP: #1764264)
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Thu, 26 Apr 2018 16:33:40 -0500
+
 cloud-init (18.2-14-g6d48d265-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
