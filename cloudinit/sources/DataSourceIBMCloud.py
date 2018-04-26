@@ -8,17 +8,11 @@ There are 2 different api exposed launch methods.
  * template: This is the legacy method of launching instances.
    When booting from an image template, the system boots first into
    a "provisioning" mode.  There, host <-> guest mechanisms are utilized
-   to execute code in the guest and provision it.
+   to execute code in the guest and configure it.  The configuration
+   includes configuring the system network and possibly installing
+   packages and other software stack.
 
-   Cloud-init will disable itself when it detects that it is in the
-   provisioning mode.  It detects this by the presence of
-   a file '/root/provisioningConfiguration.cfg'.
-
-   When provided with user-data, the "first boot" will contain a
-   ConfigDrive-like disk labeled with 'METADATA'.  If there is no user-data
-   provided, then there is no data-source.
-
-   Cloud-init never does any network configuration in this mode.
+   After the provisioning is finished, the system reboots.
 
  * os_code: Essentially "launch by OS Code" (Operating System Code).
    This is a more modern approach.  There is no specific "provisioning" boot.
@@ -200,8 +194,30 @@ def _is_xen():
     return os.path.exists("/proc/xen")
 
 
-def _is_ibm_provisioning():
-    return os.path.exists("/root/provisioningConfiguration.cfg")
+def _is_ibm_provisioning(
+        prov_cfg="/root/provisioningConfiguration.cfg",
+        inst_log="/root/swinstall.log",
+        boot_ref="/proc/1/environ"):
+    """Return boolean indicating if this boot is ibm provisioning boot."""
+    if os.path.exists(prov_cfg):
+        msg = "config '%s' exists." % prov_cfg
+        result = True
+        if os.path.exists(inst_log):
+            if os.path.exists(boot_ref):
+                result = (os.stat(inst_log).st_mtime >
+                          os.stat(boot_ref).st_mtime)
+                msg += (" log '%s' from %s boot." %
+                        (inst_log, "current" if result else "previous"))
+            else:
+                msg += (" log '%s' existed, but no reference file '%s'." %
+                        (inst_log, boot_ref))
+                result = False
+        else:
+            msg += " log '%s' did not exist." % inst_log
+    else:
+        result, msg = (False, "config '%s' did not exist." % prov_cfg)
+    LOG.debug("ibm_provisioning=%s: %s", result, msg)
+    return result
 
 
 def get_ibm_platform():
@@ -251,7 +267,7 @@ def get_ibm_platform():
         else:
             return (Platforms.TEMPLATE_LIVE_METADATA, metadata_path)
     elif _is_ibm_provisioning():
-            return (Platforms.TEMPLATE_PROVISIONING_NODATA, None)
+        return (Platforms.TEMPLATE_PROVISIONING_NODATA, None)
     return not_found
 
 

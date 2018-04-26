@@ -125,6 +125,7 @@ DI_ON_NOTFOUND=""
 DI_EC2_STRICT_ID_DEFAULT="true"
 
 _IS_IBM_CLOUD=""
+_IS_IBM_PROVISIONING=""
 
 error() {
     set -- "ERROR:" "$@";
@@ -1006,7 +1007,25 @@ dscheck_Hetzner() {
 }
 
 is_ibm_provisioning() {
-    [ -f "${PATH_ROOT}/root/provisioningConfiguration.cfg" ]
+    local pcfg="${PATH_ROOT}/root/provisioningConfiguration.cfg"
+    local logf="${PATH_ROOT}/root/swinstall.log"
+    local is_prov=false msg="config '$pcfg' did not exist."
+    if [ -f "$pcfg" ]; then
+        msg="config '$pcfg' exists."
+        is_prov=true
+        if [ -f "$logf" ]; then
+            if [ "$logf" -nt "$PATH_PROC_1_ENVIRON" ]; then
+                msg="$msg log '$logf' from current boot."
+            else
+                is_prov=false
+                msg="$msg log '$logf' from previous boot."
+            fi
+        else
+            msg="$msg log '$logf' did not exist."
+        fi
+    fi
+    debug 2 "ibm_provisioning=$is_prov: $msg"
+    [ "$is_prov" = "true" ]
 }
 
 is_ibm_cloud() {

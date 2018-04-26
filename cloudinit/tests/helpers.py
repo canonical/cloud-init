@@ -8,6 +8,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 
 import mock
@@ -263,7 +264,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             os.path: [('isfile', 1), ('exists', 1),
                       ('islink', 1), ('isdir', 1), ('lexists', 1)],
             os: [('listdir', 1), ('mkdir', 1),
-                 ('lstat', 1), ('symlink', 2)]
+                 ('lstat', 1), ('symlink', 2),
+                 ('stat', 1)]
         }
 
         if hasattr(os, 'scandir'):
@@ -347,6 +349,15 @@ def populate_dir(path, files):
         ret.append(p)
 
     return ret
+
+
+def populate_dir_with_ts(path, data):
+    """data is {'file': ('contents', mtime)}.  mtime relative to now."""
+    populate_dir(path, dict((k, v[0]) for k, v in data.items()))
+    btime = time.time()
+    for fpath, (_contents, mtime) in data.items():
+        ts = btime + mtime if mtime else btime
+        os.utime(os.path.sep.join((path, fpath)), (ts, ts))
 
 
 def dir2dict(startdir, prefix=None):
