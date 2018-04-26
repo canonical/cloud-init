@@ -8,6 +8,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 
 import mock
@@ -24,6 +25,8 @@ try:
 except ImportError:
     from ConfigParser import ConfigParser
 
+from cloudinit.config.schema import (
+    SchemaValidationError, validate_cloudconfig_schema)
 from cloudinit import helpers as ch
 from cloudinit import util
 
@@ -261,7 +264,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             os.path: [('isfile', 1), ('exists', 1),
                       ('islink', 1), ('isdir', 1), ('lexists', 1)],
             os: [('listdir', 1), ('mkdir', 1),
-                 ('lstat', 1), ('symlink', 2)]
+                 ('lstat', 1), ('symlink', 2),
+                 ('stat', 1)]
         }
 
         if hasattr(os, 'scandir'):
@@ -312,6 +316,23 @@ class HttprettyTestCase(CiTestCase):
         super(HttprettyTestCase, self).tearDown()
 
 
+class SchemaTestCaseMixin(unittest2.TestCase):
+
+    def assertSchemaValid(self, cfg, msg="Valid Schema failed validation."):
+        """Assert the config is valid per self.schema.
+
+        If there is only one top level key in the schema properties, then
+        the cfg will be put under that key."""
+        props = list(self.schema.get('properties'))
+        # put cfg under top level key if there is only one in the schema
+        if len(props) == 1:
+            cfg = {props[0]: cfg}
+        try:
+            validate_cloudconfig_schema(cfg, self.schema, strict=True)
+        except SchemaValidationError:
+            self.fail(msg)
+
+
 def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
@@ -330,11 +351,20 @@ def populate_dir(path, files):
     return ret
 
 
+def populate_dir_with_ts(path, data):
+    """data is {'file': ('contents', mtime)}.  mtime relative to now."""
+    populate_dir(path, dict((k, v[0]) for k, v in data.items()))
+    btime = time.time()
+    for fpath, (_contents, mtime) in data.items():
+        ts = btime + mtime if mtime else btime
+        os.utime(os.path.sep.join((path, fpath)), (ts, ts))
+
+
 def dir2dict(startdir, prefix=None):
     flist = {}
     if prefix is None:
         prefix = startdir
-    for root, dirs, files in os.walk(startdir):
+    for root, _dirs, files in os.walk(startdir):
         for fname in files:
             fpath = os.path.join(root, fname)
             key = fpath[len(prefix):]

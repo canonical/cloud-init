@@ -25,10 +25,9 @@ def installed_package_version(image, package, ensure_installed=True):
     else:
         raise NotImplementedError
 
-    msg = 'query version for package: {}'.format(package)
-    (out, err, exit) = image.execute(
-        cmd, description=msg, rcs=(0,) if ensure_installed else range(0, 256))
-    return out.strip()
+    return image.execute(
+        cmd, description='query version for package: {}'.format(package),
+        rcs=(0,) if ensure_installed else range(0, 256))[0].strip()
 
 
 def install_deb(args, image):
@@ -54,7 +53,7 @@ def install_deb(args, image):
          remote_path], description=msg)
     # check installed deb version matches package
     fmt = ['-W', "--showformat=${Version}"]
-    (out, err, exit) = image.execute(['dpkg-deb'] + fmt + [remote_path])
+    out = image.execute(['dpkg-deb'] + fmt + [remote_path])[0]
     expected_version = out.strip()
     found_version = installed_package_version(image, 'cloud-init')
     if expected_version != found_version:
@@ -85,7 +84,7 @@ def install_rpm(args, image):
     image.execute(['rpm', '-U', remote_path], description=msg)
 
     fmt = ['--queryformat', '"%{VERSION}"']
-    (out, err, exit) = image.execute(['rpm', '-q'] + fmt + [remote_path])
+    (out, _err, _exit) = image.execute(['rpm', '-q'] + fmt + [remote_path])
     expected_version = out.strip()
     found_version = installed_package_version(image, 'cloud-init')
     if expected_version != found_version:

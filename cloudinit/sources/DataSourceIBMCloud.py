@@ -8,17 +8,11 @@ There are 2 different api exposed launch methods.
  * template: This is the legacy method of launching instances.
    When booting from an image template, the system boots first into
    a "provisioning" mode.  There, host <-> guest mechanisms are utilized
-   to execute code in the guest and provision it.
+   to execute code in the guest and configure it.  The configuration
+   includes configuring the system network and possibly installing
+   packages and other software stack.
 
-   Cloud-init will disable itself when it detects that it is in the
-   provisioning mode.  It detects this by the presence of
-   a file '/root/provisioningConfiguration.cfg'.
-
-   When provided with user-data, the "first boot" will contain a
-   ConfigDrive-like disk labeled with 'METADATA'.  If there is no user-data
-   provided, then there is no data-source.
-
-   Cloud-init never does any network configuration in this mode.
+   After the provisioning is finished, the system reboots.
 
  * os_code: Essentially "launch by OS Code" (Operating System Code).
    This is a more modern approach.  There is no specific "provisioning" boot.
@@ -30,11 +24,73 @@ There are 2 different api exposed launch methods.
    mean that 1 in 8^16 (~4 billion) Xen ConfigDrive systems will be
    incorrectly identified as IBMCloud.
 
+The combination of these 2 launch methods and with or without user-data
+creates 6 boot scenarios.
+ A. os_code with user-data
+ B. os_code without user-data
+    Cloud-init is fully operational in this mode.
+
+    There is a block device attached with label 'config-2'.
+    As it differs from OpenStack's config-2, we have to differentiate.
+    We do so by requiring the UUID on the filesystem to be "9796-932E".
+
+    This disk will have the following files. Specifically note, there
+    is no versioned path to the meta-data, only 'latest':
+      openstack/latest/meta_data.json
+      openstack/latest/network_data.json
+      openstack/latest/user_data [optional]
+      openstack/latest/vendor_data.json
+
+    vendor_data.json as of 2018-04 looks like this:
+      {"cloud-init":"#!/bin/bash\necho 'root:$6$<snip>' | chpasswd -e"}
+
+    The only difference between A and B in this mode is the presence
+    of user_data on the config disk.
+
+ C. template, provisioning boot with user-data
+ D. template, provisioning boot without user-data.
+    With ds-identify cloud-init is fully disabled in this mode.
+    Without ds-identify, cloud-init None datasource will be used.
+
+    This is currently identified by the presence of
+    /root/provisioningConfiguration.cfg . That file is placed into the
+    system before it is booted.
+
+    The difference between C and D is the presence of the METADATA disk
+    as described in E below.  There is no METADATA disk attached unless
+    user-data is provided.
+
+ E. template, post-provisioning boot with user-data.
+    Cloud-init is fully operational in this mode.
+
+    This is identified by a block device with filesystem label "METADATA".
+    The looks similar to a version-1 OpenStack config drive.  It will
+    have the following files:
+
+       openstack/latest/user_data
+       openstack/latest/meta_data.json
+       openstack/content/interfaces
+       meta.js
+
+    meta.js contains something similar to user_data.  cloud-init ignores it.
+    cloud-init ignores the 'interfaces' style file here.
+    In this mode, cloud-init has networking code disabled.  It relies
+    on the provisioning boot to have configured networking.
+
+ F. template, post-provisioning boot without user-data.
+    With ds-identify, cloud-init will be fully disabled.
+    Without ds-identify, cloud-init None datasource will be used.
+
+    There is no information available to identify this scenario.
+
+    The user will be able to ssh in as as root with their public keys that
+    have been installed into /root/ssh/.authorized_keys
+    during the provisioning stage.
+
 TODO:
  * is uuid (/sys/hypervisor/uuid) stable for life of an instance?
    it seems it is not the same as data's uuid in the os_code case
    but is in the template case.
-
 """
 import base64
 import json
@@ -138,8 +194,30 @@ def _is_xen():
     return os.path.exists("/proc/xen")
 
 
-def _is_ibm_provisioning():
-    return os.path.exists("/root/provisioningConfiguration.cfg")
+def _is_ibm_provisioning(
+        prov_cfg="/root/provisioningConfiguration.cfg",
+        inst_log="/root/swinstall.log",
+        boot_ref="/proc/1/environ"):
+    """Return boolean indicating if this boot is ibm provisioning boot."""
+    if os.path.exists(prov_cfg):
+        msg = "config '%s' exists." % prov_cfg
+        result = True
+        if os.path.exists(inst_log):
+            if os.path.exists(boot_ref):
+                result = (os.stat(inst_log).st_mtime >
+                          os.stat(boot_ref).st_mtime)
+                msg += (" log '%s' from %s boot." %
+                        (inst_log, "current" if result else "previous"))
+            else:
+                msg += (" log '%s' existed, but no reference file '%s'." %
+                        (inst_log, boot_ref))
+                result = False
+        else:
+            msg += " log '%s' did not exist." % inst_log
+    else:
+        result, msg = (False, "config '%s' did not exist." % prov_cfg)
+    LOG.debug("ibm_provisioning=%s: %s", result, msg)
+    return result
 
 
 def get_ibm_platform():
@@ -189,7 +267,7 @@ def get_ibm_platform():
         else:
             return (Platforms.TEMPLATE_LIVE_METADATA, metadata_path)
     elif _is_ibm_provisioning():
-            return (Platforms.TEMPLATE_PROVISIONING_NODATA, None)
+        return (Platforms.TEMPLATE_PROVISIONING_NODATA, None)
     return not_found
 
 

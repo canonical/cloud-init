@@ -528,7 +528,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
 
         expected = sorted([npre + suff for opre, npre, suff in files])
         # create files
-        for (opre, npre, suff) in files:
+        for (opre, _npre, suff) in files:
             fpath = os.path.join(apt_lists_d, opre + suff)
             util.write_file(fpath, content=fpath)
 

@@ -80,6 +80,7 @@ Follow for more information.
 .. toctree::
    :maxdepth: 2
 
+   datasources/aliyun.rst
    datasources/altcloud.rst
    datasources/azure.rst
    datasources/cloudsigma.rst

@@ -76,7 +76,7 @@ class TestNtp(FilesystemMockingTestCase):
             template = TIMESYNCD_TEMPLATE
         else:
             template = NTP_TEMPLATE
-        (confpath, template_fn) = self._generate_template(template=template)
+        (confpath, _template_fn) = self._generate_template(template=template)
         ntpconfig = copy.deepcopy(dcfg[client])
         ntpconfig['confpath'] = confpath
         ntpconfig['template_name'] = os.path.basename(confpath)

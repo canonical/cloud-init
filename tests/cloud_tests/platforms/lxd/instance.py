@@ -152,9 +152,8 @@ class LXDInstance(Instance):
                 return fp.read()
 
         try:
-            stdout, stderr = subp(
-                ['lxc', 'console', '--show-log', self.name], decode=False)
-            return stdout
+            return subp(['lxc', 'console', '--show-log', self.name],
+                        decode=False)[0]
         except ProcessExecutionError as e:
             raise PlatformError(
                 "console log",
@@ -214,11 +213,10 @@ def _has_proper_console_support():
             reason = "LXD Driver version not 3.x+ (%s)" % dver
         else:
             try:
-                stdout, stderr = subp(['lxc', 'console', '--help'],
-                                      decode=False)
+                stdout = subp(['lxc', 'console', '--help'], decode=False)[0]
                 if not (b'console' in stdout and b'log' in stdout):
                     reason = "no '--log' in lxc console --help"
-            except ProcessExecutionError as e:
+            except ProcessExecutionError:
                 reason = "no 'console' command in lxc client"
 
     if reason:

@@ -147,7 +147,7 @@ def render_string(content, params):
     Warning: py2 str with non-ascii chars will cause UnicodeDecodeError."""
     if not params:
         params = {}
-    template_type, renderer, content = detect_template(content)
+    _template_type, renderer, content = detect_template(content)
     return renderer(content, params)
 
 # vi: ts=4 expandtab

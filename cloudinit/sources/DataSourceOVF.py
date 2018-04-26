@@ -556,7 +556,7 @@ def search_file(dirpath, filename):
     if not dirpath or not filename:
         return None
 
-    for root, dirs, files in os.walk(dirpath):
+    for root, _dirs, files in os.walk(dirpath):
         if filename in files:
             return os.path.join(root, filename)
 

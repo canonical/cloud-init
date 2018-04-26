@@ -113,7 +113,7 @@ class Distro(distros.Distro):
         n = re.search(r'\d+$', dev)
         index = n.group(0)
 
-        (out, err) = util.subp(['ifconfig', '-a'])
+        (out, _err) = util.subp(['ifconfig', '-a'])
         ifconfigoutput = [x for x in (out.strip()).splitlines()
                           if len(x.split()) > 0]
         bsddev = 'NOT_FOUND'

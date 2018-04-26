@@ -297,8 +297,8 @@ def get_schema():
 
     configs_dir = os.path.dirname(os.path.abspath(__file__))
     potential_handlers = find_modules(configs_dir)
-    for (fname, mod_name) in potential_handlers.items():
-        mod_locs, looked_locs = importer.find_module(
+    for (_fname, mod_name) in potential_handlers.items():
+        mod_locs, _looked_locs = importer.find_module(
             mod_name, ['cloudinit.config'], ['schema'])
         if mod_locs:
             mod = importer.import_module(mod_locs[0])

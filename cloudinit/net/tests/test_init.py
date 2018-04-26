@@ -199,6 +199,7 @@ class TestGenerateFallbackConfig(CiTestCase):
         self.sysdir = self.tmp_dir() + '/'
         self.m_sys_path.return_value = self.sysdir
         self.addCleanup(sys_mock.stop)
+        self.add_patch('cloudinit.net.util.udevadm_settle', 'm_settle')
 
     def test_generate_fallback_finds_connected_eth_with_mac(self):
         """generate_fallback_config finds any connected device with a mac."""

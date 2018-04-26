@@ -63,7 +63,6 @@ schema = {
             'additionalProperties': False,
             'minItems': 1,
             'required': [],
-            'uniqueItems': True
         }
     }
 }

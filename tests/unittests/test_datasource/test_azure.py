@@ -214,7 +214,7 @@ scbus-1 on xpt0 bus 0
                 self.assertIn(tag, x)
 
         def tags_equal(x, y):
-            for x_tag, x_val in x.items():
+            for x_val in x.values():
                 y_val = y.get(x_val.tag)
                 self.assertEqual(x_val.text, y_val.text)
 
@@ -1216,7 +1216,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         fake_resp.return_value = mock.MagicMock(status_code=200, text=content,
                                                 content=content)
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        md, ud, cfg, d = dsa._reprovision()
+        md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md['local-hostname'], hostname)
         self.assertEqual(cfg['system_info']['default_user']['name'], username)
         self.assertEqual(fake_resp.call_args_list,
