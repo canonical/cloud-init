@@ -1,3 +1,10 @@
+cloud-init (18.2-14-g6d48d265-0ubuntu2~18.04.1) UNRELEASED; urgency=medium
+
+  * debian/control: add missing dependency on iproute2. (LP: #1766711)
+  * debian/control: add missing dependency on isc-dhcp-client. (LP: #1766714)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 27 Apr 2018 11:56:54 -0400
+
 cloud-init (18.2-14-g6d48d265-0ubuntu1) bionic; urgency=medium
 
   * New upstream snapshot.
