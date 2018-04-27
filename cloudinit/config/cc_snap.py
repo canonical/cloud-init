@@ -110,7 +110,6 @@ schema = {
                     'additionalItems': False,  # Reject non-string & non-list
                     'minItems': 1,
                     'minProperties': 1,
-                    'uniqueItems': True
                 },
                 'squashfuse_in_container': {
                     'type': 'boolean'
@@ -204,12 +203,12 @@ def maybe_install_squashfuse(cloud):
         return
     try:
         cloud.distro.update_package_sources()
-    except Exception as e:
+    except Exception:
         util.logexc(LOG, "Package update failed")
         raise
     try:
         cloud.distro.install_packages(['squashfuse'])
-    except Exception as e:
+    except Exception:
         util.logexc(LOG, "Failed to install squashfuse")
         raise
 

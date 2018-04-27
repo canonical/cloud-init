@@ -358,7 +358,7 @@ class TargetBase(object):
         # when sh is invoked with '-c', then the first argument is "$0"
         # which is commonly understood as the "program name".
         # 'read_data' is the program name, and 'remote_path' is '$1'
-        stdout, stderr, rc = self._execute(
+        stdout, _stderr, rc = self._execute(
             ["sh", "-c", 'exec cat "$1"', 'read_data', remote_path])
         if rc != 0:
             raise RuntimeError("Failed to read file '%s'" % remote_path)

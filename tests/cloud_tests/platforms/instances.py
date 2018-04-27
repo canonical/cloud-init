@@ -108,7 +108,7 @@ class Instance(TargetBase):
                 return client
             except (ConnectionRefusedError, AuthenticationException,
                     BadHostKeyException, ConnectionResetError, SSHException,
-                    OSError) as e:
+                    OSError):
                 retries -= 1
                 time.sleep(10)
 

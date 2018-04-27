@@ -204,7 +204,7 @@ def read_maas_seed_url(seed_url, read_file_or_url=None, timeout=None,
         seed_url = seed_url[:-1]
 
     md = {}
-    for path, dictname, binary, optional in DS_FIELDS:
+    for path, _dictname, binary, optional in DS_FIELDS:
         if version is None:
             url = "%s/%s" % (seed_url, path)
         else:

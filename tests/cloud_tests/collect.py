@@ -25,7 +25,8 @@ def collect_script(instance, base_dir, script, script_name):
         script.encode(), rcs=False,
         description='collect: {}'.format(script_name))
     if err:
-        LOG.debug("collect script %s had stderr: %s", script_name, err)
+        LOG.debug("collect script %s exited '%s' and had stderr: %s",
+                  script_name, err, exit)
     if not isinstance(out, bytes):
         raise util.PlatformError(
             "Collection of '%s' returned type %s, expected bytes: %s" %

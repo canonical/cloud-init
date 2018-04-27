@@ -53,7 +53,7 @@ class TestMAASDataSource(CiTestCase):
         my_d = os.path.join(self.tmp, "valid_extra")
         populate_dir(my_d, data)
 
-        ud, md, vd = DataSourceMAAS.read_maas_seed_dir(my_d)
+        ud, md, _vd = DataSourceMAAS.read_maas_seed_dir(my_d)
 
         self.assertEqual(userdata, ud)
         for key in ('instance-id', 'local-hostname'):
@@ -149,7 +149,7 @@ class TestMAASDataSource(CiTestCase):
             'meta-data/local-hostname': 'test-hostname',
             'meta-data/vendor-data': yaml.safe_dump(expected_vd).encode(),
         }
-        ud, md, vd = self.mock_read_maas_seed_url(
+        _ud, md, vd = self.mock_read_maas_seed_url(
             valid, "http://example.com/foo")
 
         self.assertEqual(valid['meta-data/instance-id'], md['instance-id'])

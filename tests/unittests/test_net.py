@@ -553,6 +553,43 @@ NETWORK_CONFIGS = {
                 """),
         },
     },
+    'dhcpv6_only': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    iface0:
+                        dhcp6: true
+        """).rstrip(' '),
+        'yaml': textwrap.dedent("""\
+            version: 1
+            config:
+              - type: 'physical'
+                name: 'iface0'
+                subnets:
+                - {'type': 'dhcp6'}
+        """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=iface0
+                DHCPV6C=yes
+                IPV6INIT=yes
+                DEVICE=iface0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+        },
+    },
     'all': {
         'expected_eni': ("""\
 auto lo
@@ -740,7 +777,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                                            """miimon=100"
                 BONDING_SLAVE0=eth1
                 BONDING_SLAVE1=eth2
-                BOOTPROTO=dhcp
+                BOOTPROTO=none
                 DEVICE=bond0
                 DHCPV6C=yes
                 IPV6INIT=yes
@@ -1405,6 +1442,7 @@ DEFAULT_DEV_ATTRS = {
         "address": "07-1C-C6-75-A4-BE",
         "device/driver": None,
         "device/device": None,
+        "name_assign_type": "4",
     }
 }
 
@@ -1452,11 +1490,14 @@ class TestGenerateFallbackConfig(CiTestCase):
             'eth0': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'hv_netsvc', 'device/device': '0x3'},
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': '4'},
             'eth1': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'mlx4_core', 'device/device': '0x7'},
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
         }
 
         tmp_dir = self.tmp_dir()
@@ -1512,11 +1553,13 @@ iface eth0 inet dhcp
             'eth1': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'hv_netsvc', 'device/device': '0x3'},
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': '4'},
             'eth0': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'mlx4_core', 'device/device': '0x7'},
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
         }
 
         tmp_dir = self.tmp_dir()
@@ -1564,6 +1607,65 @@ iface eth1 inet dhcp
             'NAME="eth1"',
         ]
         self.assertEqual(", ".join(expected_rule) + '\n', contents.lstrip())
+
+    @mock.patch("cloudinit.util.udevadm_settle")
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_unstable_names(self, mock_get_devicelist, mock_read_sys_net,
+                            mock_sys_dev_path, mock_settle):
+        """verify that udevadm settle is called when we find unstable names"""
+        devices = {
+            'eth0': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': False},
+            'ens4': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
+        }
+
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path,
+                    dev_attrs=devices)
+        net.generate_fallback_config(config_driver=True)
+        self.assertEqual(1, mock_settle.call_count)
+
+    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.util.udevadm_settle")
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_unstable_names_disabled(self, mock_get_devicelist,
+                                     mock_read_sys_net, mock_sys_dev_path,
+                                     mock_settle, m_get_cmdline):
+        """verify udevadm settle not called when cmdline has net.ifnames=0"""
+        devices = {
+            'eth0': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': False},
+            'ens4': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
+        }
+
+        m_get_cmdline.return_value = 'net.ifnames=0'
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path,
+                    dev_attrs=devices)
+        net.generate_fallback_config(config_driver=True)
+        self.assertEqual(0, mock_settle.call_count)
 
 
 class TestSysConfigRendering(CiTestCase):
@@ -1825,6 +1927,12 @@ USERCTL=no
 
     def test_v4_and_v6_static_config(self):
         entry = NETWORK_CONFIGS['v4_and_v6_static']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
+
+    def test_dhcpv6_only_config(self):
+        entry = NETWORK_CONFIGS['dhcpv6_only']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
@@ -2277,6 +2385,13 @@ class TestNetplanRoundTrip(CiTestCase):
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
+    def testsimple_render_dhcpv6_only(self):
+        entry = NETWORK_CONFIGS['dhcpv6_only']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS['all']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
@@ -2340,6 +2455,13 @@ class TestEniRoundTrip(CiTestCase):
 
     def testsimple_render_v4_and_v6(self):
         entry = NETWORK_CONFIGS['v4_and_v6']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_dhcpv6_only(self):
+        entry = NETWORK_CONFIGS['dhcpv6_only']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),

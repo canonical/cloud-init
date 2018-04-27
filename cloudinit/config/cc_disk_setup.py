@@ -680,13 +680,13 @@ def read_parttbl(device):
     reliable way to probe the partition table.
     """
     blkdev_cmd = [BLKDEV_CMD, '--rereadpt', device]
-    udevadm_settle()
+    util.udevadm_settle()
     try:
         util.subp(blkdev_cmd)
     except Exception as e:
         util.logexc(LOG, "Failed reading the partition table %s" % e)
 
-    udevadm_settle()
+    util.udevadm_settle()
 
 
 def exec_mkpart_mbr(device, layout):
@@ -737,14 +737,10 @@ def exec_mkpart(table_type, device, layout):
     return get_dyn_func("exec_mkpart_%s", table_type, device, layout)
 
 
-def udevadm_settle():
-    util.subp(['udevadm', 'settle'])
-
-
 def assert_and_settle_device(device):
     """Assert that device exists and settle so it is fully recognized."""
     if not os.path.exists(device):
-        udevadm_settle()
+        util.udevadm_settle()
         if not os.path.exists(device):
             raise RuntimeError("Device %s did not exist and was not created "
                                "with a udevamd settle." % device)
@@ -752,7 +748,7 @@ def assert_and_settle_device(device):
     # Whether or not the device existed above, it is possible that udev
     # events that would populate udev database (for reading by lsdname) have
     # not yet finished. So settle again.
-    udevadm_settle()
+    util.udevadm_settle()
 
 
 def mkpart(device, definition):

@@ -107,31 +107,24 @@ def find_dev_from_busdev(camcontrol_out, busdev):
     return None
 
 
-def get_dev_storvsc_sysctl():
+def execute_or_debug(cmd, fail_ret=None):
     try:
-        sysctl_out, err = util.subp(['sysctl', 'dev.storvsc'])
+        return util.subp(cmd)[0]
     except util.ProcessExecutionError:
-        LOG.debug("Fail to execute sysctl dev.storvsc")
-        sysctl_out = ""
-    return sysctl_out
+        LOG.debug("Failed to execute: %s", ' '.join(cmd))
+        return fail_ret
+
+
+def get_dev_storvsc_sysctl():
+    return execute_or_debug(["sysctl", "dev.storvsc"], fail_ret="")
 
 
 def get_camcontrol_dev_bus():
-    try:
-        camcontrol_b_out, err = util.subp(['camcontrol', 'devlist', '-b'])
-    except util.ProcessExecutionError:
-        LOG.debug("Fail to execute camcontrol devlist -b")
-        return None
-    return camcontrol_b_out
+    return execute_or_debug(['camcontrol', 'devlist', '-b'])
 
 
 def get_camcontrol_dev():
-    try:
-        camcontrol_out, err = util.subp(['camcontrol', 'devlist'])
-    except util.ProcessExecutionError:
-        LOG.debug("Fail to execute camcontrol devlist")
-        return None
-    return camcontrol_out
+    return execute_or_debug(['camcontrol', 'devlist'])
 
 
 def get_resource_disk_on_freebsd(port_id):
@@ -474,7 +467,7 @@ class DataSourceAzure(sources.DataSource):
            before we go into our polling loop."""
         try:
             get_metadata_from_fabric(None, lease['unknown-245'])
-        except Exception as exc:
+        except Exception:
             LOG.warning(
                 "Error communicating with Azure fabric; You may experience."
                 "connectivity issues.", exc_info=True)
@@ -492,7 +485,7 @@ class DataSourceAzure(sources.DataSource):
         jump back into the polling loop in order to retrieve the ovf_env."""
         if not ret:
             return False
-        (md, self.userdata_raw, cfg, files) = ret
+        (_md, self.userdata_raw, cfg, _files) = ret
         path = REPROVISION_MARKER_FILE
         if (cfg.get('PreprovisionedVm') is True or
                 os.path.isfile(path)):
@@ -528,7 +521,7 @@ class DataSourceAzure(sources.DataSource):
                   self.ds_cfg['agent_command'])
         try:
             fabric_data = metadata_func()
-        except Exception as exc:
+        except Exception:
             LOG.warning(
                 "Error communicating with Azure fabric; You may experience."
                 "connectivity issues.", exc_info=True)

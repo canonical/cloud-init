@@ -16,23 +16,27 @@ from __future__ import print_function
 
 from binascii import crc32
 import json
+import multiprocessing
 import os
 import os.path
 import re
 import shutil
+import signal
 import stat
 import tempfile
+import unittest2
 import uuid
 
 from cloudinit import serial
 from cloudinit.sources import DataSourceSmartOS
 from cloudinit.sources.DataSourceSmartOS import (
-    convert_smartos_network_data as convert_net)
+    convert_smartos_network_data as convert_net,
+    SMARTOS_ENV_KVM, SERIAL_DEVICE, get_smartos_environ)
 
 import six
 
 from cloudinit import helpers as c_helpers
-from cloudinit.util import b64e
+from cloudinit.util import (b64e, subp)
 
 from cloudinit.tests.helpers import mock, FilesystemMockingTestCase, TestCase
 
@@ -319,6 +323,12 @@ MOCK_RETURNS = {
 
 DMI_DATA_RETURN = 'smartdc'
 
+# Useful for calculating the length of a frame body.  A SUCCESS body will be
+# followed by more characters or be one character less if SUCCESS with no
+# payload.  See Section 4.3 of https://eng.joyent.com/mdata/protocol.html.
+SUCCESS_LEN = len('0123abcd SUCCESS ')
+NOTFOUND_LEN = len('0123abcd NOTFOUND')
+
 
 class PsuedoJoyentClient(object):
     def __init__(self, data=None):
@@ -429,6 +439,34 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertEqual(MOCK_RETURNS['hostname'],
+                         dsrc.metadata['local-hostname'])
+
+    def test_hostname_if_no_sdc_hostname(self):
+        my_returns = MOCK_RETURNS.copy()
+        my_returns['sdc:hostname'] = 'sdc-' + my_returns['hostname']
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(my_returns['hostname'],
+                         dsrc.metadata['local-hostname'])
+
+    def test_sdc_hostname_if_no_hostname(self):
+        my_returns = MOCK_RETURNS.copy()
+        my_returns['sdc:hostname'] = 'sdc-' + my_returns['hostname']
+        del my_returns['hostname']
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(my_returns['sdc:hostname'],
+                         dsrc.metadata['local-hostname'])
+
+    def test_sdc_uuid_if_no_hostname_or_sdc_hostname(self):
+        my_returns = MOCK_RETURNS.copy()
+        del my_returns['hostname']
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(my_returns['sdc:uuid'],
                          dsrc.metadata['local-hostname'])
 
     def test_userdata(self):
@@ -651,7 +689,7 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
         self.response_parts = {
             'command': 'SUCCESS',
             'crc': 'b5a9ff00',
-            'length': 17 + len(b64e(self.metadata_value)),
+            'length': SUCCESS_LEN + len(b64e(self.metadata_value)),
             'payload': b64e(self.metadata_value),
             'request_id': '{0:08x}'.format(self.request_id),
         }
@@ -787,7 +825,7 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
     def test_get_metadata_returns_None_if_value_not_found(self):
         self.response_parts['payload'] = ''
         self.response_parts['command'] = 'NOTFOUND'
-        self.response_parts['length'] = 17
+        self.response_parts['length'] = NOTFOUND_LEN
         client = self._get_client()
         client._checksum = lambda _: self.response_parts['crc']
         self.assertIsNone(client.get('some_key'))
@@ -837,6 +875,22 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
         client.fp.read.side_effect = reader.read
         client.open_transport()
         self.assertTrue(reader.emptied)
+
+    def test_list_metadata_returns_list(self):
+        parts = ['foo', 'bar']
+        value = b64e('\n'.join(parts))
+        self.response_parts['payload'] = value
+        self.response_parts['crc'] = '40873553'
+        self.response_parts['length'] = SUCCESS_LEN + len(value)
+        client = self._get_client()
+        self.assertEqual(client.list(), parts)
+
+    def test_list_metadata_returns_empty_list_if_no_customer_metadata(self):
+        del self.response_parts['payload']
+        self.response_parts['length'] = SUCCESS_LEN - 1
+        self.response_parts['crc'] = '14e563ba'
+        client = self._get_client()
+        self.assertEqual(client.list(), [])
 
 
 class TestNetworkConversion(TestCase):
@@ -972,5 +1026,64 @@ class TestNetworkConversion(TestCase):
                               'type': 'static'}]}]}
         found = convert_net(SDC_NICS_SINGLE_GATEWAY)
         self.assertEqual(expected, found)
+
+
+@unittest2.skipUnless(get_smartos_environ() == SMARTOS_ENV_KVM,
+                      "Only supported on KVM and bhyve guests under SmartOS")
+@unittest2.skipUnless(os.access(SERIAL_DEVICE, os.W_OK),
+                      "Requires write access to " + SERIAL_DEVICE)
+class TestSerialConcurrency(TestCase):
+    """
+       This class tests locking on an actual serial port, and as such can only
+       be run in a kvm or bhyve guest running on a SmartOS host.  A test run on
+       a metadata socket will not be valid because a metadata socket ensures
+       there is only one session over a connection.  In contrast, in the
+       absence of proper locking multiple processes opening the same serial
+       port can corrupt each others' exchanges with the metadata server.
+    """
+    def setUp(self):
+        self.mdata_proc = multiprocessing.Process(target=self.start_mdata_loop)
+        self.mdata_proc.start()
+        super(TestSerialConcurrency, self).setUp()
+
+    def tearDown(self):
+        # os.kill() rather than mdata_proc.terminate() to avoid console spam.
+        os.kill(self.mdata_proc.pid, signal.SIGKILL)
+        self.mdata_proc.join()
+        super(TestSerialConcurrency, self).tearDown()
+
+    def start_mdata_loop(self):
+        """
+           The mdata-get command is repeatedly run in a separate process so
+           that it may try to race with metadata operations performed in the
+           main test process.  Use of mdata-get is better than two processes
+           using the protocol implementation in DataSourceSmartOS because we
+           are testing to be sure that cloud-init and mdata-get respect each
+           others locks.
+        """
+        rcs = list(range(0, 256))
+        while True:
+            subp(['mdata-get', 'sdc:routes'], rcs=rcs)
+
+    def test_all_keys(self):
+        self.assertIsNotNone(self.mdata_proc.pid)
+        ds = DataSourceSmartOS
+        keys = [tup[0] for tup in ds.SMARTOS_ATTRIB_MAP.values()]
+        keys.extend(ds.SMARTOS_ATTRIB_JSON.values())
+
+        client = ds.jmc_client_factory()
+        self.assertIsNotNone(client)
+
+        # The behavior that we are testing for was observed mdata-get running
+        # 10 times at roughly the same time as cloud-init fetched each key
+        # once.  cloud-init would regularly see failures before making it
+        # through all keys once.
+        for _ in range(0, 3):
+            for key in keys:
+                # We don't care about the return value, just that it doesn't
+                # thrown any exceptions.
+                client.get(key)
+
+        self.assertIsNone(self.mdata_proc.exitcode)
 
 # vi: ts=4 expandtab
