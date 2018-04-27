@@ -68,14 +68,55 @@ import re
 import sys
 
 from cloudinit.distros import ug_util
-from cloudinit import ssh_util
+from cloudinit import log as logging
+from cloudinit.ssh_util import update_ssh_config
 from cloudinit import util
 
 from string import ascii_letters, digits
 
+LOG = logging.getLogger(__name__)
+
 # We are removing certain 'painful' letters/numbers
 PW_SET = (''.join([x for x in ascii_letters + digits
                    if x not in 'loLOI01']))
+
+
+def handle_ssh_pwauth(pw_auth, service_cmd=None, service_name="ssh"):
+    """Apply sshd PasswordAuthentication changes.
+
+    @param pw_auth: config setting from 'pw_auth'.
+                    Best given as True, False, or "unchanged".
+    @param service_cmd: The service command list (['service'])
+    @param service_name: The name of the sshd service for the system.
+
+    @return: None"""
+    cfg_name = "PasswordAuthentication"
+    if service_cmd is None:
+        service_cmd = ["service"]
+
+    if util.is_true(pw_auth):
+        cfg_val = 'yes'
+    elif util.is_false(pw_auth):
+        cfg_val = 'no'
+    else:
+        bmsg = "Leaving ssh config '%s' unchanged." % cfg_name
+        if pw_auth is None or pw_auth.lower() == 'unchanged':
+            LOG.debug("%s ssh_pwauth=%s", bmsg, pw_auth)
+        else:
+            LOG.warning("%s Unrecognized value: ssh_pwauth=%s", bmsg, pw_auth)
+        return
+
+    updated = update_ssh_config({cfg_name: cfg_val})
+    if not updated:
+        LOG.debug("No need to restart ssh service, %s not updated.", cfg_name)
+        return
+
+    if 'systemctl' in service_cmd:
+        cmd = list(service_cmd) + ["restart", service_name]
+    else:
+        cmd = list(service_cmd) + [service_name, "restart"]
+    util.subp(cmd)
+    LOG.debug("Restarted the ssh daemon.")
 
 
 def handle(_name, cfg, cloud, log, args):
@@ -170,65 +211,9 @@ def handle(_name, cfg, cloud, log, args):
             if expired_users:
                 log.debug("Expired passwords for: %s users", expired_users)
 
-    change_pwauth = False
-    pw_auth = None
-    if 'ssh_pwauth' in cfg:
-        if util.is_true(cfg['ssh_pwauth']):
-            change_pwauth = True
-            pw_auth = 'yes'
-        elif util.is_false(cfg['ssh_pwauth']):
-            change_pwauth = True
-            pw_auth = 'no'
-        elif str(cfg['ssh_pwauth']).lower() == 'unchanged':
-            log.debug('Leaving auth line unchanged')
-            change_pwauth = False
-        elif not str(cfg['ssh_pwauth']).strip():
-            log.debug('Leaving auth line unchanged')
-            change_pwauth = False
-        elif not cfg['ssh_pwauth']:
-            log.debug('Leaving auth line unchanged')
-            change_pwauth = False
-        else:
-            msg = 'Unrecognized value %s for ssh_pwauth' % cfg['ssh_pwauth']
-            util.logexc(log, msg)
-
-    if change_pwauth:
-        replaced_auth = False
-
-        # See: man sshd_config
-        old_lines = ssh_util.parse_ssh_config(ssh_util.DEF_SSHD_CFG)
-        new_lines = []
-        i = 0
-        for (i, line) in enumerate(old_lines):
-            # Keywords are case-insensitive and arguments are case-sensitive
-            if line.key == 'passwordauthentication':
-                log.debug("Replacing auth line %s with %s", i + 1, pw_auth)
-                replaced_auth = True
-                line.value = pw_auth
-            new_lines.append(line)
-
-        if not replaced_auth:
-            log.debug("Adding new auth line %s", i + 1)
-            replaced_auth = True
-            new_lines.append(ssh_util.SshdConfigLine('',
-                                                     'PasswordAuthentication',
-                                                     pw_auth))
-
-        lines = [str(l) for l in new_lines]
-        util.write_file(ssh_util.DEF_SSHD_CFG, "\n".join(lines),
-                        copy_mode=True)
-
-        try:
-            cmd = cloud.distro.init_cmd  # Default service
-            cmd.append(cloud.distro.get_option('ssh_svcname', 'ssh'))
-            cmd.append('restart')
-            if 'systemctl' in cmd:  # Switch action ordering
-                cmd[1], cmd[2] = cmd[2], cmd[1]
-            cmd = filter(None, cmd)  # Remove empty arguments
-            util.subp(cmd)
-            log.debug("Restarted the ssh daemon")
-        except Exception:
-            util.logexc(log, "Restarting of the ssh daemon failed")
+    handle_ssh_pwauth(
+        cfg.get('ssh_pwauth'), service_cmd=cloud.distro.init_cmd,
+        service_name=cloud.distro.get_option('ssh_svcname', 'ssh'))
 
     if len(errors):
         log.debug("%s errors occured, re-raising the last one", len(errors))

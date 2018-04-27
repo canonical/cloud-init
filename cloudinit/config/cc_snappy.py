@@ -213,7 +213,7 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
 
 def read_installed_packages():
     ret = []
-    for (name, date, version, dev) in read_pkg_data():
+    for (name, _date, _version, dev) in read_pkg_data():
         if dev:
             ret.append(NAMESPACE_DELIM.join([name, dev]))
         else:
@@ -222,7 +222,7 @@ def read_installed_packages():
 
 
 def read_pkg_data():
-    out, err = util.subp([SNAPPY_CMD, "list"])
+    out, _err = util.subp([SNAPPY_CMD, "list"])
     pkg_data = []
     for line in out.splitlines()[1:]:
         toks = line.split(sep=None, maxsplit=3)

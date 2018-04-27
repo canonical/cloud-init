@@ -50,12 +50,12 @@ class TestTemplates(test_helpers.CiTestCase):
     def test_detection(self):
         blob = "## template:cheetah"
 
-        (template_type, renderer, contents) = templater.detect_template(blob)
+        (template_type, _renderer, contents) = templater.detect_template(blob)
         self.assertIn("cheetah", template_type)
         self.assertEqual("", contents.strip())
 
         blob = "blahblah $blah"
-        (template_type, renderer, contents) = templater.detect_template(blob)
+        (template_type, _renderer, _contents) = templater.detect_template(blob)
         self.assertIn("cheetah", template_type)
         self.assertEqual(blob, contents)
 

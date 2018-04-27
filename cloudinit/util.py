@@ -2214,7 +2214,7 @@ def parse_mtab(path):
 def find_freebsd_part(label_part):
     if label_part.startswith("/dev/label/"):
         target_label = label_part[5:]
-        (label_part, err) = subp(['glabel', 'status', '-s'])
+        (label_part, _err) = subp(['glabel', 'status', '-s'])
         for labels in label_part.split("\n"):
             items = labels.split()
             if len(items) > 0 and items[0].startswith(target_label):
@@ -2726,5 +2726,20 @@ def mount_is_read_write(mount_point):
     result = get_mount_info(mount_point, get_mnt_opts=True)
     mount_opts = result[-1].split(',')
     return mount_opts[0] == 'rw'
+
+
+def udevadm_settle(exists=None, timeout=None):
+    """Invoke udevadm settle with optional exists and timeout parameters"""
+    settle_cmd = ["udevadm", "settle"]
+    if exists:
+        # skip the settle if the requested path already exists
+        if os.path.exists(exists):
+            return
+        settle_cmd.extend(['--exit-if-exists=%s' % exists])
+    if timeout:
+        settle_cmd.extend(['--timeout=%s' % timeout])
+
+    return subp(settle_cmd)
+
 
 # vi: ts=4 expandtab

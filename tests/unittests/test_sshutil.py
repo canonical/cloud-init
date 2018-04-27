@@ -4,6 +4,7 @@ from mock import patch
 
 from cloudinit import ssh_util
 from cloudinit.tests import helpers as test_helpers
+from cloudinit import util
 
 
 VALID_CONTENT = {
@@ -56,7 +57,7 @@ TEST_OPTIONS = (
     'user \"root\".\';echo;sleep 10"')
 
 
-class TestAuthKeyLineParser(test_helpers.TestCase):
+class TestAuthKeyLineParser(test_helpers.CiTestCase):
 
     def test_simple_parse(self):
         # test key line with common 3 fields (keytype, base64, comment)
@@ -126,7 +127,7 @@ class TestAuthKeyLineParser(test_helpers.TestCase):
         self.assertFalse(key.valid())
 
 
-class TestUpdateAuthorizedKeys(test_helpers.TestCase):
+class TestUpdateAuthorizedKeys(test_helpers.CiTestCase):
 
     def test_new_keys_replace(self):
         """new entries with the same base64 should replace old."""
@@ -168,7 +169,7 @@ class TestUpdateAuthorizedKeys(test_helpers.TestCase):
         self.assertEqual(expected, found)
 
 
-class TestParseSSHConfig(test_helpers.TestCase):
+class TestParseSSHConfig(test_helpers.CiTestCase):
 
     def setUp(self):
         self.load_file_patch = patch('cloudinit.ssh_util.util.load_file')
@@ -234,5 +235,95 @@ class TestParseSSHConfig(test_helpers.TestCase):
         self.assertEqual(1, len(ret))
         self.assertEqual('foo', ret[0].key)
         self.assertEqual('bar', ret[0].value)
+
+
+class TestUpdateSshConfigLines(test_helpers.CiTestCase):
+    """Test the update_ssh_config_lines method."""
+    exlines = [
+        "#PasswordAuthentication yes",
+        "UsePAM yes",
+        "# Comment line",
+        "AcceptEnv LANG LC_*",
+        "X11Forwarding no",
+    ]
+    pwauth = "PasswordAuthentication"
+
+    def check_line(self, line, opt, val):
+        self.assertEqual(line.key, opt.lower())
+        self.assertEqual(line.value, val)
+        self.assertIn(opt, str(line))
+        self.assertIn(val, str(line))
+
+    def test_new_option_added(self):
+        """A single update of non-existing option."""
+        lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
+        result = ssh_util.update_ssh_config_lines(lines, {'MyKey': 'MyVal'})
+        self.assertEqual(['MyKey'], result)
+        self.check_line(lines[-1], "MyKey", "MyVal")
+
+    def test_commented_out_not_updated_but_appended(self):
+        """Implementation does not un-comment and update lines."""
+        lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
+        result = ssh_util.update_ssh_config_lines(lines, {self.pwauth: "no"})
+        self.assertEqual([self.pwauth], result)
+        self.check_line(lines[-1], self.pwauth, "no")
+
+    def test_single_option_updated(self):
+        """A single update should have change made and line updated."""
+        opt, val = ("UsePAM", "no")
+        lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
+        result = ssh_util.update_ssh_config_lines(lines, {opt: val})
+        self.assertEqual([opt], result)
+        self.check_line(lines[1], opt, val)
+
+    def test_multiple_updates_with_add(self):
+        """Verify multiple updates some added some changed, some not."""
+        updates = {"UsePAM": "no", "X11Forwarding": "no", "NewOpt": "newval",
+                   "AcceptEnv": "LANG ADD LC_*"}
+        lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
+        result = ssh_util.update_ssh_config_lines(lines, updates)
+        self.assertEqual(set(["UsePAM", "NewOpt", "AcceptEnv"]), set(result))
+        self.check_line(lines[3], "AcceptEnv", updates["AcceptEnv"])
+
+    def test_return_empty_if_no_changes(self):
+        """If there are no changes, then return should be empty list."""
+        updates = {"UsePAM": "yes"}
+        lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
+        result = ssh_util.update_ssh_config_lines(lines, updates)
+        self.assertEqual([], result)
+        self.assertEqual(self.exlines, [str(l) for l in lines])
+
+    def test_keycase_not_modified(self):
+        """Original case of key should not be changed on update.
+        This behavior is to keep original config as much intact as can be."""
+        updates = {"usepam": "no"}
+        lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
+        result = ssh_util.update_ssh_config_lines(lines, updates)
+        self.assertEqual(["usepam"], result)
+        self.assertEqual("UsePAM no", str(lines[1]))
+
+
+class TestUpdateSshConfig(test_helpers.CiTestCase):
+    cfgdata = '\n'.join(["#Option val", "MyKey ORIG_VAL", ""])
+
+    def test_modified(self):
+        mycfg = self.tmp_path("ssh_config_1")
+        util.write_file(mycfg, self.cfgdata)
+        ret = ssh_util.update_ssh_config({"MyKey": "NEW_VAL"}, mycfg)
+        self.assertTrue(ret)
+        found = util.load_file(mycfg)
+        self.assertEqual(self.cfgdata.replace("ORIG_VAL", "NEW_VAL"), found)
+        # assert there is a newline at end of file (LP: #1677205)
+        self.assertEqual('\n', found[-1])
+
+    def test_not_modified(self):
+        mycfg = self.tmp_path("ssh_config_2")
+        util.write_file(mycfg, self.cfgdata)
+        with patch("cloudinit.ssh_util.util.write_file") as m_write_file:
+            ret = ssh_util.update_ssh_config({"MyKey": "ORIG_VAL"}, mycfg)
+        self.assertFalse(ret)
+        self.assertEqual(self.cfgdata, util.load_file(mycfg))
+        m_write_file.assert_not_called()
+
 
 # vi: ts=4 expandtab

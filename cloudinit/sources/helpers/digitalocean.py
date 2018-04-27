@@ -41,10 +41,9 @@ def assign_ipv4_link_local(nic=None):
                            "address")
 
     try:
-        (result, _err) = util.subp(ip_addr_cmd)
+        util.subp(ip_addr_cmd)
         LOG.debug("assigned ip4LL address '%s' to '%s'", addr, nic)
-
-        (result, _err) = util.subp(ip_link_cmd)
+        util.subp(ip_link_cmd)
         LOG.debug("brought device '%s' up", nic)
     except Exception:
         util.logexc(LOG, "ip4LL address assignment of '%s' to '%s' failed."
@@ -75,7 +74,7 @@ def del_ipv4_link_local(nic=None):
     ip_addr_cmd = ['ip', 'addr', 'flush', 'dev', nic]
 
     try:
-        (result, _err) = util.subp(ip_addr_cmd)
+        util.subp(ip_addr_cmd)
         LOG.debug("removed ip4LL addresses from %s", nic)
 
     except Exception as e:

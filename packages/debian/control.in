@@ -11,6 +11,7 @@ Package: cloud-init
 Architecture: all
 Depends: ${misc:Depends},
          ${${python}:Depends},
+         iproute2,
          isc-dhcp-client
 Recommends: eatmydata, sudo, software-properties-common, gdisk
 XB-Python-Version: ${python:Versions}

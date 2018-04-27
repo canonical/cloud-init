@@ -51,9 +51,6 @@ class TestNoCloudDataSource(CiTestCase):
         class PsuedoException(Exception):
             pass
 
-        def my_find_devs_with(*args, **kwargs):
-            raise PsuedoException
-
         self.mocks.enter_context(
             mock.patch.object(util, 'find_devs_with',
                               side_effect=PsuedoException))

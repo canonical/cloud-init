@@ -87,7 +87,6 @@ schema = {
                     'additionalItems': False,  # Reject non-string & non-list
                     'minItems': 1,
                     'minProperties': 1,
-                    'uniqueItems': True
                 }
             },
             'additionalProperties': False,  # Reject keys not in schema
@@ -149,12 +148,12 @@ def maybe_install_ua_tools(cloud):
         return
     try:
         cloud.distro.update_package_sources()
-    except Exception as e:
+    except Exception:
         util.logexc(LOG, "Package update failed")
         raise
     try:
         cloud.distro.install_packages(['ubuntu-advantage-tools'])
-    except Exception as e:
+    except Exception:
         util.logexc(LOG, "Failed to install ubuntu-advantage-tools")
         raise
 

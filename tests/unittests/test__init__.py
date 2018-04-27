@@ -214,7 +214,7 @@ class TestCmdlineUrl(CiTestCase):
     def test_no_key_found(self, m_read):
         cmdline = "ro mykey=http://example.com/foo root=foo"
         fpath = self.tmp_path("ccpath")
-        lvl, msg = main.attempt_cmdline_url(
+        lvl, _msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline)
 
         m_read.assert_not_called()

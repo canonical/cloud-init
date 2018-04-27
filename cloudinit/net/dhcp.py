@@ -216,7 +216,7 @@ def networkd_get_option_from_leases(keyname, leases_d=None):
     if leases_d is None:
         leases_d = NETWORKD_LEASES_DIR
     leases = networkd_load_leases(leases_d=leases_d)
-    for ifindex, data in sorted(leases.items()):
+    for _ifindex, data in sorted(leases.items()):
         if data.get(keyname):
             return data[keyname]
     return None
