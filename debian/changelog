@@ -1,4 +1,4 @@
-cloud-init (18.2-27-g6ef92c98-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (18.2-27-g6ef92c98-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * debian/control: add missing dependency on iproute2. (LP: #1766711)
   * debian/control: add missing dependency on isc-dhcp-client. (LP: #1766714)
@@ -18,7 +18,7 @@ cloud-init (18.2-27-g6ef92c98-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     - doc: Add documentation for AliYun datasource. [Junjie Wang]
     - Schema: do not warn on duplicate items in commands.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 27 Apr 2018 12:29:24 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 27 Apr 2018 12:30:21 -0400
 
 cloud-init (18.2-14-g6d48d265-0ubuntu1) bionic; urgency=medium
 
