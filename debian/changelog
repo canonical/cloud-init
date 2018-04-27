@@ -1,9 +1,24 @@
-cloud-init (18.2-14-g6d48d265-0ubuntu2~18.04.1) UNRELEASED; urgency=medium
+cloud-init (18.2-27-g6ef92c98-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
   * debian/control: add missing dependency on iproute2. (LP: #1766711)
   * debian/control: add missing dependency on isc-dhcp-client. (LP: #1766714)
+  * New upstream snapshot. (LP: #1767412)
+    - IBMCloud: recognize provisioning environment during debug boots.
+    - net: detect unstable network names and trigger a settle if needed
+    - IBMCloud: improve documentation in datasource.
+    - sysconfig: dhcp6 subnet type should not imply dhcpv4 [Vitaly Kuznetsov]
+    - packages/debian/control.in: add missing dependency on iproute2.
+    - DataSourceSmartOS: add locking of serial device. [Mike Gerdts]
+    - DataSourceSmartOS: sdc:hostname is ignored [Mike Gerdts]
+    - DataSourceSmartOS: list() should always return a list [Mike Gerdts]
+    - schema: in validation, raise ImportError if strict but no jsonschema.
+    - set_passwords: Add newline to end of sshd config, only restart if
+      updated.
+    - pylint: pay attention to unused variable warnings.
+    - doc: Add documentation for AliYun datasource. [Junjie Wang]
+    - Schema: do not warn on duplicate items in commands.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 27 Apr 2018 11:56:54 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 27 Apr 2018 12:29:24 -0400
 
 cloud-init (18.2-14-g6d48d265-0ubuntu1) bionic; urgency=medium
 
