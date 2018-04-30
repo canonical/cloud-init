@@ -1,3 +1,9 @@
+cloud-init (18.2-27-g6ef92c98-0ubuntu2) UNRELEASED; urgency=medium
+
+  * debian/new-upstream-snapshot: Remove script, now maintained elsewhere.
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 30 Apr 2018 15:49:20 -0400
+
 cloud-init (18.2-27-g6ef92c98-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * debian/control: add missing dependency on iproute2. (LP: #1766711)
