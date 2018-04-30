@@ -1,11 +1,11 @@
-cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
   * cherry-pick 6ef92c98: IBMCloud: recognize provisioning environment
     during debug (LP: #1767166)
   * cherry-pick 11172924: IBMCloud: Disable config-drive and nocloud
     only if IBMCloud (LP: #1766401)
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 30 Apr 2018 19:57:06 -0400
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 30 Apr 2018 15:52:05 -0600
 
 cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
