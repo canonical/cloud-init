@@ -601,7 +601,6 @@ dscheck_NoCloud() {
         *\ ds=nocloud*) return ${DS_FOUND};;
     esac
 
-    is_ibm_cloud && return ${DS_NOT_FOUND}
     for d in nocloud nocloud-net; do
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
         check_writable_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
@@ -612,11 +611,12 @@ dscheck_NoCloud() {
     return ${DS_NOT_FOUND}
 }
 
+is_ds_enabled() {
+    local name="$1" pad=" ${DI_DSLIST} "
+    [ "${pad#* $name }" != "${pad}" ]
+}
+
 check_configdrive_v2() {
-    is_ibm_cloud && return ${DS_NOT_FOUND}
-    if has_fs_with_label CONFIG-2 config-2; then
-        return ${DS_FOUND}
-    fi
     # look in /config-drive <vlc>/seed/config_drive for a directory
     # openstack/YYYY-MM-DD format with a file meta_data.json
     local d=""
@@ -629,6 +629,13 @@ check_configdrive_v2() {
     local lpath="openstack/latest/meta_data.json"
     if [ -e "$vlc_config_drive_path/$lpath" ]; then
         debug 1 "config drive seeded directory had only 'latest'"
+        return ${DS_FOUND}
+    fi
+
+    is_ds_enabled "IBMCloud"
+    debug 1 "is_ds_enabled returned $?: $DI_DSLIST"
+    is_ds_enabled "IBMCloud" && is_ibm_cloud && return ${DS_NOT_FOUND}
+    if has_fs_with_label CONFIG-2 config-2; then
         return ${DS_FOUND}
     fi
     return ${DS_NOT_FOUND}

@@ -184,17 +184,18 @@ class DsIdentifyBase(CiTestCase):
             data, RC_FOUND, dslist=[data.get('ds'), DS_NONE])
 
     def _check_via_dict(self, data, rc, dslist=None, **kwargs):
-        found_rc, out, err, cfg, files = self._call_via_dict(data, **kwargs)
+        ret = self._call_via_dict(data, **kwargs)
         good = False
         try:
-            self.assertEqual(rc, found_rc)
+            self.assertEqual(rc, ret.rc)
             if dslist is not None:
-                self.assertEqual(dslist, cfg['datasource_list'])
+                self.assertEqual(dslist, ret.cfg['datasource_list'])
             good = True
         finally:
             if not good:
-                _print_run_output(rc, out, err, cfg, files)
-        return rc, out, err, cfg, files
+                _print_run_output(ret.rc, ret.stdout, ret.stderr, ret.cfg,
+                                  ret.files)
+        return ret
 
 
 class TestDsIdentify(DsIdentifyBase):
@@ -245,12 +246,39 @@ class TestDsIdentify(DsIdentifyBase):
     def test_config_drive(self):
         """ConfigDrive datasource has a disk with LABEL=config-2."""
         self._test_ds_found('ConfigDrive')
-        return
 
     def test_config_drive_upper(self):
         """ConfigDrive datasource has a disk with LABEL=CONFIG-2."""
         self._test_ds_found('ConfigDriveUpper')
         return
+
+    def test_config_drive_seed(self):
+        """Config Drive seed directory."""
+        self._test_ds_found('ConfigDrive-seed')
+
+    def test_config_drive_interacts_with_ibmcloud_config_disk(self):
+        """Verify ConfigDrive interaction with IBMCloud.
+
+        If ConfigDrive is enabled and not IBMCloud, then ConfigDrive
+        should claim the ibmcloud 'config-2' disk.
+        If IBMCloud is enabled, then ConfigDrive should skip."""
+        data = copy.deepcopy(VALID_CFG['IBMCloud-config-2'])
+        files = data.get('files', {})
+        if not files:
+            data['files'] = files
+        cfgpath = 'etc/cloud/cloud.cfg.d/99_networklayer_common.cfg'
+
+        # with list including IBMCloud, config drive should be not found.
+        files[cfgpath] = 'datasource_list: [ ConfigDrive, IBMCloud ]\n'
+        ret = self._check_via_dict(data, shell_true)
+        self.assertEqual(
+            ret.cfg.get('datasource_list'), ['IBMCloud', 'None'])
+
+        # But if IBMCloud is not enabled, config drive should claim this.
+        files[cfgpath] = 'datasource_list: [ ConfigDrive, NoCloud ]\n'
+        ret = self._check_via_dict(data, shell_true)
+        self.assertEqual(
+            ret.cfg.get('datasource_list'), ['ConfigDrive', 'None'])
 
     def test_ibmcloud_template_userdata_in_provisioning(self):
         """Template provisioned with user-data during provisioning stage.
@@ -306,6 +334,37 @@ class TestDsIdentify(DsIdentifyBase):
                                                         "DEAD-BEEF")
         self._check_via_dict(
             data, rc=RC_FOUND, dslist=['ConfigDrive', DS_NONE])
+
+    def test_ibmcloud_with_nocloud_seed(self):
+        """NoCloud seed should be preferred over IBMCloud.
+
+        A nocloud seed should be preferred over IBMCloud even if enabled.
+        Ubuntu 16.04 images have <vlc>/seed/nocloud-net. LP: #1766401."""
+        data = copy.deepcopy(VALID_CFG['IBMCloud-config-2'])
+        files = data.get('files', {})
+        if not files:
+            data['files'] = files
+        files.update(VALID_CFG['NoCloud-seed']['files'])
+        ret = self._check_via_dict(data, shell_true)
+        self.assertEqual(
+            ['NoCloud', 'IBMCloud', 'None'],
+            ret.cfg.get('datasource_list'))
+
+    def test_ibmcloud_with_configdrive_seed(self):
+        """ConfigDrive seed should be preferred over IBMCloud.
+
+        A ConfigDrive seed should be preferred over IBMCloud even if enabled.
+        Ubuntu 16.04 images have a fstab entry that mounts the
+        METADATA disk into <vlc>/seed/config_drive. LP: ##1766401."""
+        data = copy.deepcopy(VALID_CFG['IBMCloud-config-2'])
+        files = data.get('files', {})
+        if not files:
+            data['files'] = files
+        files.update(VALID_CFG['ConfigDrive-seed']['files'])
+        ret = self._check_via_dict(data, shell_true)
+        self.assertEqual(
+            ['ConfigDrive', 'IBMCloud', 'None'],
+            ret.cfg.get('datasource_list'))
 
     def test_policy_disabled(self):
         """A Builtin policy of 'disabled' should return not found.
@@ -683,6 +742,12 @@ VALID_CFG = {
                   {'DEVNAME': 'vdb', 'TYPE': 'vfat', 'LABEL': 'CONFIG-2'}])
              },
         ],
+    },
+    'ConfigDrive-seed': {
+        'ds': 'ConfigDrive',
+        'files': {
+            os.path.join(P_SEED_DIR, 'config_drive', 'openstack',
+                         'latest', 'meta_data.json'): 'md\n'},
     },
     'Hetzner': {
         'ds': 'Hetzner',
