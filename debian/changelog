@@ -1,3 +1,10 @@
+cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+
+  * cherry-pick 6ef92c98: IBMCloud: recognize provisioning environment
+    during debug (LP: #1767166)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 30 Apr 2018 19:56:41 -0400
+
 cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/new-upstream-snapshot: Remove script, now maintained elsewhere.
