@@ -157,10 +157,18 @@ def main():
         # This is really only a temporary archive
         # since we will extract it then add in the debian
         # folder, then re-archive it for debian happiness
-        print("Creating a temporary tarball using the 'make-tarball' helper")
         tarball = "cloud-init_%s.orig.tar.gz" % ver_data['version_long']
         tarball_fp = util.abs_join(tdir, tarball)
-        run_helper('make-tarball', ['--long', '--output=' + tarball_fp])
+        path = None
+        for pd in ("./", "../", "../dl/"):
+            if os.path.exists(pd + tarball):
+                path = pd + tarball
+                print("Using existing tarball %s" % path)
+                shutil.copy(path, tarball_fp)
+                break
+        if path is None:
+            print("Creating a temp tarball using the 'make-tarball' helper")
+            run_helper('make-tarball', ['--long', '--output=' + tarball_fp])
 
         print("Extracting temporary tarball %r" % (tarball))
         cmd = ['tar', '-xvzf', tarball_fp, '-C', tdir]
