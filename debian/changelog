@@ -1,3 +1,10 @@
+cloud-init (18.2-4-g05926e48-0ubuntu1~17.10.1ubuntu1) UNRELEASED; urgency=medium
+
+  * cherry-pick 11172924: IBMCloud: Disable config-drive and nocloud
+    only if IBMCloud (LP: #1766401)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 01 May 2018 10:35:47 -0600
+
 cloud-init (18.2-4-g05926e48-0ubuntu1~17.10.1) artful-proposed; urgency=medium
 
   * debian/new-upstream-snapshot: Remove script, now maintained elsewhere.
