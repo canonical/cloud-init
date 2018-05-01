@@ -4,6 +4,7 @@ from cloudinit.cmd.devel import logs
 from cloudinit.util import ensure_dir, load_file, subp, write_file
 from cloudinit.tests.helpers import FilesystemMockingTestCase, wrap_and_call
 from datetime import datetime
+import mock
 import os
 
 
@@ -27,11 +28,13 @@ class TestCollectLogs(FilesystemMockingTestCase):
         date = datetime.utcnow().date().strftime('%Y-%m-%d')
         date_logdir = 'cloud-init-logs-{0}'.format(date)
 
+        version_out = '/usr/bin/cloud-init 18.2fake\n'
         expected_subp = {
             ('dpkg-query', '--show', "-f=${Version}\n", 'cloud-init'):
                 '0.7fake\n',
+            ('cloud-init', '--version'): version_out,
             ('dmesg',): 'dmesg-out\n',
-            ('journalctl', '-o', 'short-precise'): 'journal-out\n',
+            ('journalctl', '--boot=0', '-o', 'short-precise'): 'journal-out\n',
             ('tar', 'czvf', output_tarfile, date_logdir): ''
         }
 
@@ -44,9 +47,12 @@ class TestCollectLogs(FilesystemMockingTestCase):
                 subp(cmd)  # Pass through tar cmd so we can check output
             return expected_subp[cmd_tuple], ''
 
+        fake_stderr = mock.MagicMock()
+
         wrap_and_call(
             'cloudinit.cmd.devel.logs',
             {'subp': {'side_effect': fake_subp},
+             'sys.stderr': {'new': fake_stderr},
              'CLOUDINIT_LOGS': {'new': [log1, log2]},
              'CLOUDINIT_RUN_DIR': {'new': self.run_dir}},
             logs.collect_logs, output_tarfile, include_userdata=False)
@@ -55,7 +61,9 @@ class TestCollectLogs(FilesystemMockingTestCase):
         out_logdir = self.tmp_path(date_logdir, self.new_root)
         self.assertEqual(
             '0.7fake\n',
-            load_file(os.path.join(out_logdir, 'version')))
+            load_file(os.path.join(out_logdir, 'dpkg-version')))
+        self.assertEqual(version_out,
+                         load_file(os.path.join(out_logdir, 'version')))
         self.assertEqual(
             'cloud-init-log',
             load_file(os.path.join(out_logdir, 'cloud-init.log')))
@@ -72,6 +80,7 @@ class TestCollectLogs(FilesystemMockingTestCase):
             'results',
             load_file(
                 os.path.join(out_logdir, 'run', 'cloud-init', 'results.json')))
+        fake_stderr.write.assert_any_call('Wrote %s\n' % output_tarfile)
 
     def test_collect_logs_includes_optional_userdata(self):
         """collect-logs include userdata when --include-userdata is set."""
@@ -88,11 +97,13 @@ class TestCollectLogs(FilesystemMockingTestCase):
         date = datetime.utcnow().date().strftime('%Y-%m-%d')
         date_logdir = 'cloud-init-logs-{0}'.format(date)
 
+        version_out = '/usr/bin/cloud-init 18.2fake\n'
         expected_subp = {
             ('dpkg-query', '--show', "-f=${Version}\n", 'cloud-init'):
                 '0.7fake',
+            ('cloud-init', '--version'): version_out,
             ('dmesg',): 'dmesg-out\n',
-            ('journalctl', '-o', 'short-precise'): 'journal-out\n',
+            ('journalctl', '--boot=0', '-o', 'short-precise'): 'journal-out\n',
             ('tar', 'czvf', output_tarfile, date_logdir): ''
         }
 
@@ -105,9 +116,12 @@ class TestCollectLogs(FilesystemMockingTestCase):
                 subp(cmd)  # Pass through tar cmd so we can check output
             return expected_subp[cmd_tuple], ''
 
+        fake_stderr = mock.MagicMock()
+
         wrap_and_call(
             'cloudinit.cmd.devel.logs',
             {'subp': {'side_effect': fake_subp},
+             'sys.stderr': {'new': fake_stderr},
              'CLOUDINIT_LOGS': {'new': [log1, log2]},
              'CLOUDINIT_RUN_DIR': {'new': self.run_dir},
              'USER_DATA_FILE': {'new': userdata}},
@@ -118,3 +132,4 @@ class TestCollectLogs(FilesystemMockingTestCase):
         self.assertEqual(
             'user-data',
             load_file(os.path.join(out_logdir, 'user-data.txt')))
+        fake_stderr.write.assert_any_call('Wrote %s\n' % output_tarfile)

@@ -11,6 +11,7 @@ from cloudinit.temp_utils import tempdir
 from datetime import datetime
 import os
 import shutil
+import sys
 
 
 CLOUDINIT_LOGS = ['/var/log/cloud-init.log', '/var/log/cloud-init-output.log']
@@ -31,6 +32,8 @@ def get_parser(parser=None):
         parser = argparse.ArgumentParser(
             prog='collect-logs',
             description='Collect and tar all cloud-init debug info')
+    parser.add_argument('--verbose', '-v', action='count', default=0,
+                        dest='verbosity', help="Be more verbose.")
     parser.add_argument(
         "--tarfile", '-t', default='cloud-init.tar.gz',
         help=('The tarfile to create containing all collected logs.'
@@ -43,17 +46,33 @@ def get_parser(parser=None):
     return parser
 
 
-def _write_command_output_to_file(cmd, filename):
+def _write_command_output_to_file(cmd, filename, msg, verbosity):
     """Helper which runs a command and writes output or error to filename."""
     try:
         out, _ = subp(cmd)
     except ProcessExecutionError as e:
         write_file(filename, str(e))
+        _debug("collecting %s failed.\n" % msg, 1, verbosity)
     else:
         write_file(filename, out)
+        _debug("collected %s\n" % msg, 1, verbosity)
+        return out
 
 
-def collect_logs(tarfile, include_userdata):
+def _debug(msg, level, verbosity):
+    if level <= verbosity:
+        sys.stderr.write(msg)
+
+
+def _collect_file(path, out_dir, verbosity):
+    if os.path.isfile(path):
+        copy(path, out_dir)
+        _debug("collected file: %s\n" % path, 1, verbosity)
+    else:
+        _debug("file %s did not exist\n" % path, 2, verbosity)
+
+
+def collect_logs(tarfile, include_userdata, verbosity=0):
     """Collect all cloud-init logs and tar them up into the provided tarfile.
 
     @param tarfile: The path of the tar-gzipped file to create.
@@ -64,28 +83,46 @@ def collect_logs(tarfile, include_userdata):
     log_dir = 'cloud-init-logs-{0}'.format(date)
     with tempdir(dir='/tmp') as tmp_dir:
         log_dir = os.path.join(tmp_dir, log_dir)
-        _write_command_output_to_file(
+        version = _write_command_output_to_file(
+            ['cloud-init', '--version'],
+            os.path.join(log_dir, 'version'),
+            "cloud-init --version", verbosity)
+        dpkg_ver = _write_command_output_to_file(
             ['dpkg-query', '--show', "-f=${Version}\n", 'cloud-init'],
-            os.path.join(log_dir, 'version'))
+            os.path.join(log_dir, 'dpkg-version'),
+            "dpkg version", verbosity)
+        if not version:
+            version = dpkg_ver if dpkg_ver else "not-available"
+        _debug("collected cloud-init version: %s\n" % version, 1, verbosity)
         _write_command_output_to_file(
-            ['dmesg'], os.path.join(log_dir, 'dmesg.txt'))
+            ['dmesg'], os.path.join(log_dir, 'dmesg.txt'),
+            "dmesg output", verbosity)
         _write_command_output_to_file(
-            ['journalctl', '-o', 'short-precise'],
-            os.path.join(log_dir, 'journal.txt'))
+            ['journalctl', '--boot=0', '-o', 'short-precise'],
+            os.path.join(log_dir, 'journal.txt'),
+            "systemd journal of current boot", verbosity)
+
         for log in CLOUDINIT_LOGS:
-            copy(log, log_dir)
+            _collect_file(log, log_dir, verbosity)
         if include_userdata:
-            copy(USER_DATA_FILE, log_dir)
+            _collect_file(USER_DATA_FILE, log_dir, verbosity)
         run_dir = os.path.join(log_dir, 'run')
         ensure_dir(run_dir)
-        shutil.copytree(CLOUDINIT_RUN_DIR, os.path.join(run_dir, 'cloud-init'))
+        if os.path.exists(CLOUDINIT_RUN_DIR):
+            shutil.copytree(CLOUDINIT_RUN_DIR,
+                            os.path.join(run_dir, 'cloud-init'))
+            _debug("collected dir %s\n" % CLOUDINIT_RUN_DIR, 1, verbosity)
+        else:
+            _debug("directory '%s' did not exist\n" % CLOUDINIT_RUN_DIR, 1,
+                   verbosity)
         with chdir(tmp_dir):
             subp(['tar', 'czvf', tarfile, log_dir.replace(tmp_dir + '/', '')])
+    sys.stderr.write("Wrote %s\n" % tarfile)
 
 
 def handle_collect_logs_args(name, args):
     """Handle calls to 'cloud-init collect-logs' as a subcommand."""
-    collect_logs(args.tarfile, args.userdata)
+    collect_logs(args.tarfile, args.userdata, args.verbosity)
 
 
 def main():
