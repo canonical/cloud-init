@@ -1,5 +1,5 @@
 ## template:basic
-cloud-init (${version_long}-1~bddeb) ${debian_release}; urgency=low
+cloud-init (${version_long}-1~bddeb${release_suffix}) ${debian_release}; urgency=low
 
   * build
 
