@@ -48,6 +48,7 @@ DEFAULT_FS = 'ext4'
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = '7783-7084-3265-9085-8269-3286-77'
 REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
+REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 IMDS_URL = "http://169.254.169.254/metadata/reprovisiondata"
 
 
@@ -436,11 +437,12 @@ class DataSourceAzure(sources.DataSource):
             LOG.debug("negotiating already done for %s",
                       self.get_instance_id())
 
-    def _poll_imds(self, report_ready=True):
+    def _poll_imds(self):
         """Poll IMDS for the new provisioning data until we get a valid
         response. Then return the returned JSON object."""
         url = IMDS_URL + "?api-version=2017-04-02"
         headers = {"Metadata": "true"}
+        report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
         LOG.debug("Start polling IMDS")
 
         def exc_cb(msg, exception):
@@ -450,13 +452,17 @@ class DataSourceAzure(sources.DataSource):
             # call DHCP and setup the ephemeral network to acquire the new IP.
             return False
 
-        need_report = report_ready
         while True:
             try:
                 with EphemeralDHCPv4() as lease:
-                    if need_report:
+                    if report_ready:
+                        path = REPORTED_READY_MARKER_FILE
+                        LOG.info(
+                            "Creating a marker file to report ready: %s", path)
+                        util.write_file(path, "{pid}: {time}\n".format(
+                            pid=os.getpid(), time=time()))
                         self._report_ready(lease=lease)
-                        need_report = False
+                        report_ready = False
                     return readurl(url, timeout=1, headers=headers,
                                    exception_cb=exc_cb, infinite=True).contents
             except UrlError:
@@ -490,8 +496,10 @@ class DataSourceAzure(sources.DataSource):
         if (cfg.get('PreprovisionedVm') is True or
                 os.path.isfile(path)):
             if not os.path.isfile(path):
-                LOG.info("Creating a marker file to poll imds")
-                util.write_file(path, "%s: %s\n" % (os.getpid(), time()))
+                LOG.info("Creating a marker file to poll imds: %s",
+                         path)
+                util.write_file(path, "{pid}: {time}\n".format(
+                    pid=os.getpid(), time=time()))
             return True
         return False
 
@@ -526,6 +534,7 @@ class DataSourceAzure(sources.DataSource):
                 "Error communicating with Azure fabric; You may experience."
                 "connectivity issues.", exc_info=True)
             return False
+        util.del_file(REPORTED_READY_MARKER_FILE)
         util.del_file(REPROVISION_MARKER_FILE)
         return fabric_data
 
