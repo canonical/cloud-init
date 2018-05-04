@@ -138,7 +138,7 @@ def _netdev_info_ifconfig(ifconfig_data):
             elif toks[i].startswith("scope:"):
                 devs[curdev]['ipv6'][-1]['scope6'] = toks[i].lstrip("scope:")
             elif toks[i] == "scopeid":
-                res = re.match(".*<(\S+)>", toks[i + 1])
+                res = re.match(r'.*<(\S+)>', toks[i + 1])
                 if res:
                     devs[curdev]['ipv6'][-1]['scope6'] = res.group(1)
     return devs
