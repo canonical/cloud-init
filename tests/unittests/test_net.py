@@ -2,12 +2,9 @@
 
 from cloudinit import net
 from cloudinit.net import cmdline
-from cloudinit.net import eni
-from cloudinit.net import natural_sort_key
-from cloudinit.net import netplan
-from cloudinit.net import network_state
-from cloudinit.net import renderers
-from cloudinit.net import sysconfig
+from cloudinit.net import (
+    eni, interface_has_own_mac, natural_sort_key, netplan, network_state,
+    renderers, sysconfig)
 from cloudinit.sources.helpers import openstack
 from cloudinit import temp_utils
 from cloudinit import util
@@ -2689,6 +2686,43 @@ class TestGetInterfaces(CiTestCase):
             [mock.call('bridge1'), mock.call('enp0s1'), mock.call('bond1'),
              mock.call('b1')],
             any_order=True)
+
+
+class TestInterfaceHasOwnMac(CiTestCase):
+    """Test interface_has_own_mac.  This is admittedly a bit whitebox."""
+
+    @mock.patch('cloudinit.net.read_sys_net_int', return_value=None)
+    def test_non_strict_with_no_addr_assign_type(self, m_read_sys_net_int):
+        """If nic does not have addr_assign_type, it is not "stolen".
+
+        SmartOS containers do not provide the addr_assign_type in /sys.
+
+            $ ( cd /sys/class/net/eth0/ && grep -r . *)
+            address:90:b8:d0:20:e1:b0
+            addr_len:6
+            flags:0x1043
+            ifindex:2
+            mtu:1500
+            tx_queue_len:1
+            type:1
+        """
+        self.assertTrue(interface_has_own_mac("eth0"))
+
+    @mock.patch('cloudinit.net.read_sys_net_int', return_value=None)
+    def test_strict_with_no_addr_assign_type_raises(self, m_read_sys_net_int):
+        with self.assertRaises(ValueError):
+            interface_has_own_mac("eth0", True)
+
+    @mock.patch('cloudinit.net.read_sys_net_int')
+    def test_expected_values(self, m_read_sys_net_int):
+        msg = "address_assign_type=%d said to not have own mac"
+        for address_assign_type in (0, 1, 3):
+            m_read_sys_net_int.return_value = address_assign_type
+            self.assertTrue(
+                interface_has_own_mac("eth0", msg % address_assign_type))
+
+        m_read_sys_net_int.return_value = 2
+        self.assertFalse(interface_has_own_mac("eth0"))
 
 
 class TestGetInterfacesByMac(CiTestCase):
