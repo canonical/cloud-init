@@ -7,9 +7,6 @@ cloud_config: |
   #cloud-config
   byobu_by_default: enable
 collect_scripts:
-  byobu_installed: |
-    #!/bin/bash
-    which byobu
   byobu_profile_enabled: |
     #!/bin/bash
     ls /etc/profile.d/Z97-byobu.sh

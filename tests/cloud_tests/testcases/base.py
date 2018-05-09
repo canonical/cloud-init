@@ -31,6 +31,27 @@ class CloudTestCase(unittest.TestCase):
     def is_distro(self, distro_name):
         return self.os_cfg['os'] == distro_name
 
+    def assertPackageInstalled(self, name, version=None):
+        """Check dpkg-query --show output for matching package name.
+
+        @param name: package base name
+        @param version: string representing a package version or part of a
+            version.
+        """
+        pkg_out = self.get_data_file('package-versions')
+        pkg_match = re.search(
+            '^%s\t(?P<version>.*)$' % name, pkg_out, re.MULTILINE)
+        if pkg_match:
+            installed_version = pkg_match.group('version')
+            if not version:
+                return  # Success
+            if installed_version.startswith(version):
+                return  # Success
+            raise AssertionError(
+                'Expected package version %s-%s not found. Found %s' %
+                name, version, installed_version)
+        raise AssertionError('Package not installed: %s' % name)
+
     def os_version_cmp(self, cmp_version):
         """Compare the version of the test to comparison_version.
 

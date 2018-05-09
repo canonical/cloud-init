@@ -35,8 +35,5 @@ collect_scripts:
   grains: |
     #!/bin/bash
     cat /etc/salt/grains
-  minion_installed: |
-    #!/bin/bash
-    dpkg -l | grep salt-minion | grep ii | wc -l
 
 # vi: ts=4 expandtab

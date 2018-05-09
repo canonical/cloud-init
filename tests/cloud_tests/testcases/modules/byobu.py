@@ -9,8 +9,7 @@ class TestByobu(base.CloudTestCase):
 
     def test_byobu_installed(self):
         """Test byobu installed."""
-        out = self.get_data_file('byobu_installed')
-        self.assertIn('/usr/bin/byobu', out)
+        self.assertPackageInstalled('byobu')
 
     def test_byobu_profile_enabled(self):
         """Test byobu profile.d file exists."""
