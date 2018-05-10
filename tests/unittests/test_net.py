@@ -1605,12 +1605,13 @@ iface eth1 inet dhcp
         ]
         self.assertEqual(", ".join(expected_rule) + '\n', contents.lstrip())
 
+    @mock.patch("cloudinit.util.get_cmdline")
     @mock.patch("cloudinit.util.udevadm_settle")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_unstable_names(self, mock_get_devicelist, mock_read_sys_net,
-                            mock_sys_dev_path, mock_settle):
+                            mock_sys_dev_path, mock_settle, m_get_cmdline):
         """verify that udevadm settle is called when we find unstable names"""
         devices = {
             'eth0': {
@@ -1626,6 +1627,7 @@ iface eth1 inet dhcp
 
         }
 
+        m_get_cmdline.return_value = ''
         tmp_dir = self.tmp_dir()
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path,
