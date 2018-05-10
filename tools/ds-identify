@@ -641,9 +641,11 @@ check_configdrive_v2() {
         return ${DS_FOUND}
     fi
 
-    is_ds_enabled "IBMCloud"
-    debug 1 "is_ds_enabled returned $?: $DI_DSLIST"
-    is_ds_enabled "IBMCloud" && is_ibm_cloud && return ${DS_NOT_FOUND}
+    local ibm_enabled=false
+    is_ds_enabled "IBMCloud" && ibm_enabled=true
+    debug 1 "is_ds_enabled(IBMCloud) = $ibm_enabled."
+    [ "$ibm_enabled" = "true" ] && is_ibm_cloud && return ${DS_NOT_FOUND}
+
     if has_fs_with_label CONFIG-2 config-2; then
         return ${DS_FOUND}
     fi
