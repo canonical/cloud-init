@@ -1,4 +1,4 @@
-cloud-init (18.2-41-g3b712fce-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.2-41-g3b712fce-0ubuntu1) cosmic; urgency=medium
 
   * debian/new-upstream-snapshot: Remove script, now maintained elsewhere.
   * New upstream snapshot.
