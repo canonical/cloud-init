@@ -1,8 +1,28 @@
-cloud-init (18.2-27-g6ef92c98-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (18.2-41-g3b712fce-0ubuntu1) UNRELEASED; urgency=medium
 
   * debian/new-upstream-snapshot: Remove script, now maintained elsewhere.
+  * New upstream snapshot.
+    - tests: do not rely on host /proc/cmdline in test_net.py
+      [Lars Kellogg-Stedman] (LP: #1769952)
+    - ds-identify: Remove dupe call to is_ds_enabled, improve debug message.
+    - SmartOS: fix get_interfaces for nics that do not have addr_assign_type.
+    - tests: fix package and ca_cert cloud_tests on bionic (LP: #1769985)
+    - ds-identify: make shellcheck 0.4.6 happy with ds-identify.
+    - pycodestyle: Fix deprecated string literals, move away from flake8.
+    - azure: Add reported ready marker file. [Joshua Chan] (LP: #1765214)
+    - tools: Support adding a release suffix through packages/bddeb.
+    - FreeBSD: Invoke growfs on ufs filesystems such that it does not prompt.
+      [Harm Weites] (LP: #1404745)
+    - tools: Re-use the orig tarball in packages/bddeb if it is around.
+    - netinfo: fix netdev_pformat when a nic does not have an address
+      assigned. (LP: #1766302)
+    - collect-logs: add -v flag, write to stderr, limit journal to single
+      boot. (LP: #1766335)
+    - IBMCloud: Disable config-drive and nocloud only if IBMCloud is enabled.
+      (LP: #1766401)
+    - Add reporting events and log_time around early source of blocking time
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 30 Apr 2018 15:49:20 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 11 May 2018 16:37:02 -0400
 
 cloud-init (18.2-27-g6ef92c98-0ubuntu1~18.04.1) bionic; urgency=medium
 
