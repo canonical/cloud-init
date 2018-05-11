@@ -359,8 +359,12 @@ def interface_has_own_mac(ifname, strict=False):
       1: randomly generated   3: set using dev_set_mac_address"""
 
     assign_type = read_sys_net_int(ifname, "addr_assign_type")
-    if strict and assign_type is None:
-        raise ValueError("%s had no addr_assign_type.")
+    if assign_type is None:
+        # None is returned if this nic had no 'addr_assign_type' entry.
+        # if strict, raise an error, if not return True.
+        if strict:
+            raise ValueError("%s had no addr_assign_type.")
+        return True
     return assign_type in (0, 1, 3)
 
 

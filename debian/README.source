@@ -18,9 +18,10 @@ Stable release branches are also available in ubuntu/<codename>
 Patches in debian/patches are stored un-applied.
 
 == New snapshot ==
-To pull a new upstream snapshot:
-
- ./debian/new-upstream-snapshot ../trunk
+Upstream maintains a script to handle new upstream snapshots at:
+  https://github.com/cloud-init/qa-scripts/
+Its usage is like:
+ new-upstream-snapshot master
 
 == Cherry Pick ==
 To cherry pick an upstream commit:

@@ -138,7 +138,7 @@ def _netdev_info_ifconfig(ifconfig_data):
             elif toks[i].startswith("scope:"):
                 devs[curdev]['ipv6'][-1]['scope6'] = toks[i].lstrip("scope:")
             elif toks[i] == "scopeid":
-                res = re.match(".*<(\S+)>", toks[i + 1])
+                res = re.match(r'.*<(\S+)>', toks[i + 1])
                 if res:
                     devs[curdev]['ipv6'][-1]['scope6'] = res.group(1)
     return devs
@@ -158,12 +158,28 @@ def netdev_info(empty=""):
         LOG.warning(
             "Could not print networks: missing 'ip' and 'ifconfig' commands")
 
-    if empty != "":
-        for (_devname, dev) in devs.items():
-            for field in dev:
-                if dev[field] == "":
-                    dev[field] = empty
+    if empty == "":
+        return devs
 
+    recurse_types = (dict, tuple, list)
+
+    def fill(data, new_val="", empty_vals=("", b"")):
+        """Recursively replace 'empty_vals' in data (dict, tuple, list)
+           with new_val"""
+        if isinstance(data, dict):
+            myiter = data.items()
+        elif isinstance(data, (tuple, list)):
+            myiter = enumerate(data)
+        else:
+            raise TypeError("Unexpected input to fill")
+
+        for key, val in myiter:
+            if val in empty_vals:
+                data[key] = new_val
+            elif isinstance(val, recurse_types):
+                fill(val, new_val)
+
+    fill(devs, new_val=empty)
     return devs
 
 
@@ -353,8 +369,9 @@ def getgateway():
 
 def netdev_pformat():
     lines = []
+    empty = "."
     try:
-        netdev = netdev_info(empty=".")
+        netdev = netdev_info(empty=empty)
     except Exception as e:
         lines.append(
             util.center(
@@ -368,12 +385,15 @@ def netdev_pformat():
         for (dev, data) in sorted(netdev.items()):
             for addr in data.get('ipv4'):
                 tbl.add_row(
-                    [dev, data["up"], addr["ip"], addr["mask"],
-                     addr.get('scope', '.'), data["hwaddr"]])
+                    (dev, data["up"], addr["ip"], addr["mask"],
+                     addr.get('scope', empty), data["hwaddr"]))
             for addr in data.get('ipv6'):
                 tbl.add_row(
-                    [dev, data["up"], addr["ip"], ".", addr["scope6"],
-                     data["hwaddr"]])
+                    (dev, data["up"], addr["ip"], empty, addr["scope6"],
+                     data["hwaddr"]))
+            if len(data.get('ipv6')) + len(data.get('ipv4')) == 0:
+                tbl.add_row((dev, data["up"], empty, empty, empty,
+                             data["hwaddr"]))
         netdev_s = tbl.get_string()
         max_len = len(max(netdev_s.splitlines(), key=len))
         header = util.center("Net device info", "+", max_len)

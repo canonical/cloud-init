@@ -706,7 +706,7 @@ class TestSupplementalSchemaValidation(CiTestCase):
         cfg = {'confpath': 'someconf', 'check_exe': '', 'service_name': '',
                'template': 'asdf', 'template_name': None, 'packages': 'NOPE'}
         match = (r'Invalid ntp configuration:\\nExpected a list of required'
-                 ' package names for ntp:config:packages. Found \(NOPE\)')
+                 ' package names for ntp:config:packages. Found \\(NOPE\\)')
         with self.assertRaisesRegex(ValueError, match):
             cc_ntp.supplemental_schema_validation(cfg)
 
