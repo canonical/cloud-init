@@ -24,9 +24,9 @@ base_test_data:
         status.json: |
             #!/bin/sh
             cat /run/cloud-init/status.json
-        cloud-init-version: |
+        package-versions: |
             #!/bin/sh
-            dpkg-query -W -f='${Version}' cloud-init
+            dpkg-query --show
         system.journal.gz: |
             #!/bin/sh
             [ -d /run/systemd ] || { echo "not systemd."; exit 0; }

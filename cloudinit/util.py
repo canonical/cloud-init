@@ -1154,7 +1154,9 @@ def gethostbyaddr(ip):
 
 def is_resolvable_url(url):
     """determine if this url is resolvable (existing or ip)."""
-    return is_resolvable(urlparse.urlparse(url).hostname)
+    return log_time(logfunc=LOG.debug, msg="Resolving URL: " + url,
+                    func=is_resolvable,
+                    args=(urlparse.urlparse(url).hostname,))
 
 
 def search_for_mirror(candidates):

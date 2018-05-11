@@ -4,7 +4,7 @@
 
 from copy import copy
 
-from cloudinit.netinfo import netdev_pformat, route_pformat
+from cloudinit.netinfo import netdev_info, netdev_pformat, route_pformat
 from cloudinit.tests.helpers import CiTestCase, mock, readResource
 
 
@@ -70,6 +70,51 @@ class TestNetInfo(CiTestCase):
             " commands\n",
             self.logs.getvalue())
         m_subp.assert_not_called()
+
+    @mock.patch('cloudinit.netinfo.util.which')
+    @mock.patch('cloudinit.netinfo.util.subp')
+    def test_netdev_info_nettools_down(self, m_subp, m_which):
+        """test netdev_info using nettools and down interfaces."""
+        m_subp.return_value = (
+            readResource("netinfo/new-ifconfig-output-down"), "")
+        m_which.side_effect = lambda x: x if x == 'ifconfig' else None
+        self.assertEqual(
+            {'eth0': {'ipv4': [], 'ipv6': [],
+                      'hwaddr': '00:16:3e:de:51:a6', 'up': False},
+             'lo': {'ipv4': [{'ip': '127.0.0.1', 'mask': '255.0.0.0'}],
+                    'ipv6': [{'ip': '::1/128', 'scope6': 'host'}],
+                    'hwaddr': '.', 'up': True}},
+            netdev_info("."))
+
+    @mock.patch('cloudinit.netinfo.util.which')
+    @mock.patch('cloudinit.netinfo.util.subp')
+    def test_netdev_info_iproute_down(self, m_subp, m_which):
+        """Test netdev_info with ip and down interfaces."""
+        m_subp.return_value = (
+            readResource("netinfo/sample-ipaddrshow-output-down"), "")
+        m_which.side_effect = lambda x: x if x == 'ip' else None
+        self.assertEqual(
+            {'lo': {'ipv4': [{'ip': '127.0.0.1', 'bcast': '.',
+                              'mask': '255.0.0.0', 'scope': 'host'}],
+                    'ipv6': [{'ip': '::1/128', 'scope6': 'host'}],
+                    'hwaddr': '.', 'up': True},
+             'eth0': {'ipv4': [], 'ipv6': [],
+                      'hwaddr': '00:16:3e:de:51:a6', 'up': False}},
+            netdev_info("."))
+
+    @mock.patch('cloudinit.netinfo.netdev_info')
+    def test_netdev_pformat_with_down(self, m_netdev_info):
+        """test netdev_pformat when netdev_info returns 'down' interfaces."""
+        m_netdev_info.return_value = (
+            {'lo': {'ipv4': [{'ip': '127.0.0.1', 'mask': '255.0.0.0',
+                              'scope': 'host'}],
+                    'ipv6': [{'ip': '::1/128', 'scope6': 'host'}],
+                    'hwaddr': '.', 'up': True},
+             'eth0': {'ipv4': [], 'ipv6': [],
+                      'hwaddr': '00:16:3e:de:51:a6', 'up': False}})
+        self.assertEqual(
+            readResource("netinfo/netdev-formatted-output-down"),
+            netdev_pformat())
 
     @mock.patch('cloudinit.netinfo.util.which')
     @mock.patch('cloudinit.netinfo.util.subp')

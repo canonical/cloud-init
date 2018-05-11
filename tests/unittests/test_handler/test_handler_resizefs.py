@@ -147,7 +147,7 @@ class TestResizefs(CiTestCase):
     def test_resize_ufs_cmd_return(self):
         mount_point = '/'
         devpth = '/dev/sda2'
-        self.assertEqual(('growfs', devpth),
+        self.assertEqual(('growfs', '-y', devpth),
                          _resize_ufs(mount_point, devpth))
 
     @mock.patch('cloudinit.util.get_mount_info')
