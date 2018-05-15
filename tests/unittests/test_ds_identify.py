@@ -10,7 +10,8 @@ from cloudinit import util
 from cloudinit.tests.helpers import (
     CiTestCase, dir2dict, populate_dir, populate_dir_with_ts)
 
-from cloudinit.sources import DataSourceIBMCloud as dsibm
+from cloudinit.sources import DataSourceIBMCloud as ds_ibm
+from cloudinit.sources import DataSourceSmartOS as ds_smartos
 
 UNAME_MYSYS = ("Linux bart 4.4.0-62-generic #83-Ubuntu "
                "SMP Wed Jan 18 14:10:15 UTC 2017 x86_64 GNU/Linux")
@@ -69,8 +70,12 @@ P_DSID_CFG = "etc/cloud/ds-identify.cfg"
 
 IBM_CONFIG_UUID = "9796-932E"
 
+MOCK_VIRT_IS_CONTAINER_OTHER = {'name': 'detect_virt',
+                                'RET': 'container-other', 'ret': 0}
 MOCK_VIRT_IS_KVM = {'name': 'detect_virt', 'RET': 'kvm', 'ret': 0}
 MOCK_VIRT_IS_VMWARE = {'name': 'detect_virt', 'RET': 'vmware', 'ret': 0}
+# currenty' SmartOS hypervisor "bhyve" is unknown by systemd-detect-virt.
+MOCK_VIRT_IS_VM_OTHER = {'name': 'detect_virt', 'RET': 'vm-other', 'ret': 0}
 MOCK_VIRT_IS_XEN = {'name': 'detect_virt', 'RET': 'xen', 'ret': 0}
 MOCK_UNAME_IS_PPC64 = {'name': 'uname', 'out': UNAME_PPC64EL, 'ret': 0}
 
@@ -330,7 +335,7 @@ class TestDsIdentify(DsIdentifyBase):
                 break
         if not offset:
             raise ValueError("Expected to find 'blkid' mock, but did not.")
-        data['mocks'][offset]['out'] = d['out'].replace(dsibm.IBM_CONFIG_UUID,
+        data['mocks'][offset]['out'] = d['out'].replace(ds_ibm.IBM_CONFIG_UUID,
                                                         "DEAD-BEEF")
         self._check_via_dict(
             data, rc=RC_FOUND, dslist=['ConfigDrive', DS_NONE])
@@ -515,6 +520,20 @@ class TestDsIdentify(DsIdentifyBase):
     def test_hetzner_found(self):
         """Hetzner cloud is identified in sys_vendor."""
         self._test_ds_found('Hetzner')
+
+    def test_smartos_bhyve(self):
+        """SmartOS cloud identified by SmartDC in dmi."""
+        self._test_ds_found('SmartOS-bhyve')
+
+    def test_smartos_lxbrand(self):
+        """SmartOS cloud identified on lxbrand container."""
+        self._test_ds_found('SmartOS-lxbrand')
+
+    def test_smartos_lxbrand_requires_socket(self):
+        """SmartOS cloud should not be identified if no socket file."""
+        mycfg = copy.deepcopy(VALID_CFG['SmartOS-lxbrand'])
+        del mycfg['files'][ds_smartos.METADATA_SOCKFILE]
+        self._check_via_dict(mycfg, rc=RC_NOT_FOUND, policy_dmi="disabled")
 
 
 class TestIsIBMProvisioning(DsIdentifyBase):
@@ -777,7 +796,7 @@ VALID_CFG = {
                  [{'DEVNAME': 'xvda1', 'TYPE': 'ext3', 'PARTUUID': uuid4(),
                    'UUID': uuid4(), 'LABEL': 'cloudimg-bootfs'},
                   {'DEVNAME': 'xvdb', 'TYPE': 'vfat', 'LABEL': 'config-2',
-                   'UUID': dsibm.IBM_CONFIG_UUID},
+                   'UUID': ds_ibm.IBM_CONFIG_UUID},
                   {'DEVNAME': 'xvda2', 'TYPE': 'ext4',
                    'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4(),
                    'UUID': uuid4()},
@@ -798,6 +817,32 @@ VALID_CFG = {
              },
         ],
     },
+    'SmartOS-bhyve': {
+        'ds': 'SmartOS',
+        'mocks': [
+            MOCK_VIRT_IS_VM_OTHER,
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'vda1', 'TYPE': 'ext4',
+                   'PARTUUID': '49ec635a-01'},
+                  {'DEVNAME': 'vda2', 'TYPE': 'swap',
+                   'LABEL': 'cloudimg-swap', 'PARTUUID': '49ec635a-02'}]),
+             },
+        ],
+        'files': {P_PRODUCT_NAME: 'SmartDC HVM\n'},
+    },
+    'SmartOS-lxbrand': {
+        'ds': 'SmartOS',
+        'mocks': [
+            MOCK_VIRT_IS_CONTAINER_OTHER,
+            {'name': 'uname', 'ret': 0,
+             'out': ("Linux d43da87a-daca-60e8-e6d4-d2ed372662a3 4.3.0 "
+                     "BrandZ virtual linux x86_64 GNU/Linux")},
+            {'name': 'blkid', 'ret': 2, 'out': ''},
+        ],
+        'files': {ds_smartos.METADATA_SOCKFILE: 'would be a socket\n'},
+    }
+
 }
 
 # vi: ts=4 expandtab
