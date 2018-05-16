@@ -280,8 +280,8 @@ def handle_swapcfg(swapcfg):
 
     if os.path.exists(fname):
         if not os.path.exists("/proc/swaps"):
-            LOG.debug("swap file %s exists, but no /proc/swaps exists, being safe",
-                      fname)
+            LOG.debug("swap file %s exists, but no /proc/swaps exists, "
+                      "being safe", fname)
             return fname
         try:
             for line in util.load_file("/proc/swaps").splitlines():
