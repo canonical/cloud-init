@@ -233,7 +233,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
         try:
             memsize = util.read_meminfo()['total']
         except IOError as e:
-            LOG.debug("Not creating swap. failed to read meminfo")
+            LOG.debug("Not creating swap: failed to read meminfo")
             return
 
         util.ensure_dir(tdir)
@@ -280,17 +280,17 @@ def handle_swapcfg(swapcfg):
 
     if os.path.exists(fname):
         if not os.path.exists("/proc/swaps"):
-            LOG.debug("swap file %s existed. no /proc/swaps. Being safe.",
+            LOG.debug("swap file %s exists, but no /proc/swaps exists, being safe",
                       fname)
             return fname
         try:
             for line in util.load_file("/proc/swaps").splitlines():
                 if line.startswith(fname + " "):
-                    LOG.debug("swap file %s already in use.", fname)
+                    LOG.debug("swap file %s already in use", fname)
                     return fname
-            LOG.debug("swap file %s existed, but not in /proc/swaps", fname)
+            LOG.debug("swap file %s exists, but not in /proc/swaps", fname)
         except Exception:
-            LOG.warning("swap file %s existed. Error reading /proc/swaps",
+            LOG.warning("swap file %s exists. Error reading /proc/swaps",
                         fname)
             return fname
 
@@ -337,7 +337,7 @@ def handle(_name, cfg, cloud, log, _args):
         start = str(cfgmnt[i][0])
         sanitized = sanitize_devname(start, cloud.device_name_to_device, log)
         if sanitized is None:
-            log.debug("Ignorming nonexistant named mount %s", start)
+            log.debug("Ignoring nonexistent named mount %s", start)
             continue
 
         if sanitized != start:
@@ -374,7 +374,7 @@ def handle(_name, cfg, cloud, log, _args):
         start = defmnt[0]
         sanitized = sanitize_devname(start, cloud.device_name_to_device, log)
         if sanitized is None:
-            log.debug("Ignoring nonexistant default named mount %s", start)
+            log.debug("Ignoring nonexistent default named mount %s", start)
             continue
         if sanitized != start:
             log.debug("changed default device %s => %s" % (start, sanitized))
@@ -397,7 +397,7 @@ def handle(_name, cfg, cloud, log, _args):
     actlist = []
     for x in cfgmnt:
         if x[1] is None:
-            log.debug("Skipping non-existent device named %s", x[0])
+            log.debug("Skipping nonexistent device named %s", x[0])
         else:
             actlist.append(x)
 
@@ -406,7 +406,7 @@ def handle(_name, cfg, cloud, log, _args):
         actlist.append([swapret, "none", "swap", "sw", "0", "0"])
 
     if len(actlist) == 0:
-        log.debug("No modifications to fstab needed.")
+        log.debug("No modifications to fstab needed")
         return
 
     comment = "comment=cloudconfig"
