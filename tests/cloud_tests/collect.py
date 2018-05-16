@@ -42,7 +42,7 @@ def collect_console(instance, base_dir):
     @param base_dir: directory to write console log to
     """
     logfile = os.path.join(base_dir, 'console.log')
-    LOG.debug('getting console log for %s to %s', instance, logfile)
+    LOG.debug('getting console log for %s to %s', instance.name, logfile)
     try:
         data = instance.console_log()
     except NotImplementedError as e:
