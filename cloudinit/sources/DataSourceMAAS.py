@@ -198,7 +198,7 @@ def read_maas_seed_url(seed_url, read_file_or_url=None, timeout=None,
     If version is None, then <version>/ will not be used.
     """
     if read_file_or_url is None:
-        read_file_or_url = util.read_file_or_url
+        read_file_or_url = url_helper.read_file_or_url
 
     if seed_url.endswith("/"):
         seed_url = seed_url[:-1]

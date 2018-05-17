@@ -4,7 +4,7 @@
 from __future__ import print_function
 
 from cloudinit import importer
-from cloudinit.util import find_modules, read_file_or_url
+from cloudinit.util import find_modules, load_file
 
 import argparse
 from collections import defaultdict
@@ -139,7 +139,7 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
     """
     if not os.path.exists(config_path):
         raise RuntimeError('Configfile {0} does not exist'.format(config_path))
-    content = read_file_or_url('file://{0}'.format(config_path)).contents
+    content = load_file(config_path, decode=False)
     if not content.startswith(CLOUD_CONFIG_HEADER):
         errors = (
             ('header', 'File {0} needs to begin with "{1}"'.format(
