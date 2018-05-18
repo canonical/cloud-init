@@ -1,5 +1,3 @@
 azure-use-walinux-agent.patch
 ds-identify-behavior-xenial.patch
 stable-release-no-jsonschema-dep.patch
-cpick-6ef92c98-IBMCloud-recognize-provisioning-environment-during
-cpick-11172924-IBMCloud-Disable-config-drive-and-nocloud-only-if
