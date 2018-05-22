@@ -187,6 +187,16 @@ block_dev_with_label() {
     return 0
 }
 
+ensure_sane_path() {
+    local t
+    for t in /sbin /usr/sbin /bin /usr/bin; do
+        case ":$PATH:" in
+            *:$t:*|*:$t/:*) continue;;
+        esac
+        PATH="${PATH:+${PATH}:}$t"
+    done
+}
+
 read_fs_info() {
     cached "${DI_BLKID_OUTPUT}" && return 0
     # do not rely on links in /dev/disk which might not be present yet.
@@ -1464,6 +1474,7 @@ _main() {
 
 main() {
     local ret=""
+    ensure_sane_path
     [ -d "$PATH_RUN_CI" ] || mkdir -p "$PATH_RUN_CI"
     if [ "${1:+$1}" != "--force" ] && [ -f "$PATH_RUN_CI_CFG" ] &&
         [ -f "$PATH_RUN_DI_RESULT" ]; then

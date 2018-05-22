@@ -175,7 +175,9 @@ class DsIdentifyBase(CiTestCase):
     def _call_via_dict(self, data, rootd=None, **kwargs):
         # return output of self.call with a dict input like VALID_CFG[item]
         xwargs = {'rootd': rootd}
-        for k in ('mocks', 'args', 'policy_dmi', 'policy_no_dmi', 'files'):
+        passthrough = ('mocks', 'func', 'args', 'policy_dmi',
+                       'policy_no_dmi', 'files')
+        for k in passthrough:
             if k in data:
                 xwargs[k] = data[k]
             if k in kwargs:
@@ -534,6 +536,25 @@ class TestDsIdentify(DsIdentifyBase):
         mycfg = copy.deepcopy(VALID_CFG['SmartOS-lxbrand'])
         del mycfg['files'][ds_smartos.METADATA_SOCKFILE]
         self._check_via_dict(mycfg, rc=RC_NOT_FOUND, policy_dmi="disabled")
+
+    def test_path_env_gets_set_from_main(self):
+        """PATH environment should always have some tokens when main is run.
+
+        We explicitly call main as we want to ensure it updates PATH."""
+        cust = copy.deepcopy(VALID_CFG['NoCloud'])
+        rootd = self.tmp_dir()
+        mpp = 'main-printpath'
+        pre = "MYPATH="
+        cust['files'][mpp] = (
+            'PATH="/mycust/path"; main; r=$?; echo ' + pre + '$PATH; exit $r;')
+        ret = self._check_via_dict(
+            cust, RC_FOUND,
+            func=".", args=[os.path.join(rootd, mpp)], rootd=rootd)
+        line = [l for l in ret.stdout.splitlines() if l.startswith(pre)][0]
+        toks = line.replace(pre, "").split(":")
+        expected = ["/sbin", "/bin", "/usr/sbin", "/usr/bin", "/mycust/path"]
+        self.assertEqual(expected, [p for p in expected if p in toks],
+                         "path did not have expected tokens")
 
 
 class TestIsIBMProvisioning(DsIdentifyBase):
