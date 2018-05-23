@@ -1,3 +1,31 @@
+cloud-init (18.2-59-gcd1de5f4-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - openstack: Allow discovery in init-local using dhclient in a sandbox.
+      (LP: #1749717)
+    - tests: Avoid using https in httpretty, improve HttPretty test case.
+      (LP: #1771659)
+    - yaml_load/schema: Add invalid line and column nums to error message
+    - Azure: Ignore NTFS mount errors when checking ephemeral drive
+      [Paul Meyer]
+    - packages/brpm: Get proper dependencies for cmdline distro.
+    - packages: Make rpm spec files patch in package version like in debs.
+    - tools/run-container: replace tools/run-centos with more generic.
+    - Update version.version_string to contain packaged version. (LP: #1770712)
+    - cc_mounts: Do not add devices to fstab that are already present.
+      [Lars Kellogg-Stedman]
+    - ds-identify: ensure that we have certain tokens in PATH. (LP: #1771382)
+    - tests: enable Ubuntu Cosmic in integration tests [Joshua Powers]
+    - read_file_or_url: move to url_helper, fix bug in its FileResponse.
+    - cloud_tests: help pylint
+    - flake8: fix flake8 errors in previous commit.
+    - typos: Fix spelling mistakes in cc_mounts.py log messages [Stephen Ford]
+    - tests: restructure SSH and initial connections [Joshua Powers]
+    - ds-identify: recognize container-other as a container, test SmartOS.
+    - cloud-config.service: run After snap.seeded.service. (LP: #1767131)
+
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 23 May 2018 16:16:53 -0600
 cloud-init (18.2-41-g3b712fce-0ubuntu1) cosmic; urgency=medium
 
   * debian/new-upstream-snapshot: Remove script, now maintained elsewhere.
