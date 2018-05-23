@@ -1,4 +1,4 @@
-cloud-init (18.2-59-gcd1de5f4-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.2-59-gcd1de5f4-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
     - openstack: Allow discovery in init-local using dhclient in a sandbox.
