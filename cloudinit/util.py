@@ -874,8 +874,20 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                              " but got %s instead") %
                             (allowed, type_utils.obj_name(converted)))
         loaded = converted
-    except (yaml.YAMLError, TypeError, ValueError):
-        logexc(LOG, "Failed loading yaml blob")
+    except (yaml.YAMLError, TypeError, ValueError) as e:
+        msg = 'Failed loading yaml blob'
+        mark = None
+        if hasattr(e, 'context_mark') and getattr(e, 'context_mark'):
+            mark = getattr(e, 'context_mark')
+        elif hasattr(e, 'problem_mark') and getattr(e, 'problem_mark'):
+            mark = getattr(e, 'problem_mark')
+        if mark:
+            msg += (
+                '. Invalid format at line {line} column {col}: "{err}"'.format(
+                    line=mark.line + 1, col=mark.column + 1, err=e))
+        else:
+            msg += '. {err}'.format(err=e)
+        LOG.warning(msg)
     return loaded
 
 
