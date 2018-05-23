@@ -191,7 +191,6 @@ def register_mock_metaserver(base_url, data):
             register(base_url, 'not found', status=404)
 
     def myreg(*argc, **kwargs):
-        # print("register_url(%s, %s)" % (argc, kwargs))
         return httpretty.register_uri(httpretty.GET, *argc, **kwargs)
 
     register_helper(myreg, base_url, data)
@@ -236,7 +235,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
                 return_value=platform_data)
 
         if md:
-            httpretty.HTTPretty.allow_net_connect = False
             all_versions = (
                 [ds.min_metadata_version] + ds.extended_metadata_versions)
             for version in all_versions:
@@ -255,7 +253,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
                         register_mock_metaserver(instance_id_url, None)
         return ds
 
-    @httpretty.activate
     def test_network_config_property_returns_version_1_network_data(self):
         """network_config property returns network version 1 for metadata.
 
@@ -288,7 +285,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
                     m_get_mac.return_value = mac1
                     self.assertEqual(expected, ds.network_config)
 
-    @httpretty.activate
     def test_network_config_property_set_dhcp4_on_private_ipv4(self):
         """network_config property configures dhcp4 on private ipv4 nics.
 
@@ -330,7 +326,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds._network_config = {'cached': 'data'}
         self.assertEqual({'cached': 'data'}, ds.network_config)
 
-    @httpretty.activate
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_network_config_cached_property_refreshed_on_upgrade(self, m_dhcp):
         """Refresh the network_config Ec2 cache if network key is absent.
@@ -364,7 +359,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
              'type': 'physical'}]}
         self.assertEqual(expected, ds.network_config)
 
-    @httpretty.activate
     def test_ec2_get_instance_id_refreshes_identity_on_upgrade(self):
         """get_instance-id gets DataSourceEc2Local.identity if not present.
 
@@ -397,7 +391,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds.metadata = DEFAULT_METADATA
         self.assertEqual('my-identity-id', ds.get_instance_id())
 
-    @httpretty.activate
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_valid_platform_with_strict_true(self, m_dhcp):
         """Valid platform data should return true with strict_id true."""
@@ -409,7 +402,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertTrue(ret)
         self.assertEqual(0, m_dhcp.call_count)
 
-    @httpretty.activate
     def test_valid_platform_with_strict_false(self):
         """Valid platform data should return true with strict_id false."""
         ds = self._setup_ds(
@@ -419,7 +411,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ret = ds.get_data()
         self.assertTrue(ret)
 
-    @httpretty.activate
     def test_unknown_platform_with_strict_true(self):
         """Unknown platform data with strict_id true should return False."""
         uuid = 'ab439480-72bf-11d3-91fc-b8aded755F9a'
@@ -430,7 +421,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ret = ds.get_data()
         self.assertFalse(ret)
 
-    @httpretty.activate
     def test_unknown_platform_with_strict_false(self):
         """Unknown platform data with strict_id false should return True."""
         uuid = 'ab439480-72bf-11d3-91fc-b8aded755F9a'
@@ -462,7 +452,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
                     ' not {0}'.format(platform_name))
                 self.assertIn(message, self.logs.getvalue())
 
-    @httpretty.activate
     @mock.patch('cloudinit.sources.DataSourceEc2.util.is_FreeBSD')
     def test_ec2_local_returns_false_on_bsd(self, m_is_freebsd):
         """DataSourceEc2Local returns False on BSD.
@@ -481,7 +470,6 @@ class TestEc2(test_helpers.HttprettyTestCase):
             "FreeBSD doesn't support running dhclient with -sf",
             self.logs.getvalue())
 
-    @httpretty.activate
     @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
     @mock.patch('cloudinit.net.find_fallback_nic')
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')

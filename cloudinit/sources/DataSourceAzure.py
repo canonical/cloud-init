@@ -208,6 +208,7 @@ BUILTIN_CLOUD_CONFIG = {
 }
 
 DS_CFG_PATH = ['datasource', DS_NAME]
+DS_CFG_KEY_PRESERVE_NTFS = 'never_destroy_ntfs'
 DEF_EPHEMERAL_LABEL = 'Temporary Storage'
 
 # The redacted password fails to meet password complexity requirements
@@ -394,14 +395,9 @@ class DataSourceAzure(sources.DataSource):
         if found == ddir:
             LOG.debug("using files cached in %s", ddir)
 
-        # azure / hyper-v provides random data here
-        # TODO. find the seed on FreeBSD platform
-        # now update ds_cfg to reflect contents pass in config
-        if not util.is_FreeBSD():
-            seed = util.load_file("/sys/firmware/acpi/tables/OEM0",
-                                  quiet=True, decode=False)
-            if seed:
-                self.metadata['random_seed'] = seed
+        seed = _get_random_seed()
+        if seed:
+            self.metadata['random_seed'] = seed
 
         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
@@ -539,7 +535,9 @@ class DataSourceAzure(sources.DataSource):
         return fabric_data
 
     def activate(self, cfg, is_new_instance):
-        address_ephemeral_resize(is_new_instance=is_new_instance)
+        address_ephemeral_resize(is_new_instance=is_new_instance,
+                                 preserve_ntfs=self.ds_cfg.get(
+                                     DS_CFG_KEY_PRESERVE_NTFS, False))
         return
 
     @property
@@ -583,17 +581,29 @@ def _has_ntfs_filesystem(devpath):
     return os.path.realpath(devpath) in ntfs_devices
 
 
-def can_dev_be_reformatted(devpath):
-    """Determine if block device devpath is newly formatted ephemeral.
+def can_dev_be_reformatted(devpath, preserve_ntfs):
+    """Determine if the ephemeral drive at devpath should be reformatted.
 
-    A newly formatted disk will:
+    A fresh ephemeral disk is formatted by Azure and will:
       a.) have a partition table (dos or gpt)
       b.) have 1 partition that is ntfs formatted, or
           have 2 partitions with the second partition ntfs formatted.
           (larger instances with >2TB ephemeral disk have gpt, and will
            have a microsoft reserved partition as part 1.  LP: #1686514)
       c.) the ntfs partition will have no files other than possibly
-          'dataloss_warning_readme.txt'"""
+          'dataloss_warning_readme.txt'
+
+    User can indicate that NTFS should never be destroyed by setting
+    DS_CFG_KEY_PRESERVE_NTFS in dscfg.
+    If data is found on NTFS, user is warned to set DS_CFG_KEY_PRESERVE_NTFS
+    to make sure cloud-init does not accidentally wipe their data.
+    If cloud-init cannot mount the disk to check for data, destruction
+    will be allowed, unless the dscfg key is set."""
+    if preserve_ntfs:
+        msg = ('config says to never destroy NTFS (%s.%s), skipping checks' %
+               (".".join(DS_CFG_PATH), DS_CFG_KEY_PRESERVE_NTFS))
+        return False, msg
+
     if not os.path.exists(devpath):
         return False, 'device %s does not exist' % devpath
 
@@ -626,18 +636,27 @@ def can_dev_be_reformatted(devpath):
     bmsg = ('partition %s (%s) on device %s was ntfs formatted' %
             (cand_part, cand_path, devpath))
     try:
-        file_count = util.mount_cb(cand_path, count_files)
+        file_count = util.mount_cb(cand_path, count_files, mtype="ntfs",
+                                   update_env_for_mount={'LANG': 'C'})
     except util.MountFailedError as e:
+        if "mount: unknown filesystem type 'ntfs'" in str(e):
+            return True, (bmsg + ' but this system cannot mount NTFS,'
+                          ' assuming there are no important files.'
+                          ' Formatting allowed.')
         return False, bmsg + ' but mount of %s failed: %s' % (cand_part, e)
 
     if file_count != 0:
+        LOG.warning("it looks like you're using NTFS on the ephemeral disk, "
+                    'to ensure that filesystem does not get wiped, set '
+                    '%s.%s in config', '.'.join(DS_CFG_PATH),
+                    DS_CFG_KEY_PRESERVE_NTFS)
         return False, bmsg + ' but had %d files on it.' % file_count
 
     return True, bmsg + ' and had no important files. Safe for reformatting.'
 
 
 def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
-                             is_new_instance=False):
+                             is_new_instance=False, preserve_ntfs=False):
     # wait for ephemeral disk to come up
     naplen = .2
     missing = util.wait_for_files([devpath], maxwait=maxwait, naplen=naplen,
@@ -653,7 +672,7 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
     if is_new_instance:
         result, msg = (True, "First instance boot.")
     else:
-        result, msg = can_dev_be_reformatted(devpath)
+        result, msg = can_dev_be_reformatted(devpath, preserve_ntfs)
 
     LOG.debug("reformattable=%s: %s", result, msg)
     if not result:
@@ -965,6 +984,18 @@ def _check_freebsd_cdrom(cdrom_dev):
     except IOError:
         LOG.debug("cdrom (%s) is not configured", cdrom_dev)
     return False
+
+
+def _get_random_seed():
+    """Return content random seed file if available, otherwise,
+       return None."""
+    # azure / hyper-v provides random data here
+    # TODO. find the seed on FreeBSD platform
+    # now update ds_cfg to reflect contents pass in config
+    if util.is_FreeBSD():
+        return None
+    return util.load_file("/sys/firmware/acpi/tables/OEM0",
+                          quiet=True, decode=False)
 
 
 def list_possible_azure_ds_devs():

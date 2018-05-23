@@ -176,7 +176,6 @@ class TestDataSourceScaleway(HttprettyTestCase):
         self.vendordata_url = \
             DataSourceScaleway.BUILTIN_DS_CONFIG['vendordata_url']
 
-    @httpretty.activate
     @mock.patch('cloudinit.sources.DataSourceScaleway.SourceAddressAdapter',
                 get_source_address_adapter)
     @mock.patch('cloudinit.util.get_cmdline')
@@ -212,7 +211,6 @@ class TestDataSourceScaleway(HttprettyTestCase):
         self.assertIsNone(self.datasource.region)
         self.assertEqual(sleep.call_count, 0)
 
-    @httpretty.activate
     @mock.patch('cloudinit.sources.DataSourceScaleway.SourceAddressAdapter',
                 get_source_address_adapter)
     @mock.patch('cloudinit.util.get_cmdline')
@@ -236,7 +234,6 @@ class TestDataSourceScaleway(HttprettyTestCase):
         self.assertIsNone(self.datasource.get_vendordata_raw())
         self.assertEqual(sleep.call_count, 0)
 
-    @httpretty.activate
     @mock.patch('cloudinit.sources.DataSourceScaleway.SourceAddressAdapter',
                 get_source_address_adapter)
     @mock.patch('cloudinit.util.get_cmdline')

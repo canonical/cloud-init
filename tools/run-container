@@ -1,0 +1,590 @@
+#!/bin/bash
+# This file is part of cloud-init. See LICENSE file for license information.
+#
+# shellcheck disable=2015,2016,2039,2162,2166
+
+set -u
+
+VERBOSITY=0
+KEEP=false
+CONTAINER=""
+DEFAULT_WAIT_MAX=30
+
+error() { echo "$@" 1>&2; }
+fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+errorrc() { local r=$?; error "$@" "ret=$r"; return $r; }
+
+Usage() {
+    cat <<EOF
+Usage: ${0##*/} [ options ] [images:]image-ref
+
+    This utility can makes it easier to run tests, build rpm and source rpm
+        generation inside a LXC of the specified version of CentOS.
+
+    To see images available, run 'lxc image list images:'
+    Example input:
+       centos/7
+       opensuse/42.3
+       debian/10
+
+    options:
+      -a | --artifacts DIR   copy build artifacts out to DIR.
+                             by default artifacts are not copied out.
+           --dirty           apply local changes before running tests.
+                             If not provided, a clean checkout of branch is
+                             tested.  Inside container, changes are in
+                             local-changes.diff.
+      -k | --keep            keep container after tests
+           --pyexe V         python version to use.  Default=auto.
+                             Should be name of an executable.
+                             ('python2' or 'python3')
+      -p | --package         build a binary package (.deb or .rpm)
+      -s | --source-package  build source package (debuild -S or srpm)
+      -u | --unittest        run unit tests
+
+    Example:
+      * ${0##*/} --package --source-package --unittest centos/6
+EOF
+}
+
+bad_Usage() { Usage 1>&2; [ $# -eq 0 ] || error "$@"; return 1; }
+cleanup() {
+    if [ -n "$CONTAINER" ]; then
+        if [ "$KEEP" = "true" ]; then
+            error "not deleting container '$CONTAINER' due to --keep"
+        else
+            delete_container "$CONTAINER"
+        fi
+    fi
+}
+
+debug() {
+    local level=${1}; shift;
+    [ "${level}" -gt "${VERBOSITY}" ] && return
+    error "${@}"
+}
+
+
+inside_as() {
+    # inside_as(container_name, user, cmd[, args])
+    # executes cmd with args inside container as user in users home dir.
+    local name="$1" user="$2"
+    shift 2
+    if [ "$user" = "root" ]; then
+        inside "$name" "$@"
+        return
+    fi
+    local stuffed="" b64=""
+    stuffed=$(getopt --shell sh --options "" -- -- "$@")
+    stuffed=${stuffed# -- }
+    b64=$(printf "%s\n" "$stuffed" | base64 --wrap=0)
+    inside "$name" su "$user" -c \
+        'cd; eval set -- "$(echo '"$b64"' | base64 --decode)" && exec "$@"';
+}
+
+inside_as_cd() {
+    local name="$1" user="$2" dir="$3"
+    shift 3
+    inside_as "$name" "$user" sh -c 'cd "$0" && exec "$@"' "$dir" "$@"
+}
+
+inside() {
+    local name="$1"
+    shift
+    lxc exec "$name" -- "$@"
+}
+
+inject_cloud_init(){
+    # take current cloud-init git dir and put it inside $name at
+    # ~$user/cloud-init.
+    local name="$1" user="$2" dirty="$3"
+    local dname="cloud-init" gitdir="" commitish=""
+    gitdir=$(git rev-parse --git-dir) || {
+        errorrc "Failed to get git dir in $PWD";
+        return
+    }
+    local t=${gitdir%/*}
+    case "$t" in
+        */worktrees) 
+            if [ -f "${t%worktrees}/config" ]; then
+                gitdir="${t%worktrees}"
+            fi
+    esac
+
+    # attempt to get branch name.
+    commitish=$(git rev-parse --abbrev-ref HEAD) || {
+        errorrc "Failed git rev-parse --abbrev-ref HEAD"
+        return
+    }
+    if [ "$commitish" = "HEAD" ]; then
+        # detached head
+        commitish=$(git rev-parse HEAD) || {
+            errorrc "failed git rev-parse HEAD"
+            return
+        }
+    fi
+
+    local local_changes=false
+    if ! git diff --quiet "$commitish"; then
+        # there are local changes not committed.
+        local_changes=true
+        if [ "$dirty" = "false" ]; then
+            error "WARNING: You had uncommitted changes.  Those changes will "
+            error "be put into 'local-changes.diff' inside the container. "
+            error "To test these changes you must pass --dirty."
+        fi
+    fi
+
+    debug 1 "collecting ${gitdir} ($dname) into user $user in $name."
+    tar -C "${gitdir}" -cpf - . |
+        inside_as "$name" "$user" sh -ec '
+            dname=$1
+            commitish=$2
+            rm -Rf "$dname"
+            mkdir -p $dname/.git
+            cd $dname/.git
+            tar -xpf -
+            cd ..
+            git config core.bare false
+            out=$(git checkout $commitish 2>&1) ||
+                { echo "failed git checkout $commitish: $out" 1>&2; exit 1; }
+            out=$(git checkout . 2>&1) ||
+                { echo "failed git checkout .: $out" 1>&2; exit 1; }
+            ' extract "$dname" "$commitish"
+    [ "${PIPESTATUS[*]}" = "0 0" ] || {
+        error "Failed to push tarball of '$gitdir' into $name" \
+            " for user $user (dname=$dname)"
+        return 1
+    }
+
+    echo "local_changes=$local_changes dirty=$dirty"
+    if [ "$local_changes" = "true" ]; then
+        git diff "$commitish" |
+            inside_as "$name" "$user" sh -exc '
+                cd "$1"
+                if [ "$2" = "true" ]; then
+                    git apply
+                else
+                    cat > local-changes.diff
+                fi
+                ' insert_changes "$dname" "$dirty"
+        [ "${PIPESTATUS[*]}" = "0 0" ] || {
+            error "Failed to apply local changes."
+            return 1
+        }
+    fi
+
+    return 0
+}
+
+get_os_info_in() {
+    # prep the container (install very basic dependencies)
+    [ -n "${OS_VERSION:-}" -a -n "${OS_NAME:-}" ] && return 0
+    data=$(run_self_inside "$name" os_info) ||
+        { errorrc "Failed to get os-info in container $name"; return; }
+    eval "$data" && [ -n "${OS_VERSION:-}" -a -n "${OS_NAME:-}" ] || return
+    debug 1 "determined $name is $OS_NAME/$OS_VERSION"
+}
+
+os_info() {
+    get_os_info || return
+    echo "OS_NAME=$OS_NAME"
+    echo "OS_VERSION=$OS_VERSION"
+}
+
+get_os_info() {
+    # run inside container, set OS_NAME, OS_VERSION
+    # example OS_NAME are centos, debian, opensuse
+    [ -n "${OS_NAME:-}" -a -n "${OS_VERSION:-}" ] && return 0
+    if [ -f /etc/os-release ]; then
+        OS_NAME=$(sh -c '. /etc/os-release; echo $ID')
+        OS_VERSION=$(sh -c '. /etc/os-release; echo $VERSION_ID')
+        if [ -z "$OS_VERSION" ]; then
+            local pname=""
+            pname=$(sh -c '. /etc/os-release; echo $PRETTY_NAME')
+            case "$pname" in
+                *buster*) OS_VERSION=10;;
+                *sid*) OS_VERSION="sid";;
+            esac
+        fi
+    elif [ -f /etc/centos-release ]; then
+        local line=""
+        read line < /etc/centos-release
+        case "$line" in
+            CentOS\ *\ 6.*) OS_VERSION="6"; OS_NAME="centos";;
+        esac
+    fi
+    [ -n "${OS_NAME:-}" -a -n "${OS_VERSION:-}" ] ||
+        { error "Unable to determine OS_NAME/OS_VERSION"; return 1; }
+}
+
+yum_install() {
+    local n=0 max=10 ret
+    bcmd="yum install --downloadonly --assumeyes --setopt=keepcache=1"
+    while n=$((n+1)); do
+       error ":: running $bcmd $* [$n/$max]"
+       $bcmd "$@"
+       ret=$?
+       [ $ret -eq 0 ] && break
+       [ $n -ge $max ] && { error "gave up on $bcmd"; exit $ret; }
+       nap=$((n*5))
+       error ":: failed [$ret] ($n/$max). sleeping $nap."
+       sleep $nap
+    done
+    error ":: running yum install --cacheonly --assumeyes $*"
+    yum install --cacheonly --assumeyes "$@"
+}
+
+zypper_install() {
+    local pkgs="$*"
+    set -- zypper --non-interactive --gpg-auto-import-keys install \
+        --auto-agree-with-licenses "$@"
+    debug 1 ":: installing $pkgs with zypper: $*"
+    "$@"
+}
+
+apt_install() {
+    apt-get update -q && apt-get install --no-install-recommends "$@"
+}
+
+install_packages() {
+    get_os_info || return
+    case "$OS_NAME" in
+        centos) yum_install "$@";;
+        opensuse) zypper_install "$@";;
+        debian|ubuntu) apt_install "$@";;
+        *) error "Do not know how to install packages on ${OS_NAME}";
+           return 1;;
+    esac
+}
+
+prep() {
+    # we need some very basic things not present in the container.
+    #  - git
+    #  - tar (CentOS 6 lxc container does not have it)
+    #  - python-argparse (or python3)
+    local needed="" pair="" pkg="" cmd="" needed=""
+    local pairs="tar:tar git:git"
+    local pyexe="$1"
+    get_os_info
+    local py2pkg="python2" py3pkg="python3"
+    case "$OS_NAME" in
+        opensuse)
+            py2pkg="python-base"
+            py3pkg="python3-base";;
+    esac
+
+    case "$pyexe" in
+        python2) pairs="$pairs python2:$py2pkg";;
+        python3) pairs="$pairs python3:$py3pkg";;
+    esac
+
+    for pair in $pairs; do
+        pkg=${pair#*:}
+        cmd=${pair%%:*}
+        command -v "$cmd" >/dev/null 2>&1 || needed="${needed} $pkg"
+    done
+    if [ "$OS_NAME" = "centos" -a "$pyexe" = "python2" ]; then
+        python -c "import argparse" >/dev/null 2>&1 ||
+            needed="${needed} python-argparse"
+    fi
+    needed=${needed# }
+    if [ -z "$needed" ]; then
+        error "No prep packages needed"
+        return 0
+    fi
+    error "Installing prep packages: ${needed}"
+    # shellcheck disable=SC2086
+    set -- $needed
+    install_packages "$@"
+}
+
+nose() {
+    local pyexe="$1" cmd=""
+    shift
+    get_os_info
+    if [ "$OS_NAME/$OS_VERSION" = "centos/6" ]; then
+        cmd="nosetests"
+    else
+        cmd="$pyexe -m nose"
+    fi
+    ${cmd} "$@"
+}
+
+is_done_cloudinit() {
+    [ -e "/run/cloud-init/result.json" ]
+    _RET=""
+}
+
+is_done_systemd() {
+    local s="" num="$1"
+    s=$(systemctl is-system-running 2>&1);
+    _RET="$? $s"
+    case "$s" in
+        initializing|starting) return 1;;
+        *[Ff]ailed*connect*bus*)
+            # warn if not the first run.
+            [ "$num" -lt 5 ] ||
+                error "Failed to connect to systemd bus [${_RET%% *}]";
+            return 1;;
+    esac
+    return 0
+}
+
+is_done_other() {
+    local out=""
+    out=$(getent hosts ubuntu.com 2>&1)
+    return
+}
+
+wait_inside() {
+    local name="$1" max="${2:-${DEFAULT_WAIT_MAX}}" debug=${3:-0}
+    local i=0 check="is_done_other";
+    if [ -e /run/systemd ]; then
+        check=is_done_systemd
+    elif [ -x /usr/bin/cloud-init ]; then
+        check=is_done_cloudinit
+    fi
+    [ "$debug" != "0" ] && debug 1 "check=$check"
+    while ! $check $i && i=$((i+1)); do
+        [ "$i" -ge "$max" ] && exit 1
+        [ "$debug" = "0" ] || echo -n .
+        sleep 1
+    done
+    if [ "$debug" != "0" ]; then
+        read up _ </proc/uptime
+        debug 1 "[$name ${i:+done after $i }up=$up${_RET:+ ${_RET}}]"
+    fi
+}
+
+wait_for_boot() {
+    local name="$1"
+    local out="" ret="" wtime=$DEFAULT_WAIT_MAX
+    get_os_info_in "$name"
+    [ "$OS_NAME" = "debian" ] && wtime=300 &&
+        debug 1 "on debian we wait for ${wtime}s"
+    debug 1 "waiting for boot of $name"
+    run_self_inside "$name" wait_inside "$name" "$wtime" "$VERBOSITY" ||
+        { errorrc "wait inside $name failed."; return; }
+
+    if [ ! -z "${http_proxy-}" ]; then
+        if [ "$OS_NAME" = "centos" ]; then
+            debug 1 "configuring proxy ${http_proxy}"
+            inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
+            inside "$name" sed -i s/enabled=1/enabled=0/ \
+                /etc/yum/pluginconf.d/fastestmirror.conf
+        else
+            debug 1 "do not know how to configure proxy on $OS_NAME"
+        fi
+    fi
+}
+
+start_container() {
+    local src="$1" name="$2"
+    debug 1 "starting container $name from '$src'"
+    lxc launch "$src" "$name" || {
+        errorrc "Failed to start container '$name' from '$src'";
+        return
+    }
+    CONTAINER=$name
+    wait_for_boot "$name"
+}
+
+delete_container() {
+    debug 1 "removing container $1 [--keep to keep]"
+    lxc delete --force "$1"
+}
+
+run_self_inside() {
+    # run_self_inside(container, args)
+    local name="$1"
+    shift
+    inside "$name" bash -s "$@" <"$0"
+}
+
+run_self_inside_as_cd() {
+    local name="$1" user="$2" dir="$3"
+    shift 3
+    inside_as_cd "$name" "$user" "$dir" bash -s "$@" <"$0"
+}
+
+main() {
+    local short_opts="a:hknpsuv"
+    local long_opts="artifacts:,dirty,help,keep,name:,pyexe:,package,source-package,unittest,verbose"
+    local getopt_out=""
+    getopt_out=$(getopt --name "${0##*/}" \
+        --options "${short_opts}" --long "${long_opts}" -- "$@") &&
+        eval set -- "${getopt_out}" ||
+        { bad_Usage; return; }
+
+    local cur="" next=""
+    local package="" source_package="" unittest="" name=""
+    local dirty=false pyexe="auto" artifact_d="."
+
+    while [ $# -ne 0 ]; do
+        cur="${1:-}"; next="${2:-}";
+        case "$cur" in
+            -a|--artifacts) artifact_d="$next";;
+               --dirty) dirty=true;;
+            -h|--help) Usage ; exit 0;;
+            -k|--keep) KEEP=true;;
+            -n|--name) name="$next"; shift;;
+               --pyexe) pyexe=$next; shift;;
+            -p|--package) package=1;;
+            -s|--source-package) source_package=1;;
+            -u|--unittest) unittest=1;;
+            -v|--verbose) VERBOSITY=$((VERBOSITY+1));;
+            --) shift; break;;
+        esac
+        shift;
+    done
+
+    [ $# -eq 1 ] || { bad_Usage "Expected 1 arg, got $# ($*)"; return; }
+    local img_ref_in="$1"
+    case "${img_ref_in}" in
+        *:*) img_ref="${img_ref_in}";;
+        *) img_ref="images:${img_ref_in}";;
+    esac
+
+    # program starts here
+    local out="" user="ci-test" cdir="" home=""
+    home="/home/$user"
+    cdir="$home/cloud-init"
+    if [ -z "$name" ]; then
+        if out=$(petname 2>&1); then
+            name="ci-${out}"
+        elif out=$(uuidgen -t 2>&1); then
+            name="ci-${out%%-*}"
+        else
+            error "Must provide name or have petname or uuidgen"
+            return 1
+        fi
+    fi
+
+    trap cleanup EXIT
+
+    start_container "$img_ref" "$name" ||
+        { errorrc "Failed to start container for $img_ref"; return; }
+
+    get_os_info_in "$name" ||
+        { errorrc "failed to get os_info in $name"; return; }
+
+    if [ "$pyexe" = "auto" ]; then
+        case "$OS_NAME/$OS_VERSION" in
+            centos/*|opensuse/*) pyexe=python2;;
+            *) pyexe=python3;;
+        esac
+        debug 1 "set pyexe=$pyexe for $OS_NAME/$OS_VERSION"
+    fi
+
+    # prep the container (install very basic dependencies)
+    run_self_inside "$name" prep "$pyexe" ||
+        { errorrc "Failed to prep container $name"; return; }
+
+    # add the user
+    inside "$name" useradd "$user" --create-home "--home-dir=$home" ||
+        { errorrc "Failed to add user '$user' in '$name'"; return 1; }
+
+    debug 1 "inserting cloud-init"
+    inject_cloud_init "$name" "$user" "$dirty" || {
+        errorrc "FAIL: injecting cloud-init into $name failed."
+        return
+    }
+
+    inside_as_cd "$name" root "$cdir" \
+        $pyexe ./tools/read-dependencies "--distro=${OS_NAME}" \
+            --test-distro || {
+        errorrc "FAIL: failed to install dependencies with read-dependencies"
+        return
+    }
+
+    local errors=( )
+    inside_as_cd "$name" "$user" "$cdir" git status || {
+        errorrc "git checkout failed."
+        errors[${#errors[@]}]="git checkout";
+    }
+
+    if [ -n "$unittest" ]; then
+        debug 1 "running unit tests."
+        run_self_inside_as_cd "$name" "$user" "$cdir" nose "$pyexe" \
+            tests/unittests cloudinit/ || {
+                errorrc "nosetests failed.";
+                errors[${#errors[@]}]="nosetests"
+            }
+    fi
+
+    local build_pkg="" build_srcpkg="" pkg_ext="" distflag=""
+    case "$OS_NAME" in
+        centos) distflag="--distro=redhat";;
+        opensuse) distflag="--distro=suse";;
+    esac
+
+    case "$OS_NAME" in
+        debian|ubuntu)
+            build_pkg="./packages/bddeb -d" 
+            build_srcpkg="./packages/bddeb -S -d"
+            pkg_ext=".deb";;
+        centos|opensuse)
+            build_pkg="./packages/brpm $distflag"
+            build_srcpkg="./packages/brpm $distflag --srpm"
+            pkg_ext=".rpm";;
+    esac
+    if [ -n "$source_package" ]; then
+        [ -n "$build_pkg" ] || {
+            error "Unknown package command for $OS_NAME"
+            return 1
+        }
+        debug 1 "building source package with $build_srcpkg."
+        # shellcheck disable=SC2086
+        inside_as_cd "$name" "$user" "$cdir" $pyexe $build_srcpkg || {
+            errorrc "failed: $build_srcpkg";
+            errors[${#errors[@]}]="source package"
+        }
+    fi
+
+    if [ -n "$package" ]; then
+        [ -n "$build_srcpkg" ] || {
+            error "Unknown build source command for $OS_NAME"
+            return 1
+        }
+        debug 1 "building binary package with $build_pkg."
+        inside_as_cd "$name" "$user" "$cdir" $pyexe $build_pkg || {
+            errorrc "failed: $build_pkg";
+            errors[${#errors[@]}]="binary package"
+        }
+    fi
+
+    if [ -n "$artifact_d" ]; then
+        local art=""
+        artifact_d="${artifact_d%/}/"
+        [ -d "${artifact_d}" ] || mkdir -p "$artifact_d" || {
+            errorrc "failed to create artifact dir '$artifact_d'"
+            return
+        }
+
+        for art in $(inside "$name" sh -c "echo $cdir/*${pkg_ext}"); do
+            lxc file pull "$name/$art" "$artifact_d" || {
+                errorrc "Failed to pull '$name/$art' to ${artifact_d}"
+                errors[${#errors[@]}]="artifact copy: $art"
+            }
+            debug 1 "wrote ${artifact_d}${art##*/}"
+        done
+    fi
+
+    if [ "${#errors[@]}" != "0" ]; then
+        local e=""
+        error "there were ${#errors[@]} errors."
+        for e in "${errors[@]}"; do
+            error "  $e"
+        done
+        return 1
+    fi
+    return 0
+}
+
+case "${1:-}" in
+    prep|os_info|wait_inside|nose) _n=$1; shift; "$_n" "$@";;
+    *) main "$@";;
+esac
+
+# vi: ts=4 expandtab

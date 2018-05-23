@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import logging
 import os
+import re
 import shutil
 import stat
 import tempfile
@@ -265,26 +266,49 @@ class TestGetCmdline(helpers.TestCase):
         self.assertEqual("abcd 123", ret)
 
 
-class TestLoadYaml(helpers.TestCase):
+class TestLoadYaml(helpers.CiTestCase):
     mydefault = "7b03a8ebace993d806255121073fed52"
+    with_logs = True
 
     def test_simple(self):
         mydata = {'1': "one", '2': "two"}
         self.assertEqual(util.load_yaml(yaml.dump(mydata)), mydata)
 
     def test_nonallowed_returns_default(self):
+        '''Any unallowed types result in returning default; log the issue.'''
         # for now, anything not in the allowed list just returns the default.
         myyaml = yaml.dump({'1': "one"})
         self.assertEqual(util.load_yaml(blob=myyaml,
                                         default=self.mydefault,
                                         allowed=(str,)),
                          self.mydefault)
+        regex = re.compile(
+            r'Yaml load allows \(<(class|type) \'str\'>,\) root types, but'
+            r' got dict')
+        self.assertTrue(regex.search(self.logs.getvalue()),
+                        msg='Missing expected yaml load error')
 
-    def test_bogus_returns_default(self):
+    def test_bogus_scan_error_returns_default(self):
+        '''On Yaml scan error, load_yaml returns the default and logs issue.'''
         badyaml = "1\n 2:"
         self.assertEqual(util.load_yaml(blob=badyaml,
                                         default=self.mydefault),
                          self.mydefault)
+        self.assertIn(
+            'Failed loading yaml blob. Invalid format at line 2 column 3:'
+            ' "mapping values are not allowed here',
+            self.logs.getvalue())
+
+    def test_bogus_parse_error_returns_default(self):
+        '''On Yaml parse error, load_yaml returns default and logs issue.'''
+        badyaml = "{}}"
+        self.assertEqual(util.load_yaml(blob=badyaml,
+                                        default=self.mydefault),
+                         self.mydefault)
+        self.assertIn(
+            'Failed loading yaml blob. Invalid format at line 1 column 3:'
+            " \"expected \'<document start>\', but found \'}\'",
+            self.logs.getvalue())
 
     def test_unsafe_types(self):
         # should not load complex types

@@ -155,9 +155,9 @@ class TestNtp(FilesystemMockingTestCase):
                                              path=confpath,
                                              template_fn=template_fn,
                                              template=None)
-        content = util.read_file_or_url('file://' + confpath).contents
         self.assertEqual(
-            "servers []\npools ['10.0.0.1', '10.0.0.2']\n", content.decode())
+            "servers []\npools ['10.0.0.1', '10.0.0.2']\n",
+            util.load_file(confpath))
 
     def test_write_ntp_config_template_defaults_pools_w_empty_lists(self):
         """write_ntp_config_template defaults pools servers upon empty config.
@@ -176,10 +176,9 @@ class TestNtp(FilesystemMockingTestCase):
                                              path=confpath,
                                              template_fn=template_fn,
                                              template=None)
-        content = util.read_file_or_url('file://' + confpath).contents
         self.assertEqual(
             "servers []\npools {0}\n".format(pools),
-            content.decode())
+            util.load_file(confpath))
 
     def test_defaults_pools_empty_lists_sles(self):
         """write_ntp_config_template defaults opensuse pools upon empty config.
@@ -196,11 +195,11 @@ class TestNtp(FilesystemMockingTestCase):
                                          path=confpath,
                                          template_fn=template_fn,
                                          template=None)
-        content = util.read_file_or_url('file://' + confpath).contents
         for pool in default_pools:
             self.assertIn('opensuse', pool)
         self.assertEqual(
-            "servers []\npools {0}\n".format(default_pools), content.decode())
+            "servers []\npools {0}\n".format(default_pools),
+            util.load_file(confpath))
         self.assertIn(
             "Adding distro default ntp pool servers: {0}".format(
                 ",".join(default_pools)),
@@ -217,10 +216,9 @@ class TestNtp(FilesystemMockingTestCase):
                                          path=confpath,
                                          template_fn=template_fn,
                                          template=None)
-        content = util.read_file_or_url('file://' + confpath).contents
         self.assertEqual(
             "[Time]\nNTP=%s %s \n" % (" ".join(servers), " ".join(pools)),
-            content.decode())
+            util.load_file(confpath))
 
     def test_distro_ntp_client_configs(self):
         """Test we have updated ntp client configs on different distros"""
@@ -267,17 +265,17 @@ class TestNtp(FilesystemMockingTestCase):
                 cc_ntp.write_ntp_config_template(distro, servers=servers,
                                                  pools=pools, path=confpath,
                                                  template_fn=template_fn)
-                content = util.read_file_or_url('file://' + confpath).contents
+                content = util.load_file(confpath)
                 if client in ['ntp', 'chrony']:
                     expected_servers = '\n'.join([
                         'server {0} iburst'.format(srv) for srv in servers])
                     print('distro=%s client=%s' % (distro, client))
-                    self.assertIn(expected_servers, content.decode('utf-8'),
+                    self.assertIn(expected_servers, content,
                                   ('failed to render {0} conf'
                                    ' for distro:{1}'.format(client, distro)))
                     expected_pools = '\n'.join([
                         'pool {0} iburst'.format(pool) for pool in pools])
-                    self.assertIn(expected_pools, content.decode('utf-8'),
+                    self.assertIn(expected_pools, content,
                                   ('failed to render {0} conf'
                                    ' for distro:{1}'.format(client, distro)))
                 elif client == 'systemd-timesyncd':
@@ -286,7 +284,7 @@ class TestNtp(FilesystemMockingTestCase):
                         "# See timesyncd.conf(5) for details.\n\n" +
                         "[Time]\nNTP=%s %s \n" % (" ".join(servers),
                                                   " ".join(pools)))
-                    self.assertEqual(expected_content, content.decode())
+                    self.assertEqual(expected_content, content)
 
     def test_no_ntpcfg_does_nothing(self):
         """When no ntp section is defined handler logs a warning and noops."""
@@ -308,10 +306,10 @@ class TestNtp(FilesystemMockingTestCase):
                 confpath = ntpconfig['confpath']
                 m_select.return_value = ntpconfig
                 cc_ntp.handle('cc_ntp', valid_empty_config, mycloud, None, [])
-                content = util.read_file_or_url('file://' + confpath).contents
                 pools = cc_ntp.generate_server_names(mycloud.distro.name)
                 self.assertEqual(
-                    "servers []\npools {0}\n".format(pools), content.decode())
+                    "servers []\npools {0}\n".format(pools),
+                    util.load_file(confpath))
             self.assertNotIn('Invalid config:', self.logs.getvalue())
 
     @skipUnlessJsonSchema()
@@ -333,9 +331,8 @@ class TestNtp(FilesystemMockingTestCase):
                 "Invalid config:\nntp.pools.0: 123 is not of type 'string'\n"
                 "ntp.servers.1: None is not of type 'string'",
                 self.logs.getvalue())
-            content = util.read_file_or_url('file://' + confpath).contents
             self.assertEqual("servers ['valid', None]\npools [123]\n",
-                             content.decode())
+                             util.load_file(confpath))
 
     @skipUnlessJsonSchema()
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
@@ -357,9 +354,8 @@ class TestNtp(FilesystemMockingTestCase):
                 "Invalid config:\nntp.pools: 123 is not of type 'array'\n"
                 "ntp.servers: 'non-array' is not of type 'array'",
                 self.logs.getvalue())
-            content = util.read_file_or_url('file://' + confpath).contents
             self.assertEqual("servers non-array\npools 123\n",
-                             content.decode())
+                             util.load_file(confpath))
 
     @skipUnlessJsonSchema()
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
@@ -381,10 +377,9 @@ class TestNtp(FilesystemMockingTestCase):
                 "Invalid config:\nntp: Additional properties are not allowed "
                 "('invalidkey' was unexpected)",
                 self.logs.getvalue())
-            content = util.read_file_or_url('file://' + confpath).contents
             self.assertEqual(
                 "servers []\npools ['0.mycompany.pool.ntp.org']\n",
-                content.decode())
+                util.load_file(confpath))
 
     @skipUnlessJsonSchema()
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
@@ -407,10 +402,10 @@ class TestNtp(FilesystemMockingTestCase):
                 " has non-unique elements\nntp.servers: "
                 "['10.0.0.1', '10.0.0.1'] has non-unique elements",
                 self.logs.getvalue())
-            content = util.read_file_or_url('file://' + confpath).contents
             self.assertEqual(
                 "servers ['10.0.0.1', '10.0.0.1']\n"
-                "pools ['0.mypool.org', '0.mypool.org']\n", content.decode())
+                "pools ['0.mypool.org', '0.mypool.org']\n",
+                util.load_file(confpath))
 
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
     def test_ntp_handler_timesyncd(self, m_select):
@@ -426,10 +421,9 @@ class TestNtp(FilesystemMockingTestCase):
             confpath = ntpconfig['confpath']
             m_select.return_value = ntpconfig
             cc_ntp.handle('cc_ntp', cfg, mycloud, None, [])
-            content = util.read_file_or_url('file://' + confpath).contents
             self.assertEqual(
                 "[Time]\nNTP=192.168.2.1 192.168.2.2 0.mypool.org \n",
-                content.decode())
+                util.load_file(confpath))
 
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
     def test_ntp_handler_enabled_false(self, m_select):
@@ -466,10 +460,9 @@ class TestNtp(FilesystemMockingTestCase):
                 m_util.subp.assert_called_with(
                     ['systemctl', 'reload-or-restart',
                      service_name], capture=True)
-            content = util.read_file_or_url('file://' + confpath).contents
             self.assertEqual(
                 "servers []\npools {0}\n".format(pools),
-                content.decode())
+                util.load_file(confpath))
 
     def test_opensuse_picks_chrony(self):
         """Test opensuse picks chrony or ntp on certain distro versions"""
@@ -638,10 +631,9 @@ class TestNtp(FilesystemMockingTestCase):
             mock_path = 'cloudinit.config.cc_ntp.temp_utils._TMPDIR'
             with mock.patch(mock_path, self.new_root):
                 cc_ntp.handle('notimportant', cfg, mycloud, None, None)
-            content = util.read_file_or_url('file://' + confpath).contents
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,
-                content.decode())
+                util.load_file(confpath))
 
     @mock.patch('cloudinit.config.cc_ntp.supplemental_schema_validation')
     @mock.patch('cloudinit.config.cc_ntp.reload_ntp')
@@ -675,10 +667,9 @@ class TestNtp(FilesystemMockingTestCase):
             with mock.patch(mock_path, self.new_root):
                 cc_ntp.handle('notimportant',
                               {'ntp': cfg}, mycloud, None, None)
-            content = util.read_file_or_url('file://' + confpath).contents
             self.assertEqual(
                 "servers []\npools ['mypool.org']\n%s" % custom,
-                content.decode())
+                util.load_file(confpath))
         m_schema.assert_called_with(expected_merged_cfg)
 
 

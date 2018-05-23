@@ -43,7 +43,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.version = None
         self.ec2_metadata = None
         self._network_config = None
-        self.network_json = None
+        self.network_json = sources.UNSET
         self.network_eni = None
         self.known_macs = None
         self.files = {}
@@ -149,7 +149,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
     @property
     def network_config(self):
         if self._network_config is None:
-            if self.network_json is not None:
+            if self.network_json not in (None, sources.UNSET):
                 LOG.debug("network config provided via network_json")
                 self._network_config = openstack.convert_net_json(
                     self.network_json, known_macs=self.known_macs)

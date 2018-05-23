@@ -182,7 +182,7 @@ class TestCmdlineUrl(CiTestCase):
         self.assertEqual(
             ('url', 'http://example.com'), main.parse_cmdline_url(cmdline))
 
-    @mock.patch('cloudinit.cmd.main.util.read_file_or_url')
+    @mock.patch('cloudinit.cmd.main.url_helper.read_file_or_url')
     def test_invalid_content(self, m_read):
         key = "cloud-config-url"
         url = 'http://example.com/foo'
@@ -196,7 +196,7 @@ class TestCmdlineUrl(CiTestCase):
         self.assertIn(url, msg)
         self.assertFalse(os.path.exists(fpath))
 
-    @mock.patch('cloudinit.cmd.main.util.read_file_or_url')
+    @mock.patch('cloudinit.cmd.main.url_helper.read_file_or_url')
     def test_valid_content(self, m_read):
         url = "http://example.com/foo"
         payload = b"#cloud-config\nmydata: foo\nbar: wark\n"
@@ -210,7 +210,7 @@ class TestCmdlineUrl(CiTestCase):
         self.assertEqual(logging.INFO, lvl)
         self.assertIn(url, msg)
 
-    @mock.patch('cloudinit.cmd.main.util.read_file_or_url')
+    @mock.patch('cloudinit.cmd.main.url_helper.read_file_or_url')
     def test_no_key_found(self, m_read):
         cmdline = "ro mykey=http://example.com/foo root=foo"
         fpath = self.tmp_path("ccpath")
@@ -221,7 +221,7 @@ class TestCmdlineUrl(CiTestCase):
         self.assertFalse(os.path.exists(fpath))
         self.assertEqual(logging.DEBUG, lvl)
 
-    @mock.patch('cloudinit.cmd.main.util.read_file_or_url')
+    @mock.patch('cloudinit.cmd.main.url_helper.read_file_or_url')
     def test_exception_warns(self, m_read):
         url = "http://example.com/foo"
         cmdline = "ro cloud-config-url=%s root=LABEL=bar" % url

@@ -187,7 +187,7 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
     data = None
     header = b'#cloud-config'
     try:
-        resp = util.read_file_or_url(**kwargs)
+        resp = url_helper.read_file_or_url(**kwargs)
         if resp.ok():
             data = resp.contents
             if not resp.contents.startswith(header):

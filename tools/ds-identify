@@ -187,6 +187,16 @@ block_dev_with_label() {
     return 0
 }
 
+ensure_sane_path() {
+    local t
+    for t in /sbin /usr/sbin /bin /usr/bin; do
+        case ":$PATH:" in
+            *:$t:*|*:$t/:*) continue;;
+        esac
+        PATH="${PATH:+${PATH}:}$t"
+    done
+}
+
 read_fs_info() {
     cached "${DI_BLKID_OUTPUT}" && return 0
     # do not rely on links in /dev/disk which might not be present yet.
@@ -261,7 +271,7 @@ read_virt() {
 
 is_container() {
     case "${DI_VIRT}" in
-        lxc|lxc-libvirt|systemd-nspawn|docker|rkt) return 0;;
+        container-other|lxc|lxc-libvirt|systemd-nspawn|docker|rkt) return 0;;
         *) return 1;;
     esac
 }
@@ -990,12 +1000,14 @@ dscheck_SmartOS() {
     # joyent cloud has two virt types: kvm and container
     # on kvm, product name on joyent public cloud shows 'SmartDC HVM'
     # on the container platform, uname's version has: BrandZ virtual linux
+    # for container, we also verify that the socketfile exists to protect
+    # against embedded containers (lxd running on brandz)
     local smartdc_kver="BrandZ virtual linux"
+    local metadata_sockfile="${PATH_ROOT}/native/.zonecontrol/metadata.sock"
     dmi_product_name_matches "SmartDC*" && return $DS_FOUND
-    if [ "${DI_UNAME_KERNEL_VERSION}" = "${smartdc_kver}" ] &&
-       [ "${DI_VIRT}" = "container-other" ]; then
-       return ${DS_FOUND}
-    fi
+    [ "${DI_UNAME_KERNEL_VERSION}" = "${smartdc_kver}" ] &&
+        [ -e "${metadata_sockfile}" ] &&
+        return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
@@ -1462,6 +1474,7 @@ _main() {
 
 main() {
     local ret=""
+    ensure_sane_path
     [ -d "$PATH_RUN_CI" ] || mkdir -p "$PATH_RUN_CI"
     if [ "${1:+$1}" != "--force" ] && [ -f "$PATH_RUN_CI_CFG" ] &&
         [ -f "$PATH_RUN_DI_RESULT" ]; then

@@ -165,9 +165,8 @@ class DataSourceSmartOS(sources.DataSource):
 
     dsname = "Joyent"
 
-    _unset = "_unset"
-    smartos_type = _unset
-    md_client = _unset
+    smartos_type = sources.UNSET
+    md_client = sources.UNSET
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -189,12 +188,12 @@ class DataSourceSmartOS(sources.DataSource):
         return "%s [client=%s]" % (root, self.md_client)
 
     def _init(self):
-        if self.smartos_type == self._unset:
+        if self.smartos_type == sources.UNSET:
             self.smartos_type = get_smartos_environ()
             if self.smartos_type is None:
                 self.md_client = None
 
-        if self.md_client == self._unset:
+        if self.md_client == sources.UNSET:
             self.md_client = jmc_client_factory(
                 smartos_type=self.smartos_type,
                 metadata_sockfile=self.ds_cfg['metadata_sockfile'],
@@ -745,7 +744,7 @@ def get_smartos_environ(uname_version=None, product_name=None):
     # report 'BrandZ virtual linux' as the kernel version
     if uname_version is None:
         uname_version = uname[3]
-    if uname_version.lower() == 'brandz virtual linux':
+    if uname_version == 'BrandZ virtual linux':
         return SMARTOS_ENV_LX_BRAND
 
     if product_name is None:
@@ -753,7 +752,7 @@ def get_smartos_environ(uname_version=None, product_name=None):
     else:
         system_type = product_name
 
-    if system_type and 'smartdc' in system_type.lower():
+    if system_type and system_type.startswith('SmartDC'):
         return SMARTOS_ENV_KVM
 
     return None
