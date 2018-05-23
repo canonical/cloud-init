@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import functools
+import httpretty
 import logging
 import os
 import shutil
@@ -303,14 +304,21 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 class HttprettyTestCase(CiTestCase):
     # necessary as http_proxy gets in the way of httpretty
     # https://github.com/gabrielfalcao/HTTPretty/issues/122
+    # Also make sure that allow_net_connect is set to False.
+    # And make sure reset and enable/disable are done.
 
     def setUp(self):
         self.restore_proxy = os.environ.get('http_proxy')
         if self.restore_proxy is not None:
             del os.environ['http_proxy']
         super(HttprettyTestCase, self).setUp()
+        httpretty.HTTPretty.allow_net_connect = False
+        httpretty.reset()
+        httpretty.enable()
 
     def tearDown(self):
+        httpretty.disable()
+        httpretty.reset()
         if self.restore_proxy:
             os.environ['http_proxy'] = self.restore_proxy
         super(HttprettyTestCase, self).tearDown()

@@ -135,7 +135,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         super(TestOpenStackDataSource, self).setUp()
         self.tmp = self.tmp_dir()
 
-    @hp.activate
     def test_successful(self):
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
         f = _read_metadata_service()
@@ -157,7 +156,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual('b0fa911b-69d4-4476-bbe2-1c92bff6535c',
                          metadata.get('instance-id'))
 
-    @hp.activate
     def test_no_ec2(self):
         _register_uris(self.VERSION, {}, {}, OS_FILES)
         f = _read_metadata_service()
@@ -168,7 +166,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual({}, f.get('ec2-metadata'))
         self.assertEqual(2, f.get('version'))
 
-    @hp.activate
     def test_bad_metadata(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
@@ -177,7 +174,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, {}, {}, os_files)
         self.assertRaises(openstack.NonReadable, _read_metadata_service)
 
-    @hp.activate
     def test_bad_uuid(self):
         os_files = copy.deepcopy(OS_FILES)
         os_meta = copy.deepcopy(OSTACK_META)
@@ -188,7 +184,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, {}, {}, os_files)
         self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
 
-    @hp.activate
     def test_userdata_empty(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
@@ -201,7 +196,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
         self.assertFalse(f.get('userdata'))
 
-    @hp.activate
     def test_vendordata_empty(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
@@ -213,7 +207,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
         self.assertFalse(f.get('vendordata'))
 
-    @hp.activate
     def test_vendordata_invalid(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
@@ -222,7 +215,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, {}, {}, os_files)
         self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
 
-    @hp.activate
     def test_metadata_invalid(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
@@ -231,7 +223,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, {}, {}, os_files)
         self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
 
-    @hp.activate
     def test_datasource(self):
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
         ds_os = ds.DataSourceOpenStack(settings.CFG_BUILTIN,
@@ -251,7 +242,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(VENDOR_DATA, ds_os.vendordata_pure)
         self.assertIsNone(ds_os.vendordata_raw)
 
-    @hp.activate
     def test_bad_datasource_meta(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
@@ -266,7 +256,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
-    @hp.activate
     def test_no_datasource(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
@@ -285,7 +274,6 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
-    @hp.activate
     def test_disabled_datasource(self):
         os_files = copy.deepcopy(OS_FILES)
         os_meta = copy.deepcopy(OSTACK_META)
