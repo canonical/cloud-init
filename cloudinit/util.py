@@ -1581,7 +1581,8 @@ def mounts():
     return mounted
 
 
-def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
+def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True,
+             update_env_for_mount=None):
     """
     Mount the device, call method 'callback' passing the directory
     in which it was mounted, then unmount.  Return whatever 'callback'
@@ -1643,7 +1644,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
                         mountcmd.extend(['-t', mtype])
                     mountcmd.append(device)
                     mountcmd.append(tmpd)
-                    subp(mountcmd)
+                    subp(mountcmd, update_env=update_env_for_mount)
                     umount = tmpd  # This forces it to be unmounted (when set)
                     mountpoint = tmpd
                     break

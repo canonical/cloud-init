@@ -1,10 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import helpers
-from cloudinit.util import b64e, decode_binary, load_file, write_file
 from cloudinit.sources import DataSourceAzure as dsaz
-from cloudinit.util import find_freebsd_part
-from cloudinit.util import get_path_dev_freebsd
+from cloudinit.util import (b64e, decode_binary, load_file, write_file,
+                            find_freebsd_part, get_path_dev_freebsd,
+                            MountFailedError)
 from cloudinit.version import version_string as vs
 from cloudinit.tests.helpers import (CiTestCase, TestCase, populate_dir, mock,
                                      ExitStack, PY26, SkipTest)
@@ -94,6 +94,8 @@ class TestAzureDataSource(CiTestCase):
 
         self.patches = ExitStack()
         self.addCleanup(self.patches.close)
+
+        self.patches.enter_context(mock.patch.object(dsaz, '_get_random_seed'))
 
         super(TestAzureDataSource, self).setUp()
 
@@ -334,6 +336,18 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(data['agent_invoked'], '_COMMAND')
+
+    def test_sys_cfg_set_never_destroy_ntfs(self):
+        sys_cfg = {'datasource': {'Azure': {
+            'never_destroy_ntfs': 'user-supplied-value'}}}
+        data = {'ovfcontent': construct_valid_ovf_env(data={}),
+                'sys_cfg': sys_cfg}
+
+        dsrc = self._get_ds(data)
+        ret = self._get_and_setup(dsrc)
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.ds_cfg.get(dsaz.DS_CFG_KEY_PRESERVE_NTFS),
+                         'user-supplied-value')
 
     def test_username_used(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
@@ -676,6 +690,8 @@ class TestAzureBounce(CiTestCase):
                               mock.MagicMock(return_value={})))
         self.patches.enter_context(
             mock.patch.object(dsaz.util, 'which', lambda x: True))
+        self.patches.enter_context(
+            mock.patch.object(dsaz, '_get_random_seed'))
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
@@ -957,7 +973,9 @@ class TestCanDevBeReformatted(CiTestCase):
             # return sorted by partition number
             return sorted(ret, key=lambda d: d[0])
 
-        def mount_cb(device, callback):
+        def mount_cb(device, callback, mtype, update_env_for_mount):
+            self.assertEqual('ntfs', mtype)
+            self.assertEqual('C', update_env_for_mount.get('LANG'))
             p = self.tmp_dir()
             for f in bypath.get(device).get('files', []):
                 write_file(os.path.join(p, f), content=f)
@@ -988,14 +1006,16 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda2': {'num': 2},
                     '/dev/sda3': {'num': 3},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("3 or more", msg.lower())
 
     def test_no_partitions_is_false(self):
         """A disk with no partitions can not be formatted."""
         self.patchup({'/dev/sda': {}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("not partitioned", msg.lower())
 
@@ -1007,7 +1027,8 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1},
                     '/dev/sda2': {'num': 2, 'fs': 'ext4', 'files': []},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("not ntfs", msg.lower())
 
@@ -1020,7 +1041,8 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda2': {'num': 2, 'fs': 'ntfs',
                                   'files': ['secret.txt']},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("files on it", msg.lower())
 
@@ -1032,7 +1054,8 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1},
                     '/dev/sda2': {'num': 2, 'fs': 'ntfs', 'files': []},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
@@ -1043,7 +1066,8 @@ class TestCanDevBeReformatted(CiTestCase):
                 'partitions': {
                     '/dev/sda1': {'num': 1, 'fs': 'zfs'},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("not ntfs", msg.lower())
 
@@ -1055,9 +1079,14 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1, 'fs': 'ntfs',
                                   'files': ['file1.txt', 'file2.exe']},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertFalse(value)
-        self.assertIn("files on it", msg.lower())
+        with mock.patch.object(dsaz.LOG, 'warning') as warning:
+            value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                     preserve_ntfs=False)
+            wmsg = warning.call_args[0][0]
+            self.assertIn("looks like you're using NTFS on the ephemeral disk",
+                          wmsg)
+            self.assertFalse(value)
+            self.assertIn("files on it", msg.lower())
 
     def test_one_partition_ntfs_empty_is_true(self):
         """1 mountable ntfs partition and no files can be formatted."""
@@ -1066,7 +1095,8 @@ class TestCanDevBeReformatted(CiTestCase):
                 'partitions': {
                     '/dev/sda1': {'num': 1, 'fs': 'ntfs', 'files': []}
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
@@ -1078,7 +1108,8 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1, 'fs': 'ntfs',
                                   'files': ['dataloss_warning_readme.txt']}
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
@@ -1093,7 +1124,8 @@ class TestCanDevBeReformatted(CiTestCase):
                         'num': 1, 'fs': 'ntfs', 'files': [self.warning_file],
                         'realpath': '/dev/sdb1'}
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted(epath)
+        value, msg = dsaz.can_dev_be_reformatted(epath,
+                                                 preserve_ntfs=False)
         self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
@@ -1112,9 +1144,48 @@ class TestCanDevBeReformatted(CiTestCase):
                     epath + '-part3': {'num': 3, 'fs': 'ext',
                                        'realpath': '/dev/sdb3'}
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted(epath)
+        value, msg = dsaz.can_dev_be_reformatted(epath,
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("3 or more", msg.lower())
+
+    def test_ntfs_mount_errors_true(self):
+        """can_dev_be_reformatted does not fail if NTFS is unknown fstype."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1, 'fs': 'ntfs', 'files': []}
+                }}})
+
+        err = ("Unexpected error while running command.\n",
+               "Command: ['mount', '-o', 'ro,sync', '-t', 'auto', ",
+               "'/dev/sda1', '/fake-tmp/dir']\n"
+               "Exit code: 32\n"
+               "Reason: -\n"
+               "Stdout: -\n"
+               "Stderr: mount: unknown filesystem type 'ntfs'")
+        self.m_mount_cb.side_effect = MountFailedError(
+            'Failed mounting %s to %s due to: %s' %
+            ('/dev/sda', '/fake-tmp/dir', err))
+
+        value, msg = dsaz.can_dev_be_reformatted('/dev/sda',
+                                                 preserve_ntfs=False)
+        self.assertTrue(value)
+        self.assertIn('cannot mount NTFS, assuming', msg)
+
+    def test_never_destroy_ntfs_config_false(self):
+        """Normally formattable situation with never_destroy_ntfs set."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1, 'fs': 'ntfs',
+                                  'files': ['dataloss_warning_readme.txt']}
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=True)
+        self.assertFalse(value)
+        self.assertIn("config says to never destroy NTFS "
+                      "(datasource.Azure.never_destroy_ntfs)", msg)
 
 
 class TestAzureNetExists(CiTestCase):
