@@ -857,37 +857,6 @@ def fetch_ssl_details(paths=None):
     return ssl_details
 
 
-def read_file_or_url(url, timeout=5, retries=10,
-                     headers=None, data=None, sec_between=1, ssl_details=None,
-                     headers_cb=None, exception_cb=None):
-    url = url.lstrip()
-    if url.startswith("/"):
-        url = "file://%s" % url
-    if url.lower().startswith("file://"):
-        if data:
-            LOG.warning("Unable to post data to file resource %s", url)
-        file_path = url[len("file://"):]
-        try:
-            contents = load_file(file_path, decode=False)
-        except IOError as e:
-            code = e.errno
-            if e.errno == ENOENT:
-                code = url_helper.NOT_FOUND
-            raise url_helper.UrlError(cause=e, code=code, headers=None,
-                                      url=url)
-        return url_helper.FileResponse(file_path, contents=contents)
-    else:
-        return url_helper.readurl(url,
-                                  timeout=timeout,
-                                  retries=retries,
-                                  headers=headers,
-                                  headers_cb=headers_cb,
-                                  data=data,
-                                  sec_between=sec_between,
-                                  ssl_details=ssl_details,
-                                  exception_cb=exception_cb)
-
-
 def load_yaml(blob, default=None, allowed=(dict,)):
     loaded = default
     blob = decode_binary(blob)
@@ -905,8 +874,20 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                              " but got %s instead") %
                             (allowed, type_utils.obj_name(converted)))
         loaded = converted
-    except (yaml.YAMLError, TypeError, ValueError):
-        logexc(LOG, "Failed loading yaml blob")
+    except (yaml.YAMLError, TypeError, ValueError) as e:
+        msg = 'Failed loading yaml blob'
+        mark = None
+        if hasattr(e, 'context_mark') and getattr(e, 'context_mark'):
+            mark = getattr(e, 'context_mark')
+        elif hasattr(e, 'problem_mark') and getattr(e, 'problem_mark'):
+            mark = getattr(e, 'problem_mark')
+        if mark:
+            msg += (
+                '. Invalid format at line {line} column {col}: "{err}"'.format(
+                    line=mark.line + 1, col=mark.column + 1, err=e))
+        else:
+            msg += '. {err}'.format(err=e)
+        LOG.warning(msg)
     return loaded
 
 
@@ -925,12 +906,14 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
-    md_resp = read_file_or_url(md_url, timeout, retries, file_retries)
+    md_resp = url_helper.read_file_or_url(md_url, timeout, retries,
+                                          file_retries)
     md = None
     if md_resp.ok():
         md = load_yaml(decode_binary(md_resp.contents), default={})
 
-    ud_resp = read_file_or_url(ud_url, timeout, retries, file_retries)
+    ud_resp = url_helper.read_file_or_url(ud_url, timeout, retries,
+                                          file_retries)
     ud = None
     if ud_resp.ok():
         ud = ud_resp.contents
@@ -1610,7 +1593,8 @@ def mounts():
     return mounted
 
 
-def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
+def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True,
+             update_env_for_mount=None):
     """
     Mount the device, call method 'callback' passing the directory
     in which it was mounted, then unmount.  Return whatever 'callback'
@@ -1672,7 +1656,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
                         mountcmd.extend(['-t', mtype])
                     mountcmd.append(device)
                     mountcmd.append(tmpd)
-                    subp(mountcmd)
+                    subp(mountcmd, update_env=update_env_for_mount)
                     umount = tmpd  # This forces it to be unmounted (when set)
                     mountpoint = tmpd
                     break

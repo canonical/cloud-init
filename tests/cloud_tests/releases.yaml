@@ -129,6 +129,22 @@ features:
 
 releases:
     # UBUNTU =================================================================
+    cosmic:
+        # EOL: Jul 2019
+        default:
+            enabled: true
+            release: cosmic
+            version: 18.10
+            os: ubuntu
+            feature_groups:
+                - base
+                - debian_base
+                - ubuntu_specific
+        lxd:
+            sstreams_server: https://cloud-images.ubuntu.com/daily
+            alias: cosmic
+            setup_overrides: null
+            override_templates: false
     bionic:
         # EOL: Apr 2023
         default:

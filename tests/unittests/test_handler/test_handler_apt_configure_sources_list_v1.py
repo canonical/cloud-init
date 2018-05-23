@@ -64,13 +64,6 @@ deb-src http://archive.ubuntu.com/ubuntu/ fakerelease main restricted
 """)
 
 
-def load_tfile_or_url(*args, **kwargs):
-    """load_tfile_or_url
-    load file and return content after decoding
-    """
-    return util.decode_binary(util.read_file_or_url(*args, **kwargs).contents)
-
-
 class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     """TestAptSourceConfigSourceList
     Main Class to test sources list rendering

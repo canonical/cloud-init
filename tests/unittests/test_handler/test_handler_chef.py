@@ -14,19 +14,27 @@ from cloudinit.sources import DataSourceNone
 from cloudinit import util
 
 from cloudinit.tests.helpers import (
-    CiTestCase, FilesystemMockingTestCase, mock, skipIf)
+    HttprettyTestCase, FilesystemMockingTestCase, mock, skipIf)
 
 LOG = logging.getLogger(__name__)
 
 CLIENT_TEMPL = os.path.sep.join(["templates", "chef_client.rb.tmpl"])
 
+# This is adjusted to use http because using with https causes issue
+# in some openssl/httpretty combinations.
+#   https://github.com/gabrielfalcao/HTTPretty/issues/242
+# We saw issue in opensuse 42.3 with
+#    httpretty=0.8.8-7.1 ndg-httpsclient=0.4.0-3.2 pyOpenSSL=16.0.0-4.1
+OMNIBUS_URL_HTTP = cc_chef.OMNIBUS_URL.replace("https:", "http:")
 
-class TestInstallChefOmnibus(CiTestCase):
+
+class TestInstallChefOmnibus(HttprettyTestCase):
 
     def setUp(self):
+        super(TestInstallChefOmnibus, self).setUp()
         self.new_root = self.tmp_dir()
 
-    @httpretty.activate
+    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", OMNIBUS_URL_HTTP)
     def test_install_chef_from_omnibus_runs_chef_url_content(self):
         """install_chef_from_omnibus runs downloaded OMNIBUS_URL as script."""
         chef_outfile = self.tmp_path('chef.out', self.new_root)
@@ -65,7 +73,7 @@ class TestInstallChefOmnibus(CiTestCase):
             expected_subp_kwargs,
             m_subp_blob.call_args_list[0][1])
 
-    @httpretty.activate
+    @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", OMNIBUS_URL_HTTP)
     @mock.patch('cloudinit.config.cc_chef.util.subp_blob_in_tempfile')
     def test_install_chef_from_omnibus_has_omnibus_version(self, m_subp_blob):
         """install_chef_from_omnibus provides version arg to OMNIBUS_URL."""

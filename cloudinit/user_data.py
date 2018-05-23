@@ -19,7 +19,7 @@ import six
 
 from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit.url_helper import UrlError
+from cloudinit.url_helper import read_file_or_url, UrlError
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -224,8 +224,8 @@ class UserDataProcessor(object):
                 content = util.load_file(include_once_fn)
             else:
                 try:
-                    resp = util.read_file_or_url(include_url,
-                                                 ssl_details=self.ssl_details)
+                    resp = read_file_or_url(include_url,
+                                            ssl_details=self.ssl_details)
                     if include_once_on and resp.ok():
                         util.write_file(include_once_fn, resp.contents,
                                         mode=0o600)

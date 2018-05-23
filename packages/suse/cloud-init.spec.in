@@ -102,6 +102,13 @@ done
 
 mkdir -p %{buildroot}/var/lib/cloud
 
+# patch in the full version to version.py
+version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
+[ -n "$version_pys" ] ||
+   { echo "failed to find 'version.py' to patch with version." 1>&2; exit 1; }
+( cd "%{buildroot}" &&
+  sed -i "s,@@PACKAGED_VERSION@@,%{version}-%{release}," $version_pys )
+
 %postun
 %insserv_cleanup
 

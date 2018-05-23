@@ -40,6 +40,7 @@ DEFAULT_LOCAL = [
     OVF.DataSourceOVF,
     SmartOS.DataSourceSmartOS,
     Ec2.DataSourceEc2Local,
+    OpenStack.DataSourceOpenStackLocal,
 ]
 
 DEFAULT_NETWORK = [

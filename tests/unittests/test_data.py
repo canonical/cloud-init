@@ -524,7 +524,17 @@ c: 4
         self.assertEqual(cfg.get('password'), 'gocubs')
         self.assertEqual(cfg.get('locale'), 'chicago')
 
-    @httpretty.activate
+
+class TestConsumeUserDataHttp(TestConsumeUserData, helpers.HttprettyTestCase):
+
+    def setUp(self):
+        TestConsumeUserData.setUp(self)
+        helpers.HttprettyTestCase.setUp(self)
+
+    def tearDown(self):
+        TestConsumeUserData.tearDown(self)
+        helpers.HttprettyTestCase.tearDown(self)
+
     @mock.patch('cloudinit.url_helper.time.sleep')
     def test_include(self, mock_sleep):
         """Test #include."""
@@ -543,7 +553,6 @@ c: 4
         cc = util.load_yaml(cc_contents)
         self.assertTrue(cc.get('included'))
 
-    @httpretty.activate
     @mock.patch('cloudinit.url_helper.time.sleep')
     def test_include_bad_url(self, mock_sleep):
         """Test #include with a bad URL."""
