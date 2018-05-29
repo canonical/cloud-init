@@ -2531,8 +2531,8 @@ def _call_dmidecode(key, dmidecode_path):
         if result.replace(".", "") == "":
             return ""
         return result
-    except (IOError, OSError) as _err:
-        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, _err)
+    except (IOError, OSError) as e:
+        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, e)
         return None
 
 
