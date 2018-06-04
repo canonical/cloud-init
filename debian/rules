@@ -1,6 +1,7 @@
 #!/usr/bin/make -f
 INIT_SYSTEM ?= upstart,systemd
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
+DEB_VERSION := $(shell dpkg-parsechangelog --show-field=Version)
 
 %:
 	dh $@ --with python3,systemd --buildsystem pybuild
@@ -21,3 +22,4 @@ override_dh_auto_install:
 	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init/etc/profile.d/Z99-cloud-locale-test.sh
 	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init/etc/profile.d/Z99-cloudinit-warnings.sh
 	install -m 0644 -D debian/apport-launcher.py debian/cloud-init/usr/share/apport/package-hooks/cloud-init.py
+	flist=$$(find $(CURDIR)/debian/ -type f -name version.py) && sed -i 's,@@PACKAGED_VERSION@@,$(DEB_VERSION),' $${flist:-did-not-find-version-py-for-replacement}
