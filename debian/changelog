@@ -1,3 +1,10 @@
+cloud-init (18.2-4-g05926e48-0ubuntu1~17.10.3) UNRELEASED; urgency=medium
+
+  * debian/rules: update version.version_string to contain packaged version.
+    (LP: #1770712)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 04 Jun 2018 10:14:17 -0400
+
 cloud-init (18.2-4-g05926e48-0ubuntu1~17.10.2) artful-proposed; urgency=medium
 
   * cherry-pick 11172924: IBMCloud: Disable config-drive and nocloud
