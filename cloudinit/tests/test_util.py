@@ -3,11 +3,12 @@
 """Tests for cloudinit.util"""
 
 import logging
-from textwrap import dedent
+import platform
 
 import cloudinit.util as util
 
 from cloudinit.tests.helpers import CiTestCase, mock
+from textwrap import dedent
 
 LOG = logging.getLogger(__name__)
 
@@ -15,6 +16,29 @@ MOUNT_INFO = [
     '68 0 8:3 / / ro,relatime shared:1 - btrfs /dev/sda1 ro,attr2,inode64',
     '153 68 254:0 / /home rw,relatime shared:101 - xfs /dev/sda2 rw,attr2'
 ]
+
+OS_RELEASE_SLES = dedent("""\
+    NAME="SLES"\n
+    VERSION="12-SP3"\n
+    VERSION_ID="12.3"\n
+    PRETTY_NAME="SUSE Linux Enterprise Server 12 SP3"\n
+    ID="sles"\nANSI_COLOR="0;32"\n
+    CPE_NAME="cpe:/o:suse:sles:12:sp3"\n
+""")
+
+OS_RELEASE_UBUNTU = dedent("""\
+    NAME="Ubuntu"\n
+    VERSION="16.04.3 LTS (Xenial Xerus)"\n
+    ID=ubuntu\n
+    ID_LIKE=debian\n
+    PRETTY_NAME="Ubuntu 16.04.3 LTS"\n
+    VERSION_ID="16.04"\n
+    HOME_URL="http://www.ubuntu.com/"\n
+    SUPPORT_URL="http://help.ubuntu.com/"\n
+    BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"\n
+    VERSION_CODENAME=xenial\n
+    UBUNTU_CODENAME=xenial\n
+""")
 
 
 class FakeCloud(object):
@@ -260,5 +284,57 @@ class TestUdevadmSettle(CiTestCase):
         m_subp.side_effect = util.ProcessExecutionError("BOOM")
         self.assertRaises(util.ProcessExecutionError, util.udevadm_settle)
 
+
+@mock.patch('os.path.exists')
+class TestGetLinuxDistro(CiTestCase):
+
+    @classmethod
+    def os_release_exists(self, path):
+        """Side effect function"""
+        if path == '/etc/os-release':
+            return 1
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_distro_quoted_name(self, m_os_release, m_path_exists):
+        """Verify we get the correct name if the os-release file has
+        the distro name in quotes"""
+        m_os_release.return_value = OS_RELEASE_SLES
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('sles', '12.3', platform.machine()), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_distro_bare_name(self, m_os_release, m_path_exists):
+        """Verify we get the correct name if the os-release file does not
+        have the distro name in quotes"""
+        m_os_release.return_value = OS_RELEASE_UBUNTU
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('ubuntu', '16.04', platform.machine()), dist)
+
+    @mock.patch('platform.dist')
+    def test_get_linux_distro_no_data(self, m_platform_dist, m_path_exists):
+        """Verify we get no information if os-release does not exist"""
+        m_platform_dist.return_value = ('', '', '')
+        m_path_exists.return_value = 0
+        dist = util.get_linux_distro()
+        self.assertEqual(('', '', ''), dist)
+
+    @mock.patch('platform.dist')
+    def test_get_linux_distro_no_impl(self, m_platform_dist, m_path_exists):
+        """Verify we get an empty tuple when no information exists and
+        Exceptions are not propagated"""
+        m_platform_dist.side_effect = Exception()
+        m_path_exists.return_value = 0
+        dist = util.get_linux_distro()
+        self.assertEqual(('', '', ''), dist)
+
+    @mock.patch('platform.dist')
+    def test_get_linux_distro_plat_data(self, m_platform_dist, m_path_exists):
+        """Verify we get the correct platform information"""
+        m_platform_dist.return_value = ('foo', '1.1', 'aarch64')
+        m_path_exists.return_value = 0
+        dist = util.get_linux_distro()
+        self.assertEqual(('foo', '1.1', 'aarch64'), dist)
 
 # vi: ts=4 expandtab

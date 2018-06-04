@@ -17,7 +17,7 @@
 #        of a serial console.
 #
 #   Certain behavior is defined by the DataDictionary
-#       http://us-east.manta.joyent.com/jmc/public/mdata/datadict.html
+#       https://eng.joyent.com/mdata/datadict.html
 #       Comments with "@datadictionary" are snippets of the definition
 
 import base64
@@ -298,6 +298,7 @@ class DataSourceSmartOS(sources.DataSource):
         self.userdata_raw = ud
         self.vendordata_raw = md['vendor-data']
         self.network_data = md['network-data']
+        self.routes_data = md['routes']
 
         self._set_provisioned()
         return True
@@ -321,7 +322,8 @@ class DataSourceSmartOS(sources.DataSource):
                     convert_smartos_network_data(
                         network_data=self.network_data,
                         dns_servers=self.metadata['dns_servers'],
-                        dns_domain=self.metadata['dns_domain']))
+                        dns_domain=self.metadata['dns_domain'],
+                        routes=self.routes_data))
         return self._network_config
 
 
@@ -760,7 +762,8 @@ def get_smartos_environ(uname_version=None, product_name=None):
 
 # Convert SMARTOS 'sdc:nics' data to network_config yaml
 def convert_smartos_network_data(network_data=None,
-                                 dns_servers=None, dns_domain=None):
+                                 dns_servers=None, dns_domain=None,
+                                 routes=None):
     """Return a dictionary of network_config by parsing provided
        SMARTOS sdc:nics configuration data
 
@@ -778,6 +781,10 @@ def convert_smartos_network_data(network_data=None,
     keys are related to ip configuration.  For each ip in the 'ips' list
     we create a subnet entry under 'subnets' pairing the ip to a one in
     the 'gateways' list.
+
+    Each route in sdc:routes is mapped to a route on each interface.
+    The sdc:routes properties 'dst' and 'gateway' map to 'network' and
+    'gateway'.  The 'linklocal' sdc:routes property is ignored.
     """
 
     valid_keys = {
@@ -800,6 +807,10 @@ def convert_smartos_network_data(network_data=None,
             'scope',
             'type',
         ],
+        'route': [
+            'network',
+            'gateway',
+        ],
     }
 
     if dns_servers:
@@ -813,6 +824,9 @@ def convert_smartos_network_data(network_data=None,
             dns_domain = [dns_domain]
     else:
         dns_domain = []
+
+    if not routes:
+        routes = []
 
     def is_valid_ipv4(addr):
         return '.' in addr
@@ -840,6 +854,7 @@ def convert_smartos_network_data(network_data=None,
             if ip == "dhcp":
                 subnet = {'type': 'dhcp4'}
             else:
+                routeents = []
                 subnet = dict((k, v) for k, v in nic.items()
                               if k in valid_keys['subnet'])
                 subnet.update({
@@ -860,6 +875,25 @@ def convert_smartos_network_data(network_data=None,
                         if len(gateways):
                             pgws[proto]['gw'] = gateways[0]
                             subnet.update({'gateway': pgws[proto]['gw']})
+
+                for route in routes:
+                    rcfg = dict((k, v) for k, v in route.items()
+                                if k in valid_keys['route'])
+                    # Linux uses the value of 'gateway' to determine
+                    # automatically if the route is a forward/next-hop
+                    # (non-local IP for gateway) or an interface/resolver
+                    # (local IP for gateway).  So we can ignore the
+                    # 'interface' attribute of sdc:routes, because SDC
+                    # guarantees that the gateway is a local IP for
+                    # "interface=true".
+                    #
+                    # Eventually we should be smart and compare "gateway"
+                    # to see if it's in the prefix.  We can then smartly
+                    # add or not-add this route.  But for now,
+                    # when in doubt, use brute force! Routes for everyone!
+                    rcfg.update({'network': route['dst']})
+                    routeents.append(rcfg)
+                    subnet.update({'routes': routeents})
 
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
@@ -904,12 +938,14 @@ if __name__ == "__main__":
             keyname = SMARTOS_ATTRIB_JSON[key]
             data[key] = client.get_json(keyname)
         elif key == "network_config":
-            for depkey in ('network-data', 'dns_servers', 'dns_domain'):
+            for depkey in ('network-data', 'dns_servers', 'dns_domain',
+                           'routes'):
                 load_key(client, depkey, data)
             data[key] = convert_smartos_network_data(
                 network_data=data['network-data'],
                 dns_servers=data['dns_servers'],
-                dns_domain=data['dns_domain'])
+                dns_domain=data['dns_domain'],
+                routes=data['routes'])
         else:
             if key in SMARTOS_ATTRIB_MAP:
                 keyname, strip = SMARTOS_ATTRIB_MAP[key]

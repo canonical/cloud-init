@@ -25,18 +25,22 @@ The settings that may be configured are:
    the metadata service. (default: 10)
  * **retries**: The number of retries that should be done for an http request.
    This value is used only after metadata_url is selected. (default: 5)
+ * **apply_network_config**: A boolean specifying whether to configure the
+   network for the instance based on network_data.json provided by the
+   metadata service. When False, only configure dhcp on the primary nic for
+   this instances. (default: True)
 
-An example configuration with the default values is provided as example below:
+An example configuration with the default values is provided below:
 
 .. sourcecode:: yaml
 
-  #cloud-config
   datasource:
    OpenStack:
     metadata_urls: ["http://169.254.169.254"]
     max_wait: -1
     timeout: 10
     retries: 5
+    apply_network_config: True
 
 
 Vendor Data
