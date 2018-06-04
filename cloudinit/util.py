@@ -576,6 +576,39 @@ def get_cfg_option_int(yobj, key, default=0):
     return int(get_cfg_option_str(yobj, key, default=default))
 
 
+def get_linux_distro():
+    distro_name = ''
+    distro_version = ''
+    if os.path.exists('/etc/os-release'):
+        os_release = load_file('/etc/os-release')
+        for line in os_release.splitlines():
+            if line.strip().startswith('ID='):
+                distro_name = line.split('=')[-1]
+                distro_name = distro_name.replace('"', '')
+            if line.strip().startswith('VERSION_ID='):
+                # Lets hope for the best that distros stay consistent ;)
+                distro_version = line.split('=')[-1]
+                distro_version = distro_version.replace('"', '')
+    else:
+        dist = ('', '', '')
+        try:
+            # Will be removed in 3.7
+            dist = platform.dist()  # pylint: disable=W1505
+        except Exception:
+            pass
+        finally:
+            found = None
+            for entry in dist:
+                if entry:
+                    found = 1
+            if not found:
+                LOG.warning('Unable to determine distribution, template '
+                            'expansion may have unexpected results')
+        return dist
+
+    return (distro_name, distro_version, platform.machine())
+
+
 def system_info():
     info = {
         'platform': platform.platform(),
@@ -583,19 +616,19 @@ def system_info():
         'release': platform.release(),
         'python': platform.python_version(),
         'uname': platform.uname(),
-        'dist': platform.dist(),  # pylint: disable=W1505
+        'dist': get_linux_distro()
     }
     system = info['system'].lower()
     var = 'unknown'
     if system == "linux":
         linux_dist = info['dist'][0].lower()
-        if linux_dist in ('centos', 'fedora', 'debian'):
+        if linux_dist in ('centos', 'debian', 'fedora', 'rhel', 'suse'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
         elif linux_dist == 'redhat':
             var = 'rhel'
-        elif linux_dist == 'suse':
+        elif linux_dist in ('opensuse', 'sles'):
             var = 'suse'
         else:
             var = 'linux'
@@ -2531,8 +2564,8 @@ def _call_dmidecode(key, dmidecode_path):
         if result.replace(".", "") == "":
             return ""
         return result
-    except (IOError, OSError) as _err:
-        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, _err)
+    except (IOError, OSError) as e:
+        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, e)
         return None
 
 

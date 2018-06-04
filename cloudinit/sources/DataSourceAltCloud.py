@@ -184,11 +184,11 @@ class DataSourceAltCloud(sources.DataSource):
             cmd = CMD_PROBE_FLOPPY
             (cmd_out, _err) = util.subp(cmd)
             LOG.debug('Command: %s\nOutput%s', ' '.join(cmd), cmd_out)
-        except ProcessExecutionError as _err:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
+        except ProcessExecutionError as e:
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), e)
             return False
-        except OSError as _err:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
+        except OSError as e:
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), e)
             return False
 
         floppy_dev = '/dev/fd0'
@@ -197,11 +197,11 @@ class DataSourceAltCloud(sources.DataSource):
         try:
             (cmd_out, _err) = util.udevadm_settle(exists=floppy_dev, timeout=5)
             LOG.debug('Command: %s\nOutput%s', ' '.join(cmd), cmd_out)
-        except ProcessExecutionError as _err:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
+        except ProcessExecutionError as e:
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), e)
             return False
-        except OSError as _err:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
+        except OSError as e:
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), e)
             return False
 
         try:

@@ -1027,6 +1027,32 @@ class TestNetworkConversion(TestCase):
         found = convert_net(SDC_NICS_SINGLE_GATEWAY)
         self.assertEqual(expected, found)
 
+    def test_routes_on_all_nics(self):
+        routes = [
+            {'linklocal': False, 'dst': '3.0.0.0/8', 'gateway': '8.12.42.3'},
+            {'linklocal': False, 'dst': '4.0.0.0/8', 'gateway': '10.210.1.4'}]
+        expected = {
+            'version': 1,
+            'config': [
+                {'mac_address': '90:b8:d0:d8:82:b4', 'mtu': 1500,
+                 'name': 'net0', 'type': 'physical',
+                 'subnets': [{'address': '8.12.42.26/24',
+                              'gateway': '8.12.42.1', 'type': 'static',
+                              'routes': [{'network': '3.0.0.0/8',
+                                          'gateway': '8.12.42.3'},
+                                         {'network': '4.0.0.0/8',
+                                         'gateway': '10.210.1.4'}]}]},
+                {'mac_address': '90:b8:d0:0a:51:31', 'mtu': 1500,
+                 'name': 'net1', 'type': 'physical',
+                 'subnets': [{'address': '10.210.1.27/24', 'type': 'static',
+                              'routes': [{'network': '3.0.0.0/8',
+                                          'gateway': '8.12.42.3'},
+                                         {'network': '4.0.0.0/8',
+                                         'gateway': '10.210.1.4'}]}]}]}
+        found = convert_net(SDC_NICS_SINGLE_GATEWAY, routes=routes)
+        self.maxDiff = None
+        self.assertEqual(expected, found)
+
 
 @unittest2.skipUnless(get_smartos_environ() == SMARTOS_ENV_KVM,
                       "Only supported on KVM and bhyve guests under SmartOS")
