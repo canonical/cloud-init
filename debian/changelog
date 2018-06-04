@@ -1,3 +1,10 @@
+cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
+
+  * debian/rules: update version.version_string to contain packaged version.
+    (LP: #1770712)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 04 Jun 2018 10:15:42 -0400
+
 cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
   * cherry-pick 6ef92c98: IBMCloud: recognize provisioning environment
