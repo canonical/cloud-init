@@ -1876,9 +1876,55 @@ def subp_blob_in_tempfile(blob, *args, **kwargs):
         return subp(*args, **kwargs)
 
 
-def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
+def subp(args, data=None, rcs=None, env=None, capture=True,
+         combine_capture=False, shell=False,
          logstring=False, decode="replace", target=None, update_env=None,
          status_cb=None):
+    """Run a subprocess.
+
+    :param args: command to run in a list. [cmd, arg1, arg2...]
+    :param data: input to the command, made available on its stdin.
+    :param rcs:
+        a list of allowed return codes.  If subprocess exits with a value not
+        in this list, a ProcessExecutionError will be raised.  By default,
+        data is returned as a string.  See 'decode' parameter.
+    :param env: a dictionary for the command's environment.
+    :param capture:
+        boolean indicating if output should be captured.  If True, then stderr
+        and stdout will be returned.  If False, they will not be redirected.
+    :param combine_capture:
+        boolean indicating if stderr should be redirected to stdout. When True,
+        interleaved stderr and stdout will be returned as the first element of
+        a tuple, the second will be empty string or bytes (per decode).
+        if combine_capture is True, then output is captured independent of
+        the value of capture.
+    :param shell: boolean indicating if this should be run with a shell.
+    :param logstring:
+        the command will be logged to DEBUG.  If it contains info that should
+        not be logged, then logstring will be logged instead.
+    :param decode:
+        if False, no decoding will be done and returned stdout and stderr will
+        be bytes.  Other allowed values are 'strict', 'ignore', and 'replace'.
+        These values are passed through to bytes().decode() as the 'errors'
+        parameter.  There is no support for decoding to other than utf-8.
+    :param target:
+        not supported, kwarg present only to make function signature similar
+        to curtin's subp.
+    :param update_env:
+        update the enviornment for this command with this dictionary.
+        this will not affect the current processes os.environ.
+    :param status_cb:
+        call this fuction with a single string argument before starting
+        and after finishing.
+
+    :return
+        if not capturing, return is (None, None)
+        if capturing, stdout and stderr are returned.
+            if decode:
+                entries in tuple will be python2 unicode or python3 string
+            if not decode:
+                entries in tuple will be python2 string or python3 bytes
+    """
 
     # not supported in cloud-init (yet), for now kept in the call signature
     # to ease maintaining code shared between cloud-init and curtin
@@ -1904,7 +1950,8 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         status_cb('Begin run command: {command}\n'.format(command=command))
     if not logstring:
         LOG.debug(("Running command %s with allowed return codes %s"
-                   " (shell=%s, capture=%s)"), args, rcs, shell, capture)
+                   " (shell=%s, capture=%s)"),
+                  args, rcs, shell, 'combine' if combine_capture else capture)
     else:
         LOG.debug(("Running hidden command to protect sensitive "
                    "input/output logstring: %s"), logstring)
@@ -1915,6 +1962,9 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     if capture:
         stdout = subprocess.PIPE
         stderr = subprocess.PIPE
+    if combine_capture:
+        stdout = subprocess.PIPE
+        stderr = subprocess.STDOUT
     if data is None:
         # using devnull assures any reads get null, rather
         # than possibly waiting on input.
@@ -1953,10 +2003,11 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
             devnull_fp.close()
 
     # Just ensure blank instead of none.
-    if not out and capture:
-        out = b''
-    if not err and capture:
-        err = b''
+    if capture or combine_capture:
+        if not out:
+            out = b''
+        if not err:
+            err = b''
     if decode:
         def ldecode(data, m='utf-8'):
             if not isinstance(data, bytes):
