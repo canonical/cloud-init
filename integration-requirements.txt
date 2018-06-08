@@ -11,5 +11,10 @@ boto3==1.5.9
 # ssh communication
 paramiko==2.4.0
 
+# lxd backend
+# 04/03/2018: enables use of lxd 3.0
+git+https://github.com/lxc/pylxd.git@4b8ab1802f9aee4eb29cf7b119dae0aa47150779
+
+
 # finds latest image information
 bzr+lp:simplestreams
