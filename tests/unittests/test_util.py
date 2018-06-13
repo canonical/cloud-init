@@ -1089,4 +1089,60 @@ class TestLoadShellContent(helpers.TestCase):
                 ''])))
 
 
+class TestGetProcEnv(helpers.TestCase):
+    """test get_proc_env."""
+    null = b'\x00'
+    simple1 = b'HOME=/'
+    simple2 = b'PATH=/bin:/sbin'
+    bootflag = b'BOOTABLE_FLAG=\x80'  # from LP: #1775371
+    mixed = b'MIXED=' + b'ab\xccde'
+
+    def _val_decoded(self, blob, encoding='utf-8', errors='replace'):
+        # return the value portion of key=val decoded.
+        return blob.split(b'=', 1)[1].decode(encoding, errors)
+
+    @mock.patch("cloudinit.util.load_file")
+    def test_non_utf8_in_environment(self, m_load_file):
+        """env may have non utf-8 decodable content."""
+        content = self.null.join(
+            (self.bootflag, self.simple1, self.simple2, self.mixed))
+        m_load_file.return_value = content
+
+        self.assertEqual(
+            {'BOOTABLE_FLAG': self._val_decoded(self.bootflag),
+             'HOME': '/', 'PATH': '/bin:/sbin',
+             'MIXED': self._val_decoded(self.mixed)},
+            util.get_proc_env(1))
+        self.assertEqual(1, m_load_file.call_count)
+
+    @mock.patch("cloudinit.util.load_file")
+    def test_encoding_none_returns_bytes(self, m_load_file):
+        """encoding none returns bytes."""
+        lines = (self.bootflag, self.simple1, self.simple2, self.mixed)
+        content = self.null.join(lines)
+        m_load_file.return_value = content
+
+        self.assertEqual(
+            dict([t.split(b'=') for t in lines]),
+            util.get_proc_env(1, encoding=None))
+        self.assertEqual(1, m_load_file.call_count)
+
+    @mock.patch("cloudinit.util.load_file")
+    def test_all_utf8_encoded(self, m_load_file):
+        """common path where only utf-8 decodable content."""
+        content = self.null.join((self.simple1, self.simple2))
+        m_load_file.return_value = content
+        self.assertEqual(
+            {'HOME': '/', 'PATH': '/bin:/sbin'},
+            util.get_proc_env(1))
+        self.assertEqual(1, m_load_file.call_count)
+
+    @mock.patch("cloudinit.util.load_file")
+    def test_non_existing_file_returns_empty_dict(self, m_load_file):
+        """as implemented, a non-existing pid returns empty dict.
+        This is how it was originally implemented."""
+        m_load_file.side_effect = OSError("File does not exist.")
+        self.assertEqual({}, util.get_proc_env(1))
+        self.assertEqual(1, m_load_file.call_count)
+
 # vi: ts=4 expandtab

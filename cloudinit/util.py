@@ -2131,24 +2131,33 @@ def is_container():
     return False
 
 
-def get_proc_env(pid):
+def get_proc_env(pid, encoding='utf-8', errors='replace'):
     """
     Return the environment in a dict that a given process id was started with.
-    """
+
+    @param encoding: if true, then decoding will be done with
+                     .decode(encoding, errors) and text will be returned.
+                     if false then binary will be returned.
+    @param errors:   only used if encoding is true."""
+    fn = os.path.join("/proc", str(pid), "environ")
+
+    try:
+        contents = load_file(fn, decode=False)
+    except (IOError, OSError):
+        return {}
 
     env = {}
-    fn = os.path.join("/proc/", str(pid), "environ")
-    try:
-        contents = load_file(fn)
-        toks = contents.split("\x00")
-        for tok in toks:
-            if tok == "":
-                continue
-            (name, val) = tok.split("=", 1)
-            if name:
-                env[name] = val
-    except (IOError, OSError):
-        pass
+    null, equal = (b"\x00", b"=")
+    if encoding:
+        null, equal = ("\x00", "=")
+        contents = contents.decode(encoding, errors)
+
+    for tok in contents.split(null):
+        if not tok:
+            continue
+        (name, val) = tok.split(equal, 1)
+        if name:
+            env[name] = val
     return env
 
 
