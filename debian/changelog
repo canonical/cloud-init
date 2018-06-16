@@ -1,4 +1,4 @@
-cloud-init (18.2-77-g4ce67201-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.2-77-g4ce67201-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
     - lxd: Delete default network and detach device if lxd-init created them.
