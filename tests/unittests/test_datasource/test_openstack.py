@@ -69,6 +69,8 @@ EC2_VERSIONS = [
     'latest',
 ]
 
+MOCK_PATH = 'cloudinit.sources.DataSourceOpenStack.'
+
 
 # TODO _register_uris should leverage test_ec2.register_mock_metaserver.
 def _register_uris(version, ec2_files, ec2_meta, os_files):
@@ -231,7 +233,10 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data()
+        mock_path = MOCK_PATH + 'detect_openstack'
+        with test_helpers.mock.patch(mock_path) as m_detect_os:
+            m_detect_os.return_value = True
+            found = ds_os.get_data()
         self.assertTrue(found)
         self.assertEqual(2, ds_os.version)
         md = dict(ds_os.metadata)
@@ -260,7 +265,10 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             'broadcast-address': '192.168.2.255'}]
 
         self.assertIsNone(ds_os_local.version)
-        found = ds_os_local.get_data()
+        mock_path = MOCK_PATH + 'detect_openstack'
+        with test_helpers.mock.patch(mock_path) as m_detect_os:
+            m_detect_os.return_value = True
+            found = ds_os_local.get_data()
         self.assertTrue(found)
         self.assertEqual(2, ds_os_local.version)
         md = dict(ds_os_local.metadata)
@@ -284,7 +292,10 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
                                        None,
                                        helpers.Paths({'run_dir': self.tmp}))
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data()
+        mock_path = MOCK_PATH + 'detect_openstack'
+        with test_helpers.mock.patch(mock_path) as m_detect_os:
+            m_detect_os.return_value = True
+            found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
         self.assertIn(
@@ -306,15 +317,16 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             'timeout': 0,
         }
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data()
+        mock_path = MOCK_PATH + 'detect_openstack'
+        with test_helpers.mock.patch(mock_path) as m_detect_os:
+            m_detect_os.return_value = True
+            found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
     def test_network_config_disabled_by_datasource_config(self):
         """The network_config can be disabled from datasource config."""
-        mock_path = (
-            'cloudinit.sources.DataSourceOpenStack.openstack.'
-            'convert_net_json')
+        mock_path = MOCK_PATH + 'openstack.convert_net_json'
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
         ds_os.ds_cfg = {'apply_network_config': False}
@@ -327,9 +339,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
 
     def test_network_config_from_network_json(self):
         """The datasource gets network_config from network_data.json."""
-        mock_path = (
-            'cloudinit.sources.DataSourceOpenStack.openstack.'
-            'convert_net_json')
+        mock_path = MOCK_PATH + 'openstack.convert_net_json'
         example_cfg = {'version': 1, 'config': []}
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
@@ -345,9 +355,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
 
     def test_network_config_cached(self):
         """The datasource caches the network_config property."""
-        mock_path = (
-            'cloudinit.sources.DataSourceOpenStack.openstack.'
-            'convert_net_json')
+        mock_path = MOCK_PATH + 'openstack.convert_net_json'
         example_cfg = {'version': 1, 'config': []}
         ds_os = ds.DataSourceOpenStack(
             settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
@@ -374,7 +382,10 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             'timeout': 0,
         }
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data()
+        mock_path = MOCK_PATH + 'detect_openstack'
+        with test_helpers.mock.patch(mock_path) as m_detect_os:
+            m_detect_os.return_value = True
+            found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
@@ -437,5 +448,90 @@ class TestVendorDataLoading(test_helpers.TestCase):
     def test_vd_load_dict_ci_list(self):
         data = {'foo': 'bar', 'cloud-init': ['VD_1', 'VD_2']}
         self.assertEqual(self.cvj(data), data['cloud-init'])
+
+
+@test_helpers.mock.patch(MOCK_PATH + 'util.is_x86')
+class TestDetectOpenStack(test_helpers.CiTestCase):
+
+    def test_detect_openstack_non_intel_x86(self, m_is_x86):
+        """Return True on non-intel platforms because dmi isn't conclusive."""
+        m_is_x86.return_value = False
+        self.assertTrue(
+            ds.detect_openstack(), 'Expected detect_openstack == True')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
+    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    def test_not_detect_openstack_intel_x86_ec2(self, m_dmi, m_proc_env,
+                                                m_is_x86):
+        """Return False on EC2 platforms."""
+        m_is_x86.return_value = True
+        # No product_name in proc/1/environ
+        m_proc_env.return_value = {'HOME': '/'}
+
+        def fake_dmi_read(dmi_key):
+            if dmi_key == 'system-product-name':
+                return 'HVM domU'  # Nothing 'openstackish' on EC2
+            if dmi_key == 'chassis-asset-tag':
+                return ''  # Empty string on EC2
+            assert False, 'Unexpected dmi read of %s' % dmi_key
+
+        m_dmi.side_effect = fake_dmi_read
+        self.assertFalse(
+            ds.detect_openstack(), 'Expected detect_openstack == False on EC2')
+        m_proc_env.assert_called_with(1)
+
+    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    def test_detect_openstack_intel_product_name_compute(self, m_dmi,
+                                                         m_is_x86):
+        """Return True on OpenStack compute and nova instances."""
+        m_is_x86.return_value = True
+        openstack_product_names = ['OpenStack Nova', 'OpenStack Compute']
+
+        for product_name in openstack_product_names:
+            m_dmi.return_value = product_name
+            self.assertTrue(
+                ds.detect_openstack(), 'Failed to detect_openstack')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    def test_detect_openstack_opentelekomcloud_chassis_asset_tag(self, m_dmi,
+                                                                 m_is_x86):
+        """Return True on OpenStack reporting OpenTelekomCloud asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_dmi_read(dmi_key):
+            if dmi_key == 'system-product-name':
+                return 'HVM domU'  # Nothing 'openstackish' on OpenTelekomCloud
+            if dmi_key == 'chassis-asset-tag':
+                return 'OpenTelekomCloud'
+            assert False, 'Unexpected dmi read of %s' % dmi_key
+
+        m_dmi.side_effect = fake_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            'Expected detect_openstack == True on OpenTelekomCloud')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
+    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    def test_detect_openstack_by_proc_1_environ(self, m_dmi, m_proc_env,
+                                                m_is_x86):
+        """Return True when nova product_name specified in /proc/1/environ."""
+        m_is_x86.return_value = True
+        # Nova product_name in proc/1/environ
+        m_proc_env.return_value = {
+            'HOME': '/', 'product_name': 'OpenStack Nova'}
+
+        def fake_dmi_read(dmi_key):
+            if dmi_key == 'system-product-name':
+                return 'HVM domU'  # Nothing 'openstackish'
+            if dmi_key == 'chassis-asset-tag':
+                return ''  # Nothin 'openstackish'
+            assert False, 'Unexpected dmi read of %s' % dmi_key
+
+        m_dmi.side_effect = fake_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            'Expected detect_openstack == True on OpenTelekomCloud')
+        m_proc_env.assert_called_with(1)
+
 
 # vi: ts=4 expandtab

@@ -2629,6 +2629,16 @@ def _call_dmidecode(key, dmidecode_path):
         return None
 
 
+def is_x86(uname_arch=None):
+    """Return True if platform is x86-based"""
+    if uname_arch is None:
+        uname_arch = os.uname()[4]
+    x86_arch_match = (
+        uname_arch == 'x86_64' or
+        (uname_arch[0] == 'i' and uname_arch[2:] == '86'))
+    return x86_arch_match
+
+
 def read_dmi_data(key):
     """
     Wrapper for reading DMI data.
@@ -2656,8 +2666,7 @@ def read_dmi_data(key):
 
     # running dmidecode can be problematic on some arches (LP: #1243287)
     uname_arch = os.uname()[4]
-    if not (uname_arch == "x86_64" or
-            (uname_arch.startswith("i") and uname_arch[2:] == "86") or
+    if not (is_x86(uname_arch) or
             uname_arch == 'aarch64' or
             uname_arch == 'amd64'):
         LOG.debug("dmidata is not supported on %s", uname_arch)

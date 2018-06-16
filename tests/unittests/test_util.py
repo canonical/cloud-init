@@ -468,6 +468,29 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         self.assertIsNone(ret)
 
 
+class TestIsX86(helpers.CiTestCase):
+
+    def test_is_x86_matches_x86_types(self):
+        """is_x86 returns True if CPU architecture matches."""
+        matched_arches = ['x86_64', 'i386', 'i586', 'i686']
+        for arch in matched_arches:
+            self.assertTrue(
+                util.is_x86(arch), 'Expected is_x86 for arch "%s"' % arch)
+
+    def test_is_x86_unmatched_types(self):
+        """is_x86 returns Fale on non-intel x86 architectures."""
+        unmatched_arches = ['ia64', '9000/800', 'arm64v71']
+        for arch in unmatched_arches:
+            self.assertFalse(
+                util.is_x86(arch), 'Expected not is_x86 for arch "%s"' % arch)
+
+    @mock.patch('cloudinit.util.os.uname')
+    def test_is_x86_calls_uname_for_architecture(self, m_uname):
+        """is_x86 returns True if platform from uname matches."""
+        m_uname.return_value = [0, 1, 2, 3, 'x86_64']
+        self.assertTrue(util.is_x86())
+
+
 class TestReadDMIData(helpers.FilesystemMockingTestCase):
 
     def setUp(self):

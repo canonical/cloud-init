@@ -7,6 +7,21 @@ This datasource supports reading data from the
 `OpenStack Metadata Service
 <https://docs.openstack.org/nova/latest/admin/networking-nova.html#metadata-service>`_.
 
+Discovery
+-------------
+To determine whether a platform looks like it may be OpenStack, cloud-init
+checks the following environment attributes as a potential OpenStack platform:
+
+ * Maybe OpenStack if
+
+   * **non-x86 cpu architecture**: because DMI data is buggy on some arches
+ * Is OpenStack **if x86 architecture and ANY** of the following
+
+   * **/proc/1/environ**: Nova-lxd contains *product_name=OpenStack Nova*
+   * **DMI product_name**: Either *Openstack Nova* or *OpenStack Compute*
+   * **DMI chassis_asset_tag** is *OpenTelekomCloud*
+
+
 Configuration
 -------------
 The following configuration can be set for the datasource in system
