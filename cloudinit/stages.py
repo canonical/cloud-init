@@ -697,7 +697,9 @@ class Modules(object):
         module_list = []
         if name not in self.cfg:
             return module_list
-        cfg_mods = self.cfg[name]
+        cfg_mods = self.cfg.get(name)
+        if not cfg_mods:
+            return module_list
         # Create 'module_list', an array of hashes
         # Where hash['mod'] = module name
         #       hash['freq'] = frequency

@@ -23,6 +23,13 @@ DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
 }
 
+# OpenStack DMI constants
+DMI_PRODUCT_NOVA = 'OpenStack Nova'
+DMI_PRODUCT_COMPUTE = 'OpenStack Compute'
+VALID_DMI_PRODUCT_NAMES = [DMI_PRODUCT_NOVA, DMI_PRODUCT_COMPUTE]
+DMI_ASSET_TAG_OPENTELEKOM = 'OpenTelekomCloud'
+VALID_DMI_ASSET_TAGS = [DMI_ASSET_TAG_OPENTELEKOM]
+
 
 class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
@@ -114,6 +121,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             False when unable to contact metadata service or when metadata
             format is invalid or disabled.
         """
+        if not detect_openstack():
+            return False
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
             try:
                 with EphemeralDHCPv4(self.fallback_interface):
@@ -203,6 +212,20 @@ def read_metadata_service(base_url, ssl_details=None,
     reader = openstack.MetadataReader(base_url, ssl_details=ssl_details,
                                       timeout=timeout, retries=retries)
     return reader.read_v2()
+
+
+def detect_openstack():
+    """Return True when a potential OpenStack platform is detected."""
+    if not util.is_x86():
+        return True  # Non-Intel cpus don't properly report dmi product names
+    product_name = util.read_dmi_data('system-product-name')
+    if product_name in VALID_DMI_PRODUCT_NAMES:
+        return True
+    elif util.read_dmi_data('chassis-asset-tag') in VALID_DMI_ASSET_TAGS:
+        return True
+    elif util.get_proc_env(1).get('product_name') == DMI_PRODUCT_NOVA:
+        return True
+    return False
 
 
 # Used to match classes to dependencies

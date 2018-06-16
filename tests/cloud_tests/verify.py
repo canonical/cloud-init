@@ -56,6 +56,51 @@ def verify_data(data_dir, platform, os_name, tests):
     return res
 
 
+def format_test_failures(test_result):
+    """Return a human-readable printable format of test failures."""
+    if not test_result['failures']:
+        return ''
+    failure_hdr = '    test failures:'
+    failure_fmt = '    * {module}.{class}.{function}\n          {error}'
+    output = []
+    for failure in test_result['failures']:
+        if not output:
+            output = [failure_hdr]
+        output.append(failure_fmt.format(**failure))
+    return '\n'.join(output)
+
+
+def format_results(res):
+    """Return human-readable results as a string"""
+    platform_hdr = 'Platform: {platform}'
+    distro_hdr = '  Distro: {distro}'
+    distro_summary_fmt = (
+        '    test modules passed:{passed} tests failed:{failed}')
+    output = ['']
+    counts = {}
+    for platform, platform_data in res.items():
+        output.append(platform_hdr.format(platform=platform))
+        counts[platform] = {}
+        for distro, distro_data in platform_data.items():
+            distro_failure_output = []
+            output.append(distro_hdr.format(distro=distro))
+            counts[platform][distro] = {'passed': 0, 'failed': 0}
+            for _, test_result in distro_data.items():
+                if test_result['passed']:
+                    counts[platform][distro]['passed'] += 1
+                else:
+                    counts[platform][distro]['failed'] += len(
+                        test_result['failures'])
+                    failure_output = format_test_failures(test_result)
+                    if failure_output:
+                        distro_failure_output.append(failure_output)
+            output.append(
+                distro_summary_fmt.format(**counts[platform][distro]))
+            if distro_failure_output:
+                output.extend(distro_failure_output)
+    return '\n'.join(output)
+
+
 def verify(args):
     """Verify test data.
 
@@ -90,7 +135,7 @@ def verify(args):
             failed += len(fail_list)
 
     # dump results
-    LOG.debug('verify results: %s', res)
+    LOG.debug('\n---- Verify summarized results:\n%s', format_results(res))
     if args.result:
         util.merge_results({'verify': res}, args.result)
 
