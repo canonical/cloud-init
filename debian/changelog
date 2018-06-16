@@ -1,3 +1,28 @@
+cloud-init (18.2-77-g4ce67201-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - lxd: Delete default network and detach device if lxd-init created them.
+      (LP: #1776958)
+    - openstack: avoid unneeded metadata probe on non-openstack platforms
+      (LP: #1776701)
+    - stages: fix tracebacks if a module stage is undefined or empty
+      [Robert Schweikert] (LP: #1770462)
+    - Be more safe on string/bytes when writing multipart user-data to disk.
+      (LP: #1768600)
+    - Fix get_proc_env for pids that have non-utf8 content in environment.
+      (LP: #1775371)
+    - tests: fix salt_minion integration test on bionic and later
+    - tests: provide human-readable integration test summary when --verbose
+    - tests: skip chrony integration tests on lxd running artful or older
+    - test: add optional --preserve-instance arg to integraiton tests
+    - netplan: fix mtu if provided by network config for all rendered types
+      (LP: #1774666)
+    - tests: remove pip install workarounds for pylxd, take upstream fix.
+    - subp: support combine_capture argument.
+    - tests: ordered tox dependencies for pylxd install
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 15 Jun 2018 20:05:07 -0600
+
 cloud-init (18.2-64-gbbcc5e82-0ubuntu1) cosmic; urgency=medium
 
   * debian/rules: update version.version_string to contain packaged version.
