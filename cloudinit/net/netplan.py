@@ -34,7 +34,7 @@ def _get_params_dict_by_match(config, match):
                 if key.startswith(match))
 
 
-def _extract_addresses(config, entry):
+def _extract_addresses(config, entry, ifname):
     """This method parse a cloudinit.net.network_state dictionary (config) and
        maps netstate keys/values into a dictionary (entry) to represent
        netplan yaml.
@@ -124,6 +124,15 @@ def _extract_addresses(config, entry):
 
             addresses.append(addr)
 
+    if 'mtu' in config:
+        entry_mtu = entry.get('mtu')
+        if entry_mtu and config['mtu'] != entry_mtu:
+            LOG.warning(
+                "Network config: ignoring %s device-level mtu:%s because"
+                " ipv4 subnet-level mtu:%s provided.",
+                ifname, config['mtu'], entry_mtu)
+        else:
+            entry['mtu'] = config['mtu']
     if len(addresses) > 0:
         entry.update({'addresses': addresses})
     if len(routes) > 0:
@@ -262,10 +271,7 @@ class Renderer(renderer.Renderer):
                     else:
                         del eth['match']
                         del eth['set-name']
-                if 'mtu' in ifcfg:
-                    eth['mtu'] = ifcfg.get('mtu')
-
-                _extract_addresses(ifcfg, eth)
+                _extract_addresses(ifcfg, eth, ifname)
                 ethernets.update({ifname: eth})
 
             elif if_type == 'bond':
@@ -288,7 +294,7 @@ class Renderer(renderer.Renderer):
                 slave_interfaces = ifcfg.get('bond-slaves')
                 if slave_interfaces == 'none':
                     _extract_bond_slaves_by_name(interfaces, bond, ifname)
-                _extract_addresses(ifcfg, bond)
+                _extract_addresses(ifcfg, bond, ifname)
                 bonds.update({ifname: bond})
 
             elif if_type == 'bridge':
@@ -321,7 +327,7 @@ class Renderer(renderer.Renderer):
 
                 if len(br_config) > 0:
                     bridge.update({'parameters': br_config})
-                _extract_addresses(ifcfg, bridge)
+                _extract_addresses(ifcfg, bridge, ifname)
                 bridges.update({ifname: bridge})
 
             elif if_type == 'vlan':
@@ -333,7 +339,7 @@ class Renderer(renderer.Renderer):
                 macaddr = ifcfg.get('mac_address', None)
                 if macaddr is not None:
                     vlan['macaddress'] = macaddr.lower()
-                _extract_addresses(ifcfg, vlan)
+                _extract_addresses(ifcfg, vlan, ifname)
                 vlans.update({ifname: vlan})
 
         # inject global nameserver values under each all interface which

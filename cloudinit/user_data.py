@@ -337,8 +337,10 @@ def is_skippable(part):
 
 # Coverts a raw string into a mime message
 def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
+    """convert a string (more likely bytes) or a message into
+    a mime message."""
     if not raw_data:
-        raw_data = ''
+        raw_data = b''
 
     def create_binmsg(data, content_type):
         maintype, subtype = content_type.split("/", 1)
@@ -346,15 +348,17 @@ def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
         msg.set_payload(data)
         return msg
 
-    try:
-        data = util.decode_binary(util.decomp_gzip(raw_data))
-        if "mime-version:" in data[0:4096].lower():
-            msg = util.message_from_string(data)
-        else:
-            msg = create_binmsg(data, content_type)
-    except UnicodeDecodeError:
-        msg = create_binmsg(raw_data, content_type)
+    if isinstance(raw_data, six.text_type):
+        bdata = raw_data.encode('utf-8')
+    else:
+        bdata = raw_data
+    bdata = util.decomp_gzip(bdata, decode=False)
+    if b"mime-version:" in bdata[0:4096].lower():
+        msg = util.message_from_string(bdata.decode('utf-8'))
+    else:
+        msg = create_binmsg(bdata, content_type)
 
     return msg
+
 
 # vi: ts=4 expandtab

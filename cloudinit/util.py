@@ -1876,9 +1876,55 @@ def subp_blob_in_tempfile(blob, *args, **kwargs):
         return subp(*args, **kwargs)
 
 
-def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
+def subp(args, data=None, rcs=None, env=None, capture=True,
+         combine_capture=False, shell=False,
          logstring=False, decode="replace", target=None, update_env=None,
          status_cb=None):
+    """Run a subprocess.
+
+    :param args: command to run in a list. [cmd, arg1, arg2...]
+    :param data: input to the command, made available on its stdin.
+    :param rcs:
+        a list of allowed return codes.  If subprocess exits with a value not
+        in this list, a ProcessExecutionError will be raised.  By default,
+        data is returned as a string.  See 'decode' parameter.
+    :param env: a dictionary for the command's environment.
+    :param capture:
+        boolean indicating if output should be captured.  If True, then stderr
+        and stdout will be returned.  If False, they will not be redirected.
+    :param combine_capture:
+        boolean indicating if stderr should be redirected to stdout. When True,
+        interleaved stderr and stdout will be returned as the first element of
+        a tuple, the second will be empty string or bytes (per decode).
+        if combine_capture is True, then output is captured independent of
+        the value of capture.
+    :param shell: boolean indicating if this should be run with a shell.
+    :param logstring:
+        the command will be logged to DEBUG.  If it contains info that should
+        not be logged, then logstring will be logged instead.
+    :param decode:
+        if False, no decoding will be done and returned stdout and stderr will
+        be bytes.  Other allowed values are 'strict', 'ignore', and 'replace'.
+        These values are passed through to bytes().decode() as the 'errors'
+        parameter.  There is no support for decoding to other than utf-8.
+    :param target:
+        not supported, kwarg present only to make function signature similar
+        to curtin's subp.
+    :param update_env:
+        update the enviornment for this command with this dictionary.
+        this will not affect the current processes os.environ.
+    :param status_cb:
+        call this fuction with a single string argument before starting
+        and after finishing.
+
+    :return
+        if not capturing, return is (None, None)
+        if capturing, stdout and stderr are returned.
+            if decode:
+                entries in tuple will be python2 unicode or python3 string
+            if not decode:
+                entries in tuple will be python2 string or python3 bytes
+    """
 
     # not supported in cloud-init (yet), for now kept in the call signature
     # to ease maintaining code shared between cloud-init and curtin
@@ -1904,7 +1950,8 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         status_cb('Begin run command: {command}\n'.format(command=command))
     if not logstring:
         LOG.debug(("Running command %s with allowed return codes %s"
-                   " (shell=%s, capture=%s)"), args, rcs, shell, capture)
+                   " (shell=%s, capture=%s)"),
+                  args, rcs, shell, 'combine' if combine_capture else capture)
     else:
         LOG.debug(("Running hidden command to protect sensitive "
                    "input/output logstring: %s"), logstring)
@@ -1915,6 +1962,9 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     if capture:
         stdout = subprocess.PIPE
         stderr = subprocess.PIPE
+    if combine_capture:
+        stdout = subprocess.PIPE
+        stderr = subprocess.STDOUT
     if data is None:
         # using devnull assures any reads get null, rather
         # than possibly waiting on input.
@@ -1953,10 +2003,11 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
             devnull_fp.close()
 
     # Just ensure blank instead of none.
-    if not out and capture:
-        out = b''
-    if not err and capture:
-        err = b''
+    if capture or combine_capture:
+        if not out:
+            out = b''
+        if not err:
+            err = b''
     if decode:
         def ldecode(data, m='utf-8'):
             if not isinstance(data, bytes):
@@ -2080,24 +2131,33 @@ def is_container():
     return False
 
 
-def get_proc_env(pid):
+def get_proc_env(pid, encoding='utf-8', errors='replace'):
     """
     Return the environment in a dict that a given process id was started with.
-    """
+
+    @param encoding: if true, then decoding will be done with
+                     .decode(encoding, errors) and text will be returned.
+                     if false then binary will be returned.
+    @param errors:   only used if encoding is true."""
+    fn = os.path.join("/proc", str(pid), "environ")
+
+    try:
+        contents = load_file(fn, decode=False)
+    except (IOError, OSError):
+        return {}
 
     env = {}
-    fn = os.path.join("/proc/", str(pid), "environ")
-    try:
-        contents = load_file(fn)
-        toks = contents.split("\x00")
-        for tok in toks:
-            if tok == "":
-                continue
-            (name, val) = tok.split("=", 1)
-            if name:
-                env[name] = val
-    except (IOError, OSError):
-        pass
+    null, equal = (b"\x00", b"=")
+    if encoding:
+        null, equal = ("\x00", "=")
+        contents = contents.decode(encoding, errors)
+
+    for tok in contents.split(null):
+        if not tok:
+            continue
+        (name, val) = tok.split(equal, 1)
+        if name:
+            env[name] = val
     return env
 
 
@@ -2569,6 +2629,16 @@ def _call_dmidecode(key, dmidecode_path):
         return None
 
 
+def is_x86(uname_arch=None):
+    """Return True if platform is x86-based"""
+    if uname_arch is None:
+        uname_arch = os.uname()[4]
+    x86_arch_match = (
+        uname_arch == 'x86_64' or
+        (uname_arch[0] == 'i' and uname_arch[2:] == '86'))
+    return x86_arch_match
+
+
 def read_dmi_data(key):
     """
     Wrapper for reading DMI data.
@@ -2596,8 +2666,7 @@ def read_dmi_data(key):
 
     # running dmidecode can be problematic on some arches (LP: #1243287)
     uname_arch = os.uname()[4]
-    if not (uname_arch == "x86_64" or
-            (uname_arch.startswith("i") and uname_arch[2:] == "86") or
+    if not (is_x86(uname_arch) or
             uname_arch == 'aarch64' or
             uname_arch == 'amd64'):
         LOG.debug("dmidata is not supported on %s", uname_arch)

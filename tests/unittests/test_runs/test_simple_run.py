@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import os
 
 
@@ -127,8 +128,9 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         """run_section forced skipped modules by using unverified_modules."""
 
         # re-write cloud.cfg with unverified_modules override
-        self.cfg['unverified_modules'] = ['spacewalk']  # Would have skipped
-        cloud_cfg = util.yaml_dumps(self.cfg)
+        cfg = copy.deepcopy(self.cfg)
+        cfg['unverified_modules'] = ['spacewalk']  # Would have skipped
+        cloud_cfg = util.yaml_dumps(cfg)
         util.ensure_dir(os.path.join(self.new_root, 'etc', 'cloud'))
         util.write_file(os.path.join(self.new_root, 'etc',
                                      'cloud', 'cloud.cfg'), cloud_cfg)
@@ -149,5 +151,31 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         self.assertIn(
             "running unverified_modules: 'spacewalk'",
             self.logs.getvalue())
+
+    def test_none_ds_run_with_no_config_modules(self):
+        """run_section will report no modules run when none are configured."""
+
+        # re-write cloud.cfg with unverified_modules override
+        cfg = copy.deepcopy(self.cfg)
+        # Represent empty configuration in /etc/cloud/cloud.cfg
+        cfg['cloud_init_modules'] = None
+        cloud_cfg = util.yaml_dumps(cfg)
+        util.ensure_dir(os.path.join(self.new_root, 'etc', 'cloud'))
+        util.write_file(os.path.join(self.new_root, 'etc',
+                                     'cloud', 'cloud.cfg'), cloud_cfg)
+
+        initer = stages.Init()
+        initer.read_cfg()
+        initer.initialize()
+        initer.fetch()
+        initer.instancify()
+        initer.update()
+        initer.cloudify().run('consume_data', initer.consume_data,
+                              args=[PER_INSTANCE], freq=PER_INSTANCE)
+
+        mods = stages.Modules(initer)
+        (which_ran, failures) = mods.run_section('cloud_init_modules')
+        self.assertTrue(len(failures) == 0)
+        self.assertEqual([], which_ran)
 
 # vi: ts=4 expandtab

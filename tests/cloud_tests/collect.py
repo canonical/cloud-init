@@ -93,7 +93,8 @@ def collect_test_data(args, snapshot, os_name, test_name):
     # create test instance
     component = PlatformComponent(
         partial(platforms.get_instance, snapshot, user_data,
-                block=True, start=False, use_desc=test_name))
+                block=True, start=False, use_desc=test_name),
+        preserve_instance=args.preserve_instance)
 
     LOG.info('collecting test data for test: %s', test_name)
     with component as instance:

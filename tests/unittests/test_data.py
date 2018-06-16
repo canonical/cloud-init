@@ -606,8 +606,10 @@ class TestUDProcess(helpers.ResourceUsingTestCase):
 
 
 class TestConvertString(helpers.TestCase):
+
     def test_handles_binary_non_utf8_decodable(self):
-        blob = b'\x32\x99'
+        """Printable unicode (not utf8-decodable) is safely converted."""
+        blob = b'#!/bin/bash\necho \xc3\x84\n'
         msg = ud.convert_string(blob)
         self.assertEqual(blob, msg.get_payload(decode=True))
 
@@ -620,6 +622,13 @@ class TestConvertString(helpers.TestCase):
         text = "hi mom"
         msg = ud.convert_string(text)
         self.assertEqual(text, msg.get_payload(decode=False))
+
+    def test_handle_mime_parts(self):
+        """Mime parts are properly returned as a mime message."""
+        message = MIMEBase("text", "plain")
+        message.set_payload("Just text")
+        msg = ud.convert_string(str(message))
+        self.assertEqual("Just text", msg.get_payload(decode=False))
 
 
 class TestFetchBaseConfig(helpers.TestCase):

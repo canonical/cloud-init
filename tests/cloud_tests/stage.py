@@ -12,9 +12,15 @@ from tests.cloud_tests import LOG
 class PlatformComponent(object):
     """Context manager to safely handle platform components."""
 
-    def __init__(self, get_func):
-        """Store get_<platform component> function as partial with no args."""
+    def __init__(self, get_func, preserve_instance=False):
+        """Store get_<platform component> function as partial with no args.
+
+        @param get_func: Callable returning an instance from the platform.
+        @param preserve_instance: Boolean, when True, do not destroy instance
+            after test. Used for test development.
+        """
         self.get_func = get_func
+        self.preserve_instance = preserve_instance
 
     def __enter__(self):
         """Create instance of platform component."""
@@ -24,7 +30,10 @@ class PlatformComponent(object):
     def __exit__(self, etype, value, trace):
         """Destroy instance."""
         if self.instance is not None:
-            self.instance.destroy()
+            if self.preserve_instance:
+                LOG.info('Preserving test instance %s', self.instance.name)
+            else:
+                self.instance.destroy()
 
 
 def run_single(name, call):

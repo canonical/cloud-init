@@ -525,6 +525,7 @@ NETWORK_CONFIGS = {
             config:
               - type: 'physical'
                 name: 'iface0'
+                mtu: 8999
                 subnets:
                   - type: static
                     address: 192.168.14.2/24
@@ -660,8 +661,8 @@ iface eth0.101 inet static
     dns-nameservers 192.168.0.10 10.23.23.134
     dns-search barley.maas sacchromyces.maas brettanomyces.maas
     gateway 192.168.0.1
-    hwaddress aa:bb:cc:dd:ee:11
     mtu 1500
+    hwaddress aa:bb:cc:dd:ee:11
     vlan-raw-device eth0
     vlan_id 101
 
@@ -757,6 +758,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         id: 101
                         link: eth0
                         macaddress: aa:bb:cc:dd:ee:11
+                        mtu: 1500
                         nameservers:
                             addresses:
                             - 192.168.0.10
@@ -920,6 +922,8 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                   mtu: 1500
                   subnets:
                     - type: static
+                      # When 'mtu' matches device-level mtu, no warnings
+                      mtu: 1500
                       address: 192.168.0.2/24
                       gateway: 192.168.0.1
                       dns_nameservers:
@@ -1028,6 +1032,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
               - type: bond
                 name: bond0
                 mac_address: "aa:bb:cc:dd:e8:ff"
+                mtu: 9000
                 bond_interfaces:
                   - bond0s0
                   - bond0s1
@@ -1070,6 +1075,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                      interfaces:
                      - bond0s0
                      - bond0s1
+                     mtu: 9000
                      parameters:
                          mii-monitor-interval: 100
                          mode: active-backup
@@ -1157,6 +1163,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         IPADDR1=192.168.1.2
         IPV6ADDR=2001:1::1/92
         IPV6INIT=yes
+        MTU=9000
         NETMASK=255.255.255.0
         NETMASK1=255.255.255.0
         NM_CONTROLLED=no
@@ -1203,6 +1210,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 name: en0
                 mac_address: "aa:bb:cc:dd:e8:00"
               - type: vlan
+                mtu: 2222
                 name: en0.99
                 vlan_link: en0
                 vlan_id: 99
@@ -1238,6 +1246,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 IPV6ADDR=2001:1::bbbb/96
                 IPV6INIT=yes
                 IPV6_DEFAULTGW=2001:1::1
+                MTU=2222
                 NETMASK=255.255.255.0
                 NETMASK1=255.255.255.0
                 NM_CONTROLLED=no
@@ -1669,6 +1678,8 @@ iface eth1 inet dhcp
 
 class TestSysConfigRendering(CiTestCase):
 
+    with_logs = True
+
     scripts_dir = '/etc/sysconfig/network-scripts'
     header = ('# Created by cloud-init on instance boot automatically, '
               'do not edit.\n#\n')
@@ -1917,6 +1928,9 @@ USERCTL=no
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
+        self.assertNotIn(
+            'WARNING: Network config: ignoring eth0.101 device-level mtu',
+            self.logs.getvalue())
 
     def test_small_config(self):
         entry = NETWORK_CONFIGS['small']
@@ -1929,6 +1943,10 @@ USERCTL=no
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
+        expected_msg = (
+            'WARNING: Network config: ignoring iface0 device-level mtu:8999'
+            ' because ipv4 subnet-level mtu:9000 provided.')
+        self.assertIn(expected_msg, self.logs.getvalue())
 
     def test_dhcpv6_only_config(self):
         entry = NETWORK_CONFIGS['dhcpv6_only']
@@ -2410,6 +2428,7 @@ class TestNetplanRoundTrip(CiTestCase):
 
 
 class TestEniRoundTrip(CiTestCase):
+
     def _render_and_read(self, network_config=None, state=None, eni_path=None,
                          netrules_path=None, dir=None):
         if dir is None:

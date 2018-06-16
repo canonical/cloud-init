@@ -468,6 +468,29 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         self.assertIsNone(ret)
 
 
+class TestIsX86(helpers.CiTestCase):
+
+    def test_is_x86_matches_x86_types(self):
+        """is_x86 returns True if CPU architecture matches."""
+        matched_arches = ['x86_64', 'i386', 'i586', 'i686']
+        for arch in matched_arches:
+            self.assertTrue(
+                util.is_x86(arch), 'Expected is_x86 for arch "%s"' % arch)
+
+    def test_is_x86_unmatched_types(self):
+        """is_x86 returns Fale on non-intel x86 architectures."""
+        unmatched_arches = ['ia64', '9000/800', 'arm64v71']
+        for arch in unmatched_arches:
+            self.assertFalse(
+                util.is_x86(arch), 'Expected not is_x86 for arch "%s"' % arch)
+
+    @mock.patch('cloudinit.util.os.uname')
+    def test_is_x86_calls_uname_for_architecture(self, m_uname):
+        """is_x86 returns True if platform from uname matches."""
+        m_uname.return_value = [0, 1, 2, 3, 'x86_64']
+        self.assertTrue(util.is_x86())
+
+
 class TestReadDMIData(helpers.FilesystemMockingTestCase):
 
     def setUp(self):
@@ -829,6 +852,14 @@ class TestSubp(helpers.CiTestCase):
                                r'Missing #! in script\?',
                                util.subp, (noshebang,))
 
+    def test_subp_combined_stderr_stdout(self):
+        """Providing combine_capture as True redirects stderr to stdout."""
+        data = b'hello world'
+        (out, err) = util.subp(self.stdin2err, capture=True,
+                               combine_capture=True, decode=False, data=data)
+        self.assertEqual(b'', err)
+        self.assertEqual(data, out)
+
     def test_returns_none_if_no_capture(self):
         (out, err) = util.subp(self.stdin2out, data=b'', capture=False)
         self.assertIsNone(err)
@@ -1080,5 +1111,61 @@ class TestLoadShellContent(helpers.TestCase):
                 'key3="val3 #tricky"',
                 ''])))
 
+
+class TestGetProcEnv(helpers.TestCase):
+    """test get_proc_env."""
+    null = b'\x00'
+    simple1 = b'HOME=/'
+    simple2 = b'PATH=/bin:/sbin'
+    bootflag = b'BOOTABLE_FLAG=\x80'  # from LP: #1775371
+    mixed = b'MIXED=' + b'ab\xccde'
+
+    def _val_decoded(self, blob, encoding='utf-8', errors='replace'):
+        # return the value portion of key=val decoded.
+        return blob.split(b'=', 1)[1].decode(encoding, errors)
+
+    @mock.patch("cloudinit.util.load_file")
+    def test_non_utf8_in_environment(self, m_load_file):
+        """env may have non utf-8 decodable content."""
+        content = self.null.join(
+            (self.bootflag, self.simple1, self.simple2, self.mixed))
+        m_load_file.return_value = content
+
+        self.assertEqual(
+            {'BOOTABLE_FLAG': self._val_decoded(self.bootflag),
+             'HOME': '/', 'PATH': '/bin:/sbin',
+             'MIXED': self._val_decoded(self.mixed)},
+            util.get_proc_env(1))
+        self.assertEqual(1, m_load_file.call_count)
+
+    @mock.patch("cloudinit.util.load_file")
+    def test_encoding_none_returns_bytes(self, m_load_file):
+        """encoding none returns bytes."""
+        lines = (self.bootflag, self.simple1, self.simple2, self.mixed)
+        content = self.null.join(lines)
+        m_load_file.return_value = content
+
+        self.assertEqual(
+            dict([t.split(b'=') for t in lines]),
+            util.get_proc_env(1, encoding=None))
+        self.assertEqual(1, m_load_file.call_count)
+
+    @mock.patch("cloudinit.util.load_file")
+    def test_all_utf8_encoded(self, m_load_file):
+        """common path where only utf-8 decodable content."""
+        content = self.null.join((self.simple1, self.simple2))
+        m_load_file.return_value = content
+        self.assertEqual(
+            {'HOME': '/', 'PATH': '/bin:/sbin'},
+            util.get_proc_env(1))
+        self.assertEqual(1, m_load_file.call_count)
+
+    @mock.patch("cloudinit.util.load_file")
+    def test_non_existing_file_returns_empty_dict(self, m_load_file):
+        """as implemented, a non-existing pid returns empty dict.
+        This is how it was originally implemented."""
+        m_load_file.side_effect = OSError("File does not exist.")
+        self.assertEqual({}, util.get_proc_env(1))
+        self.assertEqual(1, m_load_file.call_count)
 
 # vi: ts=4 expandtab

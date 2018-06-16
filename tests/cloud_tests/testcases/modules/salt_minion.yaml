@@ -28,10 +28,20 @@ collect_scripts:
     cat /etc/salt/minion_id
   minion.pem: |
     #!/bin/bash
-    cat /etc/salt/pki/minion/minion.pem
+    PRIV_KEYFILE=/etc/salt/pki/minion/minion.pem
+    if [ ! -f $PRIV_KEYFILE ]; then
+        # Bionic and later automatically moves /etc/salt/pki/minion/*
+        PRIV_KEYFILE=/var/lib/salt/pki/minion/minion.pem
+    fi
+    cat $PRIV_KEYFILE
   minion.pub: |
     #!/bin/bash
-    cat /etc/salt/pki/minion/minion.pub
+    PUB_KEYFILE=/etc/salt/pki/minion/minion.pub
+    if [ ! -f $PUB_KEYFILE ]; then
+        # Bionic and later automatically moves /etc/salt/pki/minion/*
+        PUB_KEYFILE=/var/lib/salt/pki/minion/minion.pub
+    fi
+    cat $PUB_KEYFILE
   grains: |
     #!/bin/bash
     cat /etc/salt/grains
