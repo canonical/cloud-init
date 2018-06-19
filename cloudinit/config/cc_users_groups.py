@@ -54,8 +54,9 @@ config keys for an entry in ``users`` are as follows:
     - ``ssh_authorized_keys``: Optional. List of ssh keys to add to user's
       authkeys file. Default: none
     - ``ssh_import_id``: Optional. SSH id to import for user. Default: none
-    - ``sudo``: Optional. Sudo rule to use, or list of sudo rules to use.
-      Default: none.
+    - ``sudo``: Optional. Sudo rule to use, list of sudo rules to use or False.
+      Default: none. An absence of sudo key, or a value of none or false
+      will result in no sudo rules being written for the user.
     - ``system``: Optional. Create user as system user with no home directory.
       Default: false
     - ``uid``: Optional. The user's ID. Default: The next available value.
@@ -82,6 +83,9 @@ config keys for an entry in ``users`` are as follows:
 
     users:
         - default
+        # User explicitly omitted from sudo permission; also default behavior.
+        - name: <some_restricted_user>
+          sudo: false
         - name: <username>
           expiredate: <date>
           gecos: <comment>
