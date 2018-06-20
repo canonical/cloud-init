@@ -145,4 +145,12 @@ class TestCreateUser(TestCase):
             mock.call(['passwd', '-l', user])]
         self.assertEqual(m_subp.call_args_list, expected)
 
+    def test_explicit_sudo_false(self, m_subp, m_is_snappy):
+        user = 'foouser'
+        self.dist.create_user(user, sudo=False)
+        self.assertEqual(
+            m_subp.call_args_list,
+            [self._useradd2call([user, '-m']),
+             mock.call(['passwd', '-l', user])])
+
 # vi: ts=4 expandtab

@@ -531,7 +531,7 @@ class Distro(object):
             self.lock_passwd(name)
 
         # Configure sudo access
-        if 'sudo' in kwargs:
+        if 'sudo' in kwargs and kwargs['sudo'] is not False:
             self.write_sudo_rules(name, kwargs['sudo'])
 
         # Import SSH keys
