@@ -1,3 +1,13 @@
+cloud-init (18.3-0ubuntu1) cosmic; urgency=medium
+
+  * New upstream release.
+    - release 18.3 (LP: #1777743)
+    - docs: represent sudo:false in docs for user_groups config module
+    - Explicitly prevent `sudo` access for user module
+      [Jacob Bednarz] (LP: #1771468)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 20 Jun 2018 11:33:36 -0600
+
 cloud-init (18.2-77-g4ce67201-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
