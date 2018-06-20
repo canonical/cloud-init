@@ -1,0 +1,42 @@
+Description: Fallback network config instead of network_data.json for OpenStack
+ To make this acceptable as a SRU we keep the same behavior as is
+ in the stable release which is to generate network for fallback nic
+ only.
+ .
+ In this series, OpenStack datasource can optionally generate
+ network_config from network_data.json if the datasource is configured
+ with a file like /etc/cloud.cfg.d/openstack-net.cfg:
+ .
+ datasource:
+   OpenStack:
+     apply_network_config: true
+Forwarded: not-needed
+Author: Chad Smith <chad.smith@canonical.com>
+
+--- a/cloudinit/sources/DataSourceOpenStack.py
++++ b/cloudinit/sources/DataSourceOpenStack.py
+@@ -97,10 +97,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
+         if self._network_config != sources.UNSET:
+             return self._network_config
+ 
+-        # RELEASE_BLOCKER: SRU to Xenial and Artful SRU should not provide
++        # Xenial, Artful and Bionic will not provide
+         # network_config by default unless configured in /etc/cloud/cloud.cfg*.
+-        # Patch Xenial and Artful before release to default to False.
+-        if util.is_false(self.ds_cfg.get('apply_network_config', True)):
++        if util.is_false(self.ds_cfg.get('apply_network_config', False)):
+             self._network_config = None
+             return self._network_config
+         if self.network_json == sources.UNSET:
+
+--- a/tests/unittests/test_datasource/test_openstack.py
++++ b/tests/unittests/test_datasource/test_openstack.py
+@@ -345,6 +345,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
+             settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
+         sample_json = {'links': [{'ethernet_mac_address': 'mymac'}],
+                        'networks': [], 'services': []}
++        ds_os.ds_cfg = {'apply_network_config': True}  # Default is False
+         ds_os.network_json = sample_json
+         with test_helpers.mock.patch(mock_path) as m_convert_json:
+             m_convert_json.return_value = example_cfg
+
