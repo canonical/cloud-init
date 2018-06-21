@@ -150,11 +150,9 @@ def get_instance_userdata(api_version='latest',
         # NOT_FOUND occurs) and just in that case returning an empty string.
         exception_cb = functools.partial(_skip_retry_on_codes,
                                          SKIP_USERDATA_CODES)
-        response = util.read_file_or_url(ud_url,
-                                         ssl_details=ssl_details,
-                                         timeout=timeout,
-                                         retries=retries,
-                                         exception_cb=exception_cb)
+        response = url_helper.read_file_or_url(
+            ud_url, ssl_details=ssl_details, timeout=timeout,
+            retries=retries, exception_cb=exception_cb)
         user_data = response.contents
     except url_helper.UrlError as e:
         if e.code not in SKIP_USERDATA_CODES:
@@ -169,9 +167,9 @@ def _get_instance_metadata(tree, api_version='latest',
                            ssl_details=None, timeout=5, retries=5,
                            leaf_decoder=None):
     md_url = url_helper.combine_url(metadata_address, api_version, tree)
-    caller = functools.partial(util.read_file_or_url,
-                               ssl_details=ssl_details, timeout=timeout,
-                               retries=retries)
+    caller = functools.partial(
+        url_helper.read_file_or_url, ssl_details=ssl_details,
+        timeout=timeout, retries=retries)
 
     def mcaller(url):
         return caller(url).contents

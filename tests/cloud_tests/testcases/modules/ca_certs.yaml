@@ -43,9 +43,13 @@ cloud_config: |
         DiH5uEqBXExjrj0FslxcVKdVj5glVcSmkLwZKbEU1OKwleT/iXFhvooWhQ==
         -----END CERTIFICATE-----
 collect_scripts:
-  cert_count: |
+  cert_links: |
     #!/bin/bash
-    ls -l /etc/ssl/certs | wc -l
+    # links printed <filename> -> <link target>
+    # non-links printed <filename>
+    for file in `ls /etc/ssl/certs`; do
+        [ -h /etc/ssl/certs/$file ] && echo -n $file ' -> ' && readlink /etc/ssl/certs/$file || echo $file;
+    done
   cert: |
     #!/bin/bash
     md5sum /etc/ssl/certs/ca-certificates.crt

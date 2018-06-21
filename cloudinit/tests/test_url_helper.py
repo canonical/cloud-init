@@ -1,7 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.url_helper import oauth_headers
+from cloudinit.url_helper import oauth_headers, read_file_or_url
 from cloudinit.tests.helpers import CiTestCase, mock, skipIf
+from cloudinit import util
+
+import httpretty
 
 
 try:
@@ -38,3 +41,26 @@ class TestOAuthHeaders(CiTestCase):
             'url', 'consumer_key', 'token_key', 'token_secret',
             'consumer_secret')
         self.assertEqual('url', return_value)
+
+
+class TestReadFileOrUrl(CiTestCase):
+    def test_read_file_or_url_str_from_file(self):
+        """Test that str(result.contents) on file is text version of contents.
+        It should not be "b'data'", but just "'data'" """
+        tmpf = self.tmp_path("myfile1")
+        data = b'This is my file content\n'
+        util.write_file(tmpf, data, omode="wb")
+        result = read_file_or_url("file://%s" % tmpf)
+        self.assertEqual(result.contents, data)
+        self.assertEqual(str(result), data.decode('utf-8'))
+
+    @httpretty.activate
+    def test_read_file_or_url_str_from_url(self):
+        """Test that str(result.contents) on url is text version of contents.
+        It should not be "b'data'", but just "'data'" """
+        url = 'http://hostname/path'
+        data = b'This is my url content\n'
+        httpretty.register_uri(httpretty.GET, url, data)
+        result = read_file_or_url(url)
+        self.assertEqual(result.contents, data)
+        self.assertEqual(str(result), data.decode('utf-8'))

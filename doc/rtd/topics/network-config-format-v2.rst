@@ -174,6 +174,12 @@ recognized by ``inet_pton(3)``
 Example for IPv4: ``gateway4: 172.16.0.1``
 Example for IPv6: ``gateway6: 2001:4::1``
 
+**mtu**: *<MTU SizeBytes>*
+
+The MTU key represents a device's Maximum Transmission Unit, the largest size
+packet or frame, specified in octets (eight-bit bytes), that can be sent in a
+packet- or frame-based network.  Specifying ``mtu`` is optional.
+
 **nameservers**: *<(mapping)>*
 
 Set DNS servers and search domains, for manual address configuration. There

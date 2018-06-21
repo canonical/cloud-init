@@ -42,13 +42,13 @@ def run_helper(helper, args=None, strip=True):
     return stdout
 
 
-def read_dependencies(requirements_file='requirements.txt'):
+def read_dependencies(distro, requirements_file='requirements.txt'):
     """Returns the Python package depedencies from requirements.txt files.
 
     @returns a tuple of (requirements, test_requirements)
     """
     pkg_deps = run_helper(
-        'read-dependencies', args=['--distro', 'redhat']).splitlines()
+        'read-dependencies', args=['--distro', distro]).splitlines()
     test_deps = run_helper(
         'read-dependencies', args=[
             '--requirements-file', 'test-requirements.txt',
@@ -83,7 +83,7 @@ def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
         rpm_upstream_version = version_data['version']
     subs['rpm_upstream_version'] = rpm_upstream_version
 
-    deps, test_deps = read_dependencies()
+    deps, test_deps = read_dependencies(distro=args.distro)
     subs['buildrequires'] = deps + test_deps
     subs['requires'] = deps
 

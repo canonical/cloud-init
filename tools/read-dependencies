@@ -51,6 +51,10 @@ MAYBE_RELIABLE_YUM_INSTALL = [
     """,
     'reliable-yum-install']
 
+ZYPPER_INSTALL = [
+    'zypper', '--non-interactive', '--gpg-auto-import-keys', 'install',
+    '--auto-agree-with-licenses']
+
 DRY_DISTRO_INSTALL_PKG_CMD = {
     'centos': ['yum', 'install', '--assumeyes'],
     'redhat': ['yum', 'install', '--assumeyes'],
@@ -61,8 +65,8 @@ DISTRO_INSTALL_PKG_CMD = {
     'redhat': MAYBE_RELIABLE_YUM_INSTALL,
     'debian': ['apt', 'install', '-y'],
     'ubuntu': ['apt', 'install', '-y'],
-    'opensuse': ['zypper', 'install'],
-    'suse': ['zypper', 'install']
+    'opensuse': ZYPPER_INSTALL,
+    'suse': ZYPPER_INSTALL,
 }
 
 

@@ -304,6 +304,13 @@ class Renderer(renderer.Renderer):
                     mtu_key = 'IPV6_MTU'
                     iface_cfg['IPV6INIT'] = True
                 if 'mtu' in subnet:
+                    mtu_mismatch = bool(mtu_key in iface_cfg and
+                                        subnet['mtu'] != iface_cfg[mtu_key])
+                    if mtu_mismatch:
+                        LOG.warning(
+                            'Network config: ignoring %s device-level mtu:%s'
+                            ' because ipv4 subnet-level mtu:%s provided.',
+                            iface_cfg.name, iface_cfg[mtu_key], subnet['mtu'])
                     iface_cfg[mtu_key] = subnet['mtu']
             elif subnet_type == 'manual':
                 # If the subnet has an MTU setting, then ONBOOT=True

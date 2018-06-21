@@ -576,6 +576,39 @@ def get_cfg_option_int(yobj, key, default=0):
     return int(get_cfg_option_str(yobj, key, default=default))
 
 
+def get_linux_distro():
+    distro_name = ''
+    distro_version = ''
+    if os.path.exists('/etc/os-release'):
+        os_release = load_file('/etc/os-release')
+        for line in os_release.splitlines():
+            if line.strip().startswith('ID='):
+                distro_name = line.split('=')[-1]
+                distro_name = distro_name.replace('"', '')
+            if line.strip().startswith('VERSION_ID='):
+                # Lets hope for the best that distros stay consistent ;)
+                distro_version = line.split('=')[-1]
+                distro_version = distro_version.replace('"', '')
+    else:
+        dist = ('', '', '')
+        try:
+            # Will be removed in 3.7
+            dist = platform.dist()  # pylint: disable=W1505
+        except Exception:
+            pass
+        finally:
+            found = None
+            for entry in dist:
+                if entry:
+                    found = 1
+            if not found:
+                LOG.warning('Unable to determine distribution, template '
+                            'expansion may have unexpected results')
+        return dist
+
+    return (distro_name, distro_version, platform.machine())
+
+
 def system_info():
     info = {
         'platform': platform.platform(),
@@ -583,19 +616,19 @@ def system_info():
         'release': platform.release(),
         'python': platform.python_version(),
         'uname': platform.uname(),
-        'dist': platform.dist(),  # pylint: disable=W1505
+        'dist': get_linux_distro()
     }
     system = info['system'].lower()
     var = 'unknown'
     if system == "linux":
         linux_dist = info['dist'][0].lower()
-        if linux_dist in ('centos', 'fedora', 'debian'):
+        if linux_dist in ('centos', 'debian', 'fedora', 'rhel', 'suse'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
         elif linux_dist == 'redhat':
             var = 'rhel'
-        elif linux_dist == 'suse':
+        elif linux_dist in ('opensuse', 'sles'):
             var = 'suse'
         else:
             var = 'linux'
@@ -857,37 +890,6 @@ def fetch_ssl_details(paths=None):
     return ssl_details
 
 
-def read_file_or_url(url, timeout=5, retries=10,
-                     headers=None, data=None, sec_between=1, ssl_details=None,
-                     headers_cb=None, exception_cb=None):
-    url = url.lstrip()
-    if url.startswith("/"):
-        url = "file://%s" % url
-    if url.lower().startswith("file://"):
-        if data:
-            LOG.warning("Unable to post data to file resource %s", url)
-        file_path = url[len("file://"):]
-        try:
-            contents = load_file(file_path, decode=False)
-        except IOError as e:
-            code = e.errno
-            if e.errno == ENOENT:
-                code = url_helper.NOT_FOUND
-            raise url_helper.UrlError(cause=e, code=code, headers=None,
-                                      url=url)
-        return url_helper.FileResponse(file_path, contents=contents)
-    else:
-        return url_helper.readurl(url,
-                                  timeout=timeout,
-                                  retries=retries,
-                                  headers=headers,
-                                  headers_cb=headers_cb,
-                                  data=data,
-                                  sec_between=sec_between,
-                                  ssl_details=ssl_details,
-                                  exception_cb=exception_cb)
-
-
 def load_yaml(blob, default=None, allowed=(dict,)):
     loaded = default
     blob = decode_binary(blob)
@@ -905,8 +907,20 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                              " but got %s instead") %
                             (allowed, type_utils.obj_name(converted)))
         loaded = converted
-    except (yaml.YAMLError, TypeError, ValueError):
-        logexc(LOG, "Failed loading yaml blob")
+    except (yaml.YAMLError, TypeError, ValueError) as e:
+        msg = 'Failed loading yaml blob'
+        mark = None
+        if hasattr(e, 'context_mark') and getattr(e, 'context_mark'):
+            mark = getattr(e, 'context_mark')
+        elif hasattr(e, 'problem_mark') and getattr(e, 'problem_mark'):
+            mark = getattr(e, 'problem_mark')
+        if mark:
+            msg += (
+                '. Invalid format at line {line} column {col}: "{err}"'.format(
+                    line=mark.line + 1, col=mark.column + 1, err=e))
+        else:
+            msg += '. {err}'.format(err=e)
+        LOG.warning(msg)
     return loaded
 
 
@@ -925,12 +939,14 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
-    md_resp = read_file_or_url(md_url, timeout, retries, file_retries)
+    md_resp = url_helper.read_file_or_url(md_url, timeout, retries,
+                                          file_retries)
     md = None
     if md_resp.ok():
         md = load_yaml(decode_binary(md_resp.contents), default={})
 
-    ud_resp = read_file_or_url(ud_url, timeout, retries, file_retries)
+    ud_resp = url_helper.read_file_or_url(ud_url, timeout, retries,
+                                          file_retries)
     ud = None
     if ud_resp.ok():
         ud = ud_resp.contents
@@ -1154,7 +1170,9 @@ def gethostbyaddr(ip):
 
 def is_resolvable_url(url):
     """determine if this url is resolvable (existing or ip)."""
-    return is_resolvable(urlparse.urlparse(url).hostname)
+    return log_time(logfunc=LOG.debug, msg="Resolving URL: " + url,
+                    func=is_resolvable,
+                    args=(urlparse.urlparse(url).hostname,))
 
 
 def search_for_mirror(candidates):
@@ -1608,7 +1626,8 @@ def mounts():
     return mounted
 
 
-def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
+def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True,
+             update_env_for_mount=None):
     """
     Mount the device, call method 'callback' passing the directory
     in which it was mounted, then unmount.  Return whatever 'callback'
@@ -1670,7 +1689,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
                         mountcmd.extend(['-t', mtype])
                     mountcmd.append(device)
                     mountcmd.append(tmpd)
-                    subp(mountcmd)
+                    subp(mountcmd, update_env=update_env_for_mount)
                     umount = tmpd  # This forces it to be unmounted (when set)
                     mountpoint = tmpd
                     break
@@ -1857,9 +1876,55 @@ def subp_blob_in_tempfile(blob, *args, **kwargs):
         return subp(*args, **kwargs)
 
 
-def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
+def subp(args, data=None, rcs=None, env=None, capture=True,
+         combine_capture=False, shell=False,
          logstring=False, decode="replace", target=None, update_env=None,
          status_cb=None):
+    """Run a subprocess.
+
+    :param args: command to run in a list. [cmd, arg1, arg2...]
+    :param data: input to the command, made available on its stdin.
+    :param rcs:
+        a list of allowed return codes.  If subprocess exits with a value not
+        in this list, a ProcessExecutionError will be raised.  By default,
+        data is returned as a string.  See 'decode' parameter.
+    :param env: a dictionary for the command's environment.
+    :param capture:
+        boolean indicating if output should be captured.  If True, then stderr
+        and stdout will be returned.  If False, they will not be redirected.
+    :param combine_capture:
+        boolean indicating if stderr should be redirected to stdout. When True,
+        interleaved stderr and stdout will be returned as the first element of
+        a tuple, the second will be empty string or bytes (per decode).
+        if combine_capture is True, then output is captured independent of
+        the value of capture.
+    :param shell: boolean indicating if this should be run with a shell.
+    :param logstring:
+        the command will be logged to DEBUG.  If it contains info that should
+        not be logged, then logstring will be logged instead.
+    :param decode:
+        if False, no decoding will be done and returned stdout and stderr will
+        be bytes.  Other allowed values are 'strict', 'ignore', and 'replace'.
+        These values are passed through to bytes().decode() as the 'errors'
+        parameter.  There is no support for decoding to other than utf-8.
+    :param target:
+        not supported, kwarg present only to make function signature similar
+        to curtin's subp.
+    :param update_env:
+        update the enviornment for this command with this dictionary.
+        this will not affect the current processes os.environ.
+    :param status_cb:
+        call this fuction with a single string argument before starting
+        and after finishing.
+
+    :return
+        if not capturing, return is (None, None)
+        if capturing, stdout and stderr are returned.
+            if decode:
+                entries in tuple will be python2 unicode or python3 string
+            if not decode:
+                entries in tuple will be python2 string or python3 bytes
+    """
 
     # not supported in cloud-init (yet), for now kept in the call signature
     # to ease maintaining code shared between cloud-init and curtin
@@ -1885,7 +1950,8 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         status_cb('Begin run command: {command}\n'.format(command=command))
     if not logstring:
         LOG.debug(("Running command %s with allowed return codes %s"
-                   " (shell=%s, capture=%s)"), args, rcs, shell, capture)
+                   " (shell=%s, capture=%s)"),
+                  args, rcs, shell, 'combine' if combine_capture else capture)
     else:
         LOG.debug(("Running hidden command to protect sensitive "
                    "input/output logstring: %s"), logstring)
@@ -1896,6 +1962,9 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     if capture:
         stdout = subprocess.PIPE
         stderr = subprocess.PIPE
+    if combine_capture:
+        stdout = subprocess.PIPE
+        stderr = subprocess.STDOUT
     if data is None:
         # using devnull assures any reads get null, rather
         # than possibly waiting on input.
@@ -1934,10 +2003,11 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
             devnull_fp.close()
 
     # Just ensure blank instead of none.
-    if not out and capture:
-        out = b''
-    if not err and capture:
-        err = b''
+    if capture or combine_capture:
+        if not out:
+            out = b''
+        if not err:
+            err = b''
     if decode:
         def ldecode(data, m='utf-8'):
             if not isinstance(data, bytes):
@@ -2061,24 +2131,33 @@ def is_container():
     return False
 
 
-def get_proc_env(pid):
+def get_proc_env(pid, encoding='utf-8', errors='replace'):
     """
     Return the environment in a dict that a given process id was started with.
-    """
+
+    @param encoding: if true, then decoding will be done with
+                     .decode(encoding, errors) and text will be returned.
+                     if false then binary will be returned.
+    @param errors:   only used if encoding is true."""
+    fn = os.path.join("/proc", str(pid), "environ")
+
+    try:
+        contents = load_file(fn, decode=False)
+    except (IOError, OSError):
+        return {}
 
     env = {}
-    fn = os.path.join("/proc/", str(pid), "environ")
-    try:
-        contents = load_file(fn)
-        toks = contents.split("\x00")
-        for tok in toks:
-            if tok == "":
-                continue
-            (name, val) = tok.split("=", 1)
-            if name:
-                env[name] = val
-    except (IOError, OSError):
-        pass
+    null, equal = (b"\x00", b"=")
+    if encoding:
+        null, equal = ("\x00", "=")
+        contents = contents.decode(encoding, errors)
+
+    for tok in contents.split(null):
+        if not tok:
+            continue
+        (name, val) = tok.split(equal, 1)
+        if name:
+            env[name] = val
     return env
 
 
@@ -2545,9 +2624,19 @@ def _call_dmidecode(key, dmidecode_path):
         if result.replace(".", "") == "":
             return ""
         return result
-    except (IOError, OSError) as _err:
-        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, _err)
+    except (IOError, OSError) as e:
+        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, e)
         return None
+
+
+def is_x86(uname_arch=None):
+    """Return True if platform is x86-based"""
+    if uname_arch is None:
+        uname_arch = os.uname()[4]
+    x86_arch_match = (
+        uname_arch == 'x86_64' or
+        (uname_arch[0] == 'i' and uname_arch[2:] == '86'))
+    return x86_arch_match
 
 
 def read_dmi_data(key):
@@ -2577,8 +2666,7 @@ def read_dmi_data(key):
 
     # running dmidecode can be problematic on some arches (LP: #1243287)
     uname_arch = os.uname()[4]
-    if not (uname_arch == "x86_64" or
-            (uname_arch.startswith("i") and uname_arch[2:] == "86") or
+    if not (is_x86(uname_arch) or
             uname_arch == 'aarch64' or
             uname_arch == 'amd64'):
         LOG.debug("dmidata is not supported on %s", uname_arch)

@@ -68,6 +68,10 @@ class DataSourceCloudStack(sources.DataSource):
 
     dsname = 'CloudStack'
 
+    # Setup read_url parameters per get_url_params.
+    url_max_wait = 120
+    url_timeout = 50
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'cs')
@@ -80,33 +84,18 @@ class DataSourceCloudStack(sources.DataSource):
         self.metadata_address = "http://%s/" % (self.vr_addr,)
         self.cfg = {}
 
-    def _get_url_settings(self):
-        mcfg = self.ds_cfg
-        max_wait = 120
-        try:
-            max_wait = int(mcfg.get("max_wait", max_wait))
-        except Exception:
-            util.logexc(LOG, "Failed to get max wait. using %s", max_wait)
-
-        if max_wait == 0:
-            return False
-
-        timeout = 50
-        try:
-            timeout = int(mcfg.get("timeout", timeout))
-        except Exception:
-            util.logexc(LOG, "Failed to get timeout, using %s", timeout)
-
-        return (max_wait, timeout)
-
     def wait_for_metadata_service(self):
-        (max_wait, timeout) = self._get_url_settings()
+        url_params = self.get_url_params()
+
+        if url_params.max_wait_seconds <= 0:
+            return False
 
         urls = [uhelp.combine_url(self.metadata_address,
                                   'latest/meta-data/instance-id')]
         start_time = time.time()
-        url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
-                                 timeout=timeout, status_cb=LOG.warn)
+        url = uhelp.wait_for_url(
+            urls=urls, max_wait=url_params.max_wait_seconds,
+            timeout=url_params.timeout_seconds, status_cb=LOG.warn)
 
         if url:
             LOG.debug("Using metadata source: '%s'", url)

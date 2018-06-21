@@ -9,6 +9,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
+from collections import namedtuple
 import copy
 import json
 import os
@@ -17,6 +18,7 @@ import six
 from cloudinit.atomic_helper import write_json
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import net
 from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
@@ -41,10 +43,17 @@ INSTANCE_JSON_FILE = 'instance-data.json'
 # Key which can be provide a cloud's official product name to cloud-init
 METADATA_CLOUD_NAME_KEY = 'cloud-name'
 
+UNSET = "_unset"
+
 LOG = logging.getLogger(__name__)
 
 
 class DataSourceNotFoundException(Exception):
+    pass
+
+
+class InvalidMetaDataException(Exception):
+    """Raised when metadata is broken, unavailable or disabled."""
     pass
 
 
@@ -68,6 +77,10 @@ def process_base64_metadata(metadata, key_path=''):
     return md_copy
 
 
+URLParams = namedtuple(
+    'URLParms', ['max_wait_seconds', 'timeout_seconds', 'num_retries'])
+
+
 @six.add_metaclass(abc.ABCMeta)
 class DataSource(object):
 
@@ -80,6 +93,14 @@ class DataSource(object):
 
     # Cached cloud_name as determined by _get_cloud_name
     _cloud_name = None
+
+    # Track the discovered fallback nic for use in configuration generation.
+    _fallback_interface = None
+
+    # read_url_params
+    url_max_wait = -1   # max_wait < 0 means do not wait
+    url_timeout = 10    # timeout for each metadata url read attempt
+    url_retries = 5     # number of times to retry url upon 404
 
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
@@ -128,6 +149,14 @@ class DataSource(object):
                 'meta-data': self.metadata,
                 'user-data': self.get_userdata_raw(),
                 'vendor-data': self.get_vendordata_raw()}}
+        if hasattr(self, 'network_json'):
+            network_json = getattr(self, 'network_json')
+            if network_json != UNSET:
+                instance_data['ds']['network_json'] = network_json
+        if hasattr(self, 'ec2_metadata'):
+            ec2_metadata = getattr(self, 'ec2_metadata')
+            if ec2_metadata != UNSET:
+                instance_data['ds']['ec2_metadata'] = ec2_metadata
         instance_data.update(
             self._get_standardized_metadata())
         try:
@@ -149,6 +178,42 @@ class DataSource(object):
             'Subclasses of DataSource must implement _get_data which'
             ' sets self.metadata, vendordata_raw and userdata_raw.')
 
+    def get_url_params(self):
+        """Return the Datasource's prefered url_read parameters.
+
+        Subclasses may override url_max_wait, url_timeout, url_retries.
+
+        @return: A URLParams object with max_wait_seconds, timeout_seconds,
+            num_retries.
+        """
+        max_wait = self.url_max_wait
+        try:
+            max_wait = int(self.ds_cfg.get("max_wait", self.url_max_wait))
+        except ValueError:
+            util.logexc(
+                LOG, "Config max_wait '%s' is not an int, using default '%s'",
+                self.ds_cfg.get("max_wait"), max_wait)
+
+        timeout = self.url_timeout
+        try:
+            timeout = max(
+                0, int(self.ds_cfg.get("timeout", self.url_timeout)))
+        except ValueError:
+            timeout = self.url_timeout
+            util.logexc(
+                LOG, "Config timeout '%s' is not an int, using default '%s'",
+                self.ds_cfg.get('timeout'), timeout)
+
+        retries = self.url_retries
+        try:
+            retries = int(self.ds_cfg.get("retries", self.url_retries))
+        except Exception:
+            util.logexc(
+                LOG, "Config retries '%s' is not an int, using default '%s'",
+                self.ds_cfg.get('retries'), retries)
+
+        return URLParams(max_wait, timeout, retries)
+
     def get_userdata(self, apply_filter=False):
         if self.userdata is None:
             self.userdata = self.ud_proc.process(self.get_userdata_raw())
@@ -160,6 +225,17 @@ class DataSource(object):
         if self.vendordata is None:
             self.vendordata = self.ud_proc.process(self.get_vendordata_raw())
         return self.vendordata
+
+    @property
+    def fallback_interface(self):
+        """Determine the network interface used during local network config."""
+        if self._fallback_interface is None:
+            self._fallback_interface = net.find_fallback_nic()
+            if self._fallback_interface is None:
+                LOG.warning(
+                    "Did not find a fallback interface on %s.",
+                    self.cloud_name)
+        return self._fallback_interface
 
     @property
     def cloud_name(self):

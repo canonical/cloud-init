@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import functools
+import httpretty
 import logging
 import os
 import shutil
@@ -111,12 +112,12 @@ class TestCase(unittest2.TestCase):
         super(TestCase, self).setUp()
         self.reset_global_state()
 
-    def add_patch(self, target, attr, **kwargs):
+    def add_patch(self, target, attr, *args, **kwargs):
         """Patches specified target object and sets it as attr on test
         instance also schedules cleanup"""
         if 'autospec' not in kwargs:
             kwargs['autospec'] = True
-        m = mock.patch(target, **kwargs)
+        m = mock.patch(target, *args, **kwargs)
         p = m.start()
         self.addCleanup(m.stop)
         setattr(self, attr, p)
@@ -303,14 +304,21 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 class HttprettyTestCase(CiTestCase):
     # necessary as http_proxy gets in the way of httpretty
     # https://github.com/gabrielfalcao/HTTPretty/issues/122
+    # Also make sure that allow_net_connect is set to False.
+    # And make sure reset and enable/disable are done.
 
     def setUp(self):
         self.restore_proxy = os.environ.get('http_proxy')
         if self.restore_proxy is not None:
             del os.environ['http_proxy']
         super(HttprettyTestCase, self).setUp()
+        httpretty.HTTPretty.allow_net_connect = False
+        httpretty.reset()
+        httpretty.enable()
 
     def tearDown(self):
+        httpretty.disable()
+        httpretty.reset()
         if self.restore_proxy:
             os.environ['http_proxy'] = self.restore_proxy
         super(HttprettyTestCase, self).tearDown()

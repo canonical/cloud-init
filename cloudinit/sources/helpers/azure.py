@@ -14,6 +14,7 @@ from cloudinit import temp_utils
 from contextlib import contextmanager
 from xml.etree import ElementTree
 
+from cloudinit import url_helper
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -55,14 +56,14 @@ class AzureEndpointHttpClient(object):
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
-        return util.read_file_or_url(url, headers=headers)
+        return url_helper.read_file_or_url(url, headers=headers)
 
     def post(self, url, data=None, extra_headers=None):
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
             headers.update(extra_headers)
-        return util.read_file_or_url(url, data=data, headers=headers)
+        return url_helper.read_file_or_url(url, data=data, headers=headers)
 
 
 class GoalState(object):

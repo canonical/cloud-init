@@ -30,6 +30,11 @@ users:
     gecos: Magic Cloud App Daemon User
     inactive: true
     system: true
+  - name: fizzbuzz
+    sudo: False
+    ssh_authorized_keys:
+      - <ssh pub key 1>
+      - <ssh pub key 2>
   - snapuser: joe@joeuser.io
 
 # Valid Values:
@@ -71,13 +76,21 @@ users:
 #   no_log_init: When set to true, do not initialize lastlog and faillog database.
 #   ssh_import_id: Optional. Import SSH ids
 #   ssh_authorized_keys: Optional. [list] Add keys to user's authorized keys file
-#   sudo: Defaults to none. Set to the sudo string you want to use, i.e.
-#           ALL=(ALL) NOPASSWD:ALL. To add multiple rules, use the following
-#           format.
-#               sudo:
-#                   - ALL=(ALL) NOPASSWD:/bin/mysql
-#                   - ALL=(ALL) ALL
-#           Note: Please double check your syntax and make sure it is valid.
+#   sudo: Defaults to none. Accepts a sudo rule string, a list of sudo rule
+#         strings or False to explicitly deny sudo usage. Examples:
+#
+#         Allow a user unrestricted sudo access.
+#             sudo:  ALL=(ALL) NOPASSWD:ALL
+#
+#         Adding multiple sudo rule strings.
+#             sudo:
+#               - ALL=(ALL) NOPASSWD:/bin/mysql
+#               - ALL=(ALL) ALL
+#
+#         Prevent sudo access for a user.
+#             sudo: False
+#
+#         Note: Please double check your syntax and make sure it is valid.
 #               cloud-init does not parse/check the syntax of the sudo
 #               directive.
 #   system: Create the user as a system user. This means no home directory.
