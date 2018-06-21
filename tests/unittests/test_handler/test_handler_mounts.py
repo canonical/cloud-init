@@ -1,8 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os.path
-import shutil
-import tempfile
 
 from cloudinit.config import cc_mounts
 
@@ -18,8 +16,7 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
 
     def setUp(self):
         super(TestSanitizeDevname, self).setUp()
-        self.new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.new_root)
+        self.new_root = self.tmp_dir()
         self.patchOS(self.new_root)
 
     def _touch(self, path):
@@ -133,5 +130,104 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.assertIsNone(
             cc_mounts.sanitize_devname(
                 'ephemeral0.1', lambda x: disk_path, mock.Mock()))
+
+
+class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
+
+    swap_path = '/dev/sdb1'
+
+    def setUp(self):
+        super(TestFstabHandling, self).setUp()
+        self.new_root = self.tmp_dir()
+        self.patchOS(self.new_root)
+
+        self.fstab_path = os.path.join(self.new_root, 'etc/fstab')
+        self._makedirs('/etc')
+
+        self.add_patch('cloudinit.config.cc_mounts.FSTAB_PATH',
+                       'mock_fstab_path',
+                       self.fstab_path,
+                       autospec=False)
+
+        self.add_patch('cloudinit.config.cc_mounts._is_block_device',
+                       'mock_is_block_device',
+                       return_value=True)
+
+        self.add_patch('cloudinit.config.cc_mounts.util.subp',
+                       'mock_util_subp')
+
+        self.mock_cloud = mock.Mock()
+        self.mock_log = mock.Mock()
+        self.mock_cloud.device_name_to_device = self.device_name_to_device
+
+    def _makedirs(self, directory):
+        directory = os.path.join(self.new_root, directory.lstrip('/'))
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+    def device_name_to_device(self, path):
+        if path == 'swap':
+            return self.swap_path
+        else:
+            dev = None
+
+        return dev
+
+    def test_fstab_no_swap_device(self):
+        '''Ensure that cloud-init adds a discovered swap partition
+        to /etc/fstab.'''
+
+        fstab_original_content = ''
+        fstab_expected_content = (
+            '%s\tnone\tswap\tsw,comment=cloudconfig\t'
+            '0\t0\n' % (self.swap_path,)
+        )
+
+        with open(cc_mounts.FSTAB_PATH, 'w') as fd:
+            fd.write(fstab_original_content)
+
+        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+
+        with open(cc_mounts.FSTAB_PATH, 'r') as fd:
+            fstab_new_content = fd.read()
+            self.assertEqual(fstab_expected_content, fstab_new_content)
+
+    def test_fstab_same_swap_device_already_configured(self):
+        '''Ensure that cloud-init will not add a swap device if the same
+        device already exists in /etc/fstab.'''
+
+        fstab_original_content = '%s swap swap defaults 0 0\n' % (
+            self.swap_path,)
+        fstab_expected_content = fstab_original_content
+
+        with open(cc_mounts.FSTAB_PATH, 'w') as fd:
+            fd.write(fstab_original_content)
+
+        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+
+        with open(cc_mounts.FSTAB_PATH, 'r') as fd:
+            fstab_new_content = fd.read()
+            self.assertEqual(fstab_expected_content, fstab_new_content)
+
+    def test_fstab_alternate_swap_device_already_configured(self):
+        '''Ensure that cloud-init will add a discovered swap device to
+        /etc/fstab even when there exists a swap definition on another
+        device.'''
+
+        fstab_original_content = '/dev/sdc1 swap swap defaults 0 0\n'
+        fstab_expected_content = (
+            fstab_original_content +
+            '%s\tnone\tswap\tsw,comment=cloudconfig\t'
+            '0\t0\n' % (self.swap_path,)
+        )
+
+        with open(cc_mounts.FSTAB_PATH, 'w') as fd:
+            fd.write(fstab_original_content)
+
+        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+
+        with open(cc_mounts.FSTAB_PATH, 'r') as fd:
+            fstab_new_content = fd.read()
+            self.assertEqual(fstab_expected_content, fstab_new_content)
 
 # vi: ts=4 expandtab

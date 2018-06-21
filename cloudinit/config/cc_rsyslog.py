@@ -203,8 +203,8 @@ LOG = logging.getLogger(__name__)
 COMMENT_RE = re.compile(r'[ ]*[#]+[ ]*')
 HOST_PORT_RE = re.compile(
     r'^(?P<proto>[@]{0,2})'
-    '(([[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))'
-    '([:](?P<port>[0-9]+))?$')
+    r'(([[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))'
+    r'([:](?P<port>[0-9]+))?$')
 
 
 def reload_syslog(command=DEF_RELOAD, systemd=False):

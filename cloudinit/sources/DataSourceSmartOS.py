@@ -1,4 +1,5 @@
 # Copyright (C) 2013 Canonical Ltd.
+# Copyright (c) 2018, Joyent, Inc.
 #
 # Author: Ben Howard <ben.howard@canonical.com>
 #
@@ -10,17 +11,19 @@
 #    SmartOS hosts use a serial console (/dev/ttyS1) on KVM Linux Guests
 #        The meta-data is transmitted via key/value pairs made by
 #        requests on the console. For example, to get the hostname, you
-#        would send "GET hostname" on /dev/ttyS1.
+#        would send "GET sdc:hostname" on /dev/ttyS1.
 #        For Linux Guests running in LX-Brand Zones on SmartOS hosts
 #        a socket (/native/.zonecontrol/metadata.sock) is used instead
 #        of a serial console.
 #
 #   Certain behavior is defined by the DataDictionary
-#       http://us-east.manta.joyent.com/jmc/public/mdata/datadict.html
+#       https://eng.joyent.com/mdata/datadict.html
 #       Comments with "@datadictionary" are snippets of the definition
 
 import base64
 import binascii
+import errno
+import fcntl
 import json
 import os
 import random
@@ -108,7 +111,7 @@ BUILTIN_CLOUD_CONFIG = {
                        'overwrite': False}
     },
     'fs_setup': [{'label': 'ephemeral0',
-                  'filesystem': 'ext3',
+                  'filesystem': 'ext4',
                   'device': 'ephemeral0'}],
 }
 
@@ -162,9 +165,8 @@ class DataSourceSmartOS(sources.DataSource):
 
     dsname = "Joyent"
 
-    _unset = "_unset"
-    smartos_type = _unset
-    md_client = _unset
+    smartos_type = sources.UNSET
+    md_client = sources.UNSET
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -186,12 +188,12 @@ class DataSourceSmartOS(sources.DataSource):
         return "%s [client=%s]" % (root, self.md_client)
 
     def _init(self):
-        if self.smartos_type == self._unset:
+        if self.smartos_type == sources.UNSET:
             self.smartos_type = get_smartos_environ()
             if self.smartos_type is None:
                 self.md_client = None
 
-        if self.md_client == self._unset:
+        if self.md_client == sources.UNSET:
             self.md_client = jmc_client_factory(
                 smartos_type=self.smartos_type,
                 metadata_sockfile=self.ds_cfg['metadata_sockfile'],
@@ -229,12 +231,17 @@ class DataSourceSmartOS(sources.DataSource):
                       self.md_client)
             return False
 
+        # Open once for many requests, rather than once for each request
+        self.md_client.open_transport()
+
         for ci_noun, attribute in SMARTOS_ATTRIB_MAP.items():
             smartos_noun, strip = attribute
             md[ci_noun] = self.md_client.get(smartos_noun, strip=strip)
 
         for ci_noun, smartos_noun in SMARTOS_ATTRIB_JSON.items():
             md[ci_noun] = self.md_client.get_json(smartos_noun)
+
+        self.md_client.close_transport()
 
         # @datadictionary: This key may contain a program that is written
         # to a file in the filesystem of the guest on each boot and then
@@ -266,8 +273,14 @@ class DataSourceSmartOS(sources.DataSource):
         write_boot_content(u_data, u_data_f)
 
         # Handle the cloud-init regular meta
+
+        # The hostname may or may not be qualified with the local domain name.
+        # This follows section 3.14 of RFC 2132.
         if not md['local-hostname']:
-            md['local-hostname'] = md['instance-id']
+            if md['hostname']:
+                md['local-hostname'] = md['hostname']
+            else:
+                md['local-hostname'] = md['instance-id']
 
         ud = None
         if md['user-data']:
@@ -285,6 +298,7 @@ class DataSourceSmartOS(sources.DataSource):
         self.userdata_raw = ud
         self.vendordata_raw = md['vendor-data']
         self.network_data = md['network-data']
+        self.routes_data = md['routes']
 
         self._set_provisioned()
         return True
@@ -308,11 +322,16 @@ class DataSourceSmartOS(sources.DataSource):
                     convert_smartos_network_data(
                         network_data=self.network_data,
                         dns_servers=self.metadata['dns_servers'],
-                        dns_domain=self.metadata['dns_domain']))
+                        dns_domain=self.metadata['dns_domain'],
+                        routes=self.routes_data))
         return self._network_config
 
 
 class JoyentMetadataFetchException(Exception):
+    pass
+
+
+class JoyentMetadataTimeoutException(JoyentMetadataFetchException):
     pass
 
 
@@ -360,6 +379,47 @@ class JoyentMetadataClient(object):
         LOG.debug('Value "%s" found.', value)
         return value
 
+    def _readline(self):
+        """
+           Reads a line a byte at a time until \n is encountered.  Returns an
+           ascii string with the trailing newline removed.
+
+           If a timeout (per-byte) is set and it expires, a
+           JoyentMetadataFetchException will be thrown.
+        """
+        response = []
+
+        def as_ascii():
+            return b''.join(response).decode('ascii')
+
+        msg = "Partial response: '%s'"
+        while True:
+            try:
+                byte = self.fp.read(1)
+                if len(byte) == 0:
+                    raise JoyentMetadataTimeoutException(msg % as_ascii())
+                if byte == b'\n':
+                    return as_ascii()
+                response.append(byte)
+            except OSError as exc:
+                if exc.errno == errno.EAGAIN:
+                    raise JoyentMetadataTimeoutException(msg % as_ascii())
+                raise
+
+    def _write(self, msg):
+        self.fp.write(msg.encode('ascii'))
+        self.fp.flush()
+
+    def _negotiate(self):
+        LOG.debug('Negotiating protocol V2')
+        self._write('NEGOTIATE V2\n')
+        response = self._readline()
+        LOG.debug('read "%s"', response)
+        if response != 'V2_OK':
+            raise JoyentMetadataFetchException(
+                'Invalid response "%s" to "NEGOTIATE V2"' % response)
+        LOG.debug('Negotiation complete')
+
     def request(self, rtype, param=None):
         request_id = '{0:08x}'.format(random.randint(0, 0xffffffff))
         message_body = ' '.join((request_id, rtype,))
@@ -374,18 +434,11 @@ class JoyentMetadataClient(object):
             self.open_transport()
             need_close = True
 
-        self.fp.write(msg.encode('ascii'))
-        self.fp.flush()
-
-        response = bytearray()
-        response.extend(self.fp.read(1))
-        while response[-1:] != b'\n':
-            response.extend(self.fp.read(1))
-
+        self._write(msg)
+        response = self._readline()
         if need_close:
             self.close_transport()
 
-        response = response.rstrip().decode('ascii')
         LOG.debug('Read "%s" from metadata transport.', response)
 
         if 'SUCCESS' not in response:
@@ -410,9 +463,9 @@ class JoyentMetadataClient(object):
 
     def list(self):
         result = self.request(rtype='KEYS')
-        if result:
-            result = result.split('\n')
-        return result
+        if not result:
+            return []
+        return result.split('\n')
 
     def put(self, key, val):
         param = b' '.join([base64.b64encode(i.encode())
@@ -450,6 +503,7 @@ class JoyentMetadataSocketClient(JoyentMetadataClient):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(self.socketpath)
         self.fp = sock.makefile('rwb')
+        self._negotiate()
 
     def exists(self):
         return os.path.exists(self.socketpath)
@@ -459,8 +513,9 @@ class JoyentMetadataSocketClient(JoyentMetadataClient):
 
 
 class JoyentMetadataSerialClient(JoyentMetadataClient):
-    def __init__(self, device, timeout=10, smartos_type=SMARTOS_ENV_KVM):
-        super(JoyentMetadataSerialClient, self).__init__(smartos_type)
+    def __init__(self, device, timeout=10, smartos_type=SMARTOS_ENV_KVM,
+                 fp=None):
+        super(JoyentMetadataSerialClient, self).__init__(smartos_type, fp)
         self.device = device
         self.timeout = timeout
 
@@ -468,10 +523,51 @@ class JoyentMetadataSerialClient(JoyentMetadataClient):
         return os.path.exists(self.device)
 
     def open_transport(self):
-        ser = serial.Serial(self.device, timeout=self.timeout)
-        if not ser.isOpen():
-            raise SystemError("Unable to open %s" % self.device)
-        self.fp = ser
+        if self.fp is None:
+            ser = serial.Serial(self.device, timeout=self.timeout)
+            if not ser.isOpen():
+                raise SystemError("Unable to open %s" % self.device)
+            self.fp = ser
+            fcntl.lockf(ser, fcntl.LOCK_EX)
+        self._flush()
+        self._negotiate()
+
+    def _flush(self):
+        LOG.debug('Flushing input')
+        # Read any pending data
+        timeout = self.fp.timeout
+        self.fp.timeout = 0.1
+        while True:
+            try:
+                self._readline()
+            except JoyentMetadataTimeoutException:
+                break
+        LOG.debug('Input empty')
+
+        # Send a newline and expect "invalid command".  Keep trying until
+        # successful.  Retry rather frequently so that the "Is the host
+        # metadata service running" appears on the console soon after someone
+        # attaches in an effort to debug.
+        if timeout > 5:
+            self.fp.timeout = 5
+        else:
+            self.fp.timeout = timeout
+        while True:
+            LOG.debug('Writing newline, expecting "invalid command"')
+            self._write('\n')
+            try:
+                response = self._readline()
+                if response == 'invalid command':
+                    break
+                if response == 'FAILURE':
+                    LOG.debug('Got "FAILURE".  Retrying.')
+                    continue
+                LOG.warning('Unexpected response "%s" during flush', response)
+            except JoyentMetadataTimeoutException:
+                LOG.warning('Timeout while initializing metadata client. ' +
+                            'Is the host metadata service running?')
+        LOG.debug('Got "invalid command".  Flush complete.')
+        self.fp.timeout = timeout
 
     def __repr__(self):
         return "%s(device=%s, timeout=%s)" % (
@@ -650,7 +746,7 @@ def get_smartos_environ(uname_version=None, product_name=None):
     # report 'BrandZ virtual linux' as the kernel version
     if uname_version is None:
         uname_version = uname[3]
-    if uname_version.lower() == 'brandz virtual linux':
+    if uname_version == 'BrandZ virtual linux':
         return SMARTOS_ENV_LX_BRAND
 
     if product_name is None:
@@ -658,7 +754,7 @@ def get_smartos_environ(uname_version=None, product_name=None):
     else:
         system_type = product_name
 
-    if system_type and 'smartdc' in system_type.lower():
+    if system_type and system_type.startswith('SmartDC'):
         return SMARTOS_ENV_KVM
 
     return None
@@ -666,7 +762,8 @@ def get_smartos_environ(uname_version=None, product_name=None):
 
 # Convert SMARTOS 'sdc:nics' data to network_config yaml
 def convert_smartos_network_data(network_data=None,
-                                 dns_servers=None, dns_domain=None):
+                                 dns_servers=None, dns_domain=None,
+                                 routes=None):
     """Return a dictionary of network_config by parsing provided
        SMARTOS sdc:nics configuration data
 
@@ -684,6 +781,10 @@ def convert_smartos_network_data(network_data=None,
     keys are related to ip configuration.  For each ip in the 'ips' list
     we create a subnet entry under 'subnets' pairing the ip to a one in
     the 'gateways' list.
+
+    Each route in sdc:routes is mapped to a route on each interface.
+    The sdc:routes properties 'dst' and 'gateway' map to 'network' and
+    'gateway'.  The 'linklocal' sdc:routes property is ignored.
     """
 
     valid_keys = {
@@ -706,6 +807,10 @@ def convert_smartos_network_data(network_data=None,
             'scope',
             'type',
         ],
+        'route': [
+            'network',
+            'gateway',
+        ],
     }
 
     if dns_servers:
@@ -719,6 +824,9 @@ def convert_smartos_network_data(network_data=None,
             dns_domain = [dns_domain]
     else:
         dns_domain = []
+
+    if not routes:
+        routes = []
 
     def is_valid_ipv4(addr):
         return '.' in addr
@@ -746,6 +854,7 @@ def convert_smartos_network_data(network_data=None,
             if ip == "dhcp":
                 subnet = {'type': 'dhcp4'}
             else:
+                routeents = []
                 subnet = dict((k, v) for k, v in nic.items()
                               if k in valid_keys['subnet'])
                 subnet.update({
@@ -766,6 +875,25 @@ def convert_smartos_network_data(network_data=None,
                         if len(gateways):
                             pgws[proto]['gw'] = gateways[0]
                             subnet.update({'gateway': pgws[proto]['gw']})
+
+                for route in routes:
+                    rcfg = dict((k, v) for k, v in route.items()
+                                if k in valid_keys['route'])
+                    # Linux uses the value of 'gateway' to determine
+                    # automatically if the route is a forward/next-hop
+                    # (non-local IP for gateway) or an interface/resolver
+                    # (local IP for gateway).  So we can ignore the
+                    # 'interface' attribute of sdc:routes, because SDC
+                    # guarantees that the gateway is a local IP for
+                    # "interface=true".
+                    #
+                    # Eventually we should be smart and compare "gateway"
+                    # to see if it's in the prefix.  We can then smartly
+                    # add or not-add this route.  But for now,
+                    # when in doubt, use brute force! Routes for everyone!
+                    rcfg.update({'network': route['dst']})
+                    routeents.append(rcfg)
+                    subnet.update({'routes': routeents})
 
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
@@ -810,12 +938,14 @@ if __name__ == "__main__":
             keyname = SMARTOS_ATTRIB_JSON[key]
             data[key] = client.get_json(keyname)
         elif key == "network_config":
-            for depkey in ('network-data', 'dns_servers', 'dns_domain'):
+            for depkey in ('network-data', 'dns_servers', 'dns_domain',
+                           'routes'):
                 load_key(client, depkey, data)
             data[key] = convert_smartos_network_data(
                 network_data=data['network-data'],
                 dns_servers=data['dns_servers'],
-                dns_domain=data['dns_domain'])
+                dns_domain=data['dns_domain'],
+                routes=data['routes'])
         else:
             if key in SMARTOS_ATTRIB_MAP:
                 keyname, strip = SMARTOS_ATTRIB_MAP[key]

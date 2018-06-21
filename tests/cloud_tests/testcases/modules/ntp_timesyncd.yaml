@@ -1,0 +1,15 @@
+#
+# ntp enabled, systemd-timesyncd selected, check conf file
+# as systemd-timesyncd won't start in a container
+#
+cloud_config: |
+  #cloud-config
+  ntp:
+    enabled: true
+    ntp_client: systemd-timesyncd
+collect_scripts:
+  timesyncd_conf: |
+    #!/bin/sh
+    cat /etc/systemd/timesyncd.conf.d/cloud-init.conf
+
+# vi: ts=4 expandtab

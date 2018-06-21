@@ -5,7 +5,7 @@
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
 Name:           cloud-init
-Version:        {{version}}
+Version:        {{rpm_upstream_version}}
 Release:        1{{subrelease}}%{?dist}
 Summary:        Cloud instance init scripts
 
@@ -16,21 +16,12 @@ URL:            http://launchpad.net/cloud-init
 Source0:        {{archive_name}}
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
-%if 0%{?suse_version} && 0%{?suse_version} <= 1110
-%{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%else
 BuildArch:      noarch
-%endif
+
 
 {% for r in buildrequires %}
 BuildRequires:        {{r}}
 {% endfor %}
-
-%if 0%{?suse_version} && 0%{?suse_version} <= 1210
-  %define initsys sysvinit
-%else
-  %define initsys systemd
-%endif
 
 # Install pypi 'dynamic' requirements
 {% for r in requires %}
@@ -39,7 +30,7 @@ Requires:       {{r}}
 
 # Custom patches
 {% for p in patches %}
-Patch{{loop.index0}: {{p}}
+Patch{{loop.index0}}: {{p}}
 {% endfor %}
 
 %description
@@ -63,35 +54,21 @@ end for
 %{__python} setup.py install \
             --skip-build --root=%{buildroot} --prefix=%{_prefix} \
             --record-rpm=INSTALLED_FILES --install-lib=%{python_sitelib} \
-            --init-system=%{initsys}
+            --init-system=systemd
+
+# Move udev rules
+mkdir -p %{buildroot}/usr/lib/udev/rules.d/
+mv %{buildroot}/lib/udev/rules.d/* %{buildroot}/usr/lib/udev/rules.d/
 
 # Remove non-SUSE templates
 rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.debian.*
 rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.redhat.*
 rm %{buildroot}/%{_sysconfdir}/cloud/templates/*.ubuntu.*
 
-# Remove cloud-init tests
-rm -r %{buildroot}/%{python_sitelib}/tests
-
-# Move sysvinit scripts to the correct place and create symbolic links
-%if %{initsys} == sysvinit
-   mkdir -p %{buildroot}/%{_initddir}
-   mv %{buildroot}%{_sysconfdir}/rc.d/init.d/* %{buildroot}%{_initddir}/
-   rmdir %{buildroot}%{_sysconfdir}/rc.d/init.d
-   rmdir %{buildroot}%{_sysconfdir}/rc.d
-
-   mkdir -p %{buildroot}/%{_sbindir}
-   pushd %{buildroot}/%{_initddir}
-   for file in * ; do
-      ln -s %{_initddir}/${file} %{buildroot}/%{_sbindir}/rc${file}
-   done
-   popd
-%endif
-
 # Move documentation
 mkdir -p %{buildroot}/%{_defaultdocdir}
 mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
-for doc in TODO LICENSE ChangeLog requirements.txt; do
+for doc in LICENSE ChangeLog requirements.txt; do
    cp ${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
 done
 
@@ -102,29 +79,35 @@ done
 
 mkdir -p %{buildroot}/var/lib/cloud
 
+# patch in the full version to version.py
+version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
+[ -n "$version_pys" ] ||
+   { echo "failed to find 'version.py' to patch with version." 1>&2; exit 1; }
+( cd "%{buildroot}" &&
+  sed -i "s,@@PACKAGED_VERSION@@,%{version}-%{release}," $version_pys )
+
 %postun
 %insserv_cleanup
 
 %files
 
-# Sysvinit scripts
-%if %{initsys} == sysvinit
-   %attr(0755, root, root) %{_initddir}/cloud-config
-   %attr(0755, root, root) %{_initddir}/cloud-final
-   %attr(0755, root, root) %{_initddir}/cloud-init-local
-   %attr(0755, root, root) %{_initddir}/cloud-init
-
-   %{_sbindir}/rccloud-*
-%endif
-
 # Program binaries
 %{_bindir}/cloud-init*
+
+# systemd files
+/usr/lib/systemd/system-generators/*
+/usr/lib/systemd/system/*
 
 # There doesn't seem to be an agreed upon place for these
 # although it appears the standard says /usr/lib but rpmbuild
 # will try /usr/lib64 ??
 /usr/lib/%{name}/uncloud-init
 /usr/lib/%{name}/write-ssh-key-fingerprints
+/usr/lib/%{name}/ds-identify
+
+# udev rules
+/usr/lib/udev/rules.d/66-azure-ephemeral.rules
+
 
 # Docs
 %doc %{_defaultdocdir}/cloud-init/*
@@ -136,6 +119,10 @@ mkdir -p %{buildroot}/var/lib/cloud
 %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/README
 %dir               %{_sysconfdir}/cloud/templates
 %config(noreplace) %{_sysconfdir}/cloud/templates/*
+%{_sysconfdir}/bash_completion.d/cloud-init
+
+%{_sysconfdir}/dhcp/dhclient-exit-hooks.d/hook-dhclient
+%{_sysconfdir}/NetworkManager/dispatcher.d/hook-network-manager
 
 # Python code is here...
 %{python_sitelib}/*

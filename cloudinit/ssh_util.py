@@ -279,24 +279,28 @@ class SshdConfigLine(object):
 
 
 def parse_ssh_config(fname):
+    if not os.path.isfile(fname):
+        return []
+    return parse_ssh_config_lines(util.load_file(fname).splitlines())
+
+
+def parse_ssh_config_lines(lines):
     # See: man sshd_config
     # The file contains keyword-argument pairs, one per line.
     # Lines starting with '#' and empty lines are interpreted as comments.
     # Note: key-words are case-insensitive and arguments are case-sensitive
-    lines = []
-    if not os.path.isfile(fname):
-        return lines
-    for line in util.load_file(fname).splitlines():
+    ret = []
+    for line in lines:
         line = line.strip()
         if not line or line.startswith("#"):
-            lines.append(SshdConfigLine(line))
+            ret.append(SshdConfigLine(line))
             continue
         try:
             key, val = line.split(None, 1)
         except ValueError:
             key, val = line.split('=', 1)
-        lines.append(SshdConfigLine(line, key, val))
-    return lines
+        ret.append(SshdConfigLine(line, key, val))
+    return ret
 
 
 def parse_ssh_config_map(fname):
@@ -309,5 +313,57 @@ def parse_ssh_config_map(fname):
             continue
         ret[line.key] = line.value
     return ret
+
+
+def update_ssh_config(updates, fname=DEF_SSHD_CFG):
+    """Read fname, and update if changes are necessary.
+
+    @param updates: dictionary of desired values {Option: value}
+    @return: boolean indicating if an update was done."""
+    lines = parse_ssh_config(fname)
+    changed = update_ssh_config_lines(lines=lines, updates=updates)
+    if changed:
+        util.write_file(
+            fname, "\n".join([str(l) for l in lines]) + "\n", copy_mode=True)
+    return len(changed) != 0
+
+
+def update_ssh_config_lines(lines, updates):
+    """Update the ssh config lines per updates.
+
+    @param lines: array of SshdConfigLine.  This array is updated in place.
+    @param updates: dictionary of desired values {Option: value}
+    @return: A list of keys in updates that were changed."""
+    found = set()
+    changed = []
+
+    # Keywords are case-insensitive and arguments are case-sensitive
+    casemap = dict([(k.lower(), k) for k in updates.keys()])
+
+    for (i, line) in enumerate(lines, start=1):
+        if not line.key:
+            continue
+        if line.key in casemap:
+            key = casemap[line.key]
+            value = updates[key]
+            found.add(key)
+            if line.value == value:
+                LOG.debug("line %d: option %s already set to %s",
+                          i, key, value)
+            else:
+                changed.append(key)
+                LOG.debug("line %d: option %s updated %s -> %s", i,
+                          key, line.value, value)
+                line.value = value
+
+    if len(found) != len(updates):
+        for key, value in updates.items():
+            if key in found:
+                continue
+            changed.append(key)
+            lines.append(SshdConfigLine('', key, value))
+            LOG.debug("line %d: option %s added with %s",
+                      len(lines), key, value)
+    return changed
 
 # vi: ts=4 expandtab

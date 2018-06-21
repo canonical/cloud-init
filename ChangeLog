@@ -1,3 +1,229 @@
+18.3:
+ - docs: represent sudo:false in docs for user_groups config module
+ - Explicitly prevent `sudo` access for user module
+   [Jacob Bednarz] (LP: #1771468)
+ - lxd: Delete default network and detach device if lxd-init created them.
+   (LP: #1776958)
+ - openstack: avoid unneeded metadata probe on non-openstack platforms
+   (LP: #1776701)
+ - stages: fix tracebacks if a module stage is undefined or empty
+   [Robert Schweikert] (LP: #1770462)
+ - Be more safe on string/bytes when writing multipart user-data to disk.
+   (LP: #1768600)
+ - Fix get_proc_env for pids that have non-utf8 content in environment.
+   (LP: #1775371)
+ - tests: fix salt_minion integration test on bionic and later
+ - tests: provide human-readable integration test summary when --verbose
+ - tests: skip chrony integration tests on lxd running artful or older
+ - test: add optional --preserve-instance arg to integraiton tests
+ - netplan: fix mtu if provided by network config for all rendered types
+   (LP: #1774666)
+ - tests: remove pip install workarounds for pylxd, take upstream fix.
+ - subp: support combine_capture argument.
+ - tests: ordered tox dependencies for pylxd install
+ - util: add get_linux_distro function to replace platform.dist
+   [Robert Schweikert] (LP: #1745235)
+ - pyflakes: fix unused variable references identified by pyflakes 2.0.0.
+ - - Do not use the systemd_prefix macro, not available in this environment
+   [Robert Schweikert]
+ - doc: Add config info to ec2, openstack and cloudstack datasource docs
+ - Enable SmartOS network metadata to work with netplan via per-subnet
+   routes [Dan McDonald] (LP: #1763512)
+ - openstack: Allow discovery in init-local using dhclient in a sandbox.
+   (LP: #1749717)
+ - tests: Avoid using https in httpretty, improve HttPretty test case.
+   (LP: #1771659)
+ - yaml_load/schema: Add invalid line and column nums to error message
+ - Azure: Ignore NTFS mount errors when checking ephemeral drive
+   [Paul Meyer]
+ - packages/brpm: Get proper dependencies for cmdline distro.
+ - packages: Make rpm spec files patch in package version like in debs.
+ - tools/run-container: replace tools/run-centos with more generic.
+ - Update version.version_string to contain packaged version. (LP: #1770712)
+ - cc_mounts: Do not add devices to fstab that are already present.
+   [Lars Kellogg-Stedman]
+ - ds-identify: ensure that we have certain tokens in PATH. (LP: #1771382)
+ - tests: enable Ubuntu Cosmic in integration tests [Joshua Powers]
+ - read_file_or_url: move to url_helper, fix bug in its FileResponse.
+ - cloud_tests: help pylint [Ryan Harper]
+ - flake8: fix flake8 errors in previous commit.
+ - typos: Fix spelling mistakes in cc_mounts.py log messages [Stephen Ford]
+ - tests: restructure SSH and initial connections [Joshua Powers]
+ - ds-identify: recognize container-other as a container, test SmartOS.
+ - cloud-config.service: run After snap.seeded.service. (LP: #1767131)
+ - tests: do not rely on host /proc/cmdline in test_net.py
+   [Lars Kellogg-Stedman] (LP: #1769952)
+ - ds-identify: Remove dupe call to is_ds_enabled, improve debug message.
+ - SmartOS: fix get_interfaces for nics that do not have addr_assign_type.
+ - tests: fix package and ca_cert cloud_tests on bionic
+   (LP: #1769985)
+ - ds-identify: make shellcheck 0.4.6 happy with ds-identify.
+ - pycodestyle: Fix deprecated string literals, move away from flake8.
+ - azure: Add reported ready marker file. [Joshua Chan] (LP: #1765214)
+ - tools: Support adding a release suffix through packages/bddeb.
+ - FreeBSD: Invoke growfs on ufs filesystems such that it does not prompt.
+   [Harm Weites] (LP: #1404745)
+ - tools: Re-use the orig tarball in packages/bddeb if it is around.
+ - netinfo: fix netdev_pformat when a nic does not have an address
+   assigned. (LP: #1766302)
+ - collect-logs: add -v flag, write to stderr, limit journal to single
+   boot. (LP: #1766335)
+ - IBMCloud: Disable config-drive and nocloud only if IBMCloud is enabled.
+   (LP: #1766401)
+ - Add reporting events and log_time around early source of blocking time
+   [Ryan Harper]
+ - IBMCloud: recognize provisioning environment during debug boots.
+   (LP: #1767166)
+ - net: detect unstable network names and trigger a settle if needed
+   [Ryan Harper] (LP: #1766287)
+ - IBMCloud: improve documentation in datasource.
+ - sysconfig: dhcp6 subnet type should not imply dhcpv4 [Vitaly Kuznetsov]
+ - packages/debian/control.in: add missing dependency on iproute2.
+   (LP: #1766711)
+ - DataSourceSmartOS: add locking of serial device.
+   [Mike Gerdts] (LP: #1746605)
+ - DataSourceSmartOS: sdc:hostname is ignored [Mike Gerdts] (LP: #1765085)
+ - DataSourceSmartOS: list() should always return a list
+   [Mike Gerdts] (LP: #1763480)
+ - schema: in validation, raise ImportError if strict but no jsonschema.
+ - set_passwords: Add newline to end of sshd config, only restart if
+   updated. (LP: #1677205)
+ - pylint: pay attention to unused variable warnings.
+ - doc: Add documentation for AliYun datasource. [Junjie Wang]
+ - Schema: do not warn on duplicate items in commands. (LP: #1764264)
+ - net: Depend on iproute2's ip instead of net-tools ifconfig or route
+ - DataSourceSmartOS: fix hang when metadata service is down
+   [Mike Gerdts] (LP: #1667735)
+ - DataSourceSmartOS: change default fs on ephemeral disk from ext3 to
+   ext4. [Mike Gerdts] (LP: #1763511)
+ - pycodestyle: Fix invalid escape sequences in string literals.
+ - Implement bash completion script for cloud-init command line
+   [Ryan Harper]
+ - tools: Fix make-tarball cli tool usage for development
+ - renderer: support unicode in render_from_file.
+ - Implement ntp client spec with auto support for distro selection
+   [Ryan Harper] (LP: #1749722)
+ - Apport: add Brightbox, IBM, LXD, and OpenTelekomCloud to list of clouds.
+ - tests: fix ec2 integration network metadata validation
+ - tests: fix integration tests to support lxd 3.0 release
+ - correct documentation to match correct attribute name usage.
+   [Dominic Schlegel] (LP: #1420018)
+ - cc_resizefs, util: handle no /dev/zfs [Ryan Harper]
+ - doc: Fix links in OpenStack datasource documentation.
+   [Dominic Schlegel] (LP: #1721660)
+ - docs: represent sudo:false in docs for user_groups config module
+ - Explicitly prevent `sudo` access for user module
+   [Jacob Bednarz] (LP: #1771468)
+ - lxd: Delete default network and detach device if lxd-init created them.
+   (LP: #1776958)
+ - openstack: avoid unneeded metadata probe on non-openstack platforms
+   (LP: #1776701)
+ - stages: fix tracebacks if a module stage is undefined or empty
+   [Robert Schweikert] (LP: #1770462)
+ - Be more safe on string/bytes when writing multipart user-data to disk.
+   (LP: #1768600)
+ - Fix get_proc_env for pids that have non-utf8 content in environment.
+   (LP: #1775371)
+ - tests: fix salt_minion integration test on bionic and later
+ - tests: provide human-readable integration test summary when --verbose
+ - tests: skip chrony integration tests on lxd running artful or older
+ - test: add optional --preserve-instance arg to integraiton tests
+ - netplan: fix mtu if provided by network config for all rendered types
+   (LP: #1774666)
+ - tests: remove pip install workarounds for pylxd, take upstream fix.
+ - subp: support combine_capture argument.
+ - tests: ordered tox dependencies for pylxd install
+ - util: add get_linux_distro function to replace platform.dist
+   [Robert Schweikert] (LP: #1745235)
+ - pyflakes: fix unused variable references identified by pyflakes 2.0.0.
+ - - Do not use the systemd_prefix macro, not available in this environment
+   [Robert Schweikert]
+ - doc: Add config info to ec2, openstack and cloudstack datasource docs
+ - Enable SmartOS network metadata to work with netplan via per-subnet
+   routes [Dan McDonald] (LP: #1763512)
+ - openstack: Allow discovery in init-local using dhclient in a sandbox.
+   (LP: #1749717)
+ - tests: Avoid using https in httpretty, improve HttPretty test case.
+   (LP: #1771659)
+ - yaml_load/schema: Add invalid line and column nums to error message
+ - Azure: Ignore NTFS mount errors when checking ephemeral drive
+   [Paul Meyer]
+ - packages/brpm: Get proper dependencies for cmdline distro.
+ - packages: Make rpm spec files patch in package version like in debs.
+ - tools/run-container: replace tools/run-centos with more generic.
+ - Update version.version_string to contain packaged version. (LP: #1770712)
+ - cc_mounts: Do not add devices to fstab that are already present.
+   [Lars Kellogg-Stedman]
+ - ds-identify: ensure that we have certain tokens in PATH. (LP: #1771382)
+ - tests: enable Ubuntu Cosmic in integration tests [Joshua Powers]
+ - read_file_or_url: move to url_helper, fix bug in its FileResponse.
+ - cloud_tests: help pylint [Ryan Harper]
+ - flake8: fix flake8 errors in previous commit.
+ - typos: Fix spelling mistakes in cc_mounts.py log messages [Stephen Ford]
+ - tests: restructure SSH and initial connections [Joshua Powers]
+ - ds-identify: recognize container-other as a container, test SmartOS.
+ - cloud-config.service: run After snap.seeded.service. (LP: #1767131)
+ - tests: do not rely on host /proc/cmdline in test_net.py
+   [Lars Kellogg-Stedman] (LP: #1769952)
+ - ds-identify: Remove dupe call to is_ds_enabled, improve debug message.
+ - SmartOS: fix get_interfaces for nics that do not have addr_assign_type.
+ - tests: fix package and ca_cert cloud_tests on bionic
+   (LP: #1769985)
+ - ds-identify: make shellcheck 0.4.6 happy with ds-identify.
+ - pycodestyle: Fix deprecated string literals, move away from flake8.
+ - azure: Add reported ready marker file. [Joshua Chan] (LP: #1765214)
+ - tools: Support adding a release suffix through packages/bddeb.
+ - FreeBSD: Invoke growfs on ufs filesystems such that it does not prompt.
+   [Harm Weites] (LP: #1404745)
+ - tools: Re-use the orig tarball in packages/bddeb if it is around.
+ - netinfo: fix netdev_pformat when a nic does not have an address
+   assigned. (LP: #1766302)
+ - collect-logs: add -v flag, write to stderr, limit journal to single
+   boot. (LP: #1766335)
+ - IBMCloud: Disable config-drive and nocloud only if IBMCloud is enabled.
+   (LP: #1766401)
+ - Add reporting events and log_time around early source of blocking time
+   [Ryan Harper]
+ - IBMCloud: recognize provisioning environment during debug boots.
+   (LP: #1767166)
+ - net: detect unstable network names and trigger a settle if needed
+   [Ryan Harper] (LP: #1766287)
+ - IBMCloud: improve documentation in datasource.
+ - sysconfig: dhcp6 subnet type should not imply dhcpv4 [Vitaly Kuznetsov]
+ - packages/debian/control.in: add missing dependency on iproute2.
+   (LP: #1766711)
+ - DataSourceSmartOS: add locking of serial device.
+   [Mike Gerdts] (LP: #1746605)
+ - DataSourceSmartOS: sdc:hostname is ignored [Mike Gerdts] (LP: #1765085)
+ - DataSourceSmartOS: list() should always return a list
+   [Mike Gerdts] (LP: #1763480)
+ - schema: in validation, raise ImportError if strict but no jsonschema.
+ - set_passwords: Add newline to end of sshd config, only restart if
+   updated. (LP: #1677205)
+ - pylint: pay attention to unused variable warnings.
+ - doc: Add documentation for AliYun datasource. [Junjie Wang]
+ - Schema: do not warn on duplicate items in commands. (LP: #1764264)
+ - net: Depend on iproute2's ip instead of net-tools ifconfig or route
+ - DataSourceSmartOS: fix hang when metadata service is down
+   [Mike Gerdts] (LP: #1667735)
+ - DataSourceSmartOS: change default fs on ephemeral disk from ext3 to
+   ext4. [Mike Gerdts] (LP: #1763511)
+ - pycodestyle: Fix invalid escape sequences in string literals.
+ - Implement bash completion script for cloud-init command line
+   [Ryan Harper]
+ - tools: Fix make-tarball cli tool usage for development
+ - renderer: support unicode in render_from_file.
+ - Implement ntp client spec with auto support for distro selection
+   [Ryan Harper] (LP: #1749722)
+ - Apport: add Brightbox, IBM, LXD, and OpenTelekomCloud to list of clouds.
+ - tests: fix ec2 integration network metadata validation
+ - tests: fix integration tests to support lxd 3.0 release
+ - correct documentation to match correct attribute name usage.
+   [Dominic Schlegel] (LP: #1420018)
+ - cc_resizefs, util: handle no /dev/zfs [Ryan Harper]
+ - doc: Fix links in OpenStack datasource documentation.
+   [Dominic Schlegel] (LP: #1721660)
+
 18.2:
  - Hetzner: Exit early if dmi system-manufacturer is not Hetzner.
  - Add missing dependency on isc-dhcp-client to trunk ubuntu packaging.

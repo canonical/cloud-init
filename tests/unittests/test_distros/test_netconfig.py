@@ -189,6 +189,12 @@ hn0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
         status: active
 """
 
+    def setUp(self):
+        super(TestNetCfgDistro, self).setUp()
+        self.add_patch('cloudinit.util.system_is_snappy', 'm_snappy')
+        self.add_patch('cloudinit.util.system_info', 'm_sysinfo')
+        self.m_sysinfo.return_value = {'dist': ('Distro', '99.1', 'Codename')}
+
     def _get_distro(self, dname, renderers=None):
         cls = distros.fetch(dname)
         cfg = settings.CFG_BUILTIN

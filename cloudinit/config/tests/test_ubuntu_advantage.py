@@ -7,7 +7,8 @@ from cloudinit.config.cc_ubuntu_advantage import (
     handle, maybe_install_ua_tools, run_commands, schema)
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import util
-from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from cloudinit.tests.helpers import (
+    CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
 
 
 # Module path used in mocks
@@ -105,9 +106,10 @@ class TestRunCommands(CiTestCase):
 
 
 @skipUnlessJsonSchema()
-class TestSchema(CiTestCase):
+class TestSchema(CiTestCase, SchemaTestCaseMixin):
 
     with_logs = True
+    schema = schema
 
     def test_schema_warns_on_ubuntu_advantage_not_as_dict(self):
         """If ubuntu-advantage configuration is not a dict, emit a warning."""
@@ -168,6 +170,30 @@ class TestSchema(CiTestCase):
         validate_cloudconfig_schema(
             {'ubuntu-advantage': {'commands': {'01': 'also valid'}}}, schema)
         self.assertEqual('', self.logs.getvalue())
+
+    def test_duplicates_are_fine_array_array(self):
+        """Duplicated commands array/array entries are allowed."""
+        self.assertSchemaValid(
+            {'commands': [["echo", "bye"], ["echo" "bye"]]},
+            "command entries can be duplicate.")
+
+    def test_duplicates_are_fine_array_string(self):
+        """Duplicated commands array/string entries are allowed."""
+        self.assertSchemaValid(
+            {'commands': ["echo bye", "echo bye"]},
+            "command entries can be duplicate.")
+
+    def test_duplicates_are_fine_dict_array(self):
+        """Duplicated commands dict/array entries are allowed."""
+        self.assertSchemaValid(
+            {'commands': {'00': ["echo", "bye"], '01': ["echo", "bye"]}},
+            "command entries can be duplicate.")
+
+    def test_duplicates_are_fine_dict_string(self):
+        """Duplicated commands dict/string entries are allowed."""
+        self.assertSchemaValid(
+            {'commands': {'00': "echo bye", '01': "echo bye"}},
+            "command entries can be duplicate.")
 
 
 class TestHandle(CiTestCase):

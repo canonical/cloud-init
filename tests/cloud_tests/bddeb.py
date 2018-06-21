@@ -113,7 +113,7 @@ def bddeb(args):
     @return_value: fail count
     """
     LOG.info('preparing to build cloud-init deb')
-    (res, failed) = run_stage('build deb', [partial(setup_build, args)])
+    _res, failed = run_stage('build deb', [partial(setup_build, args)])
     return failed
 
 # vi: ts=4 expandtab

@@ -287,7 +287,6 @@ class Renderer(renderer.Renderer):
             if subnet_type == 'dhcp6':
                 iface_cfg['IPV6INIT'] = True
                 iface_cfg['DHCPV6C'] = True
-                iface_cfg['BOOTPROTO'] = 'dhcp'
             elif subnet_type in ['dhcp4', 'dhcp']:
                 iface_cfg['BOOTPROTO'] = 'dhcp'
             elif subnet_type == 'static':
@@ -305,6 +304,13 @@ class Renderer(renderer.Renderer):
                     mtu_key = 'IPV6_MTU'
                     iface_cfg['IPV6INIT'] = True
                 if 'mtu' in subnet:
+                    mtu_mismatch = bool(mtu_key in iface_cfg and
+                                        subnet['mtu'] != iface_cfg[mtu_key])
+                    if mtu_mismatch:
+                        LOG.warning(
+                            'Network config: ignoring %s device-level mtu:%s'
+                            ' because ipv4 subnet-level mtu:%s provided.',
+                            iface_cfg.name, iface_cfg[mtu_key], subnet['mtu'])
                     iface_cfg[mtu_key] = subnet['mtu']
             elif subnet_type == 'manual':
                 # If the subnet has an MTU setting, then ONBOOT=True
@@ -364,7 +370,7 @@ class Renderer(renderer.Renderer):
 
     @classmethod
     def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
-        for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
+        for _, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             for route in subnet.get('routes', []):
                 is_ipv6 = subnet.get('ipv6') or is_ipv6_addr(route['gateway'])
 

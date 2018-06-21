@@ -1,18 +1,17 @@
 #!/bin/bash
 # This file is part of cloud-init. See LICENSE file for license information.
 
-set -u
-
-VERBOSITY=0
-TEMP_D=""
-KEEP=false
-CONTAINER=""
-
-error() { echo "$@" 1>&2; }
-fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
-errorrc() { local r=$?; error "$@" "ret=$r"; return $r; }
+deprecated() {
+cat <<EOF
+             ================ DEPRECATED ================
+             | run-centos is deprecated. Please replace |
+             | your usage with tools/run-container .    |
+             ================ DEPRECATED ================
+EOF
+}
 
 Usage() {
+    deprecated
     cat <<EOF
 Usage: ${0##*/} [ options ] version
 
@@ -34,319 +33,40 @@ Usage: ${0##*/} [ options ] version
     Example:
       * ${0##*/} --rpm --srpm --unittest 6
 EOF
+    deprecated
+EOF
 }
 
 bad_Usage() { Usage 1>&2; [ $# -eq 0 ] || error "$@"; return 1; }
-cleanup() {
-    if [ -n "$CONTAINER" -a "$KEEP" = "false" ]; then
-        delete_container "$CONTAINER"
-    fi
-    [ -z "${TEMP_D}" -o ! -d "${TEMP_D}" ] || rm -Rf "${TEMP_D}"
-}
-
-debug() {
-    local level=${1}; shift;
-    [ "${level}" -gt "${VERBOSITY}" ] && return
-    error "${@}"
-}
-
-
-inside_as() {
-    # inside_as(container_name, user, cmd[, args])
-    # executes cmd with args inside container as user in users home dir.
-    local name="$1" user="$2"
-    shift 2
-    if [ "$user" = "root" ]; then
-        inside "$name" "$@"
-        return
-    fi
-    local stuffed="" b64=""
-    stuffed=$(getopt --shell sh --options "" -- -- "$@")
-    stuffed=${stuffed# -- }
-    b64=$(printf "%s\n" "$stuffed" | base64 --wrap=0)
-    inside "$name" su "$user" -c \
-        'cd; eval set -- "$(echo '$b64' | base64 --decode)" && exec "$@"'
-}
-
-inside_as_cd() {
-    local name="$1" user="$2" dir="$3"
-    shift 3
-    inside_as "$name" "$user" sh -c 'cd "$0" && exec "$@"' "$dir" "$@"
-}
-
-inside() {
-    local name="$1"
-    shift
-    lxc exec "$name" -- "$@"
-}
-
-inject_cloud_init(){
-    # take current cloud-init git dir and put it inside $name at
-    # ~$user/cloud-init.
-    local name="$1" user="$2" dirty="$3"
-    local changes="" top_d="" dname="cloud-init" pstat=""
-    local gitdir="" commitish=""
-    gitdir=$(git rev-parse --git-dir) || {
-        errorrc "Failed to get git dir in $PWD";
-        return
-    }
-    local t=${gitdir%/*}
-    case "$t" in
-        */worktrees) 
-            if [ -f "${t%worktrees}/config" ]; then
-                gitdir="${t%worktrees}"
-            fi
-    esac
-
-    # attempt to get branch name.
-    commitish=$(git rev-parse --abbrev-ref HEAD) || {
-        errorrc "Failed git rev-parse --abbrev-ref HEAD"
-        return
-    }
-    if [ "$commitish" = "HEAD" ]; then
-        # detached head
-        commitish=$(git rev-parse HEAD) || {
-            errorrc "failed git rev-parse HEAD"
-            return
-        }
-    fi
-
-    local local_changes=false
-    if ! git diff --quiet "$commitish"; then
-        # there are local changes not committed.
-        local_changes=true
-        if [ "$dirty" = "false" ]; then
-            error "WARNING: You had uncommitted changes.  Those changes will "
-            error "be put into 'local-changes.diff' inside the container. "
-            error "To test these changes you must pass --dirty."
-        fi
-    fi
-
-    debug 1 "collecting ${gitdir} ($dname) into user $user in $name."
-    tar -C "${gitdir}" -cpf - . |
-        inside_as "$name" "$user" sh -ec '
-            dname=$1
-            commitish=$2
-            rm -Rf "$dname"
-            mkdir -p $dname/.git
-            cd $dname/.git
-            tar -xpf -
-            cd ..
-            git config core.bare false
-            out=$(git checkout $commitish 2>&1) ||
-                { echo "failed git checkout $commitish: $out" 1>&2; exit 1; }
-            out=$(git checkout . 2>&1) ||
-                { echo "failed git checkout .: $out" 1>&2; exit 1; }
-            ' extract "$dname" "$commitish"
-    [ "${PIPESTATUS[*]}" = "0 0" ] || {
-        error "Failed to push tarball of '$gitdir' into $name" \
-            " for user $user (dname=$dname)"
-        return 1
-    }
-
-    echo "local_changes=$local_changes dirty=$dirty"
-    if [ "$local_changes" = "true" ]; then
-        git diff "$commitish" |
-            inside_as "$name" "$user" sh -exc '
-                cd "$1"
-                if [ "$2" = "true" ]; then
-                    git apply
-                else
-                    cat > local-changes.diff
-                fi
-                ' insert_changes "$dname" "$dirty"
-        [ "${PIPESTATUS[*]}" = "0 0" ] || {
-            error "Failed to apply local changes."
-            return 1
-        }
-    fi
-
-    return 0
-}
-
-prep() {
-    # we need some very basic things not present in the container.
-    #  - git
-    #  - tar (CentOS 6 lxc container does not have it)
-    #  - python-argparse (or python3)
-    local needed="" pair="" pkg="" cmd="" needed=""
-    for pair in tar:tar git:git; do
-        pkg=${pair#*:}
-        cmd=${pair%%:*}
-        command -v $cmd >/dev/null 2>&1 || needed="${needed} $pkg"
-    done
-    if ! command -v python3; then
-        python -c "import argparse" >/dev/null 2>&1 ||
-            needed="${needed} python-argparse"
-    fi
-    needed=${needed# }
-    if [ -z "$needed" ]; then
-        error "No prep packages needed"
-        return 0
-    fi
-    error "Installing prep packages: ${needed}"
-    set -- $needed
-    local n max r
-    n=0; max=10;
-    bcmd="yum install --downloadonly --assumeyes --setopt=keepcache=1"
-    while n=$(($n+1)); do
-       error ":: running $bcmd $* [$n/$max]"
-       $bcmd "$@"
-       r=$?
-       [ $r -eq 0 ] && break
-       [ $n -ge $max ] && { error "gave up on $bcmd"; exit $r; }
-       nap=$(($n*5))
-       error ":: failed [$r] ($n/$max). sleeping $nap."
-       sleep $nap
-    done
-    error ":: running yum install --cacheonly --assumeyes $*"
-    yum install --cacheonly --assumeyes "$@"
-}
-
-start_container() {
-    local src="$1" name="$2"
-    debug 1 "starting container $name from '$src'"
-    lxc launch "$src" "$name" || {
-        errorrc "Failed to start container '$name' from '$src'";
-        return
-    }
-    CONTAINER=$name
-
-    local out="" ret=""
-    debug 1 "waiting for networking"
-    out=$(inside "$name" sh -c '
-        i=0
-        while [ $i -lt 60 ]; do
-            getent hosts mirrorlist.centos.org && exit 0
-            sleep 2
-        done' 2>&1)
-    ret=$?
-    if [ $ret -ne 0 ]; then
-        error "Waiting for network in container '$name' failed. [$ret]"
-        error "$out"
-        return $ret
-    fi
-
-    if [ ! -z "${http_proxy-}" ]; then
-        debug 1 "configuring proxy ${http_proxy}"
-        inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
-        inside "$name" sed -i s/enabled=1/enabled=0/ /etc/yum/pluginconf.d/fastestmirror.conf
-    fi
-}
-
-delete_container() {
-    debug 1 "removing container $1 [--keep to keep]"
-    lxc delete --force "$1"
-}
 
 main() {
-    local short_opts="ahkrsuv"
-    local long_opts="artifact,dirty,help,keep,rpm,srpm,unittest,verbose"
-    local getopt_out=""
-    getopt_out=$(getopt --name "${0##*/}" \
-        --options "${short_opts}" --long "${long_opts}" -- "$@") &&
-        eval set -- "${getopt_out}" ||
-        { bad_Usage; return; }
-
-    local cur="" next=""
-    local artifact="" keep="" rpm="" srpm="" unittest="" version=""
-    local dirty=false
-
+    if [ "$1" = "-h" -o "$1" == "--help" ]; then
+        Usage 1>&2;
+        exit 0;
+    fi
+    local pt="" mydir=$(dirname "$0")
+    local run_container="$mydir/run-container"
+    if [ ! -x "$run_container" ]; then
+        bad_Usage "Could not find run-container."
+        return
+    fi
+    
+    pt=( "$run_container" )
     while [ $# -ne 0 ]; do
         cur="${1:-}"; next="${2:-}";
         case "$cur" in
-            -a|--artifact) artifact=1;;
-               --dirty) dirty=true;;
-            -h|--help) Usage ; exit 0;;
-            -k|--keep) KEEP=true;;
-            -r|--rpm) rpm=1;;
-            -s|--srpm) srpm=1;;
-            -u|--unittest) unittest=1;;
-            -v|--verbose) VERBOSITY=$((${VERBOSITY}+1));;
-            --) shift; break;;
+            -r|--rpm) cur="--package";;
+            -s|--srpm) cur="--source-package";;
+            -a|--artifact) cur="--artifacts=.";;
+            6|7) cur="centos/$cur";;
         esac
+        pt[${#pt[@]}]="$cur"
         shift;
     done
-
-    [ $# -eq 1 ] || { bad_Usage "ERROR: Must provide version!"; return; }
-    version="$1"
-    case "$version" in
-        6|7) :;;
-        *) error "Expected version of 6 or 7, not '$version'"; return;;
-    esac
-
-    TEMP_D=$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXX") ||
-        fail "failed to make tempdir"
-    trap cleanup EXIT
-
-    # program starts here
-    local uuid="" name="" user="ci-test" cdir=""
-    cdir="/home/$user/cloud-init"
-    uuid=$(uuidgen -t) || { error "no uuidgen"; return 1; }
-    name="cloud-init-centos-${uuid%%-*}"
-
-    start_container "images:centos/$version" "$name"
-
-    # prep the container (install very basic dependencies)
-    inside "$name" bash -s prep <"$0" ||
-        { errorrc "Failed to prep container $name"; return; }
-
-    # add the user
-    inside "$name" useradd "$user"
-
-    debug 1 "inserting cloud-init"
-    inject_cloud_init "$name" "$user" "$dirty" || {
-        errorrc "FAIL: injecting cloud-init into $name failed."
-        return
-    }
-
-    inside_as_cd "$name" root "$cdir" \
-        ./tools/read-dependencies --distro=centos --test-distro || {
-        errorrc "FAIL: failed to install dependencies with read-dependencies"
-        return
-    }
-
-    local errors=0
-    inside_as_cd "$name" "$user" "$cdir" \
-        sh -ec "git status" ||
-            { errorrc "git checkout failed."; errors=$(($errors+1)); }
-
-    if [ -n "$unittest" ]; then
-        debug 1 "running unit tests."
-        inside_as_cd "$name" "$user" "$cdir" \
-            nosetests tests/unittests cloudinit ||
-            { errorrc "nosetests failed."; errors=$(($errors+1)); }
-    fi
-
-    if [ -n "$srpm" ]; then
-        debug 1 "building srpm."
-        inside_as_cd "$name" "$user" "$cdir" ./packages/brpm --srpm ||
-            { errorrc "brpm --srpm."; errors=$(($errors+1)); }
-    fi
-
-    if [ -n "$rpm" ]; then
-        debug 1 "building rpm."
-        inside_as_cd "$name" "$user" "$cdir" ./packages/brpm ||
-            { errorrc "brpm failed."; errors=$(($errors+1)); }
-    fi
-
-    if [ -n "$artifact" ]; then
-        for built_rpm in $(inside "$name" sh -c "echo $cdir/*.rpm"); do
-            lxc file pull "$name/$built_rpm" .
-        done
-    fi
-
-    if [ "$errors" != "0" ]; then
-        error "there were $errors errors."
-        return 1
-    fi
-    return 0
+    deprecated
+    exec "${pt[@]}"
 }
 
-if [ "${1:-}" = "prep" ]; then
-    shift
-    prep "$@"
-else
-    main "$@"
-fi
+main "$@"
+
 # vi: ts=4 expandtab

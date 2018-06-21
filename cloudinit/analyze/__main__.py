@@ -69,7 +69,7 @@ def analyze_blame(name, args):
     """
     (infh, outfh) = configure_io(args)
     blame_format = '     %ds (%n)'
-    r = re.compile('(^\s+\d+\.\d+)', re.MULTILINE)
+    r = re.compile(r'(^\s+\d+\.\d+)', re.MULTILINE)
     for idx, record in enumerate(show.show_events(_get_events(infh),
                                                   blame_format)):
         srecs = sorted(filter(r.match, record), reverse=True)

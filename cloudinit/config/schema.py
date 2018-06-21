@@ -4,7 +4,7 @@
 from __future__ import print_function
 
 from cloudinit import importer
-from cloudinit.util import find_modules, read_file_or_url
+from cloudinit.util import find_modules, load_file
 
 import argparse
 from collections import defaultdict
@@ -93,20 +93,33 @@ def validate_cloudconfig_schema(config, schema, strict=False):
 def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
     """Return contents of the cloud-config file annotated with schema errors.
 
-    @param cloudconfig: YAML-loaded object from the original_content.
+    @param cloudconfig: YAML-loaded dict from the original_content or empty
+        dict if unparseable.
     @param original_content: The contents of a cloud-config file
     @param schema_errors: List of tuples from a JSONSchemaValidationError. The
         tuples consist of (schemapath, error_message).
     """
     if not schema_errors:
         return original_content
-    schemapaths = _schemapath_for_cloudconfig(cloudconfig, original_content)
+    schemapaths = {}
+    if cloudconfig:
+        schemapaths = _schemapath_for_cloudconfig(
+            cloudconfig, original_content)
     errors_by_line = defaultdict(list)
     error_count = 1
     error_footer = []
     annotated_content = []
     for path, msg in schema_errors:
-        errors_by_line[schemapaths[path]].append(msg)
+        match = re.match(r'format-l(?P<line>\d+)\.c(?P<col>\d+).*', path)
+        if match:
+            line, col = match.groups()
+            errors_by_line[int(line)].append(msg)
+        else:
+            col = None
+            errors_by_line[schemapaths[path]].append(msg)
+        if col is not None:
+            msg = 'Line {line} column {col}: {msg}'.format(
+                line=line, col=col, msg=msg)
         error_footer.append('# E{0}: {1}'.format(error_count, msg))
         error_count += 1
     lines = original_content.decode().split('\n')
@@ -139,21 +152,34 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
     """
     if not os.path.exists(config_path):
         raise RuntimeError('Configfile {0} does not exist'.format(config_path))
-    content = read_file_or_url('file://{0}'.format(config_path)).contents
+    content = load_file(config_path, decode=False)
     if not content.startswith(CLOUD_CONFIG_HEADER):
         errors = (
-            ('header', 'File {0} needs to begin with "{1}"'.format(
+            ('format-l1.c1', 'File {0} needs to begin with "{1}"'.format(
                 config_path, CLOUD_CONFIG_HEADER.decode())),)
-        raise SchemaValidationError(errors)
-
+        error = SchemaValidationError(errors)
+        if annotate:
+            print(annotated_cloudconfig_file({}, content, error.schema_errors))
+        raise error
     try:
         cloudconfig = yaml.safe_load(content)
-    except yaml.parser.ParserError as e:
-        errors = (
-            ('format', 'File {0} is not valid yaml. {1}'.format(
-                config_path, str(e))),)
-        raise SchemaValidationError(errors)
-
+    except (yaml.YAMLError) as e:
+        line = column = 1
+        mark = None
+        if hasattr(e, 'context_mark') and getattr(e, 'context_mark'):
+            mark = getattr(e, 'context_mark')
+        elif hasattr(e, 'problem_mark') and getattr(e, 'problem_mark'):
+            mark = getattr(e, 'problem_mark')
+        if mark:
+            line = mark.line + 1
+            column = mark.column + 1
+        errors = (('format-l{line}.c{col}'.format(line=line, col=column),
+                   'File {0} is not valid yaml. {1}'.format(
+                       config_path, str(e))),)
+        error = SchemaValidationError(errors)
+        if annotate:
+            print(annotated_cloudconfig_file({}, content, error.schema_errors))
+        raise error
     try:
         validate_cloudconfig_schema(
             cloudconfig, schema, strict=True)
@@ -176,7 +202,7 @@ def _schemapath_for_cloudconfig(config, original_content):
     list_index = 0
     RE_YAML_INDENT = r'^(\s*)'
     scopes = []
-    for line_number, line in enumerate(content_lines):
+    for line_number, line in enumerate(content_lines, 1):
         indent_depth = len(re.match(RE_YAML_INDENT, line).groups()[0])
         line = line.strip()
         if not line or line.startswith('#'):
@@ -208,8 +234,8 @@ def _schemapath_for_cloudconfig(config, original_content):
                 scopes.append((indent_depth + 2, key + '.0'))
                 for inner_list_index in range(0, len(yaml.safe_load(value))):
                     list_key = key + '.' + str(inner_list_index)
-                    schema_line_numbers[list_key] = line_number + 1
-        schema_line_numbers[key] = line_number + 1
+                    schema_line_numbers[list_key] = line_number
+        schema_line_numbers[key] = line_number
     return schema_line_numbers
 
 
@@ -297,8 +323,8 @@ def get_schema():
 
     configs_dir = os.path.dirname(os.path.abspath(__file__))
     potential_handlers = find_modules(configs_dir)
-    for (fname, mod_name) in potential_handlers.items():
-        mod_locs, looked_locs = importer.find_module(
+    for (_fname, mod_name) in potential_handlers.items():
+        mod_locs, _looked_locs = importer.find_module(
             mod_name, ['cloudinit.config'], ['schema'])
         if mod_locs:
             mod = importer.import_module(mod_locs[0])
@@ -337,8 +363,10 @@ def handle_schema_args(name, args):
         try:
             validate_cloudconfig_file(
                 args.config_file, full_schema, args.annotate)
-        except (SchemaValidationError, RuntimeError) as e:
+        except SchemaValidationError as e:
             if not args.annotate:
+                error(str(e))
+        except RuntimeError as e:
                 error(str(e))
         else:
             print("Valid cloud-config file {0}".format(args.config_file))

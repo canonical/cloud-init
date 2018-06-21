@@ -151,6 +151,8 @@ system_info:
      groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/bash
+   # Automatically discover the best ntp_client
+   ntp_client: auto
    # Other config here will be given to the distro class and/or path classes
    paths:
       cloud_dir: /var/lib/cloud/

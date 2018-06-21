@@ -2,12 +2,9 @@
 
 from cloudinit import net
 from cloudinit.net import cmdline
-from cloudinit.net import eni
-from cloudinit.net import natural_sort_key
-from cloudinit.net import netplan
-from cloudinit.net import network_state
-from cloudinit.net import renderers
-from cloudinit.net import sysconfig
+from cloudinit.net import (
+    eni, interface_has_own_mac, natural_sort_key, netplan, network_state,
+    renderers, sysconfig)
 from cloudinit.sources.helpers import openstack
 from cloudinit import temp_utils
 from cloudinit import util
@@ -528,6 +525,7 @@ NETWORK_CONFIGS = {
             config:
               - type: 'physical'
                 name: 'iface0'
+                mtu: 8999
                 subnets:
                   - type: static
                     address: 192.168.14.2/24
@@ -550,6 +548,43 @@ NETWORK_CONFIGS = {
                 USERCTL=no
                 MTU=9000
                 IPV6_MTU=1500
+                """),
+        },
+    },
+    'dhcpv6_only': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    iface0:
+                        dhcp6: true
+        """).rstrip(' '),
+        'yaml': textwrap.dedent("""\
+            version: 1
+            config:
+              - type: 'physical'
+                name: 'iface0'
+                subnets:
+                - {'type': 'dhcp6'}
+        """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=iface0
+                DHCPV6C=yes
+                IPV6INIT=yes
+                DEVICE=iface0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
                 """),
         },
     },
@@ -626,8 +661,8 @@ iface eth0.101 inet static
     dns-nameservers 192.168.0.10 10.23.23.134
     dns-search barley.maas sacchromyces.maas brettanomyces.maas
     gateway 192.168.0.1
-    hwaddress aa:bb:cc:dd:ee:11
     mtu 1500
+    hwaddress aa:bb:cc:dd:ee:11
     vlan-raw-device eth0
     vlan_id 101
 
@@ -723,6 +758,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         id: 101
                         link: eth0
                         macaddress: aa:bb:cc:dd:ee:11
+                        mtu: 1500
                         nameservers:
                             addresses:
                             - 192.168.0.10
@@ -740,7 +776,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                                            """miimon=100"
                 BONDING_SLAVE0=eth1
                 BONDING_SLAVE1=eth2
-                BOOTPROTO=dhcp
+                BOOTPROTO=none
                 DEVICE=bond0
                 DHCPV6C=yes
                 IPV6INIT=yes
@@ -886,6 +922,8 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                   mtu: 1500
                   subnets:
                     - type: static
+                      # When 'mtu' matches device-level mtu, no warnings
+                      mtu: 1500
                       address: 192.168.0.2/24
                       gateway: 192.168.0.1
                       dns_nameservers:
@@ -994,6 +1032,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
               - type: bond
                 name: bond0
                 mac_address: "aa:bb:cc:dd:e8:ff"
+                mtu: 9000
                 bond_interfaces:
                   - bond0s0
                   - bond0s1
@@ -1036,6 +1075,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                      interfaces:
                      - bond0s0
                      - bond0s1
+                     mtu: 9000
                      parameters:
                          mii-monitor-interval: 100
                          mode: active-backup
@@ -1123,6 +1163,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         IPADDR1=192.168.1.2
         IPV6ADDR=2001:1::1/92
         IPV6INIT=yes
+        MTU=9000
         NETMASK=255.255.255.0
         NETMASK1=255.255.255.0
         NM_CONTROLLED=no
@@ -1169,6 +1210,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 name: en0
                 mac_address: "aa:bb:cc:dd:e8:00"
               - type: vlan
+                mtu: 2222
                 name: en0.99
                 vlan_link: en0
                 vlan_id: 99
@@ -1204,6 +1246,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 IPV6ADDR=2001:1::bbbb/96
                 IPV6INIT=yes
                 IPV6_DEFAULTGW=2001:1::1
+                MTU=2222
                 NETMASK=255.255.255.0
                 NETMASK1=255.255.255.0
                 NM_CONTROLLED=no
@@ -1405,6 +1448,7 @@ DEFAULT_DEV_ATTRS = {
         "address": "07-1C-C6-75-A4-BE",
         "device/driver": None,
         "device/device": None,
+        "name_assign_type": "4",
     }
 }
 
@@ -1452,11 +1496,14 @@ class TestGenerateFallbackConfig(CiTestCase):
             'eth0': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'hv_netsvc', 'device/device': '0x3'},
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': '4'},
             'eth1': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'mlx4_core', 'device/device': '0x7'},
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
         }
 
         tmp_dir = self.tmp_dir()
@@ -1512,11 +1559,13 @@ iface eth0 inet dhcp
             'eth1': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'hv_netsvc', 'device/device': '0x3'},
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': '4'},
             'eth0': {
                 'bridge': False, 'carrier': False, 'dormant': False,
                 'operstate': 'down', 'address': '00:11:22:33:44:55',
-                'device/driver': 'mlx4_core', 'device/device': '0x7'},
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
         }
 
         tmp_dir = self.tmp_dir()
@@ -1565,8 +1614,71 @@ iface eth1 inet dhcp
         ]
         self.assertEqual(", ".join(expected_rule) + '\n', contents.lstrip())
 
+    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.util.udevadm_settle")
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_unstable_names(self, mock_get_devicelist, mock_read_sys_net,
+                            mock_sys_dev_path, mock_settle, m_get_cmdline):
+        """verify that udevadm settle is called when we find unstable names"""
+        devices = {
+            'eth0': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': False},
+            'ens4': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
+        }
+
+        m_get_cmdline.return_value = ''
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path,
+                    dev_attrs=devices)
+        net.generate_fallback_config(config_driver=True)
+        self.assertEqual(1, mock_settle.call_count)
+
+    @mock.patch("cloudinit.util.get_cmdline")
+    @mock.patch("cloudinit.util.udevadm_settle")
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_unstable_names_disabled(self, mock_get_devicelist,
+                                     mock_read_sys_net, mock_sys_dev_path,
+                                     mock_settle, m_get_cmdline):
+        """verify udevadm settle not called when cmdline has net.ifnames=0"""
+        devices = {
+            'eth0': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': False},
+            'ens4': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
+        }
+
+        m_get_cmdline.return_value = 'net.ifnames=0'
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path,
+                    dev_attrs=devices)
+        net.generate_fallback_config(config_driver=True)
+        self.assertEqual(0, mock_settle.call_count)
+
 
 class TestSysConfigRendering(CiTestCase):
+
+    with_logs = True
 
     scripts_dir = '/etc/sysconfig/network-scripts'
     header = ('# Created by cloud-init on instance boot automatically, '
@@ -1816,6 +1928,9 @@ USERCTL=no
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
+        self.assertNotIn(
+            'WARNING: Network config: ignoring eth0.101 device-level mtu',
+            self.logs.getvalue())
 
     def test_small_config(self):
         entry = NETWORK_CONFIGS['small']
@@ -1825,6 +1940,16 @@ USERCTL=no
 
     def test_v4_and_v6_static_config(self):
         entry = NETWORK_CONFIGS['v4_and_v6_static']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
+        expected_msg = (
+            'WARNING: Network config: ignoring iface0 device-level mtu:8999'
+            ' because ipv4 subnet-level mtu:9000 provided.')
+        self.assertIn(expected_msg, self.logs.getvalue())
+
+    def test_dhcpv6_only_config(self):
+        entry = NETWORK_CONFIGS['dhcpv6_only']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
@@ -2277,6 +2402,13 @@ class TestNetplanRoundTrip(CiTestCase):
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
+    def testsimple_render_dhcpv6_only(self):
+        entry = NETWORK_CONFIGS['dhcpv6_only']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS['all']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
@@ -2296,6 +2428,7 @@ class TestNetplanRoundTrip(CiTestCase):
 
 
 class TestEniRoundTrip(CiTestCase):
+
     def _render_and_read(self, network_config=None, state=None, eni_path=None,
                          netrules_path=None, dir=None):
         if dir is None:
@@ -2340,6 +2473,13 @@ class TestEniRoundTrip(CiTestCase):
 
     def testsimple_render_v4_and_v6(self):
         entry = NETWORK_CONFIGS['v4_and_v6']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_dhcpv6_only(self):
+        entry = NETWORK_CONFIGS['dhcpv6_only']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),
@@ -2567,6 +2707,43 @@ class TestGetInterfaces(CiTestCase):
             [mock.call('bridge1'), mock.call('enp0s1'), mock.call('bond1'),
              mock.call('b1')],
             any_order=True)
+
+
+class TestInterfaceHasOwnMac(CiTestCase):
+    """Test interface_has_own_mac.  This is admittedly a bit whitebox."""
+
+    @mock.patch('cloudinit.net.read_sys_net_int', return_value=None)
+    def test_non_strict_with_no_addr_assign_type(self, m_read_sys_net_int):
+        """If nic does not have addr_assign_type, it is not "stolen".
+
+        SmartOS containers do not provide the addr_assign_type in /sys.
+
+            $ ( cd /sys/class/net/eth0/ && grep -r . *)
+            address:90:b8:d0:20:e1:b0
+            addr_len:6
+            flags:0x1043
+            ifindex:2
+            mtu:1500
+            tx_queue_len:1
+            type:1
+        """
+        self.assertTrue(interface_has_own_mac("eth0"))
+
+    @mock.patch('cloudinit.net.read_sys_net_int', return_value=None)
+    def test_strict_with_no_addr_assign_type_raises(self, m_read_sys_net_int):
+        with self.assertRaises(ValueError):
+            interface_has_own_mac("eth0", True)
+
+    @mock.patch('cloudinit.net.read_sys_net_int')
+    def test_expected_values(self, m_read_sys_net_int):
+        msg = "address_assign_type=%d said to not have own mac"
+        for address_assign_type in (0, 1, 3):
+            m_read_sys_net_int.return_value = address_assign_type
+            self.assertTrue(
+                interface_has_own_mac("eth0", msg % address_assign_type))
+
+        m_read_sys_net_int.return_value = 2
+        self.assertFalse(interface_has_own_mac("eth0"))
 
 
 class TestGetInterfacesByMac(CiTestCase):

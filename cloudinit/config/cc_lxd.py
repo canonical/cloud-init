@@ -47,10 +47,15 @@ lxd-bridge will be configured accordingly.
             domain: <domain>
 """
 
+from cloudinit import log as logging
 from cloudinit import util
 import os
 
 distros = ['ubuntu']
+
+LOG = logging.getLogger(__name__)
+
+_DEFAULT_NETWORK_NAME = "lxdbr0"
 
 
 def handle(name, cfg, cloud, log, args):
@@ -109,6 +114,7 @@ def handle(name, cfg, cloud, log, args):
     # Set up lxd-bridge if bridge config is given
     dconf_comm = "debconf-communicate"
     if bridge_cfg:
+        net_name = bridge_cfg.get("name", _DEFAULT_NETWORK_NAME)
         if os.path.exists("/etc/default/lxd-bridge") \
                 and util.which(dconf_comm):
             # Bridge configured through packaging
@@ -135,15 +141,18 @@ def handle(name, cfg, cloud, log, args):
         else:
             # Built-in LXD bridge support
             cmd_create, cmd_attach = bridge_to_cmd(bridge_cfg)
+            maybe_cleanup_default(
+                net_name=net_name, did_init=bool(init_cfg),
+                create=bool(cmd_create), attach=bool(cmd_attach))
             if cmd_create:
                 log.debug("Creating lxd bridge: %s" %
                           " ".join(cmd_create))
-                util.subp(cmd_create)
+                _lxc(cmd_create)
 
             if cmd_attach:
                 log.debug("Setting up default lxd bridge: %s" %
                           " ".join(cmd_create))
-                util.subp(cmd_attach)
+                _lxc(cmd_attach)
 
     elif bridge_cfg:
         raise RuntimeError(
@@ -204,10 +213,10 @@ def bridge_to_cmd(bridge_cfg):
     if bridge_cfg.get("mode") == "none":
         return None, None
 
-    bridge_name = bridge_cfg.get("name", "lxdbr0")
+    bridge_name = bridge_cfg.get("name", _DEFAULT_NETWORK_NAME)
     cmd_create = []
-    cmd_attach = ["lxc", "network", "attach-profile", bridge_name,
-                  "default", "eth0", "--force-local"]
+    cmd_attach = ["network", "attach-profile", bridge_name,
+                  "default", "eth0"]
 
     if bridge_cfg.get("mode") == "existing":
         return None, cmd_attach
@@ -215,7 +224,7 @@ def bridge_to_cmd(bridge_cfg):
     if bridge_cfg.get("mode") != "new":
         raise Exception("invalid bridge mode \"%s\"" % bridge_cfg.get("mode"))
 
-    cmd_create = ["lxc", "network", "create", bridge_name]
+    cmd_create = ["network", "create", bridge_name]
 
     if bridge_cfg.get("ipv4_address") and bridge_cfg.get("ipv4_netmask"):
         cmd_create.append("ipv4.address=%s/%s" %
@@ -247,8 +256,47 @@ def bridge_to_cmd(bridge_cfg):
     if bridge_cfg.get("domain"):
         cmd_create.append("dns.domain=%s" % bridge_cfg.get("domain"))
 
-    cmd_create.append("--force-local")
-
     return cmd_create, cmd_attach
+
+
+def _lxc(cmd):
+    env = {'LC_ALL': 'C'}
+    util.subp(['lxc'] + list(cmd) + ["--force-local"], update_env=env)
+
+
+def maybe_cleanup_default(net_name, did_init, create, attach,
+                          profile="default", nic_name="eth0"):
+    """Newer versions of lxc (3.0.1+) create a lxdbr0 network when
+    'lxd init --auto' is run.  Older versions did not.
+
+    By removing ay that lxd-init created, we simply leave the add/attach
+    code in-tact.
+
+    https://github.com/lxc/lxd/issues/4649"""
+    if net_name != _DEFAULT_NETWORK_NAME or not did_init:
+        return
+
+    fail_assume_enoent = " failed. Assuming it did not exist."
+    succeeded = " succeeded."
+    if create:
+        msg = "Deletion of lxd network '%s'" % net_name
+        try:
+            _lxc(["network", "delete", net_name])
+            LOG.debug(msg + succeeded)
+        except util.ProcessExecutionError as e:
+            if e.exit_code != 1:
+                raise e
+            LOG.debug(msg + fail_assume_enoent)
+
+    if attach:
+        msg = "Removal of device '%s' from profile '%s'" % (nic_name, profile)
+        try:
+            _lxc(["profile", "device", "remove", profile, nic_name])
+            LOG.debug(msg + succeeded)
+        except util.ProcessExecutionError as e:
+            if e.exit_code != 1:
+                raise e
+            LOG.debug(msg + fail_assume_enoent)
+
 
 # vi: ts=4 expandtab

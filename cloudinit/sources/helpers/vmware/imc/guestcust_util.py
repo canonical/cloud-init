@@ -91,7 +91,7 @@ def enable_nics(nics):
 
     for attempt in range(0, enableNicsWaitRetries):
         logger.debug("Trying to connect interfaces, attempt %d", attempt)
-        (out, err) = set_customization_status(
+        (out, _err) = set_customization_status(
             GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
             GuestCustEventEnum.GUESTCUST_EVENT_ENABLE_NICS,
             nics)
@@ -104,7 +104,7 @@ def enable_nics(nics):
             return
 
         for count in range(0, enableNicsWaitCount):
-            (out, err) = set_customization_status(
+            (out, _err) = set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                 GuestCustEventEnum.GUESTCUST_EVENT_QUERY_NICS,
                 nics)

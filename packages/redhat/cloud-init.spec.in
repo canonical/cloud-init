@@ -115,6 +115,13 @@ rm -rf $RPM_BUILD_ROOT%{python_sitelib}/tests
 mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
 mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
 
+# patch in the full version to version.py
+version_pys=$(cd "$RPM_BUILD_ROOT" && find . -name version.py -type f)
+[ -n "$version_pys" ] ||
+   { echo "failed to find 'version.py' to patch with version." 1>&2; exit 1; }
+( cd "$RPM_BUILD_ROOT" &&
+  sed -i "s,@@PACKAGED_VERSION@@,%{version}-%{release}," $version_pys )
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
@@ -197,6 +204,7 @@ fi
 %dir                    %{_sysconfdir}/cloud/templates
 %config(noreplace)      %{_sysconfdir}/cloud/templates/*
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+%{_sysconfdir}/bash_completion.d/cloud-init
 
 %{_libexecdir}/%{name}
 %dir %{_sharedstatedir}/cloud

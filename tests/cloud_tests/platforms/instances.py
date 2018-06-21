@@ -87,7 +87,12 @@ class Instance(TargetBase):
             self._ssh_client = None
 
     def _ssh_connect(self):
-        """Connect via SSH."""
+        """Connect via SSH.
+
+        Attempt to SSH to the client on the specific IP and port. If it
+        fails in some manner, then retry 2 more times for a total of 3
+        attempts; sleeping a few seconds between attempts.
+        """
         if self._ssh_client:
             return self._ssh_client
 
@@ -98,21 +103,22 @@ class Instance(TargetBase):
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         private_key = paramiko.RSAKey.from_private_key_file(self.ssh_key_file)
 
-        retries = 30
+        retries = 3
         while retries:
             try:
                 client.connect(username=self.ssh_username,
                                hostname=self.ssh_ip, port=self.ssh_port,
-                               pkey=private_key, banner_timeout=30)
+                               pkey=private_key)
                 self._ssh_client = client
                 return client
             except (ConnectionRefusedError, AuthenticationException,
                     BadHostKeyException, ConnectionResetError, SSHException,
-                    OSError) as e:
+                    OSError):
                 retries -= 1
-                time.sleep(10)
+                LOG.debug('Retrying ssh connection on connect failure')
+                time.sleep(3)
 
-        ssh_cmd = 'Failed ssh connection to %s@%s:%s after 300 seconds' % (
+        ssh_cmd = 'Failed ssh connection to %s@%s:%s after 3 retries' % (
             self.ssh_username, self.ssh_ip, self.ssh_port
         )
         raise util.InTargetExecuteError(b'', b'', 1, ssh_cmd, 'ssh')
@@ -128,18 +134,31 @@ class Instance(TargetBase):
             return ' '.join(l for l in test.strip().splitlines()
                             if not l.lstrip().startswith('#'))
 
-        time = self.config['boot_timeout']
+        boot_timeout = self.config['boot_timeout']
         tests = [self.config['system_ready_script']]
         if wait_for_cloud_init:
             tests.append(self.config['cloud_init_ready_script'])
 
         formatted_tests = ' && '.join(clean_test(t) for t in tests)
         cmd = ('i=0; while [ $i -lt {time} ] && i=$(($i+1)); do {test} && '
-               'exit 0; sleep 1; done; exit 1').format(time=time,
+               'exit 0; sleep 1; done; exit 1').format(time=boot_timeout,
                                                        test=formatted_tests)
 
-        if self.execute(cmd, rcs=(0, 1))[-1] != 0:
-            raise OSError('timeout: after {}s system not started'.format(time))
+        end_time = time.time() + boot_timeout
+        while True:
+            try:
+                return_code = self.execute(
+                    cmd, rcs=(0, 1), description='wait for instance start'
+                )[-1]
+                if return_code == 0:
+                    break
+            except util.InTargetExecuteError:
+                LOG.warning("failed to connect via SSH")
 
+            if time.time() < end_time:
+                time.sleep(3)
+            else:
+                raise util.PlatformError('ssh', 'after %ss instance is not '
+                                         'reachable' % boot_timeout)
 
 # vi: ts=4 expandtab

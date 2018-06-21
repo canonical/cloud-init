@@ -49,6 +49,9 @@ LOG = logging.getLogger(__name__)
 # It could break when Amazon adds new regions and new AZs.
 _EC2_AZ_RE = re.compile('^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$')
 
+# Default NTP Client Configurations
+PREFERRED_NTP_CLIENTS = ['chrony', 'systemd-timesyncd', 'ntp', 'ntpdate']
+
 
 @six.add_metaclass(abc.ABCMeta)
 class Distro(object):
@@ -60,6 +63,7 @@ class Distro(object):
     tz_zone_dir = "/usr/share/zoneinfo"
     init_cmd = ['service']  # systemctl, service etc
     renderer_configs = {}
+    _preferred_ntp_clients = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -339,6 +343,14 @@ class Distro(object):
             contents.write("%s\n" % (eh))
             util.write_file(self.hosts_fn, contents.getvalue(), mode=0o644)
 
+    @property
+    def preferred_ntp_clients(self):
+        """Allow distro to determine the preferred ntp client list"""
+        if not self._preferred_ntp_clients:
+            self._preferred_ntp_clients = list(PREFERRED_NTP_CLIENTS)
+
+        return self._preferred_ntp_clients
+
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]
         LOG.debug("Attempting to run bring up interface %s using command %s",
@@ -519,7 +531,7 @@ class Distro(object):
             self.lock_passwd(name)
 
         # Configure sudo access
-        if 'sudo' in kwargs:
+        if 'sudo' in kwargs and kwargs['sudo'] is not False:
             self.write_sudo_rules(name, kwargs['sudo'])
 
         # Import SSH keys

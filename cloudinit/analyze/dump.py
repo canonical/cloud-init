@@ -112,7 +112,7 @@ def parse_ci_logline(line):
             return None
         event_description = stage_to_description[event_name]
     else:
-        (pymodloglvl, event_type, event_name) = eventstr.split()[0:3]
+        (_pymodloglvl, event_type, event_name) = eventstr.split()[0:3]
         event_description = eventstr.split(event_name)[1].strip()
 
     event = {

@@ -1,9 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_bootcmd
+from cloudinit.config.cc_bootcmd import handle, schema
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
-from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from cloudinit.tests.helpers import (
+    CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
 
 import logging
 import tempfile
@@ -50,7 +51,7 @@ class TestBootcmd(CiTestCase):
         """When the provided config doesn't contain bootcmd, skip it."""
         cfg = {}
         mycloud = self._get_cloud('ubuntu')
-        cc_bootcmd.handle('notimportant', cfg, mycloud, LOG, None)
+        handle('notimportant', cfg, mycloud, LOG, None)
         self.assertIn(
             "Skipping module named notimportant, no 'bootcmd' key",
             self.logs.getvalue())
@@ -60,7 +61,7 @@ class TestBootcmd(CiTestCase):
         invalid_config = {'bootcmd': 1}
         cc = self._get_cloud('ubuntu')
         with self.assertRaises(TypeError) as context_manager:
-            cc_bootcmd.handle('cc_bootcmd', invalid_config, cc, LOG, [])
+            handle('cc_bootcmd', invalid_config, cc, LOG, [])
         self.assertIn('Failed to shellify bootcmd', self.logs.getvalue())
         self.assertEqual(
             "Input to shellify was type 'int'. Expected list or tuple.",
@@ -76,7 +77,7 @@ class TestBootcmd(CiTestCase):
         invalid_config = {'bootcmd': 1}
         cc = self._get_cloud('ubuntu')
         with self.assertRaises(TypeError):
-            cc_bootcmd.handle('cc_bootcmd', invalid_config, cc, LOG, [])
+            handle('cc_bootcmd', invalid_config, cc, LOG, [])
         self.assertIn(
             'Invalid config:\nbootcmd: 1 is not of type \'array\'',
             self.logs.getvalue())
@@ -93,7 +94,7 @@ class TestBootcmd(CiTestCase):
             'bootcmd': ['ls /', 20, ['wget', 'http://stuff/blah'], {'a': 'n'}]}
         cc = self._get_cloud('ubuntu')
         with self.assertRaises(TypeError) as context_manager:
-            cc_bootcmd.handle('cc_bootcmd', invalid_config, cc, LOG, [])
+            handle('cc_bootcmd', invalid_config, cc, LOG, [])
         expected_warnings = [
             'bootcmd.1: 20 is not valid under any of the given schemas',
             'bootcmd.3: {\'a\': \'n\'} is not valid under any of the given'
@@ -117,7 +118,7 @@ class TestBootcmd(CiTestCase):
             'echo {0} $INSTANCE_ID > {1}'.format(my_id, out_file)]}
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
-            cc_bootcmd.handle('cc_bootcmd', valid_config, cc, LOG, [])
+            handle('cc_bootcmd', valid_config, cc, LOG, [])
         self.assertEqual(my_id + ' iid-datasource-none\n',
                          util.load_file(out_file))
 
@@ -128,7 +129,7 @@ class TestBootcmd(CiTestCase):
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
             with self.assertRaises(util.ProcessExecutionError) as ctxt_manager:
-                cc_bootcmd.handle('does-not-matter', valid_config, cc, LOG, [])
+                handle('does-not-matter', valid_config, cc, LOG, [])
         self.assertIn(
             'Unexpected error while running command.\n'
             "Command: ['/bin/sh',",
@@ -136,6 +137,23 @@ class TestBootcmd(CiTestCase):
         self.assertIn(
             'Failed to run bootcmd module does-not-matter',
             self.logs.getvalue())
+
+
+@skipUnlessJsonSchema()
+class TestSchema(CiTestCase, SchemaTestCaseMixin):
+    """Directly test schema rather than through handle."""
+
+    schema = schema
+
+    def test_duplicates_are_fine_array_array(self):
+        """Duplicated commands array/array entries are allowed."""
+        self.assertSchemaValid(
+            ["byebye", "byebye"], 'command entries can be duplicate')
+
+    def test_duplicates_are_fine_array_string(self):
+        """Duplicated commands array/string entries are allowed."""
+        self.assertSchemaValid(
+            ["echo bye", "echo bye"], "command entries can be duplicate.")
 
 
 # vi: ts=4 expandtab
