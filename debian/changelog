@@ -1,4 +1,4 @@
-cloud-init (18.3-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (18.3-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/rules: update version.version_string to contain packaged version.
     (LP: #1770712)
