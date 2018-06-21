@@ -2,8 +2,11 @@ cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
 
   * debian/rules: update version.version_string to contain packaged version.
     (LP: #1770712)
+  * debian/patches/openstack-no-network-config.patch
+    add patch to ignore Openstack network_config from network_data.json by
+    default
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 04 Jun 2018 10:15:42 -0400
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 21 Jun 2018 14:16:56 -0600
 
 cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
