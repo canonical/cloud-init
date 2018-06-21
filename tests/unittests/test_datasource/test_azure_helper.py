@@ -195,7 +195,7 @@ class TestAzureEndpointHttpClient(CiTestCase):
         self.addCleanup(patches.close)
 
         self.read_file_or_url = patches.enter_context(
-            mock.patch.object(azure_helper.util, 'read_file_or_url'))
+            mock.patch.object(azure_helper.url_helper, 'read_file_or_url'))
 
     def test_non_secure_get(self):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())

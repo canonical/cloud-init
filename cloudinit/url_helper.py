@@ -15,6 +15,7 @@ import six
 import time
 
 from email.utils import parsedate
+from errno import ENOENT
 from functools import partial
 from itertools import count
 from requests import exceptions
@@ -80,6 +81,32 @@ def combine_url(base, *add_ons):
     return url
 
 
+def read_file_or_url(url, timeout=5, retries=10,
+                     headers=None, data=None, sec_between=1, ssl_details=None,
+                     headers_cb=None, exception_cb=None):
+    url = url.lstrip()
+    if url.startswith("/"):
+        url = "file://%s" % url
+    if url.lower().startswith("file://"):
+        if data:
+            LOG.warning("Unable to post data to file resource %s", url)
+        file_path = url[len("file://"):]
+        try:
+            with open(file_path, "rb") as fp:
+                contents = fp.read()
+        except IOError as e:
+            code = e.errno
+            if e.errno == ENOENT:
+                code = NOT_FOUND
+            raise UrlError(cause=e, code=code, headers=None, url=url)
+        return FileResponse(file_path, contents=contents)
+    else:
+        return readurl(url, timeout=timeout, retries=retries, headers=headers,
+                       headers_cb=headers_cb, data=data,
+                       sec_between=sec_between, ssl_details=ssl_details,
+                       exception_cb=exception_cb)
+
+
 # Made to have same accessors as UrlResponse so that the
 # read_file_or_url can return this or that object and the
 # 'user' of those objects will not need to know the difference.
@@ -96,7 +123,7 @@ class StringResponse(object):
         return True
 
     def __str__(self):
-        return self.contents
+        return self.contents.decode('utf-8')
 
 
 class FileResponse(StringResponse):
@@ -519,7 +546,7 @@ def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
         resource_owner_secret=token_secret,
         signature_method=oauth1.SIGNATURE_PLAINTEXT,
         timestamp=timestamp)
-    uri, signed_headers, body = client.sign(url)
+    _uri, signed_headers, _body = client.sign(url)
     return signed_headers
 
 # vi: ts=4 expandtab

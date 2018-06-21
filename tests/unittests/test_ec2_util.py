@@ -11,7 +11,6 @@ from cloudinit import url_helper as uh
 class TestEc2Util(helpers.HttprettyTestCase):
     VERSION = 'latest'
 
-    @hp.activate
     def test_userdata_fetch(self):
         hp.register_uri(hp.GET,
                         'http://169.254.169.254/%s/user-data' % (self.VERSION),
@@ -20,7 +19,6 @@ class TestEc2Util(helpers.HttprettyTestCase):
         userdata = eu.get_instance_userdata(self.VERSION)
         self.assertEqual('stuff', userdata.decode('utf-8'))
 
-    @hp.activate
     def test_userdata_fetch_fail_not_found(self):
         hp.register_uri(hp.GET,
                         'http://169.254.169.254/%s/user-data' % (self.VERSION),
@@ -28,7 +26,6 @@ class TestEc2Util(helpers.HttprettyTestCase):
         userdata = eu.get_instance_userdata(self.VERSION, retries=0)
         self.assertEqual('', userdata)
 
-    @hp.activate
     def test_userdata_fetch_fail_server_dead(self):
         hp.register_uri(hp.GET,
                         'http://169.254.169.254/%s/user-data' % (self.VERSION),
@@ -36,7 +33,6 @@ class TestEc2Util(helpers.HttprettyTestCase):
         userdata = eu.get_instance_userdata(self.VERSION, retries=0)
         self.assertEqual('', userdata)
 
-    @hp.activate
     def test_userdata_fetch_fail_server_not_found(self):
         hp.register_uri(hp.GET,
                         'http://169.254.169.254/%s/user-data' % (self.VERSION),
@@ -44,7 +40,6 @@ class TestEc2Util(helpers.HttprettyTestCase):
         userdata = eu.get_instance_userdata(self.VERSION)
         self.assertEqual('', userdata)
 
-    @hp.activate
     def test_metadata_fetch_no_keys(self):
         base_url = 'http://169.254.169.254/%s/meta-data/' % (self.VERSION)
         hp.register_uri(hp.GET, base_url, status=200,
@@ -62,7 +57,6 @@ class TestEc2Util(helpers.HttprettyTestCase):
         self.assertEqual(md['instance-id'], '123')
         self.assertEqual(md['ami-launch-index'], '1')
 
-    @hp.activate
     def test_metadata_fetch_key(self):
         base_url = 'http://169.254.169.254/%s/meta-data/' % (self.VERSION)
         hp.register_uri(hp.GET, base_url, status=200,
@@ -83,7 +77,6 @@ class TestEc2Util(helpers.HttprettyTestCase):
         self.assertEqual(md['instance-id'], '123')
         self.assertEqual(1, len(md['public-keys']))
 
-    @hp.activate
     def test_metadata_fetch_with_2_keys(self):
         base_url = 'http://169.254.169.254/%s/meta-data/' % (self.VERSION)
         hp.register_uri(hp.GET, base_url, status=200,
@@ -108,7 +101,6 @@ class TestEc2Util(helpers.HttprettyTestCase):
         self.assertEqual(md['instance-id'], '123')
         self.assertEqual(2, len(md['public-keys']))
 
-    @hp.activate
     def test_metadata_fetch_bdm(self):
         base_url = 'http://169.254.169.254/%s/meta-data/' % (self.VERSION)
         hp.register_uri(hp.GET, base_url, status=200,
@@ -140,7 +132,6 @@ class TestEc2Util(helpers.HttprettyTestCase):
         self.assertEqual(bdm['ami'], 'sdb')
         self.assertEqual(bdm['ephemeral0'], 'sdc')
 
-    @hp.activate
     def test_metadata_no_security_credentials(self):
         base_url = 'http://169.254.169.254/%s/meta-data/' % (self.VERSION)
         hp.register_uri(hp.GET, base_url, status=200,

@@ -45,7 +45,7 @@ def _is_aliyun():
 
 def parse_public_keys(public_keys):
     keys = []
-    for key_id, key_body in public_keys.items():
+    for _key_id, key_body in public_keys.items():
         if isinstance(key_body, str):
             keys.append(key_body.strip())
         elif isinstance(key_body, list):

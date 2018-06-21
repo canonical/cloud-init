@@ -25,7 +25,7 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
             'cloud_init_modules': ['write-files'],
             'system_info': {'paths': {'run_dir': new_root}}
         }
-        ud = self.readResource('user_data.1.txt')
+        ud = helpers.readResource('user_data.1.txt')
         cloud_cfg = util.yaml_dumps(cfg)
         util.ensure_dir(os.path.join(new_root, 'etc', 'cloud'))
         util.write_file(os.path.join(new_root, 'etc',

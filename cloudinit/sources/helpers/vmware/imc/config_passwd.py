@@ -56,10 +56,10 @@ class PasswordConfigurator(object):
         LOG.info('Expiring password.')
         for user in uidUserList:
             try:
-                out, err = util.subp(['passwd', '--expire', user])
+                util.subp(['passwd', '--expire', user])
             except util.ProcessExecutionError as e:
                 if os.path.exists('/usr/bin/chage'):
-                    out, e = util.subp(['chage', '-d', '0', user])
+                    util.subp(['chage', '-d', '0', user])
                 else:
                     LOG.warning('Failed to expire password for %s with error: '
                                 '%s', user, e)

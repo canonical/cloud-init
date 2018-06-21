@@ -13,22 +13,28 @@ Usage: ${0##*/} [revision]
     create a tarball of revision (default HEAD)
 
     options:
-      -o | --output FILE   write to file
+      -h | --help		print usage
+      -o | --output FILE	write to file
+           --orig-tarball	Write file cloud-init_<version>.orig.tar.gz
+           --long		Use git describe --long for versioning
 EOF
 }
 
 short_opts="ho:v"
-long_opts="help,output:,long,verbose"
+long_opts="help,output:,orig-tarball,long"
 getopt_out=$(getopt --name "${0##*/}" \
     --options "${short_opts}" --long "${long_opts}" -- "$@") &&
     eval set -- "${getopt_out}" || { Usage 1>&2; exit 1; }
 
 long_opt=""
+orig_opt=""
 while [ $# -ne 0 ]; do
     cur=$1; next=$2
     case "$cur" in
+        -h|--help) Usage; exit 0;;
         -o|--output) output=$next; shift;;
            --long) long_opt="--long";;
+           --orig-tarball) orig_opt=".orig";;
         --) shift; break;;
     esac
     shift;
@@ -39,7 +45,10 @@ version=$(git describe --abbrev=8 "--match=[0-9]*" ${long_opt} $rev)
 
 archive_base="cloud-init-$version"
 if [ -z "$output" ]; then
-    output="$archive_base.tar.gz"
+    if [ ! -z "$orig_opt" ]; then
+        archive_base="cloud-init_$version"
+    fi
+    output="$archive_base$orig_opt.tar.gz"
 fi
 
 # when building an archiving from HEAD, ensure that there aren't any

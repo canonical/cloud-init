@@ -121,7 +121,11 @@ def detect_template(text):
 def render_from_file(fn, params):
     if not params:
         params = {}
-    template_type, renderer, content = detect_template(util.load_file(fn))
+    # jinja in python2 uses unicode internally.  All py2 str will be decoded.
+    # If it is given a str that has non-ascii then it will raise a
+    # UnicodeDecodeError.  So we explicitly convert to unicode type here.
+    template_type, renderer, content = detect_template(
+        util.load_file(fn, decode=False).decode('utf-8'))
     LOG.debug("Rendering content of '%s' using renderer %s", fn, template_type)
     return renderer(content, params)
 
@@ -132,14 +136,18 @@ def render_to_file(fn, outfn, params, mode=0o644):
 
 
 def render_string_to_file(content, outfn, params, mode=0o644):
+    """Render string (or py2 unicode) to file.
+    Warning: py2 str with non-ascii chars will cause UnicodeDecodeError."""
     contents = render_string(content, params)
     util.write_file(outfn, contents, mode=mode)
 
 
 def render_string(content, params):
+    """Render string (or py2 unicode).
+    Warning: py2 str with non-ascii chars will cause UnicodeDecodeError."""
     if not params:
         params = {}
-    template_type, renderer, content = detect_template(content)
+    _template_type, renderer, content = detect_template(content)
     return renderer(content, params)
 
 # vi: ts=4 expandtab

@@ -81,7 +81,7 @@ def _resize_xfs(mount_point, devpth):
 
 
 def _resize_ufs(mount_point, devpth):
-    return ('growfs', devpth)
+    return ('growfs', '-y', devpth)
 
 
 def _resize_zfs(mount_point, devpth):
@@ -89,13 +89,11 @@ def _resize_zfs(mount_point, devpth):
 
 
 def _get_dumpfs_output(mount_point):
-    dumpfs_res, err = util.subp(['dumpfs', '-m', mount_point])
-    return dumpfs_res
+    return util.subp(['dumpfs', '-m', mount_point])[0]
 
 
 def _get_gpart_output(part):
-    gpart_res, err = util.subp(['gpart', 'show', part])
-    return gpart_res
+    return util.subp(['gpart', 'show', part])[0]
 
 
 def _can_skip_resize_ufs(mount_point, devpth):
@@ -113,7 +111,7 @@ def _can_skip_resize_ufs(mount_point, devpth):
         if not line.startswith('#'):
             newfs_cmd = shlex.split(line)
             opt_value = 'O:Ua:s:b:d:e:f:g:h:i:jk:m:o:'
-            optlist, args = getopt.getopt(newfs_cmd[1:], opt_value)
+            optlist, _args = getopt.getopt(newfs_cmd[1:], opt_value)
             for o, a in optlist:
                 if o == "-s":
                     cur_fs_sz = int(a)

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=2015,2039,2162,2166
 #
 # ds-identify is configured via /etc/cloud/ds-identify.cfg
 # or on the kernel command line. It takes primarily 2 inputs:
@@ -186,6 +187,16 @@ block_dev_with_label() {
     return 0
 }
 
+ensure_sane_path() {
+    local t
+    for t in /sbin /usr/sbin /bin /usr/bin; do
+        case ":$PATH:" in
+            *:$t:*|*:$t/:*) continue;;
+        esac
+        PATH="${PATH:+${PATH}:}$t"
+    done
+}
+
 read_fs_info() {
     cached "${DI_BLKID_OUTPUT}" && return 0
     # do not rely on links in /dev/disk which might not be present yet.
@@ -210,7 +221,9 @@ read_fs_info() {
     # 'set --' will collapse multiple consecutive entries in IFS for
     # whitespace characters (\n, tab, " ") so we cannot rely on getting
     # empty lines in "$@" below.
-    IFS="$CR"; set -- $out; IFS="$oifs"
+
+    # shellcheck disable=2086
+    { IFS="$CR"; set -- $out; IFS="$oifs"; }
 
     for line in "$@"; do
         case "${line}" in
@@ -258,7 +271,7 @@ read_virt() {
 
 is_container() {
     case "${DI_VIRT}" in
-        lxc|lxc-libvirt|systemd-nspawn|docker|rkt) return 0;;
+        container-other|lxc|lxc-libvirt|systemd-nspawn|docker|rkt) return 0;;
         *) return 1;;
     esac
 }
@@ -310,6 +323,7 @@ read_dmi_product_serial() {
     DI_DMI_PRODUCT_SERIAL="$_RET"
 }
 
+# shellcheck disable=2034
 read_uname_info() {
     # run uname, and parse output.
     # uname is tricky to parse as it outputs always in a given order
@@ -329,6 +343,7 @@ read_uname_info() {
             return $ret
         }
     fi
+    # shellcheck disable=2086
     set -- $out
     DI_UNAME_KERNEL_NAME="$1"
     DI_UNAME_NODENAME="$2"
@@ -356,7 +371,8 @@ parse_yaml_array() {
     # the fix was to quote the open bracket (val=${val#"["}) (LP: #1689648)
     val=${val#"["}
     val=${val%"]"}
-    IFS=","; set -- $val; IFS="$oifs"
+    # shellcheck disable=2086
+    { IFS=","; set -- $val; IFS="$oifs"; }
     for tok in "$@"; do
         trim "$tok"
         unquote "$_RET"
@@ -392,7 +408,7 @@ read_datasource_list() {
     fi
     if [ -z "$dslist" ]; then
         dslist=${DI_DSLIST_DEFAULT}
-        debug 1 "no datasource_list found, using default:" $dslist
+        debug 1 "no datasource_list found, using default: $dslist"
     fi
     DI_DSLIST=$dslist
     return 0
@@ -403,7 +419,8 @@ read_pid1_product_name() {
     cached "${DI_PID_1_PRODUCT_NAME}" && return
     [ -r "${PATH_PROC_1_ENVIRON}" ] || return
     out=$(tr '\0' '\n' <"${PATH_PROC_1_ENVIRON}")
-    IFS="$CR"; set -- $out; IFS="$oifs"
+    # shellcheck disable=2086
+    { IFS="$CR"; set -- $out; IFS="$oifs"; }
     for tok in "$@"; do
         key=${tok%%=*}
         [ "$key" != "$tok" ] || continue
@@ -470,6 +487,7 @@ nocase_equal() {
     [ "$1" = "$2" ] && return 0
 
     local delim="-delim-"
+    # shellcheck disable=2018,2019
     out=$(echo "$1${delim}$2" | tr A-Z a-z)
     [ "${out#*${delim}}" = "${out%${delim}*}" ]
 }
@@ -546,11 +564,13 @@ check_config() {
     else
         files="$*"
     fi
-    set +f; set -- $files; set -f;
+    # shellcheck disable=2086
+    { set +f; set -- $files; set -f; }
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
     fi
     local fname="" line="" ret="" found=0 found_fn=""
+    # shellcheck disable=2094
     for fname in "$@"; do
         [ -f "$fname" ] || continue
         while read line; do
@@ -600,7 +620,6 @@ dscheck_NoCloud() {
         *\ ds=nocloud*) return ${DS_FOUND};;
     esac
 
-    is_ibm_cloud && return ${DS_NOT_FOUND}
     for d in nocloud nocloud-net; do
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
         check_writable_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
@@ -611,11 +630,12 @@ dscheck_NoCloud() {
     return ${DS_NOT_FOUND}
 }
 
+is_ds_enabled() {
+    local name="$1" pad=" ${DI_DSLIST} "
+    [ "${pad#* $name }" != "${pad}" ]
+}
+
 check_configdrive_v2() {
-    is_ibm_cloud && return ${DS_NOT_FOUND}
-    if has_fs_with_label CONFIG-2 config-2; then
-        return ${DS_FOUND}
-    fi
     # look in /config-drive <vlc>/seed/config_drive for a directory
     # openstack/YYYY-MM-DD format with a file meta_data.json
     local d=""
@@ -628,6 +648,15 @@ check_configdrive_v2() {
     local lpath="openstack/latest/meta_data.json"
     if [ -e "$vlc_config_drive_path/$lpath" ]; then
         debug 1 "config drive seeded directory had only 'latest'"
+        return ${DS_FOUND}
+    fi
+
+    local ibm_enabled=false
+    is_ds_enabled "IBMCloud" && ibm_enabled=true
+    debug 1 "is_ds_enabled(IBMCloud) = $ibm_enabled."
+    [ "$ibm_enabled" = "true" ] && is_ibm_cloud && return ${DS_NOT_FOUND}
+
+    if has_fs_with_label CONFIG-2 config-2; then
         return ${DS_FOUND}
     fi
     return ${DS_NOT_FOUND}
@@ -786,7 +815,7 @@ ec2_read_strict_setting() {
     # 3. look for the key 'strict_id' (datasource/Ec2/strict_id)
     # only in cloud.cfg or cloud.cfg.d/EC2.cfg (case insensitive)
     local cfg="${PATH_ETC_CI_CFG}" cfg_d="${PATH_ETC_CI_CFG_D}"
-    if check_config strict_id $cfg "$cfg_d/*[Ee][Cc]2*.cfg"; then
+    if check_config strict_id "$cfg" "$cfg_d/*[Ee][Cc]2*.cfg"; then
         debug 2 "${_RET_fname} set strict_id to $_RET"
         return 0
     fi
@@ -971,12 +1000,14 @@ dscheck_SmartOS() {
     # joyent cloud has two virt types: kvm and container
     # on kvm, product name on joyent public cloud shows 'SmartDC HVM'
     # on the container platform, uname's version has: BrandZ virtual linux
+    # for container, we also verify that the socketfile exists to protect
+    # against embedded containers (lxd running on brandz)
     local smartdc_kver="BrandZ virtual linux"
+    local metadata_sockfile="${PATH_ROOT}/native/.zonecontrol/metadata.sock"
     dmi_product_name_matches "SmartDC*" && return $DS_FOUND
-    if [ "${DI_UNAME_KERNEL_VERSION}" = "${smartdc_kver}" ] &&
-       [ "${DI_VIRT}" = "container-other" ]; then
-       return ${DS_FOUND}
-    fi
+    [ "${DI_UNAME_KERNEL_VERSION}" = "${smartdc_kver}" ] &&
+        [ -e "${metadata_sockfile}" ] &&
+        return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
@@ -993,7 +1024,7 @@ dscheck_Scaleway() {
         *\ scaleway\ *) return ${DS_FOUND};;
     esac
 
-    if [ -f ${PATH_ROOT}/var/run/scaleway ]; then
+    if [ -f "${PATH_ROOT}/var/run/scaleway" ]; then
         return ${DS_FOUND}
     fi
 
@@ -1006,7 +1037,25 @@ dscheck_Hetzner() {
 }
 
 is_ibm_provisioning() {
-    [ -f "${PATH_ROOT}/root/provisioningConfiguration.cfg" ]
+    local pcfg="${PATH_ROOT}/root/provisioningConfiguration.cfg"
+    local logf="${PATH_ROOT}/root/swinstall.log"
+    local is_prov=false msg="config '$pcfg' did not exist."
+    if [ -f "$pcfg" ]; then
+        msg="config '$pcfg' exists."
+        is_prov=true
+        if [ -f "$logf" ]; then
+            if [ "$logf" -nt "$PATH_PROC_1_ENVIRON" ]; then
+                msg="$msg log '$logf' from current boot."
+            else
+                is_prov=false
+                msg="$msg log '$logf' from previous boot."
+            fi
+        else
+            msg="$msg log '$logf' did not exist."
+        fi
+    fi
+    debug 2 "ibm_provisioning=$is_prov: $msg"
+    [ "$is_prov" = "true" ]
 }
 
 is_ibm_cloud() {
@@ -1130,6 +1179,7 @@ found() {
 }
 
 trim() {
+    # shellcheck disable=2048,2086
     set -- $*
     _RET="$*"
 }
@@ -1150,7 +1200,7 @@ _read_config() {
     # if no parameters are set, modifies _rc scoped environment vars.
     # if keyname is provided, then returns found value of that key.
     local keyname="${1:-_unset}"
-    local line="" hash="#" ckey="" key="" val=""
+    local line="" hash="#" key="" val=""
     while read line; do
         line=${line%%${hash}*}
         key="${line%%:*}"
@@ -1228,7 +1278,8 @@ parse_policy() {
 
     local mode="" report="" found="" maybe="" notfound=""
     local oifs="$IFS" tok="" val=""
-    IFS=","; set -- $policy; IFS="$oifs"
+    # shellcheck disable=2086
+    { IFS=","; set -- $policy; IFS="$oifs"; }
     for tok in "$@"; do
         val=${tok#*=}
         case "$tok" in
@@ -1295,15 +1346,15 @@ manual_clean_and_existing() {
 }
 
 read_uptime() {
-    local up idle
+    local up _
     _RET="${UNAVAILABLE}"
-    [ -f "$PATH_PROC_UPTIME" ] &&
-        read up idle < "$PATH_PROC_UPTIME" && _RET="$up"
+    [ -f "$PATH_PROC_UPTIME" ] && read up _ < "$PATH_PROC_UPTIME" &&
+        _RET="$up"
     return
 }
 
 _main() {
-    local dscheck="" ret_dis=1 ret_en=0
+    local dscheck_fn="" ret_dis=1 ret_en=0
 
     read_uptime
     debug 1 "[up ${_RET}s]" "ds-identify $*"
@@ -1338,8 +1389,9 @@ _main() {
         return
     fi
 
-    # if there is only a single entry in $DI_DSLIST
+    # shellcheck disable=2086
     set -- $DI_DSLIST
+    # if there is only a single entry in $DI_DSLIST
     if [ $# -eq 1 ] || [ $# -eq 2 -a "$2" = "None" ] ; then
         debug 1 "single entry in datasource_list ($DI_DSLIST) use that."
         found "$@"
@@ -1372,6 +1424,7 @@ _main() {
     done
 
     debug 2 "found=${found# } maybe=${maybe# }"
+    # shellcheck disable=2086
     set -- $found
     if [ $# -ne 0 ]; then
         if [ $# -eq 1 ]; then
@@ -1387,6 +1440,7 @@ _main() {
         return
     fi
 
+    # shellcheck disable=2086
     set -- $maybe
     if [ $# -ne 0 -a "${DI_ON_MAYBE}" != "none" ]; then
         debug 1 "$# datasources returned maybe: $*"
@@ -1415,18 +1469,19 @@ _main() {
         *) error "Unexpected result";;
     esac
     debug 1 "$msg"
-    return $ret
+    return "$ret"
 }
 
 main() {
     local ret=""
+    ensure_sane_path
     [ -d "$PATH_RUN_CI" ] || mkdir -p "$PATH_RUN_CI"
     if [ "${1:+$1}" != "--force" ] && [ -f "$PATH_RUN_CI_CFG" ] &&
         [ -f "$PATH_RUN_DI_RESULT" ]; then
         if read ret < "$PATH_RUN_DI_RESULT"; then
             if [ "$ret" = "0" ] || [ "$ret" = "1" ]; then
                 debug 2 "used cached result $ret. pass --force to re-run."
-                return $ret;
+                return "$ret";
             fi
             debug 1 "previous run returned unexpected '$ret'. Re-running."
         else
@@ -1438,7 +1493,7 @@ main() {
     echo "$ret" > "$PATH_RUN_DI_RESULT"
     read_uptime
     debug 1 "[up ${_RET}s]" "returning $ret"
-    return $ret
+    return "$ret"
 }
 
 noop() {

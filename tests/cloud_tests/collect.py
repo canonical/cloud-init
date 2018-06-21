@@ -25,7 +25,8 @@ def collect_script(instance, base_dir, script, script_name):
         script.encode(), rcs=False,
         description='collect: {}'.format(script_name))
     if err:
-        LOG.debug("collect script %s had stderr: %s", script_name, err)
+        LOG.debug("collect script %s exited '%s' and had stderr: %s",
+                  script_name, err, exit)
     if not isinstance(out, bytes):
         raise util.PlatformError(
             "Collection of '%s' returned type %s, expected bytes: %s" %
@@ -41,7 +42,7 @@ def collect_console(instance, base_dir):
     @param base_dir: directory to write console log to
     """
     logfile = os.path.join(base_dir, 'console.log')
-    LOG.debug('getting console log for %s to %s', instance, logfile)
+    LOG.debug('getting console log for %s to %s', instance.name, logfile)
     try:
         data = instance.console_log()
     except NotImplementedError as e:
@@ -92,7 +93,8 @@ def collect_test_data(args, snapshot, os_name, test_name):
     # create test instance
     component = PlatformComponent(
         partial(platforms.get_instance, snapshot, user_data,
-                block=True, start=False, use_desc=test_name))
+                block=True, start=False, use_desc=test_name),
+        preserve_instance=args.preserve_instance)
 
     LOG.info('collecting test data for test: %s', test_name)
     with component as instance:

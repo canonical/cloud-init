@@ -362,16 +362,22 @@ class Init(object):
         self._store_vendordata()
 
     def setup_datasource(self):
-        if self.datasource is None:
-            raise RuntimeError("Datasource is None, cannot setup.")
-        self.datasource.setup(is_new_instance=self.is_new_instance())
+        with events.ReportEventStack("setup-datasource",
+                                     "setting up datasource",
+                                     parent=self.reporter):
+            if self.datasource is None:
+                raise RuntimeError("Datasource is None, cannot setup.")
+            self.datasource.setup(is_new_instance=self.is_new_instance())
 
     def activate_datasource(self):
-        if self.datasource is None:
-            raise RuntimeError("Datasource is None, cannot activate.")
-        self.datasource.activate(cfg=self.cfg,
-                                 is_new_instance=self.is_new_instance())
-        self._write_to_cache()
+        with events.ReportEventStack("activate-datasource",
+                                     "activating datasource",
+                                     parent=self.reporter):
+            if self.datasource is None:
+                raise RuntimeError("Datasource is None, cannot activate.")
+            self.datasource.activate(cfg=self.cfg,
+                                     is_new_instance=self.is_new_instance())
+            self._write_to_cache()
 
     def _store_userdata(self):
         raw_ud = self.datasource.get_userdata_raw()
@@ -691,7 +697,9 @@ class Modules(object):
         module_list = []
         if name not in self.cfg:
             return module_list
-        cfg_mods = self.cfg[name]
+        cfg_mods = self.cfg.get(name)
+        if not cfg_mods:
+            return module_list
         # Create 'module_list', an array of hashes
         # Where hash['mod'] = module name
         #       hash['freq'] = frequency

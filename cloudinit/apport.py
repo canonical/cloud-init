@@ -13,10 +13,29 @@ except ImportError:
 
 
 KNOWN_CLOUD_NAMES = [
-    'Amazon - Ec2', 'AliYun', 'AltCloud', 'Azure', 'Bigstep', 'CloudSigma',
-    'CloudStack', 'DigitalOcean', 'GCE - Google Compute Engine',
-    'Hetzner Cloud', 'MAAS', 'NoCloud', 'OpenNebula', 'OpenStack', 'OVF',
-    'Scaleway', 'SmartOS', 'VMware', 'Other']
+    'AliYun',
+    'AltCloud',
+    'Amazon - Ec2',
+    'Azure',
+    'Bigstep',
+    'Brightbox',
+    'CloudSigma',
+    'CloudStack',
+    'DigitalOcean',
+    'GCE - Google Compute Engine',
+    'Hetzner Cloud',
+    'IBM - (aka SoftLayer or BlueMix)',
+    'LXD',
+    'MAAS',
+    'NoCloud',
+    'OpenNebula',
+    'OpenStack',
+    'OVF',
+    'OpenTelekomCloud',
+    'Scaleway',
+    'SmartOS',
+    'VMware',
+    'Other']
 
 # Potentially clear text collected logs
 CLOUDINIT_LOG = '/var/log/cloud-init.log'

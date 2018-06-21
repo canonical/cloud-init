@@ -78,7 +78,7 @@ class DataSourceNoCloud(sources.DataSource):
                 LOG.debug("Using seeded data from %s", path)
                 mydata = _merge_new_seed(mydata, seeded)
                 break
-            except ValueError as e:
+            except ValueError:
                 pass
 
         # If the datasource config had a 'seedfrom' entry, then that takes
@@ -117,7 +117,7 @@ class DataSourceNoCloud(sources.DataSource):
                     try:
                         seeded = util.mount_cb(dev, _pp2d_callback,
                                                pp2d_kwargs)
-                    except ValueError as e:
+                    except ValueError:
                         if dev in label_list:
                             LOG.warning("device %s with label=%s not a"
                                         "valid seed.", dev, label)

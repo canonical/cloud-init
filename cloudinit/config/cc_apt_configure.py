@@ -121,7 +121,7 @@ and https protocols respectively. The ``proxy`` key also exists as an alias for
 All source entries in ``apt-sources`` that match regex in
 ``add_apt_repo_match`` will be added to the system using
 ``add-apt-repository``. If ``add_apt_repo_match`` is not specified, it defaults
-to ``^[\w-]+:\w``
+to ``^[\\w-]+:\\w``
 
 **Add source list entries:**
 
@@ -378,7 +378,7 @@ def apply_debconf_selections(cfg, target=None):
 
     # get a complete list of packages listed in input
     pkgs_cfgd = set()
-    for key, content in selsets.items():
+    for _key, content in selsets.items():
         for line in content.splitlines():
             if line.startswith("#"):
                 continue

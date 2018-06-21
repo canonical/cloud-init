@@ -3,6 +3,7 @@
 INIT_SYSTEM ?= systemd
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 PYVER ?= python${pyver}
+DEB_VERSION := $(shell dpkg-parsechangelog --show-field=Version)
 
 %:
 	dh $@ --with $(PYVER),systemd --buildsystem pybuild
@@ -14,6 +15,7 @@ override_dh_install:
 	cp tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
 	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init/etc/profile.d/Z99-cloud-locale-test.sh
 	install -D ./tools/Z99-cloudinit-warnings.sh debian/cloud-init/etc/profile.d/Z99-cloudinit-warnings.sh
+	flist=$$(find $(CURDIR)/debian/ -type f -name version.py) && sed -i 's,@@PACKAGED_VERSION@@,$(DEB_VERSION),' $${flist:-did-not-find-version-py-for-replacement}
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))

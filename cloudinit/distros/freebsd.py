@@ -110,15 +110,15 @@ class Distro(distros.Distro):
         if dev.startswith('lo'):
             return dev
 
-        n = re.search('\d+$', dev)
+        n = re.search(r'\d+$', dev)
         index = n.group(0)
 
-        (out, err) = util.subp(['ifconfig', '-a'])
+        (out, _err) = util.subp(['ifconfig', '-a'])
         ifconfigoutput = [x for x in (out.strip()).splitlines()
                           if len(x.split()) > 0]
         bsddev = 'NOT_FOUND'
         for line in ifconfigoutput:
-            m = re.match('^\w+', line)
+            m = re.match(r'^\w+', line)
             if m:
                 if m.group(0).startswith('lo'):
                     continue
@@ -128,7 +128,7 @@ class Distro(distros.Distro):
                 break
 
         # Replace the index with the one we're after.
-        bsddev = re.sub('\d+$', index, bsddev)
+        bsddev = re.sub(r'\d+$', index, bsddev)
         LOG.debug("Using network interface %s", bsddev)
         return bsddev
 
@@ -266,7 +266,7 @@ class Distro(distros.Distro):
             self.lock_passwd(name)
 
         # Configure sudo access
-        if 'sudo' in kwargs:
+        if 'sudo' in kwargs and kwargs['sudo'] is not False:
             self.write_sudo_rules(name, kwargs['sudo'])
 
         # Import SSH keys

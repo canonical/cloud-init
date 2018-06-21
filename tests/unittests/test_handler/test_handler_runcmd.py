@@ -1,10 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_runcmd
+from cloudinit.config.cc_runcmd import handle, schema
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
 from cloudinit.tests.helpers import (
-    FilesystemMockingTestCase, skipUnlessJsonSchema)
+    CiTestCase, FilesystemMockingTestCase, SchemaTestCaseMixin,
+    skipUnlessJsonSchema)
 
 import logging
 import os
@@ -35,7 +36,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         """When the provided config doesn't contain runcmd, skip it."""
         cfg = {}
         mycloud = self._get_cloud('ubuntu')
-        cc_runcmd.handle('notimportant', cfg, mycloud, LOG, None)
+        handle('notimportant', cfg, mycloud, LOG, None)
         self.assertIn(
             "Skipping module named notimportant, no 'runcmd' key",
             self.logs.getvalue())
@@ -44,7 +45,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         """Commands which can't be converted to shell will raise errors."""
         invalid_config = {'runcmd': 1}
         cc = self._get_cloud('ubuntu')
-        cc_runcmd.handle('cc_runcmd', invalid_config, cc, LOG, [])
+        handle('cc_runcmd', invalid_config, cc, LOG, [])
         self.assertIn(
             'Failed to shellify 1 into file'
             ' /var/lib/cloud/instances/iid-datasource-none/scripts/runcmd',
@@ -59,7 +60,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         """
         invalid_config = {'runcmd': 1}
         cc = self._get_cloud('ubuntu')
-        cc_runcmd.handle('cc_runcmd', invalid_config, cc, LOG, [])
+        handle('cc_runcmd', invalid_config, cc, LOG, [])
         self.assertIn(
             'Invalid config:\nruncmd: 1 is not of type \'array\'',
             self.logs.getvalue())
@@ -75,7 +76,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         invalid_config = {
             'runcmd': ['ls /', 20, ['wget', 'http://stuff/blah'], {'a': 'n'}]}
         cc = self._get_cloud('ubuntu')
-        cc_runcmd.handle('cc_runcmd', invalid_config, cc, LOG, [])
+        handle('cc_runcmd', invalid_config, cc, LOG, [])
         expected_warnings = [
             'runcmd.1: 20 is not valid under any of the given schemas',
             'runcmd.3: {\'a\': \'n\'} is not valid under any of the given'
@@ -90,7 +91,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         """Valid runcmd schema is written to a runcmd shell script."""
         valid_config = {'runcmd': [['ls', '/']]}
         cc = self._get_cloud('ubuntu')
-        cc_runcmd.handle('cc_runcmd', valid_config, cc, LOG, [])
+        handle('cc_runcmd', valid_config, cc, LOG, [])
         runcmd_file = os.path.join(
             self.new_root,
             'var/lib/cloud/instances/iid-datasource-none/scripts/runcmd')
@@ -98,5 +99,23 @@ class TestRuncmd(FilesystemMockingTestCase):
         file_stat = os.stat(runcmd_file)
         self.assertEqual(0o700, stat.S_IMODE(file_stat.st_mode))
 
+
+@skipUnlessJsonSchema()
+class TestSchema(CiTestCase, SchemaTestCaseMixin):
+    """Directly test schema rather than through handle."""
+
+    schema = schema
+
+    def test_duplicates_are_fine_array_array(self):
+        """Duplicated commands array/array entries are allowed."""
+        self.assertSchemaValid(
+            [["echo", "bye"], ["echo", "bye"]],
+            "command entries can be duplicate.")
+
+    def test_duplicates_are_fine_array_string(self):
+        """Duplicated commands array/string entries are allowed."""
+        self.assertSchemaValid(
+            ["echo bye", "echo bye"],
+            "command entries can be duplicate.")
 
 # vi: ts=4 expandtab

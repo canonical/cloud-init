@@ -97,7 +97,7 @@ def _has_suitable_upstart():
             else:
                 util.logexc(LOG, "dpkg --compare-versions failed [%s]",
                             e.exit_code)
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, "dpkg --compare-versions failed")
         return False
     else:

@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
 import argparse
+import csv
 import json
 import os
 import shutil
 import sys
+
+UNRELEASED = "UNRELEASED"
 
 
 def find_root():
@@ -26,6 +29,24 @@ if "avoid-pep8-E402-import-not-top-of-file":
     from cloudinit import templater
 
 DEBUILD_ARGS = ["-S", "-d"]
+
+
+def get_release_suffix(release):
+    """Given ubuntu release (xenial), return a suffix for package (~16.04.1)"""
+    csv_path = "/usr/share/distro-info/ubuntu.csv"
+    rels = {}
+    # fields are version, codename, series, created, release, eol, eol-server
+    if os.path.exists(csv_path):
+        with open(csv_path, "r") as fp:
+            # version has "16.04 LTS" or "16.10", so drop "LTS" portion.
+            rels = {row['series']: row['version'].replace(' LTS', '')
+                    for row in csv.DictReader(fp)}
+    if release in rels:
+        return "~%s.1" % rels[release]
+    elif release != UNRELEASED:
+        print("missing distro-info-data package, unable to give "
+              "per-release suffix.\n")
+    return ""
 
 
 def run_helper(helper, args=None, strip=True):
@@ -117,7 +138,7 @@ def get_parser():
 
     parser.add_argument("--release", dest="release",
                         help=("build with changelog referencing RELEASE"),
-                        default="UNRELEASED")
+                        default=UNRELEASED)
 
     for ent in DEBUILD_ARGS:
         parser.add_argument(ent, dest="debuild_args", action='append_const',
@@ -148,7 +169,10 @@ def main():
     if args.verbose:
         capture = False
 
-    templ_data = {'debian_release': args.release}
+    templ_data = {
+        'debian_release': args.release,
+        'release_suffix': get_release_suffix(args.release)}
+
     with temp_utils.tempdir() as tdir:
 
         # output like 0.7.6-1022-g36e92d3
@@ -157,10 +181,18 @@ def main():
         # This is really only a temporary archive
         # since we will extract it then add in the debian
         # folder, then re-archive it for debian happiness
-        print("Creating a temporary tarball using the 'make-tarball' helper")
         tarball = "cloud-init_%s.orig.tar.gz" % ver_data['version_long']
         tarball_fp = util.abs_join(tdir, tarball)
-        run_helper('make-tarball', ['--long', '--output=' + tarball_fp])
+        path = None
+        for pd in ("./", "../", "../dl/"):
+            if os.path.exists(pd + tarball):
+                path = pd + tarball
+                print("Using existing tarball %s" % path)
+                shutil.copy(path, tarball_fp)
+                break
+        if path is None:
+            print("Creating a temp tarball using the 'make-tarball' helper")
+            run_helper('make-tarball', ['--long', '--output=' + tarball_fp])
 
         print("Extracting temporary tarball %r" % (tarball))
         cmd = ['tar', '-xvzf', tarball_fp, '-C', tdir]

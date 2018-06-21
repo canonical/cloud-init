@@ -9,6 +9,7 @@ required_features:
 cloud_config: |
   #cloud-config
   ntp:
+    ntp_client: ntp
     pools:
         - 0.cloud-init.mypool
         - 1.cloud-init.mypool

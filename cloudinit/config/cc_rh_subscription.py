@@ -209,8 +209,7 @@ class SubscriptionManager(object):
                 cmd.append("--serverurl={0}".format(self.server_hostname))
 
             try:
-                return_out, return_err = self._sub_man_cli(cmd,
-                                                           logstring_val=True)
+                return_out = self._sub_man_cli(cmd, logstring_val=True)[0]
             except util.ProcessExecutionError as e:
                 if e.stdout == "":
                     self.log_warn("Registration failed due "
@@ -233,8 +232,7 @@ class SubscriptionManager(object):
 
             # Attempting to register the system only
             try:
-                return_out, return_err = self._sub_man_cli(cmd,
-                                                           logstring_val=True)
+                return_out = self._sub_man_cli(cmd, logstring_val=True)[0]
             except util.ProcessExecutionError as e:
                 if e.stdout == "":
                     self.log_warn("Registration failed due "
@@ -257,7 +255,7 @@ class SubscriptionManager(object):
                .format(self.servicelevel)]
 
         try:
-            return_out, return_err = self._sub_man_cli(cmd)
+            return_out = self._sub_man_cli(cmd)[0]
         except util.ProcessExecutionError as e:
             if e.stdout.rstrip() != '':
                 for line in e.stdout.split("\n"):
@@ -275,7 +273,7 @@ class SubscriptionManager(object):
     def _set_auto_attach(self):
         cmd = ['attach', '--auto']
         try:
-            return_out, return_err = self._sub_man_cli(cmd)
+            return_out = self._sub_man_cli(cmd)[0]
         except util.ProcessExecutionError as e:
             self.log_warn("Auto-attach failed with: {0}".format(e))
             return False
@@ -294,12 +292,12 @@ class SubscriptionManager(object):
 
         # Get all available pools
         cmd = ['list', '--available', '--pool-only']
-        results, errors = self._sub_man_cli(cmd)
+        results = self._sub_man_cli(cmd)[0]
         available = (results.rstrip()).split("\n")
 
         # Get all consumed pools
         cmd = ['list', '--consumed', '--pool-only']
-        results, errors = self._sub_man_cli(cmd)
+        results = self._sub_man_cli(cmd)[0]
         consumed = (results.rstrip()).split("\n")
 
         return available, consumed
@@ -311,14 +309,14 @@ class SubscriptionManager(object):
         '''
 
         cmd = ['repos', '--list-enabled']
-        return_out, return_err = self._sub_man_cli(cmd)
+        return_out = self._sub_man_cli(cmd)[0]
         active_repos = []
         for repo in return_out.split("\n"):
             if "Repo ID:" in repo:
                 active_repos.append((repo.split(':')[1]).strip())
 
         cmd = ['repos', '--list-disabled']
-        return_out, return_err = self._sub_man_cli(cmd)
+        return_out = self._sub_man_cli(cmd)[0]
 
         inactive_repos = []
         for repo in return_out.split("\n"):

@@ -48,6 +48,7 @@ DEFAULT_FS = 'ext4'
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = '7783-7084-3265-9085-8269-3286-77'
 REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
+REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 IMDS_URL = "http://169.254.169.254/metadata/reprovisiondata"
 
 
@@ -107,31 +108,24 @@ def find_dev_from_busdev(camcontrol_out, busdev):
     return None
 
 
-def get_dev_storvsc_sysctl():
+def execute_or_debug(cmd, fail_ret=None):
     try:
-        sysctl_out, err = util.subp(['sysctl', 'dev.storvsc'])
+        return util.subp(cmd)[0]
     except util.ProcessExecutionError:
-        LOG.debug("Fail to execute sysctl dev.storvsc")
-        sysctl_out = ""
-    return sysctl_out
+        LOG.debug("Failed to execute: %s", ' '.join(cmd))
+        return fail_ret
+
+
+def get_dev_storvsc_sysctl():
+    return execute_or_debug(["sysctl", "dev.storvsc"], fail_ret="")
 
 
 def get_camcontrol_dev_bus():
-    try:
-        camcontrol_b_out, err = util.subp(['camcontrol', 'devlist', '-b'])
-    except util.ProcessExecutionError:
-        LOG.debug("Fail to execute camcontrol devlist -b")
-        return None
-    return camcontrol_b_out
+    return execute_or_debug(['camcontrol', 'devlist', '-b'])
 
 
 def get_camcontrol_dev():
-    try:
-        camcontrol_out, err = util.subp(['camcontrol', 'devlist'])
-    except util.ProcessExecutionError:
-        LOG.debug("Fail to execute camcontrol devlist")
-        return None
-    return camcontrol_out
+    return execute_or_debug(['camcontrol', 'devlist'])
 
 
 def get_resource_disk_on_freebsd(port_id):
@@ -214,6 +208,7 @@ BUILTIN_CLOUD_CONFIG = {
 }
 
 DS_CFG_PATH = ['datasource', DS_NAME]
+DS_CFG_KEY_PRESERVE_NTFS = 'never_destroy_ntfs'
 DEF_EPHEMERAL_LABEL = 'Temporary Storage'
 
 # The redacted password fails to meet password complexity requirements
@@ -400,14 +395,9 @@ class DataSourceAzure(sources.DataSource):
         if found == ddir:
             LOG.debug("using files cached in %s", ddir)
 
-        # azure / hyper-v provides random data here
-        # TODO. find the seed on FreeBSD platform
-        # now update ds_cfg to reflect contents pass in config
-        if not util.is_FreeBSD():
-            seed = util.load_file("/sys/firmware/acpi/tables/OEM0",
-                                  quiet=True, decode=False)
-            if seed:
-                self.metadata['random_seed'] = seed
+        seed = _get_random_seed()
+        if seed:
+            self.metadata['random_seed'] = seed
 
         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
@@ -443,11 +433,12 @@ class DataSourceAzure(sources.DataSource):
             LOG.debug("negotiating already done for %s",
                       self.get_instance_id())
 
-    def _poll_imds(self, report_ready=True):
+    def _poll_imds(self):
         """Poll IMDS for the new provisioning data until we get a valid
         response. Then return the returned JSON object."""
         url = IMDS_URL + "?api-version=2017-04-02"
         headers = {"Metadata": "true"}
+        report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
         LOG.debug("Start polling IMDS")
 
         def exc_cb(msg, exception):
@@ -457,13 +448,17 @@ class DataSourceAzure(sources.DataSource):
             # call DHCP and setup the ephemeral network to acquire the new IP.
             return False
 
-        need_report = report_ready
         while True:
             try:
                 with EphemeralDHCPv4() as lease:
-                    if need_report:
+                    if report_ready:
+                        path = REPORTED_READY_MARKER_FILE
+                        LOG.info(
+                            "Creating a marker file to report ready: %s", path)
+                        util.write_file(path, "{pid}: {time}\n".format(
+                            pid=os.getpid(), time=time()))
                         self._report_ready(lease=lease)
-                        need_report = False
+                        report_ready = False
                     return readurl(url, timeout=1, headers=headers,
                                    exception_cb=exc_cb, infinite=True).contents
             except UrlError:
@@ -474,7 +469,7 @@ class DataSourceAzure(sources.DataSource):
            before we go into our polling loop."""
         try:
             get_metadata_from_fabric(None, lease['unknown-245'])
-        except Exception as exc:
+        except Exception:
             LOG.warning(
                 "Error communicating with Azure fabric; You may experience."
                 "connectivity issues.", exc_info=True)
@@ -492,13 +487,15 @@ class DataSourceAzure(sources.DataSource):
         jump back into the polling loop in order to retrieve the ovf_env."""
         if not ret:
             return False
-        (md, self.userdata_raw, cfg, files) = ret
+        (_md, self.userdata_raw, cfg, _files) = ret
         path = REPROVISION_MARKER_FILE
         if (cfg.get('PreprovisionedVm') is True or
                 os.path.isfile(path)):
             if not os.path.isfile(path):
-                LOG.info("Creating a marker file to poll imds")
-                util.write_file(path, "%s: %s\n" % (os.getpid(), time()))
+                LOG.info("Creating a marker file to poll imds: %s",
+                         path)
+                util.write_file(path, "{pid}: {time}\n".format(
+                    pid=os.getpid(), time=time()))
             return True
         return False
 
@@ -528,16 +525,19 @@ class DataSourceAzure(sources.DataSource):
                   self.ds_cfg['agent_command'])
         try:
             fabric_data = metadata_func()
-        except Exception as exc:
+        except Exception:
             LOG.warning(
                 "Error communicating with Azure fabric; You may experience."
                 "connectivity issues.", exc_info=True)
             return False
+        util.del_file(REPORTED_READY_MARKER_FILE)
         util.del_file(REPROVISION_MARKER_FILE)
         return fabric_data
 
     def activate(self, cfg, is_new_instance):
-        address_ephemeral_resize(is_new_instance=is_new_instance)
+        address_ephemeral_resize(is_new_instance=is_new_instance,
+                                 preserve_ntfs=self.ds_cfg.get(
+                                     DS_CFG_KEY_PRESERVE_NTFS, False))
         return
 
     @property
@@ -581,17 +581,29 @@ def _has_ntfs_filesystem(devpath):
     return os.path.realpath(devpath) in ntfs_devices
 
 
-def can_dev_be_reformatted(devpath):
-    """Determine if block device devpath is newly formatted ephemeral.
+def can_dev_be_reformatted(devpath, preserve_ntfs):
+    """Determine if the ephemeral drive at devpath should be reformatted.
 
-    A newly formatted disk will:
+    A fresh ephemeral disk is formatted by Azure and will:
       a.) have a partition table (dos or gpt)
       b.) have 1 partition that is ntfs formatted, or
           have 2 partitions with the second partition ntfs formatted.
           (larger instances with >2TB ephemeral disk have gpt, and will
            have a microsoft reserved partition as part 1.  LP: #1686514)
       c.) the ntfs partition will have no files other than possibly
-          'dataloss_warning_readme.txt'"""
+          'dataloss_warning_readme.txt'
+
+    User can indicate that NTFS should never be destroyed by setting
+    DS_CFG_KEY_PRESERVE_NTFS in dscfg.
+    If data is found on NTFS, user is warned to set DS_CFG_KEY_PRESERVE_NTFS
+    to make sure cloud-init does not accidentally wipe their data.
+    If cloud-init cannot mount the disk to check for data, destruction
+    will be allowed, unless the dscfg key is set."""
+    if preserve_ntfs:
+        msg = ('config says to never destroy NTFS (%s.%s), skipping checks' %
+               (".".join(DS_CFG_PATH), DS_CFG_KEY_PRESERVE_NTFS))
+        return False, msg
+
     if not os.path.exists(devpath):
         return False, 'device %s does not exist' % devpath
 
@@ -624,18 +636,27 @@ def can_dev_be_reformatted(devpath):
     bmsg = ('partition %s (%s) on device %s was ntfs formatted' %
             (cand_part, cand_path, devpath))
     try:
-        file_count = util.mount_cb(cand_path, count_files)
+        file_count = util.mount_cb(cand_path, count_files, mtype="ntfs",
+                                   update_env_for_mount={'LANG': 'C'})
     except util.MountFailedError as e:
+        if "mount: unknown filesystem type 'ntfs'" in str(e):
+            return True, (bmsg + ' but this system cannot mount NTFS,'
+                          ' assuming there are no important files.'
+                          ' Formatting allowed.')
         return False, bmsg + ' but mount of %s failed: %s' % (cand_part, e)
 
     if file_count != 0:
+        LOG.warning("it looks like you're using NTFS on the ephemeral disk, "
+                    'to ensure that filesystem does not get wiped, set '
+                    '%s.%s in config', '.'.join(DS_CFG_PATH),
+                    DS_CFG_KEY_PRESERVE_NTFS)
         return False, bmsg + ' but had %d files on it.' % file_count
 
     return True, bmsg + ' and had no important files. Safe for reformatting.'
 
 
 def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
-                             is_new_instance=False):
+                             is_new_instance=False, preserve_ntfs=False):
     # wait for ephemeral disk to come up
     naplen = .2
     missing = util.wait_for_files([devpath], maxwait=maxwait, naplen=naplen,
@@ -651,7 +672,7 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
     if is_new_instance:
         result, msg = (True, "First instance boot.")
     else:
-        result, msg = can_dev_be_reformatted(devpath)
+        result, msg = can_dev_be_reformatted(devpath, preserve_ntfs)
 
     LOG.debug("reformattable=%s: %s", result, msg)
     if not result:
@@ -963,6 +984,18 @@ def _check_freebsd_cdrom(cdrom_dev):
     except IOError:
         LOG.debug("cdrom (%s) is not configured", cdrom_dev)
     return False
+
+
+def _get_random_seed():
+    """Return content random seed file if available, otherwise,
+       return None."""
+    # azure / hyper-v provides random data here
+    # TODO. find the seed on FreeBSD platform
+    # now update ds_cfg to reflect contents pass in config
+    if util.is_FreeBSD():
+        return None
+    return util.load_file("/sys/firmware/acpi/tables/OEM0",
+                          quiet=True, decode=False)
 
 
 def list_possible_azure_ds_devs():

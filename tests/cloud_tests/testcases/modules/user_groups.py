@@ -42,7 +42,7 @@ class TestUserGroups(base.CloudTestCase):
 
     def test_user_root_in_secret(self):
         """Test root user is in 'secret' group."""
-        user, _, groups = self.get_data_file('root_groups').partition(":")
+        _user, _, groups = self.get_data_file('root_groups').partition(":")
         self.assertIn("secret", groups.split(),
                       msg="User root is not in group 'secret'")
 

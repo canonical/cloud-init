@@ -58,7 +58,8 @@ explaining how to run one or the other independently.
     $ tox -e citest -- run --verbose \
         --os-name stretch --os-name xenial \
         --deb cloud-init_0.7.8~my_patch_all.deb \
-        --preserve-data --data-dir ~/collection
+        --preserve-data --data-dir ~/collection \
+        --preserve-instance
 
 The above command will do the following:
 
@@ -75,6 +76,10 @@ The above command will do the following:
 
 * ``--preserve-data`` always preserve collected data, do not remove data
   after successful test run
+
+* ``--preserve-instance`` do not destroy the instance after test to allow
+  for debugging the stopped instance during integration test development. By
+  default, test instances are destroyed after the test completes.
 
 * ``--data-dir ~/collection`` write collected data into `~/collection`,
   rather than using a temporary directory

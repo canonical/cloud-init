@@ -73,7 +73,7 @@ class NicConfigurator(object):
         The mac address(es) are in the lower case
         """
         cmd = ['ip', 'addr', 'show']
-        (output, err) = util.subp(cmd)
+        output, _err = util.subp(cmd)
         sections = re.split(r'\n\d+: ', '\n' + output)[1:]
 
         macPat = r'link/ether (([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2}))'

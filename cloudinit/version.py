@@ -4,7 +4,8 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-__VERSION__ = "18.2"
+__VERSION__ = "18.3"
+_PACKAGED_VERSION = '@@PACKAGED_VERSION@@'
 
 FEATURES = [
     # supports network config version 1
@@ -15,6 +16,9 @@ FEATURES = [
 
 
 def version_string():
+    """Extract a version string from cloud-init."""
+    if not _PACKAGED_VERSION.startswith('@@'):
+        return _PACKAGED_VERSION
     return __VERSION__
 
 # vi: ts=4 expandtab

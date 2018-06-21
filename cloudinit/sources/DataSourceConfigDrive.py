@@ -43,7 +43,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.version = None
         self.ec2_metadata = None
         self._network_config = None
-        self.network_json = None
+        self.network_json = sources.UNSET
         self.network_eni = None
         self.known_macs = None
         self.files = {}
@@ -69,7 +69,8 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
                 util.logexc(LOG, "Failed reading config drive from %s", sdir)
 
         if not found:
-            for dev in find_candidate_devs():
+            dslist = self.sys_cfg.get('datasource_list')
+            for dev in find_candidate_devs(dslist=dslist):
                 try:
                     # Set mtype if freebsd and turn off sync
                     if dev.startswith("/dev/cd"):
@@ -148,7 +149,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
     @property
     def network_config(self):
         if self._network_config is None:
-            if self.network_json is not None:
+            if self.network_json not in (None, sources.UNSET):
                 LOG.debug("network config provided via network_json")
                 self._network_config = openstack.convert_net_json(
                     self.network_json, known_macs=self.known_macs)
@@ -211,7 +212,7 @@ def write_injected_files(files):
                 util.logexc(LOG, "Failed writing file: %s", filename)
 
 
-def find_candidate_devs(probe_optical=True):
+def find_candidate_devs(probe_optical=True, dslist=None):
     """Return a list of devices that may contain the config drive.
 
     The returned list is sorted by search order where the first item has
@@ -227,6 +228,9 @@ def find_candidate_devs(probe_optical=True):
         * either vfat or iso9660 formated
         * labeled with 'config-2' or 'CONFIG-2'
     """
+    if dslist is None:
+        dslist = []
+
     # query optical drive to get it in blkid cache for 2.6 kernels
     if probe_optical:
         for device in OPTICAL_DEVICES:
@@ -257,7 +261,8 @@ def find_candidate_devs(probe_optical=True):
     devices = [d for d in candidates
                if d in by_label or not util.is_partition(d)]
 
-    if devices:
+    LOG.debug("devices=%s dslist=%s", devices, dslist)
+    if devices and "IBMCloud" in dslist:
         # IBMCloud uses config-2 label, but limited to a single UUID.
         ibm_platform, ibm_path = get_ibm_platform()
         if ibm_path in devices:

@@ -13,7 +13,7 @@ paramiko==2.4.0
 
 # lxd backend
 # 04/03/2018: enables use of lxd 3.0
-git+https://github.com/lxc/pylxd.git@1a85a12a23401de6e96b1aeaf59ecbff2e88f49d
+git+https://github.com/lxc/pylxd.git@4b8ab1802f9aee4eb29cf7b119dae0aa47150779
 
 
 # finds latest image information

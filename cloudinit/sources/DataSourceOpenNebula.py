@@ -378,7 +378,7 @@ def read_context_disk_dir(source_dir, asuser=None):
         if asuser is not None:
             try:
                 pwd.getpwnam(asuser)
-            except KeyError as e:
+            except KeyError:
                 raise BrokenContextDiskDir(
                     "configured user '{user}' does not exist".format(
                         user=asuser))

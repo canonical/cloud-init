@@ -25,7 +25,7 @@ from distutils.errors import DistutilsArgError
 import subprocess
 
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
-
+VARIANT = None
 
 def is_f(p):
     return os.path.isfile(p)
@@ -114,10 +114,20 @@ def render_tmpl(template):
     atexit.register(shutil.rmtree, tmpd)
     bname = os.path.basename(template).rstrip(tmpl_ext)
     fpath = os.path.join(tmpd, bname)
-    tiny_p([sys.executable, './tools/render-cloudcfg', template, fpath])
+    if VARIANT:
+        tiny_p([sys.executable, './tools/render-cloudcfg', '--variant',
+            VARIANT, template, fpath])
+    else:
+        tiny_p([sys.executable, './tools/render-cloudcfg', template, fpath])
     # return path relative to setup.py
     return os.path.join(os.path.basename(tmpd), bname)
 
+# User can set the variant for template rendering
+if '--distro' in sys.argv:
+    idx = sys.argv.index('--distro')
+    VARIANT = sys.argv[idx+1]
+    del sys.argv[idx+1]
+    sys.argv.remove('--distro')
 
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
@@ -228,6 +238,7 @@ if not in_virtualenv():
         INITSYS_ROOTS[k] = "/" + INITSYS_ROOTS[k]
 
 data_files = [
+    (ETC + '/bash_completion.d', ['bash_completion/cloud-init']),
     (ETC + '/cloud', [render_tmpl("config/cloud.cfg.tmpl")]),
     (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
     (ETC + '/cloud/templates', glob('templates/*')),
@@ -259,7 +270,7 @@ requirements = read_requires()
 setuptools.setup(
     name='cloud-init',
     version=get_version(),
-    description='EC2 initialisation magic',
+    description='Cloud instance initialisation magic',
     author='Scott Moser',
     author_email='scott.moser@canonical.com',
     url='http://launchpad.net/cloud-init/',
@@ -275,5 +286,6 @@ setuptools.setup(
         ],
     }
 )
+
 
 # vi: ts=4 expandtab

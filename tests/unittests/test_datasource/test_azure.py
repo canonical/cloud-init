@@ -1,10 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import helpers
-from cloudinit.util import b64e, decode_binary, load_file, write_file
 from cloudinit.sources import DataSourceAzure as dsaz
-from cloudinit.util import find_freebsd_part
-from cloudinit.util import get_path_dev_freebsd
+from cloudinit.util import (b64e, decode_binary, load_file, write_file,
+                            find_freebsd_part, get_path_dev_freebsd,
+                            MountFailedError)
 from cloudinit.version import version_string as vs
 from cloudinit.tests.helpers import (CiTestCase, TestCase, populate_dir, mock,
                                      ExitStack, PY26, SkipTest)
@@ -94,6 +94,8 @@ class TestAzureDataSource(CiTestCase):
 
         self.patches = ExitStack()
         self.addCleanup(self.patches.close)
+
+        self.patches.enter_context(mock.patch.object(dsaz, '_get_random_seed'))
 
         super(TestAzureDataSource, self).setUp()
 
@@ -214,7 +216,7 @@ scbus-1 on xpt0 bus 0
                 self.assertIn(tag, x)
 
         def tags_equal(x, y):
-            for x_tag, x_val in x.items():
+            for x_val in x.values():
                 y_val = y.get(x_val.tag)
                 self.assertEqual(x_val.text, y_val.text)
 
@@ -334,6 +336,18 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(data['agent_invoked'], '_COMMAND')
+
+    def test_sys_cfg_set_never_destroy_ntfs(self):
+        sys_cfg = {'datasource': {'Azure': {
+            'never_destroy_ntfs': 'user-supplied-value'}}}
+        data = {'ovfcontent': construct_valid_ovf_env(data={}),
+                'sys_cfg': sys_cfg}
+
+        dsrc = self._get_ds(data)
+        ret = self._get_and_setup(dsrc)
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.ds_cfg.get(dsaz.DS_CFG_KEY_PRESERVE_NTFS),
+                         'user-supplied-value')
 
     def test_username_used(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
@@ -676,6 +690,8 @@ class TestAzureBounce(CiTestCase):
                               mock.MagicMock(return_value={})))
         self.patches.enter_context(
             mock.patch.object(dsaz.util, 'which', lambda x: True))
+        self.patches.enter_context(
+            mock.patch.object(dsaz, '_get_random_seed'))
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
@@ -957,7 +973,9 @@ class TestCanDevBeReformatted(CiTestCase):
             # return sorted by partition number
             return sorted(ret, key=lambda d: d[0])
 
-        def mount_cb(device, callback):
+        def mount_cb(device, callback, mtype, update_env_for_mount):
+            self.assertEqual('ntfs', mtype)
+            self.assertEqual('C', update_env_for_mount.get('LANG'))
             p = self.tmp_dir()
             for f in bypath.get(device).get('files', []):
                 write_file(os.path.join(p, f), content=f)
@@ -988,14 +1006,16 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda2': {'num': 2},
                     '/dev/sda3': {'num': 3},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("3 or more", msg.lower())
 
     def test_no_partitions_is_false(self):
         """A disk with no partitions can not be formatted."""
         self.patchup({'/dev/sda': {}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("not partitioned", msg.lower())
 
@@ -1007,7 +1027,8 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1},
                     '/dev/sda2': {'num': 2, 'fs': 'ext4', 'files': []},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("not ntfs", msg.lower())
 
@@ -1020,7 +1041,8 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda2': {'num': 2, 'fs': 'ntfs',
                                   'files': ['secret.txt']},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("files on it", msg.lower())
 
@@ -1032,7 +1054,8 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1},
                     '/dev/sda2': {'num': 2, 'fs': 'ntfs', 'files': []},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
@@ -1043,7 +1066,8 @@ class TestCanDevBeReformatted(CiTestCase):
                 'partitions': {
                     '/dev/sda1': {'num': 1, 'fs': 'zfs'},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("not ntfs", msg.lower())
 
@@ -1055,9 +1079,14 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1, 'fs': 'ntfs',
                                   'files': ['file1.txt', 'file2.exe']},
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
-        self.assertFalse(value)
-        self.assertIn("files on it", msg.lower())
+        with mock.patch.object(dsaz.LOG, 'warning') as warning:
+            value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                     preserve_ntfs=False)
+            wmsg = warning.call_args[0][0]
+            self.assertIn("looks like you're using NTFS on the ephemeral disk",
+                          wmsg)
+            self.assertFalse(value)
+            self.assertIn("files on it", msg.lower())
 
     def test_one_partition_ntfs_empty_is_true(self):
         """1 mountable ntfs partition and no files can be formatted."""
@@ -1066,7 +1095,8 @@ class TestCanDevBeReformatted(CiTestCase):
                 'partitions': {
                     '/dev/sda1': {'num': 1, 'fs': 'ntfs', 'files': []}
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
@@ -1078,7 +1108,8 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1, 'fs': 'ntfs',
                                   'files': ['dataloss_warning_readme.txt']}
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=False)
         self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
@@ -1093,7 +1124,8 @@ class TestCanDevBeReformatted(CiTestCase):
                         'num': 1, 'fs': 'ntfs', 'files': [self.warning_file],
                         'realpath': '/dev/sdb1'}
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted(epath)
+        value, msg = dsaz.can_dev_be_reformatted(epath,
+                                                 preserve_ntfs=False)
         self.assertTrue(value)
         self.assertIn("safe for", msg.lower())
 
@@ -1112,9 +1144,48 @@ class TestCanDevBeReformatted(CiTestCase):
                     epath + '-part3': {'num': 3, 'fs': 'ext',
                                        'realpath': '/dev/sdb3'}
                 }}})
-        value, msg = dsaz.can_dev_be_reformatted(epath)
+        value, msg = dsaz.can_dev_be_reformatted(epath,
+                                                 preserve_ntfs=False)
         self.assertFalse(value)
         self.assertIn("3 or more", msg.lower())
+
+    def test_ntfs_mount_errors_true(self):
+        """can_dev_be_reformatted does not fail if NTFS is unknown fstype."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1, 'fs': 'ntfs', 'files': []}
+                }}})
+
+        err = ("Unexpected error while running command.\n",
+               "Command: ['mount', '-o', 'ro,sync', '-t', 'auto', ",
+               "'/dev/sda1', '/fake-tmp/dir']\n"
+               "Exit code: 32\n"
+               "Reason: -\n"
+               "Stdout: -\n"
+               "Stderr: mount: unknown filesystem type 'ntfs'")
+        self.m_mount_cb.side_effect = MountFailedError(
+            'Failed mounting %s to %s due to: %s' %
+            ('/dev/sda', '/fake-tmp/dir', err))
+
+        value, msg = dsaz.can_dev_be_reformatted('/dev/sda',
+                                                 preserve_ntfs=False)
+        self.assertTrue(value)
+        self.assertIn('cannot mount NTFS, assuming', msg)
+
+    def test_never_destroy_ntfs_config_false(self):
+        """Normally formattable situation with never_destroy_ntfs set."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1, 'fs': 'ntfs',
+                                  'files': ['dataloss_warning_readme.txt']}
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda",
+                                                 preserve_ntfs=True)
+        self.assertFalse(value)
+        self.assertIn("config says to never destroy NTFS "
+                      "(datasource.Azure.never_destroy_ntfs)", msg)
 
 
 class TestAzureNetExists(CiTestCase):
@@ -1125,9 +1196,138 @@ class TestAzureNetExists(CiTestCase):
         self.assertTrue(hasattr(dsaz, "DataSourceAzureNet"))
 
 
+class TestPreprovisioningReadAzureOvfFlag(CiTestCase):
+
+    def test_read_azure_ovf_with_true_flag(self):
+        """The read_azure_ovf method should set the PreprovisionedVM
+           cfg flag if the proper setting is present."""
+        content = construct_valid_ovf_env(
+            platform_settings={"PreprovisionedVm": "True"})
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertTrue(cfg['PreprovisionedVm'])
+
+    def test_read_azure_ovf_with_false_flag(self):
+        """The read_azure_ovf method should set the PreprovisionedVM
+           cfg flag to false if the proper setting is false."""
+        content = construct_valid_ovf_env(
+            platform_settings={"PreprovisionedVm": "False"})
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertFalse(cfg['PreprovisionedVm'])
+
+    def test_read_azure_ovf_without_flag(self):
+        """The read_azure_ovf method should not set the
+           PreprovisionedVM cfg flag."""
+        content = construct_valid_ovf_env()
+        ret = dsaz.read_azure_ovf(content)
+        cfg = ret[2]
+        self.assertFalse(cfg['PreprovisionedVm'])
+
+
+@mock.patch('os.path.isfile')
+class TestPreprovisioningShouldReprovision(CiTestCase):
+
+    def setUp(self):
+        super(TestPreprovisioningShouldReprovision, self).setUp()
+        tmp = self.tmp_dir()
+        self.waagent_d = self.tmp_path('/var/lib/waagent', tmp)
+        self.paths = helpers.Paths({'cloud_dir': tmp})
+        dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+    def test__should_reprovision_with_true_cfg(self, isfile, write_f):
+        """The _should_reprovision method should return true with config
+           flag present."""
+        isfile.return_value = False
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        self.assertTrue(dsa._should_reprovision(
+            (None, None, {'PreprovisionedVm': True}, None)))
+
+    def test__should_reprovision_with_file_existing(self, isfile):
+        """The _should_reprovision method should return True if the sentinal
+           exists."""
+        isfile.return_value = True
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        self.assertTrue(dsa._should_reprovision(
+            (None, None, {'preprovisionedvm': False}, None)))
+
+    def test__should_reprovision_returns_false(self, isfile):
+        """The _should_reprovision method should return False
+           if config and sentinal are not present."""
+        isfile.return_value = False
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        self.assertFalse(dsa._should_reprovision((None, None, {}, None)))
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds')
+    def test_reprovision_calls__poll_imds(self, _poll_imds, isfile):
+        """_reprovision will poll IMDS."""
+        isfile.return_value = False
+        hostname = "myhost"
+        username = "myuser"
+        odata = {'HostName': hostname, 'UserName': username}
+        _poll_imds.return_value = construct_valid_ovf_env(data=odata)
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa._reprovision()
+        _poll_imds.assert_called_with()
+
+
+@mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
+@mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+@mock.patch('requests.Session.request')
+@mock.patch(
+    'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
+class TestPreprovisioningPollIMDS(CiTestCase):
+
+    def setUp(self):
+        super(TestPreprovisioningPollIMDS, self).setUp()
+        self.tmp = self.tmp_dir()
+        self.waagent_d = self.tmp_path('/var/lib/waagent', self.tmp)
+        self.paths = helpers.Paths({'cloud_dir': self.tmp})
+        dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+    def test_poll_imds_calls_report_ready(self, write_f, report_ready_func,
+                                          fake_resp, m_dhcp, m_net):
+        """The poll_imds will call report_ready after creating marker file."""
+        report_marker = self.tmp_path('report_marker', self.tmp)
+        lease = {
+            'interface': 'eth9', 'fixed-address': '192.168.2.9',
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+            'unknown-245': '624c3620'}
+        m_dhcp.return_value = [lease]
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        mock_path = (
+            'cloudinit.sources.DataSourceAzure.REPORTED_READY_MARKER_FILE')
+        with mock.patch(mock_path, report_marker):
+            dsa._poll_imds()
+        self.assertEqual(report_ready_func.call_count, 1)
+        report_ready_func.assert_called_with(lease=lease)
+
+    def test_poll_imds_report_ready_false(self, report_ready_func,
+                                          fake_resp, m_dhcp, m_net):
+        """The poll_imds should not call reporting ready
+           when flag is false"""
+        report_marker = self.tmp_path('report_marker', self.tmp)
+        write_file(report_marker, content='dont run report_ready :)')
+        m_dhcp.return_value = [{
+            'interface': 'eth9', 'fixed-address': '192.168.2.9',
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+            'unknown-245': '624c3620'}]
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        mock_path = (
+            'cloudinit.sources.DataSourceAzure.REPORTED_READY_MARKER_FILE')
+        with mock.patch(mock_path, report_marker):
+            dsa._poll_imds()
+        self.assertEqual(report_ready_func.call_count, 0)
+
+
 @mock.patch('cloudinit.sources.DataSourceAzure.util.subp')
-@mock.patch.object(dsaz, 'get_hostname')
-@mock.patch.object(dsaz, 'set_hostname')
+@mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+@mock.patch('cloudinit.sources.DataSourceAzure.util.is_FreeBSD')
+@mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
+@mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+@mock.patch('requests.Session.request')
 class TestAzureDataSourcePreprovisioning(CiTestCase):
 
     def setUp(self):
@@ -1137,38 +1337,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.paths = helpers.Paths({'cloud_dir': tmp})
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-    def test_read_azure_ovf_with_true_flag(self, *args):
-        """The read_azure_ovf method should set the PreprovisionedVM
-           cfg flag if the proper setting is present."""
-        content = construct_valid_ovf_env(
-            platform_settings={"PreprovisionedVm": "True"})
-        ret = dsaz.read_azure_ovf(content)
-        cfg = ret[2]
-        self.assertTrue(cfg['PreprovisionedVm'])
-
-    def test_read_azure_ovf_with_false_flag(self, *args):
-        """The read_azure_ovf method should set the PreprovisionedVM
-           cfg flag to false if the proper setting is false."""
-        content = construct_valid_ovf_env(
-            platform_settings={"PreprovisionedVm": "False"})
-        ret = dsaz.read_azure_ovf(content)
-        cfg = ret[2]
-        self.assertFalse(cfg['PreprovisionedVm'])
-
-    def test_read_azure_ovf_without_flag(self, *args):
-        """The read_azure_ovf method should not set the
-           PreprovisionedVM cfg flag."""
-        content = construct_valid_ovf_env()
-        ret = dsaz.read_azure_ovf(content)
-        cfg = ret[2]
-        self.assertFalse(cfg['PreprovisionedVm'])
-
-    @mock.patch('cloudinit.sources.DataSourceAzure.util.is_FreeBSD')
-    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
-    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
-    @mock.patch('requests.Session.request')
     def test_poll_imds_returns_ovf_env(self, fake_resp, m_dhcp, m_net,
-                                       m_is_bsd, *args):
+                                       m_is_bsd, write_f, subp):
         """The _poll_imds method should return the ovf_env.xml."""
         m_is_bsd.return_value = False
         m_dhcp.return_value = [{
@@ -1194,12 +1364,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             prefix_or_mask='255.255.255.0', router='192.168.2.1')
         self.assertEqual(m_net.call_count, 1)
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.util.is_FreeBSD')
-    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
-    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
-    @mock.patch('requests.Session.request')
     def test__reprovision_calls__poll_imds(self, fake_resp, m_dhcp, m_net,
-                                           m_is_bsd, *args):
+                                           m_is_bsd, write_f, subp):
         """The _reprovision method should call poll IMDS."""
         m_is_bsd.return_value = False
         m_dhcp.return_value = [{
@@ -1216,7 +1382,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         fake_resp.return_value = mock.MagicMock(status_code=200, text=content,
                                                 content=content)
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        md, ud, cfg, d = dsa._reprovision()
+        md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md['local-hostname'], hostname)
         self.assertEqual(cfg['system_info']['default_user']['name'], username)
         self.assertEqual(fake_resp.call_args_list,
@@ -1230,33 +1396,6 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
             prefix_or_mask='255.255.255.0', router='192.168.2.1')
         self.assertEqual(m_net.call_count, 1)
-
-    @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
-    @mock.patch('os.path.isfile')
-    def test__should_reprovision_with_true_cfg(self, isfile, write_f, *args):
-        """The _should_reprovision method should return true with config
-           flag present."""
-        isfile.return_value = False
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        self.assertTrue(dsa._should_reprovision(
-            (None, None, {'PreprovisionedVm': True}, None)))
-
-    @mock.patch('os.path.isfile')
-    def test__should_reprovision_with_file_existing(self, isfile, *args):
-        """The _should_reprovision method should return True if the sentinal
-           exists."""
-        isfile.return_value = True
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        self.assertTrue(dsa._should_reprovision(
-            (None, None, {'preprovisionedvm': False}, None)))
-
-    @mock.patch('os.path.isfile')
-    def test__should_reprovision_returns_false(self, isfile, *args):
-        """The _should_reprovision method should return False
-           if config and sentinal are not present."""
-        isfile.return_value = False
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        self.assertFalse(dsa._should_reprovision((None, None, {}, None)))
 
 
 # vi: ts=4 expandtab
