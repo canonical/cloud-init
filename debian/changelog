@@ -1,12 +1,103 @@
-cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
+cloud-init (18.3-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/rules: update version.version_string to contain packaged version.
     (LP: #1770712)
   * debian/patches/openstack-no-network-config.patch
     add patch to ignore Openstack network_config from network_data.json by
     default
+  * Refresh patches against upstream:
+    + azure-use-walinux-agent.patch
+    + ds-identify-behavior-xenial.patch
+    + openstack-no-network-config.patch
+  * New upstream release. (LP: #1777912)
+    - release 18.3
+    - docs: represent sudo:false in docs for user_groups config module
+    - Explicitly prevent `sudo` access for user module [Jacob Bednarz]
+    - lxd: Delete default network and detach device if lxd-init created them.
+    - openstack: avoid unneeded metadata probe on non-openstack platforms
+    - stages: fix tracebacks if a module stage is undefined or empty
+      [Robert Schweikert]
+    - Be more safe on string/bytes when writing multipart user-data to disk.
+    - Fix get_proc_env for pids that have non-utf8 content in environment.
+    - tests: fix salt_minion integration test on bionic and later
+    - tests: provide human-readable integration test summary when --verbose
+    - tests: skip chrony integration tests on lxd running artful or older
+    - test: add optional --preserve-instance arg to integraiton tests
+    - netplan: fix mtu if provided by network config for all rendered types
+    - tests: remove pip install workarounds for pylxd, take upstream fix.
+    - subp: support combine_capture argument.
+    - tests: ordered tox dependencies for pylxd install
+    - util: add get_linux_distro function to replace platform.dist
+      [Robert Schweikert]
+    - pyflakes: fix unused variable references identified by pyflakes 2.0.0.
+    - - Do not use the systemd_prefix macro, not available in this environment
+      [Robert Schweikert]
+    - doc: Add config info to ec2, openstack and cloudstack datasource docs
+    - Enable SmartOS network metadata to work with netplan via per-subnet
+      routes [Dan McDonald]
+    - openstack: Allow discovery in init-local using dhclient in a sandbox.
+    - tests: Avoid using https in httpretty, improve HttPretty test case.
+    - yaml_load/schema: Add invalid line and column nums to error message
+    - Azure: Ignore NTFS mount errors when checking ephemeral drive
+      [Paul Meyer]
+    - packages/brpm: Get proper dependencies for cmdline distro.
+    - packages: Make rpm spec files patch in package version like in debs.
+    - tools/run-container: replace tools/run-centos with more generic.
+    - Update version.version_string to contain packaged version.
+    - cc_mounts: Do not add devices to fstab that are already present.
+      [Lars Kellogg-Stedman]
+    - ds-identify: ensure that we have certain tokens in PATH.
+    - tests: enable Ubuntu Cosmic in integration tests [Joshua Powers]
+    - read_file_or_url: move to url_helper, fix bug in its FileResponse.
+    - cloud_tests: help pylint
+    - flake8: fix flake8 errors in previous commit.
+    - typos: Fix spelling mistakes in cc_mounts.py log messages [Stephen Ford]
+    - tests: restructure SSH and initial connections [Joshua Powers]
+    - ds-identify: recognize container-other as a container, test SmartOS.
+    - cloud-config.service: run After snap.seeded.service.
+    - tests: do not rely on host /proc/cmdline in test_net.py
+      [Lars Kellogg-Stedman]
+    - ds-identify: Remove dupe call to is_ds_enabled, improve debug message.
+    - SmartOS: fix get_interfaces for nics that do not have addr_assign_type.
+    - tests: fix package and ca_cert cloud_tests on bionic
+    - ds-identify: make shellcheck 0.4.6 happy with ds-identify.
+    - pycodestyle: Fix deprecated string literals, move away from flake8.
+    - azure: Add reported ready marker file. [Joshua Chan]
+    - tools: Support adding a release suffix through packages/bddeb.
+    - FreeBSD: Invoke growfs on ufs filesystems such that it does not prompt.
+      [Harm Weites]
+    - tools: Re-use the orig tarball in packages/bddeb if it is around.
+    - netinfo: fix netdev_pformat when a nic does not have an address assigned.
+    - collect-logs: add -v flag, write to stderr, limit journal to single boot.
+    - IBMCloud: Disable config-drive and nocloud only if IBMCloud is enabled.
+    - Add reporting events and log_time around early source of blocking time
+    - IBMCloud: recognize provisioning environment during debug boots.
+    - net: detect unstable network names and trigger a settle if needed
+    - IBMCloud: improve documentation in datasource.
+    - sysconfig: dhcp6 subnet type should not imply dhcpv4 [Vitaly Kuznetsov]
+    - packages/debian/control.in: add missing dependency on iproute2.
+    - DataSourceSmartOS: add locking of serial device. [Mike Gerdts]
+    - DataSourceSmartOS: sdc:hostname is ignored [Mike Gerdts]
+    - DataSourceSmartOS: list() should always return a list [Mike Gerdts]
+    - schema: in validation, raise ImportError if strict but no jsonschema.
+    - set_passwords: Add newline to end of sshd config, only restart if
+      updated.
+    - pylint: pay attention to unused variable warnings.
+    - doc: Add documentation for AliYun datasource. [Junjie Wang]
+    - Schema: do not warn on duplicate items in commands.
+    - net: Depend on iproute2's ip instead of net-tools ifconfig or route
+    - DataSourceSmartOS: fix hang when metadata service is down [Mike Gerdts]
+    - DataSourceSmartOS: change default fs on ephemeral disk from ext3 to
+      ext4. [Mike Gerdts]
+    - pycodestyle: Fix invalid escape sequences in string literals.
+    - Implement bash completion script for cloud-init command line
+    - tools: Fix make-tarball cli tool usage for development
+    - renderer: support unicode in render_from_file.
+    - Implement ntp client spec with auto support for distro selection
+    - Apport: add Brightbox, IBM, LXD, and OpenTelekomCloud to list of clouds.
+    - tests: fix ec2 integration network metadata validation
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 21 Jun 2018 14:16:56 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 21 Jun 2018 14:32:29 -0600
 
 cloud-init (18.2-4-g05926e48-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
