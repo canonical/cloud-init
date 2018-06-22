@@ -8,7 +8,6 @@ cloud-init (18.3-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
   * Refresh patches against upstream:
     + azure-use-walinux-agent.patch
     + ds-identify-behavior-xenial.patch
-    + openstack-no-network-config.patch
   * New upstream release. (LP: #1777912)
     - release 18.3
     - docs: represent sudo:false in docs for user_groups config module
