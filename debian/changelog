@@ -5,8 +5,6 @@ cloud-init (18.3-0ubuntu1~17.10.1) artful-proposed; urgency=medium
   * debian/patches/openstack-no-network-config.patch
     add patch to ignore Openstack network_config from network_data.json by
     default
-  * Refresh patches against upstream:
-    + openstack-no-network-config.patch
   * New upstream release. (LP: #1777912)
     - release 18.3
     - docs: represent sudo:false in docs for user_groups config module
