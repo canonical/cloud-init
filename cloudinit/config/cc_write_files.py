@@ -15,7 +15,7 @@ binary gzip data can be specified and will be decoded before being written.
 
 .. note::
     if multiline data is provided, care should be taken to ensure that it
-    follows yaml formatting standargs. to specify binary data, use the yaml
+    follows yaml formatting standards. to specify binary data, use the yaml
     option ``!!binary``
 
 **Internal name:** ``cc_write_files``
