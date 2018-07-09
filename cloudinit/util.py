@@ -579,16 +579,24 @@ def get_cfg_option_int(yobj, key, default=0):
 def get_linux_distro():
     distro_name = ''
     distro_version = ''
+    flavor = ''
     if os.path.exists('/etc/os-release'):
-        os_release = load_file('/etc/os-release')
-        for line in os_release.splitlines():
-            if line.strip().startswith('ID='):
-                distro_name = line.split('=')[-1]
-                distro_name = distro_name.replace('"', '')
-            if line.strip().startswith('VERSION_ID='):
-                # Lets hope for the best that distros stay consistent ;)
-                distro_version = line.split('=')[-1]
-                distro_version = distro_version.replace('"', '')
+        os_release = load_shell_content(load_file('/etc/os-release'))
+        distro_name = os_release.get('ID', '')
+        distro_version = os_release.get('VERSION_ID', '')
+        if 'sles' in distro_name or 'suse' in distro_name:
+            # RELEASE_BLOCKER: We will drop this sles ivergent behavior in
+            # before 18.4 so that get_linux_distro returns a named tuple
+            # which will include both version codename and architecture
+            # on all distributions.
+            flavor = platform.machine()
+        else:
+            flavor = os_release.get('VERSION_CODENAME', '')
+            if not flavor:
+                match = re.match(r'[^ ]+ \((?P<codename>[^)]+)\)',
+                                 os_release.get('VERSION'))
+                if match:
+                    flavor = match.groupdict()['codename']
     else:
         dist = ('', '', '')
         try:
@@ -606,7 +614,7 @@ def get_linux_distro():
                             'expansion may have unexpected results')
         return dist
 
-    return (distro_name, distro_version, platform.machine())
+    return (distro_name, distro_version, flavor)
 
 
 def system_info():

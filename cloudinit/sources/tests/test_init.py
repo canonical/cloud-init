@@ -5,10 +5,11 @@ import os
 import six
 import stat
 
+from cloudinit.event import EventType
 from cloudinit.helpers import Paths
 from cloudinit import importer
 from cloudinit.sources import (
-    INSTANCE_JSON_FILE, DataSource)
+    INSTANCE_JSON_FILE, DataSource, UNSET)
 from cloudinit.tests.helpers import CiTestCase, skipIf, mock
 from cloudinit.user_data import UserDataProcessor
 from cloudinit import util
@@ -381,3 +382,83 @@ class TestDataSource(CiTestCase):
                     get_args(grandchild.get_hostname),  # pylint: disable=W1505
                     '%s does not implement DataSource.get_hostname params'
                     % grandchild)
+
+    def test_clear_cached_attrs_resets_cached_attr_class_attributes(self):
+        """Class attributes listed in cached_attr_defaults are reset."""
+        count = 0
+        # Setup values for all cached class attributes
+        for attr, value in self.datasource.cached_attr_defaults:
+            setattr(self.datasource, attr, count)
+            count += 1
+        self.datasource._dirty_cache = True
+        self.datasource.clear_cached_attrs()
+        for attr, value in self.datasource.cached_attr_defaults:
+            self.assertEqual(value, getattr(self.datasource, attr))
+
+    def test_clear_cached_attrs_noops_on_clean_cache(self):
+        """Class attributes listed in cached_attr_defaults are reset."""
+        count = 0
+        # Setup values for all cached class attributes
+        for attr, _ in self.datasource.cached_attr_defaults:
+            setattr(self.datasource, attr, count)
+            count += 1
+        self.datasource._dirty_cache = False   # Fake clean cache
+        self.datasource.clear_cached_attrs()
+        count = 0
+        for attr, _ in self.datasource.cached_attr_defaults:
+            self.assertEqual(count, getattr(self.datasource, attr))
+            count += 1
+
+    def test_clear_cached_attrs_skips_non_attr_class_attributes(self):
+        """Skip any cached_attr_defaults which aren't class attributes."""
+        self.datasource._dirty_cache = True
+        self.datasource.clear_cached_attrs()
+        for attr in ('ec2_metadata', 'network_json'):
+            self.assertFalse(hasattr(self.datasource, attr))
+
+    def test_clear_cached_attrs_of_custom_attrs(self):
+        """Custom attr_values can be passed to clear_cached_attrs."""
+        self.datasource._dirty_cache = True
+        cached_attr_name = self.datasource.cached_attr_defaults[0][0]
+        setattr(self.datasource, cached_attr_name, 'himom')
+        self.datasource.myattr = 'orig'
+        self.datasource.clear_cached_attrs(
+            attr_defaults=(('myattr', 'updated'),))
+        self.assertEqual('himom', getattr(self.datasource, cached_attr_name))
+        self.assertEqual('updated', self.datasource.myattr)
+
+    def test_update_metadata_only_acts_on_supported_update_events(self):
+        """update_metadata won't get_data on unsupported update events."""
+        self.assertEqual(
+            {'network': [EventType.BOOT_NEW_INSTANCE]},
+            self.datasource.update_events)
+
+        def fake_get_data():
+            raise Exception('get_data should not be called')
+
+        self.datasource.get_data = fake_get_data
+        self.assertFalse(
+            self.datasource.update_metadata(
+                source_event_types=[EventType.BOOT]))
+
+    def test_update_metadata_returns_true_on_supported_update_event(self):
+        """update_metadata returns get_data response on supported events."""
+
+        def fake_get_data():
+            return True
+
+        self.datasource.get_data = fake_get_data
+        self.datasource._network_config = 'something'
+        self.datasource._dirty_cache = True
+        self.assertTrue(
+            self.datasource.update_metadata(
+                source_event_types=[
+                    EventType.BOOT, EventType.BOOT_NEW_INSTANCE]))
+        self.assertEqual(UNSET, self.datasource._network_config)
+        self.assertIn(
+            "DEBUG: Update datasource metadata and network config due to"
+            " events: New instance first boot",
+            self.logs.getvalue())
+
+
+# vi: ts=4 expandtab

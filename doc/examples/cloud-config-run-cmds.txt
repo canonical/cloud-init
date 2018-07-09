@@ -18,5 +18,8 @@ runcmd:
  - [ sh, -xc, "echo $(date) ': hello world!'" ]
  - [ sh, -c, echo "=========hello world'=========" ]
  - ls -l /root
- - [ wget, "http://slashdot.org", -O, /tmp/index.html ]
+ # Note: Don't write files to /tmp from cloud-init use /run/somedir instead.
+ # Early boot environments can race systemd-tmpfiles-clean LP: #1707222.
+ - mkdir /run/mydir
+ - [ wget, "http://slashdot.org", -O, /run/mydir/index.html ]
 

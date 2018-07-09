@@ -10,6 +10,8 @@
 from cloudinit import log as logging
 from cloudinit import util
 
+import time
+
 LOG = logging.getLogger(__name__)
 
 
@@ -25,16 +27,46 @@ def export_armour(key):
     return armour
 
 
-def recv_key(key, keyserver):
-    """Receive gpg key from the specified keyserver"""
-    LOG.debug('Receive gpg key "%s"', key)
-    try:
-        util.subp(["gpg", "--keyserver", keyserver, "--recv", key],
-                  capture=True)
-    except util.ProcessExecutionError as error:
-        raise ValueError(('Failed to import key "%s" '
-                          'from server "%s" - error %s') %
-                         (key, keyserver, error))
+def recv_key(key, keyserver, retries=(1, 1)):
+    """Receive gpg key from the specified keyserver.
+
+    Retries are done by default because keyservers can be unreliable.
+    Additionally, there is no way to determine the difference between
+    a non-existant key and a failure.  In both cases gpg (at least 2.2.4)
+    exits with status 2 and stderr: "keyserver receive failed: No data"
+    It is assumed that a key provided to cloud-init exists on the keyserver
+    so re-trying makes better sense than failing.
+
+    @param key: a string key fingerprint (as passed to gpg --recv-keys).
+    @param keyserver: the keyserver to request keys from.
+    @param retries: an iterable of sleep lengths for retries.
+                    Use None to indicate no retries."""
+    LOG.debug("Importing key '%s' from keyserver '%s'", key, keyserver)
+    cmd = ["gpg", "--keyserver=%s" % keyserver, "--recv-keys", key]
+    if retries is None:
+        retries = []
+    trynum = 0
+    error = None
+    sleeps = iter(retries)
+    while True:
+        trynum += 1
+        try:
+            util.subp(cmd, capture=True)
+            LOG.debug("Imported key '%s' from keyserver '%s' on try %d",
+                      key, keyserver, trynum)
+            return
+        except util.ProcessExecutionError as e:
+            error = e
+        try:
+            naplen = next(sleeps)
+            LOG.debug(
+                "Import failed with exit code %d, will try again in %ss",
+                error.exit_code, naplen)
+            time.sleep(naplen)
+        except StopIteration:
+            raise ValueError(
+                ("Failed to import key '%s' from keyserver '%s' "
+                 "after %d tries: %s") % (key, keyserver, trynum, error))
 
 
 def delete_key(key):

@@ -42,6 +42,11 @@ schema = {
 
           all commands must be proper yaml, so you have to quote any characters
           yaml would eat (':' can be problematic)
+
+        .. note::
+
+          when writing files, do not use /tmp dir as it races with
+          systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.
     """),
     'distros': distros,
     'examples': [dedent("""\
