@@ -1,3 +1,19 @@
+cloud-init (18.3-9-g2e62cb8a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - docs: note in rtd about avoiding /tmp when writing files
+    - ubuntu,centos,debian: get_linux_distro to align with platform.dist
+    - Fix boothook docs on environment variable name (INSTANCE_I ->
+      INSTANCE_ID) [Marc Tamsky]
+    - update_metadata: a datasource can support network re-config every boot
+    - tests: drop salt-minion integration test
+    - Retry on failed import of gpg receive keys.
+    - tools: Fix run-container when neither source or binary package requested.
+    - docs: Fix a small spelling error. [Oz N Tiram]
+    - tox: use simplestreams from git repository rather than bzr.
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 09 Jul 2018 15:31:12 -0600
+
 cloud-init (18.3-0ubuntu1~18.04.1) bionic-proposed; urgency=medium
 
   * debian/rules: update version.version_string to contain packaged version.
