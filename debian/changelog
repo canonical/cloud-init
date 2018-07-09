@@ -1,8 +1,9 @@
-cloud-init (18.3-9-g2e62cb8a-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (18.3-9-g2e62cb8a-0ubuntu1~18.04.1) bionic-proposed; urgency=medium
 
   * New upstream snapshot.
     - docs: note in rtd about avoiding /tmp when writing files
     - ubuntu,centos,debian: get_linux_distro to align with platform.dist
+      (LP: #1780481)
     - Fix boothook docs on environment variable name (INSTANCE_I ->
       INSTANCE_ID) [Marc Tamsky]
     - update_metadata: a datasource can support network re-config every boot
