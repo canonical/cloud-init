@@ -18,6 +18,11 @@ binary gzip data can be specified and will be decoded before being written.
     follows yaml formatting standards. to specify binary data, use the yaml
     option ``!!binary``
 
+.. note::
+    Do not write files under /tmp during boot because of a race with
+    systemd-tmpfiles-clean that can cause temp files to get cleaned during
+    the early boot process. Use /run/somedir instead to avoid race LP:1707222.
+
 **Internal name:** ``cc_write_files``
 
 **Module frequency:** per instance
