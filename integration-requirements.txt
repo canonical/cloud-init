@@ -17,4 +17,4 @@ git+https://github.com/lxc/pylxd.git@4b8ab1802f9aee4eb29cf7b119dae0aa47150779
 
 
 # finds latest image information
-bzr+lp:simplestreams
+git+https://git.launchpad.net/simplestreams

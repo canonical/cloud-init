@@ -418,7 +418,7 @@ main() {
         { bad_Usage; return; }
 
     local cur="" next=""
-    local package="" source_package="" unittest="" name=""
+    local package=false srcpackage=false unittest="" name=""
     local dirty=false pyexe="auto" artifact_d="."
 
     while [ $# -ne 0 ]; do
@@ -430,8 +430,8 @@ main() {
             -k|--keep) KEEP=true;;
             -n|--name) name="$next"; shift;;
                --pyexe) pyexe=$next; shift;;
-            -p|--package) package=1;;
-            -s|--source-package) source_package=1;;
+            -p|--package) package=true;;
+            -s|--source-package) srcpackage=true;;
             -u|--unittest) unittest=1;;
             -v|--verbose) VERBOSITY=$((VERBOSITY+1));;
             --) shift; break;;
@@ -529,8 +529,8 @@ main() {
             build_srcpkg="./packages/brpm $distflag --srpm"
             pkg_ext=".rpm";;
     esac
-    if [ -n "$source_package" ]; then
-        [ -n "$build_pkg" ] || {
+    if [ "$srcpackage" = "true" ]; then
+        [ -n "$build_srcpkg" ] || {
             error "Unknown package command for $OS_NAME"
             return 1
         }
@@ -542,19 +542,21 @@ main() {
         }
     fi
 
-    if [ -n "$package" ]; then
-        [ -n "$build_srcpkg" ] || {
+    if [ "$package" = "true" ]; then
+        [ -n "$build_pkg" ] || {
             error "Unknown build source command for $OS_NAME"
             return 1
         }
         debug 1 "building binary package with $build_pkg."
+        # shellcheck disable=SC2086
         inside_as_cd "$name" "$user" "$cdir" $pyexe $build_pkg || {
             errorrc "failed: $build_pkg";
             errors[${#errors[@]}]="binary package"
         }
     fi
 
-    if [ -n "$artifact_d" ]; then
+    if [ -n "$artifact_d" ] &&
+        [ "$package" = "true" -o "$srcpackage" = "true" ]; then
         local art=""
         artifact_d="${artifact_d%/}/"
         [ -d "${artifact_d}" ] || mkdir -p "$artifact_d" || {

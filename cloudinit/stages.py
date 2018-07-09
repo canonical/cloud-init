@@ -22,6 +22,8 @@ from cloudinit.handlers import cloud_config as cc_part
 from cloudinit.handlers import shell_script as ss_part
 from cloudinit.handlers import upstart_job as up_part
 
+from cloudinit.event import EventType
+
 from cloudinit import cloud
 from cloudinit import config
 from cloudinit import distros
@@ -648,10 +650,14 @@ class Init(object):
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
-        if (self.datasource is not NULL_DATA_SOURCE and
-                not self.is_new_instance()):
-            LOG.debug("not a new instance. network config is not applied.")
-            return
+        if self.datasource is not NULL_DATA_SOURCE:
+            if not self.is_new_instance():
+                if not self.datasource.update_metadata([EventType.BOOT]):
+                    LOG.debug(
+                        "No network config applied. Neither a new instance"
+                        " nor datasource network update on '%s' event",
+                        EventType.BOOT)
+                    return
 
         LOG.info("Applying network configuration from %s bringup=%s: %s",
                  src, bring_up, netcfg)
