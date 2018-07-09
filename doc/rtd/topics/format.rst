@@ -121,7 +121,7 @@ Cloud Boothook
 
 This content is ``boothook`` data. It is stored in a file under ``/var/lib/cloud`` and then executed immediately.
 This is the earliest ``hook`` available. Note, that there is no mechanism provided for running only once. The boothook must take care of this itself.
-It is provided with the instance id in the environment variable ``INSTANCE_I``. This could be made use of to provide a 'once-per-instance' type of functionality.
+It is provided with the instance id in the environment variable ``INSTANCE_ID``. This could be made use of to provide a 'once-per-instance' type of functionality.
 
 Begins with: ``#cloud-boothook`` or ``Content-Type: text/cloud-boothook`` when using a MIME archive.
 
