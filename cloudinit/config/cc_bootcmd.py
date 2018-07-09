@@ -42,7 +42,13 @@ schema = {
 
         .. note::
             bootcmd should only be used for things that could not be done later
-            in the boot process."""),
+            in the boot process.
+
+        .. note::
+
+          when writing files, do not use /tmp dir as it races with
+          systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.
+    """),
     'distros': distros,
     'examples': [dedent("""\
         bootcmd:

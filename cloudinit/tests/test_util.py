@@ -26,8 +26,51 @@ OS_RELEASE_SLES = dedent("""\
     CPE_NAME="cpe:/o:suse:sles:12:sp3"\n
 """)
 
+OS_RELEASE_OPENSUSE = dedent("""\
+NAME="openSUSE Leap"
+VERSION="42.3"
+ID=opensuse
+ID_LIKE="suse"
+VERSION_ID="42.3"
+PRETTY_NAME="openSUSE Leap 42.3"
+ANSI_COLOR="0;32"
+CPE_NAME="cpe:/o:opensuse:leap:42.3"
+BUG_REPORT_URL="https://bugs.opensuse.org"
+HOME_URL="https://www.opensuse.org/"
+""")
+
+OS_RELEASE_CENTOS = dedent("""\
+    NAME="CentOS Linux"
+    VERSION="7 (Core)"
+    ID="centos"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="7"
+    PRETTY_NAME="CentOS Linux 7 (Core)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:centos:centos:7"
+    HOME_URL="https://www.centos.org/"
+    BUG_REPORT_URL="https://bugs.centos.org/"
+
+    CENTOS_MANTISBT_PROJECT="CentOS-7"
+    CENTOS_MANTISBT_PROJECT_VERSION="7"
+    REDHAT_SUPPORT_PRODUCT="centos"
+    REDHAT_SUPPORT_PRODUCT_VERSION="7"
+""")
+
+OS_RELEASE_DEBIAN = dedent("""\
+    PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
+    NAME="Debian GNU/Linux"
+    VERSION_ID="9"
+    VERSION="9 (stretch)"
+    ID=debian
+    HOME_URL="https://www.debian.org/"
+    SUPPORT_URL="https://www.debian.org/support"
+    BUG_REPORT_URL="https://bugs.debian.org/"
+""")
+
 OS_RELEASE_UBUNTU = dedent("""\
     NAME="Ubuntu"\n
+    # comment test
     VERSION="16.04.3 LTS (Xenial Xerus)"\n
     ID=ubuntu\n
     ID_LIKE=debian\n
@@ -310,7 +353,31 @@ class TestGetLinuxDistro(CiTestCase):
         m_os_release.return_value = OS_RELEASE_UBUNTU
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
-        self.assertEqual(('ubuntu', '16.04', platform.machine()), dist)
+        self.assertEqual(('ubuntu', '16.04', 'xenial'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_centos(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and release name on CentOS."""
+        m_os_release.return_value = OS_RELEASE_CENTOS
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('centos', '7', 'Core'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_debian(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and release name on Debian."""
+        m_os_release.return_value = OS_RELEASE_DEBIAN
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('debian', '9', 'stretch'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_opensuse(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on OpenSUSE."""
+        m_os_release.return_value = OS_RELEASE_OPENSUSE
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('opensuse', '42.3', platform.machine()), dist)
 
     @mock.patch('platform.dist')
     def test_get_linux_distro_no_data(self, m_platform_dist, m_path_exists):
