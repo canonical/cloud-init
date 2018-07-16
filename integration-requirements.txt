@@ -9,7 +9,7 @@
 boto3==1.5.9
 
 # ssh communication
-paramiko==2.4.0
+paramiko==2.4.1
 
 # lxd backend
 # 04/03/2018: enables use of lxd 3.0
