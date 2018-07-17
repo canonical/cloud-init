@@ -4,11 +4,13 @@
 import argparse
 import json
 import os
+import sys
 import yaml
 
 from cloudinit.sources.helpers import openstack
 
 from cloudinit.net import eni
+from cloudinit import log
 from cloudinit.net import netplan
 from cloudinit.net import network_state
 from cloudinit.net import sysconfig
@@ -29,14 +31,23 @@ def main():
                         metavar="name,mac",
                         action='append',
                         help="interface name to mac mapping")
+    parser.add_argument("--debug", action='store_true',
+                        help='enable debug logging to stderr.')
     parser.add_argument("--output-kind", "-ok",
                         choices=['eni', 'netplan', 'sysconfig'],
                         required=True)
     args = parser.parse_args()
 
+    if not args.directory.endswith("/"):
+        args.directory += "/"
+
     if not os.path.isdir(args.directory):
         os.makedirs(args.directory)
 
+    if args.debug:
+        log.setupBasicLogging(level=log.DEBUG)
+    else:
+        log.setupBasicLogging(level=log.WARN)
     if args.mac:
         known_macs = {}
         for item in args.mac:
@@ -53,8 +64,10 @@ def main():
         pre_ns = yaml.load(net_data)
         if 'network' in pre_ns:
             pre_ns = pre_ns.get('network')
-        print("Input YAML")
-        print(yaml.dump(pre_ns, default_flow_style=False, indent=4))
+        if args.debug:
+            sys.stderr.write('\n'.join(
+                ["Input YAML",
+                 yaml.dump(pre_ns, default_flow_style=False, indent=4), ""]))
         ns = network_state.parse_net_config_data(pre_ns)
     else:
         pre_ns = openstack.convert_net_json(
@@ -65,8 +78,10 @@ def main():
         raise RuntimeError("No valid network_state object created from"
                            "input data")
 
-    print("\nInternal State")
-    print(yaml.dump(ns, default_flow_style=False, indent=4))
+    if args.debug:
+        sys.stderr.write('\n'.join([
+            "", "Internal State",
+            yaml.dump(ns, default_flow_style=False, indent=4), ""]))
     if args.output_kind == "eni":
         r_cls = eni.Renderer
     elif args.output_kind == "netplan":
@@ -75,6 +90,11 @@ def main():
         r_cls = sysconfig.Renderer
 
     r = r_cls()
+    sys.stderr.write(''.join([
+        "Read input format '%s' from '%s'.\n" % (
+            args.kind, args.network_data.name),
+        "Wrote output format '%s' to '%s'\n" % (
+            args.output_kind, args.directory)]) + "\n")
     r.render_network_state(network_state=ns, target=args.directory)
 
 
