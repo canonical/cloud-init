@@ -589,12 +589,15 @@ def _parse_redhat_release(release_file=None):
         return {}
     redhat_release = load_file(release_file)
     redhat_regex = (
-        r'(?P<name>\S+) (Linux )?release (?P<version>[\d\.]+) '
+        r'(?P<name>.+) release (?P<version>[\d\.]+) '
         r'\((?P<codename>[^)]+)\)')
     match = re.match(redhat_regex, redhat_release)
     if match:
         group = match.groupdict()
-        return {'ID': group['name'].lower(), 'VERSION_ID': group['version'],
+        group['name'] = group['name'].lower().partition(' linux')[0]
+        if group['name'] == 'red hat enterprise':
+            group['name'] = 'redhat'
+        return {'ID': group['name'], 'VERSION_ID': group['version'],
                 'VERSION_CODENAME': group['codename']}
     return {}
 
@@ -624,6 +627,8 @@ def get_linux_distro():
                                  os_release.get('VERSION', ''))
                 if match:
                     flavor = match.groupdict()['codename']
+        if distro_name == 'rhel':
+            distro_name = 'redhat'
     else:
         dist = ('', '', '')
         try:
