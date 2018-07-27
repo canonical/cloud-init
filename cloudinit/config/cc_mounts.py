@@ -249,12 +249,19 @@ def setup_swapfile(fname, size=None, maxsize=None):
     msg = "creating swap file '%s' of %sMB" % (fname, mbsize)
     try:
         util.ensure_dir(tdir)
+        # Check if filesystem is safe for fallocate
+        fname_fs_type = util.get_mount_info(fname)[1]
+        if fname_fs_type in ['xfs']:
+            create_swapfile_command = 'dd if=/dev/zero "of=$1" bs=1M "count=$2"'
+        else:
+            create_swapfile_command = 'fallocate -l "${2}M" "$1"'
+
         util.log_time(LOG.debug, msg, func=util.subp,
                       args=[['sh', '-c',
                             ('rm -f "$1" && umask 0066 && '
-                             '{ fallocate -l "${2}M" "$1" || '
-                             ' dd if=/dev/zero "of=$1" bs=1M "count=$2"; } && '
-                             'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
+                             '%s && '
+                             'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }' %
+                             create_swapfile_command),
                              'setup_swap', fname, mbsize]])
 
     except Exception as e:
