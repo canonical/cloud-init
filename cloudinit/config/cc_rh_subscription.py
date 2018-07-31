@@ -126,7 +126,6 @@ class SubscriptionManager(object):
         self.enable_repo = self.rhel_cfg.get('enable-repo')
         self.disable_repo = self.rhel_cfg.get('disable-repo')
         self.servicelevel = self.rhel_cfg.get('service-level')
-        self.subman = ['subscription-manager']
 
     def log_success(self, msg):
         '''Simple wrapper for logging info messages. Useful for unittests'''
@@ -173,20 +172,11 @@ class SubscriptionManager(object):
         cmd = ['identity']
 
         try:
-            self._sub_man_cli(cmd)
+            _sub_man_cli(cmd)
         except util.ProcessExecutionError:
             return False
 
         return True
-
-    def _sub_man_cli(self, cmd, logstring_val=False):
-        '''
-        Uses the prefered cloud-init subprocess def of util.subp
-        and runs subscription-manager.  Breaking this to a
-        separate function for later use in mocking and unittests
-        '''
-        cmd = self.subman + cmd
-        return util.subp(cmd, logstring=logstring_val)
 
     def rhn_register(self):
         '''
@@ -209,7 +199,7 @@ class SubscriptionManager(object):
                 cmd.append("--serverurl={0}".format(self.server_hostname))
 
             try:
-                return_out = self._sub_man_cli(cmd, logstring_val=True)[0]
+                return_out = _sub_man_cli(cmd, logstring_val=True)[0]
             except util.ProcessExecutionError as e:
                 if e.stdout == "":
                     self.log_warn("Registration failed due "
@@ -232,7 +222,7 @@ class SubscriptionManager(object):
 
             # Attempting to register the system only
             try:
-                return_out = self._sub_man_cli(cmd, logstring_val=True)[0]
+                return_out = _sub_man_cli(cmd, logstring_val=True)[0]
             except util.ProcessExecutionError as e:
                 if e.stdout == "":
                     self.log_warn("Registration failed due "
@@ -255,7 +245,7 @@ class SubscriptionManager(object):
                .format(self.servicelevel)]
 
         try:
-            return_out = self._sub_man_cli(cmd)[0]
+            return_out = _sub_man_cli(cmd)[0]
         except util.ProcessExecutionError as e:
             if e.stdout.rstrip() != '':
                 for line in e.stdout.split("\n"):
@@ -273,7 +263,7 @@ class SubscriptionManager(object):
     def _set_auto_attach(self):
         cmd = ['attach', '--auto']
         try:
-            return_out = self._sub_man_cli(cmd)[0]
+            return_out = _sub_man_cli(cmd)[0]
         except util.ProcessExecutionError as e:
             self.log_warn("Auto-attach failed with: {0}".format(e))
             return False
@@ -292,12 +282,12 @@ class SubscriptionManager(object):
 
         # Get all available pools
         cmd = ['list', '--available', '--pool-only']
-        results = self._sub_man_cli(cmd)[0]
+        results = _sub_man_cli(cmd)[0]
         available = (results.rstrip()).split("\n")
 
         # Get all consumed pools
         cmd = ['list', '--consumed', '--pool-only']
-        results = self._sub_man_cli(cmd)[0]
+        results = _sub_man_cli(cmd)[0]
         consumed = (results.rstrip()).split("\n")
 
         return available, consumed
@@ -309,14 +299,14 @@ class SubscriptionManager(object):
         '''
 
         cmd = ['repos', '--list-enabled']
-        return_out = self._sub_man_cli(cmd)[0]
+        return_out = _sub_man_cli(cmd)[0]
         active_repos = []
         for repo in return_out.split("\n"):
             if "Repo ID:" in repo:
                 active_repos.append((repo.split(':')[1]).strip())
 
         cmd = ['repos', '--list-disabled']
-        return_out = self._sub_man_cli(cmd)[0]
+        return_out = _sub_man_cli(cmd)[0]
 
         inactive_repos = []
         for repo in return_out.split("\n"):
@@ -346,7 +336,7 @@ class SubscriptionManager(object):
         if len(pool_list) > 0:
             cmd.extend(pool_list)
             try:
-                self._sub_man_cli(cmd)
+                _sub_man_cli(cmd)
                 self.log.debug("Attached the following pools to your "
                                "system: %s", (", ".join(pool_list))
                                .replace('--pool=', ''))
@@ -423,7 +413,7 @@ class SubscriptionManager(object):
             cmd.extend(enable_list)
 
         try:
-            self._sub_man_cli(cmd)
+            _sub_man_cli(cmd)
         except util.ProcessExecutionError as e:
             self.log_warn("Unable to alter repos due to {0}".format(e))
             return False
@@ -438,5 +428,16 @@ class SubscriptionManager(object):
 
     def is_configured(self):
         return bool((self.userid and self.password) or self.activation_key)
+
+
+def _sub_man_cli(cmd, logstring_val=False):
+    '''
+    Uses the prefered cloud-init subprocess def of util.subp
+    and runs subscription-manager.  Breaking this to a
+    separate function for later use in mocking and unittests
+    '''
+    return util.subp(['subscription-manager'] + cmd,
+                     logstring=logstring_val)
+
 
 # vi: ts=4 expandtab

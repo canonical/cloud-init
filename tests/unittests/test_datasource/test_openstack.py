@@ -510,6 +510,24 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(),
             'Expected detect_openstack == True on OpenTelekomCloud')
 
+    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    def test_detect_openstack_oraclecloud_chassis_asset_tag(self, m_dmi,
+                                                            m_is_x86):
+        """Return True on OpenStack reporting Oracle cloud asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_dmi_read(dmi_key):
+            if dmi_key == 'system-product-name':
+                return 'Standard PC (i440FX + PIIX, 1996)'  # No match
+            if dmi_key == 'chassis-asset-tag':
+                return 'OracleCloud.com'
+            assert False, 'Unexpected dmi read of %s' % dmi_key
+
+        m_dmi.side_effect = fake_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            'Expected detect_openstack == True on OracleCloud.com')
+
     @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
     @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
     def test_detect_openstack_by_proc_1_environ(self, m_dmi, m_proc_env,

@@ -12,6 +12,8 @@ from tests.cloud_tests.util import PlatformError
 
 from ..instances import Instance
 
+from pylxd import exceptions as pylxd_exc
+
 
 class LXDInstance(Instance):
     """LXD container backed instance."""
@@ -30,6 +32,9 @@ class LXDInstance(Instance):
         @param config: image config
         @param features: supported feature flags
         """
+        if not pylxd_container:
+            raise ValueError("Invalid value pylxd_container: %s" %
+                             pylxd_container)
         self._pylxd_container = pylxd_container
         super(LXDInstance, self).__init__(
             platform, name, properties, config, features)
@@ -40,8 +45,18 @@ class LXDInstance(Instance):
     @property
     def pylxd_container(self):
         """Property function."""
+        if self._pylxd_container is None:
+            raise RuntimeError(
+                "%s: Attempted use of pylxd_container after deletion." % self)
         self._pylxd_container.sync()
         return self._pylxd_container
+
+    def __str__(self):
+        return (
+            '%s(name=%s) status=%s' %
+            (self.__class__.__name__, self.name,
+             ("deleted" if self._pylxd_container is None else
+              self.pylxd_container.status)))
 
     def _execute(self, command, stdin=None, env=None):
         if env is None:
@@ -165,10 +180,27 @@ class LXDInstance(Instance):
         self.shutdown(wait=wait)
         self.start(wait=wait)
 
-    def shutdown(self, wait=True):
+    def shutdown(self, wait=True, retry=1):
         """Shutdown instance."""
-        if self.pylxd_container.status != 'Stopped':
+        if self.pylxd_container.status == 'Stopped':
+            return
+
+        try:
+            LOG.debug("%s: shutting down (wait=%s)", self, wait)
             self.pylxd_container.stop(wait=wait)
+        except (pylxd_exc.LXDAPIException, pylxd_exc.NotFound) as e:
+            # An exception happens here sometimes (LP: #1783198)
+            # LOG it, and try again.
+            LOG.warning(
+                ("%s: shutdown(retry=%d) caught %s in shutdown "
+                 "(response=%s): %s"),
+                self, retry, e.__class__.__name__, e.response, e)
+            if isinstance(e, pylxd_exc.NotFound):
+                LOG.debug("container_exists(%s) == %s",
+                          self.name, self.platform.container_exists(self.name))
+            if retry == 0:
+                raise e
+            return self.shutdown(wait=wait, retry=retry - 1)
 
     def start(self, wait=True, wait_for_cloud_init=False):
         """Start instance."""
@@ -189,12 +221,14 @@ class LXDInstance(Instance):
 
     def destroy(self):
         """Clean up instance."""
+        LOG.debug("%s: deleting container.", self)
         self.unfreeze()
         self.shutdown()
         self.pylxd_container.delete(wait=True)
+        self._pylxd_container = None
+
         if self.platform.container_exists(self.name):
-            raise OSError('container {} was not properly removed'
-                          .format(self.name))
+            raise OSError('%s: container was not properly removed' % self)
         if self._console_log_file and os.path.exists(self._console_log_file):
             os.unlink(self._console_log_file)
         shutil.rmtree(self.tmpd)
