@@ -1,9 +1,9 @@
-cloud-init (18.3-9-g2e62cb8a-0ubuntu1~18.04.2) UNRELEASED; urgency=medium
+cloud-init (18.3-9-g2e62cb8a-0ubuntu1~18.04.2) bionic-proposed; urgency=medium
 
   * cherry-pick 3cee0bf8: oracle: fix detect_openstack to report True on
     (LP: #1784685)
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 31 Jul 2018 12:56:28 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 31 Jul 2018 12:58:16 -0600
 
 cloud-init (18.3-9-g2e62cb8a-0ubuntu1~18.04.1) bionic-proposed; urgency=medium
 
