@@ -27,6 +27,10 @@ base_test_data:
         package-versions: |
             #!/bin/sh
             dpkg-query --show
+        build.info: |
+            #!/bin/sh
+            binfo=/etc/cloud/build.info
+            [ -f "$binfo" ] && cat "$binfo" || echo "N/A"
         system.journal.gz: |
             #!/bin/sh
             [ -d /run/systemd ] || { echo "not systemd."; exit 0; }

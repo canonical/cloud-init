@@ -564,7 +564,7 @@ class JoyentMetadataSerialClient(JoyentMetadataClient):
                     continue
                 LOG.warning('Unexpected response "%s" during flush', response)
             except JoyentMetadataTimeoutException:
-                LOG.warning('Timeout while initializing metadata client. ' +
+                LOG.warning('Timeout while initializing metadata client. '
                             'Is the host metadata service running?')
         LOG.debug('Got "invalid command".  Flush complete.')
         self.fp.timeout = timeout

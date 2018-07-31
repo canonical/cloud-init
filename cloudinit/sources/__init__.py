@@ -103,14 +103,14 @@ class DataSource(object):
     url_timeout = 10    # timeout for each metadata url read attempt
     url_retries = 5     # number of times to retry url upon 404
 
-    # The datasource defines a list of supported EventTypes during which
+    # The datasource defines a set of supported EventTypes during which
     # the datasource can react to changes in metadata and regenerate
     # network configuration on metadata changes.
     # A datasource which supports writing network config on each system boot
-    # would set update_events = {'network': [EventType.BOOT]}
+    # would call update_events['network'].add(EventType.BOOT).
 
     # Default: generate network config on new instance id (first boot).
-    update_events = {'network': [EventType.BOOT_NEW_INSTANCE]}
+    update_events = {'network': set([EventType.BOOT_NEW_INSTANCE])}
 
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
@@ -475,8 +475,8 @@ class DataSource(object):
             for update_scope, update_events in self.update_events.items():
                 if event in update_events:
                     if not supported_events.get(update_scope):
-                        supported_events[update_scope] = []
-                    supported_events[update_scope].append(event)
+                        supported_events[update_scope] = set()
+                    supported_events[update_scope].add(event)
         for scope, matched_events in supported_events.items():
             LOG.debug(
                 "Update datasource metadata and %s config due to events: %s",
@@ -490,6 +490,8 @@ class DataSource(object):
             result = self.get_data()
             if result:
                 return True
+        LOG.debug("Datasource %s not updated for events: %s", self,
+                  ', '.join(source_event_types))
         return False
 
     def check_instance_id(self, sys_cfg):
