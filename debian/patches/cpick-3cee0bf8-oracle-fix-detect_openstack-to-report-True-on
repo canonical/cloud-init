@@ -1,0 +1,66 @@
+From 3cee0bf85fbf12d272422c8eeed63bf06e64570b Mon Sep 17 00:00:00 2001
+From: Chad Smith <chad.smith@canonical.com>
+Date: Tue, 31 Jul 2018 18:44:12 +0000
+Subject: [PATCH] oracle: fix detect_openstack to report True on
+ OracleCloud.com DMI data
+
+The OpenStack datasource in 18.3 changed to detect data in the
+init-local stage instead of init-network and attempted to redetect
+OpenStackLocal datasource on Oracle across reboots. The function
+detect_openstack was added to quickly detect whether a platform is
+OpenStack based on dmi product_name or chassis_asset_tag and it was
+a bit too strict for Oracle in checking for 'OpenStack Nova'/'Compute'
+DMI product_name.
+
+Oracle's DMI product_name reports 'SAtandard PC (i440FX + PIIX, 1996)'
+and DMI chassis_asset_tag is 'OracleCloud.com'.
+
+detect_openstack function now adds 'OracleCloud.com' as a supported value
+'OracleCloud.com' to valid chassis-asset-tags for the OpenStack
+datasource.
+
+LP: #1784685
+---
+ cloudinit/sources/DataSourceOpenStack.py          |  3 ++-
+ tests/unittests/test_datasource/test_openstack.py | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)
+
+--- a/cloudinit/sources/DataSourceOpenStack.py
++++ b/cloudinit/sources/DataSourceOpenStack.py
+@@ -28,7 +28,8 @@ DMI_PRODUCT_NOVA = 'OpenStack Nova'
+ DMI_PRODUCT_COMPUTE = 'OpenStack Compute'
+ VALID_DMI_PRODUCT_NAMES = [DMI_PRODUCT_NOVA, DMI_PRODUCT_COMPUTE]
+ DMI_ASSET_TAG_OPENTELEKOM = 'OpenTelekomCloud'
+-VALID_DMI_ASSET_TAGS = [DMI_ASSET_TAG_OPENTELEKOM]
++DMI_ASSET_TAG_ORACLE_CLOUD = 'OracleCloud.com'
++VALID_DMI_ASSET_TAGS = [DMI_ASSET_TAG_OPENTELEKOM, DMI_ASSET_TAG_ORACLE_CLOUD]
+ 
+ 
+ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
+--- a/tests/unittests/test_datasource/test_openstack.py
++++ b/tests/unittests/test_datasource/test_openstack.py
+@@ -511,6 +511,24 @@ class TestDetectOpenStack(test_helpers.C
+             ds.detect_openstack(),
+             'Expected detect_openstack == True on OpenTelekomCloud')
+ 
++    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
++    def test_detect_openstack_oraclecloud_chassis_asset_tag(self, m_dmi,
++                                                            m_is_x86):
++        """Return True on OpenStack reporting Oracle cloud asset-tag."""
++        m_is_x86.return_value = True
++
++        def fake_dmi_read(dmi_key):
++            if dmi_key == 'system-product-name':
++                return 'Standard PC (i440FX + PIIX, 1996)'  # No match
++            if dmi_key == 'chassis-asset-tag':
++                return 'OracleCloud.com'
++            assert False, 'Unexpected dmi read of %s' % dmi_key
++
++        m_dmi.side_effect = fake_dmi_read
++        self.assertTrue(
++            ds.detect_openstack(),
++            'Expected detect_openstack == True on OracleCloud.com')
++
+     @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
+     @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+     def test_detect_openstack_by_proc_1_environ(self, m_dmi, m_proc_env,
