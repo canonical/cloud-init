@@ -1,3 +1,19 @@
+cloud-init (18.3-18-g3cee0bf8-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - oracle: fix detect_openstack to report True on OracleCloud.com DMI data
+    - tests: improve LXDInstance trying to workaround or catch bug.
+    - update_metadata re-config on every boot comments and tests not quite
+      right [Mike Gerdts]
+    - tests: Collect build_info from system if available.
+    - pylint: Fix pylint warnings reported in pylint 2.0.0.
+    - get_linux_distro: add support for rhel via redhat-release.
+    - get_linux_distro: add support for centos6 and rawhide flavors of redhat
+    - tools: add '--debug' to tools/net-convert.py
+    - tests: bump the version of paramiko to 2.4.1.
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 31 Jul 2018 12:50:28 -0600
+
 cloud-init (18.3-9-g2e62cb8a-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
