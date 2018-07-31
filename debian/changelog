@@ -1,3 +1,10 @@
+cloud-init (18.3-9-g2e62cb8a-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+
+  * cherry-pick 3cee0bf8: oracle: fix detect_openstack to report True on
+    (LP: #1784685)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 31 Jul 2018 13:56:50 -0600
+
 cloud-init (18.3-9-g2e62cb8a-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * New upstream snapshot. (LP: #1777912)
