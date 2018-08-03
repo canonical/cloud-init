@@ -4,9 +4,11 @@
 # Purpose: show user warnings on login.
 
 cloud_init_warnings() {
-    local warning="" idir="/var/lib/cloud/instance" n=0
-    local warndir="$idir/warnings"
-    local ufile="$HOME/.cloud-warnings.skip" sfile="$warndir/.skip"
+    command -v local >/dev/null && local _local="local" ||
+        typeset _local="typeset"
+    $_local warning="" idir="/var/lib/cloud/instance" n=0
+    $_local warndir="$idir/warnings"
+    $_local ufile="$HOME/.cloud-warnings.skip" sfile="$warndir/.skip"
     [ -d "$warndir" ] || return 0
     [ ! -f "$ufile" ] || return 0
     [ ! -f "$sfile" ] || return 0
