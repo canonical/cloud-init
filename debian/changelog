@@ -1,4 +1,4 @@
-cloud-init (18.3-24-gf6249277-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.3-24-gf6249277-0ubuntu1) cosmic; urgency=medium
 
   * debian/cloud-init.templates: enable Oracle Compute Infrastructure by
     default
