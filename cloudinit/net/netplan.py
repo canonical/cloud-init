@@ -291,6 +291,8 @@ class Renderer(renderer.Renderer):
 
                 if len(bond_config) > 0:
                     bond.update({'parameters': bond_config})
+                if ifcfg.get('mac_address'):
+                    bond['macaddress'] = ifcfg.get('mac_address').lower()
                 slave_interfaces = ifcfg.get('bond-slaves')
                 if slave_interfaces == 'none':
                     _extract_bond_slaves_by_name(interfaces, bond, ifname)
@@ -327,6 +329,8 @@ class Renderer(renderer.Renderer):
 
                 if len(br_config) > 0:
                     bridge.update({'parameters': br_config})
+                if ifcfg.get('mac_address'):
+                    bridge['macaddress'] = ifcfg.get('mac_address').lower()
                 _extract_addresses(ifcfg, bridge, ifname)
                 bridges.update({ifname: bridge})
 

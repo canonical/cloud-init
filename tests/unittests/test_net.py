@@ -643,6 +643,7 @@ iface br0 inet static
     bridge_stp off
     bridge_waitport 1 eth3
     bridge_waitport 2 eth4
+    hwaddress bb:bb:bb:bb:bb:aa
 
 # control-alias br0
 iface br0 inet6 static
@@ -708,6 +709,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         interfaces:
                         - eth1
                         - eth2
+                        macaddress: aa:bb:cc:dd:ee:ff
                         parameters:
                             mii-monitor-interval: 100
                             mode: active-backup
@@ -720,6 +722,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         interfaces:
                         - eth3
                         - eth4
+                        macaddress: bb:bb:bb:bb:bb:aa
                         nameservers:
                             addresses:
                             - 8.8.8.8
@@ -803,6 +806,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 IPV6ADDR=2001:1::1/64
                 IPV6INIT=yes
                 IPV6_DEFAULTGW=2001:4800:78ff:1b::1
+                MACADDR=bb:bb:bb:bb:bb:aa
                 NETMASK=255.255.255.0
                 NM_CONTROLLED=no
                 ONBOOT=yes
@@ -973,6 +977,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                       use_tempaddr: 1
                       forwarding: 1
                       # basically anything in /proc/sys/net/ipv6/conf/.../
+                  mac_address: bb:bb:bb:bb:bb:aa
                   params:
                       bridge_ageing: 250
                       bridge_bridgeprio: 22
@@ -1075,6 +1080,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                      interfaces:
                      - bond0s0
                      - bond0s1
+                     macaddress: aa:bb:cc:dd:e8:ff
                      mtu: 9000
                      parameters:
                          mii-monitor-interval: 100

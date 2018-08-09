@@ -11,8 +11,11 @@
 #  of how to fix them.
 
 locale_warn() {
-    local bad_names="" bad_lcs="" key="" val="" var="" vars="" bad_kv=""
-    local w1 w2 w3 w4 remain
+    command -v local >/dev/null && local _local="local" ||
+        typeset _local="typeset"
+
+    $_local bad_names="" bad_lcs="" key="" val="" var="" vars="" bad_kv=""
+    $_local w1 w2 w3 w4 remain
 
     # if shell is zsh, act like sh only for this function (-L).
     # The behavior change will not permenently affect user's shell.
@@ -53,8 +56,8 @@ locale_warn() {
     printf " This can affect your user experience significantly, including the\n"
     printf " ability to manage packages. You may install the locales by running:\n\n"
 
-    local bad invalid="" to_gen="" sfile="/usr/share/i18n/SUPPORTED"
-    local pkgs=""
+    $_local bad invalid="" to_gen="" sfile="/usr/share/i18n/SUPPORTED"
+    $_local local pkgs=""
     if [ -e "$sfile" ]; then
         for bad in ${bad_lcs}; do
             grep -q -i "${bad}" "$sfile" &&
@@ -67,7 +70,7 @@ locale_warn() {
     fi
     to_gen=${to_gen# }
 
-    local pkgs=""
+    $_local pkgs=""
     for bad in ${to_gen}; do
         pkgs="${pkgs} language-pack-${bad%%_*}"
     done

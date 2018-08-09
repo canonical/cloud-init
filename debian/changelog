@@ -1,3 +1,19 @@
+cloud-init (18.3-24-gf6249277-0ubuntu1) cosmic; urgency=medium
+
+  * debian/cloud-init.templates: enable Oracle Compute Infrastructure by
+    default
+  * New upstream snapshot.
+    - docs: Fix example cloud-init analyze command to match output.
+      [Wesley Gao]
+    - netplan: Correctly render macaddress on a bonds and bridges when
+      provided.
+    - tools: Add 'net-convert' subcommand command to 'cloud-init devel'.
+    - redhat: remove ssh keys on new instance.
+    - Use typeset or local in profile.d scripts.
+    - OpenNebula: Fix null gateway6 [Akihiko Ota]
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 09 Aug 2018 10:27:29 -0600
+
 cloud-init (18.3-18-g3cee0bf8-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
