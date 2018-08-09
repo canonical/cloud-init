@@ -1,6 +1,6 @@
-#!/usr/bin/python3
 # This file is part of cloud-init. See LICENSE file for license information.
 
+"""Debug network config format conversions."""
 import argparse
 import json
 import os
@@ -9,18 +9,25 @@ import yaml
 
 from cloudinit.sources.helpers import openstack
 
-from cloudinit.net import eni
+from cloudinit.net import eni, netplan, network_state, sysconfig
 from cloudinit import log
-from cloudinit.net import netplan
-from cloudinit.net import network_state
-from cloudinit.net import sysconfig
+
+NAME = 'net-convert'
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--network-data", "-p", type=open,
+def get_parser(parser=None):
+    """Build or extend and arg parser for net-convert utility.
+
+    @param parser: Optional existing ArgumentParser instance representing the
+        subcommand which will be extended to support the args of this utility.
+
+    @returns: ArgumentParser with proper argument configuration.
+    """
+    if not parser:
+        parser = argparse.ArgumentParser(prog=NAME, description=__doc__)
+    parser.add_argument("-p", "--network-data", type=open,
                         metavar="PATH", required=True)
-    parser.add_argument("--kind", "-k",
+    parser.add_argument("-k", "--kind",
                         choices=['eni', 'network_data.json', 'yaml'],
                         required=True)
     parser.add_argument("-d", "--directory",
@@ -33,11 +40,13 @@ def main():
                         help="interface name to mac mapping")
     parser.add_argument("--debug", action='store_true',
                         help='enable debug logging to stderr.')
-    parser.add_argument("--output-kind", "-ok",
+    parser.add_argument("-O", "--output-kind",
                         choices=['eni', 'netplan', 'sysconfig'],
                         required=True)
-    args = parser.parse_args()
+    return parser
 
+
+def handle_args(name, args):
     if not args.directory.endswith("/"):
         args.directory += "/"
 
@@ -99,6 +108,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    args = get_parser().parse_args()
+    handle_args(NAME, args)
+
 
 # vi: ts=4 expandtab
