@@ -4,7 +4,7 @@
 Boot Stages
 ***********
 In order to be able to provide the functionality that it does, cloud-init
-must be integrated into the boot in fairly controlled way.
+must be integrated into the boot in a fairly controlled way.
 
 There are 5 stages.
 
