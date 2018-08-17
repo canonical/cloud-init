@@ -41,6 +41,7 @@ DEFAULT_LOCAL = [
     SmartOS.DataSourceSmartOS,
     Ec2.DataSourceEc2Local,
     OpenStack.DataSourceOpenStackLocal,
+    Scaleway.DataSourceScaleway,
 ]
 
 DEFAULT_NETWORK = [
@@ -55,7 +56,6 @@ DEFAULT_NETWORK = [
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
     OVF.DataSourceOVFNet,
-    Scaleway.DataSourceScaleway,
 ]
 
 
