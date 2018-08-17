@@ -16,7 +16,7 @@ from six import StringIO
 
 from cloudinit import helpers
 from cloudinit import settings
-from cloudinit.sources import convert_vendordata, UNSET
+from cloudinit.sources import BrokenMetadata, convert_vendordata, UNSET
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
@@ -186,7 +186,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('meta_data.json'):
                 os_files[k] = json.dumps(os_meta)
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
+        self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     def test_userdata_empty(self):
         os_files = copy.deepcopy(OS_FILES)
@@ -217,7 +217,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('vendor_data.json'):
                 os_files[k] = '{'  # some invalid json
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
+        self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     def test_metadata_invalid(self):
         os_files = copy.deepcopy(OS_FILES)
@@ -225,7 +225,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('meta_data.json'):
                 os_files[k] = '{'  # some invalid json
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
+        self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     @test_helpers.mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_datasource(self, m_dhcp):
@@ -525,8 +525,11 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
 
         m_dmi.side_effect = fake_dmi_read
         self.assertTrue(
-            ds.detect_openstack(),
+            ds.detect_openstack(accept_oracle=True),
             'Expected detect_openstack == True on OracleCloud.com')
+        self.assertFalse(
+            ds.detect_openstack(accept_oracle=False),
+            'Expected detect_openstack == False.')
 
     @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
     @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')

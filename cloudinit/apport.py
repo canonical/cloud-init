@@ -30,6 +30,7 @@ KNOWN_CLOUD_NAMES = [
     'NoCloud',
     'OpenNebula',
     'OpenStack',
+    'Oracle',
     'OVF',
     'OpenTelekomCloud',
     'Scaleway',
