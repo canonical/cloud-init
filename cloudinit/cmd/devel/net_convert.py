@@ -8,6 +8,7 @@ import sys
 import yaml
 
 from cloudinit.sources.helpers import openstack
+from cloudinit.sources import DataSourceAzure as azure
 
 from cloudinit.net import eni, netplan, network_state, sysconfig
 from cloudinit import log
@@ -28,7 +29,8 @@ def get_parser(parser=None):
     parser.add_argument("-p", "--network-data", type=open,
                         metavar="PATH", required=True)
     parser.add_argument("-k", "--kind",
-                        choices=['eni', 'network_data.json', 'yaml'],
+                        choices=['eni', 'network_data.json', 'yaml',
+                                 'azure-imds'],
                         required=True)
     parser.add_argument("-d", "--directory",
                         metavar="PATH",
@@ -78,9 +80,12 @@ def handle_args(name, args):
                 ["Input YAML",
                  yaml.dump(pre_ns, default_flow_style=False, indent=4), ""]))
         ns = network_state.parse_net_config_data(pre_ns)
-    else:
+    elif args.kind == 'network_data.json':
         pre_ns = openstack.convert_net_json(
             json.loads(net_data), known_macs=known_macs)
+        ns = network_state.parse_net_config_data(pre_ns)
+    elif args.kind == 'azure-imds':
+        pre_ns = azure.parse_network_config(json.loads(net_data))
         ns = network_state.parse_net_config_data(pre_ns)
 
     if not ns:
