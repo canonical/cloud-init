@@ -1,5 +1,7 @@
 cloud-init (18.3-24-gf6249277-0ubuntu1) UNRELEASED; urgency=medium
 
+  * debian/cloud-init.templates: enable Oracle Compute Infrastructure by
+    default
   * New upstream snapshot.
     - docs: Fix example cloud-init analyze command to match output.
       [Wesley Gao]
