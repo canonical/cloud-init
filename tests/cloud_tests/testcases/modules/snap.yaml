@@ -1,6 +1,9 @@
 #
 # Install snappy
 #
+# Aug 23, 2018: Disabled due to requiring a proxy for testing
+#    tests do not handle the proxy well at this time.
+enabled: False
 required_features:
   - snap
 cloud_config: |
