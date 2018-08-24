@@ -21,6 +21,8 @@ from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
 
+from cloudinit.sources import BrokenMetadata
+
 # See https://docs.openstack.org/user-guide/cli-config-drive.html
 
 LOG = logging.getLogger(__name__)
@@ -65,10 +67,6 @@ PHYSICAL_TYPES = (
 
 
 class NonReadable(IOError):
-    pass
-
-
-class BrokenMetadata(IOError):
     pass
 
 

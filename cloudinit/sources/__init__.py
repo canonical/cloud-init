@@ -671,6 +671,10 @@ def convert_vendordata(data, recurse=True):
     raise ValueError("Unknown data type for vendordata: %s" % type(data))
 
 
+class BrokenMetadata(IOError):
+    pass
+
+
 # 'depends' is a list of dependencies (DEP_FILESYSTEM)
 # ds_list is a list of 2 item lists
 # ds_list = [

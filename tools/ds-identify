@@ -116,7 +116,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud"
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -1033,6 +1033,12 @@ dscheck_Scaleway() {
 
 dscheck_Hetzner() {
     dmi_sys_vendor_is Hetzner && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_Oracle() {
+    local asset_tag="OracleCloud.com"
+    dmi_chassis_asset_tag_matches "${asset_tag}" && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 

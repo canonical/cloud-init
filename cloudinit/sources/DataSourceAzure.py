@@ -8,6 +8,7 @@ import base64
 import contextlib
 import crypt
 from functools import partial
+import json
 import os
 import os.path
 import re
@@ -17,6 +18,7 @@ import xml.etree.ElementTree as ET
 
 from cloudinit import log as logging
 from cloudinit import net
+from cloudinit.event import EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers.azure import get_metadata_from_fabric
@@ -49,7 +51,17 @@ DEFAULT_FS = 'ext4'
 AZURE_CHASSIS_ASSET_TAG = '7783-7084-3265-9085-8269-3286-77'
 REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
 REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
-IMDS_URL = "http://169.254.169.254/metadata/reprovisiondata"
+AGENT_SEED_DIR = '/var/lib/waagent'
+IMDS_URL = "http://169.254.169.254/metadata/"
+
+# List of static scripts and network config artifacts created by
+# stock ubuntu suported images.
+UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
+    '/etc/netplan/90-azure-hotplug.yaml',
+    '/usr/local/sbin/ephemeral_eth.sh',
+    '/etc/udev/rules.d/10-net-device-added.rules',
+    '/run/network/interfaces.ephemeral.d',
+]
 
 
 def find_storvscid_from_sysctl_pnpinfo(sysctl_out, deviceid):
@@ -185,7 +197,7 @@ if util.is_FreeBSD():
 
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START_BUILTIN,
-    'data_dir': "/var/lib/waagent",
+    'data_dir': AGENT_SEED_DIR,
     'set_hostname': True,
     'hostname_bounce': {
         'interface': DEFAULT_PRIMARY_NIC,
@@ -252,6 +264,7 @@ class DataSourceAzure(sources.DataSource):
 
     dsname = 'Azure'
     _negotiated = False
+    _metadata_imds = sources.UNSET
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -263,6 +276,8 @@ class DataSourceAzure(sources.DataSource):
             BUILTIN_DS_CONFIG])
         self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
         self._network_config = None
+        # Regenerate network config new_instance boot and every boot
+        self.update_events['network'].add(EventType.BOOT)
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -336,15 +351,17 @@ class DataSourceAzure(sources.DataSource):
         metadata['public-keys'] = key_value or pubkeys_from_crt_files(fp_files)
         return metadata
 
-    def _get_data(self):
+    def crawl_metadata(self):
+        """Walk all instance metadata sources returning a dict on success.
+
+        @return: A dictionary of any metadata content for this instance.
+        @raise: InvalidMetaDataException when the expected metadata service is
+            unavailable, broken or disabled.
+        """
+        crawled_data = {}
         # azure removes/ejects the cdrom containing the ovf-env.xml
         # file on reboot.  So, in order to successfully reboot we
         # need to look in the datadir and consider that valid
-        asset_tag = util.read_dmi_data('chassis-asset-tag')
-        if asset_tag != AZURE_CHASSIS_ASSET_TAG:
-            LOG.debug("Non-Azure DMI asset tag '%s' discovered.", asset_tag)
-            return False
-
         ddir = self.ds_cfg['data_dir']
 
         candidates = [self.seed_dir]
@@ -373,41 +390,84 @@ class DataSourceAzure(sources.DataSource):
             except NonAzureDataSource:
                 continue
             except BrokenAzureDataSource as exc:
-                raise exc
+                msg = 'BrokenAzureDataSource: %s' % exc
+                raise sources.InvalidMetaDataException(msg)
             except util.MountFailedError:
                 LOG.warning("%s was not mountable", cdev)
                 continue
 
             if reprovision or self._should_reprovision(ret):
                 ret = self._reprovision()
-            (md, self.userdata_raw, cfg, files) = ret
+            imds_md = get_metadata_from_imds(
+                self.fallback_interface, retries=3)
+            (md, userdata_raw, cfg, files) = ret
             self.seed = cdev
-            self.metadata = util.mergemanydict([md, DEFAULT_METADATA])
-            self.cfg = util.mergemanydict([cfg, BUILTIN_CLOUD_CONFIG])
+            crawled_data.update({
+                'cfg': cfg,
+                'files': files,
+                'metadata': util.mergemanydict(
+                    [md, {'imds': imds_md}]),
+                'userdata_raw': userdata_raw})
             found = cdev
 
             LOG.debug("found datasource in %s", cdev)
             break
 
         if not found:
-            return False
+            raise sources.InvalidMetaDataException('No Azure metadata found')
 
         if found == ddir:
             LOG.debug("using files cached in %s", ddir)
 
         seed = _get_random_seed()
         if seed:
-            self.metadata['random_seed'] = seed
+            crawled_data['metadata']['random_seed'] = seed
+        crawled_data['metadata']['instance-id'] = util.read_dmi_data(
+            'system-uuid')
+        return crawled_data
+
+    def _is_platform_viable(self):
+        """Check platform environment to report if this datasource may run."""
+        return _is_platform_viable(self.seed_dir)
+
+    def clear_cached_attrs(self, attr_defaults=()):
+        """Reset any cached class attributes to defaults."""
+        super(DataSourceAzure, self).clear_cached_attrs(attr_defaults)
+        self._metadata_imds = sources.UNSET
+
+    def _get_data(self):
+        """Crawl and process datasource metadata caching metadata as attrs.
+
+        @return: True on success, False on error, invalid or disabled
+            datasource.
+        """
+        if not self._is_platform_viable():
+            return False
+        try:
+            crawled_data = util.log_time(
+                        logfunc=LOG.debug, msg='Crawl of metadata service',
+                        func=self.crawl_metadata)
+        except sources.InvalidMetaDataException as e:
+            LOG.warning('Could not crawl Azure metadata: %s', e)
+            return False
+        if self.distro and self.distro.name == 'ubuntu':
+            maybe_remove_ubuntu_network_config_scripts()
+
+        # Process crawled data and augment with various config defaults
+        self.cfg = util.mergemanydict(
+            [crawled_data['cfg'], BUILTIN_CLOUD_CONFIG])
+        self._metadata_imds = crawled_data['metadata']['imds']
+        self.metadata = util.mergemanydict(
+            [crawled_data['metadata'], DEFAULT_METADATA])
+        self.userdata_raw = crawled_data['userdata_raw']
 
         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
 
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
-        write_files(ddir, files, dirmode=0o700)
-
-        self.metadata['instance-id'] = util.read_dmi_data('system-uuid')
-
+        write_files(
+            self.ds_cfg['data_dir'], crawled_data['files'], dirmode=0o700)
         return True
 
     def device_name_to_device(self, name):
@@ -436,7 +496,7 @@ class DataSourceAzure(sources.DataSource):
     def _poll_imds(self):
         """Poll IMDS for the new provisioning data until we get a valid
         response. Then return the returned JSON object."""
-        url = IMDS_URL + "?api-version=2017-04-02"
+        url = IMDS_URL + "reprovisiondata?api-version=2017-04-02"
         headers = {"Metadata": "true"}
         report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
         LOG.debug("Start polling IMDS")
@@ -487,7 +547,7 @@ class DataSourceAzure(sources.DataSource):
         jump back into the polling loop in order to retrieve the ovf_env."""
         if not ret:
             return False
-        (_md, self.userdata_raw, cfg, _files) = ret
+        (_md, _userdata_raw, cfg, _files) = ret
         path = REPROVISION_MARKER_FILE
         if (cfg.get('PreprovisionedVm') is True or
                 os.path.isfile(path)):
@@ -543,22 +603,15 @@ class DataSourceAzure(sources.DataSource):
     @property
     def network_config(self):
         """Generate a network config like net.generate_fallback_network() with
-           the following execptions.
+           the following exceptions.
 
            1. Probe the drivers of the net-devices present and inject them in
               the network configuration under params: driver: <driver> value
            2. Generate a fallback network config that does not include any of
               the blacklisted devices.
         """
-        blacklist = ['mlx4_core']
         if not self._network_config:
-            LOG.debug('Azure: generating fallback configuration')
-            # generate a network config, blacklist picking any mlx4_core devs
-            netconfig = net.generate_fallback_config(
-                blacklist_drivers=blacklist, config_driver=True)
-
-            self._network_config = netconfig
-
+            self._network_config = parse_network_config(self._metadata_imds)
         return self._network_config
 
 
@@ -1023,6 +1076,151 @@ def load_azure_ds_dir(source_dir):
 
     md, ud, cfg = read_azure_ovf(contents)
     return (md, ud, cfg, {'ovf-env.xml': contents})
+
+
+def parse_network_config(imds_metadata):
+    """Convert imds_metadata dictionary to network v2 configuration.
+
+    Parses network configuration from imds metadata if present or generate
+    fallback network config excluding mlx4_core devices.
+
+    @param: imds_metadata: Dict of content read from IMDS network service.
+    @return: Dictionary containing network version 2 standard configuration.
+    """
+    if imds_metadata != sources.UNSET and imds_metadata:
+        netconfig = {'version': 2, 'ethernets': {}}
+        LOG.debug('Azure: generating network configuration from IMDS')
+        network_metadata = imds_metadata['network']
+        for idx, intf in enumerate(network_metadata['interface']):
+            nicname = 'eth{idx}'.format(idx=idx)
+            dev_config = {}
+            for addr4 in intf['ipv4']['ipAddress']:
+                privateIpv4 = addr4['privateIpAddress']
+                if privateIpv4:
+                    if dev_config.get('dhcp4', False):
+                        # Append static address config for nic > 1
+                        netPrefix = intf['ipv4']['subnet'][0].get(
+                            'prefix', '24')
+                        if not dev_config.get('addresses'):
+                            dev_config['addresses'] = []
+                        dev_config['addresses'].append(
+                            '{ip}/{prefix}'.format(
+                                ip=privateIpv4, prefix=netPrefix))
+                    else:
+                        dev_config['dhcp4'] = True
+            for addr6 in intf['ipv6']['ipAddress']:
+                privateIpv6 = addr6['privateIpAddress']
+                if privateIpv6:
+                    dev_config['dhcp6'] = True
+                    break
+            if dev_config:
+                mac = ':'.join(re.findall(r'..', intf['macAddress']))
+                dev_config.update(
+                    {'match': {'macaddress': mac.lower()},
+                     'set-name': nicname})
+                netconfig['ethernets'][nicname] = dev_config
+    else:
+        blacklist = ['mlx4_core']
+        LOG.debug('Azure: generating fallback configuration')
+        # generate a network config, blacklist picking mlx4_core devs
+        netconfig = net.generate_fallback_config(
+            blacklist_drivers=blacklist, config_driver=True)
+    return netconfig
+
+
+def get_metadata_from_imds(fallback_nic, retries):
+    """Query Azure's network metadata service, returning a dictionary.
+
+    If network is not up, setup ephemeral dhcp on fallback_nic to talk to the
+    IMDS. For more info on IMDS:
+        https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service
+
+    @param fallback_nic: String. The name of the nic which requires active
+        network in order to query IMDS.
+    @param retries: The number of retries of the IMDS_URL.
+
+    @return: A dict of instance metadata containing compute and network
+        info.
+    """
+    kwargs = {'logfunc': LOG.debug,
+              'msg': 'Crawl of Azure Instance Metadata Service (IMDS)',
+              'func': _get_metadata_from_imds, 'args': (retries,)}
+    if net.is_up(fallback_nic):
+        return util.log_time(**kwargs)
+    else:
+        with EphemeralDHCPv4(fallback_nic):
+            return util.log_time(**kwargs)
+
+
+def _get_metadata_from_imds(retries):
+
+    def retry_on_url_error(msg, exception):
+        if isinstance(exception, UrlError) and exception.code == 404:
+            return True  # Continue retries
+        return False  # Stop retries on all other exceptions
+
+    url = IMDS_URL + "instance?api-version=2017-12-01"
+    headers = {"Metadata": "true"}
+    try:
+        response = readurl(
+            url, timeout=1, headers=headers, retries=retries,
+            exception_cb=retry_on_url_error)
+    except Exception as e:
+        LOG.debug('Ignoring IMDS instance metadata: %s', e)
+        return {}
+    try:
+        return util.load_json(str(response))
+    except json.decoder.JSONDecodeError:
+        LOG.warning(
+            'Ignoring non-json IMDS instance metadata: %s', str(response))
+    return {}
+
+
+def maybe_remove_ubuntu_network_config_scripts(paths=None):
+    """Remove Azure-specific ubuntu network config for non-primary nics.
+
+    @param paths: List of networking scripts or directories to remove when
+        present.
+
+    In certain supported ubuntu images, static udev rules or netplan yaml
+    config is delivered in the base ubuntu image to support dhcp on any
+    additional interfaces which get attached by a customer at some point
+    after initial boot. Since the Azure datasource can now regenerate
+    network configuration as metadata reports these new devices, we no longer
+    want the udev rules or netplan's 90-azure-hotplug.yaml to configure
+    networking on eth1 or greater as it might collide with cloud-init's
+    configuration.
+
+    Remove the any existing extended network scripts if the datasource is
+    enabled to write network per-boot.
+    """
+    if not paths:
+        paths = UBUNTU_EXTENDED_NETWORK_SCRIPTS
+    logged = False
+    for path in paths:
+        if os.path.exists(path):
+            if not logged:
+                LOG.info(
+                    'Removing Ubuntu extended network scripts because'
+                    ' cloud-init updates Azure network configuration on the'
+                    ' following event: %s.',
+                    EventType.BOOT)
+                logged = True
+            if os.path.isdir(path):
+                util.del_dir(path)
+            else:
+                util.del_file(path)
+
+
+def _is_platform_viable(seed_dir):
+    """Check platform environment to report if this datasource may run."""
+    asset_tag = util.read_dmi_data('chassis-asset-tag')
+    if asset_tag == AZURE_CHASSIS_ASSET_TAG:
+        return True
+    LOG.debug("Non-Azure DMI asset tag '%s' discovered.", asset_tag)
+    if os.path.exists(os.path.join(seed_dir, 'ovf-env.xml')):
+        return True
+    return False
 
 
 class BrokenAzureDataSource(Exception):

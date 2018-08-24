@@ -1,15 +1,21 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from cloudinit import distros
 from cloudinit import helpers
-from cloudinit.sources import DataSourceAzure as dsaz
+from cloudinit import url_helper
+from cloudinit.sources import (
+    UNSET, DataSourceAzure as dsaz, InvalidMetaDataException)
 from cloudinit.util import (b64e, decode_binary, load_file, write_file,
                             find_freebsd_part, get_path_dev_freebsd,
                             MountFailedError)
 from cloudinit.version import version_string as vs
-from cloudinit.tests.helpers import (CiTestCase, TestCase, populate_dir, mock,
-                                     ExitStack, PY26, SkipTest)
+from cloudinit.tests.helpers import (
+    HttprettyTestCase, CiTestCase, populate_dir, mock, wrap_and_call,
+    ExitStack, PY26, SkipTest)
 
 import crypt
+import httpretty
+import json
 import os
 import stat
 import xml.etree.ElementTree as ET
@@ -77,6 +83,106 @@ def construct_valid_ovf_env(data=None, pubkeys=None,
     return content
 
 
+NETWORK_METADATA = {
+    "network": {
+        "interface": [
+            {
+                "macAddress": "000D3A047598",
+                "ipv6": {
+                    "ipAddress": []
+                },
+                "ipv4": {
+                    "subnet": [
+                        {
+                           "prefix": "24",
+                           "address": "10.0.0.0"
+                        }
+                    ],
+                    "ipAddress": [
+                        {
+                           "privateIpAddress": "10.0.0.4",
+                           "publicIpAddress": "104.46.124.81"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+
+
+class TestGetMetadataFromIMDS(HttprettyTestCase):
+
+    with_logs = True
+
+    def setUp(self):
+        super(TestGetMetadataFromIMDS, self).setUp()
+        self.network_md_url = dsaz.IMDS_URL + "instance?api-version=2017-12-01"
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.readurl')
+    @mock.patch('cloudinit.sources.DataSourceAzure.EphemeralDHCPv4')
+    @mock.patch('cloudinit.sources.DataSourceAzure.net.is_up')
+    def test_get_metadata_does_not_dhcp_if_network_is_up(
+            self, m_net_is_up, m_dhcp, m_readurl):
+        """Do not perform DHCP setup when nic is already up."""
+        m_net_is_up.return_value = True
+        m_readurl.return_value = url_helper.StringResponse(
+            json.dumps(NETWORK_METADATA).encode('utf-8'))
+        self.assertEqual(
+            NETWORK_METADATA,
+            dsaz.get_metadata_from_imds('eth9', retries=3))
+
+        m_net_is_up.assert_called_with('eth9')
+        m_dhcp.assert_not_called()
+        self.assertIn(
+            "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
+            self.logs.getvalue())
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.readurl')
+    @mock.patch('cloudinit.sources.DataSourceAzure.EphemeralDHCPv4')
+    @mock.patch('cloudinit.sources.DataSourceAzure.net.is_up')
+    def test_get_metadata_performs_dhcp_when_network_is_down(
+            self, m_net_is_up, m_dhcp, m_readurl):
+        """Perform DHCP setup when nic is not up."""
+        m_net_is_up.return_value = False
+        m_readurl.return_value = url_helper.StringResponse(
+            json.dumps(NETWORK_METADATA).encode('utf-8'))
+
+        self.assertEqual(
+            NETWORK_METADATA,
+            dsaz.get_metadata_from_imds('eth9', retries=2))
+
+        m_net_is_up.assert_called_with('eth9')
+        m_dhcp.assert_called_with('eth9')
+        self.assertIn(
+            "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
+            self.logs.getvalue())
+
+        m_readurl.assert_called_with(
+            self.network_md_url, exception_cb=mock.ANY,
+            headers={'Metadata': 'true'}, retries=2, timeout=1)
+
+    @mock.patch('cloudinit.url_helper.time.sleep')
+    @mock.patch('cloudinit.sources.DataSourceAzure.net.is_up')
+    def test_get_metadata_from_imds_empty_when_no_imds_present(
+            self, m_net_is_up, m_sleep):
+        """Return empty dict when IMDS network metadata is absent."""
+        httpretty.register_uri(
+            httpretty.GET,
+            dsaz.IMDS_URL + 'instance?api-version=2017-12-01',
+            body={}, status=404)
+
+        m_net_is_up.return_value = True  # skips dhcp
+
+        self.assertEqual({}, dsaz.get_metadata_from_imds('eth9', retries=2))
+
+        m_net_is_up.assert_called_with('eth9')
+        self.assertEqual([mock.call(1), mock.call(1)], m_sleep.call_args_list)
+        self.assertIn(
+            "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
+            self.logs.getvalue())
+
+
 class TestAzureDataSource(CiTestCase):
 
     with_logs = True
@@ -95,8 +201,19 @@ class TestAzureDataSource(CiTestCase):
         self.patches = ExitStack()
         self.addCleanup(self.patches.close)
 
-        self.patches.enter_context(mock.patch.object(dsaz, '_get_random_seed'))
-
+        self.patches.enter_context(mock.patch.object(
+            dsaz, '_get_random_seed', return_value='wild'))
+        self.m_get_metadata_from_imds = self.patches.enter_context(
+            mock.patch.object(
+                dsaz, 'get_metadata_from_imds',
+                mock.MagicMock(return_value=NETWORK_METADATA)))
+        self.m_fallback_nic = self.patches.enter_context(
+            mock.patch('cloudinit.sources.net.find_fallback_nic',
+                       return_value='eth9'))
+        self.m_remove_ubuntu_network_scripts = self.patches.enter_context(
+            mock.patch.object(
+                dsaz, 'maybe_remove_ubuntu_network_config_scripts',
+                mock.MagicMock()))
         super(TestAzureDataSource, self).setUp()
 
     def apply_patches(self, patches):
@@ -137,7 +254,7 @@ scbus-1 on xpt0 bus 0
         ])
         return dsaz
 
-    def _get_ds(self, data, agent_command=None):
+    def _get_ds(self, data, agent_command=None, distro=None):
 
         def dsdevs():
             return data.get('dsdevs', [])
@@ -186,8 +303,11 @@ scbus-1 on xpt0 bus 0
                 side_effect=_wait_for_files)),
         ])
 
+        if distro is not None:
+            distro_cls = distros.fetch(distro)
+            distro = distro_cls(distro, data.get('sys_cfg', {}), self.paths)
         dsrc = dsaz.DataSourceAzure(
-            data.get('sys_cfg', {}), distro=None, paths=self.paths)
+            data.get('sys_cfg', {}), distro=distro, paths=self.paths)
         if agent_command is not None:
             dsrc.ds_cfg['agent_command'] = agent_command
 
@@ -260,29 +380,20 @@ fdescfs            /dev/fd          fdescfs rw              0 0
             res = get_path_dev_freebsd('/etc', mnt_list)
             self.assertIsNotNone(res)
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.util.read_dmi_data')
-    def test_non_azure_dmi_chassis_asset_tag(self, m_read_dmi_data):
-        """Report non-azure when DMI's chassis asset tag doesn't match.
-
-        Return False when the asset tag doesn't match Azure's static
-        AZURE_CHASSIS_ASSET_TAG.
-        """
+    @mock.patch('cloudinit.sources.DataSourceAzure._is_platform_viable')
+    def test_call_is_platform_viable_seed(self, m_is_platform_viable):
+        """Check seed_dir using _is_platform_viable and return False."""
         # Return a non-matching asset tag value
-        nonazure_tag = dsaz.AZURE_CHASSIS_ASSET_TAG + 'X'
-        m_read_dmi_data.return_value = nonazure_tag
+        m_is_platform_viable.return_value = False
         dsrc = dsaz.DataSourceAzure(
             {}, distro=None, paths=self.paths)
         self.assertFalse(dsrc.get_data())
-        self.assertEqual(
-            "DEBUG: Non-Azure DMI asset tag '{0}' discovered.\n".format(
-                nonazure_tag),
-            self.logs.getvalue())
+        m_is_platform_viable.assert_called_with(dsrc.seed_dir)
 
     def test_basic_seed_dir(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
                 'sys_cfg': {}}
-
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
@@ -290,6 +401,82 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         self.assertEqual(dsrc.metadata['local-hostname'], odata['HostName'])
         self.assertTrue(os.path.isfile(
             os.path.join(self.waagent_d, 'ovf-env.xml')))
+
+    def test_get_data_non_ubuntu_will_not_remove_network_scripts(self):
+        """get_data on non-Ubuntu will not remove ubuntu net scripts."""
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        dsrc = self._get_ds(data, distro='debian')
+        dsrc.get_data()
+        self.m_remove_ubuntu_network_scripts.assert_not_called()
+
+    def test_get_data_on_ubuntu_will_remove_network_scripts(self):
+        """get_data will remove ubuntu net scripts on Ubuntu distro."""
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        dsrc = self._get_ds(data, distro='ubuntu')
+        dsrc.get_data()
+        self.m_remove_ubuntu_network_scripts.assert_called_once_with()
+
+    def test_crawl_metadata_returns_structured_data_and_caches_nothing(self):
+        """Return all structured metadata and cache no class attributes."""
+        yaml_cfg = "{agent_command: my_command}\n"
+        odata = {'HostName': "myhost", 'UserName': "myuser",
+                 'UserData': {'text': 'FOOBAR', 'encoding': 'plain'},
+                 'dscfg': {'text': yaml_cfg, 'encoding': 'plain'}}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+        dsrc = self._get_ds(data)
+        expected_cfg = {
+            'PreprovisionedVm': False,
+            'datasource': {'Azure': {'agent_command': 'my_command'}},
+            'system_info': {'default_user': {'name': u'myuser'}}}
+        expected_metadata = {
+            'azure_data': {
+                'configurationsettype': 'LinuxProvisioningConfiguration'},
+            'imds': {'network': {'interface': [{
+                'ipv4': {'ipAddress': [
+                     {'privateIpAddress': '10.0.0.4',
+                      'publicIpAddress': '104.46.124.81'}],
+                      'subnet': [{'address': '10.0.0.0', 'prefix': '24'}]},
+                'ipv6': {'ipAddress': []},
+                'macAddress': '000D3A047598'}]}},
+            'instance-id': 'test-instance-id',
+            'local-hostname': u'myhost',
+            'random_seed': 'wild'}
+
+        crawled_metadata = dsrc.crawl_metadata()
+
+        self.assertItemsEqual(
+            crawled_metadata.keys(),
+            ['cfg', 'files', 'metadata', 'userdata_raw'])
+        self.assertEqual(crawled_metadata['cfg'], expected_cfg)
+        self.assertEqual(
+            list(crawled_metadata['files'].keys()), ['ovf-env.xml'])
+        self.assertIn(
+            b'<HostName>myhost</HostName>',
+            crawled_metadata['files']['ovf-env.xml'])
+        self.assertEqual(crawled_metadata['metadata'], expected_metadata)
+        self.assertEqual(crawled_metadata['userdata_raw'], 'FOOBAR')
+        self.assertEqual(dsrc.userdata_raw, None)
+        self.assertEqual(dsrc.metadata, {})
+        self.assertEqual(dsrc._metadata_imds, UNSET)
+        self.assertFalse(os.path.isfile(
+            os.path.join(self.waagent_d, 'ovf-env.xml')))
+
+    def test_crawl_metadata_raises_invalid_metadata_on_error(self):
+        """crawl_metadata raises an exception on invalid ovf-env.xml."""
+        data = {'ovfcontent': "BOGUS", 'sys_cfg': {}}
+        dsrc = self._get_ds(data)
+        error_msg = ('BrokenAzureDataSource: Invalid ovf-env.xml:'
+                     ' syntax error: line 1, column 0')
+        with self.assertRaises(InvalidMetaDataException) as cm:
+            dsrc.crawl_metadata()
+        self.assertEqual(str(cm.exception), error_msg)
 
     def test_waagent_d_has_0700_perms(self):
         # we expect /var/lib/waagent to be created 0700
@@ -313,6 +500,20 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(data['agent_invoked'], cfg['agent_command'])
+
+    def test_network_config_set_from_imds(self):
+        """Datasource.network_config returns IMDS network data."""
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+        expected_network_config = {
+            'ethernets': {
+                'eth0': {'set-name': 'eth0',
+                         'match': {'macaddress': '00:0d:3a:04:75:98'},
+                         'dhcp4': True}},
+            'version': 2}
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(expected_network_config, dsrc.network_config)
 
     def test_user_cfg_set_agent_command(self):
         # set dscfg in via base64 encoded yaml
@@ -579,12 +780,34 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         self.assertEqual(
             [mock.call("/dev/cd0")], m_check_fbsd_cdrom.call_args_list)
 
+    @mock.patch('cloudinit.net.generate_fallback_config')
+    def test_imds_network_config(self, mock_fallback):
+        """Network config is generated from IMDS network data when present."""
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+
+        expected_cfg = {
+            'ethernets': {
+                'eth0': {'dhcp4': True,
+                         'match': {'macaddress': '00:0d:3a:04:75:98'},
+                         'set-name': 'eth0'}},
+            'version': 2}
+
+        self.assertEqual(expected_cfg, dsrc.network_config)
+        mock_fallback.assert_not_called()
+
     @mock.patch('cloudinit.net.get_interface_mac')
     @mock.patch('cloudinit.net.get_devicelist')
     @mock.patch('cloudinit.net.device_driver')
     @mock.patch('cloudinit.net.generate_fallback_config')
-    def test_network_config(self, mock_fallback, mock_dd,
-                            mock_devlist, mock_get_mac):
+    def test_fallback_network_config(self, mock_fallback, mock_dd,
+                                     mock_devlist, mock_get_mac):
+        """On absent IMDS network data, generate network fallback config."""
         odata = {'HostName': "myhost", 'UserName': "myuser"}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
                 'sys_cfg': {}}
@@ -605,6 +828,8 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         mock_get_mac.return_value = '00:11:22:33:44:55'
 
         dsrc = self._get_ds(data)
+        # Represent empty response from network imds
+        self.m_get_metadata_from_imds.return_value = {}
         ret = dsrc.get_data()
         self.assertTrue(ret)
 
@@ -617,8 +842,9 @@ fdescfs            /dev/fd          fdescfs rw              0 0
     @mock.patch('cloudinit.net.get_devicelist')
     @mock.patch('cloudinit.net.device_driver')
     @mock.patch('cloudinit.net.generate_fallback_config')
-    def test_network_config_blacklist(self, mock_fallback, mock_dd,
-                                      mock_devlist, mock_get_mac):
+    def test_fallback_network_config_blacklist(self, mock_fallback, mock_dd,
+                                               mock_devlist, mock_get_mac):
+        """On absent network metadata, blacklist mlx from fallback config."""
         odata = {'HostName': "myhost", 'UserName': "myuser"}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
                 'sys_cfg': {}}
@@ -649,6 +875,8 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         mock_get_mac.return_value = '00:11:22:33:44:55'
 
         dsrc = self._get_ds(data)
+        # Represent empty response from network imds
+        self.m_get_metadata_from_imds.return_value = {}
         ret = dsrc.get_data()
         self.assertTrue(ret)
 
@@ -689,9 +917,12 @@ class TestAzureBounce(CiTestCase):
             mock.patch.object(dsaz, 'get_metadata_from_fabric',
                               mock.MagicMock(return_value={})))
         self.patches.enter_context(
-            mock.patch.object(dsaz.util, 'which', lambda x: True))
+            mock.patch.object(dsaz, 'get_metadata_from_imds',
+                              mock.MagicMock(return_value={})))
         self.patches.enter_context(
-            mock.patch.object(dsaz, '_get_random_seed'))
+            mock.patch.object(dsaz.util, 'which', lambda x: True))
+        self.patches.enter_context(mock.patch.object(
+            dsaz, '_get_random_seed', return_value='wild'))
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
@@ -719,9 +950,12 @@ class TestAzureBounce(CiTestCase):
             mock.patch.object(dsaz, 'set_hostname'))
         self.subp = self.patches.enter_context(
             mock.patch('cloudinit.sources.DataSourceAzure.util.subp'))
+        self.find_fallback_nic = self.patches.enter_context(
+            mock.patch('cloudinit.net.find_fallback_nic', return_value='eth9'))
 
     def tearDown(self):
         self.patches.close()
+        super(TestAzureBounce, self).tearDown()
 
     def _get_ds(self, ovfcontent=None, agent_command=None):
         if ovfcontent is not None:
@@ -927,7 +1161,7 @@ class TestLoadAzureDsDir(CiTestCase):
             str(context_manager.exception))
 
 
-class TestReadAzureOvf(TestCase):
+class TestReadAzureOvf(CiTestCase):
 
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
@@ -1188,6 +1422,25 @@ class TestCanDevBeReformatted(CiTestCase):
                       "(datasource.Azure.never_destroy_ntfs)", msg)
 
 
+class TestClearCachedData(CiTestCase):
+
+    def test_clear_cached_attrs_clears_imds(self):
+        """All class attributes are reset to defaults, including imds data."""
+        tmp = self.tmp_dir()
+        paths = helpers.Paths(
+            {'cloud_dir': tmp, 'run_dir': tmp})
+        dsrc = dsaz.DataSourceAzure({}, distro=None, paths=paths)
+        clean_values = [dsrc.metadata, dsrc.userdata, dsrc._metadata_imds]
+        dsrc.metadata = 'md'
+        dsrc.userdata = 'ud'
+        dsrc._metadata_imds = 'imds'
+        dsrc._dirty_cache = True
+        dsrc.clear_cached_attrs()
+        self.assertEqual(
+            [dsrc.metadata, dsrc.userdata, dsrc._metadata_imds],
+            clean_values)
+
+
 class TestAzureNetExists(CiTestCase):
 
     def test_azure_net_must_exist_for_legacy_objpkl(self):
@@ -1396,6 +1649,96 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
             prefix_or_mask='255.255.255.0', router='192.168.2.1')
         self.assertEqual(m_net.call_count, 1)
+
+
+class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
+
+    with_logs = True
+
+    def setUp(self):
+        super(TestRemoveUbuntuNetworkConfigScripts, self).setUp()
+        self.tmp = self.tmp_dir()
+
+    def test_remove_network_scripts_removes_both_files_and_directories(self):
+        """Any files or directories in paths are removed when present."""
+        file1 = self.tmp_path('file1', dir=self.tmp)
+        subdir = self.tmp_path('sub1', dir=self.tmp)
+        subfile = self.tmp_path('leaf1', dir=subdir)
+        write_file(file1, 'file1content')
+        write_file(subfile, 'leafcontent')
+        dsaz.maybe_remove_ubuntu_network_config_scripts(paths=[subdir, file1])
+
+        for path in (file1, subdir, subfile):
+            self.assertFalse(os.path.exists(path),
+                             'Found unremoved: %s' % path)
+
+        expected_logs = [
+            'INFO: Removing Ubuntu extended network scripts because cloud-init'
+            ' updates Azure network configuration on the following event:'
+            ' System boot.',
+            'Recursively deleting %s' % subdir,
+            'Attempting to remove %s' % file1]
+        for log in expected_logs:
+            self.assertIn(log, self.logs.getvalue())
+
+    def test_remove_network_scripts_only_attempts_removal_if_path_exists(self):
+        """Any files or directories absent are skipped without error."""
+        dsaz.maybe_remove_ubuntu_network_config_scripts(paths=[
+            self.tmp_path('nodirhere/', dir=self.tmp),
+            self.tmp_path('notfilehere', dir=self.tmp)])
+        self.assertNotIn('/not/a', self.logs.getvalue())  # No delete logs
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.os.path.exists')
+    def test_remove_network_scripts_default_removes_stock_scripts(self,
+                                                                  m_exists):
+        """Azure's stock ubuntu image scripts and artifacts are removed."""
+        # Report path absent on all to avoid delete operation
+        m_exists.return_value = False
+        dsaz.maybe_remove_ubuntu_network_config_scripts()
+        calls = m_exists.call_args_list
+        for path in dsaz.UBUNTU_EXTENDED_NETWORK_SCRIPTS:
+            self.assertIn(mock.call(path), calls)
+
+
+class TestWBIsPlatformViable(CiTestCase):
+    """White box tests for _is_platform_viable."""
+    with_logs = True
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.read_dmi_data')
+    def test_true_on_non_azure_chassis(self, m_read_dmi_data):
+        """Return True if DMI chassis-asset-tag is AZURE_CHASSIS_ASSET_TAG."""
+        m_read_dmi_data.return_value = dsaz.AZURE_CHASSIS_ASSET_TAG
+        self.assertTrue(dsaz._is_platform_viable('doesnotmatter'))
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.os.path.exists')
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.read_dmi_data')
+    def test_true_on_azure_ovf_env_in_seed_dir(self, m_read_dmi_data, m_exist):
+        """Return True if ovf-env.xml exists in known seed dirs."""
+        # Non-matching Azure chassis-asset-tag
+        m_read_dmi_data.return_value = dsaz.AZURE_CHASSIS_ASSET_TAG + 'X'
+
+        m_exist.return_value = True
+        self.assertTrue(dsaz._is_platform_viable('/some/seed/dir'))
+        m_exist.called_once_with('/other/seed/dir')
+
+    def test_false_on_no_matching_azure_criteria(self):
+        """Report non-azure on unmatched asset tag, ovf-env absent and no dev.
+
+        Return False when the asset tag doesn't match Azure's static
+        AZURE_CHASSIS_ASSET_TAG, no ovf-env.xml files exist in known seed dirs
+        and no devices have a label starting with prefix 'rd_rdfe_'.
+        """
+        self.assertFalse(wrap_and_call(
+            'cloudinit.sources.DataSourceAzure',
+            {'os.path.exists': False,
+             # Non-matching Azure chassis-asset-tag
+             'util.read_dmi_data': dsaz.AZURE_CHASSIS_ASSET_TAG + 'X',
+             'util.which': None},
+            dsaz._is_platform_viable, 'doesnotmatter'))
+        self.assertIn(
+            "DEBUG: Non-Azure DMI asset tag '{0}' discovered.\n".format(
+                dsaz.AZURE_CHASSIS_ASSET_TAG + 'X'),
+            self.logs.getvalue())
 
 
 # vi: ts=4 expandtab
