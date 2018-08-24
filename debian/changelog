@@ -1,4 +1,4 @@
-cloud-init (18.3-29-gdab59087-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.3-29-gdab59087-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
     - tests: disable other snap test as well [Joshua Powers]
@@ -7,7 +7,7 @@ cloud-init (18.3-29-gdab59087-0ubuntu1) UNRELEASED; urgency=medium
     - azure: allow azure to generate network configuration from IMDS per boot.
     - Scaleway: Add network configuration to the DataSource [Louis Bouchard]
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Aug 2018 16:13:28 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Aug 2018 16:13:36 -0400
 
 cloud-init (18.3-24-gf6249277-0ubuntu1) cosmic; urgency=medium
 
