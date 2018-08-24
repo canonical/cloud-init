@@ -18,7 +18,7 @@ DEFAULT_CONFIG = {
 
 
 def update_configuration(config):
-    """Update the instanciated_handler_registry.
+    """Update the instantiated_handler_registry.
 
     :param config:
         The dictionary containing changes to apply.  If a key is given

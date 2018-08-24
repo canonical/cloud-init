@@ -315,7 +315,7 @@ def main_init(name, args):
                 existing = "trust"
 
         init.purge_cache()
-        # Delete the non-net file as well
+        # Delete the no-net file as well
         util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
 
     # Stage 5
@@ -339,7 +339,7 @@ def main_init(name, args):
                               " Likely bad things to come!"))
         if not args.force:
             init.apply_network_config(bring_up=not args.local)
-            LOG.debug("[%s] Exiting without datasource in local mode", mode)
+            LOG.debug("[%s] Exiting without datasource", mode)
             if mode == sources.DSMODE_LOCAL:
                 return (None, [])
             else:

@@ -157,7 +157,7 @@ class Distro(object):
                     distro)
         header = '\n'.join([
             "# Converted from network_config for distro %s" % distro,
-            "# Implmentation of _write_network_config is needed."
+            "# Implementation of _write_network_config is needed."
         ])
         ns = network_state.parse_net_config_data(netconfig)
         contents = eni.network_state_to_eni(
