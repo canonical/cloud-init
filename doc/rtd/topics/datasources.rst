@@ -189,6 +189,7 @@ Follow for more information.
    datasources/nocloud.rst
    datasources/opennebula.rst
    datasources/openstack.rst
+   datasources/oracle.rst
    datasources/ovf.rst
    datasources/smartos.rst
    datasources/fallback.rst

@@ -14,8 +14,11 @@ class TestWriteFiles(base.CloudTestCase):
 
     def test_binary(self):
         """Test binary file reads as executable."""
-        out = self.get_data_file('file_binary')
-        self.assertIn('ELF 64-bit LSB executable, x86-64, version 1', out)
+        out = self.get_data_file('file_binary').strip()
+        md5 = "3801184b97bb8c6e63fa0e1eae2920d7"
+        sha256 = ("2c791c4037ea5bd7e928d6a87380f8ba7a803cd83d"
+                  "5e4f269e28f5090f0f2c9a")
+        self.assertIn(out, (md5 + "  -", sha256 + "  -"))
 
     def test_gzip(self):
         """Test gzip file shows up as a shell script."""
