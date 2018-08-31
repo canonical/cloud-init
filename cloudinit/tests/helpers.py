@@ -10,7 +10,6 @@ import shutil
 import sys
 import tempfile
 import time
-import unittest
 
 import mock
 import six
@@ -33,6 +32,7 @@ from cloudinit import util
 
 # Used for skipping tests
 SkipTest = unittest2.SkipTest
+skipIf = unittest2.skipIf
 
 # Used for detecting different python versions
 PY2 = False
@@ -423,21 +423,6 @@ def resourceLocation(subname=None):
 def readResource(name, mode='r'):
     with open(resourceLocation(name), mode) as fh:
         return fh.read()
-
-
-try:
-    skipIf = unittest.skipIf
-except AttributeError:
-    # Python 2.6.  Doesn't have to be high fidelity.
-    def skipIf(condition, reason):
-        def decorator(func):
-            def wrapper(*args, **kws):
-                if condition:
-                    return func(*args, **kws)
-                else:
-                    print(reason, file=sys.stderr)
-            return wrapper
-        return decorator
 
 
 try:
