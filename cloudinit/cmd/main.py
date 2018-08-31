@@ -877,9 +877,11 @@ def main(sysv_args=None):
         rname, rdesc, reporting_enabled=report_on)
 
     with args.reporter:
-        return util.log_time(
+        retval = util.log_time(
             logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
             get_uptime=True, func=functor, args=(name, args))
+        reporting.flush_events()
+        return retval
 
 
 if __name__ == '__main__':

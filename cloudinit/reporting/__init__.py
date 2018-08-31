@@ -37,6 +37,12 @@ def update_configuration(config):
         instantiated_handler_registry.register_item(handler_name, instance)
 
 
+def flush_events():
+    for _, handler in instantiated_handler_registry.registered_items.items():
+        if hasattr(handler, 'flush'):
+            handler.flush()
+
+
 instantiated_handler_registry = DictRegistry()
 update_configuration(DEFAULT_CONFIG)
 
