@@ -76,6 +76,12 @@ if is_gitdir(_tdir) and which("git"):
     if not version.startswith(src_version):
         sys.stderr.write("git describe version (%s) differs from "
                          "cloudinit.version (%s)\n" % (version, src_version))
+        sys.stderr.write(
+            "Please get the latest upstream tags.\n"
+            "As an example, this can be done with the following:\n"
+            "$ git remote add upstream https://git.launchpad.net/cloud-init\n"
+            "$ git fetch upstream --tags\n"
+        )
         sys.exit(1)
 
     version_long = tiny_p(cmd + ["--long"]).strip()
