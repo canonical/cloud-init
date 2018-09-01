@@ -10,7 +10,6 @@ import shutil
 import sys
 import tempfile
 import time
-import unittest
 
 import mock
 import six
@@ -28,11 +27,15 @@ except ImportError:
 
 from cloudinit.config.schema import (
     SchemaValidationError, validate_cloudconfig_schema)
+from cloudinit import cloud
+from cloudinit import distros
 from cloudinit import helpers as ch
+from cloudinit.sources import DataSourceNone
 from cloudinit import util
 
 # Used for skipping tests
 SkipTest = unittest2.SkipTest
+skipIf = unittest2.skipIf
 
 # Used for detecting different python versions
 PY2 = False
@@ -186,6 +189,29 @@ class CiTestCase(TestCase):
                 sys.exit(2)
         """
         raise SystemExit(code)
+
+    def tmp_cloud(self, distro, sys_cfg=None, metadata=None):
+        """Create a cloud with tmp working directory paths.
+
+        @param distro: Name of the distro to attach to the cloud.
+        @param metadata: Optional metadata to set on the datasource.
+
+        @return: The built cloud instance.
+        """
+        self.new_root = self.tmp_dir()
+        if not sys_cfg:
+            sys_cfg = {}
+        tmp_paths = {}
+        for var in ['templates_dir', 'run_dir', 'cloud_dir']:
+            tmp_paths[var] = self.tmp_path(var, dir=self.new_root)
+            util.ensure_dir(tmp_paths[var])
+        self.paths = ch.Paths(tmp_paths)
+        cls = distros.fetch(distro)
+        mydist = cls(distro, sys_cfg, self.paths)
+        myds = DataSourceNone.DataSourceNone(sys_cfg, mydist, self.paths)
+        if metadata:
+            myds.metadata.update(metadata)
+        return cloud.Cloud(myds, self.paths, sys_cfg, mydist, None)
 
 
 class ResourceUsingTestCase(CiTestCase):
@@ -423,21 +449,6 @@ def resourceLocation(subname=None):
 def readResource(name, mode='r'):
     with open(resourceLocation(name), mode) as fh:
         return fh.read()
-
-
-try:
-    skipIf = unittest.skipIf
-except AttributeError:
-    # Python 2.6.  Doesn't have to be high fidelity.
-    def skipIf(condition, reason):
-        def decorator(func):
-            def wrapper(*args, **kws):
-                if condition:
-                    return func(*args, **kws)
-                else:
-                    print(reason, file=sys.stderr)
-            return wrapper
-        return decorator
 
 
 try:
