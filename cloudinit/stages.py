@@ -510,7 +510,7 @@ class Init(object):
                 # The default frequency if handlers don't have one
                 'frequency': frequency,
                 # This will be used when new handlers are found
-                # to help write there contents to files with numbered
+                # to help write their contents to files with numbered
                 # names...
                 'handlercount': 0,
                 'excluded': excluded,

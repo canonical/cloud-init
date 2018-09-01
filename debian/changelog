@@ -1,3 +1,17 @@
+cloud-init (18.3-35-g3f6d0972-0ubuntu1) cosmic; urgency=medium
+
+  * New upstream snapshot.
+    - Add unit tests for config/cc_ssh.py [Francis Ginther]
+    - Fix the built-in cloudinit/tests/helpers:skipIf
+    - read-version: enhance error message [Joshua Powers]
+    - hyperv_reporting_handler: simplify threaded publisher
+    - VMWare: Fix a network config bug in vm with static IPv4 and no gateway.
+      [Pengpeng Sun]
+    - logging: Add logging config type hyperv for reporting via Azure KVP
+      [Andy Liu]
+
+ -- Chad Smith <chad.smith@canonical.com>  Sat, 01 Sep 2018 12:08:52 -0600
+
 cloud-init (18.3-29-gdab59087-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
