@@ -118,7 +118,8 @@ class TestBootcmd(CiTestCase):
             'echo {0} $INSTANCE_ID > {1}'.format(my_id, out_file)]}
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
-            handle('cc_bootcmd', valid_config, cc, LOG, [])
+            with self.allow_subp(['/bin/sh']):
+                handle('cc_bootcmd', valid_config, cc, LOG, [])
         self.assertEqual(my_id + ' iid-datasource-none\n',
                          util.load_file(out_file))
 
@@ -128,12 +129,13 @@ class TestBootcmd(CiTestCase):
         valid_config = {'bootcmd': ['exit 1']}  # Script with error
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
-            with self.assertRaises(util.ProcessExecutionError) as ctxt_manager:
-                handle('does-not-matter', valid_config, cc, LOG, [])
+            with self.allow_subp(['/bin/sh']):
+                with self.assertRaises(util.ProcessExecutionError) as ctxt:
+                    handle('does-not-matter', valid_config, cc, LOG, [])
         self.assertIn(
             'Unexpected error while running command.\n'
             "Command: ['/bin/sh',",
-            str(ctxt_manager.exception))
+            str(ctxt.exception))
         self.assertIn(
             'Failed to run bootcmd module does-not-matter',
             self.logs.getvalue())

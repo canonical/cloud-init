@@ -224,6 +224,9 @@ class TestConfigDriveDataSource(CiTestCase):
 
     def setUp(self):
         super(TestConfigDriveDataSource, self).setUp()
+        self.add_patch(
+            "cloudinit.sources.DataSourceConfigDrive.util.find_devs_with",
+            "m_find_devs_with", return_value=[])
         self.tmp = self.tmp_dir()
 
     def test_ec2_metadata(self):
@@ -642,7 +645,7 @@ class TestConvertNetworkData(CiTestCase):
             routes)
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), self.tmp)
+            network_state.parse_net_config_data(ncfg), target=self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
@@ -664,7 +667,7 @@ class TestConvertNetworkData(CiTestCase):
         eni_renderer = eni.Renderer()
 
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), self.tmp)
+            network_state.parse_net_config_data(ncfg), target=self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
@@ -695,7 +698,7 @@ class TestConvertNetworkData(CiTestCase):
                                           known_macs=KNOWN_MACS)
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), self.tmp)
+            network_state.parse_net_config_data(ncfg), target=self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()

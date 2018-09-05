@@ -162,6 +162,7 @@ class TestAddAssertions(CiTestCase):
 class TestRunCommands(CiTestCase):
 
     with_logs = True
+    allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
 
     def setUp(self):
         super(TestRunCommands, self).setUp()
@@ -424,8 +425,10 @@ class TestHandle(CiTestCase):
             'snap': {'commands': ['echo "HI" >> %s' % outfile,
                                   'echo "MOM" >> %s' % outfile]}}
         mock_path = 'cloudinit.config.cc_snap.sys.stderr'
-        with mock.patch(mock_path, new_callable=StringIO):
-            handle('snap', cfg=cfg, cloud=None, log=self.logger, args=None)
+        with self.allow_subp([CiTestCase.SUBP_SHELL_TRUE]):
+            with mock.patch(mock_path, new_callable=StringIO):
+                handle('snap', cfg=cfg, cloud=None, log=self.logger, args=None)
+
         self.assertEqual('HI\nMOM\n', util.load_file(outfile))
 
     @mock.patch('cloudinit.config.cc_snap.util.subp')

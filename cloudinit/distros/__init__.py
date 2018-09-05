@@ -91,7 +91,7 @@ class Distro(object):
         LOG.debug("Selected renderer '%s' from priority list: %s",
                   name, priority)
         renderer = render_cls(config=self.renderer_configs.get(name))
-        renderer.render_network_config(network_config=network_config)
+        renderer.render_network_config(network_config)
         return []
 
     def _find_tz_file(self, tz):

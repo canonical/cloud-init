@@ -480,7 +480,7 @@ class Renderer(renderer.Renderer):
 
         return '\n\n'.join(['\n'.join(s) for s in sections]) + "\n"
 
-    def render_network_state(self, network_state, target=None):
+    def render_network_state(self, network_state, templates=None, target=None):
         fpeni = util.target_path(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
         header = self.eni_header if self.eni_header else ""

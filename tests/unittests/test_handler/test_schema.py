@@ -4,7 +4,7 @@ from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER, SchemaValidationError, annotated_cloudconfig_file,
     get_schema_doc, get_schema, validate_cloudconfig_file,
     validate_cloudconfig_schema, main)
-from cloudinit.util import subp, write_file
+from cloudinit.util import write_file
 
 from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
@@ -406,8 +406,14 @@ class CloudTestsIntegrationTest(CiTestCase):
         integration_testdir = os.path.sep.join(
             [testsdir, 'cloud_tests', 'testcases'])
         errors = []
-        out, _ = subp(['find', integration_testdir, '-name', '*yaml'])
-        for filename in out.splitlines():
+
+        yaml_files = []
+        for root, _dirnames, filenames in os.walk(integration_testdir):
+            yaml_files.extend([os.path.join(root, f)
+                               for f in filenames if f.endswith(".yaml")])
+        self.assertTrue(len(yaml_files) > 0)
+
+        for filename in yaml_files:
             test_cfg = safe_load(open(filename))
             cloud_config = test_cfg.get('cloud_config')
             if cloud_config:
