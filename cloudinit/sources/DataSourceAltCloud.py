@@ -181,27 +181,18 @@ class DataSourceAltCloud(sources.DataSource):
 
         # modprobe floppy
         try:
-            cmd = CMD_PROBE_FLOPPY
-            (cmd_out, _err) = util.subp(cmd)
-            LOG.debug('Command: %s\nOutput%s', ' '.join(cmd), cmd_out)
+            modprobe_floppy()
         except ProcessExecutionError as e:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), e)
-            return False
-        except OSError as e:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), e)
+            util.logexc(LOG, 'Failed modprobe: %s', e)
             return False
 
         floppy_dev = '/dev/fd0'
 
         # udevadm settle for floppy device
         try:
-            (cmd_out, _err) = util.udevadm_settle(exists=floppy_dev, timeout=5)
-            LOG.debug('Command: %s\nOutput%s', ' '.join(cmd), cmd_out)
-        except ProcessExecutionError as e:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), e)
-            return False
-        except OSError as e:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), e)
+            util.udevadm_settle(exists=floppy_dev, timeout=5)
+        except (ProcessExecutionError, OSError) as e:
+            util.logexc(LOG, 'Failed udevadm_settle: %s\n', e)
             return False
 
         try:
@@ -256,6 +247,11 @@ class DataSourceAltCloud(sources.DataSource):
             return True
         else:
             return False
+
+
+def modprobe_floppy():
+    out, _err = util.subp(CMD_PROBE_FLOPPY)
+    LOG.debug('Command: %s\nOutput%s', ' '.join(CMD_PROBE_FLOPPY), out)
 
 
 # Used to match classes to dependencies

@@ -1,3 +1,12 @@
+cloud-init (18.3-38-gd47d404e-0ubuntu1) cosmic; urgency=medium
+
+  * New upstream snapshot.
+    - tests: print failed testname instead of docstring upon failure
+    - tests: Disallow use of util.subp except for where needed.
+    - sysconfig: refactor sysconfig to accept distro specific templates paths
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Wed, 05 Sep 2018 16:03:46 -0500
+
 cloud-init (18.3-35-g3f6d0972-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
