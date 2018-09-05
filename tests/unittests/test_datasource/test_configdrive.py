@@ -642,7 +642,7 @@ class TestConvertNetworkData(CiTestCase):
             routes)
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), self.tmp)
+            network_state.parse_net_config_data(ncfg), target=self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
@@ -664,7 +664,7 @@ class TestConvertNetworkData(CiTestCase):
         eni_renderer = eni.Renderer()
 
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), self.tmp)
+            network_state.parse_net_config_data(ncfg), target=self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
@@ -695,7 +695,7 @@ class TestConvertNetworkData(CiTestCase):
                                           known_macs=KNOWN_MACS)
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), self.tmp)
+            network_state.parse_net_config_data(ncfg), target=self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()

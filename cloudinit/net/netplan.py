@@ -189,7 +189,7 @@ class Renderer(renderer.Renderer):
         self._postcmds = config.get('postcmds', False)
         self.clean_default = config.get('clean_default', True)
 
-    def render_network_state(self, network_state, target):
+    def render_network_state(self, network_state, templates=None, target=None):
         # check network state for version
         # if v2, then extract network_state.config
         # else render_v2_from_state

@@ -45,11 +45,14 @@ class Renderer(object):
         return content.getvalue()
 
     @abc.abstractmethod
-    def render_network_state(self, network_state, target=None):
+    def render_network_state(self, network_state, templates=None,
+                             target=None):
         """Render network state."""
 
-    def render_network_config(self, network_config, target=None):
+    def render_network_config(self, network_config, templates=None,
+                              target=None):
         return self.render_network_state(
-            network_state=parse_net_config_data(network_config), target=target)
+            network_state=parse_net_config_data(network_config),
+            templates=templates, target=target)
 
 # vi: ts=4 expandtab

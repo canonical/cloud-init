@@ -39,6 +39,16 @@ class Distro(distros.Distro):
     resolve_conf_fn = "/etc/resolv.conf"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
+    renderer_configs = {
+        'sysconfig': {
+            'control': 'etc/sysconfig/network',
+            'iface_templates': '%(base)s/network-scripts/ifcfg-%(name)s',
+            'route_templates': {
+                'ipv4': '%(base)s/network-scripts/route-%(name)s',
+                'ipv6': '%(base)s/network-scripts/route6-%(name)s'
+            }
+        }
+    }
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)

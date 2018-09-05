@@ -16,9 +16,9 @@ import six
 import unittest2
 
 try:
-    from contextlib import ExitStack
+    from contextlib import ExitStack, contextmanager
 except ImportError:
-    from contextlib2 import ExitStack
+    from contextlib2 import ExitStack, contextmanager
 
 try:
     from configparser import ConfigParser
@@ -325,6 +325,13 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
         self.patchUtils(root)
         self.patchOS(root)
         return root
+
+    @contextmanager
+    def reRooted(self, root=None):
+        try:
+            yield self.reRoot(root)
+        finally:
+            self.patched_funcs.close()
 
 
 class HttprettyTestCase(CiTestCase):

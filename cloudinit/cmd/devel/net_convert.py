@@ -10,6 +10,7 @@ import yaml
 from cloudinit.sources.helpers import openstack
 from cloudinit.sources import DataSourceAzure as azure
 
+from cloudinit import distros
 from cloudinit.net import eni, netplan, network_state, sysconfig
 from cloudinit import log
 
@@ -35,6 +36,11 @@ def get_parser(parser=None):
     parser.add_argument("-d", "--directory",
                         metavar="PATH",
                         help="directory to place output in",
+                        required=True)
+    parser.add_argument("-D", "--distro",
+                        choices=[item for sublist in
+                                 distros.OSFAMILIES.values()
+                                 for item in sublist],
                         required=True)
     parser.add_argument("-m", "--mac",
                         metavar="name,mac",
@@ -96,14 +102,20 @@ def handle_args(name, args):
         sys.stderr.write('\n'.join([
             "", "Internal State",
             yaml.dump(ns, default_flow_style=False, indent=4), ""]))
+    distro_cls = distros.fetch(args.distro)
+    distro = distro_cls(args.distro, {}, None)
+    config = {}
     if args.output_kind == "eni":
         r_cls = eni.Renderer
+        config = distro.renderer_configs.get('eni')
     elif args.output_kind == "netplan":
         r_cls = netplan.Renderer
+        config = distro.renderer_configs.get('netplan')
     else:
         r_cls = sysconfig.Renderer
+        config = distro.renderer_configs.get('sysconfig')
 
-    r = r_cls()
+    r = r_cls(config=config)
     sys.stderr.write(''.join([
         "Read input format '%s' from '%s'.\n" % (
             args.kind, args.network_data.name),
