@@ -43,6 +43,7 @@ DS_PATH = "cloudinit.sources.DataSourceOpenNebula"
 
 class TestOpenNebulaDataSource(CiTestCase):
     parsed_user = None
+    allowed_subp = ['bash']
 
     def setUp(self):
         super(TestOpenNebulaDataSource, self).setUp()

@@ -1653,6 +1653,12 @@ def _setup_test(tmp_dir, mock_get_devicelist, mock_read_sys_net,
 
 class TestGenerateFallbackConfig(CiTestCase):
 
+    def setUp(self):
+        super(TestGenerateFallbackConfig, self).setUp()
+        self.add_patch(
+            "cloudinit.util.get_cmdline", "m_get_cmdline",
+            return_value="root=/dev/sda1")
+
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
@@ -1895,12 +1901,13 @@ class TestRhelSysConfigRendering(CiTestCase):
         if missing:
             raise AssertionError("Missing headers in: %s" % missing)
 
+    @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_default_generation(self, mock_get_devicelist,
                                 mock_read_sys_net,
-                                mock_sys_dev_path):
+                                mock_sys_dev_path, m_get_cmdline):
         tmp_dir = self.tmp_dir()
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
@@ -2183,12 +2190,13 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
         if missing:
             raise AssertionError("Missing headers in: %s" % missing)
 
+    @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_default_generation(self, mock_get_devicelist,
                                 mock_read_sys_net,
-                                mock_sys_dev_path):
+                                mock_sys_dev_path, m_get_cmdline):
         tmp_dir = self.tmp_dir()
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
@@ -2429,12 +2437,13 @@ USERCTL=no
 
 class TestEniNetRendering(CiTestCase):
 
+    @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_default_generation(self, mock_get_devicelist,
                                 mock_read_sys_net,
-                                mock_sys_dev_path):
+                                mock_sys_dev_path, m_get_cmdline):
         tmp_dir = self.tmp_dir()
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
@@ -2482,6 +2491,7 @@ iface eth0 inet dhcp
 
 class TestNetplanNetRendering(CiTestCase):
 
+    @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.netplan._clean_default")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
@@ -2489,7 +2499,7 @@ class TestNetplanNetRendering(CiTestCase):
     def test_default_generation(self, mock_get_devicelist,
                                 mock_read_sys_net,
                                 mock_sys_dev_path,
-                                mock_clean_default):
+                                mock_clean_default, m_get_cmdline):
         tmp_dir = self.tmp_dir()
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)

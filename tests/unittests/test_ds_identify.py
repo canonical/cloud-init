@@ -89,6 +89,7 @@ CallReturn = namedtuple('CallReturn',
 
 class DsIdentifyBase(CiTestCase):
     dsid_path = os.path.realpath('tools/ds-identify')
+    allowed_subp = ['sh']
 
     def call(self, rootd=None, mocks=None, func="main", args=None, files=None,
              policy_dmi=DI_DEFAULT_POLICY,

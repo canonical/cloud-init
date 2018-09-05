@@ -224,6 +224,9 @@ class TestConfigDriveDataSource(CiTestCase):
 
     def setUp(self):
         super(TestConfigDriveDataSource, self).setUp()
+        self.add_patch(
+            "cloudinit.sources.DataSourceConfigDrive.util.find_devs_with",
+            "m_find_devs_with", return_value=[])
         self.tmp = self.tmp_dir()
 
     def test_ec2_metadata(self):
