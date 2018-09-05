@@ -14,6 +14,7 @@ import time
 import mock
 import six
 import unittest2
+from unittest2.util import strclass
 
 try:
     from contextlib import ExitStack, contextmanager
@@ -116,6 +117,9 @@ class TestCase(unittest2.TestCase):
     def setUp(self):
         super(TestCase, self).setUp()
         self.reset_global_state()
+
+    def shortDescription(self):
+        return strclass(self.__class__) + '.' + self._testMethodName
 
     def add_patch(self, target, attr, *args, **kwargs):
         """Patches specified target object and sets it as attr on test
