@@ -1,0 +1,693 @@
+Author: Shane Peters <shane.peters@canonical.com>
+Bug: https://bugs.launchpad.net/cloud-init/+bug/1781039
+Description: Update GCE datasource
+  Per documentation at https://wiki.ubuntu.com/GoogleComputeEngineSSHKeys
+  ssh keys for cloudinit and ubuntu users should both be added to the
+  'ubuntu' users authorized_keys file. This works in Xenial and higher,
+  but not in Trusty.
+--- /dev/null
++++ b/cloudinit/distros/ug_util.py
+@@ -0,0 +1,289 @@
++# Copyright (C) 2012 Canonical Ltd.
++# Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
++# Copyright (C) 2012 Yahoo! Inc.
++#
++# Author: Scott Moser <scott.moser@canonical.com>
++# Author: Juerg Haefliger <juerg.haefliger@hp.com>
++# Author: Joshua Harlow <harlowja@yahoo-inc.com>
++# Author: Ben Howard <ben.howard@canonical.com>
++#
++# This file is part of cloud-init. See LICENSE file for license information.
++
++import six
++
++from cloudinit import log as logging
++from cloudinit import type_utils
++from cloudinit import util
++
++LOG = logging.getLogger(__name__)
++
++
++# Normalizes a input group configuration
++# which can be a comma seperated list of
++# group names, or a list of group names
++# or a python dictionary of group names
++# to a list of members of that group.
++#
++# The output is a dictionary of group
++# names => members of that group which
++# is the standard form used in the rest
++# of cloud-init
++def _normalize_groups(grp_cfg):
++    if isinstance(grp_cfg, six.string_types):
++        grp_cfg = grp_cfg.strip().split(",")
++    if isinstance(grp_cfg, list):
++        c_grp_cfg = {}
++        for i in grp_cfg:
++            if isinstance(i, dict):
++                for k, v in i.items():
++                    if k not in c_grp_cfg:
++                        if isinstance(v, list):
++                            c_grp_cfg[k] = list(v)
++                        elif isinstance(v, six.string_types):
++                            c_grp_cfg[k] = [v]
++                        else:
++                            raise TypeError("Bad group member type %s" %
++                                            type_utils.obj_name(v))
++                    else:
++                        if isinstance(v, list):
++                            c_grp_cfg[k].extend(v)
++                        elif isinstance(v, six.string_types):
++                            c_grp_cfg[k].append(v)
++                        else:
++                            raise TypeError("Bad group member type %s" %
++                                            type_utils.obj_name(v))
++            elif isinstance(i, six.string_types):
++                if i not in c_grp_cfg:
++                    c_grp_cfg[i] = []
++            else:
++                raise TypeError("Unknown group name type %s" %
++                                type_utils.obj_name(i))
++        grp_cfg = c_grp_cfg
++    groups = {}
++    if isinstance(grp_cfg, dict):
++        for (grp_name, grp_members) in grp_cfg.items():
++            groups[grp_name] = util.uniq_merge_sorted(grp_members)
++    else:
++        raise TypeError(("Group config must be list, dict "
++                         " or string types only and not %s") %
++                        type_utils.obj_name(grp_cfg))
++    return groups
++
++
++# Normalizes a input group configuration
++# which can be a comma seperated list of
++# user names, or a list of string user names
++# or a list of dictionaries with components
++# that define the user config + 'name' (if
++# a 'name' field does not exist then the
++# default user is assumed to 'own' that
++# configuration.
++#
++# The output is a dictionary of user
++# names => user config which is the standard
++# form used in the rest of cloud-init. Note
++# the default user will have a special config
++# entry 'default' which will be marked as true
++# all other users will be marked as false.
++def _normalize_users(u_cfg, def_user_cfg=None):
++    if isinstance(u_cfg, dict):
++        ad_ucfg = []
++        for (k, v) in u_cfg.items():
++            if isinstance(v, (bool, int, float) + six.string_types):
++                if util.is_true(v):
++                    ad_ucfg.append(str(k))
++            elif isinstance(v, dict):
++                v['name'] = k
++                ad_ucfg.append(v)
++            else:
++                raise TypeError(("Unmappable user value type %s"
++                                 " for key %s") % (type_utils.obj_name(v), k))
++        u_cfg = ad_ucfg
++    elif isinstance(u_cfg, six.string_types):
++        u_cfg = util.uniq_merge_sorted(u_cfg)
++
++    users = {}
++    for user_config in u_cfg:
++        if isinstance(user_config, (list,) + six.string_types):
++            for u in util.uniq_merge(user_config):
++                if u and u not in users:
++                    users[u] = {}
++        elif isinstance(user_config, dict):
++            if 'name' in user_config:
++                n = user_config.pop('name')
++                prev_config = users.get(n) or {}
++                users[n] = util.mergemanydict([prev_config,
++                                               user_config])
++            else:
++                # Assume the default user then
++                prev_config = users.get('default') or {}
++                users['default'] = util.mergemanydict([prev_config,
++                                                       user_config])
++        else:
++            raise TypeError(("User config must be dictionary/list "
++                             " or string types only and not %s") %
++                            type_utils.obj_name(user_config))
++
++    # Ensure user options are in the right python friendly format
++    if users:
++        c_users = {}
++        for (uname, uconfig) in users.items():
++            c_uconfig = {}
++            for (k, v) in uconfig.items():
++                k = k.replace('-', '_').strip()
++                if k:
++                    c_uconfig[k] = v
++            c_users[uname] = c_uconfig
++        users = c_users
++
++    # Fixup the default user into the real
++    # default user name and replace it...
++    def_user = None
++    if users and 'default' in users:
++        def_config = users.pop('default')
++        if def_user_cfg:
++            # Pickup what the default 'real name' is
++            # and any groups that are provided by the
++            # default config
++            def_user_cfg = def_user_cfg.copy()
++            def_user = def_user_cfg.pop('name')
++            def_groups = def_user_cfg.pop('groups', [])
++            # Pickup any config + groups for that user name
++            # that we may have previously extracted
++            parsed_config = users.pop(def_user, {})
++            parsed_groups = parsed_config.get('groups', [])
++            # Now merge our extracted groups with
++            # anything the default config provided
++            users_groups = util.uniq_merge_sorted(parsed_groups, def_groups)
++            parsed_config['groups'] = ",".join(users_groups)
++            # The real config for the default user is the
++            # combination of the default user config provided
++            # by the distro, the default user config provided
++            # by the above merging for the user 'default' and
++            # then the parsed config from the user's 'real name'
++            # which does not have to be 'default' (but could be)
++            users[def_user] = util.mergemanydict([def_user_cfg,
++                                                  def_config,
++                                                  parsed_config])
++
++    # Ensure that only the default user that we
++    # found (if any) is actually marked as being
++    # the default user
++    if users:
++        for (uname, uconfig) in users.items():
++            if def_user and uname == def_user:
++                uconfig['default'] = True
++            else:
++                uconfig['default'] = False
++
++    return users
++
++
++# Normalizes a set of user/users and group
++# dictionary configuration into a useable
++# format that the rest of cloud-init can
++# understand using the default user
++# provided by the input distrobution (if any)
++# to allow for mapping of the 'default' user.
++#
++# Output is a dictionary of group names -> [member] (list)
++# and a dictionary of user names -> user configuration (dict)
++#
++# If 'user' exists it will override
++# the 'users'[0] entry (if a list) otherwise it will
++# just become an entry in the returned dictionary (no override)
++def normalize_users_groups(cfg, distro):
++    if not cfg:
++        cfg = {}
++
++    users = {}
++    groups = {}
++    if 'groups' in cfg:
++        groups = _normalize_groups(cfg['groups'])
++
++    # Handle the previous style of doing this where the first user
++    # overrides the concept of the default user if provided in the user: XYZ
++    # format.
++    old_user = {}
++    if 'user' in cfg and cfg['user']:
++        old_user = cfg['user']
++        # Translate it into the format that is more useful
++        # going forward
++        if isinstance(old_user, six.string_types):
++            old_user = {
++                'name': old_user,
++            }
++        if not isinstance(old_user, dict):
++            LOG.warning(("Format for 'user' key must be a string or dictionary"
++                         " and not %s"), type_utils.obj_name(old_user))
++            old_user = {}
++
++    # If no old user format, then assume the distro
++    # provides what the 'default' user maps to, but notice
++    # that if this is provided, we won't automatically inject
++    # a 'default' user into the users list, while if a old user
++    # format is provided we will.
++    distro_user_config = {}
++    try:
++        distro_user_config = distro.get_default_user()
++    except NotImplementedError:
++        LOG.warning(("Distro has not implemented default user "
++                     "access. No distribution provided default user"
++                     " will be normalized."))
++
++    # Merge the old user (which may just be an empty dict when not
++    # present with the distro provided default user configuration so
++    # that the old user style picks up all the distribution specific
++    # attributes (if any)
++    default_user_config = util.mergemanydict([old_user, distro_user_config])
++
++    base_users = cfg.get('users', [])
++    if not isinstance(base_users, (list, dict) + six.string_types):
++        LOG.warning(("Format for 'users' key must be a comma separated string"
++                     " or a dictionary or a list and not %s"),
++                    type_utils.obj_name(base_users))
++        base_users = []
++
++    if old_user:
++        # Ensure that when user: is provided that this user
++        # always gets added (as the default user)
++        if isinstance(base_users, list):
++            # Just add it on at the end...
++            base_users.append({'name': 'default'})
++        elif isinstance(base_users, dict):
++            base_users['default'] = dict(base_users).get('default', True)
++        elif isinstance(base_users, six.string_types):
++            # Just append it on to be re-parsed later
++            base_users += ",default"
++
++    users = _normalize_users(base_users, default_user_config)
++    return (users, groups)
++
++
++# Given a user dictionary config it will
++# extract the default user name and user config
++# from that list and return that tuple or
++# return (None, None) if no default user is
++# found in the given input
++def extract_default(users, default_name=None, default_config=None):
++    if not users:
++        users = {}
++
++    def safe_find(entry):
++        config = entry[1]
++        if not config or 'default' not in config:
++            return False
++        else:
++            return config['default']
++
++    tmp_users = users.items()
++    tmp_users = dict(filter(safe_find, tmp_users))
++    if not tmp_users:
++        return (default_name, default_config)
++    else:
++        name = list(tmp_users)[0]
++        config = tmp_users[name]
++        config.pop('default', None)
++        return (name, config)
++
++# vi: ts=4 expandtab
+--- a/cloudinit/sources/DataSourceGCE.py
++++ b/cloudinit/sources/DataSourceGCE.py
+@@ -1,142 +1,99 @@
+-# vi: ts=4 expandtab
+-#
+-#    Author: Vaidas Jablonskis <jablonskis@gmail.com>
+-#
+-#    This program is free software: you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License version 3, as
+-#    published by the Free Software Foundation.
++# Author: Vaidas Jablonskis <jablonskis@gmail.com>
+ #
+-#    This program is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++# This file is part of cloud-init. See LICENSE file for license information.
+ 
++import datetime
++import json
+ 
+ from base64 import b64decode
+ 
++from cloudinit.distros import ug_util
+ from cloudinit import log as logging
+-from cloudinit import util
+ from cloudinit import sources
+ from cloudinit import url_helper
++from cloudinit import util
+ 
+ LOG = logging.getLogger(__name__)
+ 
+-BUILTIN_DS_CONFIG = {
+-    'metadata_url': 'http://metadata.google.internal/computeMetadata/v1/'
+-}
++MD_V1_URL = 'http://metadata.google.internal/computeMetadata/v1/'
++BUILTIN_DS_CONFIG = {'metadata_url': MD_V1_URL}
+ REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
+ 
+ 
++class GoogleMetadataFetcher(object):
++    headers = {'Metadata-Flavor': 'Google'}
++
++    def __init__(self, metadata_address):
++        self.metadata_address = metadata_address
++
++    def get_value(self, path, is_text, is_recursive=False):
++        value = None
++        try:
++            url = self.metadata_address + path
++            if is_recursive:
++                url += '/?recursive=True'
++            resp = url_helper.readurl(url=url, headers=self.headers)
++        except url_helper.UrlError as exc:
++            msg = "url %s raised exception %s"
++            LOG.debug(msg, path, exc)
++        else:
++            if resp.code == 200:
++                if is_text:
++                    value = resp.contents.decode('utf-8')
++                else:
++                    value = resp.contents
++            else:
++                LOG.debug("url %s returned code %s", path, resp.code)
++        return value
++
++
+ class DataSourceGCE(sources.DataSource):
++
++    dsname = 'GCE'
++
+     def __init__(self, sys_cfg, distro, paths):
+         sources.DataSource.__init__(self, sys_cfg, distro, paths)
++        self.default_user = None
++        if distro:
++            (users, _groups) = ug_util.normalize_users_groups(sys_cfg, distro)
++            (self.default_user, _user_config) = ug_util.extract_default(users)
+         self.metadata = dict()
+         self.ds_cfg = util.mergemanydict([
+             util.get_cfg_by_path(sys_cfg, ["datasource", "GCE"], {}),
+             BUILTIN_DS_CONFIG])
+         self.metadata_address = self.ds_cfg['metadata_url']
+ 
+-    # GCE takes sshKeys attribute in the format of '<user>:<public_key>'
+-    # so we have to trim each key to remove the username part
+-    def _trim_key(self, public_key):
+-        try:
+-            index = public_key.index(':')
+-            if index > 0:
+-                return public_key[(index + 1):]
+-        except:
+-            return public_key
+-
+     def get_data(self):
+-        # GCE metadata server requires a custom header since v1
+-        headers = {'X-Google-Metadata-Request': True}
+-
+-        # url_map: (our-key, path, required)
+-        url_map = [
+-            ('instance-id', 'instance/id', True),
+-            ('availability-zone', 'instance/zone', True),
+-            ('local-hostname', 'instance/hostname', True),
+-            ('public-keys', 'project/attributes/sshKeys', False),
+-            ('user-data', 'instance/attributes/user-data', False),
+-            ('user-data-encoding', 'instance/attributes/user-data-encoding',
+-             False),
+-        ]
+-
+-        # if we cannot resolve the metadata server, then no point in trying
+-        if not util.is_resolvable_url(self.metadata_address):
+-            LOG.debug("%s is not resolvable", self.metadata_address)
+-            return False
+-
+-        # iterate over url_map keys to get metadata items
+-        found = False
+-        for (mkey, path, required) in url_map:
+-            try:
+-                resp = url_helper.readurl(url=self.metadata_address + path,
+-                                          headers=headers)
+-                if resp.code == 200:
+-                    found = True
+-                    self.metadata[mkey] = resp.contents
+-                else:
+-                    if required:
+-                        msg = "required url %s returned code %s. not GCE"
+-                        if not found:
+-                            LOG.debug(msg, path, resp.code)
+-                        else:
+-                            LOG.warn(msg, path, resp.code)
+-                        return False
+-                    else:
+-                        self.metadata[mkey] = None
+-            except url_helper.UrlError as e:
+-                if required:
+-                    msg = "required url %s raised exception %s. not GCE"
+-                    if not found:
+-                        LOG.debug(msg, path, e)
+-                    else:
+-                        LOG.warn(msg, path, e)
+-                    return False
+-                msg = "Failed to get %s metadata item: %s."
+-                LOG.debug(msg, path, e)
+-
+-                self.metadata[mkey] = None
+-
+-        if self.metadata['public-keys']:
+-            lines = self.metadata['public-keys'].splitlines()
+-            self.metadata['public-keys'] = [self._trim_key(k) for k in lines]
+-
+-        if self.metadata['availability-zone']:
+-            self.metadata['availability-zone'] = self.metadata[
+-                'availability-zone'].split('/')[-1]
+-
+-        encoding = self.metadata.get('user-data-encoding')
+-        if encoding:
+-            if encoding == 'base64':
+-                self.metadata['user-data'] = b64decode(
+-                    self.metadata['user-data'])
++        ret = util.log_time(
++            LOG.debug, 'Crawl of GCE metadata service',
++            read_md, kwargs={'address': self.metadata_address})
++
++        if not ret['success']:
++            if ret['platform_reports_gce']:
++                LOG.warning(ret['reason'])
+             else:
+-                LOG.warn('unknown user-data-encoding: %s, ignoring', encoding)
+-
+-        return found
++                LOG.debug(ret['reason'])
++            return False
++        self.metadata = ret['meta-data']
++        self.userdata_raw = ret['user-data']
++        return True
+ 
+     @property
+     def launch_index(self):
+-        # GCE does not provide lauch_index property
++        # GCE does not provide lauch_index property.
+         return None
+ 
+     def get_instance_id(self):
+         return self.metadata['instance-id']
+ 
+     def get_public_ssh_keys(self):
+-        return self.metadata['public-keys']
++        public_keys_data = self.metadata['public-keys-data']
++        return _parse_public_keys(public_keys_data, self.default_user)
+ 
+-    def get_hostname(self, fqdn=False, _resolve_ip=False):
+-        # GCE has long FDQN's and has asked for short hostnames
++    def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
++        # GCE has long FDQN's and has asked for short hostnames.
+         return self.metadata['local-hostname'].split('.')[0]
+ 
+-    def get_userdata_raw(self):
+-        return self.metadata['user-data']
+-
+     @property
+     def availability_zone(self):
+         return self.metadata['availability-zone']
+@@ -145,12 +102,187 @@
+     def region(self):
+         return self.availability_zone.rsplit('-', 1)[0]
+ 
+-# Used to match classes to dependencies
++
++def _has_expired(public_key):
++    # Check whether an SSH key is expired. Public key input is a single SSH
++    # public key in the GCE specific key format documented here:
++    # https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys#sshkeyformat
++    try:
++        # Check for the Google-specific schema identifier.
++        schema, json_str = public_key.split(None, 3)[2:]
++    except (ValueError, AttributeError):
++        return False
++
++    # Do not expire keys if they do not have the expected schema identifier.
++    if schema != 'google-ssh':
++        return False
++
++    try:
++        json_obj = json.loads(json_str)
++    except ValueError:
++        return False
++
++    # Do not expire keys if there is no expriation timestamp.
++    if 'expireOn' not in json_obj:
++        return False
++
++    expire_str = json_obj['expireOn']
++    format_str = '%Y-%m-%dT%H:%M:%S+0000'
++    try:
++        expire_time = datetime.datetime.strptime(expire_str, format_str)
++    except ValueError:
++        return False
++
++    # Expire the key if and only if we have exceeded the expiration timestamp.
++    return datetime.datetime.utcnow() > expire_time
++
++
++def _parse_public_keys(public_keys_data, default_user=None):
++    # Parse the SSH key data for the default user account. Public keys input is
++    # a list containing SSH public keys in the GCE specific key format
++    # documented here:
++    # https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys#sshkeyformat
++    public_keys = []
++    if not public_keys_data:
++        return public_keys
++    for public_key in public_keys_data:
++        if not public_key or not all(ord(c) < 128 for c in public_key):
++            continue
++        split_public_key = public_key.split(':', 1)
++        if len(split_public_key) != 2:
++            continue
++        user, key = split_public_key
++        if user in ('cloudinit', default_user) and not _has_expired(key):
++            public_keys.append(key)
++    return public_keys
++
++
++def read_md(address=None, platform_check=True):
++
++    if address is None:
++        address = MD_V1_URL
++
++    ret = {'meta-data': None, 'user-data': None,
++           'success': False, 'reason': None}
++    ret['platform_reports_gce'] = platform_reports_gce()
++
++    if platform_check and not ret['platform_reports_gce']:
++        ret['reason'] = "Not running on GCE."
++        return ret
++
++    # If we cannot resolve the metadata server, then no point in trying.
++    if not util.is_resolvable_url(address):
++        LOG.debug("%s is not resolvable", address)
++        ret['reason'] = 'address "%s" is not resolvable' % address
++        return ret
++
++    # url_map: (our-key, path, required, is_text, is_recursive)
++    url_map = [
++        ('instance-id', ('instance/id',), True, True, False),
++        ('availability-zone', ('instance/zone',), True, True, False),
++        ('local-hostname', ('instance/hostname',), True, True, False),
++        ('instance-data', ('instance/attributes',), False, False, True),
++        ('project-data', ('project/attributes',), False, False, True),
++    ]
++
++    metadata_fetcher = GoogleMetadataFetcher(address)
++    md = {}
++    # Iterate over url_map keys to get metadata items.
++    for (mkey, paths, required, is_text, is_recursive) in url_map:
++        value = None
++        for path in paths:
++            new_value = metadata_fetcher.get_value(path, is_text, is_recursive)
++            if new_value is not None:
++                value = new_value
++        if required and value is None:
++            msg = "required key %s returned nothing. not GCE"
++            ret['reason'] = msg % mkey
++            return ret
++        md[mkey] = value
++
++    instance_data = json.loads(md['instance-data'] or '{}')
++    project_data = json.loads(md['project-data'] or '{}')
++    valid_keys = [instance_data.get('sshKeys'), instance_data.get('ssh-keys')]
++    block_project = instance_data.get('block-project-ssh-keys', '').lower()
++    if block_project != 'true' and not instance_data.get('sshKeys'):
++        valid_keys.append(project_data.get('ssh-keys'))
++        valid_keys.append(project_data.get('sshKeys'))
++    public_keys_data = '\n'.join([key for key in valid_keys if key])
++    md['public-keys-data'] = public_keys_data.splitlines()
++
++    if md['availability-zone']:
++        md['availability-zone'] = md['availability-zone'].split('/')[-1]
++
++    if 'user-data' in instance_data:
++        # instance_data was json, so values are all utf-8 strings.
++        ud = instance_data['user-data'].encode("utf-8")
++        encoding = instance_data.get('user-data-encoding')
++        if encoding == 'base64':
++            ud = b64decode(ud)
++        elif encoding:
++            LOG.warning('unknown user-data-encoding: %s, ignoring', encoding)
++        ret['user-data'] = ud
++
++    ret['meta-data'] = md
++    ret['success'] = True
++
++    return ret
++
++
++def platform_reports_gce():
++    pname = util.read_dmi_data('system-product-name') or "N/A"
++    if pname == "Google Compute Engine":
++        return True
++
++    # system-product-name is not always guaranteed (LP: #1674861)
++    serial = util.read_dmi_data('system-serial-number') or "N/A"
++    if serial.startswith("GoogleCloud-"):
++        return True
++
++    LOG.debug("Not running on google cloud. product-name=%s serial=%s",
++              pname, serial)
++    return False
++
++
++# Used to match classes to dependencies.
+ datasources = [
+     (DataSourceGCE, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+ ]
+ 
+ 
+-# Return a list of data sources that match this set of dependencies
++# Return a list of data sources that match this set of dependencies.
+ def get_datasource_list(depends):
+     return sources.list_from_depends(depends, datasources)
++
++
++if __name__ == "__main__":
++    import argparse
++    import sys
++
++    from base64 import b64encode
++
++    parser = argparse.ArgumentParser(description='Query GCE Metadata Service')
++    parser.add_argument("--endpoint", metavar="URL",
++                        help="The url of the metadata service.",
++                        default=MD_V1_URL)
++    parser.add_argument("--no-platform-check", dest="platform_check",
++                        help="Ignore smbios platform check",
++                        action='store_false', default=True)
++    args = parser.parse_args()
++    data = read_md(address=args.endpoint, platform_check=args.platform_check)
++    if 'user-data' in data:
++        # user-data is bytes not string like other things. Handle it specially.
++        # If it can be represented as utf-8 then do so. Otherwise print base64
++        # encoded value in the key user-data-b64.
++        try:
++            data['user-data'] = data['user-data'].decode()
++        except UnicodeDecodeError:
++            sys.stderr.write("User-data cannot be decoded. "
++                             "Writing as base64\n")
++            del data['user-data']
++            # b64encode returns a bytes value. Decode to get the string.
++            data['user-data-b64'] = b64encode(data['user-data']).decode()
++
++    print(json.dumps(data, indent=1, sort_keys=True, separators=(',', ': ')))
++
++# vi: ts=4 expandtab

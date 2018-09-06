@@ -24,3 +24,4 @@ lp-1551419-azure-handle-flipped-uuid-endianness.patch
 lp-1553158-bigstep.patch
 lp-1581200-gce-metadatafqdn.patch
 lp-1603222-fix-ephemeral-disk-fstab.patch
+lp-1781039-gce-datasource-update.patch
