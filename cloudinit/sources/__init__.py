@@ -175,15 +175,6 @@ class DataSource(object):
     url_timeout = 10    # timeout for each metadata url read attempt
     url_retries = 5     # number of times to retry url upon 404
 
-    # The datasource defines a set of supported EventTypes during which
-    # the datasource can react to changes in metadata and regenerate
-    # network configuration on metadata changes.
-    # A datasource which supports writing network config on each system boot
-    # would call update_events['network'].add(EventType.BOOT).
-
-    # Default: generate network config on new instance id (first boot).
-    update_events = {'network': set([EventType.BOOT_NEW_INSTANCE])}
-
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
     # values are reset via clear_cached_attrs during any update_metadata call.
@@ -193,6 +184,7 @@ class DataSource(object):
         ('vendordata', None), ('vendordata_raw', None))
 
     _dirty_cache = False
+    _update_events = {}
 
     # N-tuple of keypaths or keynames redact from instance-data.json for
     # non-root users
@@ -615,6 +607,24 @@ class DataSource(object):
 
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
+
+    # The datasource defines a set of supported EventTypes during which
+    # the datasource can react to changes in metadata and regenerate
+    # network configuration on metadata changes.
+    # A datasource which supports writing network config on each system boot
+    # would call update_events['network'].add(EventType.BOOT).
+
+    # Default: generate network config on new instance id (first boot).
+    @property
+    def update_events(self):
+        if not self._update_events:
+            self._update_events = {'network':
+                                  set([EventType.BOOT_NEW_INSTANCE])}
+        return self._update_events
+
+    @update_events.setter
+    def update_events(self, events):
+        self._update_events.update(events)
 
     def update_metadata(self, source_event_types):
         """Refresh cached metadata if the datasource supports this event.

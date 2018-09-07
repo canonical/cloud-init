@@ -115,14 +115,23 @@ class Distro(distros.Distro):
         return self._supported_write_network_config(netconfig)
 
     def _bring_up_interfaces(self, device_names):
-        use_all = False
-        for d in device_names:
-            if d == 'all':
-                use_all = True
-        if use_all:
-            return distros.Distro._bring_up_interface(self, '--all')
+        render_name = self.net_renderer.name
+        if render_name == 'eni':
+            LOG.debug('Bringing up interfaces with eni/ifup')
+            use_all = False
+            for d in device_names:
+                if d == 'all':
+                    use_all = True
+            if use_all:
+                return distros.Distro._bring_up_interface(self, '--all')
+            else:
+                return distros.Distro._bring_up_interfaces(self, device_names)
+        elif render_name == 'netplan':
+            LOG.debug('Bringing up interfaces with netplan apply')
+            util.subp(['netplan', 'apply'])
         else:
-            return distros.Distro._bring_up_interfaces(self, device_names)
+            LOG.warning('Cannot bring up interfaces, unknown renderer: "%s"',
+                        render_name)
 
     def _write_hostname(self, your_hostname, out_fn):
         conf = None

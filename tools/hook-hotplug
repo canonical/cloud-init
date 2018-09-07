@@ -1,0 +1,19 @@
+#!/bin/sh
+# This file is part of cloud-init. See LICENSE file for license information.
+
+# This script checks if cloud-init has hotplug hooked and if
+# cloud-init has finished; if so invoke cloud-init hotplug-hook
+
+is_finished() {
+    [ -e /run/cloud-init/result.json ] || return 1
+}
+
+is_enabled() {
+    # only execute hooks if cloud-init hotplug enabled and cloud-init
+    [ -e /etc/cloud/cloud-init-hook-hotplug ] || return 1
+    is_finished
+}
+
+if is_enabled; then
+    cloud-init devel hotplug-hook
+fi

@@ -49,6 +49,8 @@ class TestInit(CiTestCase):
             'distro': 'ubuntu', 'paths': {'cloud_dir': self.tmpdir,
                                           'run_dir': self.tmpdir}}}
         self.init.datasource = FakeDataSource(paths=self.init.paths)
+        self.init.datasource.update_events = {
+            'network': set([EventType.BOOT_NEW_INSTANCE])}
 
     def test_wb__find_networking_config_disabled(self):
         """find_networking_config returns no config when disabled."""
@@ -335,7 +337,7 @@ class TestInit(CiTestCase):
 
         self.init._find_networking_config = fake_network_config
         self.init.datasource = FakeDataSource(paths=self.init.paths)
-        self.init.datasource.update_events = {'network': [EventType.BOOT]}
+        self.init.datasource.update_events = {'network': set([EventType.BOOT])}
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_called_with(

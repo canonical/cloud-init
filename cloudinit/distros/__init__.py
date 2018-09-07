@@ -69,6 +69,7 @@ class Distro(object):
         self._paths = paths
         self._cfg = cfg
         self.name = name
+        self.net_renderer = None
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
@@ -89,9 +90,8 @@ class Distro(object):
         name, render_cls = renderers.select(priority=priority)
         LOG.debug("Selected renderer '%s' from priority list: %s",
                   name, priority)
-        renderer = render_cls(config=self.renderer_configs.get(name))
-        renderer.render_network_config(network_config)
-        return []
+        self.net_renderer = render_cls(config=self.renderer_configs.get(name))
+        return self.net_renderer.render_network_config(network_config)
 
     def _find_tz_file(self, tz):
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
@@ -176,6 +176,7 @@ class Distro(object):
         # a much less complete network config format (interfaces(5)).
         try:
             dev_names = self._write_network_config(netconfig)
+            LOG.debug('Network config found dev names: %s', dev_names)
         except NotImplementedError:
             # backwards compat until all distros have apply_network_config
             return self._apply_network_from_network_config(

@@ -1,0 +1,1 @@
+SUBSYSTEM=="net|block", RUN+="/usr/lib/cloud-init/hook-hotplug"

@@ -264,6 +264,8 @@ class NetInterface(ConfigMap):
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/sysconfig format."""
 
+    name = 'sysconfig'
+
     # See: https://access.redhat.com/documentation/en-US/\
     #      Red_Hat_Enterprise_Linux/6/html/Deployment_Guide/\
     #      s1-networkscripts-interfaces.html (or other docs for

@@ -8,6 +8,7 @@ import time
 
 from cloudinit import log as logging
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.event import EventType
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
@@ -91,6 +92,11 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
     def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
+
+    @property
+    def update_events(self):
+        return {'network': set([EventType.BOOT_NEW_INSTANCE, EventType.UDEV]),
+                'storage': set([])}
 
     @property
     def network_config(self):

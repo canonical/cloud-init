@@ -338,6 +338,8 @@ def _ifaces_to_net_config_data(ifaces):
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/network/interfaces format."""
 
+    name = 'eni'
+
     def __init__(self, config=None):
         if not config:
             config = {}

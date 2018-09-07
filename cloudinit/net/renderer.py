@@ -44,6 +44,10 @@ class Renderer(object):
                                                  driver=driver))
         return content.getvalue()
 
+    @staticmethod
+    def get_interface_names(network_state):
+        return [cfg.get('name') for cfg in network_state.iter_interfaces()]
+
     @abc.abstractmethod
     def render_network_state(self, network_state, templates=None,
                              target=None):
@@ -51,8 +55,9 @@ class Renderer(object):
 
     def render_network_config(self, network_config, templates=None,
                               target=None):
-        return self.render_network_state(
-            network_state=parse_net_config_data(network_config),
-            templates=templates, target=target)
+        network_state = parse_net_config_data(network_config)
+        self.render_network_state(network_state=network_state,
+                                  templates=templates, target=target)
+        return self.get_interface_names(network_state)
 
 # vi: ts=4 expandtab

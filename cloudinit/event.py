@@ -7,9 +7,9 @@
 class EventType(object):
     BOOT = "System boot"
     BOOT_NEW_INSTANCE = "New instance first boot"
+    UDEV = "Udev add|change event on net|storage"
 
     # TODO: Cloud-init will grow support for the follow event types:
-    # UDEV
     # METADATA_CHANGE
     # USER_REQUEST
 

@@ -186,6 +186,8 @@ def _clean_default(target=None):
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/netplan/network.yaml format."""
 
+    name = 'netplan'
+
     NETPLAN_GENERATE = ['netplan', 'generate']
     NETPLAN_INFO = ['netplan', 'info']
 
