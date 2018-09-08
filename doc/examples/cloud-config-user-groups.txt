@@ -36,6 +36,8 @@ users:
       - <ssh pub key 1>
       - <ssh pub key 2>
   - snapuser: joe@joeuser.io
+  - name: nosshlogins
+    ssh_redirect_user: true
 
 # Valid Values:
 #   name: The user's login name
@@ -76,6 +78,13 @@ users:
 #   no_log_init: When set to true, do not initialize lastlog and faillog database.
 #   ssh_import_id: Optional. Import SSH ids
 #   ssh_authorized_keys: Optional. [list] Add keys to user's authorized keys file
+#   ssh_redirect_user: Optional. [bool] Set true to block ssh logins for cloud
+#       ssh public keys and emit a message redirecting logins to
+#       use <default_username> instead. This option only disables cloud
+#       provided public-keys. An error will be raised if ssh_authorized_keys
+#       or ssh_import_id is provided for the same user.
+# 
+#       ssh_authorized_keys.
 #   sudo: Defaults to none. Accepts a sudo rule string, a list of sudo rule
 #         strings or False to explicitly deny sudo usage. Examples:
 #

@@ -2,6 +2,7 @@
 
 
 from cloudinit.config import cc_ssh
+from cloudinit import ssh_util
 from cloudinit.tests.helpers import CiTestCase, mock
 
 MODPATH = "cloudinit.config.cc_ssh."
@@ -15,8 +16,7 @@ class TestHandleSsh(CiTestCase):
         """Apply keys for the given user and root."""
         keys = ["key1"]
         user = "clouduser"
-        options = cc_ssh.DISABLE_ROOT_OPTS
-        cc_ssh.apply_credentials(keys, user, False, options)
+        cc_ssh.apply_credentials(keys, user, False, ssh_util.DISABLE_USER_OPTS)
         self.assertEqual([mock.call(set(keys), user),
                           mock.call(set(keys), "root", options="")],
                          m_setup_keys.call_args_list)
@@ -25,8 +25,7 @@ class TestHandleSsh(CiTestCase):
         """Apply keys for root only."""
         keys = ["key1"]
         user = None
-        options = cc_ssh.DISABLE_ROOT_OPTS
-        cc_ssh.apply_credentials(keys, user, False, options)
+        cc_ssh.apply_credentials(keys, user, False, ssh_util.DISABLE_USER_OPTS)
         self.assertEqual([mock.call(set(keys), "root", options="")],
                          m_setup_keys.call_args_list)
 
@@ -34,9 +33,10 @@ class TestHandleSsh(CiTestCase):
         """Apply keys for the given user and disable root ssh."""
         keys = ["key1"]
         user = "clouduser"
-        options = cc_ssh.DISABLE_ROOT_OPTS
+        options = ssh_util.DISABLE_USER_OPTS
         cc_ssh.apply_credentials(keys, user, True, options)
         options = options.replace("$USER", user)
+        options = options.replace("$DISABLE_USER", "root")
         self.assertEqual([mock.call(set(keys), user),
                           mock.call(set(keys), "root", options=options)],
                          m_setup_keys.call_args_list)
@@ -45,9 +45,10 @@ class TestHandleSsh(CiTestCase):
         """Apply keys no user and disable root ssh."""
         keys = ["key1"]
         user = None
-        options = cc_ssh.DISABLE_ROOT_OPTS
+        options = ssh_util.DISABLE_USER_OPTS
         cc_ssh.apply_credentials(keys, user, True, options)
         options = options.replace("$USER", "NONE")
+        options = options.replace("$DISABLE_USER", "root")
         self.assertEqual([mock.call(set(keys), "root", options=options)],
                          m_setup_keys.call_args_list)
 
@@ -66,7 +67,8 @@ class TestHandleSsh(CiTestCase):
         cloud = self.tmp_cloud(
             distro='ubuntu', metadata={'public-keys': keys})
         cc_ssh.handle("name", cfg, cloud, None, None)
-        options = cc_ssh.DISABLE_ROOT_OPTS.replace("$USER", "NONE")
+        options = ssh_util.DISABLE_USER_OPTS.replace("$USER", "NONE")
+        options = options.replace("$DISABLE_USER", "root")
         m_glob.assert_called_once_with('/etc/ssh/ssh_host_*key*')
         self.assertIn(
             [mock.call('/etc/ssh/ssh_host_rsa_key'),
@@ -94,7 +96,8 @@ class TestHandleSsh(CiTestCase):
             distro='ubuntu', metadata={'public-keys': keys})
         cc_ssh.handle("name", cfg, cloud, None, None)
 
-        options = cc_ssh.DISABLE_ROOT_OPTS.replace("$USER", user)
+        options = ssh_util.DISABLE_USER_OPTS.replace("$USER", user)
+        options = options.replace("$DISABLE_USER", "root")
         self.assertEqual([mock.call(set(keys), user),
                           mock.call(set(keys), "root", options=options)],
                          m_setup_keys.call_args_list)
@@ -118,7 +121,8 @@ class TestHandleSsh(CiTestCase):
             distro='ubuntu', metadata={'public-keys': keys})
         cc_ssh.handle("name", cfg, cloud, None, None)
 
-        options = cc_ssh.DISABLE_ROOT_OPTS.replace("$USER", user)
+        options = ssh_util.DISABLE_USER_OPTS.replace("$USER", user)
+        options = options.replace("$DISABLE_USER", "root")
         self.assertEqual([mock.call(set(keys), user),
                           mock.call(set(keys), "root", options=options)],
                          m_setup_keys.call_args_list)
