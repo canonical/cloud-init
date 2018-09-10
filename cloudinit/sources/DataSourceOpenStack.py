@@ -128,7 +128,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             False when unable to contact metadata service or when metadata
             format is invalid or disabled.
         """
-        oracle_considered = 'Oracle' in self.sys_cfg.get('datasource_list')
+        oracle_considered = 'Oracle' in self.sys_cfg.get('datasource_list',
+                                                         {})
         if not detect_openstack(accept_oracle=not oracle_considered):
             return False
 
