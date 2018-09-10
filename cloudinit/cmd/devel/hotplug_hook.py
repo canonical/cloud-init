@@ -8,6 +8,7 @@ from cloudinit.event import EventType
 from cloudinit.stages import _pkl_load
 from cloudinit import log
 
+LOG = log.getLogger(__name__)
 NAME = 'hotplug-hook'
 OBJ_PKL = "/var/lib/cloud/instance/obj.pkl"
 
@@ -45,7 +46,7 @@ def handle_args(name, args):
     udev_subsystem = env.get('SUBSYSTEM')
 
     if udev_subsystem not in ['net']:
-        log.warn('hotplug-hook: cannot handle events for subsystem: "%s"',
+        LOG.warn('hotplug-hook: cannot handle events for subsystem: "%s"',
                  udev_subsystem)
         return 0
 
@@ -54,11 +55,11 @@ def handle_args(name, args):
 
     # refresh metadata
     print('requesting metadata refresh for EventType.UDEV')
-    cloud_obj.datasource.update_metadata([EventType.UDEV])
+    cloud_obj.update_metadata([EventType.UDEV])
 
     if udev_subsystem == 'net':
         # apply network config
-        netcfg = cloud_obj.datasource.network_config
+        netcfg = cloud_obj.network_config
         print('Calling distro.apply_network_config with updated netcfg')
         cloud_obj.distro.apply_network_config(netcfg, bring_up=True)
 
