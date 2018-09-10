@@ -5,12 +5,14 @@ import argparse
 import os
 
 from cloudinit.event import EventType
-from cloudinit.stages import _pkl_load
 from cloudinit import log
+from cloudinit import reporting
+from cloudinit import sources
+from cloudinit.reporting import events
+from cloudinit.stages import Init
 
 LOG = log.getLogger(__name__)
 NAME = 'hotplug-hook'
-OBJ_PKL = "/var/lib/cloud/instance/obj.pkl"
 
 
 def get_parser(parser=None):
@@ -26,11 +28,6 @@ def get_parser(parser=None):
     return parser
 
 
-def load_cloud_object(object_path=OBJ_PKL):
-    print('loading object %s' % object_path)
-    return _pkl_load(object_path)
-
-
 def load_udev_environment():
     print('loading os environment')
     return os.environ.copy()
@@ -42,31 +39,46 @@ def handle_args(name, args):
     else:
         log.setupBasicLogging(level=log.WARN)
 
-    env = load_udev_environment()
-    udev_subsystem = env.get('SUBSYSTEM')
+    hotplug_reporter = events.ReportEventStack(NAME, __doc__,
+                                               reporting_enabled=True)
+    with hotplug_reporter:
+        env = load_udev_environment()
+        udev_subsystem = env.get('SUBSYSTEM')
 
-    if udev_subsystem not in ['net']:
-        LOG.warn('hotplug-hook: cannot handle events for subsystem: "%s"',
-                 udev_subsystem)
-        return 0
+        # only handling net udev events for now
+        if udev_subsystem not in ['net']:
+            LOG.warn('hotplug-hook: cannot handle events for subsystem: "%s"',
+                     udev_subsystem)
+            return 0
 
-    # load instance object pkl
-    cloud_obj = load_cloud_object()
+        hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
+        hotplug_init.read_cfg()
+        try:
+            ds = hotplug_init.fetch(existing="trust")
+        except sources.DatasourceNotFoundException:
+            print('No Ds found')
+            return 1
 
-    # refresh metadata
-    print('requesting metadata refresh for EventType.UDEV')
-    cloud_obj.update_metadata([EventType.UDEV])
+        # refresh metadata
+        print('requesting metadata refresh for EventType.UDEV')
+        ds.update_metadata([EventType.UDEV])
 
-    if udev_subsystem == 'net':
-        # apply network config
-        netcfg = cloud_obj.network_config
-        print('Calling distro.apply_network_config with updated netcfg')
-        cloud_obj.distro.apply_network_config(netcfg, bring_up=True)
+        print('Update instance datasource cache')
+        hotplug_init._write_to_cache()
 
-    print('hotplug-hook exit')
+        if udev_subsystem == 'net':
+            # apply network config
+            netcfg = ds.network_config
+            print('Calling distro.apply_network_config with updated netcfg')
+            ds.distro.apply_network_config(netcfg, bring_up=True)
+
+        print('hotplug-hook exit')
+        reporting.flush_events()
 
 
 if __name__ == '__main__':
+    if 'TZ' not in os.environ:
+        os.environ['TZ'] = ":/etc/localtime"
     args = get_parser().parse_args()
     handle_args(NAME, args)
 

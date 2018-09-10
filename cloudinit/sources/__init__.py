@@ -619,7 +619,7 @@ class DataSource(object):
     def update_events(self):
         if not self._update_events:
             self._update_events = {'network':
-                                  set([EventType.BOOT_NEW_INSTANCE])}
+                                   set([EventType.BOOT_NEW_INSTANCE])}
         return self._update_events
 
     @update_events.setter
