@@ -1,4 +1,4 @@
-cloud-init (18.3-39-g757247f9-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.3-39-g757247f9-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
     - config: disable ssh access to a configured user account
