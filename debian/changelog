@@ -1,3 +1,10 @@
+cloud-init (18.3-39-g757247f9-0ubuntu1) cosmic; urgency=medium
+
+  * New upstream snapshot.
+    - config: disable ssh access to a configured user account
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Mon, 10 Sep 2018 17:11:51 -0500
+
 cloud-init (18.3-38-gd47d404e-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.

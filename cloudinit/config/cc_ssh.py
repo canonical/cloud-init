@@ -101,10 +101,6 @@ from cloudinit.distros import ug_util
 from cloudinit import ssh_util
 from cloudinit import util
 
-DISABLE_ROOT_OPTS = (
-    "no-port-forwarding,no-agent-forwarding,"
-    "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\""
-    " rather than the user \\\"root\\\".\';echo;sleep 10\"")
 
 GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa', 'ed25519']
 KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
@@ -185,7 +181,7 @@ def handle(_name, cfg, cloud, log, _args):
         (user, _user_config) = ug_util.extract_default(users)
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
-                                                    DISABLE_ROOT_OPTS)
+                                                    ssh_util.DISABLE_USER_OPTS)
 
         keys = cloud.get_public_ssh_keys() or []
         if "ssh_authorized_keys" in cfg:
@@ -207,6 +203,7 @@ def apply_credentials(keys, user, disable_root, disable_root_opts):
         if not user:
             user = "NONE"
         key_prefix = disable_root_opts.replace('$USER', user)
+        key_prefix = key_prefix.replace('$DISABLE_USER', 'root')
     else:
         key_prefix = ''
 
