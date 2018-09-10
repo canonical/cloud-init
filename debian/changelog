@@ -1,9 +1,8 @@
 cloud-init (0.7.5-0ubuntu1.23) trusty; urgency=medium
 
-  * GCE
-    - d/p/lp-1781039-gce-datasource-update.patch (LP: #1781039)
-      Backport GCE datasource functionality from Xenial
-    - debian/control added python-six dependency.
+  - debian/control: added python-six dependency.
+  - debian/patches/lp-1781039-gce-datasource-update.patch:
+    Backport GCE datasource functionality from Xenial (LP: #1781039).
 
  -- Shane Peters <shane.peters@canonical.com>  Tue, 06 Sep 2018 17:57:23 -0400
 
