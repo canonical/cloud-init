@@ -1,7 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import re
+
 from cloudinit import distros
-from cloudinit.tests.helpers import (TestCase, mock)
+from cloudinit import ssh_util
+from cloudinit.tests.helpers import (CiTestCase, mock)
 
 
 class MyBaseDistro(distros.Distro):
@@ -44,8 +47,12 @@ class MyBaseDistro(distros.Distro):
 
 @mock.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
 @mock.patch("cloudinit.distros.util.subp")
-class TestCreateUser(TestCase):
+class TestCreateUser(CiTestCase):
+
+    with_logs = True
+
     def setUp(self):
+        super(TestCreateUser, self).setUp()
         self.dist = MyBaseDistro()
 
     def _useradd2call(self, args):
@@ -152,5 +159,85 @@ class TestCreateUser(TestCase):
             m_subp.call_args_list,
             [self._useradd2call([user, '-m']),
              mock.call(['passwd', '-l', user])])
+
+    @mock.patch('cloudinit.ssh_util.setup_user_keys')
+    def test_setup_ssh_authorized_keys_with_string(
+            self, m_setup_user_keys, m_subp, m_is_snappy):
+        """ssh_authorized_keys allows string and calls setup_user_keys."""
+        user = 'foouser'
+        self.dist.create_user(user, ssh_authorized_keys='mykey')
+        self.assertEqual(
+            m_subp.call_args_list,
+            [self._useradd2call([user, '-m']),
+             mock.call(['passwd', '-l', user])])
+        m_setup_user_keys.assert_called_once_with(set(['mykey']), user)
+
+    @mock.patch('cloudinit.ssh_util.setup_user_keys')
+    def test_setup_ssh_authorized_keys_with_list(
+            self, m_setup_user_keys, m_subp, m_is_snappy):
+        """ssh_authorized_keys allows lists and calls setup_user_keys."""
+        user = 'foouser'
+        self.dist.create_user(user, ssh_authorized_keys=['key1', 'key2'])
+        self.assertEqual(
+            m_subp.call_args_list,
+            [self._useradd2call([user, '-m']),
+             mock.call(['passwd', '-l', user])])
+        m_setup_user_keys.assert_called_once_with(set(['key1', 'key2']), user)
+
+    @mock.patch('cloudinit.ssh_util.setup_user_keys')
+    def test_setup_ssh_authorized_keys_with_integer(
+            self, m_setup_user_keys, m_subp, m_is_snappy):
+        """ssh_authorized_keys warns on non-iterable/string type."""
+        user = 'foouser'
+        self.dist.create_user(user, ssh_authorized_keys=-1)
+        m_setup_user_keys.assert_called_once_with(set([]), user)
+        match = re.match(
+            r'.*WARNING: Invalid type \'<(type|class) \'int\'>\' detected for'
+            ' \'ssh_authorized_keys\'.*',
+            self.logs.getvalue(),
+            re.DOTALL)
+        self.assertIsNotNone(
+            match, 'Missing ssh_authorized_keys invalid type warning')
+
+    @mock.patch('cloudinit.ssh_util.setup_user_keys')
+    def test_create_user_with_ssh_redirect_user_no_cloud_keys(
+            self, m_setup_user_keys, m_subp, m_is_snappy):
+        """Log a warning when trying to redirect a user no cloud ssh keys."""
+        user = 'foouser'
+        self.dist.create_user(user, ssh_redirect_user='someuser')
+        self.assertIn(
+            'WARNING: Unable to disable ssh logins for foouser given '
+            'ssh_redirect_user: someuser. No cloud public-keys present.\n',
+            self.logs.getvalue())
+        m_setup_user_keys.assert_not_called()
+
+    @mock.patch('cloudinit.ssh_util.setup_user_keys')
+    def test_create_user_with_ssh_redirect_user_with_cloud_keys(
+            self, m_setup_user_keys, m_subp, m_is_snappy):
+        """Disable ssh when ssh_redirect_user and cloud ssh keys are set."""
+        user = 'foouser'
+        self.dist.create_user(
+            user, ssh_redirect_user='someuser', cloud_public_ssh_keys=['key1'])
+        disable_prefix = ssh_util.DISABLE_USER_OPTS
+        disable_prefix = disable_prefix.replace('$USER', 'someuser')
+        disable_prefix = disable_prefix.replace('$DISABLE_USER', user)
+        m_setup_user_keys.assert_called_once_with(
+            set(['key1']), 'foouser', options=disable_prefix)
+
+    @mock.patch('cloudinit.ssh_util.setup_user_keys')
+    def test_create_user_with_ssh_redirect_user_does_not_disable_auth_keys(
+            self, m_setup_user_keys, m_subp, m_is_snappy):
+        """Do not disable ssh_authorized_keys when ssh_redirect_user is set."""
+        user = 'foouser'
+        self.dist.create_user(
+            user, ssh_authorized_keys='auth1', ssh_redirect_user='someuser',
+            cloud_public_ssh_keys=['key1'])
+        disable_prefix = ssh_util.DISABLE_USER_OPTS
+        disable_prefix = disable_prefix.replace('$USER', 'someuser')
+        disable_prefix = disable_prefix.replace('$DISABLE_USER', user)
+        self.assertEqual(
+            m_setup_user_keys.call_args_list,
+            [mock.call(set(['auth1']), user),  # not disabled
+             mock.call(set(['key1']), 'foouser', options=disable_prefix)])
 
 # vi: ts=4 expandtab

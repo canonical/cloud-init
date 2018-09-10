@@ -381,6 +381,9 @@ class Distro(object):
         """
         Add a user to the system using standard GNU tools
         """
+        # XXX need to make add_user idempotent somehow as we
+        # still want to add groups or modify ssh keys on pre-existing
+        # users in the image.
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
             return
@@ -547,10 +550,24 @@ class Distro(object):
                     LOG.warning("Invalid type '%s' detected for"
                                 " 'ssh_authorized_keys', expected list,"
                                 " string, dict, or set.", type(keys))
+                    keys = []
                 else:
                     keys = set(keys) or []
-                    ssh_util.setup_user_keys(keys, name, options=None)
-
+            ssh_util.setup_user_keys(set(keys), name)
+        if 'ssh_redirect_user' in kwargs:
+            cloud_keys = kwargs.get('cloud_public_ssh_keys', [])
+            if not cloud_keys:
+                LOG.warning(
+                    'Unable to disable ssh logins for %s given'
+                    ' ssh_redirect_user: %s. No cloud public-keys present.',
+                    name, kwargs['ssh_redirect_user'])
+            else:
+                redirect_user = kwargs['ssh_redirect_user']
+                disable_option = ssh_util.DISABLE_USER_OPTS
+                disable_option = disable_option.replace('$USER', redirect_user)
+                disable_option = disable_option.replace('$DISABLE_USER', name)
+                ssh_util.setup_user_keys(
+                    set(cloud_keys), name, options=disable_option)
         return True
 
     def lock_passwd(self, name):
