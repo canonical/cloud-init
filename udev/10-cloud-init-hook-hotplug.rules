@@ -1,1 +1,5 @@
+# Adding/removing nics, ignore 'move' for renames
+ACTION!="add|change|remove", GOTO="cloudinit_end"
+LABEL="cloudinit_hook"
 SUBSYSTEM=="net|block", RUN+="/usr/lib/cloud-init/hook-hotplug"
+LABEL="cloudinit_end"
