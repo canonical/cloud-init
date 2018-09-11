@@ -168,7 +168,7 @@ class CloudTestCase(unittest.TestCase):
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
         self.assertEqual(
-            ['ds/user-data'], instance_data['base64-encoded-keys'])
+            ['ds/user_data'], instance_data['base64_encoded_keys'])
         ds = instance_data.get('ds', {})
         v1_data = instance_data.get('v1', {})
         metadata = ds.get('meta-data', {})
@@ -214,8 +214,8 @@ class CloudTestCase(unittest.TestCase):
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
         self.assertEqual(
-            ['ds/user-data', 'ds/vendor-data'],
-            sorted(instance_data['base64-encoded-keys']))
+            ['ds/user_data', 'ds/vendor_data'],
+            sorted(instance_data['base64_encoded_keys']))
         self.assertEqual('nocloud', v1_data['cloud-name'])
         self.assertIsNone(
             v1_data['availability-zone'],
@@ -249,7 +249,7 @@ class CloudTestCase(unittest.TestCase):
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
         self.assertEqual(
-            ['ds/user-data'], instance_data['base64-encoded-keys'])
+            ['ds/user_data'], instance_data['base64_encoded_keys'])
         self.assertEqual('nocloud', v1_data['cloud-name'])
         self.assertIsNone(
             v1_data['availability-zone'],

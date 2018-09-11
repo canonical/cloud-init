@@ -32,6 +32,7 @@ from cloudinit import cloud
 from cloudinit import distros
 from cloudinit import helpers as ch
 from cloudinit.sources import DataSourceNone
+from cloudinit.templater import JINJA_AVAILABLE
 from cloudinit import util
 
 _real_subp = util.subp
@@ -516,6 +517,14 @@ except ImportError:
 def skipUnlessJsonSchema():
     return skipIf(
         _missing_jsonschema_dep, "No python-jsonschema dependency present.")
+
+
+def skipUnlessJinja():
+    return skipIf(not JINJA_AVAILABLE, "No jinja dependency present.")
+
+
+def skipIfJinja():
+    return skipIf(JINJA_AVAILABLE, "Jinja dependency present.")
 
 
 # older versions of mock do not have the useful 'assert_not_called'
