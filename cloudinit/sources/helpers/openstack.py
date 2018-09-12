@@ -439,7 +439,7 @@ class MetadataReader(BaseReader):
             return self._versions
         found = []
         version_path = self._path_join(self.base_path, "openstack")
-        content = self._path_read(version_path)
+        content = self._path_read(version_path, decode=True)
         for line in content.splitlines():
             line = line.strip()
             if not line:

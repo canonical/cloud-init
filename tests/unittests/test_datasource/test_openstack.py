@@ -555,4 +555,34 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
         m_proc_env.assert_called_with(1)
 
 
+class TestMetadataReader(test_helpers.HttprettyTestCase):
+    """Test the MetadataReader."""
+    burl = 'http://169.254.169.254/'
+
+    def register(self, path, body=None, status=200):
+        hp.register_uri(
+            hp.GET, self.burl + "openstack" + path, status=status, body=body)
+
+    def register_versions(self, versions):
+        self.register("", '\n'.join(versions).encode('utf-8'))
+
+    def test__find_working_version(self):
+        """Test a working version ignores unsupported."""
+        unsup = "2016-11-09"
+        self.register_versions(
+            [openstack.OS_FOLSOM, openstack.OS_LIBERTY, unsup,
+             openstack.OS_LATEST])
+        self.assertEqual(
+            openstack.OS_LIBERTY,
+            openstack.MetadataReader(self.burl)._find_working_version())
+
+    def test__find_working_version_uses_latest(self):
+        """'latest' should be used if no supported versions."""
+        unsup1, unsup2 = ("2016-11-09", '2017-06-06')
+        self.register_versions([unsup1, unsup2, openstack.OS_LATEST])
+        self.assertEqual(
+            openstack.OS_LATEST,
+            openstack.MetadataReader(self.burl)._find_working_version())
+
+
 # vi: ts=4 expandtab
