@@ -38,17 +38,33 @@ KEY_COPIES = (
     ('local-hostname', 'hostname', False),
     ('instance-id', 'uuid', True),
 )
+
+# Versions and names taken from nova source nova/api/metadata/base.py
 OS_LATEST = 'latest'
 OS_FOLSOM = '2012-08-10'
 OS_GRIZZLY = '2013-04-04'
 OS_HAVANA = '2013-10-17'
 OS_LIBERTY = '2015-10-15'
+# NEWTON_ONE adds 'devices' to md (sriov-pf-passthrough-neutron-port-vlan)
+OS_NEWTON_ONE = '2016-06-30'
+# NEWTON_TWO adds vendor_data2.json (vendordata-reboot)
+OS_NEWTON_TWO = '2016-10-06'
+# OS_OCATA adds 'vif' field to devices (sriov-pf-passthrough-neutron-port-vlan)
+OS_OCATA = '2017-02-22'
+# OS_ROCKY adds a vf_trusted field to devices (sriov-trusted-vfs)
+OS_ROCKY = '2018-08-27'
+
+
 # keep this in chronological order. new supported versions go at the end.
 OS_VERSIONS = (
     OS_FOLSOM,
     OS_GRIZZLY,
     OS_HAVANA,
     OS_LIBERTY,
+    OS_NEWTON_ONE,
+    OS_NEWTON_TWO,
+    OS_OCATA,
+    OS_ROCKY,
 )
 
 PHYSICAL_TYPES = (
