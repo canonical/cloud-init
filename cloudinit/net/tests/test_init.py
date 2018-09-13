@@ -515,12 +515,17 @@ class TestEphemeralIPV4Network(CiTestCase):
                 capture=True),
             mock.call(
                 ['ip', 'route', 'show', '0.0.0.0/0'], capture=True),
+            mock.call(['ip', '-4', 'route', 'add', '192.168.2.1',
+                       'dev', 'eth0', 'src', '192.168.2.2'], capture=True),
             mock.call(
                 ['ip', '-4', 'route', 'add', 'default', 'via',
                  '192.168.2.1', 'dev', 'eth0'], capture=True)]
-        expected_teardown_calls = [mock.call(
-            ['ip', '-4', 'route', 'del', 'default', 'dev', 'eth0'],
-            capture=True)]
+        expected_teardown_calls = [
+            mock.call(['ip', '-4', 'route', 'del', 'default', 'dev', 'eth0'],
+                      capture=True),
+            mock.call(['ip', '-4', 'route', 'del', '192.168.2.1',
+                       'dev', 'eth0', 'src', '192.168.2.2'], capture=True),
+        ]
 
         with net.EphemeralIPv4Network(**params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)

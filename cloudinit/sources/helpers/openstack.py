@@ -69,6 +69,7 @@ OS_VERSIONS = (
 
 PHYSICAL_TYPES = (
     None,
+    'bgpovs',  # not present in OpenStack upstream but used on OVH cloud.
     'bridge',
     'dvs',
     'ethernet',
