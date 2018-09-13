@@ -250,6 +250,7 @@ data_files = [
     (ETC + '/cloud/templates', glob('templates/*')),
     (USR_LIB_EXEC + '/cloud-init', ['tools/ds-identify',
                                     'tools/hook-hotplug',
+                                    'tools/hook-hotplugd',
                                     'tools/uncloud-init',
                                     'tools/write-ssh-key-fingerprints']),
     (USR + '/share/bash-completion/completions',

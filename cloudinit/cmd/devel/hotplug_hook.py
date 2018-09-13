@@ -10,6 +10,8 @@ from cloudinit import reporting
 from cloudinit import sources
 from cloudinit.reporting import events
 from cloudinit.stages import Init
+from cloudinit.net import read_sys_net_safe
+from cloudinit.net.network_state import parse_net_config_data
 
 LOG = log.getLogger(__name__)
 NAME = 'hotplug-hook'
@@ -25,12 +27,78 @@ def get_parser(parser=None):
     """
     if not parser:
         parser = argparse.ArgumentParser(prog=NAME, description=__doc__)
+
+    parser.add_argument("-a", "--action",
+                        choices=['add', 'change', 'remove'],
+                        required=True)
+    parser.add_argument("-d", "--devpath",
+                        metavar="PATH",
+                        help="sysfs path to hotplugged device",
+                        required=True)
+    parser.add_argument("--debug", action='store_true',
+                        help='enable debug logging to stderr.')
+    parser.add_argument("-s", "--subsystem",
+                        choices=['net', 'block'],
+                        required=True)
     return parser
 
 
 def load_udev_environment():
     print('loading os environment')
     return os.environ.copy()
+
+
+def devpath_to_macaddr(devpath):
+    return read_sys_net_safe('/sys' + devpath, 'address')
+
+
+def netdev_in_netconfig(devpath, netconfig):
+    macaddr = devpath_to_macaddr(devpath)
+    LOG.debug('Checking if %s in netconfig', macaddr)
+    netstate = parse_net_config_data(netconfig)
+    found = [iface
+             for iface in netstate.iter_interfaces()
+             if iface.get('mac_address') == macaddr]
+    LOG.debug('Ifaces with MAC=%s : %s', found)
+    return len(found) > 0
+
+
+class UeventHandler(object):
+    def __init__(self, ds, devpath, dev_id):
+        self.datasource = ds
+        self.devpath = devpath
+        self.dev_id = dev_id
+
+    @property
+    def config(self):
+        raise NotImplemented()
+
+    def detect(self):
+        raise NotImplemented()
+
+    def apply(self):
+        raise NotImplemented()
+
+
+class NetHandler(UeventHandler):
+    def __init__(self, ds, devpath, dev_id):
+        super(NetHandler).__init__(ds, devpath, dev_id)
+
+    @property
+    def config(self):
+        return self.datasource.network_config
+
+    def detect(self):
+        return netdev_in_netconfig(self.devpath, self.network_config)
+
+    def apply(self):
+        return self.datasource.distro.apply_network_config(
+            self.datasource.network_config, bring_up=True)
+
+
+UEVENT_HANDLERS = {
+    'net': NetHandler,
+}
 
 
 def handle_args(name, args):
@@ -42,15 +110,14 @@ def handle_args(name, args):
     hotplug_reporter = events.ReportEventStack(NAME, __doc__,
                                                reporting_enabled=True)
     with hotplug_reporter:
-        env = load_udev_environment()
-        udev_subsystem = env.get('SUBSYSTEM')
-
         # only handling net udev events for now
-        if udev_subsystem not in ['net']:
+        event_handler_cls = UEVENT_HANDLERS.get(args.subsystem)
+        if not event_handler_cls:
             LOG.warn('hotplug-hook: cannot handle events for subsystem: "%s"',
-                     udev_subsystem)
-            return 0
+                     args.subsystem)
+            return 1
 
+        # load instance datasource from cache
         hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
         hotplug_init.read_cfg()
         try:
@@ -59,18 +126,23 @@ def handle_args(name, args):
             print('No Ds found')
             return 1
 
-        # refresh metadata
-        print('requesting metadata refresh for EventType.UDEV')
-        ds.update_metadata([EventType.UDEV])
+        event_handler = event_handler_cls(ds, args.devpath, args.dev_id)
 
-        print('Update instance datasource cache')
-        hotplug_init._write_to_cache()
+        retries = [1, 1, 1, 3, 5]
+        for attempt, wait in enumerate(retries):
+            LOG.debug('Hotplug hook subsystem=%s attempt %s/%s',
+                      args.subsystem, attempt, len(retries))
+            try:
+                ds.update_metadata([EventType.UDEV])
+                if event_handler.detect():
+                    event_handler.apply()
+                    hotplug_init._write_to_cache()
+                    break
 
-        if udev_subsystem == 'net':
-            # apply network config
-            netcfg = ds.network_config
-            print('Calling distro.apply_network_config with updated netcfg')
-            ds.distro.apply_network_config(netcfg, bring_up=True)
+            except Exception as e:
+                if attempt + 1 >= len(retries):
+                    raise
+                LOG.debug('exception while processing hotplug event. %s', e)
 
         print('hotplug-hook exit')
         reporting.flush_events()

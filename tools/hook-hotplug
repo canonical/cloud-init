@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # This file is part of cloud-init. See LICENSE file for license information.
 
 # This script checks if cloud-init has hotplug hooked and if
@@ -15,5 +15,15 @@ is_enabled() {
 }
 
 if is_enabled; then
-    cloud-init devel hotplug-hook
+    # open cloud-init's hotplug-hook fifo rw
+    exec 3<>/run/cloud-init/hotplug-hook.fifo
+    env_params=( \
+        --action=${ACTION}
+        --devpath=${DEVPATH}
+        --subsystem=${SUBSYSTEM}
+    )
+    echo ${env_params[@]}
+    exit 0
+    # write params to cloud-init's hotplug-hook fifo
+    echo "--debug ${env_params[@]}" >&3
 fi
