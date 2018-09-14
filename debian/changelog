@@ -1,4 +1,4 @@
-cloud-init (18.3-46-gbb60f61b-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.3-46-gbb60f61b-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
     - ds-identify: doc string cleanup.
