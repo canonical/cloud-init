@@ -2,16 +2,24 @@
 # shellcheck disable=2015,2039,2162,2166
 #
 # ds-identify is configured via /etc/cloud/ds-identify.cfg
-# or on the kernel command line. It takes primarily 2 inputs:
+# or on the kernel command line. It takes the following inputs:
+#
 # datasource: can specify the datasource that should be used.
-#     kernel command line option: ci.datasource=<dsname>
+#   kernel command line option: ci.datasource=<dsname> or ci.ds=<dsname>
+#   example line in /etc/cloud/ds-identify.cfg:
+#      datasource: Ec2
 #
 # policy: a string that indicates how ds-identify should operate.
-#     kernel command line option: ci.di.policy=<policy>
+#
 #   The format is:
 #        <mode>,found=value,maybe=value,notfound=value
 #   default setting is:
-#     search,found=all,maybe=all,notfound=disable
+#     search,found=all,maybe=all,notfound=disabled
+#
+#   kernel command line option: ci.di.policy=<policy>
+#   example line in /etc/cloud/ds-identify.cfg:
+#      policy: search,found=all,maybe=none,notfound=disabled
+#
 #
 #   Mode:
 #     disabled: disable cloud-init
