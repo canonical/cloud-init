@@ -698,6 +698,13 @@ class EphemeralIPv4Network(object):
                 self.interface, out.strip())
             return
         util.subp(
+            ['ip', '-4', 'route', 'add', self.router, 'dev', self.interface,
+             'src', self.ip], capture=True)
+        self.cleanup_cmds.insert(
+            0,
+            ['ip', '-4', 'route', 'del', self.router, 'dev', self.interface,
+             'src', self.ip])
+        util.subp(
             ['ip', '-4', 'route', 'add', 'default', 'via', self.router,
              'dev', self.interface], capture=True)
         self.cleanup_cmds.insert(

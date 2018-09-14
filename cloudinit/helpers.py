@@ -449,4 +449,8 @@ class DefaultingConfigParser(RawConfigParser):
             contents = '\n'.join([header, contents, ''])
         return contents
 
+
+def identity(object):
+    return object
+
 # vi: ts=4 expandtab

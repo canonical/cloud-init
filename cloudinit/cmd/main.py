@@ -348,6 +348,7 @@ def main_init(name, args):
             LOG.debug("[%s] barreling on in force mode without datasource",
                       mode)
 
+    _maybe_persist_instance_data(init)
     # Stage 6
     iid = init.instancify()
     LOG.debug("[%s] %s will now be targeting instance id: %s. new=%s",
@@ -490,6 +491,7 @@ def main_modules(action_name, args):
         print_exc(msg)
         if not args.force:
             return [(msg)]
+    _maybe_persist_instance_data(init)
     # Stage 3
     mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
@@ -541,6 +543,7 @@ def main_single(name, args):
                    " likely bad things to come!"))
         if not args.force:
             return 1
+    _maybe_persist_instance_data(init)
     # Stage 3
     mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
@@ -686,6 +689,15 @@ def status_wrapper(name, args, data_d=None, link_d=None):
                       force=True)
 
     return len(v1[mode]['errors'])
+
+
+def _maybe_persist_instance_data(init):
+    """Write instance-data.json file if absent and datasource is restored."""
+    if init.ds_restored:
+        instance_data_file = os.path.join(
+            init.paths.run_dir, sources.INSTANCE_JSON_FILE)
+        if not os.path.exists(instance_data_file):
+            init.datasource.persist_instance_data()
 
 
 def _maybe_set_hostname(init, stage, retry_stage):
@@ -887,6 +899,8 @@ def main(sysv_args=None):
 if __name__ == '__main__':
     if 'TZ' not in os.environ:
         os.environ['TZ'] = ":/etc/localtime"
-    main(sys.argv)
+    return_value = main(sys.argv)
+    if return_value:
+        sys.exit(return_value)
 
 # vi: ts=4 expandtab

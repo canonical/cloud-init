@@ -13,6 +13,7 @@
 import collections
 import re
 
+
 try:
     from Cheetah.Template import Template as CTemplate
     CHEETAH_AVAILABLE = True
@@ -20,23 +21,44 @@ except (ImportError, AttributeError):
     CHEETAH_AVAILABLE = False
 
 try:
-    import jinja2
+    from jinja2.runtime import implements_to_string
     from jinja2 import Template as JTemplate
+    from jinja2 import DebugUndefined as JUndefined
     JINJA_AVAILABLE = True
 except (ImportError, AttributeError):
+    from cloudinit.helpers import identity
+    implements_to_string = identity
     JINJA_AVAILABLE = False
+    JUndefined = object
 
 from cloudinit import log as logging
 from cloudinit import type_utils as tu
 from cloudinit import util
 
+
 LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
 BASIC_MATCHER = re.compile(r'\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)')
+MISSING_JINJA_PREFIX = u'CI_MISSING_JINJA_VAR/'
+
+
+@implements_to_string   # Needed for python2.7. Otherwise cached super.__str__
+class UndefinedJinjaVariable(JUndefined):
+    """Class used to represent any undefined jinja template varible."""
+
+    def __str__(self):
+        return u'%s%s' % (MISSING_JINJA_PREFIX, self._undefined_name)
+
+    def __sub__(self, other):
+        other = str(other).replace(MISSING_JINJA_PREFIX, '')
+        raise TypeError(
+            'Undefined jinja variable: "{this}-{other}". Jinja tried'
+            ' subtraction. Perhaps you meant "{this}_{other}"?'.format(
+                this=self._undefined_name, other=other))
 
 
 def basic_render(content, params):
-    """This does simple replacement of bash variable like templates.
+    """This does sumple replacement of bash variable like templates.
 
     It identifies patterns like ${a} or $a and can also identify patterns like
     ${a.b} or $a.b which will look for a key 'b' in the dictionary rooted
@@ -82,7 +104,7 @@ def detect_template(text):
         # keep_trailing_newline is in jinja2 2.7+, not 2.6
         add = "\n" if content.endswith("\n") else ""
         return JTemplate(content,
-                         undefined=jinja2.StrictUndefined,
+                         undefined=UndefinedJinjaVariable,
                          trim_blocks=True).render(**params) + add
 
     if text.find("\n") != -1:
