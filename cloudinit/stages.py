@@ -17,10 +17,11 @@ from cloudinit.settings import (
 from cloudinit import handlers
 
 # Default handlers (used if not overridden)
-from cloudinit.handlers import boot_hook as bh_part
-from cloudinit.handlers import cloud_config as cc_part
-from cloudinit.handlers import shell_script as ss_part
-from cloudinit.handlers import upstart_job as up_part
+from cloudinit.handlers.boot_hook import BootHookPartHandler
+from cloudinit.handlers.cloud_config import CloudConfigPartHandler
+from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
+from cloudinit.handlers.shell_script import ShellScriptPartHandler
+from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
 from cloudinit.event import EventType
 
@@ -413,12 +414,17 @@ class Init(object):
             'datasource': self.datasource,
         })
         # TODO(harlowja) Hmmm, should we dynamically import these??
+        cloudconfig_handler = CloudConfigPartHandler(**opts)
+        shellscript_handler = ShellScriptPartHandler(**opts)
         def_handlers = [
-            cc_part.CloudConfigPartHandler(**opts),
-            ss_part.ShellScriptPartHandler(**opts),
-            bh_part.BootHookPartHandler(**opts),
-            up_part.UpstartJobPartHandler(**opts),
+            cloudconfig_handler,
+            shellscript_handler,
+            BootHookPartHandler(**opts),
+            UpstartJobPartHandler(**opts),
         ]
+        opts.update(
+            {'sub_handlers': [cloudconfig_handler, shellscript_handler]})
+        def_handlers.append(JinjaTemplatePartHandler(**opts))
         return def_handlers
 
     def _default_userdata_handlers(self):

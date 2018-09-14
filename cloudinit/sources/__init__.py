@@ -58,22 +58,27 @@ class InvalidMetaDataException(Exception):
     pass
 
 
-def process_base64_metadata(metadata, key_path=''):
-    """Strip ci-b64 prefix and return metadata with base64-encoded-keys set."""
+def process_instance_metadata(metadata, key_path=''):
+    """Process all instance metadata cleaning it up for persisting as json.
+
+    Strip ci-b64 prefix and catalog any 'base64_encoded_keys' as a list
+
+    @return Dict copy of processed metadata.
+    """
     md_copy = copy.deepcopy(metadata)
-    md_copy['base64-encoded-keys'] = []
+    md_copy['base64_encoded_keys'] = []
     for key, val in metadata.items():
         if key_path:
             sub_key_path = key_path + '/' + key
         else:
             sub_key_path = key
         if isinstance(val, str) and val.startswith('ci-b64:'):
-            md_copy['base64-encoded-keys'].append(sub_key_path)
+            md_copy['base64_encoded_keys'].append(sub_key_path)
             md_copy[key] = val.replace('ci-b64:', '')
         if isinstance(val, dict):
-            return_val = process_base64_metadata(val, sub_key_path)
-            md_copy['base64-encoded-keys'].extend(
-                return_val.pop('base64-encoded-keys'))
+            return_val = process_instance_metadata(val, sub_key_path)
+            md_copy['base64_encoded_keys'].extend(
+                return_val.pop('base64_encoded_keys'))
             md_copy[key] = return_val
     return md_copy
 
@@ -180,15 +185,24 @@ class DataSource(object):
         """
         self._dirty_cache = True
         return_value = self._get_data()
-        json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
         if not return_value:
             return return_value
+        self.persist_instance_data()
+        return return_value
 
+    def persist_instance_data(self):
+        """Process and write INSTANCE_JSON_FILE with all instance metadata.
+
+        Replace any hyphens with underscores in key names for use in template
+        processing.
+
+        @return True on successful write, False otherwise.
+        """
         instance_data = {
             'ds': {
-                'meta-data': self.metadata,
-                'user-data': self.get_userdata_raw(),
-                'vendor-data': self.get_vendordata_raw()}}
+                'meta_data': self.metadata,
+                'user_data': self.get_userdata_raw(),
+                'vendor_data': self.get_vendordata_raw()}}
         if hasattr(self, 'network_json'):
             network_json = getattr(self, 'network_json')
             if network_json != UNSET:
@@ -202,16 +216,17 @@ class DataSource(object):
         try:
             # Process content base64encoding unserializable values
             content = util.json_dumps(instance_data)
-            # Strip base64: prefix and return base64-encoded-keys
-            processed_data = process_base64_metadata(json.loads(content))
+            # Strip base64: prefix and set base64_encoded_keys list.
+            processed_data = process_instance_metadata(json.loads(content))
         except TypeError as e:
             LOG.warning('Error persisting instance-data.json: %s', str(e))
-            return return_value
+            return False
         except UnicodeDecodeError as e:
             LOG.warning('Error persisting instance-data.json: %s', str(e))
-            return return_value
+            return False
+        json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
         write_json(json_file, processed_data, mode=0o600)
-        return return_value
+        return True
 
     def _get_data(self):
         """Walk metadata sources, process crawled data and save attributes."""

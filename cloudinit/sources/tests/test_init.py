@@ -20,10 +20,12 @@ class DataSourceTestSubclassNet(DataSource):
     dsname = 'MyTestSubclass'
     url_max_wait = 55
 
-    def __init__(self, sys_cfg, distro, paths, custom_userdata=None):
+    def __init__(self, sys_cfg, distro, paths, custom_userdata=None,
+                 get_data_retval=True):
         super(DataSourceTestSubclassNet, self).__init__(
             sys_cfg, distro, paths)
         self._custom_userdata = custom_userdata
+        self._get_data_retval = get_data_retval
 
     def _get_cloud_name(self):
         return 'SubclassCloudName'
@@ -37,7 +39,7 @@ class DataSourceTestSubclassNet(DataSource):
         else:
             self.userdata_raw = 'userdata_raw'
         self.vendordata_raw = 'vendordata_raw'
-        return True
+        return self._get_data_retval
 
 
 class InvalidDataSourceTestSubclassNet(DataSource):
@@ -264,7 +266,18 @@ class TestDataSource(CiTestCase):
                 self.assertEqual('fqdnhostname.domain.com',
                                  datasource.get_hostname(fqdn=True))
 
-    def test_get_data_write_json_instance_data(self):
+    def test_get_data_does_not_write_instance_data_on_failure(self):
+        """get_data does not write INSTANCE_JSON_FILE on get_data False."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
+            get_data_retval=False)
+        self.assertFalse(datasource.get_data())
+        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        self.assertFalse(
+            os.path.exists(json_file), 'Found unexpected file %s' % json_file)
+
+    def test_get_data_writes_json_instance_data_on_success(self):
         """get_data writes INSTANCE_JSON_FILE to run_dir as readonly root."""
         tmp = self.tmp_dir()
         datasource = DataSourceTestSubclassNet(
@@ -273,7 +286,7 @@ class TestDataSource(CiTestCase):
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         content = util.load_file(json_file)
         expected = {
-            'base64-encoded-keys': [],
+            'base64_encoded_keys': [],
             'v1': {
                 'availability-zone': 'myaz',
                 'cloud-name': 'subclasscloudname',
@@ -281,11 +294,12 @@ class TestDataSource(CiTestCase):
                 'local-hostname': 'test-subclass-hostname',
                 'region': 'myregion'},
             'ds': {
-                'meta-data': {'availability_zone': 'myaz',
+                'meta_data': {'availability_zone': 'myaz',
                               'local-hostname': 'test-subclass-hostname',
                               'region': 'myregion'},
-                'user-data': 'userdata_raw',
-                'vendor-data': 'vendordata_raw'}}
+                'user_data': 'userdata_raw',
+                'vendor_data': 'vendordata_raw'}}
+        self.maxDiff = None
         self.assertEqual(expected, util.load_json(content))
         file_stat = os.stat(json_file)
         self.assertEqual(0o600, stat.S_IMODE(file_stat.st_mode))
@@ -296,7 +310,7 @@ class TestDataSource(CiTestCase):
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
             custom_userdata={'key1': 'val1', 'key2': {'key2.1': self.paths}})
-        self.assertTrue(datasource.get_data())
+        datasource.get_data()
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         content = util.load_file(json_file)
         expected_userdata = {
@@ -306,7 +320,40 @@ class TestDataSource(CiTestCase):
                           " 'cloudinit.helpers.Paths'>"}}
         instance_json = util.load_json(content)
         self.assertEqual(
-            expected_userdata, instance_json['ds']['user-data'])
+            expected_userdata, instance_json['ds']['user_data'])
+
+    def test_persist_instance_data_writes_ec2_metadata_when_set(self):
+        """When ec2_metadata class attribute is set, persist to json."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
+        datasource.ec2_metadata = UNSET
+        datasource.get_data()
+        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        instance_data = util.load_json(util.load_file(json_file))
+        self.assertNotIn('ec2_metadata', instance_data['ds'])
+        datasource.ec2_metadata = {'ec2stuff': 'is good'}
+        datasource.persist_instance_data()
+        instance_data = util.load_json(util.load_file(json_file))
+        self.assertEqual(
+            {'ec2stuff': 'is good'},
+            instance_data['ds']['ec2_metadata'])
+
+    def test_persist_instance_data_writes_network_json_when_set(self):
+        """When network_data.json class attribute is set, persist to json."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
+        datasource.get_data()
+        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        instance_data = util.load_json(util.load_file(json_file))
+        self.assertNotIn('network_json', instance_data['ds'])
+        datasource.network_json = {'network_json': 'is good'}
+        datasource.persist_instance_data()
+        instance_data = util.load_json(util.load_file(json_file))
+        self.assertEqual(
+            {'network_json': 'is good'},
+            instance_data['ds']['network_json'])
 
     @skipIf(not six.PY3, "json serialization on <= py2.7 handles bytes")
     def test_get_data_base64encodes_unserializable_bytes(self):
@@ -320,11 +367,11 @@ class TestDataSource(CiTestCase):
         content = util.load_file(json_file)
         instance_json = util.load_json(content)
         self.assertEqual(
-            ['ds/user-data/key2/key2.1'],
-            instance_json['base64-encoded-keys'])
+            ['ds/user_data/key2/key2.1'],
+            instance_json['base64_encoded_keys'])
         self.assertEqual(
             {'key1': 'val1', 'key2': {'key2.1': 'EjM='}},
-            instance_json['ds']['user-data'])
+            instance_json['ds']['user_data'])
 
     @skipIf(not six.PY2, "json serialization on <= py2.7 handles bytes")
     def test_get_data_handles_bytes_values(self):
@@ -337,10 +384,10 @@ class TestDataSource(CiTestCase):
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         content = util.load_file(json_file)
         instance_json = util.load_json(content)
-        self.assertEqual([], instance_json['base64-encoded-keys'])
+        self.assertEqual([], instance_json['base64_encoded_keys'])
         self.assertEqual(
             {'key1': 'val1', 'key2': {'key2.1': '\x123'}},
-            instance_json['ds']['user-data'])
+            instance_json['ds']['user_data'])
 
     @skipIf(not six.PY2, "Only python2 hits UnicodeDecodeErrors on non-utf8")
     def test_non_utf8_encoding_logs_warning(self):

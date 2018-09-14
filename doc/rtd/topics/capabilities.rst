@@ -16,13 +16,15 @@ User configurability
 
 `Cloud-init`_ 's behavior can be configured via user-data.
 
-    User-data can be given by the user at instance launch time.
+    User-data can be given by the user at instance launch time. See
+    :ref:`user_data_formats` for acceptable user-data content.
+    
 
 This is done via the ``--user-data`` or ``--user-data-file`` argument to
 ec2-run-instances for example.
 
-* Check your local clients documentation for how to provide a `user-data`
-  string or `user-data` file for usage by cloud-init on instance creation.
+* Check your local client's documentation for how to provide a `user-data`
+  string or `user-data` file to cloud-init on instance creation.
 
 
 Feature detection
@@ -165,6 +167,13 @@ likely be promoted to top-level subcommands when stable.
    schema errors locally without the need for deployment. Schema
    validation is work in progress and supports a subset of cloud-config
    modules.
+
+ * ``cloud-init devel render``: Use cloud-init's jinja template render to
+   process  **#cloud-config** or **custom-scripts**, injecting any variables
+   from ``/run/cloud-init/instance-data.json``. It accepts a user-data file
+   containing  the jinja template header ``## template: jinja`` and renders
+   that content with any instance-data.json variables present.
+
 
 .. _cli_clean:
 

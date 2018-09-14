@@ -18,6 +18,8 @@ single way to access the different cloud systems methods to provide this data
 through the typical usage of subclasses.
 
 
+.. _instance_metadata:
+
 instance-data
 -------------
 For reference, cloud-init stores all the metadata, vendordata and userdata
@@ -110,6 +112,51 @@ Below is an instance-data.json example from an OpenStack instance:
    }
   }
 
+ 
+As of cloud-init v. 18.4, any values present in
+``/run/cloud-init/instance-data.json`` can be used in cloud-init user data
+scripts or cloud config data. This allows consumers to use cloud-init's
+vendor-neutral, standardized metadata keys as well as datasource-specific
+content for any scripts or cloud-config modules they are using.
+
+To use instance-data.json values in scripts and **#config-config** files the
+user-data will need to contain the following header as the first line **## template: jinja**. Cloud-init will source all variables defined in
+``/run/cloud-init/instance-data.json`` and allow scripts or cloud-config files 
+to reference those paths. Below are two examples::
+
+ * Cloud config calling home with the ec2 public hostname and avaliability-zone
+    ```
+    ## template: jinja
+    #cloud-config
+    runcmd:
+        - echo 'EC2 public hostname allocated to instance: {{ ds.meta_data.public_hostname }}' > /tmp/instance_metadata
+        - echo 'EC2 avaiability zone: {{ v1.availability_zone }}' >> /tmp/instance_metadata 
+        - curl -X POST -d '{"hostname": "{{ds.meta_data.public_hostname }}", "availability-zone": "{{ v1.availability_zone }}"}'  https://example.com.com
+    ```
+
+ * Custom user script performing different operations based on region
+    ```
+    ## template: jinja
+    #!/bin/bash
+    {% if v1.region == 'us-east-2' -%}
+    echo 'Installing custom proxies for {{ v1.region }}
+    sudo apt-get install my-xtra-fast-stack
+    {%- endif %}
+    ...
+
+    ```
+
+.. note::
+  Trying to reference jinja variables that don't exist in
+  instance-data.json will result in warnings in ``/var/log/cloud-init.log``
+  and the following string in your rendered user-data:
+  ``CI_MISSING_JINJA_VAR/<your_varname>``.
+  
+.. note::
+  To save time designing your user-data for a specific cloud's
+  instance-data.json, use the 'render' cloud-init command on an
+  instance booted on your favorite cloud. See :ref:`cli_devel` for more
+  information.
 
 
 Datasource API

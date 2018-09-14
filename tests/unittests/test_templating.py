@@ -21,6 +21,9 @@ except ImportError:
 
 
 class TestTemplates(test_helpers.CiTestCase):
+
+    with_logs = True
+
     jinja_utf8 = b'It\xe2\x80\x99s not ascii, {{name}}\n'
     jinja_utf8_rbob = b'It\xe2\x80\x99s not ascii, bob\n'.decode('utf-8')
 
@@ -124,6 +127,13 @@ $a,$b'''
                 self.add_header("jinja", self.jinja_utf8), {"name": "bob"}),
             self.jinja_utf8_rbob)
 
+    def test_jinja_nonascii_render_undefined_variables_to_default_py3(self):
+        """Test py3 jinja render_to_string with undefined variable default."""
+        self.assertEqual(
+            templater.render_string(
+                self.add_header("jinja", self.jinja_utf8), {}),
+            self.jinja_utf8_rbob.replace('bob', 'CI_MISSING_JINJA_VAR/name'))
+
     def test_jinja_nonascii_render_to_file(self):
         """Test jinja render_to_file of a filename with non-ascii content."""
         tmpl_fn = self.tmp_path("j-render-to-file.template")
@@ -144,5 +154,18 @@ $a,$b'''
         result = templater.render_from_file(tmpl_fn, {"name": "bob"})
         self.assertEqual(result, self.jinja_utf8_rbob)
 
+    @test_helpers.skipIfJinja()
+    def test_jinja_warns_on_missing_dep_and_uses_basic_renderer(self):
+        """Test jinja render_from_file will fallback to basic renderer."""
+        tmpl_fn = self.tmp_path("j-render-from-file.template")
+        write_file(tmpl_fn, omode="wb",
+                   content=self.add_header(
+                       "jinja", self.jinja_utf8).encode('utf-8'))
+        result = templater.render_from_file(tmpl_fn, {"name": "bob"})
+        self.assertEqual(result, self.jinja_utf8.decode())
+        self.assertIn(
+            'WARNING: Jinja not available as the selected renderer for desired'
+            ' template, reverting to the basic renderer.',
+            self.logs.getvalue())
 
 # vi: ts=4 expandtab

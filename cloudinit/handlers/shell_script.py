@@ -17,20 +17,17 @@ from cloudinit import util
 from cloudinit.settings import (PER_ALWAYS)
 
 LOG = logging.getLogger(__name__)
-SHELL_PREFIX = "#!"
 
 
 class ShellScriptPartHandler(handlers.Handler):
+
+    prefixes = ['#!']
+
     def __init__(self, paths, **_kwargs):
         handlers.Handler.__init__(self, PER_ALWAYS)
         self.script_dir = paths.get_ipath_cur('scripts')
         if 'script_path' in _kwargs:
             self.script_dir = paths.get_ipath_cur(_kwargs['script_path'])
-
-    def list_types(self):
-        return [
-            handlers.type_from_starts_with(SHELL_PREFIX),
-        ]
 
     def handle_part(self, data, ctype, filename, payload, frequency):
         if ctype in handlers.CONTENT_SIGNALS:

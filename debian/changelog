@@ -1,3 +1,14 @@
+cloud-init (18.3-44-g84bf2482-0ubuntu1) cosmic; urgency=medium
+
+  * New upstream snapshot.
+    - bash_completion/cloud-init: fix shell syntax error.
+    - EphemeralIPv4Network: Be more explicit when adding default route.
+    - OpenStack: support reading of newer versions of metdata.
+    - OpenStack: fix bug causing 'latest' version to be used from network.
+    - user-data: jinja template to render instance-data.json in cloud-config
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Fri, 14 Sep 2018 14:06:29 -0500
+
 cloud-init (18.3-39-g757247f9-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
