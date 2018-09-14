@@ -63,7 +63,7 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help --network-data --kind --directory --output-kind" -- $cur_word))
                     ;;
                 render)
-                    COMPREPLY=($(compgen -W "--help --instance-data --debug" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help --instance-data --debug" -- $cur_word));;
                 schema)
                     COMPREPLY=($(compgen -W "--help --config-file --doc --annotate" -- $cur_word))
                     ;;
