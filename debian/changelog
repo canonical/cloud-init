@@ -1,3 +1,11 @@
+cloud-init (18.3-46-gbb60f61b-0ubuntu1) cosmic; urgency=medium
+
+  * New upstream snapshot.
+    - ds-identify: doc string cleanup.
+    - OpenStack: Support setting mac address on bond. [Fabian Wiesel]
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Fri, 14 Sep 2018 16:13:19 -0500
+
 cloud-init (18.3-44-g84bf2482-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.

@@ -604,6 +604,8 @@ def convert_net_json(network_json=None, known_macs=None):
             cfg.update({'type': 'physical', 'mac_address': link_mac_addr})
         elif link['type'] in ['bond']:
             params = {}
+            if link_mac_addr:
+                params['mac_address'] = link_mac_addr
             for k, v in link.items():
                 if k == 'bond_links':
                     continue
