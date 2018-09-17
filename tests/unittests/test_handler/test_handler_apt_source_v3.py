@@ -949,7 +949,8 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main""")
         self.assertEqual(
             orig, cc_apt_configure.disable_suites(["proposed"], orig, rel))
 
-    def test_apt_v3_mirror_search_dns(self):
+    @mock.patch("cloudinit.util.get_hostname", return_value='abc.localdomain')
+    def test_apt_v3_mirror_search_dns(self, m_get_hostname):
         """test_apt_v3_mirror_search_dns - Test searching dns patterns"""
         pmir = "phit"
         smir = "shit"
