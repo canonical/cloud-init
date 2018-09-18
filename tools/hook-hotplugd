@@ -3,13 +3,15 @@
 HOOK_HOTPLUG_QUEUE=/run/cloud-init/hook-hotplug-cmd
 rm -f $HOOK_HOTPLUG_QUEUE
 mkfifo "$HOOK_HOTPLUG_QUEUE"
+COUNT=1
 while true; do
     echo "Starting up hook-hotplugd on queue $HOOK_HOTPLUG_QUEUE"
     while read cmd < $HOOK_HOTPLUG_QUEUE; do
-        echo "Got job: $cmd"
-        echo "Running job: $cmd"
+        echo "Got job[$COUNT]: $cmd"
+        echo "Running job[$COUNT]: $cmd"
         cloud-init devel hotplug-hook $cmd
-        echo "Job complete"
+        echo "Completed job[$COUNT]"
+        COUNT=$((COUNT + 1))
     done
     echo "Got EOF, restarting"
 done

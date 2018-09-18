@@ -8,6 +8,7 @@ import time
 
 from cloudinit import log as logging
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.net import is_up
 from cloudinit.event import EventType
 from cloudinit import sources
 from cloudinit import url_helper
@@ -133,7 +134,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         if not detect_openstack(accept_oracle=not oracle_considered):
             return False
 
-        if self.perform_dhcp_setup:  # Setup networking in init-local stage.
+        if self.perform_dhcp_setup and not is_up(self.fallback_interface):
+            # Setup networking in init-local stage.
             try:
                 with EphemeralDHCPv4(self.fallback_interface):
                     results = util.log_time(

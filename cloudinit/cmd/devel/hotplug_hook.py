@@ -8,6 +8,7 @@ from cloudinit.event import EventType
 from cloudinit import log
 from cloudinit import reporting
 from cloudinit import sources
+from cloudinit import reporting
 from cloudinit.reporting import events
 from cloudinit.stages import Init
 from cloudinit.net import read_sys_net_safe
@@ -28,9 +29,6 @@ def get_parser(parser=None):
     if not parser:
         parser = argparse.ArgumentParser(prog=NAME, description=__doc__)
 
-    parser.add_argument("-a", "--action",
-                        choices=['add', 'change', 'remove'],
-                        required=True)
     parser.add_argument("-d", "--devpath",
                         metavar="PATH",
                         help="sysfs path to hotplugged device",
@@ -39,6 +37,9 @@ def get_parser(parser=None):
                         help='enable debug logging to stderr.')
     parser.add_argument("-s", "--subsystem",
                         choices=['net', 'block'],
+                        required=True)
+    parser.add_argument("-u", "--udevaction",
+                        choices=['add', 'change', 'remove'],
                         required=True)
     return parser
 
@@ -49,7 +50,7 @@ def load_udev_environment():
 
 
 def devpath_to_macaddr(devpath):
-    return read_sys_net_safe('/sys' + devpath, 'address')
+    return read_sys_net_safe(os.path.basename(devpath), 'address')
 
 
 def netdev_in_netconfig(devpath, netconfig):
@@ -73,7 +74,7 @@ class UeventHandler(object):
     def config(self):
         raise NotImplemented()
 
-    def detect(self):
+    def detect(self, action):
         raise NotImplemented()
 
     def apply(self):
@@ -82,18 +83,18 @@ class UeventHandler(object):
 
 class NetHandler(UeventHandler):
     def __init__(self, ds, devpath, dev_id):
-        super(NetHandler).__init__(ds, devpath, dev_id)
+        super(NetHandler, self).__init__(ds, devpath, dev_id)
 
     @property
     def config(self):
         return self.datasource.network_config
 
-    def detect(self):
-        return netdev_in_netconfig(self.devpath, self.network_config)
+    def detect(self, action):
+        return netdev_in_netconfig(self.devpath, self.config)
 
     def apply(self):
-        return self.datasource.distro.apply_network_config(
-            self.datasource.network_config, bring_up=True)
+        return self.datasource.distro.apply_network_config(self.config,
+                                                           bring_up=True)
 
 
 UEVENT_HANDLERS = {
@@ -103,9 +104,9 @@ UEVENT_HANDLERS = {
 
 def handle_args(name, args):
     if args.debug:
-        log.setupBasicLogging(level=log.DEBUG)
+        LOG.setLevel(level=log.DEBUG)
     else:
-        log.setupBasicLogging(level=log.WARN)
+        LOG.setLevel(level=log.WARN)
 
     hotplug_reporter = events.ReportEventStack(NAME, __doc__,
                                                reporting_enabled=True)
@@ -120,13 +121,17 @@ def handle_args(name, args):
         # load instance datasource from cache
         hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
         hotplug_init.read_cfg()
+        log.setupLogging(hotplug_init.cfg)
+        if 'reporting' in hotplug_init.cfg:
+            reporting.update_configuration(hotplug_init.cfg.get('reporting'))
+
         try:
             ds = hotplug_init.fetch(existing="trust")
         except sources.DatasourceNotFoundException:
             print('No Ds found')
             return 1
 
-        event_handler = event_handler_cls(ds, args.devpath, args.dev_id)
+        event_handler = event_handler_cls(ds, args.devpath, "my_dev_id")
 
         retries = [1, 1, 1, 3, 5]
         for attempt, wait in enumerate(retries):
@@ -134,10 +139,13 @@ def handle_args(name, args):
                       args.subsystem, attempt, len(retries))
             try:
                 ds.update_metadata([EventType.UDEV])
-                if event_handler.detect():
+                if event_handler.detect(action=args.udevaction):
                     event_handler.apply()
                     hotplug_init._write_to_cache()
                     break
+                else:
+                    raise Exception(
+                            "Failed to detect device change in metadata")
 
             except Exception as e:
                 if attempt + 1 >= len(retries):
