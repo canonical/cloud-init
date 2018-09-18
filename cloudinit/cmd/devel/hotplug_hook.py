@@ -7,9 +7,8 @@ import os
 from cloudinit.event import EventType
 from cloudinit import log
 from cloudinit import reporting
-from cloudinit import sources
-from cloudinit import reporting
 from cloudinit.reporting import events
+from cloudinit import sources
 from cloudinit.stages import Init
 from cloudinit.net import read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
@@ -33,6 +32,9 @@ def get_parser(parser=None):
                         metavar="PATH",
                         help="sysfs path to hotplugged device",
                         required=True)
+    parser.add_argument("-i", "--id",
+                        help="unique device id",
+                        required=True)
     parser.add_argument("--debug", action='store_true',
                         help='enable debug logging to stderr.')
     parser.add_argument("-s", "--subsystem",
@@ -50,17 +52,17 @@ def load_udev_environment():
 
 
 def devpath_to_macaddr(devpath):
-    return read_sys_net_safe(os.path.basename(devpath), 'address')
-
-
-def netdev_in_netconfig(devpath, netconfig):
-    macaddr = devpath_to_macaddr(devpath)
+    macaddr = read_sys_net_safe(os.path.basename(devpath), 'address')
     LOG.debug('Checking if %s in netconfig', macaddr)
+    return macaddr
+
+
+def in_netconfig(unique_id, netconfig):
     netstate = parse_net_config_data(netconfig)
     found = [iface
              for iface in netstate.iter_interfaces()
-             if iface.get('mac_address') == macaddr]
-    LOG.debug('Ifaces with MAC=%s : %s', macaddr, found)
+             if iface.get('mac_address') == unique_id]
+    LOG.debug('Ifaces with ID=%s : %s', unique_id, found)
     return len(found) > 0
 
 
@@ -98,8 +100,7 @@ class NetHandler(UeventHandler):
         else:
             raise ValueError('Cannot detect unknown action: %s' % action)
 
-        return detect_presence == netdev_in_netconfig(self.devpath,
-                                                      self.config)
+        return detect_presence == in_netconfig(self.id, self.config)
 
     def apply(self):
         return self.datasource.distro.apply_network_config(self.config,
@@ -140,7 +141,7 @@ def handle_args(name, args):
             print('No Ds found')
             return 1
 
-        event_handler = event_handler_cls(ds, args.devpath, "my_dev_id")
+        event_handler = event_handler_cls(ds, args.devpath, args.id)
 
         retries = [1, 1, 1, 3, 5]
         for attempt, wait in enumerate(retries):

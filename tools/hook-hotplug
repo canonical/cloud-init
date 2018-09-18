@@ -17,10 +17,17 @@ is_enabled() {
 if is_enabled; then
     # open cloud-init's hotplug-hook fifo rw
     exec 3<>/run/cloud-init/hook-hotplug-cmd
+    case $SUBSYSTEM in
+        net)
+            ID=$(cat /sys${DEVPATH}/address);;
+        block)
+            ID=${ID_SERIAL};;
+    esac
     env_params=( \
-        --udevaction=${ACTION}
+        --id=${ID}
         --devpath=${DEVPATH}
         --subsystem=${SUBSYSTEM}
+        --udevaction=${ACTION}
     )
     # write params to cloud-init's hotplug-hook fifo
     echo "--debug ${env_params[@]}" >&3
