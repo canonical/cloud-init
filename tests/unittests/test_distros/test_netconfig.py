@@ -34,6 +34,19 @@ auto eth1
 iface eth1 inet dhcp
 '''
 
+BASE_NET_CFG_FROM_V2 = '''
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address 192.168.1.5/24
+    gateway 192.168.1.254
+
+auto eth1
+iface eth1 inet dhcp
+'''
+
 BASE_NET_CFG_IPV6 = '''
 auto lo
 iface lo inet loopback
@@ -251,6 +264,32 @@ hn0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
             with mock.patch("cloudinit.distros.freebsd.util.subp",
                             return_value=('vtnet0', '')):
                 fbsd_distro.apply_network(BASE_NET_CFG, False)
+                results = dir2dict(tmpd)
+
+        self.assertIn(rc_conf, results)
+        self.assertCfgEquals(
+            dedent('''\
+                ifconfig_vtnet0="192.168.1.5 netmask 255.255.255.0"
+                ifconfig_vtnet1="DHCP"
+                defaultrouter="192.168.1.254"
+                '''), results[rc_conf])
+        self.assertEqual(0o644, get_mode(rc_conf, tmpd))
+
+    def test_simple_write_freebsd_from_v2eni(self):
+        fbsd_distro = self._get_distro('freebsd')
+
+        rc_conf = '/etc/rc.conf'
+        read_bufs = {
+            rc_conf: 'initial-rc-conf-not-validated',
+            '/etc/resolv.conf': 'initial-resolv-conf-not-validated',
+        }
+
+        tmpd = self.tmp_dir()
+        populate_dir(tmpd, read_bufs)
+        with self.reRooted(tmpd):
+            with mock.patch("cloudinit.distros.freebsd.util.subp",
+                            return_value=('vtnet0', '')):
+                fbsd_distro.apply_network(BASE_NET_CFG_FROM_V2, False)
                 results = dir2dict(tmpd)
 
         self.assertIn(rc_conf, results)
