@@ -60,7 +60,7 @@ def netdev_in_netconfig(devpath, netconfig):
     found = [iface
              for iface in netstate.iter_interfaces()
              if iface.get('mac_address') == macaddr]
-    LOG.debug('Ifaces with MAC=%s : %s', found)
+    LOG.debug('Ifaces with MAC=%s : %s', macaddr, found)
     return len(found) > 0
 
 
@@ -90,7 +90,16 @@ class NetHandler(UeventHandler):
         return self.datasource.network_config
 
     def detect(self, action):
-        return netdev_in_netconfig(self.devpath, self.config)
+        detect_presence = None
+        if action == 'add':
+            detect_presence = True
+        elif action == 'remove':
+            detect_presence = False
+        else:
+            raise ValueError('Cannot detect unknown action: %s' % action)
+
+        return detect_presence == netdev_in_netconfig(self.devpath,
+                                                      self.config)
 
     def apply(self):
         return self.datasource.distro.apply_network_config(self.config,
