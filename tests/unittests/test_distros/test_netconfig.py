@@ -367,16 +367,6 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
             self.assertEqual(expected, results[cfgpath])
             self.assertEqual(0o644, get_mode(cfgpath, tmpd))
 
-    def test_simple_write_ub(self):
-        expected_cfgs = {
-            self.eni_path(): BASE_NET_CFG,
-        }
-
-        # ub_distro.apply_network(BASE_NET_CFG, False)
-        self._apply_and_verify_eni(self.distro.apply_network,
-                                   BASE_NET_CFG,
-                                   expected_cfgs=expected_cfgs.copy())
-
     def test_apply_network_config_eni_ub(self):
         expected_cfgs = {
             self.eni_path(): V1_NET_CFG_OUTPUT,
@@ -467,35 +457,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
             self.assertCfgEquals(expected, results[cfgpath])
             self.assertEqual(0o644, get_mode(cfgpath, tmpd))
 
-    def test_simple_write_rh(self):
-        expected_cfgs = {
-            self.ifcfg_path('lo'): dedent("""\
-                DEVICE="lo"
-                ONBOOT=yes
-                """),
-            self.ifcfg_path('eth0'): dedent("""\
-                DEVICE="eth0"
-                BOOTPROTO="static"
-                NETMASK="255.255.255.0"
-                IPADDR="192.168.1.5"
-                ONBOOT=yes
-                GATEWAY="192.168.1.254"
-                BROADCAST="192.168.1.0"
-                """),
-            self.ifcfg_path('eth1'): dedent("""\
-                DEVICE="eth1"
-                BOOTPROTO="dhcp"
-                ONBOOT=yes
-                """),
-            self.control_path(): dedent("""\
-                NETWORKING=yes
-                """),
-        }
-        # rh_distro.apply_network(BASE_NET_CFG, False)
-        self._apply_and_verify(self.distro.apply_network,
-                               BASE_NET_CFG,
-                               expected_cfgs=expected_cfgs.copy())
-
     def test_apply_network_config_rh(self):
         expected_cfgs = {
             self.ifcfg_path('eth0'): dedent("""\
@@ -525,47 +486,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
         # rh_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify(self.distro.apply_network_config,
                                V1_NET_CFG,
-                               expected_cfgs=expected_cfgs.copy())
-
-    def test_write_ipv6_rhel(self):
-        expected_cfgs = {
-            self.ifcfg_path('lo'): dedent("""\
-                DEVICE="lo"
-                ONBOOT=yes
-                """),
-            self.ifcfg_path('eth0'): dedent("""\
-                DEVICE="eth0"
-                BOOTPROTO="static"
-                NETMASK="255.255.255.0"
-                IPADDR="192.168.1.5"
-                ONBOOT=yes
-                GATEWAY="192.168.1.254"
-                BROADCAST="192.168.1.0"
-                IPV6INIT=yes
-                IPV6ADDR="2607:f0d0:1002:0011::2"
-                IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
-                """),
-            self.ifcfg_path('eth1'): dedent("""\
-                DEVICE="eth1"
-                BOOTPROTO="static"
-                NETMASK="255.255.255.0"
-                IPADDR="192.168.1.6"
-                ONBOOT=no
-                GATEWAY="192.168.1.254"
-                BROADCAST="192.168.1.0"
-                IPV6INIT=yes
-                IPV6ADDR="2607:f0d0:1002:0011::3"
-                IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
-                """),
-            self.control_path(): dedent("""\
-                NETWORKING=yes
-                NETWORKING_IPV6=yes
-                IPV6_AUTOCONF=no
-                """),
-        }
-        # rh_distro.apply_network(BASE_NET_CFG_IPV6, False)
-        self._apply_and_verify(self.distro.apply_network,
-                               BASE_NET_CFG_IPV6,
                                expected_cfgs=expected_cfgs.copy())
 
     def test_apply_network_config_ipv6_rh(self):
@@ -626,37 +546,6 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
         for cfgpath, expected in expected_cfgs.items():
             self.assertCfgEquals(expected, results[cfgpath])
             self.assertEqual(0o644, get_mode(cfgpath, tmpd))
-
-    def test_simple_write_opensuse(self):
-        """Opensuse network rendering writes appropriate sysconfig files."""
-        expected_cfgs = {
-            self.ifcfg_path('lo'): dedent('''
-                STARTMODE="auto"
-                USERCONTROL="no"
-                FIREWALL="no"
-                '''),
-            self.ifcfg_path('eth0'): dedent('''
-                BOOTPROTO="static"
-                BROADCAST="192.168.1.0"
-                GATEWAY="192.168.1.254"
-                IPADDR="192.168.1.5"
-                NETMASK="255.255.255.0"
-                STARTMODE="auto"
-                USERCONTROL="no"
-                ETHTOOL_OPTIONS=""
-                '''),
-            self.ifcfg_path('eth1'): dedent('''
-                BOOTPROTO="dhcp"
-                STARTMODE="auto"
-                USERCONTROL="no"
-                ETHTOOL_OPTIONS=""
-                ''')
-        }
-
-        # distro.apply_network(BASE_NET_CFG, False)
-        self._apply_and_verify(self.distro.apply_network,
-                               BASE_NET_CFG,
-                               expected_cfgs=expected_cfgs.copy())
 
     def test_apply_network_config_opensuse(self):
         """Opensuse uses apply_network_config and renders sysconfig"""
