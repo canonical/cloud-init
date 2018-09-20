@@ -3,6 +3,7 @@
 """Handle reconfiguration on hotplug events"""
 import argparse
 import os
+import sys
 
 from cloudinit.event import EventType
 from cloudinit import log
@@ -30,19 +31,16 @@ def get_parser(parser=None):
 
     parser.add_argument("-d", "--devpath",
                         metavar="PATH",
-                        help="sysfs path to hotplugged device",
-                        required=True)
-    parser.add_argument("-i", "--id",
-                        help="unique device id",
-                        required=True)
+                        help="sysfs path to hotplugged device")
     parser.add_argument("--debug", action='store_true',
                         help='enable debug logging to stderr.')
     parser.add_argument("-s", "--subsystem",
-                        choices=['net', 'block'],
-                        required=True)
+                        choices=['net', 'block'])
     parser.add_argument("-u", "--udevaction",
-                        choices=['add', 'change', 'remove'],
-                        required=True)
+                        choices=['add', 'change', 'remove'])
+    parser.add_argument('infile', nargs='?',
+                        type=argparse.FileType('r'),
+                        default=sys.stdin)
     return parser
 
 
@@ -117,6 +115,12 @@ def handle_args(name, args):
         LOG.setLevel(level=log.DEBUG)
     else:
         LOG.setLevel(level=log.WARN)
+
+    # handle args from stdin (udev hotplug hook)
+    if args.infile:
+        for tok in args.infile.read().split():
+            key, value = tok.split('=', 1)
+            setattr(args, key, value)
 
     hotplug_reporter = events.ReportEventStack(NAME, __doc__,
                                                reporting_enabled=True)

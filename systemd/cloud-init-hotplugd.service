@@ -2,17 +2,12 @@
 Description=cloud-init hotplug hook daemon
 DefaultDependencies=yes
 Wants=cloud-init-local.service
-After=cloud-final.service
-Conflicts=shutdown.target
+After=cloud-final.service cloud-init-hotplugd.socket
 ConditionPathExists=/etc/cloud/cloud-init-hook-hotplug
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/nohup /usr/lib/cloud-init/hook-hotplugd
-Restart=always
-RestartSec=30
-StandardOutput=journal
-StandardError=journal
+ExecStart=/usr/bin/cloud-init devel hotplug-hook
 SyslogIdentifier=cloud-init-hotplugd
 
 [Install]
