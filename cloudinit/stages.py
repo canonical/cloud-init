@@ -88,7 +88,7 @@ class Init(object):
             # from whatever it was to a new set...
             if self.datasource is not NULL_DATA_SOURCE:
                 self.datasource.distro = self._distro
-                self.datasource.sys_cfg = system_config
+                self.datasource.sys_cfg = self.cfg
         return self._distro
 
     @property
