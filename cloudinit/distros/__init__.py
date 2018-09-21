@@ -143,7 +143,11 @@ class Distro(object):
         # this applies network where 'settings' is interfaces(5) style
         # it is obsolete compared to apply_network_config
         # Write it out
+
+        # pylint: disable=assignment-from-no-return
+        # We have implementations in arch, freebsd and gentoo still
         dev_names = self._write_network(settings)
+        # pylint: enable=assignment-from-no-return
         # Now try to bring them up
         if bring_up:
             return self._bring_up_interfaces(dev_names)
