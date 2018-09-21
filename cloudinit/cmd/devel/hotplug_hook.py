@@ -65,10 +65,13 @@ def in_netconfig(unique_id, netconfig):
 
 
 class UeventHandler(object):
-    def __init__(self, ds, devpath, dev_id):
+    def __init__(self, ds, devpath, success_fn):
         self.datasource = ds
         self.devpath = devpath
-        self.dev_id = dev_id
+        sefl.success_fn = success_fn
+
+    def apply(self):
+        raise NotImplemented()
 
     @property
     def config(self):
@@ -77,14 +80,21 @@ class UeventHandler(object):
     def detect(self, action):
         raise NotImplemented()
 
-    def apply(self):
-        raise NotImplemented()
+    def success(self):
+        return self.success_fn()
+
+    def update(self):
+        self.datasource.update_metadata([EventType.UDEV])
 
 
 class NetHandler(UeventHandler):
-    def __init__(self, ds, devpath, dev_id):
-        super(NetHandler, self).__init__(ds, devpath, dev_id)
+    def __init__(self, ds, devpath):
+        super(NetHandler, self).__init__(ds, devpath)
+        self.id = devpath_to_macaddr(self.devpath)
 
+    def apply(self):
+        return self.datasource.distro.apply_network_config(self.config,
+                                                           bring_up=True)
     @property
     def config(self):
         return self.datasource.network_config
@@ -99,10 +109,6 @@ class NetHandler(UeventHandler):
             raise ValueError('Cannot detect unknown action: %s' % action)
 
         return detect_presence == in_netconfig(self.id, self.config)
-
-    def apply(self):
-        return self.datasource.distro.apply_network_config(self.config,
-                                                           bring_up=True)
 
 
 UEVENT_HANDLERS = {
@@ -132,30 +138,31 @@ def handle_args(name, args):
                      args.subsystem)
             return 1
 
-        # load instance datasource from cache
+        # read cloud-init config and configure logging
         hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
         hotplug_init.read_cfg()
         log.setupLogging(hotplug_init.cfg)
         if 'reporting' in hotplug_init.cfg:
             reporting.update_configuration(hotplug_init.cfg.get('reporting'))
 
+        # load datasource from cache
         try:
             ds = hotplug_init.fetch(existing="trust")
         except sources.DatasourceNotFoundException:
             print('No Ds found')
             return 1
 
-        event_handler = event_handler_cls(ds, args.devpath, args.id)
-
+        event_handler = event_handler_cls(ds, args.devpath,
+                                          hotplug_init._write_to_cache)
         retries = [1, 1, 1, 3, 5]
         for attempt, wait in enumerate(retries):
             LOG.debug('Hotplug hook subsystem=%s attempt %s/%s',
                       args.subsystem, attempt, len(retries))
             try:
-                ds.update_metadata([EventType.UDEV])
+                event_handler.update()
                 if event_handler.detect(action=args.udevaction):
                     event_handler.apply()
-                    hotplug_init._write_to_cache()
+                    event_handler.success()
                     break
                 else:
                     raise Exception(
