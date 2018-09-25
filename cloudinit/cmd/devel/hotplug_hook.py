@@ -38,9 +38,9 @@ def get_parser(parser=None):
                         choices=['net', 'block'])
     parser.add_argument("-u", "--udevaction",
                         choices=['add', 'change', 'remove'])
-    parser.add_argument('infile', nargs='?',
-                        type=argparse.FileType('r'),
-                        default=sys.stdin)
+    parser.add_argument('-i', '--input', action='store_true',
+                        help='read arguments from stdin or file')
+
     return parser
 
 
@@ -68,7 +68,7 @@ class UeventHandler(object):
     def __init__(self, ds, devpath, success_fn):
         self.datasource = ds
         self.devpath = devpath
-        sefl.success_fn = success_fn
+        self.success_fn = success_fn
 
     def apply(self):
         raise NotImplemented()
@@ -88,13 +88,14 @@ class UeventHandler(object):
 
 
 class NetHandler(UeventHandler):
-    def __init__(self, ds, devpath):
-        super(NetHandler, self).__init__(ds, devpath)
+    def __init__(self, ds, devpath, success_fn):
+        super(NetHandler, self).__init__(ds, devpath, success_fn)
         self.id = devpath_to_macaddr(self.devpath)
 
     def apply(self):
         return self.datasource.distro.apply_network_config(self.config,
                                                            bring_up=True)
+
     @property
     def config(self):
         return self.datasource.network_config
@@ -117,16 +118,20 @@ UEVENT_HANDLERS = {
 
 
 def handle_args(name, args):
+    # handle args from stdin (udev hotplug hook)
+    if args.input:
+        if args.input == '-':
+            reader = sys.stdin
+        else:
+            reader = open(args.input, 'r')
+        # parse input for args
+        reader_input = reader.read().split()
+        args = get_parser().parse_args(reader_input)
+
     if args.debug:
         LOG.setLevel(level=log.DEBUG)
     else:
         LOG.setLevel(level=log.WARN)
-
-    # handle args from stdin (udev hotplug hook)
-    if args.infile:
-        for tok in args.infile.read().split():
-            key, value = tok.split('=', 1)
-            setattr(args, key, value)
 
     hotplug_reporter = events.ReportEventStack(NAME, __doc__,
                                                reporting_enabled=True)

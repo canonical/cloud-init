@@ -7,7 +7,7 @@ ConditionPathExists=/etc/cloud/cloud-init-hook-hotplug
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/cloud-init devel hotplug-hook
+ExecStart=/usr/bin/cloud-init devel hotplug-hook --input=-
 SyslogIdentifier=cloud-init-hotplugd
 
 [Install]
