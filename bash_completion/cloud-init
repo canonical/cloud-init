@@ -10,7 +10,7 @@ _cloudinit_complete()
     cur_word="${COMP_WORDS[COMP_CWORD]}"
     prev_word="${COMP_WORDS[COMP_CWORD-1]}"
 
-    subcmds="analyze clean collect-logs devel dhclient-hook features init modules single status"
+    subcmds="analyze clean collect-logs devel dhclient-hook features init modules query single status"
     base_params="--help --file --version --debug --force"
     case ${COMP_CWORD} in
         1)
@@ -40,6 +40,8 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help --mode" -- $cur_word))
                     ;;
 
+                query)
+                    COMPREPLY=($(compgen -W "--all --help --instance-data --list-keys --user-data --vendor-data --debug" -- $cur_word));;
                 single)
                     COMPREPLY=($(compgen -W "--help --name --frequency --report" -- $cur_word))
                     ;;
