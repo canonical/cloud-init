@@ -483,6 +483,10 @@ class NetworkStateInterpreter(object):
 
         interfaces.update({iface['name']: iface})
 
+    @ensure_command_keys(['name'])
+    def handle_infiniband(self, command):
+        self.handle_physical(command)
+
     @ensure_command_keys(['address'])
     def handle_nameserver(self, command):
         dns = self._network_state.get('dns')
