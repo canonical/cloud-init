@@ -10,12 +10,12 @@ class TestLxdBridge(base.CloudTestCase):
     def test_lxd(self):
         """Test lxd installed."""
         out = self.get_data_file('lxd')
-        self.assertIn('/usr/bin/lxd', out)
+        self.assertIn('/lxd', out)
 
     def test_lxc(self):
         """Test lxc installed."""
         out = self.get_data_file('lxc')
-        self.assertIn('/usr/bin/lxc', out)
+        self.assertIn('/lxc', out)
 
     def test_bridge(self):
         """Test bridge config."""
