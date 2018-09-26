@@ -10,8 +10,8 @@ from cloudinit.event import EventType
 from cloudinit.helpers import Paths
 from cloudinit import importer
 from cloudinit.sources import (
-    INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE, REDACT_SENSITIVE_VALUE,
-    UNSET, DataSource, redact_sensitive_keys)
+    EXPERIMENTAL_TEXT, INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE,
+    REDACT_SENSITIVE_VALUE, UNSET, DataSource, redact_sensitive_keys)
 from cloudinit.tests.helpers import CiTestCase, skipIf, mock
 from cloudinit.user_data import UserDataProcessor
 from cloudinit import util
@@ -305,6 +305,7 @@ class TestDataSource(CiTestCase):
                 'local_hostname': 'test-subclass-hostname',
                 'region': 'myregion'},
             'ds': {
+                '_doc': EXPERIMENTAL_TEXT,
                 'meta_data': {'availability_zone': 'myaz',
                               'local-hostname': 'test-subclass-hostname',
                               'region': 'myregion'}}}
@@ -348,6 +349,7 @@ class TestDataSource(CiTestCase):
                 'local_hostname': 'test-subclass-hostname',
                 'region': 'myregion'},
             'ds': {
+                '_doc': EXPERIMENTAL_TEXT,
                 'meta_data': {
                     'availability_zone': 'myaz',
                     'local-hostname': 'test-subclass-hostname',

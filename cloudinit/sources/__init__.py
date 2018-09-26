@@ -38,6 +38,11 @@ DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
 DS_PREFIX = 'DataSource'
 
+EXPERIMENTAL_TEXT = (
+    "EXPERIMENTAL: The structure and format of content scoped under the 'ds'"
+    " key may change in subsequent releases of cloud-init.")
+
+
 # File in which public available instance meta-data is written
 # security-sensitive key values are redacted from this world-readable file
 INSTANCE_JSON_FILE = 'instance-data.json'
@@ -243,8 +248,8 @@ class DataSource(object):
         @return True on successful write, False otherwise.
         """
         instance_data = {
-            'ds': {
-                'meta_data': self.metadata}}
+            'ds': {'_doc': EXPERIMENTAL_TEXT,
+                   'meta_data': self.metadata}}
         if hasattr(self, 'network_json'):
             network_json = getattr(self, 'network_json')
             if network_json != UNSET:
