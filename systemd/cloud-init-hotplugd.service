@@ -1,9 +1,8 @@
 [Unit]
 Description=cloud-init hotplug hook daemon
 DefaultDependencies=yes
-Wants=cloud-init-local.service
+Wants=cloud-final.service
 After=cloud-final.service cloud-init-hotplugd.socket
-ConditionPathExists=/etc/cloud/cloud-init-hook-hotplug
 
 [Service]
 Type=simple

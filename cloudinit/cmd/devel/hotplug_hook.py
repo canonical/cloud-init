@@ -38,7 +38,7 @@ def get_parser(parser=None):
                         choices=['net', 'block'])
     parser.add_argument("-u", "--udevaction",
                         choices=['add', 'change', 'remove'])
-    parser.add_argument('-i', '--input', action='store_true',
+    parser.add_argument('-i', '--input', metavar="PATH",
                         help='read arguments from stdin or file')
 
     return parser
