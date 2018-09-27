@@ -1,8 +1,5 @@
 [Unit]
 Description=cloud-init hotplug hook socket
-PartOf=cloud-init-hotplugd.service
-After=cloud-final.service
-ConditionPathExists=/etc/cloud/cloud-init-hook-hotplug
 
 [Socket]
 ListenFIFO=/run/cloud-init/hook-hotplug-cmd

@@ -14,6 +14,7 @@ from cloudinit.stages import Init
 from cloudinit.net import read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 
+
 LOG = log.getLogger(__name__)
 NAME = 'hotplug-hook'
 
@@ -32,26 +33,26 @@ def get_parser(parser=None):
     parser.add_argument("-d", "--devpath",
                         metavar="PATH",
                         help="sysfs path to hotplugged device")
-    parser.add_argument("--debug", action='store_true',
+    parser.add_argument("--hotplug-debug", action='store_true',
                         help='enable debug logging to stderr.')
     parser.add_argument("-s", "--subsystem",
                         choices=['net', 'block'])
     parser.add_argument("-u", "--udevaction",
                         choices=['add', 'change', 'remove'])
-    parser.add_argument('-i', '--input', metavar="PATH",
-                        help='read arguments from stdin or file')
 
     return parser
 
 
-def load_udev_environment():
-    print('loading os environment')
-    return os.environ.copy()
+def log_console(msg):
+    """Log messages to stderr console and configured logging."""
+    sys.stderr.write(msg + '\n')
+    sys.stderr.flush()
+    LOG.debug(msg)
 
 
 def devpath_to_macaddr(devpath):
     macaddr = read_sys_net_safe(os.path.basename(devpath), 'address')
-    LOG.debug('Checking if %s in netconfig', macaddr)
+    log_console('Checking if %s in netconfig' % macaddr)
     return macaddr
 
 
@@ -60,7 +61,7 @@ def in_netconfig(unique_id, netconfig):
     found = [iface
              for iface in netstate.iter_interfaces()
              if iface.get('mac_address') == unique_id]
-    LOG.debug('Ifaces with ID=%s : %s', unique_id, found)
+    log_console('Ifaces with ID=%s : %s' % (unique_id, found))
     return len(found) > 0
 
 
@@ -118,55 +119,48 @@ UEVENT_HANDLERS = {
 
 
 def handle_args(name, args):
-    # handle args from stdin (udev hotplug hook)
-    if args.input:
-        if args.input == '-':
-            reader = sys.stdin
-        else:
-            reader = open(args.input, 'r')
-        # parse input for args
-        reader_input = reader.read().split()
-        args = get_parser().parse_args(reader_input)
-
-    if args.debug:
-        LOG.setLevel(level=log.DEBUG)
-    else:
-        LOG.setLevel(level=log.WARN)
-
+    log_console('%s called with args=%s' % (NAME, args))
     hotplug_reporter = events.ReportEventStack(NAME, __doc__,
                                                reporting_enabled=True)
     with hotplug_reporter:
         # only handling net udev events for now
         event_handler_cls = UEVENT_HANDLERS.get(args.subsystem)
         if not event_handler_cls:
-            LOG.warn('hotplug-hook: cannot handle events for subsystem: "%s"',
-                     args.subsystem)
+            log_console('hotplug-hook: cannot handle events for subsystem: '
+                        '"%s"' % args.subsystem)
             return 1
 
-        # read cloud-init config and configure logging
+        log_console('Reading cloud-init configation')
         hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
         hotplug_init.read_cfg()
+
+        log_console('Configuring logging')
         log.setupLogging(hotplug_init.cfg)
         if 'reporting' in hotplug_init.cfg:
             reporting.update_configuration(hotplug_init.cfg.get('reporting'))
 
-        # load datasource from cache
+        log_console('Fetching datasource')
         try:
             ds = hotplug_init.fetch(existing="trust")
         except sources.DatasourceNotFoundException:
-            print('No Ds found')
+            log_console('No Ds found')
             return 1
 
+        log_console('Creating %s event handler' % args.subsystem)
         event_handler = event_handler_cls(ds, args.devpath,
                                           hotplug_init._write_to_cache)
         retries = [1, 1, 1, 3, 5]
         for attempt, wait in enumerate(retries):
-            LOG.debug('Hotplug hook subsystem=%s attempt %s/%s',
-                      args.subsystem, attempt, len(retries))
+            log_console('subsystem=%s update attempt %s/%s' % (args.subsystem,
+                                                               attempt,
+                                                               len(retries)))
             try:
+                log_console('Refreshing metadata')
                 event_handler.update()
                 if event_handler.detect(action=args.udevaction):
+                    log_console('Detected update, apply config change')
                     event_handler.apply()
+                    log_console('Updating cache')
                     event_handler.success()
                     break
                 else:
@@ -176,9 +170,9 @@ def handle_args(name, args):
             except Exception as e:
                 if attempt + 1 >= len(retries):
                     raise
-                LOG.debug('exception while processing hotplug event. %s', e)
+                log_console('exception while processing hotplug event. %s' % e)
 
-        print('hotplug-hook exit')
+        log_console('exiting handler')
         reporting.flush_events()
 
 

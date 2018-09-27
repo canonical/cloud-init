@@ -23,5 +23,5 @@ if is_enabled; then
         --udevaction=${ACTION}
     )
     # write params to cloud-init's hotplug-hook fifo
-    echo "--debug ${env_params[@]}" >&3
+    echo "--hotplug-debug ${env_params[@]}" >&3
 fi
