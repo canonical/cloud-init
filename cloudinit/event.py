@@ -14,4 +14,10 @@ class EventType(object):
     # USER_REQUEST
 
 
+EventTypeMap = {
+    'boot': EventType.BOOT,
+    'boot-new-instance': EventType.BOOT_NEW_INSTANCE,
+    'udev': EventType.UDEV,
+}
+
 # vi: ts=4 expandtab

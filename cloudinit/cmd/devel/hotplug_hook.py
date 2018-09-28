@@ -117,6 +117,11 @@ UEVENT_HANDLERS = {
     'net': NetHandler,
 }
 
+SUBSYSTEM_TO_EVENT = {
+    'net': 'network',
+    'block': 'storage',
+}
+
 
 def handle_args(name, args):
     log_console('%s called with args=%s' % (NAME, args))
@@ -145,6 +150,11 @@ def handle_args(name, args):
         except sources.DatasourceNotFoundException:
             log_console('No Ds found')
             return 1
+
+        subevent = SUBSYSTEM_TO_EVENT.get(args.subsystem)
+        if EventType.UDEV not in ds.update_events.get(subevent):
+            log_console('cloud-init not configured to handle udev events')
+            return
 
         log_console('Creating %s event handler' % args.subsystem)
         event_handler = event_handler_cls(ds, args.devpath,

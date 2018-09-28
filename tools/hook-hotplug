@@ -8,20 +8,19 @@ is_finished() {
     [ -e /run/cloud-init/result.json ] || return 1
 }
 
-is_enabled() {
-    # only execute hooks if cloud-init hotplug enabled and cloud-init
-    [ -e /etc/cloud/cloud-init-hook-hotplug ] || return 1
-    is_finished
-}
-
 if is_enabled; then
-    # open cloud-init's hotplug-hook fifo rw
-    exec 3<>/run/cloud-init/hook-hotplug-cmd
-    env_params=( \
-        --devpath=${DEVPATH}
-        --subsystem=${SUBSYSTEM}
-        --udevaction=${ACTION}
-    )
-    # write params to cloud-init's hotplug-hook fifo
-    echo "--hotplug-debug ${env_params[@]}" >&3
+    # only hook pci devices at this time
+    case ${DEVPATH} in
+        /devices/pci*)
+            # open cloud-init's hotplug-hook fifo rw
+            exec 3<>/run/cloud-init/hook-hotplug-cmd
+            env_params=( \
+                --devpath=${DEVPATH}
+                --subsystem=${SUBSYSTEM}
+                --udevaction=${ACTION}
+            )
+            # write params to cloud-init's hotplug-hook fifo
+            echo "--hotplug-debug ${env_params[@]}" >&3
+            ;;
+    esac
 fi

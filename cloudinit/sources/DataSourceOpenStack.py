@@ -9,7 +9,7 @@ import time
 from cloudinit import log as logging
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from cloudinit.net import is_up
-from cloudinit.event import EventType
+from cloudinit.event import EventTypeMap as Etypes
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
@@ -96,8 +96,28 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
     @property
     def update_events(self):
-        return {'network': set([EventType.BOOT_NEW_INSTANCE, EventType.UDEV]),
-                'storage': set([])}
+        # updates:
+        #   policy-version: 1
+        #   network:
+        #     when: [boot-new-instance, boot, udev]
+
+        # check sys and datasource config for 'updates' config
+        # merging datasource config over system
+        sys_updates = self.sys_cfg.get('updates', {})
+        LOG.debug('updates system cfg: %s' % sys_updates)
+        ds_updates = self.ds_cfg.get('updates', {})
+        LOG.debug('updates ds cfg: %s' % ds_updates)
+        updates = util.mergemanydict([ds_updates, sys_updates])
+        LOG.debug('updates merged cfg: %s' % updates)
+        events = {}
+        for etype in ['network', 'storage']:
+            events[etype] = (
+                set([Etypes.get(evt)
+                     for evt in updates.get(etype, {}).get('when', [])
+                     if evt in Etypes]))
+
+        LOG.debug('updates cfg enabled events: %s' % events)
+        return events
 
     @property
     def network_config(self):
