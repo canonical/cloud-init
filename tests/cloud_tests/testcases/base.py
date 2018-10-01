@@ -31,6 +31,11 @@ class CloudTestCase(unittest2.TestCase):
     def is_distro(self, distro_name):
         return self.os_cfg['os'] == distro_name
 
+    @classmethod
+    def maybeSkipTest(cls):
+        """Present to allow subclasses to override and raise a skipTest."""
+        pass
+
     def assertPackageInstalled(self, name, version=None):
         """Check dpkg-query --show output for matching package name.
 
