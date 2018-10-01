@@ -8,7 +8,7 @@ is_finished() {
     [ -e /run/cloud-init/result.json ] || return 1
 }
 
-if is_enabled; then
+if is_finished; then
     # only hook pci devices at this time
     case ${DEVPATH} in
         /devices/pci*)
