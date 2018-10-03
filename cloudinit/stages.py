@@ -707,6 +707,7 @@ class Init(object):
             return
 
         # request an update if needed/available
+        apply_network = True
         if self.datasource is not NULL_DATA_SOURCE:
             if not self.is_new_instance():
                 if self.update_event_allowed(EventType.BOOT, scope='network'):
@@ -714,24 +715,24 @@ class Init(object):
                         LOG.debug(
                             "No network config applied. Datasource failed"
                             " update metadata on '%s' event", EventType.BOOT)
-                        # nothing new, but ensure proper names
-                        self._apply_netcfg_names(netcfg)
-                        return
+                        apply_network = False
                     else:
                         # refresh netcfg after update
                         netcfg, src = self._find_networking_config()
                 else:
                     LOG.debug("No network config applied. "
                               "'%s' event not allowed", EventType.BOOT)
-                    # not allowed but ensure proper names
-                    self._apply_netcfg_names(netcfg)
-                    return
-
-        # ensure all physical devices in config are present
-        net.wait_for_physdevs(netcfg)
+                    apply_network = False
 
         # apply renames from config
         self._apply_netcfg_names(netcfg)
+
+        # return if we're not supposed to apply network config
+        if not apply_network:
+            return
+
+        # ensure all physical devices in config are present
+        net.wait_for_physdevs(netcfg)
 
         # rendering config
         LOG.info("Applying network configuration from %s bringup=%s: %s",
