@@ -5,8 +5,10 @@
 """Define 'devel' subcommand argument parsers to include in cloud-init cmd."""
 
 import argparse
-from cloudinit.config.schema import (
-    get_parser as schema_parser, handle_schema_args)
+from cloudinit.config import schema
+
+from . import net_convert
+from . import render
 
 
 def get_parser(parser=None):
@@ -17,10 +19,17 @@ def get_parser(parser=None):
     subparsers = parser.add_subparsers(title='Subcommands', dest='subcommand')
     subparsers.required = True
 
-    parser_schema = subparsers.add_parser(
-        'schema', help='Validate cloud-config files or document schema')
-    # Construct schema subcommand parser
-    schema_parser(parser_schema)
-    parser_schema.set_defaults(action=('schema', handle_schema_args))
+    subcmds = [
+        ('schema', 'Validate cloud-config files for document schema',
+         schema.get_parser, schema.handle_schema_args),
+        (net_convert.NAME, net_convert.__doc__,
+         net_convert.get_parser, net_convert.handle_args),
+        (render.NAME, render.__doc__,
+         render.get_parser, render.handle_args)
+    ]
+    for (subcmd, helpmsg, get_parser, handler) in subcmds:
+        parser = subparsers.add_parser(subcmd, help=helpmsg)
+        get_parser(parser)
+        parser.set_defaults(action=(subcmd, handler))
 
     return parser

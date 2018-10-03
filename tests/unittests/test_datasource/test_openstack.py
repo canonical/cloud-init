@@ -12,11 +12,11 @@ import re
 from cloudinit.tests import helpers as test_helpers
 
 from six.moves.urllib.parse import urlparse
-from six import StringIO
+from six import StringIO, text_type
 
 from cloudinit import helpers
 from cloudinit import settings
-from cloudinit.sources import convert_vendordata, UNSET
+from cloudinit.sources import BrokenMetadata, convert_vendordata, UNSET
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
@@ -186,7 +186,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('meta_data.json'):
                 os_files[k] = json.dumps(os_meta)
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
+        self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     def test_userdata_empty(self):
         os_files = copy.deepcopy(OS_FILES)
@@ -217,7 +217,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('vendor_data.json'):
                 os_files[k] = '{'  # some invalid json
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
+        self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     def test_metadata_invalid(self):
         os_files = copy.deepcopy(OS_FILES)
@@ -225,7 +225,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('meta_data.json'):
                 os_files[k] = '{'  # some invalid json
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
+        self.assertRaises(BrokenMetadata, _read_metadata_service)
 
     @test_helpers.mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_datasource(self, m_dhcp):
@@ -510,6 +510,27 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(),
             'Expected detect_openstack == True on OpenTelekomCloud')
 
+    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    def test_detect_openstack_oraclecloud_chassis_asset_tag(self, m_dmi,
+                                                            m_is_x86):
+        """Return True on OpenStack reporting Oracle cloud asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_dmi_read(dmi_key):
+            if dmi_key == 'system-product-name':
+                return 'Standard PC (i440FX + PIIX, 1996)'  # No match
+            if dmi_key == 'chassis-asset-tag':
+                return 'OracleCloud.com'
+            assert False, 'Unexpected dmi read of %s' % dmi_key
+
+        m_dmi.side_effect = fake_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(accept_oracle=True),
+            'Expected detect_openstack == True on OracleCloud.com')
+        self.assertFalse(
+            ds.detect_openstack(accept_oracle=False),
+            'Expected detect_openstack == False.')
+
     @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
     @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
     def test_detect_openstack_by_proc_1_environ(self, m_dmi, m_proc_env,
@@ -532,6 +553,96 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(),
             'Expected detect_openstack == True on OpenTelekomCloud')
         m_proc_env.assert_called_with(1)
+
+
+class TestMetadataReader(test_helpers.HttprettyTestCase):
+    """Test the MetadataReader."""
+    burl = 'http://169.254.169.254/'
+    md_base = {
+        'availability_zone': 'myaz1',
+        'hostname': 'sm-foo-test.novalocal',
+        "keys": [{"data": PUBKEY, "name": "brickies", "type": "ssh"}],
+        'launch_index': 0,
+        'name': 'sm-foo-test',
+        'public_keys': {'mykey': PUBKEY},
+        'project_id': '6a103f813b774b9fb15a4fcd36e1c056',
+        'uuid': 'b0fa911b-69d4-4476-bbe2-1c92bff6535c'}
+
+    def register(self, path, body=None, status=200):
+        content = (body if not isinstance(body, text_type)
+                   else body.encode('utf-8'))
+        hp.register_uri(
+            hp.GET, self.burl + "openstack" + path, status=status,
+            body=content)
+
+    def register_versions(self, versions):
+        self.register("", '\n'.join(versions))
+        self.register("/", '\n'.join(versions))
+
+    def register_version(self, version, data):
+        content = '\n'.join(sorted(data.keys()))
+        self.register(version, content)
+        self.register(version + "/", content)
+        for path, content in data.items():
+            self.register("/%s/%s" % (version, path), content)
+            self.register("/%s/%s" % (version, path), content)
+        if 'user_data' not in data:
+            self.register("/%s/user_data" % version, "nodata", status=404)
+
+    def test__find_working_version(self):
+        """Test a working version ignores unsupported."""
+        unsup = "2016-11-09"
+        self.register_versions(
+            [openstack.OS_FOLSOM, openstack.OS_LIBERTY, unsup,
+             openstack.OS_LATEST])
+        self.assertEqual(
+            openstack.OS_LIBERTY,
+            openstack.MetadataReader(self.burl)._find_working_version())
+
+    def test__find_working_version_uses_latest(self):
+        """'latest' should be used if no supported versions."""
+        unsup1, unsup2 = ("2016-11-09", '2017-06-06')
+        self.register_versions([unsup1, unsup2, openstack.OS_LATEST])
+        self.assertEqual(
+            openstack.OS_LATEST,
+            openstack.MetadataReader(self.burl)._find_working_version())
+
+    def test_read_v2_os_ocata(self):
+        """Validate return value of read_v2 for os_ocata data."""
+        md = copy.deepcopy(self.md_base)
+        md['devices'] = []
+        network_data = {'links': [], 'networks': [], 'services': []}
+        vendor_data = {}
+        vendor_data2 = {"static": {}}
+
+        data = {
+            'meta_data.json': json.dumps(md),
+            'network_data.json': json.dumps(network_data),
+            'vendor_data.json': json.dumps(vendor_data),
+            'vendor_data2.json': json.dumps(vendor_data2),
+        }
+
+        self.register_versions([openstack.OS_OCATA, openstack.OS_LATEST])
+        self.register_version(openstack.OS_OCATA, data)
+
+        mock_read_ec2 = test_helpers.mock.MagicMock(
+            return_value={'instance-id': 'unused-ec2'})
+        expected_md = copy.deepcopy(md)
+        expected_md.update(
+            {'instance-id': md['uuid'], 'local-hostname': md['hostname']})
+        expected = {
+            'userdata': '',  # Annoying, no user-data results in empty string.
+            'version': 2,
+            'metadata': expected_md,
+            'vendordata': vendor_data,
+            'networkdata': network_data,
+            'ec2-metadata': mock_read_ec2.return_value,
+            'files': {},
+        }
+        reader = openstack.MetadataReader(self.burl)
+        reader._read_ec2_metadata = mock_read_ec2
+        self.assertEqual(expected, reader.read_v2())
+        self.assertEqual(1, mock_read_ec2.call_count)
 
 
 # vi: ts=4 expandtab

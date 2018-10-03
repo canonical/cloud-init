@@ -91,19 +91,20 @@ class ConfigMap(object):
 class Route(ConfigMap):
     """Represents a route configuration."""
 
-    route_fn_tpl_ipv4 = '%(base)s/network-scripts/route-%(name)s'
-    route_fn_tpl_ipv6 = '%(base)s/network-scripts/route6-%(name)s'
-
-    def __init__(self, route_name, base_sysconf_dir):
+    def __init__(self, route_name, base_sysconf_dir,
+                 ipv4_tpl, ipv6_tpl):
         super(Route, self).__init__()
         self.last_idx = 1
         self.has_set_default_ipv4 = False
         self.has_set_default_ipv6 = False
         self._route_name = route_name
         self._base_sysconf_dir = base_sysconf_dir
+        self.route_fn_tpl_ipv4 = ipv4_tpl
+        self.route_fn_tpl_ipv6 = ipv6_tpl
 
     def copy(self):
-        r = Route(self._route_name, self._base_sysconf_dir)
+        r = Route(self._route_name, self._base_sysconf_dir,
+                  self.route_fn_tpl_ipv4, self.route_fn_tpl_ipv6)
         r._conf = self._conf.copy()
         r.last_idx = self.last_idx
         r.has_set_default_ipv4 = self.has_set_default_ipv4
@@ -169,18 +170,23 @@ class Route(ConfigMap):
 class NetInterface(ConfigMap):
     """Represents a sysconfig/networking-script (and its config + children)."""
 
-    iface_fn_tpl = '%(base)s/network-scripts/ifcfg-%(name)s'
-
     iface_types = {
         'ethernet': 'Ethernet',
         'bond': 'Bond',
         'bridge': 'Bridge',
+        'infiniband': 'InfiniBand',
     }
 
-    def __init__(self, iface_name, base_sysconf_dir, kind='ethernet'):
+    def __init__(self, iface_name, base_sysconf_dir, templates,
+                 kind='ethernet'):
         super(NetInterface, self).__init__()
         self.children = []
-        self.routes = Route(iface_name, base_sysconf_dir)
+        self.templates = templates
+        route_tpl = self.templates.get('route_templates')
+        self.routes = Route(iface_name, base_sysconf_dir,
+                            ipv4_tpl=route_tpl.get('ipv4'),
+                            ipv6_tpl=route_tpl.get('ipv6'))
+        self.iface_fn_tpl = self.templates.get('iface_templates')
         self.kind = kind
 
         self._iface_name = iface_name
@@ -213,7 +219,8 @@ class NetInterface(ConfigMap):
                                      'name': self.name})
 
     def copy(self, copy_children=False, copy_routes=False):
-        c = NetInterface(self.name, self._base_sysconf_dir, kind=self._kind)
+        c = NetInterface(self.name, self._base_sysconf_dir,
+                         self.templates, kind=self._kind)
         c._conf = self._conf.copy()
         if copy_children:
             c.children = list(self.children)
@@ -251,6 +258,8 @@ class Renderer(renderer.Renderer):
         ('bridge_bridgeprio', 'PRIO'),
     ])
 
+    templates = {}
+
     def __init__(self, config=None):
         if not config:
             config = {}
@@ -261,6 +270,11 @@ class Renderer(renderer.Renderer):
         nm_conf_path = 'etc/NetworkManager/conf.d/99-cloud-init.conf'
         self.networkmanager_conf_path = config.get('networkmanager_conf_path',
                                                    nm_conf_path)
+        self.templates = {
+            'control': config.get('control'),
+            'iface_templates': config.get('iface_templates'),
+            'route_templates': config.get('route_templates'),
+        }
 
     @classmethod
     def _render_iface_shared(cls, iface, iface_cfg):
@@ -512,7 +526,7 @@ class Renderer(renderer.Renderer):
         return content_str
 
     @staticmethod
-    def _render_networkmanager_conf(network_state):
+    def _render_networkmanager_conf(network_state, templates=None):
         content = networkmanager_conf.NetworkManagerConf("")
 
         # If DNS server information is provided, configure
@@ -556,20 +570,36 @@ class Renderer(renderer.Renderer):
             cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @classmethod
-    def _render_sysconfig(cls, base_sysconf_dir, network_state):
+    def _render_ib_interfaces(cls, network_state, iface_contents):
+        ib_filter = renderer.filter_by_type('infiniband')
+        for iface in network_state.iter_interfaces(ib_filter):
+            iface_name = iface['name']
+            iface_cfg = iface_contents[iface_name]
+            iface_cfg.kind = 'infiniband'
+            iface_subnets = iface.get("subnets", [])
+            route_cfg = iface_cfg.routes
+            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
+
+    @classmethod
+    def _render_sysconfig(cls, base_sysconf_dir, network_state,
+                          templates=None):
         '''Given state, return /etc/sysconfig files + contents'''
+        if not templates:
+            templates = cls.templates
         iface_contents = {}
         for iface in network_state.iter_interfaces():
             if iface['type'] == "loopback":
                 continue
             iface_name = iface['name']
-            iface_cfg = NetInterface(iface_name, base_sysconf_dir)
+            iface_cfg = NetInterface(iface_name, base_sysconf_dir, templates)
             cls._render_iface_shared(iface, iface_cfg)
             iface_contents[iface_name] = iface_cfg
         cls._render_physical_interfaces(network_state, iface_contents)
         cls._render_bond_interfaces(network_state, iface_contents)
         cls._render_vlan_interfaces(network_state, iface_contents)
         cls._render_bridge_interfaces(network_state, iface_contents)
+        cls._render_ib_interfaces(network_state, iface_contents)
         contents = {}
         for iface_name, iface_cfg in iface_contents.items():
             if iface_cfg or iface_cfg.children:
@@ -578,17 +608,21 @@ class Renderer(renderer.Renderer):
                     if iface_cfg:
                         contents[iface_cfg.path] = iface_cfg.to_string()
             if iface_cfg.routes:
-                contents[iface_cfg.routes.path_ipv4] = \
-                    iface_cfg.routes.to_string("ipv4")
-                contents[iface_cfg.routes.path_ipv6] = \
-                    iface_cfg.routes.to_string("ipv6")
+                for cpath, proto in zip([iface_cfg.routes.path_ipv4,
+                                         iface_cfg.routes.path_ipv6],
+                                        ["ipv4", "ipv6"]):
+                    if cpath not in contents:
+                        contents[cpath] = iface_cfg.routes.to_string(proto)
         return contents
 
-    def render_network_state(self, network_state, target=None):
+    def render_network_state(self, network_state, templates=None, target=None):
+        if not templates:
+            templates = self.templates
         file_mode = 0o644
         base_sysconf_dir = util.target_path(target, self.sysconf_dir)
         for path, data in self._render_sysconfig(base_sysconf_dir,
-                                                 network_state).items():
+                                                 network_state,
+                                                 templates=templates).items():
             util.write_file(path, data, file_mode)
         if self.dns_path:
             dns_path = util.target_path(target, self.dns_path)
@@ -598,7 +632,8 @@ class Renderer(renderer.Renderer):
         if self.networkmanager_conf_path:
             nm_conf_path = util.target_path(target,
                                             self.networkmanager_conf_path)
-            nm_conf_content = self._render_networkmanager_conf(network_state)
+            nm_conf_content = self._render_networkmanager_conf(network_state,
+                                                               templates)
             if nm_conf_content:
                 util.write_file(nm_conf_path, nm_conf_content, file_mode)
         if self.netrules_path:
@@ -606,13 +641,16 @@ class Renderer(renderer.Renderer):
             netrules_path = util.target_path(target, self.netrules_path)
             util.write_file(netrules_path, netrules_content, file_mode)
 
-        # always write /etc/sysconfig/network configuration
-        sysconfig_path = util.target_path(target, "etc/sysconfig/network")
-        netcfg = [_make_header(), 'NETWORKING=yes']
-        if network_state.use_ipv6:
-            netcfg.append('NETWORKING_IPV6=yes')
-            netcfg.append('IPV6_AUTOCONF=no')
-        util.write_file(sysconfig_path, "\n".join(netcfg) + "\n", file_mode)
+        sysconfig_path = util.target_path(target, templates.get('control'))
+        # Distros configuring /etc/sysconfig/network as a file e.g. Centos
+        if sysconfig_path.endswith('network'):
+            util.ensure_dir(os.path.dirname(sysconfig_path))
+            netcfg = [_make_header(), 'NETWORKING=yes']
+            if network_state.use_ipv6:
+                netcfg.append('NETWORKING_IPV6=yes')
+                netcfg.append('IPV6_AUTOCONF=no')
+            util.write_file(sysconfig_path,
+                            "\n".join(netcfg) + "\n", file_mode)
 
 
 def available(target=None):

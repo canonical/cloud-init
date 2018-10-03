@@ -125,7 +125,9 @@ class TestMain(FilesystemMockingTestCase):
             updated_cfg.update(
                 {'def_log_file': '/var/log/cloud-init.log',
                  'log_cfgs': [],
-                 'syslog_fix_perms': ['syslog:adm', 'root:adm', 'root:wheel'],
+                 'syslog_fix_perms': [
+                     'syslog:adm', 'root:adm', 'root:wheel', 'root:root'
+                 ],
                  'vendor_data': {'enabled': True, 'prefix': []}})
             updated_cfg.pop('system_info')
 

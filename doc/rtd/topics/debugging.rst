@@ -45,7 +45,7 @@ subcommands default to reading /var/log/cloud-init.log.
 
 .. code-block:: shell-session
 
-    $ cloud-init analyze blame -i my-cloud-init.log
+    $ cloud-init analyze dump -i my-cloud-init.log
     [
      {
       "description": "running config modules",

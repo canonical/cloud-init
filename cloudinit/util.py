@@ -576,12 +576,42 @@ def get_cfg_option_int(yobj, key, default=0):
     return int(get_cfg_option_str(yobj, key, default=default))
 
 
+def _parse_redhat_release(release_file=None):
+    """Return a dictionary of distro info fields from /etc/redhat-release.
+
+    Dict keys will align with /etc/os-release keys:
+        ID, VERSION_ID, VERSION_CODENAME
+    """
+
+    if not release_file:
+        release_file = '/etc/redhat-release'
+    if not os.path.exists(release_file):
+        return {}
+    redhat_release = load_file(release_file)
+    redhat_regex = (
+        r'(?P<name>.+) release (?P<version>[\d\.]+) '
+        r'\((?P<codename>[^)]+)\)')
+    match = re.match(redhat_regex, redhat_release)
+    if match:
+        group = match.groupdict()
+        group['name'] = group['name'].lower().partition(' linux')[0]
+        if group['name'] == 'red hat enterprise':
+            group['name'] = 'redhat'
+        return {'ID': group['name'], 'VERSION_ID': group['version'],
+                'VERSION_CODENAME': group['codename']}
+    return {}
+
+
 def get_linux_distro():
     distro_name = ''
     distro_version = ''
     flavor = ''
+    os_release = {}
     if os.path.exists('/etc/os-release'):
         os_release = load_shell_content(load_file('/etc/os-release'))
+    if not os_release:
+        os_release = _parse_redhat_release()
+    if os_release:
         distro_name = os_release.get('ID', '')
         distro_version = os_release.get('VERSION_ID', '')
         if 'sles' in distro_name or 'suse' in distro_name:
@@ -594,9 +624,11 @@ def get_linux_distro():
             flavor = os_release.get('VERSION_CODENAME', '')
             if not flavor:
                 match = re.match(r'[^ ]+ \((?P<codename>[^)]+)\)',
-                                 os_release.get('VERSION'))
+                                 os_release.get('VERSION', ''))
                 if match:
                     flavor = match.groupdict()['codename']
+        if distro_name == 'rhel':
+            distro_name = 'redhat'
     else:
         dist = ('', '', '')
         try:

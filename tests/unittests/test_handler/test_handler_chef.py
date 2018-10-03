@@ -36,13 +36,21 @@ class TestInstallChefOmnibus(HttprettyTestCase):
 
     @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", OMNIBUS_URL_HTTP)
     def test_install_chef_from_omnibus_runs_chef_url_content(self):
-        """install_chef_from_omnibus runs downloaded OMNIBUS_URL as script."""
-        chef_outfile = self.tmp_path('chef.out', self.new_root)
-        response = '#!/bin/bash\necho "Hi Mom" > {0}'.format(chef_outfile)
+        """install_chef_from_omnibus calls subp_blob_in_tempfile."""
+        response = b'#!/bin/bash\necho "Hi Mom"'
         httpretty.register_uri(
             httpretty.GET, cc_chef.OMNIBUS_URL, body=response, status=200)
-        cc_chef.install_chef_from_omnibus()
-        self.assertEqual('Hi Mom\n', util.load_file(chef_outfile))
+        ret = (None, None)  # stdout, stderr but capture=False
+
+        with mock.patch("cloudinit.config.cc_chef.util.subp_blob_in_tempfile",
+                        return_value=ret) as m_subp_blob:
+            cc_chef.install_chef_from_omnibus()
+        # admittedly whitebox, but assuming subp_blob_in_tempfile works
+        # this should be fine.
+        self.assertEqual(
+            [mock.call(blob=response, args=[], basename='chef-omnibus-install',
+                       capture=False)],
+            m_subp_blob.call_args_list)
 
     @mock.patch('cloudinit.config.cc_chef.url_helper.readurl')
     @mock.patch('cloudinit.config.cc_chef.util.subp_blob_in_tempfile')

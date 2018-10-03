@@ -164,7 +164,7 @@ class NicConfigurator(object):
             return ([subnet], route_list)
 
         # Add routes if there is no primary nic
-        if not self._primaryNic:
+        if not self._primaryNic and v4.gateways:
             route_list.extend(self.gen_ipv4_route(nic,
                                                   v4.gateways,
                                                   v4.netmask))

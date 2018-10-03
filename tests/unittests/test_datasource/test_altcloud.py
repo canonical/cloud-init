@@ -262,64 +262,56 @@ class TestUserDataRhevm(CiTestCase):
     '''
     Test to exercise method: DataSourceAltCloud.user_data_rhevm()
     '''
-    cmd_pass = ['true']
-    cmd_fail = ['false']
-    cmd_not_found = ['bogus bad command']
-
     def setUp(self):
         '''Set up.'''
         self.paths = helpers.Paths({'cloud_dir': '/tmp'})
-        self.mount_dir = tempfile.mkdtemp()
+        self.mount_dir = self.tmp_dir()
         _write_user_data_files(self.mount_dir, 'test user data')
-
-    def tearDown(self):
-        # Reset
-
-        _remove_user_data_files(self.mount_dir)
-
-        # Attempt to remove the temp dir ignoring errors
-        try:
-            shutil.rmtree(self.mount_dir)
-        except OSError:
-            pass
-
-        dsac.CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
-        dsac.CMD_PROBE_FLOPPY = ['modprobe', 'floppy']
-        dsac.CMD_UDEVADM_SETTLE = ['udevadm', 'settle',
-                                   '--quiet', '--timeout=5']
+        self.add_patch(
+            'cloudinit.sources.DataSourceAltCloud.modprobe_floppy',
+            'm_modprobe_floppy', return_value=None)
+        self.add_patch(
+            'cloudinit.sources.DataSourceAltCloud.util.udevadm_settle',
+            'm_udevadm_settle', return_value=('', ''))
+        self.add_patch(
+            'cloudinit.sources.DataSourceAltCloud.util.mount_cb',
+            'm_mount_cb')
 
     def test_mount_cb_fails(self):
         '''Test user_data_rhevm() where mount_cb fails.'''
 
-        dsac.CMD_PROBE_FLOPPY = self.cmd_pass
+        self.m_mount_cb.side_effect = util.MountFailedError("Failed Mount")
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_modprobe_fails(self):
         '''Test user_data_rhevm() where modprobe fails.'''
 
-        dsac.CMD_PROBE_FLOPPY = self.cmd_fail
+        self.m_modprobe_floppy.side_effect = util.ProcessExecutionError(
+            "Failed modprobe")
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_no_modprobe_cmd(self):
         '''Test user_data_rhevm() with no modprobe command.'''
 
-        dsac.CMD_PROBE_FLOPPY = self.cmd_not_found
+        self.m_modprobe_floppy.side_effect = util.ProcessExecutionError(
+            "No such file or dir")
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_udevadm_fails(self):
         '''Test user_data_rhevm() where udevadm fails.'''
 
-        dsac.CMD_UDEVADM_SETTLE = self.cmd_fail
+        self.m_udevadm_settle.side_effect = util.ProcessExecutionError(
+            "Failed settle.")
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_no_udevadm_cmd(self):
         '''Test user_data_rhevm() with no udevadm command.'''
 
-        dsac.CMD_UDEVADM_SETTLE = self.cmd_not_found
+        self.m_udevadm_settle.side_effect = OSError("No such file or dir")
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 

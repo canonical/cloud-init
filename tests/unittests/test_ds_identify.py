@@ -12,6 +12,7 @@ from cloudinit.tests.helpers import (
 
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
+from cloudinit.sources import DataSourceOracle as ds_oracle
 
 UNAME_MYSYS = ("Linux bart 4.4.0-62-generic #83-Ubuntu "
                "SMP Wed Jan 18 14:10:15 UTC 2017 x86_64 GNU/Linux")
@@ -88,6 +89,7 @@ CallReturn = namedtuple('CallReturn',
 
 class DsIdentifyBase(CiTestCase):
     dsid_path = os.path.realpath('tools/ds-identify')
+    allowed_subp = ['sh']
 
     def call(self, rootd=None, mocks=None, func="main", args=None, files=None,
              policy_dmi=DI_DEFAULT_POLICY,
@@ -598,6 +600,18 @@ class TestIsIBMProvisioning(DsIdentifyBase):
         self.assertIn("from current boot", ret.stderr)
 
 
+class TestOracle(DsIdentifyBase):
+    def test_found_by_chassis(self):
+        """Simple positive test of Oracle by chassis id."""
+        self._test_ds_found('Oracle')
+
+    def test_not_found(self):
+        """Simple negative test of Oracle."""
+        mycfg = copy.deepcopy(VALID_CFG['Oracle'])
+        mycfg['files'][P_CHASSIS_ASSET_TAG] = "Not Oracle"
+        self._check_via_dict(mycfg, rc=RC_NOT_FOUND)
+
+
 def blkid_out(disks=None):
     """Convert a list of disk dictionaries into blkid content."""
     if disks is None:
@@ -837,6 +851,12 @@ VALID_CFG = {
                    'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()}]),
              },
         ],
+    },
+    'Oracle': {
+        'ds': 'Oracle',
+        'files': {
+            P_CHASSIS_ASSET_TAG: ds_oracle.CHASSIS_ASSET_TAG + '\n',
+        }
     },
     'SmartOS-bhyve': {
         'ds': 'SmartOS',

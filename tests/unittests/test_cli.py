@@ -208,8 +208,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         for subcommand in expected_subcommands:
             self.assertIn(subcommand, error)
 
-    @mock.patch('cloudinit.config.schema.handle_schema_args')
-    def test_wb_devel_schema_subcommand_parser(self, m_schema):
+    def test_wb_devel_schema_subcommand_parser(self):
         """The subcommand cloud-init schema calls the correct subparser."""
         exit_code = self._call_main(['cloud-init', 'devel', 'schema'])
         self.assertEqual(1, exit_code)

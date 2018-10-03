@@ -295,17 +295,13 @@ def read_md():
             results = metadata_from_dir(path)
         else:
             results = util.mount_cb(path, metadata_from_dir)
-    except BrokenMetadata as e:
+    except sources.BrokenMetadata as e:
         raise RuntimeError(
             "Failed reading IBM config disk (platform=%s path=%s): %s" %
             (platform, path, e))
 
     ret.update(results)
     return ret
-
-
-class BrokenMetadata(IOError):
-    pass
 
 
 def metadata_from_dir(source_dir):
@@ -352,12 +348,13 @@ def metadata_from_dir(source_dir):
             try:
                 data = transl(raw)
             except Exception as e:
-                raise BrokenMetadata("Failed decoding %s: %s" % (path, e))
+                raise sources.BrokenMetadata(
+                    "Failed decoding %s: %s" % (path, e))
 
         results[name] = data
 
     if results.get('metadata_raw') is None:
-        raise BrokenMetadata(
+        raise sources.BrokenMetadata(
             "%s missing required file 'meta_data.json'" % source_dir)
 
     results['metadata'] = {}
@@ -368,7 +365,7 @@ def metadata_from_dir(source_dir):
         try:
             md['random_seed'] = base64.b64decode(md_raw['random_seed'])
         except (ValueError, TypeError) as e:
-            raise BrokenMetadata(
+            raise sources.BrokenMetadata(
                 "Badly formatted metadata random_seed entry: %s" % e)
 
     renames = (

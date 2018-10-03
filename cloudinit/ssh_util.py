@@ -41,6 +41,12 @@ VALID_KEY_TYPES = (
 )
 
 
+DISABLE_USER_OPTS = (
+    "no-port-forwarding,no-agent-forwarding,"
+    "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\""
+    " rather than the user \\\"$DISABLE_USER\\\".\';echo;sleep 10\"")
+
+
 class AuthKeyLine(object):
     def __init__(self, source, keytype=None, base64=None,
                  comment=None, options=None):

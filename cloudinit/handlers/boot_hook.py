@@ -17,10 +17,13 @@ from cloudinit import util
 from cloudinit.settings import (PER_ALWAYS)
 
 LOG = logging.getLogger(__name__)
-BOOTHOOK_PREFIX = "#cloud-boothook"
 
 
 class BootHookPartHandler(handlers.Handler):
+
+    # The content prefixes this handler understands.
+    prefixes = ['#cloud-boothook']
+
     def __init__(self, paths, datasource, **_kwargs):
         handlers.Handler.__init__(self, PER_ALWAYS)
         self.boothook_dir = paths.get_ipath("boothooks")
@@ -28,16 +31,11 @@ class BootHookPartHandler(handlers.Handler):
         if datasource:
             self.instance_id = datasource.get_instance_id()
 
-    def list_types(self):
-        return [
-            handlers.type_from_starts_with(BOOTHOOK_PREFIX),
-        ]
-
     def _write_part(self, payload, filename):
         filename = util.clean_filename(filename)
         filepath = os.path.join(self.boothook_dir, filename)
         contents = util.strip_prefix_suffix(util.dos2unix(payload),
-                                            prefix=BOOTHOOK_PREFIX)
+                                            prefix=self.prefixes[0])
         util.write_file(filepath, contents.lstrip(), 0o700)
         return filepath
 

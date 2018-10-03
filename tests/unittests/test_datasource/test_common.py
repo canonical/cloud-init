@@ -20,6 +20,7 @@ from cloudinit.sources import (
     DataSourceNoCloud as NoCloud,
     DataSourceOpenNebula as OpenNebula,
     DataSourceOpenStack as OpenStack,
+    DataSourceOracle as Oracle,
     DataSourceOVF as OVF,
     DataSourceScaleway as Scaleway,
     DataSourceSmartOS as SmartOS,
@@ -37,10 +38,12 @@ DEFAULT_LOCAL = [
     IBMCloud.DataSourceIBMCloud,
     NoCloud.DataSourceNoCloud,
     OpenNebula.DataSourceOpenNebula,
+    Oracle.DataSourceOracle,
     OVF.DataSourceOVF,
     SmartOS.DataSourceSmartOS,
     Ec2.DataSourceEc2Local,
     OpenStack.DataSourceOpenStackLocal,
+    Scaleway.DataSourceScaleway,
 ]
 
 DEFAULT_NETWORK = [
@@ -55,7 +58,6 @@ DEFAULT_NETWORK = [
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
     OVF.DataSourceOVFNet,
-    Scaleway.DataSourceScaleway,
 ]
 
 

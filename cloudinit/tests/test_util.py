@@ -57,6 +57,34 @@ OS_RELEASE_CENTOS = dedent("""\
     REDHAT_SUPPORT_PRODUCT_VERSION="7"
 """)
 
+OS_RELEASE_REDHAT_7 = dedent("""\
+    NAME="Red Hat Enterprise Linux Server"
+    VERSION="7.5 (Maipo)"
+    ID="rhel"
+    ID_LIKE="fedora"
+    VARIANT="Server"
+    VARIANT_ID="server"
+    VERSION_ID="7.5"
+    PRETTY_NAME="Red Hat"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:redhat:enterprise_linux:7.5:GA:server"
+    HOME_URL="https://www.redhat.com/"
+    BUG_REPORT_URL="https://bugzilla.redhat.com/"
+
+    REDHAT_BUGZILLA_PRODUCT="Red Hat Enterprise Linux 7"
+    REDHAT_BUGZILLA_PRODUCT_VERSION=7.5
+    REDHAT_SUPPORT_PRODUCT="Red Hat Enterprise Linux"
+    REDHAT_SUPPORT_PRODUCT_VERSION="7.5"
+""")
+
+REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
+REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
+REDHAT_RELEASE_REDHAT_6 = (
+    "Red Hat Enterprise Linux Server release 6.10 (Santiago)")
+REDHAT_RELEASE_REDHAT_7 = (
+    "Red Hat Enterprise Linux Server release 7.5 (Maipo)")
+
+
 OS_RELEASE_DEBIAN = dedent("""\
     PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
     NAME="Debian GNU/Linux"
@@ -337,6 +365,12 @@ class TestGetLinuxDistro(CiTestCase):
         if path == '/etc/os-release':
             return 1
 
+    @classmethod
+    def redhat_release_exists(self, path):
+        """Side effect function """
+        if path == '/etc/redhat-release':
+            return 1
+
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_distro_quoted_name(self, m_os_release, m_path_exists):
         """Verify we get the correct name if the os-release file has
@@ -356,8 +390,48 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('ubuntu', '16.04', 'xenial'), dist)
 
     @mock.patch('cloudinit.util.load_file')
-    def test_get_linux_centos(self, m_os_release, m_path_exists):
-        """Verify we get the correct name and release name on CentOS."""
+    def test_get_linux_centos6(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and release name on CentOS 6."""
+        m_os_release.return_value = REDHAT_RELEASE_CENTOS_6
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('centos', '6.10', 'Final'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_centos7_redhat_release(self, m_os_release, m_exists):
+        """Verify the correct release info on CentOS 7 without os-release."""
+        m_os_release.return_value = REDHAT_RELEASE_CENTOS_7
+        m_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('centos', '7.5.1804', 'Core'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_redhat7_osrelease(self, m_os_release, m_path_exists):
+        """Verify redhat 7 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_REDHAT_7
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('redhat', '7.5', 'Maipo'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_redhat7_rhrelease(self, m_os_release, m_path_exists):
+        """Verify redhat 7 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_REDHAT_7
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('redhat', '7.5', 'Maipo'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_redhat6_rhrelease(self, m_os_release, m_path_exists):
+        """Verify redhat 6 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_REDHAT_6
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('redhat', '6.10', 'Santiago'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_copr_centos(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and release name on COPR CentOS."""
         m_os_release.return_value = OS_RELEASE_CENTOS
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()

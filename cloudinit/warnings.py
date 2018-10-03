@@ -130,7 +130,7 @@ def show_warning(name, cfg=None, sleep=None, mode=True, **kwargs):
         os.path.join(_get_warn_dir(cfg), name),
         topline + "\n".join(fmtlines) + "\n" + topline)
 
-    LOG.warning(topline + "\n".join(fmtlines) + "\n" + closeline)
+    LOG.warning("%s%s\n%s", topline, "\n".join(fmtlines), closeline)
 
     if sleep:
         LOG.debug("sleeping %d seconds for warning '%s'", sleep, name)

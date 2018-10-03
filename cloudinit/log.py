@@ -38,10 +38,18 @@ DEF_CON_FORMAT = '%(asctime)s - %(filename)s[%(levelname)s]: %(message)s'
 logging.Formatter.converter = time.gmtime
 
 
-def setupBasicLogging(level=DEBUG):
+def setupBasicLogging(level=DEBUG, formatter=None):
+    if not formatter:
+        formatter = logging.Formatter(DEF_CON_FORMAT)
     root = logging.getLogger()
+    for handler in root.handlers:
+        if hasattr(handler, 'stream') and hasattr(handler.stream, 'name'):
+            if handler.stream.name == '<stderr>':
+                handler.setLevel(level)
+                return
+    # Didn't have an existing stderr handler; create a new handler
     console = logging.StreamHandler(sys.stderr)
-    console.setFormatter(logging.Formatter(DEF_CON_FORMAT))
+    console.setFormatter(formatter)
     console.setLevel(level)
     root.addHandler(console)
     root.setLevel(level)

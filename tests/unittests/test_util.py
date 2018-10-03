@@ -24,6 +24,7 @@ except ImportError:
 
 
 BASH = util.which('bash')
+BOGUS_COMMAND = 'this-is-not-expected-to-be-a-program-name'
 
 
 class FakeSelinux(object):
@@ -742,6 +743,8 @@ class TestReadSeeded(helpers.TestCase):
 
 class TestSubp(helpers.CiTestCase):
     with_logs = True
+    allowed_subp = [BASH, 'cat', helpers.CiTestCase.SUBP_SHELL_TRUE,
+                    BOGUS_COMMAND, sys.executable]
 
     stdin2err = [BASH, '-c', 'cat >&2']
     stdin2out = ['cat']
@@ -749,7 +752,6 @@ class TestSubp(helpers.CiTestCase):
     utf8_valid = b'start \xc3\xa9 end'
     utf8_valid_2 = b'd\xc3\xa9j\xc8\xa7'
     printenv = [BASH, '-c', 'for n in "$@"; do echo "$n=${!n}"; done', '--']
-    bogus_command = 'this-is-not-expected-to-be-a-program-name'
 
     def printf_cmd(self, *args):
         # bash's printf supports \xaa.  So does /usr/bin/printf
@@ -848,9 +850,10 @@ class TestSubp(helpers.CiTestCase):
         util.write_file(noshebang, 'true\n')
 
         os.chmod(noshebang, os.stat(noshebang).st_mode | stat.S_IEXEC)
-        self.assertRaisesRegex(util.ProcessExecutionError,
-                               r'Missing #! in script\?',
-                               util.subp, (noshebang,))
+        with self.allow_subp([noshebang]):
+            self.assertRaisesRegex(util.ProcessExecutionError,
+                                   r'Missing #! in script\?',
+                                   util.subp, (noshebang,))
 
     def test_subp_combined_stderr_stdout(self):
         """Providing combine_capture as True redirects stderr to stdout."""
@@ -868,14 +871,14 @@ class TestSubp(helpers.CiTestCase):
     def test_exception_has_out_err_are_bytes_if_decode_false(self):
         """Raised exc should have stderr, stdout as bytes if no decode."""
         with self.assertRaises(util.ProcessExecutionError) as cm:
-            util.subp([self.bogus_command], decode=False)
+            util.subp([BOGUS_COMMAND], decode=False)
         self.assertTrue(isinstance(cm.exception.stdout, bytes))
         self.assertTrue(isinstance(cm.exception.stderr, bytes))
 
     def test_exception_has_out_err_are_bytes_if_decode_true(self):
         """Raised exc should have stderr, stdout as string if no decode."""
         with self.assertRaises(util.ProcessExecutionError) as cm:
-            util.subp([self.bogus_command], decode=True)
+            util.subp([BOGUS_COMMAND], decode=True)
         self.assertTrue(isinstance(cm.exception.stdout, six.string_types))
         self.assertTrue(isinstance(cm.exception.stderr, six.string_types))
 
@@ -925,10 +928,10 @@ class TestSubp(helpers.CiTestCase):
             logs.append(log)
 
         with self.assertRaises(util.ProcessExecutionError):
-            util.subp([self.bogus_command], status_cb=status_cb)
+            util.subp([BOGUS_COMMAND], status_cb=status_cb)
 
         expected = [
-            'Begin run command: {cmd}\n'.format(cmd=self.bogus_command),
+            'Begin run command: {cmd}\n'.format(cmd=BOGUS_COMMAND),
             'ERROR: End run command: invalid command provided\n']
         self.assertEqual(expected, logs)
 
@@ -940,13 +943,13 @@ class TestSubp(helpers.CiTestCase):
             logs.append(log)
 
         with self.assertRaises(util.ProcessExecutionError):
-            util.subp(['ls', '/I/dont/exist'], status_cb=status_cb)
-        util.subp(['ls'], status_cb=status_cb)
+            util.subp([BASH, '-c', 'exit 2'], status_cb=status_cb)
+        util.subp([BASH, '-c', 'exit 0'], status_cb=status_cb)
 
         expected = [
-            'Begin run command: ls /I/dont/exist\n',
+            'Begin run command: %s -c exit 2\n' % BASH,
             'ERROR: End run command: exit(2)\n',
-            'Begin run command: ls\n',
+            'Begin run command: %s -c exit 0\n' % BASH,
             'End run command: exit(0)\n']
         self.assertEqual(expected, logs)
 

@@ -232,9 +232,22 @@ disable_root: false
 # respective key in /root/.ssh/authorized_keys if disable_root is true
 # see 'man authorized_keys' for more information on what you can do here
 #
-# The string '$USER' will be replaced with the username of the default user
+# The string '$USER' will be replaced with the username of the default user.
+# The string '$DISABLE_USER' will be replaced with the username to disable.
 #
-# disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"$USER\" rather than the user \"root\".';echo;sleep 10"
+# disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"$USER\" rather than the user \"$DISABLE_USER\".';echo;sleep 10"
+
+# disable ssh access for non-root-users
+# To disable ssh access for non-root users, ssh_redirect_user: true can be
+# provided for any use in the 'users' list. This will prompt any ssh login
+# attempts as that user with a message like that in disable_root_opts which
+# redirects the person to login as <default_username>
+# This option can not be combined with either ssh_authorized_keys or
+# ssh_import_id.
+users:
+ - default
+ - name: blockeduser
+   ssh_redirect_user: true
 
 
 # set the locale to a given locale

@@ -2,16 +2,24 @@
 # shellcheck disable=2015,2039,2162,2166
 #
 # ds-identify is configured via /etc/cloud/ds-identify.cfg
-# or on the kernel command line. It takes primarily 2 inputs:
+# or on the kernel command line. It takes the following inputs:
+#
 # datasource: can specify the datasource that should be used.
-#     kernel command line option: ci.datasource=<dsname>
+#   kernel command line option: ci.datasource=<dsname> or ci.ds=<dsname>
+#   example line in /etc/cloud/ds-identify.cfg:
+#      datasource: Ec2
 #
 # policy: a string that indicates how ds-identify should operate.
-#     kernel command line option: ci.di.policy=<policy>
+#
 #   The format is:
 #        <mode>,found=value,maybe=value,notfound=value
 #   default setting is:
-#     search,found=all,maybe=all,notfound=disable
+#     search,found=all,maybe=all,notfound=disabled
+#
+#   kernel command line option: ci.di.policy=<policy>
+#   example line in /etc/cloud/ds-identify.cfg:
+#      policy: search,found=all,maybe=none,notfound=disabled
+#
 #
 #   Mode:
 #     disabled: disable cloud-init
@@ -116,7 +124,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud"
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -1033,6 +1041,12 @@ dscheck_Scaleway() {
 
 dscheck_Hetzner() {
     dmi_sys_vendor_is Hetzner && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_Oracle() {
+    local asset_tag="OracleCloud.com"
+    dmi_chassis_asset_tag_matches "${asset_tag}" && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 

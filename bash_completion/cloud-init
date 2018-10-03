@@ -10,7 +10,7 @@ _cloudinit_complete()
     cur_word="${COMP_WORDS[COMP_CWORD]}"
     prev_word="${COMP_WORDS[COMP_CWORD-1]}"
 
-    subcmds="analyze clean collect-logs devel dhclient-hook features init modules single status"
+    subcmds="analyze clean collect-logs devel dhclient-hook features init modules query single status"
     base_params="--help --file --version --debug --force"
     case ${COMP_CWORD} in
         1)
@@ -28,7 +28,7 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help --tarfile --include-userdata" -- $cur_word))
                     ;;
                 devel)
-                    COMPREPLY=($(compgen -W "--help schema" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help schema net-convert" -- $cur_word))
                     ;;
                 dhclient-hook|features)
                     COMPREPLY=($(compgen -W "--help" -- $cur_word))
@@ -40,6 +40,8 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help --mode" -- $cur_word))
                     ;;
 
+                query)
+                    COMPREPLY=($(compgen -W "--all --help --instance-data --list-keys --user-data --vendor-data --debug" -- $cur_word));;
                 single)
                     COMPREPLY=($(compgen -W "--help --name --frequency --report" -- $cur_word))
                     ;;
@@ -59,6 +61,11 @@ _cloudinit_complete()
                 --frequency)
                     COMPREPLY=($(compgen -W "--help instance always once" -- $cur_word))
                     ;;
+                net-convert)
+                    COMPREPLY=($(compgen -W "--help --network-data --kind --directory --output-kind" -- $cur_word))
+                    ;;
+                render)
+                    COMPREPLY=($(compgen -W "--help --instance-data --debug" -- $cur_word));;
                 schema)
                     COMPREPLY=($(compgen -W "--help --config-file --doc --annotate" -- $cur_word))
                     ;;
@@ -74,4 +81,4 @@ _cloudinit_complete()
 }
 complete -F _cloudinit_complete cloud-init
 
-# vi: syntax=bash expandtab
+# vi: syntax=sh expandtab

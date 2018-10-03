@@ -232,7 +232,7 @@ class OpenNebulaNetwork(object):
 
             # Set IPv6 default gateway
             gateway6 = self.get_gateway6(c_dev)
-            if gateway:
+            if gateway6:
                 devconf['gateway6'] = gateway6
 
             # Set DNS servers and search domains
