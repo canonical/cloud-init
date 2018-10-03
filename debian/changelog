@@ -1,3 +1,10 @@
+cloud-init (18.3-9-g2e62cb8a-0ubuntu1~18.04.3) UNRELEASED; urgency=medium
+
+  * drop the following cherry-picks now included:
+    + cpick-3cee0bf8-oracle-fix-detect_openstack-to-report-True-on
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 03 Oct 2018 12:12:12 -0600
+
 cloud-init (18.3-9-g2e62cb8a-0ubuntu1~18.04.2) bionic-proposed; urgency=medium
 
   * cherry-pick 3cee0bf8: oracle: fix detect_openstack to report True on
