@@ -1,3 +1,86 @@
+18.4:
+ - add rtd example docs about new standardized keys
+ - use ds._crawled_metadata instance attribute if set when writing
+   instance-data.json
+ - ec2: update crawled metadata. add standardized keys
+ - tests: allow skipping an entire cloud_test without running.
+ - tests: disable lxd tests on cosmic
+ - cii-tests: use unittest2.SkipTest in ntp_chrony due to new deps
+ - lxd: adjust to snap installed lxd.
+ - docs: surface experimental doc in instance-data.json
+ - tests: fix ec2 integration tests. process meta_data instead of meta-data
+ - Add support for Infiniband network interfaces (IPoIB). [Mark Goddard]
+ - cli: add cloud-init query subcommand to query instance metadata
+ - tools/tox-venv: update for new features.
+ - pylint: ignore warning assignment-from-no-return for _write_network
+ - stages: Fix bug causing datasource to have incorrect sys_cfg.
+   (LP: #1787459)
+ - Remove dead-code _write_network distro implementations.
+ - net_util: ensure static configs have netmask in translate_network result
+   [Thomas Berger] (LP: #1792454)
+ - Fall back to root:root on syslog permissions if other options fail.
+   [Robert Schweikert]
+ - tests: Add mock for util.get_hostname. [Robert Schweikert] (LP: #1792799)
+ - ds-identify: doc string cleanup.
+ - OpenStack: Support setting mac address on bond.
+   [Fabian Wiesel] (LP: #1682064)
+ - bash_completion/cloud-init: fix shell syntax error.
+ - EphemeralIPv4Network: Be more explicit when adding default route.
+   (LP: #1792415)
+ - OpenStack: support reading of newer versions of metdata.
+ - OpenStack: fix bug causing 'latest' version to be used from network.
+   (LP: #1792157)
+ - user-data: jinja template to render instance-data.json in cloud-config
+   (LP: #1791781)
+ - config: disable ssh access to a configured user account
+ - tests: print failed testname instead of docstring upon failure
+ - tests: Disallow use of util.subp except for where needed.
+ - sysconfig: refactor sysconfig to accept distro specific templates paths
+ - Add unit tests for config/cc_ssh.py [Francis Ginther]
+ - Fix the built-in cloudinit/tests/helpers:skipIf
+ - read-version: enhance error message [Joshua Powers]
+ - hyperv_reporting_handler: simplify threaded publisher
+ - VMWare: Fix a network config bug in vm with static IPv4 and no gateway.
+   [Pengpeng Sun] (LP: #1766538)
+ - logging: Add logging config type hyperv for reporting via Azure KVP
+   [Andy Liu]
+ - tests: disable other snap test as well [Joshua Powers]
+ - tests: disable snap, fix write_files binary [Joshua Powers]
+ - Add datasource Oracle Compute Infrastructure (OCI).
+ - azure: allow azure to generate network configuration from IMDS per boot.
+ - Scaleway: Add network configuration to the DataSource [Louis Bouchard]
+ - docs: Fix example cloud-init analyze command to match output.
+   [Wesley Gao]
+ - netplan: Correctly render macaddress on a bonds and bridges when
+   provided. (LP: #1784699)
+ - tools: Add 'net-convert' subcommand command to 'cloud-init devel'.
+ - redhat: remove ssh keys on new instance. (LP: #1781094)
+ - Use typeset or local in profile.d scripts. (LP: #1784713)
+ - OpenNebula: Fix null gateway6 [Akihiko Ota] (LP: #1768547)
+ - oracle: fix detect_openstack to report True on OracleCloud.com DMI data
+   (LP: #1784685)
+ - tests: improve LXDInstance trying to workaround or catch bug.
+ - update_metadata re-config on every boot comments and tests not quite
+   right [Mike Gerdts]
+ - tests: Collect build_info from system if available.
+ - pylint: Fix pylint warnings reported in pylint 2.0.0.
+ - get_linux_distro: add support for rhel via redhat-release.
+ - get_linux_distro: add support for centos6 and rawhide flavors of redhat
+   (LP: #1781229)
+ - tools: add '--debug' to tools/net-convert.py
+ - tests: bump the version of paramiko to 2.4.1.
+ - docs: note in rtd about avoiding /tmp when writing files (LP: #1727876)
+ - ubuntu,centos,debian: get_linux_distro to align with platform.dist
+   (LP: #1780481)
+ - Fix boothook docs on environment variable name (INSTANCE_I ->
+   INSTANCE_ID) [Marc Tamsky]
+ - update_metadata: a datasource can support network re-config every boot
+ - tests: drop salt-minion integration test (LP: #1778737)
+ - Retry on failed import of gpg receive keys.
+ - tools: Fix run-container when neither source or binary package requested.
+ - docs: Fix a small spelling error. [Oz N Tiram]
+ - tox: use simplestreams from git repository rather than bzr.
+
 18.3:
  - docs: represent sudo:false in docs for user_groups config module
  - Explicitly prevent `sudo` access for user module

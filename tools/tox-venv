@@ -1,42 +1,185 @@
 #!/bin/sh
+# https://gist.github.com/smoser/2d4100a6a5d230ca937f
 
+CR='
+'
 error() { echo "$@" 1>&2; }
 fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+get_env_dirs() {
+    # read 'tox --showconfig'. return list of
+    #  envname:dir
+    local key="" equal="" val="" curenv="" out=""
+    while read key equal val; do
+        case "$key" in
+           "[testenv:"*)
+                curenv=${key#*:};
+                curenv=${curenv%%"]"*};
+                continue;;
+        esac
+        if [ "${key#*=}" != "$key" ]; then
+            # older tox shows key=value or key=   value
+            # newer tox shows: key =    value
+            key=${key%%=*}
+            val=${equal}
+        fi
+        [ "$key" = "envdir" ] || continue
+        out="${out:+${out}${CR}}${curenv}:$val"
+    done
+    echo "$out"
+}
+
+load_config() {
+    local tox_ini="$1" out="" envs=""
+    if [ "$tox_ini" = "${CACHED_ENVS_INI}" ]; then
+        _RET="$CACHED_ENVS"
+        return
+    fi
+    out=$(tox -c "$tox_ini" --showconfig) || return 1
+    envs=$(echo "$out" | get_env_dirs) || return 1
+    CACHED_ENVS="$envs"
+    CACHED_ENVS_INI="$tox_ini"
+    _RET="$envs"
+}
+
+list_environments() {
+    local tox_ini="$1" prefix="  " out="" envs="" oifs="$IFS"
+    load_config "$tox_ini" || return 1
+    envs="${_RET}"
+    IFS="$CR"
+    for d in ${envs}; do
+        env=${d%%:*}
+        dir=${d#*:}
+        [ -f "$dir/bin/activate" ] && s="*" || s=""
+        echo "${prefix}$env$s";
+    done
+    IFS="$oifs"
+}
+
+get_command() {
+    local tox_ini="$1" env="$2" out=""
+    shift 2
+    out=$(
+        sed -e ':x; /\\$/ { N; s/\\\n[ ]*//; tx };' "${tox_ini}" |
+        gawk '
+        $1 ~ /^\[testenv.*\]/ {
+            name=$1;
+            sub("\\[", "", name); sub(".*:", "", name);
+            sub("].*", "", name);
+            curenv=name; };
+        $1 == "basepython" && (name == "testenv" || name == n) { python=$3 }
+        $1 == "commands" && (name == "testenv" || name == n) {
+            sub("commands = ", ""); cmd = $0; };
+        END {
+            sub("{envpython}", python, cmd);
+            sub("{toxinidir}", toxinidir, cmd);
+            if (inargs == "") replacement = "\\1"
+            else replacement = inargs
+            cmd = gensub(/{posargs:?([^}]*)}/, replacement, "global", cmd)
+            print(cmd);
+            }' n="$env" toxinidir="$(dirname $tox_ini)" inargs="$*")
+    if [ -z "$out" ]; then
+        error "Failed to find command for $env in $tox_ini"
+        return 1
+    fi
+    echo "$out"
+}
+
+get_env_dir() {
+    local tox_ini="$1" env="$2" oifs="$IFS" t="" d="" envs=""
+    if [ "${TOX_VENV_SHORTCUT:-1}" != "0" ]; then
+        local stox_d="${tox_ini%/*}/.tox/${env}"
+        if [ -e "${stox_d}/bin/activate" ]; then
+            _RET="${stox_d}"
+            return
+        fi
+    fi
+    load_config "$tox_ini" && envs="$_RET" || return 1
+    IFS="$CR"
+    for t in $envs; do
+        [ "$env" = "${t%%:*}" ] && d="${t#*:}" && break
+    done
+    IFS=${oifs}
+    [ -n "$d" ] || return 1
+    _RET="$d"
+}
+
 Usage() {
-   cat <<EOF
-Usage: ${0##*/} tox-environment [command [args]]
+    local tox_ini="$1"
+    cat <<EOF
+Usage: ${0##*/} [--no-create] tox-environment [command [args]]
    run command with provided arguments in the provided tox environment
-   command defaults to \${SHELL:-/bin/sh}.
+   command defaults to 'cmd' (see below).
 
-   invoke with '--list' to show available environments
+   run with '--list' to show available environments
+
+   if 'command' above is literal 'cmd' or '-', then the 'command' will
+   be read from tox.ini.  This allows you to do:
+      tox-venv py27 - tests/some/sub/dir
+   and have the 'command' read correctly and have that execute:
+      python -m nose tests/some/sub/dir
 EOF
-}
-list_toxes() {
-   local td="$1" pre="$2" d=""
-   ( cd "$tox_d" &&
-     for d in *; do [ -f "$d/bin/activate" ] && echo "${pre}$d"; done)
+
+    if [ -f "$tox_ini" ]; then
+        local oini=${tox_ini}
+        [ "${tox_ini}" -ef "$PWD/tox.ini" ] && oini="./tox.ini"
+        echo
+        echo "environments in $oini"
+        list_environments "$tox_ini"
+    fi
 }
 
-[ $# -eq 0 ] && { Usage 1>&2; exit 1; }
-[ "$1" = "-h" -o "$1" = "--help" ] && { Usage; exit 0; }
+if [ -f tox.ini ]; then
+    tox_ini="$PWD/tox.ini"
+else
+    tox_ini="${0%/*}/../tox.ini"
+fi
+
+[ $# -eq 0 ] && { Usage "$tox_ini" 1>&2; exit 1; }
+[ "$1" = "-h" -o "$1" = "--help" ] && { Usage "$tox_ini"; exit 0; }
+
+[ -f "$tox_ini" ] || fail "$tox_ini: did not find tox.ini"
+
+if [ "$1" = "-l" -o "$1" = "--list" ]; then
+    list_environments "$tox_ini"
+    exit
+fi
+
+nocreate="false"
+if [ "$1" = "--no-create" ]; then
+    nocreate="true"
+    shift
+fi
 
 env="$1"
 shift
-tox_d="${0%/*}/../.tox"
-activate="$tox_d/$env/bin/activate"
+[ "$1" = "--" ] && shift
+get_env_dir "$tox_ini" "$env" && activate="$_RET/bin/activate" || activate=""
 
-
-[ -d "$tox_d" ] || fail "$tox_d: not a dir. maybe run 'tox'?"
-
-[ "$env" = "-l" -o "$env" = "--list" ] && { list_toxes ; exit ; }
-
-if [ ! -f "$activate" ]; then
-   error "$env: not a valid tox environment?"
-   error "try one of:"
-   list_toxes "$tox_d" "  "
-   fail
+if [ -z "$activate" -o ! -f "$activate" ]; then
+    if $nocreate; then
+        fail "tox env '$env' did not exist, and no-create specified"
+    elif [ -n "$activate" ]; then
+        error "attempting to create $env:"
+        error "    tox -c $tox_ini --recreate --notest -e $env"
+        tox -c "$tox_ini" --recreate --notest -e "$env" ||
+            fail "failed creation of env $env"
+    else
+        error "$env: not a valid tox environment?"
+        error "found tox_ini=$tox_ini"
+        error "try one of:"
+        list_environments "$tox_ini" 1>&2
+        fail
+    fi
 fi
 . "$activate"
 
-[ "$#" -gt 0 ] || set -- ${SHELL:-/bin/bash}
+[ $# -eq 0 ] && set -- cmd
+if [ "$1" = "cmd" -o "$1" = "-" ]; then
+   shift
+   out=$(get_command "$tox_ini" "$env" "$@") || exit
+   eval set -- "$out"
+fi
+echo "inside tox:$env running: $*" 1>&2
 debian_chroot="tox:$env" exec "$@"
+
+# vi: ts=4 expandtab

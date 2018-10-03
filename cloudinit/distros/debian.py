@@ -109,11 +109,6 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command('install', pkgs=pkglist)
 
-    def _write_network(self, settings):
-        # this is a legacy method, it will always write eni
-        util.write_file(self.network_conf_fn["eni"], settings)
-        return ['all']
-
     def _write_network_config(self, netconfig):
         _maybe_remove_legacy_eth0()
         return self._supported_write_network_config(netconfig)

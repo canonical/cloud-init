@@ -3260,11 +3260,15 @@ class TestGetInterfacesByMac(CiTestCase):
     def _se_interface_has_own_mac(self, name):
         return name in self.data['own_macs']
 
+    def _se_get_ib_interface_hwaddr(self, name, ethernet_format):
+        ib_hwaddr = self.data.get('ib_hwaddr', {})
+        return ib_hwaddr.get(name, {}).get(ethernet_format)
+
     def _mock_setup(self):
         self.data = copy.deepcopy(self._data)
         self.data['devices'] = set(list(self.data['macs'].keys()))
         mocks = ('get_devicelist', 'get_interface_mac', 'is_bridge',
-                 'interface_has_own_mac', 'is_vlan')
+                 'interface_has_own_mac', 'is_vlan', 'get_ib_interface_hwaddr')
         self.mocks = {}
         for n in mocks:
             m = mock.patch('cloudinit.net.' + n,
@@ -3338,6 +3342,20 @@ class TestGetInterfacesByMac(CiTestCase):
         ret = net.get_interfaces_by_mac()
         self.assertEqual('lo', ret[empty_mac])
 
+    def test_ib(self):
+        ib_addr = '80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56'
+        ib_addr_eth_format = '00:11:22:33:44:56'
+        self._mock_setup()
+        self.data['devices'] = ['enp0s1', 'ib0']
+        self.data['own_macs'].append('ib0')
+        self.data['macs']['ib0'] = ib_addr
+        self.data['ib_hwaddr'] = {'ib0': {True: ib_addr_eth_format,
+                                          False: ib_addr}}
+        result = net.get_interfaces_by_mac()
+        expected = {'aa:aa:aa:aa:aa:01': 'enp0s1',
+                    ib_addr_eth_format: 'ib0', ib_addr: 'ib0'}
+        self.assertEqual(expected, result)
+
 
 class TestInterfacesSorting(CiTestCase):
 
@@ -3350,6 +3368,67 @@ class TestInterfacesSorting(CiTestCase):
         self.assertEqual(
             sorted(data2, key=natural_sort_key),
             ['enp0s3', 'enp0s8', 'enp0s13', 'enp1s2', 'enp2s0', 'enp2s3'])
+
+
+class TestGetIBHwaddrsByInterface(CiTestCase):
+
+    _ib_addr = '80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56'
+    _ib_addr_eth_format = '00:11:22:33:44:56'
+    _data = {'devices': ['enp0s1', 'enp0s2', 'bond1', 'bridge1',
+                         'bridge1-nic', 'tun0', 'ib0'],
+             'bonds': ['bond1'],
+             'bridges': ['bridge1'],
+             'own_macs': ['enp0s1', 'enp0s2', 'bridge1-nic', 'bridge1', 'ib0'],
+             'macs': {'enp0s1': 'aa:aa:aa:aa:aa:01',
+                      'enp0s2': 'aa:aa:aa:aa:aa:02',
+                      'bond1': 'aa:aa:aa:aa:aa:01',
+                      'bridge1': 'aa:aa:aa:aa:aa:03',
+                      'bridge1-nic': 'aa:aa:aa:aa:aa:03',
+                      'tun0': None,
+                      'ib0': _ib_addr},
+             'ib_hwaddr': {'ib0': {True: _ib_addr_eth_format,
+                                   False: _ib_addr}}}
+    data = {}
+
+    def _mock_setup(self):
+        self.data = copy.deepcopy(self._data)
+        mocks = ('get_devicelist', 'get_interface_mac', 'is_bridge',
+                 'interface_has_own_mac', 'get_ib_interface_hwaddr')
+        self.mocks = {}
+        for n in mocks:
+            m = mock.patch('cloudinit.net.' + n,
+                           side_effect=getattr(self, '_se_' + n))
+            self.addCleanup(m.stop)
+            self.mocks[n] = m.start()
+
+    def _se_get_devicelist(self):
+        return self.data['devices']
+
+    def _se_get_interface_mac(self, name):
+        return self.data['macs'][name]
+
+    def _se_is_bridge(self, name):
+        return name in self.data['bridges']
+
+    def _se_interface_has_own_mac(self, name):
+        return name in self.data['own_macs']
+
+    def _se_get_ib_interface_hwaddr(self, name, ethernet_format):
+        ib_hwaddr = self.data.get('ib_hwaddr', {})
+        return ib_hwaddr.get(name, {}).get(ethernet_format)
+
+    def test_ethernet(self):
+        self._mock_setup()
+        self.data['devices'].remove('ib0')
+        result = net.get_ib_hwaddrs_by_interface()
+        expected = {}
+        self.assertEqual(expected, result)
+
+    def test_ib(self):
+        self._mock_setup()
+        result = net.get_ib_hwaddrs_by_interface()
+        expected = {'ib0': self._ib_addr}
+        self.assertEqual(expected, result)
 
 
 def _gzip_data(data):

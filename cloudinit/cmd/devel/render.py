@@ -9,7 +9,6 @@ import sys
 from cloudinit.handlers.jinja_template import render_jinja_payload_from_file
 from cloudinit import log
 from cloudinit.sources import INSTANCE_JSON_FILE
-from cloudinit import util
 from . import addLogHandlerCLI, read_cfg_paths
 
 NAME = 'render'
@@ -54,11 +53,7 @@ def handle_args(name, args):
             paths.run_dir, INSTANCE_JSON_FILE)
     else:
         instance_data_fn = args.instance_data
-    try:
-        with open(instance_data_fn) as stream:
-            instance_data = stream.read()
-        instance_data = util.load_json(instance_data)
-    except IOError:
+    if not os.path.exists(instance_data_fn):
         LOG.error('Missing instance-data.json file: %s', instance_data_fn)
         return 1
     try:

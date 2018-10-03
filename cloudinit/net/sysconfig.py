@@ -174,6 +174,7 @@ class NetInterface(ConfigMap):
         'ethernet': 'Ethernet',
         'bond': 'Bond',
         'bridge': 'Bridge',
+        'infiniband': 'InfiniBand',
     }
 
     def __init__(self, iface_name, base_sysconf_dir, templates,
@@ -569,6 +570,18 @@ class Renderer(renderer.Renderer):
             cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @classmethod
+    def _render_ib_interfaces(cls, network_state, iface_contents):
+        ib_filter = renderer.filter_by_type('infiniband')
+        for iface in network_state.iter_interfaces(ib_filter):
+            iface_name = iface['name']
+            iface_cfg = iface_contents[iface_name]
+            iface_cfg.kind = 'infiniband'
+            iface_subnets = iface.get("subnets", [])
+            route_cfg = iface_cfg.routes
+            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
+
+    @classmethod
     def _render_sysconfig(cls, base_sysconf_dir, network_state,
                           templates=None):
         '''Given state, return /etc/sysconfig files + contents'''
@@ -586,6 +599,7 @@ class Renderer(renderer.Renderer):
         cls._render_bond_interfaces(network_state, iface_contents)
         cls._render_vlan_interfaces(network_state, iface_contents)
         cls._render_bridge_interfaces(network_state, iface_contents)
+        cls._render_ib_interfaces(network_state, iface_contents)
         contents = {}
         for iface_name, iface_cfg in iface_contents.items():
             if iface_cfg or iface_cfg.children:

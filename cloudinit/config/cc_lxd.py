@@ -104,6 +104,7 @@ def handle(name, cfg, cloud, log, args):
             'network_address', 'network_port', 'storage_backend',
             'storage_create_device', 'storage_create_loop',
             'storage_pool', 'trust_password')
+        util.subp(['lxd', 'waitready', '--timeout=300'])
         cmd = ['lxd', 'init', '--auto']
         for k in init_keys:
             if init_cfg.get(k):
@@ -260,7 +261,9 @@ def bridge_to_cmd(bridge_cfg):
 
 
 def _lxc(cmd):
-    env = {'LC_ALL': 'C'}
+    env = {'LC_ALL': 'C',
+           'HOME': os.environ.get('HOME', '/root'),
+           'USER': os.environ.get('USER', 'root')}
     util.subp(['lxc'] + list(cmd) + ["--force-local"], update_env=env)
 
 

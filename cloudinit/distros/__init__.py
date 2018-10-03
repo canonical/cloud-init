@@ -74,11 +74,10 @@ class Distro(object):
     def install_packages(self, pkglist):
         raise NotImplementedError()
 
-    @abc.abstractmethod
     def _write_network(self, settings):
-        # In the future use the http://fedorahosted.org/netcf/
-        # to write this blob out in a distro format
-        raise NotImplementedError()
+        raise RuntimeError(
+            "Legacy function '_write_network' was called in distro '%s'.\n"
+            "_write_network_config needs implementation.\n" % self.name)
 
     def _write_network_config(self, settings):
         raise NotImplementedError()
@@ -144,7 +143,11 @@ class Distro(object):
         # this applies network where 'settings' is interfaces(5) style
         # it is obsolete compared to apply_network_config
         # Write it out
+
+        # pylint: disable=assignment-from-no-return
+        # We have implementations in arch, freebsd and gentoo still
         dev_names = self._write_network(settings)
+        # pylint: enable=assignment-from-no-return
         # Now try to bring them up
         if bring_up:
             return self._bring_up_interfaces(dev_names)

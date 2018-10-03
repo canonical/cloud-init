@@ -675,6 +675,17 @@ def convert_net_json(network_json=None, known_macs=None):
             else:
                 cfg[key] = fmt % link_id_info[target]['name']
 
+    # Infiniband interfaces may be referenced in network_data.json by a 6 byte
+    # Ethernet MAC-style address, and we use that address to look up the
+    # interface name above. Now ensure that the hardware address is set to the
+    # full 20 byte address.
+    ib_known_hwaddrs = net.get_ib_hwaddrs_by_interface()
+    if ib_known_hwaddrs:
+        for cfg in config:
+            if cfg['name'] in ib_known_hwaddrs:
+                cfg['mac_address'] = ib_known_hwaddrs[cfg['name']]
+                cfg['type'] = 'infiniband'
+
     for service in services:
         cfg = service
         cfg.update({'type': 'nameserver'})

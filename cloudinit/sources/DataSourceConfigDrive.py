@@ -196,7 +196,7 @@ def on_first_boot(data, distro=None, network=True):
         net_conf = data.get("network_config", '')
         if net_conf and distro:
             LOG.warning("Updating network interfaces from config drive")
-            distro.apply_network(net_conf)
+            distro.apply_network_config(eni.convert_eni_data(net_conf))
     write_injected_files(data.get('files'))
 
 
