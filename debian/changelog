@@ -5,8 +5,10 @@ cloud-init (18.3-9-g2e62cb8a-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
   * refresh patches:
    + debian/patches/azure-use-walinux-agent.patch
    + debian/patches/openstack-no-network-config.patch
+  * refresh patches:
+   + debian/patches/ds-identify-behavior-xenial.patch
 
- --  <>  Thu, 23 Aug 2018 23:41:41 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 03 Oct 2018 12:10:24 -0600
 
 cloud-init (18.3-9-g2e62cb8a-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
