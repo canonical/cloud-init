@@ -3,7 +3,7 @@
 """Verify test results."""
 
 import os
-import unittest
+import unittest2
 
 from tests.cloud_tests import (config, LOG, util, testcases)
 
@@ -18,7 +18,7 @@ def verify_data(data_dir, platform, os_name, tests):
     @return_value: {<test_name>: {passed: True/False, failures: []}}
     """
     base_dir = os.sep.join((data_dir, platform, os_name))
-    runner = unittest.TextTestRunner(verbosity=util.current_verbosity())
+    runner = unittest2.TextTestRunner(verbosity=util.current_verbosity())
     res = {}
     for test_name in tests:
         LOG.debug('verifying test data for %s', test_name)

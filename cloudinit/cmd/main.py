@@ -791,6 +791,10 @@ def main(sysv_args=None):
                                      ' pass to this module'))
     parser_single.set_defaults(action=('single', main_single))
 
+    parser_query = subparsers.add_parser(
+        'query',
+        help='Query standardized instance metadata from the command line.')
+
     parser_dhclient = subparsers.add_parser('dhclient-hook',
                                             help=('run the dhclient hook'
                                                   'to record network info'))
@@ -842,6 +846,12 @@ def main(sysv_args=None):
             clean_parser(parser_clean)
             parser_clean.set_defaults(
                 action=('clean', handle_clean_args))
+        elif sysv_args[0] == 'query':
+            from cloudinit.cmd.query import (
+                get_parser as query_parser, handle_args as handle_query_args)
+            query_parser(parser_query)
+            parser_query.set_defaults(
+                action=('render', handle_query_args))
         elif sysv_args[0] == 'status':
             from cloudinit.cmd.status import (
                 get_parser as status_parser, handle_status_args)

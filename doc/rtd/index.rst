@@ -31,6 +31,7 @@ initialization of a cloud instance.
    topics/capabilities.rst
    topics/availability.rst
    topics/format.rst
+   topics/instancedata.rst
    topics/dir_layout.rst
    topics/examples.rst
    topics/boot.rst

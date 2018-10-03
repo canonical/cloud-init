@@ -17,146 +17,10 @@ own way) internally a datasource abstract class was created to allow for a
 single way to access the different cloud systems methods to provide this data
 through the typical usage of subclasses.
 
-
-.. _instance_metadata:
-
-instance-data
--------------
-For reference, cloud-init stores all the metadata, vendordata and userdata
-provided by a cloud in a json blob at ``/run/cloud-init/instance-data.json``.
-While the json contains datasource-specific keys and names, cloud-init will
-maintain a minimal set of standardized keys that will remain stable on any
-cloud. Standardized instance-data keys will be present under a "v1" key.
-Any datasource metadata cloud-init consumes will all be present under the
-"ds" key.
-
-Below is an instance-data.json example from an OpenStack instance:
-
-.. sourcecode:: json
-
-  {
-   "base64-encoded-keys": [
-    "ds/meta-data/random_seed",
-    "ds/user-data"
-   ],
-   "ds": {
-    "ec2_metadata": {
-     "ami-id": "ami-0000032f",
-     "ami-launch-index": "0",
-     "ami-manifest-path": "FIXME",
-     "block-device-mapping": {
-      "ami": "vda",
-      "ephemeral0": "/dev/vdb",
-      "root": "/dev/vda"
-     },
-     "hostname": "xenial-test.novalocal",
-     "instance-action": "none",
-     "instance-id": "i-0006e030",
-     "instance-type": "m1.small",
-     "local-hostname": "xenial-test.novalocal",
-     "local-ipv4": "10.5.0.6",
-     "placement": {
-      "availability-zone": "None"
-     },
-     "public-hostname": "xenial-test.novalocal",
-     "public-ipv4": "10.245.162.145",
-     "reservation-id": "r-fxm623oa",
-     "security-groups": "default"
-    },
-    "meta-data": {
-     "availability_zone": null,
-     "devices": [],
-     "hostname": "xenial-test.novalocal",
-     "instance-id": "3e39d278-0644-4728-9479-678f9212d8f0",
-     "launch_index": 0,
-     "local-hostname": "xenial-test.novalocal",
-     "name": "xenial-test",
-     "project_id": "e0eb2d2538814...",
-     "random_seed": "A6yPN...",
-     "uuid": "3e39d278-0644-4728-9479-678f92..."
-    },
-    "network_json": {
-     "links": [
-      {
-       "ethernet_mac_address": "fa:16:3e:7d:74:9b",
-       "id": "tap9ca524d5-6e",
-       "mtu": 8958,
-       "type": "ovs",
-       "vif_id": "9ca524d5-6e5a-4809-936a-6901..."
-      }
-     ],
-     "networks": [
-      {
-       "id": "network0",
-       "link": "tap9ca524d5-6e",
-       "network_id": "c6adfc18-9753-42eb-b3ea-18b57e6b837f",
-       "type": "ipv4_dhcp"
-      }
-     ],
-     "services": [
-      {
-       "address": "10.10.160.2",
-       "type": "dns"
-      }
-     ]
-    },
-    "user-data": "I2Nsb3VkLWNvbmZpZ...",
-    "vendor-data": null
-   },
-   "v1": {
-    "availability-zone": null,
-    "cloud-name": "openstack",
-    "instance-id": "3e39d278-0644-4728-9479-678f9212d8f0",
-    "local-hostname": "xenial-test",
-    "region": null
-   }
-  }
-
- 
-As of cloud-init v. 18.4, any values present in
-``/run/cloud-init/instance-data.json`` can be used in cloud-init user data
-scripts or cloud config data. This allows consumers to use cloud-init's
-vendor-neutral, standardized metadata keys as well as datasource-specific
-content for any scripts or cloud-config modules they are using.
-
-To use instance-data.json values in scripts and **#config-config** files the
-user-data will need to contain the following header as the first line **## template: jinja**. Cloud-init will source all variables defined in
-``/run/cloud-init/instance-data.json`` and allow scripts or cloud-config files 
-to reference those paths. Below are two examples::
-
- * Cloud config calling home with the ec2 public hostname and avaliability-zone
-    ```
-    ## template: jinja
-    #cloud-config
-    runcmd:
-        - echo 'EC2 public hostname allocated to instance: {{ ds.meta_data.public_hostname }}' > /tmp/instance_metadata
-        - echo 'EC2 avaiability zone: {{ v1.availability_zone }}' >> /tmp/instance_metadata 
-        - curl -X POST -d '{"hostname": "{{ds.meta_data.public_hostname }}", "availability-zone": "{{ v1.availability_zone }}"}'  https://example.com.com
-    ```
-
- * Custom user script performing different operations based on region
-    ```
-    ## template: jinja
-    #!/bin/bash
-    {% if v1.region == 'us-east-2' -%}
-    echo 'Installing custom proxies for {{ v1.region }}
-    sudo apt-get install my-xtra-fast-stack
-    {%- endif %}
-    ...
-
-    ```
-
-.. note::
-  Trying to reference jinja variables that don't exist in
-  instance-data.json will result in warnings in ``/var/log/cloud-init.log``
-  and the following string in your rendered user-data:
-  ``CI_MISSING_JINJA_VAR/<your_varname>``.
-  
-.. note::
-  To save time designing your user-data for a specific cloud's
-  instance-data.json, use the 'render' cloud-init command on an
-  instance booted on your favorite cloud. See :ref:`cli_devel` for more
-  information.
+Any metadata processed by cloud-init's datasources is persisted as
+``/run/cloud0-init/instance-data.json``. Cloud-init provides tooling
+to quickly introspect some of that data. See :ref:`instance_metadata` for
+more information.
 
 
 Datasource API
@@ -196,14 +60,14 @@ The current interface that a datasource object must provide is the following:
     # or does not exist)
     def device_name_to_device(self, name)
 
-    # gets the locale string this instance should be applying 
+    # gets the locale string this instance should be applying
     # which typically used to adjust the instances locale settings files
     def get_locale(self)
 
     @property
     def availability_zone(self)
 
-    # gets the instance id that was assigned to this instance by the 
+    # gets the instance id that was assigned to this instance by the
     # cloud provider or when said instance id does not exist in the backing
     # metadata this will return 'iid-datasource'
     def get_instance_id(self)

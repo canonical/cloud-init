@@ -16,7 +16,6 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 
-from cloudinit.distros import net_util
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.settings import PER_INSTANCE
 
@@ -171,52 +170,6 @@ class Distro(distros.Distro):
                 conf = HostnameConf('')
             conf.set_hostname(hostname)
             util.write_file(out_fn, str(conf), 0o644)
-
-    def _write_network(self, settings):
-        # Convert debian settings to ifcfg format
-        entries = net_util.translate_network(settings)
-        LOG.debug("Translated ubuntu style network settings %s into %s",
-                  settings, entries)
-        # Make the intermediate format as the suse format...
-        nameservers = []
-        searchservers = []
-        dev_names = entries.keys()
-        for (dev, info) in entries.items():
-            net_fn = self.network_script_tpl % (dev)
-            route_fn = self.route_conf_tpl % (dev)
-            mode = None
-            if info.get('auto', None):
-                mode = 'auto'
-            else:
-                mode = 'manual'
-            bootproto = info.get('bootproto', None)
-            gateway = info.get('gateway', None)
-            net_cfg = {
-                'BOOTPROTO': bootproto,
-                'BROADCAST': info.get('broadcast'),
-                'GATEWAY': gateway,
-                'IPADDR': info.get('address'),
-                'LLADDR': info.get('hwaddress'),
-                'NETMASK': info.get('netmask'),
-                'STARTMODE': mode,
-                'USERCONTROL': 'no'
-            }
-            if dev != 'lo':
-                net_cfg['ETHTOOL_OPTIONS'] = ''
-            else:
-                net_cfg['FIREWALL'] = 'no'
-            rhutil.update_sysconfig_file(net_fn, net_cfg, True)
-            if gateway and bootproto == 'static':
-                default_route = 'default    %s' % gateway
-                util.write_file(route_fn, default_route, 0o644)
-            if 'dns-nameservers' in info:
-                nameservers.extend(info['dns-nameservers'])
-            if 'dns-search' in info:
-                searchservers.extend(info['dns-search'])
-        if nameservers or searchservers:
-            rhutil.update_resolve_conf_file(self.resolve_conf_fn,
-                                            nameservers, searchservers)
-        return dev_names
 
     def _write_network_config(self, netconfig):
         return self._supported_write_network_config(netconfig)

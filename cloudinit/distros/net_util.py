@@ -67,6 +67,10 @@
 #     }
 # }
 
+from cloudinit.net.network_state import (
+    net_prefix_to_ipv4_mask, mask_and_ipv4_to_bcast_addr)
+
+
 def translate_network(settings):
     # Get the standard cmd, args from the ubuntu format
     entries = []
@@ -134,6 +138,21 @@ def translate_network(settings):
                     val = info[k].strip().lower()
                     if val:
                         iface_info[k] = val
+            # handle static ip configurations using
+            # ipaddress/prefix-length format
+            if 'address' in iface_info:
+                if 'netmask' not in iface_info:
+                    # check if the address has a network prefix
+                    addr, _, prefix = iface_info['address'].partition('/')
+                    if prefix:
+                        iface_info['netmask'] = (
+                            net_prefix_to_ipv4_mask(prefix))
+                        iface_info['address'] = addr
+                        # if we set the netmask, we also can set the broadcast
+                        iface_info['broadcast'] = (
+                            mask_and_ipv4_to_bcast_addr(
+                                iface_info['netmask'], addr))
+
             # Name server info provided??
             if 'dns-nameservers' in info:
                 iface_info['dns-nameservers'] = info['dns-nameservers'].split()
