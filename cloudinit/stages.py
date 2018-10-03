@@ -668,12 +668,6 @@ class Init(object):
         return (self.distro.generate_fallback_config(),
                 NetworkConfigSource.fallback)
 
-    def apply_network_config(self, bring_up):
-        netcfg, src = self._find_networking_config()
-        if netcfg is None:
-            LOG.info("network config is disabled by %s", src)
-            return
-
     def update_event_allowed(self, event_source_type, scope=None):
         # convert ds events to config
         ds_config = get_update_events_config(self.datasource.update_events)
@@ -697,12 +691,6 @@ class Init(object):
         LOG.debug('Event Denied: scopes=%s EventType=%s',
                   scopes, event_source_type)
         return False
-
-    def apply_network_config(self, bring_up):
-        netcfg, src = self._find_networking_config()
-        if netcfg is None:
-            LOG.info("network config is disabled by %s", src)
-            return
 
     def _apply_netcfg_names(self, netcfg):
         try:
