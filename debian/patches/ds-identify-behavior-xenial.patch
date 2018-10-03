@@ -10,7 +10,7 @@ Bug-ubuntu: http://bugs.launchpad.net/bugs/1660385
 
 --- a/tools/ds-identify
 +++ b/tools/ds-identify
-@@ -85,8 +85,8 @@ _DI_LOGGED=""
+@@ -93,8 +93,8 @@ _DI_LOGGED=""
  DI_MAIN=${DI_MAIN:-main}
  
  DI_BLKID_OUTPUT=""
@@ -21,7 +21,7 @@ Bug-ubuntu: http://bugs.launchpad.net/bugs/1660385
  DI_DMI_CHASSIS_ASSET_TAG=""
  DI_DMI_PRODUCT_NAME=""
  DI_DMI_SYS_VENDOR=""
-@@ -123,7 +123,7 @@ DI_ON_FOUND=""
+@@ -131,7 +131,7 @@ DI_ON_FOUND=""
  DI_ON_MAYBE=""
  DI_ON_NOTFOUND=""
  
