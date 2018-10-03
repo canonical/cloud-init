@@ -22,9 +22,9 @@ from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
-
-from cloudinit.event import EventType
 from cloudinit.sources import NetworkConfigSource
+from cloudinit.event import (
+    EventType, get_allowed_events, get_update_events_config)
 
 from cloudinit import cloud
 from cloudinit import config
@@ -668,6 +668,42 @@ class Init(object):
         return (self.distro.generate_fallback_config(),
                 NetworkConfigSource.fallback)
 
+    def apply_network_config(self, bring_up):
+        netcfg, src = self._find_networking_config()
+        if netcfg is None:
+            LOG.info("network config is disabled by %s", src)
+            return
+
+    def update_event_allowed(self, event_source_type, scope=None):
+        # convert ds events to config
+        ds_config = get_update_events_config(self.datasource.update_events)
+        LOG.debug('Datasource updates cfg: %s', ds_config)
+
+        allowed = get_allowed_events(self.cfg.get('updates', {}), ds_config)
+        LOG.debug('Allowable update events: %s', allowed)
+
+        if not scope:
+            scopes = [allowed.keys()]
+        else:
+            scopes = [scope]
+        LOG.debug('Possible scopes for this event: %s', scopes)
+
+        for evt_scope in scopes:
+            if event_source_type in allowed[evt_scope]:
+                LOG.debug('Event Allowed: scope=%s EventType=%s',
+                          evt_scope, event_source_type)
+                return True
+
+        LOG.debug('Event Denied: scopes=%s EventType=%s',
+                  scopes, event_source_type)
+        return False
+
+    def apply_network_config(self, bring_up):
+        netcfg, src = self._find_networking_config()
+        if netcfg is None:
+            LOG.info("network config is disabled by %s", src)
+            return
+
     def _apply_netcfg_names(self, netcfg):
         try:
             LOG.debug("applying net config names for %s", netcfg)
@@ -685,17 +721,23 @@ class Init(object):
         # request an update if needed/available
         if self.datasource is not NULL_DATA_SOURCE:
             if not self.is_new_instance():
-                if not self.datasource.update_metadata([EventType.BOOT]):
-                    LOG.debug(
-                        "No network config applied. Neither a new instance"
-                        " nor datasource network update on '%s' event",
-                        EventType.BOOT)
-                    # nothing new, but ensure proper names
+                if self.update_event_allowed(EventType.BOOT, scope='network'):
+                    if not self.datasource.update_metadata([EventType.BOOT]):
+                        LOG.debug(
+                            "No network config applied. Datasource failed"
+                            " update metadata on '%s' event", EventType.BOOT)
+                        # nothing new, but ensure proper names
+                        self._apply_netcfg_names(netcfg)
+                        return
+                    else:
+                        # refresh netcfg after update
+                        netcfg, src = self._find_networking_config()
+                else:
+                    LOG.debug("No network config applied. "
+                              "'%s' event not allowed", EventType.BOOT)
+                    # not allowed but ensure proper names
                     self._apply_netcfg_names(netcfg)
                     return
-                else:
-                    # refresh netcfg after update
-                    netcfg, src = self._find_networking_config()
 
         # ensure all physical devices in config are present
         net.wait_for_physdevs(netcfg)

@@ -152,7 +152,7 @@ def handle_args(name, args):
             return 1
 
         subevent = SUBSYSTEM_TO_EVENT.get(args.subsystem)
-        if EventType.UDEV not in ds.update_events.get(subevent):
+        if hotplug_init.update_event_allowed(EventType.UDEV, scope=subevent):
             log_console('cloud-init not configured to handle udev events')
             return
 
