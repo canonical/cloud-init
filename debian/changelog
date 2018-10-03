@@ -1,4 +1,4 @@
-cloud-init (18.4-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (18.4-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * drop the following cherry-picks now included:
     + cpick-3cee0bf8-oracle-fix-detect_openstack-to-report-True-on
