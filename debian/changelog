@@ -1,3 +1,27 @@
+cloud-init (18.4-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+    - release 18.4
+    - tests: allow skipping an entire cloud_test without running.
+    - tests: disable lxd tests on cosmic
+    - cii-tests: use unittest2.SkipTest in ntp_chrony due to new deps
+    - lxd: adjust to snap installed lxd.
+    - docs: surface experimental doc in instance-data.json
+    - tests: fix ec2 integration tests. process meta_data instead of meta-data
+    - Add support for Infiniband network interfaces (IPoIB). [Mark Goddard]
+    - cli: add cloud-init query subcommand to query instance metadata
+    - tools/tox-venv: update for new features.
+    - pylint: ignore warning assignment-from-no-return for _write_network
+    - stages: Fix bug causing datasource to have incorrect sys_cfg.
+    - Remove dead-code _write_network distro implementations.
+    - net_util: ensure static configs have netmask in translate_network result
+      [Thomas Berger]
+    - Fall back to root:root on syslog permissions if other options fail.
+      [Robert Schweikert]
+    - tests: Add mock for util.get_hostname. [Robert Schweikert]
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 02 Oct 2018 19:55:23 -0600
+
 cloud-init (18.3-46-gbb60f61b-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
