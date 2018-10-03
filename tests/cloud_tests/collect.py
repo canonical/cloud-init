@@ -9,6 +9,7 @@ from cloudinit import util as c_util
 from tests.cloud_tests import (config, LOG, setup_image, util)
 from tests.cloud_tests.stage import (PlatformComponent, run_stage, run_single)
 from tests.cloud_tests import platforms
+from tests.cloud_tests.testcases import base, get_test_class
 
 
 def collect_script(instance, base_dir, script, script_name):
@@ -63,6 +64,7 @@ def collect_test_data(args, snapshot, os_name, test_name):
     res = ({}, 1)
 
     # load test config
+    test_name_in = test_name
     test_name = config.path_to_name(test_name)
     test_config = config.load_test_config(test_name)
     user_data = test_config['cloud_config']
@@ -73,6 +75,16 @@ def collect_test_data(args, snapshot, os_name, test_name):
     # if test is not enabled, skip and return 0 failures
     if not test_config.get('enabled', False):
         LOG.warning('test config %s is not enabled, skipping', test_name)
+        return ({}, 0)
+
+    test_class = get_test_class(
+        config.name_to_module(test_name_in),
+        test_data={'platform': snapshot.platform_name, 'os_name': os_name},
+        test_conf=test_config['cloud_config'])
+    try:
+        test_class.maybeSkipTest()
+    except base.SkipTest as s:
+        LOG.warning('skipping test config %s: %s', test_name, s)
         return ({}, 0)
 
     # if testcase requires a feature flag that the image does not support,

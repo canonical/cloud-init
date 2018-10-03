@@ -150,10 +150,12 @@ class TestResizefs(CiTestCase):
         self.assertEqual(('growfs', '-y', devpth),
                          _resize_ufs(mount_point, devpth))
 
+    @mock.patch('cloudinit.util.is_container', return_value=False)
     @mock.patch('cloudinit.util.get_mount_info')
     @mock.patch('cloudinit.util.get_device_info_from_zpool')
     @mock.patch('cloudinit.util.parse_mount')
-    def test_handle_zfs_root(self, mount_info, zpool_info, parse_mount):
+    def test_handle_zfs_root(self, mount_info, zpool_info, parse_mount,
+                             is_container):
         devpth = 'vmzroot/ROOT/freebsd'
         disk = 'gpt/system'
         fs_type = 'zfs'
@@ -354,8 +356,10 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
             ('btrfs', 'filesystem', 'resize', 'max', '/'),
             _resize_btrfs("/", "/dev/sda1"))
 
+    @mock.patch('cloudinit.util.is_container', return_value=True)
     @mock.patch('cloudinit.util.is_FreeBSD')
-    def test_maybe_get_writable_device_path_zfs_freebsd(self, freebsd):
+    def test_maybe_get_writable_device_path_zfs_freebsd(self, freebsd,
+                                                        m_is_container):
         freebsd.return_value = True
         info = 'dev=gpt/system mnt_point=/ path=/'
         devpth = maybe_get_writable_device_path('gpt/system', info, LOG)

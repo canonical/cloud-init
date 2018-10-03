@@ -49,6 +49,7 @@ class TestHostsFile(t_help.FilesystemMockingTestCase):
         if '192.168.1.1\tblah.blah.us\tblah' not in contents:
             self.assertIsNone('Default etc/hosts content modified')
 
+    @t_help.skipUnlessJinja()
     def test_write_etc_hosts_suse_template(self):
         cfg = {
             'manage_etc_hosts': 'template',

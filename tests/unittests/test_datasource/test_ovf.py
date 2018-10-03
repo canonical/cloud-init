@@ -124,7 +124,9 @@ class TestDatasourceOVF(CiTestCase):
         ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
         retcode = wrap_and_call(
             'cloudinit.sources.DataSourceOVF',
-            {'util.read_dmi_data': None},
+            {'util.read_dmi_data': None,
+             'transport_iso9660': (False, None, None),
+             'transport_vmware_guestd': (False, None, None)},
             ds.get_data)
         self.assertFalse(retcode, 'Expected False return from ds.get_data')
         self.assertIn(
@@ -138,7 +140,9 @@ class TestDatasourceOVF(CiTestCase):
             paths=paths)
         retcode = wrap_and_call(
             'cloudinit.sources.DataSourceOVF',
-            {'util.read_dmi_data': 'vmware'},
+            {'util.read_dmi_data': 'vmware',
+             'transport_iso9660': (False, None, None),
+             'transport_vmware_guestd': (False, None, None)},
             ds.get_data)
         self.assertFalse(retcode, 'Expected False return from ds.get_data')
         self.assertIn(

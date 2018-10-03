@@ -18,7 +18,7 @@ DEFAULT_CONFIG = {
 
 
 def update_configuration(config):
-    """Update the instanciated_handler_registry.
+    """Update the instantiated_handler_registry.
 
     :param config:
         The dictionary containing changes to apply.  If a key is given
@@ -35,6 +35,12 @@ def update_configuration(config):
         instantiated_handler_registry.unregister_item(handler_name)
         instance = cls(**handler_config)
         instantiated_handler_registry.register_item(handler_name, instance)
+
+
+def flush_events():
+    for _, handler in instantiated_handler_registry.registered_items.items():
+        if hasattr(handler, 'flush'):
+            handler.flush()
 
 
 instantiated_handler_registry = DictRegistry()

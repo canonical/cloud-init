@@ -4,6 +4,7 @@
 
 from functools import partial
 import os
+import yaml
 
 from tests.cloud_tests import LOG
 from tests.cloud_tests import stage, util
@@ -220,7 +221,14 @@ def setup_image(args, image):
     calls = [partial(stage.run_single, desc, partial(func, args, image))
              for name, func, desc in handlers if getattr(args, name, None)]
 
-    LOG.info('setting up %s', image)
+    try:
+        data = yaml.load(image.read_data("/etc/cloud/build.info", decode=True))
+        info = ' '.join(["%s=%s" % (k, data.get(k))
+                         for k in ("build_name", "serial") if k in data])
+    except Exception as e:
+        info = "N/A (%s)" % e
+
+    LOG.info('setting up %s (%s)', image, info)
     res = stage.run_stage(
         'set up for {}'.format(image), calls, continue_after_error=False)
     return res

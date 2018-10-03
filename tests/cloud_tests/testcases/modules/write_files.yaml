@@ -3,6 +3,13 @@
 #
 # NOTE: on trusty 'file' has an output formatting error for binary files and
 #       has 2 spaces in 'LSB  executable', which causes a failure here
+#
+# NOTE: the binary data can be any binary data, not only executables
+#       and can be generated via the base 64 command as such:
+#           $ base64 < hello > hello.txt
+#       the opposite is running:
+#           $ base64 -d < hello.txt > hello
+#
 required_features:
   - no_file_fmt_e
 cloud_config: |
@@ -19,9 +26,7 @@ cloud_config: |
           SMBDOPTIONS="-D"
       path: /root/file_text
   -   content: !!binary |
-          f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAwARAAAAAAABAAAAAAAAAAJAVAAAAAAAAAAAAAEAAOAAI
-          AEAAHgAdAAYAAAAFAAAAQAAAAAAAAABAAEAAAAAAAEAAQAAAAAAAwAEAAAAAAADAAQAAAAAAAAgA
-          AAAAAAAAAwAAAAQAAAAAAgAAAAAAAAACQAAAAAAAAAJAAAAAAAAcAAAAAAAAABwAAAAAAAAAAQAA
+          /Z/xrHR4WINT0UNoKPQKbuovp6+Js+JK
       path: /root/file_binary
       permissions: '0555'
   -   encoding: gzip
@@ -38,7 +43,9 @@ collect_scripts:
     file /root/file_text
   file_binary: |
     #!/bin/bash
-    file /root/file_binary
+    for hasher in md5sum sha256sum; do
+        $hasher </root/file_binary && break
+    done
   file_gzip: |
     #!/bin/bash
     file /root/file_gzip

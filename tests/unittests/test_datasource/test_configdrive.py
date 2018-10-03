@@ -136,6 +136,7 @@ NETWORK_DATA_3 = {
     ]
 }
 
+BOND_MAC = "fa:16:3e:b3:72:36"
 NETWORK_DATA_BOND = {
     "services": [
         {"type": "dns", "address": "1.1.1.191"},
@@ -163,7 +164,7 @@ NETWORK_DATA_BOND = {
         {"bond_links": ["eth0", "eth1"],
          "bond_miimon": 100, "bond_mode": "4",
          "bond_xmit_hash_policy": "layer3+4",
-         "ethernet_mac_address": "0c:c4:7a:34:6e:3c",
+         "ethernet_mac_address": BOND_MAC,
          "id": "bond0", "type": "bond"},
         {"ethernet_mac_address": "fa:16:3e:b3:72:30",
          "id": "vlan2", "type": "vlan", "vlan_id": 602,
@@ -224,6 +225,9 @@ class TestConfigDriveDataSource(CiTestCase):
 
     def setUp(self):
         super(TestConfigDriveDataSource, self).setUp()
+        self.add_patch(
+            "cloudinit.sources.DataSourceConfigDrive.util.find_devs_with",
+            "m_find_devs_with", return_value=[])
         self.tmp = self.tmp_dir()
 
     def test_ec2_metadata(self):
@@ -642,7 +646,7 @@ class TestConvertNetworkData(CiTestCase):
             routes)
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), self.tmp)
+            network_state.parse_net_config_data(ncfg), target=self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
@@ -664,7 +668,7 @@ class TestConvertNetworkData(CiTestCase):
         eni_renderer = eni.Renderer()
 
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), self.tmp)
+            network_state.parse_net_config_data(ncfg), target=self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
@@ -688,6 +692,9 @@ class TestConvertNetworkData(CiTestCase):
         self.assertIn("auto oeth0", eni_rendering)
         self.assertIn("auto oeth1", eni_rendering)
         self.assertIn("auto bond0", eni_rendering)
+        # The bond should have the given mac address
+        pos = eni_rendering.find("auto bond0")
+        self.assertIn(BOND_MAC, eni_rendering[pos:])
 
     def test_vlan(self):
         # light testing of vlan config conversion and eni rendering
@@ -695,7 +702,7 @@ class TestConvertNetworkData(CiTestCase):
                                           known_macs=KNOWN_MACS)
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            network_state.parse_net_config_data(ncfg), self.tmp)
+            network_state.parse_net_config_data(ncfg), target=self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()

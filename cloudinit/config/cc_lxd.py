@@ -104,6 +104,7 @@ def handle(name, cfg, cloud, log, args):
             'network_address', 'network_port', 'storage_backend',
             'storage_create_device', 'storage_create_loop',
             'storage_pool', 'trust_password')
+        util.subp(['lxd', 'waitready', '--timeout=300'])
         cmd = ['lxd', 'init', '--auto']
         for k in init_keys:
             if init_cfg.get(k):
@@ -260,7 +261,9 @@ def bridge_to_cmd(bridge_cfg):
 
 
 def _lxc(cmd):
-    env = {'LC_ALL': 'C'}
+    env = {'LC_ALL': 'C',
+           'HOME': os.environ.get('HOME', '/root'),
+           'USER': os.environ.get('USER', 'root')}
     util.subp(['lxc'] + list(cmd) + ["--force-local"], update_env=env)
 
 
@@ -276,27 +279,27 @@ def maybe_cleanup_default(net_name, did_init, create, attach,
     if net_name != _DEFAULT_NETWORK_NAME or not did_init:
         return
 
-    fail_assume_enoent = " failed. Assuming it did not exist."
-    succeeded = " succeeded."
+    fail_assume_enoent = "failed. Assuming it did not exist."
+    succeeded = "succeeded."
     if create:
-        msg = "Deletion of lxd network '%s'" % net_name
+        msg = "Deletion of lxd network '%s' %s"
         try:
             _lxc(["network", "delete", net_name])
-            LOG.debug(msg + succeeded)
+            LOG.debug(msg, net_name, succeeded)
         except util.ProcessExecutionError as e:
             if e.exit_code != 1:
                 raise e
-            LOG.debug(msg + fail_assume_enoent)
+            LOG.debug(msg, net_name, fail_assume_enoent)
 
     if attach:
-        msg = "Removal of device '%s' from profile '%s'" % (nic_name, profile)
+        msg = "Removal of device '%s' from profile '%s' %s"
         try:
             _lxc(["profile", "device", "remove", profile, nic_name])
-            LOG.debug(msg + succeeded)
+            LOG.debug(msg, nic_name, profile, succeeded)
         except util.ProcessExecutionError as e:
             if e.exit_code != 1:
                 raise e
-            LOG.debug(msg + fail_assume_enoent)
+            LOG.debug(msg, nic_name, profile, fail_assume_enoent)
 
 
 # vi: ts=4 expandtab

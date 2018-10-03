@@ -13,7 +13,6 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 
-from cloudinit.distros import net_util
 from cloudinit.distros import rhel_util
 from cloudinit.settings import PER_INSTANCE
 
@@ -39,6 +38,16 @@ class Distro(distros.Distro):
     resolve_conf_fn = "/etc/resolv.conf"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
+    renderer_configs = {
+        'sysconfig': {
+            'control': 'etc/sysconfig/network',
+            'iface_templates': '%(base)s/network-scripts/ifcfg-%(name)s',
+            'route_templates': {
+                'ipv4': '%(base)s/network-scripts/route-%(name)s',
+                'ipv6': '%(base)s/network-scripts/route6-%(name)s'
+            }
+        }
+    }
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -54,54 +63,6 @@ class Distro(distros.Distro):
 
     def _write_network_config(self, netconfig):
         return self._supported_write_network_config(netconfig)
-
-    def _write_network(self, settings):
-        # TODO(harlowja) fix this... since this is the ubuntu format
-        entries = net_util.translate_network(settings)
-        LOG.debug("Translated ubuntu style network settings %s into %s",
-                  settings, entries)
-        # Make the intermediate format as the rhel format...
-        nameservers = []
-        searchservers = []
-        dev_names = entries.keys()
-        use_ipv6 = False
-        for (dev, info) in entries.items():
-            net_fn = self.network_script_tpl % (dev)
-            net_cfg = {
-                'DEVICE': dev,
-                'NETMASK': info.get('netmask'),
-                'IPADDR': info.get('address'),
-                'BOOTPROTO': info.get('bootproto'),
-                'GATEWAY': info.get('gateway'),
-                'BROADCAST': info.get('broadcast'),
-                'MACADDR': info.get('hwaddress'),
-                'ONBOOT': _make_sysconfig_bool(info.get('auto')),
-            }
-            if info.get('inet6'):
-                use_ipv6 = True
-                net_cfg.update({
-                    'IPV6INIT': _make_sysconfig_bool(True),
-                    'IPV6ADDR': info.get('ipv6').get('address'),
-                    'IPV6_DEFAULTGW': info.get('ipv6').get('gateway'),
-                })
-            rhel_util.update_sysconfig_file(net_fn, net_cfg)
-            if 'dns-nameservers' in info:
-                nameservers.extend(info['dns-nameservers'])
-            if 'dns-search' in info:
-                searchservers.extend(info['dns-search'])
-        if nameservers or searchservers:
-            rhel_util.update_resolve_conf_file(self.resolve_conf_fn,
-                                               nameservers, searchservers)
-        if dev_names:
-            net_cfg = {
-                'NETWORKING': _make_sysconfig_bool(True),
-            }
-            # If IPv6 interface present, enable ipv6 networking
-            if use_ipv6:
-                net_cfg['NETWORKING_IPV6'] = _make_sysconfig_bool(True)
-                net_cfg['IPV6_AUTOCONF'] = _make_sysconfig_bool(False)
-            rhel_util.update_sysconfig_file(self.network_conf_fn, net_cfg)
-        return dev_names
 
     def apply_locale(self, locale, out_fn=None):
         if self.uses_systemd():

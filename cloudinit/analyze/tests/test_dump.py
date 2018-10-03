@@ -5,8 +5,8 @@ from textwrap import dedent
 
 from cloudinit.analyze.dump import (
     dump_events, parse_ci_logline, parse_timestamp)
-from cloudinit.util import subp, write_file
-from cloudinit.tests.helpers import CiTestCase
+from cloudinit.util import which, write_file
+from cloudinit.tests.helpers import CiTestCase, mock, skipIf
 
 
 class TestParseTimestamp(CiTestCase):
@@ -15,21 +15,9 @@ class TestParseTimestamp(CiTestCase):
         """Logs with cloud-init detailed formats will be properly parsed."""
         trusty_fmt = '%Y-%m-%d %H:%M:%S,%f'
         trusty_stamp = '2016-09-12 14:39:20,839'
-
-        parsed = parse_timestamp(trusty_stamp)
-
-        # convert ourselves
         dt = datetime.strptime(trusty_stamp, trusty_fmt)
-        expected = float(dt.strftime('%s.%f'))
-
-        # use date(1)
-        out, _err = subp(['date', '+%s.%3N', '-d', trusty_stamp])
-        timestamp = out.strip()
-        date_ts = float(timestamp)
-
-        self.assertEqual(expected, parsed)
-        self.assertEqual(expected, date_ts)
-        self.assertEqual(date_ts, parsed)
+        self.assertEqual(
+            float(dt.strftime('%s.%f')), parse_timestamp(trusty_stamp))
 
     def test_parse_timestamp_handles_syslog_adding_year(self):
         """Syslog timestamps lack a year. Add year and properly parse."""
@@ -39,17 +27,9 @@ class TestParseTimestamp(CiTestCase):
         # convert stamp ourselves by adding the missing year value
         year = datetime.now().year
         dt = datetime.strptime(syslog_stamp + " " + str(year), syslog_fmt)
-        expected = float(dt.strftime('%s.%f'))
-        parsed = parse_timestamp(syslog_stamp)
-
-        # use date(1)
-        out, _ = subp(['date', '+%s.%3N', '-d', syslog_stamp])
-        timestamp = out.strip()
-        date_ts = float(timestamp)
-
-        self.assertEqual(expected, parsed)
-        self.assertEqual(expected, date_ts)
-        self.assertEqual(date_ts, parsed)
+        self.assertEqual(
+            float(dt.strftime('%s.%f')),
+            parse_timestamp(syslog_stamp))
 
     def test_parse_timestamp_handles_journalctl_format_adding_year(self):
         """Journalctl precise timestamps lack a year. Add year and parse."""
@@ -59,37 +39,22 @@ class TestParseTimestamp(CiTestCase):
         # convert stamp ourselves by adding the missing year value
         year = datetime.now().year
         dt = datetime.strptime(journal_stamp + " " + str(year), journal_fmt)
-        expected = float(dt.strftime('%s.%f'))
-        parsed = parse_timestamp(journal_stamp)
+        self.assertEqual(
+            float(dt.strftime('%s.%f')), parse_timestamp(journal_stamp))
 
-        # use date(1)
-        out, _ = subp(['date', '+%s.%6N', '-d', journal_stamp])
-        timestamp = out.strip()
-        date_ts = float(timestamp)
-
-        self.assertEqual(expected, parsed)
-        self.assertEqual(expected, date_ts)
-        self.assertEqual(date_ts, parsed)
-
+    @skipIf(not which("date"), "'date' command not available.")
     def test_parse_unexpected_timestamp_format_with_date_command(self):
-        """Dump sends unexpected timestamp formats to data for processing."""
+        """Dump sends unexpected timestamp formats to date for processing."""
         new_fmt = '%H:%M %m/%d %Y'
         new_stamp = '17:15 08/08'
-
         # convert stamp ourselves by adding the missing year value
         year = datetime.now().year
         dt = datetime.strptime(new_stamp + " " + str(year), new_fmt)
-        expected = float(dt.strftime('%s.%f'))
-        parsed = parse_timestamp(new_stamp)
 
         # use date(1)
-        out, _ = subp(['date', '+%s.%6N', '-d', new_stamp])
-        timestamp = out.strip()
-        date_ts = float(timestamp)
-
-        self.assertEqual(expected, parsed)
-        self.assertEqual(expected, date_ts)
-        self.assertEqual(date_ts, parsed)
+        with self.allow_subp(["date"]):
+            self.assertEqual(
+                float(dt.strftime('%s.%f')), parse_timestamp(new_stamp))
 
 
 class TestParseCILogLine(CiTestCase):
@@ -135,7 +100,9 @@ class TestParseCILogLine(CiTestCase):
             'timestamp': timestamp}
         self.assertEqual(expected, parse_ci_logline(line))
 
-    def test_parse_logline_returns_event_for_finish_events(self):
+    @mock.patch("cloudinit.analyze.dump.parse_timestamp_from_date")
+    def test_parse_logline_returns_event_for_finish_events(self,
+                                                           m_parse_from_date):
         """parse_ci_logline returns a finish event for a parsed log line."""
         line = ('2016-08-30 21:53:25.972325+00:00 y1 [CLOUDINIT]'
                 ' handlers.py[DEBUG]: finish: modules-final: SUCCESS: running'
@@ -147,7 +114,10 @@ class TestParseCILogLine(CiTestCase):
             'origin': 'cloudinit',
             'result': 'SUCCESS',
             'timestamp': 1472594005.972}
+        m_parse_from_date.return_value = "1472594005.972"
         self.assertEqual(expected, parse_ci_logline(line))
+        m_parse_from_date.assert_has_calls(
+            [mock.call("2016-08-30 21:53:25.972325+00:00")])
 
 
 SAMPLE_LOGS = dedent("""\
@@ -162,10 +132,16 @@ Nov 03 06:51:06.074410 x2 cloud-init[106]: [CLOUDINIT] util.py[DEBUG]:\
 class TestDumpEvents(CiTestCase):
     maxDiff = None
 
-    def test_dump_events_with_rawdata(self):
+    @mock.patch("cloudinit.analyze.dump.parse_timestamp_from_date")
+    def test_dump_events_with_rawdata(self, m_parse_from_date):
         """Rawdata is split and parsed into a tuple of events and data"""
+        m_parse_from_date.return_value = "1472594005.972"
         events, data = dump_events(rawdata=SAMPLE_LOGS)
         expected_data = SAMPLE_LOGS.splitlines()
+        self.assertEqual(
+            [mock.call("2016-08-30 21:53:25.972325+00:00")],
+            m_parse_from_date.call_args_list)
+        self.assertEqual(expected_data, data)
         year = datetime.now().year
         dt1 = datetime.strptime(
             'Nov 03 06:51:06.074410 %d' % year, '%b %d %H:%M:%S.%f %Y')
@@ -183,12 +159,14 @@ class TestDumpEvents(CiTestCase):
             'result': 'SUCCESS',
             'timestamp': 1472594005.972}]
         self.assertEqual(expected_events, events)
-        self.assertEqual(expected_data, data)
 
-    def test_dump_events_with_cisource(self):
+    @mock.patch("cloudinit.analyze.dump.parse_timestamp_from_date")
+    def test_dump_events_with_cisource(self, m_parse_from_date):
         """Cisource file is read and parsed into a tuple of events and data."""
         tmpfile = self.tmp_path('logfile')
         write_file(tmpfile, SAMPLE_LOGS)
+        m_parse_from_date.return_value = 1472594005.972
+
         events, data = dump_events(cisource=open(tmpfile))
         year = datetime.now().year
         dt1 = datetime.strptime(
@@ -208,3 +186,5 @@ class TestDumpEvents(CiTestCase):
             'timestamp': 1472594005.972}]
         self.assertEqual(expected_events, events)
         self.assertEqual(SAMPLE_LOGS.splitlines(), [d.strip() for d in data])
+        m_parse_from_date.assert_has_calls(
+            [mock.call("2016-08-30 21:53:25.972325+00:00")])

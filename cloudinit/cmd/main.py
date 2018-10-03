@@ -315,7 +315,7 @@ def main_init(name, args):
                 existing = "trust"
 
         init.purge_cache()
-        # Delete the non-net file as well
+        # Delete the no-net file as well
         util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
 
     # Stage 5
@@ -339,7 +339,7 @@ def main_init(name, args):
                               " Likely bad things to come!"))
         if not args.force:
             init.apply_network_config(bring_up=not args.local)
-            LOG.debug("[%s] Exiting without datasource in local mode", mode)
+            LOG.debug("[%s] Exiting without datasource", mode)
             if mode == sources.DSMODE_LOCAL:
                 return (None, [])
             else:
@@ -348,6 +348,7 @@ def main_init(name, args):
             LOG.debug("[%s] barreling on in force mode without datasource",
                       mode)
 
+    _maybe_persist_instance_data(init)
     # Stage 6
     iid = init.instancify()
     LOG.debug("[%s] %s will now be targeting instance id: %s. new=%s",
@@ -490,6 +491,7 @@ def main_modules(action_name, args):
         print_exc(msg)
         if not args.force:
             return [(msg)]
+    _maybe_persist_instance_data(init)
     # Stage 3
     mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
@@ -541,6 +543,7 @@ def main_single(name, args):
                    " likely bad things to come!"))
         if not args.force:
             return 1
+    _maybe_persist_instance_data(init)
     # Stage 3
     mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
@@ -688,6 +691,15 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     return len(v1[mode]['errors'])
 
 
+def _maybe_persist_instance_data(init):
+    """Write instance-data.json file if absent and datasource is restored."""
+    if init.ds_restored:
+        instance_data_file = os.path.join(
+            init.paths.run_dir, sources.INSTANCE_JSON_FILE)
+        if not os.path.exists(instance_data_file):
+            init.datasource.persist_instance_data()
+
+
 def _maybe_set_hostname(init, stage, retry_stage):
     """Call set-hostname if metadata, vendordata or userdata provides it.
 
@@ -779,6 +791,10 @@ def main(sysv_args=None):
                                      ' pass to this module'))
     parser_single.set_defaults(action=('single', main_single))
 
+    parser_query = subparsers.add_parser(
+        'query',
+        help='Query standardized instance metadata from the command line.')
+
     parser_dhclient = subparsers.add_parser('dhclient-hook',
                                             help=('run the dhclient hook'
                                                   'to record network info'))
@@ -830,6 +846,12 @@ def main(sysv_args=None):
             clean_parser(parser_clean)
             parser_clean.set_defaults(
                 action=('clean', handle_clean_args))
+        elif sysv_args[0] == 'query':
+            from cloudinit.cmd.query import (
+                get_parser as query_parser, handle_args as handle_query_args)
+            query_parser(parser_query)
+            parser_query.set_defaults(
+                action=('render', handle_query_args))
         elif sysv_args[0] == 'status':
             from cloudinit.cmd.status import (
                 get_parser as status_parser, handle_status_args)
@@ -877,14 +899,18 @@ def main(sysv_args=None):
         rname, rdesc, reporting_enabled=report_on)
 
     with args.reporter:
-        return util.log_time(
+        retval = util.log_time(
             logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
             get_uptime=True, func=functor, args=(name, args))
+        reporting.flush_events()
+        return retval
 
 
 if __name__ == '__main__':
     if 'TZ' not in os.environ:
         os.environ['TZ'] = ":/etc/localtime"
-    main(sys.argv)
+    return_value = main(sys.argv)
+    if return_value:
+        sys.exit(return_value)
 
 # vi: ts=4 expandtab

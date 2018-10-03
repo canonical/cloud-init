@@ -5,15 +5,15 @@
 import crypt
 import json
 import re
-import unittest
+import unittest2
 
 
 from cloudinit import util as c_util
 
-SkipTest = unittest.SkipTest
+SkipTest = unittest2.SkipTest
 
 
-class CloudTestCase(unittest.TestCase):
+class CloudTestCase(unittest2.TestCase):
     """Base test class for verifiers."""
 
     # data gets populated in get_suite.setUpClass
@@ -30,6 +30,11 @@ class CloudTestCase(unittest.TestCase):
 
     def is_distro(self, distro_name):
         return self.os_cfg['os'] == distro_name
+
+    @classmethod
+    def maybeSkipTest(cls):
+        """Present to allow subclasses to override and raise a skipTest."""
+        pass
 
     def assertPackageInstalled(self, name, version=None):
         """Check dpkg-query --show output for matching package name.
@@ -167,11 +172,12 @@ class CloudTestCase(unittest.TestCase):
                 'Skipping instance-data.json test.'
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
-        self.assertEqual(
-            ['ds/user-data'], instance_data['base64-encoded-keys'])
+        self.assertItemsEqual(
+            [],
+            instance_data['base64_encoded_keys'])
         ds = instance_data.get('ds', {})
         v1_data = instance_data.get('v1', {})
-        metadata = ds.get('meta-data', {})
+        metadata = ds.get('meta_data', {})
         macs = metadata.get(
             'network', {}).get('interfaces', {}).get('macs', {})
         if not macs:
@@ -187,10 +193,10 @@ class CloudTestCase(unittest.TestCase):
             metadata.get('placement', {}).get('availability-zone'),
             'Could not determine EC2 Availability zone placement')
         self.assertIsNotNone(
-            v1_data['availability-zone'], 'expected ec2 availability-zone')
-        self.assertEqual('aws', v1_data['cloud-name'])
-        self.assertIn('i-', v1_data['instance-id'])
-        self.assertIn('ip-', v1_data['local-hostname'])
+            v1_data['availability_zone'], 'expected ec2 availability_zone')
+        self.assertEqual('aws', v1_data['cloud_name'])
+        self.assertIn('i-', v1_data['instance_id'])
+        self.assertIn('ip-', v1_data['local_hostname'])
         self.assertIsNotNone(v1_data['region'], 'expected ec2 region')
 
     def test_instance_data_json_lxd(self):
@@ -213,16 +219,14 @@ class CloudTestCase(unittest.TestCase):
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
-        self.assertEqual(
-            ['ds/user-data', 'ds/vendor-data'],
-            sorted(instance_data['base64-encoded-keys']))
-        self.assertEqual('nocloud', v1_data['cloud-name'])
+        self.assertItemsEqual([], sorted(instance_data['base64_encoded_keys']))
+        self.assertEqual('nocloud', v1_data['cloud_name'])
         self.assertIsNone(
-            v1_data['availability-zone'],
-            'found unexpected lxd availability-zone %s' %
-            v1_data['availability-zone'])
-        self.assertIn('cloud-test', v1_data['instance-id'])
-        self.assertIn('cloud-test', v1_data['local-hostname'])
+            v1_data['availability_zone'],
+            'found unexpected lxd availability_zone %s' %
+            v1_data['availability_zone'])
+        self.assertIn('cloud-test', v1_data['instance_id'])
+        self.assertIn('cloud-test', v1_data['local_hostname'])
         self.assertIsNone(
             v1_data['region'],
             'found unexpected lxd region %s' % v1_data['region'])
@@ -248,18 +252,17 @@ class CloudTestCase(unittest.TestCase):
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
-        self.assertEqual(
-            ['ds/user-data'], instance_data['base64-encoded-keys'])
-        self.assertEqual('nocloud', v1_data['cloud-name'])
+        self.assertItemsEqual([], instance_data['base64_encoded_keys'])
+        self.assertEqual('nocloud', v1_data['cloud_name'])
         self.assertIsNone(
-            v1_data['availability-zone'],
-            'found unexpected kvm availability-zone %s' %
-            v1_data['availability-zone'])
+            v1_data['availability_zone'],
+            'found unexpected kvm availability_zone %s' %
+            v1_data['availability_zone'])
         self.assertIsNotNone(
             re.match(r'[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}',
-                     v1_data['instance-id']),
-            'kvm instance-id is not a UUID: %s' % v1_data['instance-id'])
-        self.assertIn('ubuntu', v1_data['local-hostname'])
+                     v1_data['instance_id']),
+            'kvm instance_id is not a UUID: %s' % v1_data['instance_id'])
+        self.assertIn('ubuntu', v1_data['local_hostname'])
         self.assertIsNone(
             v1_data['region'],
             'found unexpected lxd region %s' % v1_data['region'])

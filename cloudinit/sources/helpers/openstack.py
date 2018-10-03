@@ -21,6 +21,8 @@ from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
 
+from cloudinit.sources import BrokenMetadata
+
 # See https://docs.openstack.org/user-guide/cli-config-drive.html
 
 LOG = logging.getLogger(__name__)
@@ -36,21 +38,38 @@ KEY_COPIES = (
     ('local-hostname', 'hostname', False),
     ('instance-id', 'uuid', True),
 )
+
+# Versions and names taken from nova source nova/api/metadata/base.py
 OS_LATEST = 'latest'
 OS_FOLSOM = '2012-08-10'
 OS_GRIZZLY = '2013-04-04'
 OS_HAVANA = '2013-10-17'
 OS_LIBERTY = '2015-10-15'
+# NEWTON_ONE adds 'devices' to md (sriov-pf-passthrough-neutron-port-vlan)
+OS_NEWTON_ONE = '2016-06-30'
+# NEWTON_TWO adds vendor_data2.json (vendordata-reboot)
+OS_NEWTON_TWO = '2016-10-06'
+# OS_OCATA adds 'vif' field to devices (sriov-pf-passthrough-neutron-port-vlan)
+OS_OCATA = '2017-02-22'
+# OS_ROCKY adds a vf_trusted field to devices (sriov-trusted-vfs)
+OS_ROCKY = '2018-08-27'
+
+
 # keep this in chronological order. new supported versions go at the end.
 OS_VERSIONS = (
     OS_FOLSOM,
     OS_GRIZZLY,
     OS_HAVANA,
     OS_LIBERTY,
+    OS_NEWTON_ONE,
+    OS_NEWTON_TWO,
+    OS_OCATA,
+    OS_ROCKY,
 )
 
 PHYSICAL_TYPES = (
     None,
+    'bgpovs',  # not present in OpenStack upstream but used on OVH cloud.
     'bridge',
     'dvs',
     'ethernet',
@@ -65,10 +84,6 @@ PHYSICAL_TYPES = (
 
 
 class NonReadable(IOError):
-    pass
-
-
-class BrokenMetadata(IOError):
     pass
 
 
@@ -441,7 +456,7 @@ class MetadataReader(BaseReader):
             return self._versions
         found = []
         version_path = self._path_join(self.base_path, "openstack")
-        content = self._path_read(version_path)
+        content = self._path_read(version_path, decode=True)
         for line in content.splitlines():
             line = line.strip()
             if not line:
@@ -589,6 +604,8 @@ def convert_net_json(network_json=None, known_macs=None):
             cfg.update({'type': 'physical', 'mac_address': link_mac_addr})
         elif link['type'] in ['bond']:
             params = {}
+            if link_mac_addr:
+                params['mac_address'] = link_mac_addr
             for k, v in link.items():
                 if k == 'bond_links':
                     continue
@@ -657,6 +674,17 @@ def convert_net_json(network_json=None, known_macs=None):
                 cfg[key] = [fmt % link_id_info[l]['name'] for l in target]
             else:
                 cfg[key] = fmt % link_id_info[target]['name']
+
+    # Infiniband interfaces may be referenced in network_data.json by a 6 byte
+    # Ethernet MAC-style address, and we use that address to look up the
+    # interface name above. Now ensure that the hardware address is set to the
+    # full 20 byte address.
+    ib_known_hwaddrs = net.get_ib_hwaddrs_by_interface()
+    if ib_known_hwaddrs:
+        for cfg in config:
+            if cfg['name'] in ib_known_hwaddrs:
+                cfg['mac_address'] = ib_known_hwaddrs[cfg['name']]
+                cfg['type'] = 'infiniband'
 
     for service in services:
         cfg = service

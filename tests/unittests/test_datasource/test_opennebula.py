@@ -43,6 +43,7 @@ DS_PATH = "cloudinit.sources.DataSourceOpenNebula"
 
 class TestOpenNebulaDataSource(CiTestCase):
     parsed_user = None
+    allowed_subp = ['bash']
 
     def setUp(self):
         super(TestOpenNebulaDataSource, self).setUp()
@@ -354,6 +355,412 @@ class TestOpenNebulaNetwork(unittest.TestCase):
 
     system_nics = ('eth0', 'ens3')
 
+    def test_context_devname(self):
+        """Verify context_devname correctly returns mac and name."""
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH1_MAC': '02:00:0a:12:0f:0f', }
+        expected = {
+            '02:00:0a:12:01:01': 'ETH0',
+            '02:00:0a:12:0f:0f': 'ETH1', }
+        net = ds.OpenNebulaNetwork(context)
+        self.assertEqual(expected, net.context_devname)
+
+    def test_get_nameservers(self):
+        """
+        Verify get_nameservers('device') correctly returns DNS server addresses
+        and search domains.
+        """
+        context = {
+            'DNS': '1.2.3.8',
+            'ETH0_DNS': '1.2.3.6 1.2.3.7',
+            'ETH0_SEARCH_DOMAIN': 'example.com example.org', }
+        expected = {
+            'addresses': ['1.2.3.6', '1.2.3.7', '1.2.3.8'],
+            'search': ['example.com', 'example.org']}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_nameservers('eth0')
+        self.assertEqual(expected, val)
+
+    def test_get_mtu(self):
+        """Verify get_mtu('device') correctly returns MTU size."""
+        context = {'ETH0_MTU': '1280'}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_mtu('eth0')
+        self.assertEqual('1280', val)
+
+    def test_get_ip(self):
+        """Verify get_ip('device') correctly returns IPv4 address."""
+        context = {'ETH0_IP': PUBLIC_IP}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_ip('eth0', MACADDR)
+        self.assertEqual(PUBLIC_IP, val)
+
+    def test_get_ip_emptystring(self):
+        """
+        Verify get_ip('device') correctly returns IPv4 address.
+        It returns IP address created by MAC address if ETH0_IP has empty
+        string.
+        """
+        context = {'ETH0_IP': ''}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_ip('eth0', MACADDR)
+        self.assertEqual(IP_BY_MACADDR, val)
+
+    def test_get_ip6(self):
+        """
+        Verify get_ip6('device') correctly returns IPv6 address.
+        In this case, IPv6 address is Given by ETH0_IP6.
+        """
+        context = {
+            'ETH0_IP6': IP6_GLOBAL,
+            'ETH0_IP6_ULA': '', }
+        expected = [IP6_GLOBAL]
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_ip6('eth0')
+        self.assertEqual(expected, val)
+
+    def test_get_ip6_ula(self):
+        """
+        Verify get_ip6('device') correctly returns IPv6 address.
+        In this case, IPv6 address is Given by ETH0_IP6_ULA.
+        """
+        context = {
+            'ETH0_IP6': '',
+            'ETH0_IP6_ULA': IP6_ULA, }
+        expected = [IP6_ULA]
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_ip6('eth0')
+        self.assertEqual(expected, val)
+
+    def test_get_ip6_dual(self):
+        """
+        Verify get_ip6('device') correctly returns IPv6 address.
+        In this case, IPv6 addresses are Given by ETH0_IP6 and ETH0_IP6_ULA.
+        """
+        context = {
+            'ETH0_IP6': IP6_GLOBAL,
+            'ETH0_IP6_ULA': IP6_ULA, }
+        expected = [IP6_GLOBAL, IP6_ULA]
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_ip6('eth0')
+        self.assertEqual(expected, val)
+
+    def test_get_ip6_prefix(self):
+        """
+        Verify get_ip6_prefix('device') correctly returns IPv6 prefix.
+        """
+        context = {'ETH0_IP6_PREFIX_LENGTH': IP6_PREFIX}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_ip6_prefix('eth0')
+        self.assertEqual(IP6_PREFIX, val)
+
+    def test_get_ip6_prefix_emptystring(self):
+        """
+        Verify get_ip6_prefix('device') correctly returns IPv6 prefix.
+        It returns default value '64' if ETH0_IP6_PREFIX_LENGTH has empty
+        string.
+        """
+        context = {'ETH0_IP6_PREFIX_LENGTH': ''}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_ip6_prefix('eth0')
+        self.assertEqual('64', val)
+
+    def test_get_gateway(self):
+        """
+        Verify get_gateway('device') correctly returns IPv4 default gateway
+        address.
+        """
+        context = {'ETH0_GATEWAY': '1.2.3.5'}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_gateway('eth0')
+        self.assertEqual('1.2.3.5', val)
+
+    def test_get_gateway6(self):
+        """
+        Verify get_gateway6('device') correctly returns IPv6 default gateway
+        address.
+        """
+        context = {'ETH0_GATEWAY6': IP6_GW}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_gateway6('eth0')
+        self.assertEqual(IP6_GW, val)
+
+    def test_get_mask(self):
+        """
+        Verify get_mask('device') correctly returns IPv4 subnet mask.
+        """
+        context = {'ETH0_MASK': '255.255.0.0'}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_mask('eth0')
+        self.assertEqual('255.255.0.0', val)
+
+    def test_get_mask_emptystring(self):
+        """
+        Verify get_mask('device') correctly returns IPv4 subnet mask.
+        It returns default value '255.255.255.0' if ETH0_MASK has empty string.
+        """
+        context = {'ETH0_MASK': ''}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_mask('eth0')
+        self.assertEqual('255.255.255.0', val)
+
+    def test_get_network(self):
+        """
+        Verify get_network('device') correctly returns IPv4 network address.
+        """
+        context = {'ETH0_NETWORK': '1.2.3.0'}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_network('eth0', MACADDR)
+        self.assertEqual('1.2.3.0', val)
+
+    def test_get_network_emptystring(self):
+        """
+        Verify get_network('device') correctly returns IPv4 network address.
+        It returns network address created by MAC address if ETH0_NETWORK has
+        empty string.
+        """
+        context = {'ETH0_NETWORK': ''}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_network('eth0', MACADDR)
+        self.assertEqual('10.18.1.0', val)
+
+    def test_get_field(self):
+        """
+        Verify get_field('device', 'name') returns *context* value.
+        """
+        context = {'ETH9_DUMMY': 'DUMMY_VALUE'}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_field('eth9', 'dummy')
+        self.assertEqual('DUMMY_VALUE', val)
+
+    def test_get_field_withdefaultvalue(self):
+        """
+        Verify get_field('device', 'name', 'default value') returns *context*
+        value.
+        """
+        context = {'ETH9_DUMMY': 'DUMMY_VALUE'}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_field('eth9', 'dummy', 'DEFAULT_VALUE')
+        self.assertEqual('DUMMY_VALUE', val)
+
+    def test_get_field_withdefaultvalue_emptycontext(self):
+        """
+        Verify get_field('device', 'name', 'default value') returns *default*
+        value if context value is empty string.
+        """
+        context = {'ETH9_DUMMY': ''}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_field('eth9', 'dummy', 'DEFAULT_VALUE')
+        self.assertEqual('DEFAULT_VALUE', val)
+
+    def test_get_field_emptycontext(self):
+        """
+        Verify get_field('device', 'name') returns None if context value is
+        empty string.
+        """
+        context = {'ETH9_DUMMY': ''}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_field('eth9', 'dummy')
+        self.assertEqual(None, val)
+
+    def test_get_field_nonecontext(self):
+        """
+        Verify get_field('device', 'name') returns None if context value is
+        None.
+        """
+        context = {'ETH9_DUMMY': None}
+        net = ds.OpenNebulaNetwork(context)
+        val = net.get_field('eth9', 'dummy')
+        self.assertEqual(None, val)
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_gateway(self, m_get_phys_by_mac):
+        """Test rendering with/without IPv4 gateway"""
+        self.maxDiff = None
+        # empty ETH0_GATEWAY
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_GATEWAY': '', }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
+        # set ETH0_GATEWAY
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_GATEWAY': '1.2.3.5', }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'gateway4': '1.2.3.5',
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_gateway6(self, m_get_phys_by_mac):
+        """Test rendering with/without IPv6 gateway"""
+        self.maxDiff = None
+        # empty ETH0_GATEWAY6
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_GATEWAY6': '', }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
+        # set ETH0_GATEWAY6
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_GATEWAY6': IP6_GW, }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'gateway6': IP6_GW,
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_ipv6address(self, m_get_phys_by_mac):
+        """Test rendering with/without IPv6 address"""
+        self.maxDiff = None
+        # empty ETH0_IP6, ETH0_IP6_ULA, ETH0_IP6_PREFIX_LENGTH
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_IP6': '',
+            'ETH0_IP6_ULA': '',
+            'ETH0_IP6_PREFIX_LENGTH': '', }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
+        # set ETH0_IP6, ETH0_IP6_ULA, ETH0_IP6_PREFIX_LENGTH
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_IP6': IP6_GLOBAL,
+            'ETH0_IP6_PREFIX_LENGTH': IP6_PREFIX,
+            'ETH0_IP6_ULA': IP6_ULA, }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [
+                            IP_BY_MACADDR + '/' + IP4_PREFIX,
+                            IP6_GLOBAL + '/' + IP6_PREFIX,
+                            IP6_ULA + '/' + IP6_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_dns(self, m_get_phys_by_mac):
+        """Test rendering with/without DNS server, search domain"""
+        self.maxDiff = None
+        # empty DNS, ETH0_DNS, ETH0_SEARCH_DOMAIN
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'DNS': '',
+            'ETH0_DNS': '',
+            'ETH0_SEARCH_DOMAIN': '', }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
+        # set DNS, ETH0_DNS, ETH0_SEARCH_DOMAIN
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'DNS': '1.2.3.8',
+            'ETH0_DNS': '1.2.3.6 1.2.3.7',
+            'ETH0_SEARCH_DOMAIN': 'example.com example.org', }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'nameservers': {
+                            'addresses': ['1.2.3.6', '1.2.3.7', '1.2.3.8'],
+                            'search': ['example.com', 'example.org']},
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_gen_conf_mtu(self, m_get_phys_by_mac):
+        """Test rendering with/without MTU"""
+        self.maxDiff = None
+        # empty ETH0_MTU
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_MTU': '', }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
+        # set ETH0_MTU
+        context = {
+            'ETH0_MAC': '02:00:0a:12:01:01',
+            'ETH0_MTU': '1280', }
+        for nic in self.system_nics:
+            expected = {
+                'version': 2,
+                'ethernets': {
+                    nic: {
+                        'mtu': '1280',
+                        'match': {'macaddress': MACADDR},
+                        'addresses': [IP_BY_MACADDR + '/' + IP4_PREFIX]}}}
+            m_get_phys_by_mac.return_value = {MACADDR: nic}
+            net = ds.OpenNebulaNetwork(context)
+            self.assertEqual(net.gen_conf(), expected)
+
     @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
     def test_eth0(self, m_get_phys_by_mac):
         for nic in self.system_nics:
@@ -395,7 +802,6 @@ class TestOpenNebulaNetwork(unittest.TestCase):
                         'match': {'macaddress': MACADDR},
                         'addresses': [IP_BY_MACADDR + '/16'],
                         'gateway4': '1.2.3.5',
-                        'gateway6': None,
                         'nameservers': {
                             'addresses': ['1.2.3.6', '1.2.3.7', '1.2.3.8']}}}}
 
@@ -494,7 +900,6 @@ class TestOpenNebulaNetwork(unittest.TestCase):
                     'match': {'macaddress': MAC_1},
                     'addresses': ['10.3.1.3/16'],
                     'gateway4': '10.3.0.1',
-                    'gateway6': None,
                     'nameservers': {
                         'addresses': ['10.3.1.2', '1.2.3.8'],
                         'search': [

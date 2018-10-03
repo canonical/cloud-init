@@ -247,8 +247,15 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
                 ifaces[currif]['bridge']['ports'] = []
                 for iface in split[1:]:
                     ifaces[currif]['bridge']['ports'].append(iface)
-            elif option == "bridge_hw" and split[1].lower() == "mac":
-                ifaces[currif]['bridge']['mac'] = split[2]
+            elif option == "bridge_hw":
+                # doc is confusing and thus some may put literal 'MAC'
+                #    bridge_hw MAC <address>
+                # but correct is:
+                #    bridge_hw <address>
+                if split[1].lower() == "mac":
+                    ifaces[currif]['bridge']['mac'] = split[2]
+                else:
+                    ifaces[currif]['bridge']['mac'] = split[1]
             elif option == "bridge_pathcost":
                 if 'pathcost' not in ifaces[currif]['bridge']:
                     ifaces[currif]['bridge']['pathcost'] = {}
@@ -473,7 +480,7 @@ class Renderer(renderer.Renderer):
 
         return '\n\n'.join(['\n'.join(s) for s in sections]) + "\n"
 
-    def render_network_state(self, network_state, target=None):
+    def render_network_state(self, network_state, templates=None, target=None):
         fpeni = util.target_path(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
         header = self.eni_header if self.eni_header else ""

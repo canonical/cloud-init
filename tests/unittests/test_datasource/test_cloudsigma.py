@@ -42,6 +42,9 @@ class CepkoMock(Cepko):
 class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
     def setUp(self):
         super(DataSourceCloudSigmaTest, self).setUp()
+        self.add_patch(
+            "cloudinit.sources.DataSourceCloudSigma.util.is_container",
+            "m_is_container", return_value=False)
         self.paths = helpers.Paths({'run_dir': self.tmp_dir()})
         self.datasource = DataSourceCloudSigma.DataSourceCloudSigma(
             "", "", paths=self.paths)

@@ -29,7 +29,9 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
-
+from cloudinit import net
+from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from cloudinit.event import EventType
 
 LOG = logging.getLogger(__name__)
 
@@ -168,8 +170,8 @@ def query_data_api(api_type, api_address, retries, timeout):
 
 
 class DataSourceScaleway(sources.DataSource):
-
     dsname = "Scaleway"
+    update_events = {'network': [EventType.BOOT_NEW_INSTANCE, EventType.BOOT]}
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceScaleway, self).__init__(sys_cfg, distro, paths)
@@ -185,11 +187,10 @@ class DataSourceScaleway(sources.DataSource):
 
         self.retries = int(self.ds_cfg.get('retries', DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get('timeout', DEF_MD_TIMEOUT))
+        self._fallback_interface = None
+        self._network_config = None
 
-    def _get_data(self):
-        if not on_scaleway():
-            return False
-
+    def _crawl_metadata(self):
         resp = url_helper.readurl(self.metadata_address,
                                   timeout=self.timeout,
                                   retries=self.retries)
@@ -203,7 +204,46 @@ class DataSourceScaleway(sources.DataSource):
             'vendor-data', self.vendordata_address,
             self.retries, self.timeout
         )
+
+    def _get_data(self):
+        if not on_scaleway():
+            return False
+
+        if self._fallback_interface is None:
+            self._fallback_interface = net.find_fallback_nic()
+        try:
+            with EphemeralDHCPv4(self._fallback_interface):
+                util.log_time(
+                    logfunc=LOG.debug, msg='Crawl of metadata service',
+                    func=self._crawl_metadata)
+        except (NoDHCPLeaseError) as e:
+            util.logexc(LOG, str(e))
+            return False
         return True
+
+    @property
+    def network_config(self):
+        """
+        Configure networking according to data received from the
+        metadata API.
+        """
+        if self._network_config:
+            return self._network_config
+
+        if self._fallback_interface is None:
+            self._fallback_interface = net.find_fallback_nic()
+
+        netcfg = {'type': 'physical', 'name': '%s' % self._fallback_interface}
+        subnets = [{'type': 'dhcp4'}]
+        if self.metadata['ipv6']:
+            subnets += [{'type': 'static',
+                         'address': '%s' % self.metadata['ipv6']['address'],
+                         'gateway': '%s' % self.metadata['ipv6']['gateway'],
+                         'netmask': '%s' % self.metadata['ipv6']['netmask'],
+                         }]
+        netcfg['subnets'] = subnets
+        self._network_config = {'version': 1, 'config': [netcfg]}
+        return self._network_config
 
     @property
     def launch_index(self):
@@ -228,7 +268,7 @@ class DataSourceScaleway(sources.DataSource):
 
 
 datasources = [
-    (DataSourceScaleway, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceScaleway, (sources.DEP_FILESYSTEM,)),
 ]
 
 

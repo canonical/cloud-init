@@ -569,6 +569,20 @@ def get_interface_mac(ifname):
     return read_sys_net_safe(ifname, path)
 
 
+def get_ib_interface_hwaddr(ifname, ethernet_format):
+    """Returns the string value of an Infiniband interface's hardware
+    address. If ethernet_format is True, an Ethernet MAC-style 6 byte
+    representation of the address will be returned.
+    """
+    # Type 32 is Infiniband.
+    if read_sys_net_safe(ifname, 'type') == '32':
+        mac = get_interface_mac(ifname)
+        if mac and ethernet_format:
+            # Use bytes 13-15 and 18-20 of the hardware address.
+            mac = mac[36:-14] + mac[51:]
+        return mac
+
+
 def get_interfaces_by_mac():
     """Build a dictionary of tuples {mac: name}.
 
@@ -580,6 +594,15 @@ def get_interfaces_by_mac():
                 "duplicate mac found! both '%s' and '%s' have mac '%s'" %
                 (name, ret[mac], mac))
         ret[mac] = name
+        # Try to get an Infiniband hardware address (in 6 byte Ethernet format)
+        # for the interface.
+        ib_mac = get_ib_interface_hwaddr(name, True)
+        if ib_mac:
+            if ib_mac in ret:
+                raise RuntimeError(
+                    "duplicate mac found! both '%s' and '%s' have mac '%s'" %
+                    (name, ret[ib_mac], ib_mac))
+            ret[ib_mac] = name
     return ret
 
 
@@ -604,6 +627,21 @@ def get_interfaces():
         if mac == empty_mac and name != 'lo':
             continue
         ret.append((name, mac, device_driver(name), device_devid(name)))
+    return ret
+
+
+def get_ib_hwaddrs_by_interface():
+    """Build a dictionary mapping Infiniband interface names to their hardware
+    address."""
+    ret = {}
+    for name, _, _, _ in get_interfaces():
+        ib_mac = get_ib_interface_hwaddr(name, False)
+        if ib_mac:
+            if ib_mac in ret:
+                raise RuntimeError(
+                    "duplicate mac found! both '%s' and '%s' have mac '%s'" %
+                    (name, ret[ib_mac], ib_mac))
+            ret[name] = ib_mac
     return ret
 
 
@@ -697,6 +735,13 @@ class EphemeralIPv4Network(object):
                 'Skip ephemeral route setup. %s already has default route: %s',
                 self.interface, out.strip())
             return
+        util.subp(
+            ['ip', '-4', 'route', 'add', self.router, 'dev', self.interface,
+             'src', self.ip], capture=True)
+        self.cleanup_cmds.insert(
+            0,
+            ['ip', '-4', 'route', 'del', self.router, 'dev', self.interface,
+             'src', self.ip])
         util.subp(
             ['ip', '-4', 'route', 'add', 'default', 'via', self.router,
              'dev', self.interface], capture=True)

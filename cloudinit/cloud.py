@@ -47,7 +47,7 @@ class Cloud(object):
 
     @property
     def cfg(self):
-        # Ensure that not indirectly modified
+        # Ensure that cfg is not indirectly modified
         return copy.deepcopy(self._cfg)
 
     def run(self, name, functor, args, freq=None, clear_on_fail=False):
@@ -61,7 +61,7 @@ class Cloud(object):
             return None
         return fn
 
-    # The rest of thes are just useful proxies
+    # The rest of these are just useful proxies
     def get_userdata(self, apply_filter=True):
         return self.datasource.get_userdata(apply_filter)
 

@@ -38,12 +38,13 @@ CFG_BUILTIN = {
         'Scaleway',
         'Hetzner',
         'IBMCloud',
+        'Oracle',
         # At the end to act as a 'catch' when none of the above work...
         'None',
     ],
     'def_log_file': '/var/log/cloud-init.log',
     'log_cfgs': [],
-    'syslog_fix_perms': ['syslog:adm', 'root:adm', 'root:wheel'],
+    'syslog_fix_perms': ['syslog:adm', 'root:adm', 'root:wheel', 'root:root'],
     'system_info': {
         'paths': {
             'cloud_dir': '/var/lib/cloud',

@@ -97,7 +97,8 @@ class Instance(TargetBase):
             return self._ssh_client
 
         if not self.ssh_ip or not self.ssh_port:
-            raise ValueError
+            raise ValueError("Cannot ssh_connect, ssh_ip=%s ssh_port=%s" %
+                             (self.ssh_ip, self.ssh_port))
 
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

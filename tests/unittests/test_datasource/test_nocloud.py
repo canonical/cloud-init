@@ -25,6 +25,8 @@ class TestNoCloudDataSource(CiTestCase):
 
         self.mocks.enter_context(
             mock.patch.object(util, 'get_cmdline', return_value=self.cmdline))
+        self.mocks.enter_context(
+            mock.patch.object(util, 'read_dmi_data', return_value=None))
 
     def test_nocloud_seed_dir(self):
         md = {'instance-id': 'IID', 'dsmode': 'local'}
