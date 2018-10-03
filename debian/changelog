@@ -1,4 +1,4 @@
-cloud-init (18.3-9-g2e62cb8a-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
+cloud-init (18.4-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * drop the following cherry-picks now included:
     + cpick-3cee0bf8-oracle-fix-detect_openstack-to-report-True-on
@@ -7,8 +7,69 @@ cloud-init (18.3-9-g2e62cb8a-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
    + debian/patches/openstack-no-network-config.patch
   * refresh patches:
    + debian/patches/ds-identify-behavior-xenial.patch
+  * New upstream release. (LP: #1795953)
+    - release 18.4
+    - tests: allow skipping an entire cloud_test without running.
+    - tests: disable lxd tests on cosmic
+    - cii-tests: use unittest2.SkipTest in ntp_chrony due to new deps
+    - lxd: adjust to snap installed lxd.
+    - docs: surface experimental doc in instance-data.json
+    - tests: fix ec2 integration tests. process meta_data instead of meta-data
+    - Add support for Infiniband network interfaces (IPoIB). [Mark Goddard]
+    - cli: add cloud-init query subcommand to query instance metadata
+    - tools/tox-venv: update for new features.
+    - pylint: ignore warning assignment-from-no-return for _write_network
+    - stages: Fix bug causing datasource to have incorrect sys_cfg.
+    - Remove dead-code _write_network distro implementations.
+    - net_util: ensure static configs have netmask in translate_network result
+      [Thomas Berger]
+    - Fall back to root:root on syslog permissions if other options fail.
+      [Robert Schweikert]
+    - tests: Add mock for util.get_hostname. [Robert Schweikert]
+    - ds-identify: doc string cleanup.
+    - OpenStack: Support setting mac address on bond. [Fabian Wiesel]
+    - bash_completion/cloud-init: fix shell syntax error.
+    - EphemeralIPv4Network: Be more explicit when adding default route.
+    - OpenStack: support reading of newer versions of metdata.
+    - OpenStack: fix bug causing 'latest' version to be used from network.
+    - user-data: jinja template to render instance-data.json in cloud-config
+    - config: disable ssh access to a configured user account
+    - tests: print failed testname instead of docstring upon failure
+    - tests: Disallow use of util.subp except for where needed.
+    - sysconfig: refactor sysconfig to accept distro specific templates paths
+    - Add unit tests for config/cc_ssh.py [Francis Ginther]
+    - Fix the built-in cloudinit/tests/helpers:skipIf
+    - read-version: enhance error message [Joshua Powers]
+    - hyperv_reporting_handler: simplify threaded publisher
+    - VMWare: Fix a network config bug in vm with static IPv4 and no gateway.
+      [Pengpeng Sun]
+    - logging: Add logging config type hyperv for reporting via Azure KVP
+      [Andy Liu]
+    - tests: disable other snap test as well [Joshua Powers]
+    - tests: disable snap, fix write_files binary [Joshua Powers]
+    - Add datasource Oracle Compute Infrastructure (OCI).
+    - azure: allow azure to generate network configuration from IMDS per boot.
+    - Scaleway: Add network configuration to the DataSource [Louis Bouchard]
+    - docs: Fix example cloud-init analyze command to match output.
+      [Wesley Gao]
+    - netplan: Correctly render macaddress on a bonds and bridges when
+      provided.
+    - tools: Add 'net-convert' subcommand command to 'cloud-init devel'.
+    - redhat: remove ssh keys on new instance.
+    - Use typeset or local in profile.d scripts.
+    - OpenNebula: Fix null gateway6 [Akihiko Ota]
+    - oracle: fix detect_openstack to report True on OracleCloud.com DMI data
+    - tests: improve LXDInstance trying to workaround or catch bug.
+    - update_metadata re-config on every boot comments and tests not quite
+      right [Mike Gerdts]
+    - tests: Collect build_info from system if available.
+    - pylint: Fix pylint warnings reported in pylint 2.0.0.
+    - get_linux_distro: add support for rhel via redhat-release.
+    - get_linux_distro: add support for centos6 and rawhide flavors of redhat
+    - tools: add '--debug' to tools/net-convert.py
+    - tests: bump the version of paramiko to 2.4.1.
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 03 Oct 2018 12:10:24 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 03 Oct 2018 12:10:25 -0600
 
 cloud-init (18.3-9-g2e62cb8a-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
