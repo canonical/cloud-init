@@ -7,6 +7,7 @@
 import time
 
 from cloudinit import log as logging
+from cloudinit.event import EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from cloudinit.net import is_up
 from cloudinit import sources
@@ -95,7 +96,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
     @property
     def update_events(self):
-        events = {'network': set(['boot-new-instance', 'boot', 'udev']),
+        events = {'network': set([EventType.BOOT_NEW_INSTANCE,
+                                  EventType.BOOT,
+                                  EventType.UDEV]),
                   'storage': set([])}
         LOG.debug('OpenStack update events: %s', events)
         return events

@@ -64,6 +64,6 @@ def get_update_events_config(update_events):
     for scope, events in update_events.items():
         evt_cfg[scope] = {'when': [EventNameMap[evt] for evt in events]}
 
-    return {'updates': evt_cfg}
+    return evt_cfg
 
 # vi: ts=4 expandtab
