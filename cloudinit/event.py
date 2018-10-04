@@ -15,7 +15,7 @@ LOG = logging.getLogger(__name__)
 class EventType(object):
     BOOT = "System boot"
     BOOT_NEW_INSTANCE = "New instance first boot"
-    UDEV = "Udev add|change event on net|storage"
+    HOTPLUG = "Hotplug add event"
 
     # TODO: Cloud-init will grow support for the follow event types:
     # METADATA_CHANGE
@@ -25,7 +25,7 @@ class EventType(object):
 EventTypeMap = {
     'boot': EventType.BOOT,
     'boot-new-instance': EventType.BOOT_NEW_INSTANCE,
-    'udev': EventType.UDEV,
+    'hotplug': EventType.HOTPLUG,
 }
 
 
@@ -40,9 +40,9 @@ def get_allowed_events(sys_events, ds_events):
     # updates:
     #   policy-version: 1
     #   network:
-    #     when: [boot-new-instance, boot, udev]
+    #     when: [boot-new-instance, boot, hotplug]
     #   storage:
-    #     when: [boot-new-instance, udev]
+    #     when: [boot-new-instance, hotplug]
     #     watch: http://169.254.169.254/metadata/storage_config/
 
     LOG.debug('updates: system   cfg: %s', sys_events)

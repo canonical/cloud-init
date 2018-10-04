@@ -98,7 +98,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
     def update_events(self):
         events = {'network': set([EventType.BOOT_NEW_INSTANCE,
                                   EventType.BOOT,
-                                  EventType.UDEV]),
+                                  EventType.HOTPLUG]),
                   'storage': set([])}
         LOG.debug('OpenStack update events: %s', events)
         return events
