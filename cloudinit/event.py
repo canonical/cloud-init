@@ -30,8 +30,8 @@ EventNameMap = {v: k for k, v in EventTypeMap.items()}
 
 
 def get_allowed_events(sys_events, ds_events):
-    '''Merge system config, datasource capabilties, and user config
-       to determine which update events are allowed.'''
+    '''Merge datasource capabilties with system config to determine which
+       update events are allowed.'''
 
     # updates:
     #   policy-version: 1
@@ -41,10 +41,10 @@ def get_allowed_events(sys_events, ds_events):
     #     when: [boot-new-instance, udev]
     #     watch: http://169.254.169.254/metadata/storage_config/
 
-    LOG.debug('updates: system  cfg: %s', sys_events)
-    LOG.debug('updates: datasrc cfg: %s', ds_events)
+    LOG.debug('updates: system   cfg: %s', sys_events)
+    LOG.debug('updates: datasrc caps: %s', ds_events)
 
-    updates = util.mergemanydict([ds_events, sys_events])
+    updates = util.mergemanydict([sys_events, ds_events])
     LOG.debug('updates: merged  cfg: %s', updates)
 
     events = {}
