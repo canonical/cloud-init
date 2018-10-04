@@ -344,4 +344,22 @@ class TestInit(CiTestCase):
         self.init.distro.apply_network_config.assert_called_with(
             net_cfg, bring_up=True)
 
+    def test_update_events_allowed_true_on_supported_event(self):
+        """Update Event Allowed True if source_event supported"""
+        self.assertTrue(
+            self.init.update_event_allowed(EventType.BOOT_NEW_INSTANCE,
+                                           scope='network'))
+
+    def test_update_events_allowed_false_on_unsupported_event(self):
+        """Update Event Allowed False if source_event supported"""
+        self.assertFalse(
+            self.init.update_event_allowed(EventType.BOOT,
+                                           scope='network'))
+
+    def test_update_events_allowed_false_on_unknown_scope(self):
+        """Update Event Allowed False if source_event supported"""
+        self.assertFalse(
+            self.init.update_event_allowed(EventType.BOOT, scope='xkcd'))
+
+
 # vi: ts=4 expandtab

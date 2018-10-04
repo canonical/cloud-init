@@ -686,7 +686,7 @@ class Init(object):
         LOG.debug('Possible scopes for this event: %s', scopes)
 
         for evt_scope in scopes:
-            if event_source_type in allowed[evt_scope]:
+            if event_source_type in allowed.get(evt_scope, []):
                 LOG.debug('Event Allowed: scope=%s EventType=%s',
                           evt_scope, event_source_type)
                 return True

@@ -21,11 +21,13 @@ class EventType(object):
     # METADATA_CHANGE
     # USER_REQUEST
 
+
 EventTypeMap = {
     'boot': EventType.BOOT,
     'boot-new-instance': EventType.BOOT_NEW_INSTANCE,
     'udev': EventType.UDEV,
 }
+
 
 # inverted mapping
 EventNameMap = {v: k for k, v in EventTypeMap.items()}
@@ -51,7 +53,8 @@ def get_allowed_events(sys_events, ds_events):
     LOG.debug('updates: merged  cfg: %s', updates)
 
     events = {}
-    for etype in ['network', 'storage']:
+    for etype in [scope for scope, val in sys_events.items()
+                  if type(val) == dict and 'when' in val]:
         events[etype] = (
             set([EventTypeMap.get(evt)
                  for evt in updates.get(etype, {}).get('when', [])

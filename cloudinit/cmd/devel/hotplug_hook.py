@@ -1,9 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Handle reconfiguration on hotplug events"""
+import abc
 import argparse
 import os
+import six
 import sys
+import time
 
 from cloudinit.event import EventType
 from cloudinit import log
@@ -52,7 +55,6 @@ def log_console(msg):
 
 def devpath_to_macaddr(devpath):
     macaddr = read_sys_net_safe(os.path.basename(devpath), 'address')
-    log_console('Checking if %s in netconfig' % macaddr)
     return macaddr
 
 
@@ -65,21 +67,25 @@ def in_netconfig(unique_id, netconfig):
     return len(found) > 0
 
 
+@six.add_metaclass(abc.ABCMeta)
 class UeventHandler(object):
     def __init__(self, ds, devpath, success_fn):
         self.datasource = ds
         self.devpath = devpath
         self.success_fn = success_fn
 
+    @abc.abstractmethod
     def apply(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
+    @abc.abstractmethod
     def config(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
+    @abc.abstractmethod
     def detect(self, action):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def success(self):
         return self.success_fn()
@@ -147,7 +153,7 @@ def handle_args(name, args):
         log_console('Fetching datasource')
         try:
             ds = hotplug_init.fetch(existing="trust")
-        except sources.DatasourceNotFoundException:
+        except sources.DataSourceNotFoundException:
             log_console('No Ds found')
             return 1
 
@@ -166,7 +172,10 @@ def handle_args(name, args):
                                                                len(retries)))
             try:
                 log_console('Refreshing metadata')
-                event_handler.update()
+                result = event_handler.update()
+                if not result:
+                    raise RuntimeError('Updating metadata failed')
+
                 if event_handler.detect(action=args.udevaction):
                     log_console('Detected update, apply config change')
                     event_handler.apply()
@@ -181,14 +190,13 @@ def handle_args(name, args):
                 if attempt + 1 >= len(retries):
                     raise
                 log_console('exception while processing hotplug event. %s' % e)
+                time.sleep(wait)
 
         log_console('exiting handler')
         reporting.flush_events()
 
 
 if __name__ == '__main__':
-    if 'TZ' not in os.environ:
-        os.environ['TZ'] = ":/etc/localtime"
     args = get_parser().parse_args()
     handle_args(NAME, args)
 
