@@ -91,7 +91,12 @@ class UeventHandler(object):
         return self.success_fn()
 
     def update(self):
-        self.datasource.update_metadata([EventType.UDEV])
+        result = self.datasource.update_metadata([EventType.UDEV])
+        if not result:
+            log_console(
+                'Datasource %s not updated for event %s' % (self.datasource,
+                                                            EventType.UDEV))
+        return result
 
 
 class NetHandler(UeventHandler):
@@ -159,7 +164,8 @@ def handle_args(name, args):
 
         subevent = SUBSYSTEM_TO_EVENT.get(args.subsystem)
         if hotplug_init.update_event_allowed(EventType.UDEV, scope=subevent):
-            log_console('cloud-init not configured to handle udev events')
+            log_console('cloud-init not configured to handle hotplug event'
+                        ' of type %s' % subevent)
             return
 
         log_console('Creating %s event handler' % args.subsystem)
@@ -174,7 +180,8 @@ def handle_args(name, args):
                 log_console('Refreshing metadata')
                 result = event_handler.update()
                 if not result:
-                    raise RuntimeError('Updating metadata failed')
+                    raise RuntimeError(
+                        'Event handler %s update failed' % event_handler_cls)
 
                 if event_handler.detect(action=args.udevaction):
                     log_console('Detected update, apply config change')
@@ -183,16 +190,16 @@ def handle_args(name, args):
                     event_handler.success()
                     break
                 else:
-                    raise Exception(
-                            "Failed to detect device change in metadata")
+                    raise RuntimeError('Failed to detect %s in updated '
+                                       'metadata' % event_handler.id)
 
             except Exception as e:
                 if attempt + 1 >= len(retries):
                     raise
-                log_console('exception while processing hotplug event. %s' % e)
+                log_console('Exception while processing hotplug event. %s' % e)
                 time.sleep(wait)
 
-        log_console('exiting handler')
+        log_console('Exiting hotplug handler')
         reporting.flush_events()
 
 
