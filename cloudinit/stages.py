@@ -673,7 +673,10 @@ class Init(object):
         ds_config = get_update_events_config(self.datasource.update_events)
         LOG.debug('Datasource updates cfg: %s', ds_config)
 
-        allowed = get_allowed_events(self.cfg.get('updates', {}), ds_config)
+        sys_config = self.cfg.get('updates', {})
+        LOG.debug('System updates cfg: %s', sys_config)
+
+        allowed = get_allowed_events(sys_config, ds_config)
         LOG.debug('Allowable update events: %s', allowed)
 
         if not scope:

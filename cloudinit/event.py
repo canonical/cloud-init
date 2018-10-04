@@ -2,6 +2,8 @@
 
 """Classes and functions related to event handling."""
 
+import copy
+
 from cloudinit import log as logging
 from cloudinit import util
 
@@ -44,7 +46,8 @@ def get_allowed_events(sys_events, ds_events):
     LOG.debug('updates: system   cfg: %s', sys_events)
     LOG.debug('updates: datasrc caps: %s', ds_events)
 
-    updates = util.mergemanydict([sys_events, ds_events])
+    updates = util.mergemanydict([copy.deepcopy(sys_events),
+                                  copy.deepcopy(ds_events)])
     LOG.debug('updates: merged  cfg: %s', updates)
 
     events = {}
