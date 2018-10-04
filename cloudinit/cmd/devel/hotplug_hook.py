@@ -162,8 +162,8 @@ def handle_args(name, args):
             return 1
 
         subevent = SUBSYSTEM_TO_EVENT.get(args.subsystem)
-        if hotplug_init.update_event_allowed(EventType.HOTPLUG,
-                                             scope=subevent):
+        if not hotplug_init.update_event_allowed(EventType.HOTPLUG,
+                                                 scope=subevent):
             log_console('cloud-init not configured to handle hotplug event'
                         ' of type %s' % subevent)
             return
