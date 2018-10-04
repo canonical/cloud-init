@@ -5,7 +5,7 @@
 # cloud-init has finished; if so invoke cloud-init hotplug-hook
 
 is_finished() {
-    [ -e /run/cloud-init/result.json ] || return 1
+    [ -e /run/cloud-init/result.json ]
 }
 
 if is_finished; then
