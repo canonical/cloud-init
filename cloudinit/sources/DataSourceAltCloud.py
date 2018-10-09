@@ -89,7 +89,9 @@ class DataSourceAltCloud(sources.DataSource):
         '''
         Description:
             Get the type for the cloud back end this instance is running on
-            by examining the string returned by reading the dmi data.
+            by examining the string returned by reading either:
+                CLOUD_INFO_FILE or
+                the dmi data.
 
         Input:
             None
@@ -99,7 +101,14 @@ class DataSourceAltCloud(sources.DataSource):
             'RHEV', 'VSPHERE' or 'UNKNOWN'
 
         '''
-
+        if os.path.exists(CLOUD_INFO_FILE):
+            try:
+                cloud_type = util.load_file(CLOUD_INFO_FILE).strip().upper()
+            except IOError:
+                util.logexc(LOG, 'Unable to access cloud info file at %s.',
+                            CLOUD_INFO_FILE)
+                return 'UNKNOWN'
+            return cloud_type
         system_name = util.read_dmi_data("system-product-name")
         if not system_name:
             return 'UNKNOWN'
@@ -134,15 +143,7 @@ class DataSourceAltCloud(sources.DataSource):
 
         LOG.debug('Invoked get_data()')
 
-        if os.path.exists(CLOUD_INFO_FILE):
-            try:
-                cloud_type = util.load_file(CLOUD_INFO_FILE).strip().upper()
-            except IOError:
-                util.logexc(LOG, 'Unable to access cloud info file at %s.',
-                            CLOUD_INFO_FILE)
-                return False
-        else:
-            cloud_type = self.get_cloud_type()
+        cloud_type = self.get_cloud_type()
 
         LOG.debug('cloud_type: %s', str(cloud_type))
 
@@ -160,6 +161,15 @@ class DataSourceAltCloud(sources.DataSource):
         # No user data found
         util.logexc(LOG, 'Failed accessing user data.')
         return False
+
+    def _get_subplatform(self):
+        """Return the subplatform metadata details."""
+        cloud_type = self.get_cloud_type()
+        if not hasattr(self, 'source'):
+            self.source = sources.METADATA_UNKNOWN
+        if cloud_type == 'RHEV':
+            self.source = '/dev/fd0'
+        return '%s (%s)' % (cloud_type.lower(), self.source)
 
     def user_data_rhevm(self):
         '''
@@ -232,6 +242,7 @@ class DataSourceAltCloud(sources.DataSource):
             try:
                 return_str = util.mount_cb(cdrom_dev, read_user_data_callback)
                 if return_str:
+                    self.source = cdrom_dev
                     break
             except OSError as err:
                 if err.errno != errno.ENOENT:

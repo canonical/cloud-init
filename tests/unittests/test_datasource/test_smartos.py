@@ -426,6 +426,13 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
         self.assertEqual(MOCK_RETURNS['sdc:uuid'],
                          dsrc.metadata['instance-id'])
 
+    def test_platform_info(self):
+        """All platform-related attributes are properly set."""
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
+        self.assertEqual('joyent', dsrc.cloud_name)
+        self.assertEqual('joyent', dsrc.platform_type)
+        self.assertEqual('serial (/dev/ttyS1)', dsrc.subplatform)
+
     def test_root_keys(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()

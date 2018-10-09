@@ -91,6 +91,10 @@ class DataSourceOracle(sources.DataSource):
     def crawl_metadata(self):
         return read_metadata()
 
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        return 'metadata (%s)' % METADATA_ENDPOINT
+
     def check_instance_id(self, sys_cfg):
         """quickly check (local only) if self.instance_id is still valid
 

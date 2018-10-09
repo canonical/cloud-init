@@ -36,6 +36,10 @@ class DataSourceBigstep(sources.DataSource):
         self.userdata_raw = decoded["userdata_raw"]
         return True
 
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        return 'metadata (%s)' % get_url_from_file()
+
 
 def get_url_from_file():
     try:

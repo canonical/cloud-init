@@ -123,6 +123,10 @@ class TestOpenNebulaDataSource(CiTestCase):
             self.assertTrue(ret)
         finally:
             util.find_devs_with = orig_find_devs_with
+        self.assertEqual('opennebula', dsrc.cloud_name)
+        self.assertEqual('opennebula', dsrc.platform_type)
+        self.assertEqual(
+            'seed-dir (%s/seed/opennebula)' % self.tmp, dsrc.subplatform)
 
     def test_seed_dir_non_contextdisk(self):
         self.assertRaises(ds.NonContextDiskDir, ds.read_context_disk_dir,

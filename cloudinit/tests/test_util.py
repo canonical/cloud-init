@@ -478,4 +478,20 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(('foo', '1.1', 'aarch64'), dist)
 
+
+@mock.patch('os.path.exists')
+class TestIsLXD(CiTestCase):
+
+    def test_is_lxd_true_on_sock_device(self, m_exists):
+        """When lxd's /dev/lxd/sock exists, is_lxd returns true."""
+        m_exists.return_value = True
+        self.assertTrue(util.is_lxd())
+        m_exists.assert_called_once_with('/dev/lxd/sock')
+
+    def test_is_lxd_false_when_sock_device_absent(self, m_exists):
+        """When lxd's /dev/lxd/sock is absent, is_lxd returns false."""
+        m_exists.return_value = False
+        self.assertFalse(util.is_lxd())
+        m_exists.assert_called_once_with('/dev/lxd/sock')
+
 # vi: ts=4 expandtab
