@@ -612,7 +612,8 @@ def get_interfaces():
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret = []
     devs = get_devicelist()
-    empty_mac = '00:00:00:00:00:00'
+    # 16 somewhat arbitrarily chosen.  Normally a mac is 6 '00:' tokens.
+    zero_mac = ':'.join(('00',) * 16)
     for name in devs:
         if not interface_has_own_mac(name):
             continue
@@ -624,7 +625,8 @@ def get_interfaces():
         # some devices may not have a mac (tun0)
         if not mac:
             continue
-        if mac == empty_mac and name != 'lo':
+        # skip nics that have no mac (00:00....)
+        if name != 'lo' and mac == zero_mac[:len(mac)]:
             continue
         ret.append((name, mac, device_driver(name), device_devid(name)))
     return ret
