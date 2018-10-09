@@ -58,6 +58,14 @@ METADATA_UNKNOWN = 'unknown'
 
 LOG = logging.getLogger(__name__)
 
+# CLOUD_ID_REGION_PREFIX_MAP format is:
+#  <region-match-prefix>: (<new-cloud-id>: <test_allowed_cloud_callable>)
+CLOUD_ID_REGION_PREFIX_MAP = {
+    'cn-': ('aws-china', lambda c: c == 'aws'),    # only change aws regions
+    'us-gov-': ('aws-gov', lambda c: c == 'aws'),  # only change aws regions
+    'china': ('azure-china', lambda c: c == 'azure'),  # only change azure
+}
+
 
 class DataSourceNotFoundException(Exception):
     pass
@@ -768,6 +776,25 @@ def instance_id_matches_system_uuid(instance_id, field='system-uuid'):
     if not dmi_value:
         return False
     return instance_id.lower() == dmi_value.lower()
+
+
+def canonical_cloud_id(cloud_name, region, platform):
+    """Lookup the canonical cloud-id for a given cloud_name and region."""
+    if not cloud_name:
+        cloud_name = METADATA_UNKNOWN
+    if not region:
+        region = METADATA_UNKNOWN
+    if region == METADATA_UNKNOWN:
+        if cloud_name != METADATA_UNKNOWN:
+            return cloud_name
+        return platform
+    for prefix, cloud_id_test in CLOUD_ID_REGION_PREFIX_MAP.items():
+        (cloud_id, valid_cloud) = cloud_id_test
+        if region.startswith(prefix) and valid_cloud(cloud_name):
+            return cloud_id
+    if cloud_name != METADATA_UNKNOWN:
+        return cloud_name
+    return platform
 
 
 def convert_vendordata(data, recurse=True):

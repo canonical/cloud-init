@@ -11,7 +11,8 @@ from cloudinit.helpers import Paths
 from cloudinit import importer
 from cloudinit.sources import (
     EXPERIMENTAL_TEXT, INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE,
-    REDACT_SENSITIVE_VALUE, UNSET, DataSource, redact_sensitive_keys)
+    METADATA_UNKNOWN, REDACT_SENSITIVE_VALUE, UNSET, DataSource,
+    canonical_cloud_id, redact_sensitive_keys)
 from cloudinit.tests.helpers import CiTestCase, skipIf, mock
 from cloudinit.user_data import UserDataProcessor
 from cloudinit import util
@@ -606,5 +607,76 @@ class TestRedactSensitiveData(CiTestCase):
             secure_md,
             redact_sensitive_keys(md))
 
+
+class TestCanonicalCloudID(CiTestCase):
+
+    def test_cloud_id_returns_platform_on_unknowns(self):
+        """When region and cloud_name are unknown, return platform."""
+        self.assertEqual(
+            'platform',
+            canonical_cloud_id(cloud_name=METADATA_UNKNOWN,
+                               region=METADATA_UNKNOWN,
+                               platform='platform'))
+
+    def test_cloud_id_returns_platform_on_none(self):
+        """When region and cloud_name are unknown, return platform."""
+        self.assertEqual(
+            'platform',
+            canonical_cloud_id(cloud_name=None,
+                               region=None,
+                               platform='platform'))
+
+    def test_cloud_id_returns_cloud_name_on_unknown_region(self):
+        """When region is unknown, return cloud_name."""
+        for region in (None, METADATA_UNKNOWN):
+            self.assertEqual(
+                'cloudname',
+                canonical_cloud_id(cloud_name='cloudname',
+                                   region=region,
+                                   platform='platform'))
+
+    def test_cloud_id_returns_platform_on_unknown_cloud_name(self):
+        """When region is set but cloud_name is unknown return cloud_name."""
+        self.assertEqual(
+            'platform',
+            canonical_cloud_id(cloud_name=METADATA_UNKNOWN,
+                               region='region',
+                               platform='platform'))
+
+    def test_cloud_id_aws_based_on_region_and_cloud_name(self):
+        """When cloud_name is aws, return proper cloud-id based on region."""
+        self.assertEqual(
+            'aws-china',
+            canonical_cloud_id(cloud_name='aws',
+                               region='cn-north-1',
+                               platform='platform'))
+        self.assertEqual(
+            'aws',
+            canonical_cloud_id(cloud_name='aws',
+                               region='us-east-1',
+                               platform='platform'))
+        self.assertEqual(
+            'aws-gov',
+            canonical_cloud_id(cloud_name='aws',
+                               region='us-gov-1',
+                               platform='platform'))
+        self.assertEqual(  # Overrideen non-aws cloud_name is returned
+            '!aws',
+            canonical_cloud_id(cloud_name='!aws',
+                               region='us-gov-1',
+                               platform='platform'))
+
+    def test_cloud_id_azure_based_on_region_and_cloud_name(self):
+        """Report cloud-id when cloud_name is azure and region is in china."""
+        self.assertEqual(
+            'azure-china',
+            canonical_cloud_id(cloud_name='azure',
+                               region='chinaeast',
+                               platform='platform'))
+        self.assertEqual(
+            'azure',
+            canonical_cloud_id(cloud_name='azure',
+                               region='!chinaeast',
+                               platform='platform'))
 
 # vi: ts=4 expandtab
