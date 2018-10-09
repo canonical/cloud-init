@@ -1,3 +1,14 @@
+cloud-init (18.4-5-g6ee8a2c5-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - tools: Add cloud-id command line utility
+    - instance-data: Add standard keys platform and subplatform. Refactor ec2.
+    - net: ignore nics that have "zero" mac address. (LP: #1796917)
+    - tests: fix apt_configure_primary to be more flexible
+    - Ubuntu: update sources.list to comment out deb-src entries. (LP: #74747)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 09 Oct 2018 16:56:35 -0600
+
 cloud-init (18.4-0ubuntu1) cosmic; urgency=medium
 
   * New upstream release.
