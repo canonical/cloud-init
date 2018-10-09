@@ -351,7 +351,9 @@ class TestEc2(test_helpers.HttprettyTestCase):
             m_get_interface_mac.return_value = mac1
             nc = ds.network_config  # Will re-crawl network metadata
             self.assertIsNotNone(nc)
-        self.assertIn('Re-crawl of metadata service', self.logs.getvalue())
+        self.assertIn(
+            'Refreshing stale metadata from prior to upgrade',
+            self.logs.getvalue())
         expected = {'version': 1, 'config': [
             {'mac_address': '06:17:04:d7:26:09',
              'name': 'eth9',
@@ -386,7 +388,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         register_mock_metaserver(
             '{0}/{1}/dynamic/'.format(ds.metadata_address, all_versions[-1]),
             DYNAMIC_METADATA)
-        ds._cloud_platform = ec2.Platforms.AWS
+        ds._cloud_name = ec2.CloudNames.AWS
         # Setup cached metadata on the Datasource
         ds.metadata = DEFAULT_METADATA
         self.assertEqual('my-identity-id', ds.get_instance_id())
@@ -401,6 +403,9 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ret = ds.get_data()
         self.assertTrue(ret)
         self.assertEqual(0, m_dhcp.call_count)
+        self.assertEqual('aws', ds.cloud_name)
+        self.assertEqual('ec2', ds.platform_type)
+        self.assertEqual('metadata (%s)' % ds.metadata_address, ds.subplatform)
 
     def test_valid_platform_with_strict_false(self):
         """Valid platform data should return true with strict_id false."""
@@ -439,16 +444,17 @@ class TestEc2(test_helpers.HttprettyTestCase):
             sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
             md=DEFAULT_METADATA)
         platform_attrs = [
-            attr for attr in ec2.Platforms.__dict__.keys()
+            attr for attr in ec2.CloudNames.__dict__.keys()
             if not attr.startswith('__')]
         for attr_name in platform_attrs:
-            platform_name = getattr(ec2.Platforms, attr_name)
-            if platform_name != 'AWS':
-                ds._cloud_platform = platform_name
+            platform_name = getattr(ec2.CloudNames, attr_name)
+            if platform_name != 'aws':
+                ds._cloud_name = platform_name
                 ret = ds.get_data()
+                self.assertEqual('ec2', ds.platform_type)
                 self.assertFalse(ret)
                 message = (
-                    "Local Ec2 mode only supported on ('AWS',),"
+                    "Local Ec2 mode only supported on ('aws',),"
                     ' not {0}'.format(platform_name))
                 self.assertIn(message, self.logs.getvalue())
 

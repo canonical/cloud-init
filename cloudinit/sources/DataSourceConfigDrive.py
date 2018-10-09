@@ -160,6 +160,18 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
                 LOG.debug("no network configuration available")
         return self._network_config
 
+    @property
+    def platform(self):
+        return 'openstack'
+
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        if self.seed_dir in self.source:
+            subplatform_type = 'seed-dir'
+        elif self.source.startswith('/dev'):
+            subplatform_type = 'config-disk'
+        return '%s (%s)' % (subplatform_type, self.source)
+
 
 def read_config_drive(source_dir):
     reader = openstack.ConfigDriveReader(source_dir)

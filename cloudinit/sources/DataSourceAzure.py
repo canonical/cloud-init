@@ -351,6 +351,14 @@ class DataSourceAzure(sources.DataSource):
         metadata['public-keys'] = key_value or pubkeys_from_crt_files(fp_files)
         return metadata
 
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        if self.seed.startswith('/dev'):
+            subplatform_type = 'config-disk'
+        else:
+            subplatform_type = 'seed-dir'
+        return '%s (%s)' % (subplatform_type, self.seed)
+
     def crawl_metadata(self):
         """Walk all instance metadata sources returning a dict on success.
 

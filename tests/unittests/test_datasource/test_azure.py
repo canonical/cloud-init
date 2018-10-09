@@ -110,6 +110,8 @@ NETWORK_METADATA = {
     }
 }
 
+MOCKPATH = 'cloudinit.sources.DataSourceAzure.'
+
 
 class TestGetMetadataFromIMDS(HttprettyTestCase):
 
@@ -119,9 +121,9 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         super(TestGetMetadataFromIMDS, self).setUp()
         self.network_md_url = dsaz.IMDS_URL + "instance?api-version=2017-12-01"
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.readurl')
-    @mock.patch('cloudinit.sources.DataSourceAzure.EphemeralDHCPv4')
-    @mock.patch('cloudinit.sources.DataSourceAzure.net.is_up')
+    @mock.patch(MOCKPATH + 'readurl')
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
+    @mock.patch(MOCKPATH + 'net.is_up')
     def test_get_metadata_does_not_dhcp_if_network_is_up(
             self, m_net_is_up, m_dhcp, m_readurl):
         """Do not perform DHCP setup when nic is already up."""
@@ -138,9 +140,9 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
             self.logs.getvalue())
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.readurl')
-    @mock.patch('cloudinit.sources.DataSourceAzure.EphemeralDHCPv4')
-    @mock.patch('cloudinit.sources.DataSourceAzure.net.is_up')
+    @mock.patch(MOCKPATH + 'readurl')
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
+    @mock.patch(MOCKPATH + 'net.is_up')
     def test_get_metadata_performs_dhcp_when_network_is_down(
             self, m_net_is_up, m_dhcp, m_readurl):
         """Perform DHCP setup when nic is not up."""
@@ -163,7 +165,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             headers={'Metadata': 'true'}, retries=2, timeout=1)
 
     @mock.patch('cloudinit.url_helper.time.sleep')
-    @mock.patch('cloudinit.sources.DataSourceAzure.net.is_up')
+    @mock.patch(MOCKPATH + 'net.is_up')
     def test_get_metadata_from_imds_empty_when_no_imds_present(
             self, m_net_is_up, m_sleep):
         """Return empty dict when IMDS network metadata is absent."""
@@ -380,7 +382,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
             res = get_path_dev_freebsd('/etc', mnt_list)
             self.assertIsNotNone(res)
 
-    @mock.patch('cloudinit.sources.DataSourceAzure._is_platform_viable')
+    @mock.patch(MOCKPATH + '_is_platform_viable')
     def test_call_is_platform_viable_seed(self, m_is_platform_viable):
         """Check seed_dir using _is_platform_viable and return False."""
         # Return a non-matching asset tag value
@@ -401,6 +403,24 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         self.assertEqual(dsrc.metadata['local-hostname'], odata['HostName'])
         self.assertTrue(os.path.isfile(
             os.path.join(self.waagent_d, 'ovf-env.xml')))
+        self.assertEqual('azure', dsrc.cloud_name)
+        self.assertEqual('azure', dsrc.platform_type)
+        self.assertEqual(
+            'seed-dir (%s/seed/azure)' % self.tmp, dsrc.subplatform)
+
+    def test_basic_dev_file(self):
+        """When a device path is used, present that in subplatform."""
+        data = {'sys_cfg': {}, 'dsdevs': ['/dev/cd0']}
+        dsrc = self._get_ds(data)
+        with mock.patch(MOCKPATH + 'util.mount_cb') as m_mount_cb:
+            m_mount_cb.return_value = (
+                {'local-hostname': 'me'}, 'ud', {'cfg': ''}, {})
+            self.assertTrue(dsrc.get_data())
+        self.assertEqual(dsrc.userdata_raw, 'ud')
+        self.assertEqual(dsrc.metadata['local-hostname'], 'me')
+        self.assertEqual('azure', dsrc.cloud_name)
+        self.assertEqual('azure', dsrc.platform_type)
+        self.assertEqual('config-disk (/dev/cd0)', dsrc.subplatform)
 
     def test_get_data_non_ubuntu_will_not_remove_network_scripts(self):
         """get_data on non-Ubuntu will not remove ubuntu net scripts."""
@@ -769,8 +789,8 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         ds.get_data()
         self.assertEqual(self.instance_id, ds.metadata['instance-id'])
 
-    @mock.patch("cloudinit.sources.DataSourceAzure.util.is_FreeBSD")
-    @mock.patch("cloudinit.sources.DataSourceAzure._check_freebsd_cdrom")
+    @mock.patch(MOCKPATH + 'util.is_FreeBSD')
+    @mock.patch(MOCKPATH + '_check_freebsd_cdrom')
     def test_list_possible_azure_ds_devs(self, m_check_fbsd_cdrom,
                                          m_is_FreeBSD):
         """On FreeBSD, possible devs should show /dev/cd0."""
@@ -885,17 +905,17 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         expected_config['config'].append(blacklist_config)
         self.assertEqual(netconfig, expected_config)
 
-    @mock.patch("cloudinit.sources.DataSourceAzure.util.subp")
+    @mock.patch(MOCKPATH + 'util.subp')
     def test_get_hostname_with_no_args(self, subp):
         dsaz.get_hostname()
         subp.assert_called_once_with(("hostname",), capture=True)
 
-    @mock.patch("cloudinit.sources.DataSourceAzure.util.subp")
+    @mock.patch(MOCKPATH + 'util.subp')
     def test_get_hostname_with_string_arg(self, subp):
         dsaz.get_hostname(hostname_command="hostname")
         subp.assert_called_once_with(("hostname",), capture=True)
 
-    @mock.patch("cloudinit.sources.DataSourceAzure.util.subp")
+    @mock.patch(MOCKPATH + 'util.subp')
     def test_get_hostname_with_iterable_arg(self, subp):
         dsaz.get_hostname(hostname_command=("hostname",))
         subp.assert_called_once_with(("hostname",), capture=True)
@@ -949,7 +969,7 @@ class TestAzureBounce(CiTestCase):
         self.set_hostname = self.patches.enter_context(
             mock.patch.object(dsaz, 'set_hostname'))
         self.subp = self.patches.enter_context(
-            mock.patch('cloudinit.sources.DataSourceAzure.util.subp'))
+            mock.patch(MOCKPATH + 'util.subp'))
         self.find_fallback_nic = self.patches.enter_context(
             mock.patch('cloudinit.net.find_fallback_nic', return_value='eth9'))
 
@@ -989,7 +1009,7 @@ class TestAzureBounce(CiTestCase):
         ds.get_data()
         self.assertEqual(0, self.set_hostname.call_count)
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
+    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
     def test_disabled_bounce_does_not_perform_bounce(
             self, perform_hostname_bounce):
         cfg = {'hostname_bounce': {'policy': 'off'}}
@@ -1005,7 +1025,7 @@ class TestAzureBounce(CiTestCase):
         ds.get_data()
         self.assertEqual(0, self.set_hostname.call_count)
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
+    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
     def test_unchanged_hostname_does_not_perform_bounce(
             self, perform_hostname_bounce):
         host_name = 'unchanged-host-name'
@@ -1015,7 +1035,7 @@ class TestAzureBounce(CiTestCase):
         ds.get_data()
         self.assertEqual(0, perform_hostname_bounce.call_count)
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
+    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
     def test_force_performs_bounce_regardless(self, perform_hostname_bounce):
         host_name = 'unchanged-host-name'
         self.get_hostname.return_value = host_name
@@ -1032,7 +1052,7 @@ class TestAzureBounce(CiTestCase):
         cfg = {'hostname_bounce': {'policy': 'force'}}
         dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg),
                             agent_command=['not', '__builtin__'])
-        patch_path = 'cloudinit.sources.DataSourceAzure.util.which'
+        patch_path = MOCKPATH + 'util.which'
         with mock.patch(patch_path) as m_which:
             m_which.return_value = None
             ret = self._get_and_setup(dsrc)
@@ -1053,7 +1073,7 @@ class TestAzureBounce(CiTestCase):
         self.assertEqual(expected_hostname,
                          self.set_hostname.call_args_list[0][0][0])
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
+    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
     def test_different_hostnames_performs_bounce(
             self, perform_hostname_bounce):
         expected_hostname = 'azure-expected-host-name'
@@ -1076,7 +1096,7 @@ class TestAzureBounce(CiTestCase):
         self.assertEqual(initial_host_name,
                          self.set_hostname.call_args_list[-1][0][0])
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
+    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
     def test_failure_in_bounce_still_resets_host_name(
             self, perform_hostname_bounce):
         perform_hostname_bounce.side_effect = Exception
@@ -1117,7 +1137,7 @@ class TestAzureBounce(CiTestCase):
         self.assertEqual(
             dsaz.BOUNCE_COMMAND_IFUP, bounce_args)
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
+    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
     def test_set_hostname_option_can_disable_bounce(
             self, perform_hostname_bounce):
         cfg = {'set_hostname': False, 'hostname_bounce': {'policy': 'force'}}
@@ -1218,12 +1238,12 @@ class TestCanDevBeReformatted(CiTestCase):
         def has_ntfs_fs(device):
             return bypath.get(device, {}).get('fs') == 'ntfs'
 
-        p = 'cloudinit.sources.DataSourceAzure'
-        self._domock(p + "._partitions_on_device", 'm_partitions_on_device')
-        self._domock(p + "._has_ntfs_filesystem", 'm_has_ntfs_filesystem')
-        self._domock(p + ".util.mount_cb", 'm_mount_cb')
-        self._domock(p + ".os.path.realpath", 'm_realpath')
-        self._domock(p + ".os.path.exists", 'm_exists')
+        p = MOCKPATH
+        self._domock(p + "_partitions_on_device", 'm_partitions_on_device')
+        self._domock(p + "_has_ntfs_filesystem", 'm_has_ntfs_filesystem')
+        self._domock(p + "util.mount_cb", 'm_mount_cb')
+        self._domock(p + "os.path.realpath", 'm_realpath')
+        self._domock(p + "os.path.exists", 'm_exists')
 
         self.m_exists.side_effect = lambda p: p in bypath
         self.m_realpath.side_effect = realpath
@@ -1488,7 +1508,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         self.paths = helpers.Paths({'cloud_dir': tmp})
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+    @mock.patch(MOCKPATH + 'util.write_file')
     def test__should_reprovision_with_true_cfg(self, isfile, write_f):
         """The _should_reprovision method should return true with config
            flag present."""
@@ -1512,7 +1532,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         self.assertFalse(dsa._should_reprovision((None, None, {}, None)))
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds')
+    @mock.patch(MOCKPATH + 'DataSourceAzure._poll_imds')
     def test_reprovision_calls__poll_imds(self, _poll_imds, isfile):
         """_reprovision will poll IMDS."""
         isfile.return_value = False
@@ -1528,8 +1548,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
 @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
 @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
 @mock.patch('requests.Session.request')
-@mock.patch(
-    'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
+@mock.patch(MOCKPATH + 'DataSourceAzure._report_ready')
 class TestPreprovisioningPollIMDS(CiTestCase):
 
     def setUp(self):
@@ -1539,7 +1558,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+    @mock.patch(MOCKPATH + 'util.write_file')
     def test_poll_imds_calls_report_ready(self, write_f, report_ready_func,
                                           fake_resp, m_dhcp, m_net):
         """The poll_imds will call report_ready after creating marker file."""
@@ -1550,8 +1569,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             'unknown-245': '624c3620'}
         m_dhcp.return_value = [lease]
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        mock_path = (
-            'cloudinit.sources.DataSourceAzure.REPORTED_READY_MARKER_FILE')
+        mock_path = (MOCKPATH + 'REPORTED_READY_MARKER_FILE')
         with mock.patch(mock_path, report_marker):
             dsa._poll_imds()
         self.assertEqual(report_ready_func.call_count, 1)
@@ -1561,23 +1579,21 @@ class TestPreprovisioningPollIMDS(CiTestCase):
                                           fake_resp, m_dhcp, m_net):
         """The poll_imds should not call reporting ready
            when flag is false"""
-        report_marker = self.tmp_path('report_marker', self.tmp)
-        write_file(report_marker, content='dont run report_ready :)')
+        report_file = self.tmp_path('report_marker', self.tmp)
+        write_file(report_file, content='dont run report_ready :)')
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
             'unknown-245': '624c3620'}]
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        mock_path = (
-            'cloudinit.sources.DataSourceAzure.REPORTED_READY_MARKER_FILE')
-        with mock.patch(mock_path, report_marker):
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
             dsa._poll_imds()
         self.assertEqual(report_ready_func.call_count, 0)
 
 
-@mock.patch('cloudinit.sources.DataSourceAzure.util.subp')
-@mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
-@mock.patch('cloudinit.sources.DataSourceAzure.util.is_FreeBSD')
+@mock.patch(MOCKPATH + 'util.subp')
+@mock.patch(MOCKPATH + 'util.write_file')
+@mock.patch(MOCKPATH + 'util.is_FreeBSD')
 @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
 @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
 @mock.patch('requests.Session.request')
@@ -1688,7 +1704,7 @@ class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
             self.tmp_path('notfilehere', dir=self.tmp)])
         self.assertNotIn('/not/a', self.logs.getvalue())  # No delete logs
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.os.path.exists')
+    @mock.patch(MOCKPATH + 'os.path.exists')
     def test_remove_network_scripts_default_removes_stock_scripts(self,
                                                                   m_exists):
         """Azure's stock ubuntu image scripts and artifacts are removed."""
@@ -1704,14 +1720,14 @@ class TestWBIsPlatformViable(CiTestCase):
     """White box tests for _is_platform_viable."""
     with_logs = True
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.util.read_dmi_data')
+    @mock.patch(MOCKPATH + 'util.read_dmi_data')
     def test_true_on_non_azure_chassis(self, m_read_dmi_data):
         """Return True if DMI chassis-asset-tag is AZURE_CHASSIS_ASSET_TAG."""
         m_read_dmi_data.return_value = dsaz.AZURE_CHASSIS_ASSET_TAG
         self.assertTrue(dsaz._is_platform_viable('doesnotmatter'))
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.os.path.exists')
-    @mock.patch('cloudinit.sources.DataSourceAzure.util.read_dmi_data')
+    @mock.patch(MOCKPATH + 'os.path.exists')
+    @mock.patch(MOCKPATH + 'util.read_dmi_data')
     def test_true_on_azure_ovf_env_in_seed_dir(self, m_read_dmi_data, m_exist):
         """Return True if ovf-env.xml exists in known seed dirs."""
         # Non-matching Azure chassis-asset-tag
@@ -1729,7 +1745,7 @@ class TestWBIsPlatformViable(CiTestCase):
         and no devices have a label starting with prefix 'rd_rdfe_'.
         """
         self.assertFalse(wrap_and_call(
-            'cloudinit.sources.DataSourceAzure',
+            MOCKPATH,
             {'os.path.exists': False,
              # Non-matching Azure chassis-asset-tag
              'util.read_dmi_data': dsaz.AZURE_CHASSIS_ASSET_TAG + 'X',

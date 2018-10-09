@@ -28,18 +28,16 @@ STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 
 
-class Platforms(object):
-    # TODO Rename and move to cloudinit.cloud.CloudNames
-    ALIYUN = "AliYun"
-    AWS = "AWS"
-    BRIGHTBOX = "Brightbox"
-    SEEDED = "Seeded"
+class CloudNames(object):
+    ALIYUN = "aliyun"
+    AWS = "aws"
+    BRIGHTBOX = "brightbox"
     # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
     # then an attempt at the Ec2 Metadata service will be made.
-    UNKNOWN = "Unknown"
+    UNKNOWN = "unknown"
     # NO_EC2_METADATA indicates this platform does not have a Ec2 metadata
     # service available. No attempt at the Ec2 Metadata service will be made.
-    NO_EC2_METADATA = "No-EC2-Metadata"
+    NO_EC2_METADATA = "no-ec2-metadata"
 
 
 class DataSourceEc2(sources.DataSource):
@@ -61,8 +59,6 @@ class DataSourceEc2(sources.DataSource):
     url_max_wait = 120
     url_timeout = 50
 
-    _cloud_platform = None
-
     _network_config = sources.UNSET  # Used to cache calculated network cfg v1
 
     # Whether we want to get network configuration from the metadata service.
@@ -71,30 +67,21 @@ class DataSourceEc2(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
-        self.seed_dir = os.path.join(paths.seed_dir, "ec2")
 
     def _get_cloud_name(self):
         """Return the cloud name as identified during _get_data."""
-        return self.cloud_platform
+        return identify_platform()
 
     def _get_data(self):
-        seed_ret = {}
-        if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
-            self.userdata_raw = seed_ret['user-data']
-            self.metadata = seed_ret['meta-data']
-            LOG.debug("Using seeded ec2 data from %s", self.seed_dir)
-            self._cloud_platform = Platforms.SEEDED
-            return True
-
         strict_mode, _sleep = read_strict_mode(
             util.get_cfg_by_path(self.sys_cfg, STRICT_ID_PATH,
                                  STRICT_ID_DEFAULT), ("warn", None))
 
-        LOG.debug("strict_mode: %s, cloud_platform=%s",
-                  strict_mode, self.cloud_platform)
-        if strict_mode == "true" and self.cloud_platform == Platforms.UNKNOWN:
+        LOG.debug("strict_mode: %s, cloud_name=%s cloud_platform=%s",
+                  strict_mode, self.cloud_name, self.platform)
+        if strict_mode == "true" and self.cloud_name == CloudNames.UNKNOWN:
             return False
-        elif self.cloud_platform == Platforms.NO_EC2_METADATA:
+        elif self.cloud_name == CloudNames.NO_EC2_METADATA:
             return False
 
         if self.perform_dhcp_setup:  # Setup networking in init-local stage.
@@ -103,19 +90,37 @@ class DataSourceEc2(sources.DataSource):
                 return False
             try:
                 with EphemeralDHCPv4(self.fallback_interface):
-                    return util.log_time(
+                    self._crawled_metadata = util.log_time(
                         logfunc=LOG.debug, msg='Crawl of metadata service',
-                        func=self._crawl_metadata)
+                        func=self.crawl_metadata)
             except NoDHCPLeaseError:
                 return False
         else:
-            return self._crawl_metadata()
+            self._crawled_metadata = util.log_time(
+                logfunc=LOG.debug, msg='Crawl of metadata service',
+                func=self.crawl_metadata)
+        if not self._crawled_metadata:
+            return False
+        self.metadata = self._crawled_metadata.get('meta-data', None)
+        self.userdata_raw = self._crawled_metadata.get('user-data', None)
+        self.identity = self._crawled_metadata.get(
+            'dynamic', {}).get('instance-identity', {}).get('document', {})
+        return True
 
     @property
     def launch_index(self):
         if not self.metadata:
             return None
         return self.metadata.get('ami-launch-index')
+
+    @property
+    def platform(self):
+        # Handle upgrade path of pickled ds
+        if not hasattr(self, '_platform_type'):
+            self._platform_type = DataSourceEc2.dsname.lower()
+        if not self._platform_type:
+            self._platform_type = DataSourceEc2.dsname.lower()
+        return self._platform_type
 
     def get_metadata_api_version(self):
         """Get the best supported api version from the metadata service.
@@ -144,7 +149,7 @@ class DataSourceEc2(sources.DataSource):
         return self.min_metadata_version
 
     def get_instance_id(self):
-        if self.cloud_platform == Platforms.AWS:
+        if self.cloud_name == CloudNames.AWS:
             # Prefer the ID from the instance identity document, but fall back
             if not getattr(self, 'identity', None):
                 # If re-using cached datasource, it's get_data run didn't
@@ -254,7 +259,7 @@ class DataSourceEc2(sources.DataSource):
     @property
     def availability_zone(self):
         try:
-            if self.cloud_platform == Platforms.AWS:
+            if self.cloud_name == CloudNames.AWS:
                 return self.identity.get(
                     'availabilityZone',
                     self.metadata['placement']['availability-zone'])
@@ -265,7 +270,7 @@ class DataSourceEc2(sources.DataSource):
 
     @property
     def region(self):
-        if self.cloud_platform == Platforms.AWS:
+        if self.cloud_name == CloudNames.AWS:
             region = self.identity.get('region')
             # Fallback to trimming the availability zone if region is missing
             if self.availability_zone and not region:
@@ -277,16 +282,10 @@ class DataSourceEc2(sources.DataSource):
                 return az[:-1]
         return None
 
-    @property
-    def cloud_platform(self):  # TODO rename cloud_name
-        if self._cloud_platform is None:
-            self._cloud_platform = identify_platform()
-        return self._cloud_platform
-
     def activate(self, cfg, is_new_instance):
         if not is_new_instance:
             return
-        if self.cloud_platform == Platforms.UNKNOWN:
+        if self.cloud_name == CloudNames.UNKNOWN:
             warn_if_necessary(
                 util.get_cfg_by_path(cfg, STRICT_ID_PATH, STRICT_ID_DEFAULT),
                 cfg)
@@ -306,13 +305,13 @@ class DataSourceEc2(sources.DataSource):
         result = None
         no_network_metadata_on_aws = bool(
             'network' not in self.metadata and
-            self.cloud_platform == Platforms.AWS)
+            self.cloud_name == CloudNames.AWS)
         if no_network_metadata_on_aws:
             LOG.debug("Metadata 'network' not present:"
                       " Refreshing stale metadata from prior to upgrade.")
             util.log_time(
                 logfunc=LOG.debug, msg='Re-crawl of metadata service',
-                func=self._crawl_metadata)
+                func=self.get_data)
 
         # Limit network configuration to only the primary/fallback nic
         iface = self.fallback_interface
@@ -340,28 +339,32 @@ class DataSourceEc2(sources.DataSource):
                 return super(DataSourceEc2, self).fallback_interface
         return self._fallback_interface
 
-    def _crawl_metadata(self):
+    def crawl_metadata(self):
         """Crawl metadata service when available.
 
-        @returns: True on success, False otherwise.
+        @returns: Dictionary of crawled metadata content containing the keys:
+          meta-data, user-data and dynamic.
         """
         if not self.wait_for_metadata_service():
-            return False
+            return {}
         api_version = self.get_metadata_api_version()
+        crawled_metadata = {}
         try:
-            self.userdata_raw = ec2.get_instance_userdata(
+            crawled_metadata['user-data'] = ec2.get_instance_userdata(
                 api_version, self.metadata_address)
-            self.metadata = ec2.get_instance_metadata(
+            crawled_metadata['meta-data'] = ec2.get_instance_metadata(
                 api_version, self.metadata_address)
-            if self.cloud_platform == Platforms.AWS:
-                self.identity = ec2.get_instance_identity(
-                    api_version, self.metadata_address).get('document', {})
+            if self.cloud_name == CloudNames.AWS:
+                identity = ec2.get_instance_identity(
+                    api_version, self.metadata_address)
+                crawled_metadata['dynamic'] = {'instance-identity': identity}
         except Exception:
             util.logexc(
                 LOG, "Failed reading from metadata address %s",
                 self.metadata_address)
-            return False
-        return True
+            return {}
+        crawled_metadata['_metadata_api_version'] = api_version
+        return crawled_metadata
 
 
 class DataSourceEc2Local(DataSourceEc2):
@@ -375,10 +378,10 @@ class DataSourceEc2Local(DataSourceEc2):
     perform_dhcp_setup = True  # Use dhcp before querying metadata
 
     def get_data(self):
-        supported_platforms = (Platforms.AWS,)
-        if self.cloud_platform not in supported_platforms:
+        supported_platforms = (CloudNames.AWS,)
+        if self.cloud_name not in supported_platforms:
             LOG.debug("Local Ec2 mode only supported on %s, not %s",
-                      supported_platforms, self.cloud_platform)
+                      supported_platforms, self.cloud_name)
             return False
         return super(DataSourceEc2Local, self).get_data()
 
@@ -439,20 +442,20 @@ def identify_aws(data):
     if (data['uuid'].startswith('ec2') and
             (data['uuid_source'] == 'hypervisor' or
              data['uuid'] == data['serial'])):
-            return Platforms.AWS
+            return CloudNames.AWS
 
     return None
 
 
 def identify_brightbox(data):
     if data['serial'].endswith('brightbox.com'):
-        return Platforms.BRIGHTBOX
+        return CloudNames.BRIGHTBOX
 
 
 def identify_platform():
-    # identify the platform and return an entry in Platforms.
+    # identify the platform and return an entry in CloudNames.
     data = _collect_platform_data()
-    checks = (identify_aws, identify_brightbox, lambda x: Platforms.UNKNOWN)
+    checks = (identify_aws, identify_brightbox, lambda x: CloudNames.UNKNOWN)
     for checker in checks:
         try:
             result = checker(data)

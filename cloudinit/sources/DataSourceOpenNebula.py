@@ -95,6 +95,14 @@ class DataSourceOpenNebula(sources.DataSource):
         self.userdata_raw = results.get('userdata')
         return True
 
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        if self.seed_dir in self.seed:
+            subplatform_type = 'seed-dir'
+        else:
+            subplatform_type = 'config-disk'
+        return '%s (%s)' % (subplatform_type, self.seed)
+
     @property
     def network_config(self):
         if self.network is not None:

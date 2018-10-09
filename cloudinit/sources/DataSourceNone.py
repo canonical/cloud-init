@@ -28,6 +28,10 @@ class DataSourceNone(sources.DataSource):
             self.metadata = self.ds_cfg['metadata']
         return True
 
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        return 'config'
+
     def get_instance_id(self):
         return 'iid-datasource-none'
 

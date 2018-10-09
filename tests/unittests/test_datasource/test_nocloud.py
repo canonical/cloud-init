@@ -10,6 +10,7 @@ import textwrap
 import yaml
 
 
+@mock.patch('cloudinit.sources.DataSourceNoCloud.util.is_lxd')
 class TestNoCloudDataSource(CiTestCase):
 
     def setUp(self):
@@ -28,10 +29,11 @@ class TestNoCloudDataSource(CiTestCase):
         self.mocks.enter_context(
             mock.patch.object(util, 'read_dmi_data', return_value=None))
 
-    def test_nocloud_seed_dir(self):
+    def test_nocloud_seed_dir_on_lxd(self, m_is_lxd):
         md = {'instance-id': 'IID', 'dsmode': 'local'}
         ud = b"USER_DATA_HERE"
-        populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
+        seed_dir = os.path.join(self.paths.seed_dir, "nocloud")
+        populate_dir(seed_dir,
                      {'user-data': ud, 'meta-data': yaml.safe_dump(md)})
 
         sys_cfg = {
@@ -44,9 +46,32 @@ class TestNoCloudDataSource(CiTestCase):
         ret = dsrc.get_data()
         self.assertEqual(dsrc.userdata_raw, ud)
         self.assertEqual(dsrc.metadata, md)
+        self.assertEqual(dsrc.platform_type, 'lxd')
+        self.assertEqual(
+            dsrc.subplatform, 'seed-dir (%s)' % seed_dir)
         self.assertTrue(ret)
 
-    def test_fs_label(self):
+    def test_nocloud_seed_dir_non_lxd_platform_is_nocloud(self, m_is_lxd):
+        """Non-lxd environments will list nocloud as the platform."""
+        m_is_lxd.return_value = False
+        md = {'instance-id': 'IID', 'dsmode': 'local'}
+        seed_dir = os.path.join(self.paths.seed_dir, "nocloud")
+        populate_dir(seed_dir,
+                     {'user-data': '', 'meta-data': yaml.safe_dump(md)})
+
+        sys_cfg = {
+            'datasource': {'NoCloud': {'fs_label': None}}
+        }
+
+        ds = DataSourceNoCloud.DataSourceNoCloud
+
+        dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        self.assertTrue(dsrc.get_data())
+        self.assertEqual(dsrc.platform_type, 'nocloud')
+        self.assertEqual(
+            dsrc.subplatform, 'seed-dir (%s)' % seed_dir)
+
+    def test_fs_label(self, m_is_lxd):
         # find_devs_with should not be called ff fs_label is None
         ds = DataSourceNoCloud.DataSourceNoCloud
 
@@ -68,7 +93,7 @@ class TestNoCloudDataSource(CiTestCase):
         ret = dsrc.get_data()
         self.assertFalse(ret)
 
-    def test_no_datasource_expected(self):
+    def test_no_datasource_expected(self, m_is_lxd):
         # no source should be found if no cmdline, config, and fs_label=None
         sys_cfg = {'datasource': {'NoCloud': {'fs_label': None}}}
 
@@ -76,7 +101,7 @@ class TestNoCloudDataSource(CiTestCase):
         dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
         self.assertFalse(dsrc.get_data())
 
-    def test_seed_in_config(self):
+    def test_seed_in_config(self, m_is_lxd):
         ds = DataSourceNoCloud.DataSourceNoCloud
 
         data = {
@@ -92,7 +117,7 @@ class TestNoCloudDataSource(CiTestCase):
         self.assertEqual(dsrc.metadata.get('instance-id'), 'IID')
         self.assertTrue(ret)
 
-    def test_nocloud_seed_with_vendordata(self):
+    def test_nocloud_seed_with_vendordata(self, m_is_lxd):
         md = {'instance-id': 'IID', 'dsmode': 'local'}
         ud = b"USER_DATA_HERE"
         vd = b"THIS IS MY VENDOR_DATA"
@@ -114,7 +139,7 @@ class TestNoCloudDataSource(CiTestCase):
         self.assertEqual(dsrc.vendordata_raw, vd)
         self.assertTrue(ret)
 
-    def test_nocloud_no_vendordata(self):
+    def test_nocloud_no_vendordata(self, m_is_lxd):
         populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
                      {'user-data': b"ud", 'meta-data': "instance-id: IID\n"})
 
@@ -128,7 +153,7 @@ class TestNoCloudDataSource(CiTestCase):
         self.assertFalse(dsrc.vendordata)
         self.assertTrue(ret)
 
-    def test_metadata_network_interfaces(self):
+    def test_metadata_network_interfaces(self, m_is_lxd):
         gateway = "103.225.10.1"
         md = {
             'instance-id': 'i-abcd',
@@ -157,7 +182,7 @@ class TestNoCloudDataSource(CiTestCase):
         # very simple check just for the strings above
         self.assertIn(gateway, str(dsrc.network_config))
 
-    def test_metadata_network_config(self):
+    def test_metadata_network_config(self, m_is_lxd):
         # network-config needs to get into network_config
         netconf = {'version': 1,
                    'config': [{'type': 'physical', 'name': 'interface0',
@@ -177,7 +202,7 @@ class TestNoCloudDataSource(CiTestCase):
         self.assertTrue(ret)
         self.assertEqual(netconf, dsrc.network_config)
 
-    def test_metadata_network_config_over_interfaces(self):
+    def test_metadata_network_config_over_interfaces(self, m_is_lxd):
         # network-config should override meta-data/network-interfaces
         gateway = "103.225.10.1"
         md = {

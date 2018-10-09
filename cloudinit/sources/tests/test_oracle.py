@@ -71,6 +71,14 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertFalse(ds._get_data())
         mocks._is_platform_viable.assert_called_once_with()
 
+    def test_platform_info(self):
+        """Return platform-related information for Oracle Datasource."""
+        ds, _mocks = self._get_ds()
+        self.assertEqual('oracle', ds.cloud_name)
+        self.assertEqual('oracle', ds.platform_type)
+        self.assertEqual(
+            'metadata (http://169.254.169.254/openstack/)', ds.subplatform)
+
     @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
     def test_without_userdata(self, m_is_iscsi_root):
         """If no user-data is provided, it should not be in return dict."""

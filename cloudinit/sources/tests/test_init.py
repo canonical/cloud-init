@@ -295,6 +295,7 @@ class TestDataSource(CiTestCase):
             'base64_encoded_keys': [],
             'sensitive_keys': [],
             'v1': {
+                '_beta_keys': ['subplatform'],
                 'availability-zone': 'myaz',
                 'availability_zone': 'myaz',
                 'cloud-name': 'subclasscloudname',
@@ -303,7 +304,10 @@ class TestDataSource(CiTestCase):
                 'instance_id': 'iid-datasource',
                 'local-hostname': 'test-subclass-hostname',
                 'local_hostname': 'test-subclass-hostname',
-                'region': 'myregion'},
+                'platform': 'mytestsubclass',
+                'public_ssh_keys': [],
+                'region': 'myregion',
+                'subplatform': 'unknown'},
             'ds': {
                 '_doc': EXPERIMENTAL_TEXT,
                 'meta_data': {'availability_zone': 'myaz',
@@ -339,6 +343,7 @@ class TestDataSource(CiTestCase):
             'base64_encoded_keys': [],
             'sensitive_keys': ['ds/meta_data/some/security-credentials'],
             'v1': {
+                '_beta_keys': ['subplatform'],
                 'availability-zone': 'myaz',
                 'availability_zone': 'myaz',
                 'cloud-name': 'subclasscloudname',
@@ -347,7 +352,10 @@ class TestDataSource(CiTestCase):
                 'instance_id': 'iid-datasource',
                 'local-hostname': 'test-subclass-hostname',
                 'local_hostname': 'test-subclass-hostname',
-                'region': 'myregion'},
+                'platform': 'mytestsubclass',
+                'public_ssh_keys': [],
+                'region': 'myregion',
+                'subplatform': 'unknown'},
             'ds': {
                 '_doc': EXPERIMENTAL_TEXT,
                 'meta_data': {
