@@ -109,6 +109,10 @@ class DataSourceMAAS(sources.DataSource):
                 LOG.warning("Invalid content in vendor-data: %s", e)
                 self.vendordata_raw = None
 
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        return 'seed-dir (%s)' % self.base_url
+
     def wait_for_metadata_service(self, url):
         mcfg = self.ds_cfg
         max_wait = 120

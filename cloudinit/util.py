@@ -2171,6 +2171,11 @@ def is_container():
     return False
 
 
+def is_lxd():
+    """Check to see if we are running in a lxd container."""
+    return os.path.exists('/dev/lxd/sock')
+
+
 def get_proc_env(pid, encoding='utf-8', errors='replace'):
     """
     Return the environment in a dict that a given process id was started with.

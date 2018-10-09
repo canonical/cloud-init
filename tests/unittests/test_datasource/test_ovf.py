@@ -11,7 +11,7 @@ from collections import OrderedDict
 from textwrap import dedent
 
 from cloudinit import util
-from cloudinit.tests.helpers import CiTestCase, wrap_and_call
+from cloudinit.tests.helpers import CiTestCase, mock, wrap_and_call
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceOVF as dsovf
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
@@ -120,7 +120,7 @@ class TestDatasourceOVF(CiTestCase):
 
     def test_get_data_false_on_none_dmi_data(self):
         """When dmi for system-product-name is None, get_data returns False."""
-        paths = Paths({'seed_dir': self.tdir})
+        paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
         retcode = wrap_and_call(
             'cloudinit.sources.DataSourceOVF',
@@ -134,7 +134,7 @@ class TestDatasourceOVF(CiTestCase):
 
     def test_get_data_no_vmware_customization_disabled(self):
         """When vmware customization is disabled via sys_cfg log a message."""
-        paths = Paths({'seed_dir': self.tdir})
+        paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(
             sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
@@ -153,7 +153,7 @@ class TestDatasourceOVF(CiTestCase):
         """When cloud-init workflow for vmware is enabled via sys_cfg log a
         message.
         """
-        paths = Paths({'seed_dir': self.tdir})
+        paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(
             sys_cfg={'disable_vmware_customization': False}, distro={},
             paths=paths)
@@ -177,6 +177,50 @@ class TestDatasourceOVF(CiTestCase):
         customscript = self.tmp_path('test-script', self.tdir)
         self.assertIn('Script %s not found!!' % customscript,
                       str(context.exception))
+
+    def test_get_data_non_vmware_seed_platform_info(self):
+        """Platform info properly reports when on non-vmware platforms."""
+        paths = Paths({'cloud_dir': self.tdir, 'run_dir': self.tdir})
+        # Write ovf-env.xml seed file
+        seed_dir = self.tmp_path('seed', dir=self.tdir)
+        ovf_env = self.tmp_path('ovf-env.xml', dir=seed_dir)
+        util.write_file(ovf_env, OVF_ENV_CONTENT)
+        ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
+
+        self.assertEqual('ovf', ds.cloud_name)
+        self.assertEqual('ovf', ds.platform_type)
+        MPATH = 'cloudinit.sources.DataSourceOVF.'
+        with mock.patch(MPATH + 'util.read_dmi_data', return_value='!VMware'):
+            with mock.patch(MPATH + 'transport_vmware_guestd') as m_guestd:
+                with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
+                    m_iso9660.return_value = (None, 'ignored', 'ignored')
+                    m_guestd.return_value = (None, 'ignored', 'ignored')
+                    self.assertTrue(ds.get_data())
+                    self.assertEqual(
+                        'ovf (%s/seed/ovf-env.xml)' % self.tdir,
+                        ds.subplatform)
+
+    def test_get_data_vmware_seed_platform_info(self):
+        """Platform info properly reports when on VMware platform."""
+        paths = Paths({'cloud_dir': self.tdir, 'run_dir': self.tdir})
+        # Write ovf-env.xml seed file
+        seed_dir = self.tmp_path('seed', dir=self.tdir)
+        ovf_env = self.tmp_path('ovf-env.xml', dir=seed_dir)
+        util.write_file(ovf_env, OVF_ENV_CONTENT)
+        ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
+
+        self.assertEqual('ovf', ds.cloud_name)
+        self.assertEqual('ovf', ds.platform_type)
+        MPATH = 'cloudinit.sources.DataSourceOVF.'
+        with mock.patch(MPATH + 'util.read_dmi_data', return_value='VMWare'):
+            with mock.patch(MPATH + 'transport_vmware_guestd') as m_guestd:
+                with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
+                    m_iso9660.return_value = (None, 'ignored', 'ignored')
+                    m_guestd.return_value = (None, 'ignored', 'ignored')
+                    self.assertTrue(ds.get_data())
+                    self.assertEqual(
+                        'vmware (%s/seed/ovf-env.xml)' % self.tdir,
+                        ds.subplatform)
 
 
 class TestTransportIso9660(CiTestCase):

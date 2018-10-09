@@ -186,6 +186,27 @@ class DataSourceNoCloud(sources.DataSource):
         self._network_eni = mydata['meta-data'].get('network-interfaces')
         return True
 
+    @property
+    def platform_type(self):
+        # Handle upgrade path of pickled ds
+        if not hasattr(self, '_platform_type'):
+            self._platform_type = None
+        if not self._platform_type:
+            self._platform_type = 'lxd' if util.is_lxd() else 'nocloud'
+        return self._platform_type
+
+    def _get_cloud_name(self):
+        """Return unknown when 'cloud-name' key is absent from metadata."""
+        return sources.METADATA_UNKNOWN
+
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        if self.seed.startswith('/dev'):
+            subplatform_type = 'config-disk'
+        else:
+            subplatform_type = 'seed-dir'
+        return '%s (%s)' % (subplatform_type, self.seed)
+
     def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still valid
         # we check kernel command line or files.

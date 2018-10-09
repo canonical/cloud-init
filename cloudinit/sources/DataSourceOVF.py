@@ -275,6 +275,12 @@ class DataSourceOVF(sources.DataSource):
         self.cfg = cfg
         return True
 
+    def _get_subplatform(self):
+        system_type = util.read_dmi_data("system-product-name").lower()
+        if system_type == 'vmware':
+            return 'vmware (%s)' % self.seed
+        return 'ovf (%s)' % self.seed
+
     def get_public_ssh_keys(self):
         if 'public-keys' not in self.metadata:
             return []

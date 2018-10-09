@@ -10,30 +10,30 @@
 # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
 # newer versions of the distribution.
 deb {{mirror}} {{codename}} main restricted
-deb-src {{mirror}} {{codename}} main restricted
+# deb-src {{mirror}} {{codename}} main restricted
 
 ## Major bug fix updates produced after the final release of the
 ## distribution.
 deb {{mirror}} {{codename}}-updates main restricted
-deb-src {{mirror}} {{codename}}-updates main restricted
+# deb-src {{mirror}} {{codename}}-updates main restricted
 
 ## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
 ## team. Also, please note that software in universe WILL NOT receive any
 ## review or updates from the Ubuntu security team.
 deb {{mirror}} {{codename}} universe
-deb-src {{mirror}} {{codename}} universe
+# deb-src {{mirror}} {{codename}} universe
 deb {{mirror}} {{codename}}-updates universe
-deb-src {{mirror}} {{codename}}-updates universe
+# deb-src {{mirror}} {{codename}}-updates universe
 
-## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu 
-## team, and may not be under a free licence. Please satisfy yourself as to 
-## your rights to use the software. Also, please note that software in 
+## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
+## team, and may not be under a free licence. Please satisfy yourself as to
+## your rights to use the software. Also, please note that software in
 ## multiverse WILL NOT receive any review or updates from the Ubuntu
 ## security team.
 deb {{mirror}} {{codename}} multiverse
-deb-src {{mirror}} {{codename}} multiverse
+# deb-src {{mirror}} {{codename}} multiverse
 deb {{mirror}} {{codename}}-updates multiverse
-deb-src {{mirror}} {{codename}}-updates multiverse
+# deb-src {{mirror}} {{codename}}-updates multiverse
 
 ## N.B. software from this repository may not have been tested as
 ## extensively as that contained in the main release, although it includes
@@ -41,14 +41,7 @@ deb-src {{mirror}} {{codename}}-updates multiverse
 ## Also, please note that software in backports WILL NOT receive any review
 ## or updates from the Ubuntu security team.
 deb {{mirror}} {{codename}}-backports main restricted universe multiverse
-deb-src {{mirror}} {{codename}}-backports main restricted universe multiverse
-
-deb {{security}} {{codename}}-security main restricted
-deb-src {{security}} {{codename}}-security main restricted
-deb {{security}} {{codename}}-security universe
-deb-src {{security}} {{codename}}-security universe
-deb {{security}} {{codename}}-security multiverse
-deb-src {{security}} {{codename}}-security multiverse
+# deb-src {{mirror}} {{codename}}-backports main restricted universe multiverse
 
 ## Uncomment the following two lines to add software from Canonical's
 ## 'partner' repository.
@@ -56,3 +49,10 @@ deb-src {{security}} {{codename}}-security multiverse
 ## respective vendors as a service to Ubuntu users.
 # deb http://archive.canonical.com/ubuntu {{codename}} partner
 # deb-src http://archive.canonical.com/ubuntu {{codename}} partner
+
+deb {{security}} {{codename}}-security main restricted
+# deb-src {{security}} {{codename}}-security main restricted
+deb {{security}} {{codename}}-security universe
+# deb-src {{security}} {{codename}}-security universe
+deb {{security}} {{codename}}-security multiverse
+# deb-src {{security}} {{codename}}-security multiverse

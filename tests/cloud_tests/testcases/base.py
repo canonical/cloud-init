@@ -195,6 +195,9 @@ class CloudTestCase(unittest2.TestCase):
         self.assertIsNotNone(
             v1_data['availability_zone'], 'expected ec2 availability_zone')
         self.assertEqual('aws', v1_data['cloud_name'])
+        self.assertEqual('ec2', v1_data['platform'])
+        self.assertEqual(
+            'metadata (http://169.254.169.254)', v1_data['subplatform'])
         self.assertIn('i-', v1_data['instance_id'])
         self.assertIn('ip-', v1_data['local_hostname'])
         self.assertIsNotNone(v1_data['region'], 'expected ec2 region')
@@ -220,7 +223,11 @@ class CloudTestCase(unittest2.TestCase):
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
         self.assertItemsEqual([], sorted(instance_data['base64_encoded_keys']))
-        self.assertEqual('nocloud', v1_data['cloud_name'])
+        self.assertEqual('unknown', v1_data['cloud_name'])
+        self.assertEqual('lxd', v1_data['platform'])
+        self.assertEqual(
+            'seed-dir (/var/lib/cloud/seed/nocloud-net)',
+            v1_data['subplatform'])
         self.assertIsNone(
             v1_data['availability_zone'],
             'found unexpected lxd availability_zone %s' %
@@ -253,7 +260,9 @@ class CloudTestCase(unittest2.TestCase):
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
         self.assertItemsEqual([], instance_data['base64_encoded_keys'])
-        self.assertEqual('nocloud', v1_data['cloud_name'])
+        self.assertEqual('unknown', v1_data['cloud_name'])
+        self.assertEqual('nocloud', v1_data['platform'])
+        self.assertEqual('config-disk (/dev/vda)', v1_data['subplatform'])
         self.assertIsNone(
             v1_data['availability_zone'],
             'found unexpected kvm availability_zone %s' %

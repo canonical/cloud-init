@@ -1,13 +1,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceIBMCloud as ibm
 from cloudinit.tests import helpers as test_helpers
+from cloudinit import util
 
 import base64
 import copy
 import json
-import mock
 from textwrap import dedent
+
+mock = test_helpers.mock
 
 D_PATH = "cloudinit.sources.DataSourceIBMCloud."
 
@@ -308,5 +311,40 @@ class TestIsIBMProvisioning(test_helpers.FilesystemMockingTestCase):
         self.assertFalse(self._call_with_root(rootd=rootd))
         self.assertIn("no reference file", self.logs.getvalue())
 
+
+class TestDataSourceIBMCloud(test_helpers.CiTestCase):
+
+    def setUp(self):
+        super(TestDataSourceIBMCloud, self).setUp()
+        self.tmp = self.tmp_dir()
+        self.cloud_dir = self.tmp_path('cloud', dir=self.tmp)
+        util.ensure_dir(self.cloud_dir)
+        paths = Paths({'run_dir': self.tmp, 'cloud_dir': self.cloud_dir})
+        self.ds = ibm.DataSourceIBMCloud(
+            sys_cfg={}, distro=None, paths=paths)
+
+    def test_get_data_false(self):
+        """When read_md returns None, get_data returns False."""
+        with mock.patch(D_PATH + 'read_md', return_value=None):
+            self.assertFalse(self.ds.get_data())
+
+    def test_get_data_processes_read_md(self):
+        """get_data processes and caches content returned by read_md."""
+        md = {
+            'metadata': {}, 'networkdata': 'net', 'platform': 'plat',
+            'source': 'src', 'system-uuid': 'uuid', 'userdata': 'ud',
+            'vendordata': 'vd'}
+        with mock.patch(D_PATH + 'read_md', return_value=md):
+            self.assertTrue(self.ds.get_data())
+        self.assertEqual('src', self.ds.source)
+        self.assertEqual('plat', self.ds.platform)
+        self.assertEqual({}, self.ds.metadata)
+        self.assertEqual('ud', self.ds.userdata_raw)
+        self.assertEqual('net', self.ds.network_json)
+        self.assertEqual('vd', self.ds.vendordata_pure)
+        self.assertEqual('uuid', self.ds.system_uuid)
+        self.assertEqual('ibmcloud', self.ds.cloud_name)
+        self.assertEqual('ibmcloud', self.ds.platform_type)
+        self.assertEqual('plat (src)', self.ds.subplatform)
 
 # vi: ts=4 expandtab

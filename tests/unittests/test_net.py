@@ -3339,8 +3339,22 @@ class TestGetInterfacesByMac(CiTestCase):
         addnics = ('greptap1', 'lo', 'greptap2')
         self.data['macs'].update(dict((k, empty_mac) for k in addnics))
         self.data['devices'].update(set(addnics))
+        self.data['own_macs'].extend(list(addnics))
         ret = net.get_interfaces_by_mac()
         self.assertEqual('lo', ret[empty_mac])
+
+    def test_skip_all_zeros(self):
+        """Any mac of 00:... should be skipped."""
+        self._mock_setup()
+        emac1, emac2, emac4, emac6 = (
+            '00', '00:00', '00:00:00:00', '00:00:00:00:00:00')
+        addnics = {'empty1': emac1, 'emac2a': emac2, 'emac2b': emac2,
+                   'emac4': emac4, 'emac6': emac6}
+        self.data['macs'].update(addnics)
+        self.data['devices'].update(set(addnics))
+        self.data['own_macs'].extend(addnics.keys())
+        ret = net.get_interfaces_by_mac()
+        self.assertEqual('lo', ret['00:00:00:00:00:00'])
 
     def test_ib(self):
         ib_addr = '80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56'

@@ -157,6 +157,10 @@ class DataSourceIBMCloud(sources.DataSource):
 
         return True
 
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        return '%s (%s)' % (self.platform, self.source)
+
     def check_instance_id(self, sys_cfg):
         """quickly (local check only) if self.instance_id is still valid
 
