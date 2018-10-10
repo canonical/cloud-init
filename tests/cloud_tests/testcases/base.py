@@ -177,7 +177,7 @@ class CloudTestCase(unittest2.TestCase):
             instance_data['base64_encoded_keys'])
         ds = instance_data.get('ds', {})
         v1_data = instance_data.get('v1', {})
-        metadata = ds.get('meta_data', {})
+        metadata = ds.get('meta-data', {})
         macs = metadata.get(
             'network', {}).get('interfaces', {}).get('macs', {})
         if not macs:
