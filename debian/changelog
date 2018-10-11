@@ -1,3 +1,13 @@
+cloud-init (18.4-7-g4652b196-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - tests: meta_data key changed to meta-data in ec2 instance-data.json
+      (LP: #1797231)
+    - tests: fix kvm integration test to assert flexible config-disk path
+      (LP: #1797199)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 11 Oct 2018 09:24:46 -0600
+
 cloud-init (18.4-5-g6ee8a2c5-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
