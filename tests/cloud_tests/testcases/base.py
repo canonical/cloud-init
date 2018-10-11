@@ -177,7 +177,7 @@ class CloudTestCase(unittest2.TestCase):
             instance_data['base64_encoded_keys'])
         ds = instance_data.get('ds', {})
         v1_data = instance_data.get('v1', {})
-        metadata = ds.get('meta_data', {})
+        metadata = ds.get('meta-data', {})
         macs = metadata.get(
             'network', {}).get('interfaces', {}).get('macs', {})
         if not macs:
@@ -262,7 +262,10 @@ class CloudTestCase(unittest2.TestCase):
         self.assertItemsEqual([], instance_data['base64_encoded_keys'])
         self.assertEqual('unknown', v1_data['cloud_name'])
         self.assertEqual('nocloud', v1_data['platform'])
-        self.assertEqual('config-disk (/dev/vda)', v1_data['subplatform'])
+        subplatform = v1_data['subplatform']
+        self.assertIsNotNone(
+            re.match(r'config-disk \(\/dev\/[a-z]{3}\)', subplatform),
+            'kvm subplatform "%s" != "config-disk (/dev/...)"' % subplatform)
         self.assertIsNone(
             v1_data['availability_zone'],
             'found unexpected kvm availability_zone %s' %
