@@ -12,6 +12,8 @@ FEATURES = [
     'NETWORK_CONFIG_V1',
     # supports network config version 2 (netplan)
     'NETWORK_CONFIG_V2',
+    # supports network config update via hotplug
+    'NETWORK_HOTPLUG',
 ]
 
 

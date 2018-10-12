@@ -1,7 +1,7 @@
 .. _datasource_smartos:
 
-SmartOS Datasource
-==================
+SmartOS
+=======
 
 This datasource finds metadata and user-data from the SmartOS virtualization
 platform (i.e. Joyent).

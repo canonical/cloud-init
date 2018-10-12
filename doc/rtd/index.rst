@@ -48,6 +48,10 @@ Having trouble? We would like to help!
 
    topics/format.rst
    topics/examples.rst
+   topics/boot.rst
+   topics/events.rst
+   topics/datasources.rst
+   topics/logging.rst
    topics/modules.rst
    topics/merging.rst
 
