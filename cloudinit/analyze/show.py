@@ -321,10 +321,12 @@ def generate_records(events, blame_sort=False,
         if event_type(event) == 'start':
             if event.get('name') in stages_seen:
                 records.append(total_time_record(total_time))
-                boot_records.append(records)
-                records = []
-                start_time = None
-                total_time = 0.0
+                # new boots always start with 'init-local'
+                if event.get('name') == 'init-local':
+                    boot_records.append(records)
+                    records = []
+                    start_time = None
+                    total_time = 0.0
 
             if start_time is None:
                 stages_seen = []
@@ -348,9 +350,12 @@ def generate_records(events, blame_sort=False,
             prev_evt = unprocessed.pop()
             if event_name(event) == event_name(prev_evt):
                 record = event_record(start_time, prev_evt, event)
-                records.append(format_record("Finished stage: "
-                                             "(%n) %d seconds",
-                                             record) + "\n")
+                fmt = "Finished stage: (%n) %d seconds "
+                footer = "\n"
+                if blame_sort:
+                    fmt = print_fmt
+                    footer = ''
+                records.append(format_record(fmt, record) + footer)
                 total_time += record.get('delta')
             else:
                 # not a match, put it back

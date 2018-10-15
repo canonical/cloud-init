@@ -155,7 +155,8 @@ def analyze_blame(name, args):
     blame_format = '     %ds (%n)'
     r = re.compile(r'(^\s+\d+\.\d+)', re.MULTILINE)
     for idx, record in enumerate(show.show_events(_get_events(infh),
-                                                  blame_format)):
+                                                  blame_format,
+                                                  blame_sort=True)):
         srecs = sorted(filter(r.match, record), reverse=True)
         outfh.write('-- Boot Record %02d --\n' % (idx + 1))
         outfh.write('\n'.join(srecs) + '\n')
