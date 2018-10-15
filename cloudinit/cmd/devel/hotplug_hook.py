@@ -137,23 +137,23 @@ def handle_args(name, args):
     log_console('%s called with args=%s' % (NAME, args))
     hotplug_reporter = events.ReportEventStack(NAME, __doc__,
                                                reporting_enabled=True)
+    # only handling net udev events for now
+    event_handler_cls = UEVENT_HANDLERS.get(args.subsystem)
+    if not event_handler_cls:
+        log_console('hotplug-hook: cannot handle events for subsystem: '
+                    '"%s"' % args.subsystem)
+        return 1
+
+    log_console('Reading cloud-init configation')
+    hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
+    hotplug_init.read_cfg()
+
+    log_console('Configuring logging')
+    log.setupLogging(hotplug_init.cfg)
+    if 'reporting' in hotplug_init.cfg:
+        reporting.update_configuration(hotplug_init.cfg.get('reporting'))
+
     with hotplug_reporter:
-        # only handling net udev events for now
-        event_handler_cls = UEVENT_HANDLERS.get(args.subsystem)
-        if not event_handler_cls:
-            log_console('hotplug-hook: cannot handle events for subsystem: '
-                        '"%s"' % args.subsystem)
-            return 1
-
-        log_console('Reading cloud-init configation')
-        hotplug_init = Init(ds_deps=[], reporter=hotplug_reporter)
-        hotplug_init.read_cfg()
-
-        log_console('Configuring logging')
-        log.setupLogging(hotplug_init.cfg)
-        if 'reporting' in hotplug_init.cfg:
-            reporting.update_configuration(hotplug_init.cfg.get('reporting'))
-
         log_console('Fetching datasource')
         try:
             ds = hotplug_init.fetch(existing="trust")
