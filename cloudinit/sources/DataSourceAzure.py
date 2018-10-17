@@ -207,7 +207,9 @@ BUILTIN_DS_CONFIG = {
     },
     'disk_aliases': {'ephemeral0': RESOURCE_DISK_PATH},
     'dhclient_lease_file': LEASE_FILE,
+    'apply_network_config': True,  # Use IMDS published network configuration
 }
+# RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
 
 BUILTIN_CLOUD_CONFIG = {
     'disk_setup': {
@@ -458,7 +460,8 @@ class DataSourceAzure(sources.DataSource):
         except sources.InvalidMetaDataException as e:
             LOG.warning('Could not crawl Azure metadata: %s', e)
             return False
-        if self.distro and self.distro.name == 'ubuntu':
+        if (self.distro and self.distro.name == 'ubuntu' and
+                self.ds_cfg.get('apply_network_config')):
             maybe_remove_ubuntu_network_config_scripts()
 
         # Process crawled data and augment with various config defaults
@@ -619,7 +622,11 @@ class DataSourceAzure(sources.DataSource):
               the blacklisted devices.
         """
         if not self._network_config:
-            self._network_config = parse_network_config(self._metadata_imds)
+            if self.ds_cfg.get('apply_network_config'):
+                nc_src = self._metadata_imds
+            else:
+                nc_src = None
+            self._network_config = parse_network_config(nc_src)
         return self._network_config
 
 

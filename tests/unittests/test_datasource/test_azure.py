@@ -256,7 +256,8 @@ scbus-1 on xpt0 bus 0
         ])
         return dsaz
 
-    def _get_ds(self, data, agent_command=None, distro=None):
+    def _get_ds(self, data, agent_command=None, distro=None,
+                apply_network=None):
 
         def dsdevs():
             return data.get('dsdevs', [])
@@ -312,6 +313,8 @@ scbus-1 on xpt0 bus 0
             data.get('sys_cfg', {}), distro=distro, paths=self.paths)
         if agent_command is not None:
             dsrc.ds_cfg['agent_command'] = agent_command
+        if apply_network is not None:
+            dsrc.ds_cfg['apply_network_config'] = apply_network
 
         return dsrc
 
@@ -434,13 +437,25 @@ fdescfs            /dev/fd          fdescfs rw              0 0
 
     def test_get_data_on_ubuntu_will_remove_network_scripts(self):
         """get_data will remove ubuntu net scripts on Ubuntu distro."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
         odata = {'HostName': "myhost", 'UserName': "myuser"}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
-                'sys_cfg': {}}
+                'sys_cfg': sys_cfg}
 
         dsrc = self._get_ds(data, distro='ubuntu')
         dsrc.get_data()
         self.m_remove_ubuntu_network_scripts.assert_called_once_with()
+
+    def test_get_data_on_ubuntu_will_not_remove_network_scripts_disabled(self):
+        """When apply_network_config false, do not remove scripts on Ubuntu."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': False}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+
+        dsrc = self._get_ds(data, distro='ubuntu')
+        dsrc.get_data()
+        self.m_remove_ubuntu_network_scripts.assert_not_called()
 
     def test_crawl_metadata_returns_structured_data_and_caches_nothing(self):
         """Return all structured metadata and cache no class attributes."""
@@ -523,8 +538,10 @@ fdescfs            /dev/fd          fdescfs rw              0 0
 
     def test_network_config_set_from_imds(self):
         """Datasource.network_config returns IMDS network data."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
         odata = {}
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
         expected_network_config = {
             'ethernets': {
                 'eth0': {'set-name': 'eth0',
@@ -803,9 +820,10 @@ fdescfs            /dev/fd          fdescfs rw              0 0
     @mock.patch('cloudinit.net.generate_fallback_config')
     def test_imds_network_config(self, mock_fallback):
         """Network config is generated from IMDS network data when present."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
         odata = {'HostName': "myhost", 'UserName': "myuser"}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
-                'sys_cfg': {}}
+                'sys_cfg': sys_cfg}
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
@@ -820,6 +838,36 @@ fdescfs            /dev/fd          fdescfs rw              0 0
 
         self.assertEqual(expected_cfg, dsrc.network_config)
         mock_fallback.assert_not_called()
+
+    @mock.patch('cloudinit.net.get_interface_mac')
+    @mock.patch('cloudinit.net.get_devicelist')
+    @mock.patch('cloudinit.net.device_driver')
+    @mock.patch('cloudinit.net.generate_fallback_config')
+    def test_imds_network_ignored_when_apply_network_config_false(
+            self, mock_fallback, mock_dd, mock_devlist, mock_get_mac):
+        """When apply_network_config is False, use fallback instead of IMDS."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': False}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        fallback_config = {
+            'version': 1,
+            'config': [{
+                'type': 'physical', 'name': 'eth0',
+                'mac_address': '00:11:22:33:44:55',
+                'params': {'driver': 'hv_netsvc'},
+                'subnets': [{'type': 'dhcp'}],
+            }]
+        }
+        mock_fallback.return_value = fallback_config
+
+        mock_devlist.return_value = ['eth0']
+        mock_dd.return_value = ['hv_netsvc']
+        mock_get_mac.return_value = '00:11:22:33:44:55'
+
+        dsrc = self._get_ds(data)
+        self.assertTrue(dsrc.get_data())
+        self.assertEqual(dsrc.network_config, fallback_config)
 
     @mock.patch('cloudinit.net.get_interface_mac')
     @mock.patch('cloudinit.net.get_devicelist')
