@@ -1,0 +1,23 @@
+Description: Azure apply_network_config default to False
+ Azure cloud-images on Xenial already contain hotplug network scripts so
+ default behavior for should remain to only generate fallback network
+ configuration which is to dhcp on eth0 and let image hotplug scripts add
+ network configuration for any additional nics that show up.
+Author: Chad Smith <chad.smith@canonical.com>
+Origin: backport
+Bug: https://bugs.launchpad.net/cloud-init/+bug/1798424
+Forwarded: not-needed
+Last-Update: 2018-10-17
+Index: cloud-init/cloudinit/sources/DataSourceAzure.py
+===================================================================
+--- cloud-init.orig/cloudinit/sources/DataSourceAzure.py
++++ cloud-init/cloudinit/sources/DataSourceAzure.py
+@@ -207,7 +207,7 @@ BUILTIN_DS_CONFIG = {
+     },
+     'disk_aliases': {'ephemeral0': RESOURCE_DISK_PATH},
+     'dhclient_lease_file': LEASE_FILE,
+-    'apply_network_config': True,  # Use IMDS published network configuration
++    'apply_network_config': False,  # Use fallback network config not IMDS
+ }
+ # RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
+ 
