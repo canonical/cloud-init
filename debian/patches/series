@@ -2,5 +2,4 @@ azure-use-walinux-agent.patch
 ds-identify-behavior-xenial.patch
 stable-release-no-jsonschema-dep.patch
 openstack-no-network-config.patch
-cpick-1d5e9aef-azure-Add-apply_network_config-option-to-disable
 azure-apply-network-config-false.patch
