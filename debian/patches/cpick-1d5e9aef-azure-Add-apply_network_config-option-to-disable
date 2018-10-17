@@ -1,0 +1,228 @@
+From 1d5e9aefdab06a2574d78e644deed6c6fa1da171 Mon Sep 17 00:00:00 2001
+From: Chad Smith <chad.smith@canonical.com>
+Date: Wed, 17 Oct 2018 18:47:35 +0000
+Subject: [PATCH] azure: Add apply_network_config option to disable network
+ from IMDS
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Azure generates network configuration from the IMDS service and removes
+any preexisting hotplug network scripts which exist in Azure cloud images.
+Add a datasource configuration option which allows for writing a default
+network configuration which sets up dhcp on eth0 and leave the hotplug
+handling to the cloud-image scripts.
+
+To disable network-config from Azure IMDS, add the following to
+/etc/cloud/cloud.cfg.d/99-azure-no-imds-network.cfg:
+datasource:
+  Azure:
+    apply_network_config: False
+
+LP: #1798424
+---
+ cloudinit/sources/DataSourceAzure.py          | 11 +++-
+ doc/rtd/topics/datasources/azure.rst          | 46 +++++++++++++++
+ tests/unittests/test_datasource/test_azure.py | 56 +++++++++++++++++--
+ 3 files changed, 107 insertions(+), 6 deletions(-)
+
+--- a/cloudinit/sources/DataSourceAzure.py
++++ b/cloudinit/sources/DataSourceAzure.py
+@@ -207,7 +207,9 @@ BUILTIN_DS_CONFIG = {
+     },
+     'disk_aliases': {'ephemeral0': RESOURCE_DISK_PATH},
+     'dhclient_lease_file': LEASE_FILE,
++    'apply_network_config': True,  # Use IMDS published network configuration
+ }
++# RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
+ 
+ BUILTIN_CLOUD_CONFIG = {
+     'disk_setup': {
+@@ -450,7 +452,8 @@ class DataSourceAzure(sources.DataSource
+         except sources.InvalidMetaDataException as e:
+             LOG.warning('Could not crawl Azure metadata: %s', e)
+             return False
+-        if self.distro and self.distro.name == 'ubuntu':
++        if (self.distro and self.distro.name == 'ubuntu' and
++                self.ds_cfg.get('apply_network_config')):
+             maybe_remove_ubuntu_network_config_scripts()
+ 
+         # Process crawled data and augment with various config defaults
+@@ -611,7 +614,11 @@ class DataSourceAzure(sources.DataSource
+               the blacklisted devices.
+         """
+         if not self._network_config:
+-            self._network_config = parse_network_config(self._metadata_imds)
++            if self.ds_cfg.get('apply_network_config'):
++                nc_src = self._metadata_imds
++            else:
++                nc_src = None
++            self._network_config = parse_network_config(nc_src)
+         return self._network_config
+ 
+ 
+--- a/doc/rtd/topics/datasources/azure.rst
++++ b/doc/rtd/topics/datasources/azure.rst
+@@ -57,6 +57,52 @@ in order to use waagent.conf with cloud-
+    ResourceDisk.MountPoint=/mnt
+ 
+ 
++Configuration
++-------------
++The following configuration can be set for the datasource in system
++configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
++
++The settings that may be configured are:
++
++ * **agent_command**: Either __builtin__ (default) or a command to run to getcw
++   metadata. If __builtin__, get metadata from walinuxagent. Otherwise run the
++   provided command to obtain metadata.
++ * **apply_network_config**: Boolean set to True to use network configuration
++   described by Azure's IMDS endpoint instead of fallback network config of
++   dhcp on eth0. Default is True. For Ubuntu 16.04 or earlier, default is False.
++ * **data_dir**: Path used to read metadata files and write crawled data.
++ * **dhclient_lease_file**: The fallback lease file to source when looking for
++   custom DHCP option 245 from Azure fabric.
++ * **disk_aliases**: A dictionary defining which device paths should be
++   interpreted as ephemeral images. See cc_disk_setup module for more info.
++ * **hostname_bounce**: A dictionary Azure hostname bounce behavior to react to
++   metadata changes.
++ * **hostname_bounce**: A dictionary Azure hostname bounce behavior to react to
++   metadata changes. Azure will throttle ifup/down in some cases after metadata
++   has been updated to inform dhcp server about updated hostnames.
++ * **set_hostname**: Boolean set to True when we want Azure to set the hostname
++   based on metadata.
++
++An example configuration with the default values is provided below:
++
++.. sourcecode:: yaml
++
++  datasource:
++   Azure:
++    agent_command: __builtin__
++    apply_network_config: true
++    data_dir: /var/lib/waagent
++    dhclient_lease_file: /var/lib/dhcp/dhclient.eth0.leases
++    disk_aliases:
++        ephemeral0: /dev/disk/cloud/azure_resource
++    hostname_bounce:
++        interface: eth0
++        command: builtin
++        policy: true
++        hostname_command: hostname
++    set_hostname: true
++
++
+ Userdata
+ --------
+ Userdata is provided to cloud-init inside the ovf-env.xml file. Cloud-init
+--- a/tests/unittests/test_datasource/test_azure.py
++++ b/tests/unittests/test_datasource/test_azure.py
+@@ -254,7 +254,8 @@ scbus-1 on xpt0 bus 0
+         ])
+         return dsaz
+ 
+-    def _get_ds(self, data, agent_command=None, distro=None):
++    def _get_ds(self, data, agent_command=None, distro=None,
++                apply_network=None):
+ 
+         def dsdevs():
+             return data.get('dsdevs', [])
+@@ -310,6 +311,8 @@ scbus-1 on xpt0 bus 0
+             data.get('sys_cfg', {}), distro=distro, paths=self.paths)
+         if agent_command is not None:
+             dsrc.ds_cfg['agent_command'] = agent_command
++        if apply_network is not None:
++            dsrc.ds_cfg['apply_network_config'] = apply_network
+ 
+         return dsrc
+ 
+@@ -414,14 +417,26 @@ fdescfs            /dev/fd          fdes
+ 
+     def test_get_data_on_ubuntu_will_remove_network_scripts(self):
+         """get_data will remove ubuntu net scripts on Ubuntu distro."""
++        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+         odata = {'HostName': "myhost", 'UserName': "myuser"}
+         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+-                'sys_cfg': {}}
++                'sys_cfg': sys_cfg}
+ 
+         dsrc = self._get_ds(data, distro='ubuntu')
+         dsrc.get_data()
+         self.m_remove_ubuntu_network_scripts.assert_called_once_with()
+ 
++    def test_get_data_on_ubuntu_will_not_remove_network_scripts_disabled(self):
++        """When apply_network_config false, do not remove scripts on Ubuntu."""
++        sys_cfg = {'datasource': {'Azure': {'apply_network_config': False}}}
++        odata = {'HostName': "myhost", 'UserName': "myuser"}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
++                'sys_cfg': sys_cfg}
++
++        dsrc = self._get_ds(data, distro='ubuntu')
++        dsrc.get_data()
++        self.m_remove_ubuntu_network_scripts.assert_not_called()
++
+     def test_crawl_metadata_returns_structured_data_and_caches_nothing(self):
+         """Return all structured metadata and cache no class attributes."""
+         yaml_cfg = "{agent_command: my_command}\n"
+@@ -503,8 +518,10 @@ fdescfs            /dev/fd          fdes
+ 
+     def test_network_config_set_from_imds(self):
+         """Datasource.network_config returns IMDS network data."""
++        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+         odata = {}
+-        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
++                'sys_cfg': sys_cfg}
+         expected_network_config = {
+             'ethernets': {
+                 'eth0': {'set-name': 'eth0',
+@@ -783,9 +800,10 @@ fdescfs            /dev/fd          fdes
+     @mock.patch('cloudinit.net.generate_fallback_config')
+     def test_imds_network_config(self, mock_fallback):
+         """Network config is generated from IMDS network data when present."""
++        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+         odata = {'HostName': "myhost", 'UserName': "myuser"}
+         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+-                'sys_cfg': {}}
++                'sys_cfg': sys_cfg}
+ 
+         dsrc = self._get_ds(data)
+         ret = dsrc.get_data()
+@@ -803,6 +821,36 @@ fdescfs            /dev/fd          fdes
+ 
+     @mock.patch('cloudinit.net.get_interface_mac')
+     @mock.patch('cloudinit.net.get_devicelist')
++    @mock.patch('cloudinit.net.device_driver')
++    @mock.patch('cloudinit.net.generate_fallback_config')
++    def test_imds_network_ignored_when_apply_network_config_false(
++            self, mock_fallback, mock_dd, mock_devlist, mock_get_mac):
++        """When apply_network_config is False, use fallback instead of IMDS."""
++        sys_cfg = {'datasource': {'Azure': {'apply_network_config': False}}}
++        odata = {'HostName': "myhost", 'UserName': "myuser"}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
++                'sys_cfg': sys_cfg}
++        fallback_config = {
++            'version': 1,
++            'config': [{
++                'type': 'physical', 'name': 'eth0',
++                'mac_address': '00:11:22:33:44:55',
++                'params': {'driver': 'hv_netsvc'},
++                'subnets': [{'type': 'dhcp'}],
++            }]
++        }
++        mock_fallback.return_value = fallback_config
++
++        mock_devlist.return_value = ['eth0']
++        mock_dd.return_value = ['hv_netsvc']
++        mock_get_mac.return_value = '00:11:22:33:44:55'
++
++        dsrc = self._get_ds(data)
++        self.assertTrue(dsrc.get_data())
++        self.assertEqual(dsrc.network_config, fallback_config)
++
++    @mock.patch('cloudinit.net.get_interface_mac')
++    @mock.patch('cloudinit.net.get_devicelist')
+     @mock.patch('cloudinit.net.device_driver')
+     @mock.patch('cloudinit.net.generate_fallback_config')
+     def test_fallback_network_config(self, mock_fallback, mock_dd,
