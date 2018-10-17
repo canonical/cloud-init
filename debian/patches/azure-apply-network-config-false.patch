@@ -8,10 +8,8 @@ Origin: backport
 Bug: https://bugs.launchpad.net/cloud-init/+bug/1798424
 Forwarded: not-needed
 Last-Update: 2018-10-17
-Index: cloud-init/cloudinit/sources/DataSourceAzure.py
-===================================================================
---- cloud-init.orig/cloudinit/sources/DataSourceAzure.py
-+++ cloud-init/cloudinit/sources/DataSourceAzure.py
+--- a/cloudinit/sources/DataSourceAzure.py
++++ b/cloudinit/sources/DataSourceAzure.py
 @@ -207,7 +207,7 @@ BUILTIN_DS_CONFIG = {
      },
      'disk_aliases': {'ephemeral0': RESOURCE_DISK_PATH},
