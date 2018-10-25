@@ -191,6 +191,7 @@ fi
 
 # Program binaries
 %{_bindir}/cloud-init*
+%{_bindir}/cloud-id*
 
 # Docs
 %doc LICENSE ChangeLog TODO.rst requirements.txt
