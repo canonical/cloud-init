@@ -71,10 +71,14 @@ def handle_args(name, args):
     except IOError:
         LOG.error('Missing user-data file: %s', args.user_data)
         return 1
-    rendered_payload = render_jinja_payload_from_file(
-        payload=user_data, payload_fn=args.user_data,
-        instance_data_file=instance_data_fn,
-        debug=True if args.debug else False)
+    try:
+        rendered_payload = render_jinja_payload_from_file(
+            payload=user_data, payload_fn=args.user_data,
+            instance_data_file=instance_data_fn,
+            debug=True if args.debug else False)
+    except RuntimeError as e:
+        LOG.error('Cannot render from instance data: %s', str(e))
+        return 1
     if not rendered_payload:
         LOG.error('Unable to render user-data file: %s', args.user_data)
         return 1

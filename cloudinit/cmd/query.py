@@ -3,6 +3,7 @@
 """Query standardized instance metadata from the command line."""
 
 import argparse
+from errno import EACCES
 import os
 import six
 import sys
@@ -106,8 +107,11 @@ def handle_args(name, args):
 
     try:
         instance_json = util.load_file(instance_data_fn)
-    except IOError:
-        LOG.error('Missing instance-data.json file: %s', instance_data_fn)
+    except (IOError, OSError) as e:
+        if e.errno == EACCES:
+            LOG.error("No read permission on '%s'. Try sudo", instance_data_fn)
+        else:
+            LOG.error('Missing instance-data file: %s', instance_data_fn)
         return 1
 
     instance_data = util.load_json(instance_json)

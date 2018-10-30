@@ -332,7 +332,7 @@ the following keys:
            - type: static
              address: 192.168.23.14/27
              gateway: 192.168.23.1
-      - type: nameserver
+      - type: nameserver:
         address:
           - 192.168.23.2
           - 8.8.8.8
