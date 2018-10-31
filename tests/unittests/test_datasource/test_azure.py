@@ -513,6 +513,57 @@ fdescfs            /dev/fd          fdescfs rw              0 0
             dsrc.crawl_metadata()
         self.assertEqual(str(cm.exception), error_msg)
 
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+    @mock.patch(
+        'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
+    @mock.patch('cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds')
+    def test_crawl_metadata_on_reprovision_reports_ready(
+                            self, poll_imds_func,
+                            report_ready_func,
+                            m_write):
+        """If reprovisioning, report ready at the end"""
+        ovfenv = construct_valid_ovf_env(
+                            platform_settings={"PreprovisionedVm": "True"})
+
+        data = {'ovfcontent': ovfenv,
+                'sys_cfg': {}}
+        dsrc = self._get_ds(data)
+        poll_imds_func.return_value = ovfenv
+        dsrc.crawl_metadata()
+        self.assertEqual(1, report_ready_func.call_count)
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+    @mock.patch(
+        'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
+    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
+    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+    @mock.patch('cloudinit.sources.DataSourceAzure.readurl')
+    def test_crawl_metadata_on_reprovision_reports_ready_using_lease(
+                            self, m_readurl, m_dhcp,
+                            m_net, report_ready_func,
+                            m_write):
+        """If reprovisioning, report ready using the obtained lease"""
+        ovfenv = construct_valid_ovf_env(
+                            platform_settings={"PreprovisionedVm": "True"})
+
+        data = {'ovfcontent': ovfenv,
+                'sys_cfg': {}}
+        dsrc = self._get_ds(data)
+
+        lease = {
+            'interface': 'eth9', 'fixed-address': '192.168.2.9',
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+            'unknown-245': '624c3620'}
+        m_dhcp.return_value = [lease]
+
+        reprovision_ovfenv = construct_valid_ovf_env()
+        m_readurl.return_value = url_helper.StringResponse(
+            reprovision_ovfenv.encode('utf-8'))
+
+        dsrc.crawl_metadata()
+        self.assertEqual(2, report_ready_func.call_count)
+        report_ready_func.assert_called_with(lease=lease)
+
     def test_waagent_d_has_0700_perms(self):
         # we expect /var/lib/waagent to be created 0700
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})

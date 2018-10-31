@@ -267,6 +267,7 @@ class DataSourceAzure(sources.DataSource):
     dsname = 'Azure'
     _negotiated = False
     _metadata_imds = sources.UNSET
+    lease_info = None
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -406,8 +407,10 @@ class DataSourceAzure(sources.DataSource):
                 LOG.warning("%s was not mountable", cdev)
                 continue
 
+            should_report_ready_after_reprovision = False
             if reprovision or self._should_reprovision(ret):
                 ret = self._reprovision()
+                should_report_ready_after_reprovision = True
             imds_md = get_metadata_from_imds(
                 self.fallback_interface, retries=3)
             (md, userdata_raw, cfg, files) = ret
@@ -434,6 +437,11 @@ class DataSourceAzure(sources.DataSource):
             crawled_data['metadata']['random_seed'] = seed
         crawled_data['metadata']['instance-id'] = util.read_dmi_data(
             'system-uuid')
+
+        if should_report_ready_after_reprovision:
+            LOG.info("Reporting ready to Azure after getting ReprovisionData")
+            self._report_ready(lease=self.lease_info)
+
         return crawled_data
 
     def _is_platform_viable(self):
@@ -522,6 +530,7 @@ class DataSourceAzure(sources.DataSource):
         while True:
             try:
                 with EphemeralDHCPv4() as lease:
+                    self.lease_info = lease
                     if report_ready:
                         path = REPORTED_READY_MARKER_FILE
                         LOG.info(
@@ -531,13 +540,13 @@ class DataSourceAzure(sources.DataSource):
                         self._report_ready(lease=lease)
                         report_ready = False
                     return readurl(url, timeout=1, headers=headers,
-                                   exception_cb=exc_cb, infinite=True).contents
+                                   exception_cb=exc_cb, infinite=True,
+                                   log_req_resp=False).contents
             except UrlError:
                 pass
 
     def _report_ready(self, lease):
-        """Tells the fabric provisioning has completed
-           before we go into our polling loop."""
+        """Tells the fabric provisioning has completed """
         try:
             get_metadata_from_fabric(None, lease['unknown-245'])
         except Exception:
