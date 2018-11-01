@@ -57,7 +57,7 @@ IMDS_URL = "http://169.254.169.254/metadata/"
 # List of static scripts and network config artifacts created by
 # stock ubuntu suported images.
 UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
-    '/etc/netplan/90-azure-hotplug.yaml',
+    '/etc/netplan/90-hotplug-azure.yaml',
     '/usr/local/sbin/ephemeral_eth.sh',
     '/etc/udev/rules.d/10-net-device-added.rules',
     '/run/network/interfaces.ephemeral.d',
@@ -1211,7 +1211,7 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
     additional interfaces which get attached by a customer at some point
     after initial boot. Since the Azure datasource can now regenerate
     network configuration as metadata reports these new devices, we no longer
-    want the udev rules or netplan's 90-azure-hotplug.yaml to configure
+    want the udev rules or netplan's 90-hotplug-azure.yaml to configure
     networking on eth1 or greater as it might collide with cloud-init's
     configuration.
 
