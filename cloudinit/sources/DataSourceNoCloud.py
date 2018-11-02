@@ -119,7 +119,7 @@ class DataSourceNoCloud(sources.DataSource):
                                                pp2d_kwargs)
                     except ValueError:
                         if dev in label_list:
-                            LOG.warning("device %s with label=%s not a"
+                            LOG.warning("device %s with label=%s not a "
                                         "valid seed.", dev, label)
                         continue
 
