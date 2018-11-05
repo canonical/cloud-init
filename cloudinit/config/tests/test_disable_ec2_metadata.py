@@ -29,12 +29,29 @@ class TestEC2MetadataRoute(CiTestCase):
 
     @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.which')
     @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.subp')
-    def test_disable_ip(self, m_subp, m_which):
+    def test_disable_ip_route_is_new(self, m_subp, m_which):
+        """Set the route if ip command is available"""
+        m_which.side_effect = lambda x: x if x == 'ip' else None
+
+        def subp(cmd, **kwargs):
+            if cmd[2] == 'change':
+                raise ec2_meta.util.ProcessExecutionError("Oh noes")
+            return None, None
+        m_subp.side_effect = subp
+
+        ec2_meta.handle('foo', DISABLE_CFG, None, LOG, None)
+        m_subp.assert_called_with(
+            ['ip', 'route', 'add', 'prohibit', '169.254.169.254'],
+            capture=False)
+
+    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.which')
+    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.subp')
+    def test_disable_ip_route_already_exists(self, m_subp, m_which):
         """Set the route if ip command is available"""
         m_which.side_effect = lambda x: x if x == 'ip' else None
         ec2_meta.handle('foo', DISABLE_CFG, None, LOG, None)
         m_subp.assert_called_with(
-            ['ip', 'route', 'add', 'prohibit', '169.254.169.254'],
+            ['ip', 'route', 'change', 'prohibit', '169.254.169.254'],
             capture=False)
 
     @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.which')

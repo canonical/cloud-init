@@ -33,22 +33,26 @@ from cloudinit.settings import PER_ALWAYS
 frequency = PER_ALWAYS
 
 REJECT_CMD_IF = ['route', 'add', '-host', '169.254.169.254', 'reject']
-REJECT_CMD_IP = ['ip', 'route', 'add', 'prohibit', '169.254.169.254']
+REJECT_CMD_IPRTADD = ['ip', 'route', 'add', 'prohibit', '169.254.169.254']
+REJECT_CMD_IPRTCHG = ['ip', 'route', 'change', 'prohibit', '169.254.169.254']
 
 
 def handle(name, cfg, _cloud, log, _args):
     disabled = util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False)
     if disabled:
-        reject_cmd = None
         if util.which('ip'):
-            reject_cmd = REJECT_CMD_IP
+            # ip-route-add requires a route not already exist and and
+            # ip-route-change requires a route already exist. EAFP.
+            try:
+                util.subp(REJECT_CMD_IPRTCHG, capture=False)
+            except util.ProcessExecutionError:
+                util.subp(REJECT_CMD_IPRTADD, capture=False)
         elif util.which('ifconfig'):
-            reject_cmd = REJECT_CMD_IF
+            util.subp(REJECT_CMD_IF, capture=False)
         else:
             log.error(('Neither "route" nor "ip" command found, unable to '
                        'manipulate routing table'))
             return
-        util.subp(reject_cmd, capture=False)
     else:
         log.debug(("Skipping module named %s,"
                    " disabling the ec2 route not enabled"), name)
