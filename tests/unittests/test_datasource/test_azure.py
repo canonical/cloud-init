@@ -1511,21 +1511,20 @@ class TestCanDevBeReformatted(CiTestCase):
                     '/dev/sda1': {'num': 1, 'fs': 'ntfs', 'files': []}
                 }}})
 
-        err = ("Unexpected error while running command.\n",
-               "Command: ['mount', '-o', 'ro,sync', '-t', 'auto', ",
-               "'/dev/sda1', '/fake-tmp/dir']\n"
-               "Exit code: 32\n"
-               "Reason: -\n"
-               "Stdout: -\n"
-               "Stderr: mount: unknown filesystem type 'ntfs'")
-        self.m_mount_cb.side_effect = MountFailedError(
-            'Failed mounting %s to %s due to: %s' %
-            ('/dev/sda', '/fake-tmp/dir', err))
+        error_msgs = [
+            "Stderr: mount: unknown filesystem type 'ntfs'",  # RHEL
+            "Stderr: mount: /dev/sdb1: unknown filesystem type 'ntfs'"  # SLES
+        ]
 
-        value, msg = dsaz.can_dev_be_reformatted('/dev/sda',
-                                                 preserve_ntfs=False)
-        self.assertTrue(value)
-        self.assertIn('cannot mount NTFS, assuming', msg)
+        for err_msg in error_msgs:
+            self.m_mount_cb.side_effect = MountFailedError(
+                "Failed mounting %s to %s due to: \nUnexpected.\n%s" %
+                ('/dev/sda', '/fake-tmp/dir', err_msg))
+
+            value, msg = dsaz.can_dev_be_reformatted('/dev/sda',
+                                                     preserve_ntfs=False)
+            self.assertTrue(value)
+            self.assertIn('cannot mount NTFS, assuming', msg)
 
     def test_never_destroy_ntfs_config_false(self):
         """Normally formattable situation with never_destroy_ntfs set."""

@@ -725,7 +725,7 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
         file_count = util.mount_cb(cand_path, count_files, mtype="ntfs",
                                    update_env_for_mount={'LANG': 'C'})
     except util.MountFailedError as e:
-        if "mount: unknown filesystem type 'ntfs'" in str(e):
+        if "unknown filesystem type 'ntfs'" in str(e):
             return True, (bmsg + ' but this system cannot mount NTFS,'
                           ' assuming there are no important files.'
                           ' Formatting allowed.')
