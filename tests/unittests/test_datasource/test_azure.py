@@ -513,6 +513,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
             dsrc.crawl_metadata()
         self.assertEqual(str(cm.exception), error_msg)
 
+    @mock.patch('cloudinit.sources.DataSourceAzure.EphemeralDHCPv4')
     @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
     @mock.patch(
         'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
@@ -520,7 +521,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
     def test_crawl_metadata_on_reprovision_reports_ready(
                             self, poll_imds_func,
                             report_ready_func,
-                            m_write):
+                            m_write, m_dhcp):
         """If reprovisioning, report ready at the end"""
         ovfenv = construct_valid_ovf_env(
                             platform_settings={"PreprovisionedVm": "True"})

@@ -267,7 +267,6 @@ class DataSourceAzure(sources.DataSource):
     dsname = 'Azure'
     _negotiated = False
     _metadata_imds = sources.UNSET
-    lease_info = None
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -281,6 +280,7 @@ class DataSourceAzure(sources.DataSource):
         self._network_config = None
         # Regenerate network config new_instance boot and every boot
         self.update_events['network'].add(EventType.BOOT)
+        self._ephemeral_dhcp_ctx = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -407,10 +407,9 @@ class DataSourceAzure(sources.DataSource):
                 LOG.warning("%s was not mountable", cdev)
                 continue
 
-            should_report_ready_after_reprovision = False
-            if reprovision or self._should_reprovision(ret):
+            perform_reprovision = reprovision or self._should_reprovision(ret)
+            if perform_reprovision:
                 ret = self._reprovision()
-                should_report_ready_after_reprovision = True
             imds_md = get_metadata_from_imds(
                 self.fallback_interface, retries=3)
             (md, userdata_raw, cfg, files) = ret
@@ -438,9 +437,16 @@ class DataSourceAzure(sources.DataSource):
         crawled_data['metadata']['instance-id'] = util.read_dmi_data(
             'system-uuid')
 
-        if should_report_ready_after_reprovision:
+        if perform_reprovision:
             LOG.info("Reporting ready to Azure after getting ReprovisionData")
-            self._report_ready(lease=self.lease_info)
+            use_cached_ephemeral = (net.is_up(self.fallback_interface) and
+                                    getattr(self, '_ephemeral_dhcp_ctx', None))
+            if use_cached_ephemeral:
+                self._report_ready(lease=self._ephemeral_dhcp_ctx.lease)
+                self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
+            else:
+                with EphemeralDHCPv4() as lease:
+                    self._report_ready(lease=lease)
 
         return crawled_data
 
@@ -529,20 +535,23 @@ class DataSourceAzure(sources.DataSource):
 
         while True:
             try:
-                with EphemeralDHCPv4() as lease:
-                    self.lease_info = lease
-                    if report_ready:
-                        path = REPORTED_READY_MARKER_FILE
-                        LOG.info(
-                            "Creating a marker file to report ready: %s", path)
-                        util.write_file(path, "{pid}: {time}\n".format(
-                            pid=os.getpid(), time=time()))
-                        self._report_ready(lease=lease)
-                        report_ready = False
-                    return readurl(url, timeout=1, headers=headers,
-                                   exception_cb=exc_cb, infinite=True,
-                                   log_req_resp=False).contents
+                # Save our EphemeralDHCPv4 context so we avoid repeated dhcp
+                self._ephemeral_dhcp_ctx = EphemeralDHCPv4()
+                lease = self._ephemeral_dhcp_ctx.obtain_lease()
+                if report_ready:
+                    path = REPORTED_READY_MARKER_FILE
+                    LOG.info(
+                        "Creating a marker file to report ready: %s", path)
+                    util.write_file(path, "{pid}: {time}\n".format(
+                        pid=os.getpid(), time=time()))
+                    self._report_ready(lease=lease)
+                    report_ready = False
+                return readurl(url, timeout=1, headers=headers,
+                               exception_cb=exc_cb, infinite=True,
+                               log_req_resp=False).contents
             except UrlError:
+                # Teardown our EphemeralDHCPv4 context on failure as we retry
+                self._ephemeral_dhcp_ctx.clean_network()
                 pass
 
     def _report_ready(self, lease):
