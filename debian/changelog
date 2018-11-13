@@ -1,7 +1,7 @@
-cloud-init (18.4-22-g6062595b-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.4-22-g6062595b-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
-    - azure: retry imds polling on requests.Timeout (LP: LP:1800223)
+    - azure: retry imds polling on requests.Timeout (LP: #1800223)
     - azure: Accept variation in error msg from mount for ntfs volumes
       [Jason Zions] (LP: #1799338)
     - azure: fix regression introduced when persisting ephemeral dhcp lease
