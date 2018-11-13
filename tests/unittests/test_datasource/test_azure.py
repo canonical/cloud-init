@@ -17,6 +17,7 @@ import crypt
 import httpretty
 import json
 import os
+import requests
 import stat
 import xml.etree.ElementTree as ET
 import yaml
@@ -180,6 +181,35 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
         m_net_is_up.assert_called_with('eth9')
         self.assertEqual([mock.call(1), mock.call(1)], m_sleep.call_args_list)
+        self.assertIn(
+            "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
+            self.logs.getvalue())
+
+    @mock.patch('requests.Session.request')
+    @mock.patch('cloudinit.url_helper.time.sleep')
+    @mock.patch(MOCKPATH + 'net.is_up')
+    def test_get_metadata_from_imds_retries_on_timeout(
+            self, m_net_is_up, m_sleep, m_request):
+        """Retry IMDS network metadata on timeout errors."""
+
+        self.attempt = 0
+        m_request.side_effect = requests.Timeout('Fake Connection Timeout')
+
+        def retry_callback(request, uri, headers):
+            self.attempt += 1
+            raise requests.Timeout('Fake connection timeout')
+
+        httpretty.register_uri(
+            httpretty.GET,
+            dsaz.IMDS_URL + 'instance?api-version=2017-12-01',
+            body=retry_callback)
+
+        m_net_is_up.return_value = True  # skips dhcp
+
+        self.assertEqual({}, dsaz.get_metadata_from_imds('eth9', retries=3))
+
+        m_net_is_up.assert_called_with('eth9')
+        self.assertEqual([mock.call(1)]*3, m_sleep.call_args_list)
         self.assertIn(
             "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
             self.logs.getvalue())

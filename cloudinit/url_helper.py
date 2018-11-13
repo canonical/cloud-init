@@ -554,4 +554,18 @@ def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
     _uri, signed_headers, _body = client.sign(url)
     return signed_headers
 
+
+def retry_on_url_exc(msg, exc):
+    """readurl exception_cb that will retry on NOT_FOUND and Timeout.
+
+    Returns False to raise the exception from readurl, True to retry.
+    """
+    if not isinstance(exc, UrlError):
+        return False
+    if exc.code == NOT_FOUND:
+        return True
+    if exc.cause and isinstance(exc.cause, requests.Timeout):
+        return True
+    return False
+
 # vi: ts=4 expandtab

@@ -22,7 +22,7 @@ from cloudinit.event import EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers.azure import get_metadata_from_fabric
-from cloudinit.url_helper import readurl, UrlError
+from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -526,13 +526,6 @@ class DataSourceAzure(sources.DataSource):
         report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
         LOG.debug("Start polling IMDS")
 
-        def exc_cb(msg, exception):
-            if isinstance(exception, UrlError) and exception.code == 404:
-                return True
-            # If we get an exception while trying to call IMDS, we
-            # call DHCP and setup the ephemeral network to acquire the new IP.
-            return False
-
         while True:
             try:
                 # Save our EphemeralDHCPv4 context so we avoid repeated dhcp
@@ -547,7 +540,7 @@ class DataSourceAzure(sources.DataSource):
                     self._report_ready(lease=lease)
                     report_ready = False
                 return readurl(url, timeout=1, headers=headers,
-                               exception_cb=exc_cb, infinite=True,
+                               exception_cb=retry_on_url_exc, infinite=True,
                                log_req_resp=False).contents
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry
@@ -1187,17 +1180,12 @@ def get_metadata_from_imds(fallback_nic, retries):
 
 def _get_metadata_from_imds(retries):
 
-    def retry_on_url_error(msg, exception):
-        if isinstance(exception, UrlError) and exception.code == 404:
-            return True  # Continue retries
-        return False  # Stop retries on all other exceptions
-
     url = IMDS_URL + "instance?api-version=2017-12-01"
     headers = {"Metadata": "true"}
     try:
         response = readurl(
             url, timeout=1, headers=headers, retries=retries,
-            exception_cb=retry_on_url_error)
+            exception_cb=retry_on_url_exc)
     except Exception as e:
         LOG.debug('Ignoring IMDS instance metadata: %s', e)
         return {}
