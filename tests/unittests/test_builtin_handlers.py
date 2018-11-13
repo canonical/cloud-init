@@ -3,6 +3,7 @@
 """Tests of the built-in user data handlers."""
 
 import copy
+import errno
 import os
 import shutil
 import tempfile
@@ -198,6 +199,30 @@ class TestJinjaTemplatePartHandler(CiTestCase):
             'Cannot render jinja template vars. Instance data not yet present'
             ' at {}/instance-data.json'.format(
                 self.run_dir), str(context_manager.exception))
+        self.assertFalse(
+            os.path.exists(script_file),
+            'Unexpected file created %s' % script_file)
+
+    def test_jinja_template_handle_errors_on_unreadable_instance_data(self):
+        """If instance-data is unreadable, raise an error from handle_part."""
+        script_handler = ShellScriptPartHandler(self.paths)
+        instance_json = os.path.join(self.run_dir, 'instance-data.json')
+        util.write_file(instance_json, util.json_dumps({}))
+        h = JinjaTemplatePartHandler(
+            self.paths, sub_handlers=[script_handler])
+        with mock.patch(self.mpath + 'load_file') as m_load:
+            with self.assertRaises(RuntimeError) as context_manager:
+                m_load.side_effect = OSError(errno.EACCES, 'Not allowed')
+                h.handle_part(
+                    data='data', ctype="!" + handlers.CONTENT_START,
+                    filename='part01',
+                    payload='## template: jinja  \n#!/bin/bash\necho himom',
+                    frequency='freq', headers='headers')
+        script_file = os.path.join(script_handler.script_dir, 'part01')
+        self.assertEqual(
+            'Cannot render jinja template vars. No read permission on'
+            " '{rdir}/instance-data.json'. Try sudo".format(rdir=self.run_dir),
+            str(context_manager.exception))
         self.assertFalse(
             os.path.exists(script_file),
             'Unexpected file created %s' % script_file)

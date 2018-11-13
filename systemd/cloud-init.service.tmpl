@@ -14,8 +14,7 @@ After=networking.service
 After=network.service
 {% endif %}
 {% if variant in ["suse"] %}
-Requires=wicked.service
-After=wicked.service
+Before=wicked.service
 # setting hostname via hostnamectl depends on dbus, which otherwise
 # would not be guaranteed at this point.
 After=dbus.service

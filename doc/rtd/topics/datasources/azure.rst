@@ -57,6 +57,52 @@ in order to use waagent.conf with cloud-init, the following settings are recomme
    ResourceDisk.MountPoint=/mnt
 
 
+Configuration
+-------------
+The following configuration can be set for the datasource in system
+configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
+
+The settings that may be configured are:
+
+ * **agent_command**: Either __builtin__ (default) or a command to run to getcw
+   metadata. If __builtin__, get metadata from walinuxagent. Otherwise run the
+   provided command to obtain metadata.
+ * **apply_network_config**: Boolean set to True to use network configuration
+   described by Azure's IMDS endpoint instead of fallback network config of
+   dhcp on eth0. Default is True. For Ubuntu 16.04 or earlier, default is False.
+ * **data_dir**: Path used to read metadata files and write crawled data.
+ * **dhclient_lease_file**: The fallback lease file to source when looking for
+   custom DHCP option 245 from Azure fabric.
+ * **disk_aliases**: A dictionary defining which device paths should be
+   interpreted as ephemeral images. See cc_disk_setup module for more info.
+ * **hostname_bounce**: A dictionary Azure hostname bounce behavior to react to
+   metadata changes.
+ * **hostname_bounce**: A dictionary Azure hostname bounce behavior to react to
+   metadata changes. Azure will throttle ifup/down in some cases after metadata
+   has been updated to inform dhcp server about updated hostnames.
+ * **set_hostname**: Boolean set to True when we want Azure to set the hostname
+   based on metadata.
+
+An example configuration with the default values is provided below:
+
+.. sourcecode:: yaml
+
+  datasource:
+   Azure:
+    agent_command: __builtin__
+    apply_network_config: true
+    data_dir: /var/lib/waagent
+    dhclient_lease_file: /var/lib/dhcp/dhclient.eth0.leases
+    disk_aliases:
+        ephemeral0: /dev/disk/cloud/azure_resource
+    hostname_bounce:
+        interface: eth0
+        command: builtin
+        policy: true
+        hostname_command: hostname
+    set_hostname: true
+
+
 Userdata
 --------
 Userdata is provided to cloud-init inside the ovf-env.xml file. Cloud-init
