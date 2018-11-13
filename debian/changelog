@@ -1,3 +1,31 @@
+cloud-init (18.4-22-g6062595b-0ubuntu1) disco; urgency=medium
+
+  * New upstream snapshot.
+    - azure: retry imds polling on requests.Timeout (LP: #1800223)
+    - azure: Accept variation in error msg from mount for ntfs volumes
+      [Jason Zions] (LP: #1799338)
+    - azure: fix regression introduced when persisting ephemeral dhcp lease
+      [Aswin Rajamannar]
+    - azure: add udev rules to create cloud-init Gen2 disk name symlinks
+      (LP: #1797480)
+    - tests: ec2 mock missing httpretty user-data and instance-identity routes
+    - azure: remove /etc/netplan/90-hotplug-azure.yaml when net from IMDS
+    - azure: report ready to fabric after reprovision and reduce logging
+      [Aswin Rajamannar] (LP: #1799594)
+    - query: better error when missing read permission on instance-data
+    - instance-data: fallback to instance-data.json if sensitive is absent.
+      (LP: #1798189)
+    - docs: remove colon from network v1 config example. [Tomer Cohen]
+    - Add cloud-id binary to packages for SUSE [Jason Zions]
+    - systemd: On SUSE ensure cloud-init.service runs before wicked
+      [Robert Schweikert] (LP: #1799709)
+    - update detection of openSUSE variants [Robert Schweikert]
+    - azure: Add apply_network_config option to disable network from IMDS
+      (LP: #1798424)
+    - Correct spelling in an error message (udevadm). [Katie McLaughlin]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 12 Nov 2018 20:33:12 -0700
+
 cloud-init (18.4-7-g4652b196-0ubuntu1) cosmic; urgency=medium
 
   * New upstream snapshot.
