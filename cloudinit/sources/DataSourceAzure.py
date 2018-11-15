@@ -526,6 +526,13 @@ class DataSourceAzure(sources.DataSource):
         report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
         LOG.debug("Start polling IMDS")
 
+        def exc_cb(msg, exception):
+            if isinstance(exception, UrlError) and exception.code == 404:
+                return True
+            # If we get an exception while trying to call IMDS, we
+            # call DHCP and setup the ephemeral network to acquire the new IP.
+            return False
+
         while True:
             try:
                 # Save our EphemeralDHCPv4 context so we avoid repeated dhcp
@@ -540,7 +547,7 @@ class DataSourceAzure(sources.DataSource):
                     self._report_ready(lease=lease)
                     report_ready = False
                 return readurl(url, timeout=1, headers=headers,
-                               exception_cb=retry_on_url_exc, infinite=True,
+                               exception_cb=exc_cb, infinite=True,
                                log_req_resp=False).contents
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry

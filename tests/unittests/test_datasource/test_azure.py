@@ -1687,22 +1687,44 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-    @mock.patch(MOCKPATH + 'util.write_file')
-    def test_poll_imds_calls_report_ready(self, write_f, report_ready_func,
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
+    def test_poll_imds_re_dhcp_on_timeout(self, m_dhcpv4, report_ready_func,
                                           fake_resp, m_dhcp, m_net):
-        """The poll_imds will call report_ready after creating marker file."""
-        report_marker = self.tmp_path('report_marker', self.tmp)
+        """The poll_imds will retry DHCP on IMDS timeout."""
+        report_file = self.tmp_path('report_marker', self.tmp)
         lease = {
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
             'unknown-245': '624c3620'}
         m_dhcp.return_value = [lease]
+
+        dhcp_ctx = mock.MagicMock(lease=lease)
+        dhcp_ctx.obtain_lease.return_value = lease
+        m_dhcpv4.return_value = dhcp_ctx
+
+        self.tries = 0
+
+        def fake_timeout_once(**kwargs):
+            self.tries += 1
+            if self.tries == 1:
+                raise requests.Timeout('Fake connection timeout')
+            elif self.tries == 2:
+                response = requests.Response()
+                response.status_code = 404
+                raise requests.exceptions.HTTPError(
+                    "fake 404", response=response)
+            # Third try should succeed and stop retries or redhcp
+            return mock.MagicMock(status_code=200, text="good", content="good")
+
+        fake_resp.side_effect = fake_timeout_once
+
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        mock_path = (MOCKPATH + 'REPORTED_READY_MARKER_FILE')
-        with mock.patch(mock_path, report_marker):
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
             dsa._poll_imds()
         self.assertEqual(report_ready_func.call_count, 1)
         report_ready_func.assert_called_with(lease=lease)
+        self.assertEqual(2, m_dhcpv4.call_count, 'Expected 2 DHCP calls')
+        self.assertEqual(3, self.tries, 'Expected 3 total reads from IMDS')
 
     def test_poll_imds_report_ready_false(self, report_ready_func,
                                           fake_resp, m_dhcp, m_net):

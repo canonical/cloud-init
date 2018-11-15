@@ -197,6 +197,13 @@ def maybe_get_writable_device_path(devpath, info, log):
     if devpath.startswith('gpt/'):
         log.debug('We have a gpt label - just go ahead')
         return devpath
+    # Alternatively, our device could simply be a name as returned by gpart,
+    # such as da0p3
+    if not devpath.startswith('/dev/') and not os.path.exists(devpath):
+        fulldevpath = '/dev/' + devpath.lstrip('/')
+        log.debug("'%s' doesn't appear to be a valid device path. Trying '%s'",
+                  devpath, fulldevpath)
+        devpath = fulldevpath
 
     try:
         statret = os.stat(devpath)
