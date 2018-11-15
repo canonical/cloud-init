@@ -1,3 +1,12 @@
+cloud-init (18.4-24-g8f812a15-0ubuntu1) disco; urgency=medium
+
+  * New upstream snapshot.
+    - azure: _poll_imds only retry on 404. Fail on Timeout (LP: #1803598)
+    - resizefs: Prefix discovered devpath with '/dev/' when path does not
+      exist [Igor Galić]
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 15 Nov 2018 16:11:20 -0700
+
 cloud-init (18.4-22-g6062595b-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
