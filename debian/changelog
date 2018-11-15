@@ -1,4 +1,4 @@
-cloud-init (18.4-24-g8f812a15-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.4-24-g8f812a15-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
     - azure: _poll_imds only retry on 404. Fail on Timeout (LP: #1803598)
