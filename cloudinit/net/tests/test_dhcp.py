@@ -1,15 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import httpretty
 import os
 import signal
 from textwrap import dedent
 
+import cloudinit.net as net
 from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError, maybe_perform_dhcp_discovery,
     parse_dhcp_lease_file, dhcp_discovery, networkd_load_leases)
 from cloudinit.util import ensure_file, write_file
 from cloudinit.tests.helpers import (
-    CiTestCase, mock, populate_dir, wrap_and_call)
+    CiTestCase, HttprettyTestCase, mock, populate_dir, wrap_and_call)
 
 
 class TestParseDHCPLeasesFile(CiTestCase):
@@ -321,3 +323,35 @@ class TestSystemdParseLeases(CiTestCase):
                                     '9': self.lxd_lease})
         self.assertEqual({'1': self.azure_parsed, '9': self.lxd_parsed},
                          networkd_load_leases(self.lease_d))
+
+
+class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
+
+    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+    def test_ephemeral_dhcp_no_network_if_url_connectivity(self, m_dhcp):
+        """No EphemeralDhcp4 network setup when connectivity_url succeeds."""
+        url = 'http://example.org/index.html'
+
+        httpretty.register_uri(httpretty.GET, url)
+        with net.dhcp.EphemeralDHCPv4(connectivity_url=url) as lease:
+            self.assertIsNone(lease)
+        # Ensure that no teardown happens:
+        m_dhcp.assert_not_called()
+
+    @mock.patch('cloudinit.net.dhcp.util.subp')
+    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+    def test_ephemeral_dhcp_setup_network_if_url_connectivity(
+            self, m_dhcp, m_subp):
+        """No EphemeralDhcp4 network setup when connectivity_url succeeds."""
+        url = 'http://example.org/index.html'
+        fake_lease = {
+            'interface': 'eth9', 'fixed-address': '192.168.2.2',
+            'subnet-mask': '255.255.0.0'}
+        m_dhcp.return_value = [fake_lease]
+        m_subp.return_value = ('', '')
+
+        httpretty.register_uri(httpretty.GET, url, body={}, status=404)
+        with net.dhcp.EphemeralDHCPv4(connectivity_url=url) as lease:
+            self.assertEqual(fake_lease, lease)
+        # Ensure that dhcp discovery occurs
+        m_dhcp.called_once_with()
