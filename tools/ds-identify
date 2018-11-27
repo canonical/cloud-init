@@ -237,7 +237,7 @@ read_fs_info() {
         case "${line}" in
             DEVNAME=*)
                 [ -n "$dev" -a "$ftype" = "iso9660" ] &&
-                    isodevs="${isodevs} ${dev}=$label"
+                    isodevs="${isodevs},${dev}=$label"
                 ftype=""; dev=""; label="";
                 dev=${line#DEVNAME=};;
             LABEL=*) label="${line#LABEL=}";
@@ -247,11 +247,11 @@ read_fs_info() {
         esac
     done
     [ -n "$dev" -a "$ftype" = "iso9660" ] &&
-        isodevs="${isodevs} ${dev}=$label"
+        isodevs="${isodevs},${dev}=$label"
 
     DI_FS_LABELS="${labels%${delim}}"
     DI_FS_UUIDS="${uuids%${delim}}"
-    DI_ISO9660_DEVS="${isodevs# }"
+    DI_ISO9660_DEVS="${isodevs#,}"
 }
 
 cached() {
@@ -735,9 +735,10 @@ is_cdrom_ovf() {
            return 1;;
     esac
 
+    debug 1 "got label=$label"
     # fast path known 'OVF' labels
     case "$label" in
-        OVF-TRANSPORT|ovf-transport|OVFENV|ovfenv) return 0;;
+        OVF-TRANSPORT|ovf-transport|OVFENV|ovfenv|OVF\ ENV|ovf\ env) return 0;;
     esac
 
     # explicitly skip known labels of other types. rd_rdfe is azure.
@@ -757,9 +758,13 @@ dscheck_OVF() {
     # Azure provides ovf. Skip false positive by dis-allowing.
     is_azure_chassis && return $DS_NOT_FOUND
 
-    # DI_ISO9660_DEVS is <device>=label, like /dev/sr0=OVF-TRANSPORT
+    # DI_ISO9660_DEVS is <device>=label,<device>=label2
+    # like /dev/sr0=OVF-TRANSPORT,/dev/other=with spaces
     if [ "${DI_ISO9660_DEVS#${UNAVAILABLE}:}" = "${DI_ISO9660_DEVS}" ]; then
-        for tok in ${DI_ISO9660_DEVS}; do
+        local oifs="$IFS"
+        # shellcheck disable=2086
+        { IFS=","; set -- ${DI_ISO9660_DEVS}; IFS="$oifs"; }
+        for tok in "$@"; do
             is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return $DS_FOUND
         done
     fi
