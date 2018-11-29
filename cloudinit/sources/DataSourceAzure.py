@@ -953,12 +953,12 @@ def read_azure_ovf(contents):
                             lambda n:
                             n.localName == "LinuxProvisioningConfigurationSet")
 
-    if len(results) == 0:
+    if len(lpcs_nodes) == 0:
         raise NonAzureDataSource("No LinuxProvisioningConfigurationSet")
-    if len(results) > 1:
+    if len(lpcs_nodes) > 1:
         raise BrokenAzureDataSource("found '%d' %ss" %
                                     ("LinuxProvisioningConfigurationSet",
-                                     len(results)))
+                                     len(lpcs_nodes)))
     lpcs = lpcs_nodes[0]
 
     if not lpcs.hasChildNodes():
