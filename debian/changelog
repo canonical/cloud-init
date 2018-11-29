@@ -1,4 +1,4 @@
-cloud-init (18.4-31-gbf791715-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.4-31-gbf791715-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
     - azure: detect vnet migration via netlink media change event
