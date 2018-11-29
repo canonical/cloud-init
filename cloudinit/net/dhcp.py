@@ -11,7 +11,8 @@ import re
 import signal
 
 from cloudinit.net import (
-    EphemeralIPv4Network, find_fallback_nic, get_devicelist)
+    EphemeralIPv4Network, find_fallback_nic, get_devicelist,
+    has_url_connectivity)
 from cloudinit.net.network_state import mask_and_ipv4_to_bcast_addr as bcip
 from cloudinit import temp_utils
 from cloudinit import util
@@ -37,13 +38,21 @@ class NoDHCPLeaseError(Exception):
 
 
 class EphemeralDHCPv4(object):
-    def __init__(self, iface=None):
+    def __init__(self, iface=None, connectivity_url=None):
         self.iface = iface
         self._ephipv4 = None
         self.lease = None
+        self.connectivity_url = connectivity_url
 
     def __enter__(self):
-        """Setup sandboxed dhcp context."""
+        """Setup sandboxed dhcp context, unless connectivity_url can already be
+        reached."""
+        if self.connectivity_url:
+            if has_url_connectivity(self.connectivity_url):
+                LOG.debug(
+                    'Skip ephemeral DHCP setup, instance has connectivity'
+                    ' to %s', self.connectivity_url)
+                return
         return self.obtain_lease()
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
@@ -86,6 +95,8 @@ class EphemeralDHCPv4(object):
         kwargs = dict([(k, self.lease.get(v)) for k, v in nmap.items()])
         if not kwargs['broadcast']:
             kwargs['broadcast'] = bcip(kwargs['prefix_or_mask'], kwargs['ip'])
+        if self.connectivity_url:
+            kwargs['connectivity_url'] = self.connectivity_url
         ephipv4 = EphemeralIPv4Network(**kwargs)
         ephipv4.__enter__()
         self._ephipv4 = ephipv4

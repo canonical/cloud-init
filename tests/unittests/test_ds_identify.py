@@ -499,7 +499,7 @@ class TestDsIdentify(DsIdentifyBase):
 
         # Add recognized labels
         valid_ovf_labels = ['ovf-transport', 'OVF-TRANSPORT',
-                            "OVFENV", "ovfenv"]
+                            "OVFENV", "ovfenv", "OVF ENV", "ovf env"]
         for valid_ovf_label in valid_ovf_labels:
             ovf_cdrom_by_label['mocks'][0]['out'] = blkid_out([
                 {'DEVNAME': 'sda1', 'TYPE': 'ext4', 'LABEL': 'rootfs'},

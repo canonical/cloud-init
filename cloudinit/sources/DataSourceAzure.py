@@ -22,6 +22,7 @@ from cloudinit.event import EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers.azure import get_metadata_from_fabric
+from cloudinit.sources.helpers import netlink
 from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
 from cloudinit import util
 
@@ -409,6 +410,10 @@ class DataSourceAzure(sources.DataSource):
 
             perform_reprovision = reprovision or self._should_reprovision(ret)
             if perform_reprovision:
+                if util.is_FreeBSD():
+                    msg = "Free BSD is not supported for PPS VMs"
+                    LOG.error(msg)
+                    raise sources.InvalidMetaDataException(msg)
                 ret = self._reprovision()
             imds_md = get_metadata_from_imds(
                 self.fallback_interface, retries=3)
@@ -523,8 +528,8 @@ class DataSourceAzure(sources.DataSource):
         response. Then return the returned JSON object."""
         url = IMDS_URL + "reprovisiondata?api-version=2017-04-02"
         headers = {"Metadata": "true"}
+        nl_sock = None
         report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
-        LOG.debug("Start polling IMDS")
 
         def exc_cb(msg, exception):
             if isinstance(exception, UrlError) and exception.code == 404:
@@ -533,12 +538,19 @@ class DataSourceAzure(sources.DataSource):
             # call DHCP and setup the ephemeral network to acquire the new IP.
             return False
 
+        LOG.debug("Wait for vnetswitch to happen")
         while True:
             try:
                 # Save our EphemeralDHCPv4 context so we avoid repeated dhcp
                 self._ephemeral_dhcp_ctx = EphemeralDHCPv4()
                 lease = self._ephemeral_dhcp_ctx.obtain_lease()
                 if report_ready:
+                    try:
+                        nl_sock = netlink.create_bound_netlink_socket()
+                    except netlink.NetlinkCreateSocketError as e:
+                        LOG.warning(e)
+                        self._ephemeral_dhcp_ctx.clean_network()
+                        return
                     path = REPORTED_READY_MARKER_FILE
                     LOG.info(
                         "Creating a marker file to report ready: %s", path)
@@ -546,13 +558,24 @@ class DataSourceAzure(sources.DataSource):
                         pid=os.getpid(), time=time()))
                     self._report_ready(lease=lease)
                     report_ready = False
-                return readurl(url, timeout=1, headers=headers,
-                               exception_cb=exc_cb, infinite=True,
-                               log_req_resp=False).contents
+                    try:
+                        netlink.wait_for_media_disconnect_connect(
+                            nl_sock, lease['interface'])
+                    except AssertionError as error:
+                        LOG.error(error)
+                        return
+                    self._ephemeral_dhcp_ctx.clean_network()
+                else:
+                    return readurl(url, timeout=1, headers=headers,
+                                   exception_cb=exc_cb, infinite=True,
+                                   log_req_resp=False).contents
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry
                 self._ephemeral_dhcp_ctx.clean_network()
                 pass
+            finally:
+                if nl_sock:
+                    nl_sock.close()
 
     def _report_ready(self, lease):
         """Tells the fabric provisioning has completed """
@@ -953,12 +976,12 @@ def read_azure_ovf(contents):
                             lambda n:
                             n.localName == "LinuxProvisioningConfigurationSet")
 
-    if len(results) == 0:
+    if len(lpcs_nodes) == 0:
         raise NonAzureDataSource("No LinuxProvisioningConfigurationSet")
-    if len(results) > 1:
+    if len(lpcs_nodes) > 1:
         raise BrokenAzureDataSource("found '%d' %ss" %
                                     ("LinuxProvisioningConfigurationSet",
-                                     len(results)))
+                                     len(lpcs_nodes)))
     lpcs = lpcs_nodes[0]
 
     if not lpcs.hasChildNodes():

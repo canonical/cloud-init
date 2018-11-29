@@ -384,7 +384,7 @@ Valid keys for ``subnets`` include the following:
 - ``address``: IPv4 or IPv6 address.  It may include CIDR netmask notation.
 - ``netmask``: IPv4 subnet mask in dotted format or CIDR notation.
 - ``gateway``: IPv4 address of the default gateway for this subnet.
-- ``dns_nameserver``: Specify a list of IPv4 dns server IPs to end up in
+- ``dns_nameservers``: Specify a list of IPv4 dns server IPs to end up in
   resolv.conf.
 - ``dns_search``: Specify a list of search paths to be included in
   resolv.conf.
