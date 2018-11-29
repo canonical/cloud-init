@@ -151,9 +151,9 @@ class TestResizefs(CiTestCase):
                          _resize_ufs(mount_point, devpth))
 
     @mock.patch('cloudinit.util.is_container', return_value=False)
-    @mock.patch('cloudinit.util.get_mount_info')
-    @mock.patch('cloudinit.util.get_device_info_from_zpool')
     @mock.patch('cloudinit.util.parse_mount')
+    @mock.patch('cloudinit.util.get_device_info_from_zpool')
+    @mock.patch('cloudinit.util.get_mount_info')
     def test_handle_zfs_root(self, mount_info, zpool_info, parse_mount,
                              is_container):
         devpth = 'vmzroot/ROOT/freebsd'

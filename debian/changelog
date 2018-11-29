@@ -1,3 +1,20 @@
+cloud-init (18.4-31-gbf791715-0ubuntu1) disco; urgency=medium
+
+  * New upstream snapshot.
+    - azure: detect vnet migration via netlink media change event
+      [Tamilmani Manoharan]
+    - Azure: fix copy/paste error in error handling when reading azure ovf.
+      [Adam DePue]
+    - tests: fix incorrect order of mocks in test_handle_zfs_root.
+    - doc: Change dns_nameserver property to dns_nameservers. [Tomer Cohen]
+    - OVF: identify label iso9660 filesystems with label 'OVF ENV'.
+    - logs: collect-logs ignore instance-data-sensitive.json on non-root user
+      (LP: #1805201)
+    - net: Ephemeral*Network: add connectivity check via URL
+      [Igor Galić]
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 29 Nov 2018 16:23:24 -0700
+
 cloud-init (18.4-24-g8f812a15-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
