@@ -564,6 +564,8 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         self.assertEqual(1, report_ready_func.call_count)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+    @mock.patch('cloudinit.sources.helpers.netlink.'
+                'wait_for_media_disconnect_connect')
     @mock.patch(
         'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
     @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
@@ -572,7 +574,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
     def test_crawl_metadata_on_reprovision_reports_ready_using_lease(
                             self, m_readurl, m_dhcp,
                             m_net, report_ready_func,
-                            m_write):
+                            m_media_switch, m_write):
         """If reprovisioning, report ready using the obtained lease"""
         ovfenv = construct_valid_ovf_env(
                             platform_settings={"PreprovisionedVm": "True"})
@@ -586,6 +588,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
             'unknown-245': '624c3620'}
         m_dhcp.return_value = [lease]
+        m_media_switch.return_value = None
 
         reprovision_ovfenv = construct_valid_ovf_env()
         m_readurl.return_value = url_helper.StringResponse(
@@ -1676,6 +1679,8 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
 
 @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
 @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+@mock.patch('cloudinit.sources.helpers.netlink.'
+            'wait_for_media_disconnect_connect')
 @mock.patch('requests.Session.request')
 @mock.patch(MOCKPATH + 'DataSourceAzure._report_ready')
 class TestPreprovisioningPollIMDS(CiTestCase):
@@ -1689,7 +1694,8 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     def test_poll_imds_re_dhcp_on_timeout(self, m_dhcpv4, report_ready_func,
-                                          fake_resp, m_dhcp, m_net):
+                                          fake_resp, m_media_switch, m_dhcp,
+                                          m_net):
         """The poll_imds will retry DHCP on IMDS timeout."""
         report_file = self.tmp_path('report_marker', self.tmp)
         lease = {
@@ -1697,7 +1703,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
             'unknown-245': '624c3620'}
         m_dhcp.return_value = [lease]
-
+        m_media_switch.return_value = None
         dhcp_ctx = mock.MagicMock(lease=lease)
         dhcp_ctx.obtain_lease.return_value = lease
         m_dhcpv4.return_value = dhcp_ctx
@@ -1723,11 +1729,12 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             dsa._poll_imds()
         self.assertEqual(report_ready_func.call_count, 1)
         report_ready_func.assert_called_with(lease=lease)
-        self.assertEqual(2, m_dhcpv4.call_count, 'Expected 2 DHCP calls')
+        self.assertEqual(3, m_dhcpv4.call_count, 'Expected 3 DHCP calls')
         self.assertEqual(3, self.tries, 'Expected 3 total reads from IMDS')
 
-    def test_poll_imds_report_ready_false(self, report_ready_func,
-                                          fake_resp, m_dhcp, m_net):
+    def test_poll_imds_report_ready_false(self,
+                                          report_ready_func, fake_resp,
+                                          m_media_switch, m_dhcp, m_net):
         """The poll_imds should not call reporting ready
            when flag is false"""
         report_file = self.tmp_path('report_marker', self.tmp)
@@ -1736,6 +1743,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
             'unknown-245': '624c3620'}]
+        m_media_switch.return_value = None
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
             dsa._poll_imds()
@@ -1745,6 +1753,8 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 @mock.patch(MOCKPATH + 'util.subp')
 @mock.patch(MOCKPATH + 'util.write_file')
 @mock.patch(MOCKPATH + 'util.is_FreeBSD')
+@mock.patch('cloudinit.sources.helpers.netlink.'
+            'wait_for_media_disconnect_connect')
 @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
 @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
 @mock.patch('requests.Session.request')
@@ -1757,10 +1767,13 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.paths = helpers.Paths({'cloud_dir': tmp})
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-    def test_poll_imds_returns_ovf_env(self, fake_resp, m_dhcp, m_net,
+    def test_poll_imds_returns_ovf_env(self, fake_resp,
+                                       m_dhcp, m_net,
+                                       m_media_switch,
                                        m_is_bsd, write_f, subp):
         """The _poll_imds method should return the ovf_env.xml."""
         m_is_bsd.return_value = False
+        m_media_switch.return_value = None
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0'}]
@@ -1778,16 +1791,19 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                                              'Cloud-Init/%s' % vs()
                                              }, method='GET', timeout=1,
                                     url=full_url)])
-        self.assertEqual(m_dhcp.call_count, 1)
+        self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
             prefix_or_mask='255.255.255.0', router='192.168.2.1')
-        self.assertEqual(m_net.call_count, 1)
+        self.assertEqual(m_net.call_count, 2)
 
-    def test__reprovision_calls__poll_imds(self, fake_resp, m_dhcp, m_net,
+    def test__reprovision_calls__poll_imds(self, fake_resp,
+                                           m_dhcp, m_net,
+                                           m_media_switch,
                                            m_is_bsd, write_f, subp):
         """The _reprovision method should call poll IMDS."""
         m_is_bsd.return_value = False
+        m_media_switch.return_value = None
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
@@ -1811,11 +1827,11 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                                              'User-Agent':
                                              'Cloud-Init/%s' % vs()},
                                     method='GET', timeout=1, url=full_url)])
-        self.assertEqual(m_dhcp.call_count, 1)
+        self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
             prefix_or_mask='255.255.255.0', router='192.168.2.1')
-        self.assertEqual(m_net.call_count, 1)
+        self.assertEqual(m_net.call_count, 2)
 
 
 class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
