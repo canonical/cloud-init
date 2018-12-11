@@ -156,13 +156,23 @@ class Route(ConfigMap):
                                            _quote_value(gateway_value)))
                     buf.write("%s=%s\n" % ('NETMASK' + str(reindex),
                                            _quote_value(netmask_value)))
+                    metric_key = 'METRIC' + index
+                    if metric_key in self._conf:
+                        metric_value = str(self._conf['METRIC' + index])
+                        buf.write("%s=%s\n" % ('METRIC' + str(reindex),
+                                               _quote_value(metric_value)))
                 elif proto == "ipv6" and self.is_ipv6_route(address_value):
                     netmask_value = str(self._conf['NETMASK' + index])
                     gateway_value = str(self._conf['GATEWAY' + index])
-                    buf.write("%s/%s via %s dev %s\n" % (address_value,
-                                                         netmask_value,
-                                                         gateway_value,
-                                                         self._route_name))
+                    metric_value = (
+                        'metric ' + str(self._conf['METRIC' + index])
+                        if 'METRIC' + index in self._conf else '')
+                    buf.write(
+                        "%s/%s via %s %s dev %s\n" % (address_value,
+                                                      netmask_value,
+                                                      gateway_value,
+                                                      metric_value,
+                                                      self._route_name))
 
         return buf.getvalue()
 
@@ -370,6 +380,9 @@ class Renderer(renderer.Renderer):
                     else:
                         iface_cfg['GATEWAY'] = subnet['gateway']
 
+                if 'metric' in subnet:
+                    iface_cfg['METRIC'] = subnet['metric']
+
                 if 'dns_search' in subnet:
                     iface_cfg['DOMAIN'] = ' '.join(subnet['dns_search'])
 
@@ -414,15 +427,19 @@ class Renderer(renderer.Renderer):
                         else:
                             iface_cfg['GATEWAY'] = route['gateway']
                             route_cfg.has_set_default_ipv4 = True
+                    if 'metric' in route:
+                        iface_cfg['METRIC'] = route['metric']
 
                 else:
                     gw_key = 'GATEWAY%s' % route_cfg.last_idx
                     nm_key = 'NETMASK%s' % route_cfg.last_idx
                     addr_key = 'ADDRESS%s' % route_cfg.last_idx
+                    metric_key = 'METRIC%s' % route_cfg.last_idx
                     route_cfg.last_idx += 1
                     # add default routes only to ifcfg files, not
                     # to route-* or route6-*
                     for (old_key, new_key) in [('gateway', gw_key),
+                                               ('metric', metric_key),
                                                ('netmask', nm_key),
                                                ('network', addr_key)]:
                         if old_key in route:
