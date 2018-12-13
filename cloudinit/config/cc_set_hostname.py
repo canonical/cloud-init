@@ -16,7 +16,7 @@ This module handles setting the system hostname and fqdn. If
 
 A hostname and fqdn can be provided by specifying a full domain name under the
 ``fqdn`` key. Alternatively, a hostname can be specified using the ``hostname``
-key, and the fqdn of the cloud wil be used. If a fqdn specified with the
+key, and the fqdn of the cloud will be used. If a fqdn specified with the
 ``hostname`` key, it will be handled properly, although it is better to use
 the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set, ``fqdn``
 will be used.
