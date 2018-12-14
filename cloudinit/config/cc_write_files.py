@@ -49,6 +49,10 @@ binary gzip data can be specified and will be decoded before being written.
             ...
           path: /bin/arch
           permissions: '0555'
+        - content: |
+            15 * * * * root ship_logs
+          path: /etc/crontab
+          append: true
 """
 
 import base64
@@ -113,7 +117,8 @@ def write_files(name, files):
         contents = extract_contents(f_info.get('content', ''), extractions)
         (u, g) = util.extract_usergroup(f_info.get('owner', DEFAULT_OWNER))
         perms = decode_perms(f_info.get('permissions'), DEFAULT_PERMS)
-        util.write_file(path, contents, mode=perms)
+        omode = 'ab' if util.get_cfg_option_bool(f_info, 'append') else 'wb'
+        util.write_file(path, contents, omode=omode, mode=perms)
         util.chownbyname(path, u, g)
 
 

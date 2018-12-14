@@ -1,3 +1,19 @@
+cloud-init (18.5-1-g5b065316-0ubuntu1) disco; urgency=medium
+
+  * New upstream snapshot.
+    - Update to pylint 2.2.2.
+    - Release 18.5 (LP: #1808380)
+    - tests: add Disco release [Joshua Powers]
+    - net: render 'metric' values in per-subnet routes (LP: #1805871)
+    - write_files: add support for appending to files. [James Baxter]
+    - config: On ubuntu select cloud archive mirrors for armel, armhf, arm64.
+      (LP: #1805854)
+    - dhclient-hook: cleanups, tests and fix a bug on 'down' event.
+    - NoCloud: Allow top level 'network' key in network-config. (LP: #1798117)
+    - ovf: Fix ovf network config generation gateway/routes (LP: #1806103)
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Fri, 14 Dec 2018 14:45:46 -0600
+
 cloud-init (18.4-31-gbf791715-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.

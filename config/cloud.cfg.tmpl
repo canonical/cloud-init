@@ -167,7 +167,17 @@ system_info:
            - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
            - http://%(region)s.clouds.archive.ubuntu.com/ubuntu/
          security: []
-     - arches: [armhf, armel, default]
+     - arches: [arm64, armel, armhf]
+       failsafe:
+         primary: http://ports.ubuntu.com/ubuntu-ports
+         security: http://ports.ubuntu.com/ubuntu-ports
+       search:
+         primary:
+           - http://%(ec2_region)s.ec2.ports.ubuntu.com/ubuntu-ports/
+           - http://%(availability_zone)s.clouds.ports.ubuntu.com/ubuntu-ports/
+           - http://%(region)s.clouds.ports.ubuntu.com/ubuntu-ports/
+         security: []
+     - arches: [default]
        failsafe:
          primary: http://ports.ubuntu.com/ubuntu-ports
          security: http://ports.ubuntu.com/ubuntu-ports

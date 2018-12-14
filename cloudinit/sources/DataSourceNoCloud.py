@@ -311,6 +311,35 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
     return True
 
 
+def _maybe_remove_top_network(cfg):
+    """If network-config contains top level 'network' key, then remove it.
+
+    Some providers of network configuration may provide a top level
+    'network' key (LP: #1798117) even though it is not necessary.
+
+    Be friendly and remove it if it really seems so.
+
+    Return the original value if no change or the updated value if changed."""
+    nullval = object()
+    network_val = cfg.get('network', nullval)
+    if network_val is nullval:
+        return cfg
+    bmsg = 'Top level network key in network-config %s: %s'
+    if not isinstance(network_val, dict):
+        LOG.debug(bmsg, "was not a dict", cfg)
+        return cfg
+    if len(list(cfg.keys())) != 1:
+        LOG.debug(bmsg, "had multiple top level keys", cfg)
+        return cfg
+    if network_val.get('config') == "disabled":
+        LOG.debug(bmsg, "was config/disabled", cfg)
+    elif not all(('config' in network_val, 'version' in network_val)):
+        LOG.debug(bmsg, "but missing 'config' or 'version'", cfg)
+        return cfg
+    LOG.debug(bmsg, "fixed by removing shifting network.", cfg)
+    return network_val
+
+
 def _merge_new_seed(cur, seeded):
     ret = cur.copy()
 
@@ -320,7 +349,8 @@ def _merge_new_seed(cur, seeded):
     ret['meta-data'] = util.mergemanydict([cur['meta-data'], newmd])
 
     if seeded.get('network-config'):
-        ret['network-config'] = util.load_yaml(seeded['network-config'])
+        ret['network-config'] = _maybe_remove_top_network(
+            util.load_yaml(seeded.get('network-config')))
 
     if 'user-data' in seeded:
         ret['user-data'] = seeded['user-data']

@@ -1,3 +1,57 @@
+18.5:
+ - tests: add Disco release [Joshua Powers]
+ - net: render 'metric' values in per-subnet routes (LP: #1805871)
+ - write_files: add support for appending to files. [James Baxter]
+ - config: On ubuntu select cloud archive mirrors for armel, armhf, arm64.
+   (LP: #1805854)
+ - dhclient-hook: cleanups, tests and fix a bug on 'down' event.
+ - NoCloud: Allow top level 'network' key in network-config. (LP: #1798117)
+ - ovf: Fix ovf network config generation gateway/routes (LP: #1806103)
+ - azure: detect vnet migration via netlink media change event
+   [Tamilmani Manoharan]
+ - Azure: fix copy/paste error in error handling when reading azure ovf.
+   [Adam DePue]
+ - tests: fix incorrect order of mocks in test_handle_zfs_root.
+ - doc: Change dns_nameserver property to dns_nameservers. [Tomer Cohen]
+ - OVF: identify label iso9660 filesystems with label 'OVF ENV'.
+ - logs: collect-logs ignore instance-data-sensitive.json on non-root user
+   (LP: #1805201)
+ - net: Ephemeral*Network: add connectivity check via URL
+ - azure: _poll_imds only retry on 404. Fail on Timeout (LP: #1803598)
+ - resizefs: Prefix discovered devpath with '/dev/' when path does not
+   exist [Igor Galić]
+ - azure: retry imds polling on requests.Timeout (LP: #1800223)
+ - azure: Accept variation in error msg from mount for ntfs volumes
+   [Jason Zions] (LP: #1799338)
+ - azure: fix regression introduced when persisting ephemeral dhcp lease
+   [asakkurr]
+ - azure: add udev rules to create cloud-init Gen2 disk name symlinks
+   (LP: #1797480)
+ - tests: ec2 mock missing httpretty user-data and instance-identity routes
+ - azure: remove /etc/netplan/90-hotplug-azure.yaml when net from IMDS
+ - azure: report ready to fabric after reprovision and reduce logging
+   [asakkurr] (LP: #1799594)
+ - query: better error when missing read permission on instance-data
+ - instance-data: fallback to instance-data.json if sensitive is absent.
+   (LP: #1798189)
+ - docs: remove colon from network v1 config example. [Tomer Cohen]
+ - Add cloud-id binary to packages for SUSE [Jason Zions]
+ - systemd: On SUSE ensure cloud-init.service runs before wicked
+   [Robert Schweikert] (LP: #1799709)
+ - update detection of openSUSE variants [Robert Schweikert]
+ - azure: Add apply_network_config option to disable network from IMDS
+   (LP: #1798424)
+ - Correct spelling in an error message (udevadm). [Katie McLaughlin]
+ - tests: meta_data key changed to meta-data in ec2 instance-data.json
+   (LP: #1797231)
+ - tests: fix kvm integration test to assert flexible config-disk path
+   (LP: #1797199)
+ - tools: Add cloud-id command line utility
+ - instance-data: Add standard keys platform and subplatform. Refactor ec2.
+ - net: ignore nics that have "zero" mac address. (LP: #1796917)
+ - tests: fix apt_configure_primary to be more flexible
+ - Ubuntu: update sources.list to comment out deb-src entries. (LP: #74747)
+
 18.4:
  - add rtd example docs about new standardized keys
  - use ds._crawled_metadata instance attribute if set when writing
