@@ -11,10 +11,10 @@ Do these things once
 
 * To contribute, you must sign the Canonical `contributor license agreement`_
 
-  If you have already signed it as an individual, your Launchpad user will be listed in the `contributor-agreement-canonical`_ group.  Unfortunately there is no easy way to check if an organization or company you are doing work for has signed.  If you are unsure or have questions, email `Scott Moser <mailto:scott.moser@canonical.com>`_ or ping smoser in ``#cloud-init`` channel via freenode.
+  If you have already signed it as an individual, your Launchpad user will be listed in the `contributor-agreement-canonical`_ group.  Unfortunately there is no easy way to check if an organization or company you are doing work for has signed.  If you are unsure or have questions, email `Josh Powers <mailto:josh.powers@canonical.com>`_ or ping powersj in ``#cloud-init`` channel via freenode.
 
   When prompted for 'Project contact' or 'Canonical Project Manager' enter
-  'Scott Moser'.
+  'Josh Powers'.
 
 * Configure git with your email and name for commit messages.
 
