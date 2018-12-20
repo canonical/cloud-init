@@ -236,7 +236,7 @@ class DataSourceOVF(sources.DataSource):
                   ('iso', transport_iso9660)]
             name = None
             for name, transfunc in np:
-                (contents, _dev, _fname) = transfunc()
+                contents = transfunc()
                 if contents:
                     break
             if contents:
@@ -464,8 +464,8 @@ def maybe_cdrom_device(devname):
     return cdmatch.match(devname) is not None
 
 
-# Transport functions take no input and return
-# a 3 tuple of content, path, filename
+# Transport functions are called with no arguments and return
+# either None (indicating not present) or string content of an ovf-env.xml
 def transport_iso9660(require_iso=True):
 
     # Go through mounts to see if it was already mounted
@@ -477,9 +477,9 @@ def transport_iso9660(require_iso=True):
         if not maybe_cdrom_device(dev):
             continue
         mp = info['mountpoint']
-        (fname, contents) = get_ovf_env(mp)
+        (_fname, contents) = get_ovf_env(mp)
         if contents is not False:
-            return (contents, dev, fname)
+            return contents
 
     if require_iso:
         mtype = "iso9660"
@@ -492,27 +492,27 @@ def transport_iso9660(require_iso=True):
             if maybe_cdrom_device(dev)]
     for dev in devs:
         try:
-            (fname, contents) = util.mount_cb(dev, get_ovf_env, mtype=mtype)
+            (_fname, contents) = util.mount_cb(dev, get_ovf_env, mtype=mtype)
         except util.MountFailedError:
             LOG.debug("%s not mountable as iso9660", dev)
             continue
 
         if contents is not False:
-            return (contents, dev, fname)
+            return contents
 
-    return (False, None, None)
+    return None
 
 
 def transport_vmware_guestinfo():
     rpctool = "vmware-rpctool"
-    not_found = (False, None, None)
+    not_found = None
     if not util.which(rpctool):
         return not_found
     cmd = [rpctool, "info-get guestinfo.ovfEnv"]
     try:
         out, _err = util.subp(cmd)
         if out:
-            return (out, rpctool, "guestinfo.ovfEnv")
+            return out
         LOG.debug("cmd %s exited 0 with empty stdout: %s", cmd, out)
     except util.ProcessExecutionError as e:
         if e.exit_code != 1:

@@ -19,6 +19,8 @@ from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
 
 MPATH = 'cloudinit.sources.DataSourceOVF.'
 
+NOT_FOUND = None
+
 OVF_ENV_CONTENT = """<?xml version="1.0" encoding="UTF-8"?>
 <Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -127,8 +129,8 @@ class TestDatasourceOVF(CiTestCase):
         retcode = wrap_and_call(
             'cloudinit.sources.DataSourceOVF',
             {'util.read_dmi_data': None,
-             'transport_iso9660': (False, None, None),
-             'transport_vmware_guestinfo': (False, None, None)},
+             'transport_iso9660': NOT_FOUND,
+             'transport_vmware_guestinfo': NOT_FOUND},
             ds.get_data)
         self.assertFalse(retcode, 'Expected False return from ds.get_data')
         self.assertIn(
@@ -143,8 +145,8 @@ class TestDatasourceOVF(CiTestCase):
         retcode = wrap_and_call(
             'cloudinit.sources.DataSourceOVF',
             {'util.read_dmi_data': 'vmware',
-             'transport_iso9660': (False, None, None),
-             'transport_vmware_guestinfo': (False, None, None)},
+             'transport_iso9660': NOT_FOUND,
+             'transport_vmware_guestinfo': NOT_FOUND},
             ds.get_data)
         self.assertFalse(retcode, 'Expected False return from ds.get_data')
         self.assertIn(
@@ -194,8 +196,8 @@ class TestDatasourceOVF(CiTestCase):
         with mock.patch(MPATH + 'util.read_dmi_data', return_value='!VMware'):
             with mock.patch(MPATH + 'transport_vmware_guestinfo') as m_guestd:
                 with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
-                    m_iso9660.return_value = (None, 'ignored', 'ignored')
-                    m_guestd.return_value = (None, 'ignored', 'ignored')
+                    m_iso9660.return_value = NOT_FOUND
+                    m_guestd.return_value = NOT_FOUND
                     self.assertTrue(ds.get_data())
                     self.assertEqual(
                         'ovf (%s/seed/ovf-env.xml)' % self.tdir,
@@ -215,8 +217,8 @@ class TestDatasourceOVF(CiTestCase):
         with mock.patch(MPATH + 'util.read_dmi_data', return_value='VMWare'):
             with mock.patch(MPATH + 'transport_vmware_guestinfo') as m_guestd:
                 with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
-                    m_iso9660.return_value = (None, 'ignored', 'ignored')
-                    m_guestd.return_value = (None, 'ignored', 'ignored')
+                    m_iso9660.return_value = NOT_FOUND
+                    m_guestd.return_value = NOT_FOUND
                     self.assertTrue(ds.get_data())
                     self.assertEqual(
                         'vmware (%s/seed/ovf-env.xml)' % self.tdir,
@@ -246,10 +248,7 @@ class TestTransportIso9660(CiTestCase):
         }
         self.m_mounts.return_value = mounts
 
-        (contents, fullp, fname) = dsovf.transport_iso9660()
-        self.assertEqual("mycontent", contents)
-        self.assertEqual("/dev/sr9", fullp)
-        self.assertEqual("myfile", fname)
+        self.assertEqual("mycontent", dsovf.transport_iso9660())
 
     def test_find_already_mounted_skips_non_iso9660(self):
         """Check we call get_ovf_env ignoring non iso9660"""
@@ -272,10 +271,7 @@ class TestTransportIso9660(CiTestCase):
         self.m_mounts.return_value = (
             OrderedDict(sorted(mounts.items(), key=lambda t: t[0])))
 
-        (contents, fullp, fname) = dsovf.transport_iso9660()
-        self.assertEqual("mycontent", contents)
-        self.assertEqual("/dev/xvdc", fullp)
-        self.assertEqual("myfile", fname)
+        self.assertEqual("mycontent", dsovf.transport_iso9660())
 
     def test_find_already_mounted_matches_kname(self):
         """Check we dont regex match on basename of the device"""
@@ -289,10 +285,7 @@ class TestTransportIso9660(CiTestCase):
         # we're skipping an entry which fails to match.
         self.m_mounts.return_value = mounts
 
-        (contents, fullp, fname) = dsovf.transport_iso9660()
-        self.assertEqual(False, contents)
-        self.assertIsNone(fullp)
-        self.assertIsNone(fname)
+        self.assertEqual(NOT_FOUND, dsovf.transport_iso9660())
 
     def test_mount_cb_called_on_blkdevs_with_iso9660(self):
         """Check we call mount_cb on blockdevs with iso9660 only"""
@@ -300,13 +293,9 @@ class TestTransportIso9660(CiTestCase):
         self.m_find_devs_with.return_value = ['/dev/sr0']
         self.m_mount_cb.return_value = ("myfile", "mycontent")
 
-        (contents, fullp, fname) = dsovf.transport_iso9660()
-
+        self.assertEqual("mycontent", dsovf.transport_iso9660())
         self.m_mount_cb.assert_called_with(
             "/dev/sr0", dsovf.get_ovf_env, mtype="iso9660")
-        self.assertEqual("mycontent", contents)
-        self.assertEqual("/dev/sr0", fullp)
-        self.assertEqual("myfile", fname)
 
     def test_mount_cb_called_on_blkdevs_with_iso9660_check_regex(self):
         """Check we call mount_cb on blockdevs with iso9660 and match regex"""
@@ -315,25 +304,17 @@ class TestTransportIso9660(CiTestCase):
             '/dev/abc', '/dev/my-cdrom', '/dev/sr0']
         self.m_mount_cb.return_value = ("myfile", "mycontent")
 
-        (contents, fullp, fname) = dsovf.transport_iso9660()
-
+        self.assertEqual("mycontent", dsovf.transport_iso9660())
         self.m_mount_cb.assert_called_with(
             "/dev/sr0", dsovf.get_ovf_env, mtype="iso9660")
-        self.assertEqual("mycontent", contents)
-        self.assertEqual("/dev/sr0", fullp)
-        self.assertEqual("myfile", fname)
 
     def test_mount_cb_not_called_no_matches(self):
         """Check we don't call mount_cb if nothing matches"""
         self.m_mounts.return_value = {}
         self.m_find_devs_with.return_value = ['/dev/vg/myovf']
 
-        (contents, fullp, fname) = dsovf.transport_iso9660()
-
+        self.assertEqual(NOT_FOUND, dsovf.transport_iso9660())
         self.assertEqual(0, self.m_mount_cb.call_count)
-        self.assertEqual(False, contents)
-        self.assertIsNone(fullp)
-        self.assertIsNone(fname)
 
     def test_mount_cb_called_require_iso_false(self):
         """Check we call mount_cb on blockdevs with require_iso=False"""
@@ -341,13 +322,11 @@ class TestTransportIso9660(CiTestCase):
         self.m_find_devs_with.return_value = ['/dev/xvdz']
         self.m_mount_cb.return_value = ("myfile", "mycontent")
 
-        (contents, fullp, fname) = dsovf.transport_iso9660(require_iso=False)
+        self.assertEqual(
+            "mycontent", dsovf.transport_iso9660(require_iso=False))
 
         self.m_mount_cb.assert_called_with(
             "/dev/xvdz", dsovf.get_ovf_env, mtype=None)
-        self.assertEqual("mycontent", contents)
-        self.assertEqual("/dev/xvdz", fullp)
-        self.assertEqual("myfile", fname)
 
     def test_maybe_cdrom_device_none(self):
         """Test maybe_cdrom_device returns False for none/empty input"""
@@ -393,12 +372,11 @@ class TestTransportVmwareGuestinfo(CiTestCase):
 
     rpctool = 'vmware-rpctool'
     with_logs = True
-    not_found = (False, None, None)
     rpctool_path = '/not/important/vmware-rpctool'
 
     def test_without_vmware_rpctool_returns_notfound(self, m_subp, m_which):
         m_which.return_value = None
-        self.assertEqual(self.not_found, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(0, m_subp.call_count,
                          "subp should not be called if no rpctool in path.")
 
@@ -407,7 +385,7 @@ class TestTransportVmwareGuestinfo(CiTestCase):
         m_which.return_value = self.rpctool_path
         m_subp.side_effect = util.ProcessExecutionError(
             stdout="", stderr="No value found", exit_code=1, cmd=["unused"])
-        self.assertEqual(self.not_found, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)
         self.assertNotIn("WARNING", self.logs.getvalue(),
                          "exit code of 1 by rpctool should not cause warning.")
@@ -421,7 +399,7 @@ class TestTransportVmwareGuestinfo(CiTestCase):
         """
         m_which.return_value = self.rpctool_path
         m_subp.return_value = ('', '')
-        self.assertEqual(self.not_found, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)
 
     def test_notfound_and_warns_on_unexpected_exit_code(self, m_subp, m_which):
@@ -429,7 +407,7 @@ class TestTransportVmwareGuestinfo(CiTestCase):
         m_which.return_value = self.rpctool_path
         m_subp.side_effect = util.ProcessExecutionError(
             stdout=None, stderr="No value found", exit_code=2, cmd=["unused"])
-        self.assertEqual(self.not_found, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)
         self.assertIn("WARNING", self.logs.getvalue(),
                       "exit code of 2 by rpctool should log WARNING.")
@@ -439,9 +417,7 @@ class TestTransportVmwareGuestinfo(CiTestCase):
         m_which.return_value = self.rpctool_path
         content = fill_properties({})
         m_subp.return_value = (content, '')
-        self.assertEqual(
-            (content, self.rpctool, "guestinfo.ovfEnv"),
-            dsovf.transport_vmware_guestinfo())
+        self.assertEqual(content, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)
 
 #
