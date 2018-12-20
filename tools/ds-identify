@@ -736,7 +736,7 @@ ovf_vmware_transport_guestinfo() {
         debug 1 "Running on vmware but rpctool query returned $ret: $out"
         return 1
     fi
-    case "$1" in
+    case "$out" in
         "<?xml"*|"<?XML"*) :;;
         *) debug 1 "guestinfo.ovfEnv had non-xml content: $out";
            return 1;;
