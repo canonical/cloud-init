@@ -17,6 +17,8 @@ from cloudinit.sources import DataSourceOVF as dsovf
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
     CustomScriptNotFound)
 
+MPATH = 'cloudinit.sources.DataSourceOVF.'
+
 OVF_ENV_CONTENT = """<?xml version="1.0" encoding="UTF-8"?>
 <Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -126,7 +128,7 @@ class TestDatasourceOVF(CiTestCase):
             'cloudinit.sources.DataSourceOVF',
             {'util.read_dmi_data': None,
              'transport_iso9660': (False, None, None),
-             'transport_vmware_guestd': (False, None, None)},
+             'transport_vmware_guestinfo': (False, None, None)},
             ds.get_data)
         self.assertFalse(retcode, 'Expected False return from ds.get_data')
         self.assertIn(
@@ -142,7 +144,7 @@ class TestDatasourceOVF(CiTestCase):
             'cloudinit.sources.DataSourceOVF',
             {'util.read_dmi_data': 'vmware',
              'transport_iso9660': (False, None, None),
-             'transport_vmware_guestd': (False, None, None)},
+             'transport_vmware_guestinfo': (False, None, None)},
             ds.get_data)
         self.assertFalse(retcode, 'Expected False return from ds.get_data')
         self.assertIn(
@@ -189,9 +191,8 @@ class TestDatasourceOVF(CiTestCase):
 
         self.assertEqual('ovf', ds.cloud_name)
         self.assertEqual('ovf', ds.platform_type)
-        MPATH = 'cloudinit.sources.DataSourceOVF.'
         with mock.patch(MPATH + 'util.read_dmi_data', return_value='!VMware'):
-            with mock.patch(MPATH + 'transport_vmware_guestd') as m_guestd:
+            with mock.patch(MPATH + 'transport_vmware_guestinfo') as m_guestd:
                 with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
                     m_iso9660.return_value = (None, 'ignored', 'ignored')
                     m_guestd.return_value = (None, 'ignored', 'ignored')
@@ -211,9 +212,8 @@ class TestDatasourceOVF(CiTestCase):
 
         self.assertEqual('ovf', ds.cloud_name)
         self.assertEqual('ovf', ds.platform_type)
-        MPATH = 'cloudinit.sources.DataSourceOVF.'
         with mock.patch(MPATH + 'util.read_dmi_data', return_value='VMWare'):
-            with mock.patch(MPATH + 'transport_vmware_guestd') as m_guestd:
+            with mock.patch(MPATH + 'transport_vmware_guestinfo') as m_guestd:
                 with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
                     m_iso9660.return_value = (None, 'ignored', 'ignored')
                     m_guestd.return_value = (None, 'ignored', 'ignored')
@@ -383,6 +383,66 @@ class TestTransportIso9660(CiTestCase):
         self.assertTrue(dsovf.maybe_cdrom_device('/dev/xvda'))
         self.assertTrue(dsovf.maybe_cdrom_device('/dev/xvda1'))
         self.assertTrue(dsovf.maybe_cdrom_device('xvdza1'))
+
+
+@mock.patch(MPATH + "util.which")
+@mock.patch(MPATH + "util.subp")
+class TestTransportVmwareGuestinfo(CiTestCase):
+    """Test the com.vmware.guestInfo transport implemented in
+       transport_vmware_guestinfo."""
+
+    rpctool = 'vmware-rpctool'
+    with_logs = True
+    not_found = (False, None, None)
+    rpctool_path = '/not/important/vmware-rpctool'
+
+    def test_without_vmware_rpctool_returns_notfound(self, m_subp, m_which):
+        m_which.return_value = None
+        self.assertEqual(self.not_found, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(0, m_subp.call_count,
+                         "subp should not be called if no rpctool in path.")
+
+    def test_notfound_on_exit_code_1(self, m_subp, m_which):
+        """If vmware-rpctool exits 1, then must return not found."""
+        m_which.return_value = self.rpctool_path
+        m_subp.side_effect = util.ProcessExecutionError(
+            stdout="", stderr="No value found", exit_code=1, cmd=["unused"])
+        self.assertEqual(self.not_found, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(1, m_subp.call_count)
+        self.assertNotIn("WARNING", self.logs.getvalue(),
+                         "exit code of 1 by rpctool should not cause warning.")
+
+    def test_notfound_if_no_content_but_exit_zero(self, m_subp, m_which):
+        """If vmware-rpctool exited 0 with no stdout is normal not-found.
+
+        This isn't actually a case I've seen. normally on "not found",
+        rpctool would exit 1 with 'No value found' on stderr.  But cover
+        the case where it exited 0 and just wrote nothing to stdout.
+        """
+        m_which.return_value = self.rpctool_path
+        m_subp.return_value = ('', '')
+        self.assertEqual(self.not_found, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(1, m_subp.call_count)
+
+    def test_notfound_and_warns_on_unexpected_exit_code(self, m_subp, m_which):
+        """If vmware-rpctool exits non zero or 1, warnings should be logged."""
+        m_which.return_value = self.rpctool_path
+        m_subp.side_effect = util.ProcessExecutionError(
+            stdout=None, stderr="No value found", exit_code=2, cmd=["unused"])
+        self.assertEqual(self.not_found, dsovf.transport_vmware_guestinfo())
+        self.assertEqual(1, m_subp.call_count)
+        self.assertIn("WARNING", self.logs.getvalue(),
+                      "exit code of 2 by rpctool should log WARNING.")
+
+    def test_found_when_guestinfo_present(self, m_subp, m_which):
+        """When there is a ovf info, transport should return it."""
+        m_which.return_value = self.rpctool_path
+        content = fill_properties({})
+        m_subp.return_value = (content, '')
+        self.assertEqual(
+            (content, self.rpctool, "guestinfo.ovfEnv"),
+            dsovf.transport_vmware_guestinfo())
+        self.assertEqual(1, m_subp.call_count)
 
 #
 # vi: ts=4 expandtab

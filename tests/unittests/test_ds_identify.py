@@ -138,6 +138,9 @@ class DsIdentifyBase(CiTestCase):
             {'name': 'detect_virt', 'RET': 'none', 'ret': 1},
             {'name': 'uname', 'out': UNAME_MYSYS},
             {'name': 'blkid', 'out': BLKID_EFI_ROOT},
+            {'name': 'ovf_vmware_transport_guestinfo',
+             'out': 'No value found', 'ret': 1},
+
         ]
 
         written = [d['name'] for d in mocks]
@@ -475,6 +478,10 @@ class TestDsIdentify(DsIdentifyBase):
         """OVF is identified when iso9660 cdrom path contains ovf schema."""
         self._test_ds_found('OVF')
 
+    def test_ovf_on_vmware_guestinfo_found(self):
+        """OVF guest info is found on vmware."""
+        self._test_ds_found('OVF-guestinfo')
+
     def test_ovf_on_vmware_iso_found_when_vmware_customization(self):
         """OVF is identified when vmware customization is enabled."""
         self._test_ds_found('OVF-vmware-customization')
@@ -772,6 +779,14 @@ VALID_CFG = {
         'files': {
             'dev/sr0': 'pretend ovf iso has ' + OVF_MATCH_STRING + '\n',
         }
+    },
+    'OVF-guestinfo': {
+        'ds': 'OVF',
+        'mocks': [
+            {'name': 'ovf_vmware_transport_guestinfo', 'ret': 0,
+             'out': '<?xml version="1.0" encoding="UTF-8"?>\n<Environment'},
+            MOCK_VIRT_IS_VMWARE,
+        ],
     },
     'ConfigDrive': {
         'ds': 'ConfigDrive',

@@ -726,6 +726,25 @@ ovf_vmware_guest_customization() {
     return 1
 }
 
+ovf_vmware_transport_guestinfo() {
+    [ "${DI_VIRT}" = "vmware" ] || return 1
+    command -v vmware-rpctool >/dev/null 2>&1 || return 1
+    local out="" ret=""
+    out=$(vmware-rpctool "info-get guestinfo.ovfEnv" 2>&1)
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        debug 1 "Running on vmware but rpctool query returned $ret: $out"
+        return 1
+    fi
+    case "$1" in
+        "<?xml"*|"<?XML"*) :;;
+        *) debug 1 "guestinfo.ovfEnv had non-xml content: $out";
+           return 1;;
+    esac
+    debug 1 "Found guestinfo transport."
+    return 0
+}
+
 is_cdrom_ovf() {
     local dev="$1" label="$2"
     # skip devices that don't look like cdrom paths.
@@ -757,6 +776,8 @@ dscheck_OVF() {
 
     # Azure provides ovf. Skip false positive by dis-allowing.
     is_azure_chassis && return $DS_NOT_FOUND
+
+    ovf_vmware_transport_guestinfo && return "${DS_FOUND}"
 
     # DI_ISO9660_DEVS is <device>=label,<device>=label2
     # like /dev/sr0=OVF-TRANSPORT,/dev/other=with spaces

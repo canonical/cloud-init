@@ -232,10 +232,10 @@ class DataSourceOVF(sources.DataSource):
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
 
         else:
-            np = {'iso': transport_iso9660,
-                  'vmware-guestd': transport_vmware_guestd, }
+            np = [('com.vmware.guestInfo', transport_vmware_guestinfo),
+                  ('iso', transport_iso9660)]
             name = None
-            for (name, transfunc) in np.items():
+            for name, transfunc in np:
                 (contents, _dev, _fname) = transfunc()
                 if contents:
                     break
@@ -503,18 +503,22 @@ def transport_iso9660(require_iso=True):
     return (False, None, None)
 
 
-def transport_vmware_guestd():
-    # http://blogs.vmware.com/vapp/2009/07/ \
-    #    selfconfiguration-and-the-ovf-environment.html
-    # try:
-    #     cmd = ['vmware-guestd', '--cmd', 'info-get guestinfo.ovfEnv']
-    #     (out, err) = subp(cmd)
-    #     return(out, 'guestinfo.ovfEnv', 'vmware-guestd')
-    # except:
-    #     # would need to error check here and see why this failed
-    #     # to know if log/error should be raised
-    #     return(False, None, None)
-    return (False, None, None)
+def transport_vmware_guestinfo():
+    rpctool = "vmware-rpctool"
+    not_found = (False, None, None)
+    if not util.which(rpctool):
+        return not_found
+    cmd = [rpctool, "info-get guestinfo.ovfEnv"]
+    try:
+        out, _err = util.subp(cmd)
+        if out:
+            return (out, rpctool, "guestinfo.ovfEnv")
+        LOG.debug("cmd %s exited 0 with empty stdout: %s", cmd, out)
+    except util.ProcessExecutionError as e:
+        if e.exit_code != 1:
+            LOG.warning("%s exited with code %d", rpctool, e.exit_code)
+            LOG.debug(e)
+    return not_found
 
 
 def find_child(node, filter_func):
