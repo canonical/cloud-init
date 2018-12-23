@@ -1,7 +1,7 @@
 *********************
 Hacking on cloud-init
 *********************
-
+https://github.com/svn2github/svg-edit
 This document describes how to contribute changes to cloud-init.
 It assumes you have a `Launchpad`_ account, and refers to your launchpad user
 as ``LP_USER`` throughout.
