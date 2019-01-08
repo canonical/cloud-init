@@ -18,7 +18,7 @@ single way to access the different cloud systems methods to provide this data
 through the typical usage of subclasses.
 
 Any metadata processed by cloud-init's datasources is persisted as
-``/run/cloud0-init/instance-data.json``. Cloud-init provides tooling
+``/run/cloud-init/instance-data.json``. Cloud-init provides tooling
 to quickly introspect some of that data. See :ref:`instance_metadata` for
 more information.
 
