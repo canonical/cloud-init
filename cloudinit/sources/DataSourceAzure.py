@@ -416,7 +416,7 @@ class DataSourceAzure(sources.DataSource):
                     raise sources.InvalidMetaDataException(msg)
                 ret = self._reprovision()
             imds_md = get_metadata_from_imds(
-                self.fallback_interface, retries=3)
+                self.fallback_interface, retries=10)
             (md, userdata_raw, cfg, files) = ret
             self.seed = cdev
             crawled_data.update({
