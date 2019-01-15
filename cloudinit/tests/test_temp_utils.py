@@ -2,8 +2,9 @@
 
 """Tests for cloudinit.temp_utils"""
 
-from cloudinit.temp_utils import mkdtemp, mkstemp
+from cloudinit.temp_utils import mkdtemp, mkstemp, tempdir
 from cloudinit.tests.helpers import CiTestCase, wrap_and_call
+import os
 
 
 class TestTempUtils(CiTestCase):
@@ -97,5 +98,20 @@ class TestTempUtils(CiTestCase):
             mkstemp)
         self.assertEqual('/fake/return/path', retval)
         self.assertEqual([{'dir': '/run/cloud-init/tmp'}], calls)
+
+    def test_tempdir_error_suppression(self):
+        """test tempdir suppresses errors during directory removal."""
+
+        with self.assertRaises(OSError):
+            with tempdir(prefix='cloud-init-dhcp-') as tdir:
+                os.rmdir(tdir)
+                # As a result, the directory is already gone,
+                # so shutil.rmtree should raise OSError
+
+        with tempdir(rmtree_ignore_errors=True,
+                     prefix='cloud-init-dhcp-') as tdir:
+            os.rmdir(tdir)
+            # Since the directory is already gone, shutil.rmtree would raise
+            # OSError, but we suppress that
 
 # vi: ts=4 expandtab

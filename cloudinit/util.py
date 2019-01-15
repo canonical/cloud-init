@@ -2876,4 +2876,20 @@ def udevadm_settle(exists=None, timeout=None):
     return subp(settle_cmd)
 
 
+def get_proc_ppid(pid):
+    """
+    Return the parent pid of a process.
+    """
+    ppid = 0
+    try:
+        contents = load_file("/proc/%s/stat" % pid, quiet=True)
+    except IOError as e:
+        LOG.warning('Failed to load /proc/%s/stat. %s', pid, e)
+    if contents:
+        parts = contents.split(" ", 4)
+        # man proc says
+        #  ppid %d     (4) The PID of the parent.
+        ppid = int(parts[3])
+    return ppid
+
 # vi: ts=4 expandtab
