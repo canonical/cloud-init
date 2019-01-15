@@ -68,4 +68,44 @@ class TestHandleSshPwauth(CiTestCase):
                 m_update.assert_called_with({optname: optval})
         m_subp.assert_not_called()
 
+
+class TestSetPasswordsHandle(CiTestCase):
+    """Test cc_set_passwords.handle"""
+
+    with_logs = True
+
+    def test_handle_on_empty_config(self):
+        """handle logs that no password has changed when config is empty."""
+        cloud = self.tmp_cloud(distro='ubuntu')
+        setpass.handle(
+            'IGNORED', cfg={}, cloud=cloud, log=self.logger, args=[])
+        self.assertEqual(
+            "DEBUG: Leaving ssh config 'PasswordAuthentication' unchanged. "
+            'ssh_pwauth=None\n',
+            self.logs.getvalue())
+
+    @mock.patch(MODPATH + "util.subp")
+    def test_handle_on_chpasswd_list_parses_common_hashes(self, m_subp):
+        """handle parses command password hashes."""
+        cloud = self.tmp_cloud(distro='ubuntu')
+        valid_hashed_pwds = [
+            'root:$2y$10$8BQjxjVByHA/Ee.O1bCXtO8S7Y5WojbXWqnqYpUW.BrPx/'
+            'Dlew1Va',
+            'ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR52q'
+            'SDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1']
+        cfg = {'chpasswd': {'list': valid_hashed_pwds}}
+        with mock.patch(MODPATH + 'util.subp') as m_subp:
+            setpass.handle(
+                'IGNORED', cfg=cfg, cloud=cloud, log=self.logger, args=[])
+        self.assertIn(
+            'DEBUG: Handling input for chpasswd as list.',
+            self.logs.getvalue())
+        self.assertIn(
+            "DEBUG: Setting hashed password for ['root', 'ubuntu']",
+            self.logs.getvalue())
+        self.assertEqual(
+            [mock.call(['chpasswd', '-e'],
+             '\n'.join(valid_hashed_pwds) + '\n')],
+            m_subp.call_args_list)
+
 # vi: ts=4 expandtab
