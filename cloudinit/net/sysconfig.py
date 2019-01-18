@@ -10,11 +10,14 @@ from cloudinit.distros.parsers import resolv_conf
 from cloudinit import log as logging
 from cloudinit import util
 
+from configobj import ConfigObj
+
 from . import renderer
 from .network_state import (
     is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6)
 
 LOG = logging.getLogger(__name__)
+NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
 
 
 def _make_header(sep='#'):
@@ -44,6 +47,24 @@ def _quote_value(value):
             return '"%s"' % value
     else:
         return value
+
+
+def enable_ifcfg_rh(path):
+    """Add ifcfg-rh to NetworkManager.cfg plugins if main section is present"""
+    config = ConfigObj(path)
+    if 'main' in config:
+        if 'plugins' in config['main']:
+            if 'ifcfg-rh' in config['main']['plugins']:
+                return
+        else:
+            config['main']['plugins'] = []
+
+        if isinstance(config['main']['plugins'], list):
+            config['main']['plugins'].append('ifcfg-rh')
+        else:
+            config['main']['plugins'] = [config['main']['plugins'], 'ifcfg-rh']
+        config.write()
+        LOG.debug('Enabled ifcfg-rh NetworkManager plugins')
 
 
 class ConfigMap(object):
@@ -657,6 +678,8 @@ class Renderer(renderer.Renderer):
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = util.target_path(target, self.netrules_path)
             util.write_file(netrules_path, netrules_content, file_mode)
+        if available_nm(target=target):
+            enable_ifcfg_rh(util.target_path(target, path=NM_CFG_FILE))
 
         sysconfig_path = util.target_path(target, templates.get('control'))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos
@@ -671,6 +694,13 @@ class Renderer(renderer.Renderer):
 
 
 def available(target=None):
+    sysconfig = available_sysconfig(target=target)
+    nm = available_nm(target=target)
+
+    return any([nm, sysconfig])
+
+
+def available_sysconfig(target=None):
     expected = ['ifup', 'ifdown']
     search = ['/sbin', '/usr/sbin']
     for p in expected:
@@ -683,6 +713,12 @@ def available(target=None):
     for p in expected_paths:
         if not os.path.isfile(util.target_path(target, p)):
             return False
+    return True
+
+
+def available_nm(target=None):
+    if not os.path.isfile(util.target_path(target, path=NM_CFG_FILE)):
+        return False
     return True
 
 
