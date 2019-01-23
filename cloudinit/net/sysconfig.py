@@ -557,6 +557,8 @@ class Renderer(renderer.Renderer):
             content.add_nameserver(nameserver)
         for searchdomain in network_state.dns_searchdomains:
             content.add_search_domain(searchdomain)
+        if not str(content):
+            return None
         header = _make_header(';')
         content_str = str(content)
         if not content_str.startswith(header):
@@ -666,7 +668,8 @@ class Renderer(renderer.Renderer):
             dns_path = util.target_path(target, self.dns_path)
             resolv_content = self._render_dns(network_state,
                                               existing_dns_path=dns_path)
-            util.write_file(dns_path, resolv_content, file_mode)
+            if resolv_content:
+                util.write_file(dns_path, resolv_content, file_mode)
         if self.networkmanager_conf_path:
             nm_conf_path = util.target_path(target,
                                             self.networkmanager_conf_path)

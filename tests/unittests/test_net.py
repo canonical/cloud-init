@@ -2098,6 +2098,10 @@ TYPE=Ethernet
 USERCTL=no
 """
         self.assertEqual(expected, found[nspath + 'ifcfg-interface0'])
+        # The configuration has no nameserver information make sure we
+        # do not write the resolv.conf file
+        respath = '/etc/resolv.conf'
+        self.assertNotIn(respath, found.keys())
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
@@ -2456,6 +2460,10 @@ TYPE=Ethernet
 USERCTL=no
 """
         self.assertEqual(expected, found[nspath + 'ifcfg-interface0'])
+        # The configuration has no nameserver information make sure we
+        # do not write the resolv.conf file
+        respath = '/etc/resolv.conf'
+        self.assertNotIn(respath, found.keys())
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
