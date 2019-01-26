@@ -5,13 +5,15 @@
 """Define 'collect-logs' utility and handler to include in cloud-init cmd."""
 
 import argparse
-from cloudinit.util import (
-    ProcessExecutionError, chdir, copy, ensure_dir, subp, write_file)
-from cloudinit.temp_utils import tempdir
 from datetime import datetime
 import os
 import shutil
 import sys
+
+from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
+from cloudinit.temp_utils import tempdir
+from cloudinit.util import (
+    ProcessExecutionError, chdir, copy, ensure_dir, subp, write_file)
 
 
 CLOUDINIT_LOGS = ['/var/log/cloud-init.log', '/var/log/cloud-init-output.log']
@@ -46,6 +48,13 @@ def get_parser(parser=None):
     return parser
 
 
+def _copytree_ignore_sensitive_files(curdir, files):
+    """Return a list of files to ignore if we are non-root"""
+    if os.getuid() == 0:
+        return ()
+    return (INSTANCE_JSON_SENSITIVE_FILE,)  # Ignore root-permissioned files
+
+
 def _write_command_output_to_file(cmd, filename, msg, verbosity):
     """Helper which runs a command and writes output or error to filename."""
     try:
@@ -78,6 +87,11 @@ def collect_logs(tarfile, include_userdata, verbosity=0):
     @param tarfile: The path of the tar-gzipped file to create.
     @param include_userdata: Boolean, true means include user-data.
     """
+    if include_userdata and os.getuid() != 0:
+        sys.stderr.write(
+            "To include userdata, root user is required."
+            " Try sudo cloud-init collect-logs\n")
+        return 1
     tarfile = os.path.abspath(tarfile)
     date = datetime.utcnow().date().strftime('%Y-%m-%d')
     log_dir = 'cloud-init-logs-{0}'.format(date)
@@ -110,7 +124,8 @@ def collect_logs(tarfile, include_userdata, verbosity=0):
         ensure_dir(run_dir)
         if os.path.exists(CLOUDINIT_RUN_DIR):
             shutil.copytree(CLOUDINIT_RUN_DIR,
-                            os.path.join(run_dir, 'cloud-init'))
+                            os.path.join(run_dir, 'cloud-init'),
+                            ignore=_copytree_ignore_sensitive_files)
             _debug("collected dir %s\n" % CLOUDINIT_RUN_DIR, 1, verbosity)
         else:
             _debug("directory '%s' did not exist\n" % CLOUDINIT_RUN_DIR, 1,
@@ -118,21 +133,21 @@ def collect_logs(tarfile, include_userdata, verbosity=0):
         with chdir(tmp_dir):
             subp(['tar', 'czvf', tarfile, log_dir.replace(tmp_dir + '/', '')])
     sys.stderr.write("Wrote %s\n" % tarfile)
+    return 0
 
 
 def handle_collect_logs_args(name, args):
     """Handle calls to 'cloud-init collect-logs' as a subcommand."""
-    collect_logs(args.tarfile, args.userdata, args.verbosity)
+    return collect_logs(args.tarfile, args.userdata, args.verbosity)
 
 
 def main():
     """Tool to collect and tar all cloud-init related logs."""
     parser = get_parser()
-    handle_collect_logs_args('collect-logs', parser.parse_args())
-    return 0
+    return handle_collect_logs_args('collect-logs', parser.parse_args())
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
 
 # vi: ts=4 expandtab

@@ -303,6 +303,9 @@ class DataSourceSmartOS(sources.DataSource):
         self._set_provisioned()
         return True
 
+    def _get_subplatform(self):
+        return 'serial (%s)' % SERIAL_DEVICE
+
     def device_name_to_device(self, name):
         return self.ds_cfg['disk_aliases'].get(name)
 

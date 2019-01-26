@@ -478,6 +478,9 @@ class TestConfigDriveDataSource(CiTestCase):
         myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)
         self.assertEqual(myds.get_public_ssh_keys(),
                          [OSTACK_META['public_keys']['mykey']])
+        self.assertEqual('configdrive', myds.cloud_name)
+        self.assertEqual('openstack', myds.platform)
+        self.assertEqual('seed-dir (%s/seed)' % self.tmp, myds.subplatform)
 
 
 class TestNetJson(CiTestCase):

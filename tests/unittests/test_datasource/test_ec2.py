@@ -211,9 +211,9 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.metadata_addr = self.datasource.metadata_urls[0]
         self.tmp = self.tmp_dir()
 
-    def data_url(self, version):
+    def data_url(self, version, data_item='meta-data'):
         """Return a metadata url based on the version provided."""
-        return '/'.join([self.metadata_addr, version, 'meta-data', ''])
+        return '/'.join([self.metadata_addr, version, data_item])
 
     def _patch_add_cleanup(self, mpath, *args, **kwargs):
         p = mock.patch(mpath, *args, **kwargs)
@@ -238,10 +238,18 @@ class TestEc2(test_helpers.HttprettyTestCase):
             all_versions = (
                 [ds.min_metadata_version] + ds.extended_metadata_versions)
             for version in all_versions:
-                metadata_url = self.data_url(version)
+                metadata_url = self.data_url(version) + '/'
                 if version == md_version:
                     # Register all metadata for desired version
-                    register_mock_metaserver(metadata_url, md)
+                    register_mock_metaserver(
+                        metadata_url, md.get('md', DEFAULT_METADATA))
+                    userdata_url = self.data_url(
+                        version, data_item='user-data')
+                    register_mock_metaserver(userdata_url, md.get('ud', ''))
+                    identity_url = self.data_url(
+                        version, data_item='dynamic/instance-identity')
+                    register_mock_metaserver(
+                        identity_url, md.get('id', DYNAMIC_METADATA))
                 else:
                     instance_id_url = metadata_url + 'instance-id'
                     if version == ds.min_metadata_version:
@@ -261,7 +269,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         find_fallback_path = (
             'cloudinit.sources.DataSourceEc2.net.find_fallback_nic')
         with mock.patch(find_fallback_path) as m_find_fallback:
@@ -293,7 +301,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         find_fallback_path = (
             'cloudinit.sources.DataSourceEc2.net.find_fallback_nic')
         with mock.patch(find_fallback_path) as m_find_fallback:
@@ -322,7 +330,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         ds._network_config = {'cached': 'data'}
         self.assertEqual({'cached': 'data'}, ds.network_config)
 
@@ -338,7 +346,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
-            md=old_metadata)
+            md={'md': old_metadata})
         self.assertTrue(ds.get_data())
         # Provide new revision of metadata that contains network data
         register_mock_metaserver(
@@ -351,7 +359,9 @@ class TestEc2(test_helpers.HttprettyTestCase):
             m_get_interface_mac.return_value = mac1
             nc = ds.network_config  # Will re-crawl network metadata
             self.assertIsNotNone(nc)
-        self.assertIn('Re-crawl of metadata service', self.logs.getvalue())
+        self.assertIn(
+            'Refreshing stale metadata from prior to upgrade',
+            self.logs.getvalue())
         expected = {'version': 1, 'config': [
             {'mac_address': '06:17:04:d7:26:09',
              'name': 'eth9',
@@ -370,7 +380,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         # Mock 404s on all versions except latest
         all_versions = (
             [ds.min_metadata_version] + ds.extended_metadata_versions)
@@ -386,7 +396,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         register_mock_metaserver(
             '{0}/{1}/dynamic/'.format(ds.metadata_address, all_versions[-1]),
             DYNAMIC_METADATA)
-        ds._cloud_platform = ec2.Platforms.AWS
+        ds._cloud_name = ec2.CloudNames.AWS
         # Setup cached metadata on the Datasource
         ds.metadata = DEFAULT_METADATA
         self.assertEqual('my-identity-id', ds.get_instance_id())
@@ -397,17 +407,20 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         ret = ds.get_data()
         self.assertTrue(ret)
         self.assertEqual(0, m_dhcp.call_count)
+        self.assertEqual('aws', ds.cloud_name)
+        self.assertEqual('ec2', ds.platform_type)
+        self.assertEqual('metadata (%s)' % ds.metadata_address, ds.subplatform)
 
     def test_valid_platform_with_strict_false(self):
         """Valid platform data should return true with strict_id false."""
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         ret = ds.get_data()
         self.assertTrue(ret)
 
@@ -417,7 +430,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data={'uuid': uuid, 'uuid_source': 'dmi', 'serial': ''},
             sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         ret = ds.get_data()
         self.assertFalse(ret)
 
@@ -427,7 +440,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data={'uuid': uuid, 'uuid_source': 'dmi', 'serial': ''},
             sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         ret = ds.get_data()
         self.assertTrue(ret)
 
@@ -437,18 +450,19 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         platform_attrs = [
-            attr for attr in ec2.Platforms.__dict__.keys()
+            attr for attr in ec2.CloudNames.__dict__.keys()
             if not attr.startswith('__')]
         for attr_name in platform_attrs:
-            platform_name = getattr(ec2.Platforms, attr_name)
-            if platform_name != 'AWS':
-                ds._cloud_platform = platform_name
+            platform_name = getattr(ec2.CloudNames, attr_name)
+            if platform_name != 'aws':
+                ds._cloud_name = platform_name
                 ret = ds.get_data()
+                self.assertEqual('ec2', ds.platform_type)
                 self.assertFalse(ret)
                 message = (
-                    "Local Ec2 mode only supported on ('AWS',),"
+                    "Local Ec2 mode only supported on ('aws',),"
                     ' not {0}'.format(platform_name))
                 self.assertIn(message, self.logs.getvalue())
 
@@ -463,7 +477,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
         ret = ds.get_data()
         self.assertFalse(ret)
         self.assertIn(
@@ -493,7 +507,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
-            md=DEFAULT_METADATA)
+            md={'md': DEFAULT_METADATA})
 
         ret = ds.get_data()
         self.assertTrue(ret)

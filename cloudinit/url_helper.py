@@ -199,7 +199,7 @@ def _get_ssl_args(url, ssl_details):
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             headers=None, headers_cb=None, ssl_details=None,
             check_status=True, allow_redirects=True, exception_cb=None,
-            session=None, infinite=False):
+            session=None, infinite=False, log_req_resp=True):
     url = _cleanurl(url)
     req_args = {
         'url': url,
@@ -256,9 +256,11 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                 continue
             filtered_req_args[k] = v
         try:
-            LOG.debug("[%s/%s] open '%s' with %s configuration", i,
-                      "infinite" if infinite else manual_tries, url,
-                      filtered_req_args)
+
+            if log_req_resp:
+                LOG.debug("[%s/%s] open '%s' with %s configuration", i,
+                          "infinite" if infinite else manual_tries, url,
+                          filtered_req_args)
 
             if session is None:
                 session = requests.Session()
@@ -294,8 +296,11 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                 break
             if (infinite and sec_between > 0) or \
                (i + 1 < manual_tries and sec_between > 0):
-                LOG.debug("Please wait %s seconds while we wait to try again",
-                          sec_between)
+
+                if log_req_resp:
+                    LOG.debug(
+                        "Please wait %s seconds while we wait to try again",
+                        sec_between)
                 time.sleep(sec_between)
     if excps:
         raise excps[-1]
@@ -548,5 +553,19 @@ def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
         timestamp=timestamp)
     _uri, signed_headers, _body = client.sign(url)
     return signed_headers
+
+
+def retry_on_url_exc(msg, exc):
+    """readurl exception_cb that will retry on NOT_FOUND and Timeout.
+
+    Returns False to raise the exception from readurl, True to retry.
+    """
+    if not isinstance(exc, UrlError):
+        return False
+    if exc.code == NOT_FOUND:
+        return True
+    if exc.cause and isinstance(exc.cause, requests.Timeout):
+        return True
+    return False
 
 # vi: ts=4 expandtab

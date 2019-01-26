@@ -1,10 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.url_helper import oauth_headers, read_file_or_url
+from cloudinit.url_helper import (
+    NOT_FOUND, UrlError, oauth_headers, read_file_or_url, retry_on_url_exc)
 from cloudinit.tests.helpers import CiTestCase, mock, skipIf
 from cloudinit import util
 
 import httpretty
+import requests
 
 
 try:
@@ -64,3 +66,24 @@ class TestReadFileOrUrl(CiTestCase):
         result = read_file_or_url(url)
         self.assertEqual(result.contents, data)
         self.assertEqual(str(result), data.decode('utf-8'))
+
+
+class TestRetryOnUrlExc(CiTestCase):
+
+    def test_do_not_retry_non_urlerror(self):
+        """When exception is not UrlError return False."""
+        myerror = IOError('something unexcpected')
+        self.assertFalse(retry_on_url_exc(msg='', exc=myerror))
+
+    def test_perform_retries_on_not_found(self):
+        """When exception is UrlError with a 404 status code return True."""
+        myerror = UrlError(cause=RuntimeError(
+            'something was not found'), code=NOT_FOUND)
+        self.assertTrue(retry_on_url_exc(msg='', exc=myerror))
+
+    def test_perform_retries_on_timeout(self):
+        """When exception is a requests.Timout return True."""
+        myerror = UrlError(cause=requests.Timeout('something timed out'))
+        self.assertTrue(retry_on_url_exc(msg='', exc=myerror))
+
+# vi: ts=4 expandtab

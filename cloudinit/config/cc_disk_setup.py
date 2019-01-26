@@ -743,7 +743,7 @@ def assert_and_settle_device(device):
         util.udevadm_settle()
         if not os.path.exists(device):
             raise RuntimeError("Device %s did not exist and was not created "
-                               "with a udevamd settle." % device)
+                               "with a udevadm settle." % device)
 
     # Whether or not the device existed above, it is possible that udev
     # events that would populate udev database (for reading by lsdname) have

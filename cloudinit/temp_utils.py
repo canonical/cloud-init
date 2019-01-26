@@ -81,7 +81,7 @@ def ExtendedTemporaryFile(**kwargs):
 
 
 @contextlib.contextmanager
-def tempdir(**kwargs):
+def tempdir(rmtree_ignore_errors=False, **kwargs):
     # This seems like it was only added in python 3.2
     # Make it since its useful...
     # See: http://bugs.python.org/file12970/tempdir.patch
@@ -89,7 +89,7 @@ def tempdir(**kwargs):
     try:
         yield tdir
     finally:
-        shutil.rmtree(tdir)
+        shutil.rmtree(tdir, ignore_errors=rmtree_ignore_errors)
 
 
 def mkdtemp(**kwargs):

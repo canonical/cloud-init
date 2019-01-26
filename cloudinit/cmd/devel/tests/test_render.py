@@ -6,7 +6,7 @@ import os
 from collections import namedtuple
 from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
-from cloudinit.sources import INSTANCE_JSON_FILE
+from cloudinit.sources import INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE
 from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJinja
 from cloudinit.util import ensure_dir, write_file
 
@@ -62,6 +62,49 @@ class TestRender(CiTestCase):
         self.assertIn(
             'Missing instance-data.json file: %s' % json_file,
             self.logs.getvalue())
+
+    def test_handle_args_root_fallback_from_sensitive_instance_data(self):
+        """When root user defaults to sensitive.json."""
+        user_data = self.tmp_path('user-data', dir=self.tmp)
+        run_dir = self.tmp_path('run_dir', dir=self.tmp)
+        ensure_dir(run_dir)
+        paths = Paths({'run_dir': run_dir})
+        self.add_patch('cloudinit.cmd.devel.render.read_cfg_paths', 'm_paths')
+        self.m_paths.return_value = paths
+        args = self.args(
+            user_data=user_data, instance_data=None, debug=False)
+        with mock.patch('sys.stderr', new_callable=StringIO):
+            with mock.patch('os.getuid') as m_getuid:
+                m_getuid.return_value = 0
+                self.assertEqual(1, render.handle_args('anyname', args))
+        json_file = os.path.join(run_dir, INSTANCE_JSON_FILE)
+        json_sensitive = os.path.join(run_dir, INSTANCE_JSON_SENSITIVE_FILE)
+        self.assertIn(
+            'WARNING: Missing root-readable %s. Using redacted %s' % (
+                json_sensitive, json_file), self.logs.getvalue())
+        self.assertIn(
+            'ERROR: Missing instance-data.json file: %s' % json_file,
+            self.logs.getvalue())
+
+    def test_handle_args_root_uses_sensitive_instance_data(self):
+        """When root user, and no instance-data arg, use sensitive.json."""
+        user_data = self.tmp_path('user-data', dir=self.tmp)
+        write_file(user_data, '##template: jinja\nrendering: {{ my_var }}')
+        run_dir = self.tmp_path('run_dir', dir=self.tmp)
+        ensure_dir(run_dir)
+        json_sensitive = os.path.join(run_dir, INSTANCE_JSON_SENSITIVE_FILE)
+        write_file(json_sensitive, '{"my-var": "jinja worked"}')
+        paths = Paths({'run_dir': run_dir})
+        self.add_patch('cloudinit.cmd.devel.render.read_cfg_paths', 'm_paths')
+        self.m_paths.return_value = paths
+        args = self.args(
+            user_data=user_data, instance_data=None, debug=False)
+        with mock.patch('sys.stderr', new_callable=StringIO):
+            with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
+                with mock.patch('os.getuid') as m_getuid:
+                    m_getuid.return_value = 0
+                    self.assertEqual(0, render.handle_args('anyname', args))
+        self.assertIn('rendering: jinja worked', m_stdout.getvalue())
 
     @skipUnlessJinja()
     def test_handle_args_renders_instance_data_vars_in_template(self):

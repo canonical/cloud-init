@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from errno import EACCES
 import os
 import re
 
@@ -76,7 +77,14 @@ def render_jinja_payload_from_file(
         raise RuntimeError(
             'Cannot render jinja template vars. Instance data not yet'
             ' present at %s' % instance_data_file)
-    instance_data = load_json(load_file(instance_data_file))
+    try:
+        instance_data = load_json(load_file(instance_data_file))
+    except (IOError, OSError) as e:
+        if e.errno == EACCES:
+            raise RuntimeError(
+                'Cannot render jinja template vars. No read permission on'
+                " '%s'. Try sudo" % instance_data_file)
+
     rendered_payload = render_jinja_payload(
         payload, payload_fn, instance_data, debug)
     if not rendered_payload:

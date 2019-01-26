@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import errno
 from six import StringIO
 from textwrap import dedent
 import os
@@ -7,7 +8,8 @@ import os
 from collections import namedtuple
 from cloudinit.cmd import query
 from cloudinit.helpers import Paths
-from cloudinit.sources import REDACT_SENSITIVE_VALUE, INSTANCE_JSON_FILE
+from cloudinit.sources import (
+    REDACT_SENSITIVE_VALUE, INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE)
 from cloudinit.tests.helpers import CiTestCase, mock
 from cloudinit.util import ensure_dir, write_file
 
@@ -50,10 +52,28 @@ class TestQuery(CiTestCase):
         with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
             self.assertEqual(1, query.handle_args('anyname', args))
         self.assertIn(
-            'ERROR: Missing instance-data.json file: %s' % absent_fn,
+            'ERROR: Missing instance-data file: %s' % absent_fn,
             self.logs.getvalue())
         self.assertIn(
-            'ERROR: Missing instance-data.json file: %s' % absent_fn,
+            'ERROR: Missing instance-data file: %s' % absent_fn,
+            m_stderr.getvalue())
+
+    def test_handle_args_error_when_no_read_permission_instance_data(self):
+        """When instance_data file is unreadable, log an error."""
+        noread_fn = self.tmp_path('unreadable', dir=self.tmp)
+        write_file(noread_fn, 'thou shall not pass')
+        args = self.args(
+            debug=False, dump_all=True, format=None, instance_data=noread_fn,
+            list_keys=False, user_data='ud', vendor_data='vd', varname=None)
+        with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
+            with mock.patch('cloudinit.cmd.query.util.load_file') as m_load:
+                m_load.side_effect = OSError(errno.EACCES, 'Not allowed')
+                self.assertEqual(1, query.handle_args('anyname', args))
+        self.assertIn(
+            "ERROR: No read permission on '%s'. Try sudo" % noread_fn,
+            self.logs.getvalue())
+        self.assertIn(
+            "ERROR: No read permission on '%s'. Try sudo" % noread_fn,
             m_stderr.getvalue())
 
     def test_handle_args_defaults_instance_data(self):
@@ -70,11 +90,57 @@ class TestQuery(CiTestCase):
             self.assertEqual(1, query.handle_args('anyname', args))
         json_file = os.path.join(run_dir, INSTANCE_JSON_FILE)
         self.assertIn(
-            'ERROR: Missing instance-data.json file: %s' % json_file,
+            'ERROR: Missing instance-data file: %s' % json_file,
             self.logs.getvalue())
         self.assertIn(
-            'ERROR: Missing instance-data.json file: %s' % json_file,
+            'ERROR: Missing instance-data file: %s' % json_file,
             m_stderr.getvalue())
+
+    def test_handle_args_root_fallsback_to_instance_data(self):
+        """When no instance_data argument, root falls back to redacted json."""
+        args = self.args(
+            debug=False, dump_all=True, format=None, instance_data=None,
+            list_keys=False, user_data=None, vendor_data=None, varname=None)
+        run_dir = self.tmp_path('run_dir', dir=self.tmp)
+        ensure_dir(run_dir)
+        paths = Paths({'run_dir': run_dir})
+        self.add_patch('cloudinit.cmd.query.read_cfg_paths', 'm_paths')
+        self.m_paths.return_value = paths
+        with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
+            with mock.patch('os.getuid') as m_getuid:
+                m_getuid.return_value = 0
+                self.assertEqual(1, query.handle_args('anyname', args))
+        json_file = os.path.join(run_dir, INSTANCE_JSON_FILE)
+        sensitive_file = os.path.join(run_dir, INSTANCE_JSON_SENSITIVE_FILE)
+        self.assertIn(
+            'WARNING: Missing root-readable %s. Using redacted %s instead.' % (
+                sensitive_file, json_file),
+            m_stderr.getvalue())
+
+    def test_handle_args_root_uses_instance_sensitive_data(self):
+        """When no instance_data argument, root uses semsitive json."""
+        user_data = self.tmp_path('user-data', dir=self.tmp)
+        vendor_data = self.tmp_path('vendor-data', dir=self.tmp)
+        write_file(user_data, 'ud')
+        write_file(vendor_data, 'vd')
+        run_dir = self.tmp_path('run_dir', dir=self.tmp)
+        sensitive_file = os.path.join(run_dir, INSTANCE_JSON_SENSITIVE_FILE)
+        write_file(sensitive_file, '{"my-var": "it worked"}')
+        ensure_dir(run_dir)
+        paths = Paths({'run_dir': run_dir})
+        self.add_patch('cloudinit.cmd.query.read_cfg_paths', 'm_paths')
+        self.m_paths.return_value = paths
+        args = self.args(
+            debug=False, dump_all=True, format=None, instance_data=None,
+            list_keys=False, user_data=vendor_data, vendor_data=vendor_data,
+            varname=None)
+        with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
+            with mock.patch('os.getuid') as m_getuid:
+                m_getuid.return_value = 0
+                self.assertEqual(0, query.handle_args('anyname', args))
+        self.assertEqual(
+            '{\n "my_var": "it worked",\n "userdata": "vd",\n '
+            '"vendordata": "vd"\n}\n', m_stdout.getvalue())
 
     def test_handle_args_dumps_all_instance_data(self):
         """When --all is specified query will dump all instance data vars."""

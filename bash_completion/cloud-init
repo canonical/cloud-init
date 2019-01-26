@@ -30,7 +30,10 @@ _cloudinit_complete()
                 devel)
                     COMPREPLY=($(compgen -W "--help schema net-convert" -- $cur_word))
                     ;;
-                dhclient-hook|features)
+                dhclient-hook)
+                    COMPREPLY=($(compgen -W "--help up down" -- $cur_word))
+                    ;;
+                features)
                     COMPREPLY=($(compgen -W "--help" -- $cur_word))
                     ;;
                 init)

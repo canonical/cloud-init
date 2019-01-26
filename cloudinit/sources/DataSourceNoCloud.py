@@ -186,6 +186,27 @@ class DataSourceNoCloud(sources.DataSource):
         self._network_eni = mydata['meta-data'].get('network-interfaces')
         return True
 
+    @property
+    def platform_type(self):
+        # Handle upgrade path of pickled ds
+        if not hasattr(self, '_platform_type'):
+            self._platform_type = None
+        if not self._platform_type:
+            self._platform_type = 'lxd' if util.is_lxd() else 'nocloud'
+        return self._platform_type
+
+    def _get_cloud_name(self):
+        """Return unknown when 'cloud-name' key is absent from metadata."""
+        return sources.METADATA_UNKNOWN
+
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        if self.seed.startswith('/dev'):
+            subplatform_type = 'config-disk'
+        else:
+            subplatform_type = 'seed-dir'
+        return '%s (%s)' % (subplatform_type, self.seed)
+
     def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still valid
         # we check kernel command line or files.
@@ -290,6 +311,35 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
     return True
 
 
+def _maybe_remove_top_network(cfg):
+    """If network-config contains top level 'network' key, then remove it.
+
+    Some providers of network configuration may provide a top level
+    'network' key (LP: #1798117) even though it is not necessary.
+
+    Be friendly and remove it if it really seems so.
+
+    Return the original value if no change or the updated value if changed."""
+    nullval = object()
+    network_val = cfg.get('network', nullval)
+    if network_val is nullval:
+        return cfg
+    bmsg = 'Top level network key in network-config %s: %s'
+    if not isinstance(network_val, dict):
+        LOG.debug(bmsg, "was not a dict", cfg)
+        return cfg
+    if len(list(cfg.keys())) != 1:
+        LOG.debug(bmsg, "had multiple top level keys", cfg)
+        return cfg
+    if network_val.get('config') == "disabled":
+        LOG.debug(bmsg, "was config/disabled", cfg)
+    elif not all(('config' in network_val, 'version' in network_val)):
+        LOG.debug(bmsg, "but missing 'config' or 'version'", cfg)
+        return cfg
+    LOG.debug(bmsg, "fixed by removing shifting network.", cfg)
+    return network_val
+
+
 def _merge_new_seed(cur, seeded):
     ret = cur.copy()
 
@@ -299,7 +349,8 @@ def _merge_new_seed(cur, seeded):
     ret['meta-data'] = util.mergemanydict([cur['meta-data'], newmd])
 
     if seeded.get('network-config'):
-        ret['network-config'] = util.load_yaml(seeded['network-config'])
+        ret['network-config'] = _maybe_remove_top_network(
+            util.load_yaml(seeded.get('network-config')))
 
     if 'user-data' in seeded:
         ret['user-data'] = seeded['user-data']

@@ -54,8 +54,17 @@ REDACT_SENSITIVE_VALUE = 'redacted for non-root user'
 METADATA_CLOUD_NAME_KEY = 'cloud-name'
 
 UNSET = "_unset"
+METADATA_UNKNOWN = 'unknown'
 
 LOG = logging.getLogger(__name__)
+
+# CLOUD_ID_REGION_PREFIX_MAP format is:
+#  <region-match-prefix>: (<new-cloud-id>: <test_allowed_cloud_callable>)
+CLOUD_ID_REGION_PREFIX_MAP = {
+    'cn-': ('aws-china', lambda c: c == 'aws'),    # only change aws regions
+    'us-gov-': ('aws-gov', lambda c: c == 'aws'),  # only change aws regions
+    'china': ('azure-china', lambda c: c == 'azure'),  # only change azure
+}
 
 
 class DataSourceNotFoundException(Exception):
@@ -133,6 +142,14 @@ class DataSource(object):
     # Cached cloud_name as determined by _get_cloud_name
     _cloud_name = None
 
+    # Cached cloud platform api type: e.g. ec2, openstack, kvm, lxd, azure etc.
+    _platform_type = None
+
+    # More details about the cloud platform:
+    #  - metadata (http://169.254.169.254/)
+    #  - seed-dir (<dirname>)
+    _subplatform = None
+
     # Track the discovered fallback nic for use in configuration generation.
     _fallback_interface = None
 
@@ -192,21 +209,24 @@ class DataSource(object):
         local_hostname = self.get_hostname()
         instance_id = self.get_instance_id()
         availability_zone = self.availability_zone
-        cloud_name = self.cloud_name
-        # When adding new standard keys prefer underscore-delimited instead
-        # of hyphen-delimted to support simple variable references in jinja
-        # templates.
+        # In the event of upgrade from existing cloudinit, pickled datasource
+        # will not contain these new class attributes. So we need to recrawl
+        # metadata to discover that content.
         return {
             'v1': {
+                '_beta_keys': ['subplatform'],
                 'availability-zone': availability_zone,
                 'availability_zone': availability_zone,
-                'cloud-name': cloud_name,
-                'cloud_name': cloud_name,
+                'cloud-name': self.cloud_name,
+                'cloud_name': self.cloud_name,
+                'platform': self.platform_type,
+                'public_ssh_keys': self.get_public_ssh_keys(),
                 'instance-id': instance_id,
                 'instance_id': instance_id,
                 'local-hostname': local_hostname,
                 'local_hostname': local_hostname,
-                'region': self.region}}
+                'region': self.region,
+                'subplatform': self.subplatform}}
 
     def clear_cached_attrs(self, attr_defaults=()):
         """Reset any cached metadata attributes to datasource defaults.
@@ -247,19 +267,27 @@ class DataSource(object):
 
         @return True on successful write, False otherwise.
         """
-        instance_data = {
-            'ds': {'_doc': EXPERIMENTAL_TEXT,
-                   'meta_data': self.metadata}}
-        if hasattr(self, 'network_json'):
-            network_json = getattr(self, 'network_json')
-            if network_json != UNSET:
-                instance_data['ds']['network_json'] = network_json
-        if hasattr(self, 'ec2_metadata'):
-            ec2_metadata = getattr(self, 'ec2_metadata')
-            if ec2_metadata != UNSET:
-                instance_data['ds']['ec2_metadata'] = ec2_metadata
+        if hasattr(self, '_crawled_metadata'):
+            # Any datasource with _crawled_metadata will best represent
+            # most recent, 'raw' metadata
+            crawled_metadata = copy.deepcopy(
+                getattr(self, '_crawled_metadata'))
+            crawled_metadata.pop('user-data', None)
+            crawled_metadata.pop('vendor-data', None)
+            instance_data = {'ds': crawled_metadata}
+        else:
+            instance_data = {'ds': {'meta_data': self.metadata}}
+            if hasattr(self, 'network_json'):
+                network_json = getattr(self, 'network_json')
+                if network_json != UNSET:
+                    instance_data['ds']['network_json'] = network_json
+            if hasattr(self, 'ec2_metadata'):
+                ec2_metadata = getattr(self, 'ec2_metadata')
+                if ec2_metadata != UNSET:
+                    instance_data['ds']['ec2_metadata'] = ec2_metadata
         instance_data.update(
             self._get_standardized_metadata())
+        instance_data['ds']['_doc'] = EXPERIMENTAL_TEXT
         try:
             # Process content base64encoding unserializable values
             content = util.json_dumps(instance_data)
@@ -347,6 +375,40 @@ class DataSource(object):
         return self._fallback_interface
 
     @property
+    def platform_type(self):
+        if not hasattr(self, '_platform_type'):
+            # Handle upgrade path where pickled datasource has no _platform.
+            self._platform_type = self.dsname.lower()
+        if not self._platform_type:
+            self._platform_type = self.dsname.lower()
+        return self._platform_type
+
+    @property
+    def subplatform(self):
+        """Return a string representing subplatform details for the datasource.
+
+        This should be guidance for where the metadata is sourced.
+        Examples of this on different clouds:
+            ec2:       metadata (http://169.254.169.254)
+            openstack: configdrive (/dev/path)
+            openstack: metadata (http://169.254.169.254)
+            nocloud:   seed-dir (/seed/dir/path)
+            lxd:   nocloud (/seed/dir/path)
+        """
+        if not hasattr(self, '_subplatform'):
+            # Handle upgrade path where pickled datasource has no _platform.
+            self._subplatform = self._get_subplatform()
+        if not self._subplatform:
+            self._subplatform = self._get_subplatform()
+        return self._subplatform
+
+    def _get_subplatform(self):
+        """Subclasses should implement to return a "slug (detail)" string."""
+        if hasattr(self, 'metadata_address'):
+            return 'metadata (%s)' % getattr(self, 'metadata_address')
+        return METADATA_UNKNOWN
+
+    @property
     def cloud_name(self):
         """Return lowercase cloud name as determined by the datasource.
 
@@ -359,9 +421,11 @@ class DataSource(object):
             cloud_name = self.metadata.get(METADATA_CLOUD_NAME_KEY)
             if isinstance(cloud_name, six.string_types):
                 self._cloud_name = cloud_name.lower()
-            LOG.debug(
-                'Ignoring metadata provided key %s: non-string type %s',
-                METADATA_CLOUD_NAME_KEY, type(cloud_name))
+            else:
+                self._cloud_name = self._get_cloud_name().lower()
+                LOG.debug(
+                    'Ignoring metadata provided key %s: non-string type %s',
+                    METADATA_CLOUD_NAME_KEY, type(cloud_name))
         else:
             self._cloud_name = self._get_cloud_name().lower()
         return self._cloud_name
@@ -712,6 +776,25 @@ def instance_id_matches_system_uuid(instance_id, field='system-uuid'):
     if not dmi_value:
         return False
     return instance_id.lower() == dmi_value.lower()
+
+
+def canonical_cloud_id(cloud_name, region, platform):
+    """Lookup the canonical cloud-id for a given cloud_name and region."""
+    if not cloud_name:
+        cloud_name = METADATA_UNKNOWN
+    if not region:
+        region = METADATA_UNKNOWN
+    if region == METADATA_UNKNOWN:
+        if cloud_name != METADATA_UNKNOWN:
+            return cloud_name
+        return platform
+    for prefix, cloud_id_test in CLOUD_ID_REGION_PREFIX_MAP.items():
+        (cloud_id, valid_cloud) = cloud_id_test
+        if region.startswith(prefix) and valid_cloud(cloud_name):
+            return cloud_id
+    if cloud_name != METADATA_UNKNOWN:
+        return cloud_name
+    return platform
 
 
 def convert_vendordata(data, recurse=True):

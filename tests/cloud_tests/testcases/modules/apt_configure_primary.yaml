@@ -12,13 +12,6 @@ cloud_config: |
           - default
         uri: "http://www.gtlib.gatech.edu/pub/ubuntu-releases/"
 collect_scripts:
-  ubuntu.sources.list: |
-    #!/bin/bash
-    grep -v '^#' /etc/apt/sources.list | sed '/^\s*$/d' | grep -c archive.ubuntu.com
-  gatech.sources.list: |
-    #!/bin/bash
-    grep -v '^#' /etc/apt/sources.list | sed '/^\s*$/d' | grep -c gtlib.gatech.edu
-
   sources.list: |
       #!/bin/bash
       cat /etc/apt/sources.list

@@ -49,6 +49,9 @@ class MetadataResponses(object):
     FAKE_METADATA = {
         'id': '00000000-0000-0000-0000-000000000000',
         'hostname': 'scaleway.host',
+        'tags': [
+            "AUTHORIZED_KEY=ssh-rsa_AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ],
         'ssh_public_keys': [{
             'key': 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
             'fingerprint': '2048 06:ae:...  login (RSA)'
@@ -204,10 +207,11 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
         self.assertEqual(self.datasource.get_instance_id(),
                          MetadataResponses.FAKE_METADATA['id'])
-        self.assertEqual(self.datasource.get_public_ssh_keys(), [
-            elem['key'] for elem in
-            MetadataResponses.FAKE_METADATA['ssh_public_keys']
-        ])
+        self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+        ].sort())
         self.assertEqual(self.datasource.get_hostname(),
                          MetadataResponses.FAKE_METADATA['hostname'])
         self.assertEqual(self.datasource.get_userdata_raw(),
@@ -217,6 +221,70 @@ class TestDataSourceScaleway(HttprettyTestCase):
         self.assertIsNone(self.datasource.availability_zone)
         self.assertIsNone(self.datasource.region)
         self.assertEqual(sleep.call_count, 0)
+
+    def test_ssh_keys_empty(self):
+        """
+        get_public_ssh_keys() should return empty list if no ssh key are
+        available
+        """
+        self.datasource.metadata['tags'] = []
+        self.datasource.metadata['ssh_public_keys'] = []
+        self.assertEqual(self.datasource.get_public_ssh_keys(), [])
+
+    def test_ssh_keys_only_tags(self):
+        """
+        get_public_ssh_keys() should return list of keys available in tags
+        """
+        self.datasource.metadata['tags'] = [
+            "AUTHORIZED_KEY=ssh-rsa_AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+            "AUTHORIZED_KEY=ssh-rsa_AAAAB3NzaC1yc2EAAAADAQABCCCCC",
+        ]
+        self.datasource.metadata['ssh_public_keys'] = []
+        self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+        ].sort())
+
+    def test_ssh_keys_only_conf(self):
+        """
+        get_public_ssh_keys() should return list of keys available in
+        ssh_public_keys field
+        """
+        self.datasource.metadata['tags'] = []
+        self.datasource.metadata['ssh_public_keys'] = [{
+            'key': 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+            'fingerprint': '2048 06:ae:...  login (RSA)'
+        }, {
+            'key': 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'fingerprint': '2048 06:ff:...  login2 (RSA)'
+        }]
+        self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+        ].sort())
+
+    def test_ssh_keys_both(self):
+        """
+        get_public_ssh_keys() should return a merge of keys available
+        in ssh_public_keys and tags
+        """
+        self.datasource.metadata['tags'] = [
+            "AUTHORIZED_KEY=ssh-rsa_AAAAB3NzaC1yc2EAAAADAQABDDDDD",
+        ]
+
+        self.datasource.metadata['ssh_public_keys'] = [{
+            'key': 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+            'fingerprint': '2048 06:ae:...  login (RSA)'
+        }, {
+            'key': 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'fingerprint': '2048 06:ff:...  login2 (RSA)'
+        }]
+        self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+        ].sort())
 
     @mock.patch('cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4')
     @mock.patch('cloudinit.sources.DataSourceScaleway.SourceAddressAdapter',

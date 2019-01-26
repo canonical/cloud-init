@@ -18,25 +18,51 @@ MOUNT_INFO = [
 ]
 
 OS_RELEASE_SLES = dedent("""\
-    NAME="SLES"\n
-    VERSION="12-SP3"\n
-    VERSION_ID="12.3"\n
-    PRETTY_NAME="SUSE Linux Enterprise Server 12 SP3"\n
-    ID="sles"\nANSI_COLOR="0;32"\n
-    CPE_NAME="cpe:/o:suse:sles:12:sp3"\n
+    NAME="SLES"
+    VERSION="12-SP3"
+    VERSION_ID="12.3"
+    PRETTY_NAME="SUSE Linux Enterprise Server 12 SP3"
+    ID="sles"
+    ANSI_COLOR="0;32"
+    CPE_NAME="cpe:/o:suse:sles:12:sp3"
 """)
 
 OS_RELEASE_OPENSUSE = dedent("""\
-NAME="openSUSE Leap"
-VERSION="42.3"
-ID=opensuse
-ID_LIKE="suse"
-VERSION_ID="42.3"
-PRETTY_NAME="openSUSE Leap 42.3"
-ANSI_COLOR="0;32"
-CPE_NAME="cpe:/o:opensuse:leap:42.3"
-BUG_REPORT_URL="https://bugs.opensuse.org"
-HOME_URL="https://www.opensuse.org/"
+    NAME="openSUSE Leap"
+    VERSION="42.3"
+    ID=opensuse
+    ID_LIKE="suse"
+    VERSION_ID="42.3"
+    PRETTY_NAME="openSUSE Leap 42.3"
+    ANSI_COLOR="0;32"
+    CPE_NAME="cpe:/o:opensuse:leap:42.3"
+    BUG_REPORT_URL="https://bugs.opensuse.org"
+    HOME_URL="https://www.opensuse.org/"
+""")
+
+OS_RELEASE_OPENSUSE_L15 = dedent("""\
+    NAME="openSUSE Leap"
+    VERSION="15.0"
+    ID="opensuse-leap"
+    ID_LIKE="suse opensuse"
+    VERSION_ID="15.0"
+    PRETTY_NAME="openSUSE Leap 15.0"
+    ANSI_COLOR="0;32"
+    CPE_NAME="cpe:/o:opensuse:leap:15.0"
+    BUG_REPORT_URL="https://bugs.opensuse.org"
+    HOME_URL="https://www.opensuse.org/"
+""")
+
+OS_RELEASE_OPENSUSE_TW = dedent("""\
+    NAME="openSUSE Tumbleweed"
+    ID="opensuse-tumbleweed"
+    ID_LIKE="opensuse suse"
+    VERSION_ID="20180920"
+    PRETTY_NAME="openSUSE Tumbleweed"
+    ANSI_COLOR="0;32"
+    CPE_NAME="cpe:/o:opensuse:tumbleweed:20180920"
+    BUG_REPORT_URL="https://bugs.opensuse.org"
+    HOME_URL="https://www.opensuse.org/"
 """)
 
 OS_RELEASE_CENTOS = dedent("""\
@@ -447,11 +473,34 @@ class TestGetLinuxDistro(CiTestCase):
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
-        """Verify we get the correct name and machine arch on OpenSUSE."""
+        """Verify we get the correct name and machine arch on openSUSE
+           prior to openSUSE Leap 15.
+        """
         m_os_release.return_value = OS_RELEASE_OPENSUSE
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('opensuse', '42.3', platform.machine()), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_opensuse_l15(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on openSUSE
+           for openSUSE Leap 15.0 and later.
+        """
+        m_os_release.return_value = OS_RELEASE_OPENSUSE_L15
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('opensuse-leap', '15.0', platform.machine()), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_opensuse_tw(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on openSUSE
+           for openSUSE Tumbleweed
+        """
+        m_os_release.return_value = OS_RELEASE_OPENSUSE_TW
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(
+            ('opensuse-tumbleweed', '20180920', platform.machine()), dist)
 
     @mock.patch('platform.dist')
     def test_get_linux_distro_no_data(self, m_platform_dist, m_path_exists):
@@ -477,5 +526,21 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         self.assertEqual(('foo', '1.1', 'aarch64'), dist)
+
+
+@mock.patch('os.path.exists')
+class TestIsLXD(CiTestCase):
+
+    def test_is_lxd_true_on_sock_device(self, m_exists):
+        """When lxd's /dev/lxd/sock exists, is_lxd returns true."""
+        m_exists.return_value = True
+        self.assertTrue(util.is_lxd())
+        m_exists.assert_called_once_with('/dev/lxd/sock')
+
+    def test_is_lxd_false_when_sock_device_absent(self, m_exists):
+        """When lxd's /dev/lxd/sock is absent, is_lxd returns false."""
+        m_exists.return_value = False
+        self.assertFalse(util.is_lxd())
+        m_exists.assert_called_once_with('/dev/lxd/sock')
 
 # vi: ts=4 expandtab

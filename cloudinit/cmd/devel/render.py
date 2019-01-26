@@ -8,11 +8,10 @@ import sys
 
 from cloudinit.handlers.jinja_template import render_jinja_payload_from_file
 from cloudinit import log
-from cloudinit.sources import INSTANCE_JSON_FILE
+from cloudinit.sources import INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE
 from . import addLogHandlerCLI, read_cfg_paths
 
 NAME = 'render'
-DEFAULT_INSTANCE_DATA = '/run/cloud-init/instance-data.json'
 
 LOG = log.getLogger(NAME)
 
@@ -47,12 +46,22 @@ def handle_args(name, args):
     @return 0 on success, 1 on failure.
     """
     addLogHandlerCLI(LOG, log.DEBUG if args.debug else log.WARNING)
-    if not args.instance_data:
-        paths = read_cfg_paths()
-        instance_data_fn = os.path.join(
-            paths.run_dir, INSTANCE_JSON_FILE)
-    else:
+    if args.instance_data:
         instance_data_fn = args.instance_data
+    else:
+        paths = read_cfg_paths()
+        uid = os.getuid()
+        redacted_data_fn = os.path.join(paths.run_dir, INSTANCE_JSON_FILE)
+        if uid == 0:
+            instance_data_fn = os.path.join(
+                paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE)
+            if not os.path.exists(instance_data_fn):
+                LOG.warning(
+                     'Missing root-readable %s. Using redacted %s instead.',
+                     instance_data_fn, redacted_data_fn)
+                instance_data_fn = redacted_data_fn
+        else:
+            instance_data_fn = redacted_data_fn
     if not os.path.exists(instance_data_fn):
         LOG.error('Missing instance-data.json file: %s', instance_data_fn)
         return 1
@@ -62,10 +71,14 @@ def handle_args(name, args):
     except IOError:
         LOG.error('Missing user-data file: %s', args.user_data)
         return 1
-    rendered_payload = render_jinja_payload_from_file(
-        payload=user_data, payload_fn=args.user_data,
-        instance_data_file=instance_data_fn,
-        debug=True if args.debug else False)
+    try:
+        rendered_payload = render_jinja_payload_from_file(
+            payload=user_data, payload_fn=args.user_data,
+            instance_data_file=instance_data_fn,
+            debug=True if args.debug else False)
+    except RuntimeError as e:
+        LOG.error('Cannot render from instance data: %s', str(e))
+        return 1
     if not rendered_payload:
         LOG.error('Unable to render user-data file: %s', args.user_data)
         return 1

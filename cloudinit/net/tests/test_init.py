@@ -2,14 +2,16 @@
 
 import copy
 import errno
+import httpretty
 import mock
 import os
+import requests
 import textwrap
 import yaml
 
 import cloudinit.net as net
 from cloudinit.util import ensure_file, write_file, ProcessExecutionError
-from cloudinit.tests.helpers import CiTestCase
+from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase
 
 
 class TestSysDevPath(CiTestCase):
@@ -458,6 +460,22 @@ class TestEphemeralIPV4Network(CiTestCase):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_teardown_calls)
 
+    @mock.patch('cloudinit.net.readurl')
+    def test_ephemeral_ipv4_no_network_if_url_connectivity(
+            self, m_readurl, m_subp):
+        """No network setup is performed if we can successfully connect to
+        connectivity_url."""
+        params = {
+            'interface': 'eth0', 'ip': '192.168.2.2',
+            'prefix_or_mask': '255.255.255.0', 'broadcast': '192.168.2.255',
+            'connectivity_url': 'http://example.org/index.html'}
+
+        with net.EphemeralIPv4Network(**params):
+            self.assertEqual([mock.call('http://example.org/index.html',
+                                        timeout=5)], m_readurl.call_args_list)
+        # Ensure that no teardown happens:
+        m_subp.assert_has_calls([])
+
     def test_ephemeral_ipv4_network_noop_when_configured(self, m_subp):
         """EphemeralIPv4Network handles exception when address is setup.
 
@@ -619,3 +637,35 @@ class TestApplyNetworkCfgNames(CiTestCase):
     def test_apply_v2_renames_raises_runtime_error_on_unknown_version(self):
         with self.assertRaises(RuntimeError):
             net.apply_network_config_names(yaml.load("version: 3"))
+
+
+class TestHasURLConnectivity(HttprettyTestCase):
+
+    def setUp(self):
+        super(TestHasURLConnectivity, self).setUp()
+        self.url = 'http://fake/'
+        self.kwargs = {'allow_redirects': True, 'timeout': 5.0}
+
+    @mock.patch('cloudinit.net.readurl')
+    def test_url_timeout_on_connectivity_check(self, m_readurl):
+        """A timeout of 5 seconds is provided when reading a url."""
+        self.assertTrue(
+            net.has_url_connectivity(self.url), 'Expected True on url connect')
+
+    def test_true_on_url_connectivity_success(self):
+        httpretty.register_uri(httpretty.GET, self.url)
+        self.assertTrue(
+            net.has_url_connectivity(self.url), 'Expected True on url connect')
+
+    @mock.patch('requests.Session.request')
+    def test_true_on_url_connectivity_timeout(self, m_request):
+        """A timeout raised accessing the url will return False."""
+        m_request.side_effect = requests.Timeout('Fake Connection Timeout')
+        self.assertFalse(
+            net.has_url_connectivity(self.url),
+            'Expected False on url timeout')
+
+    def test_true_on_url_connectivity_failure(self):
+        httpretty.register_uri(httpretty.GET, self.url, body={}, status=404)
+        self.assertFalse(
+            net.has_url_connectivity(self.url), 'Expected False on url fail')

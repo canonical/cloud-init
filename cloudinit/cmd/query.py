@@ -3,6 +3,7 @@
 """Query standardized instance metadata from the command line."""
 
 import argparse
+from errno import EACCES
 import os
 import six
 import sys
@@ -79,27 +80,38 @@ def handle_args(name, args):
     uid = os.getuid()
     if not all([args.instance_data, args.user_data, args.vendor_data]):
         paths = read_cfg_paths()
-    if not args.instance_data:
-        if uid == 0:
-            default_json_fn = INSTANCE_JSON_SENSITIVE_FILE
-        else:
-            default_json_fn = INSTANCE_JSON_FILE  # World readable
-        instance_data_fn = os.path.join(paths.run_dir, default_json_fn)
-    else:
+    if args.instance_data:
         instance_data_fn = args.instance_data
-    if not args.user_data:
-        user_data_fn = os.path.join(paths.instance_link, 'user-data.txt')
     else:
+        redacted_data_fn = os.path.join(paths.run_dir, INSTANCE_JSON_FILE)
+        if uid == 0:
+            sensitive_data_fn = os.path.join(
+                paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE)
+            if os.path.exists(sensitive_data_fn):
+                instance_data_fn = sensitive_data_fn
+            else:
+                LOG.warning(
+                     'Missing root-readable %s. Using redacted %s instead.',
+                     sensitive_data_fn, redacted_data_fn)
+                instance_data_fn = redacted_data_fn
+        else:
+            instance_data_fn = redacted_data_fn
+    if args.user_data:
         user_data_fn = args.user_data
-    if not args.vendor_data:
-        vendor_data_fn = os.path.join(paths.instance_link, 'vendor-data.txt')
     else:
+        user_data_fn = os.path.join(paths.instance_link, 'user-data.txt')
+    if args.vendor_data:
         vendor_data_fn = args.vendor_data
+    else:
+        vendor_data_fn = os.path.join(paths.instance_link, 'vendor-data.txt')
 
     try:
         instance_json = util.load_file(instance_data_fn)
-    except IOError:
-        LOG.error('Missing instance-data.json file: %s', instance_data_fn)
+    except (IOError, OSError) as e:
+        if e.errno == EACCES:
+            LOG.error("No read permission on '%s'. Try sudo", instance_data_fn)
+        else:
+            LOG.error('Missing instance-data file: %s', instance_data_fn)
         return 1
 
     instance_data = util.load_json(instance_json)

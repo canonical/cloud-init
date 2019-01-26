@@ -7,7 +7,7 @@
 from base64 import b64decode
 import re
 
-from cloudinit.cs_utils import Cepko
+from cloudinit.cs_utils import Cepko, SERIAL_PORT
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -83,6 +83,10 @@ class DataSourceCloudSigma(sources.DataSource):
         self.ssh_public_key = server_meta['ssh_public_key']
 
         return True
+
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        return 'cepko (%s)' % SERIAL_PORT
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         """
