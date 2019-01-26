@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import signal
+import time
 
 from cloudinit.net import (
     EphemeralIPv4Network, find_fallback_nic, get_devicelist,
@@ -127,7 +128,9 @@ def maybe_perform_dhcp_discovery(nic=None):
     if not dhclient_path:
         LOG.debug('Skip dhclient configuration: No dhclient command found.')
         return []
-    with temp_utils.tempdir(prefix='cloud-init-dhcp-', needs_exe=True) as tdir:
+    with temp_utils.tempdir(rmtree_ignore_errors=True,
+                            prefix='cloud-init-dhcp-',
+                            needs_exe=True) as tdir:
         # Use /var/tmp because /run/cloud-init/tmp is mounted noexec
         return dhcp_discovery(dhclient_path, nic, tdir)
 
@@ -195,24 +198,39 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
            '-pf', pid_file, interface, '-sf', '/bin/true']
     util.subp(cmd, capture=True)
 
-    # dhclient doesn't write a pid file until after it forks when it gets a
-    # proper lease response. Since cleandir is a temp directory that gets
-    # removed, we need to wait for that pidfile creation before the
-    # cleandir is removed, otherwise we get FileNotFound errors.
+    # Wait for pid file and lease file to appear, and for the process
+    # named by the pid file to daemonize (have pid 1 as its parent). If we
+    # try to read the lease file before daemonization happens, we might try
+    # to read it before the dhclient has actually written it. We also have
+    # to wait until the dhclient has become a daemon so we can be sure to
+    # kill the correct process, thus freeing cleandir to be deleted back
+    # up the callstack.
     missing = util.wait_for_files(
         [pid_file, lease_file], maxwait=5, naplen=0.01)
     if missing:
         LOG.warning("dhclient did not produce expected files: %s",
                     ', '.join(os.path.basename(f) for f in missing))
         return []
-    pid_content = util.load_file(pid_file).strip()
-    try:
-        pid = int(pid_content)
-    except ValueError:
-        LOG.debug(
-            "pid file contains non-integer content '%s'", pid_content)
-    else:
-        os.kill(pid, signal.SIGKILL)
+
+    ppid = 'unknown'
+    for _ in range(0, 1000):
+        pid_content = util.load_file(pid_file).strip()
+        try:
+            pid = int(pid_content)
+        except ValueError:
+            pass
+        else:
+            ppid = util.get_proc_ppid(pid)
+            if ppid == 1:
+                LOG.debug('killing dhclient with pid=%s', pid)
+                os.kill(pid, signal.SIGKILL)
+                return parse_dhcp_lease_file(lease_file)
+        time.sleep(0.01)
+
+    LOG.error(
+        'dhclient(pid=%s, parentpid=%s) failed to daemonize after %s seconds',
+        pid_content, ppid, 0.01 * 1000
+    )
     return parse_dhcp_lease_file(lease_file)
 
 

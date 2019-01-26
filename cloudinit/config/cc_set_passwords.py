@@ -160,7 +160,7 @@ def handle(_name, cfg, cloud, log, args):
         hashed_users = []
         randlist = []
         users = []
-        prog = re.compile(r'\$[1,2a,2y,5,6](\$.+){2}')
+        prog = re.compile(r'\$(1|2a|2y|5|6)(\$.+){2}')
         for line in plist:
             u, p = line.split(':', 1)
             if prog.match(p) is not None and ":" not in p:

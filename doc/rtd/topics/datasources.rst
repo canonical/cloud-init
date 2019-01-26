@@ -18,7 +18,7 @@ single way to access the different cloud systems methods to provide this data
 through the typical usage of subclasses.
 
 Any metadata processed by cloud-init's datasources is persisted as
-``/run/cloud0-init/instance-data.json``. Cloud-init provides tooling
+``/run/cloud-init/instance-data.json``. Cloud-init provides tooling
 to quickly introspect some of that data. See :ref:`instance_metadata` for
 more information.
 
@@ -78,6 +78,65 @@ The current interface that a datasource object must provide is the following:
     def get_hostname(self, fqdn=False)
 
     def get_package_mirror_info(self)
+
+
+Adding a new Datasource
+-----------------------
+The datasource objects have a few touch points with cloud-init.  If you
+are interested in adding a new datasource for your cloud platform you'll
+need to take care of the following items:
+
+* **Identify a mechanism for positive identification of the platform**:
+  It is good practice for a cloud platform to positively identify itself
+  to the guest.  This allows the guest to make educated decisions based
+  on the platform on which it is running. On the x86 and arm64 architectures,
+  many clouds identify themselves through DMI data.  For example,
+  Oracle's public cloud provides the string 'OracleCloud.com' in the
+  DMI chassis-asset field.
+
+  cloud-init enabled images produce a log file with details about the
+  platform.  Reading through this log in ``/run/cloud-init/ds-identify.log``
+  may provide the information needed to uniquely identify the platform.
+  If the log is not present, you can generate it by running from source
+  ``./tools/ds-identify`` or the installed location
+  ``/usr/lib/cloud-init/ds-identify``.
+
+  The mechanism used to identify the platform will be required for the
+  ds-identify and datasource module sections below.
+
+* **Add datasource module ``cloudinit/sources/DataSource<CloudPlatform>.py``**:
+  It is suggested that you start by copying one of the simpler datasources
+  such as DataSourceHetzner.
+
+* **Add tests for datasource module**:
+  Add a new file with some tests for the module to
+  ``cloudinit/sources/test_<yourplatform>.py``.  For example see
+  ``cloudinit/sources/tests/test_oracle.py``
+
+* **Update ds-identify**:  In systemd systems, ds-identify is used to detect
+  which datasource should be enabled or if cloud-init should run at all.
+  You'll need to make changes to ``tools/ds-identify``.
+
+* **Add tests for ds-identify**: Add relevant tests in a new class to
+  ``tests/unittests/test_ds_identify.py``.  You can use ``TestOracle`` as an
+  example.
+
+* **Add your datasource name to the builtin list of datasources:** Add
+  your datasource module name to the end of the ``datasource_list``
+  entry in ``cloudinit/settings.py``.
+
+* **Add your your cloud platform to apport collection prompts:** Update the
+  list of cloud platforms in ``cloudinit/apport.py``.  This list will be
+  provided to the user who invokes ``ubuntu-bug cloud-init``.
+
+* **Enable datasource by default in ubuntu packaging branches:**
+  Ubuntu packaging branches contain a template file
+  ``debian/cloud-init.templates`` that ultimately sets the default
+  datasource_list when installed via package.  This file needs updating when
+  the commit gets into a package.
+
+* **Add documentation for your datasource**: You should add a new
+  file in ``doc/datasources/<cloudplatform>.rst``
 
 
 Datasource Documentation
