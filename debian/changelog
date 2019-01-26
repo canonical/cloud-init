@@ -1,4 +1,4 @@
-cloud-init (18.5-17-gd1a2fe73-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.5-17-gd1a2fe73-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
     - opennebula: exclude EPOCHREALTIME as known bash env variable with a
