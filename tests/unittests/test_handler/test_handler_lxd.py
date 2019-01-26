@@ -62,7 +62,7 @@ class TestLxd(t_help.CiTestCase):
         cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, self.logger, [])
         self.assertFalse(m_maybe_clean.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
-        self.assertEqual(sorted(install_pkg), ['lxd', 'zfs'])
+        self.assertEqual(sorted(install_pkg), ['lxd', 'zfsutils-linux'])
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
     @mock.patch("cloudinit.config.cc_lxd.util")

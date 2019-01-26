@@ -129,6 +129,22 @@ features:
 
 releases:
     # UBUNTU =================================================================
+    disco:
+        # EOL: Jan 2020
+        default:
+            enabled: true
+            release: disco
+            version: 19.04
+            os: ubuntu
+            feature_groups:
+                - base
+                - debian_base
+                - ubuntu_specific
+        lxd:
+            sstreams_server: https://cloud-images.ubuntu.com/daily
+            alias: disco
+            setup_overrides: null
+            override_templates: false
     cosmic:
         # EOL: Jul 2019
         default:

@@ -246,18 +246,18 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self.assertEqual('cc_ntp', parseargs.name)
         self.assertFalse(parseargs.report)
 
-    @mock.patch('cloudinit.cmd.main.dhclient_hook')
-    def test_dhclient_hook_subcommand(self, m_dhclient_hook):
+    @mock.patch('cloudinit.cmd.main.dhclient_hook.handle_args')
+    def test_dhclient_hook_subcommand(self, m_handle_args):
         """The subcommand 'dhclient-hook' calls dhclient_hook with args."""
-        self._call_main(['cloud-init', 'dhclient-hook', 'net_action', 'eth0'])
-        (name, parseargs) = m_dhclient_hook.call_args_list[0][0]
-        self.assertEqual('dhclient_hook', name)
+        self._call_main(['cloud-init', 'dhclient-hook', 'up', 'eth0'])
+        (name, parseargs) = m_handle_args.call_args_list[0][0]
+        self.assertEqual('dhclient-hook', name)
         self.assertEqual('dhclient-hook', parseargs.subcommand)
-        self.assertEqual('dhclient_hook', parseargs.action[0])
+        self.assertEqual('dhclient-hook', parseargs.action[0])
         self.assertFalse(parseargs.debug)
         self.assertFalse(parseargs.force)
-        self.assertEqual('net_action', parseargs.net_action)
-        self.assertEqual('eth0', parseargs.net_interface)
+        self.assertEqual('up', parseargs.event)
+        self.assertEqual('eth0', parseargs.interface)
 
     @mock.patch('cloudinit.cmd.main.main_features')
     def test_features_hook_subcommand(self, m_features):

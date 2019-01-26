@@ -89,7 +89,7 @@ def handle(name, cfg, cloud, log, args):
         packages.append('lxd')
 
     if init_cfg.get("storage_backend") == "zfs" and not util.which('zfs'):
-        packages.append('zfs')
+        packages.append('zfsutils-linux')
 
     if len(packages):
         try:

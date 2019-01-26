@@ -22,6 +22,7 @@ import os
 import textwrap
 import yaml
 
+
 DHCP_CONTENT_1 = """
 DEVICE='eth0'
 PROTO='dhcp'
@@ -488,8 +489,8 @@ NETWORK_CONFIGS = {
                 address 192.168.21.3/24
                 dns-nameservers 8.8.8.8 8.8.4.4
                 dns-search barley.maas sach.maas
-                post-up route add default gw 65.61.151.37 || true
-                pre-down route del default gw 65.61.151.37 || true
+                post-up route add default gw 65.61.151.37 metric 10000 || true
+                pre-down route del default gw 65.61.151.37 metric 10000 || true
         """).rstrip(' '),
         'expected_netplan': textwrap.dedent("""
             network:
@@ -513,7 +514,8 @@ NETWORK_CONFIGS = {
                             - barley.maas
                             - sach.maas
                         routes:
-                        -   to: 0.0.0.0/0
+                        -   metric: 10000
+                            to: 0.0.0.0/0
                             via: 65.61.151.37
                         set-name: eth99
         """).rstrip(' '),
@@ -537,6 +539,7 @@ NETWORK_CONFIGS = {
                 HWADDR=c0:d6:9f:2c:e8:80
                 IPADDR=192.168.21.3
                 NETMASK=255.255.255.0
+                METRIC=10000
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
@@ -561,7 +564,7 @@ NETWORK_CONFIGS = {
                           - gateway: 65.61.151.37
                             netmask: 0.0.0.0
                             network: 0.0.0.0
-                            metric: 2
+                            metric: 10000
                 - type: physical
                   name: eth1
                   mac_address: "cf:d6:af:48:e8:80"
@@ -1161,6 +1164,13 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                      - gateway: 192.168.0.3
                        netmask: 255.255.255.0
                        network: 10.1.3.0
+                     - gateway: 2001:67c:1562:1
+                       network: 2001:67c:1
+                       netmask: ffff:ffff:0
+                     - gateway: 3001:67c:1562:1
+                       network: 3001:67c:1
+                       netmask: ffff:ffff:0
+                       metric: 10000
                   - type: static
                     address: 192.168.1.2/24
                   - type: static
@@ -1197,6 +1207,11 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                      routes:
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
+                     -   to: 2001:67c:1/32
+                         via: 2001:67c:1562:1
+                     -   metric: 10000
+                         to: 3001:67c:1/32
+                         via: 3001:67c:1562:1
         """),
         'yaml-v2': textwrap.dedent("""
             version: 2
@@ -1228,6 +1243,11 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 routes:
                 -   to: 10.1.3.0/24
                     via: 192.168.0.3
+                -   to: 2001:67c:1562:8007::1/64
+                    via: 2001:67c:1562:8007::aac:40b2
+                -   metric: 10000
+                    to: 3001:67c:1562:8007::1/64
+                    via: 3001:67c:1562:8007::aac:40b2
             """),
         'expected_netplan-v2': textwrap.dedent("""
          network:
@@ -1249,6 +1269,11 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                      routes:
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
+                     -   to: 2001:67c:1562:8007::1/64
+                         via: 2001:67c:1562:8007::aac:40b2
+                     -   metric: 10000
+                         to: 3001:67c:1562:8007::1/64
+                         via: 3001:67c:1562:8007::aac:40b2
              ethernets:
                  eth0:
                      match:
@@ -1349,6 +1374,10 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         USERCTL=no
         """),
             'route6-bond0': textwrap.dedent("""\
+        # Created by cloud-init on instance boot automatically, do not edit.
+        #
+        2001:67c:1/ffff:ffff:0 via 2001:67c:1562:1  dev bond0
+        3001:67c:1/ffff:ffff:0 via 3001:67c:1562:1 metric 10000 dev bond0
             """),
             'route-bond0': textwrap.dedent("""\
         ADDRESS0=10.1.3.0
@@ -1852,6 +1881,7 @@ class TestRhelSysConfigRendering(CiTestCase):
 
     with_logs = True
 
+    nm_cfg_file = "/etc/NetworkManager/NetworkManager.conf"
     scripts_dir = '/etc/sysconfig/network-scripts'
     header = ('# Created by cloud-init on instance boot automatically, '
               'do not edit.\n#\n')
@@ -1879,14 +1909,24 @@ class TestRhelSysConfigRendering(CiTestCase):
         return dir2dict(dir)
 
     def _compare_files_to_expected(self, expected, found):
+
+        def _try_load(f):
+            ''' Attempt to load shell content, otherwise return as-is '''
+            try:
+                return util.load_shell_content(f)
+            except ValueError:
+                pass
+            # route6- * files aren't shell content, but iproute2 params
+            return f
+
         orig_maxdiff = self.maxDiff
         expected_d = dict(
-            (os.path.join(self.scripts_dir, k), util.load_shell_content(v))
+            (os.path.join(self.scripts_dir, k), _try_load(v))
             for k, v in expected.items())
 
         # only compare the files in scripts_dir
         scripts_found = dict(
-            (k, util.load_shell_content(v)) for k, v in found.items()
+            (k, _try_load(v)) for k, v in found.items()
             if k.startswith(self.scripts_dir))
         try:
             self.maxDiff = None
@@ -2058,6 +2098,10 @@ TYPE=Ethernet
 USERCTL=no
 """
         self.assertEqual(expected, found[nspath + 'ifcfg-interface0'])
+        # The configuration has no nameserver information make sure we
+        # do not write the resolv.conf file
+        respath = '/etc/resolv.conf'
+        self.assertNotIn(respath, found.keys())
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
@@ -2135,6 +2179,75 @@ USERCTL=no
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
+
+    def test_check_ifcfg_rh(self):
+        """ifcfg-rh plugin is added NetworkManager.conf if conf present."""
+        render_dir = self.tmp_dir()
+        nm_cfg = util.target_path(render_dir, path=self.nm_cfg_file)
+        util.ensure_dir(os.path.dirname(nm_cfg))
+
+        # write a template nm.conf, note plugins is a list here
+        with open(nm_cfg, 'w') as fh:
+            fh.write('# test_check_ifcfg_rh\n[main]\nplugins=foo,bar\n')
+        self.assertTrue(os.path.exists(nm_cfg))
+
+        # render and read
+        entry = NETWORK_CONFIGS['small']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']),
+                                      dir=render_dir)
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+        # check ifcfg-rh is in the 'plugins' list
+        config = sysconfig.ConfigObj(nm_cfg)
+        self.assertIn('ifcfg-rh', config['main']['plugins'])
+
+    def test_check_ifcfg_rh_plugins_string(self):
+        """ifcfg-rh plugin is append when plugins is a string."""
+        render_dir = self.tmp_path("render")
+        os.makedirs(render_dir)
+        nm_cfg = util.target_path(render_dir, path=self.nm_cfg_file)
+        util.ensure_dir(os.path.dirname(nm_cfg))
+
+        # write a template nm.conf, note plugins is a value here
+        util.write_file(nm_cfg, '# test_check_ifcfg_rh\n[main]\nplugins=foo\n')
+
+        # render and read
+        entry = NETWORK_CONFIGS['small']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']),
+                                      dir=render_dir)
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+        # check raw content has plugin
+        nm_file_content = util.load_file(nm_cfg)
+        self.assertIn('ifcfg-rh', nm_file_content)
+
+        # check ifcfg-rh is in the 'plugins' list
+        config = sysconfig.ConfigObj(nm_cfg)
+        self.assertIn('ifcfg-rh', config['main']['plugins'])
+
+    def test_check_ifcfg_rh_plugins_no_plugins(self):
+        """enable_ifcfg_plugin creates plugins value if missing."""
+        render_dir = self.tmp_path("render")
+        os.makedirs(render_dir)
+        nm_cfg = util.target_path(render_dir, path=self.nm_cfg_file)
+        util.ensure_dir(os.path.dirname(nm_cfg))
+
+        # write a template nm.conf, note plugins is missing
+        util.write_file(nm_cfg, '# test_check_ifcfg_rh\n[main]\n')
+        self.assertTrue(os.path.exists(nm_cfg))
+
+        # render and read
+        entry = NETWORK_CONFIGS['small']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']),
+                                      dir=render_dir)
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+        # check ifcfg-rh is in the 'plugins' list
+        config = sysconfig.ConfigObj(nm_cfg)
+        self.assertIn('ifcfg-rh', config['main']['plugins'])
 
 
 class TestOpenSuseSysConfigRendering(CiTestCase):
@@ -2347,6 +2460,10 @@ TYPE=Ethernet
 USERCTL=no
 """
         self.assertEqual(expected, found[nspath + 'ifcfg-interface0'])
+        # The configuration has no nameserver information make sure we
+        # do not write the resolv.conf file
+        respath = '/etc/resolv.conf'
+        self.assertNotIn(respath, found.keys())
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)

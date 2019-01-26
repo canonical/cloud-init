@@ -1171,4 +1171,10 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual({}, util.get_proc_env(1))
         self.assertEqual(1, m_load_file.call_count)
 
+    def test_get_proc_ppid(self):
+        """get_proc_ppid returns correct parent pid value."""
+        my_pid = os.getpid()
+        my_ppid = os.getppid()
+        self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
+
 # vi: ts=4 expandtab

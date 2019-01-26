@@ -52,6 +52,18 @@ class TestWriteFiles(FilesystemMockingTestCase):
             "test_simple", [{"content": expected, "path": filename}])
         self.assertEqual(util.load_file(filename), expected)
 
+    def test_append(self):
+        self.patchUtils(self.tmp)
+        existing = "hello "
+        added = "world\n"
+        expected = existing + added
+        filename = "/tmp/append.file"
+        util.write_file(filename, existing)
+        write_files(
+            "test_append",
+            [{"content": added, "path": filename, "append": "true"}])
+        self.assertEqual(util.load_file(filename), expected)
+
     def test_yaml_binary(self):
         self.patchUtils(self.tmp)
         data = util.load_yaml(YAML_TEXT)

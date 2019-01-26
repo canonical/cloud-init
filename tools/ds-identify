@@ -237,7 +237,7 @@ read_fs_info() {
         case "${line}" in
             DEVNAME=*)
                 [ -n "$dev" -a "$ftype" = "iso9660" ] &&
-                    isodevs="${isodevs} ${dev}=$label"
+                    isodevs="${isodevs},${dev}=$label"
                 ftype=""; dev=""; label="";
                 dev=${line#DEVNAME=};;
             LABEL=*) label="${line#LABEL=}";
@@ -247,11 +247,11 @@ read_fs_info() {
         esac
     done
     [ -n "$dev" -a "$ftype" = "iso9660" ] &&
-        isodevs="${isodevs} ${dev}=$label"
+        isodevs="${isodevs},${dev}=$label"
 
     DI_FS_LABELS="${labels%${delim}}"
     DI_FS_UUIDS="${uuids%${delim}}"
-    DI_ISO9660_DEVS="${isodevs# }"
+    DI_ISO9660_DEVS="${isodevs#,}"
 }
 
 cached() {
@@ -726,6 +726,25 @@ ovf_vmware_guest_customization() {
     return 1
 }
 
+ovf_vmware_transport_guestinfo() {
+    [ "${DI_VIRT}" = "vmware" ] || return 1
+    command -v vmware-rpctool >/dev/null 2>&1 || return 1
+    local out="" ret=""
+    out=$(vmware-rpctool "info-get guestinfo.ovfEnv" 2>&1)
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        debug 1 "Running on vmware but rpctool query returned $ret: $out"
+        return 1
+    fi
+    case "$out" in
+        "<?xml"*|"<?XML"*) :;;
+        *) debug 1 "guestinfo.ovfEnv had non-xml content: $out";
+           return 1;;
+    esac
+    debug 1 "Found guestinfo transport."
+    return 0
+}
+
 is_cdrom_ovf() {
     local dev="$1" label="$2"
     # skip devices that don't look like cdrom paths.
@@ -735,9 +754,10 @@ is_cdrom_ovf() {
            return 1;;
     esac
 
+    debug 1 "got label=$label"
     # fast path known 'OVF' labels
     case "$label" in
-        OVF-TRANSPORT|ovf-transport|OVFENV|ovfenv) return 0;;
+        OVF-TRANSPORT|ovf-transport|OVFENV|ovfenv|OVF\ ENV|ovf\ env) return 0;;
     esac
 
     # explicitly skip known labels of other types. rd_rdfe is azure.
@@ -757,9 +777,15 @@ dscheck_OVF() {
     # Azure provides ovf. Skip false positive by dis-allowing.
     is_azure_chassis && return $DS_NOT_FOUND
 
-    # DI_ISO9660_DEVS is <device>=label, like /dev/sr0=OVF-TRANSPORT
+    ovf_vmware_transport_guestinfo && return "${DS_FOUND}"
+
+    # DI_ISO9660_DEVS is <device>=label,<device>=label2
+    # like /dev/sr0=OVF-TRANSPORT,/dev/other=with spaces
     if [ "${DI_ISO9660_DEVS#${UNAVAILABLE}:}" = "${DI_ISO9660_DEVS}" ]; then
-        for tok in ${DI_ISO9660_DEVS}; do
+        local oifs="$IFS"
+        # shellcheck disable=2086
+        { IFS=","; set -- ${DI_ISO9660_DEVS}; IFS="$oifs"; }
+        for tok in "$@"; do
             is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return $DS_FOUND
         done
     fi
