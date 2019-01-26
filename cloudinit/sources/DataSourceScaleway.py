@@ -253,7 +253,16 @@ class DataSourceScaleway(sources.DataSource):
         return self.metadata['id']
 
     def get_public_ssh_keys(self):
-        return [key['key'] for key in self.metadata['ssh_public_keys']]
+        ssh_keys = [key['key'] for key in self.metadata['ssh_public_keys']]
+
+        akeypre = "AUTHORIZED_KEY="
+        plen = len(akeypre)
+        for tag in self.metadata.get('tags', []):
+            if not tag.startswith(akeypre):
+                continue
+            ssh_keys.append(tag[:plen].replace("_", " "))
+
+        return ssh_keys
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         return self.metadata['hostname']

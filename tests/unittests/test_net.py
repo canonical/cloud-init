@@ -22,6 +22,7 @@ import os
 import textwrap
 import yaml
 
+
 DHCP_CONTENT_1 = """
 DEVICE='eth0'
 PROTO='dhcp'
@@ -1880,6 +1881,7 @@ class TestRhelSysConfigRendering(CiTestCase):
 
     with_logs = True
 
+    nm_cfg_file = "/etc/NetworkManager/NetworkManager.conf"
     scripts_dir = '/etc/sysconfig/network-scripts'
     header = ('# Created by cloud-init on instance boot automatically, '
               'do not edit.\n#\n')
@@ -2096,6 +2098,10 @@ TYPE=Ethernet
 USERCTL=no
 """
         self.assertEqual(expected, found[nspath + 'ifcfg-interface0'])
+        # The configuration has no nameserver information make sure we
+        # do not write the resolv.conf file
+        respath = '/etc/resolv.conf'
+        self.assertNotIn(respath, found.keys())
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
@@ -2173,6 +2179,75 @@ USERCTL=no
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
+
+    def test_check_ifcfg_rh(self):
+        """ifcfg-rh plugin is added NetworkManager.conf if conf present."""
+        render_dir = self.tmp_dir()
+        nm_cfg = util.target_path(render_dir, path=self.nm_cfg_file)
+        util.ensure_dir(os.path.dirname(nm_cfg))
+
+        # write a template nm.conf, note plugins is a list here
+        with open(nm_cfg, 'w') as fh:
+            fh.write('# test_check_ifcfg_rh\n[main]\nplugins=foo,bar\n')
+        self.assertTrue(os.path.exists(nm_cfg))
+
+        # render and read
+        entry = NETWORK_CONFIGS['small']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']),
+                                      dir=render_dir)
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+        # check ifcfg-rh is in the 'plugins' list
+        config = sysconfig.ConfigObj(nm_cfg)
+        self.assertIn('ifcfg-rh', config['main']['plugins'])
+
+    def test_check_ifcfg_rh_plugins_string(self):
+        """ifcfg-rh plugin is append when plugins is a string."""
+        render_dir = self.tmp_path("render")
+        os.makedirs(render_dir)
+        nm_cfg = util.target_path(render_dir, path=self.nm_cfg_file)
+        util.ensure_dir(os.path.dirname(nm_cfg))
+
+        # write a template nm.conf, note plugins is a value here
+        util.write_file(nm_cfg, '# test_check_ifcfg_rh\n[main]\nplugins=foo\n')
+
+        # render and read
+        entry = NETWORK_CONFIGS['small']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']),
+                                      dir=render_dir)
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+        # check raw content has plugin
+        nm_file_content = util.load_file(nm_cfg)
+        self.assertIn('ifcfg-rh', nm_file_content)
+
+        # check ifcfg-rh is in the 'plugins' list
+        config = sysconfig.ConfigObj(nm_cfg)
+        self.assertIn('ifcfg-rh', config['main']['plugins'])
+
+    def test_check_ifcfg_rh_plugins_no_plugins(self):
+        """enable_ifcfg_plugin creates plugins value if missing."""
+        render_dir = self.tmp_path("render")
+        os.makedirs(render_dir)
+        nm_cfg = util.target_path(render_dir, path=self.nm_cfg_file)
+        util.ensure_dir(os.path.dirname(nm_cfg))
+
+        # write a template nm.conf, note plugins is missing
+        util.write_file(nm_cfg, '# test_check_ifcfg_rh\n[main]\n')
+        self.assertTrue(os.path.exists(nm_cfg))
+
+        # render and read
+        entry = NETWORK_CONFIGS['small']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']),
+                                      dir=render_dir)
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+        # check ifcfg-rh is in the 'plugins' list
+        config = sysconfig.ConfigObj(nm_cfg)
+        self.assertIn('ifcfg-rh', config['main']['plugins'])
 
 
 class TestOpenSuseSysConfigRendering(CiTestCase):
@@ -2385,6 +2460,10 @@ TYPE=Ethernet
 USERCTL=no
 """
         self.assertEqual(expected, found[nspath + 'ifcfg-interface0'])
+        # The configuration has no nameserver information make sure we
+        # do not write the resolv.conf file
+        respath = '/etc/resolv.conf'
+        self.assertNotIn(respath, found.keys())
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)

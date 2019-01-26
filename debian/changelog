@@ -1,3 +1,34 @@
+cloud-init (18.5-17-gd1a2fe73-0ubuntu1) disco; urgency=medium
+
+  * New upstream snapshot.
+    - opennebula: exclude EPOCHREALTIME as known bash env variable with a
+      delta (LP: #1813383)
+    - tox: fix disco httpretty dependencies for py37 (LP: #1813361)
+    - run-container: uncomment baseurl in yum.repos.d/*.repo when using a
+      proxy [Paride Legovini]
+    - lxd: install zfs-linux instead of zfs meta package
+      [Johnson Shi] (LP: #1799779)
+    - net/sysconfig: do not write a resolv.conf file with only the header.
+      [Robert Schweikert]
+    - net: Make sysconfig renderer compatible with Network Manager.
+      [Eduardo Otubo]
+    - cc_set_passwords: Fix regex when parsing hashed passwords
+      [Marlin Cremers] (LP: #1811446)
+    - net: Wait for dhclient to daemonize before reading lease file
+      [Jason Zions] (LP: #1794399)
+    - [Azure] Increase retries when talking to Wireserver during metadata walk
+      [Jason Zions]
+    - Add documentation on adding a datasource.
+    - doc: clean up some datasource documentation.
+    - ds-identify: fix wrong variable name in ovf_vmware_transport_guestinfo.
+    - Scaleway: Support ssh keys provided inside an instance tag. [PORTE Loïc]
+    - OVF: simplify expected return values of transport functions.
+    - Vmware: Add support for the com.vmware.guestInfo OVF transport.
+      (LP: #1807466)
+    - HACKING.rst: change contact info to Josh Powers
+
+ -- Chad Smith <chad.smith@canonical.com>  Sat, 26 Jan 2019 08:27:35 -0700
+
 cloud-init (18.5-1-g5b065316-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
