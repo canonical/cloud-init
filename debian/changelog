@@ -4,8 +4,11 @@ cloud-init (18.4-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
     + cpick-1d5e9aef-azure-Add-apply_network_config-option-to-disable
   * refresh patches:
    + debian/patches/azure-apply-network-config-false.patch
+  * refresh patches:
+   + debian/patches/azure-apply-network-config-false.patch
+   + debian/patches/azure-use-walinux-agent.patch
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 17 Oct 2018 15:55:57 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Sat, 26 Jan 2019 14:08:36 -0700
 
 cloud-init (18.4-0ubuntu1~16.04.2) xenial; urgency=medium
 
