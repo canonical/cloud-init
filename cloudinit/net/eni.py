@@ -371,22 +371,23 @@ class Renderer(renderer.Renderer):
             'gateway': 'gw',
             'metric': 'metric',
         }
+
+        default_gw = ''
         if route['network'] == '0.0.0.0' and route['netmask'] == '0.0.0.0':
-            default_gw = " default gw %s" % route['gateway']
-            content.append(up + default_gw + or_true)
-            content.append(down + default_gw + or_true)
+            default_gw = ' default'
         elif route['network'] == '::' and route['prefix'] == 0:
-            # ipv6!
-            default_gw = " -A inet6 default gw %s" % route['gateway']
-            content.append(up + default_gw + or_true)
-            content.append(down + default_gw + or_true)
-        else:
-            route_line = ""
-            for k in ['network', 'netmask', 'gateway', 'metric']:
-                if k in route:
-                    route_line += " %s %s" % (mapping[k], route[k])
-            content.append(up + route_line + or_true)
-            content.append(down + route_line + or_true)
+            default_gw = ' -A inet6 default'
+
+        route_line = ''
+        for k in ['network', 'netmask', 'gateway', 'metric']:
+            if default_gw and k in ['network', 'netmask']:
+                continue
+            if k == 'gateway':
+                route_line += '%s %s %s' % (default_gw, mapping[k], route[k])
+            elif k in route:
+                route_line += ' %s %s' % (mapping[k], route[k])
+        content.append(up + route_line + or_true)
+        content.append(down + route_line + or_true)
         return content
 
     def _render_iface(self, iface, render_hwaddress=False):

@@ -90,24 +90,46 @@ There are three basic top-level keys:
 
 The standardized keys present:
 
-+----------------------+-----------------------------------------------+---------------------------+
-|  Key path            | Description                                   | Examples                  |
-+======================+===============================================+===========================+
-| v1.cloud_name        | The name of the cloud provided by metadata    | aws, openstack, azure,    |
-|                      | key 'cloud-name' or the cloud-init datasource | configdrive, nocloud,     |
-|                      | name which was discovered.                    | ovf, etc.                 |
-+----------------------+-----------------------------------------------+---------------------------+
-| v1.instance_id       | Unique instance_id allocated by the cloud     | i-<somehash>              |
-+----------------------+-----------------------------------------------+---------------------------+
-| v1.local_hostname    | The internal or local hostname of the system  | ip-10-41-41-70,           |
-|                      |                                               | <user-provided-hostname>  |
-+----------------------+-----------------------------------------------+---------------------------+
-| v1.region            | The physical region/datacenter in which the   | us-east-2                 |
-|                      | instance is deployed                          |                           |
-+----------------------+-----------------------------------------------+---------------------------+
-| v1.availability_zone | The physical availability zone in which the   | us-east-2b, nova, null    |
-|                      | instance is deployed                          |                           |
-+----------------------+-----------------------------------------------+---------------------------+
++----------------------+-----------------------------------------------+-----------------------------------+
+|  Key path            | Description                                   | Examples                          |
++======================+===============================================+===================================+
+| v1._beta_keys        | List of standardized keys still in 'beta'.    | [subplatform]                     |
+|                      | The format, intent or presence of these keys  |                                   |
+|                      | can change. Do not consider them              |                                   |
+|                      | production-ready.                             |                                   |
++----------------------+-----------------------------------------------+-----------------------------------+
+| v1.cloud_name        | Where possible this will indicate the 'name'  | aws, openstack, azure,            |
+|                      | of the cloud this system is running on.  This | configdrive, nocloud,             |
+|                      | is specifically different than the 'platform' | ovf, etc.                         |
+|                      | below.  As an example, the name of Amazon Web |                                   |
+|                      | Services is 'aws' while the platform is 'ec2'.|                                   |
+|                      |                                               |                                   |
+|                      | If no specific name is determinable or        |                                   |
+|                      | provided in meta-data, then this field may    |                                   |
+|                      | contain the same content as 'platform'.       |                                   |
++----------------------+-----------------------------------------------+-----------------------------------+
+| v1.instance_id       | Unique instance_id allocated by the cloud     | i-<somehash>                      |
++----------------------+-----------------------------------------------+-----------------------------------+
+| v1.local_hostname    | The internal or local hostname of the system  | ip-10-41-41-70,                   |
+|                      |                                               | <user-provided-hostname>          |
++----------------------+-----------------------------------------------+-----------------------------------+
+| v1.platform          | An attempt to identify the cloud platform     | ec2, openstack, lxd, gce          |
+|                      | instance that the system is running on.       | nocloud, ovf                      |
++----------------------+-----------------------------------------------+-----------------------------------+
+| v1.subplatform       | Additional platform details describing the    | metadata (http://168.254.169.254),|
+|                      | specific source or type of metadata used.     | seed-dir (/path/to/seed-dir/),    |
+|                      | The format of subplatform will be:            | config-disk (/dev/cd0),           |
+|                      | <subplatform_type> (<url_file_or_dev_path>)   | configdrive (/dev/sr0)            |
++----------------------+-----------------------------------------------+-----------------------------------+
+| v1.public_ssh_keys   | A list of  ssh keys provided to the instance  | ['ssh-rsa AA...', ...]            |
+|                      | by the datasource metadata.                   |                                   |
++----------------------+-----------------------------------------------+-----------------------------------+
+| v1.region            | The physical region/datacenter in which the   | us-east-2                         |
+|                      | instance is deployed                          |                                   |
++----------------------+-----------------------------------------------+-----------------------------------+
+| v1.availability_zone | The physical availability zone in which the   | us-east-2b, nova, null            |
+|                      | instance is deployed                          |                                   |
++----------------------+-----------------------------------------------+-----------------------------------+
 
 
 Below is an example of ``/run/cloud-init/instance_data.json`` on an EC2
@@ -117,10 +139,75 @@ instance:
 
   {
    "base64_encoded_keys": [],
-   "sensitive_keys": [],
    "ds": {
-    "meta_data": {
-     "ami-id": "ami-014e1416b628b0cbf",
+    "_doc": "EXPERIMENTAL: The structure and format of content scoped under the 'ds' key may change in subsequent releases of cloud-init.",
+    "_metadata_api_version": "2016-09-02",
+    "dynamic": {
+     "instance-identity": {
+      "document": {
+       "accountId": "437526006925",
+       "architecture": "x86_64",
+       "availabilityZone": "us-east-2b",
+       "billingProducts": null,
+       "devpayProductCodes": null,
+       "imageId": "ami-079638aae7046bdd2",
+       "instanceId": "i-075f088c72ad3271c",
+       "instanceType": "t2.micro",
+       "kernelId": null,
+       "marketplaceProductCodes": null,
+       "pendingTime": "2018-10-05T20:10:43Z",
+       "privateIp": "10.41.41.95",
+       "ramdiskId": null,
+       "region": "us-east-2",
+       "version": "2017-09-30"
+      },
+      "pkcs7": [
+       "MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAaCAJIAEggHbewog",
+       "ICJkZXZwYXlQcm9kdWN0Q29kZXMiIDogbnVsbCwKICAibWFya2V0cGxhY2VQcm9kdWN0Q29kZXMi",
+       "IDogbnVsbCwKICAicHJpdmF0ZUlwIiA6ICIxMC40MS40MS45NSIsCiAgInZlcnNpb24iIDogIjIw",
+       "MTctMDktMzAiLAogICJpbnN0YW5jZUlkIiA6ICJpLTA3NWYwODhjNzJhZDMyNzFjIiwKICAiYmls",
+       "bGluZ1Byb2R1Y3RzIiA6IG51bGwsCiAgImluc3RhbmNlVHlwZSIgOiAidDIubWljcm8iLAogICJh",
+       "Y2NvdW50SWQiIDogIjQzNzUyNjAwNjkyNSIsCiAgImF2YWlsYWJpbGl0eVpvbmUiIDogInVzLWVh",
+       "c3QtMmIiLAogICJrZXJuZWxJZCIgOiBudWxsLAogICJyYW1kaXNrSWQiIDogbnVsbCwKICAiYXJj",
+       "aGl0ZWN0dXJlIiA6ICJ4ODZfNjQiLAogICJpbWFnZUlkIiA6ICJhbWktMDc5NjM4YWFlNzA0NmJk",
+       "ZDIiLAogICJwZW5kaW5nVGltZSIgOiAiMjAxOC0xMC0wNVQyMDoxMDo0M1oiLAogICJyZWdpb24i",
+       "IDogInVzLWVhc3QtMiIKfQAAAAAAADGCARcwggETAgEBMGkwXDELMAkGA1UEBhMCVVMxGTAXBgNV",
+       "BAgTEFdhc2hpbmd0b24gU3RhdGUxEDAOBgNVBAcTB1NlYXR0bGUxIDAeBgNVBAoTF0FtYXpvbiBX",
+       "ZWIgU2VydmljZXMgTExDAgkAlrpI2eVeGmcwCQYFKw4DAhoFAKBdMBgGCSqGSIb3DQEJAzELBgkq",
+       "hkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTE4MTAwNTIwMTA0OFowIwYJKoZIhvcNAQkEMRYEFK0k",
+       "Tz6n1A8/zU1AzFj0riNQORw2MAkGByqGSM44BAMELjAsAhRNrr174y98grPBVXUforN/6wZp8AIU",
+       "JLZBkrB2GJA8A4WJ1okq++jSrBIAAAAAAAA="
+      ],
+      "rsa2048": [
+       "MIAGCSqGSIb3DQEHAqCAMIACAQExDzANBglghkgBZQMEAgEFADCABgkqhkiG9w0BBwGggCSABIIB",
+       "23sKICAiZGV2cGF5UHJvZHVjdENvZGVzIiA6IG51bGwsCiAgIm1hcmtldHBsYWNlUHJvZHVjdENv",
+       "ZGVzIiA6IG51bGwsCiAgInByaXZhdGVJcCIgOiAiMTAuNDEuNDEuOTUiLAogICJ2ZXJzaW9uIiA6",
+       "ICIyMDE3LTA5LTMwIiwKICAiaW5zdGFuY2VJZCIgOiAiaS0wNzVmMDg4YzcyYWQzMjcxYyIsCiAg",
+       "ImJpbGxpbmdQcm9kdWN0cyIgOiBudWxsLAogICJpbnN0YW5jZVR5cGUiIDogInQyLm1pY3JvIiwK",
+       "ICAiYWNjb3VudElkIiA6ICI0Mzc1MjYwMDY5MjUiLAogICJhdmFpbGFiaWxpdHlab25lIiA6ICJ1",
+       "cy1lYXN0LTJiIiwKICAia2VybmVsSWQiIDogbnVsbCwKICAicmFtZGlza0lkIiA6IG51bGwsCiAg",
+       "ImFyY2hpdGVjdHVyZSIgOiAieDg2XzY0IiwKICAiaW1hZ2VJZCIgOiAiYW1pLTA3OTYzOGFhZTcw",
+       "NDZiZGQyIiwKICAicGVuZGluZ1RpbWUiIDogIjIwMTgtMTAtMDVUMjA6MTA6NDNaIiwKICAicmVn",
+       "aW9uIiA6ICJ1cy1lYXN0LTIiCn0AAAAAAAAxggH/MIIB+wIBATBpMFwxCzAJBgNVBAYTAlVTMRkw",
+       "FwYDVQQIExBXYXNoaW5ndG9uIFN0YXRlMRAwDgYDVQQHEwdTZWF0dGxlMSAwHgYDVQQKExdBbWF6",
+       "b24gV2ViIFNlcnZpY2VzIExMQwIJAM07oeX4xevdMA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcN",
+       "AQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMTgxMDA1MjAxMDQ4WjAvBgkqhkiG9w0B",
+       "CQQxIgQgkYz0pZk3zJKBi4KP4egeOKJl/UYwu5UdE7id74pmPwMwDQYJKoZIhvcNAQEBBQAEggEA",
+       "dC3uIGGNul1OC1mJKSH3XoBWsYH20J/xhIdftYBoXHGf2BSFsrs9ZscXd2rKAKea4pSPOZEYMXgz",
+       "lPuT7W0WU89N3ZKviy/ReMSRjmI/jJmsY1lea6mlgcsJXreBXFMYucZvyeWGHdnCjamoKWXkmZlM",
+       "mSB1gshWy8Y7DzoKviYPQZi5aI54XK2Upt4kGme1tH1NI2Cq+hM4K+adxTbNhS3uzvWaWzMklUuU",
+       "QHX2GMmjAVRVc8vnA8IAsBCJJp+gFgYzi09IK+cwNgCFFPADoG6jbMHHf4sLB3MUGpiA+G9JlCnM",
+       "fmkjI2pNRB8spc0k4UG4egqLrqCz67WuK38tjwAAAAAAAA=="
+      ],
+      "signature": [
+       "Tsw6h+V3WnxrNVSXBYIOs1V4j95YR1mLPPH45XnhX0/Ei3waJqf7/7EEKGYP1Cr4PTYEULtZ7Mvf",
+       "+xJpM50Ivs2bdF7o0c4vnplRWe3f06NI9pv50dr110j/wNzP4MZ1pLhJCqubQOaaBTF3LFutgRrt",
+       "r4B0mN3p7EcqD8G+ll0="
+      ]
+     }
+    },
+    "meta-data": {
+     "ami-id": "ami-079638aae7046bdd2",
      "ami-launch-index": "0",
      "ami-manifest-path": "(unknown)",
      "block-device-mapping": {
@@ -129,31 +216,31 @@ instance:
       "ephemeral1": "sdc",
       "root": "/dev/sda1"
      },
-     "hostname": "ip-10-41-41-70.us-east-2.compute.internal",
+     "hostname": "ip-10-41-41-95.us-east-2.compute.internal",
      "instance-action": "none",
-     "instance-id": "i-04fa31cfc55aa7976",
+     "instance-id": "i-075f088c72ad3271c",
      "instance-type": "t2.micro",
-     "local-hostname": "ip-10-41-41-70.us-east-2.compute.internal",
-     "local-ipv4": "10.41.41.70",
-     "mac": "06:b6:92:dd:9d:24",
+     "local-hostname": "ip-10-41-41-95.us-east-2.compute.internal",
+     "local-ipv4": "10.41.41.95",
+     "mac": "06:74:8f:39:cd:a6",
      "metrics": {
       "vhostmd": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
      },
      "network": {
       "interfaces": {
        "macs": {
-	"06:b6:92:dd:9d:24": {
+	"06:74:8f:39:cd:a6": {
 	 "device-number": "0",
-	 "interface-id": "eni-08c0c9fdb99b6e6f4",
+	 "interface-id": "eni-052058bbd7831eaae",
 	 "ipv4-associations": {
-	  "18.224.22.43": "10.41.41.70"
+	  "18.218.221.122": "10.41.41.95"
 	 },
-	 "local-hostname": "ip-10-41-41-70.us-east-2.compute.internal",
-	 "local-ipv4s": "10.41.41.70",
-	 "mac": "06:b6:92:dd:9d:24",
+	 "local-hostname": "ip-10-41-41-95.us-east-2.compute.internal",
+	 "local-ipv4s": "10.41.41.95",
+	 "mac": "06:74:8f:39:cd:a6",
 	 "owner-id": "437526006925",
-	 "public-hostname": "ec2-18-224-22-43.us-east-2.compute.amazonaws.com",
-	 "public-ipv4s": "18.224.22.43",
+	 "public-hostname": "ec2-18-218-221-122.us-east-2.compute.amazonaws.com",
+	 "public-ipv4s": "18.218.221.122",
 	 "security-group-ids": "sg-828247e9",
 	 "security-groups": "Cloud-init integration test secgroup",
 	 "subnet-id": "subnet-282f3053",
@@ -171,16 +258,14 @@ instance:
       "availability-zone": "us-east-2b"
      },
      "profile": "default-hvm",
-     "public-hostname": "ec2-18-224-22-43.us-east-2.compute.amazonaws.com",
-     "public-ipv4": "18.224.22.43",
+     "public-hostname": "ec2-18-218-221-122.us-east-2.compute.amazonaws.com",
+     "public-ipv4": "18.218.221.122",
      "public-keys": {
       "cloud-init-integration": [
-       "ssh-rsa
-  AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB
-  cloud-init-integration"
+       "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB cloud-init-integration"
       ]
      },
-     "reservation-id": "r-06ab75e9346f54333",
+     "reservation-id": "r-0594a20e31f6cfe46",
      "security-groups": "Cloud-init integration test secgroup",
      "services": {
       "domain": "amazonaws.com",
@@ -188,16 +273,22 @@ instance:
      }
     }
    },
+   "sensitive_keys": [],
    "v1": {
+    "_beta_keys": [
+     "subplatform"
+    ],
     "availability-zone": "us-east-2b",
     "availability_zone": "us-east-2b",
-    "cloud-name": "aws",
     "cloud_name": "aws",
-    "instance-id": "i-04fa31cfc55aa7976",
-    "instance_id": "i-04fa31cfc55aa7976",
-    "local-hostname": "ip-10-41-41-70",
-    "local_hostname": "ip-10-41-41-70",
-    "region": "us-east-2"
+    "instance_id": "i-075f088c72ad3271c",
+    "local_hostname": "ip-10-41-41-95",
+    "platform": "ec2",
+    "public_ssh_keys": [
+     "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB cloud-init-integration"
+    ],
+    "region": "us-east-2",
+    "subplatform": "metadata (http://169.254.169.254)"
    }
   }
 

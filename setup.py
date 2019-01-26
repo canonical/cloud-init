@@ -282,7 +282,8 @@ setuptools.setup(
     cmdclass=cmdclass,
     entry_points={
         'console_scripts': [
-            'cloud-init = cloudinit.cmd.main:main'
+            'cloud-init = cloudinit.cmd.main:main',
+            'cloud-id = cloudinit.cmd.cloud_id:main'
         ],
     }
 )

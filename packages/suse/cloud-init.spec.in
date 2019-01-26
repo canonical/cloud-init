@@ -93,6 +93,7 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 
 # Program binaries
 %{_bindir}/cloud-init*
+%{_bindir}/cloud-id*
 
 # systemd files
 /usr/lib/systemd/system-generators/*

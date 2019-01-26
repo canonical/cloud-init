@@ -151,9 +151,9 @@ class TestResizefs(CiTestCase):
                          _resize_ufs(mount_point, devpth))
 
     @mock.patch('cloudinit.util.is_container', return_value=False)
-    @mock.patch('cloudinit.util.get_mount_info')
-    @mock.patch('cloudinit.util.get_device_info_from_zpool')
     @mock.patch('cloudinit.util.parse_mount')
+    @mock.patch('cloudinit.util.get_device_info_from_zpool')
+    @mock.patch('cloudinit.util.get_mount_info')
     def test_handle_zfs_root(self, mount_info, zpool_info, parse_mount,
                              is_container):
         devpth = 'vmzroot/ROOT/freebsd'
@@ -172,6 +172,38 @@ class TestResizefs(CiTestCase):
             ret = dresize.call_args[0][0]
 
         self.assertEqual(('zpool', 'online', '-e', 'vmzroot', disk), ret)
+
+    @mock.patch('cloudinit.util.is_container', return_value=False)
+    @mock.patch('cloudinit.util.get_mount_info')
+    @mock.patch('cloudinit.util.get_device_info_from_zpool')
+    @mock.patch('cloudinit.util.parse_mount')
+    def test_handle_modern_zfsroot(self, mount_info, zpool_info, parse_mount,
+                                   is_container):
+        devpth = 'zroot/ROOT/default'
+        disk = 'da0p3'
+        fs_type = 'zfs'
+        mount_point = '/'
+
+        mount_info.return_value = (devpth, fs_type, mount_point)
+        zpool_info.return_value = disk
+        parse_mount.return_value = (devpth, fs_type, mount_point)
+
+        cfg = {'resize_rootfs': True}
+
+        def fake_stat(devpath):
+            if devpath == disk:
+                raise OSError("not here")
+            FakeStat = namedtuple(
+                'FakeStat', ['st_mode', 'st_size', 'st_mtime'])  # minimal stat
+            return FakeStat(25008, 0, 1)  # fake char block device
+
+        with mock.patch('cloudinit.config.cc_resizefs.do_resize') as dresize:
+            with mock.patch('cloudinit.config.cc_resizefs.os.stat') as m_stat:
+                m_stat.side_effect = fake_stat
+                handle('cc_resizefs', cfg, _cloud=None, log=LOG, args=[])
+
+        self.assertEqual(('zpool', 'online', '-e', 'zroot', '/dev/' + disk),
+                         dresize.call_args[0][0])
 
 
 class TestRootDevFromCmdline(CiTestCase):
@@ -246,39 +278,39 @@ class TestMaybeGetDevicePathAsWritableBlock(CiTestCase):
 
     def test_maybe_get_writable_device_path_does_not_exist(self):
         """When devpath does not exist, a warning is logged."""
-        info = 'dev=/I/dont/exist mnt_point=/ path=/dev/none'
+        info = 'dev=/dev/I/dont/exist mnt_point=/ path=/dev/none'
         devpath = wrap_and_call(
             'cloudinit.config.cc_resizefs.util',
             {'is_container': {'return_value': False}},
-            maybe_get_writable_device_path, '/I/dont/exist', info, LOG)
+            maybe_get_writable_device_path, '/dev/I/dont/exist', info, LOG)
         self.assertIsNone(devpath)
         self.assertIn(
-            "WARNING: Device '/I/dont/exist' did not exist."
+            "WARNING: Device '/dev/I/dont/exist' did not exist."
             ' cannot resize: %s' % info,
             self.logs.getvalue())
 
     def test_maybe_get_writable_device_path_does_not_exist_in_container(self):
         """When devpath does not exist in a container, log a debug message."""
-        info = 'dev=/I/dont/exist mnt_point=/ path=/dev/none'
+        info = 'dev=/dev/I/dont/exist mnt_point=/ path=/dev/none'
         devpath = wrap_and_call(
             'cloudinit.config.cc_resizefs.util',
             {'is_container': {'return_value': True}},
-            maybe_get_writable_device_path, '/I/dont/exist', info, LOG)
+            maybe_get_writable_device_path, '/dev/I/dont/exist', info, LOG)
         self.assertIsNone(devpath)
         self.assertIn(
-            "DEBUG: Device '/I/dont/exist' did not exist in container."
+            "DEBUG: Device '/dev/I/dont/exist' did not exist in container."
             ' cannot resize: %s' % info,
             self.logs.getvalue())
 
     def test_maybe_get_writable_device_path_raises_oserror(self):
         """When unexpected OSError is raises by os.stat it is reraised."""
-        info = 'dev=/I/dont/exist mnt_point=/ path=/dev/none'
+        info = 'dev=/dev/I/dont/exist mnt_point=/ path=/dev/none'
         with self.assertRaises(OSError) as context_manager:
             wrap_and_call(
                 'cloudinit.config.cc_resizefs',
                 {'util.is_container': {'return_value': True},
                  'os.stat': {'side_effect': OSError('Something unexpected')}},
-                maybe_get_writable_device_path, '/I/dont/exist', info, LOG)
+                maybe_get_writable_device_path, '/dev/I/dont/exist', info, LOG)
         self.assertEqual(
             'Something unexpected', str(context_manager.exception))
 

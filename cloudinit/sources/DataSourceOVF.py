@@ -232,11 +232,11 @@ class DataSourceOVF(sources.DataSource):
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
 
         else:
-            np = {'iso': transport_iso9660,
-                  'vmware-guestd': transport_vmware_guestd, }
+            np = [('com.vmware.guestInfo', transport_vmware_guestinfo),
+                  ('iso', transport_iso9660)]
             name = None
-            for (name, transfunc) in np.items():
-                (contents, _dev, _fname) = transfunc()
+            for name, transfunc in np:
+                contents = transfunc()
                 if contents:
                     break
             if contents:
@@ -274,6 +274,12 @@ class DataSourceOVF(sources.DataSource):
         self.userdata_raw = ud
         self.cfg = cfg
         return True
+
+    def _get_subplatform(self):
+        system_type = util.read_dmi_data("system-product-name").lower()
+        if system_type == 'vmware':
+            return 'vmware (%s)' % self.seed
+        return 'ovf (%s)' % self.seed
 
     def get_public_ssh_keys(self):
         if 'public-keys' not in self.metadata:
@@ -458,8 +464,8 @@ def maybe_cdrom_device(devname):
     return cdmatch.match(devname) is not None
 
 
-# Transport functions take no input and return
-# a 3 tuple of content, path, filename
+# Transport functions are called with no arguments and return
+# either None (indicating not present) or string content of an ovf-env.xml
 def transport_iso9660(require_iso=True):
 
     # Go through mounts to see if it was already mounted
@@ -471,9 +477,9 @@ def transport_iso9660(require_iso=True):
         if not maybe_cdrom_device(dev):
             continue
         mp = info['mountpoint']
-        (fname, contents) = get_ovf_env(mp)
+        (_fname, contents) = get_ovf_env(mp)
         if contents is not False:
-            return (contents, dev, fname)
+            return contents
 
     if require_iso:
         mtype = "iso9660"
@@ -486,29 +492,33 @@ def transport_iso9660(require_iso=True):
             if maybe_cdrom_device(dev)]
     for dev in devs:
         try:
-            (fname, contents) = util.mount_cb(dev, get_ovf_env, mtype=mtype)
+            (_fname, contents) = util.mount_cb(dev, get_ovf_env, mtype=mtype)
         except util.MountFailedError:
             LOG.debug("%s not mountable as iso9660", dev)
             continue
 
         if contents is not False:
-            return (contents, dev, fname)
+            return contents
 
-    return (False, None, None)
+    return None
 
 
-def transport_vmware_guestd():
-    # http://blogs.vmware.com/vapp/2009/07/ \
-    #    selfconfiguration-and-the-ovf-environment.html
-    # try:
-    #     cmd = ['vmware-guestd', '--cmd', 'info-get guestinfo.ovfEnv']
-    #     (out, err) = subp(cmd)
-    #     return(out, 'guestinfo.ovfEnv', 'vmware-guestd')
-    # except:
-    #     # would need to error check here and see why this failed
-    #     # to know if log/error should be raised
-    #     return(False, None, None)
-    return (False, None, None)
+def transport_vmware_guestinfo():
+    rpctool = "vmware-rpctool"
+    not_found = None
+    if not util.which(rpctool):
+        return not_found
+    cmd = [rpctool, "info-get guestinfo.ovfEnv"]
+    try:
+        out, _err = util.subp(cmd)
+        if out:
+            return out
+        LOG.debug("cmd %s exited 0 with empty stdout: %s", cmd, out)
+    except util.ProcessExecutionError as e:
+        if e.exit_code != 1:
+            LOG.warning("%s exited with code %d", rpctool, e.exit_code)
+            LOG.debug(e)
+    return not_found
 
 
 def find_child(node, filter_func):

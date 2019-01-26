@@ -22,7 +22,8 @@ from cloudinit.event import EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers.azure import get_metadata_from_fabric
-from cloudinit.url_helper import readurl, UrlError
+from cloudinit.sources.helpers import netlink
+from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ IMDS_URL = "http://169.254.169.254/metadata/"
 # List of static scripts and network config artifacts created by
 # stock ubuntu suported images.
 UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
-    '/etc/netplan/90-azure-hotplug.yaml',
+    '/etc/netplan/90-hotplug-azure.yaml',
     '/usr/local/sbin/ephemeral_eth.sh',
     '/etc/udev/rules.d/10-net-device-added.rules',
     '/run/network/interfaces.ephemeral.d',
@@ -207,7 +208,9 @@ BUILTIN_DS_CONFIG = {
     },
     'disk_aliases': {'ephemeral0': RESOURCE_DISK_PATH},
     'dhclient_lease_file': LEASE_FILE,
+    'apply_network_config': True,  # Use IMDS published network configuration
 }
+# RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
 
 BUILTIN_CLOUD_CONFIG = {
     'disk_setup': {
@@ -278,6 +281,7 @@ class DataSourceAzure(sources.DataSource):
         self._network_config = None
         # Regenerate network config new_instance boot and every boot
         self.update_events['network'].add(EventType.BOOT)
+        self._ephemeral_dhcp_ctx = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -351,6 +355,14 @@ class DataSourceAzure(sources.DataSource):
         metadata['public-keys'] = key_value or pubkeys_from_crt_files(fp_files)
         return metadata
 
+    def _get_subplatform(self):
+        """Return the subplatform metadata source details."""
+        if self.seed.startswith('/dev'):
+            subplatform_type = 'config-disk'
+        else:
+            subplatform_type = 'seed-dir'
+        return '%s (%s)' % (subplatform_type, self.seed)
+
     def crawl_metadata(self):
         """Walk all instance metadata sources returning a dict on success.
 
@@ -396,10 +408,15 @@ class DataSourceAzure(sources.DataSource):
                 LOG.warning("%s was not mountable", cdev)
                 continue
 
-            if reprovision or self._should_reprovision(ret):
+            perform_reprovision = reprovision or self._should_reprovision(ret)
+            if perform_reprovision:
+                if util.is_FreeBSD():
+                    msg = "Free BSD is not supported for PPS VMs"
+                    LOG.error(msg)
+                    raise sources.InvalidMetaDataException(msg)
                 ret = self._reprovision()
             imds_md = get_metadata_from_imds(
-                self.fallback_interface, retries=3)
+                self.fallback_interface, retries=10)
             (md, userdata_raw, cfg, files) = ret
             self.seed = cdev
             crawled_data.update({
@@ -424,6 +441,18 @@ class DataSourceAzure(sources.DataSource):
             crawled_data['metadata']['random_seed'] = seed
         crawled_data['metadata']['instance-id'] = util.read_dmi_data(
             'system-uuid')
+
+        if perform_reprovision:
+            LOG.info("Reporting ready to Azure after getting ReprovisionData")
+            use_cached_ephemeral = (net.is_up(self.fallback_interface) and
+                                    getattr(self, '_ephemeral_dhcp_ctx', None))
+            if use_cached_ephemeral:
+                self._report_ready(lease=self._ephemeral_dhcp_ctx.lease)
+                self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
+            else:
+                with EphemeralDHCPv4() as lease:
+                    self._report_ready(lease=lease)
+
         return crawled_data
 
     def _is_platform_viable(self):
@@ -450,7 +479,8 @@ class DataSourceAzure(sources.DataSource):
         except sources.InvalidMetaDataException as e:
             LOG.warning('Could not crawl Azure metadata: %s', e)
             return False
-        if self.distro and self.distro.name == 'ubuntu':
+        if (self.distro and self.distro.name == 'ubuntu' and
+                self.ds_cfg.get('apply_network_config')):
             maybe_remove_ubuntu_network_config_scripts()
 
         # Process crawled data and augment with various config defaults
@@ -498,8 +528,8 @@ class DataSourceAzure(sources.DataSource):
         response. Then return the returned JSON object."""
         url = IMDS_URL + "reprovisiondata?api-version=2017-04-02"
         headers = {"Metadata": "true"}
+        nl_sock = None
         report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
-        LOG.debug("Start polling IMDS")
 
         def exc_cb(msg, exception):
             if isinstance(exception, UrlError) and exception.code == 404:
@@ -508,25 +538,47 @@ class DataSourceAzure(sources.DataSource):
             # call DHCP and setup the ephemeral network to acquire the new IP.
             return False
 
+        LOG.debug("Wait for vnetswitch to happen")
         while True:
             try:
-                with EphemeralDHCPv4() as lease:
-                    if report_ready:
-                        path = REPORTED_READY_MARKER_FILE
-                        LOG.info(
-                            "Creating a marker file to report ready: %s", path)
-                        util.write_file(path, "{pid}: {time}\n".format(
-                            pid=os.getpid(), time=time()))
-                        self._report_ready(lease=lease)
-                        report_ready = False
+                # Save our EphemeralDHCPv4 context so we avoid repeated dhcp
+                self._ephemeral_dhcp_ctx = EphemeralDHCPv4()
+                lease = self._ephemeral_dhcp_ctx.obtain_lease()
+                if report_ready:
+                    try:
+                        nl_sock = netlink.create_bound_netlink_socket()
+                    except netlink.NetlinkCreateSocketError as e:
+                        LOG.warning(e)
+                        self._ephemeral_dhcp_ctx.clean_network()
+                        return
+                    path = REPORTED_READY_MARKER_FILE
+                    LOG.info(
+                        "Creating a marker file to report ready: %s", path)
+                    util.write_file(path, "{pid}: {time}\n".format(
+                        pid=os.getpid(), time=time()))
+                    self._report_ready(lease=lease)
+                    report_ready = False
+                    try:
+                        netlink.wait_for_media_disconnect_connect(
+                            nl_sock, lease['interface'])
+                    except AssertionError as error:
+                        LOG.error(error)
+                        return
+                    self._ephemeral_dhcp_ctx.clean_network()
+                else:
                     return readurl(url, timeout=1, headers=headers,
-                                   exception_cb=exc_cb, infinite=True).contents
+                                   exception_cb=exc_cb, infinite=True,
+                                   log_req_resp=False).contents
             except UrlError:
+                # Teardown our EphemeralDHCPv4 context on failure as we retry
+                self._ephemeral_dhcp_ctx.clean_network()
                 pass
+            finally:
+                if nl_sock:
+                    nl_sock.close()
 
     def _report_ready(self, lease):
-        """Tells the fabric provisioning has completed
-           before we go into our polling loop."""
+        """Tells the fabric provisioning has completed """
         try:
             get_metadata_from_fabric(None, lease['unknown-245'])
         except Exception:
@@ -611,7 +663,11 @@ class DataSourceAzure(sources.DataSource):
               the blacklisted devices.
         """
         if not self._network_config:
-            self._network_config = parse_network_config(self._metadata_imds)
+            if self.ds_cfg.get('apply_network_config'):
+                nc_src = self._metadata_imds
+            else:
+                nc_src = None
+            self._network_config = parse_network_config(nc_src)
         return self._network_config
 
 
@@ -692,7 +748,7 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
         file_count = util.mount_cb(cand_path, count_files, mtype="ntfs",
                                    update_env_for_mount={'LANG': 'C'})
     except util.MountFailedError as e:
-        if "mount: unknown filesystem type 'ntfs'" in str(e):
+        if "unknown filesystem type 'ntfs'" in str(e):
             return True, (bmsg + ' but this system cannot mount NTFS,'
                           ' assuming there are no important files.'
                           ' Formatting allowed.')
@@ -920,12 +976,12 @@ def read_azure_ovf(contents):
                             lambda n:
                             n.localName == "LinuxProvisioningConfigurationSet")
 
-    if len(results) == 0:
+    if len(lpcs_nodes) == 0:
         raise NonAzureDataSource("No LinuxProvisioningConfigurationSet")
-    if len(results) > 1:
+    if len(lpcs_nodes) > 1:
         raise BrokenAzureDataSource("found '%d' %ss" %
-                                    ("LinuxProvisioningConfigurationSet",
-                                     len(results)))
+                                    (len(lpcs_nodes),
+                                     "LinuxProvisioningConfigurationSet"))
     lpcs = lpcs_nodes[0]
 
     if not lpcs.hasChildNodes():
@@ -1154,17 +1210,12 @@ def get_metadata_from_imds(fallback_nic, retries):
 
 def _get_metadata_from_imds(retries):
 
-    def retry_on_url_error(msg, exception):
-        if isinstance(exception, UrlError) and exception.code == 404:
-            return True  # Continue retries
-        return False  # Stop retries on all other exceptions
-
     url = IMDS_URL + "instance?api-version=2017-12-01"
     headers = {"Metadata": "true"}
     try:
         response = readurl(
             url, timeout=1, headers=headers, retries=retries,
-            exception_cb=retry_on_url_error)
+            exception_cb=retry_on_url_exc)
     except Exception as e:
         LOG.debug('Ignoring IMDS instance metadata: %s', e)
         return {}
@@ -1187,7 +1238,7 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
     additional interfaces which get attached by a customer at some point
     after initial boot. Since the Azure datasource can now regenerate
     network configuration as metadata reports these new devices, we no longer
-    want the udev rules or netplan's 90-azure-hotplug.yaml to configure
+    want the udev rules or netplan's 90-hotplug-azure.yaml to configure
     networking on eth1 or greater as it might collide with cloud-init's
     configuration.
 

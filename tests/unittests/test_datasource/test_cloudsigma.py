@@ -68,6 +68,12 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         self.assertEqual(SERVER_CONTEXT['uuid'],
                          self.datasource.get_instance_id())
 
+    def test_platform(self):
+        """All platform-related attributes are set."""
+        self.assertEqual(self.datasource.cloud_name, 'cloudsigma')
+        self.assertEqual(self.datasource.platform_type, 'cloudsigma')
+        self.assertEqual(self.datasource.subplatform, 'cepko (/dev/ttyS1)')
+
     def test_metadata(self):
         self.assertEqual(self.datasource.metadata, SERVER_CONTEXT)
 

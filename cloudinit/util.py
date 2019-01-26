@@ -615,8 +615,8 @@ def get_linux_distro():
         distro_name = os_release.get('ID', '')
         distro_version = os_release.get('VERSION_ID', '')
         if 'sles' in distro_name or 'suse' in distro_name:
-            # RELEASE_BLOCKER: We will drop this sles ivergent behavior in
-            # before 18.4 so that get_linux_distro returns a named tuple
+            # RELEASE_BLOCKER: We will drop this sles divergent behavior in
+            # the future so that get_linux_distro returns a named tuple
             # which will include both version codename and architecture
             # on all distributions.
             flavor = platform.machine()
@@ -668,7 +668,8 @@ def system_info():
             var = 'ubuntu'
         elif linux_dist == 'redhat':
             var = 'rhel'
-        elif linux_dist in ('opensuse', 'sles'):
+        elif linux_dist in (
+                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap', 'sles'):
             var = 'suse'
         else:
             var = 'linux'
@@ -2171,6 +2172,11 @@ def is_container():
     return False
 
 
+def is_lxd():
+    """Check to see if we are running in a lxd container."""
+    return os.path.exists('/dev/lxd/sock')
+
+
 def get_proc_env(pid, encoding='utf-8', errors='replace'):
     """
     Return the environment in a dict that a given process id was started with.
@@ -2869,5 +2875,21 @@ def udevadm_settle(exists=None, timeout=None):
 
     return subp(settle_cmd)
 
+
+def get_proc_ppid(pid):
+    """
+    Return the parent pid of a process.
+    """
+    ppid = 0
+    try:
+        contents = load_file("/proc/%s/stat" % pid, quiet=True)
+    except IOError as e:
+        LOG.warning('Failed to load /proc/%s/stat. %s', pid, e)
+    if contents:
+        parts = contents.split(" ", 4)
+        # man proc says
+        #  ppid %d     (4) The PID of the parent.
+        ppid = int(parts[3])
+    return ppid
 
 # vi: ts=4 expandtab

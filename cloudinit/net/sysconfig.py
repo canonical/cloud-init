@@ -10,11 +10,14 @@ from cloudinit.distros.parsers import resolv_conf
 from cloudinit import log as logging
 from cloudinit import util
 
+from configobj import ConfigObj
+
 from . import renderer
 from .network_state import (
     is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6)
 
 LOG = logging.getLogger(__name__)
+NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
 
 
 def _make_header(sep='#'):
@@ -44,6 +47,24 @@ def _quote_value(value):
             return '"%s"' % value
     else:
         return value
+
+
+def enable_ifcfg_rh(path):
+    """Add ifcfg-rh to NetworkManager.cfg plugins if main section is present"""
+    config = ConfigObj(path)
+    if 'main' in config:
+        if 'plugins' in config['main']:
+            if 'ifcfg-rh' in config['main']['plugins']:
+                return
+        else:
+            config['main']['plugins'] = []
+
+        if isinstance(config['main']['plugins'], list):
+            config['main']['plugins'].append('ifcfg-rh')
+        else:
+            config['main']['plugins'] = [config['main']['plugins'], 'ifcfg-rh']
+        config.write()
+        LOG.debug('Enabled ifcfg-rh NetworkManager plugins')
 
 
 class ConfigMap(object):
@@ -156,13 +177,23 @@ class Route(ConfigMap):
                                            _quote_value(gateway_value)))
                     buf.write("%s=%s\n" % ('NETMASK' + str(reindex),
                                            _quote_value(netmask_value)))
+                    metric_key = 'METRIC' + index
+                    if metric_key in self._conf:
+                        metric_value = str(self._conf['METRIC' + index])
+                        buf.write("%s=%s\n" % ('METRIC' + str(reindex),
+                                               _quote_value(metric_value)))
                 elif proto == "ipv6" and self.is_ipv6_route(address_value):
                     netmask_value = str(self._conf['NETMASK' + index])
                     gateway_value = str(self._conf['GATEWAY' + index])
-                    buf.write("%s/%s via %s dev %s\n" % (address_value,
-                                                         netmask_value,
-                                                         gateway_value,
-                                                         self._route_name))
+                    metric_value = (
+                        'metric ' + str(self._conf['METRIC' + index])
+                        if 'METRIC' + index in self._conf else '')
+                    buf.write(
+                        "%s/%s via %s %s dev %s\n" % (address_value,
+                                                      netmask_value,
+                                                      gateway_value,
+                                                      metric_value,
+                                                      self._route_name))
 
         return buf.getvalue()
 
@@ -370,6 +401,9 @@ class Renderer(renderer.Renderer):
                     else:
                         iface_cfg['GATEWAY'] = subnet['gateway']
 
+                if 'metric' in subnet:
+                    iface_cfg['METRIC'] = subnet['metric']
+
                 if 'dns_search' in subnet:
                     iface_cfg['DOMAIN'] = ' '.join(subnet['dns_search'])
 
@@ -414,15 +448,19 @@ class Renderer(renderer.Renderer):
                         else:
                             iface_cfg['GATEWAY'] = route['gateway']
                             route_cfg.has_set_default_ipv4 = True
+                    if 'metric' in route:
+                        iface_cfg['METRIC'] = route['metric']
 
                 else:
                     gw_key = 'GATEWAY%s' % route_cfg.last_idx
                     nm_key = 'NETMASK%s' % route_cfg.last_idx
                     addr_key = 'ADDRESS%s' % route_cfg.last_idx
+                    metric_key = 'METRIC%s' % route_cfg.last_idx
                     route_cfg.last_idx += 1
                     # add default routes only to ifcfg files, not
                     # to route-* or route6-*
                     for (old_key, new_key) in [('gateway', gw_key),
+                                               ('metric', metric_key),
                                                ('netmask', nm_key),
                                                ('network', addr_key)]:
                         if old_key in route:
@@ -519,6 +557,8 @@ class Renderer(renderer.Renderer):
             content.add_nameserver(nameserver)
         for searchdomain in network_state.dns_searchdomains:
             content.add_search_domain(searchdomain)
+        if not str(content):
+            return None
         header = _make_header(';')
         content_str = str(content)
         if not content_str.startswith(header):
@@ -628,7 +668,8 @@ class Renderer(renderer.Renderer):
             dns_path = util.target_path(target, self.dns_path)
             resolv_content = self._render_dns(network_state,
                                               existing_dns_path=dns_path)
-            util.write_file(dns_path, resolv_content, file_mode)
+            if resolv_content:
+                util.write_file(dns_path, resolv_content, file_mode)
         if self.networkmanager_conf_path:
             nm_conf_path = util.target_path(target,
                                             self.networkmanager_conf_path)
@@ -640,6 +681,8 @@ class Renderer(renderer.Renderer):
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = util.target_path(target, self.netrules_path)
             util.write_file(netrules_path, netrules_content, file_mode)
+        if available_nm(target=target):
+            enable_ifcfg_rh(util.target_path(target, path=NM_CFG_FILE))
 
         sysconfig_path = util.target_path(target, templates.get('control'))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos
@@ -654,6 +697,13 @@ class Renderer(renderer.Renderer):
 
 
 def available(target=None):
+    sysconfig = available_sysconfig(target=target)
+    nm = available_nm(target=target)
+
+    return any([nm, sysconfig])
+
+
+def available_sysconfig(target=None):
     expected = ['ifup', 'ifdown']
     search = ['/sbin', '/usr/sbin']
     for p in expected:
@@ -666,6 +716,12 @@ def available(target=None):
     for p in expected_paths:
         if not os.path.isfile(util.target_path(target, p)):
             return False
+    return True
+
+
+def available_nm(target=None):
+    if not os.path.isfile(util.target_path(target, path=NM_CFG_FILE)):
+        return False
     return True
 
 
