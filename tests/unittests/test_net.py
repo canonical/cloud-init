@@ -145,6 +145,7 @@ IPADDR=172.19.1.34
 NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()),
@@ -178,6 +179,7 @@ IPADDR=172.19.1.34
 NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()),
@@ -247,6 +249,7 @@ NETMASK=255.255.252.0
 NETMASK1=255.255.255.0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()),
@@ -282,6 +285,7 @@ NETMASK=255.255.252.0
 NETMASK1=255.255.255.0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()),
@@ -373,6 +377,7 @@ IPV6_DEFAULTGW=2001:DB8::1
 NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()),
@@ -410,6 +415,7 @@ IPV6_DEFAULTGW=2001:DB8::1
 NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()),
@@ -526,6 +532,7 @@ NETWORK_CONFIGS = {
                 HWADDR=cf:d6:af:48:e8:80
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no"""),
             'ifcfg-eth99': textwrap.dedent("""\
@@ -542,6 +549,7 @@ NETWORK_CONFIGS = {
                 METRIC=10000
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no"""),
         },
@@ -655,6 +663,7 @@ NETWORK_CONFIGS = {
                 NETMASK=255.255.255.0
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 MTU=9000
@@ -694,6 +703,7 @@ NETWORK_CONFIGS = {
                 DEVICE=iface0
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -897,6 +907,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 MACADDR=aa:bb:cc:dd:ee:ff
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Bond
                 USERCTL=no"""),
             'ifcfg-bond0.200': textwrap.dedent("""\
@@ -905,6 +916,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=bond0
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 VLAN=yes"""),
@@ -922,6 +934,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PRIO=22
+                STARTMODE=auto
                 STP=no
                 TYPE=Bridge
                 USERCTL=no"""),
@@ -931,6 +944,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 HWADDR=c0:d6:9f:2c:e8:80
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no"""),
             'ifcfg-eth0.101': textwrap.dedent("""\
@@ -949,6 +963,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=eth0
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 VLAN=yes"""),
@@ -959,6 +974,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 MASTER=bond0
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 SLAVE=yes
                 TYPE=Ethernet
                 USERCTL=no"""),
@@ -969,6 +985,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 MASTER=bond0
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 SLAVE=yes
                 TYPE=Ethernet
                 USERCTL=no"""),
@@ -979,6 +996,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 HWADDR=66:bb:9f:2c:e8:80
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no"""),
             'ifcfg-eth4': textwrap.dedent("""\
@@ -988,6 +1006,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 HWADDR=98:bb:9f:2c:e8:80
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no"""),
             'ifcfg-eth5': textwrap.dedent("""\
@@ -996,6 +1015,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 HWADDR=98:bb:9f:2c:e8:8a
                 NM_CONTROLLED=no
                 ONBOOT=no
+                STARTMODE=manual
                 TYPE=Ethernet
                 USERCTL=no""")
         },
@@ -1307,6 +1327,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         NETMASK1=255.255.255.0
         NM_CONTROLLED=no
         ONBOOT=yes
+        STARTMODE=auto
         TYPE=Bond
         USERCTL=no
         """),
@@ -1318,6 +1339,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         NM_CONTROLLED=no
         ONBOOT=yes
         SLAVE=yes
+        STARTMODE=auto
         TYPE=Ethernet
         USERCTL=no
         """),
@@ -1334,6 +1356,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         NM_CONTROLLED=no
         ONBOOT=yes
         SLAVE=yes
+        STARTMODE=auto
         TYPE=Ethernet
         USERCTL=no
         """),
@@ -1359,6 +1382,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         NETMASK1=255.255.255.0
         NM_CONTROLLED=no
         ONBOOT=yes
+        STARTMODE=auto
         TYPE=Bond
         USERCTL=no
         """),
@@ -1370,6 +1394,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         NM_CONTROLLED=no
         ONBOOT=yes
         SLAVE=yes
+        STARTMODE=auto
         TYPE=Ethernet
         USERCTL=no
         """),
@@ -1392,6 +1417,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         NM_CONTROLLED=no
         ONBOOT=yes
         SLAVE=yes
+        STARTMODE=auto
         TYPE=Ethernet
         USERCTL=no
         """),
@@ -1429,6 +1455,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 HWADDR=aa:bb:cc:dd:e8:00
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no"""),
             'ifcfg-en0.99': textwrap.dedent("""\
@@ -1447,6 +1474,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=en0
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 VLAN=yes"""),
@@ -1488,6 +1516,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PRIO=22
+                STARTMODE=auto
                 STP=no
                 TYPE=Bridge
                 USERCTL=no
@@ -1501,6 +1530,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 IPV6INIT=yes
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -1513,6 +1543,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 IPV6INIT=yes
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -1587,6 +1618,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 NETMASK=255.255.255.0
                 NM_CONTROLLED=no
                 ONBOOT=no
+                STARTMODE=manual
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -1597,6 +1629,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 MTU=1480
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -1606,6 +1639,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 HWADDR=52:54:00:12:34:ff
                 NM_CONTROLLED=no
                 ONBOOT=no
+                STARTMODE=manual
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -1973,6 +2007,7 @@ DEVICE=eth1000
 HWADDR=07-1C-C6-75-A4-BE
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()
@@ -2094,6 +2129,7 @@ IPADDR=10.0.2.15
 NETMASK=255.255.255.0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """
@@ -2119,6 +2155,7 @@ BOOTPROTO=dhcp
 DEVICE=eth0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """
@@ -2335,6 +2372,7 @@ DEVICE=eth1000
 HWADDR=07-1C-C6-75-A4-BE
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()
@@ -2456,6 +2494,7 @@ IPADDR=10.0.2.15
 NETMASK=255.255.255.0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """
@@ -2481,6 +2520,7 @@ BOOTPROTO=dhcp
 DEVICE=eth0
 NM_CONTROLLED=no
 ONBOOT=yes
+STARTMODE=auto
 TYPE=Ethernet
 USERCTL=no
 """
