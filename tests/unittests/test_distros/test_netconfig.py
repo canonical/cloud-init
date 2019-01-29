@@ -468,6 +468,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 NETMASK=255.255.255.0
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -476,6 +477,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth1
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -499,6 +501,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -507,6 +510,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth1
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -559,6 +563,7 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
                 NETMASK=255.255.255.0
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -567,6 +572,7 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
                 DEVICE=eth1
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -587,6 +593,7 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
                 IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
             """),
@@ -595,6 +602,7 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
                 DEVICE=eth1
                 NM_CONTROLLED=no
                 ONBOOT=yes
+                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
             """),

@@ -337,7 +337,9 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None,
     (output, _error) = util.subp(cmd, data=bcmd)
 
     # exclude vars in bash that change on their own or that we used
-    excluded = ("EPOCHREALTIME", "RANDOM", "LINENO", "SECONDS", "_", "__v")
+    excluded = (
+        "EPOCHREALTIME", "EPOCHSECONDS", "RANDOM", "LINENO", "SECONDS", "_",
+        "__v")
     preset = {}
     ret = {}
     target = None
