@@ -1,6 +1,18 @@
-cloud-init (18.5-17-gd1a2fe73-0ubuntu1~18.10.1) cosmic; urgency=medium
+cloud-init (18.5-21-g8ee294d5-0ubuntu1~18.10.1) UNRELEASED; urgency=medium
 
   * New upstream snapshot. (LP: #1813346)
+    - opennebula: also exclude epochseconds from changed environment vars
+    - systemd: Render generator from template to account for system
+      differences. [Robert Schweikert]
+    - sysconfig: On SUSE, use STARTMODE instead of ONBOOT [Robert Schweikert]
+    - flake8: use ==/!= to compare str, bytes, and int literals
+      [Paride Legovini]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 28 Jan 2019 20:19:18 -0700
+
+cloud-init (18.5-17-gd1a2fe73-0ubuntu1~18.10.1) cosmic; urgency=medium
+
+  * New upstream snapshot.
     - opennebula: exclude EPOCHREALTIME as known bash env variable with a
       delta
     - tox: fix disco httpretty dependencies for py37
