@@ -249,14 +249,14 @@ class SubscriptionManager(object):
         except util.ProcessExecutionError as e:
             if e.stdout.rstrip() != '':
                 for line in e.stdout.split("\n"):
-                    if line is not '':
+                    if line != '':
                         self.log_warn(line)
             else:
                 self.log_warn("Setting the service level failed with: "
                               "{0}".format(e.stderr.strip()))
             return False
         for line in return_out.split("\n"):
-            if line is not "":
+            if line != "":
                 self.log.debug(line)
         return True
 
@@ -268,7 +268,7 @@ class SubscriptionManager(object):
             self.log_warn("Auto-attach failed with: {0}".format(e))
             return False
         for line in return_out.split("\n"):
-            if line is not "":
+            if line != "":
                 self.log.debug(line)
         return True
 

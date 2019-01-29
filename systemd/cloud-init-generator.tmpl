@@ -1,3 +1,4 @@
+## template:jinja
 #!/bin/sh
 set -f
 
@@ -9,7 +10,11 @@ DISABLE="disabled"
 FOUND="found"
 NOTFOUND="notfound"
 RUN_ENABLED_FILE="$LOG_D/$ENABLE"
+{% if variant in ["suse"] %}
+CLOUD_SYSTEM_TARGET="/usr/lib/systemd/system/cloud-init.target"
+{% else %}
 CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
+{% endif %}
 CLOUD_TARGET_NAME="cloud-init.target"
 # lxc sets 'container', but lets make that explicitly a global
 CONTAINER="${container}"

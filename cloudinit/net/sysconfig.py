@@ -273,6 +273,7 @@ class Renderer(renderer.Renderer):
         ('USERCTL', False),
         ('NM_CONTROLLED', False),
         ('BOOTPROTO', 'none'),
+        ('STARTMODE', 'auto'),
     ])
 
     # If these keys exist, then their values will be used to form
@@ -367,6 +368,7 @@ class Renderer(renderer.Renderer):
                                                           iface_cfg.name))
             if subnet.get('control') == 'manual':
                 iface_cfg['ONBOOT'] = False
+                iface_cfg['STARTMODE'] = 'manual'
 
         # set IPv4 and IPv6 static addresses
         ipv4_index = -1
