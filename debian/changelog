@@ -1,4 +1,4 @@
-cloud-init (18.5-21-g8ee294d5-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (18.5-21-g8ee294d5-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * New upstream snapshot. (LP: #1813346)
     - opennebula: also exclude epochseconds from changed environment vars
