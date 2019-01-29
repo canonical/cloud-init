@@ -1,3 +1,17 @@
+cloud-init (18.5-21-g8ee294d5-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - opennebula: also exclude epochseconds from changed environment vars
+      (LP: #1813641)
+    - systemd: Render generator from template to account for system
+      differences. [Robert Schweikert]
+    - sysconfig: On SUSE, use STARTMODE instead of ONBOOT
+      [Robert Schweikert] (LP: #1799540)
+    - flake8: use ==/!= to compare str, bytes, and int literals
+      [Paride Legovini]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 28 Jan 2019 17:01:53 -0700
+
 cloud-init (18.5-17-gd1a2fe73-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
