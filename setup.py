@@ -30,6 +30,8 @@ VARIANT = None
 def is_f(p):
     return os.path.isfile(p)
 
+def is_generator(p):
+    return '-generator' in p
 
 def tiny_p(cmd, capture=True):
     # Darn python 2.6 doesn't have check_output (argggg)
@@ -90,7 +92,7 @@ def read_requires():
     return str(deps).splitlines()
 
 
-def render_tmpl(template):
+def render_tmpl(template, mode=None):
     """render template into a tmpdir under same dir as setup.py
 
     This is rendered to a temporary directory under the top level
@@ -119,6 +121,8 @@ def render_tmpl(template):
             VARIANT, template, fpath])
     else:
         tiny_p([sys.executable, './tools/render-cloudcfg', template, fpath])
+    if mode:
+        os.chmod(fpath, mode)
     # return path relative to setup.py
     return os.path.join(os.path.basename(tmpd), bname)
 
@@ -138,8 +142,11 @@ INITSYS_FILES = {
     'systemd': [render_tmpl(f)
                 for f in (glob('systemd/*.tmpl') +
                           glob('systemd/*.service') +
-                          glob('systemd/*.target')) if is_f(f)],
-    'systemd.generators': [f for f in glob('systemd/*-generator') if is_f(f)],
+                          glob('systemd/*.target'))
+                if (is_f(f) and not is_generator(f))],
+    'systemd.generators': [
+        render_tmpl(f, mode=0o755)
+        for f in glob('systemd/*') if is_f(f) and is_generator(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
