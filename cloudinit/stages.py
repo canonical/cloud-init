@@ -548,11 +548,11 @@ class Init(object):
         with events.ReportEventStack("consume-user-data",
                                      "reading and applying user-data",
                                      parent=self.reporter):
-                self._consume_userdata(frequency)
+            self._consume_userdata(frequency)
         with events.ReportEventStack("consume-vendor-data",
                                      "reading and applying vendor-data",
                                      parent=self.reporter):
-                self._consume_vendordata(frequency)
+            self._consume_vendordata(frequency)
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect

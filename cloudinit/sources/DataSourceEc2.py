@@ -442,7 +442,7 @@ def identify_aws(data):
     if (data['uuid'].startswith('ec2') and
             (data['uuid_source'] == 'hypervisor' or
              data['uuid'] == data['serial'])):
-            return CloudNames.AWS
+        return CloudNames.AWS
 
     return None
 
