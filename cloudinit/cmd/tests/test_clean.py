@@ -136,7 +136,8 @@ class TestClean(CiTestCase):
                 clean.remove_artifacts, remove_logs=False)
         self.assertEqual(1, retcode)
         self.assertEqual(
-            'ERROR: Could not remove dir1: oops\n', m_stderr.getvalue())
+            'ERROR: Could not remove %s/dir1: oops\n' % self.artifact_dir,
+            m_stderr.getvalue())
 
     def test_handle_clean_args_reboots(self):
         """handle_clean_args_reboots when reboot arg is provided."""
