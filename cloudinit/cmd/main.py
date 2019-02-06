@@ -673,8 +673,9 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         # write the 'finished' file
         errors = []
         for m in modes:
-            if v1[m]['errors']:
-                errors.extend(v1[m].get('errors', []))
+            if m in v1:
+                if v1[m]['errors']:
+                    errors.extend(v1[m].get('errors', []))
 
         atomic_helper.write_json(
             result_path, {'v1': {'datasource': v1['datasource'],
