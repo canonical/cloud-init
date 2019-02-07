@@ -19,6 +19,7 @@ import gzip
 import io
 import json
 import os
+import re
 import textwrap
 import yaml
 
@@ -102,6 +103,309 @@ STATIC_EXPECTED_1 = {
                  'dns_nameservers': ['10.0.1.1'],
                  'address': '10.0.0.2'}],
 }
+
+V1_NAMESERVER_ALIAS = """
+config:
+-   id: eno1
+    mac_address: 08:94:ef:51:ae:e0
+    mtu: 1500
+    name: eno1
+    subnets:
+    -   type: manual
+    type: physical
+-   id: eno2
+    mac_address: 08:94:ef:51:ae:e1
+    mtu: 1500
+    name: eno2
+    subnets:
+    -   type: manual
+    type: physical
+-   id: eno3
+    mac_address: 08:94:ef:51:ae:de
+    mtu: 1500
+    name: eno3
+    subnets:
+    -   type: manual
+    type: physical
+-   bond_interfaces:
+    - eno1
+    - eno3
+    id: bondM
+    mac_address: 08:94:ef:51:ae:e0
+    mtu: 1500
+    name: bondM
+    params:
+        bond-downdelay: 0
+        bond-lacp-rate: fast
+        bond-miimon: 100
+        bond-mode: 802.3ad
+        bond-updelay: 0
+        bond-xmit-hash-policy: layer3+4
+    subnets:
+    -   address: 10.101.10.47/23
+        gateway: 10.101.11.254
+        type: static
+    type: bond
+-   id: eno4
+    mac_address: 08:94:ef:51:ae:df
+    mtu: 1500
+    name: eno4
+    subnets:
+    -   type: manual
+    type: physical
+-   id: enp0s20f0u1u6
+    mac_address: 0a:94:ef:51:a4:b9
+    mtu: 1500
+    name: enp0s20f0u1u6
+    subnets:
+    -   type: manual
+    type: physical
+-   id: enp216s0f0
+    mac_address: 68:05:ca:81:7c:e8
+    mtu: 9000
+    name: enp216s0f0
+    subnets:
+    -   type: manual
+    type: physical
+-   id: enp216s0f1
+    mac_address: 68:05:ca:81:7c:e9
+    mtu: 9000
+    name: enp216s0f1
+    subnets:
+    -   type: manual
+    type: physical
+-   id: enp47s0f0
+    mac_address: 68:05:ca:64:d3:6c
+    mtu: 9000
+    name: enp47s0f0
+    subnets:
+    -   type: manual
+    type: physical
+-   bond_interfaces:
+    - enp216s0f0
+    - enp47s0f0
+    id: bond0
+    mac_address: 68:05:ca:64:d3:6c
+    mtu: 9000
+    name: bond0
+    params:
+        bond-downdelay: 0
+        bond-lacp-rate: fast
+        bond-miimon: 100
+        bond-mode: 802.3ad
+        bond-updelay: 0
+        bond-xmit-hash-policy: layer3+4
+    subnets:
+    -   type: manual
+    type: bond
+-   id: bond0.3502
+    mtu: 9000
+    name: bond0.3502
+    subnets:
+    -   address: 172.20.80.4/25
+        type: static
+    type: vlan
+    vlan_id: 3502
+    vlan_link: bond0
+-   id: bond0.3503
+    mtu: 9000
+    name: bond0.3503
+    subnets:
+    -   address: 172.20.80.129/25
+        type: static
+    type: vlan
+    vlan_id: 3503
+    vlan_link: bond0
+-   id: enp47s0f1
+    mac_address: 68:05:ca:64:d3:6d
+    mtu: 9000
+    name: enp47s0f1
+    subnets:
+    -   type: manual
+    type: physical
+-   bond_interfaces:
+    - enp216s0f1
+    - enp47s0f1
+    id: bond1
+    mac_address: 68:05:ca:64:d3:6d
+    mtu: 9000
+    name: bond1
+    params:
+        bond-downdelay: 0
+        bond-lacp-rate: fast
+        bond-miimon: 100
+        bond-mode: 802.3ad
+        bond-updelay: 0
+        bond-xmit-hash-policy: layer3+4
+    subnets:
+    -   address: 10.101.8.65/26
+        routes:
+        -   destination: 213.119.192.0/24
+            gateway: 10.101.8.126
+            metric: 0
+        type: static
+    type: bond
+-   address:
+    - 10.101.10.1
+    - 10.101.10.2
+    - 10.101.10.3
+    - 10.101.10.5
+    search:
+    - foo.bar
+    - maas
+    type: nameserver
+version: 1
+"""
+
+NETPLAN_NO_ALIAS = """
+network:
+    version: 2
+    ethernets:
+        eno1:
+            match:
+                macaddress: 08:94:ef:51:ae:e0
+            mtu: 1500
+            set-name: eno1
+        eno2:
+            match:
+                macaddress: 08:94:ef:51:ae:e1
+            mtu: 1500
+            set-name: eno2
+        eno3:
+            match:
+                macaddress: 08:94:ef:51:ae:de
+            mtu: 1500
+            set-name: eno3
+        eno4:
+            match:
+                macaddress: 08:94:ef:51:ae:df
+            mtu: 1500
+            set-name: eno4
+        enp0s20f0u1u6:
+            match:
+                macaddress: 0a:94:ef:51:a4:b9
+            mtu: 1500
+            set-name: enp0s20f0u1u6
+        enp216s0f0:
+            match:
+                macaddress: 68:05:ca:81:7c:e8
+            mtu: 9000
+            set-name: enp216s0f0
+        enp216s0f1:
+            match:
+                macaddress: 68:05:ca:81:7c:e9
+            mtu: 9000
+            set-name: enp216s0f1
+        enp47s0f0:
+            match:
+                macaddress: 68:05:ca:64:d3:6c
+            mtu: 9000
+            set-name: enp47s0f0
+        enp47s0f1:
+            match:
+                macaddress: 68:05:ca:64:d3:6d
+            mtu: 9000
+            set-name: enp47s0f1
+    bonds:
+        bond0:
+            interfaces:
+            - enp216s0f0
+            - enp47s0f0
+            macaddress: 68:05:ca:64:d3:6c
+            mtu: 9000
+            parameters:
+                down-delay: 0
+                lacp-rate: fast
+                mii-monitor-interval: 100
+                mode: 802.3ad
+                transmit-hash-policy: layer3+4
+                up-delay: 0
+        bond1:
+            addresses:
+            - 10.101.8.65/26
+            interfaces:
+            - enp216s0f1
+            - enp47s0f1
+            macaddress: 68:05:ca:64:d3:6d
+            mtu: 9000
+            nameservers:
+                addresses:
+                - 10.101.10.1
+                - 10.101.10.2
+                - 10.101.10.3
+                - 10.101.10.5
+                search:
+                - foo.bar
+                - maas
+            parameters:
+                down-delay: 0
+                lacp-rate: fast
+                mii-monitor-interval: 100
+                mode: 802.3ad
+                transmit-hash-policy: layer3+4
+                up-delay: 0
+            routes:
+            -   metric: 0
+                to: 213.119.192.0/24
+                via: 10.101.8.126
+        bondM:
+            addresses:
+            - 10.101.10.47/23
+            gateway4: 10.101.11.254
+            interfaces:
+            - eno1
+            - eno3
+            macaddress: 08:94:ef:51:ae:e0
+            mtu: 1500
+            nameservers:
+                addresses:
+                - 10.101.10.1
+                - 10.101.10.2
+                - 10.101.10.3
+                - 10.101.10.5
+                search:
+                - foo.bar
+                - maas
+            parameters:
+                down-delay: 0
+                lacp-rate: fast
+                mii-monitor-interval: 100
+                mode: 802.3ad
+                transmit-hash-policy: layer3+4
+                up-delay: 0
+    vlans:
+        bond0.3502:
+            addresses:
+            - 172.20.80.4/25
+            id: 3502
+            link: bond0
+            mtu: 9000
+            nameservers:
+                addresses:
+                - 10.101.10.1
+                - 10.101.10.2
+                - 10.101.10.3
+                - 10.101.10.5
+                search:
+                - foo.bar
+                - maas
+        bond0.3503:
+            addresses:
+            - 172.20.80.129/25
+            id: 3503
+            link: bond0
+            mtu: 9000
+            nameservers:
+                addresses:
+                - 10.101.10.1
+                - 10.101.10.2
+                - 10.101.10.3
+                - 10.101.10.5
+                search:
+                - foo.bar
+                - maas
+"""
+
 
 # Examples (and expected outputs for various renderers).
 OS_SAMPLES = [
@@ -3061,6 +3365,38 @@ class TestNetplanRoundTrip(CiTestCase):
     def testsimple_render_manual(self):
         entry = NETWORK_CONFIGS['manual']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def test_render_output_has_yaml_no_aliases(self):
+        entry = {
+            'yaml': V1_NAMESERVER_ALIAS,
+            'expected_netplan': NETPLAN_NO_ALIAS,
+        }
+        network_config = yaml.load(entry['yaml'])
+        ns = network_state.parse_net_config_data(network_config)
+        files = self._render_and_read(state=ns)
+        # check for alias
+        content = files['/etc/netplan/50-cloud-init.yaml']
+
+        # test load the yaml to ensure we don't render something not loadable
+        # this allows single aliases, but not duplicate ones
+        parsed = yaml.load(files['/etc/netplan/50-cloud-init.yaml'])
+        self.assertNotEqual(None, parsed)
+
+        # now look for any alias, avoid rendering them entirely
+        # generate the first anchor string using the template
+        # as of this writing, looks like "&id001"
+        anchor = r'&' + yaml.serializer.Serializer.ANCHOR_TEMPLATE % 1
+        found_alias = re.search(anchor, content, re.MULTILINE)
+        if found_alias:
+            msg = "Error at: %s\nContent:\n%s" % (found_alias, content)
+            raise ValueError('Found yaml alias in rendered netplan: ' + msg)
+
+        print(entry['expected_netplan'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
         self.assertEqual(
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())

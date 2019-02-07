@@ -1596,14 +1596,17 @@ def json_dumps(data):
                       separators=(',', ': '), default=json_serialize_default)
 
 
-def yaml_dumps(obj, explicit_start=True, explicit_end=True):
+def yaml_dumps(obj, explicit_start=True, explicit_end=True, noalias=False):
     """Return data in nicely formatted yaml."""
-    return yaml.safe_dump(obj,
-                          line_break="\n",
-                          indent=4,
-                          explicit_start=explicit_start,
-                          explicit_end=explicit_end,
-                          default_flow_style=False)
+
+    return yaml.dump(obj,
+                     line_break="\n",
+                     indent=4,
+                     explicit_start=explicit_start,
+                     explicit_end=explicit_end,
+                     default_flow_style=False,
+                     Dumper=(safeyaml.NoAliasSafeDumper
+                             if noalias else yaml.dumper.Dumper))
 
 
 def ensure_dir(path, mode=None):
