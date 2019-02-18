@@ -855,14 +855,6 @@ class TestSubp(helpers.CiTestCase):
                                    r'Missing #! in script\?',
                                    util.subp, (noshebang,))
 
-    def test_subp_combined_stderr_stdout(self):
-        """Providing combine_capture as True redirects stderr to stdout."""
-        data = b'hello world'
-        (out, err) = util.subp(self.stdin2err, capture=True,
-                               combine_capture=True, decode=False, data=data)
-        self.assertEqual(b'', err)
-        self.assertEqual(data, out)
-
     def test_returns_none_if_no_capture(self):
         (out, err) = util.subp(self.stdin2out, data=b'', capture=False)
         self.assertIsNone(err)

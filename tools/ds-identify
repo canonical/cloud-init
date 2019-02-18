@@ -124,7 +124,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle"
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -550,6 +550,12 @@ probe_floppy() {
 dscheck_CloudStack() {
     is_container && return ${DS_NOT_FOUND}
     dmi_product_name_matches "CloudStack*" && return $DS_FOUND
+    return $DS_NOT_FOUND
+}
+
+dscheck_Exoscale() {
+    is_container && return ${DS_NOT_FOUND}
+    dmi_product_name_matches "Exoscale*" && return $DS_FOUND
     return $DS_NOT_FOUND
 }
 
