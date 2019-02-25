@@ -45,6 +45,9 @@
          "pyserial" : {
             "2" : "pyserial"
          },
+         "pytest": {
+             "3": "python36-pytest"
+         },
          "requests" : {
             "3" : "python36-requests"
          },

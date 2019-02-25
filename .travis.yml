@@ -16,13 +16,13 @@ matrix:
         - python: 3.6
           env:
               TOXENV=py3
-              NOSE_VERBOSE=2  # List all tests run by nose
+              PYTEST_ADDOPTS=-v  # List all tests run by pytest
         - install:
             - git fetch --unshallow
             - sudo apt-get build-dep -y cloud-init
             - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox
             # These are build deps but not pulled in by the build-dep call above
-            - sudo apt-get install -y --install-recommends dh-systemd python3-coverage python3-contextlib2
+            - sudo apt-get install -y --install-recommends dh-systemd python3-coverage python3-contextlib2 python3-pytest python3-pytest-cov
             - pip install .
             - pip install tox
             # bionic has lxd from deb installed, remove it first to ensure
@@ -46,7 +46,7 @@ matrix:
         - python: 3.5
           env:
               TOXENV=xenial
-              NOSE_VERBOSE=2  # List all tests run by nose
+              PYTEST_ADDOPTS=-v  # List all tests run by pytest
           # Travis doesn't support Python 3.4 on bionic, so use xenial
           dist: xenial
         - python: 3.6
