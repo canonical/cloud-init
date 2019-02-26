@@ -207,6 +207,7 @@ class CiTestCase(TestCase):
         if self.with_logs:
             # Remove the handler we setup
             logging.getLogger().handlers = self.old_handlers
+            logging.getLogger().level = None
         util.subp = _real_subp
         super(CiTestCase, self).tearDown()
 
