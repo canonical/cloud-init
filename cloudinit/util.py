@@ -51,11 +51,6 @@ from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
 
-try:
-    string_types = (basestring,)
-except NameError:
-    string_types = (str,)
-
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
 
@@ -125,7 +120,7 @@ def target_path(target, path=None):
     # return 'path' inside target, accepting target as None
     if target in (None, ""):
         target = "/"
-    elif not isinstance(target, string_types):
+    elif not isinstance(target, six.string_types):
         raise ValueError("Unexpected input for target: %s" % target)
     else:
         target = os.path.abspath(target)
