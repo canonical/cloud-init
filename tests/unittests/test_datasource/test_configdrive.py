@@ -268,8 +268,7 @@ class TestConfigDriveDataSource(CiTestCase):
                 exists_mock = mocks.enter_context(
                     mock.patch.object(os.path, 'exists',
                                       side_effect=exists_side_effect()))
-                device = cfg_ds.device_name_to_device(name)
-                self.assertEqual(dev_name, device)
+                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
 
                 find_mock.assert_called_once_with(mock.ANY)
                 self.assertEqual(exists_mock.call_count, 2)
@@ -296,8 +295,7 @@ class TestConfigDriveDataSource(CiTestCase):
                 exists_mock = mocks.enter_context(
                     mock.patch.object(os.path, 'exists',
                                       return_value=True))
-                device = cfg_ds.device_name_to_device(name)
-                self.assertEqual(dev_name, device)
+                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
 
                 find_mock.assert_called_once_with(mock.ANY)
                 exists_mock.assert_called_once_with(mock.ANY)
@@ -331,8 +329,7 @@ class TestConfigDriveDataSource(CiTestCase):
                 yield True
             with mock.patch.object(os.path, 'exists',
                                    side_effect=exists_side_effect()):
-                device = cfg_ds.device_name_to_device(name)
-                self.assertEqual(dev_name, device)
+                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
                 # We don't assert the call count for os.path.exists() because
                 # not all of the entries in name_tests results in two calls to
                 # that function.  Specifically, 'root2k' doesn't seem to call
@@ -359,8 +356,7 @@ class TestConfigDriveDataSource(CiTestCase):
         }
         for name, dev_name in name_tests.items():
             with mock.patch.object(os.path, 'exists', return_value=True):
-                device = cfg_ds.device_name_to_device(name)
-                self.assertEqual(dev_name, device)
+                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
 
     def test_dir_valid(self):
         """Verify a dir is read as such."""
