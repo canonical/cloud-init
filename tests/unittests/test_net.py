@@ -406,6 +406,23 @@ network:
                 - maas
 """
 
+NETPLAN_DHCP_FALSE = """
+version: 2
+ethernets:
+  ens3:
+    match:
+      macaddress: 52:54:00:ab:cd:ef
+    dhcp4: false
+    dhcp6: false
+    addresses:
+      - 192.168.42.100/24
+      - 2001:db8::100/32
+    gateway4: 192.168.42.1
+    gateway6: 2001:db8::1
+    nameservers:
+      search: [example.com]
+      addresses: [192.168.42.53, 1.1.1.1]
+"""
 
 # Examples (and expected outputs for various renderers).
 OS_SAMPLES = [
@@ -2589,6 +2606,50 @@ USERCTL=no
         # check ifcfg-rh is in the 'plugins' list
         config = sysconfig.ConfigObj(nm_cfg)
         self.assertIn('ifcfg-rh', config['main']['plugins'])
+
+    def test_netplan_dhcp_false_disable_dhcp_in_state(self):
+        """netplan config with dhcp[46]: False should not add dhcp in state"""
+        net_config = yaml.load(NETPLAN_DHCP_FALSE)
+        ns = network_state.parse_net_config_data(net_config,
+                                                 skip_broken=False)
+
+        dhcp_found = [snet for iface in ns.iter_interfaces()
+                      for snet in iface['subnets'] if 'dhcp' in snet['type']]
+
+        self.assertEqual([], dhcp_found)
+
+    def test_netplan_dhcp_false_no_dhcp_in_sysconfig(self):
+        """netplan cfg with dhcp[46]: False should not have bootproto=dhcp"""
+
+        entry = {
+            'yaml': NETPLAN_DHCP_FALSE,
+            'expected_sysconfig': {
+                'ifcfg-ens3': textwrap.dedent("""\
+                   BOOTPROTO=none
+                   DEFROUTE=yes
+                   DEVICE=ens3
+                   DNS1=192.168.42.53
+                   DNS2=1.1.1.1
+                   DOMAIN=example.com
+                   GATEWAY=192.168.42.1
+                   HWADDR=52:54:00:ab:cd:ef
+                   IPADDR=192.168.42.100
+                   IPV6ADDR=2001:db8::100/32
+                   IPV6INIT=yes
+                   IPV6_DEFAULTGW=2001:db8::1
+                   NETMASK=255.255.255.0
+                   NM_CONTROLLED=no
+                   ONBOOT=yes
+                   STARTMODE=auto
+                   TYPE=Ethernet
+                   USERCTL=no
+                   """),
+            }
+        }
+
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
 
 
 class TestOpenSuseSysConfigRendering(CiTestCase):
