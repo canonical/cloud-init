@@ -72,7 +72,6 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
 PROC_CMDLINE = None
 
 _LSB_RELEASE = {}
-PY26 = sys.version_info[0:2] == (2, 6)
 
 
 def get_architecture(target=None):
@@ -2815,9 +2814,6 @@ def load_shell_content(content, add_empty=False, empty_val=None):
        variables.  Set their value to empty_val."""
 
     def _shlex_split(blob):
-        if PY26 and isinstance(blob, six.text_type):
-            # Older versions don't support unicode input
-            blob = blob.encode("utf8")
         return shlex.split(blob, comments=True)
 
     data = {}

@@ -11,7 +11,7 @@ from cloudinit.util import (b64e, decode_binary, load_file, write_file,
 from cloudinit.version import version_string as vs
 from cloudinit.tests.helpers import (
     HttprettyTestCase, CiTestCase, populate_dir, mock, wrap_and_call,
-    ExitStack, PY26, SkipTest)
+    ExitStack)
 
 import crypt
 import httpretty
@@ -221,8 +221,6 @@ class TestAzureDataSource(CiTestCase):
 
     def setUp(self):
         super(TestAzureDataSource, self).setUp()
-        if PY26:
-            raise SkipTest("Does not work on python 2.6")
         self.tmp = self.tmp_dir()
 
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
