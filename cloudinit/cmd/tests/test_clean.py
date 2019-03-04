@@ -22,7 +22,8 @@ class TestClean(CiTestCase):
         class FakeInit(object):
             cfg = {'def_log_file': self.log1,
                    'output': {'all': '|tee -a {0}'.format(self.log2)}}
-            paths = mypaths(cloud_dir=self.artifact_dir)
+            # Ensure cloud_dir has a trailing slash, to match real behaviour
+            paths = mypaths(cloud_dir='{}/'.format(self.artifact_dir))
 
             def __init__(self, ds_deps):
                 pass
