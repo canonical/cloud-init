@@ -90,4 +90,15 @@ An example configuration with the default values is provided below:
     max_wait: 120
     timeout: 50
 
+Notes
+-----
+ * There are 2 types of EC2 instances network-wise: VPC ones (Virtual Private
+   Cloud) and Classic ones (also known as non-VPC). One major difference
+   between them is that Classic instances have their MAC address changed on
+   stop/restart operations, so cloud-init will recreate the network config
+   file for EC2 Classic instances every boot. On VPC instances this file is
+   generated only in the first boot of the instance.
+   The check for the instance type is performed by is_classic_instance()
+   method.
+
 .. vi: textwidth=78

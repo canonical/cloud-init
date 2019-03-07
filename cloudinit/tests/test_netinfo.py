@@ -11,6 +11,7 @@ from cloudinit.tests.helpers import CiTestCase, mock, readResource
 # Example ifconfig and route output
 SAMPLE_OLD_IFCONFIG_OUT = readResource("netinfo/old-ifconfig-output")
 SAMPLE_NEW_IFCONFIG_OUT = readResource("netinfo/new-ifconfig-output")
+SAMPLE_FREEBSD_IFCONFIG_OUT = readResource("netinfo/freebsd-ifconfig-output")
 SAMPLE_IPADDRSHOW_OUT = readResource("netinfo/sample-ipaddrshow-output")
 SAMPLE_ROUTE_OUT_V4 = readResource("netinfo/sample-route-output-v4")
 SAMPLE_ROUTE_OUT_V6 = readResource("netinfo/sample-route-output-v6")
@@ -18,6 +19,7 @@ SAMPLE_IPROUTE_OUT_V4 = readResource("netinfo/sample-iproute-output-v4")
 SAMPLE_IPROUTE_OUT_V6 = readResource("netinfo/sample-iproute-output-v6")
 NETDEV_FORMATTED_OUT = readResource("netinfo/netdev-formatted-output")
 ROUTE_FORMATTED_OUT = readResource("netinfo/route-formatted-output")
+FREEBSD_NETDEV_OUT = readResource("netinfo/freebsd-netdev-formatted-output")
 
 
 class TestNetInfo(CiTestCase):
@@ -42,6 +44,18 @@ class TestNetInfo(CiTestCase):
         m_which.side_effect = lambda x: x if x == 'ifconfig' else None
         content = netdev_pformat()
         self.assertEqual(NETDEV_FORMATTED_OUT, content)
+
+    @mock.patch('cloudinit.netinfo.util.which')
+    @mock.patch('cloudinit.netinfo.util.subp')
+    def test_netdev_freebsd_nettools_pformat(self, m_subp, m_which):
+        """netdev_pformat properly rendering netdev new nettools info."""
+        m_subp.return_value = (SAMPLE_FREEBSD_IFCONFIG_OUT, '')
+        m_which.side_effect = lambda x: x if x == 'ifconfig' else None
+        content = netdev_pformat()
+        print()
+        print(content)
+        print()
+        self.assertEqual(FREEBSD_NETDEV_OUT, content)
 
     @mock.patch('cloudinit.netinfo.util.which')
     @mock.patch('cloudinit.netinfo.util.subp')

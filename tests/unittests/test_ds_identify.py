@@ -441,7 +441,7 @@ class TestDsIdentify(DsIdentifyBase):
         nova does not identify itself on platforms other than intel.
            https://bugs.launchpad.net/cloud-init/+bugs?field.tag=dsid-nova"""
 
-        data = VALID_CFG['OpenStack'].copy()
+        data = copy.deepcopy(VALID_CFG['OpenStack'])
         del data['files'][P_PRODUCT_NAME]
         data.update({'policy_dmi': POLICY_FOUND_OR_MAYBE,
                      'policy_no_dmi': POLICY_FOUND_OR_MAYBE})
