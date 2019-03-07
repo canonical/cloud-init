@@ -1,7 +1,7 @@
 Source: cloud-init
 Section: admin
 Priority: extra
-Maintainer: Scott Moser <smoser@ubuntu.com>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Build-Depends: debhelper (>= 9),
                dh-python,
                dh-systemd,

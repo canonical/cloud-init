@@ -31,6 +31,7 @@ cloud-init (18.5-45-g3554ffe8-0ubuntu1~16.04.1) xenial; urgency=medium
     - clean: cloud-init clean should not trace when run from within cloud_dir
     - Resolve flake8 comparison and pycodestyle over-ident issues
       [Paride Legovini]
+  * Change Maintainer to Ubuntu Developers
 
  -- Daniel Watkins <oddbloke@ubuntu.com>  Mon, 11 Mar 2019 17:09:59 -0400
 
