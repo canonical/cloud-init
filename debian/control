@@ -1,6 +1,6 @@
 Source: cloud-init
 Section: admin
-Priority: extra
+Priority: optional
 Maintainer: Scott Moser <smoser@ubuntu.com>
 Build-Depends: debhelper (>= 9.20160709),
                dh-python,
