@@ -203,7 +203,7 @@ LOG = logging.getLogger(__name__)
 COMMENT_RE = re.compile(r'[ ]*[#]+[ ]*')
 HOST_PORT_RE = re.compile(
     r'^(?P<proto>[@]{0,2})'
-    r'(([[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))'
+    r'(([\[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))'
     r'([:](?P<port>[0-9]+))?$')
 
 

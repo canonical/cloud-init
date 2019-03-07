@@ -401,6 +401,30 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ds.metadata = DEFAULT_METADATA
         self.assertEqual('my-identity-id', ds.get_instance_id())
 
+    def test_classic_instance_true(self):
+        """If no vpc-id in metadata, is_classic_instance must return true."""
+        md_copy = copy.deepcopy(DEFAULT_METADATA)
+        ifaces_md = md_copy.get('network', {}).get('interfaces', {})
+        for _mac, mac_data in ifaces_md.get('macs', {}).items():
+            if 'vpc-id' in mac_data:
+                del mac_data['vpc-id']
+
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
+            md={'md': md_copy})
+        self.assertTrue(ds.get_data())
+        self.assertTrue(ds.is_classic_instance())
+
+    def test_classic_instance_false(self):
+        """If vpc-id in metadata, is_classic_instance must return false."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
+            md={'md': DEFAULT_METADATA})
+        self.assertTrue(ds.get_data())
+        self.assertFalse(ds.is_classic_instance())
+
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_valid_platform_with_strict_true(self, m_dhcp):
         """Valid platform data should return true with strict_id true."""
