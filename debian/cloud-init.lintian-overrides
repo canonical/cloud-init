@@ -1,0 +1,4 @@
+cloud-init binary: systemd-service-file-refers-to-unusual-wantedby-target lib/systemd/system/cloud-config.service cloud-init.target
+cloud-init binary: systemd-service-file-refers-to-unusual-wantedby-target lib/systemd/system/cloud-final.service cloud-init.target
+cloud-init binary: systemd-service-file-refers-to-unusual-wantedby-target lib/systemd/system/cloud-init-local.service cloud-init.target
+cloud-init binary: systemd-service-file-refers-to-unusual-wantedby-target lib/systemd/system/cloud-init.service cloud-init.target
