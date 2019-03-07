@@ -2,9 +2,8 @@ Source: cloud-init
 Section: admin
 Priority: extra
 Maintainer: Scott Moser <smoser@ubuntu.com>
-Build-Depends: debhelper (>= 9),
+Build-Depends: debhelper (>= 9.20160709),
                dh-python,
-               dh-systemd,
                iproute2,
                pep8,
                po-debconf,
