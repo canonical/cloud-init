@@ -407,7 +407,7 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
             self.assertEqual(0o644, get_mode(cfgpath, tmpd))
 
     def netplan_path(self):
-            return '/etc/netplan/50-cloud-init.yaml'
+        return '/etc/netplan/50-cloud-init.yaml'
 
     def test_apply_network_config_v1_to_netplan_ub(self):
         expected_cfgs = {

@@ -98,6 +98,9 @@ chef:
  # to the install script
  omnibus_version: "12.3.0"
 
+ # If encrypted data bags are used, the client needs to have a secrets file
+ # configured to decrypt them
+ encrypted_data_bag_secret: "/etc/chef/encrypted_data_bag_secret"
 
 # Capture all subprocess output into a logfile
 # Useful for troubleshooting cloud-init issues

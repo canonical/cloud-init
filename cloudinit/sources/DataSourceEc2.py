@@ -19,6 +19,7 @@ from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit import warnings
+from cloudinit.event import EventType
 
 LOG = logging.getLogger(__name__)
 
@@ -105,6 +106,19 @@ class DataSourceEc2(sources.DataSource):
         self.userdata_raw = self._crawled_metadata.get('user-data', None)
         self.identity = self._crawled_metadata.get(
             'dynamic', {}).get('instance-identity', {}).get('document', {})
+        return True
+
+    def is_classic_instance(self):
+        """Report if this instance type is Ec2 Classic (non-vpc)."""
+        if not self.metadata:
+            # Can return False on inconclusive as we are also called in
+            # network_config where metadata will be present.
+            # Secondary call site is in packaging postinst script.
+            return False
+        ifaces_md = self.metadata.get('network', {}).get('interfaces', {})
+        for _mac, mac_data in ifaces_md.get('macs', {}).items():
+            if 'vpc-id' in mac_data:
+                return False
         return True
 
     @property
@@ -320,6 +334,13 @@ class DataSourceEc2(sources.DataSource):
         if isinstance(net_md, dict):
             result = convert_ec2_metadata_network_config(
                 net_md, macs_to_nics=macs_to_nics, fallback_nic=iface)
+            # RELEASE_BLOCKER: Xenial debian/postinst needs to add
+            # EventType.BOOT on upgrade path for classic.
+
+            # Non-VPC (aka Classic) Ec2 instances need to rewrite the
+            # network config file every boot due to MAC address change.
+            if self.is_classic_instance():
+                self.update_events['network'].add(EventType.BOOT)
         else:
             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
         self._network_config = result
@@ -442,7 +463,7 @@ def identify_aws(data):
     if (data['uuid'].startswith('ec2') and
             (data['uuid_source'] == 'hypervisor' or
              data['uuid'] == data['serial'])):
-            return CloudNames.AWS
+        return CloudNames.AWS
 
     return None
 

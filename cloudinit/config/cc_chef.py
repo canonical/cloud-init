@@ -51,6 +51,7 @@ file).
 
     chef:
       client_key:
+      encrypted_data_bag_secret:
       environment:
       file_backup_path:
       file_cache_path:
@@ -114,6 +115,7 @@ CHEF_RB_TPL_DEFAULTS = {
     'file_backup_path': "/var/backups/chef",
     'pid_file': "/var/run/chef/client.pid",
     'show_time': True,
+    'encrypted_data_bag_secret': None,
 }
 CHEF_RB_TPL_BOOL_KEYS = frozenset(['show_time'])
 CHEF_RB_TPL_PATH_KEYS = frozenset([
@@ -124,6 +126,7 @@ CHEF_RB_TPL_PATH_KEYS = frozenset([
     'json_attribs',
     'file_cache_path',
     'pid_file',
+    'encrypted_data_bag_secret',
 ])
 CHEF_RB_TPL_KEYS = list(CHEF_RB_TPL_DEFAULTS.keys())
 CHEF_RB_TPL_KEYS.extend(CHEF_RB_TPL_BOOL_KEYS)

@@ -17,7 +17,7 @@ fs_setup:
      device: ephemeral0
      partition: auto
 
-# Default disk definitions for Windows Azure
+# Default disk definitions for Microsoft Azure
 # ------------------------------------------
 
 device_aliases: {'ephemeral0': '/dev/sdb'}
@@ -32,6 +32,21 @@ fs_setup:
       filesystem: ext4
       device: ephemeral0.1
       replace_fs: ntfs
+
+
+# Data disks definitions for Microsoft Azure
+# ------------------------------------------
+
+disk_setup:
+    /dev/disk/azure/scsi1/lun0:
+        table_type: gpt
+        layout: True
+        overwrite: True
+
+fs_setup:
+    - device: /dev/disk/azure/scsi1/lun0
+      partition: 1
+      filesystem: ext4
 
 
 # Default disk definitions for SmartOS
@@ -242,7 +257,7 @@ fs_setup:
 #
 #        "false": If an existing file system exists, skip the creation.
 #
-#    <REPLACE_FS>: This is a special directive, used for Windows Azure that
+#    <REPLACE_FS>: This is a special directive, used for Microsoft Azure that
 #        instructs cloud-init to replace a file system of <FS_TYPE>. NOTE:
 #        unless you define a label, this requires the use of the 'any' partition
 #        directive.
