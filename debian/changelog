@@ -31,6 +31,7 @@ cloud-init (18.5-44-g7c07af28-0ubuntu1~18.10.1) cosmic; urgency=medium
     - Resolve flake8 comparison and pycodestyle over-ident issues
       [Paride Legovini]
   * Update netplan dependency package (LP: #1813667)
+  * Fix build-depends-on-obsolete-package for dh-systemd
 
  -- Daniel Watkins <oddbloke@ubuntu.com>  Thu, 07 Mar 2019 15:59:48 -0500
 
