@@ -67,7 +67,7 @@ OS_VERSIONS = (
     OS_ROCKY,
 )
 
-PHYSICAL_TYPES = (
+KNOWN_PHYSICAL_TYPES = (
     None,
     'bgpovs',  # not present in OpenStack upstream but used on OVH cloud.
     'bridge',
@@ -600,9 +600,7 @@ def convert_net_json(network_json=None, known_macs=None):
                 subnet['ipv6'] = True
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
-        if link['type'] in PHYSICAL_TYPES:
-            cfg.update({'type': 'physical', 'mac_address': link_mac_addr})
-        elif link['type'] in ['bond']:
+        if link['type'] in ['bond']:
             params = {}
             if link_mac_addr:
                 params['mac_address'] = link_mac_addr
@@ -641,8 +639,10 @@ def convert_net_json(network_json=None, known_macs=None):
             curinfo.update({'mac': link['vlan_mac_address'],
                             'name': name})
         else:
-            raise ValueError(
-                'Unknown network_data link type: %s' % link['type'])
+            if link['type'] not in KNOWN_PHYSICAL_TYPES:
+                LOG.warning('Unknown network_data link type (%s); treating as'
+                            ' physical', link['type'])
+            cfg.update({'type': 'physical', 'mac_address': link_mac_addr})
 
         config.append(cfg)
         link_id_info[curinfo['id']] = curinfo
