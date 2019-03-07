@@ -34,6 +34,7 @@ cloud-init (18.5-44-g7c07af28-0ubuntu1) disco; urgency=medium
       (LP: #1795508)
     - Resolve flake8 comparison and pycodestyle over-ident issues
       [Paride Legovini]
+  * Update netplan dependency package (LP: #1813667)
 
  -- Daniel Watkins <oddbloke@ubuntu.com>  Thu, 07 Mar 2019 10:32:26 -0500
 
