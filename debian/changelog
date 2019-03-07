@@ -1,3 +1,42 @@
+cloud-init (18.5-44-g7c07af28-0ubuntu1) disco; urgency=medium
+
+  * New upstream snapshot.
+    - Support locking user with usermod if passwd is not available.
+      [Scott Moser]
+    - Example for Microsoft Azure data disk added. [Anton Olifir]
+    - clean: correctly determine the path for excluding seed directory
+      (LP: #1818571)
+    - helpers/openstack: Treat unknown link types as physical (LP: #1639263)
+    - drop Python 2.6 support and our NIH version detection
+    - tip-pylint: Fix assignment-from-return-none errors
+    - net: append type:dhcp[46] only if dhcp[46] is True in v2 netconfig
+      [Kurt Stieger] (LP: #1818032)
+    - cc_apt_pipelining: stop disabling pipelining by default (LP: #1794982)
+    - tests: fix some slow tests and some leaking state
+    - util: don't determine string_types ourselves
+    - cc_rsyslog: Escape possible nested set (LP: #1816967)
+    - Enable encrypted_data_bag_secret support for Chef
+      [Eric Williams] (LP: #1817082)
+    - azure: Filter list of ssh keys pulled from fabric [Jason Zions (MSFT)]
+    - doc: update merging doc with fixes and some additional details/examples
+    - tests: integration test failure summary to use traceback if empty error
+    - This is to fix https://bugs.launchpad.net/cloud-init/+bug/1812676
+      [Vitaly Kuznetsov]
+    - EC2: Rewrite network config on AWS Classic instances every boot
+      [Guilherme G. Piccoli] (LP: #1802073)
+    - netinfo: Adjust ifconfig output parsing for FreeBSD ipv6 entries
+      (LP: #1779672)
+    - netplan: Don't render yaml aliases when dumping netplan (LP: #1815051)
+    - add PyCharm IDE .idea/ path to .gitignore [Dominic Schlegel]
+    - correct grammar issue in instance metadata documentation
+      [Dominic Schlegel] (LP: #1802188)
+    - clean: cloud-init clean should not trace when run from within cloud_dir
+      (LP: #1795508)
+    - Resolve flake8 comparison and pycodestyle over-ident issues
+      [Paride Legovini]
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Thu, 07 Mar 2019 10:32:26 -0500
+
 cloud-init (18.5-21-g8ee294d5-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
