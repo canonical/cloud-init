@@ -521,7 +521,7 @@ class OauthUrlHelper(object):
             if extra_exception_cb:
                 ret = extra_exception_cb(msg, exception)
         finally:
-                self.exception_cb(msg, exception)
+            self.exception_cb(msg, exception)
         return ret
 
     def _headers_cb(self, extra_headers_cb, url):

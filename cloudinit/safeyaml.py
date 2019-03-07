@@ -17,6 +17,13 @@ _CustomSafeLoader.add_constructor(
     _CustomSafeLoader.construct_python_unicode)
 
 
+class NoAliasSafeDumper(yaml.dumper.SafeDumper):
+    """A class which avoids constructing anchors/aliases on yaml dump"""
+
+    def ignore_aliases(self, data):
+        return True
+
+
 def load(blob):
     return(yaml.load(blob, Loader=_CustomSafeLoader))
 

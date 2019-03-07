@@ -627,9 +627,11 @@ class DataSourceAzure(sources.DataSource):
         if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
             self.bounce_network_with_azure_hostname()
 
+            pubkey_info = self.cfg.get('_pubkeys', None)
             metadata_func = partial(get_metadata_from_fabric,
                                     fallback_lease_file=self.
-                                    dhclient_lease_file)
+                                    dhclient_lease_file,
+                                    pubkey_info=pubkey_info)
         else:
             metadata_func = self.get_metadata_from_agent
 
@@ -642,6 +644,7 @@ class DataSourceAzure(sources.DataSource):
                 "Error communicating with Azure fabric; You may experience."
                 "connectivity issues.", exc_info=True)
             return False
+
         util.del_file(REPORTED_READY_MARKER_FILE)
         util.del_file(REPROVISION_MARKER_FILE)
         return fabric_data
@@ -909,13 +912,15 @@ def find_child(node, filter_func):
 def load_azure_ovf_pubkeys(sshnode):
     # This parses a 'SSH' node formatted like below, and returns
     # an array of dicts.
-    #  [{'fp': '6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7',
-    #    'path': 'where/to/go'}]
+    #  [{'fingerprint': '6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7',
+    #    'path': '/where/to/go'}]
     #
     # <SSH><PublicKeys>
-    #   <PublicKey><Fingerprint>ABC</FingerPrint><Path>/ABC</Path>
+    #   <PublicKey><Fingerprint>ABC</FingerPrint><Path>/x/y/z</Path>
     #   ...
     # </PublicKeys></SSH>
+    # Under some circumstances, there may be a <Value> element along with the
+    # Fingerprint and Path. Pass those along if they appear.
     results = find_child(sshnode, lambda n: n.localName == "PublicKeys")
     if len(results) == 0:
         return []

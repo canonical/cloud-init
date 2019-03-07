@@ -361,7 +361,8 @@ class Renderer(renderer.Renderer):
             if section:
                 dump = util.yaml_dumps({name: section},
                                        explicit_start=False,
-                                       explicit_end=False)
+                                       explicit_end=False,
+                                       noalias=True)
                 txt = util.indent(dump, ' ' * 4)
                 return [txt]
             return []

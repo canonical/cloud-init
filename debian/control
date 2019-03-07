@@ -1,10 +1,9 @@
 Source: cloud-init
 Section: admin
-Priority: extra
+Priority: optional
 Maintainer: Scott Moser <smoser@ubuntu.com>
-Build-Depends: debhelper (>= 9),
+Build-Depends: debhelper (>= 9.20160709),
                dh-python,
-               dh-systemd,
                iproute2,
                pep8,
                po-debconf,
@@ -36,7 +35,7 @@ Architecture: all
 Depends: cloud-guest-utils | cloud-utils,
          isc-dhcp-client,
          iproute2,
-         nplan | ifupdown,
+         netplan.io | ifupdown,
          procps,
          python3,
          python3-requests,

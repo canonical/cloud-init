@@ -51,11 +51,6 @@ from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
 
-try:
-    string_types = (basestring,)
-except NameError:
-    string_types = (str,)
-
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
 
@@ -77,7 +72,6 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
 PROC_CMDLINE = None
 
 _LSB_RELEASE = {}
-PY26 = sys.version_info[0:2] == (2, 6)
 
 
 def get_architecture(target=None):
@@ -125,7 +119,7 @@ def target_path(target, path=None):
     # return 'path' inside target, accepting target as None
     if target in (None, ""):
         target = "/"
-    elif not isinstance(target, string_types):
+    elif not isinstance(target, six.string_types):
         raise ValueError("Unexpected input for target: %s" % target)
     else:
         target = os.path.abspath(target)
@@ -1596,14 +1590,17 @@ def json_dumps(data):
                       separators=(',', ': '), default=json_serialize_default)
 
 
-def yaml_dumps(obj, explicit_start=True, explicit_end=True):
+def yaml_dumps(obj, explicit_start=True, explicit_end=True, noalias=False):
     """Return data in nicely formatted yaml."""
-    return yaml.safe_dump(obj,
-                          line_break="\n",
-                          indent=4,
-                          explicit_start=explicit_start,
-                          explicit_end=explicit_end,
-                          default_flow_style=False)
+
+    return yaml.dump(obj,
+                     line_break="\n",
+                     indent=4,
+                     explicit_start=explicit_start,
+                     explicit_end=explicit_end,
+                     default_flow_style=False,
+                     Dumper=(safeyaml.NoAliasSafeDumper
+                             if noalias else yaml.dumper.Dumper))
 
 
 def ensure_dir(path, mode=None):
@@ -2817,9 +2814,6 @@ def load_shell_content(content, add_empty=False, empty_val=None):
        variables.  Set their value to empty_val."""
 
     def _shlex_split(blob):
-        if PY26 and isinstance(blob, six.text_type):
-            # Older versions don't support unicode input
-            blob = blob.encode("utf8")
         return shlex.split(blob, comments=True)
 
     data = {}

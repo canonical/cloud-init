@@ -706,9 +706,9 @@ class NetworkStateInterpreter(object):
         """Common ipconfig extraction from v2 to v1 subnets array."""
 
         subnets = []
-        if 'dhcp4' in cfg:
+        if cfg.get('dhcp4'):
             subnets.append({'type': 'dhcp4'})
-        if 'dhcp6' in cfg:
+        if cfg.get('dhcp6'):
             self.use_ipv6 = True
             subnets.append({'type': 'dhcp6'})
 

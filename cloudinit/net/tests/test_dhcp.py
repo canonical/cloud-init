@@ -117,6 +117,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         self.assertEqual('eth9', call[0][1])
         self.assertIn('/var/tmp/cloud-init/cloud-init-dhcp-', call[0][2])
 
+    @mock.patch('time.sleep', mock.MagicMock())
     @mock.patch('cloudinit.net.dhcp.os.kill')
     @mock.patch('cloudinit.net.dhcp.util.subp')
     def test_dhcp_discovery_run_in_sandbox_warns_invalid_pid(self, m_subp,

@@ -49,7 +49,7 @@ APT_PIPE_TPL = ("//Written by cloud-init per 'apt_pipelining'\n"
 
 def handle(_name, cfg, _cloud, log, _args):
 
-    apt_pipe_value = util.get_cfg_option_str(cfg, "apt_pipelining", False)
+    apt_pipe_value = util.get_cfg_option_str(cfg, "apt_pipelining", 'os')
     apt_pipe_value_s = str(apt_pipe_value).lower().strip()
 
     if apt_pipe_value_s == "false":
@@ -59,7 +59,7 @@ def handle(_name, cfg, _cloud, log, _args):
     elif apt_pipe_value_s in [str(b) for b in range(0, 6)]:
         write_apt_snippet(apt_pipe_value_s, log, DEFAULT_FILE)
     else:
-        log.warn("Invalid option for apt_pipeling: %s", apt_pipe_value)
+        log.warn("Invalid option for apt_pipelining: %s", apt_pipe_value)
 
 
 def write_apt_snippet(setting, log, f_name):

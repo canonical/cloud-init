@@ -5,12 +5,13 @@
 """Define 'clean' utility and handler as part of cloud-init commandline."""
 
 import argparse
+import glob
 import os
 import sys
 
 from cloudinit.stages import Init
 from cloudinit.util import (
-    ProcessExecutionError, chdir, del_dir, del_file, get_config_logfiles,
+    ProcessExecutionError, del_dir, del_file, get_config_logfiles,
     is_link, subp)
 
 
@@ -61,18 +62,18 @@ def remove_artifacts(remove_logs, remove_seed=False):
 
     if not os.path.isdir(init.paths.cloud_dir):
         return 0  # Artifacts dir already cleaned
-    with chdir(init.paths.cloud_dir):
-        for path in os.listdir('.'):
-            if path == 'seed' and not remove_seed:
-                continue
-            try:
-                if os.path.isdir(path) and not is_link(path):
-                    del_dir(path)
-                else:
-                    del_file(path)
-            except OSError as e:
-                error('Could not remove {0}: {1}'.format(path, str(e)))
-                return 1
+    seed_path = os.path.join(init.paths.cloud_dir, 'seed')
+    for path in glob.glob('%s/*' % init.paths.cloud_dir):
+        if path == seed_path and not remove_seed:
+            continue
+        try:
+            if os.path.isdir(path) and not is_link(path):
+                del_dir(path)
+            else:
+                del_file(path)
+        except OSError as e:
+            error('Could not remove {0}: {1}'.format(path, str(e)))
+            return 1
     return 0
 
 
