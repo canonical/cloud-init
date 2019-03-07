@@ -1,3 +1,38 @@
+cloud-init (18.5-44-g7c07af28-0ubuntu1~16.04.1) xenial; urgency=medium
+
+  * New upstream snapshot. (LP: #1819067)
+    - Support locking user with usermod if passwd is not available.
+      [Scott Moser]
+    - Example for Microsoft Azure data disk added. [Anton Olifir]
+    - clean: correctly determine the path for excluding seed directory
+    - helpers/openstack: Treat unknown link types as physical
+    - drop Python 2.6 support and our NIH version detection
+    - tip-pylint: Fix assignment-from-return-none errors
+    - net: append type:dhcp[46] only if dhcp[46] is True in v2 netconfig
+      [Kurt Stieger]
+    - cc_apt_pipelining: stop disabling pipelining by default
+    - tests: fix some slow tests and some leaking state
+    - util: don't determine string_types ourselves
+    - cc_rsyslog: Escape possible nested set
+    - Enable encrypted_data_bag_secret support for Chef [Eric Williams]
+    - azure: Filter list of ssh keys pulled from fabric [Jason Zions (MSFT)]
+    - doc: update merging doc with fixes and some additional details/examples
+    - tests: integration test failure summary to use traceback if empty error
+    - This is to fix https://bugs.launchpad.net/cloud-init/+bug/1812676
+      [Vitaly Kuznetsov]
+    - EC2: Rewrite network config on AWS Classic instances every boot
+      [Guilherme G. Piccoli]
+    - netinfo: Adjust ifconfig output parsing for FreeBSD ipv6 entries
+    - netplan: Don't render yaml aliases when dumping netplan
+    - add PyCharm IDE .idea/ path to .gitignore [Dominic Schlegel]
+    - correct grammar issue in instance metadata documentation
+      [Dominic Schlegel]
+    - clean: cloud-init clean should not trace when run from within cloud_dir
+    - Resolve flake8 comparison and pycodestyle over-ident issues
+      [Paride Legovini]
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Thu, 07 Mar 2019 16:34:05 -0500
+
 cloud-init (18.5-21-g8ee294d5-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * New upstream snapshot. (LP: #1813346)
