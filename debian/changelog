@@ -38,6 +38,7 @@ cloud-init (18.5-44-g7c07af28-0ubuntu1) disco; urgency=medium
   * Fix build-depends-on-obsolete-package for dh-systemd
   * Change Priority from extra to optional
   * Override lintian warnings about WantedBy=cloud-init.target
+  * Change Maintainer to Ubuntu Developers
 
  -- Daniel Watkins <oddbloke@ubuntu.com>  Thu, 07 Mar 2019 10:32:26 -0500
 
