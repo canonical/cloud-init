@@ -1,4 +1,4 @@
-cloud-init (18.5-45-g3554ffe8-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.5-45-g3554ffe8-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
     - cloud-init-per: POSIX sh does not support string subst, use sed
