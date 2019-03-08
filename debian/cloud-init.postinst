@@ -294,20 +294,6 @@ datasource_list: [ $values ]
 EOF
    fi
 
-   # we want to affect apt_pipelining on install, not wait for
-   # cloud-init to run it on next boot.
-   pipeline_f="/etc/apt/apt.conf.d/90cloud-init-pipelining"
-   if [ -f /var/lib/cloud/instance/obj.pkl ]; then
-      cloud-init single --name apt-pipelining --frequency once >/dev/null 2>&1 ||
-         echo "Warning: failed to setup apt-pipelining" 1>&2
-   elif [ ! -f "$pipeline_f" ]; then
-      # there was no cloud available, so populate it ourselves.
-      cat > "$pipeline_f" <<EOF
-//Written by cloud-init per 'apt_pipelining'
-Acquire::http::Pipeline-Depth "0";
-EOF
-   fi
-
    # if there are maas settings pre-seeded apply them
    handle_preseed_maas
 
