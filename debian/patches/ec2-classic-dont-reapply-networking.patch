@@ -1,0 +1,25 @@
+Description: don't configure networking on every boot for EC2 Classic instances
+ The (ifupdown) networking configuration generated in xenial doesn't hardcode a
+ MAC address, so xenial EC2 Classic instances don't need to apply networking
+ configuration every boot to fix LP: #1802073
+Author: Daniel Watkins <oddbloke@ubuntu.com>
+Forwarded: not-needed
+Last-Update: 2019-03-08
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -334,13 +334,6 @@
+         if isinstance(net_md, dict):
+             result = convert_ec2_metadata_network_config(
+                 net_md, macs_to_nics=macs_to_nics, fallback_nic=iface)
+-            # RELEASE_BLOCKER: Xenial debian/postinst needs to add
+-            # EventType.BOOT on upgrade path for classic.
+-
+-            # Non-VPC (aka Classic) Ec2 instances need to rewrite the
+-            # network config file every boot due to MAC address change.
+-            if self.is_classic_instance():
+-                self.update_events['network'].add(EventType.BOOT)
+         else:
+             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
+         self._network_config = result
