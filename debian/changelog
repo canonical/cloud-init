@@ -1,3 +1,11 @@
+cloud-init (18.5-45-g3554ffe8-0ubuntu1) disco; urgency=medium
+
+  * New upstream snapshot.
+    - cloud-init-per: POSIX sh does not support string subst, use sed
+      (LP: #1819222)
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Fri, 08 Mar 2019 17:42:34 -0500
+
 cloud-init (18.5-44-g7c07af28-0ubuntu2) disco; urgency=medium
 
   * d/postinst: remove now-incorrect apt pipelining configuration
