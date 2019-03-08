@@ -32,6 +32,8 @@ cloud-init (18.5-44-g7c07af28-0ubuntu1~16.04.1) xenial; urgency=medium
       [Paride Legovini]
   * Change Maintainer to Ubuntu Developers
   * d/postinst: remove now-incorrect apt pipelining configuration
+  * d/patches/ec2-classic-dont-reapply-networking.patch: don't needlessly
+    reapply networking configuration on every boot for EC2 classic instances
 
  -- Daniel Watkins <oddbloke@ubuntu.com>  Thu, 07 Mar 2019 16:34:05 -0500
 
