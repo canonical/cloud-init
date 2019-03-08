@@ -36,6 +36,7 @@ cloud-init (18.5-45-g3554ffe8-0ubuntu1~18.10.1) cosmic; urgency=medium
   * Change Priority from extra to optional
   * Override lintian warnings about WantedBy=cloud-init.target
   * Change Maintainer to Ubuntu Developers
+  * d/postinst: remove now-incorrect apt pipelining configuration
 
  -- Daniel Watkins <oddbloke@ubuntu.com>  Mon, 11 Mar 2019 17:04:15 -0400
 
