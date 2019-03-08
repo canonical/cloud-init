@@ -38,7 +38,7 @@ fi
 [ "$1" = "-h" -o "$1" = "--help" ] && { Usage ; exit 0; }
 [ $# -ge 3 ] || { Usage 1>&2; exit 1; }
 freq=$1
-name=${2/-/_}
+name=$(echo $2 | sed 's/-/_/g')
 shift 2;
 
 [ "${name#*/}" = "${name}" ] || fail "name cannot contain a /"
@@ -56,7 +56,7 @@ esac
 # Rename legacy sem files with dashes in their names. Do not overwrite existing
 # sem files to prevent clobbering those which may have been created from calls
 # outside of cloud-init.
-sem_legacy="${sem/_/-}"
+sem_legacy=$(echo $sem | sed 's/_/-/g')
 [ "$sem" != "$sem_legacy" -a -e "$sem_legacy" ] && mv -n "$sem_legacy" "$sem"
 
 [ "$freq" != "always" -a -e "$sem" ] && exit 0
