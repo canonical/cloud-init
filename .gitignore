@@ -11,3 +11,4 @@ prime
 stage
 *.snap
 *.cover
+.idea/

@@ -61,12 +61,17 @@ def format_test_failures(test_result):
     if not test_result['failures']:
         return ''
     failure_hdr = '    test failures:'
-    failure_fmt = '    * {module}.{class}.{function}\n          {error}'
+    failure_fmt = '    * {module}.{class}.{function}\n          '
     output = []
     for failure in test_result['failures']:
         if not output:
             output = [failure_hdr]
-        output.append(failure_fmt.format(**failure))
+        msg = failure_fmt.format(**failure)
+        if failure.get('error'):
+            msg += failure['error']
+        else:
+            msg += failure.get('traceback', '')
+        output.append(msg)
     return '\n'.join(output)
 
 
