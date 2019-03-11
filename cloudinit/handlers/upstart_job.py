@@ -89,7 +89,7 @@ def _has_suitable_upstart():
             util.subp(["dpkg", "--compare-versions", dpkg_ver, "ge", good])
             return True
         except util.ProcessExecutionError as e:
-            if e.exit_code is 1:
+            if e.exit_code == 1:
                 pass
             else:
                 util.logexc(LOG, "dpkg --compare-versions failed [%s]",

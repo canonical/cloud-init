@@ -21,12 +21,12 @@ For example.
 .. code-block:: yaml
 
    #cloud-config (1)
-   run_cmd:
+   runcmd:
      - bash1
      - bash2
 
    #cloud-config (2)
-   run_cmd:
+   runcmd:
      - bash3
      - bash4
 
@@ -36,7 +36,7 @@ cloud-config object that contains the following.
 .. code-block:: yaml
 
    #cloud-config (merged)
-   run_cmd:
+   runcmd:
      - bash3
      - bash4
 
@@ -45,7 +45,7 @@ Typically this is not what users want; instead they would likely prefer:
 .. code-block:: yaml
 
    #cloud-config (merged)
-   run_cmd:
+   runcmd:
      - bash1
      - bash2
      - bash3
@@ -54,6 +54,45 @@ Typically this is not what users want; instead they would likely prefer:
 This way makes it easier to combine the various cloud-config objects you have
 into a more useful list, thus reducing duplication necessary to accomplish the
 same result with the previous method.
+
+
+Built-in Mergers
+================
+
+Cloud-init provides merging for the following built-in types:
+
+- Dict
+- List
+- String
+
+The ``Dict`` merger has the following options which control what is done with
+values contained within the config.
+
+- ``allow_delete``: Existing values not present in the new value can be deleted, defaults to False
+- ``no_replace``: Do not replace an existing value if one is already present, enabled by default.
+- ``replace``: Overwrite existing values with new ones.
+
+The ``List`` merger has the following options which control what is done with
+the values contained within the config.
+
+- ``append``:  Add new value to the end of the list, defaults to False.
+- ``prepend``:  Add new values to the start of the list, defaults to False.
+- ``no_replace``: Do not replace an existing value if one is already present, enabled by default.
+- ``replace``: Overwrite existing values with new ones.
+
+The ``Str`` merger has the following options which control what is done with
+the values contained within the config.
+
+- ``append``:  Add new value to the end of the string, defaults to False.
+
+Common options for all merge types which control how recursive merging is
+done on other types.
+
+- ``recurse_dict``: If True merge the new values of the dictionary, defaults to True.
+- ``recurse_list``: If True merge the new values of the list, defaults to False.
+- ``recurse_array``: Alias for ``recurse_list``.
+- ``recurse_str``: If True merge the new values of the string, defaults to False.
+
 
 Customizability
 ===============
@@ -164,8 +203,8 @@ string format (i.e. the second option above), for example:
 
 .. code-block:: python
 
-   {'merge_how': [{'name': 'list', 'settings': ['extend']},
-                  {'name': 'dict', 'settings': []},
+   {'merge_how': [{'name': 'list', 'settings': ['append']},
+                  {'name': 'dict', 'settings': ['no_replace', 'recurse_list']},
                   {'name': 'str', 'settings': ['append']}]}
 
 This would be the equivalent format for default string format but in dictionary
@@ -200,5 +239,44 @@ merging, for example).
 Note, however, that merge algorithms are not used *across* types of
 configuration.  As was the case before merging was implemented,
 user-data will overwrite conf.d configuration without merging.
+
+Example cloud-config
+====================
+
+A common request is to include multiple ``runcmd`` directives in different
+files and merge all of the commands together.  To achieve this, we must modify
+the default merging to allow for dictionaries to join list values.
+
+
+The first config
+
+.. code-block:: yaml
+
+   #cloud-config
+   merge_how:
+    - name: list
+      settings: [append]
+    - name: dict
+      settings: [no_replace, recurse_list]
+
+   runcmd:
+     - bash1
+     - bash2
+
+The second config
+
+.. code-block:: yaml
+
+   #cloud-config
+   merge_how:
+    - name: list
+      settings: [append]
+    - name: dict
+      settings: [no_replace, recurse_list]
+
+   runcmd:
+     - bash3
+     - bash4
+
 
 .. vi: textwidth=78

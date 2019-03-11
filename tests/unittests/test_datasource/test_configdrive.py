@@ -268,8 +268,7 @@ class TestConfigDriveDataSource(CiTestCase):
                 exists_mock = mocks.enter_context(
                     mock.patch.object(os.path, 'exists',
                                       side_effect=exists_side_effect()))
-                device = cfg_ds.device_name_to_device(name)
-                self.assertEqual(dev_name, device)
+                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
 
                 find_mock.assert_called_once_with(mock.ANY)
                 self.assertEqual(exists_mock.call_count, 2)
@@ -296,8 +295,7 @@ class TestConfigDriveDataSource(CiTestCase):
                 exists_mock = mocks.enter_context(
                     mock.patch.object(os.path, 'exists',
                                       return_value=True))
-                device = cfg_ds.device_name_to_device(name)
-                self.assertEqual(dev_name, device)
+                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
 
                 find_mock.assert_called_once_with(mock.ANY)
                 exists_mock.assert_called_once_with(mock.ANY)
@@ -331,8 +329,7 @@ class TestConfigDriveDataSource(CiTestCase):
                 yield True
             with mock.patch.object(os.path, 'exists',
                                    side_effect=exists_side_effect()):
-                device = cfg_ds.device_name_to_device(name)
-                self.assertEqual(dev_name, device)
+                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
                 # We don't assert the call count for os.path.exists() because
                 # not all of the entries in name_tests results in two calls to
                 # that function.  Specifically, 'root2k' doesn't seem to call
@@ -359,8 +356,7 @@ class TestConfigDriveDataSource(CiTestCase):
         }
         for name, dev_name in name_tests.items():
             with mock.patch.object(os.path, 'exists', return_value=True):
-                device = cfg_ds.device_name_to_device(name)
-                self.assertEqual(dev_name, device)
+                self.assertEqual(dev_name, cfg_ds.device_name_to_device(name))
 
     def test_dir_valid(self):
         """Verify a dir is read as such."""
@@ -604,6 +600,9 @@ class TestNetJson(CiTestCase):
 
 
 class TestConvertNetworkData(CiTestCase):
+
+    with_logs = True
+
     def setUp(self):
         super(TestConvertNetworkData, self).setUp()
         self.tmp = self.tmp_dir()
@@ -729,6 +728,26 @@ class TestConvertNetworkData(CiTestCase):
         expected = {'nic0': 'fa:16:3e:05:30:fe', 'enp0s1': 'fa:16:3e:69:b0:58',
                     'enp0s2': 'fa:16:3e:d4:57:ad'}
         self.assertEqual(expected, config_name2mac)
+
+    def test_unknown_device_types_accepted(self):
+        # If we don't recognise a link, we should treat it as physical for a
+        # best-effort boot
+        my_netdata = deepcopy(NETWORK_DATA)
+        my_netdata['links'][0]['type'] = 'my-special-link-type'
+
+        ncfg = openstack.convert_net_json(my_netdata, known_macs=KNOWN_MACS)
+        config_name2mac = {}
+        for n in ncfg['config']:
+            if n['type'] == 'physical':
+                config_name2mac[n['name']] = n['mac_address']
+
+        expected = {'nic0': 'fa:16:3e:05:30:fe', 'enp0s1': 'fa:16:3e:69:b0:58',
+                    'enp0s2': 'fa:16:3e:d4:57:ad'}
+        self.assertEqual(expected, config_name2mac)
+
+        # We should, however, warn the user that we don't recognise the type
+        self.assertIn('Unknown network_data link type (my-special-link-type)',
+                      self.logs.getvalue())
 
 
 def cfg_ds_from_dir(base_d, files=None):
