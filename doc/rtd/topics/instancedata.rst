@@ -4,7 +4,7 @@
 Instance Metadata
 *****************
 
-What is a instance data?
+What is instance data?
 ========================
 
 Instance data is the collection of all configuration data that cloud-init

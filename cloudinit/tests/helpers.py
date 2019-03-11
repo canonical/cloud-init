@@ -41,26 +41,6 @@ _real_subp = util.subp
 SkipTest = unittest2.SkipTest
 skipIf = unittest2.skipIf
 
-# Used for detecting different python versions
-PY2 = False
-PY26 = False
-PY27 = False
-PY3 = False
-
-_PY_VER = sys.version_info
-_PY_MAJOR, _PY_MINOR, _PY_MICRO = _PY_VER[0:3]
-if (_PY_MAJOR, _PY_MINOR) <= (2, 6):
-    if (_PY_MAJOR, _PY_MINOR) == (2, 6):
-        PY26 = True
-    if (_PY_MAJOR, _PY_MINOR) >= (2, 0):
-        PY2 = True
-else:
-    if (_PY_MAJOR, _PY_MINOR) == (2, 7):
-        PY27 = True
-        PY2 = True
-    if (_PY_MAJOR, _PY_MINOR) >= (3, 0):
-        PY3 = True
-
 
 # Makes the old path start
 # with new base instead of whatever
@@ -207,6 +187,7 @@ class CiTestCase(TestCase):
         if self.with_logs:
             # Remove the handler we setup
             logging.getLogger().handlers = self.old_handlers
+            logging.getLogger().level = None
         util.subp = _real_subp
         super(CiTestCase, self).tearDown()
 
@@ -356,7 +337,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 
     def patchOpen(self, new_root):
         trap_func = retarget_many_wrapper(new_root, 1, open)
-        name = 'builtins.open' if PY3 else '__builtin__.open'
+        name = 'builtins.open' if six.PY3 else '__builtin__.open'
         self.patched_funcs.enter_context(mock.patch(name, trap_func))
 
     def patchStdoutAndStderr(self, stdout=None, stderr=None):

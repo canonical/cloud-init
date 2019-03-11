@@ -367,7 +367,7 @@ def handle_schema_args(name, args):
             if not args.annotate:
                 error(str(e))
         except RuntimeError as e:
-                error(str(e))
+            error(str(e))
         else:
             print("Valid cloud-config file {0}".format(args.config_file))
     if args.doc:

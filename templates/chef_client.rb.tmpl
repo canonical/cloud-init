@@ -1,6 +1,6 @@
 ## template:jinja
 {#
-This file is only utilized if the module 'cc_chef' is enabled in 
+This file is only utilized if the module 'cc_chef' is enabled in
 cloud-config. Specifically, in order to enable it
 you need to add the following to config:
   chef:
@@ -55,4 +55,7 @@ pid_file               "{{pid_file}}"
 {% endif %}
 {% if show_time %}
 Chef::Log::Formatter.show_time = true
+{% endif %}
+{% if encrypted_data_bag_secret %}
+encrypted_data_bag_secret "{{encrypted_data_bag_secret}}"
 {% endif %}

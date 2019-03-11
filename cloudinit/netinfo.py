@@ -141,6 +141,9 @@ def _netdev_info_ifconfig(ifconfig_data):
                 res = re.match(r'.*<(\S+)>', toks[i + 1])
                 if res:
                     devs[curdev]['ipv6'][-1]['scope6'] = res.group(1)
+                else:
+                    devs[curdev]['ipv6'][-1]['scope6'] = toks[i + 1]
+
     return devs
 
 
@@ -389,8 +392,8 @@ def netdev_pformat():
                      addr.get('scope', empty), data["hwaddr"]))
             for addr in data.get('ipv6'):
                 tbl.add_row(
-                    (dev, data["up"], addr["ip"], empty, addr["scope6"],
-                     data["hwaddr"]))
+                    (dev, data["up"], addr["ip"], empty,
+                     addr.get("scope6", empty), data["hwaddr"]))
             if len(data.get('ipv6')) + len(data.get('ipv4')) == 0:
                 tbl.add_row((dev, data["up"], empty, empty, empty,
                              data["hwaddr"]))

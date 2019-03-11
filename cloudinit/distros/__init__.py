@@ -577,11 +577,16 @@ class Distro(object):
         """
         Lock the password of a user, i.e., disable password logins
         """
+        # passwd must use short '-l' due to SLES11 lacking long form '--lock'
+        lock_tools = (['passwd', '-l', name], ['usermod', '--lock', name])
         try:
-            # Need to use the short option name '-l' instead of '--lock'
-            # (which would be more descriptive) since SLES 11 doesn't know
-            # about long names.
-            util.subp(['passwd', '-l', name])
+            cmd = next(l for l in lock_tools if util.which(l[0]))
+        except StopIteration:
+            raise RuntimeError((
+                "Unable to lock user account '%s'. No tools available. "
+                "  Tried: %s.") % (name, [c[0] for c in lock_tools]))
+        try:
+            util.subp(cmd)
         except Exception as e:
             util.logexc(LOG, 'Failed to disable password for user %s', name)
             raise e
