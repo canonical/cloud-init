@@ -322,7 +322,7 @@ class Renderer(renderer.Renderer):
                 iface_cfg[new_key] = old_value
 
     @classmethod
-    def _render_subnets(cls, iface_cfg, subnets):
+    def _render_subnets(cls, iface_cfg, subnets, has_default_route):
         # setting base values
         iface_cfg['BOOTPROTO'] = 'none'
 
@@ -331,6 +331,7 @@ class Renderer(renderer.Renderer):
             mtu_key = 'MTU'
             subnet_type = subnet.get('type')
             if subnet_type == 'dhcp6':
+                # TODO need to set BOOTPROTO to dhcp6 on SUSE
                 iface_cfg['IPV6INIT'] = True
                 iface_cfg['DHCPV6C'] = True
             elif subnet_type in ['dhcp4', 'dhcp']:
@@ -375,9 +376,9 @@ class Renderer(renderer.Renderer):
         ipv6_index = -1
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             subnet_type = subnet.get('type')
-            if subnet_type == 'dhcp6':
-                continue
-            elif subnet_type in ['dhcp4', 'dhcp']:
+            if subnet_type in ['dhcp', 'dhcp4', 'dhcp6']:
+                if has_default_route and iface_cfg['BOOTPROTO'] != 'none':
+                    iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = False
                 continue
             elif subnet_type == 'static':
                 if subnet_is_ipv6(subnet):
@@ -443,6 +444,8 @@ class Renderer(renderer.Renderer):
                     # TODO(harlowja): add validation that no other iface has
                     # also provided the default route?
                     iface_cfg['DEFROUTE'] = True
+                    if iface_cfg['BOOTPROTO'] in ('dhcp', 'dhcp4', 'dhcp6'):
+                        iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = True
                     if 'gateway' in route:
                         if is_ipv6 or is_ipv6_addr(route['gateway']):
                             iface_cfg['IPV6_DEFAULTGW'] = route['gateway']
@@ -493,7 +496,9 @@ class Renderer(renderer.Renderer):
             iface_cfg = iface_contents[iface_name]
             route_cfg = iface_cfg.routes
 
-            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnets(
+                iface_cfg, iface_subnets, network_state.has_default_route
+            )
             cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @classmethod
@@ -518,7 +523,9 @@ class Renderer(renderer.Renderer):
 
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
-            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnets(
+                iface_cfg, iface_subnets, network_state.has_default_route
+            )
             cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
             # iter_interfaces on network-state is not sorted to produce
@@ -547,7 +554,9 @@ class Renderer(renderer.Renderer):
 
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
-            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnets(
+                iface_cfg, iface_subnets, network_state.has_default_route
+            )
             cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @staticmethod
@@ -608,7 +617,9 @@ class Renderer(renderer.Renderer):
 
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
-            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnets(
+                iface_cfg, iface_subnets, network_state.has_default_route
+            )
             cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @classmethod
@@ -620,7 +631,9 @@ class Renderer(renderer.Renderer):
             iface_cfg.kind = 'infiniband'
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
-            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnets(
+                iface_cfg, iface_subnets, network_state.has_default_route
+            )
             cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @classmethod

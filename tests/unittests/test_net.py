@@ -860,6 +860,7 @@ NETWORK_CONFIGS = {
                 BOOTPROTO=dhcp
                 DEFROUTE=yes
                 DEVICE=eth99
+                DHCLIENT_SET_DEFAULT_ROUTE=yes
                 DNS1=8.8.8.8
                 DNS2=8.8.4.4
                 DOMAIN="barley.maas sach.maas"
@@ -1234,6 +1235,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
             'ifcfg-bond0.200': textwrap.dedent("""\
                 BOOTPROTO=dhcp
                 DEVICE=bond0.200
+                DHCLIENT_SET_DEFAULT_ROUTE=no
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=bond0
@@ -1333,6 +1335,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
             'ifcfg-eth5': textwrap.dedent("""\
                 BOOTPROTO=dhcp
                 DEVICE=eth5
+                DHCLIENT_SET_DEFAULT_ROUTE=no
                 HWADDR=98:bb:9f:2c:e8:8a
                 NM_CONTROLLED=no
                 ONBOOT=no
@@ -1988,6 +1991,23 @@ CONFIG_V1_SIMPLE_SUBNET = {
                              'type': 'static'}],
                 'type': 'physical'}]}
 
+CONFIG_V1_MULTI_IFACE = {
+    'version': 1,
+    'config': [{'type': 'physical',
+                'mtu': 1500,
+                'subnets': [{'type': 'static',
+                             'netmask': '255.255.240.0',
+                             'routes': [{'netmask': '0.0.0.0',
+                                         'network': '0.0.0.0',
+                                         'gateway': '51.68.80.1'}],
+                             'address': '51.68.89.122',
+                             'ipv4': True}],
+                'mac_address': 'fa:16:3e:25:b4:59',
+                'name': 'eth0'},
+               {'type': 'physical',
+                'mtu': 9000,
+                'subnets': [{'type': 'dhcp4'}],
+                'mac_address': 'fa:16:3e:b1:ca:29', 'name': 'eth1'}]}
 
 DEFAULT_DEV_ATTRS = {
     'eth1000': {
@@ -2459,6 +2479,49 @@ USERCTL=no
         # do not write the resolv.conf file
         respath = '/etc/resolv.conf'
         self.assertNotIn(respath, found.keys())
+
+    def test_network_config_v1_multi_iface_samples(self):
+        ns = network_state.parse_net_config_data(CONFIG_V1_MULTI_IFACE)
+        render_dir = self.tmp_path("render")
+        os.makedirs(render_dir)
+        renderer = self._get_renderer()
+        renderer.render_network_state(ns, target=render_dir)
+        found = dir2dict(render_dir)
+        nspath = '/etc/sysconfig/network-scripts/'
+        self.assertNotIn(nspath + 'ifcfg-lo', found.keys())
+        expected_i1 = """\
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=none
+DEFROUTE=yes
+DEVICE=eth0
+GATEWAY=51.68.80.1
+HWADDR=fa:16:3e:25:b4:59
+IPADDR=51.68.89.122
+MTU=1500
+NETMASK=255.255.240.0
+NM_CONTROLLED=no
+ONBOOT=yes
+STARTMODE=auto
+TYPE=Ethernet
+USERCTL=no
+"""
+        self.assertEqual(expected_i1, found[nspath + 'ifcfg-eth0'])
+        expected_i2 = """\
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=dhcp
+DEVICE=eth1
+DHCLIENT_SET_DEFAULT_ROUTE=no
+HWADDR=fa:16:3e:b1:ca:29
+MTU=9000
+NM_CONTROLLED=no
+ONBOOT=yes
+STARTMODE=auto
+TYPE=Ethernet
+USERCTL=no
+"""
+        self.assertEqual(expected_i2, found[nspath + 'ifcfg-eth1'])
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
