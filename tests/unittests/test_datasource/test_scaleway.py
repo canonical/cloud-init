@@ -7,6 +7,7 @@ import requests
 
 from cloudinit import helpers
 from cloudinit import settings
+from cloudinit.event import EventType
 from cloudinit.sources import DataSourceScaleway
 
 from cloudinit.tests.helpers import mock, HttprettyTestCase, CiTestCase
@@ -403,3 +404,9 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
         netcfg = self.datasource.network_config
         self.assertEqual(netcfg, '0xdeadbeef')
+
+    def test_update_events_is_correct(self):
+        """ensure update_events contains correct data"""
+        self.assertEqual(
+            {'network': {EventType.BOOT_NEW_INSTANCE, EventType.BOOT}},
+            self.datasource.update_events)

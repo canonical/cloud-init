@@ -575,6 +575,21 @@ class TestDataSource(CiTestCase):
             " events: New instance first boot",
             self.logs.getvalue())
 
+    def test_data_sources_cant_mutate_update_events_for_others(self):
+        """update_events shouldn't be changed for other DSes (LP: #1819913)"""
+
+        class ModifyingDS(DataSource):
+
+            def __init__(self, sys_cfg, distro, paths):
+                # This mirrors what DataSourceAzure does which causes LP:
+                # #1819913
+                DataSource.__init__(self, sys_cfg, distro, paths)
+                self.update_events['network'].add(EventType.BOOT)
+
+        before_update_events = copy.deepcopy(self.datasource.update_events)
+        ModifyingDS(self.sys_cfg, self.distro, self.paths)
+        self.assertEqual(before_update_events, self.datasource.update_events)
+
 
 class TestRedactSensitiveData(CiTestCase):
 
