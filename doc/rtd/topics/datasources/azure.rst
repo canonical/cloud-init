@@ -5,9 +5,30 @@ Azure
 
 This datasource finds metadata and user-data from the Azure cloud platform.
 
-Azure Platform
---------------
-The azure cloud-platform provides initial data to an instance via an attached
+walinuxagent
+------------
+walinuxagent has several functions within images.  For cloud-init
+specifically, the relevant functionality it performs is to register the
+instance with the Azure cloud platform at boot so networking will be
+permitted.  For more information about the other functionality of
+walinuxagent, see `Azure's documentation
+<https://github.com/Azure/WALinuxAgent#introduction>`_ for more details.
+(Note, however, that only one of walinuxagent's provisioning and cloud-init
+should be used to perform instance customisation.)
+
+If you are configuring walinuxagent yourself, you will want to ensure that you
+have `Provisioning.UseCloudInit
+<https://github.com/Azure/WALinuxAgent#provisioningusecloudinit>`_ set to
+``y``.
+
+
+Builtin Agent
+-------------
+An alternative to using walinuxagent to register to the Azure cloud platform
+is to use the ``__builtin__`` agent command.  This section contains more
+background on what that code path does, and how to enable it.
+
+The Azure cloud platform provides initial data to an instance via an attached
 CD formatted in UDF.  That CD contains a 'ovf-env.xml' file that provides some
 information.  Additional information is obtained via interaction with the
 "endpoint".
@@ -36,25 +57,17 @@ for the endpoint server (again option 245).
 You can define the path to the lease file with the 'dhclient_lease_file'
 configuration.
 
-walinuxagent
-------------
-In order to operate correctly, cloud-init needs walinuxagent to provide much
-of the interaction with azure.  In addition to "provisioning" code, walinux
-does the following on the agent is a long running daemon that handles the
-following things:
-- generate a x509 certificate and send that to the endpoint
 
-waagent.conf config
-^^^^^^^^^^^^^^^^^^^
-in order to use waagent.conf with cloud-init, the following settings are recommended.  Other values can be changed or set to the defaults.
+IMDS
+----
+Azure provides the `instance metadata service (IMDS)
+<https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service>`_
+which is a REST service on ``196.254.196.254`` providing additional
+configuration information to the instance. Cloud-init uses the IMDS for:
 
-  ::
-
-   # disabling provisioning turns off all 'Provisioning.*' function
-   Provisioning.Enabled=n
-   # this is currently not handled by cloud-init, so let walinuxagent do it.
-   ResourceDisk.Format=y
-   ResourceDisk.MountPoint=/mnt
+- network configuration for the instance which is applied per boot
+- a preprovisioing gate which blocks instance configuration until Azure fabric
+  is ready to provision
 
 
 Configuration
