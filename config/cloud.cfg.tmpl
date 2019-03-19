@@ -112,6 +112,9 @@ cloud_final_modules:
  - landscape
  - lxd
 {% endif %}
+{% if variant in ["ubuntu", "unknown"] %}
+ - ubuntu-drivers
+{% endif %}
 {% if variant not in ["freebsd"] %}
  - puppet
  - chef
