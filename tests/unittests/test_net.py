@@ -1114,8 +1114,8 @@ iface eth0.101 inet static
 iface eth0.101 inet static
     address 192.168.2.10/24
 
-post-up route add -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
-pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
+post-up route add -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
+pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
 """),
         'expected_netplan': textwrap.dedent("""
             network:
@@ -1508,17 +1508,18 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                      - gateway: 192.168.0.3
                        netmask: 255.255.255.0
                        network: 10.1.3.0
-                     - gateway: 2001:67c:1562:1
-                       network: 2001:67c:1
-                       netmask: ffff:ffff:0
-                     - gateway: 3001:67c:1562:1
-                       network: 3001:67c:1
-                       netmask: ffff:ffff:0
-                       metric: 10000
                   - type: static
                     address: 192.168.1.2/24
                   - type: static
                     address: 2001:1::1/92
+                    routes:
+                        - gateway: 2001:67c:1562:1
+                          network: 2001:67c:1
+                          netmask: ffff:ffff:0
+                        - gateway: 3001:67c:1562:1
+                          network: 3001:67c:1
+                          netmask: ffff:ffff:0
+                          metric: 10000
             """),
         'expected_netplan': textwrap.dedent("""
          network:
@@ -1556,6 +1557,51 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                      -   metric: 10000
                          to: 3001:67c:1/32
                          via: 3001:67c:1562:1
+        """),
+        'expected_eni': textwrap.dedent("""\
+auto lo
+iface lo inet loopback
+
+auto bond0s0
+iface bond0s0 inet manual
+    bond-master bond0
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+    bond_miimon 100
+
+auto bond0s1
+iface bond0s1 inet manual
+    bond-master bond0
+    bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+    bond_miimon 100
+
+auto bond0
+iface bond0 inet static
+    address 192.168.0.2/24
+    gateway 192.168.0.1
+    bond-mode active-backup
+    bond-slaves none
+    bond-xmit-hash-policy layer3+4
+    bond_miimon 100
+    hwaddress aa:bb:cc:dd:e8:ff
+    mtu 9000
+    post-up route add -net 10.1.3.0/24 gw 192.168.0.3 || true
+    pre-down route del -net 10.1.3.0/24 gw 192.168.0.3 || true
+
+# control-alias bond0
+iface bond0 inet static
+    address 192.168.1.2/24
+
+# control-alias bond0
+iface bond0 inet6 static
+    address 2001:1::1/92
+    post-up route add -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 || true
+    pre-down route del -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 || true
+    post-up route add -A inet6 3001:67c:1/32 gw 3001:67c:1562:1 metric 10000 \
+|| true
+    pre-down route del -A inet6 3001:67c:1/32 gw 3001:67c:1562:1 metric 10000 \
+|| true
         """),
         'yaml-v2': textwrap.dedent("""
             version: 2
@@ -3633,23 +3679,94 @@ class TestEniRoundTrip(CiTestCase):
             'iface eth0 inet static',
             '    address 172.23.31.42/26',
             '    gateway 172.23.31.2',
-            ('post-up route add -net 10.0.0.0 netmask 255.240.0.0 gw '
+            ('post-up route add -net 10.0.0.0/12 gw '
              '172.23.31.1 metric 0 || true'),
-            ('pre-down route del -net 10.0.0.0 netmask 255.240.0.0 gw '
+            ('pre-down route del -net 10.0.0.0/12 gw '
              '172.23.31.1 metric 0 || true'),
-            ('post-up route add -net 192.168.2.0 netmask 255.255.0.0 gw '
+            ('post-up route add -net 192.168.2.0/16 gw '
              '172.23.31.1 metric 0 || true'),
-            ('pre-down route del -net 192.168.2.0 netmask 255.255.0.0 gw '
+            ('pre-down route del -net 192.168.2.0/16 gw '
              '172.23.31.1 metric 0 || true'),
-            ('post-up route add -net 10.0.200.0 netmask 255.255.0.0 gw '
+            ('post-up route add -net 10.0.200.0/16 gw '
              '172.23.31.1 metric 1 || true'),
-            ('pre-down route del -net 10.0.200.0 netmask 255.255.0.0 gw '
+            ('pre-down route del -net 10.0.200.0/16 gw '
              '172.23.31.1 metric 1 || true'),
         ]
         found = files['/etc/network/interfaces'].splitlines()
 
         self.assertEqual(
             expected, [line for line in found if line])
+
+    def test_ipv6_static_routes(self):
+        # as reported in bug 1818669
+        conf = [
+            {'name': 'eno3', 'type': 'physical',
+             'subnets': [{
+                 'address': 'fd00::12/64',
+                 'dns_nameservers': ['fd00:2::15'],
+                 'gateway': 'fd00::1',
+                 'ipv6': True,
+                 'type': 'static',
+                 'routes': [{'netmask': '32',
+                             'network': 'fd00:12::',
+                             'gateway': 'fd00::2'},
+                            {'network': 'fd00:14::',
+                             'gateway': 'fd00::3'},
+                            {'destination': 'fe00:14::/48',
+                             'gateway': 'fe00::4',
+                             'metric': 500},
+                            {'gateway': '192.168.23.1',
+                             'metric': 999,
+                             'netmask': 24,
+                             'network': '192.168.23.0'},
+                            {'destination': '10.23.23.0/24',
+                             'gateway': '10.23.23.2',
+                             'metric': 300}]}]},
+        ]
+
+        files = self._render_and_read(
+            network_config={'config': conf, 'version': 1})
+        expected = [
+            'auto lo',
+            'iface lo inet loopback',
+            'auto eno3',
+            'iface eno3 inet6 static',
+            '    address fd00::12/64',
+            '    dns-nameservers fd00:2::15',
+            '    gateway fd00::1',
+            ('    post-up route add -A inet6 fd00:12::/32 gw '
+             'fd00::2 || true'),
+            ('    pre-down route del -A inet6 fd00:12::/32 gw '
+             'fd00::2 || true'),
+            ('    post-up route add -A inet6 fd00:14::/64 gw '
+             'fd00::3 || true'),
+            ('    pre-down route del -A inet6 fd00:14::/64 gw '
+             'fd00::3 || true'),
+            ('    post-up route add -A inet6 fe00:14::/48 gw '
+             'fe00::4 metric 500 || true'),
+            ('    pre-down route del -A inet6 fe00:14::/48 gw '
+             'fe00::4 metric 500 || true'),
+            ('    post-up route add -net 192.168.23.0/24 gw '
+             '192.168.23.1 metric 999 || true'),
+            ('    pre-down route del -net 192.168.23.0/24 gw '
+             '192.168.23.1 metric 999 || true'),
+            ('    post-up route add -net 10.23.23.0/24 gw '
+             '10.23.23.2 metric 300 || true'),
+            ('    pre-down route del -net 10.23.23.0/24 gw '
+             '10.23.23.2 metric 300 || true'),
+
+        ]
+        found = files['/etc/network/interfaces'].splitlines()
+
+        self.assertEqual(
+            expected, [line for line in found if line])
+
+    def testsimple_render_bond(self):
+        entry = NETWORK_CONFIGS['bond']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
 
 
 class TestNetRenderers(CiTestCase):
