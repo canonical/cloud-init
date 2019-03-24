@@ -765,6 +765,38 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
 
 
 def get_interfaces_by_mac():
+    if util.is_FreeBSD():
+        return get_interfaces_by_mac_on_freebsd()
+    else:
+        return get_interfaces_by_mac_on_linux()
+
+
+def get_interfaces_by_mac_on_freebsd():
+    (out, _) = util.subp(['ifconfig', '-a', 'ether'])
+
+    # flatten each interface block in a single line
+    def flatten(out):
+        curr_block = ''
+        for l in out.split('\n'):
+            if l.startswith('\t'):
+                curr_block += l
+            else:
+                if curr_block:
+                    yield curr_block
+                curr_block = l
+        yield curr_block
+
+    # looks for interface and mac in a list of flatten block
+    def find_mac(flat_list):
+        for block in flat_list:
+            m = re.search(r"^(\S*): .*ether\s([\da-f:]{17}).*", block)
+            if m:
+                yield (m.group(1), m.group(2))
+    results = {i[1]: i[0] for i in find_mac(flatten(out))}
+    return results
+
+
+def get_interfaces_by_mac_on_linux():
     """Build a dictionary of tuples {mac: name}.
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
