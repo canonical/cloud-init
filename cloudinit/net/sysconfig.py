@@ -386,10 +386,13 @@ class Renderer(renderer.Renderer):
                     ipv6_cidr = "%s/%s" % (subnet['address'], subnet['prefix'])
                     if ipv6_index == 0:
                         iface_cfg['IPV6ADDR'] = ipv6_cidr
+                        iface_cfg['IPADDR6'] = ipv6_cidr
                     elif ipv6_index == 1:
                         iface_cfg['IPV6ADDR_SECONDARIES'] = ipv6_cidr
+                        iface_cfg['IPADDR6_0'] = ipv6_cidr
                     else:
                         iface_cfg['IPV6ADDR_SECONDARIES'] += " " + ipv6_cidr
+                        iface_cfg['IPADDR6_%d' % ipv6_index] = ipv6_cidr
                 else:
                     ipv4_index = ipv4_index + 1
                     suff = "" if ipv4_index == 0 else str(ipv4_index)
