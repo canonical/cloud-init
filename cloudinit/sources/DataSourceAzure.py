@@ -54,6 +54,7 @@ REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
 REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = '/var/lib/waagent'
 IMDS_URL = "http://169.254.169.254/metadata/"
+PLATFORM_ENTROPY_SOURCE = "/sys/firmware/acpi/tables/OEM0"
 
 # List of static scripts and network config artifacts created by
 # stock ubuntu suported images.
@@ -195,6 +196,8 @@ if util.is_FreeBSD():
         RESOURCE_DISK_PATH = "/dev/" + res_disk
     else:
         LOG.debug("resource disk is None")
+    # TODO Find where platform entropy data is surfaced
+    PLATFORM_ENTROPY_SOURCE = None
 
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START_BUILTIN,
@@ -1100,16 +1103,27 @@ def _check_freebsd_cdrom(cdrom_dev):
     return False
 
 
-def _get_random_seed():
+def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
     """Return content random seed file if available, otherwise,
        return None."""
     # azure / hyper-v provides random data here
-    # TODO. find the seed on FreeBSD platform
     # now update ds_cfg to reflect contents pass in config
-    if util.is_FreeBSD():
+    if source is None:
         return None
-    return util.load_file("/sys/firmware/acpi/tables/OEM0",
-                          quiet=True, decode=False)
+    seed = util.load_file(source, quiet=True, decode=False)
+
+    # The seed generally contains non-Unicode characters. load_file puts
+    # them into a str (in python 2) or bytes (in python 3). In python 2,
+    # bad octets in a str cause util.json_dumps() to throw an exception. In
+    # python 3, bytes is a non-serializable type, and the handler load_file
+    # uses applies b64 encoding *again* to handle it. The simplest solution
+    # is to just b64encode the data and then decode it to a serializable
+    # string. Same number of bits of entropy, just with 25% more zeroes.
+    # There's no need to undo this base64-encoding when the random seed is
+    # actually used in cc_seed_random.py.
+    seed = base64.b64encode(seed).decode()
+
+    return seed
 
 
 def list_possible_azure_ds_devs():
