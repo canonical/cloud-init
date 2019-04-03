@@ -688,7 +688,7 @@ class DataSourceAzure(sources.DataSource):
            2. Generate a fallback network config that does not include any of
               the blacklisted devices.
         """
-        if not self._network_config:
+        if not self._network_config or self._network_config == sources.UNSET:
             if self.ds_cfg.get('apply_network_config'):
                 nc_src = self._metadata_imds
             else:
