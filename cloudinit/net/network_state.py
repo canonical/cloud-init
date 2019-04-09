@@ -148,6 +148,7 @@ class NetworkState(object):
         self._network_state = copy.deepcopy(network_state)
         self._version = version
         self.use_ipv6 = network_state.get('use_ipv6', False)
+        self._has_default_route = None
 
     @property
     def config(self):
@@ -156,14 +157,6 @@ class NetworkState(object):
     @property
     def version(self):
         return self._version
-
-    def iter_routes(self, filter_func=None):
-        for route in self._network_state.get('routes', []):
-            if filter_func is not None:
-                if filter_func(route):
-                    yield route
-            else:
-                yield route
 
     @property
     def dns_nameservers(self):
@@ -179,6 +172,12 @@ class NetworkState(object):
         except KeyError:
             return []
 
+    @property
+    def has_default_route(self):
+        if self._has_default_route is None:
+            self._has_default_route = self._maybe_has_default_route()
+        return self._has_default_route
+
     def iter_interfaces(self, filter_func=None):
         ifaces = self._network_state.get('interfaces', {})
         for iface in six.itervalues(ifaces):
@@ -187,6 +186,32 @@ class NetworkState(object):
             else:
                 if filter_func(iface):
                     yield iface
+
+    def iter_routes(self, filter_func=None):
+        for route in self._network_state.get('routes', []):
+            if filter_func is not None:
+                if filter_func(route):
+                    yield route
+            else:
+                yield route
+
+    def _maybe_has_default_route(self):
+        for route in self.iter_routes():
+            if self._is_default_route(route):
+                return True
+        for iface in self.iter_interfaces():
+            for subnet in iface.get('subnets', []):
+                for route in subnet.get('routes', []):
+                    if self._is_default_route(route):
+                        return True
+        return False
+
+    def _is_default_route(self, route):
+        default_nets = ('::', '0.0.0.0')
+        return (
+            route.get('prefix') == 0
+            and route.get('network') in default_nets
+            )
 
 
 @six.add_metaclass(CommandHandlerMeta)
