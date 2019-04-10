@@ -1,4 +1,4 @@
-cloud-init (18.5-61-gb76714c3-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (18.5-61-gb76714c3-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
     - Change DataSourceNoCloud to ignore file system label's case.
@@ -25,7 +25,7 @@ cloud-init (18.5-61-gb76714c3-0ubuntu1) UNRELEASED; urgency=medium
       [Robert Schweikert] (LP: #1812117)
     - DataSourceEc2: update RELEASE_BLOCKER to be more accurate
 
- -- Daniel Watkins <oddbloke@ubuntu.com>  Wed, 10 Apr 2019 11:48:21 -0400
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Wed, 10 Apr 2019 11:49:03 -0400
 
 cloud-init (18.5-45-g3554ffe8-0ubuntu1) disco; urgency=medium
 
