@@ -1,3 +1,10 @@
+cloud-init (18.5-62-g6322c2dd-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Revert "DataSource: move update_events from a class to an instance..."
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Wed, 10 Apr 2019 16:23:05 -0400
+
 cloud-init (18.5-61-gb76714c3-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
