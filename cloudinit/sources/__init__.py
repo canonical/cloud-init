@@ -164,9 +164,6 @@ class DataSource(object):
     # A datasource which supports writing network config on each system boot
     # would call update_events['network'].add(EventType.BOOT).
 
-    # Default: generate network config on new instance id (first boot).
-    update_events = {'network': set([EventType.BOOT_NEW_INSTANCE])}
-
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
     # values are reset via clear_cached_attrs during any update_metadata call.
@@ -190,6 +187,9 @@ class DataSource(object):
         self.userdata_raw = None
         self.vendordata = None
         self.vendordata_raw = None
+
+        # Default: generate network config on new instance id (first boot).
+        self.update_events = {'network': {EventType.BOOT_NEW_INSTANCE}}
 
         self.ds_cfg = util.get_cfg_by_path(
             self.sys_cfg, ("datasource", self.dsname), {})

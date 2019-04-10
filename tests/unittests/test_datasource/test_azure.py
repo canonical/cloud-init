@@ -7,11 +7,11 @@ from cloudinit.sources import (
     UNSET, DataSourceAzure as dsaz, InvalidMetaDataException)
 from cloudinit.util import (b64e, decode_binary, load_file, write_file,
                             find_freebsd_part, get_path_dev_freebsd,
-                            MountFailedError)
+                            MountFailedError, json_dumps, load_json)
 from cloudinit.version import version_string as vs
 from cloudinit.tests.helpers import (
     HttprettyTestCase, CiTestCase, populate_dir, mock, wrap_and_call,
-    ExitStack)
+    ExitStack, resourceLocation)
 
 import crypt
 import httpretty
@@ -1922,5 +1922,25 @@ class TestWBIsPlatformViable(CiTestCase):
                 dsaz.AZURE_CHASSIS_ASSET_TAG + 'X'),
             self.logs.getvalue())
 
+
+class TestRandomSeed(CiTestCase):
+    """Test proper handling of random_seed"""
+
+    def test_non_ascii_seed_is_serializable(self):
+        """Pass if a random string from the Azure infrastructure which
+        contains at least one non-Unicode character can be converted to/from
+        JSON without alteration and without throwing an exception.
+        """
+        path = resourceLocation("azure/non_unicode_random_string")
+        result = dsaz._get_random_seed(path)
+
+        obj = {'seed': result}
+        try:
+            serialized = json_dumps(obj)
+            deserialized = load_json(serialized)
+        except UnicodeDecodeError:
+            self.fail("Non-serializable random seed returned")
+
+        self.assertEqual(deserialized['seed'], result)
 
 # vi: ts=4 expandtab

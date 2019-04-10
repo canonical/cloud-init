@@ -171,10 +171,11 @@ def query_data_api(api_type, api_address, retries, timeout):
 
 class DataSourceScaleway(sources.DataSource):
     dsname = "Scaleway"
-    update_events = {'network': [EventType.BOOT_NEW_INSTANCE, EventType.BOOT]}
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceScaleway, self).__init__(sys_cfg, distro, paths)
+        self.update_events = {
+            'network': {EventType.BOOT_NEW_INSTANCE, EventType.BOOT}}
 
         self.ds_cfg = util.mergemanydict([
             util.get_cfg_by_path(sys_cfg, ["datasource", "Scaleway"], {}),

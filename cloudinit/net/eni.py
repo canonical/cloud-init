@@ -366,8 +366,6 @@ class Renderer(renderer.Renderer):
         down = indent + "pre-down route del"
         or_true = " || true"
         mapping = {
-            'network': '-net',
-            'netmask': 'netmask',
             'gateway': 'gw',
             'metric': 'metric',
         }
@@ -379,13 +377,21 @@ class Renderer(renderer.Renderer):
             default_gw = ' -A inet6 default'
 
         route_line = ''
-        for k in ['network', 'netmask', 'gateway', 'metric']:
-            if default_gw and k in ['network', 'netmask']:
+        for k in ['network', 'gateway', 'metric']:
+            if default_gw and k == 'network':
                 continue
             if k == 'gateway':
                 route_line += '%s %s %s' % (default_gw, mapping[k], route[k])
             elif k in route:
-                route_line += ' %s %s' % (mapping[k], route[k])
+                if k == 'network':
+                    if ':' in route[k]:
+                        route_line += ' -A inet6'
+                    else:
+                        route_line += ' -net'
+                    if 'prefix' in route:
+                        route_line += ' %s/%s' % (route[k], route['prefix'])
+                else:
+                    route_line += ' %s %s' % (mapping[k], route[k])
         content.append(up + route_line + or_true)
         content.append(down + route_line + or_true)
         return content
