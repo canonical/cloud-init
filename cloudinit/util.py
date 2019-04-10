@@ -703,6 +703,21 @@ def get_cfg_option_list(yobj, key, default=None):
 # get a cfg entry by its path array
 # for f['a']['b']: get_cfg_by_path(mycfg,('a','b'))
 def get_cfg_by_path(yobj, keyp, default=None):
+    """Return the value of the item at path C{keyp} in C{yobj}.
+
+    example:
+      get_cfg_by_path({'a': {'b': {'num': 4}}}, 'a/b/num') == 4
+      get_cfg_by_path({'a': {'b': {'num': 4}}}, 'c/d') == None
+
+    @param yobj: A dictionary.
+    @param keyp: A path inside yobj.  it can be a '/' delimited string,
+                 or an iterable.
+    @param default: The default to return if the path does not exist.
+    @return: The value of the item at keyp."
+        is not found."""
+
+    if isinstance(keyp, six.string_types):
+        keyp = keyp.split("/")
     cur = yobj
     for tok in keyp:
         if tok not in cur:

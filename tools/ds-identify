@@ -620,7 +620,7 @@ dscheck_MAAS() {
 }
 
 dscheck_NoCloud() {
-    local fslabel="cidata" d=""
+    local fslabel="cidata CIDATA" d=""
     case " ${DI_KERNEL_CMDLINE} " in
         *\ ds=nocloud*) return ${DS_FOUND};;
     esac
@@ -632,9 +632,10 @@ dscheck_NoCloud() {
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
         check_writable_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
     done
-    if has_fs_with_label "${fslabel}"; then
+    if has_fs_with_label $fslabel; then
         return ${DS_FOUND}
     fi
+
     return ${DS_NOT_FOUND}
 }
 
@@ -762,7 +763,7 @@ is_cdrom_ovf() {
 
     # explicitly skip known labels of other types. rd_rdfe is azure.
     case "$label" in
-        config-2|CONFIG-2|rd_rdfe_stable*|cidata) return 1;;
+        config-2|CONFIG-2|rd_rdfe_stable*|cidata|CIDATA) return 1;;
     esac
 
     local idstr="http://schemas.dmtf.org/ovf/environment/1"

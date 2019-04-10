@@ -1,3 +1,32 @@
+cloud-init (18.5-61-gb76714c3-0ubuntu1) disco; urgency=medium
+
+  * New upstream snapshot.
+    - Change DataSourceNoCloud to ignore file system label's case.
+      [Risto Oikarinen]
+    - cmd:main.py: Fix missing 'modules-init' key in modes dict
+      [Antonio Romito] (LP: #1815109)
+    - ubuntu_advantage: rewrite cloud-config module
+    - Azure: Treat _unset network configuration as if it were absent
+      [Jason Zions (MSFT)] (LP: #1823084)
+    - DatasourceAzure: add additional logging for azure datasource [Anh Vo]
+    - cloud_tests: fix apt_pipelining test-cases
+    - Azure: Ensure platform random_seed is always serializable as JSON.
+      [Jason Zions (MSFT)]
+    - net/sysconfig: write out SUSE-compatible IPv6 config [Robert Schweikert]
+    - tox: Update testenv for openSUSE Leap to 15.0 [Thomas Bechtold]
+    - net: Fix ipv6 static routes when using eni renderer
+      [Raphael Glon] (LP: #1818669)
+    - Add ubuntu_drivers config module
+    - doc: Refresh Azure walinuxagent docs
+    - tox: bump pylint version to latest (2.3.1)
+    - DataSource: move update_events from a class to an instance attribute
+      (LP: #1819913)
+    - net/sysconfig: Handle default route setup for dhcp configured NICs
+      [Robert Schweikert] (LP: #1812117)
+    - DataSourceEc2: update RELEASE_BLOCKER to be more accurate
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Wed, 10 Apr 2019 11:49:03 -0400
+
 cloud-init (18.5-45-g3554ffe8-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
