@@ -3269,9 +3269,12 @@ class TestNetplanPostcommands(CiTestCase):
         mock_netplan_generate.assert_called_with(run=True)
         mock_net_setup_link.assert_called_with(run=True)
 
+    @mock.patch('cloudinit.util.SeLinuxGuard')
     @mock.patch.object(netplan, "get_devicelist")
     @mock.patch('cloudinit.util.subp')
-    def test_netplan_postcmds(self, mock_subp, mock_devlist):
+    def test_netplan_postcmds(self, mock_subp, mock_devlist, mock_sel):
+        mock_sel.__enter__ = mock.Mock(return_value=False)
+        mock_sel.__exit__ = mock.Mock()
         mock_devlist.side_effect = [['lo']]
         tmp_dir = self.tmp_dir()
         ns = network_state.parse_net_config_data(self.mycfg,

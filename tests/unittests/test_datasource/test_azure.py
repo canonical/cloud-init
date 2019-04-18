@@ -1375,12 +1375,15 @@ class TestCanDevBeReformatted(CiTestCase):
         self._domock(p + "util.mount_cb", 'm_mount_cb')
         self._domock(p + "os.path.realpath", 'm_realpath')
         self._domock(p + "os.path.exists", 'm_exists')
+        self._domock(p + "util.SeLinuxGuard", 'm_selguard')
 
         self.m_exists.side_effect = lambda p: p in bypath
         self.m_realpath.side_effect = realpath
         self.m_has_ntfs_filesystem.side_effect = has_ntfs_fs
         self.m_mount_cb.side_effect = mount_cb
         self.m_partitions_on_device.side_effect = partitions_on_device
+        self.m_selguard.__enter__ = mock.Mock(return_value=False)
+        self.m_selguard.__exit__ = mock.Mock()
 
     def test_three_partitions_is_false(self):
         """A disk with 3 partitions can not be formatted."""
