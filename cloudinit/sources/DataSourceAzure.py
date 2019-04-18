@@ -407,7 +407,7 @@ class DataSourceAzure(sources.DataSource):
                 elif cdev.startswith("/dev/"):
                     if util.is_FreeBSD():
                         ret = util.mount_cb(cdev, load_azure_ds_dir,
-                                            mtype="udf", sync=False)
+                                            mtype="udf")
                     else:
                         ret = util.mount_cb(cdev, load_azure_ds_dir)
                 else:
