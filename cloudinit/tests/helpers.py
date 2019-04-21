@@ -363,6 +363,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             root = self.tmp_dir()
         self.patchUtils(root)
         self.patchOS(root)
+        self.patchOpen(root)
         return root
 
     @contextmanager

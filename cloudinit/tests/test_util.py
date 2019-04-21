@@ -419,12 +419,6 @@ class TestGetLinuxDistro(CiTestCase):
         if path == '/etc/redhat-release':
             return 1
 
-    @classmethod
-    def freebsd_version_exists(self, path):
-        """Side effect function """
-        if path == '/bin/freebsd-version':
-            return 1
-
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_distro_quoted_name(self, m_os_release, m_path_exists):
         """Verify we get the correct name if the os-release file has
@@ -443,11 +437,16 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(('ubuntu', '16.04', 'xenial'), dist)
 
-    @mock.patch('cloudinit.util.subp')
-    def test_get_linux_freebsd(self, m_subp, m_path_exists):
+    @mock.patch('platform.system')
+    @mock.patch('platform.release')
+    @mock.patch('cloudinit.util._parse_redhat_release')
+    def test_get_linux_freebsd(self, m_path_exists, m_platform_release,
+                               m_platform_system, m_parse_redhat_release):
         """Verify we get the correct name and release name on FreeBSD."""
-        m_path_exists.side_effect = TestGetLinuxDistro.freebsd_version_exists
-        m_subp.return_value = ("12.0-RELEASE-p10\n", '')
+        m_path_exists.return_value = False
+        m_platform_release.return_value = '12.0-RELEASE-p10'
+        m_platform_system.return_value = 'FreeBSD'
+        m_parse_redhat_release.return_value = {}
         dist = util.get_linux_distro()
         self.assertEqual(('freebsd', '12.0-RELEASE-p10', ''), dist)
 
@@ -538,27 +537,36 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(
             ('opensuse-tumbleweed', '20180920', platform.machine()), dist)
 
+    @mock.patch('platform.system')
     @mock.patch('platform.dist', create=True)
-    def test_get_linux_distro_no_data(self, m_platform_dist, m_path_exists):
+    def test_get_linux_distro_no_data(self, m_platform_dist,
+                                      m_platform_system, m_path_exists):
         """Verify we get no information if os-release does not exist"""
         m_platform_dist.return_value = ('', '', '')
+        m_platform_system.return_value = None
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         self.assertEqual(('', '', ''), dist)
 
+    @mock.patch('platform.system')
     @mock.patch('platform.dist', create=True)
-    def test_get_linux_distro_no_impl(self, m_platform_dist, m_path_exists):
+    def test_get_linux_distro_no_impl(self, m_platform_dist,
+                                      m_platform_system, m_path_exists):
         """Verify we get an empty tuple when no information exists and
         Exceptions are not propagated"""
         m_platform_dist.side_effect = Exception()
+        m_platform_system.return_value = None
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         self.assertEqual(('', '', ''), dist)
 
+    @mock.patch('platform.system')
     @mock.patch('platform.dist', create=True)
-    def test_get_linux_distro_plat_data(self, m_platform_dist, m_path_exists):
+    def test_get_linux_distro_plat_data(self, m_platform_dist,
+                                        m_platform_system, m_path_exists):
         """Verify we get the correct platform information"""
         m_platform_dist.return_value = ('foo', '1.1', 'aarch64')
+        m_platform_system.return_value = None
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         self.assertEqual(('foo', '1.1', 'aarch64'), dist)
