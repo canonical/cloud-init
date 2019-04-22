@@ -3829,6 +3829,41 @@ class TestNetRenderers(CiTestCase):
         self.assertRaises(net.RendererNotFoundError, renderers.select,
                           priority=['sysconfig', 'eni'])
 
+    @mock.patch("cloudinit.net.renderers.netplan.available")
+    @mock.patch("cloudinit.net.renderers.sysconfig.available_sysconfig")
+    @mock.patch("cloudinit.net.renderers.sysconfig.available_nm")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    @mock.patch("cloudinit.net.renderers.sysconfig.util.get_linux_distro")
+    def test_sysconfig_selected_on_sysconfig_enabled_distros(self, m_distro,
+                                                             m_eni, m_sys_nm,
+                                                             m_sys_scfg,
+                                                             m_netplan):
+        """sysconfig only selected on specific distros (rhel/sles)."""
+
+        # Ubuntu with Network-Manager installed
+        m_eni.return_value = False       # no ifupdown (ifquery)
+        m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
+        m_sys_nm.return_value = True     # network-manager is installed
+        m_netplan.return_value = True    # netplan is installed
+        m_distro.return_value = ('ubuntu', None, None)
+        self.assertEqual('netplan', renderers.select(priority=None)[0])
+
+        # Centos with Network-Manager installed
+        m_eni.return_value = False       # no ifupdown (ifquery)
+        m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
+        m_sys_nm.return_value = True     # network-manager is installed
+        m_netplan.return_value = False    # netplan is not installed
+        m_distro.return_value = ('centos', None, None)
+        self.assertEqual('sysconfig', renderers.select(priority=None)[0])
+
+        # OpenSuse with Network-Manager installed
+        m_eni.return_value = False       # no ifupdown (ifquery)
+        m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
+        m_sys_nm.return_value = True     # network-manager is installed
+        m_netplan.return_value = False    # netplan is not installed
+        m_distro.return_value = ('opensuse', None, None)
+        self.assertEqual('sysconfig', renderers.select(priority=None)[0])
+
 
 class TestGetInterfaces(CiTestCase):
     _data = {'bonds': ['bond1'],
