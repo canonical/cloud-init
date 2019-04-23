@@ -71,9 +71,12 @@ if is_gitdir(_tdir) and which("git"):
         flags = ['--tags']
     cmd = ['git', 'describe', '--abbrev=8', '--match=[0-9]*'] + flags
 
-    version = tiny_p(cmd).strip()
+    try:
+        version = tiny_p(cmd).strip()
+    except RuntimeError:
+        version = None
 
-    if not version.startswith(src_version):
+    if version is None or not version.startswith(src_version):
         sys.stderr.write("git describe version (%s) differs from "
                          "cloudinit.version (%s)\n" % (version, src_version))
         sys.stderr.write(
