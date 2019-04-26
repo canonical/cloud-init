@@ -99,6 +99,9 @@ class ConfigMap(object):
     def __len__(self):
         return len(self._conf)
 
+    def str_skipped(self, key, val):
+        return False
+
     def to_string(self):
         buf = io.StringIO()
         buf.write(_make_header())
@@ -106,6 +109,8 @@ class ConfigMap(object):
             buf.write("\n")
         for key in sorted(self._conf.keys()):
             value = self._conf[key]
+            if self.str_skipped(key, value):
+                continue
             if isinstance(value, bool):
                 value = self._bool_map[value]
             if not isinstance(value, str):
@@ -214,6 +219,7 @@ class NetInterface(ConfigMap):
         'bond': 'Bond',
         'bridge': 'Bridge',
         'infiniband': 'InfiniBand',
+        'vlan': 'Vlan',
     }
 
     def __init__(self, iface_name, base_sysconf_dir, templates,
@@ -266,6 +272,11 @@ class NetInterface(ConfigMap):
         if copy_routes:
             c.routes = self.routes.copy()
         return c
+
+    def str_skipped(self, key, val):
+        if key == 'TYPE' and val == 'Vlan':
+            return True
+        return False
 
 
 class Renderer(renderer.Renderer):
@@ -697,7 +708,16 @@ class Renderer(renderer.Renderer):
                 iface_cfg['ETHERDEVICE'] = iface_name[:iface_name.rfind('.')]
             else:
                 iface_cfg['VLAN'] = True
-                iface_cfg['PHYSDEV'] = iface_name[:iface_name.rfind('.')]
+                iface_cfg.kind = 'vlan'
+
+                rdev = iface['vlan-raw-device']
+                supported = _supported_vlan_names(rdev, iface['vlan_id'])
+                if iface_name not in supported:
+                    LOG.warning(
+                        "Name '%s' not officially supported for vlan "
+                        "device backed by '%s'. Supported: %s",
+                        iface_name, rdev, ' '.join(supported))
+                iface_cfg['PHYSDEV'] = rdev
 
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
@@ -894,6 +914,15 @@ class Renderer(renderer.Renderer):
                 netcfg.append('IPV6_AUTOCONF=no')
             util.write_file(sysconfig_path,
                             "\n".join(netcfg) + "\n", file_mode)
+
+
+def _supported_vlan_names(rdev, vid):
+    """Return list of supported names for vlan devices per RHEL doc
+    11.5. Naming Scheme for VLAN Interfaces."""
+    return [
+        v.format(rdev=rdev, vid=int(vid))
+        for v in ("{rdev}{vid:04}", "{rdev}{vid}",
+                  "{rdev}.{vid:04}", "{rdev}.{vid}")]
 
 
 def available(target=None):
