@@ -9,6 +9,7 @@ from cloudinit.net import (
 from cloudinit.sources.helpers import openstack
 from cloudinit import temp_utils
 from cloudinit import util
+from cloudinit import safeyaml as yaml
 
 from cloudinit.tests.helpers import (
     CiTestCase, FilesystemMockingTestCase, dir2dict, mock, populate_dir)
@@ -21,7 +22,7 @@ import json
 import os
 import re
 import textwrap
-import yaml
+from yaml.serializer import Serializer
 
 
 DHCP_CONTENT_1 = """
@@ -3575,7 +3576,7 @@ class TestNetplanRoundTrip(CiTestCase):
         # now look for any alias, avoid rendering them entirely
         # generate the first anchor string using the template
         # as of this writing, looks like "&id001"
-        anchor = r'&' + yaml.serializer.Serializer.ANCHOR_TEMPLATE % 1
+        anchor = r'&' + Serializer.ANCHOR_TEMPLATE % 1
         found_alias = re.search(anchor, content, re.MULTILINE)
         if found_alias:
             msg = "Error at: %s\nContent:\n%s" % (found_alias, content)
