@@ -163,7 +163,8 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
         m_readurl.assert_called_with(
             self.network_md_url, exception_cb=mock.ANY,
-            headers={'Metadata': 'true'}, retries=2, timeout=1)
+            headers={'Metadata': 'true'}, retries=2,
+            timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS)
 
     @mock.patch('cloudinit.url_helper.time.sleep')
     @mock.patch(MOCKPATH + 'net.is_up')
@@ -1791,7 +1792,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                                     headers={'Metadata': 'true',
                                              'User-Agent':
                                              'Cloud-Init/%s' % vs()
-                                             }, method='GET', timeout=1,
+                                             }, method='GET',
+                                    timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
                                     url=full_url)])
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
@@ -1828,7 +1830,9 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                                     headers={'Metadata': 'true',
                                              'User-Agent':
                                              'Cloud-Init/%s' % vs()},
-                                    method='GET', timeout=1, url=full_url)])
+                                    method='GET',
+                                    timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
+                                    url=full_url)])
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
