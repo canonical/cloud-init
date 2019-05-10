@@ -9,6 +9,7 @@ from cloudinit.net import (
 from cloudinit.sources.helpers import openstack
 from cloudinit import temp_utils
 from cloudinit import util
+from cloudinit import safeyaml as yaml
 
 from cloudinit.tests.helpers import (
     CiTestCase, FilesystemMockingTestCase, dir2dict, mock, populate_dir)
@@ -21,7 +22,7 @@ import json
 import os
 import re
 import textwrap
-import yaml
+from yaml.serializer import Serializer
 
 
 DHCP_CONTENT_1 = """
@@ -3269,9 +3270,12 @@ class TestNetplanPostcommands(CiTestCase):
         mock_netplan_generate.assert_called_with(run=True)
         mock_net_setup_link.assert_called_with(run=True)
 
+    @mock.patch('cloudinit.util.SeLinuxGuard')
     @mock.patch.object(netplan, "get_devicelist")
     @mock.patch('cloudinit.util.subp')
-    def test_netplan_postcmds(self, mock_subp, mock_devlist):
+    def test_netplan_postcmds(self, mock_subp, mock_devlist, mock_sel):
+        mock_sel.__enter__ = mock.Mock(return_value=False)
+        mock_sel.__exit__ = mock.Mock()
         mock_devlist.side_effect = [['lo']]
         tmp_dir = self.tmp_dir()
         ns = network_state.parse_net_config_data(self.mycfg,
@@ -3572,7 +3576,7 @@ class TestNetplanRoundTrip(CiTestCase):
         # now look for any alias, avoid rendering them entirely
         # generate the first anchor string using the template
         # as of this writing, looks like "&id001"
-        anchor = r'&' + yaml.serializer.Serializer.ANCHOR_TEMPLATE % 1
+        anchor = r'&' + Serializer.ANCHOR_TEMPLATE % 1
         found_alias = re.search(anchor, content, re.MULTILINE)
         if found_alias:
             msg = "Error at: %s\nContent:\n%s" % (found_alias, content)
@@ -3825,6 +3829,41 @@ class TestNetRenderers(CiTestCase):
 
         self.assertRaises(net.RendererNotFoundError, renderers.select,
                           priority=['sysconfig', 'eni'])
+
+    @mock.patch("cloudinit.net.renderers.netplan.available")
+    @mock.patch("cloudinit.net.renderers.sysconfig.available_sysconfig")
+    @mock.patch("cloudinit.net.renderers.sysconfig.available_nm")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    @mock.patch("cloudinit.net.renderers.sysconfig.util.get_linux_distro")
+    def test_sysconfig_selected_on_sysconfig_enabled_distros(self, m_distro,
+                                                             m_eni, m_sys_nm,
+                                                             m_sys_scfg,
+                                                             m_netplan):
+        """sysconfig only selected on specific distros (rhel/sles)."""
+
+        # Ubuntu with Network-Manager installed
+        m_eni.return_value = False       # no ifupdown (ifquery)
+        m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
+        m_sys_nm.return_value = True     # network-manager is installed
+        m_netplan.return_value = True    # netplan is installed
+        m_distro.return_value = ('ubuntu', None, None)
+        self.assertEqual('netplan', renderers.select(priority=None)[0])
+
+        # Centos with Network-Manager installed
+        m_eni.return_value = False       # no ifupdown (ifquery)
+        m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
+        m_sys_nm.return_value = True     # network-manager is installed
+        m_netplan.return_value = False    # netplan is not installed
+        m_distro.return_value = ('centos', None, None)
+        self.assertEqual('sysconfig', renderers.select(priority=None)[0])
+
+        # OpenSuse with Network-Manager installed
+        m_eni.return_value = False       # no ifupdown (ifquery)
+        m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
+        m_sys_nm.return_value = True     # network-manager is installed
+        m_netplan.return_value = False    # netplan is not installed
+        m_distro.return_value = ('opensuse', None, None)
+        self.assertEqual('sysconfig', renderers.select(priority=None)[0])
 
 
 class TestGetInterfaces(CiTestCase):

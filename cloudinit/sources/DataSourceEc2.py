@@ -208,7 +208,7 @@ class DataSourceEc2(sources.DataSource):
         start_time = time.time()
         url = uhelp.wait_for_url(
             urls=urls, max_wait=url_params.max_wait_seconds,
-            timeout=url_params.timeout_seconds, status_cb=LOG.warn)
+            timeout=url_params.timeout_seconds, status_cb=LOG.warning)
 
         if url:
             self.metadata_address = url2base[url]

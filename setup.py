@@ -245,13 +245,14 @@ if not in_virtualenv():
         INITSYS_ROOTS[k] = "/" + INITSYS_ROOTS[k]
 
 data_files = [
-    (ETC + '/bash_completion.d', ['bash_completion/cloud-init']),
     (ETC + '/cloud', [render_tmpl("config/cloud.cfg.tmpl")]),
     (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
     (ETC + '/cloud/templates', glob('templates/*')),
     (USR_LIB_EXEC + '/cloud-init', ['tools/ds-identify',
                                     'tools/uncloud-init',
                                     'tools/write-ssh-key-fingerprints']),
+    (USR + '/share/bash-completion/completions',
+     ['bash_completion/cloud-init']),
     (USR + '/share/doc/cloud-init', [f for f in glob('doc/*') if is_f(f)]),
     (USR + '/share/doc/cloud-init/examples',
         [f for f in glob('doc/examples/*') if is_f(f)]),
