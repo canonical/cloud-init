@@ -4,8 +4,11 @@ cloud-init (18.5-45-g3554ffe8-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
    + debian/patches/azure-apply-network-config-false.patch
    + debian/patches/azure-use-walinux-agent.patch
    + debian/patches/ec2-classic-dont-reapply-networking.patch
+  * refresh patches:
+   + debian/patches/azure-apply-network-config-false.patch
+   + debian/patches/azure-use-walinux-agent.patch
 
- -- Ryan Harper <ryan.harper@canonical.com>  Tue, 09 Apr 2019 11:20:17 -0500
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 10 May 2019 16:26:48 -0600
 
 cloud-init (18.5-45-g3554ffe8-0ubuntu1~16.04.1) xenial; urgency=medium
 
