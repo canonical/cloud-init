@@ -32,6 +32,36 @@ class TestNoCloudDataSource(CiTestCase):
         self.mocks.enter_context(
             mock.patch.object(util, 'read_dmi_data', return_value=None))
 
+    def _test_fs_config_is_read(self, fs_label, fs_label_to_search):
+        vfat_device = 'device-1'
+
+        def m_mount_cb(device, callback, mtype):
+            if (device == vfat_device):
+                return {'meta-data': yaml.dump({'instance-id': 'IID'})}
+            else:
+                return {}
+
+        def m_find_devs_with(query='', path=''):
+            if 'TYPE=vfat' == query:
+                return [vfat_device]
+            elif 'LABEL={}'.format(fs_label) == query:
+                return [vfat_device]
+            else:
+                return []
+
+        self.mocks.enter_context(
+            mock.patch.object(util, 'find_devs_with',
+                              side_effect=m_find_devs_with))
+        self.mocks.enter_context(
+            mock.patch.object(util, 'mount_cb',
+                              side_effect=m_mount_cb))
+        sys_cfg = {'datasource': {'NoCloud': {'fs_label': fs_label_to_search}}}
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        ret = dsrc.get_data()
+
+        self.assertEqual(dsrc.metadata.get('instance-id'), 'IID')
+        self.assertTrue(ret)
+
     def test_nocloud_seed_dir_on_lxd(self, m_is_lxd):
         md = {'instance-id': 'IID', 'dsmode': 'local'}
         ud = b"USER_DATA_HERE"
@@ -89,6 +119,18 @@ class TestNoCloudDataSource(CiTestCase):
         dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
         ret = dsrc.get_data()
         self.assertFalse(ret)
+
+    def test_fs_config_lowercase_label(self, m_is_lxd):
+        self._test_fs_config_is_read('cidata', 'cidata')
+
+    def test_fs_config_uppercase_label(self, m_is_lxd):
+        self._test_fs_config_is_read('CIDATA', 'cidata')
+
+    def test_fs_config_lowercase_label_search_uppercase(self, m_is_lxd):
+        self._test_fs_config_is_read('cidata', 'CIDATA')
+
+    def test_fs_config_uppercase_label_search_uppercase(self, m_is_lxd):
+        self._test_fs_config_is_read('CIDATA', 'CIDATA')
 
     def test_no_datasource_expected(self, m_is_lxd):
         # no source should be found if no cmdline, config, and fs_label=None

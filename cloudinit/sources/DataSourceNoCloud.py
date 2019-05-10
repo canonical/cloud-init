@@ -106,7 +106,9 @@ class DataSourceNoCloud(sources.DataSource):
             fslist = util.find_devs_with("TYPE=vfat")
             fslist.extend(util.find_devs_with("TYPE=iso9660"))
 
-            label_list = util.find_devs_with("LABEL=%s" % label)
+            label_list = util.find_devs_with("LABEL=%s" % label.upper())
+            label_list.extend(util.find_devs_with("LABEL=%s" % label.lower()))
+
             devlist = list(set(fslist) & set(label_list))
             devlist.sort(reverse=True)
 

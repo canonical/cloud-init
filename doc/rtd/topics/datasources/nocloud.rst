@@ -9,7 +9,7 @@ network at all).
 
 You can provide meta-data and user-data to a local vm boot via files on a
 `vfat`_ or `iso9660`_ filesystem. The filesystem volume label must be
-``cidata``.
+``cidata`` or ``CIDATA``.
 
 Alternatively, you can provide meta-data via kernel command line or SMBIOS
 "serial number" option. The data must be passed in the form of a string:
