@@ -1679,7 +1679,7 @@ def mounts():
     return mounted
 
 
-def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True,
+def mount_cb(device, callback, data=None, mtype=None,
              update_env_for_mount=None):
     """
     Mount the device, call method 'callback' passing the directory
@@ -1726,18 +1726,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True,
             for mtype in mtypes:
                 mountpoint = None
                 try:
-                    mountcmd = ['mount']
-                    mountopts = []
-                    if rw:
-                        mountopts.append('rw')
-                    else:
-                        mountopts.append('ro')
-                    if sync:
-                        # This seems like the safe approach to do
-                        # (ie where this is on by default)
-                        mountopts.append("sync")
-                    if mountopts:
-                        mountcmd.extend(["-o", ",".join(mountopts)])
+                    mountcmd = ['mount', '-o', 'ro']
                     if mtype:
                         mountcmd.extend(['-t', mtype])
                     mountcmd.append(device)

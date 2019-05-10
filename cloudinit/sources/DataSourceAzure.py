@@ -57,7 +57,12 @@ AZURE_CHASSIS_ASSET_TAG = '7783-7084-3265-9085-8269-3286-77'
 REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
 REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = '/var/lib/waagent'
+
+# In the event where the IMDS primary server is not
+# available, it takes 1s to fallback to the secondary one
+IMDS_TIMEOUT_IN_SECONDS = 2
 IMDS_URL = "http://169.254.169.254/metadata/"
+
 PLATFORM_ENTROPY_SOURCE = "/sys/firmware/acpi/tables/OEM0"
 
 # List of static scripts and network config artifacts created by
@@ -407,7 +412,7 @@ class DataSourceAzure(sources.DataSource):
                 elif cdev.startswith("/dev/"):
                     if util.is_FreeBSD():
                         ret = util.mount_cb(cdev, load_azure_ds_dir,
-                                            mtype="udf", sync=False)
+                                            mtype="udf")
                     else:
                         ret = util.mount_cb(cdev, load_azure_ds_dir)
                 else:
@@ -582,9 +587,9 @@ class DataSourceAzure(sources.DataSource):
                         return
                     self._ephemeral_dhcp_ctx.clean_network()
                 else:
-                    return readurl(url, timeout=1, headers=headers,
-                                   exception_cb=exc_cb, infinite=True,
-                                   log_req_resp=False).contents
+                    return readurl(url, timeout=IMDS_TIMEOUT_IN_SECONDS,
+                                   headers=headers, exception_cb=exc_cb,
+                                   infinite=True, log_req_resp=False).contents
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry
                 self._ephemeral_dhcp_ctx.clean_network()
@@ -1291,8 +1296,8 @@ def _get_metadata_from_imds(retries):
     headers = {"Metadata": "true"}
     try:
         response = readurl(
-            url, timeout=1, headers=headers, retries=retries,
-            exception_cb=retry_on_url_exc)
+            url, timeout=IMDS_TIMEOUT_IN_SECONDS, headers=headers,
+            retries=retries, exception_cb=retry_on_url_exc)
     except Exception as e:
         LOG.debug('Ignoring IMDS instance metadata: %s', e)
         return {}
