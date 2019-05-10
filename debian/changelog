@@ -1,4 +1,4 @@
-cloud-init (19.1-1-gbaa47854-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (19.1-1-gbaa47854-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * debian/patches/ubuntu-advantage-revert-tip.patch
     Revert ubuntu-advantage config module changes until ubuntu-advantage-tools
