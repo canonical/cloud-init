@@ -20,6 +20,9 @@ from cloudinit.reporting import events
 
 LOG = logging.getLogger(__name__)
 
+# This endpoint matches the format as found in dhcp lease files, since this
+# value is applied if the endpoint can't be found within a lease file
+DEFAULT_WIRESERVER_ENDPOINT = "a8:3f:81:10"
 
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
@@ -297,7 +300,12 @@ class WALinuxAgentShim(object):
     @azure_ds_telemetry_reporter
     def _get_value_from_leases_file(fallback_lease_file):
         leases = []
-        content = util.load_file(fallback_lease_file)
+        try:
+            content = util.load_file(fallback_lease_file)
+        except IOError as ex:
+            LOG.error("Failed to read %s: %s", fallback_lease_file, ex)
+            return None
+
         LOG.debug("content is %s", content)
         option_name = _get_dhcp_endpoint_option_name()
         for line in content.splitlines():
@@ -372,9 +380,9 @@ class WALinuxAgentShim(object):
                           fallback_lease_file)
                 value = WALinuxAgentShim._get_value_from_leases_file(
                     fallback_lease_file)
-
         if value is None:
-            raise ValueError('No endpoint found.')
+            LOG.warning("No lease found; using default endpoint")
+            value = DEFAULT_WIRESERVER_ENDPOINT
 
         endpoint_ip_address = WALinuxAgentShim.get_ip_from_lease_value(value)
         LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
