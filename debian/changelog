@@ -1,3 +1,28 @@
+cloud-init (19.1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+    - release 19.1 (LP: #1828479)
+    - freebsd: add chpasswd pkg in the image [Gonéri Le Bouder]
+    - tests: add Eoan release [Paride Legovini]
+    - cc_mounts: check if mount -a on no-change fstab path
+      [Jason Zions (MSFT)] (LP: #1825596)
+    - replace remaining occurrences of LOG.warn
+    - DataSourceAzure: Adjust timeout for polling IMDS [Anh Vo]
+    - Azure: Changes to the Hyper-V KVP Reporter [Anh Vo]
+    - git tests: no longer show warning about safe yaml. [Scott Moser]
+    - tools/read-version: handle errors [Chad Miller]
+    - net/sysconfig: only indicate available on known sysconfig distros
+      (LP: #1819994)
+    - packages: update rpm specs for new bash completion path (LP: #1825444)
+    - test_azure: mock util.SeLinuxGuard where needed
+      [Jason Zions (MSFT)] (LP: #1825253)
+    - setup.py: install bash completion script in new location
+    - mount_cb: do not pass sync and rw options to mount
+      [Gonéri Le Bouder] (LP: #1645824)
+    - cc_apt_configure: fix typo in apt documentation [Dominic Schlegel]
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 10 May 2019 12:11:06 -0600
+
 cloud-init (18.5-62-g6322c2dd-0ubuntu1) disco; urgency=medium
 
   * New upstream snapshot.
