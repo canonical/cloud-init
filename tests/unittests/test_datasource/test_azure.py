@@ -163,7 +163,8 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
         m_readurl.assert_called_with(
             self.network_md_url, exception_cb=mock.ANY,
-            headers={'Metadata': 'true'}, retries=2, timeout=1)
+            headers={'Metadata': 'true'}, retries=2,
+            timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS)
 
     @mock.patch('cloudinit.url_helper.time.sleep')
     @mock.patch(MOCKPATH + 'net.is_up')
@@ -1375,12 +1376,15 @@ class TestCanDevBeReformatted(CiTestCase):
         self._domock(p + "util.mount_cb", 'm_mount_cb')
         self._domock(p + "os.path.realpath", 'm_realpath')
         self._domock(p + "os.path.exists", 'm_exists')
+        self._domock(p + "util.SeLinuxGuard", 'm_selguard')
 
         self.m_exists.side_effect = lambda p: p in bypath
         self.m_realpath.side_effect = realpath
         self.m_has_ntfs_filesystem.side_effect = has_ntfs_fs
         self.m_mount_cb.side_effect = mount_cb
         self.m_partitions_on_device.side_effect = partitions_on_device
+        self.m_selguard.__enter__ = mock.Mock(return_value=False)
+        self.m_selguard.__exit__ = mock.Mock()
 
     def test_three_partitions_is_false(self):
         """A disk with 3 partitions can not be formatted."""
@@ -1788,7 +1792,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                                     headers={'Metadata': 'true',
                                              'User-Agent':
                                              'Cloud-Init/%s' % vs()
-                                             }, method='GET', timeout=1,
+                                             }, method='GET',
+                                    timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
                                     url=full_url)])
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
@@ -1825,7 +1830,9 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                                     headers={'Metadata': 'true',
                                              'User-Agent':
                                              'Cloud-Init/%s' % vs()},
-                                    method='GET', timeout=1, url=full_url)])
+                                    method='GET',
+                                    timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
+                                    url=full_url)])
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',

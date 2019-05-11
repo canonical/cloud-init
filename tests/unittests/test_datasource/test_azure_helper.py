@@ -67,12 +67,17 @@ class TestFindEndpoint(CiTestCase):
         self.networkd_leases.return_value = None
 
     def test_missing_file(self):
-        self.assertRaises(ValueError, wa_shim.find_endpoint)
+        """wa_shim find_endpoint uses default endpoint if leasefile not found
+        """
+        self.assertEqual(wa_shim.find_endpoint(), "168.63.129.16")
 
     def test_missing_special_azure_line(self):
+        """wa_shim find_endpoint uses default endpoint if leasefile is found
+        but does not contain DHCP Option 245 (whose value is the endpoint)
+        """
         self.load_file.return_value = ''
         self.dhcp_options.return_value = {'eth0': {'key': 'value'}}
-        self.assertRaises(ValueError, wa_shim.find_endpoint)
+        self.assertEqual(wa_shim.find_endpoint(), "168.63.129.16")
 
     @staticmethod
     def _build_lease_content(encoded_address):

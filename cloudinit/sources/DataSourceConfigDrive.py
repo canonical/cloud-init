@@ -72,15 +72,12 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             dslist = self.sys_cfg.get('datasource_list')
             for dev in find_candidate_devs(dslist=dslist):
                 try:
-                    # Set mtype if freebsd and turn off sync
-                    if dev.startswith("/dev/cd"):
+                    if util.is_FreeBSD() and dev.startswith("/dev/cd"):
                         mtype = "cd9660"
-                        sync = False
                     else:
                         mtype = None
-                        sync = True
                     results = util.mount_cb(dev, read_config_drive,
-                                            mtype=mtype, sync=sync)
+                                            mtype=mtype)
                     found = dev
                 except openstack.NonReadable:
                     pass

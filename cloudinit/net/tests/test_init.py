@@ -7,11 +7,11 @@ import mock
 import os
 import requests
 import textwrap
-import yaml
 
 import cloudinit.net as net
 from cloudinit.util import ensure_file, write_file, ProcessExecutionError
 from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase
+from cloudinit import safeyaml as yaml
 
 
 class TestSysDevPath(CiTestCase):
