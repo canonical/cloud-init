@@ -1,4 +1,4 @@
-cloud-init (19.1-1-gbaa47854-0ubuntu1~19.04.1) UNRELEASED; urgency=medium
+cloud-init (19.1-1-gbaa47854-0ubuntu1~19.04.1) disco; urgency=medium
 
   * New upstream snapshot. (LP: #1828637)
     - Azure: Return static fallback address as if failed to find endpoint
