@@ -4,3 +4,4 @@ stable-release-no-jsonschema-dep.patch
 openstack-no-network-config.patch
 azure-apply-network-config-false.patch
 ec2-classic-dont-reapply-networking.patch
+ubuntu-advantage-revert-tip.patch

@@ -1,0 +1,735 @@
+Description: Revert upstream changes for ubuntu-advantage-tools v 19.1
+ ubuntu-advantage-tools v. 19.1 or later is required for the newcw
+ cloud-config module becaues the two command lines are incompatible.
+ Xenial can drop this patch once ubuntu-advantage-tools has been SRU'd >= 19.1
+Author: Chad Smith <chad.smith@canonical.com>
+Origin: backport
+Bug: https://bugs.launchpad.net/cloud-init/+bug/1828641
+Forwarded: not-needed
+Last-Update: 2019-05-10
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: cloud-init/cloudinit/config/cc_ubuntu_advantage.py
+===================================================================
+--- cloud-init.orig/cloudinit/config/cc_ubuntu_advantage.py
++++ cloud-init/cloudinit/config/cc_ubuntu_advantage.py
+@@ -1,143 +1,150 @@
++# Copyright (C) 2018 Canonical Ltd.
++#
+ # This file is part of cloud-init. See LICENSE file for license information.
+ 
+-"""ubuntu_advantage: Configure Ubuntu Advantage support services"""
++"""Ubuntu advantage: manage ubuntu-advantage offerings from Canonical."""
+ 
++import sys
+ from textwrap import dedent
+ 
+-import six
+-
++from cloudinit import log as logging
+ from cloudinit.config.schema import (
+     get_schema_doc, validate_cloudconfig_schema)
+-from cloudinit import log as logging
+ from cloudinit.settings import PER_INSTANCE
++from cloudinit.subp import prepend_base_command
+ from cloudinit import util
+ 
+ 
+-UA_URL = 'https://ubuntu.com/advantage'
+-
+ distros = ['ubuntu']
++frequency = PER_INSTANCE
++
++LOG = logging.getLogger(__name__)
+ 
+ schema = {
+     'id': 'cc_ubuntu_advantage',
+     'name': 'Ubuntu Advantage',
+-    'title': 'Configure Ubuntu Advantage support services',
++    'title': 'Install, configure and manage ubuntu-advantage offerings',
+     'description': dedent("""\
+-        Attach machine to an existing Ubuntu Advantage support contract and
+-        enable or disable support services such as Livepatch, ESM,
+-        FIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,
+-        one can also specify services to enable.  When the 'enable'
+-        list is present, any named service will be enabled and all absent
+-        services will remain disabled.
+-
+-        Note that when enabling FIPS or FIPS updates you will need to schedule
+-        a reboot to ensure the machine is running the FIPS-compliant kernel.
+-        See :ref:`Power State Change` for information on how to configure
+-        cloud-init to perform this reboot.
++        This module provides configuration options to setup ubuntu-advantage
++        subscriptions.
++
++        .. note::
++            Both ``commands`` value can be either a dictionary or a list. If
++            the configuration provided is a dictionary, the keys are only used
++            to order the execution of the commands and the dictionary is
++            merged with any vendor-data ubuntu-advantage configuration
++            provided. If a ``commands`` is provided as a list, any vendor-data
++            ubuntu-advantage ``commands`` are ignored.
++
++        Ubuntu-advantage ``commands`` is a dictionary or list of
++        ubuntu-advantage commands to run on the deployed machine.
++        These commands can be used to enable or disable subscriptions to
++        various ubuntu-advantage products. See 'man ubuntu-advantage' for more
++        information on supported subcommands.
++
++        .. note::
++           Each command item can be a string or list. If the item is a list,
++           'ubuntu-advantage' can be omitted and it will automatically be
++           inserted as part of the command.
+         """),
+     'distros': distros,
+     'examples': [dedent("""\
+-        # Attach the machine to a Ubuntu Advantage support contract with a
+-        # UA contract token obtained from %s.
+-        ubuntu_advantage:
+-          token: <ua_contract_token>
+-    """ % UA_URL), dedent("""\
+-        # Attach the machine to an Ubuntu Advantage support contract enabling
+-        # only fips and esm services. Services will only be enabled if
+-        # the environment supports said service. Otherwise warnings will
+-        # be logged for incompatible services specified.
++        # Enable Extended Security Maintenance using your service auth token
++        ubuntu-advantage:
++            commands:
++              00: ubuntu-advantage enable-esm <token>
++    """), dedent("""\
++        # Enable livepatch by providing your livepatch token
+         ubuntu-advantage:
+-          token: <ua_contract_token>
+-          enable:
+-          - fips
+-          - esm
++            commands:
++                00: ubuntu-advantage enable-livepatch <livepatch-token>
++
+     """), dedent("""\
+-        # Attach the machine to an Ubuntu Advantage support contract and enable
+-        # the FIPS service.  Perform a reboot once cloud-init has
+-        # completed.
+-        power_state:
+-          mode: reboot
++        # Convenience: the ubuntu-advantage command can be omitted when
++        # specifying commands as a list and 'ubuntu-advantage' will
++        # automatically be prepended.
++        # The following commands are equivalent
+         ubuntu-advantage:
+-          token: <ua_contract_token>
+-          enable:
+-          - fips
+-        """)],
++            commands:
++                00: ['enable-livepatch', 'my-token']
++                01: ['ubuntu-advantage', 'enable-livepatch', 'my-token']
++                02: ubuntu-advantage enable-livepatch my-token
++                03: 'ubuntu-advantage enable-livepatch my-token'
++    """)],
+     'frequency': PER_INSTANCE,
+     'type': 'object',
+     'properties': {
+-        'ubuntu_advantage': {
++        'ubuntu-advantage': {
+             'type': 'object',
+             'properties': {
+-                'enable': {
+-                    'type': 'array',
+-                    'items': {'type': 'string'},
+-                },
+-                'token': {
+-                    'type': 'string',
+-                    'description': (
+-                        'A contract token obtained from %s.' % UA_URL)
++                'commands': {
++                    'type': ['object', 'array'],  # Array of strings or dict
++                    'items': {
++                        'oneOf': [
++                            {'type': 'array', 'items': {'type': 'string'}},
++                            {'type': 'string'}]
++                    },
++                    'additionalItems': False,  # Reject non-string & non-list
++                    'minItems': 1,
++                    'minProperties': 1,
+                 }
+             },
+-            'required': ['token'],
+-            'additionalProperties': False
++            'additionalProperties': False,  # Reject keys not in schema
++            'required': ['commands']
+         }
+     }
+ }
+ 
++# TODO schema for 'assertions' and 'commands' are too permissive at the moment.
++# Once python-jsonschema supports schema draft 6 add support for arbitrary
++# object keys with 'patternProperties' constraint to validate string values.
++
+ __doc__ = get_schema_doc(schema)  # Supplement python help()
+ 
+-LOG = logging.getLogger(__name__)
++UA_CMD = "ubuntu-advantage"
+ 
+ 
+-def configure_ua(token=None, enable=None):
+-    """Call ua commandline client to attach or enable services."""
+-    error = None
+-    if not token:
+-        error = ('ubuntu_advantage: token must be provided')
+-        LOG.error(error)
+-        raise RuntimeError(error)
+-
+-    if enable is None:
+-        enable = []
+-    elif isinstance(enable, six.string_types):
+-        LOG.warning('ubuntu_advantage: enable should be a list, not'
+-                    ' a string; treating as a single enable')
+-        enable = [enable]
+-    elif not isinstance(enable, list):
+-        LOG.warning('ubuntu_advantage: enable should be a list, not'
+-                    ' a %s; skipping enabling services',
+-                    type(enable).__name__)
+-        enable = []
++def run_commands(commands):
++    """Run the commands provided in ubuntu-advantage:commands config.
+ 
+-    attach_cmd = ['ua', 'attach', token]
+-    LOG.debug('Attaching to Ubuntu Advantage. %s', ' '.join(attach_cmd))
+-    try:
+-        util.subp(attach_cmd)
+-    except util.ProcessExecutionError as e:
+-        msg = 'Failure attaching Ubuntu Advantage:\n{error}'.format(
+-            error=str(e))
+-        util.logexc(LOG, msg)
+-        raise RuntimeError(msg)
+-    enable_errors = []
+-    for service in enable:
++     Commands are run individually. Any errors are collected and reported
++     after attempting all commands.
++
++     @param commands: A list or dict containing commands to run. Keys of a
++         dict will be used to order the commands provided as dict values.
++     """
++    if not commands:
++        return
++    LOG.debug('Running user-provided ubuntu-advantage commands')
++    if isinstance(commands, dict):
++        # Sort commands based on dictionary key
++        commands = [v for _, v in sorted(commands.items())]
++    elif not isinstance(commands, list):
++        raise TypeError(
++            'commands parameter was not a list or dict: {commands}'.format(
++                commands=commands))
++
++    fixed_ua_commands = prepend_base_command('ubuntu-advantage', commands)
++
++    cmd_failures = []
++    for command in fixed_ua_commands:
++        shell = isinstance(command, str)
+         try:
+-            cmd = ['ua', 'enable', service]
+-            util.subp(cmd, capture=True)
++            util.subp(command, shell=shell, status_cb=sys.stderr.write)
+         except util.ProcessExecutionError as e:
+-            enable_errors.append((service, e))
+-    if enable_errors:
+-        for service, error in enable_errors:
+-            msg = 'Failure enabling "{service}":\n{error}'.format(
+-                service=service, error=str(error))
+-            util.logexc(LOG, msg)
+-        raise RuntimeError(
+-            'Failure enabling Ubuntu Advantage service(s): {}'.format(
+-                ', '.join('"{}"'.format(service)
+-                          for service, _ in enable_errors)))
++            cmd_failures.append(str(e))
++    if cmd_failures:
++        msg = (
++            'Failures running ubuntu-advantage commands:\n'
++            '{cmd_failures}'.format(
++                cmd_failures=cmd_failures))
++        util.logexc(LOG, msg)
++        raise RuntimeError(msg)
+ 
+ 
+ def maybe_install_ua_tools(cloud):
+     """Install ubuntu-advantage-tools if not present."""
+-    if util.which('ua'):
++    if util.which('ubuntu-advantage'):
+         return
+     try:
+         cloud.distro.update_package_sources()
+@@ -152,28 +159,14 @@ def maybe_install_ua_tools(cloud):
+ 
+ 
+ def handle(name, cfg, cloud, log, args):
+-    ua_section = None
+-    if 'ubuntu-advantage' in cfg:
+-        LOG.warning('Deprecated configuration key "ubuntu-advantage" provided.'
+-                    ' Expected underscore delimited "ubuntu_advantage"; will'
+-                    ' attempt to continue.')
+-        ua_section = cfg['ubuntu-advantage']
+-    if 'ubuntu_advantage' in cfg:
+-        ua_section = cfg['ubuntu_advantage']
+-    if ua_section is None:
+-        LOG.debug("Skipping module named %s,"
+-                  " no 'ubuntu_advantage' configuration found", name)
++    cfgin = cfg.get('ubuntu-advantage')
++    if cfgin is None:
++        LOG.debug(("Skipping module named %s,"
++                   " no 'ubuntu-advantage' key in configuration"), name)
+         return
+-    validate_cloudconfig_schema(cfg, schema)
+-    if 'commands' in ua_section:
+-        msg = (
+-            'Deprecated configuration "ubuntu-advantage: commands" provided.'
+-            ' Expected "token"')
+-        LOG.error(msg)
+-        raise RuntimeError(msg)
+ 
++    validate_cloudconfig_schema(cfg, schema)
+     maybe_install_ua_tools(cloud)
+-    configure_ua(token=ua_section.get('token'),
+-                 enable=ua_section.get('enable'))
++    run_commands(cfgin.get('commands', []))
+ 
+ # vi: ts=4 expandtab
+Index: cloud-init/cloudinit/config/tests/test_ubuntu_advantage.py
+===================================================================
+--- cloud-init.orig/cloudinit/config/tests/test_ubuntu_advantage.py
++++ cloud-init/cloudinit/config/tests/test_ubuntu_advantage.py
+@@ -1,7 +1,10 @@
+ # This file is part of cloud-init. See LICENSE file for license information.
+ 
++import re
++from six import StringIO
++
+ from cloudinit.config.cc_ubuntu_advantage import (
+-    configure_ua, handle, maybe_install_ua_tools, schema)
++    handle, maybe_install_ua_tools, run_commands, schema)
+ from cloudinit.config.schema import validate_cloudconfig_schema
+ from cloudinit import util
+ from cloudinit.tests.helpers import (
+@@ -17,120 +20,90 @@ class FakeCloud(object):
+         self.distro = distro
+ 
+ 
+-class TestConfigureUA(CiTestCase):
++class TestRunCommands(CiTestCase):
+ 
+     with_logs = True
+     allowed_subp = [CiTestCase.SUBP_SHELL_TRUE]
+ 
+     def setUp(self):
+-        super(TestConfigureUA, self).setUp()
++        super(TestRunCommands, self).setUp()
+         self.tmp = self.tmp_dir()
+ 
+     @mock.patch('%s.util.subp' % MPATH)
+-    def test_configure_ua_attach_error(self, m_subp):
+-        """Errors from ua attach command are raised."""
+-        m_subp.side_effect = util.ProcessExecutionError(
+-            'Invalid token SomeToken')
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            configure_ua(token='SomeToken')
++    def test_run_commands_on_empty_list(self, m_subp):
++        """When provided with an empty list, run_commands does nothing."""
++        run_commands([])
++        self.assertEqual('', self.logs.getvalue())
++        m_subp.assert_not_called()
++
++    def test_run_commands_on_non_list_or_dict(self):
++        """When provided an invalid type, run_commands raises an error."""
++        with self.assertRaises(TypeError) as context_manager:
++            run_commands(commands="I'm Not Valid")
+         self.assertEqual(
+-            'Failure attaching Ubuntu Advantage:\nUnexpected error while'
+-            ' running command.\nCommand: -\nExit code: -\nReason: -\n'
+-            'Stdout: Invalid token SomeToken\nStderr: -',
++            "commands parameter was not a list or dict: I'm Not Valid",
+             str(context_manager.exception))
+ 
+-    @mock.patch('%s.util.subp' % MPATH)
+-    def test_configure_ua_attach_with_token(self, m_subp):
+-        """When token is provided, attach the machine to ua using the token."""
+-        configure_ua(token='SomeToken')
+-        m_subp.assert_called_once_with(['ua', 'attach', 'SomeToken'])
+-        self.assertEqual(
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.util.subp' % MPATH)
+-    def test_configure_ua_attach_on_service_error(self, m_subp):
+-        """all services should be enabled and then any failures raised"""
+-
+-        def fake_subp(cmd, capture=None):
+-            fail_cmds = [['ua', 'enable', svc] for svc in ['esm', 'cc']]
+-            if cmd in fail_cmds and capture:
+-                svc = cmd[-1]
+-                raise util.ProcessExecutionError(
+-                    'Invalid {} credentials'.format(svc.upper()))
++    def test_run_command_logs_commands_and_exit_codes_to_stderr(self):
++        """All exit codes are logged to stderr."""
++        outfile = self.tmp_path('output.log', dir=self.tmp)
++
++        cmd1 = 'echo "HI" >> %s' % outfile
++        cmd2 = 'bogus command'
++        cmd3 = 'echo "MOM" >> %s' % outfile
++        commands = [cmd1, cmd2, cmd3]
++
++        mock_path = '%s.sys.stderr' % MPATH
++        with mock.patch(mock_path, new_callable=StringIO) as m_stderr:
++            with self.assertRaises(RuntimeError) as context_manager:
++                run_commands(commands=commands)
++
++        self.assertIsNotNone(
++            re.search(r'bogus: (command )?not found',
++                      str(context_manager.exception)),
++            msg='Expected bogus command not found')
++        expected_stderr_log = '\n'.join([
++            'Begin run command: {cmd}'.format(cmd=cmd1),
++            'End run command: exit(0)',
++            'Begin run command: {cmd}'.format(cmd=cmd2),
++            'ERROR: End run command: exit(127)',
++            'Begin run command: {cmd}'.format(cmd=cmd3),
++            'End run command: exit(0)\n'])
++        self.assertEqual(expected_stderr_log, m_stderr.getvalue())
++
++    def test_run_command_as_lists(self):
++        """When commands are specified as a list, run them in order."""
++        outfile = self.tmp_path('output.log', dir=self.tmp)
++
++        cmd1 = 'echo "HI" >> %s' % outfile
++        cmd2 = 'echo "MOM" >> %s' % outfile
++        commands = [cmd1, cmd2]
++        with mock.patch('%s.sys.stderr' % MPATH, new_callable=StringIO):
++            run_commands(commands=commands)
+ 
+-        m_subp.side_effect = fake_subp
+-
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            configure_ua(token='SomeToken', enable=['esm', 'cc', 'fips'])
+-        self.assertEqual(
+-            m_subp.call_args_list,
+-            [mock.call(['ua', 'attach', 'SomeToken']),
+-             mock.call(['ua', 'enable', 'esm'], capture=True),
+-             mock.call(['ua', 'enable', 'cc'], capture=True),
+-             mock.call(['ua', 'enable', 'fips'], capture=True)])
+         self.assertIn(
+-            'WARNING: Failure enabling "esm":\nUnexpected error'
+-            ' while running command.\nCommand: -\nExit code: -\nReason: -\n'
+-            'Stdout: Invalid ESM credentials\nStderr: -\n',
++            'DEBUG: Running user-provided ubuntu-advantage commands',
+             self.logs.getvalue())
++        self.assertEqual('HI\nMOM\n', util.load_file(outfile))
+         self.assertIn(
+-            'WARNING: Failure enabling "cc":\nUnexpected error'
+-            ' while running command.\nCommand: -\nExit code: -\nReason: -\n'
+-            'Stdout: Invalid CC credentials\nStderr: -\n',
+-            self.logs.getvalue())
+-        self.assertEqual(
+-            'Failure enabling Ubuntu Advantage service(s): "esm", "cc"',
+-            str(context_manager.exception))
+-
+-    @mock.patch('%s.util.subp' % MPATH)
+-    def test_configure_ua_attach_with_empty_services(self, m_subp):
+-        """When services is an empty list, do not auto-enable attach."""
+-        configure_ua(token='SomeToken', enable=[])
+-        m_subp.assert_called_once_with(['ua', 'attach', 'SomeToken'])
+-        self.assertEqual(
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.util.subp' % MPATH)
+-    def test_configure_ua_attach_with_specific_services(self, m_subp):
+-        """When services a list, only enable specific services."""
+-        configure_ua(token='SomeToken', enable=['fips'])
+-        self.assertEqual(
+-            m_subp.call_args_list,
+-            [mock.call(['ua', 'attach', 'SomeToken']),
+-             mock.call(['ua', 'enable', 'fips'], capture=True)])
+-        self.assertEqual(
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH, mock.MagicMock())
+-    @mock.patch('%s.util.subp' % MPATH)
+-    def test_configure_ua_attach_with_string_services(self, m_subp):
+-        """When services a string, treat as singleton list and warn"""
+-        configure_ua(token='SomeToken', enable='fips')
+-        self.assertEqual(
+-            m_subp.call_args_list,
+-            [mock.call(['ua', 'attach', 'SomeToken']),
+-             mock.call(['ua', 'enable', 'fips'], capture=True)])
+-        self.assertEqual(
+-            'WARNING: ubuntu_advantage: enable should be a list, not a'
+-            ' string; treating as a single enable\n'
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
++            'WARNING: Non-ubuntu-advantage commands in ubuntu-advantage'
++            ' config:',
+             self.logs.getvalue())
+ 
+-    @mock.patch('%s.util.subp' % MPATH)
+-    def test_configure_ua_attach_with_weird_services(self, m_subp):
+-        """When services not string or list, warn but still attach"""
+-        configure_ua(token='SomeToken', enable={'deffo': 'wont work'})
+-        self.assertEqual(
+-            m_subp.call_args_list,
+-            [mock.call(['ua', 'attach', 'SomeToken'])])
+-        self.assertEqual(
+-            'WARNING: ubuntu_advantage: enable should be a list, not a'
+-            ' dict; skipping enabling services\n'
+-            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
+-            self.logs.getvalue())
++    def test_run_command_dict_sorted_as_command_script(self):
++        """When commands are a dict, sort them and run."""
++        outfile = self.tmp_path('output.log', dir=self.tmp)
++        cmd1 = 'echo "HI" >> %s' % outfile
++        cmd2 = 'echo "MOM" >> %s' % outfile
++        commands = {'02': cmd1, '01': cmd2}
++        with mock.patch('%s.sys.stderr' % MPATH, new_callable=StringIO):
++            run_commands(commands=commands)
++
++        expected_messages = [
++            'DEBUG: Running user-provided ubuntu-advantage commands']
++        for message in expected_messages:
++            self.assertIn(message, self.logs.getvalue())
++        self.assertEqual('MOM\nHI\n', util.load_file(outfile))
+ 
+ 
+ @skipUnlessJsonSchema()
+@@ -139,50 +112,90 @@ class TestSchema(CiTestCase, SchemaTestC
+     with_logs = True
+     schema = schema
+ 
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_schema_warns_on_ubuntu_advantage_not_dict(self, _cfg, _):
+-        """If ubuntu_advantage configuration is not a dict, emit a warning."""
+-        validate_cloudconfig_schema({'ubuntu_advantage': 'wrong type'}, schema)
++    def test_schema_warns_on_ubuntu_advantage_not_as_dict(self):
++        """If ubuntu-advantage configuration is not a dict, emit a warning."""
++        validate_cloudconfig_schema({'ubuntu-advantage': 'wrong type'}, schema)
+         self.assertEqual(
+-            "WARNING: Invalid config:\nubuntu_advantage: 'wrong type' is not"
++            "WARNING: Invalid config:\nubuntu-advantage: 'wrong type' is not"
+             " of type 'object'\n",
+             self.logs.getvalue())
+ 
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_schema_disallows_unknown_keys(self, _cfg, _):
+-        """Unknown keys in ubuntu_advantage configuration emit warnings."""
++    @mock.patch('%s.run_commands' % MPATH)
++    def test_schema_disallows_unknown_keys(self, _):
++        """Unknown keys in ubuntu-advantage configuration emit warnings."""
+         validate_cloudconfig_schema(
+-            {'ubuntu_advantage': {'token': 'winner', 'invalid-key': ''}},
++            {'ubuntu-advantage': {'commands': ['ls'], 'invalid-key': ''}},
+             schema)
+         self.assertIn(
+-            'WARNING: Invalid config:\nubuntu_advantage: Additional properties'
++            'WARNING: Invalid config:\nubuntu-advantage: Additional properties'
+             " are not allowed ('invalid-key' was unexpected)",
+             self.logs.getvalue())
+ 
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_warn_schema_requires_token(self, _cfg, _):
+-        """Warn if ubuntu_advantage configuration lacks token."""
++    def test_warn_schema_requires_commands(self):
++        """Warn when ubuntu-advantage configuration lacks commands."""
+         validate_cloudconfig_schema(
+-            {'ubuntu_advantage': {'enable': ['esm']}}, schema)
++            {'ubuntu-advantage': {}}, schema)
+         self.assertEqual(
+-            "WARNING: Invalid config:\nubuntu_advantage:"
+-            " 'token' is a required property\n", self.logs.getvalue())
++            "WARNING: Invalid config:\nubuntu-advantage: 'commands' is a"
++            " required property\n",
++            self.logs.getvalue())
+ 
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_warn_schema_services_is_not_list_or_dict(self, _cfg, _):
+-        """Warn when ubuntu_advantage:enable config is not a list."""
++    @mock.patch('%s.run_commands' % MPATH)
++    def test_warn_schema_commands_is_not_list_or_dict(self, _):
++        """Warn when ubuntu-advantage:commands config is not a list or dict."""
+         validate_cloudconfig_schema(
+-            {'ubuntu_advantage': {'enable': 'needslist'}}, schema)
++            {'ubuntu-advantage': {'commands': 'broken'}}, schema)
+         self.assertEqual(
+-            "WARNING: Invalid config:\nubuntu_advantage: 'token' is a"
+-            " required property\nubuntu_advantage.enable: 'needslist'"
+-            " is not of type 'array'\n",
++            "WARNING: Invalid config:\nubuntu-advantage.commands: 'broken' is"
++            " not of type 'object', 'array'\n",
+             self.logs.getvalue())
+ 
++    @mock.patch('%s.run_commands' % MPATH)
++    def test_warn_schema_when_commands_is_empty(self, _):
++        """Emit warnings when ubuntu-advantage:commands is empty."""
++        validate_cloudconfig_schema(
++            {'ubuntu-advantage': {'commands': []}}, schema)
++        validate_cloudconfig_schema(
++            {'ubuntu-advantage': {'commands': {}}}, schema)
++        self.assertEqual(
++            "WARNING: Invalid config:\nubuntu-advantage.commands: [] is too"
++            " short\nWARNING: Invalid config:\nubuntu-advantage.commands: {}"
++            " does not have enough properties\n",
++            self.logs.getvalue())
++
++    @mock.patch('%s.run_commands' % MPATH)
++    def test_schema_when_commands_are_list_or_dict(self, _):
++        """No warnings when ubuntu-advantage:commands are a list or dict."""
++        validate_cloudconfig_schema(
++            {'ubuntu-advantage': {'commands': ['valid']}}, schema)
++        validate_cloudconfig_schema(
++            {'ubuntu-advantage': {'commands': {'01': 'also valid'}}}, schema)
++        self.assertEqual('', self.logs.getvalue())
++
++    def test_duplicates_are_fine_array_array(self):
++        """Duplicated commands array/array entries are allowed."""
++        self.assertSchemaValid(
++            {'commands': [["echo", "bye"], ["echo" "bye"]]},
++            "command entries can be duplicate.")
++
++    def test_duplicates_are_fine_array_string(self):
++        """Duplicated commands array/string entries are allowed."""
++        self.assertSchemaValid(
++            {'commands': ["echo bye", "echo bye"]},
++            "command entries can be duplicate.")
++
++    def test_duplicates_are_fine_dict_array(self):
++        """Duplicated commands dict/array entries are allowed."""
++        self.assertSchemaValid(
++            {'commands': {'00': ["echo", "bye"], '01': ["echo", "bye"]}},
++            "command entries can be duplicate.")
++
++    def test_duplicates_are_fine_dict_string(self):
++        """Duplicated commands dict/string entries are allowed."""
++        self.assertSchemaValid(
++            {'commands': {'00': "echo bye", '01': "echo bye"}},
++            "command entries can be duplicate.")
++
+ 
+ class TestHandle(CiTestCase):
+ 
+@@ -192,89 +205,41 @@ class TestHandle(CiTestCase):
+         super(TestHandle, self).setUp()
+         self.tmp = self.tmp_dir()
+ 
++    @mock.patch('%s.run_commands' % MPATH)
+     @mock.patch('%s.validate_cloudconfig_schema' % MPATH)
+-    def test_handle_no_config(self, m_schema):
++    def test_handle_no_config(self, m_schema, m_run):
+         """When no ua-related configuration is provided, nothing happens."""
+         cfg = {}
+         handle('ua-test', cfg=cfg, cloud=None, log=self.logger, args=None)
+         self.assertIn(
+-            "DEBUG: Skipping module named ua-test, no 'ubuntu_advantage'"
+-            ' configuration found',
++            "DEBUG: Skipping module named ua-test, no 'ubuntu-advantage' key"
++            " in config",
+             self.logs.getvalue())
+         m_schema.assert_not_called()
++        m_run.assert_not_called()
+ 
+-    @mock.patch('%s.configure_ua' % MPATH)
+     @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    def test_handle_tries_to_install_ubuntu_advantage_tools(
+-            self, m_install, m_cfg):
++    def test_handle_tries_to_install_ubuntu_advantage_tools(self, m_install):
+         """If ubuntu_advantage is provided, try installing ua-tools package."""
+-        cfg = {'ubuntu_advantage': {'token': 'valid'}}
++        cfg = {'ubuntu-advantage': {}}
+         mycloud = FakeCloud(None)
+         handle('nomatter', cfg=cfg, cloud=mycloud, log=self.logger, args=None)
+         m_install.assert_called_once_with(mycloud)
+ 
+-    @mock.patch('%s.configure_ua' % MPATH)
+     @mock.patch('%s.maybe_install_ua_tools' % MPATH)
+-    def test_handle_passes_credentials_and_services_to_configure_ua(
+-            self, m_install, m_configure_ua):
+-        """All ubuntu_advantage config keys are passed to configure_ua."""
+-        cfg = {'ubuntu_advantage': {'token': 'token', 'enable': ['esm']}}
+-        handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        m_configure_ua.assert_called_once_with(
+-            token='token', enable=['esm'])
+-
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH, mock.MagicMock())
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_handle_warns_on_deprecated_ubuntu_advantage_key_w_config(
+-            self, m_configure_ua):
+-        """Warning when ubuntu-advantage key is present with new config"""
+-        cfg = {'ubuntu-advantage': {'token': 'token', 'enable': ['esm']}}
+-        handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        self.assertEqual(
+-            'WARNING: Deprecated configuration key "ubuntu-advantage"'
+-            ' provided. Expected underscore delimited "ubuntu_advantage";'
+-            ' will attempt to continue.',
+-            self.logs.getvalue().splitlines()[0])
+-        m_configure_ua.assert_called_once_with(
+-            token='token', enable=['esm'])
+-
+-    def test_handle_error_on_deprecated_commands_key_dashed(self):
+-        """Error when commands is present in ubuntu-advantage key."""
+-        cfg = {'ubuntu-advantage': {'commands': 'nogo'}}
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        self.assertEqual(
+-            'Deprecated configuration "ubuntu-advantage: commands" provided.'
+-            ' Expected "token"',
+-            str(context_manager.exception))
+-
+-    def test_handle_error_on_deprecated_commands_key_underscored(self):
+-        """Error when commands is present in ubuntu_advantage key."""
+-        cfg = {'ubuntu_advantage': {'commands': 'nogo'}}
+-        with self.assertRaises(RuntimeError) as context_manager:
+-            handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        self.assertEqual(
+-            'Deprecated configuration "ubuntu-advantage: commands" provided.'
+-            ' Expected "token"',
+-            str(context_manager.exception))
++    def test_handle_runs_commands_provided(self, m_install):
++        """When commands are specified as a list, run them."""
++        outfile = self.tmp_path('output.log', dir=self.tmp)
+ 
+-    @mock.patch('%s.maybe_install_ua_tools' % MPATH, mock.MagicMock())
+-    @mock.patch('%s.configure_ua' % MPATH)
+-    def test_handle_prefers_new_style_config(
+-            self, m_configure_ua):
+-        """ubuntu_advantage should be preferred over ubuntu-advantage"""
+         cfg = {
+-            'ubuntu-advantage': {'token': 'nope', 'enable': ['wrong']},
+-            'ubuntu_advantage': {'token': 'token', 'enable': ['esm']},
+-        }
+-        handle('nomatter', cfg=cfg, cloud=None, log=self.logger, args=None)
+-        self.assertEqual(
+-            'WARNING: Deprecated configuration key "ubuntu-advantage"'
+-            ' provided. Expected underscore delimited "ubuntu_advantage";'
+-            ' will attempt to continue.',
+-            self.logs.getvalue().splitlines()[0])
+-        m_configure_ua.assert_called_once_with(
+-            token='token', enable=['esm'])
++            'ubuntu-advantage': {'commands': ['echo "HI" >> %s' % outfile,
++                                              'echo "MOM" >> %s' % outfile]}}
++        mock_path = '%s.sys.stderr' % MPATH
++        with self.allow_subp([CiTestCase.SUBP_SHELL_TRUE]):
++            with mock.patch(mock_path, new_callable=StringIO):
++                handle('nomatter', cfg=cfg, cloud=None, log=self.logger,
++                       args=None)
++        self.assertEqual('HI\nMOM\n', util.load_file(outfile))
+ 
+ 
+ class TestMaybeInstallUATools(CiTestCase):
+@@ -288,7 +253,7 @@ class TestMaybeInstallUATools(CiTestCase
+     @mock.patch('%s.util.which' % MPATH)
+     def test_maybe_install_ua_tools_noop_when_ua_tools_present(self, m_which):
+         """Do nothing if ubuntu-advantage-tools already exists."""
+-        m_which.return_value = '/usr/bin/ua'  # already installed
++        m_which.return_value = '/usr/bin/ubuntu-advantage'  # already installed
+         distro = mock.MagicMock()
+         distro.update_package_sources.side_effect = RuntimeError(
+             'Some apt error')
