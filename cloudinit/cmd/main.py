@@ -632,13 +632,14 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         'start': None,
         'finished': None,
     }
+
     if status is None:
         status = {'v1': {}}
-        for m in modes:
-            status['v1'][m] = nullstatus.copy()
         status['v1']['datasource'] = None
-    elif mode not in status['v1']:
-        status['v1'][mode] = nullstatus.copy()
+
+    for m in modes:
+        if m not in status['v1']:
+            status['v1'][m] = nullstatus.copy()
 
     v1 = status['v1']
     v1['stage'] = mode

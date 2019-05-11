@@ -5,8 +5,7 @@ required_features:
   - apt
 cloud_config: |
   #cloud-config
-  apt:
-    apt_pipelining: false
+  apt_pipelining: false
 collect_scripts:
   90cloud-init-pipelining: |
     #!/bin/bash

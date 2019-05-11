@@ -208,7 +208,7 @@ class DataSourceEc2(sources.DataSource):
         start_time = time.time()
         url = uhelp.wait_for_url(
             urls=urls, max_wait=url_params.max_wait_seconds,
-            timeout=url_params.timeout_seconds, status_cb=LOG.warn)
+            timeout=url_params.timeout_seconds, status_cb=LOG.warning)
 
         if url:
             self.metadata_address = url2base[url]
@@ -334,8 +334,12 @@ class DataSourceEc2(sources.DataSource):
         if isinstance(net_md, dict):
             result = convert_ec2_metadata_network_config(
                 net_md, macs_to_nics=macs_to_nics, fallback_nic=iface)
-            # RELEASE_BLOCKER: Xenial debian/postinst needs to add
-            # EventType.BOOT on upgrade path for classic.
+
+            # RELEASE_BLOCKER: xenial should drop the below if statement,
+            # because the issue being addressed doesn't exist pre-netplan.
+            # (This datasource doesn't implement check_instance_id() so the
+            # datasource object is recreated every boot; this means we don't
+            # need to modify update_events on cloud-init upgrade.)
 
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
             # network config file every boot due to MAC address change.

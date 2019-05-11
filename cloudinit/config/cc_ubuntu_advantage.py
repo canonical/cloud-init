@@ -1,150 +1,143 @@
-# Copyright (C) 2018 Canonical Ltd.
-#
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Ubuntu advantage: manage ubuntu-advantage offerings from Canonical."""
+"""ubuntu_advantage: Configure Ubuntu Advantage support services"""
 
-import sys
 from textwrap import dedent
 
-from cloudinit import log as logging
+import six
+
 from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
+from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
-from cloudinit.subp import prepend_base_command
 from cloudinit import util
 
 
-distros = ['ubuntu']
-frequency = PER_INSTANCE
+UA_URL = 'https://ubuntu.com/advantage'
 
-LOG = logging.getLogger(__name__)
+distros = ['ubuntu']
 
 schema = {
     'id': 'cc_ubuntu_advantage',
     'name': 'Ubuntu Advantage',
-    'title': 'Install, configure and manage ubuntu-advantage offerings',
+    'title': 'Configure Ubuntu Advantage support services',
     'description': dedent("""\
-        This module provides configuration options to setup ubuntu-advantage
-        subscriptions.
+        Attach machine to an existing Ubuntu Advantage support contract and
+        enable or disable support services such as Livepatch, ESM,
+        FIPS and FIPS Updates. When attaching a machine to Ubuntu Advantage,
+        one can also specify services to enable.  When the 'enable'
+        list is present, any named service will be enabled and all absent
+        services will remain disabled.
 
-        .. note::
-            Both ``commands`` value can be either a dictionary or a list. If
-            the configuration provided is a dictionary, the keys are only used
-            to order the execution of the commands and the dictionary is
-            merged with any vendor-data ubuntu-advantage configuration
-            provided. If a ``commands`` is provided as a list, any vendor-data
-            ubuntu-advantage ``commands`` are ignored.
-
-        Ubuntu-advantage ``commands`` is a dictionary or list of
-        ubuntu-advantage commands to run on the deployed machine.
-        These commands can be used to enable or disable subscriptions to
-        various ubuntu-advantage products. See 'man ubuntu-advantage' for more
-        information on supported subcommands.
-
-        .. note::
-           Each command item can be a string or list. If the item is a list,
-           'ubuntu-advantage' can be omitted and it will automatically be
-           inserted as part of the command.
+        Note that when enabling FIPS or FIPS updates you will need to schedule
+        a reboot to ensure the machine is running the FIPS-compliant kernel.
+        See :ref:`Power State Change` for information on how to configure
+        cloud-init to perform this reboot.
         """),
     'distros': distros,
     'examples': [dedent("""\
-        # Enable Extended Security Maintenance using your service auth token
+        # Attach the machine to a Ubuntu Advantage support contract with a
+        # UA contract token obtained from %s.
+        ubuntu_advantage:
+          token: <ua_contract_token>
+    """ % UA_URL), dedent("""\
+        # Attach the machine to an Ubuntu Advantage support contract enabling
+        # only fips and esm services. Services will only be enabled if
+        # the environment supports said service. Otherwise warnings will
+        # be logged for incompatible services specified.
         ubuntu-advantage:
-            commands:
-              00: ubuntu-advantage enable-esm <token>
+          token: <ua_contract_token>
+          enable:
+          - fips
+          - esm
     """), dedent("""\
-        # Enable livepatch by providing your livepatch token
+        # Attach the machine to an Ubuntu Advantage support contract and enable
+        # the FIPS service.  Perform a reboot once cloud-init has
+        # completed.
+        power_state:
+          mode: reboot
         ubuntu-advantage:
-            commands:
-                00: ubuntu-advantage enable-livepatch <livepatch-token>
-
-    """), dedent("""\
-        # Convenience: the ubuntu-advantage command can be omitted when
-        # specifying commands as a list and 'ubuntu-advantage' will
-        # automatically be prepended.
-        # The following commands are equivalent
-        ubuntu-advantage:
-            commands:
-                00: ['enable-livepatch', 'my-token']
-                01: ['ubuntu-advantage', 'enable-livepatch', 'my-token']
-                02: ubuntu-advantage enable-livepatch my-token
-                03: 'ubuntu-advantage enable-livepatch my-token'
-    """)],
+          token: <ua_contract_token>
+          enable:
+          - fips
+        """)],
     'frequency': PER_INSTANCE,
     'type': 'object',
     'properties': {
-        'ubuntu-advantage': {
+        'ubuntu_advantage': {
             'type': 'object',
             'properties': {
-                'commands': {
-                    'type': ['object', 'array'],  # Array of strings or dict
-                    'items': {
-                        'oneOf': [
-                            {'type': 'array', 'items': {'type': 'string'}},
-                            {'type': 'string'}]
-                    },
-                    'additionalItems': False,  # Reject non-string & non-list
-                    'minItems': 1,
-                    'minProperties': 1,
+                'enable': {
+                    'type': 'array',
+                    'items': {'type': 'string'},
+                },
+                'token': {
+                    'type': 'string',
+                    'description': (
+                        'A contract token obtained from %s.' % UA_URL)
                 }
             },
-            'additionalProperties': False,  # Reject keys not in schema
-            'required': ['commands']
+            'required': ['token'],
+            'additionalProperties': False
         }
     }
 }
 
-# TODO schema for 'assertions' and 'commands' are too permissive at the moment.
-# Once python-jsonschema supports schema draft 6 add support for arbitrary
-# object keys with 'patternProperties' constraint to validate string values.
-
 __doc__ = get_schema_doc(schema)  # Supplement python help()
 
-UA_CMD = "ubuntu-advantage"
+LOG = logging.getLogger(__name__)
 
 
-def run_commands(commands):
-    """Run the commands provided in ubuntu-advantage:commands config.
+def configure_ua(token=None, enable=None):
+    """Call ua commandline client to attach or enable services."""
+    error = None
+    if not token:
+        error = ('ubuntu_advantage: token must be provided')
+        LOG.error(error)
+        raise RuntimeError(error)
 
-     Commands are run individually. Any errors are collected and reported
-     after attempting all commands.
+    if enable is None:
+        enable = []
+    elif isinstance(enable, six.string_types):
+        LOG.warning('ubuntu_advantage: enable should be a list, not'
+                    ' a string; treating as a single enable')
+        enable = [enable]
+    elif not isinstance(enable, list):
+        LOG.warning('ubuntu_advantage: enable should be a list, not'
+                    ' a %s; skipping enabling services',
+                    type(enable).__name__)
+        enable = []
 
-     @param commands: A list or dict containing commands to run. Keys of a
-         dict will be used to order the commands provided as dict values.
-     """
-    if not commands:
-        return
-    LOG.debug('Running user-provided ubuntu-advantage commands')
-    if isinstance(commands, dict):
-        # Sort commands based on dictionary key
-        commands = [v for _, v in sorted(commands.items())]
-    elif not isinstance(commands, list):
-        raise TypeError(
-            'commands parameter was not a list or dict: {commands}'.format(
-                commands=commands))
-
-    fixed_ua_commands = prepend_base_command('ubuntu-advantage', commands)
-
-    cmd_failures = []
-    for command in fixed_ua_commands:
-        shell = isinstance(command, str)
-        try:
-            util.subp(command, shell=shell, status_cb=sys.stderr.write)
-        except util.ProcessExecutionError as e:
-            cmd_failures.append(str(e))
-    if cmd_failures:
-        msg = (
-            'Failures running ubuntu-advantage commands:\n'
-            '{cmd_failures}'.format(
-                cmd_failures=cmd_failures))
+    attach_cmd = ['ua', 'attach', token]
+    LOG.debug('Attaching to Ubuntu Advantage. %s', ' '.join(attach_cmd))
+    try:
+        util.subp(attach_cmd)
+    except util.ProcessExecutionError as e:
+        msg = 'Failure attaching Ubuntu Advantage:\n{error}'.format(
+            error=str(e))
         util.logexc(LOG, msg)
         raise RuntimeError(msg)
+    enable_errors = []
+    for service in enable:
+        try:
+            cmd = ['ua', 'enable', service]
+            util.subp(cmd, capture=True)
+        except util.ProcessExecutionError as e:
+            enable_errors.append((service, e))
+    if enable_errors:
+        for service, error in enable_errors:
+            msg = 'Failure enabling "{service}":\n{error}'.format(
+                service=service, error=str(error))
+            util.logexc(LOG, msg)
+        raise RuntimeError(
+            'Failure enabling Ubuntu Advantage service(s): {}'.format(
+                ', '.join('"{}"'.format(service)
+                          for service, _ in enable_errors)))
 
 
 def maybe_install_ua_tools(cloud):
     """Install ubuntu-advantage-tools if not present."""
-    if util.which('ubuntu-advantage'):
+    if util.which('ua'):
         return
     try:
         cloud.distro.update_package_sources()
@@ -159,14 +152,28 @@ def maybe_install_ua_tools(cloud):
 
 
 def handle(name, cfg, cloud, log, args):
-    cfgin = cfg.get('ubuntu-advantage')
-    if cfgin is None:
-        LOG.debug(("Skipping module named %s,"
-                   " no 'ubuntu-advantage' key in configuration"), name)
+    ua_section = None
+    if 'ubuntu-advantage' in cfg:
+        LOG.warning('Deprecated configuration key "ubuntu-advantage" provided.'
+                    ' Expected underscore delimited "ubuntu_advantage"; will'
+                    ' attempt to continue.')
+        ua_section = cfg['ubuntu-advantage']
+    if 'ubuntu_advantage' in cfg:
+        ua_section = cfg['ubuntu_advantage']
+    if ua_section is None:
+        LOG.debug("Skipping module named %s,"
+                  " no 'ubuntu_advantage' configuration found", name)
         return
-
     validate_cloudconfig_schema(cfg, schema)
+    if 'commands' in ua_section:
+        msg = (
+            'Deprecated configuration "ubuntu-advantage: commands" provided.'
+            ' Expected "token"')
+        LOG.error(msg)
+        raise RuntimeError(msg)
+
     maybe_install_ua_tools(cloud)
-    run_commands(cfgin.get('commands', []))
+    configure_ua(token=ua_section.get('token'),
+                 enable=ua_section.get('enable'))
 
 # vi: ts=4 expandtab

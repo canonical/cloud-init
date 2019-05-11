@@ -127,7 +127,7 @@ to ``^[\\w-]+:\\w``
 
 Source list entries can be specified as a dictionary under the ``sources``
 config key, with key in the dict representing a different source file. The key
-The key of each source entry will be used as an id that can be referenced in
+of each source entry will be used as an id that can be referenced in
 other config entries, as well as the filename for the source's configuration
 under ``/etc/apt/sources.list.d``. If the name does not end with ``.list``,
 it will be appended. If there is no configuration for a key in ``sources``, no

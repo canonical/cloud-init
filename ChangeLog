@@ -1,3 +1,120 @@
+19.1:
+  - freebsd: add chpasswd pkg in the image [Gonéri Le Bouder]
+  - tests: add Eoan release [Paride Legovini]
+  - cc_mounts: check if mount -a on no-change fstab path
+    [Jason Zions (MSFT)] (LP: #1825596)
+  - replace remaining occurrences of LOG.warn [Daniel Watkins]
+  - DataSourceAzure: Adjust timeout for polling IMDS [Anh Vo]
+  - Azure: Changes to the Hyper-V KVP Reporter [Anh Vo]
+  - git tests: no longer show warning about safe yaml.
+  - tools/read-version: handle errors [Chad Miller]
+  - net/sysconfig: only indicate available on known sysconfig distros
+    (LP: #1819994)
+  - packages: update rpm specs for new bash completion path
+    [Daniel Watkins] (LP: #1825444)
+  - test_azure: mock util.SeLinuxGuard where needed
+    [Jason Zions (MSFT)] (LP: #1825253)
+  - setup.py: install bash completion script in new location [Daniel Watkins]
+  - mount_cb: do not pass sync and rw options to mount
+    [Gonéri Le Bouder] (LP: #1645824)
+  - cc_apt_configure: fix typo in apt documentation [Dominic Schlegel]
+  - Revert "DataSource: move update_events from a class to an instance..."
+    [Daniel Watkins]
+  - Change DataSourceNoCloud to ignore file system label's case.
+    [Risto Oikarinen]
+  - cmd:main.py: Fix missing 'modules-init' key in modes dict
+    [Antonio Romito] (LP: #1815109)
+  - ubuntu_advantage: rewrite cloud-config module
+  - Azure: Treat _unset network configuration as if it were absent
+    [Jason Zions (MSFT)] (LP: #1823084)
+  - DatasourceAzure: add additional logging for azure datasource [Anh Vo]
+  - cloud_tests: fix apt_pipelining test-cases
+  - Azure: Ensure platform random_seed is always serializable as JSON.
+    [Jason Zions (MSFT)]
+  - net/sysconfig: write out SUSE-compatible IPv6 config [Robert Schweikert]
+  - tox: Update testenv for openSUSE Leap to 15.0 [Thomas Bechtold]
+  - net: Fix ipv6 static routes when using eni renderer
+    [Raphael Glon] (LP: #1818669)
+  - Add ubuntu_drivers config module [Daniel Watkins]
+  - doc: Refresh Azure walinuxagent docs [Daniel Watkins]
+  - tox: bump pylint version to latest (2.3.1) [Daniel Watkins]
+  - DataSource: move update_events from a class to an instance attribute
+    [Daniel Watkins] (LP: #1819913)
+  - net/sysconfig: Handle default route setup for dhcp configured NICs
+    [Robert Schweikert] (LP: #1812117)
+  - DataSourceEc2: update RELEASE_BLOCKER to be more accurate
+    [Daniel Watkins]
+  - cloud-init-per: POSIX sh does not support string subst, use sed
+    (LP: #1819222)
+  - Support locking user with usermod if passwd is not available.
+  - Example for Microsoft Azure data disk added. [Anton Olifir]
+  - clean: correctly determine the path for excluding seed directory
+    [Daniel Watkins] (LP: #1818571)
+  - helpers/openstack: Treat unknown link types as physical
+    [Daniel Watkins] (LP: #1639263)
+  - drop Python 2.6 support and our NIH version detection [Daniel Watkins]
+  - tip-pylint: Fix assignment-from-return-none errors
+  - net: append type:dhcp[46] only if dhcp[46] is True in v2 netconfig
+    [Kurt Stieger] (LP: #1818032)
+  - cc_apt_pipelining: stop disabling pipelining by default
+    [Daniel Watkins] (LP: #1794982)
+  - tests: fix some slow tests and some leaking state [Daniel Watkins]
+  - util: don't determine string_types ourselves [Daniel Watkins]
+  - cc_rsyslog: Escape possible nested set [Daniel Watkins] (LP: #1816967)
+  - Enable encrypted_data_bag_secret support for Chef
+    [Eric Williams] (LP: #1817082)
+  - azure: Filter list of ssh keys pulled from fabric [Jason Zions (MSFT)]
+  - doc: update merging doc with fixes and some additional details/examples
+  - tests: integration test failure summary to use traceback if empty error
+  - This is to fix https://bugs.launchpad.net/cloud-init/+bug/1812676
+    [Vitaly Kuznetsov]
+  - EC2: Rewrite network config on AWS Classic instances every boot
+    [Guilherme G. Piccoli] (LP: #1802073)
+  - netinfo: Adjust ifconfig output parsing for FreeBSD ipv6 entries
+    (LP: #1779672)
+  - netplan: Don't render yaml aliases when dumping netplan (LP: #1815051)
+  - add PyCharm IDE .idea/ path to .gitignore [Dominic Schlegel]
+  - correct grammar issue in instance metadata documentation
+    [Dominic Schlegel] (LP: #1802188)
+  - clean: cloud-init clean should not trace when run from within cloud_dir
+    (LP: #1795508)
+  - Resolve flake8 comparison and pycodestyle over-ident issues
+    [Paride Legovini]
+  - opennebula: also exclude epochseconds from changed environment vars
+    (LP: #1813641)
+  - systemd: Render generator from template to account for system
+    differences. [Robert Schweikert]
+  - sysconfig: On SUSE, use STARTMODE instead of ONBOOT
+    [Robert Schweikert] (LP: #1799540)
+  - flake8: use ==/!= to compare str, bytes, and int literals
+    [Paride Legovini]
+  - opennebula: exclude EPOCHREALTIME as known bash env variable with a
+    delta (LP: #1813383)
+  - tox: fix disco httpretty dependencies for py37 (LP: #1813361)
+  - run-container: uncomment baseurl in yum.repos.d/*.repo when using a
+    proxy [Paride Legovini]
+  - lxd: install zfs-linux instead of zfs meta package
+    [Johnson Shi] (LP: #1799779)
+  - net/sysconfig: do not write a resolv.conf file with only the header.
+    [Robert Schweikert]
+  - net: Make sysconfig renderer compatible with Network Manager.
+    [Eduardo Otubo]
+  - cc_set_passwords: Fix regex when parsing hashed passwords
+    [Marlin Cremers] (LP: #1811446)
+  - net: Wait for dhclient to daemonize before reading lease file
+    [Jason Zions] (LP: #1794399)
+  - [Azure] Increase retries when talking to Wireserver during metadata walk
+    [Jason Zions]
+  - Add documentation on adding a datasource.
+  - doc: clean up some datasource documentation.
+  - ds-identify: fix wrong variable name in ovf_vmware_transport_guestinfo.
+  - Scaleway: Support ssh keys provided inside an instance tag. [PORTE Loïc]
+  - OVF: simplify expected return values of transport functions.
+  - Vmware: Add support for the com.vmware.guestInfo OVF transport.
+    (LP: #1807466)
+  - HACKING.rst: change contact info to Josh Powers
+  - Update to pylint 2.2.2.
+
 18.5:
  - tests: add Disco release [Joshua Powers]
  - net: render 'metric' values in per-subnet routes (LP: #1805871)

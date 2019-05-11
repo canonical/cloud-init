@@ -520,6 +520,10 @@ class TestDsIdentify(DsIdentifyBase):
         """NoCloud is found with iso9660 filesystem on non-cdrom disk."""
         self._test_ds_found('NoCloud')
 
+    def test_nocloud_upper(self):
+        """NoCloud is found with uppercase filesystem label."""
+        self._test_ds_found('NoCloudUpper')
+
     def test_nocloud_seed(self):
         """Nocloud seed directory."""
         self._test_ds_found('NoCloud-seed')
@@ -708,6 +712,19 @@ VALID_CFG = {
              'out': blkid_out(
                  BLKID_UEFI_UBUNTU +
                  [{'DEVNAME': 'vdb', 'TYPE': 'iso9660', 'LABEL': 'cidata'}])},
+        ],
+        'files': {
+            'dev/vdb': 'pretend iso content for cidata\n',
+        }
+    },
+    'NoCloudUpper': {
+        'ds': 'NoCloud',
+        'mocks': [
+            MOCK_VIRT_IS_KVM,
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 BLKID_UEFI_UBUNTU +
+                 [{'DEVNAME': 'vdb', 'TYPE': 'iso9660', 'LABEL': 'CIDATA'}])},
         ],
         'files': {
             'dev/vdb': 'pretend iso content for cidata\n',

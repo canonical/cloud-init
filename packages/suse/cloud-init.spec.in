@@ -120,7 +120,9 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 %config(noreplace) %{_sysconfdir}/cloud/cloud.cfg.d/README
 %dir               %{_sysconfdir}/cloud/templates
 %config(noreplace) %{_sysconfdir}/cloud/templates/*
-%{_sysconfdir}/bash_completion.d/cloud-init
+
+# Bash completion script
+%{_datadir}/bash-completion/completions/cloud-init
 
 %{_sysconfdir}/dhcp/dhclient-exit-hooks.d/hook-dhclient
 %{_sysconfdir}/NetworkManager/dispatcher.d/hook-network-manager

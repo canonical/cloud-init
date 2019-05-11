@@ -8,8 +8,8 @@ class TestAptPipeliningOS(base.CloudTestCase):
     """Test apt-pipelining module."""
 
     def test_os_pipelining(self):
-        """Test pipelining set to os."""
-        out = self.get_data_file('90cloud-init-pipelining')
-        self.assertIn('Acquire::http::Pipeline-Depth "0";', out)
+        """test 'os' settings does not write apt config file."""
+        out = self.get_data_file('90cloud-init-pipelining_not_written')
+        self.assertEqual(0, int(out))
 
 # vi: ts=4 expandtab
