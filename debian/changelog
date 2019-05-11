@@ -1,3 +1,51 @@
+cloud-init (19.1-1-gbaa47854-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+
+  * debian/patches/ubuntu-advantage-revert-tip.patch
+    Revert ubuntu-advantage config module changes until ubuntu-advantage-tools
+    19.1 publishes to Bionic (LP: #1828641)
+  * New upstream snapshot. (LP: #1828637)
+    - Azure: Return static fallback address as if failed to find endpoint
+      [Jason Zions (MSFT)]
+    - release 19.1
+    - freebsd: add chpasswd pkg in the image [Gonéri Le Bouder]
+    - tests: add Eoan release [Paride Legovini]
+    - cc_mounts: check if mount -a on no-change fstab path [Jason Zions (MSFT)]
+    - replace remaining occurrences of LOG.warn
+    - DataSourceAzure: Adjust timeout for polling IMDS [Anh Vo]
+    - Azure: Changes to the Hyper-V KVP Reporter [Anh Vo]
+    - git tests: no longer show warning about safe yaml. [Scott Moser]
+    - tools/read-version: handle errors [Chad Miller]
+    - net/sysconfig: only indicate available on known sysconfig distros
+    - packages: update rpm specs for new bash completion path
+    - test_azure: mock util.SeLinuxGuard where needed [Jason Zions (MSFT)]
+    - setup.py: install bash completion script in new location
+    - mount_cb: do not pass sync and rw options to mount [Gonéri Le Bouder]
+    - cc_apt_configure: fix typo in apt documentation [Dominic Schlegel]
+    - Revert "DataSource: move update_events from a class to an instance..."
+    - Change DataSourceNoCloud to ignore file system label's case.
+      [Risto Oikarinen]
+    - cmd:main.py: Fix missing 'modules-init' key in modes dict
+      [Antonio Romito]
+    - ubuntu_advantage: rewrite cloud-config module
+    - Azure: Treat _unset network configuration as if it were absent
+      [Jason Zions (MSFT)]
+    - DatasourceAzure: add additional logging for azure datasource [Anh Vo]
+    - cloud_tests: fix apt_pipelining test-cases
+    - Azure: Ensure platform random_seed is always serializable as JSON.
+      [Jason Zions (MSFT)]
+    - net/sysconfig: write out SUSE-compatible IPv6 config [Robert Schweikert]
+    - tox: Update testenv for openSUSE Leap to 15.0 [Thomas Bechtold]
+    - net: Fix ipv6 static routes when using eni renderer [Raphael Glon]
+    - Add ubuntu_drivers config module
+    - doc: Refresh Azure walinuxagent docs
+    - tox: bump pylint version to latest (2.3.1)
+    - DataSource: move update_events from a class to an instance attribute
+    - net/sysconfig: Handle default route setup for dhcp configured NICs
+      [Robert Schweikert]
+    - DataSourceEc2: update RELEASE_BLOCKER to be more accurate
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 10 May 2019 23:17:50 -0600
+
 cloud-init (18.5-45-g3554ffe8-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * New upstream snapshot. (LP: #1819067)
