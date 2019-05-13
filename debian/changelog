@@ -1,5 +1,8 @@
-cloud-init (19.1-1-gbaa47854-0ubuntu1~18.10.1) UNRELEASED; urgency=medium
+cloud-init (19.1-1-gbaa47854-0ubuntu1~18.10.1) cosmic; urgency=medium
 
+  * debian/patches/ubuntu-advantage-revert-tip.patch
+    Revert ubuntu-advantage config module changes until ubuntu-advantage-tools
+    19.1 publishes to Cosmic (LP: #1828641)
   * New upstream snapshot. (LP: #1828637)
     - Azure: Return static fallback address as if failed to find endpoint
       [Jason Zions (MSFT)]
