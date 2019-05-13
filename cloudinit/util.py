@@ -703,6 +703,21 @@ def get_cfg_option_list(yobj, key, default=None):
 # get a cfg entry by its path array
 # for f['a']['b']: get_cfg_by_path(mycfg,('a','b'))
 def get_cfg_by_path(yobj, keyp, default=None):
+    """Return the value of the item at path C{keyp} in C{yobj}.
+
+    example:
+      get_cfg_by_path({'a': {'b': {'num': 4}}}, 'a/b/num') == 4
+      get_cfg_by_path({'a': {'b': {'num': 4}}}, 'c/d') == None
+
+    @param yobj: A dictionary.
+    @param keyp: A path inside yobj.  it can be a '/' delimited string,
+                 or an iterable.
+    @param default: The default to return if the path does not exist.
+    @return: The value of the item at keyp."
+        is not found."""
+
+    if isinstance(keyp, six.string_types):
+        keyp = keyp.split("/")
     cur = yobj
     for tok in keyp:
         if tok not in cur:
@@ -1664,7 +1679,7 @@ def mounts():
     return mounted
 
 
-def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True,
+def mount_cb(device, callback, data=None, mtype=None,
              update_env_for_mount=None):
     """
     Mount the device, call method 'callback' passing the directory
@@ -1711,18 +1726,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True,
             for mtype in mtypes:
                 mountpoint = None
                 try:
-                    mountcmd = ['mount']
-                    mountopts = []
-                    if rw:
-                        mountopts.append('rw')
-                    else:
-                        mountopts.append('ro')
-                    if sync:
-                        # This seems like the safe approach to do
-                        # (ie where this is on by default)
-                        mountopts.append("sync")
-                    if mountopts:
-                        mountcmd.extend(["-o", ",".join(mountopts)])
+                    mountcmd = ['mount', '-o', 'ro']
                     if mtype:
                         mountcmd.extend(['-t', mtype])
                     mountcmd.append(device)

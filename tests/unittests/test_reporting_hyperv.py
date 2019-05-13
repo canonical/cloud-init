@@ -1,10 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.reporting import events
-from cloudinit.reporting import handlers
+from cloudinit.reporting.handlers import HyperVKvpReportingHandler
 
 import json
 import os
+import struct
+import time
 
 from cloudinit import util
 from cloudinit.tests.helpers import CiTestCase
@@ -13,7 +15,7 @@ from cloudinit.tests.helpers import CiTestCase
 class TestKvpEncoding(CiTestCase):
     def test_encode_decode(self):
         kvp = {'key': 'key1', 'value': 'value1'}
-        kvp_reporting = handlers.HyperVKvpReportingHandler()
+        kvp_reporting = HyperVKvpReportingHandler()
         data = kvp_reporting._encode_kvp_item(kvp['key'], kvp['value'])
         self.assertEqual(len(data), kvp_reporting.HV_KVP_RECORD_SIZE)
         decoded_kvp = kvp_reporting._decode_kvp_item(data)
@@ -26,57 +28,9 @@ class TextKvpReporter(CiTestCase):
         self.tmp_file_path = self.tmp_path('kvp_pool_file')
         util.ensure_file(self.tmp_file_path)
 
-    def test_event_type_can_be_filtered(self):
-        reporter = handlers.HyperVKvpReportingHandler(
-            kvp_file_path=self.tmp_file_path,
-            event_types=['foo', 'bar'])
-
-        reporter.publish_event(
-            events.ReportingEvent('foo', 'name', 'description'))
-        reporter.publish_event(
-            events.ReportingEvent('some_other', 'name', 'description3'))
-        reporter.q.join()
-
-        kvps = list(reporter._iterate_kvps(0))
-        self.assertEqual(1, len(kvps))
-
-        reporter.publish_event(
-            events.ReportingEvent('bar', 'name', 'description2'))
-        reporter.q.join()
-        kvps = list(reporter._iterate_kvps(0))
-        self.assertEqual(2, len(kvps))
-
-        self.assertIn('foo', kvps[0]['key'])
-        self.assertIn('bar', kvps[1]['key'])
-        self.assertNotIn('some_other', kvps[0]['key'])
-        self.assertNotIn('some_other', kvps[1]['key'])
-
-    def test_events_are_over_written(self):
-        reporter = handlers.HyperVKvpReportingHandler(
-            kvp_file_path=self.tmp_file_path)
-
-        self.assertEqual(0, len(list(reporter._iterate_kvps(0))))
-
-        reporter.publish_event(
-            events.ReportingEvent('foo', 'name1', 'description'))
-        reporter.publish_event(
-            events.ReportingEvent('foo', 'name2', 'description'))
-        reporter.q.join()
-        self.assertEqual(2, len(list(reporter._iterate_kvps(0))))
-
-        reporter2 = handlers.HyperVKvpReportingHandler(
-            kvp_file_path=self.tmp_file_path)
-        reporter2.incarnation_no = reporter.incarnation_no + 1
-        reporter2.publish_event(
-            events.ReportingEvent('foo', 'name3', 'description'))
-        reporter2.q.join()
-
-        self.assertEqual(2, len(list(reporter2._iterate_kvps(0))))
-
     def test_events_with_higher_incarnation_not_over_written(self):
-        reporter = handlers.HyperVKvpReportingHandler(
+        reporter = HyperVKvpReportingHandler(
             kvp_file_path=self.tmp_file_path)
-
         self.assertEqual(0, len(list(reporter._iterate_kvps(0))))
 
         reporter.publish_event(
@@ -86,7 +40,7 @@ class TextKvpReporter(CiTestCase):
         reporter.q.join()
         self.assertEqual(2, len(list(reporter._iterate_kvps(0))))
 
-        reporter3 = handlers.HyperVKvpReportingHandler(
+        reporter3 = HyperVKvpReportingHandler(
             kvp_file_path=self.tmp_file_path)
         reporter3.incarnation_no = reporter.incarnation_no - 1
         reporter3.publish_event(
@@ -95,7 +49,7 @@ class TextKvpReporter(CiTestCase):
         self.assertEqual(3, len(list(reporter3._iterate_kvps(0))))
 
     def test_finish_event_result_is_logged(self):
-        reporter = handlers.HyperVKvpReportingHandler(
+        reporter = HyperVKvpReportingHandler(
             kvp_file_path=self.tmp_file_path)
         reporter.publish_event(
             events.FinishReportingEvent('name2', 'description1',
@@ -105,7 +59,7 @@ class TextKvpReporter(CiTestCase):
 
     def test_file_operation_issue(self):
         os.remove(self.tmp_file_path)
-        reporter = handlers.HyperVKvpReportingHandler(
+        reporter = HyperVKvpReportingHandler(
             kvp_file_path=self.tmp_file_path)
         reporter.publish_event(
             events.FinishReportingEvent('name2', 'description1',
@@ -113,7 +67,7 @@ class TextKvpReporter(CiTestCase):
         reporter.q.join()
 
     def test_event_very_long(self):
-        reporter = handlers.HyperVKvpReportingHandler(
+        reporter = HyperVKvpReportingHandler(
             kvp_file_path=self.tmp_file_path)
         description = 'ab' * reporter.HV_KVP_EXCHANGE_MAX_VALUE_SIZE
         long_event = events.FinishReportingEvent(
@@ -132,3 +86,43 @@ class TextKvpReporter(CiTestCase):
             self.assertEqual(msg_slice['msg_i'], i)
             full_description += msg_slice['msg']
         self.assertEqual(description, full_description)
+
+    def test_not_truncate_kvp_file_modified_after_boot(self):
+        with open(self.tmp_file_path, "wb+") as f:
+            kvp = {'key': 'key1', 'value': 'value1'}
+            data = (struct.pack("%ds%ds" % (
+                    HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_KEY_SIZE,
+                    HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_VALUE_SIZE),
+                    kvp['key'].encode('utf-8'), kvp['value'].encode('utf-8')))
+            f.write(data)
+        cur_time = time.time()
+        os.utime(self.tmp_file_path, (cur_time, cur_time))
+
+        # reset this because the unit test framework
+        # has already polluted the class variable
+        HyperVKvpReportingHandler._already_truncated_pool_file = False
+
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        kvps = list(reporter._iterate_kvps(0))
+        self.assertEqual(1, len(kvps))
+
+    def test_truncate_stale_kvp_file(self):
+        with open(self.tmp_file_path, "wb+") as f:
+            kvp = {'key': 'key1', 'value': 'value1'}
+            data = (struct.pack("%ds%ds" % (
+                HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_KEY_SIZE,
+                HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_VALUE_SIZE),
+                kvp['key'].encode('utf-8'), kvp['value'].encode('utf-8')))
+            f.write(data)
+
+        # set the time ways back to make it look like
+        # we had an old kvp file
+        os.utime(self.tmp_file_path, (1000000, 1000000))
+
+        # reset this because the unit test framework
+        # has already polluted the class variable
+        HyperVKvpReportingHandler._already_truncated_pool_file = False
+
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        kvps = list(reporter._iterate_kvps(0))
+        self.assertEqual(0, len(kvps))

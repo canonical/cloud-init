@@ -439,6 +439,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     cc_lines = []
     needswap = False
+    need_mount_all = False
     dirs = []
     for line in actlist:
         # write 'comment' in the fs_mntops, entry,  claiming this
@@ -449,11 +450,18 @@ def handle(_name, cfg, cloud, log, _args):
             dirs.append(line[1])
         cc_lines.append('\t'.join(line))
 
+    mount_points = [v['mountpoint'] for k, v in util.mounts().items()
+                    if 'mountpoint' in v]
     for d in dirs:
         try:
             util.ensure_dir(d)
         except Exception:
             util.logexc(log, "Failed to make '%s' config-mount", d)
+        # dirs is list of directories on which a volume should be mounted.
+        # If any of them does not already show up in the list of current
+        # mount points, we will definitely need to do mount -a.
+        if not need_mount_all and d not in mount_points:
+            need_mount_all = True
 
     sadds = [WS.sub(" ", n) for n in cc_lines]
     sdrops = [WS.sub(" ", n) for n in fstab_removed]
@@ -473,6 +481,9 @@ def handle(_name, cfg, cloud, log, _args):
         log.debug("No changes to /etc/fstab made.")
     else:
         log.debug("Changes to fstab: %s", sops)
+        need_mount_all = True
+
+    if need_mount_all:
         activate_cmds.append(["mount", "-a"])
         if uses_systemd:
             activate_cmds.append(["systemctl", "daemon-reload"])
