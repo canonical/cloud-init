@@ -182,8 +182,19 @@ def handle(_name, cfg, cloud, log, _args):
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
                                                     ssh_util.DISABLE_USER_OPTS)
+        if 'allow_public_ssh_keys' in cfg:
+            allow_public_ssh_keys = cfg['allow_public_ssh_keys']
+        else:
+            allow_public_ssh_keys = True
 
-        keys = cloud.get_public_ssh_keys() or []
+        if allow_public_ssh_keys:
+            log.debug('allow_public_ssh_keys = True: Public ssh keys consumed')
+            keys = cloud.get_public_ssh_keys() or []
+        else:
+            log.debug('allow_public_ssh_keys = False: Public ssh keys '
+                      'discarded')
+            keys = []
+
         if "ssh_authorized_keys" in cfg:
             cfgkeys = cfg["ssh_authorized_keys"]
             keys.extend(cfgkeys)

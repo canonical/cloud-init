@@ -548,7 +548,17 @@ class Init(object):
         with events.ReportEventStack("consume-user-data",
                                      "reading and applying user-data",
                                      parent=self.reporter):
-            self._consume_userdata(frequency)
+            cfg = self.cfg
+            if 'allow_userdata' in cfg:
+                allow_userdata = cfg['allow_userdata']
+            else:
+                allow_userdata = True
+
+            if allow_userdata:
+                LOG.debug('allow_userdata = True: consuming user-data')
+                self._consume_userdata(frequency)
+            else:
+                LOG.debug('allow_userdata = False: discarding user-data')
         with events.ReportEventStack("consume-vendor-data",
                                      "reading and applying vendor-data",
                                      parent=self.reporter):

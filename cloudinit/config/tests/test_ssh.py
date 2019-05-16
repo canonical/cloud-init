@@ -4,6 +4,9 @@
 from cloudinit.config import cc_ssh
 from cloudinit import ssh_util
 from cloudinit.tests.helpers import CiTestCase, mock
+import logging
+
+LOG = logging.getLogger(__name__)
 
 MODPATH = "cloudinit.config.cc_ssh."
 
@@ -66,7 +69,7 @@ class TestHandleSsh(CiTestCase):
         m_nug.return_value = ([], {})
         cloud = self.tmp_cloud(
             distro='ubuntu', metadata={'public-keys': keys})
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", "NONE")
         options = options.replace("$DISABLE_USER", "root")
         m_glob.assert_called_once_with('/etc/ssh/ssh_host_*key*')
@@ -94,7 +97,7 @@ class TestHandleSsh(CiTestCase):
         m_nug.return_value = ({user: {"default": user}}, {})
         cloud = self.tmp_cloud(
             distro='ubuntu', metadata={'public-keys': keys})
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
 
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", user)
         options = options.replace("$DISABLE_USER", "root")
@@ -119,7 +122,7 @@ class TestHandleSsh(CiTestCase):
         m_nug.return_value = ({user: {"default": user}}, {})
         cloud = self.tmp_cloud(
             distro='ubuntu', metadata={'public-keys': keys})
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
 
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", user)
         options = options.replace("$DISABLE_USER", "root")
@@ -144,7 +147,7 @@ class TestHandleSsh(CiTestCase):
         cloud = self.tmp_cloud(
             distro='ubuntu', metadata={'public-keys': keys})
         cloud.get_public_ssh_keys = mock.Mock(return_value=keys)
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
 
         self.assertEqual([mock.call(set(keys), user),
                           mock.call(set(keys), "root", options="")],
