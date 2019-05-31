@@ -36,7 +36,7 @@ schema = {
         """),
     'distros': distros,
     'examples': [dedent("""\
-        # Attach the machine to a Ubuntu Advantage support contract with a
+        # Attach the machine to an Ubuntu Advantage support contract with a
         # UA contract token obtained from %s.
         ubuntu_advantage:
           token: <ua_contract_token>
