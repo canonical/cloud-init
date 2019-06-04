@@ -407,6 +407,37 @@ network:
                 - maas
 """
 
+NETPLAN_BOND_GRAT_ARP = """
+network:
+    bonds:
+        bond0:
+            interfaces:
+            - ens3
+            macaddress: 68:05:ca:64:d3:6c
+            mtu: 9000
+            parameters:
+                gratuitious-arp: 1
+        bond1:
+            interfaces:
+            - ens4
+            macaddress: 68:05:ca:64:d3:6d
+            mtu: 9000
+            parameters:
+                gratuitous-arp: 2
+    ethernets:
+        ens3:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:ab:cd:ef
+        ens4:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:11:22:ff
+    version: 2
+"""
+
 NETPLAN_DHCP_FALSE = """
 version: 2
 ethernets:
@@ -3582,6 +3613,21 @@ class TestNetplanRoundTrip(CiTestCase):
             msg = "Error at: %s\nContent:\n%s" % (found_alias, content)
             raise ValueError('Found yaml alias in rendered netplan: ' + msg)
 
+        print(entry['expected_netplan'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def test_render_output_supports_both_grat_arp_spelling(self):
+        entry = {
+            'yaml': NETPLAN_BOND_GRAT_ARP,
+            'expected_netplan': NETPLAN_BOND_GRAT_ARP.replace('gratuitous',
+                                                              'gratuitious'),
+        }
+        network_config = yaml.load(entry['yaml']).get('network')
+        files = self._render_and_read(network_config=network_config)
         print(entry['expected_netplan'])
         print('-- expected ^ | v rendered --')
         print(files['/etc/netplan/50-cloud-init.yaml'])

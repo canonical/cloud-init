@@ -278,6 +278,24 @@ class TestNoCloudDataSource(CiTestCase):
         self.assertEqual(netconf, dsrc.network_config)
         self.assertNotIn(gateway, str(dsrc.network_config))
 
+    @mock.patch("cloudinit.util.blkid")
+    def test_nocloud_get_devices_freebsd(self, m_is_lxd, fake_blkid):
+        populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
+                     {'user-data': b"ud", 'meta-data': "instance-id: IID\n"})
+
+        sys_cfg = {'datasource': {'NoCloud': {'fs_label': None}}}
+
+        self.mocks.enter_context(
+            mock.patch.object(util, 'is_FreeBSD', return_value=True))
+
+        self.mocks.enter_context(
+            mock.patch.object(os.path, 'exists', return_value=True))
+
+        dsrc = dsNoCloud(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        ret = dsrc._get_devices('foo')
+        self.assertEqual(['/dev/msdosfs/foo', '/dev/iso9660/foo'], ret)
+        fake_blkid.assert_not_called()
+
 
 class TestParseCommandLineData(CiTestCase):
 
