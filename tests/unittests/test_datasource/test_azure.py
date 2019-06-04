@@ -6,7 +6,6 @@ from cloudinit import url_helper
 from cloudinit.sources import (
     UNSET, DataSourceAzure as dsaz, InvalidMetaDataException)
 from cloudinit.util import (b64e, decode_binary, load_file, write_file,
-                            find_freebsd_part, get_path_dev_freebsd,
                             MountFailedError, json_dumps, load_json)
 from cloudinit.version import version_string as vs
 from cloudinit.tests.helpers import (
@@ -390,29 +389,6 @@ scbus-1 on xpt0 bus 0
         ds = self._get_mockds()
         dev = ds.get_resource_disk_on_freebsd(1)
         self.assertEqual("da1", dev)
-
-    @mock.patch('cloudinit.util.subp')
-    def test_find_freebsd_part_on_Azure(self, mock_subp):
-        glabel_out = '''
-gptid/fa52d426-c337-11e6-8911-00155d4c5e47  N/A  da0p1
-                              label/rootfs  N/A  da0p2
-                                label/swap  N/A  da0p3
-'''
-        mock_subp.return_value = (glabel_out, "")
-        res = find_freebsd_part("/dev/label/rootfs")
-        self.assertEqual("da0p2", res)
-
-    def test_get_path_dev_freebsd_on_Azure(self):
-        mnt_list = '''
-/dev/label/rootfs  /                ufs     rw              1 1
-devfs              /dev             devfs   rw,multilabel   0 0
-fdescfs            /dev/fd          fdescfs rw              0 0
-/dev/da1s1         /mnt/resource    ufs     rw              2 2
-'''
-        with mock.patch.object(os.path, 'exists',
-                               return_value=True):
-            res = get_path_dev_freebsd('/etc', mnt_list)
-            self.assertIsNotNone(res)
 
     @mock.patch(MOCKPATH + '_is_platform_viable')
     def test_call_is_platform_viable_seed(self, m_is_platform_viable):

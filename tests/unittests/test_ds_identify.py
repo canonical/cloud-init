@@ -435,6 +435,14 @@ class TestDsIdentify(DsIdentifyBase):
         """Open Telecom identification."""
         self._test_ds_found('OpenStack-OpenTelekom')
 
+    def test_openstack_asset_tag_nova(self):
+        """OpenStack identification via asset tag OpenStack Nova."""
+        self._test_ds_found('OpenStack-AssetTag-Nova')
+
+    def test_openstack_asset_tag_copute(self):
+        """OpenStack identification via asset tag OpenStack Compute."""
+        self._test_ds_found('OpenStack-AssetTag-Compute')
+
     def test_openstack_on_non_intel_is_maybe(self):
         """On non-Intel, openstack without dmi info is maybe.
 
@@ -757,6 +765,18 @@ VALID_CFG = {
         # OTC gen1 (Xen) hosts use OpenStack datasource, LP: #1756471
         'ds': 'OpenStack',
         'files': {P_CHASSIS_ASSET_TAG: 'OpenTelekomCloud\n'},
+        'mocks': [MOCK_VIRT_IS_XEN],
+    },
+    'OpenStack-AssetTag-Nova': {
+        # VMware vSphere can't modify product-name, LP: #1669875
+        'ds': 'OpenStack',
+        'files': {P_CHASSIS_ASSET_TAG: 'OpenStack Nova\n'},
+        'mocks': [MOCK_VIRT_IS_XEN],
+    },
+    'OpenStack-AssetTag-Compute': {
+        # VMware vSphere can't modify product-name, LP: #1669875
+        'ds': 'OpenStack',
+        'files': {P_CHASSIS_ASSET_TAG: 'OpenStack Compute\n'},
         'mocks': [MOCK_VIRT_IS_XEN],
     },
     'OVF-seed': {
