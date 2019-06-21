@@ -284,6 +284,18 @@ class Renderer(renderer.Renderer):
         ('bond_mode', "mode=%s"),
         ('bond_xmit_hash_policy', "xmit_hash_policy=%s"),
         ('bond_miimon', "miimon=%s"),
+        ('bond_min_links', "min_links=%s"),
+        ('bond_arp_interval', "arp_interval=%s"),
+        ('bond_arp_ip_target', "arp_ip_target=%s"),
+        ('bond_arp_validate', "arp_validate=%s"),
+        ('bond_ad_select', "ad_select=%s"),
+        ('bond_num_grat_arp', "num_grat_arp=%s"),
+        ('bond_downdelay', "downdelay=%s"),
+        ('bond_updelay', "updelay=%s"),
+        ('bond_lacp_rate', "lacp_rate=%s"),
+        ('bond_fail_over_mac', "fail_over_mac=%s"),
+        ('bond_primary', "primary=%s"),
+        ('bond_primary_reselect', "primary_reselect=%s"),
     ])
 
     bridge_opts_keys = tuple([
