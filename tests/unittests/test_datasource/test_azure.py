@@ -84,6 +84,25 @@ def construct_valid_ovf_env(data=None, pubkeys=None,
 
 
 NETWORK_METADATA = {
+    "compute": {
+        "location": "eastus2",
+        "name": "my-hostname",
+        "offer": "UbuntuServer",
+        "osType": "Linux",
+        "placementGroupId": "",
+        "platformFaultDomain": "0",
+        "platformUpdateDomain": "0",
+        "publisher": "Canonical",
+        "resourceGroupName": "srugroup1",
+        "sku": "19.04-DAILY",
+        "subscriptionId": "12aad61c-6de4-4e53-a6c6-5aff52a83777",
+        "tags": "",
+        "version": "19.04.201906190",
+        "vmId": "ff702a6b-cb6a-4fcd-ad68-b4ce38227642",
+        "vmScaleSetName": "",
+        "vmSize": "Standard_DS1_v2",
+        "zone": ""
+    },
     "network": {
         "interface": [
             {
@@ -478,13 +497,7 @@ scbus-1 on xpt0 bus 0
         expected_metadata = {
             'azure_data': {
                 'configurationsettype': 'LinuxProvisioningConfiguration'},
-            'imds': {'network': {'interface': [{
-                'ipv4': {'ipAddress': [
-                     {'privateIpAddress': '10.0.0.4',
-                      'publicIpAddress': '104.46.124.81'}],
-                      'subnet': [{'address': '10.0.0.0', 'prefix': '24'}]},
-                'ipv6': {'ipAddress': []},
-                'macAddress': '000D3A047598'}]}},
+            'imds': NETWORK_METADATA,
             'instance-id': 'test-instance-id',
             'local-hostname': u'myhost',
             'random_seed': 'wild'}
@@ -611,6 +624,26 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
+
+    def test_availability_zone_set_from_imds(self):
+        """Datasource.availability returns IMDS platformFaultDomain."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual('0', dsrc.availability_zone)
+
+    def test_region_set_from_imds(self):
+        """Datasource.region returns IMDS region location."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual('eastus2', dsrc.region)
 
     def test_user_cfg_set_agent_command(self):
         # set dscfg in via base64 encoded yaml
