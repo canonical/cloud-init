@@ -14,7 +14,7 @@ it must include ``version: 2``  and one or more of possible device
 
 Cloud-init will read this format from system config.
 For example the following could be present in
-``/etc/cloud/cloud.cfg.d/custom-networking.cfg``:
+``/etc/cloud/cloud.cfg.d/custom-networking.cfg``::
 
   network:
     version: 2
