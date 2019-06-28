@@ -8,6 +8,7 @@
 
 import os
 import pwd
+import re
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -160,19 +161,20 @@ class AuthKeyLineParser(object):
                            comment=comment, options=options)
 
 
-def parse_authorized_keys(fname):
+def parse_authorized_keys(fnames):
     lines = []
-    try:
-        if os.path.isfile(fname):
-            lines = util.load_file(fname).splitlines()
-    except (IOError, OSError):
-        util.logexc(LOG, "Error reading lines from %s", fname)
-        lines = []
-
     parser = AuthKeyLineParser()
     contents = []
-    for line in lines:
-        contents.append(parser.parse(line))
+    for fname in fnames:
+        try:
+            if os.path.isfile(fname):
+                lines = util.load_file(fname).splitlines()
+                for line in lines:
+                    contents.append(parser.parse(line))
+        except (IOError, OSError):
+            util.logexc(LOG, "Error reading lines from %s", fname)
+            lines = []
+
     return contents
 
 
@@ -211,32 +213,58 @@ def users_ssh_info(username):
     return (os.path.join(pw_ent.pw_dir, '.ssh'), pw_ent)
 
 
-def extract_authorized_keys(username):
+def render_authorizedkeysfile(value, homedir, username):
+    if value is None:
+        value = "%h/.ssh/authorized_keys"
+    for macro, field in (("%h", homedir), ("%u", username), ("%%", "%")):
+        value = value.replace(macro, field)
+        if not value.startswith("/"):
+            value = os.path.join(homedir, value)
+    return value
+
+
+def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
     (ssh_dir, pw_ent) = users_ssh_info(username)
-    auth_key_fn = None
+    auth_key_fns = []
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         try:
+            default_authorizedkeys_file = "%h/.ssh/authorized_keys"
+
             # The 'AuthorizedKeysFile' may contain tokens
             # of the form %T which are substituted during connection set-up.
             # The following tokens are defined: %% is replaced by a literal
             # '%', %h is replaced by the home directory of the user being
             # authenticated and %u is replaced by the username of that user.
-            ssh_cfg = parse_ssh_config_map(DEF_SSHD_CFG)
-            auth_key_fn = ssh_cfg.get("authorizedkeysfile", '').strip()
-            if not auth_key_fn:
-                auth_key_fn = "%h/.ssh/authorized_keys"
-            auth_key_fn = auth_key_fn.replace("%h", pw_ent.pw_dir)
-            auth_key_fn = auth_key_fn.replace("%u", username)
-            auth_key_fn = auth_key_fn.replace("%%", '%')
-            if not auth_key_fn.startswith('/'):
-                auth_key_fn = os.path.join(pw_ent.pw_dir, auth_key_fn)
+            ssh_cfg = parse_ssh_config_map(sshd_cfg_file)
+            auth_key_fns = re.split(
+                    r'(?<!\\) ',
+                    ssh_cfg.get("authorizedkeysfile", '').strip())
+
+            if not auth_key_fns:
+                auth_key_fns[0] = default_authorizedkeys_file
+            elif len(auth_key_fns) > 1:
+                util.logexc(
+                        LOG,
+                        "Looks like there's more than one authorizedkeys file"
+                        " configured. Make sure there's no white spaces in"
+                        " their paths. If they do, escape with '\\'.")
+
+            for i in range(len(auth_key_fns)):
+                auth_key_fns[i] = render_authorizedkeysfile(
+                        auth_key_fns[i],
+                        pw_ent.pw_dir,
+                        username)
+                print(auth_key_fns[i])
+
         except (IOError, OSError):
             # Give up and use a default key filename
-            auth_key_fn = os.path.join(ssh_dir, 'authorized_keys')
+            auth_key_fns[0] = os.path.join(ssh_dir, 'authorized_keys')
             util.logexc(LOG, "Failed extracting 'AuthorizedKeysFile' in ssh "
                         "config from %r, using 'AuthorizedKeysFile' file "
-                        "%r instead", DEF_SSHD_CFG, auth_key_fn)
-    return (auth_key_fn, parse_authorized_keys(auth_key_fn))
+                        "%r instead", DEF_SSHD_CFG, auth_key_fns[0])
+
+    # always store all the keys in the user's private file
+    return (default_authorizedkeys_file, parse_authorized_keys(auth_key_fns))
 
 
 def setup_user_keys(keys, username, options=None):
