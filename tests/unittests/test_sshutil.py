@@ -326,4 +326,74 @@ class TestUpdateSshConfig(test_helpers.CiTestCase):
         m_write_file.assert_not_called()
 
 
+class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
+    username = "ubuntu"
+    key_entries = []
+
+    def test_multiple_authorizedkeys_file_order1(self):
+        authorized_keys = self.tmp_path('/tmp/authorized_keys')
+        util.write_file(authorized_keys, VALID_CONTENT['rsa'])
+
+        user_keys = self.tmp_path('/tmp/user_keys')
+        util.write_file(user_keys, VALID_CONTENT['dsa'])
+
+        sshd_config = self.tmp_path('/tmp/sshd_config')
+        util.write_file(
+                sshd_config,
+                "AuthorizedKeysFile /tmp/authorized_keys /tmp/user_keys")
+
+        (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
+                self.username, sshd_config)
+        content = ssh_util.update_authorized_keys(
+                auth_key_entries,
+                self.key_entries)
+
+        self.assertEqual(auth_key_fn, "%h/.ssh/authorized_keys")
+        self.assertTrue(VALID_CONTENT['rsa'] in content)
+        self.assertTrue(VALID_CONTENT['dsa'] in content)
+
+    def test_multiple_authorizedkeys_file_order2(self):
+        authorized_keys = self.tmp_path('/tmp/authorized_keys')
+        util.write_file(authorized_keys, VALID_CONTENT['rsa'])
+
+        user_keys = self.tmp_path('/tmp/user_keys')
+        util.write_file(user_keys, VALID_CONTENT['dsa'])
+
+        sshd_config = self.tmp_path('/tmp/sshd_config')
+        util.write_file(
+                sshd_config,
+                "AuthorizedKeysFile /tmp/user_keys /tmp/authorized_keys")
+
+        (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
+                self.username, sshd_config)
+        content = ssh_util.update_authorized_keys(
+                auth_key_entries, self.key_entries)
+
+        self.assertEqual(auth_key_fn, "%h/.ssh/authorized_keys")
+        self.assertTrue(VALID_CONTENT['rsa'] in content)
+        self.assertTrue(VALID_CONTENT['dsa'] in content)
+
+    def test_white_spaces(self):
+        authorized_keys = self.tmp_path('/tmp/authorized_keys')
+        util.write_file(authorized_keys, VALID_CONTENT['rsa'])
+
+        user_keys = self.tmp_path('/tmp/user\\ keys')
+        util.write_file(user_keys, VALID_CONTENT['dsa'])
+
+        sshd_config = self.tmp_path('/tmp/sshd_config')
+        util.write_file(
+                sshd_config,
+                "AuthorizedKeysFile /tmp/authorized_keys /tmp/user\\ keys")
+
+        (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
+                self.username,
+                sshd_config)
+        content = ssh_util.update_authorized_keys(
+                auth_key_entries,
+                self.key_entries)
+
+        self.assertEqual(auth_key_fn, "%h/.ssh/authorized_keys")
+        self.assertTrue(VALID_CONTENT['rsa'] in content)
+        self.assertTrue(VALID_CONTENT['dsa'] in content)
+
 # vi: ts=4 expandtab
