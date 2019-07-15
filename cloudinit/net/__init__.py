@@ -622,6 +622,8 @@ def get_interfaces():
             continue
         if is_vlan(name):
             continue
+        if is_bond(name):
+            continue
         mac = get_interface_mac(name)
         # some devices may not have a mac (tun0)
         if not mac:
