@@ -679,7 +679,7 @@ class EphemeralIPv4Network(object):
     """
 
     def __init__(self, interface, ip, prefix_or_mask, broadcast, router=None,
-                 connectivity_url=None):
+                 connectivity_url=None, static_routes=None):
         """Setup context manager and validate call signature.
 
         @param interface: Name of the network interface to bring up.
@@ -690,6 +690,7 @@ class EphemeralIPv4Network(object):
         @param router: Optionally the default gateway IP.
         @param connectivity_url: Optionally, a URL to verify if a usable
            connection already exists.
+        @param static_routes: Optionally a list of static routes from DHCP
         """
         if not all([interface, ip, prefix_or_mask, broadcast]):
             raise ValueError(
@@ -706,6 +707,7 @@ class EphemeralIPv4Network(object):
         self.ip = ip
         self.broadcast = broadcast
         self.router = router
+        self.static_routes = static_routes
         self.cleanup_cmds = []  # List of commands to run to cleanup state.
 
     def __enter__(self):
@@ -718,7 +720,21 @@ class EphemeralIPv4Network(object):
                 return
 
         self._bringup_device()
-        if self.router:
+
+        # rfc3442 requires us to ignore the router config *if* classless static
+        # routes are provided.
+        #
+        # https://tools.ietf.org/html/rfc3442
+        #
+        # If the DHCP server returns both a Classless Static Routes option and
+        # a Router option, the DHCP client MUST ignore the Router option.
+        #
+        # Similarly, if the DHCP server returns both a Classless Static Routes
+        # option and a Static Routes option, the DHCP client MUST ignore the
+        # Static Routes option.
+        if self.static_routes:
+            self._bringup_static_routes()
+        elif self.router:
             self._bringup_router()
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
@@ -761,6 +777,20 @@ class EphemeralIPv4Network(object):
             self.cleanup_cmds.append(
                 ['ip', '-family', 'inet', 'addr', 'del', cidr, 'dev',
                  self.interface])
+
+    def _bringup_static_routes(self):
+        # static_routes = [("169.254.169.254/32", "130.56.248.255"),
+        #                  ("0.0.0.0/0", "130.56.240.1")]
+        for net_address, gateway in self.static_routes:
+            via_arg = []
+            if gateway != "0.0.0.0/0":
+                via_arg = ['via', gateway]
+            util.subp(
+                ['ip', '-4', 'route', 'add', net_address] + via_arg +
+                ['dev', self.interface], capture=True)
+            self.cleanup_cmds.insert(
+                0, ['ip', '-4', 'route', 'del', net_address] + via_arg +
+                   ['dev', self.interface])
 
     def _bringup_router(self):
         """Perform the ip commands to fully setup the router if needed."""

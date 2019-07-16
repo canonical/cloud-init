@@ -1807,7 +1807,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
-            prefix_or_mask='255.255.255.0', router='192.168.2.1')
+            prefix_or_mask='255.255.255.0', router='192.168.2.1',
+            static_routes=None)
         self.assertEqual(m_net.call_count, 2)
 
     def test__reprovision_calls__poll_imds(self, fake_resp,
@@ -1845,7 +1846,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
-            prefix_or_mask='255.255.255.0', router='192.168.2.1')
+            prefix_or_mask='255.255.255.0', router='192.168.2.1',
+            static_routes=None)
         self.assertEqual(m_net.call_count, 2)
 
 
