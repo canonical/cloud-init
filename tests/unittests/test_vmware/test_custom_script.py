@@ -1,10 +1,12 @@
 # Copyright (C) 2015 Canonical Ltd.
-# Copyright (C) 2017 VMware INC.
+# Copyright (C) 2017-2019 VMware INC.
 #
 # Author: Maitreyee Saikia <msaikia@vmware.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import os
+import stat
 from cloudinit import util
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
     CustomScriptConstant,
@@ -18,6 +20,10 @@ from cloudinit.tests.helpers import CiTestCase, mock
 class TestVmwareCustomScript(CiTestCase):
     def setUp(self):
         self.tmpDir = self.tmp_dir()
+        # Mock the tmpDir as the root dir in VM.
+        self.execDir = os.path.join(self.tmpDir, ".customization")
+        self.execScript = os.path.join(self.execDir,
+                                       ".customize.sh")
 
     def test_prepare_custom_script(self):
         """
@@ -37,63 +43,67 @@ class TestVmwareCustomScript(CiTestCase):
 
         # Custom script exists.
         custScript = self.tmp_path("test-cust", self.tmpDir)
-        util.write_file(custScript, "test-CR-strip/r/r")
-        postCust = PostCustomScript("test-cust", self.tmpDir)
-        self.assertEqual("test-cust", postCust.scriptname)
-        self.assertEqual(self.tmpDir, postCust.directory)
-        self.assertEqual(custScript, postCust.scriptpath)
-        self.assertFalse(postCust.postreboot)
-        postCust.prepare_script()
-        # Check if all carraige returns are stripped from script.
-        self.assertFalse("/r" in custScript)
+        util.write_file(custScript, "test-CR-strip\r\r")
+        with mock.patch.object(CustomScriptConstant,
+                               "CUSTOM_TMP_DIR",
+                               self.execDir):
+            with mock.patch.object(CustomScriptConstant,
+                                   "CUSTOM_SCRIPT",
+                                   self.execScript):
+                postCust = PostCustomScript("test-cust",
+                                            self.tmpDir,
+                                            self.tmpDir)
+                self.assertEqual("test-cust", postCust.scriptname)
+                self.assertEqual(self.tmpDir, postCust.directory)
+                self.assertEqual(custScript, postCust.scriptpath)
+                postCust.prepare_script()
 
-    def test_rc_local_exists(self):
-        """
-        This test is designed to verify the different scenarios associated
-        with the presence of rclocal.
-        """
-        # test when rc local does not exist
-        postCust = PostCustomScript("test-cust", self.tmpDir)
-        with mock.patch.object(CustomScriptConstant, "RC_LOCAL", "/no/path"):
-            rclocal = postCust.find_rc_local()
-            self.assertEqual("", rclocal)
-
-        # test when rc local exists
-        rclocalFile = self.tmp_path("vmware-rclocal", self.tmpDir)
-        util.write_file(rclocalFile, "# Run post-reboot guest customization",
-                        omode="w")
-        with mock.patch.object(CustomScriptConstant, "RC_LOCAL", rclocalFile):
-            rclocal = postCust.find_rc_local()
-            self.assertEqual(rclocalFile, rclocal)
-            self.assertTrue(postCust.has_previous_agent, rclocal)
-
-        # test when rc local is a symlink
-        rclocalLink = self.tmp_path("dummy-rclocal-link", self.tmpDir)
-        util.sym_link(rclocalFile, rclocalLink, True)
-        with mock.patch.object(CustomScriptConstant, "RC_LOCAL", rclocalLink):
-            rclocal = postCust.find_rc_local()
-            self.assertEqual(rclocalFile, rclocal)
+                # Custom script is copied with exec privilege
+                self.assertTrue(os.path.exists(self.execScript))
+                st = os.stat(self.execScript)
+                self.assertTrue(st.st_mode & stat.S_IEXEC)
+                with open(self.execScript, "r") as f:
+                    content = f.read()
+                self.assertEqual(content, "test-CR-strip")
+                # Check if all carraige returns are stripped from script.
+                self.assertFalse("\r" in content)
 
     def test_execute_post_cust(self):
         """
-        This test is to identify if rclocal was properly populated to be
-        run after reboot.
+        This test is designed to verify the behavior after execute post
+        customization.
         """
-        customscript = self.tmp_path("vmware-post-cust-script", self.tmpDir)
-        rclocal = self.tmp_path("vmware-rclocal", self.tmpDir)
-        # Create a temporary rclocal file
-        open(customscript, "w")
-        util.write_file(rclocal, "tests\nexit 0", omode="w")
-        postCust = PostCustomScript("vmware-post-cust-script", self.tmpDir)
-        with mock.patch.object(CustomScriptConstant, "RC_LOCAL", rclocal):
-            # Test that guest customization agent is not installed initially.
-            self.assertFalse(postCust.postreboot)
-            self.assertIs(postCust.has_previous_agent(rclocal), False)
-            postCust.install_agent()
+        # Prepare the customize package
+        postCustRun = self.tmp_path("post-customize-guest.sh", self.tmpDir)
+        util.write_file(postCustRun, "This is the script to run post cust")
+        userScript = self.tmp_path("test-cust", self.tmpDir)
+        util.write_file(userScript, "This is the post cust script")
 
-            # Assert rclocal has been modified to have guest customization
-            # agent.
-            self.assertTrue(postCust.postreboot)
-            self.assertTrue(postCust.has_previous_agent, rclocal)
+        # Mock the cc_scripts_per_instance dir and marker file.
+        # Create another tmp dir for cc_scripts_per_instance.
+        ccScriptDir = self.tmp_dir()
+        ccScript = os.path.join(ccScriptDir, "post-customize-guest.sh")
+        markerFile = os.path.join(self.tmpDir, ".markerFile")
+        with mock.patch.object(CustomScriptConstant,
+                               "CUSTOM_TMP_DIR",
+                               self.execDir):
+            with mock.patch.object(CustomScriptConstant,
+                                   "CUSTOM_SCRIPT",
+                                   self.execScript):
+                with mock.patch.object(CustomScriptConstant,
+                                       "POST_CUSTOM_PENDING_MARKER",
+                                       markerFile):
+                    postCust = PostCustomScript("test-cust",
+                                                self.tmpDir,
+                                                ccScriptDir)
+                    postCust.execute()
+                    # Check cc_scripts_per_instance and marker file
+                    # are created.
+                    self.assertTrue(os.path.exists(ccScript))
+                    with open(ccScript, "r") as f:
+                        content = f.read()
+                    self.assertEqual(content,
+                                     "This is the script to run post cust")
+                    self.assertTrue(os.path.exists(markerFile))
 
 # vi: ts=4 expandtab
