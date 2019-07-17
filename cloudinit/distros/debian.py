@@ -36,14 +36,14 @@ ENI_HEADER = """# This file is generated from information provided by
 # network: {config: disabled}
 """
 
-NETWORK_CONF_FN = "/etc/network/interfaces.d/50-cloud-init.cfg"
+NETWORK_CONF_FN = "/etc/network/interfaces.d/50-cloud-init"
 LOCALE_CONF_FN = "/etc/default/locale"
 
 
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     network_conf_fn = {
-        "eni": "/etc/network/interfaces.d/50-cloud-init.cfg",
+        "eni": "/etc/network/interfaces.d/50-cloud-init",
         "netplan": "/etc/netplan/50-cloud-init.yaml"
     }
     renderer_configs = {

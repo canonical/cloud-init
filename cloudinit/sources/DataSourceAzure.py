@@ -684,6 +684,11 @@ class DataSourceAzure(sources.DataSource):
         return
 
     @property
+    def availability_zone(self):
+        return self.metadata.get(
+            'imds', {}).get('compute', {}).get('platformFaultDomain')
+
+    @property
     def network_config(self):
         """Generate a network config like net.generate_fallback_network() with
            the following exceptions.
@@ -700,6 +705,10 @@ class DataSourceAzure(sources.DataSource):
                 nc_src = None
             self._network_config = parse_network_config(nc_src)
         return self._network_config
+
+    @property
+    def region(self):
+        return self.metadata.get('imds', {}).get('compute', {}).get('location')
 
 
 def _partitions_on_device(devpath, maxnum=16):

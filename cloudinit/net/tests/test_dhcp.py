@@ -8,7 +8,8 @@ from textwrap import dedent
 import cloudinit.net as net
 from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError, maybe_perform_dhcp_discovery,
-    parse_dhcp_lease_file, dhcp_discovery, networkd_load_leases)
+    parse_dhcp_lease_file, dhcp_discovery, networkd_load_leases,
+    parse_static_routes)
 from cloudinit.util import ensure_file, write_file
 from cloudinit.tests.helpers import (
     CiTestCase, HttprettyTestCase, mock, populate_dir, wrap_and_call)
@@ -62,6 +63,123 @@ class TestParseDHCPLeasesFile(CiTestCase):
              'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1'}]
         write_file(lease_file, content)
         self.assertItemsEqual(expected, parse_dhcp_lease_file(lease_file))
+
+
+class TestDHCPRFC3442(CiTestCase):
+
+    def test_parse_lease_finds_rfc3442_classless_static_routes(self):
+        """parse_dhcp_lease_file returns rfc3442-classless-static-routes."""
+        lease_file = self.tmp_path('leases')
+        content = dedent("""
+            lease {
+              interface "wlp3s0";
+              fixed-address 192.168.2.74;
+              option subnet-mask 255.255.255.0;
+              option routers 192.168.2.1;
+              option rfc3442-classless-static-routes 0,130,56,240,1;
+              renew 4 2017/07/27 18:02:30;
+              expire 5 2017/07/28 07:08:15;
+            }
+        """)
+        expected = [
+            {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
+             'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1',
+             'rfc3442-classless-static-routes': '0,130,56,240,1',
+             'renew': '4 2017/07/27 18:02:30',
+             'expire': '5 2017/07/28 07:08:15'}]
+        write_file(lease_file, content)
+        self.assertItemsEqual(expected, parse_dhcp_lease_file(lease_file))
+
+    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
+    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+    def test_obtain_lease_parses_static_routes(self, m_maybe, m_ipv4):
+        """EphemeralDHPCv4 parses rfc3442 routes for EphemeralIPv4Network"""
+        lease = [
+            {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
+             'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1',
+             'rfc3442-classless-static-routes': '0,130,56,240,1',
+             'renew': '4 2017/07/27 18:02:30',
+             'expire': '5 2017/07/28 07:08:15'}]
+        m_maybe.return_value = lease
+        eph = net.dhcp.EphemeralDHCPv4()
+        eph.obtain_lease()
+        expected_kwargs = {
+            'interface': 'wlp3s0',
+            'ip': '192.168.2.74',
+            'prefix_or_mask': '255.255.255.0',
+            'broadcast': '192.168.2.255',
+            'static_routes': [('0.0.0.0/0', '130.56.240.1')],
+            'router': '192.168.2.1'}
+        m_ipv4.assert_called_with(**expected_kwargs)
+
+
+class TestDHCPParseStaticRoutes(CiTestCase):
+
+    with_logs = True
+
+    def parse_static_routes_empty_string(self):
+        self.assertEqual([], parse_static_routes(""))
+
+    def test_parse_static_routes_invalid_input_returns_empty_list(self):
+        rfc3442 = "32,169,254,169,254,130,56,248"
+        self.assertEqual([], parse_static_routes(rfc3442))
+
+    def test_parse_static_routes_bogus_width_returns_empty_list(self):
+        rfc3442 = "33,169,254,169,254,130,56,248"
+        self.assertEqual([], parse_static_routes(rfc3442))
+
+    def test_parse_static_routes_single_ip(self):
+        rfc3442 = "32,169,254,169,254,130,56,248,255"
+        self.assertEqual([('169.254.169.254/32', '130.56.248.255')],
+                         parse_static_routes(rfc3442))
+
+    def test_parse_static_routes_single_ip_handles_trailing_semicolon(self):
+        rfc3442 = "32,169,254,169,254,130,56,248,255;"
+        self.assertEqual([('169.254.169.254/32', '130.56.248.255')],
+                         parse_static_routes(rfc3442))
+
+    def test_parse_static_routes_default_route(self):
+        rfc3442 = "0,130,56,240,1"
+        self.assertEqual([('0.0.0.0/0', '130.56.240.1')],
+                         parse_static_routes(rfc3442))
+
+    def test_parse_static_routes_class_c_b_a(self):
+        class_c = "24,192,168,74,192,168,0,4"
+        class_b = "16,172,16,172,16,0,4"
+        class_a = "8,10,10,0,0,4"
+        rfc3442 = ",".join([class_c, class_b, class_a])
+        self.assertEqual(sorted([
+            ("192.168.74.0/24", "192.168.0.4"),
+            ("172.16.0.0/16", "172.16.0.4"),
+            ("10.0.0.0/8", "10.0.0.4")
+        ]), sorted(parse_static_routes(rfc3442)))
+
+    def test_parse_static_routes_logs_error_truncated(self):
+        bad_rfc3442 = {
+            "class_c": "24,169,254,169,10",
+            "class_b": "16,172,16,10",
+            "class_a": "8,10,10",
+            "gateway": "0,0",
+            "netlen":  "33,0",
+        }
+        for rfc3442 in bad_rfc3442.values():
+            self.assertEqual([], parse_static_routes(rfc3442))
+
+        logs = self.logs.getvalue()
+        self.assertEqual(len(bad_rfc3442.keys()), len(logs.splitlines()))
+
+    def test_parse_static_routes_returns_valid_routes_until_parse_err(self):
+        class_c = "24,192,168,74,192,168,0,4"
+        class_b = "16,172,16,172,16,0,4"
+        class_a_error = "8,10,10,0,0"
+        rfc3442 = ",".join([class_c, class_b, class_a_error])
+        self.assertEqual(sorted([
+            ("192.168.74.0/24", "192.168.0.4"),
+            ("172.16.0.0/16", "172.16.0.4"),
+        ]), sorted(parse_static_routes(rfc3442)))
+
+        logs = self.logs.getvalue()
+        self.assertIn(rfc3442, logs.splitlines()[0])
 
 
 class TestDHCPDiscoveryClean(CiTestCase):

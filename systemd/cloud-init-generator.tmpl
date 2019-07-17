@@ -82,7 +82,12 @@ default() {
 }
 
 check_for_datasource() {
-    local ds_rc="" dsidentify="/usr/lib/cloud-init/ds-identify"
+    local ds_rc=""
+{% if variant in ["redhat", "fedora", "centos"] %}
+    local dsidentify="/usr/libexec/cloud-init/ds-identify"
+{% else %}
+    local dsidentify="/usr/lib/cloud-init/ds-identify"
+{% endif %}
     if [ ! -x "$dsidentify" ]; then
         debug 1 "no ds-identify in $dsidentify. _RET=$FOUND"
         return 0
