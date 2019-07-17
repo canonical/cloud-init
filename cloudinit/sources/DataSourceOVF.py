@@ -148,6 +148,9 @@ class DataSourceOVF(sources.DataSource):
                     product_marker, os.path.join(self.paths.cloud_dir, 'data'))
                 special_customization = product_marker and not hasmarkerfile
                 customscript = self._vmware_cust_conf.custom_script_name
+                ccScriptsDir = os.path.join(
+                    self.paths.get_cpath("scripts"),
+                    "per-instance")
             except Exception as e:
                 _raise_error_status(
                     "Error parsing the customization Config File",
@@ -201,7 +204,9 @@ class DataSourceOVF(sources.DataSource):
 
                 if customscript:
                     try:
-                        postcust = PostCustomScript(customscript, imcdirpath)
+                        postcust = PostCustomScript(customscript,
+                                                    imcdirpath,
+                                                    ccScriptsDir)
                         postcust.execute()
                     except Exception as e:
                         _raise_error_status(

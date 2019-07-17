@@ -707,6 +707,14 @@ class NetworkStateInterpreter(object):
             item_params = dict((key, value) for (key, value) in
                                item_cfg.items() if key not in
                                NETWORK_V2_KEY_FILTER)
+            # we accept the fixed spelling, but write the old for compatability
+            # Xenial does not have an updated netplan which supports the
+            # correct spelling.  LP: #1756701
+            params = item_params['parameters']
+            grat_value = params.pop('gratuitous-arp', None)
+            if grat_value:
+                params['gratuitious-arp'] = grat_value
+
             v1_cmd = {
                 'type': cmd_type,
                 'name': item_name,

@@ -407,6 +407,37 @@ network:
                 - maas
 """
 
+NETPLAN_BOND_GRAT_ARP = """
+network:
+    bonds:
+        bond0:
+            interfaces:
+            - ens3
+            macaddress: 68:05:ca:64:d3:6c
+            mtu: 9000
+            parameters:
+                gratuitious-arp: 1
+        bond1:
+            interfaces:
+            - ens4
+            macaddress: 68:05:ca:64:d3:6d
+            mtu: 9000
+            parameters:
+                gratuitous-arp: 2
+    ethernets:
+        ens3:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:ab:cd:ef
+        ens4:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:11:22:ff
+    version: 2
+"""
+
 NETPLAN_DHCP_FALSE = """
 version: 2
 ethernets:
@@ -1509,6 +1540,12 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                   bond-mode: active-backup
                   bond_miimon: 100
                   bond-xmit-hash-policy: "layer3+4"
+                  bond-num-grat-arp: 5
+                  bond-downdelay: 10
+                  bond-updelay: 20
+                  bond-fail-over-mac: active
+                  bond-primary: bond0s0
+                  bond-primary-reselect: always
                 subnets:
                   - type: static
                     address: 192.168.0.2/24
@@ -1555,9 +1592,15 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                      macaddress: aa:bb:cc:dd:e8:ff
                      mtu: 9000
                      parameters:
+                         down-delay: 10
+                         fail-over-mac-policy: active
+                         gratuitious-arp: 5
                          mii-monitor-interval: 100
                          mode: active-backup
+                         primary: bond0s0
+                         primary-reselect-policy: always
                          transmit-hash-policy: layer3+4
+                         up-delay: 20
                      routes:
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
@@ -1573,15 +1616,27 @@ iface lo inet loopback
 
 auto bond0s0
 iface bond0s0 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
     bond-master bond0
     bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
     bond-xmit-hash-policy layer3+4
     bond_miimon 100
 
 auto bond0s1
 iface bond0s1 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
     bond-master bond0
     bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
     bond-xmit-hash-policy layer3+4
     bond_miimon 100
 
@@ -1589,8 +1644,14 @@ auto bond0
 iface bond0 inet static
     address 192.168.0.2/24
     gateway 192.168.0.1
+    bond-downdelay 10
+    bond-fail-over-mac active
     bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
     bond-slaves none
+    bond-updelay 20
     bond-xmit-hash-policy layer3+4
     bond_miimon 100
     hwaddress aa:bb:cc:dd:e8:ff
@@ -1635,10 +1696,15 @@ iface bond0 inet6 static
                 - eth0
                 - vf0
                 parameters:
+                    down-delay: 10
+                    fail-over-mac-policy: active
+                    gratuitious-arp: 5
                     mii-monitor-interval: 100
                     mode: active-backup
-                    primary: vf0
-                    transmit-hash-policy: "layer3+4"
+                    primary: bond0s0
+                    primary-reselect-policy: always
+                    transmit-hash-policy: layer3+4
+                    up-delay: 20
                 routes:
                 -   to: 10.1.3.0/24
                     via: 192.168.0.3
@@ -1661,10 +1727,15 @@ iface bond0 inet6 static
                      - eth0
                      - vf0
                      parameters:
+                         down-delay: 10
+                         fail-over-mac-policy: active
+                         gratuitious-arp: 5
                          mii-monitor-interval: 100
                          mode: active-backup
-                         primary: vf0
+                         primary: bond0s0
+                         primary-reselect-policy: always
                          transmit-hash-policy: layer3+4
+                         up-delay: 20
                      routes:
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
@@ -1689,7 +1760,12 @@ iface bond0 inet6 static
         'expected_sysconfig_opensuse': {
             'ifcfg-bond0': textwrap.dedent("""\
         BONDING_MASTER=yes
-        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 miimon=100"
+        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
+                                           """miimon=100 num_grat_arp=5 """
+                                           """downdelay=10 updelay=20 """
+                                           """fail_over_mac=active """
+                                           """primary=bond0s0 """
+                                           """primary_reselect=always"
         BONDING_SLAVE0=bond0s0
         BONDING_SLAVE1=bond0s1
         BOOTPROTO=none
@@ -1745,7 +1821,12 @@ iface bond0 inet6 static
         'expected_sysconfig_rhel': {
             'ifcfg-bond0': textwrap.dedent("""\
         BONDING_MASTER=yes
-        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 miimon=100"
+        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
+                                           """miimon=100 num_grat_arp=5 """
+                                           """downdelay=10 updelay=20 """
+                                           """fail_over_mac=active """
+                                           """primary=bond0s0 """
+                                           """primary_reselect=always"
         BONDING_SLAVE0=bond0s0
         BONDING_SLAVE1=bond0s1
         BOOTPROTO=none
@@ -3582,6 +3663,21 @@ class TestNetplanRoundTrip(CiTestCase):
             msg = "Error at: %s\nContent:\n%s" % (found_alias, content)
             raise ValueError('Found yaml alias in rendered netplan: ' + msg)
 
+        print(entry['expected_netplan'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def test_render_output_supports_both_grat_arp_spelling(self):
+        entry = {
+            'yaml': NETPLAN_BOND_GRAT_ARP,
+            'expected_netplan': NETPLAN_BOND_GRAT_ARP.replace('gratuitous',
+                                                              'gratuitious'),
+        }
+        network_config = yaml.load(entry['yaml']).get('network')
+        files = self._render_and_read(network_config=network_config)
         print(entry['expected_netplan'])
         print('-- expected ^ | v rendered --')
         print(files['/etc/netplan/50-cloud-init.yaml'])

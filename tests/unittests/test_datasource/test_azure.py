@@ -6,7 +6,6 @@ from cloudinit import url_helper
 from cloudinit.sources import (
     UNSET, DataSourceAzure as dsaz, InvalidMetaDataException)
 from cloudinit.util import (b64e, decode_binary, load_file, write_file,
-                            find_freebsd_part, get_path_dev_freebsd,
                             MountFailedError, json_dumps, load_json)
 from cloudinit.version import version_string as vs
 from cloudinit.tests.helpers import (
@@ -85,6 +84,25 @@ def construct_valid_ovf_env(data=None, pubkeys=None,
 
 
 NETWORK_METADATA = {
+    "compute": {
+        "location": "eastus2",
+        "name": "my-hostname",
+        "offer": "UbuntuServer",
+        "osType": "Linux",
+        "placementGroupId": "",
+        "platformFaultDomain": "0",
+        "platformUpdateDomain": "0",
+        "publisher": "Canonical",
+        "resourceGroupName": "srugroup1",
+        "sku": "19.04-DAILY",
+        "subscriptionId": "12aad61c-6de4-4e53-a6c6-5aff52a83777",
+        "tags": "",
+        "version": "19.04.201906190",
+        "vmId": "ff702a6b-cb6a-4fcd-ad68-b4ce38227642",
+        "vmScaleSetName": "",
+        "vmSize": "Standard_DS1_v2",
+        "zone": ""
+    },
     "network": {
         "interface": [
             {
@@ -391,29 +409,6 @@ scbus-1 on xpt0 bus 0
         dev = ds.get_resource_disk_on_freebsd(1)
         self.assertEqual("da1", dev)
 
-    @mock.patch('cloudinit.util.subp')
-    def test_find_freebsd_part_on_Azure(self, mock_subp):
-        glabel_out = '''
-gptid/fa52d426-c337-11e6-8911-00155d4c5e47  N/A  da0p1
-                              label/rootfs  N/A  da0p2
-                                label/swap  N/A  da0p3
-'''
-        mock_subp.return_value = (glabel_out, "")
-        res = find_freebsd_part("/dev/label/rootfs")
-        self.assertEqual("da0p2", res)
-
-    def test_get_path_dev_freebsd_on_Azure(self):
-        mnt_list = '''
-/dev/label/rootfs  /                ufs     rw              1 1
-devfs              /dev             devfs   rw,multilabel   0 0
-fdescfs            /dev/fd          fdescfs rw              0 0
-/dev/da1s1         /mnt/resource    ufs     rw              2 2
-'''
-        with mock.patch.object(os.path, 'exists',
-                               return_value=True):
-            res = get_path_dev_freebsd('/etc', mnt_list)
-            self.assertIsNotNone(res)
-
     @mock.patch(MOCKPATH + '_is_platform_viable')
     def test_call_is_platform_viable_seed(self, m_is_platform_viable):
         """Check seed_dir using _is_platform_viable and return False."""
@@ -502,13 +497,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         expected_metadata = {
             'azure_data': {
                 'configurationsettype': 'LinuxProvisioningConfiguration'},
-            'imds': {'network': {'interface': [{
-                'ipv4': {'ipAddress': [
-                     {'privateIpAddress': '10.0.0.4',
-                      'publicIpAddress': '104.46.124.81'}],
-                      'subnet': [{'address': '10.0.0.0', 'prefix': '24'}]},
-                'ipv6': {'ipAddress': []},
-                'macAddress': '000D3A047598'}]}},
+            'imds': NETWORK_METADATA,
             'instance-id': 'test-instance-id',
             'local-hostname': u'myhost',
             'random_seed': 'wild'}
@@ -635,6 +624,26 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
+
+    def test_availability_zone_set_from_imds(self):
+        """Datasource.availability returns IMDS platformFaultDomain."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual('0', dsrc.availability_zone)
+
+    def test_region_set_from_imds(self):
+        """Datasource.region returns IMDS region location."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual('eastus2', dsrc.region)
 
     def test_user_cfg_set_agent_command(self):
         # set dscfg in via base64 encoded yaml
@@ -1798,7 +1807,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
-            prefix_or_mask='255.255.255.0', router='192.168.2.1')
+            prefix_or_mask='255.255.255.0', router='192.168.2.1',
+            static_routes=None)
         self.assertEqual(m_net.call_count, 2)
 
     def test__reprovision_calls__poll_imds(self, fake_resp,
@@ -1836,7 +1846,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
-            prefix_or_mask='255.255.255.0', router='192.168.2.1')
+            prefix_or_mask='255.255.255.0', router='192.168.2.1',
+            static_routes=None)
         self.assertEqual(m_net.call_count, 2)
 
 

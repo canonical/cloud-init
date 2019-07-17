@@ -549,6 +549,45 @@ class TestEphemeralIPV4Network(CiTestCase):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
         m_subp.assert_has_calls(expected_teardown_calls)
 
+    def test_ephemeral_ipv4_network_with_rfc3442_static_routes(self, m_subp):
+        params = {
+            'interface': 'eth0', 'ip': '192.168.2.2',
+            'prefix_or_mask': '255.255.255.0', 'broadcast': '192.168.2.255',
+            'static_routes': [('169.254.169.254/32', '192.168.2.1'),
+                              ('0.0.0.0/0', '192.168.2.1')],
+            'router': '192.168.2.1'}
+        expected_setup_calls = [
+            mock.call(
+                ['ip', '-family', 'inet', 'addr', 'add', '192.168.2.2/24',
+                 'broadcast', '192.168.2.255', 'dev', 'eth0'],
+                capture=True, update_env={'LANG': 'C'}),
+            mock.call(
+                ['ip', '-family', 'inet', 'link', 'set', 'dev', 'eth0', 'up'],
+                capture=True),
+            mock.call(
+                ['ip', '-4', 'route', 'add', '169.254.169.254/32',
+                 'via', '192.168.2.1', 'dev', 'eth0'], capture=True),
+            mock.call(
+                ['ip', '-4', 'route', 'add', '0.0.0.0/0',
+                 'via', '192.168.2.1', 'dev', 'eth0'], capture=True)]
+        expected_teardown_calls = [
+            mock.call(
+                ['ip', '-4', 'route', 'del', '0.0.0.0/0',
+                 'via', '192.168.2.1', 'dev', 'eth0'], capture=True),
+            mock.call(
+                ['ip', '-4', 'route', 'del', '169.254.169.254/32',
+                 'via', '192.168.2.1', 'dev', 'eth0'], capture=True),
+            mock.call(
+                ['ip', '-family', 'inet', 'link', 'set', 'dev',
+                 'eth0', 'down'], capture=True),
+            mock.call(
+                ['ip', '-family', 'inet', 'addr', 'del',
+                 '192.168.2.2/24', 'dev', 'eth0'], capture=True)
+        ]
+        with net.EphemeralIPv4Network(**params):
+            self.assertEqual(expected_setup_calls, m_subp.call_args_list)
+        m_subp.assert_has_calls(expected_setup_calls + expected_teardown_calls)
+
 
 class TestApplyNetworkCfgNames(CiTestCase):
     V1_CONFIG = textwrap.dedent("""\

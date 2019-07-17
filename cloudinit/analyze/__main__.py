@@ -7,7 +7,7 @@ import re
 import sys
 
 from cloudinit.util import json_dumps
-
+from datetime import datetime
 from . import dump
 from . import show
 
@@ -52,7 +52,91 @@ def get_parser(parser=None):
                              dest='outfile', default='-',
                              help='specify where to write output. ')
     parser_dump.set_defaults(action=('dump', analyze_dump))
+    parser_boot = subparsers.add_parser(
+        'boot', help='Print list of boot times for kernel and cloud-init')
+    parser_boot.add_argument('-i', '--infile', action='store',
+                             dest='infile', default='/var/log/cloud-init.log',
+                             help='specify where to read input. ')
+    parser_boot.add_argument('-o', '--outfile', action='store',
+                             dest='outfile', default='-',
+                             help='specify where to write output.')
+    parser_boot.set_defaults(action=('boot', analyze_boot))
     return parser
+
+
+def analyze_boot(name, args):
+    """Report a list of how long different boot operations took.
+
+    For Example:
+    -- Most Recent Boot Record --
+        Kernel Started at: <time>
+        Kernel ended boot at: <time>
+        Kernel time to boot (seconds): <time>
+        Cloud-init activated by systemd at: <time>
+        Time between Kernel end boot and Cloud-init activation (seconds):<time>
+        Cloud-init start: <time>
+    """
+    infh, outfh = configure_io(args)
+    kernel_info = show.dist_check_timestamp()
+    status_code, kernel_start, kernel_end, ci_sysd_start = \
+        kernel_info
+    kernel_start_timestamp = datetime.utcfromtimestamp(kernel_start)
+    kernel_end_timestamp = datetime.utcfromtimestamp(kernel_end)
+    ci_sysd_start_timestamp = datetime.utcfromtimestamp(ci_sysd_start)
+    try:
+        last_init_local = \
+            [e for e in _get_events(infh) if e['name'] == 'init-local' and
+                'starting search' in e['description']][-1]
+        ci_start = datetime.utcfromtimestamp(last_init_local['timestamp'])
+    except IndexError:
+        ci_start = 'Could not find init-local log-line in cloud-init.log'
+        status_code = show.FAIL_CODE
+
+    FAILURE_MSG = 'Your Linux distro or container does not support this ' \
+                  'functionality.\n' \
+                  'You must be running a Kernel Telemetry supported ' \
+                  'distro.\nPlease check ' \
+                  'https://cloudinit.readthedocs.io/en/latest' \
+                  '/topics/analyze.html for more ' \
+                  'information on supported distros.\n'
+
+    SUCCESS_MSG = '-- Most Recent Boot Record --\n' \
+                  '    Kernel Started at: {k_s_t}\n' \
+                  '    Kernel ended boot at: {k_e_t}\n' \
+                  '    Kernel time to boot (seconds): {k_r}\n' \
+                  '    Cloud-init activated by systemd at: {ci_sysd_t}\n' \
+                  '    Time between Kernel end boot and Cloud-init ' \
+                  'activation (seconds): {bt_r}\n' \
+                  '    Cloud-init start: {ci_start}\n'
+
+    CONTAINER_MSG = '-- Most Recent Container Boot Record --\n' \
+                    '    Container started at: {k_s_t}\n' \
+                    '    Cloud-init activated by systemd at: {ci_sysd_t}\n' \
+                    '    Cloud-init start: {ci_start}\n' \
+
+    status_map = {
+        show.FAIL_CODE: FAILURE_MSG,
+        show.CONTAINER_CODE: CONTAINER_MSG,
+        show.SUCCESS_CODE: SUCCESS_MSG
+    }
+
+    kernel_runtime = kernel_end - kernel_start
+    between_process_runtime = ci_sysd_start - kernel_end
+
+    kwargs = {
+        'k_s_t': kernel_start_timestamp,
+        'k_e_t': kernel_end_timestamp,
+        'k_r': kernel_runtime,
+        'bt_r': between_process_runtime,
+        'k_e': kernel_end,
+        'k_s': kernel_start,
+        'ci_sysd': ci_sysd_start,
+        'ci_sysd_t': ci_sysd_start_timestamp,
+        'ci_start': ci_start
+    }
+
+    outfh.write(status_map[status_code].format(**kwargs))
+    return status_code
 
 
 def analyze_blame(name, args):
@@ -119,7 +203,7 @@ def analyze_dump(name, args):
 
 def _get_events(infile):
     rawdata = None
-    events, rawdata = show.load_events(infile, None)
+    events, rawdata = show.load_events_infile(infile)
     if not events:
         events, _ = dump.dump_events(rawdata=rawdata)
     return events

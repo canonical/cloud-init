@@ -215,7 +215,8 @@ def device_part_info(devpath):
     # FreeBSD doesn't know of sysfs so just get everything we need from
     # the device, like /dev/vtbd0p2.
     if util.is_FreeBSD():
-        m = re.search('^(/dev/.+)p([0-9])$', devpath)
+        freebsd_part = "/dev/" + util.find_freebsd_part(devpath)
+        m = re.search('^(/dev/.+)p([0-9])$', freebsd_part)
         return (m.group(1), m.group(2))
 
     if not os.path.exists(syspath):

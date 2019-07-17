@@ -3,36 +3,43 @@
 # installing cloud-init. This script takes care of building and installing. It
 # will optionally make a first run at the end.
 
+set -eux
+
 fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
+
+PYTHON="${PYTHON:-python3}"
+if [ ! $(which ${PYTHON}) ]; then
+    echo "Please install python first."
+    exit 1
+fi
+py_prefix=$(${PYTHON} -c 'import sys; print("py%d%d" % (sys.version_info.major, sys.version_info.minor))')
 
 # Check dependencies:
 depschecked=/tmp/c-i.dependencieschecked
 pkgs="
-   bash
-   chpasswd
-   dmidecode
-   e2fsprogs
-   py27-Jinja2
-   py27-boto
-   py27-cheetah
-   py27-configobj
-   py27-jsonpatch
-   py27-jsonpointer
-   py27-jsonschema
-   py27-oauthlib
-   py27-requests
-   py27-serial
-   py27-six
-   py27-yaml
-   python
-   sudo
+    bash
+    chpasswd
+    dmidecode
+    e2fsprogs
+    $py_prefix-Jinja2
+    $py_prefix-boto
+    $py_prefix-configobj
+    $py_prefix-jsonpatch
+    $py_prefix-jsonpointer
+    $py_prefix-jsonschema
+    $py_prefix-oauthlib
+    $py_prefix-requests
+    $py_prefix-serial
+    $py_prefix-six
+    $py_prefix-yaml
+    sudo
 "
-[ -f "$depschecked" ] || pkg install ${pkgs} || fail "install packages"
+[ -f "$depschecked" ] || pkg install --yes ${pkgs} || fail "install packages"
 touch $depschecked
 
 # Build the code and install in /usr/local/:
-python2.7 setup.py build
-python2.7 setup.py install -O1 --skip-build --prefix /usr/local/ --init-system sysvinit_freebsd
+${PYTHON} setup.py build
+${PYTHON} setup.py install -O1 --skip-build --prefix /usr/local/ --init-system sysvinit_freebsd
 
 # Enable cloud-init in /etc/rc.conf:
 sed -i.bak -e "/cloudinit_enable=.*/d" /etc/rc.conf
@@ -40,21 +47,21 @@ echo 'cloudinit_enable="YES"' >> /etc/rc.conf
 
 echo "Installation completed."
 
-if [ "$1" = "run" ]; then
-	echo "Ok, now let's see if it works."
+if [ "$#" -gt 1 ] && [ "$1" = "run" ]; then
+    echo "Ok, now let's see if it works."
 
-	# Backup SSH keys
-	mv /etc/ssh/ssh_host_* /tmp/
+    # Backup SSH keys
+    mv /etc/ssh/ssh_host_* /tmp/
 
-	# Remove old metadata
-	rm -rf /var/lib/cloud
+    # Remove old metadata
+    rm -rf /var/lib/cloud
 
-	# Just log everything, quick&dirty
-	rm /usr/local/etc/cloud/cloud.cfg.d/05_logging.cfg 
+    # Just log everything, quick&dirty
+    rm /usr/local/etc/cloud/cloud.cfg.d/05_logging.cfg
 
-	# Start:
-	/usr/local/etc/rc.d/cloudinit start
+    # Start:
+    /usr/local/etc/rc.d/cloudinit start
 
-	# Restore SSH keys
-	mv /tmp/ssh_host_* /etc/ssh/
+    # Restore SSH keys
+    mv /tmp/ssh_host_* /etc/ssh/
 fi
