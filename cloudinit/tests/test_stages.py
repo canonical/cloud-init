@@ -37,6 +37,7 @@ class FakeDataSource(sources.DataSource):
 
 class TestInit(CiTestCase):
     with_logs = True
+    allowed_subp = False
 
     def setUp(self):
         super(TestInit, self).setUp()
@@ -166,8 +167,9 @@ class TestInit(CiTestCase):
             'INFO: network config is disabled by %s' % disable_file,
             self.logs.getvalue())
 
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.distros.ubuntu.Distro')
-    def test_apply_network_on_new_instance(self, m_ubuntu):
+    def test_apply_network_on_new_instance(self, m_ubuntu, m_macs):
         """Call distro apply_network_config methods on is_new_instance."""
         net_cfg = {
             'version': 1, 'config': [
@@ -176,6 +178,8 @@ class TestInit(CiTestCase):
 
         def fake_network_config():
             return net_cfg, 'fallback'
+
+        m_macs.return_value = {'42:42:42:42:42:42': 'eth9'}
 
         self.init._find_networking_config = fake_network_config
         self.init.apply_network_config(True)
@@ -206,8 +210,9 @@ class TestInit(CiTestCase):
             " nor datasource network update on '%s' event" % EventType.BOOT,
             self.logs.getvalue())
 
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.distros.ubuntu.Distro')
-    def test_apply_network_on_datasource_allowed_event(self, m_ubuntu):
+    def test_apply_network_on_datasource_allowed_event(self, m_ubuntu, m_macs):
         """Apply network if datasource.update_metadata permits BOOT event."""
         old_instance_id = os.path.join(
             self.init.paths.get_cpath('data'), 'instance-id')
@@ -219,6 +224,8 @@ class TestInit(CiTestCase):
 
         def fake_network_config():
             return net_cfg, 'fallback'
+
+        m_macs.return_value = {'42:42:42:42:42:42': 'eth9'}
 
         self.init._find_networking_config = fake_network_config
         self.init.datasource = FakeDataSource(paths=self.init.paths)

@@ -515,7 +515,7 @@ nameserver 172.19.0.12
 [main]
 dns = none
 """.lstrip()),
-            ('etc/udev/rules.d/70-persistent-net.rules',
+            ('etc/udev/rules.d/85-persistent-net-cloud-init.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))],
         'out_sysconfig_rhel': [
@@ -619,7 +619,7 @@ nameserver 172.19.0.12
 [main]
 dns = none
 """.lstrip()),
-            ('etc/udev/rules.d/70-persistent-net.rules',
+            ('etc/udev/rules.d/85-persistent-net-cloud-init.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))],
         'out_sysconfig_rhel': [
@@ -750,7 +750,7 @@ nameserver 172.19.0.12
 [main]
 dns = none
 """.lstrip()),
-            ('etc/udev/rules.d/70-persistent-net.rules',
+            ('etc/udev/rules.d/85-persistent-net-cloud-init.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))],
         'out_sysconfig_rhel': [

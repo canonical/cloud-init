@@ -644,18 +644,21 @@ class Init(object):
                 return (ncfg, loc)
         return (self.distro.generate_fallback_config(), "fallback")
 
-    def apply_network_config(self, bring_up):
-        netcfg, src = self._find_networking_config()
-        if netcfg is None:
-            LOG.info("network config is disabled by %s", src)
-            return
-
+    def _apply_netcfg_names(self, netcfg):
         try:
             LOG.debug("applying net config names for %s", netcfg)
             self.distro.apply_network_config_names(netcfg)
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
+    def apply_network_config(self, bring_up):
+        # get a network config
+        netcfg, src = self._find_networking_config()
+        if netcfg is None:
+            LOG.info("network config is disabled by %s", src)
+            return
+
+        # request an update if needed/available
         if self.datasource is not NULL_DATA_SOURCE:
             if not self.is_new_instance():
                 if not self.datasource.update_metadata([EventType.BOOT]):
@@ -663,8 +666,20 @@ class Init(object):
                         "No network config applied. Neither a new instance"
                         " nor datasource network update on '%s' event",
                         EventType.BOOT)
+                    # nothing new, but ensure proper names
+                    self._apply_netcfg_names(netcfg)
                     return
+                else:
+                    # refresh netcfg after update
+                    netcfg, src = self._find_networking_config()
 
+        # ensure all physical devices in config are present
+        net.wait_for_physdevs(netcfg)
+
+        # apply renames from config
+        self._apply_netcfg_names(netcfg)
+
+        # rendering config
         LOG.info("Applying network configuration from %s bringup=%s: %s",
                  src, bring_up, netcfg)
         try:
