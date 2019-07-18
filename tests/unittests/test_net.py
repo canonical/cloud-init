@@ -2856,6 +2856,97 @@ USERCTL=no
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
 
+    def test_from_v2_vlan_mtu(self):
+        """verify mtu gets rendered on bond when source is netplan."""
+        v2data = {
+            'version': 2,
+            'ethernets': {'eno1': {}},
+            'vlans': {
+                'eno1.1000': {
+                    'addresses': ["192.6.1.9/24"],
+                    'id': 1000, 'link': 'eno1', 'mtu': 1495}}}
+        expected = {
+            'ifcfg-eno1': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eno1
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                STARTMODE=auto
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+            'ifcfg-eno1.1000': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eno1.1000
+                IPADDR=192.6.1.9
+                MTU=1495
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                PHYSDEV=eno1
+                STARTMODE=auto
+                TYPE=Ethernet
+                USERCTL=no
+                VLAN=yes
+                """)
+            }
+        self._compare_files_to_expected(
+            expected, self._render_and_read(network_config=v2data))
+
+    def test_from_v2_bond_mtu(self):
+        """verify mtu gets rendered on bond when source is netplan."""
+        v2data = {
+            'version': 2,
+            'bonds': {
+                'bond0': {'addresses': ['10.101.8.65/26'],
+                          'interfaces': ['enp0s0', 'enp0s1'],
+                          'mtu': 1334,
+                          'parameters': {}}}
+        }
+        expected = {
+            'ifcfg-bond0': textwrap.dedent("""\
+                BONDING_MASTER=yes
+                BONDING_SLAVE0=enp0s0
+                BONDING_SLAVE1=enp0s1
+                BOOTPROTO=none
+                DEVICE=bond0
+                IPADDR=10.101.8.65
+                MTU=1334
+                NETMASK=255.255.255.192
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                STARTMODE=auto
+                TYPE=Bond
+                USERCTL=no
+                """),
+            'ifcfg-enp0s0': textwrap.dedent("""\
+                BONDING_MASTER=yes
+                BOOTPROTO=none
+                DEVICE=enp0s0
+                MASTER=bond0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                SLAVE=yes
+                STARTMODE=auto
+                TYPE=Bond
+                USERCTL=no
+                """),
+            'ifcfg-enp0s1': textwrap.dedent("""\
+                BONDING_MASTER=yes
+                BOOTPROTO=none
+                DEVICE=enp0s1
+                MASTER=bond0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                SLAVE=yes
+                STARTMODE=auto
+                TYPE=Bond
+                USERCTL=no
+                """)
+        }
+        self._compare_files_to_expected(
+            expected, self._render_and_read(network_config=v2data))
+
 
 class TestOpenSuseSysConfigRendering(CiTestCase):
 
