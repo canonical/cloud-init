@@ -1,4 +1,6 @@
 #!/bin/bash
+# This file is part of cloud-init.
+# See LICENSE file for copyright and license info.
 
 set -f
 
@@ -11,6 +13,8 @@ TAPDEVS=( )
 # OVS_CLEANUP gets populated with bridge:devname pairs used with ovs
 OVS_CLEANUP=( )
 MAC_PREFIX="52:54:00:12:34"
+# allow this to be set externally.
+_QEMU_SUPPORTS_FILE_LOCKING="${_QEMU_SUPPORTS_FILE_LOCKING}"
 KVM="kvm"
 declare -A KVM_DEVOPTS
 
@@ -117,6 +121,21 @@ isdevopt() {
         [ "$input" = "$opt" ] && return 0
     done
     return 1
+}
+
+qemu_supports_file_locking() {
+    # hackily check if qemu has file.locking in -drive params (LP: #1716028)
+    if [ -z "$_QEMU_SUPPORTS_FILE_LOCKING" ]; then
+        # The only way we could find to check presense of file.locking is
+        # qmp (query-qmp-schema).  Simply checking if the virtio-blk driver
+        # supports 'share-rw' is expected to be equivalent and simpler.
+        isdevopt virtio-blk share-rw &&
+            _QEMU_SUPPORTS_FILE_LOCKING=true ||
+            _QEMU_SUPPORTS_FILE_LOCKING=false
+        debug 1 "qemu supports file locking = ${_QEMU_SUPPORTS_FILE_LOCKING}"
+    fi
+    [ "$_QEMU_SUPPORTS_FILE_LOCKING" = "true" ]
+    return
 }
 
 padmac() {
@@ -367,7 +386,7 @@ main() {
     [ ${#netdevs[@]} -eq 0 ] && netdevs=( "${DEF_BRIDGE}" )
     pt=( "$@" )
 
-    local kvm_pkg="" virtio_scsi_bus="virtio-scsi-pci"
+    local kvm_pkg="" virtio_scsi_bus="virtio-scsi-pci" virtio_rng_device="virtio-rng-pci"
     [ -n "$kvm" ] && kvm_pkg="none"
     case $(uname -m) in
         i?86)
@@ -382,7 +401,10 @@ main() {
             [ -n "$kvm" ] ||
                 { kvm="qemu-system-s390x"; kvm_pkg="qemu-system-misc"; }
             def_netmodel=${DEF_NETMODEL:-"virtio-net-ccw"}
+            # disable virtio-scsi-bus
             virtio_scsi_bus="virtio-scsi-ccw"
+            virtio_blk_bus="virtio-blk-ccw"
+            virtio_rng_device="virtio-rng-ccw"
             ;;
         ppc64*)
             [ -n "$kvm" ] ||
@@ -408,7 +430,7 @@ main() {
     bios_opts=( "${_RET[@]}" )
 
     local out="" fmt="" bus="" unit="" index="" serial="" driver="" devopts=""
-    local busorindex="" driveopts="" cur="" val="" file=""
+    local busorindex="" driveopts="" cur="" val="" file="" wwn=""
     for((i=0;i<${#diskdevs[@]};i++)); do
         cur=${diskdevs[$i]}
         IFS=","; set -- $cur; IFS="$oifs"
@@ -420,6 +442,7 @@ main() {
         unit=""
         index=""
         serial=""
+        wwn=""
         for tok in "$@"; do
             [ "${tok#*=}" = "${tok}" -a -f "${tok}" -a -z "$file" ] && file="$tok"
             val=${tok#*=}
@@ -433,6 +456,7 @@ main() {
                 file=*) file=$val;;
                 fmt=*|format=*) fmt=$val;;
                 serial=*) serial=$val;;
+                wwn=*) wwn=$val;;
                 bus=*) bus=$val;;
                 unit=*) unit=$val;;
                 index=*) index=$val;;
@@ -443,14 +467,19 @@ main() {
             out=$(LANG=C qemu-img info "$file") &&
                 fmt=$(echo "$out" | awk '$0 ~ /^file format:/ { print $3 }') ||
                 { error "failed to determine format of $file"; return 1; }
-        else
+        elif [ -z "$fmt" ]; then
             fmt=raw
         fi
         if [ -z "$driver" ]; then
             driver="$def_disk_driver"
         fi
         if [ -z "$serial" ]; then
-            serial="${file##*/}"
+            # use filename as serial if not provided a wwn
+            if [ -n "$wwn" ]; then
+                serial="$wwn"
+            else
+                serial="${file##*/}"
+            fi
         fi
 
         # make sure we add either bus= or index=
@@ -470,11 +499,21 @@ main() {
                 id=*|if=*|driver=*|$file|file=*) continue;;
                 fmt=*|format=*) continue;;
                 serial=*|bus=*|unit=*|index=*) continue;;
+                file.locking=*)
+                    qemu_supports_file_locking || {
+                        debug 2 "qemu has no file locking." \
+                            "Dropping '$tok' from: $cur"
+                        continue
+                    };;
             esac
             isdevopt "$driver" "$tok" && devopts="${devopts},$tok" ||
                 diskopts="${diskopts},${tok}"
         done
-
+        case $driver in
+            virtio-blk-ccw)
+                # disable scsi when using virtio-blk-ccw
+                devopts="${devopts},scsi=off";;
+        esac
         diskargs=( "${diskargs[@]}" -drive "$diskopts" -device "$devopts" )
     done
 
@@ -623,10 +662,16 @@ main() {
     done
 
     local bus_devices
-    bus_devices=( -device "$virtio_scsi_bus,id=virtio-scsi-xkvm" )
-    cmd=( "${kvmcmd[@]}" "${archopts[@]}" 
+    if [ -n "${virtio_scsi_bus}" ]; then
+        bus_devices=( -device "$virtio_scsi_bus,id=virtio-scsi-xkvm" )
+    fi
+    local rng_devices
+    rng_devices=( -object "rng-random,filename=/dev/urandom,id=objrng0"
+                  -device "$virtio_rng_device,rng=objrng0,id=rng0" )
+    cmd=( "${kvmcmd[@]}" "${archopts[@]}"
           "${bios_opts[@]}"
           "${bus_devices[@]}"
+          "${rng_devices[@]}"
           "${netargs[@]}"
           "${diskargs[@]}" "${pt[@]}" )
     local pcmd=$(quote_cmd "${cmd[@]}")
@@ -661,4 +706,4 @@ else
     main "$@"
 fi
 
-# vi: ts=4 expandtab
+# vi: ts=4 expandtab syntax=sh
