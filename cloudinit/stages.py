@@ -24,6 +24,7 @@ from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
 from cloudinit.event import EventType
+from cloudinit.sources import NetworkConfigSource
 
 from cloudinit import cloud
 from cloudinit import config
@@ -630,19 +631,37 @@ class Init(object):
         if os.path.exists(disable_file):
             return (None, disable_file)
 
-        cmdline_cfg = ('cmdline', cmdline.read_kernel_cmdline_config())
-        dscfg = ('ds', None)
-        if self.datasource and hasattr(self.datasource, 'network_config'):
-            dscfg = ('ds', self.datasource.network_config)
-        sys_cfg = ('system_cfg', self.cfg.get('network'))
+        available_cfgs = {
+            NetworkConfigSource.cmdline: cmdline.read_kernel_cmdline_config(),
+            NetworkConfigSource.ds: None,
+            NetworkConfigSource.system_cfg: self.cfg.get('network'),
+        }
 
-        for loc, ncfg in (cmdline_cfg, sys_cfg, dscfg):
+        if self.datasource and hasattr(self.datasource, 'network_config'):
+            available_cfgs[NetworkConfigSource.ds] = (
+                self.datasource.network_config)
+
+        if self.datasource:
+            order = self.datasource.network_config_sources
+        else:
+            order = sources.DataSource.network_config_sources
+        for cfg_source in order:
+            if not hasattr(NetworkConfigSource, cfg_source):
+                LOG.warning('data source specifies an invalid network'
+                            ' cfg_source: %s', cfg_source)
+                continue
+            if cfg_source not in available_cfgs:
+                LOG.warning('data source specifies an unavailable network'
+                            ' cfg_source: %s', cfg_source)
+                continue
+            ncfg = available_cfgs[cfg_source]
             if net.is_disabled_cfg(ncfg):
-                LOG.debug("network config disabled by %s", loc)
-                return (None, loc)
+                LOG.debug("network config disabled by %s", cfg_source)
+                return (None, cfg_source)
             if ncfg:
-                return (ncfg, loc)
-        return (self.distro.generate_fallback_config(), "fallback")
+                return (ncfg, cfg_source)
+        return (self.distro.generate_fallback_config(),
+                NetworkConfigSource.fallback)
 
     def _apply_netcfg_names(self, netcfg):
         try:

@@ -66,6 +66,13 @@ CLOUD_ID_REGION_PREFIX_MAP = {
     'china': ('azure-china', lambda c: c == 'azure'),  # only change azure
 }
 
+# NetworkConfigSource represents the canonical list of network config sources
+# that cloud-init knows about.  (Python 2.7 lacks PEP 435, so use a singleton
+# namedtuple as an enum; see https://stackoverflow.com/a/6971002)
+_NETCFG_SOURCE_NAMES = ('cmdline', 'ds', 'system_cfg', 'fallback')
+NetworkConfigSource = namedtuple('NetworkConfigSource',
+                                 _NETCFG_SOURCE_NAMES)(*_NETCFG_SOURCE_NAMES)
+
 
 class DataSourceNotFoundException(Exception):
     pass
@@ -152,6 +159,15 @@ class DataSource(object):
 
     # Track the discovered fallback nic for use in configuration generation.
     _fallback_interface = None
+
+    # The network configuration sources that should be considered for this data
+    # source.  (The first source in this list that provides network
+    # configuration will be used without considering any that follow.)  This
+    # should always be a subset of the members of NetworkConfigSource with no
+    # duplicate entries.
+    network_config_sources = (NetworkConfigSource.cmdline,
+                              NetworkConfigSource.system_cfg,
+                              NetworkConfigSource.ds)
 
     # read_url_params
     url_max_wait = -1   # max_wait < 0 means do not wait

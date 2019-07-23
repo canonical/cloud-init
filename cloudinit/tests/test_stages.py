@@ -6,6 +6,7 @@ import os
 
 from cloudinit import stages
 from cloudinit import sources
+from cloudinit.sources import NetworkConfigSource
 
 from cloudinit.event import EventType
 from cloudinit.util import write_file
@@ -63,7 +64,7 @@ class TestInit(CiTestCase):
         """find_networking_config returns when disabled by kernel cmdline."""
         m_cmdline.return_value = {'config': 'disabled'}
         self.assertEqual(
-            (None, 'cmdline'),
+            (None, NetworkConfigSource.cmdline),
             self.init._find_networking_config())
         self.assertEqual('DEBUG: network config disabled by cmdline\n',
                          self.logs.getvalue())
@@ -78,7 +79,7 @@ class TestInit(CiTestCase):
         self.init.datasource = FakeDataSource(
             network_config={'config': 'disabled'})
         self.assertEqual(
-            (None, 'ds'),
+            (None, NetworkConfigSource.ds),
             self.init._find_networking_config())
         self.assertEqual('DEBUG: network config disabled by ds\n',
                          self.logs.getvalue())
@@ -90,10 +91,60 @@ class TestInit(CiTestCase):
         self.init._cfg = {'system_info': {'paths': {'cloud_dir': self.tmpdir}},
                           'network': {'config': 'disabled'}}
         self.assertEqual(
-            (None, 'system_cfg'),
+            (None, NetworkConfigSource.system_cfg),
             self.init._find_networking_config())
         self.assertEqual('DEBUG: network config disabled by system_cfg\n',
                          self.logs.getvalue())
+
+    @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
+    def test__find_networking_config_uses_datasrc_order(self, m_cmdline):
+        """find_networking_config should check sources in DS defined order"""
+        # cmdline, which would normally be preferred over other sources,
+        # disables networking; in this case, though, the DS moves cmdline later
+        # so its own config is preferred
+        m_cmdline.return_value = {'config': 'disabled'}
+
+        ds_net_cfg = {'config': {'needle': True}}
+        self.init.datasource = FakeDataSource(network_config=ds_net_cfg)
+        self.init.datasource.network_config_sources = [
+            NetworkConfigSource.ds, NetworkConfigSource.system_cfg,
+            NetworkConfigSource.cmdline]
+
+        self.assertEqual(
+            (ds_net_cfg, NetworkConfigSource.ds),
+            self.init._find_networking_config())
+
+    @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
+    def test__find_networking_config_warns_if_datasrc_uses_invalid_src(
+            self, m_cmdline):
+        """find_networking_config should check sources in DS defined order"""
+        ds_net_cfg = {'config': {'needle': True}}
+        self.init.datasource = FakeDataSource(network_config=ds_net_cfg)
+        self.init.datasource.network_config_sources = [
+            'invalid_src', NetworkConfigSource.ds]
+
+        self.assertEqual(
+            (ds_net_cfg, NetworkConfigSource.ds),
+            self.init._find_networking_config())
+        self.assertIn('WARNING: data source specifies an invalid network'
+                      ' cfg_source: invalid_src',
+                      self.logs.getvalue())
+
+    @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
+    def test__find_networking_config_warns_if_datasrc_uses_unavailable_src(
+            self, m_cmdline):
+        """find_networking_config should check sources in DS defined order"""
+        ds_net_cfg = {'config': {'needle': True}}
+        self.init.datasource = FakeDataSource(network_config=ds_net_cfg)
+        self.init.datasource.network_config_sources = [
+            NetworkConfigSource.fallback, NetworkConfigSource.ds]
+
+        self.assertEqual(
+            (ds_net_cfg, NetworkConfigSource.ds),
+            self.init._find_networking_config())
+        self.assertIn('WARNING: data source specifies an unavailable network'
+                      ' cfg_source: fallback',
+                      self.logs.getvalue())
 
     @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
     def test_wb__find_networking_config_returns_kernel(self, m_cmdline):
@@ -105,7 +156,7 @@ class TestInit(CiTestCase):
         self.init.datasource = FakeDataSource(
             network_config={'config': ['fakedatasource']})
         self.assertEqual(
-            (expected_cfg, 'cmdline'),
+            (expected_cfg, NetworkConfigSource.cmdline),
             self.init._find_networking_config())
 
     @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
@@ -118,7 +169,7 @@ class TestInit(CiTestCase):
         self.init.datasource = FakeDataSource(
             network_config={'config': ['fakedatasource']})
         self.assertEqual(
-            (expected_cfg, 'system_cfg'),
+            (expected_cfg, NetworkConfigSource.system_cfg),
             self.init._find_networking_config())
 
     @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
@@ -129,7 +180,7 @@ class TestInit(CiTestCase):
         expected_cfg = {'config': ['fakedatasource']}
         self.init.datasource = FakeDataSource(network_config=expected_cfg)
         self.assertEqual(
-            (expected_cfg, 'ds'),
+            (expected_cfg, NetworkConfigSource.ds),
             self.init._find_networking_config())
 
     @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
@@ -148,7 +199,7 @@ class TestInit(CiTestCase):
         distro = self.init.distro
         distro.generate_fallback_config = fake_generate_fallback
         self.assertEqual(
-            (fake_cfg, 'fallback'),
+            (fake_cfg, NetworkConfigSource.fallback),
             self.init._find_networking_config())
         self.assertNotIn('network config disabled', self.logs.getvalue())
 
@@ -177,7 +228,7 @@ class TestInit(CiTestCase):
                  'name': 'eth9', 'mac_address': '42:42:42:42:42:42'}]}
 
         def fake_network_config():
-            return net_cfg, 'fallback'
+            return net_cfg, NetworkConfigSource.fallback
 
         m_macs.return_value = {'42:42:42:42:42:42': 'eth9'}
 
@@ -199,7 +250,7 @@ class TestInit(CiTestCase):
                  'name': 'eth9', 'mac_address': '42:42:42:42:42:42'}]}
 
         def fake_network_config():
-            return net_cfg, 'fallback'
+            return net_cfg, NetworkConfigSource.fallback
 
         self.init._find_networking_config = fake_network_config
         self.init.apply_network_config(True)
@@ -223,7 +274,7 @@ class TestInit(CiTestCase):
                  'name': 'eth9', 'mac_address': '42:42:42:42:42:42'}]}
 
         def fake_network_config():
-            return net_cfg, 'fallback'
+            return net_cfg, NetworkConfigSource.fallback
 
         m_macs.return_value = {'42:42:42:42:42:42': 'eth9'}
 
