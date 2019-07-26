@@ -69,7 +69,7 @@ CLOUD_ID_REGION_PREFIX_MAP = {
 # NetworkConfigSource represents the canonical list of network config sources
 # that cloud-init knows about.  (Python 2.7 lacks PEP 435, so use a singleton
 # namedtuple as an enum; see https://stackoverflow.com/a/6971002)
-_NETCFG_SOURCE_NAMES = ('cmdline', 'ds', 'system_cfg', 'fallback')
+_NETCFG_SOURCE_NAMES = ('cmdline', 'ds', 'system_cfg', 'fallback', 'initramfs')
 NetworkConfigSource = namedtuple('NetworkConfigSource',
                                  _NETCFG_SOURCE_NAMES)(*_NETCFG_SOURCE_NAMES)
 
@@ -166,6 +166,7 @@ class DataSource(object):
     # should always be a subset of the members of NetworkConfigSource with no
     # duplicate entries.
     network_config_sources = (NetworkConfigSource.cmdline,
+                              NetworkConfigSource.initramfs,
                               NetworkConfigSource.system_cfg,
                               NetworkConfigSource.ds)
 

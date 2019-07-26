@@ -633,6 +633,7 @@ class Init(object):
 
         available_cfgs = {
             NetworkConfigSource.cmdline: cmdline.read_kernel_cmdline_config(),
+            NetworkConfigSource.initramfs: cmdline.read_initramfs_config(),
             NetworkConfigSource.ds: None,
             NetworkConfigSource.system_cfg: self.cfg.get('network'),
         }

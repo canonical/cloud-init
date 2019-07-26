@@ -3558,13 +3558,13 @@ class TestCmdlineConfigParsing(CiTestCase):
         self.assertEqual(found, self.simple_cfg)
 
 
-class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
+class TestCmdlineReadInitramfsConfig(FilesystemMockingTestCase):
     macs = {
         'eth0': '14:02:ec:42:48:00',
         'eno1': '14:02:ec:42:48:01',
     }
 
-    def test_ip_cmdline_without_ip(self):
+    def test_without_ip(self):
         content = {'/run/net-eth0.conf': DHCP_CONTENT_1,
                    cmdline._OPEN_ISCSI_INTERFACE_FILE: "eth0\n"}
         exp1 = copy.deepcopy(DHCP_EXPECTED_1)
@@ -3574,12 +3574,12 @@ class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             cmdline='foo root=/root/bar', mac_addrs=self.macs)
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], [exp1])
 
-    def test_ip_cmdline_read_kernel_cmdline_ip(self):
+    def test_with_ip(self):
         content = {'/run/net-eth0.conf': DHCP_CONTENT_1}
         exp1 = copy.deepcopy(DHCP_EXPECTED_1)
         exp1['mac_address'] = self.macs['eth0']
@@ -3588,18 +3588,18 @@ class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             cmdline='foo ip=dhcp', mac_addrs=self.macs)
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], [exp1])
 
-    def test_ip_cmdline_read_kernel_cmdline_ip6(self):
+    def test_with_ip6(self):
         content = {'/run/net6-eno1.conf': DHCP6_CONTENT_1}
         root = self.tmp_dir()
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             cmdline='foo ip6=dhcp root=/dev/sda',
             mac_addrs=self.macs)
         self.assertEqual(
@@ -3611,15 +3611,15 @@ class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
                   {'dns_nameservers': ['2001:67c:1562:8010::2:1'],
                    'control': 'manual', 'type': 'dhcp6', 'netmask': '64'}]}]})
 
-    def test_ip_cmdline_read_kernel_cmdline_none(self):
+    def test_with_no_ip_or_ip6(self):
         # if there is no ip= or ip6= on cmdline, return value should be None
         content = {'net6-eno1.conf': DHCP6_CONTENT_1}
         files = sorted(populate_dir(self.tmp_dir(), content))
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             files=files, cmdline='foo root=/dev/sda', mac_addrs=self.macs)
         self.assertIsNone(found)
 
-    def test_ip_cmdline_both_ip_ip6(self):
+    def test_with_both_ip_ip6(self):
         content = {
             '/run/net-eth0.conf': DHCP_CONTENT_1,
             '/run/net6-eth0.conf': DHCP6_CONTENT_1.replace('eno1', 'eth0')}
@@ -3634,7 +3634,7 @@ class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             cmdline='foo ip=dhcp ip6=dhcp', mac_addrs=self.macs)
 
         self.assertEqual(found['version'], 1)
