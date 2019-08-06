@@ -66,5 +66,6 @@ platforms:
                 {{ config_get("user.vendor-data", properties.default) }}
     nocloud-kvm:
         enabled: true
+        cache_mode: cache=none,aio=native
 
 # vi: ts=4 expandtab
