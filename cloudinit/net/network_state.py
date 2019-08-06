@@ -673,6 +673,8 @@ class NetworkStateInterpreter(object):
                 'vlan_id': cfg.get('id'),
                 'vlan_link': cfg.get('link'),
             }
+            if 'mtu' in cfg:
+                vlan_cmd['mtu'] = cfg['mtu']
             subnets = self._v2_to_v1_ipcfg(cfg)
             if len(subnets) > 0:
                 vlan_cmd.update({'subnets': subnets})
@@ -722,6 +724,8 @@ class NetworkStateInterpreter(object):
                 'params': dict((v2key_to_v1[k], v) for k, v in
                                item_params.get('parameters', {}).items())
             }
+            if 'mtu' in item_cfg:
+                v1_cmd['mtu'] = item_cfg['mtu']
             subnets = self._v2_to_v1_ipcfg(item_cfg)
             if len(subnets) > 0:
                 v1_cmd.update({'subnets': subnets})

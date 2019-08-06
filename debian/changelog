@@ -1,3 +1,17 @@
+cloud-init (19.2-5-g496aaa94-0ubuntu1) eoan; urgency=medium
+
+  * New upstream snapshot.
+    - net/cmdline: split interfaces_by_mac and init network config
+      determination
+    - stages: allow data sources to override network config source order
+    - cloud_tests: updates and fixes
+    - Fix bug rendering MTU on bond or vlan when input was netplan.
+      [Scott Moser] (LP: #1836949)
+    - net: update net sequence, include wait on netdevs, opensuse netrules
+      path (LP: #1817368)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 06 Aug 2019 13:56:18 -0600
+
 cloud-init (19.2-0ubuntu1) eoan; urgency=medium
 
   * New upstream release.

@@ -48,7 +48,7 @@ class DataSourceOracle(sources.DataSource):
             return False
 
         # network may be configured if iscsi root.  If that is the case
-        # then read_kernel_cmdline_config will return non-None.
+        # then read_initramfs_config will return non-None.
         if _is_iscsi_root():
             data = self.crawl_metadata()
         else:
@@ -118,10 +118,8 @@ class DataSourceOracle(sources.DataSource):
         We nonetheless return cmdline provided config if present
         and fallback to generate fallback."""
         if self._network_config == sources.UNSET:
-            cmdline_cfg = cmdline.read_kernel_cmdline_config()
-            if cmdline_cfg:
-                self._network_config = cmdline_cfg
-            else:
+            self._network_config = cmdline.read_initramfs_config()
+            if not self._network_config:
                 self._network_config = self.distro.generate_fallback_config()
         return self._network_config
 
@@ -137,7 +135,7 @@ def _is_platform_viable():
 
 
 def _is_iscsi_root():
-    return bool(cmdline.read_kernel_cmdline_config())
+    return bool(cmdline.read_initramfs_config())
 
 
 def _load_index(content):

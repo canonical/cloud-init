@@ -133,9 +133,9 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertEqual(self.my_md['uuid'], ds.get_instance_id())
         self.assertEqual(my_userdata, ds.userdata_raw)
 
-    @mock.patch(DS_PATH + ".cmdline.read_kernel_cmdline_config")
+    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
     @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_network_cmdline(self, m_is_iscsi_root, m_cmdline_config):
+    def test_network_cmdline(self, m_is_iscsi_root, m_initramfs_config):
         """network_config should read kernel cmdline."""
         distro = mock.MagicMock()
         ds, _ = self._get_ds(distro=distro, patches={
@@ -145,15 +145,15 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
                     MD_VER: {'system_uuid': self.my_uuid,
                              'meta_data': self.my_md}}}})
         ncfg = {'version': 1, 'config': [{'a': 'b'}]}
-        m_cmdline_config.return_value = ncfg
+        m_initramfs_config.return_value = ncfg
         self.assertTrue(ds._get_data())
         self.assertEqual(ncfg, ds.network_config)
-        m_cmdline_config.assert_called_once_with()
+        self.assertEqual([mock.call()], m_initramfs_config.call_args_list)
         self.assertFalse(distro.generate_fallback_config.called)
 
-    @mock.patch(DS_PATH + ".cmdline.read_kernel_cmdline_config")
+    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
     @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_network_fallback(self, m_is_iscsi_root, m_cmdline_config):
+    def test_network_fallback(self, m_is_iscsi_root, m_initramfs_config):
         """test that fallback network is generated if no kernel cmdline."""
         distro = mock.MagicMock()
         ds, _ = self._get_ds(distro=distro, patches={
@@ -163,18 +163,17 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
                     MD_VER: {'system_uuid': self.my_uuid,
                              'meta_data': self.my_md}}}})
         ncfg = {'version': 1, 'config': [{'a': 'b'}]}
-        m_cmdline_config.return_value = None
+        m_initramfs_config.return_value = None
         self.assertTrue(ds._get_data())
         ncfg = {'version': 1, 'config': [{'distro1': 'value'}]}
         distro.generate_fallback_config.return_value = ncfg
         self.assertEqual(ncfg, ds.network_config)
-        m_cmdline_config.assert_called_once_with()
+        self.assertEqual([mock.call()], m_initramfs_config.call_args_list)
         distro.generate_fallback_config.assert_called_once_with()
-        self.assertEqual(1, m_cmdline_config.call_count)
 
         # test that the result got cached, and the methods not re-called.
         self.assertEqual(ncfg, ds.network_config)
-        self.assertEqual(1, m_cmdline_config.call_count)
+        self.assertEqual(1, m_initramfs_config.call_count)
 
 
 @mock.patch(DS_PATH + "._read_system_uuid", return_value=str(uuid.uuid4()))

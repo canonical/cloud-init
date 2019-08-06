@@ -9,6 +9,7 @@ import errno
 import logging
 import os
 import re
+from functools import partial
 
 from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit import util
@@ -292,18 +293,10 @@ def generate_fallback_config(blacklist_drivers=None, config_driver=None):
         return None
 
 
-def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
-    """read the network config and rename devices accordingly.
-    if strict_present is false, then do not raise exception if no devices
-    match.  if strict_busy is false, then do not raise exception if the
-    device cannot be renamed because it is currently configured.
-
-    renames are only attempted for interfaces of type 'physical'.  It is
-    expected that the network system will create other devices with the
-    correct name in place."""
+def extract_physdevs(netcfg):
 
     def _version_1(netcfg):
-        renames = []
+        physdevs = []
         for ent in netcfg.get('config', {}):
             if ent.get('type') != 'physical':
                 continue
@@ -317,11 +310,11 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
                 driver = device_driver(name)
             if not device_id:
                 device_id = device_devid(name)
-            renames.append([mac, name, driver, device_id])
-        return renames
+            physdevs.append([mac, name, driver, device_id])
+        return physdevs
 
     def _version_2(netcfg):
-        renames = []
+        physdevs = []
         for ent in netcfg.get('ethernets', {}).values():
             # only rename if configured to do so
             name = ent.get('set-name')
@@ -337,16 +330,69 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
                 driver = device_driver(name)
             if not device_id:
                 device_id = device_devid(name)
-            renames.append([mac, name, driver, device_id])
-        return renames
+            physdevs.append([mac, name, driver, device_id])
+        return physdevs
 
-    if netcfg.get('version') == 1:
-        return _rename_interfaces(_version_1(netcfg))
-    elif netcfg.get('version') == 2:
-        return _rename_interfaces(_version_2(netcfg))
+    version = netcfg.get('version')
+    if version == 1:
+        return _version_1(netcfg)
+    elif version == 2:
+        return _version_2(netcfg)
 
-    raise RuntimeError('Failed to apply network config names. Found bad'
-                       ' network config version: %s' % netcfg.get('version'))
+    raise RuntimeError('Unknown network config version: %s' % version)
+
+
+def wait_for_physdevs(netcfg, strict=True):
+    physdevs = extract_physdevs(netcfg)
+
+    # set of expected iface names and mac addrs
+    expected_ifaces = dict([(iface[0], iface[1]) for iface in physdevs])
+    expected_macs = set(expected_ifaces.keys())
+
+    # set of current macs
+    present_macs = get_interfaces_by_mac().keys()
+
+    # compare the set of expected mac address values to
+    # the current macs present; we only check MAC as cloud-init
+    # has not yet renamed interfaces and the netcfg may include
+    # such renames.
+    for _ in range(0, 5):
+        if expected_macs.issubset(present_macs):
+            LOG.debug('net: all expected physical devices present')
+            return
+
+        missing = expected_macs.difference(present_macs)
+        LOG.debug('net: waiting for expected net devices: %s', missing)
+        for mac in missing:
+            # trigger a settle, unless this interface exists
+            syspath = sys_dev_path(expected_ifaces[mac])
+            settle = partial(util.udevadm_settle, exists=syspath)
+            msg = 'Waiting for udev events to settle or %s exists' % syspath
+            util.log_time(LOG.debug, msg, func=settle)
+
+        # update present_macs after settles
+        present_macs = get_interfaces_by_mac().keys()
+
+    msg = 'Not all expected physical devices present: %s' % missing
+    LOG.warning(msg)
+    if strict:
+        raise RuntimeError(msg)
+
+
+def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
+    """read the network config and rename devices accordingly.
+    if strict_present is false, then do not raise exception if no devices
+    match.  if strict_busy is false, then do not raise exception if the
+    device cannot be renamed because it is currently configured.
+
+    renames are only attempted for interfaces of type 'physical'.  It is
+    expected that the network system will create other devices with the
+    correct name in place."""
+
+    try:
+        _rename_interfaces(extract_physdevs(netcfg))
+    except RuntimeError as e:
+        raise RuntimeError('Failed to apply network config names: %s' % e)
 
 
 def interface_has_own_mac(ifname, strict=False):
