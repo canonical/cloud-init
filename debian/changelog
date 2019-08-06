@@ -1,4 +1,4 @@
-cloud-init (19.2-5-g496aaa94-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.2-5-g496aaa94-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.
     - net/cmdline: split interfaces_by_mac and init network config
