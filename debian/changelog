@@ -1,4 +1,4 @@
-cloud-init (19.2-9-g15584720-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.2-9-g15584720-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.
     - Add support for publishing host keys to GCE guest attributes
