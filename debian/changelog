@@ -1,3 +1,15 @@
+cloud-init (19.2-9-g15584720-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Add support for publishing host keys to GCE guest attributes
+      [Rick Wright]
+    - New data source for the Exoscale.com cloud platform [Chris Glass]
+    - doc: remove intersphinx extension
+    - cc_set_passwords: rewrite documentation (LP: #1838794)
+  * d/cloud-init.templates: add Exoscale data source
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Fri, 09 Aug 2019 13:57:28 -0400
+
 cloud-init (19.2-5-g496aaa94-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.
