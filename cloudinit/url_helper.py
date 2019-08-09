@@ -199,18 +199,19 @@ def _get_ssl_args(url, ssl_details):
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             headers=None, headers_cb=None, ssl_details=None,
             check_status=True, allow_redirects=True, exception_cb=None,
-            session=None, infinite=False, log_req_resp=True):
+            session=None, infinite=False, log_req_resp=True,
+            request_method=None):
     url = _cleanurl(url)
     req_args = {
         'url': url,
     }
     req_args.update(_get_ssl_args(url, ssl_details))
     req_args['allow_redirects'] = allow_redirects
-    req_args['method'] = 'GET'
+    if not request_method:
+        request_method = 'POST' if data else 'GET'
+    req_args['method'] = request_method
     if timeout is not None:
         req_args['timeout'] = max(float(timeout), 0)
-    if data:
-        req_args['method'] = 'POST'
     # It doesn't seem like config
     # was added in older library versions (or newer ones either), thus we
     # need to manually do the retries if it wasn't...
