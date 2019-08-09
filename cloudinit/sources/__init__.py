@@ -491,6 +491,16 @@ class DataSource(object):
     def get_public_ssh_keys(self):
         return normalize_pubkey_data(self.metadata.get('public-keys'))
 
+    def publish_host_keys(self, hostkeys):
+        """Publish the public SSH host keys (found in /etc/ssh/*.pub).
+
+        @param hostkeys: List of host key tuples (key_type, key_value),
+            where key_type is the first field in the public key file
+            (e.g. 'ssh-rsa') and key_value is the key itself
+            (e.g. 'AAAAB3NzaC1y...').
+        """
+        pass
+
     def _remap_device(self, short_name):
         # LP: #611137
         # the metadata service may believe that devices are named 'sda'

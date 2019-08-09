@@ -55,6 +55,8 @@ GCE_USER_DATA_TEXT = {
 HEADERS = {'Metadata-Flavor': 'Google'}
 MD_URL_RE = re.compile(
     r'http://metadata.google.internal/computeMetadata/v1/.*')
+GUEST_ATTRIBUTES_URL = ('http://metadata.google.internal/computeMetadata/'
+                        'v1/instance/guest-attributes/hostkeys/')
 
 
 def _set_mock_metadata(gce_meta=None):
@@ -340,5 +342,21 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         found = DataSourceGCE._parse_public_keys(
             public_key_data, default_user='default')
         self.assertEqual(sorted(found), sorted(expected))
+
+    @mock.patch("cloudinit.url_helper.readurl")
+    def test_publish_host_keys(self, m_readurl):
+        hostkeys = [('ssh-rsa', 'asdfasdf'),
+                    ('ssh-ed25519', 'qwerqwer')]
+        readurl_expected_calls = [
+            mock.call(check_status=False, data=b'asdfasdf', headers=HEADERS,
+                      request_method='PUT',
+                      url='%s%s' % (GUEST_ATTRIBUTES_URL, 'ssh-rsa')),
+            mock.call(check_status=False, data=b'qwerqwer', headers=HEADERS,
+                      request_method='PUT',
+                      url='%s%s' % (GUEST_ATTRIBUTES_URL, 'ssh-ed25519')),
+        ]
+        self.ds.publish_host_keys(hostkeys)
+        m_readurl.assert_has_calls(readurl_expected_calls, any_order=True)
+
 
 # vi: ts=4 expandtab
