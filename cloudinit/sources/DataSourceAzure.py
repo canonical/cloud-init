@@ -1241,7 +1241,7 @@ def parse_network_config(imds_metadata):
                     privateIpv4 = addr4['privateIpAddress']
                     if privateIpv4:
                         if dev_config.get('dhcp4', False):
-                            # Append static address config for nic > 1
+                            # Append static address config for ip > 1
                             netPrefix = intf['ipv4']['subnet'][0].get(
                                 'prefix', '24')
                             if not dev_config.get('addresses'):
@@ -1251,6 +1251,11 @@ def parse_network_config(imds_metadata):
                                     ip=privateIpv4, prefix=netPrefix))
                         else:
                             dev_config['dhcp4'] = True
+                            # non-primary interfaces should have a higher
+                            # route-metric (cost) so default routes prefer
+                            # primary nic due to lower route-metric value
+                            dev_config['dhcp4-overrides'] = {
+                                'route-metric': (idx + 1) * 100}
                 for addr6 in intf['ipv6']['ipAddress']:
                     privateIpv6 = addr6['privateIpAddress']
                     if privateIpv6:

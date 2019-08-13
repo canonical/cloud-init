@@ -12,6 +12,7 @@ from cloudinit.tests.helpers import (
     HttprettyTestCase, CiTestCase, populate_dir, mock, wrap_and_call,
     ExitStack, resourceLocation)
 
+import copy
 import crypt
 import httpretty
 import json
@@ -124,6 +125,26 @@ NETWORK_METADATA = {
                         }
                     ]
                 }
+            }
+        ]
+    }
+}
+
+SECONDARY_INTERFACE = {
+    "macAddress": "220D3A047598",
+    "ipv6": {
+        "ipAddress": []
+    },
+    "ipv4": {
+        "subnet": [
+            {
+                "prefix": "24",
+                "address": "10.0.1.0"
+            }
+        ],
+        "ipAddress": [
+            {
+                "privateIpAddress": "10.0.1.5",
             }
         ]
     }
@@ -619,8 +640,43 @@ scbus-1 on xpt0 bus 0
             'ethernets': {
                 'eth0': {'set-name': 'eth0',
                          'match': {'macaddress': '00:0d:3a:04:75:98'},
-                         'dhcp4': True}},
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 100}}},
             'version': 2}
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(expected_network_config, dsrc.network_config)
+
+    def test_network_config_set_from_imds_route_metric_for_secondary_nic(self):
+        """Datasource.network_config adds route-metric to secondary nics."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        expected_network_config = {
+            'ethernets': {
+                'eth0': {'set-name': 'eth0',
+                         'match': {'macaddress': '00:0d:3a:04:75:98'},
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 100}},
+                'eth1': {'set-name': 'eth1',
+                         'match': {'macaddress': '22:0d:3a:04:75:98'},
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 200}},
+                'eth2': {'set-name': 'eth2',
+                         'match': {'macaddress': '33:0d:3a:04:75:98'},
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 300}}},
+            'version': 2}
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data['network']['interface'].append(SECONDARY_INTERFACE)
+        third_intf = copy.deepcopy(SECONDARY_INTERFACE)
+        third_intf['macAddress'] = third_intf['macAddress'].replace('22', '33')
+        third_intf['ipv4']['subnet'][0]['address'] = '10.0.2.0'
+        third_intf['ipv4']['ipAddress'][0]['privateIpAddress'] = '10.0.2.6'
+        imds_data['network']['interface'].append(third_intf)
+
+        self.m_get_metadata_from_imds.return_value = imds_data
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
@@ -925,6 +981,7 @@ scbus-1 on xpt0 bus 0
         expected_cfg = {
             'ethernets': {
                 'eth0': {'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 100},
                          'match': {'macaddress': '00:0d:3a:04:75:98'},
                          'set-name': 'eth0'}},
             'version': 2}
