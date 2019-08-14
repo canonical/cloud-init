@@ -181,7 +181,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             self.logs.getvalue())
 
     @mock.patch(MOCKPATH + 'readurl')
-    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4WithReporting')
     @mock.patch(MOCKPATH + 'net.is_up')
     def test_get_metadata_performs_dhcp_when_network_is_down(
             self, m_net_is_up, m_dhcp, m_readurl):
@@ -195,7 +195,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             dsaz.get_metadata_from_imds('eth9', retries=2))
 
         m_net_is_up.assert_called_with('eth9')
-        m_dhcp.assert_called_with('eth9')
+        m_dhcp.assert_called_with(mock.ANY, 'eth9')
         self.assertIn(
             "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
             self.logs.getvalue())
@@ -552,7 +552,8 @@ scbus-1 on xpt0 bus 0
             dsrc.crawl_metadata()
         self.assertEqual(str(cm.exception), error_msg)
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.EphemeralDHCPv4')
+    @mock.patch(
+        'cloudinit.sources.DataSourceAzure.EphemeralDHCPv4WithReporting')
     @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
     @mock.patch(
         'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
@@ -1308,7 +1309,9 @@ class TestAzureBounce(CiTestCase):
         self.assertEqual(initial_host_name,
                          self.set_hostname.call_args_list[-1][0][0])
 
-    def test_environment_correct_for_bounce_command(self):
+    @mock.patch.object(dsaz, 'get_boot_telemetry')
+    def test_environment_correct_for_bounce_command(
+            self, mock_get_boot_telemetry):
         interface = 'int0'
         hostname = 'my-new-host'
         old_hostname = 'my-old-host'
@@ -1324,7 +1327,9 @@ class TestAzureBounce(CiTestCase):
         self.assertEqual(hostname, bounce_env['hostname'])
         self.assertEqual(old_hostname, bounce_env['old_hostname'])
 
-    def test_default_bounce_command_ifup_used_by_default(self):
+    @mock.patch.object(dsaz, 'get_boot_telemetry')
+    def test_default_bounce_command_ifup_used_by_default(
+            self, mock_get_boot_telemetry):
         cfg = {'hostname_bounce': {'policy': 'force'}}
         data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
         dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
