@@ -396,16 +396,16 @@ class Distro(object):
         else:
             create_groups = True
 
-        adduser_cmd = ['useradd', name]
-        log_adduser_cmd = ['useradd', name]
+        useradd_cmd = ['useradd', name]
+        log_useradd_cmd = ['useradd', name]
         if util.system_is_snappy():
-            adduser_cmd.append('--extrausers')
-            log_adduser_cmd.append('--extrausers')
+            useradd_cmd.append('--extrausers')
+            log_useradd_cmd.append('--extrausers')
 
         # Since we are creating users, we want to carefully validate the
         # inputs. If something goes wrong, we can end up with a system
         # that nobody can login to.
-        adduser_opts = {
+        useradd_opts = {
             "gecos": '--comment',
             "homedir": '--home',
             "primary_group": '--gid',
@@ -418,7 +418,7 @@ class Distro(object):
             "selinux_user": '--selinux-user',
         }
 
-        adduser_flags = {
+        useradd_flags = {
             "no_user_group": '--no-user-group',
             "system": '--system',
             "no_log_init": '--no-log-init',
@@ -453,32 +453,32 @@ class Distro(object):
         # Check the values and create the command
         for key, val in sorted(kwargs.items()):
 
-            if key in adduser_opts and val and isinstance(val, str):
-                adduser_cmd.extend([adduser_opts[key], val])
+            if key in useradd_opts and val and isinstance(val, str):
+                useradd_cmd.extend([useradd_opts[key], val])
 
                 # Redact certain fields from the logs
                 if key in redact_opts:
-                    log_adduser_cmd.extend([adduser_opts[key], 'REDACTED'])
+                    log_useradd_cmd.extend([useradd_opts[key], 'REDACTED'])
                 else:
-                    log_adduser_cmd.extend([adduser_opts[key], val])
+                    log_useradd_cmd.extend([useradd_opts[key], val])
 
-            elif key in adduser_flags and val:
-                adduser_cmd.append(adduser_flags[key])
-                log_adduser_cmd.append(adduser_flags[key])
+            elif key in useradd_flags and val:
+                useradd_cmd.append(useradd_flags[key])
+                log_useradd_cmd.append(useradd_flags[key])
 
         # Don't create the home directory if directed so or if the user is a
         # system user
         if kwargs.get('no_create_home') or kwargs.get('system'):
-            adduser_cmd.append('-M')
-            log_adduser_cmd.append('-M')
+            useradd_cmd.append('-M')
+            log_useradd_cmd.append('-M')
         else:
-            adduser_cmd.append('-m')
-            log_adduser_cmd.append('-m')
+            useradd_cmd.append('-m')
+            log_useradd_cmd.append('-m')
 
         # Run the command
         LOG.debug("Adding user %s", name)
         try:
-            util.subp(adduser_cmd, logstring=log_adduser_cmd)
+            util.subp(useradd_cmd, logstring=log_useradd_cmd)
         except Exception as e:
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
@@ -490,15 +490,15 @@ class Distro(object):
 
         snapuser = kwargs.get('snapuser')
         known = kwargs.get('known', False)
-        adduser_cmd = ["snap", "create-user", "--sudoer", "--json"]
+        create_user_cmd = ["snap", "create-user", "--sudoer", "--json"]
         if known:
-            adduser_cmd.append("--known")
-        adduser_cmd.append(snapuser)
+            create_user_cmd.append("--known")
+        create_user_cmd.append(snapuser)
 
         # Run the command
         LOG.debug("Adding snap user %s", name)
         try:
-            (out, err) = util.subp(adduser_cmd, logstring=adduser_cmd,
+            (out, err) = util.subp(create_user_cmd, logstring=create_user_cmd,
                                    capture=True)
             LOG.debug("snap create-user returned: %s:%s", out, err)
             jobj = util.load_json(out)
