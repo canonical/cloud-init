@@ -16,13 +16,21 @@ from xml.etree import ElementTree
 
 from cloudinit import url_helper
 from cloudinit import util
+from cloudinit import version
+from cloudinit import distros
 from cloudinit.reporting import events
+from cloudinit.net.dhcp import EphemeralDHCPv4
+from datetime import datetime
 
 LOG = logging.getLogger(__name__)
 
 # This endpoint matches the format as found in dhcp lease files, since this
 # value is applied if the endpoint can't be found within a lease file
 DEFAULT_WIRESERVER_ENDPOINT = "a8:3f:81:10"
+
+BOOT_EVENT_TYPE = 'boot-telemetry'
+SYSTEMINFO_EVENT_TYPE = 'system-info'
+DIAGNOSTIC_EVENT_TYPE = 'diagnostic'
 
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
@@ -38,6 +46,105 @@ def azure_ds_telemetry_reporter(func):
                 parent=azure_ds_reporter):
             return func(*args, **kwargs)
     return impl
+
+
+@azure_ds_telemetry_reporter
+def get_boot_telemetry():
+    """Report timestamps related to kernel initialization and systemd
+       activation of cloud-init"""
+    if not distros.uses_systemd():
+        raise RuntimeError(
+            "distro not using systemd, skipping boot telemetry")
+
+    LOG.debug("Collecting boot telemetry")
+    try:
+        kernel_start = float(time.time()) - float(util.uptime())
+    except ValueError:
+        raise RuntimeError("Failed to determine kernel start timestamp")
+
+    try:
+        out, _ = util.subp(['/bin/systemctl',
+                            'show', '-p',
+                            'UserspaceTimestampMonotonic'],
+                           capture=True)
+        tsm = None
+        if out and '=' in out:
+            tsm = out.split("=")[1]
+
+        if not tsm:
+            raise RuntimeError("Failed to parse "
+                               "UserspaceTimestampMonotonic from systemd")
+
+        user_start = kernel_start + (float(tsm) / 1000000)
+    except util.ProcessExecutionError as e:
+        raise RuntimeError("Failed to get UserspaceTimestampMonotonic: %s"
+                           % e)
+    except ValueError as e:
+        raise RuntimeError("Failed to parse "
+                           "UserspaceTimestampMonotonic from systemd: %s"
+                           % e)
+
+    try:
+        out, _ = util.subp(['/bin/systemctl', 'show',
+                            'cloud-init-local', '-p',
+                            'InactiveExitTimestampMonotonic'],
+                           capture=True)
+        tsm = None
+        if out and '=' in out:
+            tsm = out.split("=")[1]
+        if not tsm:
+            raise RuntimeError("Failed to parse "
+                               "InactiveExitTimestampMonotonic from systemd")
+
+        cloudinit_activation = kernel_start + (float(tsm) / 1000000)
+    except util.ProcessExecutionError as e:
+        raise RuntimeError("Failed to get InactiveExitTimestampMonotonic: %s"
+                           % e)
+    except ValueError as e:
+        raise RuntimeError("Failed to parse "
+                           "InactiveExitTimestampMonotonic from systemd: %s"
+                           % e)
+
+    evt = events.ReportingEvent(
+        BOOT_EVENT_TYPE, 'boot-telemetry',
+        "kernel_start=%s user_start=%s cloudinit_activation=%s" %
+        (datetime.utcfromtimestamp(kernel_start).isoformat() + 'Z',
+         datetime.utcfromtimestamp(user_start).isoformat() + 'Z',
+         datetime.utcfromtimestamp(cloudinit_activation).isoformat() + 'Z'),
+        events.DEFAULT_EVENT_ORIGIN)
+    events.report_event(evt)
+
+    # return the event for unit testing purpose
+    return evt
+
+
+@azure_ds_telemetry_reporter
+def get_system_info():
+    """Collect and report system information"""
+    info = util.system_info()
+    evt = events.ReportingEvent(
+        SYSTEMINFO_EVENT_TYPE, 'system information',
+        "cloudinit_version=%s, kernel_version=%s, variant=%s, "
+        "distro_name=%s, distro_version=%s, flavor=%s, "
+        "python_version=%s" %
+        (version.version_string(), info['release'], info['variant'],
+         info['dist'][0], info['dist'][1], info['dist'][2],
+         info['python']), events.DEFAULT_EVENT_ORIGIN)
+    events.report_event(evt)
+
+    # return the event for unit testing purpose
+    return evt
+
+
+def report_diagnostic_event(str):
+    """Report a diagnostic event"""
+    evt = events.ReportingEvent(
+        DIAGNOSTIC_EVENT_TYPE, 'diagnostic message',
+        str, events.DEFAULT_EVENT_ORIGIN)
+    events.report_event(evt)
+
+    # return the event for unit testing purpose
+    return evt
 
 
 @contextmanager
@@ -360,16 +467,19 @@ class WALinuxAgentShim(object):
             value = dhcp245
             LOG.debug("Using Azure Endpoint from dhcp options")
         if value is None:
+            report_diagnostic_event("No Azure endpoint from dhcp options")
             LOG.debug('Finding Azure endpoint from networkd...')
             value = WALinuxAgentShim._networkd_get_value_from_leases()
         if value is None:
             # Option-245 stored in /run/cloud-init/dhclient.hooks/<ifc>.json
             # a dhclient exit hook that calls cloud-init-dhclient-hook
+            report_diagnostic_event("No Azure endpoint from networkd")
             LOG.debug('Finding Azure endpoint from hook json...')
             dhcp_options = WALinuxAgentShim._load_dhclient_json()
             value = WALinuxAgentShim._get_value_from_dhcpoptions(dhcp_options)
         if value is None:
             # Fallback and check the leases file if unsuccessful
+            report_diagnostic_event("No Azure endpoint from dhclient logs")
             LOG.debug("Unable to find endpoint in dhclient logs. "
                       " Falling back to check lease files")
             if fallback_lease_file is None:
@@ -381,11 +491,15 @@ class WALinuxAgentShim(object):
                 value = WALinuxAgentShim._get_value_from_leases_file(
                     fallback_lease_file)
         if value is None:
-            LOG.warning("No lease found; using default endpoint")
+            msg = "No lease found; using default endpoint"
+            report_diagnostic_event(msg)
+            LOG.warning(msg)
             value = DEFAULT_WIRESERVER_ENDPOINT
 
         endpoint_ip_address = WALinuxAgentShim.get_ip_from_lease_value(value)
-        LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
+        msg = 'Azure endpoint found at %s' % endpoint_ip_address
+        report_diagnostic_event(msg)
+        LOG.debug(msg)
         return endpoint_ip_address
 
     @azure_ds_telemetry_reporter
@@ -399,16 +513,19 @@ class WALinuxAgentShim(object):
             try:
                 response = http_client.get(
                     'http://{0}/machine/?comp=goalstate'.format(self.endpoint))
-            except Exception:
+            except Exception as e:
                 if attempts < 10:
                     time.sleep(attempts + 1)
                 else:
+                    report_diagnostic_event(
+                        "failed to register with Azure: %s" % e)
                     raise
             else:
                 break
             attempts += 1
         LOG.debug('Successfully fetched GoalState XML.')
         goal_state = GoalState(response.contents, http_client)
+        report_diagnostic_event("container_id %s" % goal_state.container_id)
         ssh_keys = []
         if goal_state.certificates_xml is not None and pubkey_info is not None:
             LOG.debug('Certificate XML found; parsing out public keys.')
@@ -449,11 +566,20 @@ class WALinuxAgentShim(object):
             container_id=goal_state.container_id,
             instance_id=goal_state.instance_id,
         )
-        http_client.post(
-            "http://{0}/machine?comp=health".format(self.endpoint),
-            data=document,
-            extra_headers={'Content-Type': 'text/xml; charset=utf-8'},
-        )
+        # Host will collect kvps when cloud-init reports ready.
+        # some kvps might still be in the queue. We yield the scheduler
+        # to make sure we process all kvps up till this point.
+        time.sleep(0)
+        try:
+            http_client.post(
+                "http://{0}/machine?comp=health".format(self.endpoint),
+                data=document,
+                extra_headers={'Content-Type': 'text/xml; charset=utf-8'},
+            )
+        except Exception as e:
+            report_diagnostic_event("exception while reporting ready: %s" % e)
+            raise
+
         LOG.info('Reported ready to Azure fabric.')
 
 
@@ -466,5 +592,23 @@ def get_metadata_from_fabric(fallback_lease_file=None, dhcp_opts=None,
         return shim.register_with_azure_and_fetch_data(pubkey_info=pubkey_info)
     finally:
         shim.clean_up()
+
+
+class EphemeralDHCPv4WithReporting(object):
+    def __init__(self, reporter, nic=None):
+        self.reporter = reporter
+        self.ephemeralDHCPv4 = EphemeralDHCPv4(iface=nic)
+
+    def __enter__(self):
+        with events.ReportEventStack(
+                name="obtain-dhcp-lease",
+                description="obtain dhcp lease",
+                parent=self.reporter):
+            return self.ephemeralDHCPv4.__enter__()
+
+    def __exit__(self, excp_type, excp_value, excp_traceback):
+        self.ephemeralDHCPv4.__exit__(
+            excp_type, excp_value, excp_traceback)
+
 
 # vi: ts=4 expandtab

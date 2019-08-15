@@ -7,9 +7,12 @@ import json
 import os
 import struct
 import time
+import re
+import mock
 
 from cloudinit import util
 from cloudinit.tests.helpers import CiTestCase
+from cloudinit.sources.helpers import azure
 
 
 class TestKvpEncoding(CiTestCase):
@@ -126,3 +129,65 @@ class TextKvpReporter(CiTestCase):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
         kvps = list(reporter._iterate_kvps(0))
         self.assertEqual(0, len(kvps))
+
+    @mock.patch('cloudinit.distros.uses_systemd')
+    @mock.patch('cloudinit.util.subp')
+    def test_get_boot_telemetry(self, m_subp, m_sysd):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        datetime_pattern = r"\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]"
+        r"\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)"
+
+        # get_boot_telemetry makes two subp calls to systemctl. We provide
+        # a list of values that the subp calls should return
+        m_subp.side_effect = [
+            ('UserspaceTimestampMonotonic=1844838', ''),
+            ('InactiveExitTimestampMonotonic=3068203', '')]
+        m_sysd.return_value = True
+
+        reporter.publish_event(azure.get_boot_telemetry())
+        reporter.q.join()
+        kvps = list(reporter._iterate_kvps(0))
+        self.assertEqual(1, len(kvps))
+
+        evt_msg = kvps[0]['value']
+        if not re.search("kernel_start=" + datetime_pattern, evt_msg):
+            raise AssertionError("missing kernel_start timestamp")
+        if not re.search("user_start=" + datetime_pattern, evt_msg):
+            raise AssertionError("missing user_start timestamp")
+        if not re.search("cloudinit_activation=" + datetime_pattern,
+                         evt_msg):
+            raise AssertionError(
+                "missing cloudinit_activation timestamp")
+
+    def test_get_system_info(self):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        pattern = r"[^=\s]+"
+
+        reporter.publish_event(azure.get_system_info())
+        reporter.q.join()
+        kvps = list(reporter._iterate_kvps(0))
+        self.assertEqual(1, len(kvps))
+        evt_msg = kvps[0]['value']
+
+        # the most important information is cloudinit version,
+        # kernel_version, and the distro variant. It is ok if
+        # if the rest is not available
+        if not re.search("cloudinit_version=" + pattern, evt_msg):
+            raise AssertionError("missing cloudinit_version string")
+        if not re.search("kernel_version=" + pattern, evt_msg):
+            raise AssertionError("missing kernel_version string")
+        if not re.search("variant=" + pattern, evt_msg):
+            raise AssertionError("missing distro variant string")
+
+    def test_report_diagnostic_event(self):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+
+        reporter.publish_event(
+            azure.report_diagnostic_event("test_diagnostic"))
+        reporter.q.join()
+        kvps = list(reporter._iterate_kvps(0))
+        self.assertEqual(1, len(kvps))
+        evt_msg = kvps[0]['value']
+
+        if "test_diagnostic" not in evt_msg:
+            raise AssertionError("missing expected diagnostic message")

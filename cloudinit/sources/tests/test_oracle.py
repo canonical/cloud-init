@@ -18,9 +18,51 @@ import uuid
 DS_PATH = "cloudinit.sources.DataSourceOracle"
 MD_VER = "2013-10-17"
 
+# `curl -L http://169.254.169.254/opc/v1/vnics/` on a Oracle Bare Metal Machine
+# with a secondary VNIC attached (vnicId truncated for Python line length)
+OPC_BM_SECONDARY_VNIC_RESPONSE = """\
+[ {
+  "vnicId" : "ocid1.vnic.oc1.phx.abyhqljtyvcucqkhdqmgjszebxe4hrb!!TRUNCATED||",
+  "privateIp" : "10.0.0.8",
+  "vlanTag" : 0,
+  "macAddr" : "90:e2:ba:d4:f1:68",
+  "virtualRouterIp" : "10.0.0.1",
+  "subnetCidrBlock" : "10.0.0.0/24",
+  "nicIndex" : 0
+}, {
+  "vnicId" : "ocid1.vnic.oc1.phx.abyhqljtfmkxjdy2sqidndiwrsg63zf!!TRUNCATED||",
+  "privateIp" : "10.0.4.5",
+  "vlanTag" : 1,
+  "macAddr" : "02:00:17:05:CF:51",
+  "virtualRouterIp" : "10.0.4.1",
+  "subnetCidrBlock" : "10.0.4.0/24",
+  "nicIndex" : 0
+} ]"""
+
+# `curl -L http://169.254.169.254/opc/v1/vnics/` on a Oracle Virtual Machine
+# with a secondary VNIC attached
+OPC_VM_SECONDARY_VNIC_RESPONSE = """\
+[ {
+  "vnicId" : "ocid1.vnic.oc1.phx.abyhqljtch72z5pd76cc2636qeqh7z_truncated",
+  "privateIp" : "10.0.0.230",
+  "vlanTag" : 1039,
+  "macAddr" : "02:00:17:05:D1:DB",
+  "virtualRouterIp" : "10.0.0.1",
+  "subnetCidrBlock" : "10.0.0.0/24"
+}, {
+  "vnicId" : "ocid1.vnic.oc1.phx.abyhqljt4iew3gwmvrwrhhf3bp5drj_truncated",
+  "privateIp" : "10.0.0.231",
+  "vlanTag" : 1041,
+  "macAddr" : "00:00:17:02:2B:B1",
+  "virtualRouterIp" : "10.0.0.1",
+  "subnetCidrBlock" : "10.0.0.0/24"
+} ]"""
+
 
 class TestDataSourceOracle(test_helpers.CiTestCase):
     """Test datasource DataSourceOracle."""
+
+    with_logs = True
 
     ds_class = oracle.DataSourceOracle
 
@@ -79,6 +121,16 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertEqual(
             'metadata (http://169.254.169.254/openstack/)', ds.subplatform)
 
+    def test_sys_cfg_can_enable_configure_secondary_nics(self):
+        # Confirm that behaviour is toggled by sys_cfg
+        ds, _mocks = self._get_ds()
+        self.assertFalse(ds.ds_cfg['configure_secondary_nics'])
+
+        sys_cfg = {
+            'datasource': {'Oracle': {'configure_secondary_nics': True}}}
+        ds, _mocks = self._get_ds(sys_cfg=sys_cfg)
+        self.assertTrue(ds.ds_cfg['configure_secondary_nics'])
+
     @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
     def test_without_userdata(self, m_is_iscsi_root):
         """If no user-data is provided, it should not be in return dict."""
@@ -133,9 +185,12 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertEqual(self.my_md['uuid'], ds.get_instance_id())
         self.assertEqual(my_userdata, ds.userdata_raw)
 
+    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds",
+                side_effect=lambda network_config: network_config)
     @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
     @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_network_cmdline(self, m_is_iscsi_root, m_initramfs_config):
+    def test_network_cmdline(self, m_is_iscsi_root, m_initramfs_config,
+                             _m_add_network_config_from_opc_imds):
         """network_config should read kernel cmdline."""
         distro = mock.MagicMock()
         ds, _ = self._get_ds(distro=distro, patches={
@@ -151,9 +206,12 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertEqual([mock.call()], m_initramfs_config.call_args_list)
         self.assertFalse(distro.generate_fallback_config.called)
 
+    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds",
+                side_effect=lambda network_config: network_config)
     @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
     @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_network_fallback(self, m_is_iscsi_root, m_initramfs_config):
+    def test_network_fallback(self, m_is_iscsi_root, m_initramfs_config,
+                              _m_add_network_config_from_opc_imds):
         """test that fallback network is generated if no kernel cmdline."""
         distro = mock.MagicMock()
         ds, _ = self._get_ds(distro=distro, patches={
@@ -174,6 +232,76 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         # test that the result got cached, and the methods not re-called.
         self.assertEqual(ncfg, ds.network_config)
         self.assertEqual(1, m_initramfs_config.call_count)
+
+    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds")
+    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config",
+                return_value={'some': 'config'})
+    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
+    def test_secondary_nics_added_to_network_config_if_enabled(
+            self, _m_is_iscsi_root, _m_initramfs_config,
+            m_add_network_config_from_opc_imds):
+
+        needle = object()
+
+        def network_config_side_effect(network_config):
+            network_config['secondary_added'] = needle
+
+        m_add_network_config_from_opc_imds.side_effect = (
+            network_config_side_effect)
+
+        distro = mock.MagicMock()
+        ds, _ = self._get_ds(distro=distro, patches={
+            '_is_platform_viable': {'return_value': True},
+            'crawl_metadata': {
+                'return_value': {
+                    MD_VER: {'system_uuid': self.my_uuid,
+                             'meta_data': self.my_md}}}})
+        ds.ds_cfg['configure_secondary_nics'] = True
+        self.assertEqual(needle, ds.network_config['secondary_added'])
+
+    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds")
+    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config",
+                return_value={'some': 'config'})
+    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
+    def test_secondary_nics_not_added_to_network_config_by_default(
+            self, _m_is_iscsi_root, _m_initramfs_config,
+            m_add_network_config_from_opc_imds):
+
+        def network_config_side_effect(network_config):
+            network_config['secondary_added'] = True
+
+        m_add_network_config_from_opc_imds.side_effect = (
+            network_config_side_effect)
+
+        distro = mock.MagicMock()
+        ds, _ = self._get_ds(distro=distro, patches={
+            '_is_platform_viable': {'return_value': True},
+            'crawl_metadata': {
+                'return_value': {
+                    MD_VER: {'system_uuid': self.my_uuid,
+                             'meta_data': self.my_md}}}})
+        self.assertNotIn('secondary_added', ds.network_config)
+
+    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds")
+    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
+    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
+    def test_secondary_nic_failure_isnt_blocking(
+            self, _m_is_iscsi_root, m_initramfs_config,
+            m_add_network_config_from_opc_imds):
+
+        m_add_network_config_from_opc_imds.side_effect = Exception()
+
+        distro = mock.MagicMock()
+        ds, _ = self._get_ds(distro=distro, patches={
+            '_is_platform_viable': {'return_value': True},
+            'crawl_metadata': {
+                'return_value': {
+                    MD_VER: {'system_uuid': self.my_uuid,
+                             'meta_data': self.my_md}}}})
+        ds.ds_cfg['configure_secondary_nics'] = True
+        self.assertEqual(ds.network_config, m_initramfs_config.return_value)
+        self.assertIn('Failed to fetch secondary network configuration',
+                      self.logs.getvalue())
 
 
 @mock.patch(DS_PATH + "._read_system_uuid", return_value=str(uuid.uuid4()))
@@ -334,5 +462,87 @@ class TestLoadIndex(test_helpers.CiTestCase):
             ['meta_data.json', 'user_data'],
             oracle._load_index("\n".join(["meta_data.json", "user_data"])))
 
+
+class TestNetworkConfigFromOpcImds(test_helpers.CiTestCase):
+
+    with_logs = True
+
+    def setUp(self):
+        super(TestNetworkConfigFromOpcImds, self).setUp()
+        self.add_patch(DS_PATH + '.readurl', 'm_readurl')
+        self.add_patch(DS_PATH + '.get_interfaces_by_mac',
+                       'm_get_interfaces_by_mac')
+
+    def test_failure_to_readurl(self):
+        # readurl failures should just bubble out to the caller
+        self.m_readurl.side_effect = Exception('oh no')
+        with self.assertRaises(Exception) as excinfo:
+            oracle._add_network_config_from_opc_imds({})
+        self.assertEqual(str(excinfo.exception), 'oh no')
+
+    def test_empty_response(self):
+        # empty response error should just bubble out to the caller
+        self.m_readurl.return_value = ''
+        with self.assertRaises(Exception):
+            oracle._add_network_config_from_opc_imds([])
+
+    def test_invalid_json(self):
+        # invalid JSON error should just bubble out to the caller
+        self.m_readurl.return_value = '{'
+        with self.assertRaises(Exception):
+            oracle._add_network_config_from_opc_imds([])
+
+    def test_no_secondary_nics_does_not_mutate_input(self):
+        self.m_readurl.return_value = json.dumps([{}])
+        # We test this by passing in a non-dict to ensure that no dict
+        # operations are used; failure would be seen as exceptions
+        oracle._add_network_config_from_opc_imds(object())
+
+    def test_bare_metal_machine_skipped(self):
+        # nicIndex in the first entry indicates a bare metal machine
+        self.m_readurl.return_value = OPC_BM_SECONDARY_VNIC_RESPONSE
+        # We test this by passing in a non-dict to ensure that no dict
+        # operations are used
+        self.assertFalse(oracle._add_network_config_from_opc_imds(object()))
+        self.assertIn('bare metal machine', self.logs.getvalue())
+
+    def test_missing_mac_skipped(self):
+        self.m_readurl.return_value = OPC_VM_SECONDARY_VNIC_RESPONSE
+        self.m_get_interfaces_by_mac.return_value = {}
+
+        network_config = {'version': 1, 'config': [{'primary': 'nic'}]}
+        oracle._add_network_config_from_opc_imds(network_config)
+
+        self.assertEqual(1, len(network_config['config']))
+        self.assertIn(
+            'Interface with MAC 00:00:17:02:2b:b1 not found; skipping',
+            self.logs.getvalue())
+
+    def test_secondary_nic(self):
+        self.m_readurl.return_value = OPC_VM_SECONDARY_VNIC_RESPONSE
+        mac_addr, nic_name = '00:00:17:02:2b:b1', 'ens3'
+        self.m_get_interfaces_by_mac.return_value = {
+            mac_addr: nic_name,
+        }
+
+        network_config = {'version': 1, 'config': [{'primary': 'nic'}]}
+        oracle._add_network_config_from_opc_imds(network_config)
+
+        # The input is mutated
+        self.assertEqual(2, len(network_config['config']))
+
+        secondary_nic_cfg = network_config['config'][1]
+        self.assertEqual(nic_name, secondary_nic_cfg['name'])
+        self.assertEqual('physical', secondary_nic_cfg['type'])
+        self.assertEqual(mac_addr, secondary_nic_cfg['mac_address'])
+        self.assertEqual(9000, secondary_nic_cfg['mtu'])
+
+        self.assertEqual(1, len(secondary_nic_cfg['subnets']))
+        subnet_cfg = secondary_nic_cfg['subnets'][0]
+        # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
+        self.assertEqual('10.0.0.231', subnet_cfg['address'])
+        self.assertEqual('24', subnet_cfg['netmask'])
+        self.assertEqual('10.0.0.1', subnet_cfg['gateway'])
+        self.assertEqual('manual', subnet_cfg['control'])
 
 # vi: ts=4 expandtab

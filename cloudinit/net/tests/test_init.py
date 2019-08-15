@@ -212,9 +212,9 @@ class TestGenerateFallbackConfig(CiTestCase):
         mac = 'aa:bb:cc:aa:bb:cc'
         write_file(os.path.join(self.sysdir, 'eth1', 'address'), mac)
         expected = {
-            'config': [{'type': 'physical', 'mac_address': mac,
-                        'name': 'eth1', 'subnets': [{'type': 'dhcp'}]}],
-            'version': 1}
+            'ethernets': {'eth1': {'match': {'macaddress': mac},
+                                   'dhcp4': True, 'set-name': 'eth1'}},
+            'version': 2}
         self.assertEqual(expected, net.generate_fallback_config())
 
     def test_generate_fallback_finds_dormant_eth_with_mac(self):
@@ -223,9 +223,9 @@ class TestGenerateFallbackConfig(CiTestCase):
         mac = 'aa:bb:cc:aa:bb:cc'
         write_file(os.path.join(self.sysdir, 'eth0', 'address'), mac)
         expected = {
-            'config': [{'type': 'physical', 'mac_address': mac,
-                        'name': 'eth0', 'subnets': [{'type': 'dhcp'}]}],
-            'version': 1}
+            'ethernets': {'eth0': {'match': {'macaddress': mac}, 'dhcp4': True,
+                                   'set-name': 'eth0'}},
+            'version': 2}
         self.assertEqual(expected, net.generate_fallback_config())
 
     def test_generate_fallback_finds_eth_by_operstate(self):
@@ -233,9 +233,10 @@ class TestGenerateFallbackConfig(CiTestCase):
         mac = 'aa:bb:cc:aa:bb:cc'
         write_file(os.path.join(self.sysdir, 'eth0', 'address'), mac)
         expected = {
-            'config': [{'type': 'physical', 'mac_address': mac,
-                        'name': 'eth0', 'subnets': [{'type': 'dhcp'}]}],
-            'version': 1}
+            'ethernets': {
+                'eth0': {'dhcp4': True, 'match': {'macaddress': mac},
+                         'set-name': 'eth0'}},
+            'version': 2}
         valid_operstates = ['dormant', 'down', 'lowerlayerdown', 'unknown']
         for state in valid_operstates:
             write_file(os.path.join(self.sysdir, 'eth0', 'operstate'), state)
