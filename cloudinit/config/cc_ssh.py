@@ -197,7 +197,7 @@ def handle(_name, cfg, cloud, log, _args):
         hostkeys = get_public_host_keys(blacklist=host_key_blacklist)
         try:
             cloud.datasource.publish_host_keys(hostkeys)
-        except Exception as e:
+        except Exception:
             util.logexc(log, "Publishing host keys failed!")
 
     try:
