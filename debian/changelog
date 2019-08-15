@@ -1,3 +1,14 @@
+cloud-init (19.2-13-g2f3bb764-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Azure: Record boot timestamps, system information, and diagnostic events
+      [Anh Vo]
+    - DataSourceOracle: configure secondary NICs on Virtual Machines
+    - distros: fix confusing variable names
+    - azure/net: generate_fallback_nic emits network v2 config instead of v1
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 15 Aug 2019 09:42:20 -0600
+
 cloud-init (19.2-9-g15584720-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.
