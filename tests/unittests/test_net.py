@@ -2156,7 +2156,7 @@ DEFAULT_DEV_ATTRS = {
         "carrier": False,
         "dormant": False,
         "operstate": "down",
-        "address": "07-1C-C6-75-A4-BE",
+        "address": "07-1c-c6-75-a4-be",
         "device/driver": None,
         "device/device": None,
         "name_assign_type": "4",
@@ -2203,6 +2203,39 @@ class TestGenerateFallbackConfig(CiTestCase):
         self.add_patch(
             "cloudinit.util.get_cmdline", "m_get_cmdline",
             return_value="root=/dev/sda1")
+
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_device_driver_v2(self, mock_get_devicelist, mock_read_sys_net,
+                              mock_sys_dev_path):
+        """Network configuration for generate_fallback_config is version 2."""
+        devices = {
+            'eth0': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': '4'},
+            'eth1': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
+        }
+
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path,
+                    dev_attrs=devices)
+
+        network_cfg = net.generate_fallback_config(config_driver=True)
+        expected = {
+            'ethernets': {'eth0': {'dhcp4': True, 'set-name': 'eth0',
+                                   'match': {'macaddress': '00:11:22:33:44:55',
+                                             'driver': 'hv_netsvc'}}},
+            'version': 2}
+        self.assertEqual(expected, network_cfg)
 
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
@@ -2486,7 +2519,7 @@ class TestRhelSysConfigRendering(CiTestCase):
 #
 BOOTPROTO=dhcp
 DEVICE=eth1000
-HWADDR=07-1C-C6-75-A4-BE
+HWADDR=07-1c-c6-75-a4-be
 NM_CONTROLLED=no
 ONBOOT=yes
 STARTMODE=auto
@@ -3030,7 +3063,7 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
 #
 BOOTPROTO=dhcp
 DEVICE=eth1000
-HWADDR=07-1C-C6-75-A4-BE
+HWADDR=07-1c-c6-75-a4-be
 NM_CONTROLLED=no
 ONBOOT=yes
 STARTMODE=auto
@@ -3342,13 +3375,13 @@ class TestNetplanNetRendering(CiTestCase):
 
         expected = """
 network:
-    version: 2
     ethernets:
         eth1000:
             dhcp4: true
             match:
                 macaddress: 07-1c-c6-75-a4-be
             set-name: eth1000
+    version: 2
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
         self.assertEqual(1, mock_clean_default.call_count)

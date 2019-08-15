@@ -185,10 +185,10 @@ class Distro(distros.Distro):
             LOG.info("User %s already exists, skipping.", name)
             return False
 
-        adduser_cmd = ['pw', 'useradd', '-n', name]
-        log_adduser_cmd = ['pw', 'useradd', '-n', name]
+        pw_useradd_cmd = ['pw', 'useradd', '-n', name]
+        log_pw_useradd_cmd = ['pw', 'useradd', '-n', name]
 
-        adduser_opts = {
+        pw_useradd_opts = {
             "homedir": '-d',
             "gecos": '-c',
             "primary_group": '-g',
@@ -196,34 +196,34 @@ class Distro(distros.Distro):
             "shell": '-s',
             "inactive": '-E',
         }
-        adduser_flags = {
+        pw_useradd_flags = {
             "no_user_group": '--no-user-group',
             "system": '--system',
             "no_log_init": '--no-log-init',
         }
 
         for key, val in kwargs.items():
-            if (key in adduser_opts and val and
+            if (key in pw_useradd_opts and val and
                isinstance(val, six.string_types)):
-                adduser_cmd.extend([adduser_opts[key], val])
+                pw_useradd_cmd.extend([pw_useradd_opts[key], val])
 
-            elif key in adduser_flags and val:
-                adduser_cmd.append(adduser_flags[key])
-                log_adduser_cmd.append(adduser_flags[key])
+            elif key in pw_useradd_flags and val:
+                pw_useradd_cmd.append(pw_useradd_flags[key])
+                log_pw_useradd_cmd.append(pw_useradd_flags[key])
 
         if 'no_create_home' in kwargs or 'system' in kwargs:
-            adduser_cmd.append('-d/nonexistent')
-            log_adduser_cmd.append('-d/nonexistent')
+            pw_useradd_cmd.append('-d/nonexistent')
+            log_pw_useradd_cmd.append('-d/nonexistent')
         else:
-            adduser_cmd.append('-d/usr/home/%s' % name)
-            adduser_cmd.append('-m')
-            log_adduser_cmd.append('-d/usr/home/%s' % name)
-            log_adduser_cmd.append('-m')
+            pw_useradd_cmd.append('-d/usr/home/%s' % name)
+            pw_useradd_cmd.append('-m')
+            log_pw_useradd_cmd.append('-d/usr/home/%s' % name)
+            log_pw_useradd_cmd.append('-m')
 
         # Run the command
         LOG.info("Adding user %s", name)
         try:
-            util.subp(adduser_cmd, logstring=log_adduser_cmd)
+            util.subp(pw_useradd_cmd, logstring=log_pw_useradd_cmd)
         except Exception as e:
             util.logexc(LOG, "Failed to create user %s", name)
             raise e

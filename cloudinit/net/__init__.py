@@ -265,32 +265,23 @@ def find_fallback_nic(blacklist_drivers=None):
 
 
 def generate_fallback_config(blacklist_drivers=None, config_driver=None):
-    """Determine which attached net dev is most likely to have a connection and
-       generate network state to run dhcp on that interface"""
-
+    """Generate network cfg v2 for dhcp on the NIC most likely connected."""
     if not config_driver:
         config_driver = False
 
     target_name = find_fallback_nic(blacklist_drivers=blacklist_drivers)
-    if target_name:
-        target_mac = read_sys_net_safe(target_name, 'address')
-        nconf = {'config': [], 'version': 1}
-        cfg = {'type': 'physical', 'name': target_name,
-               'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]}
-        # inject the device driver name, dev_id into config if enabled and
-        # device has a valid device driver value
-        if config_driver:
-            driver = device_driver(target_name)
-            if driver:
-                cfg['params'] = {
-                    'driver': driver,
-                    'device_id': device_devid(target_name),
-                }
-        nconf['config'].append(cfg)
-        return nconf
-    else:
+    if not target_name:
         # can't read any interfaces addresses (or there are none); give up
         return None
+    target_mac = read_sys_net_safe(target_name, 'address')
+    cfg = {'dhcp4': True, 'set-name': target_name,
+           'match': {'macaddress': target_mac.lower()}}
+    if config_driver:
+        driver = device_driver(target_name)
+        if driver:
+            cfg['match']['driver'] = driver
+    nconf = {'ethernets': {target_name: cfg}, 'version': 2}
+    return nconf
 
 
 def extract_physdevs(netcfg):
