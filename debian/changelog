@@ -1,4 +1,4 @@
-cloud-init (19.2-13-g2f3bb764-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.2-13-g2f3bb764-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.
     - Azure: Record boot timestamps, system information, and diagnostic events
