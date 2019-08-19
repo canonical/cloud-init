@@ -4,6 +4,7 @@
 
 from textwrap import dedent
 
+from cloudinit.config import cc_apt_configure
 from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit import log as logging
@@ -91,6 +92,15 @@ def install_drivers(cfg, pkg_install_func):
 
     LOG.debug("Installing NVIDIA drivers (%s=%s, version=%s)",
               cfgpath, nv_acc, version_cfg if version_cfg else 'latest')
+
+    # Setting NVIDIA latelink confirms acceptance of EULA for the package
+    # linux-restricted-modules
+    # Reference code defining debconf variable is here
+    # https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/
+    # linux-restricted-modules/+git/eoan/tree/debian/templates/
+    # nvidia.templates.in
+    selections = b'linux-restricted-modules linux/nvidia/latelink boolean true'
+    cc_apt_configure.debconf_set_selections(selections)
 
     try:
         util.subp(['ubuntu-drivers', 'install', '--gpgpu', driver_arg])

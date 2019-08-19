@@ -28,9 +28,11 @@ class TestUbuntuDrivers(CiTestCase):
                 {'drivers': {'nvidia': {'license-accepted': "TRUE"}}},
                 schema=drivers.schema, strict=True)
 
+    @mock.patch(MPATH + "cc_apt_configure.debconf_set_selections")
     @mock.patch(MPATH + "util.subp", return_value=('', ''))
     @mock.patch(MPATH + "util.which", return_value=False)
-    def _assert_happy_path_taken(self, config, m_which, m_subp):
+    def _assert_happy_path_taken(
+            self, config, m_which, m_subp, m_debconf_set_selections):
         """Positive path test through handle. Package should be installed."""
         myCloud = mock.MagicMock()
         drivers.handle('ubuntu_drivers', config, myCloud, None, None)
@@ -38,6 +40,8 @@ class TestUbuntuDrivers(CiTestCase):
                          myCloud.distro.install_packages.call_args_list)
         self.assertEqual([mock.call(self.install_gpgpu)],
                          m_subp.call_args_list)
+        m_debconf_set_selections.assert_called_with(
+            b'linux-restricted-modules linux/nvidia/latelink boolean true')
 
     def test_handle_does_package_install(self):
         self._assert_happy_path_taken(self.cfg_accepted)
@@ -48,10 +52,11 @@ class TestUbuntuDrivers(CiTestCase):
             new_config['drivers']['nvidia']['license-accepted'] = true_value
             self._assert_happy_path_taken(new_config)
 
+    @mock.patch(MPATH + "cc_apt_configure.debconf_set_selections")
     @mock.patch(MPATH + "util.subp", side_effect=ProcessExecutionError(
         stdout='No drivers found for installation.\n', exit_code=1))
     @mock.patch(MPATH + "util.which", return_value=False)
-    def test_handle_raises_error_if_no_drivers_found(self, m_which, m_subp):
+    def test_handle_raises_error_if_no_drivers_found(self, m_which, m_subp, _):
         """If ubuntu-drivers doesn't install any drivers, raise an error."""
         myCloud = mock.MagicMock()
         with self.assertRaises(Exception):
@@ -108,9 +113,10 @@ class TestUbuntuDrivers(CiTestCase):
                       myLog.debug.call_args_list[0][0][0])
         self.assertEqual(0, m_install_drivers.call_count)
 
+    @mock.patch(MPATH + "cc_apt_configure.debconf_set_selections")
     @mock.patch(MPATH + "util.subp", return_value=('', ''))
     @mock.patch(MPATH + "util.which", return_value=True)
-    def test_install_drivers_no_install_if_present(self, m_which, m_subp):
+    def test_install_drivers_no_install_if_present(self, m_which, m_subp, _):
         """If 'ubuntu-drivers' is present, no package install should occur."""
         pkg_install = mock.MagicMock()
         drivers.install_drivers(self.cfg_accepted['drivers'],
@@ -128,11 +134,12 @@ class TestUbuntuDrivers(CiTestCase):
             drivers.install_drivers("mystring", pkg_install_func=pkg_install)
         self.assertEqual(0, pkg_install.call_count)
 
+    @mock.patch(MPATH + "cc_apt_configure.debconf_set_selections")
     @mock.patch(MPATH + "util.subp", side_effect=ProcessExecutionError(
         stderr=OLD_UBUNTU_DRIVERS_ERROR_STDERR, exit_code=2))
     @mock.patch(MPATH + "util.which", return_value=False)
     def test_install_drivers_handles_old_ubuntu_drivers_gracefully(
-            self, m_which, m_subp):
+            self, m_which, m_subp, _):
         """Older ubuntu-drivers versions should emit message and raise error"""
         myCloud = mock.MagicMock()
         with self.assertRaises(Exception):
@@ -153,9 +160,10 @@ class TestUbuntuDriversWithVersion(TestUbuntuDrivers):
         'drivers': {'nvidia': {'license-accepted': True, 'version': '123'}}}
     install_gpgpu = ['ubuntu-drivers', 'install', '--gpgpu', 'nvidia:123']
 
+    @mock.patch(MPATH + "cc_apt_configure.debconf_set_selections")
     @mock.patch(MPATH + "util.subp", return_value=('', ''))
     @mock.patch(MPATH + "util.which", return_value=False)
-    def test_version_none_uses_latest(self, m_which, m_subp):
+    def test_version_none_uses_latest(self, m_which, m_subp, _):
         myCloud = mock.MagicMock()
         version_none_cfg = {
             'drivers': {'nvidia': {'license-accepted': True, 'version': None}}}
