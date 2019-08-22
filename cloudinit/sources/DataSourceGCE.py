@@ -18,10 +18,13 @@ LOG = logging.getLogger(__name__)
 MD_V1_URL = 'http://metadata.google.internal/computeMetadata/v1/'
 BUILTIN_DS_CONFIG = {'metadata_url': MD_V1_URL}
 REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
+GUEST_ATTRIBUTES_URL = ('http://metadata.google.internal/computeMetadata/'
+                        'v1/instance/guest-attributes')
+HOSTKEY_NAMESPACE = 'hostkeys'
+HEADERS = {'Metadata-Flavor': 'Google'}
 
 
 class GoogleMetadataFetcher(object):
-    headers = {'Metadata-Flavor': 'Google'}
 
     def __init__(self, metadata_address):
         self.metadata_address = metadata_address
@@ -32,7 +35,7 @@ class GoogleMetadataFetcher(object):
             url = self.metadata_address + path
             if is_recursive:
                 url += '/?recursive=True'
-            resp = url_helper.readurl(url=url, headers=self.headers)
+            resp = url_helper.readurl(url=url, headers=HEADERS)
         except url_helper.UrlError as exc:
             msg = "url %s raised exception %s"
             LOG.debug(msg, path, exc)
@@ -90,6 +93,10 @@ class DataSourceGCE(sources.DataSource):
         public_keys_data = self.metadata['public-keys-data']
         return _parse_public_keys(public_keys_data, self.default_user)
 
+    def publish_host_keys(self, hostkeys):
+        for key in hostkeys:
+            _write_host_key_to_guest_attributes(*key)
+
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         # GCE has long FDQN's and has asked for short hostnames.
         return self.metadata['local-hostname'].split('.')[0]
@@ -101,6 +108,17 @@ class DataSourceGCE(sources.DataSource):
     @property
     def region(self):
         return self.availability_zone.rsplit('-', 1)[0]
+
+
+def _write_host_key_to_guest_attributes(key_type, key_value):
+    url = '%s/%s/%s' % (GUEST_ATTRIBUTES_URL, HOSTKEY_NAMESPACE, key_type)
+    key_value = key_value.encode('utf-8')
+    resp = url_helper.readurl(url=url, data=key_value, headers=HEADERS,
+                              request_method='PUT', check_status=False)
+    if resp.ok():
+        LOG.debug('Wrote %s host key to guest attributes.',  key_type)
+    else:
+        LOG.debug('Unable to write %s host key to guest attributes.', key_type)
 
 
 def _has_expired(public_key):

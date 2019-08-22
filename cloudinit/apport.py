@@ -23,6 +23,7 @@ KNOWN_CLOUD_NAMES = [
     'CloudStack',
     'DigitalOcean',
     'GCE - Google Compute Engine',
+    'Exoscale',
     'Hetzner Cloud',
     'IBM - (aka SoftLayer or BlueMix)',
     'LXD',

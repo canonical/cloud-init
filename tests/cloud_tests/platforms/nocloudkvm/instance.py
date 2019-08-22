@@ -74,6 +74,8 @@ class NoCloudKVMInstance(Instance):
         self.pid_file = None
         self.console_file = None
         self.disk = image_path
+        self.cache_mode = platform.config.get('cache_mode',
+                                              'cache=none,aio=native')
         self.meta_data = meta_data
 
     def shutdown(self, wait=True):
@@ -113,7 +115,10 @@ class NoCloudKVMInstance(Instance):
                 pass
 
         if self.pid_file:
-            os.remove(self.pid_file)
+            try:
+                os.remove(self.pid_file)
+            except Exception:
+                pass
 
         self.pid = None
         self._ssh_close()
@@ -160,13 +165,13 @@ class NoCloudKVMInstance(Instance):
         self.ssh_port = self.get_free_port()
 
         cmd = ['./tools/xkvm',
-               '--disk', '%s,cache=unsafe' % self.disk,
-               '--disk', '%s,cache=unsafe' % seed,
+               '--disk', '%s,%s' % (self.disk, self.cache_mode),
+               '--disk', '%s' % seed,
                '--netdev', ','.join(['user',
                                      'hostfwd=tcp::%s-:22' % self.ssh_port,
                                      'dnssearch=%s' % CI_DOMAIN]),
                '--', '-pidfile', self.pid_file, '-vnc', 'none',
-               '-m', '2G', '-smp', '2', '-nographic',
+               '-m', '2G', '-smp', '2', '-nographic', '-name', self.name,
                '-serial', 'file:' + self.console_file]
         subprocess.Popen(cmd,
                          close_fds=True,

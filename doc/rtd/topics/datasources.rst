@@ -155,6 +155,7 @@ Follow for more information.
    datasources/configdrive.rst
    datasources/digitalocean.rst
    datasources/ec2.rst
+   datasources/exoscale.rst
    datasources/maas.rst
    datasources/nocloud.rst
    datasources/opennebula.rst

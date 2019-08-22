@@ -12,6 +12,7 @@ from cloudinit.tests.helpers import (
     HttprettyTestCase, CiTestCase, populate_dir, mock, wrap_and_call,
     ExitStack, resourceLocation)
 
+import copy
 import crypt
 import httpretty
 import json
@@ -84,6 +85,25 @@ def construct_valid_ovf_env(data=None, pubkeys=None,
 
 
 NETWORK_METADATA = {
+    "compute": {
+        "location": "eastus2",
+        "name": "my-hostname",
+        "offer": "UbuntuServer",
+        "osType": "Linux",
+        "placementGroupId": "",
+        "platformFaultDomain": "0",
+        "platformUpdateDomain": "0",
+        "publisher": "Canonical",
+        "resourceGroupName": "srugroup1",
+        "sku": "19.04-DAILY",
+        "subscriptionId": "12aad61c-6de4-4e53-a6c6-5aff52a83777",
+        "tags": "",
+        "version": "19.04.201906190",
+        "vmId": "ff702a6b-cb6a-4fcd-ad68-b4ce38227642",
+        "vmScaleSetName": "",
+        "vmSize": "Standard_DS1_v2",
+        "zone": ""
+    },
     "network": {
         "interface": [
             {
@@ -105,6 +125,26 @@ NETWORK_METADATA = {
                         }
                     ]
                 }
+            }
+        ]
+    }
+}
+
+SECONDARY_INTERFACE = {
+    "macAddress": "220D3A047598",
+    "ipv6": {
+        "ipAddress": []
+    },
+    "ipv4": {
+        "subnet": [
+            {
+                "prefix": "24",
+                "address": "10.0.1.0"
+            }
+        ],
+        "ipAddress": [
+            {
+                "privateIpAddress": "10.0.1.5",
             }
         ]
     }
@@ -141,7 +181,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             self.logs.getvalue())
 
     @mock.patch(MOCKPATH + 'readurl')
-    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4WithReporting')
     @mock.patch(MOCKPATH + 'net.is_up')
     def test_get_metadata_performs_dhcp_when_network_is_down(
             self, m_net_is_up, m_dhcp, m_readurl):
@@ -155,7 +195,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             dsaz.get_metadata_from_imds('eth9', retries=2))
 
         m_net_is_up.assert_called_with('eth9')
-        m_dhcp.assert_called_with('eth9')
+        m_dhcp.assert_called_with(mock.ANY, 'eth9')
         self.assertIn(
             "Crawl of Azure Instance Metadata Service (IMDS) took",  # log_time
             self.logs.getvalue())
@@ -478,13 +518,7 @@ scbus-1 on xpt0 bus 0
         expected_metadata = {
             'azure_data': {
                 'configurationsettype': 'LinuxProvisioningConfiguration'},
-            'imds': {'network': {'interface': [{
-                'ipv4': {'ipAddress': [
-                     {'privateIpAddress': '10.0.0.4',
-                      'publicIpAddress': '104.46.124.81'}],
-                      'subnet': [{'address': '10.0.0.0', 'prefix': '24'}]},
-                'ipv6': {'ipAddress': []},
-                'macAddress': '000D3A047598'}]}},
+            'imds': NETWORK_METADATA,
             'instance-id': 'test-instance-id',
             'local-hostname': u'myhost',
             'random_seed': 'wild'}
@@ -518,7 +552,8 @@ scbus-1 on xpt0 bus 0
             dsrc.crawl_metadata()
         self.assertEqual(str(cm.exception), error_msg)
 
-    @mock.patch('cloudinit.sources.DataSourceAzure.EphemeralDHCPv4')
+    @mock.patch(
+        'cloudinit.sources.DataSourceAzure.EphemeralDHCPv4WithReporting')
     @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
     @mock.patch(
         'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
@@ -606,11 +641,66 @@ scbus-1 on xpt0 bus 0
             'ethernets': {
                 'eth0': {'set-name': 'eth0',
                          'match': {'macaddress': '00:0d:3a:04:75:98'},
-                         'dhcp4': True}},
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 100}}},
             'version': 2}
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
+
+    def test_network_config_set_from_imds_route_metric_for_secondary_nic(self):
+        """Datasource.network_config adds route-metric to secondary nics."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        expected_network_config = {
+            'ethernets': {
+                'eth0': {'set-name': 'eth0',
+                         'match': {'macaddress': '00:0d:3a:04:75:98'},
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 100}},
+                'eth1': {'set-name': 'eth1',
+                         'match': {'macaddress': '22:0d:3a:04:75:98'},
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 200}},
+                'eth2': {'set-name': 'eth2',
+                         'match': {'macaddress': '33:0d:3a:04:75:98'},
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 300}}},
+            'version': 2}
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data['network']['interface'].append(SECONDARY_INTERFACE)
+        third_intf = copy.deepcopy(SECONDARY_INTERFACE)
+        third_intf['macAddress'] = third_intf['macAddress'].replace('22', '33')
+        third_intf['ipv4']['subnet'][0]['address'] = '10.0.2.0'
+        third_intf['ipv4']['ipAddress'][0]['privateIpAddress'] = '10.0.2.6'
+        imds_data['network']['interface'].append(third_intf)
+
+        self.m_get_metadata_from_imds.return_value = imds_data
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(expected_network_config, dsrc.network_config)
+
+    def test_availability_zone_set_from_imds(self):
+        """Datasource.availability returns IMDS platformFaultDomain."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual('0', dsrc.availability_zone)
+
+    def test_region_set_from_imds(self):
+        """Datasource.region returns IMDS region location."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual('eastus2', dsrc.region)
 
     def test_user_cfg_set_agent_command(self):
         # set dscfg in via base64 encoded yaml
@@ -892,6 +982,7 @@ scbus-1 on xpt0 bus 0
         expected_cfg = {
             'ethernets': {
                 'eth0': {'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 100},
                          'match': {'macaddress': '00:0d:3a:04:75:98'},
                          'set-name': 'eth0'}},
             'version': 2}
@@ -1218,7 +1309,9 @@ class TestAzureBounce(CiTestCase):
         self.assertEqual(initial_host_name,
                          self.set_hostname.call_args_list[-1][0][0])
 
-    def test_environment_correct_for_bounce_command(self):
+    @mock.patch.object(dsaz, 'get_boot_telemetry')
+    def test_environment_correct_for_bounce_command(
+            self, mock_get_boot_telemetry):
         interface = 'int0'
         hostname = 'my-new-host'
         old_hostname = 'my-old-host'
@@ -1234,7 +1327,9 @@ class TestAzureBounce(CiTestCase):
         self.assertEqual(hostname, bounce_env['hostname'])
         self.assertEqual(old_hostname, bounce_env['old_hostname'])
 
-    def test_default_bounce_command_ifup_used_by_default(self):
+    @mock.patch.object(dsaz, 'get_boot_telemetry')
+    def test_default_bounce_command_ifup_used_by_default(
+            self, mock_get_boot_telemetry):
         cfg = {'hostname_bounce': {'policy': 'force'}}
         data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
         dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
@@ -1774,7 +1869,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
-            prefix_or_mask='255.255.255.0', router='192.168.2.1')
+            prefix_or_mask='255.255.255.0', router='192.168.2.1',
+            static_routes=None)
         self.assertEqual(m_net.call_count, 2)
 
     def test__reprovision_calls__poll_imds(self, fake_resp,
@@ -1812,7 +1908,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
-            prefix_or_mask='255.255.255.0', router='192.168.2.1')
+            prefix_or_mask='255.255.255.0', router='192.168.2.1',
+            static_routes=None)
         self.assertEqual(m_net.call_count, 2)
 
 
