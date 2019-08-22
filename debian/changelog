@@ -1,6 +1,6 @@
-cloud-init (19.2-21-ge6383719-0ubuntu1~19.04.1) UNRELEASED; urgency=medium
+cloud-init (19.2-21-ge6383719-0ubuntu1~19.04.1) disco; urgency=medium
 
-  * debian/cloud-init.templates: enable Aliyun cloud.
+  * debian/cloud-init.templates: enable Exoscale cloud.
   * New upstream snapshot. (LP: #1841099)
     - ubuntu-drivers: call db_x_loadtemplatefile to accept NVIDIA EULA
     - Add missing #cloud-config comment on first example in documentation.
