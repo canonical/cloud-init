@@ -1,4 +1,4 @@
-cloud-init (19.2-21-ge6383719-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (19.2-21-ge6383719-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * refresh patches:
    + debian/patches/ubuntu-advantage-revert-tip.patch
