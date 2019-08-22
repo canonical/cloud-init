@@ -1,4 +1,4 @@
-cloud-init (19.2-21-ge6383719-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (19.2-21-ge6383719-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * debian/cloud-init.templates: enable Exoscale cloud.
   * refresh patches:
