@@ -9,10 +9,8 @@ Forwarded: not-needed
 Last-Update: 2019-05-10
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: cloud-init/cloudinit/config/cc_ubuntu_advantage.py
-===================================================================
---- cloud-init.orig/cloudinit/config/cc_ubuntu_advantage.py
-+++ cloud-init/cloudinit/config/cc_ubuntu_advantage.py
+--- a/cloudinit/config/cc_ubuntu_advantage.py
++++ b/cloudinit/config/cc_ubuntu_advantage.py
 @@ -1,143 +1,150 @@
 +# Copyright (C) 2018 Canonical Ltd.
 +#
@@ -294,10 +292,8 @@ Index: cloud-init/cloudinit/config/cc_ubuntu_advantage.py
 +    run_commands(cfgin.get('commands', []))
  
  # vi: ts=4 expandtab
-Index: cloud-init/cloudinit/config/tests/test_ubuntu_advantage.py
-===================================================================
---- cloud-init.orig/cloudinit/config/tests/test_ubuntu_advantage.py
-+++ cloud-init/cloudinit/config/tests/test_ubuntu_advantage.py
+--- a/cloudinit/config/tests/test_ubuntu_advantage.py
++++ b/cloudinit/config/tests/test_ubuntu_advantage.py
 @@ -1,7 +1,10 @@
  # This file is part of cloud-init. See LICENSE file for license information.
  
