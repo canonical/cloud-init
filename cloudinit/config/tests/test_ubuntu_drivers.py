@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import os
 
 from cloudinit.tests.helpers import CiTestCase, skipUnlessJsonSchema, mock
 from cloudinit.config.schema import (
@@ -9,9 +10,25 @@ from cloudinit.config import cc_ubuntu_drivers as drivers
 from cloudinit.util import ProcessExecutionError
 
 MPATH = "cloudinit.config.cc_ubuntu_drivers."
+M_TMP_PATH = MPATH + "temp_utils.mkdtemp"
 OLD_UBUNTU_DRIVERS_ERROR_STDERR = (
     "ubuntu-drivers: error: argument <command>: invalid choice: 'install' "
     "(choose from 'list', 'autoinstall', 'devices', 'debug')\n")
+
+
+class AnyTempScriptAndDebconfFile(object):
+
+    def __init__(self, tmp_dir, debconf_file):
+        self.tmp_dir = tmp_dir
+        self.debconf_file = debconf_file
+
+    def __eq__(self, cmd):
+        if not len(cmd) == 2:
+            return False
+        script, debconf_file = cmd
+        if bool(script.startswith(self.tmp_dir) and script.endswith('.sh')):
+            return debconf_file == self.debconf_file
+        return False
 
 
 class TestUbuntuDrivers(CiTestCase):
@@ -28,16 +45,23 @@ class TestUbuntuDrivers(CiTestCase):
                 {'drivers': {'nvidia': {'license-accepted': "TRUE"}}},
                 schema=drivers.schema, strict=True)
 
+    @mock.patch(M_TMP_PATH)
     @mock.patch(MPATH + "util.subp", return_value=('', ''))
     @mock.patch(MPATH + "util.which", return_value=False)
-    def _assert_happy_path_taken(self, config, m_which, m_subp):
+    def _assert_happy_path_taken(
+            self, config, m_which, m_subp, m_tmp):
         """Positive path test through handle. Package should be installed."""
+        tdir = self.tmp_dir()
+        debconf_file = os.path.join(tdir, 'nvidia.template')
+        m_tmp.return_value = tdir
         myCloud = mock.MagicMock()
         drivers.handle('ubuntu_drivers', config, myCloud, None, None)
         self.assertEqual([mock.call(['ubuntu-drivers-common'])],
                          myCloud.distro.install_packages.call_args_list)
-        self.assertEqual([mock.call(self.install_gpgpu)],
-                         m_subp.call_args_list)
+        self.assertEqual(
+            [mock.call(AnyTempScriptAndDebconfFile(tdir, debconf_file)),
+             mock.call(self.install_gpgpu)],
+            m_subp.call_args_list)
 
     def test_handle_does_package_install(self):
         self._assert_happy_path_taken(self.cfg_accepted)
@@ -48,19 +72,33 @@ class TestUbuntuDrivers(CiTestCase):
             new_config['drivers']['nvidia']['license-accepted'] = true_value
             self._assert_happy_path_taken(new_config)
 
-    @mock.patch(MPATH + "util.subp", side_effect=ProcessExecutionError(
-        stdout='No drivers found for installation.\n', exit_code=1))
+    @mock.patch(M_TMP_PATH)
+    @mock.patch(MPATH + "util.subp")
     @mock.patch(MPATH + "util.which", return_value=False)
-    def test_handle_raises_error_if_no_drivers_found(self, m_which, m_subp):
+    def test_handle_raises_error_if_no_drivers_found(
+            self, m_which, m_subp, m_tmp):
         """If ubuntu-drivers doesn't install any drivers, raise an error."""
+        tdir = self.tmp_dir()
+        debconf_file = os.path.join(tdir, 'nvidia.template')
+        m_tmp.return_value = tdir
         myCloud = mock.MagicMock()
+
+        def fake_subp(cmd):
+            if cmd[0].startswith(tdir):
+                return
+            raise ProcessExecutionError(
+                stdout='No drivers found for installation.\n', exit_code=1)
+        m_subp.side_effect = fake_subp
+
         with self.assertRaises(Exception):
             drivers.handle(
                 'ubuntu_drivers', self.cfg_accepted, myCloud, None, None)
         self.assertEqual([mock.call(['ubuntu-drivers-common'])],
                          myCloud.distro.install_packages.call_args_list)
-        self.assertEqual([mock.call(self.install_gpgpu)],
-                         m_subp.call_args_list)
+        self.assertEqual(
+            [mock.call(AnyTempScriptAndDebconfFile(tdir, debconf_file)),
+             mock.call(self.install_gpgpu)],
+            m_subp.call_args_list)
         self.assertIn('ubuntu-drivers found no drivers for installation',
                       self.logs.getvalue())
 
@@ -108,18 +146,25 @@ class TestUbuntuDrivers(CiTestCase):
                       myLog.debug.call_args_list[0][0][0])
         self.assertEqual(0, m_install_drivers.call_count)
 
+    @mock.patch(M_TMP_PATH)
     @mock.patch(MPATH + "util.subp", return_value=('', ''))
     @mock.patch(MPATH + "util.which", return_value=True)
-    def test_install_drivers_no_install_if_present(self, m_which, m_subp):
+    def test_install_drivers_no_install_if_present(
+            self, m_which, m_subp, m_tmp):
         """If 'ubuntu-drivers' is present, no package install should occur."""
+        tdir = self.tmp_dir()
+        debconf_file = os.path.join(tdir, 'nvidia.template')
+        m_tmp.return_value = tdir
         pkg_install = mock.MagicMock()
         drivers.install_drivers(self.cfg_accepted['drivers'],
                                 pkg_install_func=pkg_install)
         self.assertEqual(0, pkg_install.call_count)
         self.assertEqual([mock.call('ubuntu-drivers')],
                          m_which.call_args_list)
-        self.assertEqual([mock.call(self.install_gpgpu)],
-                         m_subp.call_args_list)
+        self.assertEqual(
+            [mock.call(AnyTempScriptAndDebconfFile(tdir, debconf_file)),
+             mock.call(self.install_gpgpu)],
+            m_subp.call_args_list)
 
     def test_install_drivers_rejects_invalid_config(self):
         """install_drivers should raise TypeError if not given a config dict"""
@@ -128,20 +173,33 @@ class TestUbuntuDrivers(CiTestCase):
             drivers.install_drivers("mystring", pkg_install_func=pkg_install)
         self.assertEqual(0, pkg_install.call_count)
 
-    @mock.patch(MPATH + "util.subp", side_effect=ProcessExecutionError(
-        stderr=OLD_UBUNTU_DRIVERS_ERROR_STDERR, exit_code=2))
+    @mock.patch(M_TMP_PATH)
+    @mock.patch(MPATH + "util.subp")
     @mock.patch(MPATH + "util.which", return_value=False)
     def test_install_drivers_handles_old_ubuntu_drivers_gracefully(
-            self, m_which, m_subp):
+            self, m_which, m_subp, m_tmp):
         """Older ubuntu-drivers versions should emit message and raise error"""
+        tdir = self.tmp_dir()
+        debconf_file = os.path.join(tdir, 'nvidia.template')
+        m_tmp.return_value = tdir
         myCloud = mock.MagicMock()
+
+        def fake_subp(cmd):
+            if cmd[0].startswith(tdir):
+                return
+            raise ProcessExecutionError(
+                stderr=OLD_UBUNTU_DRIVERS_ERROR_STDERR, exit_code=2)
+        m_subp.side_effect = fake_subp
+
         with self.assertRaises(Exception):
             drivers.handle(
                 'ubuntu_drivers', self.cfg_accepted, myCloud, None, None)
         self.assertEqual([mock.call(['ubuntu-drivers-common'])],
                          myCloud.distro.install_packages.call_args_list)
-        self.assertEqual([mock.call(self.install_gpgpu)],
-                         m_subp.call_args_list)
+        self.assertEqual(
+            [mock.call(AnyTempScriptAndDebconfFile(tdir, debconf_file)),
+             mock.call(self.install_gpgpu)],
+            m_subp.call_args_list)
         self.assertIn('WARNING: the available version of ubuntu-drivers is'
                       ' too old to perform requested driver installation',
                       self.logs.getvalue())
@@ -153,16 +211,21 @@ class TestUbuntuDriversWithVersion(TestUbuntuDrivers):
         'drivers': {'nvidia': {'license-accepted': True, 'version': '123'}}}
     install_gpgpu = ['ubuntu-drivers', 'install', '--gpgpu', 'nvidia:123']
 
+    @mock.patch(M_TMP_PATH)
     @mock.patch(MPATH + "util.subp", return_value=('', ''))
     @mock.patch(MPATH + "util.which", return_value=False)
-    def test_version_none_uses_latest(self, m_which, m_subp):
+    def test_version_none_uses_latest(self, m_which, m_subp, m_tmp):
+        tdir = self.tmp_dir()
+        debconf_file = os.path.join(tdir, 'nvidia.template')
+        m_tmp.return_value = tdir
         myCloud = mock.MagicMock()
         version_none_cfg = {
             'drivers': {'nvidia': {'license-accepted': True, 'version': None}}}
         drivers.handle(
             'ubuntu_drivers', version_none_cfg, myCloud, None, None)
         self.assertEqual(
-            [mock.call(['ubuntu-drivers', 'install', '--gpgpu', 'nvidia'])],
+            [mock.call(AnyTempScriptAndDebconfFile(tdir, debconf_file)),
+             mock.call(['ubuntu-drivers', 'install', '--gpgpu', 'nvidia'])],
             m_subp.call_args_list)
 
     def test_specifying_a_version_doesnt_override_license_acceptance(self):

@@ -48,7 +48,7 @@ class Platform(object):
         if os.path.exists(filename):
             c_util.del_file(filename)
 
-        c_util.subp(['ssh-keygen', '-t', 'rsa', '-b', '4096',
+        c_util.subp(['ssh-keygen', '-m', 'PEM', '-t', 'rsa', '-b', '4096',
                      '-f', filename, '-P', '',
                      '-C', 'ubuntu@cloud_test'],
                     capture=True)

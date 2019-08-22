@@ -27,15 +27,10 @@ project = 'Cloud-Init'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    'sphinx.ext.intersphinx',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.viewcode',
 ]
-
-intersphinx_mapping = {
-    'sphinx': ('http://sphinx.pocoo.org', None)
-}
 
 # The suffix of source filenames.
 source_suffix = '.rst'

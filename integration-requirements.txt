@@ -10,7 +10,8 @@ unittest2
 boto3==1.5.9
 
 # ssh communication
-paramiko==2.4.1
+paramiko==2.4.2
+cryptography==2.4.2
 
 
 # lxd backend

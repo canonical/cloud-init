@@ -1,3 +1,39 @@
+19.2:
+ - net: add rfc3442 (classless static routes) to EphemeralDHCP
+   (LP: #1821102)
+ - templates/ntp.conf.debian.tmpl: fix missing newline for pools
+   (LP: #1836598)
+ - Support netplan renderer in Arch Linux [Conrad Hoffmann]
+ - Fix typo in publicly viewable documentation. [David Medberry]
+ - Add a cdrom size checker for OVF ds to ds-identify
+   [Pengpeng Sun] (LP: #1806701)
+ - VMWare: Trigger the post customization script via cc_scripts module.
+   [Xiaofeng Wang] (LP: #1833192)
+ - Cloud-init analyze module: Added ability to analyze boot events.
+   [Sam Gilson]
+ - Update debian eni network configuration location, retain Ubuntu setting
+   [Janos Lenart]
+ - net: skip bond interfaces in get_interfaces
+   [Stanislav Makar] (LP: #1812857)
+ - Fix a couple of issues raised by a coverity scan
+ - Add missing dsname for Hetzner Cloud datasource [Markus Schade]
+ - doc: indicate that netplan is default in Ubuntu now
+ - azure: add region and AZ properties from imds compute location metadata
+ - sysconfig: support more bonding options [Penghui Liao]
+ - cloud-init-generator: use libexec path to ds-identify on redhat systems
+   (LP: #1833264)
+ - tools/build-on-freebsd: update to python3 [Gonéri Le Bouder]
+ - Allow identification of OpenStack by Asset Tag
+   [Mark T. Voelker] (LP: #1669875)
+ - Fix spelling error making 'an Ubuntu' consistent. [Brian Murray]
+ - run-container: centos: comment out the repo mirrorlist [Paride Legovini]
+ - netplan: update netplan key mappings for gratuitous-arp (LP: #1827238)
+ - freebsd: fix the name of cloudcfg VARIANT [Gonéri Le Bouder]
+ - freebsd: ability to grow root file system [Gonéri Le Bouder]
+ - freebsd: NoCloud data source support [Gonéri Le Bouder] (LP: #1645824)
+ - Azure: Return static fallback address as if failed to find endpoint
+   [Jason Zions (MSFT)]
+
 19.1:
   - freebsd: add chpasswd pkg in the image [Gonéri Le Bouder]
   - tests: add Eoan release [Paride Legovini]

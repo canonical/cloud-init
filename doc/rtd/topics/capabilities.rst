@@ -217,6 +217,7 @@ Get detailed reports of where cloud-init spends most of its time. See
 * **dump** Machine-readable JSON dump of all cloud-init tracked events.
 * **show** show time-ordered report of the cost of operations during each
   boot stage.
+* **boot** show timestamps from kernel initialization, kernel finish initialization, and cloud-init start.
 
 .. _cli_devel:
 

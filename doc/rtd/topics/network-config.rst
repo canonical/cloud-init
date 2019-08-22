@@ -163,10 +163,11 @@ found in Ubuntu and Debian.
 
 - **Netplan**
 
-Since Ubuntu 16.10, codename Yakkety, the ``netplan`` project has been an
-optional network configuration tool which consumes :ref:`network_config_v2`
-input and renders network configuration for supported backends such as
-``systemd-networkd`` and ``NetworkManager``.
+Introduced in Ubuntu 16.10 (Yakkety Yak), `netplan <https://netplan.io/>`_ has
+been the default network configuration tool in Ubuntu since 17.10 (Artful
+Aardvark).  netplan consumes :ref:`network_config_v2` input and renders
+network configuration for supported backends such as ``systemd-networkd`` and
+``NetworkManager``.
 
 - **Sysconfig**
 

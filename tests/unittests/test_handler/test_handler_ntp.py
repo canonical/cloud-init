@@ -268,17 +268,22 @@ class TestNtp(FilesystemMockingTestCase):
                                                  template_fn=template_fn)
                 content = util.load_file(confpath)
                 if client in ['ntp', 'chrony']:
-                    expected_servers = '\n'.join([
-                        'server {0} iburst'.format(srv) for srv in servers])
+                    content_lines = content.splitlines()
+                    expected_servers = [
+                        'server {0} iburst'.format(srv) for srv in servers]
                     print('distro=%s client=%s' % (distro, client))
-                    self.assertIn(expected_servers, content,
-                                  ('failed to render {0} conf'
-                                   ' for distro:{1}'.format(client, distro)))
-                    expected_pools = '\n'.join([
-                        'pool {0} iburst'.format(pool) for pool in pools])
-                    self.assertIn(expected_pools, content,
-                                  ('failed to render {0} conf'
-                                   ' for distro:{1}'.format(client, distro)))
+                    for sline in expected_servers:
+                        self.assertIn(sline, content_lines,
+                                      ('failed to render {0} conf'
+                                       ' for distro:{1}'.format(client,
+                                                                distro)))
+                    expected_pools = [
+                        'pool {0} iburst'.format(pool) for pool in pools]
+                    for pline in expected_pools:
+                        self.assertIn(pline, content_lines,
+                                      ('failed to render {0} conf'
+                                       ' for distro:{1}'.format(client,
+                                                                distro)))
                 elif client == 'systemd-timesyncd':
                     expected_content = (
                         "# cloud-init generated file\n" +

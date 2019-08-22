@@ -177,20 +177,12 @@ def _is_initramfs_netconfig(files, cmdline):
     return False
 
 
-def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
+def read_initramfs_config(files=None, mac_addrs=None, cmdline=None):
     if cmdline is None:
         cmdline = util.get_cmdline()
 
     if files is None:
         files = _get_klibc_net_cfg_files()
-
-    if 'network-config=' in cmdline:
-        data64 = None
-        for tok in cmdline.split():
-            if tok.startswith("network-config="):
-                data64 = tok.split("=", 1)[1]
-        if data64:
-            return util.load_yaml(_b64dgz(data64))
 
     if not _is_initramfs_netconfig(files, cmdline):
         return None
@@ -203,5 +195,20 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
                 mac_addrs[k] = mac_addr
 
     return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)
+
+
+def read_kernel_cmdline_config(cmdline=None):
+    if cmdline is None:
+        cmdline = util.get_cmdline()
+
+    if 'network-config=' in cmdline:
+        data64 = None
+        for tok in cmdline.split():
+            if tok.startswith("network-config="):
+                data64 = tok.split("=", 1)[1]
+        if data64:
+            return util.load_yaml(_b64dgz(data64))
+
+    return None
 
 # vi: ts=4 expandtab

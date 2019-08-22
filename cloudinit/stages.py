@@ -24,6 +24,7 @@ from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
 from cloudinit.event import EventType
+from cloudinit.sources import NetworkConfigSource
 
 from cloudinit import cloud
 from cloudinit import config
@@ -630,32 +631,54 @@ class Init(object):
         if os.path.exists(disable_file):
             return (None, disable_file)
 
-        cmdline_cfg = ('cmdline', cmdline.read_kernel_cmdline_config())
-        dscfg = ('ds', None)
+        available_cfgs = {
+            NetworkConfigSource.cmdline: cmdline.read_kernel_cmdline_config(),
+            NetworkConfigSource.initramfs: cmdline.read_initramfs_config(),
+            NetworkConfigSource.ds: None,
+            NetworkConfigSource.system_cfg: self.cfg.get('network'),
+        }
+
         if self.datasource and hasattr(self.datasource, 'network_config'):
-            dscfg = ('ds', self.datasource.network_config)
-        sys_cfg = ('system_cfg', self.cfg.get('network'))
+            available_cfgs[NetworkConfigSource.ds] = (
+                self.datasource.network_config)
 
-        for loc, ncfg in (cmdline_cfg, sys_cfg, dscfg):
+        if self.datasource:
+            order = self.datasource.network_config_sources
+        else:
+            order = sources.DataSource.network_config_sources
+        for cfg_source in order:
+            if not hasattr(NetworkConfigSource, cfg_source):
+                LOG.warning('data source specifies an invalid network'
+                            ' cfg_source: %s', cfg_source)
+                continue
+            if cfg_source not in available_cfgs:
+                LOG.warning('data source specifies an unavailable network'
+                            ' cfg_source: %s', cfg_source)
+                continue
+            ncfg = available_cfgs[cfg_source]
             if net.is_disabled_cfg(ncfg):
-                LOG.debug("network config disabled by %s", loc)
-                return (None, loc)
+                LOG.debug("network config disabled by %s", cfg_source)
+                return (None, cfg_source)
             if ncfg:
-                return (ncfg, loc)
-        return (self.distro.generate_fallback_config(), "fallback")
+                return (ncfg, cfg_source)
+        return (self.distro.generate_fallback_config(),
+                NetworkConfigSource.fallback)
 
-    def apply_network_config(self, bring_up):
-        netcfg, src = self._find_networking_config()
-        if netcfg is None:
-            LOG.info("network config is disabled by %s", src)
-            return
-
+    def _apply_netcfg_names(self, netcfg):
         try:
             LOG.debug("applying net config names for %s", netcfg)
             self.distro.apply_network_config_names(netcfg)
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
+    def apply_network_config(self, bring_up):
+        # get a network config
+        netcfg, src = self._find_networking_config()
+        if netcfg is None:
+            LOG.info("network config is disabled by %s", src)
+            return
+
+        # request an update if needed/available
         if self.datasource is not NULL_DATA_SOURCE:
             if not self.is_new_instance():
                 if not self.datasource.update_metadata([EventType.BOOT]):
@@ -663,8 +686,20 @@ class Init(object):
                         "No network config applied. Neither a new instance"
                         " nor datasource network update on '%s' event",
                         EventType.BOOT)
+                    # nothing new, but ensure proper names
+                    self._apply_netcfg_names(netcfg)
                     return
+                else:
+                    # refresh netcfg after update
+                    netcfg, src = self._find_networking_config()
 
+        # ensure all physical devices in config are present
+        net.wait_for_physdevs(netcfg)
+
+        # apply renames from config
+        self._apply_netcfg_names(netcfg)
+
+        # rendering config
         LOG.info("Applying network configuration from %s bringup=%s: %s",
                  src, bring_up, netcfg)
         try:

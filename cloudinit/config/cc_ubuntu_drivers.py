@@ -2,12 +2,14 @@
 
 """Ubuntu Drivers: Interact with third party drivers in Ubuntu."""
 
+import os
 from textwrap import dedent
 
 from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import temp_utils
 from cloudinit import type_utils
 from cloudinit import util
 
@@ -64,6 +66,33 @@ OLD_UBUNTU_DRIVERS_STDERR_NEEDLE = (
 __doc__ = get_schema_doc(schema)  # Supplement python help()
 
 
+# Use a debconf template to configure a global debconf variable
+# (linux/nvidia/latelink) setting this to "true" allows the
+# 'linux-restricted-modules' deb to accept the NVIDIA EULA and the package
+# will automatically link the drivers to the running kernel.
+
+# EOL_XENIAL: can then drop this script and use python3-debconf which is only
+# available in Bionic and later. Can't use python3-debconf currently as it
+# isn't in Xenial and doesn't yet support X_LOADTEMPLATEFILE debconf command.
+
+NVIDIA_DEBCONF_CONTENT = """\
+Template: linux/nvidia/latelink
+Type: boolean
+Default: true
+Description: Late-link NVIDIA kernel modules?
+ Enable this to link the NVIDIA kernel modules in cloud-init and
+ make them available for use.
+"""
+
+NVIDIA_DRIVER_LATELINK_DEBCONF_SCRIPT = """\
+#!/bin/sh
+# Allow cloud-init to trigger EULA acceptance via registering a debconf
+# template to set linux/nvidia/latelink true
+. /usr/share/debconf/confmodule
+db_x_loadtemplatefile "$1" cloud-init
+"""
+
+
 def install_drivers(cfg, pkg_install_func):
     if not isinstance(cfg, dict):
         raise TypeError(
@@ -89,8 +118,27 @@ def install_drivers(cfg, pkg_install_func):
     if version_cfg:
         driver_arg += ':{}'.format(version_cfg)
 
-    LOG.debug("Installing NVIDIA drivers (%s=%s, version=%s)",
+    LOG.debug("Installing and activating NVIDIA drivers (%s=%s, version=%s)",
               cfgpath, nv_acc, version_cfg if version_cfg else 'latest')
+
+    # Register and set debconf selection linux/nvidia/latelink = true
+    tdir = temp_utils.mkdtemp(needs_exe=True)
+    debconf_file = os.path.join(tdir, 'nvidia.template')
+    debconf_script = os.path.join(tdir, 'nvidia-debconf.sh')
+    try:
+        util.write_file(debconf_file, NVIDIA_DEBCONF_CONTENT)
+        util.write_file(
+            debconf_script,
+            util.encode_text(NVIDIA_DRIVER_LATELINK_DEBCONF_SCRIPT),
+            mode=0o755)
+        util.subp([debconf_script, debconf_file])
+    except Exception as e:
+        util.logexc(
+            LOG, "Failed to register NVIDIA debconf template: %s", str(e))
+        raise
+    finally:
+        if os.path.isdir(tdir):
+            util.del_dir(tdir)
 
     try:
         util.subp(['ubuntu-drivers', 'install', '--gpgpu', driver_arg])

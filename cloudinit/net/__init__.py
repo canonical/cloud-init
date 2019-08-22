@@ -9,6 +9,7 @@ import errno
 import logging
 import os
 import re
+from functools import partial
 
 from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit import util
@@ -264,46 +265,29 @@ def find_fallback_nic(blacklist_drivers=None):
 
 
 def generate_fallback_config(blacklist_drivers=None, config_driver=None):
-    """Determine which attached net dev is most likely to have a connection and
-       generate network state to run dhcp on that interface"""
-
+    """Generate network cfg v2 for dhcp on the NIC most likely connected."""
     if not config_driver:
         config_driver = False
 
     target_name = find_fallback_nic(blacklist_drivers=blacklist_drivers)
-    if target_name:
-        target_mac = read_sys_net_safe(target_name, 'address')
-        nconf = {'config': [], 'version': 1}
-        cfg = {'type': 'physical', 'name': target_name,
-               'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]}
-        # inject the device driver name, dev_id into config if enabled and
-        # device has a valid device driver value
-        if config_driver:
-            driver = device_driver(target_name)
-            if driver:
-                cfg['params'] = {
-                    'driver': driver,
-                    'device_id': device_devid(target_name),
-                }
-        nconf['config'].append(cfg)
-        return nconf
-    else:
+    if not target_name:
         # can't read any interfaces addresses (or there are none); give up
         return None
+    target_mac = read_sys_net_safe(target_name, 'address')
+    cfg = {'dhcp4': True, 'set-name': target_name,
+           'match': {'macaddress': target_mac.lower()}}
+    if config_driver:
+        driver = device_driver(target_name)
+        if driver:
+            cfg['match']['driver'] = driver
+    nconf = {'ethernets': {target_name: cfg}, 'version': 2}
+    return nconf
 
 
-def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
-    """read the network config and rename devices accordingly.
-    if strict_present is false, then do not raise exception if no devices
-    match.  if strict_busy is false, then do not raise exception if the
-    device cannot be renamed because it is currently configured.
-
-    renames are only attempted for interfaces of type 'physical'.  It is
-    expected that the network system will create other devices with the
-    correct name in place."""
+def extract_physdevs(netcfg):
 
     def _version_1(netcfg):
-        renames = []
+        physdevs = []
         for ent in netcfg.get('config', {}):
             if ent.get('type') != 'physical':
                 continue
@@ -317,11 +301,11 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
                 driver = device_driver(name)
             if not device_id:
                 device_id = device_devid(name)
-            renames.append([mac, name, driver, device_id])
-        return renames
+            physdevs.append([mac, name, driver, device_id])
+        return physdevs
 
     def _version_2(netcfg):
-        renames = []
+        physdevs = []
         for ent in netcfg.get('ethernets', {}).values():
             # only rename if configured to do so
             name = ent.get('set-name')
@@ -337,16 +321,69 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
                 driver = device_driver(name)
             if not device_id:
                 device_id = device_devid(name)
-            renames.append([mac, name, driver, device_id])
-        return renames
+            physdevs.append([mac, name, driver, device_id])
+        return physdevs
 
-    if netcfg.get('version') == 1:
-        return _rename_interfaces(_version_1(netcfg))
-    elif netcfg.get('version') == 2:
-        return _rename_interfaces(_version_2(netcfg))
+    version = netcfg.get('version')
+    if version == 1:
+        return _version_1(netcfg)
+    elif version == 2:
+        return _version_2(netcfg)
 
-    raise RuntimeError('Failed to apply network config names. Found bad'
-                       ' network config version: %s' % netcfg.get('version'))
+    raise RuntimeError('Unknown network config version: %s' % version)
+
+
+def wait_for_physdevs(netcfg, strict=True):
+    physdevs = extract_physdevs(netcfg)
+
+    # set of expected iface names and mac addrs
+    expected_ifaces = dict([(iface[0], iface[1]) for iface in physdevs])
+    expected_macs = set(expected_ifaces.keys())
+
+    # set of current macs
+    present_macs = get_interfaces_by_mac().keys()
+
+    # compare the set of expected mac address values to
+    # the current macs present; we only check MAC as cloud-init
+    # has not yet renamed interfaces and the netcfg may include
+    # such renames.
+    for _ in range(0, 5):
+        if expected_macs.issubset(present_macs):
+            LOG.debug('net: all expected physical devices present')
+            return
+
+        missing = expected_macs.difference(present_macs)
+        LOG.debug('net: waiting for expected net devices: %s', missing)
+        for mac in missing:
+            # trigger a settle, unless this interface exists
+            syspath = sys_dev_path(expected_ifaces[mac])
+            settle = partial(util.udevadm_settle, exists=syspath)
+            msg = 'Waiting for udev events to settle or %s exists' % syspath
+            util.log_time(LOG.debug, msg, func=settle)
+
+        # update present_macs after settles
+        present_macs = get_interfaces_by_mac().keys()
+
+    msg = 'Not all expected physical devices present: %s' % missing
+    LOG.warning(msg)
+    if strict:
+        raise RuntimeError(msg)
+
+
+def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
+    """read the network config and rename devices accordingly.
+    if strict_present is false, then do not raise exception if no devices
+    match.  if strict_busy is false, then do not raise exception if the
+    device cannot be renamed because it is currently configured.
+
+    renames are only attempted for interfaces of type 'physical'.  It is
+    expected that the network system will create other devices with the
+    correct name in place."""
+
+    try:
+        _rename_interfaces(extract_physdevs(netcfg))
+    except RuntimeError as e:
+        raise RuntimeError('Failed to apply network config names: %s' % e)
 
 
 def interface_has_own_mac(ifname, strict=False):
@@ -622,6 +659,8 @@ def get_interfaces():
             continue
         if is_vlan(name):
             continue
+        if is_bond(name):
+            continue
         mac = get_interface_mac(name)
         # some devices may not have a mac (tun0)
         if not mac:
@@ -677,7 +716,7 @@ class EphemeralIPv4Network(object):
     """
 
     def __init__(self, interface, ip, prefix_or_mask, broadcast, router=None,
-                 connectivity_url=None):
+                 connectivity_url=None, static_routes=None):
         """Setup context manager and validate call signature.
 
         @param interface: Name of the network interface to bring up.
@@ -688,6 +727,7 @@ class EphemeralIPv4Network(object):
         @param router: Optionally the default gateway IP.
         @param connectivity_url: Optionally, a URL to verify if a usable
            connection already exists.
+        @param static_routes: Optionally a list of static routes from DHCP
         """
         if not all([interface, ip, prefix_or_mask, broadcast]):
             raise ValueError(
@@ -704,6 +744,7 @@ class EphemeralIPv4Network(object):
         self.ip = ip
         self.broadcast = broadcast
         self.router = router
+        self.static_routes = static_routes
         self.cleanup_cmds = []  # List of commands to run to cleanup state.
 
     def __enter__(self):
@@ -716,7 +757,21 @@ class EphemeralIPv4Network(object):
                 return
 
         self._bringup_device()
-        if self.router:
+
+        # rfc3442 requires us to ignore the router config *if* classless static
+        # routes are provided.
+        #
+        # https://tools.ietf.org/html/rfc3442
+        #
+        # If the DHCP server returns both a Classless Static Routes option and
+        # a Router option, the DHCP client MUST ignore the Router option.
+        #
+        # Similarly, if the DHCP server returns both a Classless Static Routes
+        # option and a Static Routes option, the DHCP client MUST ignore the
+        # Static Routes option.
+        if self.static_routes:
+            self._bringup_static_routes()
+        elif self.router:
             self._bringup_router()
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
@@ -759,6 +814,20 @@ class EphemeralIPv4Network(object):
             self.cleanup_cmds.append(
                 ['ip', '-family', 'inet', 'addr', 'del', cidr, 'dev',
                  self.interface])
+
+    def _bringup_static_routes(self):
+        # static_routes = [("169.254.169.254/32", "130.56.248.255"),
+        #                  ("0.0.0.0/0", "130.56.240.1")]
+        for net_address, gateway in self.static_routes:
+            via_arg = []
+            if gateway != "0.0.0.0/0":
+                via_arg = ['via', gateway]
+            util.subp(
+                ['ip', '-4', 'route', 'add', net_address] + via_arg +
+                ['dev', self.interface], capture=True)
+            self.cleanup_cmds.insert(
+                0, ['ip', '-4', 'route', 'del', net_address] + via_arg +
+                   ['dev', self.interface])
 
     def _bringup_router(self):
         """Perform the ip commands to fully setup the router if needed."""

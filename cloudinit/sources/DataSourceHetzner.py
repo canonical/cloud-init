@@ -28,6 +28,9 @@ MD_WAIT_RETRY = 2
 
 
 class DataSourceHetzner(sources.DataSource):
+
+    dsname = 'Hetzner'
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.distro = distro

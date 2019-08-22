@@ -66,6 +66,13 @@ CLOUD_ID_REGION_PREFIX_MAP = {
     'china': ('azure-china', lambda c: c == 'azure'),  # only change azure
 }
 
+# NetworkConfigSource represents the canonical list of network config sources
+# that cloud-init knows about.  (Python 2.7 lacks PEP 435, so use a singleton
+# namedtuple as an enum; see https://stackoverflow.com/a/6971002)
+_NETCFG_SOURCE_NAMES = ('cmdline', 'ds', 'system_cfg', 'fallback', 'initramfs')
+NetworkConfigSource = namedtuple('NetworkConfigSource',
+                                 _NETCFG_SOURCE_NAMES)(*_NETCFG_SOURCE_NAMES)
+
 
 class DataSourceNotFoundException(Exception):
     pass
@@ -152,6 +159,16 @@ class DataSource(object):
 
     # Track the discovered fallback nic for use in configuration generation.
     _fallback_interface = None
+
+    # The network configuration sources that should be considered for this data
+    # source.  (The first source in this list that provides network
+    # configuration will be used without considering any that follow.)  This
+    # should always be a subset of the members of NetworkConfigSource with no
+    # duplicate entries.
+    network_config_sources = (NetworkConfigSource.cmdline,
+                              NetworkConfigSource.initramfs,
+                              NetworkConfigSource.system_cfg,
+                              NetworkConfigSource.ds)
 
     # read_url_params
     url_max_wait = -1   # max_wait < 0 means do not wait
@@ -473,6 +490,16 @@ class DataSource(object):
 
     def get_public_ssh_keys(self):
         return normalize_pubkey_data(self.metadata.get('public-keys'))
+
+    def publish_host_keys(self, hostkeys):
+        """Publish the public SSH host keys (found in /etc/ssh/*.pub).
+
+        @param hostkeys: List of host key tuples (key_type, key_value),
+            where key_type is the first field in the public key file
+            (e.g. 'ssh-rsa') and key_value is the key itself
+            (e.g. 'AAAAB3NzaC1y...').
+        """
+        pass
 
     def _remap_device(self, short_name):
         # LP: #611137

@@ -524,6 +524,30 @@ class TestDsIdentify(DsIdentifyBase):
             self._check_via_dict(
                 ovf_cdrom_by_label, rc=RC_FOUND, dslist=['OVF', DS_NONE])
 
+    def test_ovf_on_vmware_iso_found_by_cdrom_with_different_size(self):
+        """OVF is identified by well-known iso9660 labels."""
+        ovf_cdrom_with_size = copy.deepcopy(VALID_CFG['OVF'])
+
+        # Set cdrom size to 20480 (10MB in 512 byte units)
+        ovf_cdrom_with_size['files']['sys/class/block/sr0/size'] = '20480\n'
+        self._check_via_dict(
+            ovf_cdrom_with_size, rc=RC_NOT_FOUND, policy_dmi="disabled")
+
+        # Set cdrom size to 204800 (100MB in 512 byte units)
+        ovf_cdrom_with_size['files']['sys/class/block/sr0/size'] = '204800\n'
+        self._check_via_dict(
+            ovf_cdrom_with_size, rc=RC_NOT_FOUND, policy_dmi="disabled")
+
+        # Set cdrom size to 18432 (9MB in 512 byte units)
+        ovf_cdrom_with_size['files']['sys/class/block/sr0/size'] = '18432\n'
+        self._check_via_dict(
+            ovf_cdrom_with_size, rc=RC_FOUND, dslist=['OVF', DS_NONE])
+
+        # Set cdrom size to 2048 (1MB in 512 byte units)
+        ovf_cdrom_with_size['files']['sys/class/block/sr0/size'] = '2048\n'
+        self._check_via_dict(
+            ovf_cdrom_with_size, rc=RC_FOUND, dslist=['OVF', DS_NONE])
+
     def test_default_nocloud_as_vdb_iso9660(self):
         """NoCloud is found with iso9660 filesystem on non-cdrom disk."""
         self._test_ds_found('NoCloud')
@@ -815,6 +839,7 @@ VALID_CFG = {
         ],
         'files': {
             'dev/sr0': 'pretend ovf iso has ' + OVF_MATCH_STRING + '\n',
+            'sys/class/block/sr0/size': '2048\n',
         }
     },
     'OVF-guestinfo': {

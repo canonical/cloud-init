@@ -21,6 +21,21 @@ LOG = logging.getLogger(__name__)
 
 class Distro(debian.Distro):
 
+    def __init__(self, name, cfg, paths):
+        super(Distro, self).__init__(name, cfg, paths)
+        # Ubuntu specific network cfg locations
+        self.network_conf_fn = {
+            "eni": "/etc/network/interfaces.d/50-cloud-init.cfg",
+            "netplan": "/etc/netplan/50-cloud-init.yaml"
+        }
+        self.renderer_configs = {
+            "eni": {"eni_path": self.network_conf_fn["eni"],
+                    "eni_header": debian.ENI_HEADER},
+            "netplan": {"netplan_path": self.network_conf_fn["netplan"],
+                        "netplan_header": debian.ENI_HEADER,
+                        "postcmds": True}
+        }
+
     @property
     def preferred_ntp_clients(self):
         """The preferred ntp client is dependent on the version."""
