@@ -1,4 +1,4 @@
-cloud-init (19.2-21-ge6383719-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.2-21-ge6383719-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.
     - ubuntu-drivers: call db_x_loadtemplatefile to accept NVIDIA EULA
