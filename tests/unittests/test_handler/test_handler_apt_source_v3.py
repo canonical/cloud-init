@@ -998,6 +998,17 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main""")
 
 class TestDebconfSelections(TestCase):
 
+    @mock.patch("cloudinit.config.cc_apt_configure.util.subp")
+    def test_set_sel_appends_newline_if_absent(self, m_subp):
+        """Automatically append a newline to debconf-set-selections config."""
+        selections = b'some/setting boolean true'
+        cc_apt_configure.debconf_set_selections(selections=selections)
+        cc_apt_configure.debconf_set_selections(selections=selections + b'\n')
+        m_call = mock.call(
+            ['debconf-set-selections'], data=selections + b'\n', capture=True,
+            target=None)
+        self.assertEqual([m_call, m_call], m_subp.call_args_list)
+
     @mock.patch("cloudinit.config.cc_apt_configure.debconf_set_selections")
     def test_no_set_sel_if_none_to_set(self, m_set_sel):
         cc_apt_configure.apply_debconf_selections({'foo': 'bar'})

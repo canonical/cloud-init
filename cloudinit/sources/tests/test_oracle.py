@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.sources import DataSourceOracle as oracle
-from cloudinit.sources import BrokenMetadata
+from cloudinit.sources import BrokenMetadata, NetworkConfigSource
 from cloudinit import helpers
 
 from cloudinit.tests import helpers as test_helpers
@@ -302,6 +302,14 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertEqual(ds.network_config, m_initramfs_config.return_value)
         self.assertIn('Failed to fetch secondary network configuration',
                       self.logs.getvalue())
+
+    def test_ds_network_cfg_preferred_over_initramfs(self):
+        """Ensure that DS net config is preferred over initramfs config"""
+        network_config_sources = oracle.DataSourceOracle.network_config_sources
+        self.assertLess(
+            network_config_sources.index(NetworkConfigSource.ds),
+            network_config_sources.index(NetworkConfigSource.initramfs)
+        )
 
 
 @mock.patch(DS_PATH + "._read_system_uuid", return_value=str(uuid.uuid4()))
