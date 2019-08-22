@@ -43,6 +43,13 @@ def _contains_shell_variable(text):
 
 
 class SysConf(configobj.ConfigObj):
+    """A configobj.ConfigObj subclass specialised for sysconfig files.
+
+    :param contents:
+        The sysconfig file to parse, in a format accepted by
+        ``configobj.ConfigObj.__init__`` (i.e. "a filename, file like object,
+        or list of lines").
+    """
     def __init__(self, contents):
         configobj.ConfigObj.__init__(self, contents,
                                      interpolation=False,

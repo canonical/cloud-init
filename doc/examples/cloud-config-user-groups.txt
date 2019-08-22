@@ -1,3 +1,4 @@
+#cloud-config
 # Add groups to the system
 # The following example adds the ubuntu group with members 'root' and 'sys'
 # and the empty group cloud-users.

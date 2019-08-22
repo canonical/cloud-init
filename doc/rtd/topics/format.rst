@@ -23,14 +23,15 @@ For example, both a user data script and a cloud-config type could be specified.
 
 Supported content-types:
 
+- text/cloud-boothook
+- text/cloud-config
+- text/cloud-config-archive
+- text/jinja2
+- text/part-handler
+- text/upstart-job
 - text/x-include-once-url
 - text/x-include-url
-- text/cloud-config-archive
-- text/upstart-job
-- text/cloud-config
-- text/part-handler
 - text/x-shellscript
-- text/cloud-boothook
 
 Helper script to generate mime messages
 ---------------------------------------
@@ -38,16 +39,16 @@ Helper script to generate mime messages
 .. code-block:: python
 
    #!/usr/bin/python
-   
+
    import sys
-   
+
    from email.mime.multipart import MIMEMultipart
    from email.mime.text import MIMEText
-   
+
    if len(sys.argv) == 1:
        print("%s input-file:type ..." % (sys.argv[0]))
        sys.exit(1)
-   
+
    combined_message = MIMEMultipart()
    for i in sys.argv[1:]:
        (filename, format_type) = i.split(":", 1)
@@ -56,7 +57,7 @@ Helper script to generate mime messages
        sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
        sub_message.add_header('Content-Disposition', 'attachment; filename="%s"' % (filename))
        combined_message.attach(sub_message)
-   
+
    print(combined_message)
 
 
@@ -78,10 +79,10 @@ Example
 ::
 
   $ cat myscript.sh
-  
+
   #!/bin/sh
   echo "Hello World.  The time is now $(date -R)!" | tee /root/output.txt
-  
+
   $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9 
 
 Include File

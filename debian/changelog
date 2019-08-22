@@ -1,3 +1,20 @@
+cloud-init (19.2-21-ge6383719-0ubuntu1) eoan; urgency=medium
+
+  * New upstream snapshot.
+    - ubuntu-drivers: call db_x_loadtemplatefile to accept NVIDIA EULA
+      (LP: #1840080)
+    - Add missing #cloud-config comment on first example in documentation.
+      [Florian Müller]
+    - ubuntu-drivers: emit latelink=true debconf to accept nvidia eula
+      (LP: #1840080)
+    - DataSourceOracle: prefer DS network config over initramfs
+    - format.rst: add text/jinja2 to list of content types (+ cleanups)
+    - Add GitHub pull request template to point people at hacking doc
+    - cloudinit/distros/parsers/sys_conf: add docstring to SysConf
+    - pyflakes: remove unused variable [Joshua Powers]
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 22 Aug 2019 11:15:08 -0600
+
 cloud-init (19.2-13-g2f3bb764-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.

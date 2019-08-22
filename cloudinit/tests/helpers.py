@@ -198,7 +198,8 @@ class CiTestCase(TestCase):
                 prefix="ci-%s." % self.__class__.__name__)
         else:
             tmpd = tempfile.mkdtemp(dir=dir)
-        self.addCleanup(functools.partial(shutil.rmtree, tmpd))
+        self.addCleanup(
+            functools.partial(shutil.rmtree, tmpd, ignore_errors=True))
         return tmpd
 
     def tmp_path(self, path, dir=None):

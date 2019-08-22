@@ -109,6 +109,13 @@ class DataSourceOracle(sources.DataSource):
     dsname = 'Oracle'
     system_uuid = None
     vendordata_pure = None
+    network_config_sources = (
+        sources.NetworkConfigSource.cmdline,
+        sources.NetworkConfigSource.ds,
+        sources.NetworkConfigSource.initramfs,
+        sources.NetworkConfigSource.system_cfg,
+    )
+
     _network_config = sources.UNSET
 
     def __init__(self, sys_cfg, *args, **kwargs):
