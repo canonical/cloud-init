@@ -332,6 +332,8 @@ def apply_apt(cfg, cloud, target):
 
 
 def debconf_set_selections(selections, target=None):
+    if not selections.endswith(b'\n'):
+        selections += b'\n'
     util.subp(['debconf-set-selections'], data=selections, target=target,
               capture=True)
 
@@ -374,7 +376,7 @@ def apply_debconf_selections(cfg, target=None):
 
     selections = '\n'.join(
         [selsets[key] for key in sorted(selsets.keys())])
-    debconf_set_selections(selections.encode() + b"\n", target=target)
+    debconf_set_selections(selections.encode(), target=target)
 
     # get a complete list of packages listed in input
     pkgs_cfgd = set()

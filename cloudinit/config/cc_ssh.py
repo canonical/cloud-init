@@ -91,6 +91,9 @@ public keys.
     ssh_authorized_keys:
         - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUU ...
         - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZ ...
+    ssh_publish_hostkeys:
+        enabled: <true/false> (Defaults to true)
+        blacklist: <list of key types> (Defaults to [dsa])
 """
 
 import glob
@@ -104,6 +107,10 @@ from cloudinit import util
 
 GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa', 'ed25519']
 KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
+PUBLISH_HOST_KEYS = True
+# Don't publish the dsa hostkey by default since OpenSSH recommends not using
+# it.
+HOST_KEY_PUBLISH_BLACKLIST = ['dsa']
 
 CONFIG_KEY_TO_FILE = {}
 PRIV_TO_PUB = {}
@@ -176,6 +183,23 @@ def handle(_name, cfg, cloud, log, _args):
                         util.logexc(log, "Failed generating key type %s to "
                                     "file %s", keytype, keyfile)
 
+    if "ssh_publish_hostkeys" in cfg:
+        host_key_blacklist = util.get_cfg_option_list(
+            cfg["ssh_publish_hostkeys"], "blacklist",
+            HOST_KEY_PUBLISH_BLACKLIST)
+        publish_hostkeys = util.get_cfg_option_bool(
+            cfg["ssh_publish_hostkeys"], "enabled", PUBLISH_HOST_KEYS)
+    else:
+        host_key_blacklist = HOST_KEY_PUBLISH_BLACKLIST
+        publish_hostkeys = PUBLISH_HOST_KEYS
+
+    if publish_hostkeys:
+        hostkeys = get_public_host_keys(blacklist=host_key_blacklist)
+        try:
+            cloud.datasource.publish_host_keys(hostkeys)
+        except Exception:
+            util.logexc(log, "Publishing host keys failed!")
+
     try:
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
         (user, _user_config) = ug_util.extract_default(users)
@@ -208,5 +232,36 @@ def apply_credentials(keys, user, disable_root, disable_root_opts):
         key_prefix = ''
 
     ssh_util.setup_user_keys(keys, 'root', options=key_prefix)
+
+
+def get_public_host_keys(blacklist=None):
+    """Read host keys from /etc/ssh/*.pub files and return them as a list.
+
+    @param blacklist: List of key types to ignore. e.g. ['dsa', 'rsa']
+    @returns: List of keys, each formatted as a two-element tuple.
+        e.g. [('ssh-rsa', 'AAAAB3Nz...'), ('ssh-ed25519', 'AAAAC3Nx...')]
+    """
+    public_key_file_tmpl = '%s.pub' % (KEY_FILE_TPL,)
+    key_list = []
+    blacklist_files = []
+    if blacklist:
+        # Convert blacklist to filenames:
+        # 'dsa' -> '/etc/ssh/ssh_host_dsa_key.pub'
+        blacklist_files = [public_key_file_tmpl % (key_type,)
+                           for key_type in blacklist]
+    # Get list of public key files and filter out blacklisted files.
+    file_list = [hostfile for hostfile
+                 in glob.glob(public_key_file_tmpl % ('*',))
+                 if hostfile not in blacklist_files]
+
+    # Read host key files, retrieve first two fields as a tuple and
+    # append that tuple to key_list.
+    for file_name in file_list:
+        file_contents = util.load_file(file_name)
+        key_data = file_contents.split()
+        if key_data and len(key_data) > 1:
+            key_list.append(tuple(key_data[:2]))
+    return key_list
+
 
 # vi: ts=4 expandtab

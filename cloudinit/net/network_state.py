@@ -596,6 +596,7 @@ class NetworkStateInterpreter(object):
           eno1:
             match:
               macaddress: 00:11:22:33:44:55
+              driver: hv_netsvc
             wakeonlan: true
             dhcp4: true
             dhcp6: false
@@ -631,15 +632,18 @@ class NetworkStateInterpreter(object):
                 'type': 'physical',
                 'name': cfg.get('set-name', eth),
             }
-            mac_address = cfg.get('match', {}).get('macaddress', None)
+            match = cfg.get('match', {})
+            mac_address = match.get('macaddress', None)
             if not mac_address:
                 LOG.debug('NetworkState Version2: missing "macaddress" info '
                           'in config entry: %s: %s', eth, str(cfg))
-            phy_cmd.update({'mac_address': mac_address})
-
+            phy_cmd['mac_address'] = mac_address
+            driver = match.get('driver', None)
+            if driver:
+                phy_cmd['params'] = {'driver': driver}
             for key in ['mtu', 'match', 'wakeonlan']:
                 if key in cfg:
-                    phy_cmd.update({key: cfg.get(key)})
+                    phy_cmd[key] = cfg[key]
 
             subnets = self._v2_to_v1_ipcfg(cfg)
             if len(subnets) > 0:
@@ -673,6 +677,8 @@ class NetworkStateInterpreter(object):
                 'vlan_id': cfg.get('id'),
                 'vlan_link': cfg.get('link'),
             }
+            if 'mtu' in cfg:
+                vlan_cmd['mtu'] = cfg['mtu']
             subnets = self._v2_to_v1_ipcfg(cfg)
             if len(subnets) > 0:
                 vlan_cmd.update({'subnets': subnets})
@@ -707,6 +713,14 @@ class NetworkStateInterpreter(object):
             item_params = dict((key, value) for (key, value) in
                                item_cfg.items() if key not in
                                NETWORK_V2_KEY_FILTER)
+            # we accept the fixed spelling, but write the old for compatability
+            # Xenial does not have an updated netplan which supports the
+            # correct spelling.  LP: #1756701
+            params = item_params['parameters']
+            grat_value = params.pop('gratuitous-arp', None)
+            if grat_value:
+                params['gratuitious-arp'] = grat_value
+
             v1_cmd = {
                 'type': cmd_type,
                 'name': item_name,
@@ -714,6 +728,8 @@ class NetworkStateInterpreter(object):
                 'params': dict((v2key_to_v1[k], v) for k, v in
                                item_params.get('parameters', {}).items())
             }
+            if 'mtu' in item_cfg:
+                v1_cmd['mtu'] = item_cfg['mtu']
             subnets = self._v2_to_v1_ipcfg(item_cfg)
             if len(subnets) > 0:
                 v1_cmd.update({'subnets': subnets})

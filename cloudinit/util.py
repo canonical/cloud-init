@@ -2337,17 +2337,21 @@ def parse_mtab(path):
     return None
 
 
-def find_freebsd_part(label_part):
-    if label_part.startswith("/dev/label/"):
-        target_label = label_part[5:]
-        (label_part, _err) = subp(['glabel', 'status', '-s'])
-        for labels in label_part.split("\n"):
+def find_freebsd_part(fs):
+    splitted = fs.split('/')
+    if len(splitted) == 3:
+        return splitted[2]
+    elif splitted[2] in ['label', 'gpt', 'ufs']:
+        target_label = fs[5:]
+        (part, _err) = subp(['glabel', 'status', '-s'])
+        for labels in part.split("\n"):
             items = labels.split()
-            if len(items) > 0 and items[0].startswith(target_label):
-                label_part = items[2]
+            if len(items) > 0 and items[0] == target_label:
+                part = items[2]
                 break
-        label_part = str(label_part)
-    return label_part
+        return str(part)
+    else:
+        LOG.warning("Unexpected input in find_freebsd_part: %s", fs)
 
 
 def get_path_dev_freebsd(path, mnt_list):

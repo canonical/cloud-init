@@ -435,6 +435,14 @@ class TestDsIdentify(DsIdentifyBase):
         """Open Telecom identification."""
         self._test_ds_found('OpenStack-OpenTelekom')
 
+    def test_openstack_asset_tag_nova(self):
+        """OpenStack identification via asset tag OpenStack Nova."""
+        self._test_ds_found('OpenStack-AssetTag-Nova')
+
+    def test_openstack_asset_tag_copute(self):
+        """OpenStack identification via asset tag OpenStack Compute."""
+        self._test_ds_found('OpenStack-AssetTag-Compute')
+
     def test_openstack_on_non_intel_is_maybe(self):
         """On non-Intel, openstack without dmi info is maybe.
 
@@ -515,6 +523,30 @@ class TestDsIdentify(DsIdentifyBase):
                 {'DEVNAME': 'vda1', 'TYPE': 'ntfs', 'LABEL': 'data'}])
             self._check_via_dict(
                 ovf_cdrom_by_label, rc=RC_FOUND, dslist=['OVF', DS_NONE])
+
+    def test_ovf_on_vmware_iso_found_by_cdrom_with_different_size(self):
+        """OVF is identified by well-known iso9660 labels."""
+        ovf_cdrom_with_size = copy.deepcopy(VALID_CFG['OVF'])
+
+        # Set cdrom size to 20480 (10MB in 512 byte units)
+        ovf_cdrom_with_size['files']['sys/class/block/sr0/size'] = '20480\n'
+        self._check_via_dict(
+            ovf_cdrom_with_size, rc=RC_NOT_FOUND, policy_dmi="disabled")
+
+        # Set cdrom size to 204800 (100MB in 512 byte units)
+        ovf_cdrom_with_size['files']['sys/class/block/sr0/size'] = '204800\n'
+        self._check_via_dict(
+            ovf_cdrom_with_size, rc=RC_NOT_FOUND, policy_dmi="disabled")
+
+        # Set cdrom size to 18432 (9MB in 512 byte units)
+        ovf_cdrom_with_size['files']['sys/class/block/sr0/size'] = '18432\n'
+        self._check_via_dict(
+            ovf_cdrom_with_size, rc=RC_FOUND, dslist=['OVF', DS_NONE])
+
+        # Set cdrom size to 2048 (1MB in 512 byte units)
+        ovf_cdrom_with_size['files']['sys/class/block/sr0/size'] = '2048\n'
+        self._check_via_dict(
+            ovf_cdrom_with_size, rc=RC_FOUND, dslist=['OVF', DS_NONE])
 
     def test_default_nocloud_as_vdb_iso9660(self):
         """NoCloud is found with iso9660 filesystem on non-cdrom disk."""
@@ -759,6 +791,18 @@ VALID_CFG = {
         'files': {P_CHASSIS_ASSET_TAG: 'OpenTelekomCloud\n'},
         'mocks': [MOCK_VIRT_IS_XEN],
     },
+    'OpenStack-AssetTag-Nova': {
+        # VMware vSphere can't modify product-name, LP: #1669875
+        'ds': 'OpenStack',
+        'files': {P_CHASSIS_ASSET_TAG: 'OpenStack Nova\n'},
+        'mocks': [MOCK_VIRT_IS_XEN],
+    },
+    'OpenStack-AssetTag-Compute': {
+        # VMware vSphere can't modify product-name, LP: #1669875
+        'ds': 'OpenStack',
+        'files': {P_CHASSIS_ASSET_TAG: 'OpenStack Compute\n'},
+        'mocks': [MOCK_VIRT_IS_XEN],
+    },
     'OVF-seed': {
         'ds': 'OVF',
         'files': {
@@ -795,6 +839,7 @@ VALID_CFG = {
         ],
         'files': {
             'dev/sr0': 'pretend ovf iso has ' + OVF_MATCH_STRING + '\n',
+            'sys/class/block/sr0/size': '2048\n',
         }
     },
     'OVF-guestinfo': {

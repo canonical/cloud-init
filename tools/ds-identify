@@ -124,7 +124,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle"
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -553,6 +553,11 @@ dscheck_CloudStack() {
     return $DS_NOT_FOUND
 }
 
+dscheck_Exoscale() {
+    dmi_product_name_matches "Exoscale*" && return $DS_FOUND
+    return $DS_NOT_FOUND
+}
+
 dscheck_CloudSigma() {
     # http://paste.ubuntu.com/23624795/
     dmi_product_name_matches "CloudSigma" && return $DS_FOUND
@@ -766,8 +771,32 @@ is_cdrom_ovf() {
         config-2|CONFIG-2|rd_rdfe_stable*|cidata|CIDATA) return 1;;
     esac
 
+    # skip device which size is 10MB or larger
+    local size="" sfile="${PATH_SYS_CLASS_BLOCK}/${dev##*/}/size"
+    [ -f "$sfile" ] || return 1
+    read size <"$sfile" || { warn "failed reading from $sfile"; return 1; }
+    # size is in 512 byte units. so convert to MB (integer division)
+    if [ $((size/2048)) -ge 10 ]; then
+        debug 2 "$dev: size $((size/2048))MB is considered too large for OVF"
+        return 1
+    fi
+
     local idstr="http://schemas.dmtf.org/ovf/environment/1"
     grep --quiet --ignore-case "$idstr" "${PATH_ROOT}$dev"
+}
+
+has_ovf_cdrom() {
+    # DI_ISO9660_DEVS is <device>=label,<device>=label2
+    # like /dev/sr0=OVF-TRANSPORT,/dev/other=with spaces
+    if [ "${DI_ISO9660_DEVS#${UNAVAILABLE}:}" = "${DI_ISO9660_DEVS}" ]; then
+        local oifs="$IFS"
+        # shellcheck disable=2086
+        { IFS=","; set -- ${DI_ISO9660_DEVS}; IFS="$oifs"; }
+        for tok in "$@"; do
+            is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return 0
+        done
+    fi
+    return 1
 }
 
 dscheck_OVF() {
@@ -780,20 +809,9 @@ dscheck_OVF() {
 
     ovf_vmware_transport_guestinfo && return "${DS_FOUND}"
 
-    # DI_ISO9660_DEVS is <device>=label,<device>=label2
-    # like /dev/sr0=OVF-TRANSPORT,/dev/other=with spaces
-    if [ "${DI_ISO9660_DEVS#${UNAVAILABLE}:}" = "${DI_ISO9660_DEVS}" ]; then
-        local oifs="$IFS"
-        # shellcheck disable=2086
-        { IFS=","; set -- ${DI_ISO9660_DEVS}; IFS="$oifs"; }
-        for tok in "$@"; do
-            is_cdrom_ovf "${tok%%=*}" "${tok#*=}" && return $DS_FOUND
-        done
-    fi
+    has_ovf_cdrom && return "${DS_FOUND}"
 
-    if ovf_vmware_guest_customization; then
-        return ${DS_FOUND}
-    fi
+    ovf_vmware_guest_customization && return "${DS_FOUND}"
 
     return ${DS_NOT_FOUND}
 }
@@ -976,6 +994,14 @@ dscheck_OpenStack() {
     fi
 
     if dmi_chassis_asset_tag_matches "OpenTelekomCloud"; then
+        return ${DS_FOUND}
+    fi
+
+    # LP: #1669875 : allow identification of OpenStack by asset tag
+    if dmi_chassis_asset_tag_matches "$nova"; then
+        return ${DS_FOUND}
+    fi
+    if dmi_chassis_asset_tag_matches "$compute"; then
         return ${DS_FOUND}
     fi
 

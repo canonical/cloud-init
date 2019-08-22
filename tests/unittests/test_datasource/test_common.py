@@ -13,6 +13,7 @@ from cloudinit.sources import (
     DataSourceConfigDrive as ConfigDrive,
     DataSourceDigitalOcean as DigitalOcean,
     DataSourceEc2 as Ec2,
+    DataSourceExoscale as Exoscale,
     DataSourceGCE as GCE,
     DataSourceHetzner as Hetzner,
     DataSourceIBMCloud as IBMCloud,
@@ -53,6 +54,7 @@ DEFAULT_NETWORK = [
     CloudStack.DataSourceCloudStack,
     DSNone.DataSourceNone,
     Ec2.DataSourceEc2,
+    Exoscale.DataSourceExoscale,
     GCE.DataSourceGCE,
     MAAS.DataSourceMAAS,
     NoCloud.DataSourceNoCloudNet,
@@ -81,6 +83,17 @@ class ExpectedDataSources(test_helpers.TestCase):
         found = sources.list_sources(
             ['AliYun'], self.deps_network, self.pkg_list)
         self.assertEqual(set([AliYun.DataSourceAliYun]), set(found))
+
+
+class TestDataSourceInvariants(test_helpers.TestCase):
+
+    def test_data_sources_have_valid_network_config_sources(self):
+        for ds in DEFAULT_LOCAL + DEFAULT_NETWORK:
+            for cfg_src in ds.network_config_sources:
+                fail_msg = ('{} has an invalid network_config_sources entry:'
+                            ' {}'.format(str(ds), cfg_src))
+                self.assertTrue(hasattr(sources.NetworkConfigSource, cfg_src),
+                                fail_msg)
 
 
 # vi: ts=4 expandtab

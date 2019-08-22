@@ -92,10 +92,14 @@ class EphemeralDHCPv4(object):
         nmap = {'interface': 'interface', 'ip': 'fixed-address',
                 'prefix_or_mask': 'subnet-mask',
                 'broadcast': 'broadcast-address',
+                'static_routes': 'rfc3442-classless-static-routes',
                 'router': 'routers'}
         kwargs = dict([(k, self.lease.get(v)) for k, v in nmap.items()])
         if not kwargs['broadcast']:
             kwargs['broadcast'] = bcip(kwargs['prefix_or_mask'], kwargs['ip'])
+        if kwargs['static_routes']:
+            kwargs['static_routes'] = (
+                parse_static_routes(kwargs['static_routes']))
         if self.connectivity_url:
             kwargs['connectivity_url'] = self.connectivity_url
         ephipv4 = EphemeralIPv4Network(**kwargs)
@@ -271,5 +275,91 @@ def networkd_get_option_from_leases(keyname, leases_d=None):
         if data.get(keyname):
             return data[keyname]
     return None
+
+
+def parse_static_routes(rfc3442):
+    """ parse rfc3442 format and return a list containing tuple of strings.
+
+    The tuple is composed of the network_address (including net length) and
+    gateway for a parsed static route.
+
+    @param rfc3442: string in rfc3442 format
+    @returns: list of tuple(str, str) for all valid parsed routes until the
+              first parsing error.
+
+    E.g.
+    sr = parse_state_routes("32,169,254,169,254,130,56,248,255,0,130,56,240,1")
+    sr = [
+        ("169.254.169.254/32", "130.56.248.255"), ("0.0.0.0/0", "130.56.240.1")
+    ]
+
+    Python version of isc-dhclient's hooks:
+       /etc/dhcp/dhclient-exit-hooks.d/rfc3442-classless-routes
+    """
+    # raw strings from dhcp lease may end in semi-colon
+    rfc3442 = rfc3442.rstrip(";")
+    tokens = rfc3442.split(',')
+    static_routes = []
+
+    def _trunc_error(cidr, required, remain):
+        msg = ("RFC3442 string malformed.  Current route has CIDR of %s "
+               "and requires %s significant octets, but only %s remain. "
+               "Verify DHCP rfc3442-classless-static-routes value: %s"
+               % (cidr, required, remain, rfc3442))
+        LOG.error(msg)
+
+    current_idx = 0
+    for idx, tok in enumerate(tokens):
+        if idx < current_idx:
+            continue
+        net_length = int(tok)
+        if net_length in range(25, 33):
+            req_toks = 9
+            if len(tokens[idx:]) < req_toks:
+                _trunc_error(net_length, req_toks, len(tokens[idx:]))
+                return static_routes
+            net_address = ".".join(tokens[idx+1:idx+5])
+            gateway = ".".join(tokens[idx+5:idx+req_toks])
+            current_idx = idx + req_toks
+        elif net_length in range(17, 25):
+            req_toks = 8
+            if len(tokens[idx:]) < req_toks:
+                _trunc_error(net_length, req_toks, len(tokens[idx:]))
+                return static_routes
+            net_address = ".".join(tokens[idx+1:idx+4] + ["0"])
+            gateway = ".".join(tokens[idx+4:idx+req_toks])
+            current_idx = idx + req_toks
+        elif net_length in range(9, 17):
+            req_toks = 7
+            if len(tokens[idx:]) < req_toks:
+                _trunc_error(net_length, req_toks, len(tokens[idx:]))
+                return static_routes
+            net_address = ".".join(tokens[idx+1:idx+3] + ["0", "0"])
+            gateway = ".".join(tokens[idx+3:idx+req_toks])
+            current_idx = idx + req_toks
+        elif net_length in range(1, 9):
+            req_toks = 6
+            if len(tokens[idx:]) < req_toks:
+                _trunc_error(net_length, req_toks, len(tokens[idx:]))
+                return static_routes
+            net_address = ".".join(tokens[idx+1:idx+2] + ["0", "0", "0"])
+            gateway = ".".join(tokens[idx+2:idx+req_toks])
+            current_idx = idx + req_toks
+        elif net_length == 0:
+            req_toks = 5
+            if len(tokens[idx:]) < req_toks:
+                _trunc_error(net_length, req_toks, len(tokens[idx:]))
+                return static_routes
+            net_address = "0.0.0.0"
+            gateway = ".".join(tokens[idx+1:idx+req_toks])
+            current_idx = idx + req_toks
+        else:
+            LOG.error('Parsed invalid net length "%s".  Verify DHCP '
+                      'rfc3442-classless-static-routes value.', net_length)
+            return static_routes
+
+        static_routes.append(("%s/%s" % (net_address, net_length), gateway))
+
+    return static_routes
 
 # vi: ts=4 expandtab

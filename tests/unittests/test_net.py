@@ -407,6 +407,37 @@ network:
                 - maas
 """
 
+NETPLAN_BOND_GRAT_ARP = """
+network:
+    bonds:
+        bond0:
+            interfaces:
+            - ens3
+            macaddress: 68:05:ca:64:d3:6c
+            mtu: 9000
+            parameters:
+                gratuitious-arp: 1
+        bond1:
+            interfaces:
+            - ens4
+            macaddress: 68:05:ca:64:d3:6d
+            mtu: 9000
+            parameters:
+                gratuitous-arp: 2
+    ethernets:
+        ens3:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:ab:cd:ef
+        ens4:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:11:22:ff
+    version: 2
+"""
+
 NETPLAN_DHCP_FALSE = """
 version: 2
 ethernets:
@@ -484,7 +515,7 @@ nameserver 172.19.0.12
 [main]
 dns = none
 """.lstrip()),
-            ('etc/udev/rules.d/70-persistent-net.rules',
+            ('etc/udev/rules.d/85-persistent-net-cloud-init.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))],
         'out_sysconfig_rhel': [
@@ -588,7 +619,7 @@ nameserver 172.19.0.12
 [main]
 dns = none
 """.lstrip()),
-            ('etc/udev/rules.d/70-persistent-net.rules',
+            ('etc/udev/rules.d/85-persistent-net-cloud-init.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))],
         'out_sysconfig_rhel': [
@@ -719,7 +750,7 @@ nameserver 172.19.0.12
 [main]
 dns = none
 """.lstrip()),
-            ('etc/udev/rules.d/70-persistent-net.rules',
+            ('etc/udev/rules.d/85-persistent-net-cloud-init.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))],
         'out_sysconfig_rhel': [
@@ -1509,6 +1540,12 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                   bond-mode: active-backup
                   bond_miimon: 100
                   bond-xmit-hash-policy: "layer3+4"
+                  bond-num-grat-arp: 5
+                  bond-downdelay: 10
+                  bond-updelay: 20
+                  bond-fail-over-mac: active
+                  bond-primary: bond0s0
+                  bond-primary-reselect: always
                 subnets:
                   - type: static
                     address: 192.168.0.2/24
@@ -1555,9 +1592,15 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                      macaddress: aa:bb:cc:dd:e8:ff
                      mtu: 9000
                      parameters:
+                         down-delay: 10
+                         fail-over-mac-policy: active
+                         gratuitious-arp: 5
                          mii-monitor-interval: 100
                          mode: active-backup
+                         primary: bond0s0
+                         primary-reselect-policy: always
                          transmit-hash-policy: layer3+4
+                         up-delay: 20
                      routes:
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
@@ -1573,15 +1616,27 @@ iface lo inet loopback
 
 auto bond0s0
 iface bond0s0 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
     bond-master bond0
     bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
     bond-xmit-hash-policy layer3+4
     bond_miimon 100
 
 auto bond0s1
 iface bond0s1 inet manual
+    bond-downdelay 10
+    bond-fail-over-mac active
     bond-master bond0
     bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
+    bond-updelay 20
     bond-xmit-hash-policy layer3+4
     bond_miimon 100
 
@@ -1589,8 +1644,14 @@ auto bond0
 iface bond0 inet static
     address 192.168.0.2/24
     gateway 192.168.0.1
+    bond-downdelay 10
+    bond-fail-over-mac active
     bond-mode active-backup
+    bond-num-grat-arp 5
+    bond-primary bond0s0
+    bond-primary-reselect always
     bond-slaves none
+    bond-updelay 20
     bond-xmit-hash-policy layer3+4
     bond_miimon 100
     hwaddress aa:bb:cc:dd:e8:ff
@@ -1635,10 +1696,15 @@ iface bond0 inet6 static
                 - eth0
                 - vf0
                 parameters:
+                    down-delay: 10
+                    fail-over-mac-policy: active
+                    gratuitious-arp: 5
                     mii-monitor-interval: 100
                     mode: active-backup
-                    primary: vf0
-                    transmit-hash-policy: "layer3+4"
+                    primary: bond0s0
+                    primary-reselect-policy: always
+                    transmit-hash-policy: layer3+4
+                    up-delay: 20
                 routes:
                 -   to: 10.1.3.0/24
                     via: 192.168.0.3
@@ -1661,10 +1727,15 @@ iface bond0 inet6 static
                      - eth0
                      - vf0
                      parameters:
+                         down-delay: 10
+                         fail-over-mac-policy: active
+                         gratuitious-arp: 5
                          mii-monitor-interval: 100
                          mode: active-backup
-                         primary: vf0
+                         primary: bond0s0
+                         primary-reselect-policy: always
                          transmit-hash-policy: layer3+4
+                         up-delay: 20
                      routes:
                      -   to: 10.1.3.0/24
                          via: 192.168.0.3
@@ -1689,7 +1760,12 @@ iface bond0 inet6 static
         'expected_sysconfig_opensuse': {
             'ifcfg-bond0': textwrap.dedent("""\
         BONDING_MASTER=yes
-        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 miimon=100"
+        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
+                                           """miimon=100 num_grat_arp=5 """
+                                           """downdelay=10 updelay=20 """
+                                           """fail_over_mac=active """
+                                           """primary=bond0s0 """
+                                           """primary_reselect=always"
         BONDING_SLAVE0=bond0s0
         BONDING_SLAVE1=bond0s1
         BOOTPROTO=none
@@ -1745,7 +1821,12 @@ iface bond0 inet6 static
         'expected_sysconfig_rhel': {
             'ifcfg-bond0': textwrap.dedent("""\
         BONDING_MASTER=yes
-        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 miimon=100"
+        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
+                                           """miimon=100 num_grat_arp=5 """
+                                           """downdelay=10 updelay=20 """
+                                           """fail_over_mac=active """
+                                           """primary=bond0s0 """
+                                           """primary_reselect=always"
         BONDING_SLAVE0=bond0s0
         BONDING_SLAVE1=bond0s1
         BOOTPROTO=none
@@ -2075,7 +2156,7 @@ DEFAULT_DEV_ATTRS = {
         "carrier": False,
         "dormant": False,
         "operstate": "down",
-        "address": "07-1C-C6-75-A4-BE",
+        "address": "07-1c-c6-75-a4-be",
         "device/driver": None,
         "device/device": None,
         "name_assign_type": "4",
@@ -2122,6 +2203,39 @@ class TestGenerateFallbackConfig(CiTestCase):
         self.add_patch(
             "cloudinit.util.get_cmdline", "m_get_cmdline",
             return_value="root=/dev/sda1")
+
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_device_driver_v2(self, mock_get_devicelist, mock_read_sys_net,
+                              mock_sys_dev_path):
+        """Network configuration for generate_fallback_config is version 2."""
+        devices = {
+            'eth0': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'hv_netsvc', 'device/device': '0x3',
+                'name_assign_type': '4'},
+            'eth1': {
+                'bridge': False, 'carrier': False, 'dormant': False,
+                'operstate': 'down', 'address': '00:11:22:33:44:55',
+                'device/driver': 'mlx4_core', 'device/device': '0x7',
+                'name_assign_type': '4'},
+
+        }
+
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path,
+                    dev_attrs=devices)
+
+        network_cfg = net.generate_fallback_config(config_driver=True)
+        expected = {
+            'ethernets': {'eth0': {'dhcp4': True, 'set-name': 'eth0',
+                                   'match': {'macaddress': '00:11:22:33:44:55',
+                                             'driver': 'hv_netsvc'}}},
+            'version': 2}
+        self.assertEqual(expected, network_cfg)
 
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
@@ -2405,7 +2519,7 @@ class TestRhelSysConfigRendering(CiTestCase):
 #
 BOOTPROTO=dhcp
 DEVICE=eth1000
-HWADDR=07-1C-C6-75-A4-BE
+HWADDR=07-1c-c6-75-a4-be
 NM_CONTROLLED=no
 ONBOOT=yes
 STARTMODE=auto
@@ -2775,6 +2889,97 @@ USERCTL=no
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
 
+    def test_from_v2_vlan_mtu(self):
+        """verify mtu gets rendered on bond when source is netplan."""
+        v2data = {
+            'version': 2,
+            'ethernets': {'eno1': {}},
+            'vlans': {
+                'eno1.1000': {
+                    'addresses': ["192.6.1.9/24"],
+                    'id': 1000, 'link': 'eno1', 'mtu': 1495}}}
+        expected = {
+            'ifcfg-eno1': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eno1
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                STARTMODE=auto
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+            'ifcfg-eno1.1000': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eno1.1000
+                IPADDR=192.6.1.9
+                MTU=1495
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                PHYSDEV=eno1
+                STARTMODE=auto
+                TYPE=Ethernet
+                USERCTL=no
+                VLAN=yes
+                """)
+            }
+        self._compare_files_to_expected(
+            expected, self._render_and_read(network_config=v2data))
+
+    def test_from_v2_bond_mtu(self):
+        """verify mtu gets rendered on bond when source is netplan."""
+        v2data = {
+            'version': 2,
+            'bonds': {
+                'bond0': {'addresses': ['10.101.8.65/26'],
+                          'interfaces': ['enp0s0', 'enp0s1'],
+                          'mtu': 1334,
+                          'parameters': {}}}
+        }
+        expected = {
+            'ifcfg-bond0': textwrap.dedent("""\
+                BONDING_MASTER=yes
+                BONDING_SLAVE0=enp0s0
+                BONDING_SLAVE1=enp0s1
+                BOOTPROTO=none
+                DEVICE=bond0
+                IPADDR=10.101.8.65
+                MTU=1334
+                NETMASK=255.255.255.192
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                STARTMODE=auto
+                TYPE=Bond
+                USERCTL=no
+                """),
+            'ifcfg-enp0s0': textwrap.dedent("""\
+                BONDING_MASTER=yes
+                BOOTPROTO=none
+                DEVICE=enp0s0
+                MASTER=bond0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                SLAVE=yes
+                STARTMODE=auto
+                TYPE=Bond
+                USERCTL=no
+                """),
+            'ifcfg-enp0s1': textwrap.dedent("""\
+                BONDING_MASTER=yes
+                BOOTPROTO=none
+                DEVICE=enp0s1
+                MASTER=bond0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                SLAVE=yes
+                STARTMODE=auto
+                TYPE=Bond
+                USERCTL=no
+                """)
+        }
+        self._compare_files_to_expected(
+            expected, self._render_and_read(network_config=v2data))
+
 
 class TestOpenSuseSysConfigRendering(CiTestCase):
 
@@ -2858,7 +3063,7 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
 #
 BOOTPROTO=dhcp
 DEVICE=eth1000
-HWADDR=07-1C-C6-75-A4-BE
+HWADDR=07-1c-c6-75-a4-be
 NM_CONTROLLED=no
 ONBOOT=yes
 STARTMODE=auto
@@ -3170,13 +3375,13 @@ class TestNetplanNetRendering(CiTestCase):
 
         expected = """
 network:
-    version: 2
     ethernets:
         eth1000:
             dhcp4: true
             match:
                 macaddress: 07-1c-c6-75-a4-be
             set-name: eth1000
+    version: 2
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
         self.assertEqual(1, mock_clean_default.call_count)
@@ -3386,13 +3591,13 @@ class TestCmdlineConfigParsing(CiTestCase):
         self.assertEqual(found, self.simple_cfg)
 
 
-class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
+class TestCmdlineReadInitramfsConfig(FilesystemMockingTestCase):
     macs = {
         'eth0': '14:02:ec:42:48:00',
         'eno1': '14:02:ec:42:48:01',
     }
 
-    def test_ip_cmdline_without_ip(self):
+    def test_without_ip(self):
         content = {'/run/net-eth0.conf': DHCP_CONTENT_1,
                    cmdline._OPEN_ISCSI_INTERFACE_FILE: "eth0\n"}
         exp1 = copy.deepcopy(DHCP_EXPECTED_1)
@@ -3402,12 +3607,12 @@ class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             cmdline='foo root=/root/bar', mac_addrs=self.macs)
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], [exp1])
 
-    def test_ip_cmdline_read_kernel_cmdline_ip(self):
+    def test_with_ip(self):
         content = {'/run/net-eth0.conf': DHCP_CONTENT_1}
         exp1 = copy.deepcopy(DHCP_EXPECTED_1)
         exp1['mac_address'] = self.macs['eth0']
@@ -3416,18 +3621,18 @@ class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             cmdline='foo ip=dhcp', mac_addrs=self.macs)
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], [exp1])
 
-    def test_ip_cmdline_read_kernel_cmdline_ip6(self):
+    def test_with_ip6(self):
         content = {'/run/net6-eno1.conf': DHCP6_CONTENT_1}
         root = self.tmp_dir()
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             cmdline='foo ip6=dhcp root=/dev/sda',
             mac_addrs=self.macs)
         self.assertEqual(
@@ -3439,15 +3644,15 @@ class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
                   {'dns_nameservers': ['2001:67c:1562:8010::2:1'],
                    'control': 'manual', 'type': 'dhcp6', 'netmask': '64'}]}]})
 
-    def test_ip_cmdline_read_kernel_cmdline_none(self):
+    def test_with_no_ip_or_ip6(self):
         # if there is no ip= or ip6= on cmdline, return value should be None
         content = {'net6-eno1.conf': DHCP6_CONTENT_1}
         files = sorted(populate_dir(self.tmp_dir(), content))
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             files=files, cmdline='foo root=/dev/sda', mac_addrs=self.macs)
         self.assertIsNone(found)
 
-    def test_ip_cmdline_both_ip_ip6(self):
+    def test_with_both_ip_ip6(self):
         content = {
             '/run/net-eth0.conf': DHCP_CONTENT_1,
             '/run/net6-eth0.conf': DHCP6_CONTENT_1.replace('eno1', 'eth0')}
@@ -3462,7 +3667,7 @@ class TestCmdlineReadKernelConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_kernel_cmdline_config(
+        found = cmdline.read_initramfs_config(
             cmdline='foo ip=dhcp ip6=dhcp', mac_addrs=self.macs)
 
         self.assertEqual(found['version'], 1)
@@ -3582,6 +3787,21 @@ class TestNetplanRoundTrip(CiTestCase):
             msg = "Error at: %s\nContent:\n%s" % (found_alias, content)
             raise ValueError('Found yaml alias in rendered netplan: ' + msg)
 
+        print(entry['expected_netplan'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def test_render_output_supports_both_grat_arp_spelling(self):
+        entry = {
+            'yaml': NETPLAN_BOND_GRAT_ARP,
+            'expected_netplan': NETPLAN_BOND_GRAT_ARP.replace('gratuitous',
+                                                              'gratuitious'),
+        }
+        network_config = yaml.load(entry['yaml']).get('network')
+        files = self._render_and_read(network_config=network_config)
         print(entry['expected_netplan'])
         print('-- expected ^ | v rendered --')
         print(files['/etc/netplan/50-cloud-init.yaml'])
