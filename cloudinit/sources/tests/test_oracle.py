@@ -526,6 +526,18 @@ class TestNetworkConfigFromOpcImds(test_helpers.CiTestCase):
             'Interface with MAC 00:00:17:02:2b:b1 not found; skipping',
             self.logs.getvalue())
 
+    def test_missing_mac_skipped_v2(self):
+        self.m_readurl.return_value = OPC_VM_SECONDARY_VNIC_RESPONSE
+        self.m_get_interfaces_by_mac.return_value = {}
+
+        network_config = {'version': 2, 'ethernets': {'primary': {'nic': {}}}}
+        oracle._add_network_config_from_opc_imds(network_config)
+
+        self.assertEqual(1, len(network_config['ethernets']))
+        self.assertIn(
+            'Interface with MAC 00:00:17:02:2b:b1 not found; skipping',
+            self.logs.getvalue())
+
     def test_secondary_nic(self):
         self.m_readurl.return_value = OPC_VM_SECONDARY_VNIC_RESPONSE
         mac_addr, nic_name = '00:00:17:02:2b:b1', 'ens3'
@@ -549,8 +561,29 @@ class TestNetworkConfigFromOpcImds(test_helpers.CiTestCase):
         subnet_cfg = secondary_nic_cfg['subnets'][0]
         # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
         self.assertEqual('10.0.0.231', subnet_cfg['address'])
-        self.assertEqual('24', subnet_cfg['netmask'])
-        self.assertEqual('10.0.0.1', subnet_cfg['gateway'])
-        self.assertEqual('manual', subnet_cfg['control'])
+
+    def test_secondary_nic_v2(self):
+        self.m_readurl.return_value = OPC_VM_SECONDARY_VNIC_RESPONSE
+        mac_addr, nic_name = '00:00:17:02:2b:b1', 'ens3'
+        self.m_get_interfaces_by_mac.return_value = {
+            mac_addr: nic_name,
+        }
+
+        network_config = {'version': 2, 'ethernets': {'primary': {'nic': {}}}}
+        oracle._add_network_config_from_opc_imds(network_config)
+
+        # The input is mutated
+        self.assertEqual(2, len(network_config['ethernets']))
+
+        secondary_nic_cfg = network_config['ethernets']['ens3']
+        self.assertFalse(secondary_nic_cfg['dhcp4'])
+        self.assertFalse(secondary_nic_cfg['dhcp6'])
+        self.assertEqual(mac_addr, secondary_nic_cfg['match']['macaddress'])
+        self.assertEqual(9000, secondary_nic_cfg['mtu'])
+
+        self.assertEqual(1, len(secondary_nic_cfg['addresses']))
+        # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
+        self.assertEqual('10.0.0.231', secondary_nic_cfg['addresses'][0])
+
 
 # vi: ts=4 expandtab
