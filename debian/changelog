@@ -1,4 +1,4 @@
-cloud-init (19.2-24-ge7881d5c-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.2-24-ge7881d5c-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.
     - Oracle: Render secondary vnic IP and MTU values only
