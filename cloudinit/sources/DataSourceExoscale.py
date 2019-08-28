@@ -6,6 +6,7 @@
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import helpers
 from cloudinit import url_helper
 from cloudinit import util
 
@@ -19,13 +20,6 @@ URL_TIMEOUT = 10
 URL_RETRIES = 6
 
 EXOSCALE_DMI_NAME = "Exoscale"
-
-BUILTIN_DS_CONFIG = {
-    # We run the set password config module on every boot in order to enable
-    # resetting the instance's password via the exoscale console (and a
-    # subsequent instance reboot).
-    'cloud_config_modules': [["set-passwords", "always"]]
-}
 
 
 class DataSourceExoscale(sources.DataSource):
@@ -42,8 +36,22 @@ class DataSourceExoscale(sources.DataSource):
             self.ds_cfg.get('password_server_port', PASSWORD_SERVER_PORT))
         self.url_timeout = self.ds_cfg.get('timeout', URL_TIMEOUT)
         self.url_retries = self.ds_cfg.get('retries', URL_RETRIES)
+        self.extra_config = {}
 
-        self.extra_config = BUILTIN_DS_CONFIG
+    def activate(self, cfg, is_new_instance):
+        """Adjust set-passwords module to run 'always' during each boot"""
+        # We run the set password config module on every boot in order to
+        # enable resetting the instance's password via the exoscale console
+        # (and a subsequent instance reboot).
+        # Exoscale password server only provides set-passwords user-data if
+        # a user has triggered a password reset. So calling that password
+        # service generally results in no additional cloud-config.
+        # TODO(Create util functions for overriding merged sys_cfg module freq)
+        mod = 'set_passwords'
+        sem_path = self.paths.get_ipath_cur('sem')
+        sem_helper = helpers.FileSemaphores(sem_path)
+        if sem_helper.clear('config_' + mod, None):
+            LOG.debug('Overriding module set-passwords with frequency always')
 
     def wait_for_metadata_service(self):
         """Wait for the metadata service to be reachable."""

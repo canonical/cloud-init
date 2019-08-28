@@ -1,3 +1,12 @@
+cloud-init (19.2-24-ge7881d5c-0ubuntu1) eoan; urgency=medium
+
+  * New upstream snapshot.
+    - Oracle: Render secondary vnic IP and MTU values only
+    - exoscale: fix sysconfig cloud_config_modules overrides (LP: #1841454)
+    - net/cmdline: refactor to allow multiple initramfs network config sources
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 28 Aug 2019 14:44:36 -0600
+
 cloud-init (19.2-21-ge6383719-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.
