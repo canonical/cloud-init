@@ -11,8 +11,10 @@ from cloudinit.sources.DataSourceExoscale import (
     PASSWORD_SERVER_PORT,
     read_metadata)
 from cloudinit.tests.helpers import HttprettyTestCase, mock
+from cloudinit import util
 
 import httpretty
+import os
 import requests
 
 
@@ -63,6 +65,18 @@ class TestDatasourceExoscale(HttprettyTestCase):
         password = get_password()
         self.assertEqual(expected_password, password)
 
+    def test_activate_removes_set_passwords_semaphore(self):
+        """Allow set_passwords to run every boot by removing the semaphore."""
+        path = helpers.Paths({'cloud_dir': self.tmp})
+        sem_dir = self.tmp_path('instance/sem', dir=self.tmp)
+        util.ensure_dir(sem_dir)
+        sem_file = os.path.join(sem_dir, 'config_set_passwords')
+        with open(sem_file, 'w') as stream:
+            stream.write('')
+        ds = DataSourceExoscale({}, None, path)
+        ds.activate(None, None)
+        self.assertFalse(os.path.exists(sem_file))
+
     def test_get_data(self):
         """The datasource conforms to expected behavior when supplied
         full test data."""
@@ -95,8 +109,6 @@ class TestDatasourceExoscale(HttprettyTestCase):
         self.assertEqual(ds.get_config_obj(),
                          {'ssh_pwauth': True,
                           'password': expected_password,
-                          'cloud_config_modules': [
-                              ["set-passwords", "always"]],
                           'chpasswd': {
                               'expire': False,
                           }})
@@ -130,9 +142,7 @@ class TestDatasourceExoscale(HttprettyTestCase):
         self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
         self.assertEqual(ds.metadata, {"instance-id": expected_id,
                                        "local-hostname": expected_hostname})
-        self.assertEqual(ds.get_config_obj(),
-                         {'cloud_config_modules': [
-                             ["set-passwords", "always"]]})
+        self.assertEqual(ds.get_config_obj(), {})
 
     def test_get_data_no_password(self):
         """The datasource conforms to expected behavior when no password is
@@ -163,9 +173,7 @@ class TestDatasourceExoscale(HttprettyTestCase):
         self.assertEqual(ds.userdata_raw.decode("utf-8"), "#cloud-config")
         self.assertEqual(ds.metadata, {"instance-id": expected_id,
                                        "local-hostname": expected_hostname})
-        self.assertEqual(ds.get_config_obj(),
-                         {'cloud_config_modules': [
-                             ["set-passwords", "always"]]})
+        self.assertEqual(ds.get_config_obj(), {})
 
     @mock.patch('cloudinit.sources.DataSourceExoscale.get_password')
     def test_read_metadata_when_password_server_unreachable(self, m_password):

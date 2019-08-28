@@ -3591,7 +3591,7 @@ class TestCmdlineConfigParsing(CiTestCase):
         self.assertEqual(found, self.simple_cfg)
 
 
-class TestCmdlineReadInitramfsConfig(FilesystemMockingTestCase):
+class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
     macs = {
         'eth0': '14:02:ec:42:48:00',
         'eno1': '14:02:ec:42:48:01',
@@ -3607,8 +3607,11 @@ class TestCmdlineReadInitramfsConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_initramfs_config(
-            cmdline='foo root=/root/bar', mac_addrs=self.macs)
+        src = cmdline.KlibcNetworkConfigSource(
+            _cmdline='foo root=/root/bar', _mac_addrs=self.macs,
+        )
+        self.assertTrue(src.is_applicable())
+        found = src.render_config()
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], [exp1])
 
@@ -3621,8 +3624,11 @@ class TestCmdlineReadInitramfsConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_initramfs_config(
-            cmdline='foo ip=dhcp', mac_addrs=self.macs)
+        src = cmdline.KlibcNetworkConfigSource(
+            _cmdline='foo ip=dhcp', _mac_addrs=self.macs,
+        )
+        self.assertTrue(src.is_applicable())
+        found = src.render_config()
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], [exp1])
 
@@ -3632,9 +3638,11 @@ class TestCmdlineReadInitramfsConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_initramfs_config(
-            cmdline='foo ip6=dhcp root=/dev/sda',
-            mac_addrs=self.macs)
+        src = cmdline.KlibcNetworkConfigSource(
+            _cmdline='foo ip6=dhcp root=/dev/sda', _mac_addrs=self.macs,
+        )
+        self.assertTrue(src.is_applicable())
+        found = src.render_config()
         self.assertEqual(
             found,
             {'version': 1, 'config': [
@@ -3648,9 +3656,10 @@ class TestCmdlineReadInitramfsConfig(FilesystemMockingTestCase):
         # if there is no ip= or ip6= on cmdline, return value should be None
         content = {'net6-eno1.conf': DHCP6_CONTENT_1}
         files = sorted(populate_dir(self.tmp_dir(), content))
-        found = cmdline.read_initramfs_config(
-            files=files, cmdline='foo root=/dev/sda', mac_addrs=self.macs)
-        self.assertIsNone(found)
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files, _cmdline='foo root=/dev/sda', _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
 
     def test_with_both_ip_ip6(self):
         content = {
@@ -3667,11 +3676,75 @@ class TestCmdlineReadInitramfsConfig(FilesystemMockingTestCase):
         populate_dir(root, content)
         self.reRoot(root)
 
-        found = cmdline.read_initramfs_config(
-            cmdline='foo ip=dhcp ip6=dhcp', mac_addrs=self.macs)
+        src = cmdline.KlibcNetworkConfigSource(
+            _cmdline='foo ip=dhcp ip6=dhcp', _mac_addrs=self.macs,
+        )
 
+        self.assertTrue(src.is_applicable())
+        found = src.render_config()
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], expected)
+
+
+class TestReadInitramfsConfig(CiTestCase):
+
+    def _config_source_cls_mock(self, is_applicable, render_config=None):
+        return lambda: mock.Mock(
+            is_applicable=lambda: is_applicable,
+            render_config=lambda: render_config,
+        )
+
+    def test_no_sources(self):
+        with mock.patch('cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES', []):
+            self.assertIsNone(cmdline.read_initramfs_config())
+
+    def test_no_applicable_sources(self):
+        sources = [
+            self._config_source_cls_mock(is_applicable=False),
+            self._config_source_cls_mock(is_applicable=False),
+            self._config_source_cls_mock(is_applicable=False),
+        ]
+        with mock.patch('cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES',
+                        sources):
+            self.assertIsNone(cmdline.read_initramfs_config())
+
+    def test_one_applicable_source(self):
+        expected_config = object()
+        sources = [
+            self._config_source_cls_mock(
+                is_applicable=True, render_config=expected_config,
+            ),
+        ]
+        with mock.patch('cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES',
+                        sources):
+            self.assertEqual(expected_config, cmdline.read_initramfs_config())
+
+    def test_one_applicable_source_after_inapplicable_sources(self):
+        expected_config = object()
+        sources = [
+            self._config_source_cls_mock(is_applicable=False),
+            self._config_source_cls_mock(is_applicable=False),
+            self._config_source_cls_mock(
+                is_applicable=True, render_config=expected_config,
+            ),
+        ]
+        with mock.patch('cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES',
+                        sources):
+            self.assertEqual(expected_config, cmdline.read_initramfs_config())
+
+    def test_first_applicable_source_is_used(self):
+        first_config, second_config = object(), object()
+        sources = [
+            self._config_source_cls_mock(
+                is_applicable=True, render_config=first_config,
+            ),
+            self._config_source_cls_mock(
+                is_applicable=True, render_config=second_config,
+            ),
+        ]
+        with mock.patch('cloudinit.net.cmdline._INITRAMFS_CONFIG_SOURCES',
+                        sources):
+            self.assertEqual(first_config, cmdline.read_initramfs_config())
 
 
 class TestNetplanRoundTrip(CiTestCase):
