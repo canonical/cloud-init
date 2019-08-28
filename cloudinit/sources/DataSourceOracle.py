@@ -51,8 +51,8 @@ def _add_network_config_from_opc_imds(network_config):
     include the secondary VNICs.
 
     :param network_config:
-        A v1 network config dict with the primary NIC already configured.  This
-        dict will be mutated.
+        A v1 or v2 network config dict with the primary NIC already configured.
+        This dict will be mutated.
 
     :raises:
         Exceptions are not handled within this function.  Likely exceptions are
@@ -88,20 +88,24 @@ def _add_network_config_from_opc_imds(network_config):
             LOG.debug('Interface with MAC %s not found; skipping', mac_address)
             continue
         name = interfaces_by_mac[mac_address]
-        subnet = {
-            'type': 'static',
-            'address': vnic_dict['privateIp'],
-            'netmask': vnic_dict['subnetCidrBlock'].split('/')[1],
-            'gateway': vnic_dict['virtualRouterIp'],
-            'control': 'manual',
-        }
-        network_config['config'].append({
-            'name': name,
-            'type': 'physical',
-            'mac_address': mac_address,
-            'mtu': MTU,
-            'subnets': [subnet],
-        })
+
+        if network_config['version'] == 1:
+            subnet = {
+                'type': 'static',
+                'address': vnic_dict['privateIp'],
+            }
+            network_config['config'].append({
+                'name': name,
+                'type': 'physical',
+                'mac_address': mac_address,
+                'mtu': MTU,
+                'subnets': [subnet],
+            })
+        elif network_config['version'] == 2:
+            network_config['ethernets'][name] = {
+                'addresses': [vnic_dict['privateIp']],
+                'mtu': MTU, 'dhcp4': False, 'dhcp6': False,
+                'match': {'macaddress': mac_address}}
 
 
 class DataSourceOracle(sources.DataSource):
