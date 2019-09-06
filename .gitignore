@@ -12,3 +12,14 @@ stage
 *.snap
 *.cover
 .idea/
+
+# Ignore packaging artifacts
+cloud-init.dsc
+cloud-init_*.build
+cloud-init_*.buildinfo
+cloud-init_*.changes
+cloud-init_*.deb
+cloud-init_*.dsc
+cloud-init_*.orig.tar.gz
+cloud-init_*.tar.xz
+cloud-init_*.upload
