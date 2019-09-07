@@ -17,7 +17,8 @@ from cloudinit.config.schema import get_schema_doc
 # ]
 
 # General information about the project.
-project = 'Cloud-Init'
+project = 'cloud-init'
+copyright = '2019, Canonical Ltd.'
 
 # -- General configuration ----------------------------------------------------
 
@@ -59,15 +60,7 @@ show_authors = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'default'
-
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-html_theme_options = {
-    "bodyfont": "Ubuntu, Arial, sans-serif",
-    "headfont": "Ubuntu, Arial, sans-serif"
-}
+html_theme = 'sphinx_rtd_theme'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
