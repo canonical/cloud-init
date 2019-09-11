@@ -169,17 +169,54 @@ class TestDatasourceOVF(CiTestCase):
             MARKER-ID = 12345345
             """)
         util.write_file(conf_file, conf_content)
-        with self.assertRaises(CustomScriptNotFound) as context:
-            wrap_and_call(
-                'cloudinit.sources.DataSourceOVF',
-                {'util.read_dmi_data': 'vmware',
-                 'util.del_dir': True,
-                 'search_file': self.tdir,
-                 'wait_for_imc_cfg_file': conf_file,
-                 'get_nics_to_enable': ''},
-                ds.get_data)
+        with mock.patch(MPATH + 'get_tools_config', return_value='true'):
+            with self.assertRaises(CustomScriptNotFound) as context:
+                wrap_and_call(
+                    'cloudinit.sources.DataSourceOVF',
+                    {'util.read_dmi_data': 'vmware',
+                     'util.del_dir': True,
+                     'search_file': self.tdir,
+                     'wait_for_imc_cfg_file': conf_file,
+                     'get_nics_to_enable': ''},
+                    ds.get_data)
         customscript = self.tmp_path('test-script', self.tdir)
         self.assertIn('Script %s not found!!' % customscript,
+                      str(context.exception))
+
+    def test_get_data_cust_script_disabled(self):
+        """If custom script is disabled by VMware tools configuration,
+        raise a RuntimeError.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+        # Prepare the conf file
+        conf_file = self.tmp_path('test-cust', self.tdir)
+        conf_content = dedent("""\
+            [CUSTOM-SCRIPT]
+            SCRIPT-NAME = test-script
+            [MISC]
+            MARKER-ID = 12345346
+            """)
+        util.write_file(conf_file, conf_content)
+        # Prepare the custom sript
+        customscript = self.tmp_path('test-script', self.tdir)
+        util.write_file(customscript, "This is the post cust script")
+
+        with mock.patch(MPATH + 'get_tools_config', return_value='false'):
+            with mock.patch(MPATH + 'set_customization_status',
+                            return_value=('msg', b'')):
+                with self.assertRaises(RuntimeError) as context:
+                    wrap_and_call(
+                        'cloudinit.sources.DataSourceOVF',
+                        {'util.read_dmi_data': 'vmware',
+                         'util.del_dir': True,
+                         'search_file': self.tdir,
+                         'wait_for_imc_cfg_file': conf_file,
+                         'get_nics_to_enable': ''},
+                        ds.get_data)
+        self.assertIn('Custom script is disabled by VM Administrator',
                       str(context.exception))
 
     def test_get_data_non_vmware_seed_platform_info(self):
