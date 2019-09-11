@@ -891,9 +891,8 @@ ec2_identify_platform() {
     local default="$1"
     local serial="${DI_DMI_PRODUCT_SERIAL}"
 
-    # brightbox https://bugs.launchpad.net/cloud-init/+bug/1661693
     case "$serial" in
-        *brightbox.com) _RET="Brightbox"; return 0;;
+        *.brightbox.com) _RET="Brightbox"; return 0;;
     esac
 
     # AWS http://docs.aws.amazon.com/AWSEC2/
