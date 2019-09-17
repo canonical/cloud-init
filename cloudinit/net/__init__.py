@@ -109,6 +109,10 @@ def is_bond(devname):
     return os.path.exists(sys_dev_path(devname, "bonding"))
 
 
+def has_master(devname):
+    return os.path.exists(sys_dev_path(devname, path="master"))
+
+
 def is_netfailover(devname, driver=None):
     """ netfailover driver uses 3 nics, master, primary and standby.
         this returns True if the device is either the primary or standby
@@ -154,7 +158,7 @@ def is_netfail_master(devname, driver=None):
 
         Return True if all of the above is True.
     """
-    if os.path.exists(sys_dev_path(devname, path='master')):
+    if has_master(devname):
         return False
 
     if driver is None:
@@ -211,7 +215,7 @@ def is_netfail_standby(devname, driver=None):
 
         Return True if all of the above is True.
     """
-    if not os.path.exists(sys_dev_path(devname, path='master')):
+    if not has_master(devname):
         return False
 
     if driver is None:
@@ -785,6 +789,8 @@ def get_interfaces():
         if is_vlan(name):
             continue
         if is_bond(name):
+            continue
+        if has_master(name):
             continue
         if is_netfailover(name):
             continue

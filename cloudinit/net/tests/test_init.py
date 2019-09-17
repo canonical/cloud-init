@@ -157,6 +157,12 @@ class TestReadSysNet(CiTestCase):
         ensure_file(os.path.join(self.sysdir, 'eth0', 'bonding'))
         self.assertTrue(net.is_bond('eth0'))
 
+    def test_has_master(self):
+        """has_master is True when /sys/net/devname/master exists."""
+        self.assertFalse(net.has_master('enP1s1'))
+        ensure_file(os.path.join(self.sysdir, 'enP1s1', 'master'))
+        self.assertTrue(net.has_master('enP1s1'))
+
     def test_is_vlan(self):
         """is_vlan is True when /sys/net/devname/uevent has DEVTYPE=vlan."""
         ensure_file(os.path.join(self.sysdir, 'eth0', 'uevent'))
@@ -422,6 +428,17 @@ class TestGetInterfaceMAC(CiTestCase):
         write_file(os.path.join(self.sysdir, 'eth2', 'addr_assign_type'), '0')
         write_file(os.path.join(self.sysdir, 'eth2', 'address'), mac)
         expected = [('eth2', 'aa:bb:cc:aa:bb:cc', None, None)]
+        self.assertEqual(expected, net.get_interfaces())
+
+    def test_get_interfaces_by_mac_skips_master_devs(self):
+        """Ignore interfaces with a master device which would have dup mac."""
+        mac1 = mac2 = 'aa:bb:cc:aa:bb:cc'
+        write_file(os.path.join(self.sysdir, 'eth1', 'addr_assign_type'), '0')
+        write_file(os.path.join(self.sysdir, 'eth1', 'address'), mac1)
+        write_file(os.path.join(self.sysdir, 'eth1', 'master'), "blah")
+        write_file(os.path.join(self.sysdir, 'eth2', 'addr_assign_type'), '0')
+        write_file(os.path.join(self.sysdir, 'eth2', 'address'), mac2)
+        expected = [('eth2', mac2, None, None)]
         self.assertEqual(expected, net.get_interfaces())
 
     @mock.patch('cloudinit.net.is_netfailover')
