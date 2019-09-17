@@ -1,4 +1,4 @@
-cloud-init (19.2-36-g059d049c-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (19.2-36-g059d049c-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * New upstream snapshot. (LP: #1844334)
     - net: add is_master check for filtering device list
