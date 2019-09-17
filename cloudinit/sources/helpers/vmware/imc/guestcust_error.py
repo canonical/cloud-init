@@ -10,5 +10,6 @@ class GuestCustErrorEnum(object):
     """Specifies different errors of Guest Customization engine"""
 
     GUESTCUST_ERROR_SUCCESS = 0
+    GUESTCUST_ERROR_SCRIPT_DISABLED = 6
 
 # vi: ts=4 expandtab

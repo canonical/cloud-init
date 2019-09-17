@@ -7,7 +7,7 @@ CloudStack
 sshkey thru the Virtual-Router. The datasource obtains the VR address via
 dhcp lease information given to the instance.
 For more details on meta-data and user-data,
-refer the `CloudStack Administrator Guide`_. 
+refer the `CloudStack Administrator Guide`_.
 
 URLs to access user-data and meta-data from the Virtual Machine. Here 10.1.1.1
 is the Virtual Router IP:
