@@ -1,3 +1,23 @@
+cloud-init (19.2-36-g059d049c-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot. (LP: #1844334)
+    - net: add is_master check for filtering device list
+    - docs: more complete list of availability [Joshua Powers]
+    - docs: start FAQ page [Joshua Powers]
+    - docs: cleanup output & order of datasource page [Joshua Powers]
+    - Brightbox: restrict detection to require full domain match
+      .brightbox.com [Scott Moser]
+    - VMWware: add option into VMTools config to enable/disable custom script.
+      [Xiaofeng Wang]
+    - net,Oracle: Add support for netfailover detection
+    - atomic_helper: add DEBUG logging to write_file
+    - doc: document doc, create makefile and tox target [Joshua Powers]
+    - .gitignore: ignore files produced by package builds
+    - docs: fix whitespace, spelling, and line length [Joshua Powers]
+    - docs: remove unnecessary file in doc directory [Joshua Powers]
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 17 Sep 2019 08:18:06 -0600
+
 cloud-init (19.2-24-ge7881d5c-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * New upstream snapshot. (LP: #1841099)
