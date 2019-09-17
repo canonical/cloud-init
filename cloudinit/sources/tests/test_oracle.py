@@ -8,6 +8,7 @@ from cloudinit.tests import helpers as test_helpers
 
 from textwrap import dedent
 import argparse
+import copy
 import httpretty
 import json
 import mock
@@ -584,6 +585,152 @@ class TestNetworkConfigFromOpcImds(test_helpers.CiTestCase):
         self.assertEqual(1, len(secondary_nic_cfg['addresses']))
         # These values are hard-coded in OPC_VM_SECONDARY_VNIC_RESPONSE
         self.assertEqual('10.0.0.231', secondary_nic_cfg['addresses'][0])
+
+
+class TestNetworkConfigFiltersNetFailover(test_helpers.CiTestCase):
+
+    with_logs = True
+
+    def setUp(self):
+        super(TestNetworkConfigFiltersNetFailover, self).setUp()
+        self.add_patch(DS_PATH + '.get_interfaces_by_mac',
+                       'm_get_interfaces_by_mac')
+        self.add_patch(DS_PATH + '.is_netfail_master', 'm_netfail_master')
+
+    def test_ignore_bogus_network_config(self):
+        netcfg = {'something': 'here'}
+        passed_netcfg = copy.copy(netcfg)
+        oracle._ensure_netfailover_safe(passed_netcfg)
+        self.assertEqual(netcfg, passed_netcfg)
+
+    def test_ignore_network_config_unknown_versions(self):
+        netcfg = {'something': 'here', 'version': 3}
+        passed_netcfg = copy.copy(netcfg)
+        oracle._ensure_netfailover_safe(passed_netcfg)
+        self.assertEqual(netcfg, passed_netcfg)
+
+    def test_checks_v1_type_physical_interfaces(self):
+        mac_addr, nic_name = '00:00:17:02:2b:b1', 'ens3'
+        self.m_get_interfaces_by_mac.return_value = {
+            mac_addr: nic_name,
+        }
+        netcfg = {'version': 1, 'config': [
+            {'type': 'physical', 'name': nic_name, 'mac_address': mac_addr,
+             'subnets': [{'type': 'dhcp4'}]}]}
+        passed_netcfg = copy.copy(netcfg)
+        self.m_netfail_master.return_value = False
+        oracle._ensure_netfailover_safe(passed_netcfg)
+        self.assertEqual(netcfg, passed_netcfg)
+        self.assertEqual([mock.call(nic_name)],
+                         self.m_netfail_master.call_args_list)
+
+    def test_checks_v1_skips_non_phys_interfaces(self):
+        mac_addr, nic_name = '00:00:17:02:2b:b1', 'bond0'
+        self.m_get_interfaces_by_mac.return_value = {
+            mac_addr: nic_name,
+        }
+        netcfg = {'version': 1, 'config': [
+            {'type': 'bond', 'name': nic_name, 'mac_address': mac_addr,
+             'subnets': [{'type': 'dhcp4'}]}]}
+        passed_netcfg = copy.copy(netcfg)
+        oracle._ensure_netfailover_safe(passed_netcfg)
+        self.assertEqual(netcfg, passed_netcfg)
+        self.assertEqual(0, self.m_netfail_master.call_count)
+
+    def test_removes_master_mac_property_v1(self):
+        nic_master, mac_master = 'ens3', self.random_string()
+        nic_other, mac_other = 'ens7', self.random_string()
+        nic_extra, mac_extra = 'enp0s1f2', self.random_string()
+        self.m_get_interfaces_by_mac.return_value = {
+            mac_master: nic_master,
+            mac_other: nic_other,
+            mac_extra: nic_extra,
+        }
+        netcfg = {'version': 1, 'config': [
+            {'type': 'physical', 'name': nic_master,
+             'mac_address': mac_master},
+            {'type': 'physical', 'name': nic_other, 'mac_address': mac_other},
+            {'type': 'physical', 'name': nic_extra, 'mac_address': mac_extra},
+        ]}
+
+        def _is_netfail_master(iface):
+            if iface == 'ens3':
+                return True
+            return False
+        self.m_netfail_master.side_effect = _is_netfail_master
+        expected_cfg = {'version': 1, 'config': [
+            {'type': 'physical', 'name': nic_master},
+            {'type': 'physical', 'name': nic_other, 'mac_address': mac_other},
+            {'type': 'physical', 'name': nic_extra, 'mac_address': mac_extra},
+        ]}
+        oracle._ensure_netfailover_safe(netcfg)
+        self.assertEqual(expected_cfg, netcfg)
+
+    def test_checks_v2_type_ethernet_interfaces(self):
+        mac_addr, nic_name = '00:00:17:02:2b:b1', 'ens3'
+        self.m_get_interfaces_by_mac.return_value = {
+            mac_addr: nic_name,
+        }
+        netcfg = {'version': 2, 'ethernets': {
+            nic_name: {'dhcp4': True, 'critical': True, 'set-name': nic_name,
+                       'match': {'macaddress': mac_addr}}}}
+        passed_netcfg = copy.copy(netcfg)
+        self.m_netfail_master.return_value = False
+        oracle._ensure_netfailover_safe(passed_netcfg)
+        self.assertEqual(netcfg, passed_netcfg)
+        self.assertEqual([mock.call(nic_name)],
+                         self.m_netfail_master.call_args_list)
+
+    def test_skips_v2_non_ethernet_interfaces(self):
+        mac_addr, nic_name = '00:00:17:02:2b:b1', 'wlps0'
+        self.m_get_interfaces_by_mac.return_value = {
+            mac_addr: nic_name,
+        }
+        netcfg = {'version': 2, 'wifis': {
+            nic_name: {'dhcp4': True, 'critical': True, 'set-name': nic_name,
+                       'match': {'macaddress': mac_addr}}}}
+        passed_netcfg = copy.copy(netcfg)
+        oracle._ensure_netfailover_safe(passed_netcfg)
+        self.assertEqual(netcfg, passed_netcfg)
+        self.assertEqual(0, self.m_netfail_master.call_count)
+
+    def test_removes_master_mac_property_v2(self):
+        nic_master, mac_master = 'ens3', self.random_string()
+        nic_other, mac_other = 'ens7', self.random_string()
+        nic_extra, mac_extra = 'enp0s1f2', self.random_string()
+        self.m_get_interfaces_by_mac.return_value = {
+            mac_master: nic_master,
+            mac_other: nic_other,
+            mac_extra: nic_extra,
+        }
+        netcfg = {'version': 2, 'ethernets': {
+            nic_extra: {'dhcp4': True, 'set-name': nic_extra,
+                        'match': {'macaddress': mac_extra}},
+            nic_other: {'dhcp4': True, 'set-name': nic_other,
+                        'match': {'macaddress': mac_other}},
+            nic_master: {'dhcp4': True, 'set-name': nic_master,
+                         'match': {'macaddress': mac_master}},
+        }}
+
+        def _is_netfail_master(iface):
+            if iface == 'ens3':
+                return True
+            return False
+        self.m_netfail_master.side_effect = _is_netfail_master
+
+        expected_cfg = {'version': 2, 'ethernets': {
+            nic_master: {'dhcp4': True, 'match': {'name': nic_master}},
+            nic_extra: {'dhcp4': True, 'set-name': nic_extra,
+                        'match': {'macaddress': mac_extra}},
+            nic_other: {'dhcp4': True, 'set-name': nic_other,
+                        'match': {'macaddress': mac_other}},
+        }}
+        oracle._ensure_netfailover_safe(netcfg)
+        import pprint
+        pprint.pprint(netcfg)
+        print('---- ^^ modified ^^ ---- vv original vv ----')
+        pprint.pprint(expected_cfg)
+        self.assertEqual(expected_cfg, netcfg)
 
 
 # vi: ts=4 expandtab

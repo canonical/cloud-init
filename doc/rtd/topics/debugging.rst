@@ -68,18 +68,18 @@ subcommands default to reading /var/log/cloud-init.log.
          00.00100s (modules-final/config-rightscale_userdata)
          ...
 
-* ``analyze boot`` Make subprocess calls to the kernel in order to get relevant 
+* ``analyze boot`` Make subprocess calls to the kernel in order to get relevant
   pre-cloud-init timestamps, such as the kernel start, kernel finish boot, and cloud-init start.
 
 .. code-block:: shell-session
 
-    $ cloud-init analyze boot 
+    $ cloud-init analyze boot
     -- Most Recent Boot Record --
-    	Kernel Started at: 2019-06-13 15:59:55.809385
-    	Kernel ended boot at: 2019-06-13 16:00:00.944740
-    	Kernel time to boot (seconds): 5.135355
-    	Cloud-init start: 2019-06-13 16:00:05.738396
-    	Time between Kernel boot and Cloud-init start (seconds): 4.793656
+        Kernel Started at: 2019-06-13 15:59:55.809385
+        Kernel ended boot at: 2019-06-13 16:00:00.944740
+        Kernel time to boot (seconds): 5.135355
+        Cloud-init start: 2019-06-13 16:00:05.738396
+        Time between Kernel boot and Cloud-init start (seconds): 4.793656
 
 
 Analyze quickstart - LXC

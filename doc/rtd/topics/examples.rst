@@ -134,7 +134,7 @@ Configure instances ssh-keys
 .. literalinclude:: ../../examples/cloud-config-ssh-keys.txt
    :language: yaml
    :linenos:
-   
+
 Additional apt configuration
 ============================
 

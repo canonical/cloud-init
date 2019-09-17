@@ -1,11 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
+import logging
 import os
 import stat
 import tempfile
 
 _DEF_PERMS = 0o644
+LOG = logging.getLogger(__name__)
 
 
 def write_file(filename, content, mode=_DEF_PERMS,
@@ -23,6 +25,10 @@ def write_file(filename, content, mode=_DEF_PERMS,
     try:
         tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(filename),
                                          delete=False, mode=omode)
+        LOG.debug(
+            "Atomically writing to file %s (via temporary file %s) - %s: [%o]"
+            " %d bytes/chars",
+            filename, tf.name, omode, mode, len(content))
         tf.write(content)
         tf.close()
         os.chmod(tf.name, mode)

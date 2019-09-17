@@ -109,6 +109,127 @@ def is_bond(devname):
     return os.path.exists(sys_dev_path(devname, "bonding"))
 
 
+def has_master(devname):
+    return os.path.exists(sys_dev_path(devname, path="master"))
+
+
+def is_netfailover(devname, driver=None):
+    """ netfailover driver uses 3 nics, master, primary and standby.
+        this returns True if the device is either the primary or standby
+        as these devices are to be ignored.
+    """
+    if driver is None:
+        driver = device_driver(devname)
+    if is_netfail_primary(devname, driver) or is_netfail_standby(devname,
+                                                                 driver):
+        return True
+    return False
+
+
+def get_dev_features(devname):
+    """ Returns a str from reading /sys/class/net/<devname>/device/features."""
+    features = ''
+    try:
+        features = read_sys_net(devname, 'device/features')
+    except Exception:
+        pass
+    return features
+
+
+def has_netfail_standby_feature(devname):
+    """ Return True if VIRTIO_NET_F_STANDBY bit (62) is set.
+
+    https://github.com/torvalds/linux/blob/ \
+        089cf7f6ecb266b6a4164919a2e69bd2f938374a/ \
+        include/uapi/linux/virtio_net.h#L60
+    """
+    features = get_dev_features(devname)
+    if not features or len(features) < 64:
+        return False
+    return features[62] == "1"
+
+
+def is_netfail_master(devname, driver=None):
+    """ A device is a "netfail master" device if:
+
+        - The device does NOT have the 'master' sysfs attribute
+        - The device driver is 'virtio_net'
+        - The device has the standby feature bit set
+
+        Return True if all of the above is True.
+    """
+    if has_master(devname):
+        return False
+
+    if driver is None:
+        driver = device_driver(devname)
+
+    if driver != "virtio_net":
+        return False
+
+    if not has_netfail_standby_feature(devname):
+        return False
+
+    return True
+
+
+def is_netfail_primary(devname, driver=None):
+    """ A device is a "netfail primary" device if:
+
+        - the device has a 'master' sysfs file
+        - the device driver is not 'virtio_net'
+        - the 'master' sysfs file points to device with virtio_net driver
+        - the 'master' device has the 'standby' feature bit set
+
+        Return True if all of the above is True.
+    """
+    # /sys/class/net/<devname>/master -> ../../<master devname>
+    master_sysfs_path = sys_dev_path(devname, path='master')
+    if not os.path.exists(master_sysfs_path):
+        return False
+
+    if driver is None:
+        driver = device_driver(devname)
+
+    if driver == "virtio_net":
+        return False
+
+    master_devname = os.path.basename(os.path.realpath(master_sysfs_path))
+    master_driver = device_driver(master_devname)
+    if master_driver != "virtio_net":
+        return False
+
+    master_has_standby = has_netfail_standby_feature(master_devname)
+    if not master_has_standby:
+        return False
+
+    return True
+
+
+def is_netfail_standby(devname, driver=None):
+    """ A device is a "netfail standby" device if:
+
+        - The device has a 'master' sysfs attribute
+        - The device driver is 'virtio_net'
+        - The device has the standby feature bit set
+
+        Return True if all of the above is True.
+    """
+    if not has_master(devname):
+        return False
+
+    if driver is None:
+        driver = device_driver(devname)
+
+    if driver != "virtio_net":
+        return False
+
+    if not has_netfail_standby_feature(devname):
+        return False
+
+    return True
+
+
 def is_renamed(devname):
     """
     /* interface name assignment types (sysfs name_assign_type attribute) */
@@ -227,6 +348,9 @@ def find_fallback_nic(blacklist_drivers=None):
         if is_bond(interface):
             # skip any bonds
             continue
+        if is_netfailover(interface):
+            # ignore netfailover primary/standby interfaces
+            continue
         carrier = read_sys_net_int(interface, 'carrier')
         if carrier:
             connected.append(interface)
@@ -273,9 +397,14 @@ def generate_fallback_config(blacklist_drivers=None, config_driver=None):
     if not target_name:
         # can't read any interfaces addresses (or there are none); give up
         return None
-    target_mac = read_sys_net_safe(target_name, 'address')
-    cfg = {'dhcp4': True, 'set-name': target_name,
-           'match': {'macaddress': target_mac.lower()}}
+
+    # netfail cannot use mac for matching, they have duplicate macs
+    if is_netfail_master(target_name):
+        match = {'name': target_name}
+    else:
+        match = {
+            'macaddress': read_sys_net_safe(target_name, 'address').lower()}
+    cfg = {'dhcp4': True, 'set-name': target_name, 'match': match}
     if config_driver:
         driver = device_driver(target_name)
         if driver:
@@ -660,6 +789,10 @@ def get_interfaces():
         if is_vlan(name):
             continue
         if is_bond(name):
+            continue
+        if has_master(name):
+            continue
+        if is_netfailover(name):
             continue
         mac = get_interface_mac(name)
         # some devices may not have a mac (tun0)

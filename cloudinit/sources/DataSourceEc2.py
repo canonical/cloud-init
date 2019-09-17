@@ -473,7 +473,7 @@ def identify_aws(data):
 
 
 def identify_brightbox(data):
-    if data['serial'].endswith('brightbox.com'):
+    if data['serial'].endswith('.brightbox.com'):
         return CloudNames.BRIGHTBOX
 
 
