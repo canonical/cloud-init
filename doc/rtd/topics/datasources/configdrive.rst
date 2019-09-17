@@ -64,7 +64,7 @@ The following criteria are required to as a config drive:
 ::
 
   openstack/
-    - 2012-08-10/ or latest/ 
+    - 2012-08-10/ or latest/
       - meta_data.json
       - user_data (not mandatory)
     - content/
@@ -83,7 +83,7 @@ only) file in the following ways.
 
 ::
 
-   dsmode:  
+   dsmode:
      values: local, net, pass
      default: pass
 
@@ -97,10 +97,10 @@ The difference between 'local' and 'net' is that local will not require
 networking to be up before user-data actions (or boothooks) are run.
 
 ::
-    
+
    instance-id:
      default: iid-dsconfigdrive
-     
+
 This is utilized as the metadata's instance-id.  It should generally
 be unique, as it is what is used to determine "is this a new instance".
 
@@ -108,18 +108,18 @@ be unique, as it is what is used to determine "is this a new instance".
 
    public-keys:
      default: None
-  
+
 If present, these keys will be used as the public keys for the
 instance.  This value overrides the content in authorized_keys.
 
 Note: it is likely preferable to provide keys via user-data
 
 ::
-    
+
    user-data:
      default: None
-     
-This provides cloud-init user-data. See :ref:`examples <yaml_examples>` for 
+
+This provides cloud-init user-data. See :ref:`examples <yaml_examples>` for
 what all can be present here.
 
 .. _OpenStack: http://www.openstack.org/

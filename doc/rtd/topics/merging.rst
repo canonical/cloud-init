@@ -68,8 +68,10 @@ Cloud-init provides merging for the following built-in types:
 The ``Dict`` merger has the following options which control what is done with
 values contained within the config.
 
-- ``allow_delete``: Existing values not present in the new value can be deleted, defaults to False
-- ``no_replace``: Do not replace an existing value if one is already present, enabled by default.
+- ``allow_delete``: Existing values not present in the new value can be
+  deleted, defaults to False
+- ``no_replace``: Do not replace an existing value if one is already present,
+  enabled by default.
 - ``replace``: Overwrite existing values with new ones.
 
 The ``List`` merger has the following options which control what is done with
@@ -77,7 +79,8 @@ the values contained within the config.
 
 - ``append``:  Add new value to the end of the list, defaults to False.
 - ``prepend``:  Add new values to the start of the list, defaults to False.
-- ``no_replace``: Do not replace an existing value if one is already present, enabled by default.
+- ``no_replace``: Do not replace an existing value if one is already present,
+  enabled by default.
 - ``replace``: Overwrite existing values with new ones.
 
 The ``Str`` merger has the following options which control what is done with
@@ -88,10 +91,13 @@ the values contained within the config.
 Common options for all merge types which control how recursive merging is
 done on other types.
 
-- ``recurse_dict``: If True merge the new values of the dictionary, defaults to True.
-- ``recurse_list``: If True merge the new values of the list, defaults to False.
+- ``recurse_dict``: If True merge the new values of the dictionary, defaults to
+  True.
+- ``recurse_list``: If True merge the new values of the list, defaults to
+  False.
 - ``recurse_array``: Alias for ``recurse_list``.
-- ``recurse_str``: If True merge the new values of the string, defaults to False.
+- ``recurse_str``: If True merge the new values of the string, defaults to
+  False.
 
 
 Customizability
