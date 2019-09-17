@@ -15,7 +15,8 @@ second serial console. On Linux, this is /dev/ttyS1. The data is a provided
 via a simple protocol: something queries for the data, the console responds
 responds with the status and if "SUCCESS" returns until a single ".\n".
 
-New versions of the SmartOS tooling will include support for base64 encoded data.
+New versions of the SmartOS tooling will include support for base64 encoded
+data.
 
 Meta-data channels
 ------------------
@@ -27,7 +28,7 @@ channels of SmartOS.
 
   - per the spec, user-data is for consumption by the end-user, not
     provisioning tools
-  - cloud-init entirely ignores this channel other than writting it to disk
+  - cloud-init entirely ignores this channel other than writing it to disk
   - removal of the meta-data key means that /var/db/user-data gets removed
   - a backup of previous meta-data is maintained as
     /var/db/user-data.<timestamp>. <timestamp> is the epoch time when
@@ -42,8 +43,9 @@ channels of SmartOS.
     - <timestamp> is the epoch time when cloud-init ran.
   - when the 'user-script' meta-data key goes missing, the user-script is
     removed from the file system, although a backup is maintained.
-  - if the script is not shebanged (i.e. starts with #!<executable>), then
-    or is not an executable, cloud-init will add a shebang of "#!/bin/bash"
+  - if the script does not start with a shebang (i.e. starts with
+    #!<executable>), then or is not an executable, cloud-init will add a
+    shebang of "#!/bin/bash"
 
 * cloud-init:user-data is treated like on other Clouds.
 
@@ -133,7 +135,7 @@ or not to base64 decode something:
   * base64_all: Except for excluded keys, attempt to base64 decode
     the values. If the value fails to decode properly, it will be
     returned in its text
-  * base64_keys: A comma deliminated list of which keys are base64 encoded.
+  * base64_keys: A comma delimited list of which keys are base64 encoded.
   * b64-<key>:
     for any key, if there exists an entry in the metadata for 'b64-<key>'
     Then 'b64-<key>' is expected to be a plaintext boolean indicating whether

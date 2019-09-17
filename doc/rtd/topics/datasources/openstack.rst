@@ -78,6 +78,7 @@ upgrade packages and install ``htop`` on all instances:
   {"cloud-init": "#cloud-config\npackage_upgrade: True\npackages:\n - htop"}
 
 For more general information about how cloud-init handles vendor data,
-including how it can be disabled by users on instances, see :doc:`/topics/vendordata`.
+including how it can be disabled by users on instances, see
+:doc:`/topics/vendordata`.
 
 .. vi: textwidth=78

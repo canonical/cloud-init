@@ -26,8 +26,8 @@ In the password server case, the following rules apply in order to enable the
 "restore instance password" functionality:
 
  * If a password is returned by the password server, it is then marked "saved"
-   by the cloud-init datasource. Subsequent boots will skip setting the password
-   (the password server will return "saved_password").
+   by the cloud-init datasource. Subsequent boots will skip setting the
+   password (the password server will return "saved_password").
  * When the instance password is reset (via the Exoscale UI), the password
    server will return the non-empty password at next boot, therefore causing
    cloud-init to reset the instance's password.
@@ -38,15 +38,15 @@ Configuration
 Users of this datasource are discouraged from changing the default settings
 unless instructed to by Exoscale support.
 
-The following settings are available and can be set for the datasource in system
-configuration (in `/etc/cloud/cloud.cfg.d/`).
+The following settings are available and can be set for the datasource in
+system configuration (in `/etc/cloud/cloud.cfg.d/`).
 
 The settings available are:
 
  * **metadata_url**: The URL for the metadata service (defaults to
    ``http://169.254.169.254``)
- * **api_version**: The API version path on which to query the instance metadata
-   (defaults to ``1.0``)
+ * **api_version**: The API version path on which to query the instance
+   metadata (defaults to ``1.0``)
  * **password_server_port**: The port (on the metadata server) on which the
    password server listens (defaults to ``8080``).
  * **timeout**: the timeout value provided to urlopen for each individual http

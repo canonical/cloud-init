@@ -82,7 +82,8 @@ The settings that may be configured are:
    provided command to obtain metadata.
  * **apply_network_config**: Boolean set to True to use network configuration
    described by Azure's IMDS endpoint instead of fallback network config of
-   dhcp on eth0. Default is True. For Ubuntu 16.04 or earlier, default is False.
+   dhcp on eth0. Default is True. For Ubuntu 16.04 or earlier, default is
+   False.
  * **data_dir**: Path used to read metadata files and write crawled data.
  * **dhclient_lease_file**: The fallback lease file to source when looking for
    custom DHCP option 245 from Azure fabric.

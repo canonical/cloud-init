@@ -20,8 +20,10 @@ DigitalOcean's datasource can be configured as follows:
       retries: 3
       timeout: 2
 
-- *retries*: Determines the number of times to attempt to connect to the metadata service
-- *timeout*: Determines the timeout in seconds to wait for a response from the metadata service
+- *retries*: Determines the number of times to attempt to connect to the
+  metadata service
+- *timeout*: Determines the timeout in seconds to wait for a response from the
+  metadata service
 
 .. _DigitalOcean: http://digitalocean.com/
 .. _metadata service: https://developers.digitalocean.com/metadata/

@@ -6,7 +6,9 @@ import functools
 import httpretty
 import logging
 import os
+import random
 import shutil
+import string
 import sys
 import tempfile
 import time
@@ -242,6 +244,12 @@ class CiTestCase(TestCase):
         if metadata:
             myds.metadata.update(metadata)
         return cloud.Cloud(myds, self.paths, sys_cfg, mydist, None)
+
+    @classmethod
+    def random_string(cls, length=8):
+        """ return a random lowercase string with default length of 8"""
+        return ''.join(
+            random.choice(string.ascii_lowercase) for _ in range(length))
 
 
 class ResourceUsingTestCase(CiTestCase):

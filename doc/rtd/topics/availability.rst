@@ -1,21 +1,64 @@
-************
+.. _availability:
+
 Availability
 ************
 
-It is currently installed in the `Ubuntu Cloud Images`_ and also in the official `Ubuntu`_ images available on EC2, Azure, GCE and many other clouds.
+Below outlines the current availability of cloud-init across
+distributions and clouds, both public and private.
 
-Versions for other systems can be (or have been) created for the following distributions:
+.. note::
+
+    If a distribution or cloud does not show up in the list below contact
+    them and ask for images to be generated using cloud-init!
+
+Distributions
+=============
+
+Cloud-init has support across all major Linux distributions and
+FreeBSD:
 
 - Ubuntu
+- SLES/openSUSE
+- RHEL/CentOS
 - Fedora
+- Gentoo Linux
 - Debian
-- RHEL
-- CentOS
-- *and more...*
+- ArchLinux
+- FreeBSD
 
-So ask your distribution provider where you can obtain an image with it built-in if one is not already available ☺
+Clouds
+======
 
+Cloud-init provides support across a wide ranging list of execution
+environments in the public cloud:
 
-.. _Ubuntu Cloud Images: http://cloud-images.ubuntu.com/
-.. _Ubuntu: http://www.ubuntu.com/
-.. vi: textwidth=78
+- Amazon Web Services
+- Microsoft Azure
+- Google Cloud Platform
+- Oracle Cloud Infrastructure
+- Softlayer
+- Rackspace Public Cloud
+- IBM Cloud
+- Digital Ocean
+- Bigstep
+- Hetzner
+- Joyent
+- CloudSigma
+- Alibaba Cloud
+- OVH
+- OpenNebula
+- Exoscale
+- Scaleway
+- CloudStack
+- AltCloud
+- SmartOS
+
+Additionally, cloud-init is supported on these private clouds:
+
+- Bare metal installs
+- OpenStack
+- LXD
+- KVM
+- Metal-as-a-Service (MAAS)
+
+.. vi: textwidth=79

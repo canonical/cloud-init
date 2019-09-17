@@ -16,7 +16,7 @@ Notes:
 """
 
 from cloudinit.url_helper import combine_url, readurl, UrlError
-from cloudinit.net import dhcp, get_interfaces_by_mac
+from cloudinit.net import dhcp, get_interfaces_by_mac, is_netfail_master
 from cloudinit import net
 from cloudinit import sources
 from cloudinit import util
@@ -106,6 +106,56 @@ def _add_network_config_from_opc_imds(network_config):
                 'addresses': [vnic_dict['privateIp']],
                 'mtu': MTU, 'dhcp4': False, 'dhcp6': False,
                 'match': {'macaddress': mac_address}}
+
+
+def _ensure_netfailover_safe(network_config):
+    """
+    Search network config physical interfaces to see if any of them are
+    a netfailover master.  If found, we prevent matching by MAC as the other
+    failover devices have the same MAC but need to be ignored.
+
+    Note: we rely on cloudinit.net changes which prevent netfailover devices
+    from being present in the provided network config.  For more details about
+    netfailover devices, refer to cloudinit.net module.
+
+    :param network_config
+       A v1 or v2 network config dict with the primary NIC, and possibly
+       secondary nic configured.  This dict will be mutated.
+
+    """
+    # ignore anything that's not an actual network-config
+    if 'version' not in network_config:
+        return
+
+    if network_config['version'] not in [1, 2]:
+        LOG.debug('Ignoring unknown network config version: %s',
+                  network_config['version'])
+        return
+
+    mac_to_name = get_interfaces_by_mac()
+    if network_config['version'] == 1:
+        for cfg in [c for c in network_config['config'] if 'type' in c]:
+            if cfg['type'] == 'physical':
+                if 'mac_address' in cfg:
+                    mac = cfg['mac_address']
+                    cur_name = mac_to_name.get(mac)
+                    if not cur_name:
+                        continue
+                    elif is_netfail_master(cur_name):
+                        del cfg['mac_address']
+
+    elif network_config['version'] == 2:
+        for _, cfg in network_config.get('ethernets', {}).items():
+            if 'match' in cfg:
+                macaddr = cfg.get('match', {}).get('macaddress')
+                if macaddr:
+                    cur_name = mac_to_name.get(macaddr)
+                    if not cur_name:
+                        continue
+                    elif is_netfail_master(cur_name):
+                        del cfg['match']['macaddress']
+                        del cfg['set-name']
+                        cfg['match']['name'] = cur_name
 
 
 class DataSourceOracle(sources.DataSource):
@@ -208,9 +258,13 @@ class DataSourceOracle(sources.DataSource):
         We nonetheless return cmdline provided config if present
         and fallback to generate fallback."""
         if self._network_config == sources.UNSET:
+            # this is v1
             self._network_config = cmdline.read_initramfs_config()
+
             if not self._network_config:
+                # this is now v2
                 self._network_config = self.distro.generate_fallback_config()
+
             if self.ds_cfg.get('configure_secondary_nics'):
                 try:
                     # Mutate self._network_config to include secondary VNICs
@@ -219,6 +273,12 @@ class DataSourceOracle(sources.DataSource):
                     util.logexc(
                         LOG,
                         "Failed to fetch secondary network configuration!")
+
+            # we need to verify that the nic selected is not a netfail over
+            # device and, if it is a netfail master, then we need to avoid
+            # emitting any match by mac
+            _ensure_netfailover_safe(self._network_config)
+
         return self._network_config
 
 
