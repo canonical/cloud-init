@@ -195,6 +195,10 @@ class DsIdentifyBase(CiTestCase):
         return self._check_via_dict(
             data, RC_FOUND, dslist=[data.get('ds'), DS_NONE])
 
+    def _test_ds_not_found(self, name):
+        data = copy.deepcopy(VALID_CFG[name])
+        return self._check_via_dict(data, RC_NOT_FOUND)
+
     def _check_via_dict(self, data, rc, dslist=None, **kwargs):
         ret = self._call_via_dict(data, **kwargs)
         good = False
@@ -244,8 +248,12 @@ class TestDsIdentify(DsIdentifyBase):
         self._test_ds_found('Ec2-xen')
 
     def test_brightbox_is_ec2(self):
-        """EC2: product_serial ends with 'brightbox.com'"""
+        """EC2: product_serial ends with '.brightbox.com'"""
         self._test_ds_found('Ec2-brightbox')
+
+    def test_bobrightbox_is_not_brightbox(self):
+        """EC2: bobrightbox.com in product_serial is not brightbox'"""
+        self._test_ds_not_found('Ec2-brightbox-negative')
 
     def test_gce_by_product_name(self):
         """GCE identifies itself with product_name."""
@@ -724,7 +732,11 @@ VALID_CFG = {
     },
     'Ec2-brightbox': {
         'ds': 'Ec2',
-        'files': {P_PRODUCT_SERIAL: 'facc6e2f.brightbox.com\n'},
+        'files': {P_PRODUCT_SERIAL: 'srv-otuxg.gb1.brightbox.com\n'},
+    },
+    'Ec2-brightbox-negative': {
+        'ds': 'Ec2',
+        'files': {P_PRODUCT_SERIAL: 'tricky-host.bobrightbox.com\n'},
     },
     'GCE': {
         'ds': 'GCE',

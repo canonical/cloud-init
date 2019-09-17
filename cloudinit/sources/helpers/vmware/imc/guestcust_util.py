@@ -7,6 +7,7 @@
 
 import logging
 import os
+import re
 import time
 
 from cloudinit import util
@@ -116,5 +117,41 @@ def enable_nics(nics):
 
     logger.warning("Can't connect network interfaces after %d attempts",
                    enableNicsWaitRetries)
+
+
+def get_tools_config(section, key, defaultVal):
+    """ Return the value of [section] key from VMTools configuration.
+
+        @param section: String of section to read from VMTools config
+        @returns: String value from key in [section] or defaultVal if
+                  [section] is not present or vmware-toolbox-cmd is
+                  not installed.
+    """
+
+    if not util.which('vmware-toolbox-cmd'):
+        logger.debug(
+            'vmware-toolbox-cmd not installed, returning default value')
+        return defaultVal
+
+    retValue = defaultVal
+    cmd = ['vmware-toolbox-cmd', 'config', 'get', section, key]
+
+    try:
+        (outText, _) = util.subp(cmd)
+        m = re.match(r'([a-zA-Z0-9 ]+)=(.*)', outText)
+        if m:
+            retValue = m.group(2).strip()
+            logger.debug("Get tools config: [%s] %s = %s",
+                         section, key, retValue)
+        else:
+            logger.debug(
+                "Tools config: [%s] %s is not found, return default value: %s",
+                section, key, retValue)
+    except util.ProcessExecutionError as e:
+        logger.error("Failed running %s[%s]", cmd, e.exit_code)
+        logger.exception(e)
+
+    return retValue
+
 
 # vi: ts=4 expandtab

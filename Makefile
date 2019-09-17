@@ -106,7 +106,9 @@ deb-src:
 		  echo sudo apt-get install devscripts; exit 1; }
 	$(PYVER) ./packages/bddeb -S -d
 
+doc:
+	tox -e doc
 
 .PHONY: test pyflakes pyflakes3 clean pep8 rpm srpm deb deb-src yaml
 .PHONY: check_version pip-test-requirements pip-requirements clean_pyc
-.PHONY: unittest unittest3 style-check
+.PHONY: unittest unittest3 style-check doc
