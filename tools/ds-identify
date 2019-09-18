@@ -895,6 +895,11 @@ ec2_identify_platform() {
         *.brightbox.com) _RET="Brightbox"; return 0;;
     esac
 
+    local asset_tag="${DI_DMI_CHASSIS_ASSET_TAG}"
+    case "$asset_tag" in
+        *.zstack.io) _RET="ZStack"; return 0;;
+    esac
+
     # AWS http://docs.aws.amazon.com/AWSEC2/
     #     latest/UserGuide/identify_ec2_instances.html
     local uuid="" hvuuid="${PATH_SYS_HYPERVISOR}/uuid"

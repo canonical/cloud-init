@@ -45,6 +45,7 @@ The following is a list of documents for each supported datasource:
    datasources/oracle.rst
    datasources/ovf.rst
    datasources/smartos.rst
+   datasources/zstack.rst
 
 
 Creation

@@ -609,6 +609,10 @@ class TestDsIdentify(DsIdentifyBase):
         self.assertEqual(expected, [p for p in expected if p in toks],
                          "path did not have expected tokens")
 
+    def test_zstack_is_ec2(self):
+        """EC2: chassis asset tag ends with 'zstack.io'"""
+        self._test_ds_found('Ec2-ZStack')
+
 
 class TestIsIBMProvisioning(DsIdentifyBase):
     """Test the is_ibm_provisioning method in ds-identify."""
@@ -971,8 +975,11 @@ VALID_CFG = {
             {'name': 'blkid', 'ret': 2, 'out': ''},
         ],
         'files': {ds_smartos.METADATA_SOCKFILE: 'would be a socket\n'},
+    },
+    'Ec2-ZStack': {
+        'ds': 'Ec2',
+        'files': {P_CHASSIS_ASSET_TAG: '123456.zstack.io\n'},
     }
-
 }
 
 # vi: ts=4 expandtab

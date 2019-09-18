@@ -37,6 +37,7 @@ KNOWN_CLOUD_NAMES = [
     'Scaleway',
     'SmartOS',
     'VMware',
+    'ZStack',
     'Other']
 
 # Potentially clear text collected logs

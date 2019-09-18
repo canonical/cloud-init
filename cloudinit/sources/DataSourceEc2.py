@@ -33,6 +33,7 @@ class CloudNames(object):
     ALIYUN = "aliyun"
     AWS = "aws"
     BRIGHTBOX = "brightbox"
+    ZSTACK = "zstack"
     # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
     # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "unknown"
@@ -477,10 +478,16 @@ def identify_brightbox(data):
         return CloudNames.BRIGHTBOX
 
 
+def identify_zstack(data):
+    if data['asset_tag'].endswith('.zstack.io'):
+        return CloudNames.ZSTACK
+
+
 def identify_platform():
     # identify the platform and return an entry in CloudNames.
     data = _collect_platform_data()
-    checks = (identify_aws, identify_brightbox, lambda x: CloudNames.UNKNOWN)
+    checks = (identify_aws, identify_brightbox, identify_zstack,
+              lambda x: CloudNames.UNKNOWN)
     for checker in checks:
         try:
             result = checker(data)
@@ -498,6 +505,7 @@ def _collect_platform_data():
        uuid: system-uuid from dmi or /sys/hypervisor
        uuid_source: 'hypervisor' (/sys/hypervisor/uuid) or 'dmi'
        serial: dmi 'system-serial-number' (/sys/.../product_serial)
+       asset_tag: 'dmidecode -s chassis-asset-tag'
 
     On Ec2 instances experimentation is that product_serial is upper case,
     and product_uuid is lower case.  This returns lower case values for both.
@@ -519,6 +527,12 @@ def _collect_platform_data():
         serial = ''
 
     data['serial'] = serial.lower()
+
+    asset_tag = util.read_dmi_data('chassis-asset-tag')
+    if asset_tag is None:
+        asset_tag = ''
+
+    data['asset_tag'] = asset_tag.lower()
 
     return data
 
