@@ -80,9 +80,10 @@ config/cloud.cfg:
 
 clean_pyc:
 	@find . -type f -name "*.pyc" -delete
+	@find . -type d -name __pycache__ -delete
 
 clean: clean_pyc
-	rm -rf /var/log/cloud-init.log /var/lib/cloud/
+	rm -rf doc/rtd_html .tox .coverage
 
 yaml:
 	@$(PYVER) $(CWD)/tools/validate-yaml.py $(YAML_FILES)
