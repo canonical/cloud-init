@@ -127,7 +127,7 @@ class DataSourceNoCloud(sources.DataSource):
                         seeded = util.mount_cb(dev, _pp2d_callback,
                                                pp2d_kwargs)
                     except ValueError:
-                        LOG.warning("device %s with label=%s not a"
+                        LOG.warning("device %s with label=%s not a "
                                     "valid seed.", dev, label)
                         continue
 
