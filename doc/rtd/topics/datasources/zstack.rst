@@ -2,14 +2,15 @@
 
 ZStack
 ======
-ZStack platform provides a AWS Ec2 metadata service, but with different datasource identity.
+ZStack platform provides a AWS Ec2 metadata service, but with different
+datasource identity.
 More information about ZStack can be found at `ZStack <https://www.zstack.io>`__.
 
 Discovery
 ---------
-To determine whether a vm running on ZStack platform, cloud-init checks DMI information
-by 'dmidecode -s chassis-asset-tag', if the output ends with '.zstack.io', it's running
-on ZStack platform:
+To determine whether a vm running on ZStack platform, cloud-init checks DMI
+information by 'dmidecode -s chassis-asset-tag', if the output ends with
+'.zstack.io', it's running on ZStack platform:
 
 
 Metadata
