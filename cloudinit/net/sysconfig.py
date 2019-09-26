@@ -577,6 +577,10 @@ class Renderer(renderer.Renderer):
 
     @staticmethod
     def _render_dns(network_state, existing_dns_path=None):
+        # skip writing resolv.conf if network_state doesn't include any input.
+        if not any([len(network_state.dns_nameservers),
+                    len(network_state.dns_searchdomains)]):
+            return None
         content = resolv_conf.ResolvConf("")
         if existing_dns_path and os.path.isfile(existing_dns_path):
             content = resolv_conf.ResolvConf(util.load_file(existing_dns_path))
@@ -584,8 +588,6 @@ class Renderer(renderer.Renderer):
             content.add_nameserver(nameserver)
         for searchdomain in network_state.dns_searchdomains:
             content.add_search_domain(searchdomain)
-        if not str(content):
-            return None
         header = _make_header(';')
         content_str = str(content)
         if not content_str.startswith(header):

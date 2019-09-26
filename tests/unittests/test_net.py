@@ -2701,6 +2701,10 @@ USERCTL=no
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
         render_dir = self.tmp_path("render")
         os.makedirs(render_dir)
+        # write an etc/resolv.conf and expect it to not be modified
+        resolvconf = os.path.join(render_dir, 'etc/resolv.conf')
+        resolvconf_content = "# Original Content"
+        util.write_file(resolvconf, resolvconf_content)
         renderer = self._get_renderer()
         renderer.render_network_state(ns, target=render_dir)
         found = dir2dict(render_dir)
@@ -2718,6 +2722,8 @@ TYPE=Ethernet
 USERCTL=no
 """
         self.assertEqual(expected, found[nspath + 'ifcfg-eth0'])
+        # a dhcp only config should not modify resolv.conf
+        self.assertEqual(resolvconf_content, found['/etc/resolv.conf'])
 
     def test_bond_config(self):
         expected_name = 'expected_sysconfig_rhel'
@@ -3202,6 +3208,10 @@ USERCTL=no
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
         render_dir = self.tmp_path("render")
         os.makedirs(render_dir)
+        # write an etc/resolv.conf and expect it to not be modified
+        resolvconf = os.path.join(render_dir, 'etc/resolv.conf')
+        resolvconf_content = "# Original Content"
+        util.write_file(resolvconf, resolvconf_content)
         renderer = self._get_renderer()
         renderer.render_network_state(ns, target=render_dir)
         found = dir2dict(render_dir)
@@ -3219,6 +3229,8 @@ TYPE=Ethernet
 USERCTL=no
 """
         self.assertEqual(expected, found[nspath + 'ifcfg-eth0'])
+        # a dhcp only config should not modify resolv.conf
+        self.assertEqual(resolvconf_content, found['/etc/resolv.conf'])
 
     def test_bond_config(self):
         expected_name = 'expected_sysconfig_opensuse'
