@@ -106,7 +106,6 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
         schemapaths = _schemapath_for_cloudconfig(
             cloudconfig, original_content)
     errors_by_line = defaultdict(list)
-    error_count = 1
     error_footer = []
     annotated_content = []
     for path, msg in schema_errors:
@@ -120,18 +119,17 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
         if col is not None:
             msg = 'Line {line} column {col}: {msg}'.format(
                 line=line, col=col, msg=msg)
-        error_footer.append('# E{0}: {1}'.format(error_count, msg))
-        error_count += 1
     lines = original_content.decode().split('\n')
     error_count = 1
-    for line_number, line in enumerate(lines):
-        errors = errors_by_line[line_number + 1]
+    for line_number, line in enumerate(lines, 1):
+        errors = errors_by_line[line_number]
         if errors:
-            error_label = ','.join(
-                ['E{0}'.format(count + error_count)
-                 for count in range(0, len(errors))])
-            error_count += len(errors)
-            annotated_content.append(line + '\t\t# ' + error_label)
+            error_label = []
+            for error in errors:
+                error_label.append('E{0}'.format(error_count))
+                error_footer.append('# E{0}: {1}'.format(error_count, error))
+                error_count += 1
+            annotated_content.append(line + '\t\t# ' + ','.join(error_label))
         else:
             annotated_content.append(line)
     annotated_content.append(
@@ -214,14 +212,24 @@ def _schemapath_for_cloudconfig(config, original_content):
             path_prefix = ''
         if line.startswith('- '):
             key = str(list_index)
-            value = line[1:]
+            if path_prefix:
+                key = path_prefix + '.' + key
+            scopes.append((indent_depth, key))
+            schema_line_numbers[key] = line_number
+            path_prefix = key
+            item_indent = len(re.match(RE_YAML_INDENT, line[1:]).groups()[0])
+            item_indent += 1  # For the leading '-' character
+            previous_depth = indent_depth
+            indent_depth += item_indent
+            line = line[item_indent:]  # Strip leading list item + whitespace
             list_index += 1
-        else:
-            list_index = 0
-            key, value = line.split(':', 1)
+        key, value = line.split(':', 1)
         while indent_depth <= previous_depth:
             if scopes:
                 previous_depth, path_prefix = scopes.pop()
+                if list_index > 0 and indent_depth == previous_depth:
+                    path_prefix = '.'.join(path_prefix.split('.')[:-1])
+                    break
             else:
                 previous_depth = -1
                 path_prefix = ''
