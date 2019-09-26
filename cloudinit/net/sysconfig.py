@@ -18,8 +18,7 @@ from .network_state import (
 
 LOG = logging.getLogger(__name__)
 NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
-KNOWN_DISTROS = [
-    'opensuse', 'sles', 'suse', 'redhat', 'fedora', 'centos']
+KNOWN_DISTROS = ['centos', 'fedora', 'rhel', 'suse']
 
 
 def _make_header(sep='#'):
@@ -731,7 +730,7 @@ class Renderer(renderer.Renderer):
 def available(target=None):
     sysconfig = available_sysconfig(target=target)
     nm = available_nm(target=target)
-    return (util.get_linux_distro()[0] in KNOWN_DISTROS
+    return (util.system_info()['variant'] in KNOWN_DISTROS
             and any([nm, sysconfig]))
 
 

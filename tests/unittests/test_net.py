@@ -4158,6 +4158,24 @@ class TestNetRenderers(CiTestCase):
         m_distro.return_value = ('opensuse', None, None)
         self.assertEqual('sysconfig', renderers.select(priority=None)[0])
 
+    @mock.patch("cloudinit.net.sysconfig.available_sysconfig")
+    @mock.patch("cloudinit.util.get_linux_distro")
+    def test_sysconfig_available_uses_variant_mapping(self, m_distro, m_avail):
+        m_avail.return_value = True
+        distro_values = [
+           ('opensuse', '', ''),
+           ('opensuse-leap', '', ''),
+           ('opensuse-tumbleweed', '', ''),
+           ('sles', '', ''),
+           ('centos', '', ''),
+           ('fedora', '', ''),
+           ('redhat', '', ''),
+        ]
+        for (distro_name, distro_version, flavor) in distro_values:
+            m_distro.return_value = (distro_name, distro_version, flavor)
+            result = sysconfig.available()
+            self.assertTrue(result)
+
 
 class TestGetInterfaces(CiTestCase):
     _data = {'bonds': ['bond1'],
