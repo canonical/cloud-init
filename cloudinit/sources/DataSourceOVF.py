@@ -406,9 +406,7 @@ def read_vmware_imc(config):
     if config.timezone:
         cfg['timezone'] = config.timezone
 
-    # Generate a unique instance-id so that re-customization will
-    # happen in cloud-init
-    md['instance-id'] = "iid-vmware-" + util.rand_str(strlen=8)
+    md['instance-id'] = "iid-vmware-imc"
     return (md, ud, cfg)
 
 
