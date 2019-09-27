@@ -1599,10 +1599,33 @@ def json_serialize_default(_obj):
         return 'Warning: redacted unserializable type {0}'.format(type(_obj))
 
 
+def json_preserialize_binary(data):
+    """Preserialize any discovered binary values to avoid json.dumps issues.
+
+    Used only on python 2.7 where default type handling is not honored for
+    failure to encode binary data. LP: #1801364.
+    TODO(Drop this function when py2.7 support is dropped from cloud-init)
+    """
+    data = obj_copy.deepcopy(data)
+    for key, value in data.items():
+        if isinstance(value, (dict)):
+            data[key] = json_preserialize_binary(value)
+        if isinstance(value, bytes):
+            data[key] = 'ci-b64:{0}'.format(b64e(value))
+    return data
+
+
 def json_dumps(data):
     """Return data in nicely formatted json."""
-    return json.dumps(data, indent=1, sort_keys=True,
-                      separators=(',', ': '), default=json_serialize_default)
+    try:
+        return json.dumps(
+            data, indent=1, sort_keys=True, separators=(',', ': '),
+            default=json_serialize_default)
+    except UnicodeDecodeError:
+        if sys.version_info[:2] == (2, 7):
+            data = json_preserialize_binary(data)
+            return json.dumps(data)
+        raise
 
 
 def yaml_dumps(obj, explicit_start=True, explicit_end=True, noalias=False):
