@@ -36,6 +36,7 @@ SCHEMA_DOC_TMPL = """
 {examples}
 """
 SCHEMA_PROPERTY_TMPL = '{prefix}**{prop_name}:** ({type}) {description}'
+SCHEMA_LIST_ITEM_TMPL = '{prefix}Each item in **{prop_name}** list supports the following keys:'
 SCHEMA_EXAMPLES_HEADER = '\n**Examples**::\n\n'
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = '\n    # --- Example{0} ---'
 
@@ -274,11 +275,24 @@ def _get_property_doc(schema, prefix='    '):
     for prop_key, prop_config in schema.get('properties', {}).items():
         # Define prop_name and dscription for SCHEMA_PROPERTY_TMPL
         description = prop_config.get('description', '')
+        prop_type = _get_property_type(prop_config)
+
         properties.append(SCHEMA_PROPERTY_TMPL.format(
             prefix=prefix,
             prop_name=prop_key,
             type=_get_property_type(prop_config),
             description=description.replace('\n', '')))
+        items = prop_config.get('items')
+        if items:
+            if isinstance(items, list):
+                for item in items:
+                    properties.append(
+                        _get_property_doc(item, prefix=new_prefix))
+            elif isinstance(items, dict) and items.get('properties'):
+                properties.append(SCHEMA_LIST_ITEM_TMPL.format(
+                    prefix=new_prefix, prop_name=prop_key))
+                new_prefix += '    '
+                properties.append(_get_property_doc(items, prefix=new_prefix))
         if 'properties' in prop_config:
             properties.append(
                 _get_property_doc(prop_config, prefix=new_prefix))
