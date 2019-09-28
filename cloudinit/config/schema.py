@@ -354,8 +354,11 @@ def get_parser(parser=None):
             description='Validate cloud-config files or document schema')
     parser.add_argument('-c', '--config-file',
                         help='Path of the cloud-config yaml file to validate')
-    parser.add_argument('-d', '--doc', action="store_true", default=False,
-                        help='Print schema documentation')
+    full_schema = get_schema()
+    parser.add_argument('-d', '--doc', action='store_true',
+            help='Print specified schema module docs.')
+    parser.add_argument('-m', '--module', action='store',
+            help='Limit documentation to specified schema module.')
     parser.add_argument('--annotate', action="store_true", default=False,
                         help='Annotate existing cloud-config file with errors')
     return parser
@@ -379,7 +382,15 @@ def handle_schema_args(name, args):
         else:
             print("Valid cloud-config file {0}".format(args.config_file))
     if args.doc:
+        schema_ids = [subschema['id'] for subschema in full_schema['allOf']]
+        schema_ids += ['all']
+        if args.module and args.module not in ['all'] + schema_ids:
+            error(
+                'Invalid value for --module {0}. Must be one of: {1}'.format(
+                    args.module, ', '.join(schema_ids)))
         for subschema in full_schema['allOf']:
+            if args.module and args.module != subschema['id']:
+                continue
             print(get_schema_doc(subschema))
 
 
