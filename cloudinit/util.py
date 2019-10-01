@@ -656,7 +656,8 @@ def system_info():
     var = 'unknown'
     if system == "linux":
         linux_dist = info['dist'][0].lower()
-        if linux_dist in ('centos', 'debian', 'fedora', 'rhel', 'suse'):
+        if linux_dist in (
+                'arch', 'centos', 'debian', 'fedora', 'rhel', 'suse'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
