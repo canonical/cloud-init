@@ -1,3 +1,10 @@
+cloud-init (19.2-36-g059d049c-0ubuntu2~16.04.1) UNRELEASED; urgency=medium
+
+  * cherry-pick a7d8d032: get_interfaces: don't exclude bridge and bond
+    members (LP: #1846535)
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Fri, 04 Oct 2019 12:01:19 -0400
+
 cloud-init (19.2-36-g059d049c-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * New upstream snapshot. (LP: #1844334)
