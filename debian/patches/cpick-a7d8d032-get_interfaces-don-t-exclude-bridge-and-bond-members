@@ -1,0 +1,150 @@
+From a7d8d032a65e807007f1467a9220b7f161625668 Mon Sep 17 00:00:00 2001
+From: Daniel Watkins <oddbloke@ubuntu.com>
+Date: Fri, 4 Oct 2019 15:34:41 +0000
+Subject: [PATCH] get_interfaces: don't exclude bridge and bond members
+
+The change that introduced this issue was handling interfaces that are
+bonded in the kernel, in a way that doesn't present as "a bond" to
+userspace in the normal way.  Both members of this "bond" will share a
+MAC address, so we filter one of them out to avoid incorrect MAC address
+collision warnings.
+
+Unfortunately, the matching condition was too broad, so that change also
+affected normal bonds and bridges.  This change specifically excludes
+bonds and bridges from that determination, to address that regression.
+
+LP: #1846535
+---
+ cloudinit/net/__init__.py        | 24 ++++++++++---
+ cloudinit/net/tests/test_init.py | 59 +++++++++++++++++++++++++++++---
+ 2 files changed, 73 insertions(+), 10 deletions(-)
+
+--- a/cloudinit/net/__init__.py
++++ b/cloudinit/net/__init__.py
+@@ -109,8 +109,22 @@ def is_bond(devname):
+     return os.path.exists(sys_dev_path(devname, "bonding"))
+ 
+ 
+-def has_master(devname):
+-    return os.path.exists(sys_dev_path(devname, path="master"))
++def get_master(devname):
++    """Return the master path for devname, or None if no master"""
++    path = sys_dev_path(devname, path="master")
++    if os.path.exists(path):
++        return path
++    return None
++
++
++def master_is_bridge_or_bond(devname):
++    """Return a bool indicating if devname's master is a bridge or bond"""
++    master_path = get_master(devname)
++    if master_path is None:
++        return False
++    bonding_path = os.path.join(master_path, "bonding")
++    bridge_path = os.path.join(master_path, "bridge")
++    return (os.path.exists(bonding_path) or os.path.exists(bridge_path))
+ 
+ 
+ def is_netfailover(devname, driver=None):
+@@ -158,7 +172,7 @@ def is_netfail_master(devname, driver=No
+ 
+         Return True if all of the above is True.
+     """
+-    if has_master(devname):
++    if get_master(devname) is not None:
+         return False
+ 
+     if driver is None:
+@@ -215,7 +229,7 @@ def is_netfail_standby(devname, driver=N
+ 
+         Return True if all of the above is True.
+     """
+-    if not has_master(devname):
++    if get_master(devname) is None:
+         return False
+ 
+     if driver is None:
+@@ -790,7 +804,7 @@ def get_interfaces():
+             continue
+         if is_bond(name):
+             continue
+-        if has_master(name):
++        if get_master(name) is not None and not master_is_bridge_or_bond(name):
+             continue
+         if is_netfailover(name):
+             continue
+--- a/cloudinit/net/tests/test_init.py
++++ b/cloudinit/net/tests/test_init.py
+@@ -157,11 +157,40 @@ class TestReadSysNet(CiTestCase):
+         ensure_file(os.path.join(self.sysdir, 'eth0', 'bonding'))
+         self.assertTrue(net.is_bond('eth0'))
+ 
+-    def test_has_master(self):
+-        """has_master is True when /sys/net/devname/master exists."""
+-        self.assertFalse(net.has_master('enP1s1'))
+-        ensure_file(os.path.join(self.sysdir, 'enP1s1', 'master'))
+-        self.assertTrue(net.has_master('enP1s1'))
++    def test_get_master(self):
++        """get_master returns the path when /sys/net/devname/master exists."""
++        self.assertIsNone(net.get_master('enP1s1'))
++        master_path = os.path.join(self.sysdir, 'enP1s1', 'master')
++        ensure_file(master_path)
++        self.assertEqual(master_path, net.get_master('enP1s1'))
++
++    def test_master_is_bridge_or_bond(self):
++        bridge_mac = 'aa:bb:cc:aa:bb:cc'
++        bond_mac = 'cc:bb:aa:cc:bb:aa'
++
++        # No master => False
++        write_file(os.path.join(self.sysdir, 'eth1', 'address'), bridge_mac)
++        write_file(os.path.join(self.sysdir, 'eth2', 'address'), bond_mac)
++
++        self.assertFalse(net.master_is_bridge_or_bond('eth1'))
++        self.assertFalse(net.master_is_bridge_or_bond('eth2'))
++
++        # masters without bridge/bonding => False
++        write_file(os.path.join(self.sysdir, 'br0', 'address'), bridge_mac)
++        write_file(os.path.join(self.sysdir, 'bond0', 'address'), bond_mac)
++
++        os.symlink('../br0', os.path.join(self.sysdir, 'eth1', 'master'))
++        os.symlink('../bond0', os.path.join(self.sysdir, 'eth2', 'master'))
++
++        self.assertFalse(net.master_is_bridge_or_bond('eth1'))
++        self.assertFalse(net.master_is_bridge_or_bond('eth2'))
++
++        # masters with bridge/bonding => True
++        write_file(os.path.join(self.sysdir, 'br0', 'bridge'), '')
++        write_file(os.path.join(self.sysdir, 'bond0', 'bonding'), '')
++
++        self.assertTrue(net.master_is_bridge_or_bond('eth1'))
++        self.assertTrue(net.master_is_bridge_or_bond('eth2'))
+ 
+     def test_is_vlan(self):
+         """is_vlan is True when /sys/net/devname/uevent has DEVTYPE=vlan."""
+@@ -461,6 +490,26 @@ class TestGetInterfaceMAC(CiTestCase):
+         expected = [('ens3', mac, None, None)]
+         self.assertEqual(expected, net.get_interfaces())
+ 
++    def test_get_interfaces_does_not_skip_phys_members_of_bridges_and_bonds(
++        self
++    ):
++        bridge_mac = 'aa:bb:cc:aa:bb:cc'
++        bond_mac = 'cc:bb:aa:cc:bb:aa'
++        write_file(os.path.join(self.sysdir, 'br0', 'address'), bridge_mac)
++        write_file(os.path.join(self.sysdir, 'br0', 'bridge'), '')
++
++        write_file(os.path.join(self.sysdir, 'bond0', 'address'), bond_mac)
++        write_file(os.path.join(self.sysdir, 'bond0', 'bonding'), '')
++
++        write_file(os.path.join(self.sysdir, 'eth1', 'address'), bridge_mac)
++        os.symlink('../br0', os.path.join(self.sysdir, 'eth1', 'master'))
++
++        write_file(os.path.join(self.sysdir, 'eth2', 'address'), bond_mac)
++        os.symlink('../bond0', os.path.join(self.sysdir, 'eth2', 'master'))
++
++        interface_names = [interface[0] for interface in net.get_interfaces()]
++        self.assertEqual(['eth1', 'eth2'], sorted(interface_names))
++
+ 
+ class TestInterfaceHasOwnMAC(CiTestCase):
+ 

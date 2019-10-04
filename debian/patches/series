@@ -5,3 +5,4 @@ openstack-no-network-config.patch
 azure-apply-network-config-false.patch
 ec2-classic-dont-reapply-networking.patch
 ubuntu-advantage-revert-tip.patch
+cpick-a7d8d032-get_interfaces-don-t-exclude-bridge-and-bond-members
