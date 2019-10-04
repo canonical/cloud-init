@@ -1,3 +1,10 @@
+cloud-init (19.2-36-g059d049c-0ubuntu2) eoan; urgency=medium
+
+  * cherry-pick a7d8d032: get_interfaces: don't exclude bridge and bond
+    members (LP: #1846535)
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Fri, 04 Oct 2019 11:42:12 -0400
+
 cloud-init (19.2-36-g059d049c-0ubuntu1) eoan; urgency=medium
 
   * New upstream snapshot.
