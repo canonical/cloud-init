@@ -1,2 +1,3 @@
 openstack-no-network-config.patch
 ubuntu-advantage-revert-tip.patch
+cpick-a7d8d032-get_interfaces-don-t-exclude-bridge-and-bond-members
