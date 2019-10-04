@@ -1,4 +1,4 @@
-cloud-init (19.2-36-g059d049c-0ubuntu2~19.04.1) UNRELEASED; urgency=medium
+cloud-init (19.2-36-g059d049c-0ubuntu2~19.04.1) disco; urgency=medium
 
   * cherry-pick a7d8d032: get_interfaces: don't exclude bridge and bond
     members (LP: #1846535)
