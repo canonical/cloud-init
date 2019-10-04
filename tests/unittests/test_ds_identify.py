@@ -267,10 +267,13 @@ class TestDsIdentify(DsIdentifyBase):
         """ConfigDrive datasource has a disk with LABEL=config-2."""
         self._test_ds_found('ConfigDrive')
 
+    def test_rbx_cloud(self):
+        """Rbx datasource has a disk with LABEL=CLOUDMD."""
+        self._test_ds_found('RbxCloud')
+
     def test_config_drive_upper(self):
         """ConfigDrive datasource has a disk with LABEL=CONFIG-2."""
         self._test_ds_found('ConfigDriveUpper')
-        return
 
     def test_config_drive_seed(self):
         """Config Drive seed directory."""
@@ -895,6 +898,18 @@ VALID_CFG = {
         'files': {
             os.path.join(P_SEED_DIR, 'config_drive', 'openstack',
                          'latest', 'meta_data.json'): 'md\n'},
+    },
+    'RbxCloud': {
+        'ds': 'RbxCloud',
+        'mocks': [
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'vda2', 'TYPE': 'ext4',
+                   'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'vdb', 'TYPE': 'vfat', 'LABEL': 'CLOUDMD'}]
+             )},
+        ],
     },
     'Hetzner': {
         'ds': 'Hetzner',

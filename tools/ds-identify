@@ -124,7 +124,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale"
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -699,6 +699,11 @@ dscheck_DigitalOcean() {
 dscheck_OpenNebula() {
     check_seed_dir opennebula && return ${DS_FOUND}
     has_fs_with_label "CONTEXT" && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_RbxCloud() {
+    has_fs_with_label "CLOUDMD" "cloudmd" && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
