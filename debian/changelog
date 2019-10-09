@@ -1,3 +1,10 @@
+cloud-init (19.2-36-g059d049c-0ubuntu3) eoan; urgency=medium
+
+  * debian/cloud-init.config get_yaml_list should return only the value
+    (LP: #1846511)
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Wed, 09 Oct 2019 16:32:17 -0500
+
 cloud-init (19.2-36-g059d049c-0ubuntu2) eoan; urgency=medium
 
   * cherry-pick a7d8d032: get_interfaces: don't exclude bridge and bond
