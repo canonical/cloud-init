@@ -616,6 +616,14 @@ class TestDsIdentify(DsIdentifyBase):
         """EC2: chassis asset tag ends with 'zstack.io'"""
         self._test_ds_found('Ec2-ZStack')
 
+    def test_e24cloud_is_ec2(self):
+        """EC2: e24cloud identified by sys_vendor"""
+        self._test_ds_found('Ec2-E24Cloud')
+
+    def test_e24cloud_not_active(self):
+        """EC2: bobrightbox.com in product_serial is not brightbox'"""
+        self._test_ds_not_found('Ec2-E24Cloud-negative')
+
 
 class TestIsIBMProvisioning(DsIdentifyBase):
     """Test the is_ibm_provisioning method in ds-identify."""
@@ -994,7 +1002,15 @@ VALID_CFG = {
     'Ec2-ZStack': {
         'ds': 'Ec2',
         'files': {P_CHASSIS_ASSET_TAG: '123456.zstack.io\n'},
-    }
+    },
+    'Ec2-E24Cloud': {
+        'ds': 'Ec2',
+        'files': {P_SYS_VENDOR: 'e24cloud\n'},
+     },
+    'Ec2-E24Cloud-negative': {
+        'ds': 'Ec2',
+        'files': {P_SYS_VENDOR: 'e24cloudyday\n'},
+     }
 }
 
 # vi: ts=4 expandtab

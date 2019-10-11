@@ -29,8 +29,9 @@ The following is a list of documents for each supported datasource:
 
    datasources/aliyun.rst
    datasources/altcloud.rst
-   datasources/ec2.rst
    datasources/azure.rst
+   datasources/ec2.rst
+   datasources/e24cloud.rst
    datasources/cloudsigma.rst
    datasources/cloudstack.rst
    datasources/configdrive.rst

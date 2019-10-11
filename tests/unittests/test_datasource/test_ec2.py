@@ -672,13 +672,14 @@ class TesIdentifyPlatform(test_helpers.CiTestCase):
             'serial': 'H23-C4J3JV-R6',
             'uuid': '81c7e555-6471-4833-9551-1ab366c4cfd2',
             'uuid_source': 'dmi',
+            'vendor': 'tothecloud',
         }
         unspecial.update(**kwargs)
         return unspecial
 
     @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
     def test_identify_zstack(self, m_collect):
-        """zstack should be identified if cassis-asset-tag ends in .zstack.io
+        """zstack should be identified if chassis-asset-tag ends in .zstack.io
         """
         m_collect.return_value = self.collmock(asset_tag='123456.zstack.io')
         self.assertEqual(ec2.CloudNames.ZSTACK, ec2.identify_platform())
@@ -688,6 +689,18 @@ class TesIdentifyPlatform(test_helpers.CiTestCase):
         """zstack asset-tag matching should match only on full domain boundary.
         """
         m_collect.return_value = self.collmock(asset_tag='123456.buzzstack.io')
+        self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
+
+    @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
+    def test_identify_e24cloud(self, m_collect):
+        """e24cloud identified if vendor is e24cloud"""
+        m_collect.return_value = self.collmock(vendor='e24cloud')
+        self.assertEqual(ec2.CloudNames.E24CLOUD, ec2.identify_platform())
+
+    @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
+    def test_identify_e24cloud_negative(self, m_collect):
+        """e24cloud identified if vendor is e24cloud"""
+        m_collect.return_value = self.collmock(vendor='e24cloudyday')
         self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
 
 # vi: ts=4 expandtab
