@@ -499,6 +499,45 @@ class TestNetJson(CiTestCase):
                                                     known_macs=KNOWN_MACS)
         self.assertEqual(myds.network_config, network_config)
 
+    def test_network_config_conversion_dhcp6(self):
+        """Test some ipv6 input network json and check the expected
+           conversions."""
+        in_data = {
+            'links': [
+                {'vif_id': '2ecc7709-b3f7-4448-9580-e1ec32d75bbd',
+                 'ethernet_mac_address': 'fa:16:3e:69:b0:58',
+                 'type': 'ovs', 'mtu': None, 'id': 'tap2ecc7709-b3'},
+                {'vif_id': '2f88d109-5b57-40e6-af32-2472df09dc33',
+                 'ethernet_mac_address': 'fa:16:3e:d4:57:ad',
+                 'type': 'ovs', 'mtu': None, 'id': 'tap2f88d109-5b'},
+            ],
+            'networks': [
+                {'link': 'tap2ecc7709-b3', 'type': 'ipv6_dhcpv6-stateless',
+                 'network_id': '6d6357ac-0f70-4afa-8bd7-c274cc4ea235',
+                 'id': 'network0'},
+                {'link': 'tap2f88d109-5b', 'type': 'ipv6_dhcpv6-stateful',
+                 'network_id': 'd227a9b3-6960-4d94-8976-ee5788b44f54',
+                 'id': 'network1'},
+            ]
+        }
+        out_data = {
+            'version': 1,
+            'config': [
+                {'mac_address': 'fa:16:3e:69:b0:58',
+                 'mtu': None,
+                 'name': 'enp0s1',
+                 'subnets': [{'type': 'ipv6_dhcpv6-stateless'}],
+                 'type': 'physical'},
+                {'mac_address': 'fa:16:3e:d4:57:ad',
+                 'mtu': None,
+                 'name': 'enp0s2',
+                 'subnets': [{'type': 'ipv6_dhcpv6-stateful'}],
+                 'type': 'physical'}
+            ],
+        }
+        conv_data = openstack.convert_net_json(in_data, known_macs=KNOWN_MACS)
+        self.assertEqual(out_data, conv_data)
+
     def test_network_config_conversions(self):
         """Tests a bunch of input network json and checks the
            expected conversions."""

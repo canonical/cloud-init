@@ -411,8 +411,13 @@ class Renderer(renderer.Renderer):
                 else:
                     ipv4_subnet_mtu = subnet.get('mtu')
                 iface['inet'] = subnet_inet
-                if subnet['type'].startswith('dhcp'):
+                if (subnet['type'] == 'dhcp4' or subnet['type'] == 'dhcp6' or
+                        subnet['type'] == 'ipv6_dhcpv6-stateful'):
+                    # Configure network settings using DHCP or DHCPv6
                     iface['mode'] = 'dhcp'
+                elif subnet['type'] == 'ipv6_dhcpv6-stateless':
+                    # Configure network settings using SLAAC from RAs
+                    iface['mode'] = 'auto'
 
                 # do not emit multiple 'auto $IFACE' lines as older (precise)
                 # ifupdown complains

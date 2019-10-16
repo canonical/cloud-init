@@ -343,10 +343,15 @@ class Renderer(renderer.Renderer):
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             mtu_key = 'MTU'
             subnet_type = subnet.get('type')
-            if subnet_type == 'dhcp6':
+            if subnet_type == 'dhcp6' or subnet_type == 'ipv6_dhcpv6-stateful':
                 # TODO need to set BOOTPROTO to dhcp6 on SUSE
                 iface_cfg['IPV6INIT'] = True
+                # Configure network settings using DHCPv6
                 iface_cfg['DHCPV6C'] = True
+            elif subnet_type == 'ipv6_dhcpv6-stateless':
+                iface_cfg['IPV6INIT'] = True
+                # Configure network settings using SLAAC from RAs
+                iface_cfg['IPV6_AUTOCONF'] = True
             elif subnet_type in ['dhcp4', 'dhcp']:
                 iface_cfg['BOOTPROTO'] = 'dhcp'
             elif subnet_type == 'static':

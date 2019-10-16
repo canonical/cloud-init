@@ -1070,6 +1070,82 @@ NETWORK_CONFIGS = {
                 """),
         },
     },
+    'dhcpv6_stateless': {
+        'expected_eni': textwrap.dedent("""\
+        auto lo
+        iface lo inet loopback
+
+        auto iface0
+        iface iface0 inet6 auto
+    """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+        network:
+            version: 2
+            ethernets:
+                iface0:
+                    dhcp6: true
+    """).rstrip(' '),
+        'yaml': textwrap.dedent("""\
+        version: 1
+        config:
+          - type: 'physical'
+            name: 'iface0'
+            subnets:
+            - {'type': 'ipv6_dhcpv6-stateless'}
+    """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-iface0': textwrap.dedent("""\
+            BOOTPROTO=none
+            DEVICE=iface0
+            IPV6_AUTOCONF=yes
+            IPV6INIT=yes
+            DEVICE=iface0
+            NM_CONTROLLED=no
+            ONBOOT=yes
+            STARTMODE=auto
+            TYPE=Ethernet
+            USERCTL=no
+            """),
+        },
+    },
+    'dhcpv6_stateful': {
+        'expected_eni': textwrap.dedent("""\
+        auto lo
+        iface lo inet loopback
+
+        auto iface0
+        iface iface0 inet6 dhcp
+    """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+        network:
+            version: 2
+            ethernets:
+                iface0:
+                    dhcp6: true
+    """).rstrip(' '),
+        'yaml': textwrap.dedent("""\
+        version: 1
+        config:
+          - type: 'physical'
+            name: 'iface0'
+            subnets:
+            - {'type': 'ipv6_dhcpv6-stateful'}
+    """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-iface0': textwrap.dedent("""\
+            BOOTPROTO=none
+            DEVICE=iface0
+            DHCPV6C=yes
+            IPV6INIT=yes
+            DEVICE=iface0
+            NM_CONTROLLED=no
+            ONBOOT=yes
+            STARTMODE=auto
+            TYPE=Ethernet
+            USERCTL=no
+            """),
+        },
+    },
     'all': {
         'expected_eni': ("""\
 auto lo
@@ -2777,6 +2853,18 @@ USERCTL=no
 
     def test_dhcpv6_only_config(self):
         entry = NETWORK_CONFIGS['dhcpv6_only']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_dhcpv6_stateless_config(self):
+        entry = NETWORK_CONFIGS['dhcpv6_stateless']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_dhcpv6_stateful_config(self):
+        entry = NETWORK_CONFIGS['dhcpv6_stateful']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
