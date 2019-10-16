@@ -326,10 +326,10 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     sleep_time_cb: call method with 2 arguments (response, loop_n) that
                    generates the next sleep time.
 
-    the idea of this routine is to wait for the EC2 metdata service to
+    the idea of this routine is to wait for the EC2 metadata service to
     come up.  On both Eucalyptus and EC2 we have seen the case where
     the instance hit the MD before the MD service was up.  EC2 seems
-    to have permenantely fixed this, though.
+    to have permanently fixed this, though.
 
     In openstack, the metadata service might be painfully slow, and
     unable to avoid hitting a timeout of even up to 10 seconds or more
@@ -338,7 +338,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     Offset those needs with the need to not hang forever (and block boot)
     on a system where cloud-init is configured to look for EC2 Metadata
     service but is not going to find one.  It is possible that the instance
-    data host (169.254.169.254) may be firewalled off Entirely for a sytem,
+    data host (169.254.169.254) may be firewalled off Entirely for a system,
     meaning that the connection will block forever unless a timeout is set.
 
     A value of None for max_wait will retry indefinitely.

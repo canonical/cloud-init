@@ -501,7 +501,7 @@ class Init(object):
             # Init the handlers first
             for (_ctype, mod) in c_handlers.items():
                 if mod in c_handlers.initialized:
-                    # Avoid initing the same module twice (if said module
+                    # Avoid initiating the same module twice (if said module
                     # is registered to more than one content-type).
                     continue
                 handlers.call_begin(mod, data, frequency)
