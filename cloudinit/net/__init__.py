@@ -389,7 +389,7 @@ def find_fallback_nic(blacklist_drivers=None):
         potential_interfaces = possibly_connected
 
     # if eth0 exists use it above anything else, otherwise get the interface
-    # that we can read 'first' (using the sorted defintion of first).
+    # that we can read 'first' (using the sorted definition of first).
     names = list(sorted(potential_interfaces, key=natural_sort_key))
     if DEFAULT_PRIMARY_INTERFACE in names:
         names.remove(DEFAULT_PRIMARY_INTERFACE)

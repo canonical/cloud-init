@@ -266,7 +266,7 @@ def load_cmdline_data(fill, cmdline=None):
              ("ds=nocloud-net", sources.DSMODE_NETWORK)]
     for idstr, dsmode in pairs:
         if parse_cmdline_data(idstr, fill, cmdline):
-            # if dsmode was explicitly in the commanad line, then
+            # if dsmode was explicitly in the command line, then
             # prefer it to the dsmode based on the command line id
             if 'dsmode' not in fill:
                 fill['dsmode'] = dsmode
