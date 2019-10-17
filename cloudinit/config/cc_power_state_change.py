@@ -103,24 +103,23 @@ def check_condition(cond, log=None):
             return False
         else:
             if log:
-                log.warn(pre + "unexpected exit %s. " % ret +
-                         "do not apply change.")
+                log.warning(pre + "unexpected exit %s. " % ret +
+                            "do not apply change.")
             return False
     except Exception as e:
         if log:
-            log.warn(pre + "Unexpected error: %s" % e)
+            log.warning(pre + "Unexpected error: %s" % e)
         return False
 
 
 def handle(_name, cfg, _cloud, log, _args):
-
     try:
         (args, timeout, condition) = load_power_state(cfg)
         if args is None:
             log.debug("no power_state provided. doing nothing")
             return
     except Exception as e:
-        log.warn("%s Not performing power state change!" % str(e))
+        log.warning("%s Not performing power state change!" % str(e))
         return
 
     if condition is False:
@@ -131,7 +130,7 @@ def handle(_name, cfg, _cloud, log, _args):
 
     cmdline = givecmdline(mypid)
     if not cmdline:
-        log.warn("power_state: failed to get cmdline of current process")
+        log.warning("power_state: failed to get cmdline of current process")
         return
 
     devnull_fp = open(os.devnull, "w")
@@ -214,7 +213,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
 
     def fatal(msg):
         if log:
-            log.warn(msg)
+            log.warning(msg)
         doexit(EXIT_FAIL)
 
     known_errnos = (errno.ENOENT, errno.ESRCH)

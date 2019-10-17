@@ -52,8 +52,8 @@ def _get_helper_tool_path(distro):
 def handle(name, cfg, cloud, log, _args):
     helper_path = _get_helper_tool_path(cloud.distro)
     if not os.path.exists(helper_path):
-        log.warn(("Unable to activate module %s,"
-                  " helper tool not found at %s"), name, helper_path)
+        log.warning(("Unable to activate module %s,"
+                     " helper tool not found at %s"), name, helper_path)
         return
 
     fp_blacklist = util.get_cfg_option_list(cfg,
@@ -68,7 +68,7 @@ def handle(name, cfg, cloud, log, _args):
         util.multi_log("%s\n" % (stdout.strip()),
                        stderr=False, console=True)
     except Exception:
-        log.warn("Writing keys to the system console failed!")
+        log.warning("Writing keys to the system console failed!")
         raise
 
 # vi: ts=4 expandtab

@@ -98,8 +98,8 @@ def _autostart_puppet(log):
     elif os.path.exists('/sbin/chkconfig'):
         util.subp(['/sbin/chkconfig', 'puppet', 'on'], capture=False)
     else:
-        log.warn(("Sorry we do not know how to enable"
-                  " puppet services on this system"))
+        log.warning(("Sorry we do not know how to enable"
+                     " puppet services on this system"))
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -121,8 +121,8 @@ def handle(name, cfg, cloud, log, _args):
 
     p_constants = PuppetConstants(conf_file, ssl_dir, log)
     if not install and version:
-        log.warn(("Puppet install set false but version supplied,"
-                  " doing nothing."))
+        log.warning(("Puppet install set false but version supplied,"
+                     " doing nothing."))
     elif install:
         log.debug(("Attempting to install puppet %s,"),
                   version if version else 'latest')
@@ -141,7 +141,7 @@ def handle(name, cfg, cloud, log, _args):
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
         cleaned_contents = '\n'.join(cleaned_lines)
         # Move to puppet_config.read_file when dropping py2.7
-        puppet_config.readfp(   # pylint: disable=W1505
+        puppet_config.readfp(  # pylint: disable=W1505
             StringIO(cleaned_contents),
             filename=p_constants.conf_path)
         for (cfg_name, cfg) in puppet_cfg['conf'].items():

@@ -164,7 +164,7 @@ def handle(_name, cfg, cloud, log, args):
         if user:
             plist = ["%s:%s" % (user, password)]
         else:
-            log.warn("No default or defined user to change password for.")
+            log.warning("No default or defined user to change password for.")
 
     errors = []
     if plist:
