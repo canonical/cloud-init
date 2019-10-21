@@ -1176,6 +1176,12 @@ iface eth4 inet manual
 # control-manual eth5
 iface eth5 inet dhcp
 
+auto ib0
+iface ib0 inet static
+    address 192.168.200.7/24
+    mtu 9000
+    hwaddress a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+
 auto bond0
 iface bond0 inet6 dhcp
     bond-mode active-backup
@@ -1457,7 +1463,19 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 ONBOOT=no
                 STARTMODE=manual
                 TYPE=Ethernet
-                USERCTL=no""")
+                USERCTL=no"""),
+            'ifcfg-ib0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=ib0
+                HWADDR=a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+                IPADDR=192.168.200.7
+                MTU=9000
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                STARTMODE=auto
+                TYPE=InfiniBand
+                USERCTL=no"""),
         },
         'yaml': textwrap.dedent("""
             version: 1
@@ -1532,6 +1550,15 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                   vlan_id: 200
                   subnets:
                       - type: dhcp4
+                # An infiniband
+                - type: infiniband
+                  name: ib0
+                  mac_address: >-
+                    a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
+                  subnets:
+                      - type: static
+                        address: 192.168.200.7/24
+                        mtu: 9000
                 # A bridge.
                 - type: bridge
                   name: br0

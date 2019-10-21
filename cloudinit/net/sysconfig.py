@@ -330,7 +330,8 @@ class Renderer(renderer.Renderer):
             old_value = iface.get(old_key)
             if old_value is not None:
                 # only set HWADDR on physical interfaces
-                if old_key == 'mac_address' and iface['type'] != 'physical':
+                if (old_key == 'mac_address' and
+                   iface['type'] not in ['physical', 'infiniband']):
                     continue
                 iface_cfg[new_key] = old_value
 

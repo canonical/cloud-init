@@ -94,7 +94,7 @@ def _iface_add_attrs(iface, index, ipv4_subnet_mtu):
     ]
 
     renames = {'mac_address': 'hwaddress'}
-    if iface['type'] not in ['bond', 'bridge', 'vlan']:
+    if iface['type'] not in ['bond', 'bridge', 'infiniband', 'vlan']:
         ignore_map.append('mac_address')
 
     for key, value in iface.items():
@@ -472,9 +472,10 @@ class Renderer(renderer.Renderer):
         order = {
             'loopback': 0,
             'physical': 1,
-            'bond': 2,
-            'bridge': 3,
-            'vlan': 4,
+            'infiniband': 2,
+            'bond': 3,
+            'bridge': 4,
+            'vlan': 5,
         }
 
         sections = []
