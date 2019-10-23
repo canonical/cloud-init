@@ -751,11 +751,11 @@ def available_sysconfig(target=None):
 
     expected_paths = [
         'etc/sysconfig/network-scripts/network-functions',
-        'etc/sysconfig/network-scripts/ifdown-eth']
+        'etc/sysconfig/config']
     for p in expected_paths:
-        if not os.path.isfile(util.target_path(target, p)):
-            return False
-    return True
+        if os.path.isfile(util.target_path(target, p)):
+            return True
+    return False
 
 
 def available_nm(target=None):
