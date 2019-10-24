@@ -8,6 +8,7 @@ from .network_state import subnet_is_ipv6, NET_CONFIG_TO_V2
 
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit import safeyaml
 from cloudinit.net import SYS_CLASS_NET, get_devicelist
 
 KNOWN_SNAPD_CONFIG = b"""\
@@ -235,9 +236,9 @@ class Renderer(renderer.Renderer):
         # if content already in netplan format, pass it back
         if network_state.version == 2:
             LOG.debug('V2 to V2 passthrough')
-            return util.yaml_dumps({'network': network_state.config},
-                                   explicit_start=False,
-                                   explicit_end=False)
+            return safeyaml.dumps({'network': network_state.config},
+                                  explicit_start=False,
+                                  explicit_end=False)
 
         ethernets = {}
         wifis = {}
@@ -359,10 +360,10 @@ class Renderer(renderer.Renderer):
         # workaround yaml dictionary key sorting when dumping
         def _render_section(name, section):
             if section:
-                dump = util.yaml_dumps({name: section},
-                                       explicit_start=False,
-                                       explicit_end=False,
-                                       noalias=True)
+                dump = safeyaml.dumps({name: section},
+                                      explicit_start=False,
+                                      explicit_end=False,
+                                      noalias=True)
                 txt = util.indent(dump, ' ' * 4)
                 return [txt]
             return []

@@ -38,7 +38,6 @@ from base64 import b64decode, b64encode
 from six.moves.urllib import parse as urlparse
 
 import six
-import yaml
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -958,7 +957,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                              " but got %s instead") %
                             (allowed, type_utils.obj_name(converted)))
         loaded = converted
-    except (yaml.YAMLError, TypeError, ValueError) as e:
+    except (safeyaml.YAMLError, TypeError, ValueError) as e:
         msg = 'Failed loading yaml blob'
         mark = None
         if hasattr(e, 'context_mark') and getattr(e, 'context_mark'):
@@ -1627,19 +1626,6 @@ def json_dumps(data):
             data = json_preserialize_binary(data)
             return json.dumps(data)
         raise
-
-
-def yaml_dumps(obj, explicit_start=True, explicit_end=True, noalias=False):
-    """Return data in nicely formatted yaml."""
-
-    return yaml.dump(obj,
-                     line_break="\n",
-                     indent=4,
-                     explicit_start=explicit_start,
-                     explicit_end=explicit_end,
-                     default_flow_style=False,
-                     Dumper=(safeyaml.NoAliasSafeDumper
-                             if noalias else yaml.dumper.Dumper))
 
 
 def ensure_dir(path, mode=None):

@@ -27,6 +27,7 @@ from cloudinit.settings import (PER_INSTANCE)
 from cloudinit import sources
 from cloudinit import stages
 from cloudinit import user_data as ud
+from cloudinit import safeyaml
 from cloudinit import util
 
 from cloudinit.tests import helpers
@@ -502,7 +503,7 @@ c: 4
         data = [{'content': '#cloud-config\npassword: gocubs\n'},
                 {'content': '#cloud-config\nlocale: chicago\n'},
                 {'content': non_decodable}]
-        message = b'#cloud-config-archive\n' + util.yaml_dumps(data).encode()
+        message = b'#cloud-config-archive\n' + safeyaml.dumps(data).encode()
 
         self.reRoot()
         ci = stages.Init()
