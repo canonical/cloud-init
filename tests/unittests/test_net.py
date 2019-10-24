@@ -996,8 +996,8 @@ NETWORK_CONFIGS = {
                         addresses:
                         - 192.168.14.2/24
                         - 2001:1::1/64
+                        ipv6-mtu: 1500
                         mtu: 9000
-                        mtu6: 1500
         """).rstrip(' '),
         'yaml': textwrap.dedent("""\
             version: 1
@@ -3585,7 +3585,9 @@ class TestNetplanPostcommands(CiTestCase):
 
     @mock.patch.object(netplan.Renderer, '_netplan_generate')
     @mock.patch.object(netplan.Renderer, '_net_setup_link')
-    def test_netplan_render_calls_postcmds(self, mock_netplan_generate,
+    @mock.patch('cloudinit.util.subp')
+    def test_netplan_render_calls_postcmds(self, mock_subp,
+                                           mock_netplan_generate,
                                            mock_net_setup_link):
         tmp_dir = self.tmp_dir()
         ns = network_state.parse_net_config_data(self.mycfg,
@@ -3597,6 +3599,7 @@ class TestNetplanPostcommands(CiTestCase):
         render_target = 'netplan.yaml'
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': True})
+        mock_subp.side_effect = iter([util.ProcessExecutionError])
         renderer.render_network_state(ns, target=render_dir)
 
         mock_netplan_generate.assert_called_with(run=True)
@@ -3619,7 +3622,13 @@ class TestNetplanPostcommands(CiTestCase):
         render_target = 'netplan.yaml'
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': True})
+        mock_subp.side_effect = iter([
+            util.ProcessExecutionError,
+            ('', ''),
+            ('', ''),
+        ])
         expected = [
+            mock.call(['netplan', 'info'], capture=True),
             mock.call(['netplan', 'generate'], capture=True),
             mock.call(['udevadm', 'test-builtin', 'net_setup_link',
                        '/sys/class/net/lo'], capture=True),
@@ -3875,6 +3884,20 @@ class TestReadInitramfsConfig(CiTestCase):
 
 
 class TestNetplanRoundTrip(CiTestCase):
+
+    NETPLAN_INFO_OUT = textwrap.dedent("""
+    netplan.io:
+      features:
+        - dhcp-use-domains
+        - ipv6-mtu
+      website: https://netplan.io/
+    """)
+
+    def setUp(self):
+        super(TestNetplanRoundTrip, self).setUp()
+        self.add_patch('cloudinit.net.netplan.util.subp', 'm_subp')
+        self.m_subp.return_value = (self.NETPLAN_INFO_OUT, '')
+
     def _render_and_read(self, network_config=None, state=None,
                          netplan_path=None, target=None):
         if target is None:

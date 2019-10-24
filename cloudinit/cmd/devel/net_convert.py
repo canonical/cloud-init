@@ -113,6 +113,8 @@ def handle_args(name, args):
         config['postcmds'] = False
         # trim leading slash
         config['netplan_path'] = config['netplan_path'][1:]
+        # enable some netplan features
+        config['features'] = ['dhcp-use-domains', 'ipv6-mtu']
     else:
         r_cls = sysconfig.Renderer
         config = distro.renderer_configs.get('sysconfig')
