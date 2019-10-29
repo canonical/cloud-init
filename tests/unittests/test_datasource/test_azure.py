@@ -769,6 +769,22 @@ scbus-1 on xpt0 bus 0
                          crypt.crypt(odata['UserPassword'],
                                      defuser['passwd'][0:pos]))
 
+    def test_user_not_locked_if_password_redacted(self):
+        odata = {'HostName': "myhost", 'UserName': "myuser",
+                 'UserPassword': dsaz.DEF_PASSWD_REDACTION}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertTrue('default_user' in dsrc.cfg['system_info'])
+        defuser = dsrc.cfg['system_info']['default_user']
+
+        # default user should be updated username and should not be locked.
+        self.assertEqual(defuser['name'], odata['UserName'])
+        self.assertIn('lock_passwd', defuser)
+        self.assertFalse(defuser['lock_passwd'])
+
     def test_userdata_plain(self):
         mydata = "FOOBAR"
         odata = {'UserData': {'text': mydata, 'encoding': 'plain'}}
