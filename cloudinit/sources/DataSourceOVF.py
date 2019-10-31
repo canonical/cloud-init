@@ -155,8 +155,8 @@ class DataSourceOVF(sources.DataSource):
                 custScriptConfig = get_tools_config(
                     CONFGROUPNAME_GUESTCUSTOMIZATION,
                     GUESTCUSTOMIZATION_ENABLE_CUST_SCRIPTS,
-                    "true")
-                if custScriptConfig.lower() == "false":
+                    "false")
+                if custScriptConfig.lower() != "true":
                     # Update the customization status if there is a
                     # custom script is disabled
                     if special_customization and customscript:
