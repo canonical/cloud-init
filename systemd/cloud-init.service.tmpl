@@ -12,6 +12,7 @@ After=networking.service
 {% endif %}
 {% if variant in ["centos", "fedora", "redhat"] %}
 After=network.service
+After=NetworkManager.service
 {% endif %}
 {% if variant in ["suse"] %}
 After=wicked.service
