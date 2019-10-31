@@ -353,7 +353,7 @@ def generate_records(events, blame_sort=False,
                 fmt = "Finished stage: (%n) %d seconds "
                 footer = "\n"
                 if blame_sort:
-                    fmt = print_fmt
+                    fmt = print_format
                     footer = ''
                 records.append(format_record(fmt, record) + footer)
                 total_time += record.get('delta')

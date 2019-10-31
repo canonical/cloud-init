@@ -499,6 +499,8 @@ class TestNetJson(CiTestCase):
         super(TestNetJson, self).setUp()
         self.tmp = self.tmp_dir()
         self.maxDiff = None
+        self.add_patch('cloudinit.net.get_interfaces_by_mac', 'm_get')
+        self.add_patch('cloudinit.net.get_ib_hwaddrs_by_interface', 'm_ib')
 
     @mock.patch(M_PATH + 'on_first_boot')
     def test_network_data_is_found(self, on_first_boot):
@@ -541,14 +543,14 @@ class TestNetJson(CiTestCase):
                 {'mac_address': 'fa:16:3e:69:b0:58',
                  'mtu': None,
                  'name': 'enp0s1',
-                 'subnets': [{'type': 'ipv6_dhcpv6-stateless'}],
+                 'subnets': [{'metric': 100, 'type': 'ipv6_dhcpv6-stateless'}],
                  'type': 'physical'},
                 {'mac_address': 'fa:16:3e:d4:57:ad',
                  'mtu': None,
                  'name': 'enp0s2',
-                 'subnets': [{'type': 'ipv6_dhcpv6-stateful'}],
-                 'type': 'physical',
-                 'accept-ra': True}
+                 'subnets': [{'metric': 200, 'type': 'ipv6_dhcpv6-stateful'}],
+                 'accept-ra': True,
+                 'type': 'physical'}
             ],
         }
         conv_data = openstack.convert_net_json(in_data, known_macs=KNOWN_MACS)
@@ -588,21 +590,21 @@ class TestNetJson(CiTestCase):
                 'version': 1,
                 'config': [
                     {
-                        'subnets': [{'type': 'dhcp4'}],
+                        'subnets': [{'metric': 100, 'type': 'dhcp4'}],
                         'type': 'physical',
                         'mac_address': 'fa:16:3e:69:b0:58',
                         'name': 'enp0s1',
                         'mtu': None,
                     },
                     {
-                        'subnets': [{'type': 'dhcp4'}],
+                        'subnets': [{'metric': 200, 'type': 'dhcp4'}],
                         'type': 'physical',
                         'mac_address': 'fa:16:3e:d4:57:ad',
                         'name': 'enp0s2',
                         'mtu': None,
                     },
                     {
-                        'subnets': [{'type': 'dhcp4'}],
+                        'subnets': [{'metric': 300, 'type': 'dhcp4'}],
                         'type': 'physical',
                         'mac_address': 'fa:16:3e:05:30:fe',
                         'name': 'nic0',
@@ -633,6 +635,7 @@ class TestNetJson(CiTestCase):
                                 'netmask': '255.255.252.0',
                                 'type': 'static',
                                 'ipv4': True,
+                                'metric': 100,
                                 'routes': [{
                                     'gateway': '172.19.3.254',
                                     'netmask': '0.0.0.0',

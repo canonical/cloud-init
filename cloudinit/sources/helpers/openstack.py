@@ -561,7 +561,7 @@ def convert_net_json(network_json=None, known_macs=None):
     bond_name_fmt = "bond%d"
     bond_number = 0
     config = []
-    for link in links:
+    for (idx, link) in enumerate(links):
         subnets = []
         cfg = dict((k, v) for k, v in link.items()
                    if k in valid_keys['physical'])
@@ -606,6 +606,11 @@ def convert_net_json(network_json=None, known_macs=None):
                 subnet['ipv4'] = True
             if network['type'] == 'ipv6':
                 subnet['ipv6'] = True
+            # set subnet metric based on order in links array
+            # the assumption here is the first interface in the links
+            # array is the primary interface which will connect with
+            # the metadata service
+            subnet['metric'] = (idx + 1) * 100
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
         if link['type'] in ['bond']:

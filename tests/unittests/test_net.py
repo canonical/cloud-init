@@ -484,6 +484,28 @@ OS_SAMPLES = [
         'in_macs': {
             'fa:16:3e:ed:9a:59': 'eth0',
         },
+        'out_eni_ubuntu': [
+            ('etc/network/interfaces.d/50-cloud-init.cfg',
+             """\
+# This file is generated from information provided by the datasource.  Changes
+# to it will not persist across an instance reboot.  To disable cloud-init's
+# network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+auto lo
+iface lo inet loopback
+    dns-nameservers 172.19.0.12
+
+auto eth0
+iface eth0 inet static
+    address 172.19.1.34/22
+    metric 100
+    post-up route add default gw 172.19.3.254 || true
+    pre-down route del default gw 172.19.3.254 || true
+""".lstrip()),
+            ('etc/udev/rules.d/70-persistent-net.rules',
+             "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
+                      'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))],
         'out_sysconfig_opensuse': [
             ('etc/sysconfig/network/ifcfg-eth0',
              """
@@ -495,6 +517,7 @@ DEVICE=eth0
 GATEWAY=172.19.3.254
 HWADDR=fa:16:3e:ed:9a:59
 IPADDR=172.19.1.34
+METRIC=100
 NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
@@ -529,6 +552,7 @@ DEVICE=eth0
 GATEWAY=172.19.3.254
 HWADDR=fa:16:3e:ed:9a:59
 IPADDR=172.19.1.34
+METRIC=100
 NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
@@ -598,6 +622,7 @@ GATEWAY=172.19.3.254
 HWADDR=fa:16:3e:ed:9a:59
 IPADDR=172.19.1.34
 IPADDR1=10.0.0.10
+METRIC=100
 NETMASK=255.255.252.0
 NETMASK1=255.255.255.0
 NM_CONTROLLED=no
@@ -634,6 +659,7 @@ GATEWAY=172.19.3.254
 HWADDR=fa:16:3e:ed:9a:59
 IPADDR=172.19.1.34
 IPADDR1=10.0.0.10
+METRIC=100
 NETMASK=255.255.252.0
 NETMASK1=255.255.255.0
 NM_CONTROLLED=no
@@ -730,6 +756,7 @@ IPV6ADDR=2001:DB8::10/64
 IPV6ADDR_SECONDARIES="2001:DB9::10/64 2001:DB10::10/64"
 IPV6INIT=yes
 IPV6_DEFAULTGW=2001:DB8::1
+METRIC=100
 NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
@@ -771,6 +798,7 @@ IPV6ADDR=2001:DB8::10/64
 IPV6ADDR_SECONDARIES="2001:DB9::10/64 2001:DB10::10/64"
 IPV6INIT=yes
 IPV6_DEFAULTGW=2001:DB8::1
+METRIC=100
 NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
@@ -2774,7 +2802,9 @@ USERCTL=no
 """.lstrip()
             self.assertEqual(expected_content, content)
 
-    def test_multiple_ipv4_default_gateways(self):
+    @mock.patch('cloudinit.net.get_ib_hwaddrs_by_interface')
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_multiple_ipv4_default_gateways(self, m_get, m_ib):
         """ValueError is raised when duplicate ipv4 gateways exist."""
         net_json = {
             "services": [{"type": "dns", "address": "172.19.0.12"}],
@@ -2812,7 +2842,9 @@ USERCTL=no
             renderer.render_network_state(ns, target=render_dir)
         self.assertEqual([], os.listdir(render_dir))
 
-    def test_multiple_ipv6_default_gateways(self):
+    @mock.patch('cloudinit.net.get_ib_hwaddrs_by_interface')
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_multiple_ipv6_default_gateways(self, m_get,  m_ib):
         """ValueError is raised when duplicate ipv6 gateways exist."""
         net_json = {
             "services": [{"type": "dns", "address": "172.19.0.12"}],
@@ -2850,7 +2882,9 @@ USERCTL=no
             renderer.render_network_state(ns, target=render_dir)
         self.assertEqual([], os.listdir(render_dir))
 
-    def test_openstack_rendering_samples(self):
+    @mock.patch('cloudinit.net.get_ib_hwaddrs_by_interface')
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_openstack_rendering_samples(self, m_get, m_ib):
         for os_sample in OS_SAMPLES:
             render_dir = self.tmp_dir()
             ex_input = os_sample['in_data']
@@ -2867,7 +2901,10 @@ USERCTL=no
             for fn, expected_content in os_sample.get('out_sysconfig_rhel',
                                                       []):
                 with open(os.path.join(render_dir, fn)) as fh:
-                    self.assertEqual(expected_content, fh.read())
+                    found = fh.read()
+                    print("%s:\n%s\n\n---" % (fn, found))
+                    self.assertEqual(expected_content, found,
+                                     "Error in %s" % fn)
 
     def test_network_config_v1_samples(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_SIMPLE_SUBNET)
@@ -3394,7 +3431,9 @@ USERCTL=no
 """.lstrip()
             self.assertEqual(expected_content, content)
 
-    def test_multiple_ipv4_default_gateways(self):
+    @mock.patch('cloudinit.net.get_ib_hwaddrs_by_interface')
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_multiple_ipv4_default_gateways(self, m_get, m_ib):
         """ValueError is raised when duplicate ipv4 gateways exist."""
         net_json = {
             "services": [{"type": "dns", "address": "172.19.0.12"}],
@@ -3432,7 +3471,9 @@ USERCTL=no
             renderer.render_network_state(ns, target=render_dir)
         self.assertEqual([], os.listdir(render_dir))
 
-    def test_multiple_ipv6_default_gateways(self):
+    @mock.patch('cloudinit.net.get_ib_hwaddrs_by_interface')
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_multiple_ipv6_default_gateways(self, m_get, m_ib):
         """ValueError is raised when duplicate ipv6 gateways exist."""
         net_json = {
             "services": [{"type": "dns", "address": "172.19.0.12"}],
@@ -3470,7 +3511,9 @@ USERCTL=no
             renderer.render_network_state(ns, target=render_dir)
         self.assertEqual([], os.listdir(render_dir))
 
-    def test_openstack_rendering_samples(self):
+    @mock.patch('cloudinit.net.get_ib_hwaddrs_by_interface')
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_openstack_rendering_samples(self, m_get, m_ib):
         for os_sample in OS_SAMPLES:
             render_dir = self.tmp_dir()
             ex_input = os_sample['in_data']
@@ -3487,7 +3530,12 @@ USERCTL=no
             for fn, expected_content in os_sample.get('out_sysconfig_opensuse',
                                                       []):
                 with open(os.path.join(render_dir, fn)) as fh:
-                    self.assertEqual(expected_content, fh.read())
+                    found = fh.read()
+                    print(found)
+                    print("^^^ found ^^^^ | vvvv expected vvvv")
+                    print(expected_content)
+                    self.assertEqual(expected_content, found,
+                                     "Error in %s" % fn)
 
     def test_network_config_v1_samples(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_SIMPLE_SUBNET)
@@ -3616,6 +3664,12 @@ USERCTL=no
 
 class TestEniNetRendering(CiTestCase):
 
+    def _get_renderer(self):
+        distro_cls = distros.fetch('ubuntu')
+        d = distro_cls('ubuntu', {}, None)
+        return eni.Renderer(
+            config=d.renderer_configs.get('eni'))
+
     @mock.patch("cloudinit.net.util.get_cmdline", return_value="root=myroot")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
@@ -3690,6 +3744,27 @@ iface eth0 inet dhcp
             self.assertEqual(
                 expected_tmpl.format(suffix=suffix),
                 dir2dict(tmp_dir)['/etc/network/interfaces'])
+
+    @mock.patch('cloudinit.net.get_ib_hwaddrs_by_interface')
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_openstack_rendering_eni_samples(self, m_get, m_ib):
+        for os_sample in OS_SAMPLES:
+            render_dir = self.tmp_dir()
+            ex_input = os_sample['in_data']
+            ex_mac_addrs = os_sample['in_macs']
+            network_cfg = openstack.convert_net_json(
+                ex_input, known_macs=ex_mac_addrs)
+            ns = network_state.parse_net_config_data(network_cfg,
+                                                     skip_broken=False)
+            renderer = self._get_renderer()
+            # render a multiple times to simulate reboots
+            renderer.render_network_state(ns, target=render_dir)
+            renderer.render_network_state(ns, target=render_dir)
+            renderer.render_network_state(ns, target=render_dir)
+            for fn, expected_content in os_sample.get('out_eni_ubuntu', []):
+                with open(os.path.join(render_dir, fn)) as fh:
+                    found = fh.read()
+                self.assertEqual(expected_content, found)
 
 
 class TestNetplanNetRendering(CiTestCase):
