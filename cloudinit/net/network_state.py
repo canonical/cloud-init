@@ -919,8 +919,8 @@ def is_ipv6_addr(address):
 
 def subnet_is_ipv6(subnet):
     """Common helper for checking network_state subnets for ipv6."""
-    # 'static6' or 'dhcp6'
-    if subnet['type'].endswith('6'):
+    # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful' or 'ipv6_dhcpv6-stateless'
+    if subnet['type'].endswith('6') or subnet['type'].startswith('ipv6'):
         # This is a request for DHCPv6.
         return True
     elif subnet['type'] == 'static' and is_ipv6_addr(subnet.get('address')):

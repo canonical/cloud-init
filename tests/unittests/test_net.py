@@ -4098,6 +4098,22 @@ class TestEniRoundTrip(CiTestCase):
             entry['expected_eni'].splitlines(),
             files['/etc/network/interfaces'].splitlines())
 
+    def testsimple_render_dhcpv6_stateless(self):
+        entry = NETWORK_CONFIGS['dhcpv6_stateless']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_dhcpv6_stateful(self):
+        entry = NETWORK_CONFIGS['dhcpv6_stateless']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
     def testsimple_render_manual(self):
         """Test rendering of 'manual' for 'type' and 'control'.
 
