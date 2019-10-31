@@ -24,9 +24,10 @@ module will attempt to start puppet even if no installation was performed.
 The module also provides keys for configuring the new puppet 4 paths and
 installing the puppet package from the puppetlabs repositories:
 https://docs.puppet.com/puppet/4.2/reference/whered_it_go.html
-The keys are ``package_name``, ``conf_file`` and ``ssl_dir``. If unset, their
-values will default to ones that work with puppet 3.x and with distributions
-that ship modified puppet 4.x that uses the old paths.
+The keys are ``package_name``, ``conf_file``, ``ssl_dir`` and
+``csr_attributes_path``. If unset, their values will default to
+ones that work with puppet 3.x and with distributions that ship modified
+puppet 4.x that uses the old paths.
 
 Puppet configuration can be specified under the ``conf`` key. The
 configuration is specified as a dictionary containing high-level ``<section>``
@@ -39,6 +40,10 @@ corresponding to the instance id and fqdn of the machine respectively.
 If ``ca_cert`` is present, it will not be written to ``puppet.conf``, but
 instead will be used as the puppermaster certificate. It should be specified
 in pem format as a multi-line string (using the ``|`` yaml notation).
+
+Additionally it's possible to create a csr_attributes.yaml for
+CSR attributes and certificate extension requests.
+See https://puppet.com/docs/puppet/latest/config_file_csr_attributes.html
 
 **Internal name:** ``cc_puppet``
 
@@ -53,6 +58,7 @@ in pem format as a multi-line string (using the ``|`` yaml notation).
         version: <version>
         conf_file: '/etc/puppet/puppet.conf'
         ssl_dir: '/var/lib/puppet/ssl'
+        csr_attributes_path: '/etc/puppet/csr_attributes.yaml'
         package_name: 'puppet'
         conf:
             agent:
@@ -62,28 +68,39 @@ in pem format as a multi-line string (using the ``|`` yaml notation).
                     -------BEGIN CERTIFICATE-------
                     <cert data>
                     -------END CERTIFICATE-------
+        csr_attributes:
+            custom_attributes:
+                1.2.840.113549.1.9.7: 342thbjkt82094y0uthhor289jnqthpc2290
+            extension_requests:
+                pp_uuid: ED803750-E3C7-44F5-BB08-41A04433FE2E
+                pp_image_name: my_ami_image
+                pp_preshared_key: 342thbjkt82094y0uthhor289jnqthpc2290
 """
 
 from six import StringIO
 
 import os
 import socket
+import yaml
 
 from cloudinit import helpers
 from cloudinit import util
 
 PUPPET_CONF_PATH = '/etc/puppet/puppet.conf'
 PUPPET_SSL_DIR = '/var/lib/puppet/ssl'
+PUPPET_CSR_ATTRIBUTES_PATH = '/etc/puppet/csr_attributes.yaml'
 PUPPET_PACKAGE_NAME = 'puppet'
 
 
 class PuppetConstants(object):
 
-    def __init__(self, puppet_conf_file, puppet_ssl_dir, log):
+    def __init__(self, puppet_conf_file, puppet_ssl_dir,
+                 csr_attributes_path, log):
         self.conf_path = puppet_conf_file
         self.ssl_dir = puppet_ssl_dir
         self.ssl_cert_dir = os.path.join(puppet_ssl_dir, "certs")
         self.ssl_cert_path = os.path.join(self.ssl_cert_dir, "ca.pem")
+        self.csr_attributes_path = csr_attributes_path
 
 
 def _autostart_puppet(log):
@@ -118,8 +135,10 @@ def handle(name, cfg, cloud, log, _args):
     conf_file = util.get_cfg_option_str(
         puppet_cfg, 'conf_file', PUPPET_CONF_PATH)
     ssl_dir = util.get_cfg_option_str(puppet_cfg, 'ssl_dir', PUPPET_SSL_DIR)
+    csr_attributes_path = util.get_cfg_option_str(
+        puppet_cfg, 'csr_attributes_path', PUPPET_CSR_ATTRIBUTES_PATH)
 
-    p_constants = PuppetConstants(conf_file, ssl_dir, log)
+    p_constants = PuppetConstants(conf_file, ssl_dir, csr_attributes_path, log)
     if not install and version:
         log.warning(("Puppet install set false but version supplied,"
                      " doing nothing."))
@@ -175,6 +194,11 @@ def handle(name, cfg, cloud, log, _args):
             util.rename(p_constants.conf_path, "%s.old"
                         % (p_constants.conf_path))
             util.write_file(p_constants.conf_path, puppet_config.stringify())
+
+    if 'csr_attributes' in puppet_cfg:
+        util.write_file(p_constants.csr_attributes_path,
+                        yaml.dump(puppet_cfg['csr_attributes'],
+                                  default_flow_style=False))
 
     # Set it up so it autostarts
     _autostart_puppet(log)
