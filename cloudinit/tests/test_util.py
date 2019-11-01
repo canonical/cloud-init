@@ -2,7 +2,9 @@
 
 """Tests for cloudinit.util"""
 
+import base64
 import logging
+import json
 import platform
 
 import cloudinit.util as util
@@ -526,6 +528,24 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         self.assertEqual(('foo', '1.1', 'aarch64'), dist)
+
+
+class TestJsonDumps(CiTestCase):
+    def test_is_str(self):
+        """json_dumps should return a string."""
+        self.assertTrue(isinstance(util.json_dumps({'abc': '123'}), str))
+
+    def test_utf8(self):
+        smiley = '\\ud83d\\ude03'
+        self.assertEqual(
+            {'smiley': smiley},
+            json.loads(util.json_dumps({'smiley': smiley})))
+
+    def test_non_utf8(self):
+        blob = b'\xba\x03Qx-#y\xea'
+        self.assertEqual(
+            {'blob': 'ci-b64:' + base64.b64encode(blob).decode('utf-8')},
+            json.loads(util.json_dumps({'blob': blob})))
 
 
 @mock.patch('os.path.exists')

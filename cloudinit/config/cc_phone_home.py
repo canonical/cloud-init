@@ -79,8 +79,8 @@ def handle(name, cfg, cloud, log, args):
         ph_cfg = cfg['phone_home']
 
     if 'url' not in ph_cfg:
-        log.warn(("Skipping module named %s, "
-                  "no 'url' found in 'phone_home' configuration"), name)
+        log.warning(("Skipping module named %s, "
+                     "no 'url' found in 'phone_home' configuration"), name)
         return
 
     url = ph_cfg['url']
@@ -91,7 +91,7 @@ def handle(name, cfg, cloud, log, args):
     except Exception:
         tries = 10
         util.logexc(log, "Configuration entry 'tries' is not an integer, "
-                    "using %s instead", tries)
+                         "using %s instead", tries)
 
     if post_list == "all":
         post_list = POST_LIST_ALL
@@ -112,7 +112,7 @@ def handle(name, cfg, cloud, log, args):
             all_keys[n] = util.load_file(path)
         except Exception:
             util.logexc(log, "%s: failed to open, can not phone home that "
-                        "data!", path)
+                             "data!", path)
 
     submit_keys = {}
     for k in post_list:
@@ -120,8 +120,8 @@ def handle(name, cfg, cloud, log, args):
             submit_keys[k] = all_keys[k]
         else:
             submit_keys[k] = None
-            log.warn(("Requested key %s from 'post'"
-                      " configuration list not available"), k)
+            log.warning(("Requested key %s from 'post'"
+                         " configuration list not available"), k)
 
     # Get them read to be posted
     real_submit_keys = {}

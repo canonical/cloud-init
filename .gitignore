@@ -12,6 +12,7 @@ stage
 *.snap
 *.cover
 .idea/
+.venv/
 
 # Ignore packaging artifacts
 cloud-init.dsc

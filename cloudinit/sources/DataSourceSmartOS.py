@@ -1,5 +1,5 @@
 # Copyright (C) 2013 Canonical Ltd.
-# Copyright (c) 2018, Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 #
 # Author: Ben Howard <ben.howard@canonical.com>
 #
@@ -34,6 +34,7 @@ from cloudinit import log as logging
 from cloudinit import serial
 from cloudinit import sources
 from cloudinit import util
+from cloudinit.event import EventType
 
 LOG = logging.getLogger(__name__)
 
@@ -178,6 +179,7 @@ class DataSourceSmartOS(sources.DataSource):
         self.metadata = {}
         self.network_data = None
         self._network_config = None
+        self.update_events['network'].add(EventType.BOOT)
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
 
@@ -319,6 +321,10 @@ class DataSourceSmartOS(sources.DataSource):
 
     @property
     def network_config(self):
+        # sources.clear_cached_data() may set _network_config to '_unset'.
+        if self._network_config == sources.UNSET:
+            self._network_config = None
+
         if self._network_config is None:
             if self.network_data is not None:
                 self._network_config = (

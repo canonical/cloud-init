@@ -38,7 +38,6 @@ from base64 import b64decode, b64encode
 from six.moves.urllib import parse as urlparse
 
 import six
-import yaml
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -656,7 +655,8 @@ def system_info():
     var = 'unknown'
     if system == "linux":
         linux_dist = info['dist'][0].lower()
-        if linux_dist in ('centos', 'debian', 'fedora', 'rhel', 'suse'):
+        if linux_dist in (
+                'arch', 'centos', 'debian', 'fedora', 'rhel', 'suse'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
@@ -957,7 +957,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                              " but got %s instead") %
                             (allowed, type_utils.obj_name(converted)))
         loaded = converted
-    except (yaml.YAMLError, TypeError, ValueError) as e:
+    except (safeyaml.YAMLError, TypeError, ValueError) as e:
         msg = 'Failed loading yaml blob'
         mark = None
         if hasattr(e, 'context_mark') and getattr(e, 'context_mark'):
@@ -1599,23 +1599,33 @@ def json_serialize_default(_obj):
         return 'Warning: redacted unserializable type {0}'.format(type(_obj))
 
 
+def json_preserialize_binary(data):
+    """Preserialize any discovered binary values to avoid json.dumps issues.
+
+    Used only on python 2.7 where default type handling is not honored for
+    failure to encode binary data. LP: #1801364.
+    TODO(Drop this function when py2.7 support is dropped from cloud-init)
+    """
+    data = obj_copy.deepcopy(data)
+    for key, value in data.items():
+        if isinstance(value, (dict)):
+            data[key] = json_preserialize_binary(value)
+        if isinstance(value, bytes):
+            data[key] = 'ci-b64:{0}'.format(b64e(value))
+    return data
+
+
 def json_dumps(data):
     """Return data in nicely formatted json."""
-    return json.dumps(data, indent=1, sort_keys=True,
-                      separators=(',', ': '), default=json_serialize_default)
-
-
-def yaml_dumps(obj, explicit_start=True, explicit_end=True, noalias=False):
-    """Return data in nicely formatted yaml."""
-
-    return yaml.dump(obj,
-                     line_break="\n",
-                     indent=4,
-                     explicit_start=explicit_start,
-                     explicit_end=explicit_end,
-                     default_flow_style=False,
-                     Dumper=(safeyaml.NoAliasSafeDumper
-                             if noalias else yaml.dumper.Dumper))
+    try:
+        return json.dumps(
+            data, indent=1, sort_keys=True, separators=(',', ': '),
+            default=json_serialize_default)
+    except UnicodeDecodeError:
+        if sys.version_info[:2] == (2, 7):
+            data = json_preserialize_binary(data)
+            return json.dumps(data)
+        raise
 
 
 def ensure_dir(path, mode=None):

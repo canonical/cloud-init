@@ -83,6 +83,6 @@ def handle(_name, cfg, cloud, log, args):
         util.logexc(log, "Failed to write boot finished file %s", boot_fin_fn)
 
     if cloud.datasource.is_disconnected:
-        log.warn("Used fallback datasource")
+        log.warning("Used fallback datasource")
 
 # vi: ts=4 expandtab

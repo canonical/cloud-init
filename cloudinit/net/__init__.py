@@ -109,8 +109,22 @@ def is_bond(devname):
     return os.path.exists(sys_dev_path(devname, "bonding"))
 
 
-def has_master(devname):
-    return os.path.exists(sys_dev_path(devname, path="master"))
+def get_master(devname):
+    """Return the master path for devname, or None if no master"""
+    path = sys_dev_path(devname, path="master")
+    if os.path.exists(path):
+        return path
+    return None
+
+
+def master_is_bridge_or_bond(devname):
+    """Return a bool indicating if devname's master is a bridge or bond"""
+    master_path = get_master(devname)
+    if master_path is None:
+        return False
+    bonding_path = os.path.join(master_path, "bonding")
+    bridge_path = os.path.join(master_path, "bridge")
+    return (os.path.exists(bonding_path) or os.path.exists(bridge_path))
 
 
 def is_netfailover(devname, driver=None):
@@ -158,7 +172,7 @@ def is_netfail_master(devname, driver=None):
 
         Return True if all of the above is True.
     """
-    if has_master(devname):
+    if get_master(devname) is not None:
         return False
 
     if driver is None:
@@ -215,7 +229,7 @@ def is_netfail_standby(devname, driver=None):
 
         Return True if all of the above is True.
     """
-    if not has_master(devname):
+    if get_master(devname) is None:
         return False
 
     if driver is None:
@@ -375,7 +389,7 @@ def find_fallback_nic(blacklist_drivers=None):
         potential_interfaces = possibly_connected
 
     # if eth0 exists use it above anything else, otherwise get the interface
-    # that we can read 'first' (using the sorted defintion of first).
+    # that we can read 'first' (using the sorted definition of first).
     names = list(sorted(potential_interfaces, key=natural_sort_key))
     if DEFAULT_PRIMARY_INTERFACE in names:
         names.remove(DEFAULT_PRIMARY_INTERFACE)
@@ -790,7 +804,7 @@ def get_interfaces():
             continue
         if is_bond(name):
             continue
-        if has_master(name):
+        if get_master(name) is not None and not master_is_bridge_or_bond(name):
             continue
         if is_netfailover(name):
             continue
