@@ -1,4 +1,4 @@
-cloud-init (19.2-78-ge8138959-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.2-78-ge8138959-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
     - DataSourceSmartOS: reconfigure network on each boot
