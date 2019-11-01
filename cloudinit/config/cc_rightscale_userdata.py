@@ -111,8 +111,8 @@ def handle(name, _cfg, cloud, log, _args):
         log.debug("%s urls were skipped or failed", skipped)
 
     if captured_excps:
-        log.warn("%s failed with exceptions, re-raising the last one",
-                 len(captured_excps))
+        log.warning("%s failed with exceptions, re-raising the last one",
+                    len(captured_excps))
         raise captured_excps[-1]
 
 # vi: ts=4 expandtab

@@ -90,47 +90,107 @@ There are three basic top-level keys:
 
 The standardized keys present:
 
-+----------------------+-----------------------------------------------+-----------------------------------+
-|  Key path            | Description                                   | Examples                          |
-+======================+===============================================+===================================+
-| v1._beta_keys        | List of standardized keys still in 'beta'.    | [subplatform]                     |
-|                      | The format, intent or presence of these keys  |                                   |
-|                      | can change. Do not consider them              |                                   |
-|                      | production-ready.                             |                                   |
-+----------------------+-----------------------------------------------+-----------------------------------+
-| v1.cloud_name        | Where possible this will indicate the 'name'  | aws, openstack, azure,            |
-|                      | of the cloud this system is running on.  This | configdrive, nocloud,             |
-|                      | is specifically different than the 'platform' | ovf, etc.                         |
-|                      | below.  As an example, the name of Amazon Web |                                   |
-|                      | Services is 'aws' while the platform is 'ec2'.|                                   |
-|                      |                                               |                                   |
-|                      | If no specific name is determinable or        |                                   |
-|                      | provided in meta-data, then this field may    |                                   |
-|                      | contain the same content as 'platform'.       |                                   |
-+----------------------+-----------------------------------------------+-----------------------------------+
-| v1.instance_id       | Unique instance_id allocated by the cloud     | i-<somehash>                      |
-+----------------------+-----------------------------------------------+-----------------------------------+
-| v1.local_hostname    | The internal or local hostname of the system  | ip-10-41-41-70,                   |
-|                      |                                               | <user-provided-hostname>          |
-+----------------------+-----------------------------------------------+-----------------------------------+
-| v1.platform          | An attempt to identify the cloud platform     | ec2, openstack, lxd, gce          |
-|                      | instance that the system is running on.       | nocloud, ovf                      |
-+----------------------+-----------------------------------------------+-----------------------------------+
-| v1.subplatform       | Additional platform details describing the    | metadata (http://168.254.169.254),|
-|                      | specific source or type of metadata used.     | seed-dir (/path/to/seed-dir/),    |
-|                      | The format of subplatform will be:            | config-disk (/dev/cd0),           |
-|                      | <subplatform_type> (<url_file_or_dev_path>)   | configdrive (/dev/sr0)            |
-+----------------------+-----------------------------------------------+-----------------------------------+
-| v1.public_ssh_keys   | A list of  ssh keys provided to the instance  | ['ssh-rsa AA...', ...]            |
-|                      | by the datasource metadata.                   |                                   |
-+----------------------+-----------------------------------------------+-----------------------------------+
-| v1.region            | The physical region/datacenter in which the   | us-east-2                         |
-|                      | instance is deployed                          |                                   |
-+----------------------+-----------------------------------------------+-----------------------------------+
-| v1.availability_zone | The physical availability zone in which the   | us-east-2b, nova, null            |
-|                      | instance is deployed                          |                                   |
-+----------------------+-----------------------------------------------+-----------------------------------+
+v1._beta_keys
+-------------
+List of standardized keys still in 'beta'. The format, intent or presence of
+these keys can change. Do not consider them production-ready.
 
+Example output:
+
+- [subplatform]
+
+v1.cloud_name
+-------------
+Where possible this will indicate the 'name' of the cloud the system is running
+on. This is different than the 'platform' item. For example, the cloud name of
+Amazone Web Services is 'aws', while the platform is 'ec2'.
+
+If determining a specific name is not possible or provided in meta-data, then
+this filed may contain the same content as 'platform'.
+
+Example output:
+
+- aws
+- openstack
+- azure
+- configdrive
+- nocloud
+- ovf
+
+
+v1.instance_id
+--------------
+Unique instance_id allocated by the cloud.
+
+Examples output:
+
+- i-<hash>
+
+v1.local_hostname
+-----------------
+The internal or local hostname of the system.
+
+Examples output:
+
+- ip-10-41-41-70
+- <user-provided-hostname>
+
+v1.platform
+-------------
+An attempt to identify the cloud platfrom instance that the system is running
+on.
+
+Examples output:
+
+- ec2
+- openstack
+- lxd
+- gce
+- nocloud
+- ovf
+
+v1.subplatform
+--------------
+Additional platform details describing the specific source or type of metadata
+used. The format of subplatform will be:
+
+``<subplatform_type> (<url_file_or_dev_path>``
+
+Examples output:
+
+- metadata (http://168.254.169.254)
+- seed-dir (/path/to/seed-dir/)
+- config-disk (/dev/cd0)
+- configdrive (/dev/sr0)
+
+v1.public_ssh_keys
+------------------
+A list of ssh keys provided to the instance by the datasource metadata.
+
+Examples output:
+
+- ['ssh-rsa AA...', ...]
+
+v1.region
+---------
+The physical region/data center in which the instance is deployed.
+
+Examples output:
+
+- us-east-2
+
+v1.availability_zone
+--------------------
+The physical availability zone in which the instance is deployed.
+
+Examples output:
+
+- us-east-2b
+- nova
+- null
+
+Example Output
+--------------
 
 Below is an example of ``/run/cloud-init/instance_data.json`` on an EC2
 instance:
@@ -229,28 +289,28 @@ instance:
      "network": {
       "interfaces": {
        "macs": {
-	"06:74:8f:39:cd:a6": {
-	 "device-number": "0",
-	 "interface-id": "eni-052058bbd7831eaae",
-	 "ipv4-associations": {
-	  "18.218.221.122": "10.41.41.95"
-	 },
-	 "local-hostname": "ip-10-41-41-95.us-east-2.compute.internal",
-	 "local-ipv4s": "10.41.41.95",
-	 "mac": "06:74:8f:39:cd:a6",
-	 "owner-id": "437526006925",
-	 "public-hostname": "ec2-18-218-221-122.us-east-2.compute.amazonaws.com",
-	 "public-ipv4s": "18.218.221.122",
-	 "security-group-ids": "sg-828247e9",
-	 "security-groups": "Cloud-init integration test secgroup",
-	 "subnet-id": "subnet-282f3053",
-	 "subnet-ipv4-cidr-block": "10.41.41.0/24",
-	 "subnet-ipv6-cidr-blocks": "2600:1f16:b80:ad00::/64",
-	 "vpc-id": "vpc-252ef24d",
-	 "vpc-ipv4-cidr-block": "10.41.0.0/16",
-	 "vpc-ipv4-cidr-blocks": "10.41.0.0/16",
-	 "vpc-ipv6-cidr-blocks": "2600:1f16:b80:ad00::/56"
-	}
+       "06:74:8f:39:cd:a6": {
+        "device-number": "0",
+        "interface-id": "eni-052058bbd7831eaae",
+        "ipv4-associations": {
+         "18.218.221.122": "10.41.41.95"
+        },
+        "local-hostname": "ip-10-41-41-95.us-east-2.compute.internal",
+        "local-ipv4s": "10.41.41.95",
+        "mac": "06:74:8f:39:cd:a6",
+        "owner-id": "437526006925",
+        "public-hostname": "ec2-18-218-221-122.us-east-2.compute.amazonaws.com",
+        "public-ipv4s": "18.218.221.122",
+        "security-group-ids": "sg-828247e9",
+        "security-groups": "Cloud-init integration test secgroup",
+        "subnet-id": "subnet-282f3053",
+        "subnet-ipv4-cidr-block": "10.41.41.0/24",
+        "subnet-ipv6-cidr-blocks": "2600:1f16:b80:ad00::/64",
+        "vpc-id": "vpc-252ef24d",
+        "vpc-ipv4-cidr-block": "10.41.0.0/16",
+        "vpc-ipv4-cidr-blocks": "10.41.0.0/16",
+        "vpc-ipv6-cidr-blocks": "2600:1f16:b80:ad00::/56"
+       }
        }
       }
      },
@@ -319,16 +379,16 @@ user.
 
 Below are some examples of providing these types of user-data:
 
-* Cloud config calling home with the ec2 public hostname and avaliability-zone
+* Cloud config calling home with the ec2 public hostname and availability-zone
 
-.. code-block:: shell-session
+.. code-block:: yaml
 
   ## template: jinja
   #cloud-config
   runcmd:
       - echo 'EC2 public hostname allocated to instance: {{
         ds.meta_data.public_hostname }}' > /tmp/instance_metadata
-      - echo 'EC2 avaiability zone: {{ v1.availability_zone }}' >>
+      - echo 'EC2 availability zone: {{ v1.availability_zone }}' >>
         /tmp/instance_metadata
       - curl -X POST -d '{"hostname": "{{ds.meta_data.public_hostname }}",
         "availability-zone": "{{ v1.availability_zone }}"}'
@@ -336,7 +396,7 @@ Below are some examples of providing these types of user-data:
 
 * Custom user-data script performing different operations based on region
 
-.. code-block:: shell-session
+.. code-block:: jinja
 
    ## template: jinja
    #!/bin/bash
@@ -352,7 +412,7 @@ Below are some examples of providing these types of user-data:
   and the following string in your rendered user-data:
   ``CI_MISSING_JINJA_VAR/<your_varname>``.
 
-Cloud-init also surfaces a commandline tool **cloud-init query** which can
+Cloud-init also surfaces a command line tool **cloud-init query** which can
 assist developers or scripts with obtaining instance metadata easily. See
 :ref:`cli_query` for more information.
 

@@ -5,6 +5,9 @@ import os.path
 from cloudinit.config import cc_ssh
 from cloudinit import ssh_util
 from cloudinit.tests.helpers import CiTestCase, mock
+import logging
+
+LOG = logging.getLogger(__name__)
 
 MODPATH = "cloudinit.config.cc_ssh."
 
@@ -87,7 +90,7 @@ class TestHandleSsh(CiTestCase):
         cc_ssh.PUBLISH_HOST_KEYS = False
         cloud = self.tmp_cloud(
             distro='ubuntu', metadata={'public-keys': keys})
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", "NONE")
         options = options.replace("$DISABLE_USER", "root")
         m_glob.assert_called_once_with('/etc/ssh/ssh_host_*key*')
@@ -98,6 +101,31 @@ class TestHandleSsh(CiTestCase):
              mock.call('/etc/ssh/ssh_host_ed25519_key')],
             m_path_exists.call_args_list)
         self.assertEqual([mock.call(set(keys), "root", options=options)],
+                         m_setup_keys.call_args_list)
+
+    @mock.patch(MODPATH + "glob.glob")
+    @mock.patch(MODPATH + "ug_util.normalize_users_groups")
+    @mock.patch(MODPATH + "os.path.exists")
+    def test_dont_allow_public_ssh_keys(self, m_path_exists, m_nug,
+                                        m_glob, m_setup_keys):
+        """Test allow_public_ssh_keys=False ignores ssh public keys from
+           platform.
+        """
+        cfg = {"allow_public_ssh_keys": False}
+        keys = ["key1"]
+        user = "clouduser"
+        m_glob.return_value = []  # Return no matching keys to prevent removal
+        # Mock os.path.exits to True to short-circuit the key writing logic
+        m_path_exists.return_value = True
+        m_nug.return_value = ({user: {"default": user}}, {})
+        cloud = self.tmp_cloud(
+            distro='ubuntu', metadata={'public-keys': keys})
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
+
+        options = ssh_util.DISABLE_USER_OPTS.replace("$USER", user)
+        options = options.replace("$DISABLE_USER", "root")
+        self.assertEqual([mock.call(set(), user),
+                          mock.call(set(), "root", options=options)],
                          m_setup_keys.call_args_list)
 
     @mock.patch(MODPATH + "glob.glob")
@@ -115,7 +143,7 @@ class TestHandleSsh(CiTestCase):
         m_nug.return_value = ({user: {"default": user}}, {})
         cloud = self.tmp_cloud(
             distro='ubuntu', metadata={'public-keys': keys})
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
 
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", user)
         options = options.replace("$DISABLE_USER", "root")
@@ -140,7 +168,7 @@ class TestHandleSsh(CiTestCase):
         m_nug.return_value = ({user: {"default": user}}, {})
         cloud = self.tmp_cloud(
             distro='ubuntu', metadata={'public-keys': keys})
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
 
         options = ssh_util.DISABLE_USER_OPTS.replace("$USER", user)
         options = options.replace("$DISABLE_USER", "root")
@@ -165,7 +193,7 @@ class TestHandleSsh(CiTestCase):
         cloud = self.tmp_cloud(
             distro='ubuntu', metadata={'public-keys': keys})
         cloud.get_public_ssh_keys = mock.Mock(return_value=keys)
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
 
         self.assertEqual([mock.call(set(keys), user),
                           mock.call(set(keys), "root", options="")],
@@ -196,7 +224,7 @@ class TestHandleSsh(CiTestCase):
         cfg = {}
         expected_call = [self.test_hostkeys[key_type] for key_type
                          in ['ecdsa', 'ed25519', 'rsa']]
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
         self.assertEqual([mock.call(expected_call)],
                          cloud.datasource.publish_host_keys.call_args_list)
 
@@ -225,7 +253,7 @@ class TestHandleSsh(CiTestCase):
         cfg = {'ssh_publish_hostkeys': {'enabled': True}}
         expected_call = [self.test_hostkeys[key_type] for key_type
                          in ['ecdsa', 'ed25519', 'rsa']]
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
         self.assertEqual([mock.call(expected_call)],
                          cloud.datasource.publish_host_keys.call_args_list)
 
@@ -252,7 +280,7 @@ class TestHandleSsh(CiTestCase):
         cloud.datasource.publish_host_keys = mock.Mock()
 
         cfg = {'ssh_publish_hostkeys': {'enabled': False}}
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
         self.assertFalse(cloud.datasource.publish_host_keys.call_args_list)
         cloud.datasource.publish_host_keys.assert_not_called()
 
@@ -282,7 +310,7 @@ class TestHandleSsh(CiTestCase):
                                         'blacklist': ['dsa', 'rsa']}}
         expected_call = [self.test_hostkeys[key_type] for key_type
                          in ['ecdsa', 'ed25519']]
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
         self.assertEqual([mock.call(expected_call)],
                          cloud.datasource.publish_host_keys.call_args_list)
 
@@ -312,6 +340,6 @@ class TestHandleSsh(CiTestCase):
                                         'blacklist': []}}
         expected_call = [self.test_hostkeys[key_type] for key_type
                          in ['dsa', 'ecdsa', 'ed25519', 'rsa']]
-        cc_ssh.handle("name", cfg, cloud, None, None)
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
         self.assertEqual([mock.call(expected_call)],
                          cloud.datasource.publish_host_keys.call_args_list)

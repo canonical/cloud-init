@@ -66,21 +66,21 @@ def handle(name, cfg, cloud, log, args):
                   name)
         return
     if not isinstance(lxd_cfg, dict):
-        log.warn("lxd config must be a dictionary. found a '%s'",
-                 type(lxd_cfg))
+        log.warning("lxd config must be a dictionary. found a '%s'",
+                    type(lxd_cfg))
         return
 
     # Grab the configuration
     init_cfg = lxd_cfg.get('init')
     if not isinstance(init_cfg, dict):
-        log.warn("lxd/init config must be a dictionary. found a '%s'",
-                 type(init_cfg))
+        log.warning("lxd/init config must be a dictionary. found a '%s'",
+                    type(init_cfg))
         init_cfg = {}
 
     bridge_cfg = lxd_cfg.get('bridge', {})
     if not isinstance(bridge_cfg, dict):
-        log.warn("lxd/bridge config must be a dictionary. found a '%s'",
-                 type(bridge_cfg))
+        log.warning("lxd/bridge config must be a dictionary. found a '%s'",
+                    type(bridge_cfg))
         bridge_cfg = {}
 
     # Install the needed packages
@@ -95,7 +95,7 @@ def handle(name, cfg, cloud, log, args):
         try:
             cloud.distro.install_packages(packages)
         except util.ProcessExecutionError as exc:
-            log.warn("failed to install packages %s: %s", packages, exc)
+            log.warning("failed to install packages %s: %s", packages, exc)
             return
 
     # Set up lxd if init config is given
@@ -300,6 +300,5 @@ def maybe_cleanup_default(net_name, did_init, create, attach,
             if e.exit_code != 1:
                 raise e
             LOG.debug(msg, nic_name, profile, fail_assume_enoent)
-
 
 # vi: ts=4 expandtab

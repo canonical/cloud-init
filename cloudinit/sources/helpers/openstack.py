@@ -585,7 +585,8 @@ def convert_net_json(network_json=None, known_macs=None):
             subnet = dict((k, v) for k, v in network.items()
                           if k in valid_keys['subnet'])
             if 'dhcp' in network['type']:
-                t = 'dhcp6' if network['type'].startswith('ipv6') else 'dhcp4'
+                t = (network['type'] if network['type'].startswith('ipv6')
+                     else 'dhcp4')
                 subnet.update({
                     'type': t,
                 })

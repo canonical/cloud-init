@@ -124,7 +124,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale"
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -702,6 +702,11 @@ dscheck_OpenNebula() {
     return ${DS_NOT_FOUND}
 }
 
+dscheck_RbxCloud() {
+    has_fs_with_label "CLOUDMD" "cloudmd" && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
 ovf_vmware_guest_customization() {
     # vmware guest customization
 
@@ -893,6 +898,16 @@ ec2_identify_platform() {
 
     case "$serial" in
         *.brightbox.com) _RET="Brightbox"; return 0;;
+    esac
+
+    local asset_tag="${DI_DMI_CHASSIS_ASSET_TAG}"
+    case "$asset_tag" in
+        *.zstack.io) _RET="ZStack"; return 0;;
+    esac
+
+    local vendor="${DI_DMI_SYS_VENDOR}"
+    case "$vendor" in
+        e24cloud) _RET="E24cloud"; return 0;;
     esac
 
     # AWS http://docs.aws.amazon.com/AWSEC2/

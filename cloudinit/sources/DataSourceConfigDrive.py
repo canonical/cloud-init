@@ -234,7 +234,7 @@ def find_candidate_devs(probe_optical=True, dslist=None):
 
     config drive v2:
        Disk should be:
-        * either vfat or iso9660 formated
+        * either vfat or iso9660 formatted
         * labeled with 'config-2' or 'CONFIG-2'
     """
     if dslist is None:

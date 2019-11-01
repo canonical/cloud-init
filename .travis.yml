@@ -1,0 +1,55 @@
+language: python
+dist: bionic
+
+install:
+    # Required so `git describe` will definitely find a tag; see
+    # https://github.com/travis-ci/travis-ci/issues/7422
+    - git fetch --unshallow
+    - pip install tox
+
+script:
+    - tox
+
+matrix:
+    fast_finish: true
+    include:
+        - python: 3.6
+          env: TOXENV=py3
+        - install:
+            - git fetch --unshallow
+            - sudo apt-get build-dep -y cloud-init
+            - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox
+            # These are build deps but not pulled in by the build-dep call above
+            - sudo apt-get install -y --install-recommends dh-systemd python3-coverage python3-contextlib2
+            - pip install .
+            - pip install tox
+            # bionic has lxd from deb installed, remove it first to ensure
+            # pylxd talks only to the lxd from snap
+            - sudo apt remove --purge lxd lxd-client
+            - sudo rm -Rf /var/lib/lxd
+            - sudo snap install lxd
+            - sudo lxd init --auto
+            - sudo mkdir --mode=1777 -p /var/snap/lxd/common/consoles
+            - sudo usermod -a -G lxd $USER
+            - sudo sbuild-adduser $USER
+            - cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
+          script:
+            # Ubuntu LTS: Build
+            - ./packages/bddeb -S
+            # Use this to get a new shell where we're in the sbuild group
+            - sudo -E su $USER -c 'mk-sbuild xenial'
+            - sudo -E su $USER -c 'sbuild --nolog --verbose --dist=xenial cloud-init_*.dsc'
+            # Ubuntu LTS: Integration
+            - sg lxd -c 'tox -e citest -- run --verbose --preserve-data --data-dir results --os-name xenial --test modules/apt_configure_sources_list.yaml --test modules/ntp_servers --test modules/set_password_list --test modules/user_groups --deb cloud-init_*_all.deb'
+        - python: 2.7
+          env: TOXENV=py27
+        - python: 3.4
+          env: TOXENV=xenial
+          # Travis doesn't support Python 3.4 on bionic, so use xenial
+          dist: xenial
+        - python: 3.6
+          env: TOXENV=pycodestyle
+        - python: 3.6
+          env: TOXENV=pyflakes
+        - python: 3.6
+          env: TOXENV=pylint

@@ -18,8 +18,7 @@ from .network_state import (
 
 LOG = logging.getLogger(__name__)
 NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
-KNOWN_DISTROS = [
-    'opensuse', 'sles', 'suse', 'redhat', 'fedora', 'centos']
+KNOWN_DISTROS = ['centos', 'fedora', 'rhel', 'suse']
 
 
 def _make_header(sep='#'):
@@ -331,7 +330,8 @@ class Renderer(renderer.Renderer):
             old_value = iface.get(old_key)
             if old_value is not None:
                 # only set HWADDR on physical interfaces
-                if old_key == 'mac_address' and iface['type'] != 'physical':
+                if (old_key == 'mac_address' and
+                   iface['type'] not in ['physical', 'infiniband']):
                     continue
                 iface_cfg[new_key] = old_value
 
@@ -344,10 +344,15 @@ class Renderer(renderer.Renderer):
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             mtu_key = 'MTU'
             subnet_type = subnet.get('type')
-            if subnet_type == 'dhcp6':
+            if subnet_type == 'dhcp6' or subnet_type == 'ipv6_dhcpv6-stateful':
                 # TODO need to set BOOTPROTO to dhcp6 on SUSE
                 iface_cfg['IPV6INIT'] = True
+                # Configure network settings using DHCPv6
                 iface_cfg['DHCPV6C'] = True
+            elif subnet_type == 'ipv6_dhcpv6-stateless':
+                iface_cfg['IPV6INIT'] = True
+                # Configure network settings using SLAAC from RAs
+                iface_cfg['IPV6_AUTOCONF'] = True
             elif subnet_type in ['dhcp4', 'dhcp']:
                 iface_cfg['BOOTPROTO'] = 'dhcp'
             elif subnet_type == 'static':
@@ -578,6 +583,10 @@ class Renderer(renderer.Renderer):
 
     @staticmethod
     def _render_dns(network_state, existing_dns_path=None):
+        # skip writing resolv.conf if network_state doesn't include any input.
+        if not any([len(network_state.dns_nameservers),
+                    len(network_state.dns_searchdomains)]):
+            return None
         content = resolv_conf.ResolvConf("")
         if existing_dns_path and os.path.isfile(existing_dns_path):
             content = resolv_conf.ResolvConf(util.load_file(existing_dns_path))
@@ -585,8 +594,6 @@ class Renderer(renderer.Renderer):
             content.add_nameserver(nameserver)
         for searchdomain in network_state.dns_searchdomains:
             content.add_search_domain(searchdomain)
-        if not str(content):
-            return None
         header = _make_header(';')
         content_str = str(content)
         if not content_str.startswith(header):
@@ -731,7 +738,7 @@ class Renderer(renderer.Renderer):
 def available(target=None):
     sysconfig = available_sysconfig(target=target)
     nm = available_nm(target=target)
-    return (util.get_linux_distro()[0] in KNOWN_DISTROS
+    return (util.system_info()['variant'] in KNOWN_DISTROS
             and any([nm, sysconfig]))
 
 
@@ -744,11 +751,11 @@ def available_sysconfig(target=None):
 
     expected_paths = [
         'etc/sysconfig/network-scripts/network-functions',
-        'etc/sysconfig/network-scripts/ifdown-eth']
+        'etc/sysconfig/config']
     for p in expected_paths:
-        if not os.path.isfile(util.target_path(target, p)):
-            return False
-    return True
+        if os.path.isfile(util.target_path(target, p)):
+            return True
+    return False
 
 
 def available_nm(target=None):

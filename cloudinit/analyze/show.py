@@ -349,7 +349,7 @@ def generate_records(events, blame_sort=False,
             if event_name(event) == event_name(prev_evt):
                 record = event_record(start_time, prev_evt, event)
                 records.append(format_record("Finished stage: "
-                                             "(%n) %d seconds ",
+                                             "(%n) %d seconds",
                                              record) + "\n")
                 total_time += record.get('delta')
             else:

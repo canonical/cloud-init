@@ -157,11 +157,40 @@ class TestReadSysNet(CiTestCase):
         ensure_file(os.path.join(self.sysdir, 'eth0', 'bonding'))
         self.assertTrue(net.is_bond('eth0'))
 
-    def test_has_master(self):
-        """has_master is True when /sys/net/devname/master exists."""
-        self.assertFalse(net.has_master('enP1s1'))
-        ensure_file(os.path.join(self.sysdir, 'enP1s1', 'master'))
-        self.assertTrue(net.has_master('enP1s1'))
+    def test_get_master(self):
+        """get_master returns the path when /sys/net/devname/master exists."""
+        self.assertIsNone(net.get_master('enP1s1'))
+        master_path = os.path.join(self.sysdir, 'enP1s1', 'master')
+        ensure_file(master_path)
+        self.assertEqual(master_path, net.get_master('enP1s1'))
+
+    def test_master_is_bridge_or_bond(self):
+        bridge_mac = 'aa:bb:cc:aa:bb:cc'
+        bond_mac = 'cc:bb:aa:cc:bb:aa'
+
+        # No master => False
+        write_file(os.path.join(self.sysdir, 'eth1', 'address'), bridge_mac)
+        write_file(os.path.join(self.sysdir, 'eth2', 'address'), bond_mac)
+
+        self.assertFalse(net.master_is_bridge_or_bond('eth1'))
+        self.assertFalse(net.master_is_bridge_or_bond('eth2'))
+
+        # masters without bridge/bonding => False
+        write_file(os.path.join(self.sysdir, 'br0', 'address'), bridge_mac)
+        write_file(os.path.join(self.sysdir, 'bond0', 'address'), bond_mac)
+
+        os.symlink('../br0', os.path.join(self.sysdir, 'eth1', 'master'))
+        os.symlink('../bond0', os.path.join(self.sysdir, 'eth2', 'master'))
+
+        self.assertFalse(net.master_is_bridge_or_bond('eth1'))
+        self.assertFalse(net.master_is_bridge_or_bond('eth2'))
+
+        # masters with bridge/bonding => True
+        write_file(os.path.join(self.sysdir, 'br0', 'bridge'), '')
+        write_file(os.path.join(self.sysdir, 'bond0', 'bonding'), '')
+
+        self.assertTrue(net.master_is_bridge_or_bond('eth1'))
+        self.assertTrue(net.master_is_bridge_or_bond('eth2'))
 
     def test_is_vlan(self):
         """is_vlan is True when /sys/net/devname/uevent has DEVTYPE=vlan."""
@@ -460,6 +489,26 @@ class TestGetInterfaceMAC(CiTestCase):
         m_netfail.side_effect = is_netfail
         expected = [('ens3', mac, None, None)]
         self.assertEqual(expected, net.get_interfaces())
+
+    def test_get_interfaces_does_not_skip_phys_members_of_bridges_and_bonds(
+        self
+    ):
+        bridge_mac = 'aa:bb:cc:aa:bb:cc'
+        bond_mac = 'cc:bb:aa:cc:bb:aa'
+        write_file(os.path.join(self.sysdir, 'br0', 'address'), bridge_mac)
+        write_file(os.path.join(self.sysdir, 'br0', 'bridge'), '')
+
+        write_file(os.path.join(self.sysdir, 'bond0', 'address'), bond_mac)
+        write_file(os.path.join(self.sysdir, 'bond0', 'bonding'), '')
+
+        write_file(os.path.join(self.sysdir, 'eth1', 'address'), bridge_mac)
+        os.symlink('../br0', os.path.join(self.sysdir, 'eth1', 'master'))
+
+        write_file(os.path.join(self.sysdir, 'eth2', 'address'), bond_mac)
+        os.symlink('../bond0', os.path.join(self.sysdir, 'eth2', 'master'))
+
+        interface_names = [interface[0] for interface in net.get_interfaces()]
+        self.assertEqual(['eth1', 'eth2'], sorted(interface_names))
 
 
 class TestInterfaceHasOwnMAC(CiTestCase):

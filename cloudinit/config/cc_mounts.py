@@ -251,10 +251,10 @@ def setup_swapfile(fname, size=None, maxsize=None):
         util.ensure_dir(tdir)
         util.log_time(LOG.debug, msg, func=util.subp,
                       args=[['sh', '-c',
-                            ('rm -f "$1" && umask 0066 && '
-                             '{ fallocate -l "${2}M" "$1" || '
-                             ' dd if=/dev/zero "of=$1" bs=1M "count=$2"; } && '
-                             'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
+                             ('rm -f "$1" && umask 0066 && '
+                              '{ fallocate -l "${2}M" "$1" || '
+                              'dd if=/dev/zero "of=$1" bs=1M "count=$2"; } && '
+                              'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
                              'setup_swap', fname, mbsize]])
 
     except Exception as e:
@@ -347,8 +347,8 @@ def handle(_name, cfg, cloud, log, _args):
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
         if not isinstance(cfgmnt[i], list):
-            log.warn("Mount option %s not a list, got a %s instead",
-                     (i + 1), type_utils.obj_name(cfgmnt[i]))
+            log.warning("Mount option %s not a list, got a %s instead",
+                        (i + 1), type_utils.obj_name(cfgmnt[i]))
             continue
 
         start = str(cfgmnt[i][0])
@@ -495,7 +495,7 @@ def handle(_name, cfg, cloud, log, _args):
             util.subp(cmd)
             log.debug(fmt, "PASS")
         except util.ProcessExecutionError:
-            log.warn(fmt, "FAIL")
+            log.warning(fmt, "FAIL")
             util.logexc(log, fmt, "FAIL")
 
 # vi: ts=4 expandtab

@@ -12,6 +12,7 @@ import struct
 
 import six
 
+from cloudinit import safeyaml
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -253,7 +254,7 @@ class NetworkStateInterpreter(object):
             'config': self._config,
             'network_state': self._network_state,
         }
-        return util.yaml_dumps(state)
+        return safeyaml.dumps(state)
 
     def load(self, state):
         if 'version' not in state:
@@ -272,7 +273,7 @@ class NetworkStateInterpreter(object):
             setattr(self, key, state[key])
 
     def dump_network_state(self):
-        return util.yaml_dumps(self._network_state)
+        return safeyaml.dumps(self._network_state)
 
     def as_dict(self):
         return {'version': self._version, 'config': self._config}
@@ -918,8 +919,8 @@ def is_ipv6_addr(address):
 
 def subnet_is_ipv6(subnet):
     """Common helper for checking network_state subnets for ipv6."""
-    # 'static6' or 'dhcp6'
-    if subnet['type'].endswith('6'):
+    # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful' or 'ipv6_dhcpv6-stateless'
+    if subnet['type'].endswith('6') or subnet['type'].startswith('ipv6'):
         # This is a request for DHCPv6.
         return True
     elif subnet['type'] == 'static' and is_ipv6_addr(subnet.get('address')):

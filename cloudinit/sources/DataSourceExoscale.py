@@ -26,6 +26,8 @@ class DataSourceExoscale(sources.DataSource):
 
     dsname = 'Exoscale'
 
+    url_max_wait = 120
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceExoscale, self).__init__(sys_cfg, distro, paths)
         LOG.debug("Initializing the Exoscale datasource")
