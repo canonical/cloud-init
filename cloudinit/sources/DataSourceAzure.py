@@ -1322,7 +1322,8 @@ def parse_network_config(imds_metadata):
             network_metadata = imds_metadata['network']
             for idx, intf in enumerate(network_metadata['interface']):
                 nicname = 'eth{idx}'.format(idx=idx)
-                dev_config = {}
+                dev_config = {'dhcp4': False, 'dhcp6': False}
+                dhcp_override = {'route-metric': (idx + 1) * 100}
                 for addr4 in intf['ipv4']['ipAddress']:
                     privateIpv4 = addr4['privateIpAddress']
                     if privateIpv4:
@@ -1340,12 +1341,15 @@ def parse_network_config(imds_metadata):
                             # non-primary interfaces should have a higher
                             # route-metric (cost) so default routes prefer
                             # primary nic due to lower route-metric value
-                            dev_config['dhcp4-overrides'] = {
-                                'route-metric': (idx + 1) * 100}
+                            dev_config['dhcp4-overrides'] = dhcp_override
                 for addr6 in intf['ipv6']['ipAddress']:
                     privateIpv6 = addr6['privateIpAddress']
                     if privateIpv6:
                         dev_config['dhcp6'] = True
+                        # non-primary interfaces should have a higher
+                        # route-metric (cost) so default routes prefer
+                        # primary nic due to lower route-metric value
+                        dev_config['dhcp6-overrides'] = dhcp_override
                         break
                 if dev_config:
                     mac = ':'.join(re.findall(r'..', intf['macAddress']))
