@@ -163,10 +163,10 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
-        if self.seed_dir in self.source:
-            subplatform_type = 'seed-dir'
-        elif self.source.startswith('/dev'):
+        if self.source.startswith('/dev'):
             subplatform_type = 'config-disk'
+        else:
+            subplatform_type = 'seed-dir'
         return '%s (%s)' % (subplatform_type, self.source)
 
 

@@ -22,8 +22,9 @@ NETWORK_STATE_REQUIRED_KEYS = {
     1: ['version', 'config', 'network_state'],
 }
 NETWORK_V2_KEY_FILTER = [
-    'addresses', 'dhcp4', 'dhcp6', 'gateway4', 'gateway6', 'interfaces',
-    'match', 'mtu', 'nameservers', 'renderer', 'set-name', 'wakeonlan'
+    'addresses', 'dhcp4', 'dhcp4-overrides', 'dhcp6', 'dhcp6-overrides',
+    'gateway4', 'gateway6', 'interfaces', 'match', 'mtu', 'nameservers',
+    'renderer', 'set-name', 'wakeonlan'
 ]
 
 NET_CONFIG_TO_V2 = {
@@ -747,12 +748,20 @@ class NetworkStateInterpreter(object):
     def _v2_to_v1_ipcfg(self, cfg):
         """Common ipconfig extraction from v2 to v1 subnets array."""
 
+        def _add_dhcp_overrides(overrides, subnet):
+            if 'route-metric' in overrides:
+                subnet['metric'] = overrides['route-metric']
+
         subnets = []
         if cfg.get('dhcp4'):
-            subnets.append({'type': 'dhcp4'})
+            subnet = {'type': 'dhcp4'}
+            _add_dhcp_overrides(cfg.get('dhcp4-overrides', {}), subnet)
+            subnets.append(subnet)
         if cfg.get('dhcp6'):
+            subnet = {'type': 'dhcp6'}
             self.use_ipv6 = True
-            subnets.append({'type': 'dhcp6'})
+            _add_dhcp_overrides(cfg.get('dhcp6-overrides', {}), subnet)
+            subnets.append(subnet)
 
         gateway4 = None
         gateway6 = None

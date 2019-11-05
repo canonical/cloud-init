@@ -220,13 +220,15 @@ CFG_DRIVE_FILES_V2 = {
     'openstack/2015-10-15/user_data': USER_DATA,
     'openstack/2015-10-15/network_data.json': json.dumps(NETWORK_DATA)}
 
+M_PATH = "cloudinit.sources.DataSourceConfigDrive."
+
 
 class TestConfigDriveDataSource(CiTestCase):
 
     def setUp(self):
         super(TestConfigDriveDataSource, self).setUp()
         self.add_patch(
-            "cloudinit.sources.DataSourceConfigDrive.util.find_devs_with",
+            M_PATH + "util.find_devs_with",
             "m_find_devs_with", return_value=[])
         self.tmp = self.tmp_dir()
 
@@ -468,7 +470,7 @@ class TestConfigDriveDataSource(CiTestCase):
             util.find_devs_with = orig_find_devs_with
             util.is_partition = orig_is_partition
 
-    @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
+    @mock.patch(M_PATH + 'on_first_boot')
     def test_pubkeys_v2(self, on_first_boot):
         """Verify that public-keys work in config-drive-v2."""
         myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)
@@ -478,6 +480,19 @@ class TestConfigDriveDataSource(CiTestCase):
         self.assertEqual('openstack', myds.platform)
         self.assertEqual('seed-dir (%s/seed)' % self.tmp, myds.subplatform)
 
+    def test_subplatform_config_drive_when_starts_with_dev(self):
+        """subplatform reports config-drive when source starts with /dev/."""
+        cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
+                                          None,
+                                          helpers.Paths({}))
+        with mock.patch(M_PATH + 'find_candidate_devs') as m_find_devs:
+            with mock.patch(M_PATH + 'util.is_FreeBSD', return_value=False):
+                with mock.patch(M_PATH + 'util.mount_cb'):
+                    with mock.patch(M_PATH + 'on_first_boot'):
+                        m_find_devs.return_value = ['/dev/anything']
+                        self.assertEqual(True, cfg_ds.get_data())
+        self.assertEqual('config-disk (/dev/anything)', cfg_ds.subplatform)
+
 
 class TestNetJson(CiTestCase):
     def setUp(self):
@@ -485,13 +500,13 @@ class TestNetJson(CiTestCase):
         self.tmp = self.tmp_dir()
         self.maxDiff = None
 
-    @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
+    @mock.patch(M_PATH + 'on_first_boot')
     def test_network_data_is_found(self, on_first_boot):
         """Verify that network_data is present in ds in config-drive-v2."""
         myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)
         self.assertIsNotNone(myds.network_json)
 
-    @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
+    @mock.patch(M_PATH + 'on_first_boot')
     def test_network_config_is_converted(self, on_first_boot):
         """Verify that network_data is converted and present on ds object."""
         myds = cfg_ds_from_dir(self.tmp, files=CFG_DRIVE_FILES_V2)

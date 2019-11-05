@@ -395,6 +395,9 @@ class Renderer(renderer.Renderer):
         ipv6_index = -1
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             subnet_type = subnet.get('type')
+            # metric may apply to both dhcp and static config
+            if 'metric' in subnet:
+                iface_cfg['METRIC'] = subnet['metric']
             if subnet_type in ['dhcp', 'dhcp4', 'dhcp6']:
                 if has_default_route and iface_cfg['BOOTPROTO'] != 'none':
                     iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = False
@@ -425,9 +428,6 @@ class Renderer(renderer.Renderer):
                         iface_cfg['IPV6_DEFAULTGW'] = subnet['gateway']
                     else:
                         iface_cfg['GATEWAY'] = subnet['gateway']
-
-                if 'metric' in subnet:
-                    iface_cfg['METRIC'] = subnet['metric']
 
                 if 'dns_search' in subnet:
                     iface_cfg['DOMAIN'] = ' '.join(subnet['dns_search'])

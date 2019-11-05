@@ -1,3 +1,102 @@
+19.3
+ - azure: support matching dhcp route-metrics for dual-stack ipv4 ipv6
+   (LP: #1850308)
+ - configdrive: fix subplatform config-drive for /config-drive source
+   [David Kindred] (LP: #1849731)
+ - DataSourceSmartOS: reconfigure network on each boot
+   [Mike Gerdts] (LP: #1765801)
+ - Add config for ssh-key import and consuming user-data [Pavel Zakharov]
+ - net: fix subnet_is_ipv6() for stateless|stateful
+   [Harald Jensås] (LP: #1848690)
+ - OVF: disable custom script execution by default [Xiaofeng Wang]
+ - cc_puppet: Implement csr_attributes.yaml support [Matthias Baur]
+ - cloud-init.service: on centos/fedora/redhat wait on NetworkManager.service
+   (LP: #1843334)
+ - azure: Do not lock user on instance id change [Sam Eiderman] (LP: #1849677)
+ - net/netplan: use ipv6-mtu key for specifying ipv6 mtu values
+ - Fix usages of yaml, and move yaml_dump to safeyaml.dumps. (LP: #1849640)
+ - exoscale: Increase url_max_wait to 120s. [Chris Glass]
+ - net/sysconfig: fix available check on SUSE distros
+   [Robert Schweikert] (LP: #1849378)
+ - docs: Fix incorrect Azure IMDS IP address [Joshua Powers] (LP: #1849508)
+ - introduce .travis.yml
+ - net: enable infiniband support in eni and sysconfig renderers
+   [Darren Birkett] (LP: #1847114)
+ - guestcust_util: handle special characters in config file [Xiaofeng Wang]
+ - fix some more typos in comments [Dominic Schlegel]
+ - replace any deprecated log.warn with log.warning
+   [Dominic Schlegel] (LP: #1508442)
+ - net: handle openstack dhcpv6-stateless configuration
+   [Harald Jensås] (LP: #1847517)
+ - Add .venv/ to .gitignore [Dominic Schlegel]
+ - Small typo fixes in code comments. [Dominic Schlegel]
+ - cloud_test/lxd: Retry container delete a few times
+ - Add Support for e24cloud to Ec2 datasource. (LP: #1696476)
+ - Add RbxCloud datasource [Adam Dobrawy]
+ - get_interfaces: don't exclude bridge and bond members (LP: #1846535)
+ - Add support for Arch Linux in render-cloudcfg [Conrad Hoffmann]
+ - util: json.dumps on python 2.7 will handle UnicodeDecodeError on binary
+   (LP: #1801364)
+ - debian/ubuntu: add missing word to netplan/ENI header (LP: #1845669)
+ - ovf: do not generate random instance-id for IMC customization path
+ - sysconfig: only write resolv.conf if network_state has DNS values
+   (LP: #1843634)
+ - sysconfig: use distro variant to check if available (LP: #1843584)
+ - systemd/cloud-init.service.tmpl: start after wicked.service
+   [Robert Schweikert]
+ - docs: fix zstack documentation lints
+ - analyze/show: remove trailing space in output
+ - Add missing space in warning: "not avalid seed" [Brian Candler]
+ - pylintrc: add 'enter_context' to generated-members list
+ - Add datasource for ZStack platform. [Shixin Ruan] (LP: #1841181)
+ - docs: organize TOC and update summary of project [Joshua Powers]
+ - tools: make clean now cleans the dev directory, not the system
+ - docs: create cli specific page [Joshua Powers]
+ - docs: added output examples to analyze.rst [Joshua Powers]
+ - docs: doc8 fixes for instancedata page [Joshua Powers]
+ - docs: clean up formatting, organize boot page [Joshua Powers]
+ - net: add is_master check for filtering device list (LP: #1844191)
+ - docs: more complete list of availability [Joshua Powers]
+ - docs: start FAQ page [Joshua Powers]
+ - docs: cleanup output & order of datasource page [Joshua Powers]
+ - Brightbox: restrict detection to require full domain match .brightbox.com
+ - VMWware: add option into VMTools config to enable/disable custom script.
+   [Xiaofeng Wang]
+ - net,Oracle: Add support for netfailover detection
+ - atomic_helper: add DEBUG logging to write_file (LP: #1843276)
+ - doc: document doc, create makefile and tox target [Joshua Powers]
+ - .gitignore: ignore files produced by package builds
+ - docs: fix whitespace, spelling, and line length [Joshua Powers]
+ - docs: remove unnecessary file in doc directory [Joshua Powers]
+ - Oracle: Render secondary vnic IP and MTU values only
+ - exoscale: fix sysconfig cloud_config_modules overrides (LP: #1841454)
+ - net/cmdline: refactor to allow multiple initramfs network config sources
+ - ubuntu-drivers: call db_x_loadtemplatefile to accept NVIDIA EULA
+   (LP: #1840080)
+ - Add missing #cloud-config comment on first example in documentation.
+   [Florian Müller]
+ - ubuntu-drivers: emit latelink=true debconf to accept nvidia eula
+   (LP: #1840080)
+ - DataSourceOracle: prefer DS network config over initramfs
+ - format.rst: add text/jinja2 to list of content types (+ cleanups)
+ - Add GitHub pull request template to point people at hacking doc
+ - cloudinit/distros/parsers/sys_conf: add docstring to SysConf
+ - pyflakes: remove unused variable [Joshua Powers]
+ - Azure: Record boot timestamps, system information, and diagnostic events
+   [Anh Vo]
+ - DataSourceOracle: configure secondary NICs on Virtual Machines
+ - distros: fix confusing variable names
+ - azure/net: generate_fallback_nic emits network v2 config instead of v1
+ - Add support for publishing host keys to GCE guest attributes [Rick Wright]
+ - New data source for the Exoscale.com cloud platform [Chris Glass]
+ - doc: remove intersphinx extension
+ - cc_set_passwords: rewrite documentation (LP: #1838794)
+ - net/cmdline: split interfaces_by_mac and init network config determination
+ - stages: allow data sources to override network config source order
+ - cloud_tests: updates and fixes
+ - Fix bug rendering MTU on bond or vlan when input was netplan. (LP: #1836949)
+ - net: update net sequence, include wait on netdevs, opensuse netrules path
+   (LP: #1817368)
 19.2:
  - net: add rfc3442 (classless static routes) to EphemeralDHCP
    (LP: #1821102)

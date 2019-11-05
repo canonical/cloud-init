@@ -3101,6 +3101,36 @@ USERCTL=no
         self._compare_files_to_expected(
             expected, self._render_and_read(network_config=v2data))
 
+    def test_from_v2_route_metric(self):
+        """verify route-metric gets rendered on nic when source is netplan."""
+        overrides = {'route-metric': 100}
+        v2base = {
+            'version': 2,
+            'ethernets': {
+                'eno1': {'dhcp4': True,
+                         'match': {'macaddress': '07-1c-c6-75-a4-be'}}}}
+        expected = {
+            'ifcfg-eno1': textwrap.dedent("""\
+                BOOTPROTO=dhcp
+                DEVICE=eno1
+                HWADDR=07-1c-c6-75-a4-be
+                METRIC=100
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                STARTMODE=auto
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+            }
+        for dhcp_ver in ('dhcp4', 'dhcp6'):
+            v2data = copy.deepcopy(v2base)
+            if dhcp_ver == 'dhcp6':
+                expected['ifcfg-eno1'] += "IPV6INIT=yes\nDHCPV6C=yes\n"
+            v2data['ethernets']['eno1'].update(
+                {dhcp_ver: True, '{0}-overrides'.format(dhcp_ver): overrides})
+            self._compare_files_to_expected(
+                expected, self._render_and_read(network_config=v2data))
+
 
 class TestOpenSuseSysConfigRendering(CiTestCase):
 
@@ -3465,6 +3495,30 @@ iface eth0 inet dhcp
 """
         self.assertEqual(
             expected, dir2dict(tmp_dir)['/etc/network/interfaces'])
+
+    def test_v2_route_metric_to_eni(self):
+        """Network v2 route-metric overrides are preserved in eni output"""
+        tmp_dir = self.tmp_dir()
+        renderer = eni.Renderer()
+        expected_tmpl = textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto eth0
+            iface eth0 inet{suffix} dhcp
+                metric 100
+            """)
+        for dhcp_ver in ('dhcp4', 'dhcp6'):
+            suffix = '6' if dhcp_ver == 'dhcp6' else ''
+            dhcp_cfg = {
+                dhcp_ver: True,
+                '{ver}-overrides'.format(ver=dhcp_ver): {'route-metric': 100}}
+            v2_input = {'version': 2, 'ethernets': {'eth0': dhcp_cfg}}
+            ns = network_state.parse_net_config_data(v2_input)
+            renderer.render_network_state(ns, target=tmp_dir)
+            self.assertEqual(
+                expected_tmpl.format(suffix=suffix),
+                dir2dict(tmp_dir)['/etc/network/interfaces'])
 
 
 class TestNetplanNetRendering(CiTestCase):
