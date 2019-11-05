@@ -1,3 +1,14 @@
+cloud-init (19.3-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+    - Release 19.3 (LP: #1851428)
+    - azure: support matching dhcp route-metrics for dual-stack ipv4 ipv6
+      (LP: #1850308)
+    - configdrive: fix subplatform config-drive for /config-drive source
+      [David Kindred] (LP: #1849731)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 05 Nov 2019 14:50:06 -0700
+
 cloud-init (19.2-78-ge8138959-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
