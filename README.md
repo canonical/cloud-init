@@ -1,6 +1,7 @@
-# Cloud-init official mirror synced from https://launchpad.net/cloud-init
+# Cloud-init official project upstream as of 11/2019
+This repository is also mirrored to https://launchpad.net/cloud-init
 
-[![Build Status](https://travis-ci.org/cloud-init/cloud-init.svg?branch=master)](https://travis-ci.org/cloud-init/cloud-init) [![Read the Docs](https://readthedocs.org/projects/cloudinit/badge/?version=latest&style=flat)](https://cloudinit.readthedocs.org)
+[![Build Status](https://travis-ci.org/canonical/cloud-init.svg?branch=master)](https://travis-ci.org/canonical/cloud-init) [![Read the Docs](https://readthedocs.org/projects/cloudinit/badge/?version=latest&style=flat)](https://cloudinit.readthedocs.org)
 
 Cloud-init is the *industry standard* multi-distribution method for
 cross-platform cloud instance initialization. It is supported across all
@@ -21,7 +22,7 @@ also parse and process any optional user or vendor data that was passed to the
 instance.
 
 ## Getting involved
-All contributions welcome! [Join us easily following our hacking guide](https://cloudinit.readthedocs.io/en/latest/topics/hacking.html)
+All contributions welcome! [Submit code and docs by following our hacking guide](https://cloudinit.readthedocs.io/en/latest/topics/hacking.html)
 
 ## Getting help
 
