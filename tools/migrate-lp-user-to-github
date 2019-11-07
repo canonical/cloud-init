@@ -56,7 +56,7 @@ GITHUB_REMOTE_PATH_TMPL = 'git@github.com:{github_user}/cloud-init.git'
 
 
 # Comment templates
-COMMIT_MSG_TMPL = '''
+COMMIT_MSG_TMPL = '''\
 lp-to-git-users: adding {gh_username}
 
 Mapped from {lp_username}
@@ -146,7 +146,7 @@ def create_migration_branch(
             MIGRATE_BRANCH_NAME))
     create_publish_branch(upstream, MIGRATE_BRANCH_NAME)
     lp_to_git_map = {}
-    lp_to_git_file = os.path.join(os.getcwd(), LP_TO_GIT_USER_FILE)
+    lp_to_git_file = os.path.join(os.getcwd(), 'tools', LP_TO_GIT_USER_FILE)
     if os.path.exists(lp_to_git_file):
         with open(lp_to_git_file) as stream:
             lp_to_git_map = util.load_json(stream.read())
