@@ -467,11 +467,11 @@ OS_SAMPLES = [
                     "network_id": "74df0a83-23b0-46c1-9131-f5c0c1a5450f",
                     "link": "tap701d357b-7f", "type": "ipv4_dhcp",
                     "id": "network0"
-                },{
+                }, {
                     "network_id": "6883816f-1ed7-4f03-bc7e-0fd5cb5460ad",
                     "link": "tapda0405f6-53", "type": "ipv4_dhcp",
                     "id": "network1"
-                },{
+                }, {
                     "network_id": "6883816f-1ed7-4f03-bc7e-0fd5cb5460ad",
                     "link": "tap18e6372c-41", "type": "ipv4_dhcp",
                     "id": "network2"
@@ -3970,8 +3970,6 @@ network:
         self.assertEqual(1, mock_clean_default.call_count)
 
     def _get_renderer(self):
-        distro_cls = distros.fetch('ubuntu')
-        d = distro_cls('ubuntu', {}, None)
         return netplan.Renderer()
 
     @mock.patch('cloudinit.net.util.subp')
@@ -4000,7 +3998,6 @@ network:
                 print('^^^^^ found | vvvvv expected')
                 print(expected_content)
                 self.assertEqual(expected_content, found)
-
 
 
 class TestNetplanCleanDefault(CiTestCase):
