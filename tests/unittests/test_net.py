@@ -459,6 +459,93 @@ ethernets:
 # Examples (and expected outputs for various renderers).
 OS_SAMPLES = [
     {
+        'name': 'multi-nic-dhcp',
+        'in_data': {
+            "services": [],
+            "networks": [
+                {
+                    "network_id": "74df0a83-23b0-46c1-9131-f5c0c1a5450f",
+                    "link": "tap701d357b-7f", "type": "ipv4_dhcp",
+                    "id": "network0"
+                },{
+                    "network_id": "6883816f-1ed7-4f03-bc7e-0fd5cb5460ad",
+                    "link": "tapda0405f6-53", "type": "ipv4_dhcp",
+                    "id": "network1"
+                },{
+                    "network_id": "6883816f-1ed7-4f03-bc7e-0fd5cb5460ad",
+                    "link": "tap18e6372c-41", "type": "ipv4_dhcp",
+                    "id": "network2"
+                }
+            ],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ef:08:58",
+                    "mtu": 8958,
+                    "type": "ovs",
+                    "id": "tap701d357b-7f",
+                    "vif_id": "701d357b-7f2c-452f-bddd-9b4b5519a34a"
+                },
+                {
+                    "ethernet_mac_address": "fa:16:3e:36:62:78",
+                    "mtu": 8958,
+                    "type": "ovs",
+                    "id": "tapda0405f6-53",
+                    "vif_id": "da0405f6-5329-4643-a60f-5b45f583243b"
+                },
+                {
+                    "ethernet_mac_address": "fa:16:3e:a3:c3:cb",
+                    "mtu": 8958,
+                    "type": "ovs",
+                    "id": "tap18e6372c-41",
+                    "vif_id": "18e6372c-417f-44ed-84a6-f2e896e18bea"
+                }
+            ]
+        },
+        'in_macs': {
+            "fa:16:3e:ef:08:58": "ens3",
+            "fa:16:3e:36:62:78": "ens7",
+            "fa:16:3e:a3:c3:cb": "ens8",
+        },
+        'out_netplan': [
+            ('etc/netplan/50-cloud-init.yaml',
+             """
+network:
+    version: 2
+    ethernets:
+        ens3:
+            dhcp4: true
+            dhcp4-overrides:
+                route-metric: 100
+            dhcp6-overrides:
+                route-metric: 100
+            match:
+                macaddress: fa:16:3e:ef:08:58
+            mtu: 8958
+            set-name: ens3
+        ens7:
+            dhcp4: true
+            dhcp4-overrides:
+                route-metric: 200
+            dhcp6-overrides:
+                route-metric: 200
+            match:
+                macaddress: fa:16:3e:36:62:78
+            mtu: 8958
+            set-name: ens7
+        ens8:
+            dhcp4: true
+            dhcp4-overrides:
+                route-metric: 300
+            dhcp6-overrides:
+                route-metric: 300
+            match:
+                macaddress: fa:16:3e:a3:c3:cb
+            mtu: 8958
+            set-name: ens8
+""")],
+    },
+    {
+        'name': 'static-with-dns',
         'in_data': {
             "services": [{"type": "dns", "address": "172.19.0.12"}],
             "networks": [{
@@ -484,6 +571,26 @@ OS_SAMPLES = [
         'in_macs': {
             'fa:16:3e:ed:9a:59': 'eth0',
         },
+        'out_netplan': [
+            ('etc/netplan/50-cloud-init.yaml',
+             """
+network:
+    version: 2
+    ethernets:
+        eth0:
+            addresses:
+            - 172.19.1.34/22
+            match:
+                macaddress: fa:16:3e:ed:9a:59
+            nameservers:
+                addresses:
+                - 172.19.0.12
+                search: []
+            routes:
+            -   to: 0.0.0.0/0
+                via: 172.19.3.254
+            set-name: eth0
+""")],
         'out_eni_ubuntu': [
             ('etc/network/interfaces.d/50-cloud-init.cfg',
              """\
@@ -579,6 +686,7 @@ dns = none
 
     },
     {
+        'name': 'static-2-ips-with-dns',
         'in_data': {
             "services": [{"type": "dns", "address": "172.19.0.12"}],
             "networks": [{
@@ -610,6 +718,27 @@ dns = none
         'in_macs': {
             'fa:16:3e:ed:9a:59': 'eth0',
         },
+        'out_netplan': [
+            ('etc/netplan/50-cloud-init.yaml',
+             """
+network:
+    version: 2
+    ethernets:
+        eth0:
+            addresses:
+            - 172.19.1.34/22
+            - 10.0.0.10/24
+            match:
+                macaddress: fa:16:3e:ed:9a:59
+            nameservers:
+                addresses:
+                - 172.19.0.12
+                search: []
+            routes:
+            -   to: 0.0.0.0/0
+                via: 172.19.3.254
+            set-name: eth0
+""")],
         'out_sysconfig_opensuse': [
             ('etc/sysconfig/network/ifcfg-eth0',
              """
@@ -687,6 +816,7 @@ dns = none
 
     },
     {
+        'name': 'static-ipv4-ipv6-dns',
         'in_data': {
             "services": [{"type": "dns", "address": "172.19.0.12"}],
             "networks": [{
@@ -738,6 +868,32 @@ dns = none
         'in_macs': {
             'fa:16:3e:ed:9a:59': 'eth0',
         },
+        'out_netplan': [
+            ('etc/netplan/50-cloud-init.yaml',
+             """
+network:
+    version: 2
+    ethernets:
+        eth0:
+            addresses:
+            - 172.19.1.34/22
+            - 2001:DB8::10/64
+            - 2001:DB9::10/64
+            - 2001:DB10::10/64
+            match:
+                macaddress: fa:16:3e:ed:9a:59
+            nameservers:
+                addresses:
+                - 172.19.0.12
+                search: []
+            routes:
+            -   to: 0.0.0.0/0
+                via: 172.19.3.254
+            -   to: ::/0
+                via: 2001:DB8::1
+            set-name: eth0
+""")],
+
         'out_sysconfig_opensuse': [
             ('etc/sysconfig/network/ifcfg-eth0',
              """
@@ -3812,6 +3968,39 @@ network:
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
         self.assertEqual(1, mock_clean_default.call_count)
+
+    def _get_renderer(self):
+        distro_cls = distros.fetch('ubuntu')
+        d = distro_cls('ubuntu', {}, None)
+        return netplan.Renderer()
+
+    @mock.patch('cloudinit.net.util.subp')
+    @mock.patch('cloudinit.net.get_ib_hwaddrs_by_interface')
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_openstack_rendering_netplan_samples(self, m_get, m_ib, m_subp):
+        m_subp.return_value = ('', '')
+        for os_sample in OS_SAMPLES:
+            render_dir = self.tmp_dir()
+            ex_input = os_sample['in_data']
+            ex_mac_addrs = os_sample['in_macs']
+            network_cfg = openstack.convert_net_json(
+                ex_input, known_macs=ex_mac_addrs)
+            ns = network_state.parse_net_config_data(network_cfg,
+                                                     skip_broken=False)
+            renderer = self._get_renderer()
+            # render a multiple times to simulate reboots
+            renderer.render_network_state(ns, target=render_dir)
+            renderer.render_network_state(ns, target=render_dir)
+            renderer.render_network_state(ns, target=render_dir)
+            self.maxDiff = None
+            for fn, expected_content in os_sample['out_netplan']:
+                with open(os.path.join(render_dir, fn)) as fh:
+                    found = fh.read()
+                print(found)
+                print('^^^^^ found | vvvvv expected')
+                print(expected_content)
+                self.assertEqual(expected_content, found)
+
 
 
 class TestNetplanCleanDefault(CiTestCase):
