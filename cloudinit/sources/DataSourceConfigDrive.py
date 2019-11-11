@@ -9,6 +9,7 @@
 import os
 
 from cloudinit import log as logging
+from cloudinit.event import EventType
 from cloudinit import sources
 from cloudinit import util
 
@@ -156,6 +157,15 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             else:
                 LOG.debug("no network configuration available")
         return self._network_config
+
+    @property
+    def update_events(self):
+        events = {'network': set([EventType.BOOT_NEW_INSTANCE,
+                                  EventType.BOOT,
+                                  EventType.HOTPLUG]),
+                  'storage': set([])}
+        LOG.debug('OpenStack update events: %s', events)
+        return events
 
     @property
     def platform(self):
