@@ -212,7 +212,7 @@ def main():
     try:
         lp_user_migrate_branch.createMergeProposal(
             commit_message=commit_msg, merge_target=master, needs_review=True)
-    except Exception as e:
+    except Exception:
         log('[launchpad] active merge proposal already exists at:\n'
             '{url}\n'.format(url=lp_merge_url))
     else:
