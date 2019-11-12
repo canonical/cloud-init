@@ -1345,12 +1345,21 @@ def parse_network_config(imds_metadata):
                 for addr6 in intf['ipv6']['ipAddress']:
                     privateIpv6 = addr6['privateIpAddress']
                     if privateIpv6:
-                        dev_config['dhcp6'] = True
-                        # non-primary interfaces should have a higher
-                        # route-metric (cost) so default routes prefer
-                        # primary nic due to lower route-metric value
-                        dev_config['dhcp6-overrides'] = dhcp_override
-                        break
+                        if dev_config.get('dhcp6', False):
+                            # Append static address config for ip > 1
+                            prefix_v6 = intf['ipv6']['subnet'][0].get(
+                                'prefix', '128')
+                            if not dev_config.get('addresses'):
+                                dev_config['addresses'] = []
+                            dev_config['addresses'].append(
+                                '{ip}/{prefix}'.format(
+                                    ip=privateIpv6, prefix=prefix_v6))
+                        else:
+                            dev_config['dhcp6'] = True
+                            # non-primary interfaces should have a higher
+                            # route-metric (cost) so default routes prefer
+                            # primary nic due to lower route-metric value
+                            dev_config['dhcp6-overrides'] = dhcp_override
                 if dev_config:
                     mac = ':'.join(re.findall(r'..', intf['macAddress']))
                     dev_config.update(

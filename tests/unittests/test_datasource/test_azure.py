@@ -240,6 +240,26 @@ class TestParseNetworkConfig(CiTestCase):
         nic1 = imds_data['network']['interface'][0]
         nic1['ipv4']['ipAddress'].append({'privateIpAddress': '10.0.0.5'})
 
+        nic1['ipv6'] = {
+            "subnet": [{"prefix": "10", "address": "2001:dead:beef::16"}],
+            "ipAddress": [{"privateIpAddress": "2001:dead:beef::1"}]
+        }
+        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+
+    def test_ipv6_secondary_ips_will_be_static_cidrs(self):
+        """parse_network_config emits primary ipv6 as dhcp others are static"""
+        expected = {'ethernets': {
+            'eth0': {'addresses': ['10.0.0.5/24', '2001:dead:beef::2/10'],
+                     'dhcp4': True,
+                     'dhcp4-overrides': {'route-metric': 100},
+                     'dhcp6': True,
+                     'dhcp6-overrides': {'route-metric': 100},
+                     'match': {'macaddress': '00:0d:3a:04:75:98'},
+                     'set-name': 'eth0'}}, 'version': 2}
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        nic1 = imds_data['network']['interface'][0]
+        nic1['ipv4']['ipAddress'].append({'privateIpAddress': '10.0.0.5'})
+
         # Secondary ipv6 addresses currently ignored/unconfigured
         nic1['ipv6'] = {
             "subnet": [{"prefix": "10", "address": "2001:dead:beef::16"}],
