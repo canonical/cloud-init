@@ -1321,6 +1321,9 @@ def parse_network_config(imds_metadata):
             LOG.debug('Azure: generating network configuration from IMDS')
             network_metadata = imds_metadata['network']
             for idx, intf in enumerate(network_metadata['interface']):
+                # First IPv4 and/or IPv6 address will be obtained via DHCP.
+                # Any additional IPs of each type will be set as static
+                # addresses.
                 nicname = 'eth{idx}'.format(idx=idx)
                 dhcp_override = {'route-metric': (idx + 1) * 100}
                 dev_config = {'dhcp4': True, 'dhcp4-overrides': dhcp_override,
