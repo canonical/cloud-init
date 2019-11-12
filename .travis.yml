@@ -2,6 +2,8 @@ language: python
 dist: bionic
 
 install:
+    # Required to fetch remote branch names
+    - git config --replace-all remote.origin.fetch +refs/heads/*:refs/remotes/origin/*
     # Required so `git describe` will definitely find a tag; see
     # https://github.com/travis-ci/travis-ci/issues/7422
     - git fetch --unshallow
