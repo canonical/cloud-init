@@ -33,7 +33,7 @@ EventTypeMap = {
 EventNameMap = {v: k for k, v in EventTypeMap.items()}
 
 
-def get_allowed_events(sys_events, ds_events):
+def get_allowed_events(sys_events, ds_events, user_events):
     '''Merge datasource capabilties with system config to determine which
        update events are allowed.'''
 
@@ -47,9 +47,11 @@ def get_allowed_events(sys_events, ds_events):
 
     LOG.debug('updates: system   cfg: %s', sys_events)
     LOG.debug('updates: datasrc caps: %s', ds_events)
+    LOG.debug('updates: user     cfg: %s', user_events)
 
     updates = util.mergemanydict([copy.deepcopy(sys_events),
-                                  copy.deepcopy(ds_events)])
+                                  copy.deepcopy(ds_events),
+                                  copy.deepcopy(user_events)])
     LOG.debug('updates: merged  cfg: %s', updates)
 
     events = {}

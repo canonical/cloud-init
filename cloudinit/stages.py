@@ -660,6 +660,7 @@ class Init(object):
                             ' cfg_source: %s', cfg_source)
                 continue
             ncfg = available_cfgs[cfg_source]
+            LOG.debug('_find_networking_config: %s: %s', cfg_source, ncfg)
             if net.is_disabled_cfg(ncfg):
                 LOG.debug("network config disabled by %s", cfg_source)
                 return (None, cfg_source)
@@ -676,7 +677,10 @@ class Init(object):
         sys_config = self.cfg.get('updates', {})
         LOG.debug('System updates cfg: %s', sys_config)
 
-        allowed = get_allowed_events(sys_config, ds_config)
+        user_config = self.datasource.get_userdata(True).get('updates', {})
+        LOG.debug('User updates cfg: %s', user_config)
+
+        allowed = get_allowed_events(sys_config, ds_config, user_config)
         LOG.debug('Allowable update events: %s', allowed)
 
         if not scope:
@@ -702,6 +706,12 @@ class Init(object):
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
+    def _is_first_boot(self):
+        first_boot = (
+            os.path.exists(self.paths.get_ipath_cur('boot-finished')))
+        LOG.debug('WARK: is first boot? %s', first_boot)
+        return first_boot
+
     def apply_network_config(self, bring_up):
         # get a network config
         netcfg, src = self._find_networking_config()
@@ -714,6 +724,8 @@ class Init(object):
         if self.datasource is not NULL_DATA_SOURCE:
             if not self.is_new_instance():
                 if self.update_event_allowed(EventType.BOOT, scope='network'):
+                    if not self._is_first_boot():
+                        LOG.debug('Skipping update_metadata, still first boot')
                     if not self.datasource.update_metadata([EventType.BOOT]):
                         LOG.debug(
                             "No network config applied. Datasource failed"

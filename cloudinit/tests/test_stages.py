@@ -53,6 +53,8 @@ class TestInit(CiTestCase):
             'network': set([EventType.BOOT_NEW_INSTANCE])}
         self.add_patch('cloudinit.stages.get_allowed_events', 'mock_allowed',
                        return_value=self.init.datasource.update_events)
+        self.add_patch('cloudinit.stages.Init._is_first_boot', 'm_fboot')
+        self.m_fboot.return_value = False
 
     def test_wb__find_networking_config_disabled(self):
         """find_networking_config returns no config when disabled."""
@@ -73,8 +75,8 @@ class TestInit(CiTestCase):
         self.assertEqual(
             (None, NetworkConfigSource.cmdline),
             self.init._find_networking_config())
-        self.assertEqual('DEBUG: network config disabled by cmdline\n',
-                         self.logs.getvalue())
+        self.assertIn('DEBUG: network config disabled by cmdline\n',
+                      self.logs.getvalue())
 
     @mock.patch('cloudinit.stages.cmdline.read_initramfs_config')
     @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
@@ -86,8 +88,8 @@ class TestInit(CiTestCase):
         self.assertEqual(
             (None, NetworkConfigSource.initramfs),
             self.init._find_networking_config())
-        self.assertEqual('DEBUG: network config disabled by initramfs\n',
-                         self.logs.getvalue())
+        self.assertIn('DEBUG: network config disabled by initramfs\n',
+                      self.logs.getvalue())
 
     @mock.patch('cloudinit.stages.cmdline.read_initramfs_config')
     @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
@@ -104,8 +106,8 @@ class TestInit(CiTestCase):
         self.assertEqual(
             (None, NetworkConfigSource.ds),
             self.init._find_networking_config())
-        self.assertEqual('DEBUG: network config disabled by ds\n',
-                         self.logs.getvalue())
+        self.assertIn('DEBUG: network config disabled by ds\n',
+                      self.logs.getvalue())
 
     @mock.patch('cloudinit.stages.cmdline.read_initramfs_config')
     @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')
@@ -119,8 +121,8 @@ class TestInit(CiTestCase):
         self.assertEqual(
             (None, NetworkConfigSource.system_cfg),
             self.init._find_networking_config())
-        self.assertEqual('DEBUG: network config disabled by system_cfg\n',
-                         self.logs.getvalue())
+        self.assertIn('DEBUG: network config disabled by system_cfg\n',
+                      self.logs.getvalue())
 
     @mock.patch('cloudinit.stages.cmdline.read_initramfs_config')
     @mock.patch('cloudinit.stages.cmdline.read_kernel_cmdline_config')

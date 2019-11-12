@@ -53,7 +53,9 @@ class TestEvent(CiTestCase):
             'network': {'when': rand_event_names()},
             'storage': {'when': rand_event_names()},
         }
-        allowed = get_allowed_events(self.DEFAULT_UPDATES_CONFIG, ds_config)
+        user_data = {}
+        allowed = get_allowed_events(
+            self.DEFAULT_UPDATES_CONFIG, ds_config, user_data)
 
         # system config filters out ds capabilities
         self.assertEqual(sorted(allowed), sorted(self.DEFAULT_UPDATE_EVENTS))
@@ -64,12 +66,13 @@ class TestEvent(CiTestCase):
             'network': {'when': rand_event_names()},
             'storage': {'when': rand_event_names()},
         }
+        user_data = {}
         rand_scope = rand_string()
         rand_events = rand_event_names()
         sys_config = {'policy-version': 1, rand_scope: {'when': rand_events}}
 
         self.assertNotIn(rand_scope, ds_config)
-        allowed = get_allowed_events(sys_config, ds_config)
+        allowed = get_allowed_events(sys_config, ds_config, user_data)
         self.assertIn(rand_scope, allowed)
 
 # vi: ts=4 expandtab
