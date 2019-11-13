@@ -6,6 +6,7 @@ from cloudinit.tests.helpers import CiTestCase
 
 netstate_path = 'cloudinit.net.network_state'
 
+
 class TestNetworkStateParseConfig(CiTestCase):
 
     def setUp(self):
