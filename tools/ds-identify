@@ -179,10 +179,26 @@ debug() {
     echo "$@" 1>&3
 }
 
+map_sysfs_to_dmi() {
+    case "$@" in
+        sys_vendor) _RET="system-manufacturer";;
+        product_name) _RET="system-product-name";;
+        product_uuid) _RET="system-uuid";;
+        product_serial) _RET="system-serial-number";;
+        *) _RET=$(echo "$@" | tr '_' '-');;
+    esac
+}
+
 get_dmi_field() {
     local path="${PATH_SYS_CLASS_DMI_ID}/$1"
     if [ ! -f "$path" ] || [ ! -r "$path" ]; then
-        _RET="$UNAVAILABLE"
+        map_sysfs_to_dmi "$1"
+        local dmi_field="$_RET"
+        local dmi_value=$(dmidecode --quiet --string "$dmi_field") || {
+            _RET="$UNAVAILABLE"
+            return
+        }
+        _RET="$dmi_value"
         return
     fi
     read _RET < "${path}" || _RET="$ERROR"
