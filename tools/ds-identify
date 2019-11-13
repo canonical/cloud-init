@@ -193,9 +193,12 @@ map_sysfs_to_dmi() {
 get_dmi_field() {
     local path="${PATH_SYS_CLASS_DMI_ID}/$1"
     if [ ! -f "$path" ] || [ ! -r "$path" ]; then
-        map_sysfs_to_dmi "$1"
-        local dmi_field="$_RET"
-        local dmi_value=$(dmidecode --quiet --string "$dmi_field") || {
+        map_sysfs_to_dmi "$1" || {
+            _RET="$UNAVAILABLE"
+            return
+        }
+        local dmi_field="$_RET" dmi_value=""
+        dmi_value=$(dmidecode --quiet --string "$dmi_field") || {
             _RET="$UNAVAILABLE"
             return
         }
