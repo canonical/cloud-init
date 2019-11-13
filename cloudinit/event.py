@@ -45,13 +45,13 @@ def get_allowed_events(sys_events, ds_events, user_events):
     #     when: [boot-new-instance, hotplug]
     #     watch: http://169.254.169.254/metadata/storage_config/
 
+    LOG.debug('updates: user     cfg: %s', user_events)
     LOG.debug('updates: system   cfg: %s', sys_events)
     LOG.debug('updates: datasrc caps: %s', ds_events)
-    LOG.debug('updates: user     cfg: %s', user_events)
 
-    updates = util.mergemanydict([copy.deepcopy(sys_events),
-                                  copy.deepcopy(ds_events),
-                                  copy.deepcopy(user_events)])
+    updates = util.mergemanydict([copy.deepcopy(user_events),
+                                  copy.deepcopy(sys_events),
+                                  copy.deepcopy(ds_events)])
     LOG.debug('updates: merged  cfg: %s', updates)
 
     events = {}

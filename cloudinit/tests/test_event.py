@@ -75,4 +75,21 @@ class TestEvent(CiTestCase):
         allowed = get_allowed_events(sys_config, ds_config, user_data)
         self.assertIn(rand_scope, allowed)
 
+    def test_get_allowed_events_user_data_overrides_sys(self):
+        ds_config = {
+            'policy-version': 1,
+            'network': {'when': ['boot', 'boot-new-instance', 'hotplug']},
+        }
+        user_config = {
+            'policy-version': 1,
+            'network': {'when': ['boot', 'boot-new-instance', 'hotplug']},
+        }
+        sys_config = {
+            'policy-version': 1,
+            'network': {'when': ['boot-new-instance']},
+        }
+        allowed = get_allowed_events(sys_config, ds_config, user_config)
+        self.assertIn(EventType.HOTPLUG, allowed['network'])
+
+
 # vi: ts=4 expandtab
