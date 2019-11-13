@@ -185,7 +185,8 @@ map_sysfs_to_dmi() {
         product_name) _RET="system-product-name";;
         product_uuid) _RET="system-uuid";;
         product_serial) _RET="system-serial-number";;
-        *) _RET=$(echo "$@" | tr '_' '-');;
+        chassis-asset-tag) _RET="chassis_asset_tag";;
+        *) return 1;;
     esac
 }
 
