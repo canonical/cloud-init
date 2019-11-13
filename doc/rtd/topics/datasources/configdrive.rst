@@ -6,7 +6,7 @@ Config Drive
 The configuration drive datasource supports the `OpenStack`_ configuration
 drive disk.
 
-  See `the config drive extension`_ and `introduction`_ in the public
+  See `the config drive extension`_ and `user documentation`_ in the public
   documentation for more information.
 
 By default, cloud-init does *always* consider this source to be a full-fledged
@@ -122,10 +122,10 @@ Note: it is likely preferable to provide keys via user-data
 This provides cloud-init user-data. See :ref:`examples <yaml_examples>` for
 what all can be present here.
 
-.. _OpenStack: http://www.openstack.org/
-.. _introduction: http://docs.openstack.org/trunk/openstack-compute/admin/content/config-drive.html
-.. _python-novaclient: https://github.com/openstack/python-novaclient
+.. _OpenStack: https://www.openstack.org/
+.. _the config drive extension: https://docs.openstack.org/nova/latest/admin/config-drive.html
+.. _user documentation: https://docs.openstack.org/nova/latest/user/metadata.html#config-drives
+.. _python-novaclient: https://opendev.org/openstack/python-novaclient
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table
-.. _the config drive extension: http://docs.openstack.org/user-guide/content/config-drive.html
 .. vi: textwidth=78
