@@ -707,8 +707,8 @@ class Init(object):
             LOG.warning("Failed to rename devices: %s", e)
 
     def _is_first_boot(self):
-        first_boot = (
-            os.path.exists(self.paths.get_ipath_cur('boot-finished')))
+        bpath = os.path.join(self.paths.get_ipath_cur(), 'boot-finished')
+        first_boot = not os.path.exists(bpath)
         LOG.debug('WARK: is first boot? %s', first_boot)
         return first_boot
 
@@ -722,10 +722,8 @@ class Init(object):
         # request an update if needed/available
         apply_network = True
         if self.datasource is not NULL_DATA_SOURCE:
-            if not self.is_new_instance():
+            if not self.is_new_instance() and not self._is_first_boot():
                 if self.update_event_allowed(EventType.BOOT, scope='network'):
-                    if not self._is_first_boot():
-                        LOG.debug('Skipping update_metadata, still first boot')
                     if not self.datasource.update_metadata([EventType.BOOT]):
                         LOG.debug(
                             "No network config applied. Datasource failed"
