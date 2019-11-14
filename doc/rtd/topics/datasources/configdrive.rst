@@ -123,9 +123,9 @@ This provides cloud-init user-data. See :ref:`examples <yaml_examples>` for
 what all can be present here.
 
 .. _OpenStack: http://www.openstack.org/
-.. _metadata introduction: https://docs.openstack.org/nova/latest/user/metadata.html
+.. _metadata introduction: https://docs.openstack.org/nova/latest/user/metadata.html#config-drives
 .. _python-novaclient: https://github.com/openstack/python-novaclient
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table
-.. _the config drive extension: https://docs.openstack.org/nova/latest/user/metadata.html#config-drives
+.. _the config drive extension: https://docs.openstack.org/nova/latest/admin/config-drive.html
 .. vi: textwidth=78
