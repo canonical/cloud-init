@@ -9,7 +9,7 @@ import os
 import socket
 import sys
 
-from cloudinit.cmd.main import main
+from cloudinit.cmd.main import main as cimain
 
 NAME = 'daemon'
 CI_SOCKET = "/run/cloud-init/unix.socket"
@@ -66,7 +66,7 @@ def handle_args(name, args):
                     sysv_args = ['cloud-init', 'modules', '--mode=final']
 
                 print('calling main with %s' % sysv_args)
-                main(sysv_args=sysv_args)
+                cimain(sysv_args=sysv_args)
                 print('main call completed')
                 completed.add(stage)
 
