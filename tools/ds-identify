@@ -194,7 +194,7 @@ get_dmi_field() {
     local path="${PATH_SYS_CLASS_DMI_ID}/$1"
     if [ ! -f "$path" ] || [ ! -r "$path" ]; then
         map_sysfs_to_dmi "$1" || {
-            _RET="$UNAVAILABLE"
+            _RET="$ERROR: unknown field $1"
             return
         }
         local dmi_field="$_RET" dmi_value=""
