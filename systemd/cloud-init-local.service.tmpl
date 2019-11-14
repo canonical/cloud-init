@@ -17,7 +17,7 @@ RequiresMountsFor=/var/lib/cloud
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cloud-init init --local
+ExecStart=/usr/lib/cloud-init/cloud-init-local
 ExecStart=/bin/touch /run/cloud-init/network-config-ready
 RemainAfterExit=yes
 TimeoutSec=0

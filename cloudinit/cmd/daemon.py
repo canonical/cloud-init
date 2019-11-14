@@ -5,11 +5,15 @@ import json
 
 from cloudinit.cmd.main import main
 
+CI_SOCKET = "/run/cloud-init/unix.socket"
+
 @contextlib.contextmanager
 def DomainServer(addr):
     try:
         if os.path.exists(addr):
             os.unlink(addr)
+        else:
+            os.makedirs(os.path.dirname(addr))
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.bind(addr)
         sock.listen(10)
@@ -19,8 +23,7 @@ def DomainServer(addr):
         if os.path.exists(addr):
             os.unlink(addr)
 
-addr = "/run/cloud-init/unix.socket"
-with DomainServer(addr) as sock:
+with DomainServer(CI_SOCKET) as sock:
     expected = set(['local', 'net', 'modules', 'final'])
     completed = set()
     while completed != expected:
@@ -34,16 +37,18 @@ with DomainServer(addr) as sock:
             message = None
         if message:
             command = message.get('command')
-            if command == 'init-local':
+            if not command:
+                continue
+            if command == 'local':
                 stage = 'local'
                 sysv_args = ['cloud-init', 'init', '--local']
-            elif command == 'init-net':
+            elif command == 'net':
                 stage = 'net'
                 sysv_args = ['cloud-init', 'init']
-            elif command == 'config-modules':
+            elif command == 'modules':
                 stage = 'modules'
                 sysv_args = ['cloud-init', 'modules', '--mode=config']
-            elif command == 'config-final':
+            elif command == 'final':
                 stage = 'final'
                 sysv_args = ['cloud-init', 'modules', '--mode=final']
 

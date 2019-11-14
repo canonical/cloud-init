@@ -33,7 +33,7 @@ Before=systemd-user-sessions.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cloud-init init
+ExecStart=/usr/lib/cloud-init/cloud-init-net
 RemainAfterExit=yes
 TimeoutSec=0
 
