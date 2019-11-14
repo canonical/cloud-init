@@ -74,7 +74,7 @@ class TestSetPasswordsHandle(CiTestCase):
 
     with_logs = True
 
-    def test_handle_on_empty_config(self):
+    def test_handle_on_empty_config(self, *args):
         """handle logs that no password has changed when config is empty."""
         cloud = self.tmp_cloud(distro='ubuntu')
         setpass.handle(
@@ -107,5 +107,23 @@ class TestSetPasswordsHandle(CiTestCase):
             [mock.call(['chpasswd', '-e'],
              '\n'.join(valid_hashed_pwds) + '\n')],
             m_subp.call_args_list)
+
+    @mock.patch(MODPATH + "util.is_FreeBSD")
+    @mock.patch(MODPATH + "util.subp")
+    def test_freebsd_calls_custom_pw_cmds_to_set_and_expire_passwords(
+            self, m_subp, m_is_freebsd):
+        """FreeBSD calls custom pw commands instead of chpasswd and passwd"""
+        m_is_freebsd.return_value = True
+        cloud = self.tmp_cloud(distro='freebsd')
+        valid_pwds = ['ubuntu:passw0rd']
+        cfg = {'chpasswd': {'list': valid_pwds}}
+        setpass.handle(
+            'IGNORED', cfg=cfg, cloud=cloud, log=self.logger, args=[])
+        self.assertEqual([
+            mock.call(['pw', 'usermod', 'ubuntu', '-h', '0'], data='passw0rd',
+                      logstring="chpasswd for ubuntu"),
+            mock.call(['pw', 'usermod', 'ubuntu', '-p', '01-Jan-1970'])],
+            m_subp.call_args_list)
+
 
 # vi: ts=4 expandtab
