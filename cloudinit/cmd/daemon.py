@@ -35,6 +35,19 @@ def DomainServer(addr):
             os.unlink(addr)
 
 
+def log(stream, msg):
+    stream.write(msg + '\n')
+    stream.flush()
+
+
+def info(msg):
+    log(sys.stdout, "INFO: " + str(msg))
+
+
+def error(msg):
+    log(sys.stderr, "ERROR: " + str(msg))
+
+
 def handle_args(name, args):
     with DomainServer(CI_SOCKET) as sock:
         expected = set(['local', 'net', 'modules', 'final'])
@@ -42,11 +55,10 @@ def handle_args(name, args):
         while completed != expected:
             conn, _ = sock.accept()
             data = conn.recv(1024)
-            print('Got msg=%s' % data)
             try:
                 message = json.loads(data.decode('utf-8'))
             except Exception as e:
-                print(e)
+                error(e)
                 message = None
             if message:
                 command = message.get('command')
@@ -65,13 +77,14 @@ def handle_args(name, args):
                     stage = 'final'
                     sysv_args = ['cloud-init', 'modules', '--mode=final']
 
-                print('calling main with %s' % sysv_args)
-                cimain(sysv_args=sysv_args)
-                print('main call completed')
+                try:
+                    cimain(sysv_args=sysv_args)
+                except Exception:
+                    pass
                 completed.add(stage)
 
             conn.close()
-        print('Cloud-init daemon exiting')
+        info('Cloud-init daemon exiting')
     return 0
 
 
