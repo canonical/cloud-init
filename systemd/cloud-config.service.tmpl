@@ -7,7 +7,7 @@ Wants=network-online.target cloud-config.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/lib/cloud-init/cloud-init-modules
+ExecStart=/usr/lib/cloud-init/cloud-init-stage modules
 RemainAfterExit=yes
 TimeoutSec=0
 
