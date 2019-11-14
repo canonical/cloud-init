@@ -6,6 +6,7 @@
 
 import argparse
 from cloudinit.config import schema
+from cloudinit.cmd import daemon
 
 from . import net_convert
 from . import render
@@ -20,6 +21,7 @@ def get_parser(parser=None):
     subparsers.required = True
 
     subcmds = [
+        (daemon.NAME, daemon.__doc__, daemon.get_parser, daemon.handle_args),
         ('schema', 'Validate cloud-config files for document schema',
          schema.get_parser, schema.handle_schema_args),
         (net_convert.NAME, net_convert.__doc__,
