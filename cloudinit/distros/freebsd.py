@@ -238,7 +238,7 @@ class Distro(distros.Distro):
         try:
             util.subp(['pw', 'usermod', user, '-p', '01-Jan-1970'])
         except Exception as e:
-            util.logexc(log, "Failed to set pw expiration for %s", user)
+            util.logexc(LOG, "Failed to set pw expiration for %s", user)
             raise e
 
     def set_passwd(self, user, passwd, hashed=False):

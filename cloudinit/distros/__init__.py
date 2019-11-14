@@ -595,7 +595,7 @@ class Distro(object):
         try:
             util.subp(['passwd', '--expire', user])
         except Exception as e:
-            util.logexc(log, "Failed to set 'expire' for %s", user)
+            util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
 
     def set_passwd(self, user, passwd, hashed=False):
