@@ -1829,7 +1829,7 @@ def boottime():
     buf = timeval
     if libc.sysctlbyname(b"kern.boottime" + NULL_BYTES, ctypes.byref(buf),
                          ctypes.byref(size), None, 0) != -1:
-        return buf.tv_sec + buf.tv_usec / 1000000.
+        return buf.tv_sec + buf.tv_usec / 1000000.0
     raise RuntimeError("Unable to retrieve kern.boottime on this system")
 
 
@@ -1847,7 +1847,7 @@ def uptime():
             # This is the *BSD codepath
             now = time.time()
             bootup = boottime()
-            uptime_str = now - bootup
+            uptime_str = str(now - bootup)
 
     except Exception:
         logexc(LOG, "Unable to read uptime using method: %s" % method)
