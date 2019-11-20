@@ -13,6 +13,7 @@ import time
 MOD_PATH = 'cloudinit.sources.DataSourceCloudStack'
 DS_PATH = MOD_PATH + '.DataSourceCloudStack'
 
+
 class TestCloudStackPasswordFetching(CiTestCase):
 
     def setUp(self):
@@ -21,8 +22,7 @@ class TestCloudStackPasswordFetching(CiTestCase):
         self.addCleanup(self.patches.close)
         mod_name = MOD_PATH
         self.patches.enter_context(mock.patch('{0}.ec2'.format(mod_name)))
-        uhelp = self.patches.enter_context(
-            mock.patch('{0}.uhelp'.format(mod_name)))
+        self.patches.enter_context(mock.patch('{0}.uhelp'.format(mod_name)))
         default_gw = "192.201.20.0"
         get_latest_lease = mock.MagicMock(return_value=None)
         self.patches.enter_context(mock.patch(

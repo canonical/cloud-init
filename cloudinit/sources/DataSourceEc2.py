@@ -439,7 +439,8 @@ class DataSourceEc2(sources.DataSource):
         return response.contents
 
     def _skip_or_refresh_stale_aws_token_cb(self, msg, exception):
-        retry = ec2.skip_retry_on_codes(ec2.SKIP_USERDATA_CODES, msg, exception)
+        retry = ec2.skip_retry_on_codes(
+            ec2.SKIP_USERDATA_CODES, msg, exception)
         if not retry:
             return False  # False raises exception
         return self._refresh_stale_aws_token_cb(msg, exception)
