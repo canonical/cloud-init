@@ -1807,6 +1807,13 @@ def time_rfc2822():
 
 
 def boottime():
+    """Use sysctlbyname(3) via ctypes to find kern.boottime
+
+    kern.boottime is of type struct timeval. Here we create a
+    private class to easier unpack it.
+
+    @return boottime: float to be compatible with linux
+    """
     import ctypes
 
     NULL_BYTES = b"\x00"
@@ -1822,7 +1829,7 @@ def boottime():
     buf = timeval
     if libc.sysctlbyname(b"kern.boottime" + NULL_BYTES, ctypes.byref(buf),
                          ctypes.byref(size), None, 0) != -1:
-        return buf.value
+        return buf.tv_sec + buf.tv_usec / 1000000.
     raise RuntimeError("Unable to retrieve kern.boottime on this system")
 
 
@@ -1837,6 +1844,7 @@ def uptime():
                 uptime_str = contents.split()[0]
         else:
             method = 'ctypes'
+            # This is the *BSD codepath
             now = time.time()
             bootup = boottime()
             uptime_str = now - bootup
