@@ -1826,7 +1826,7 @@ def boottime():
     libc = ctypes.CDLL('/lib/libc.so.7')
     size = ctypes.c_size_t()
     size.value = ctypes.sizeof(timeval)
-    buf = timeval
+    buf = timeval()
     if libc.sysctlbyname(b"kern.boottime" + NULL_BYTES, ctypes.byref(buf),
                          ctypes.byref(size), None, 0) != -1:
         return buf.tv_sec + buf.tv_usec / 1000000.0
