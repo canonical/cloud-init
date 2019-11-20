@@ -1805,6 +1805,7 @@ def time_rfc2822():
         ts = "??"
     return ts
 
+
 def boottime():
     import ctypes
 
@@ -1820,9 +1821,10 @@ def boottime():
     size.value = ctypes.sizeof(timeval)
     buf = timeval
     if libc.sysctlbyname(b"kern.boottime" + NULL_BYTES, ctypes.byref(buf),
-                      ctypes.byref(size), None, 0) != -1:
+                         ctypes.byref(size), None, 0) != -1:
         return buf.value
     raise RuntimeError("Unable to retrieve kern.boottime on this system")
+
 
 def uptime():
     uptime_str = '??'
