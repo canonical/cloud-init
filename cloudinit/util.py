@@ -10,7 +10,6 @@
 
 import contextlib
 import copy as obj_copy
-import ctypes
 import email
 import glob
 import grp
@@ -1806,6 +1805,24 @@ def time_rfc2822():
         ts = "??"
     return ts
 
+def boottime():
+    import ctypes
+
+    NULL_BYTES = b"\x00"
+
+    class timeval(ctypes.Structure):
+        _fields_ = [
+            ("tv_sec", ctypes.c_int64),
+            ("tv_usec", ctypes.c_int64)
+        ]
+    libc = ctypes.CDLL('/lib/libc.so.7')
+    size = ctypes.c_size_t()
+    size.value = ctypes.sizeof(timeval)
+    buf = timeval
+    if libc.sysctlbyname(b"kern.boottime" + NULL_BYTES, ctypes.byref(buf),
+                      ctypes.byref(size), None, 0) != -1:
+        return buf.value
+    raise RuntimeError("Unable to retrieve kern.boottime on this system")
 
 def uptime():
     uptime_str = '??'
@@ -1818,14 +1835,8 @@ def uptime():
                 uptime_str = contents.split()[0]
         else:
             method = 'ctypes'
-            libc = ctypes.CDLL('/lib/libc.so.7')
-            size = ctypes.c_size_t()
-            buf = ctypes.c_int()
-            size.value = ctypes.sizeof(buf)
-            libc.sysctlbyname("kern.boottime", ctypes.byref(buf),
-                              ctypes.byref(size), None, 0)
             now = time.time()
-            bootup = buf.value
+            bootup = boottime()
             uptime_str = now - bootup
 
     except Exception:
