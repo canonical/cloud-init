@@ -101,7 +101,7 @@ def read_file_or_url(url, timeout=5, retries=10,
             raise UrlError(cause=e, code=code, headers=None, url=url)
         return FileResponse(file_path, contents=contents)
     else:
-        return readurl(url, timeout=timeout, retries=retries, headers=headers,
+        return readurl(url, timeout=timeout, retries=retries,
                        headers_cb=headers_cb, data=data,
                        sec_between=sec_between, ssl_details=ssl_details,
                        exception_cb=exception_cb)
@@ -310,7 +310,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
 
 def wait_for_url(urls, max_wait=None, timeout=None,
                  status_cb=None, headers_cb=None, sleep_time=1,
-                 exception_cb=None, sleep_time_cb=None):
+                 exception_cb=None, sleep_time_cb=None, request_method=None):
     """
     urls:      a list of urls to try
     max_wait:  roughly the maximum time to wait before giving up
@@ -381,8 +381,9 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                 else:
                     headers = {}
 
-                response = readurl(url, headers=headers, timeout=timeout,
-                                   check_status=False)
+                response = readurl(
+                    url, headers=headers, timeout=timeout,
+                    check_status=False, request_method=request_method)
                 if not response.contents:
                     reason = "empty response [%s]" % (response.code)
                     url_exc = UrlError(ValueError(reason), code=response.code,
@@ -392,7 +393,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     url_exc = UrlError(ValueError(reason), code=response.code,
                                        headers=response.headers, url=url)
                 else:
-                    return url
+                    return url, response.contents
             except UrlError as e:
                 reason = "request error [%s]" % e
                 url_exc = e
@@ -421,7 +422,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                   sleep_time)
         time.sleep(sleep_time)
 
-    return False
+    return False, None
 
 
 class OauthUrlHelper(object):

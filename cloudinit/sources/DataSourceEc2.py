@@ -28,6 +28,8 @@ SKIP_METADATA_URL_CODES = frozenset([uhelp.NOT_FOUND])
 STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 
+API_TOKEN_ROUTE = 'latest/api/token'
+
 
 class CloudNames(object):
     ALIYUN = "aliyun"
@@ -62,6 +64,7 @@ class DataSourceEc2(sources.DataSource):
     url_max_wait = 120
     url_timeout = 50
 
+    _api_token = None  # API token for accessing the metadata service
     _network_config = sources.UNSET  # Used to cache calculated network cfg v1
 
     # Whether we want to get network configuration from the metadata service.
@@ -148,11 +151,12 @@ class DataSourceEc2(sources.DataSource):
         min_metadata_version.
         """
         # Assumes metadata service is already up
+        url_tmpl = '{0}/{1}/meta-data/instance-id'
+        headers = self._get_headers()
         for api_ver in self.extended_metadata_versions:
-            url = '{0}/{1}/meta-data/instance-id'.format(
-                self.metadata_address, api_ver)
+            url = url_tmpl.format(self.metadata_address, api_ver)
             try:
-                resp = uhelp.readurl(url=url)
+                resp = uhelp.readurl(url=url, headers=headers)
             except uhelp.UrlError as e:
                 LOG.debug('url %s raised exception %s', url, e)
             else:
@@ -170,9 +174,11 @@ class DataSourceEc2(sources.DataSource):
             if not getattr(self, 'identity', None):
                 # If re-using cached datasource, it's get_data run didn't
                 # setup self.identity. So we need to do that now.
+                headers = self._get_headers()
                 api_version = self.get_metadata_api_version()
                 self.identity = ec2.get_instance_identity(
-                    api_version, self.metadata_address).get('document', {})
+                    api_version, self.metadata_address, headers).get(
+                        'document', {})
             return self.identity.get(
                 'instanceId', self.metadata['instance-id'])
         else:
@@ -201,18 +207,28 @@ class DataSourceEc2(sources.DataSource):
 
         urls = []
         url2base = {}
+
+        if self.cloud_name == CloudNames.AWS:
+            url_path = API_TOKEN_ROUTE
+            request_method = 'PUT'
+        else:
+            url_path = '{ver}/meta-data/instance-id'.format(
+                ver=self.min_metadata_version)
+            request_method = 'GET'
         for url in mdurls:
-            cur = '{0}/{1}/meta-data/instance-id'.format(
-                url, self.min_metadata_version)
+            cur = '{0}/{1}'.format(url, url_path)
             urls.append(cur)
             url2base[cur] = url
 
         start_time = time.time()
-        url = uhelp.wait_for_url(
+        url, response = uhelp.wait_for_url(
             urls=urls, max_wait=url_params.max_wait_seconds,
-            timeout=url_params.timeout_seconds, status_cb=LOG.warning)
+            timeout=url_params.timeout_seconds, status_cb=LOG.warning,
+            headers_cb=self._get_headers, request_method=request_method)
 
         if url:
+            if API_TOKEN_ROUTE in url and response:
+                self._api_token = response
             self.metadata_address = url2base[url]
             LOG.debug("Using metadata source: '%s'", self.metadata_address)
         else:
@@ -376,14 +392,22 @@ class DataSourceEc2(sources.DataSource):
             return {}
         api_version = self.get_metadata_api_version()
         crawled_metadata = {}
+        if self.cloud_name == CloudNames.AWS:
+            exc_cb = self._refresh_stale_aws_token_cb
+            exc_cb_ud = self._skip_or_refresh_stale_aws_token_cb
+        else:
+            exc_cb = exc_cb_ud = None
         try:
             crawled_metadata['user-data'] = ec2.get_instance_userdata(
-                api_version, self.metadata_address)
+                api_version, self.metadata_address,
+                headers_cb=self._get_headers, exception_cb=exc_cb_ud)
             crawled_metadata['meta-data'] = ec2.get_instance_metadata(
-                api_version, self.metadata_address)
+                api_version, self.metadata_address,
+                headers_cb=self._get_headers, exception_cb=exc_cb)
             if self.cloud_name == CloudNames.AWS:
                 identity = ec2.get_instance_identity(
-                    api_version, self.metadata_address)
+                    api_version, self.metadata_address,
+                    headers_cb=self._get_headers, exception_cb=exc_cb)
                 crawled_metadata['dynamic'] = {'instance-identity': identity}
         except Exception:
             util.logexc(
@@ -392,6 +416,63 @@ class DataSourceEc2(sources.DataSource):
             return {}
         crawled_metadata['_metadata_api_version'] = api_version
         return crawled_metadata
+
+    def _refresh_api_token(self, seconds='21600'):
+        """Request new metadata API token.
+        @param seconds: The lifetime of the token in seconds
+
+        @return: The API token or None if unavailable.
+        """
+        if self.cloud_name != CloudNames.AWS:
+            return None
+        LOG.debug("Refreshing Ec2 metadata API token")
+        request_header = {'X-aws-ec2-metadata-token-ttl-seconds': seconds}
+        token_url = '{}/{}'.format(self.metadata_address, API_TOKEN_ROUTE)
+        try:
+            response = uhelp.readurl(
+                token_url, headers=request_header, request_method="PUT")
+        except uhelp.UrlError as e:
+            LOG.warning(
+                'Unable to get API token: %s raised exception %s',
+                token_url, e)
+            return None
+        return response.contents
+
+    def _skip_or_refresh_stale_aws_token_cb(self, msg, exception):
+        retry = ec2.skip_retry_on_codes(ec2.SKIP_USERDATA_CODES, msg, exception)
+        if not retry:
+            return False  # False raises exception
+        return self._refresh_stale_aws_token_cb(msg, exception)
+
+    def _refresh_stale_aws_token_cb(self, msg, exception):
+        """Exception handler for Ec2 to refresh token if token is stale."""
+        if isinstance(exception, uhelp.UrlError) and exception.code == 401:
+            # With _api_token as None, _get_headers will _refresh_api_token.
+            LOG.debug("Clearing cached Ec2 API token due to expiry")
+            self._api_token = None
+        return True
+
+    def _get_headers(self, url=''):
+        """Return a dict of headers for accessing a url.
+
+        If _api_token is unset on AWS, attempt to refresh the token via a PUT
+        and then return the updated token header.
+        """
+        if self.cloud_name != CloudNames.AWS:
+            return {}
+        # Request a 6 hour token if URL is API_TOKEN_ROUTE
+        request_token_header = {
+            'X-aws-ec2-metadata-token-ttl-seconds': '21600'}
+        if API_TOKEN_ROUTE in url:
+            return request_token_header
+        if not self._api_token:
+            # If we don't yet have an API token, get one via a PUT against
+            # API_TOKEN_ROUTE. This _api_token may get unset by a 403 due
+            # to an invalid or expired token
+            self._api_token = self._refresh_api_token()
+            if not self._api_token:
+                return {}
+        return {'X-aws-ec2-metadata-token': self._api_token}
 
 
 class DataSourceEc2Local(DataSourceEc2):
