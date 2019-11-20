@@ -14,7 +14,7 @@ from configobj import ConfigObj
 
 from . import renderer
 from .network_state import (
-    is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6)
+    is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6, IPV6_DYNAMIC_TYPES)
 
 LOG = logging.getLogger(__name__)
 NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
@@ -335,6 +335,9 @@ class Renderer(renderer.Renderer):
                     continue
                 iface_cfg[new_key] = old_value
 
+        if iface['accept-ra'] is not None:
+            iface_cfg['IPV6_FORCE_ACCEPT_RA'] = iface['accept-ra']
+
     @classmethod
     def _render_subnets(cls, iface_cfg, subnets, has_default_route):
         # setting base values
@@ -350,6 +353,15 @@ class Renderer(renderer.Renderer):
                 # Configure network settings using DHCPv6
                 iface_cfg['DHCPV6C'] = True
             elif subnet_type == 'ipv6_dhcpv6-stateless':
+                iface_cfg['IPV6INIT'] = True
+                # Configure network settings using SLAAC from RAs and optional
+                # info from dhcp server using DHCPv6
+                iface_cfg['IPV6_AUTOCONF'] = True
+                iface_cfg['DHCPV6C'] = True
+                # Use Information-request to get only stateless configuration
+                # parameters (i.e., without address).
+                iface_cfg['DHCPV6C_OPTIONS'] = '-S'
+            elif subnet_type == 'ipv6_slaac':
                 iface_cfg['IPV6INIT'] = True
                 # Configure network settings using SLAAC from RAs
                 iface_cfg['IPV6_AUTOCONF'] = True
@@ -398,9 +410,14 @@ class Renderer(renderer.Renderer):
             # metric may apply to both dhcp and static config
             if 'metric' in subnet:
                 iface_cfg['METRIC'] = subnet['metric']
+            # TODO(hjensas): Including dhcp6 here is likely incorrect. DHCPv6
+            # does not ever provide a default gateway, the default gateway
+            # come from RA's. (https://github.com/openSUSE/wicked/issues/570)
             if subnet_type in ['dhcp', 'dhcp4', 'dhcp6']:
                 if has_default_route and iface_cfg['BOOTPROTO'] != 'none':
                     iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = False
+                continue
+            elif subnet_type in IPV6_DYNAMIC_TYPES:
                 continue
             elif subnet_type == 'static':
                 if subnet_is_ipv6(subnet):
@@ -444,10 +461,14 @@ class Renderer(renderer.Renderer):
     @classmethod
     def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
         for _, subnet in enumerate(subnets, start=len(iface_cfg.children)):
+            subnet_type = subnet.get('type')
             for route in subnet.get('routes', []):
                 is_ipv6 = subnet.get('ipv6') or is_ipv6_addr(route['gateway'])
 
-                if _is_default_route(route):
+                # Any dynamic configuration method, slaac, dhcpv6-stateful/
+                # stateless should get router information from router RA's.
+                if (_is_default_route(route) and subnet_type not in
+                        IPV6_DYNAMIC_TYPES):
                     if (
                             (subnet.get('ipv4') and
                              route_cfg.has_set_default_ipv4) or
@@ -466,10 +487,17 @@ class Renderer(renderer.Renderer):
                     # TODO(harlowja): add validation that no other iface has
                     # also provided the default route?
                     iface_cfg['DEFROUTE'] = True
+                    # TODO(hjensas): Including dhcp6 here is likely incorrect.
+                    # DHCPv6 does not ever provide a default gateway, the
+                    # default gateway come from RA's.
+                    # (https://github.com/openSUSE/wicked/issues/570)
                     if iface_cfg['BOOTPROTO'] in ('dhcp', 'dhcp4', 'dhcp6'):
+                        # NOTE(hjensas): DHCLIENT_SET_DEFAULT_ROUTE is SuSE
+                        # only. RHEL, CentOS, Fedora does not implement this
+                        # option.
                         iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = True
                     if 'gateway' in route:
-                        if is_ipv6 or is_ipv6_addr(route['gateway']):
+                        if is_ipv6:
                             iface_cfg['IPV6_DEFAULTGW'] = route['gateway']
                             route_cfg.has_set_default_ipv6 = True
                         else:
