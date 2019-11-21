@@ -177,7 +177,9 @@ class DataSourceEc2(sources.DataSource):
                 headers = self._get_headers()
                 api_version = self.get_metadata_api_version()
                 self.identity = ec2.get_instance_identity(
-                    api_version, self.metadata_address, headers).get(
+                    api_version, self.metadata_address,
+                    headers_cb=self._get_headers,
+                    exception_cb=self._refresh_stale_aws_token_cb).get(
                         'document', {})
             return self.identity.get(
                 'instanceId', self.metadata['instance-id'])
