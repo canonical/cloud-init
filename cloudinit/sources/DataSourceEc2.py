@@ -465,7 +465,7 @@ class DataSourceEc2(sources.DataSource):
             return {}
         # Request a 6 hour token if URL is API_TOKEN_ROUTE
         request_token_header = {
-            'X-aws-ec2-metadata-token-ttl-seconds': '21600'}
+            'X-aws-ec2-metadata-token-ttl-seconds': AWS_TOKEN_TTL_SECONDS}
         if API_TOKEN_ROUTE in url:
             return request_token_header
         if not self._api_token:
