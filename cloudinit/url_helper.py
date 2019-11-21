@@ -325,6 +325,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                   'exception', the exception that occurred.
     sleep_time_cb: call method with 2 arguments (response, loop_n) that
                    generates the next sleep time.
+    request_method: indicate the type of HTTP request, GET, PUT, or POST
+    returns: tuple of (url, response contents), on failure, (False, None)
 
     the idea of this routine is to wait for the EC2 metadata service to
     come up.  On both Eucalyptus and EC2 we have seen the case where
