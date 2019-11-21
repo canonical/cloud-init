@@ -29,7 +29,7 @@ STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 
 API_TOKEN_ROUTE = 'latest/api/token'
-
+AWS_TOKEN_TTL_SECONDS='21600'
 
 class CloudNames(object):
     ALIYUN = "aliyun"
