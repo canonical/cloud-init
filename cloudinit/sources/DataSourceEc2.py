@@ -29,7 +29,8 @@ STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 
 API_TOKEN_ROUTE = 'latest/api/token'
-AWS_TOKEN_TTL_SECONDS='21600'
+AWS_TOKEN_TTL_SECONDS = '21600'
+
 
 class CloudNames(object):
     ALIYUN = "aliyun"
@@ -440,7 +441,8 @@ class DataSourceEc2(sources.DataSource):
         return response.contents
 
     def _skip_or_refresh_stale_aws_token_cb(self, msg, exception):
-        """Callback will not retry on SKIP_USERDATA_CODES or if no token is available"""
+        """Callback will not retry on SKIP_USERDATA_CODES or if no token
+           is available."""
         retry = ec2.skip_retry_on_codes(
             ec2.SKIP_USERDATA_CODES, msg, exception)
         if not retry:
