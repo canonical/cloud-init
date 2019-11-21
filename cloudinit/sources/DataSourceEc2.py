@@ -418,7 +418,7 @@ class DataSourceEc2(sources.DataSource):
         crawled_metadata['_metadata_api_version'] = api_version
         return crawled_metadata
 
-    def _refresh_api_token(self, seconds='21600'):
+    def _refresh_api_token(self, seconds=AWS_TOKEN_TTL_SECONDS):
         """Request new metadata API token.
         @param seconds: The lifetime of the token in seconds
 
