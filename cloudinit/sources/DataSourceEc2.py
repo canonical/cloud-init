@@ -453,7 +453,7 @@ class DataSourceEc2(sources.DataSource):
             # With _api_token as None, _get_headers will _refresh_api_token.
             LOG.debug("Clearing cached Ec2 API token due to expiry")
             self._api_token = None
-        return True
+        return True  # always retry
 
     def _get_headers(self, url=''):
         """Return a dict of headers for accessing a url.
