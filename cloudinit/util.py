@@ -622,6 +622,9 @@ def get_linux_distro():
                     flavor = match.groupdict()['codename']
         if distro_name == 'rhel':
             distro_name = 'redhat'
+    elif os.path.exists('/bin/freebsd-version'):
+        distro_name = 'freebsd'
+        distro_version = subp(['/bin/freebsd-version'])
     else:
         dist = ('', '', '')
         try:
