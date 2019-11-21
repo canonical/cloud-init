@@ -30,6 +30,8 @@ SERVER_CONTEXT = {
     }
 }
 
+DS_PATH = 'cloudinit.sources.DataSourceCloudSigma.DataSourceCloudSigma'
+
 
 class CepkoMock(Cepko):
     def __init__(self, mocked_context):
@@ -43,9 +45,10 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
     def setUp(self):
         super(DataSourceCloudSigmaTest, self).setUp()
         self.paths = helpers.Paths({'run_dir': self.tmp_dir()})
+        self.add_patch(DS_PATH + '.is_running_in_cloudsigma',
+                       "m_is_container", return_value=True)
         self.datasource = DataSourceCloudSigma.DataSourceCloudSigma(
             "", "", paths=self.paths)
-        self.datasource.is_running_in_cloudsigma = lambda: True
         self.datasource.cepko = CepkoMock(SERVER_CONTEXT)
 
     def test_get_hostname(self):
