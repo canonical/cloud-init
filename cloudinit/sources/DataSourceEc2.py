@@ -174,7 +174,6 @@ class DataSourceEc2(sources.DataSource):
             if not getattr(self, 'identity', None):
                 # If re-using cached datasource, it's get_data run didn't
                 # setup self.identity. So we need to do that now.
-                headers = self._get_headers()
                 api_version = self.get_metadata_api_version()
                 self.identity = ec2.get_instance_identity(
                     api_version, self.metadata_address,
