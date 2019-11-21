@@ -56,19 +56,19 @@ class TestVmwareConfigFile(CiTestCase):
         """Tests instance id for the DatasourceOVF"""
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
 
-        instance_id_prefix = 'iid-vmware-'
+        instance_id_prefix = 'iid-vmware-imc'
 
         conf = Config(cf)
 
         (md1, _, _) = read_vmware_imc(conf)
         self.assertIn(instance_id_prefix, md1["instance-id"])
-        self.assertEqual(md1["instance-id"], 'iid-vmware-imc')
+        self.assertEqual(len(md1["instance-id"]), len(instance_id_prefix) + 9)
 
         (md2, _, _) = read_vmware_imc(conf)
         self.assertIn(instance_id_prefix, md2["instance-id"])
-        self.assertEqual(md2["instance-id"], 'iid-vmware-imc')
+        self.assertEqual(len(md2["instance-id"]), len(instance_id_prefix) + 9)
 
-        self.assertEqual(md2["instance-id"], md1["instance-id"])
+        self.assertNotEqual(md2["instance-id"], md1["instance-id"])
 
     def test_configfile_static_2nics(self):
         """Tests Config class for a configuration with two static NICs."""

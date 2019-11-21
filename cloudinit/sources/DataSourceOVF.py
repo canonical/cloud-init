@@ -65,7 +65,7 @@ class DataSourceOVF(sources.DataSource):
         self._network_config = None
         self._vmware_nics_to_enable = None
         self._vmware_cust_conf = None
-        self._vmware_cust_found = False
+        self._vmware_cust_enabled = False
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -113,6 +113,13 @@ class DataSourceOVF(sources.DataSource):
                     if deployPkgPluginPath:
                         LOG.debug("Found the customization plugin at %s",
                                   deployPkgPluginPath)
+                        # Set this flag to True when all below conditions
+                        # are fulfilled
+                        # 1. VMware Virtualization Platform found
+                        # 2. self.vmware_customization_supported is True
+                        # 3. disable_vmware_customization is False in cfg
+                        # 4. libDeployPkgPlugin.so exists
+                        self._vmware_cust_enabled = True
                         break
 
                 if deployPkgPluginPath:
@@ -246,8 +253,7 @@ class DataSourceOVF(sources.DataSource):
                         GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
                         vmwareImcConfigFilePath)
 
-            self._vmware_cust_found = True
-            found.append('vmware-tools')
+            found.append('vmware-tools-new-cfg')
 
             # TODO: Need to set the status to DONE only when the
             # customization is done successfully.
@@ -272,7 +278,11 @@ class DataSourceOVF(sources.DataSource):
 
         # There was no OVF transports found
         if len(found) == 0:
-            return False
+            if self._vmware_cust_enabled:
+                found.append('vmware-tools-no-cfg')
+                (md, ud, cfg) = read_vmware_imc(None, self.paths)
+            else:
+                return False
 
         if 'seedfrom' in md and md['seedfrom']:
             seedfrom = md['seedfrom']
@@ -336,7 +346,7 @@ class DataSourceOVFNet(DataSourceOVF):
 
 
 def get_max_wait_from_cfg(cfg):
-    default_max_wait = 90
+    default_max_wait = 15
     max_wait_cfg_option = 'vmware_cust_file_max_wait'
     max_wait = default_max_wait
 
@@ -393,20 +403,31 @@ def get_network_config(nics=None, nameservers=None, search=None):
 
 # This will return a dict with some content
 #  meta-data, user-data, some config
-def read_vmware_imc(config):
+def read_vmware_imc(config, paths=None):
     md = {}
     cfg = {}
     ud = None
-    if config.host_name:
-        if config.domain_name:
-            md['local-hostname'] = config.host_name + "." + config.domain_name
-        else:
-            md['local-hostname'] = config.host_name
+    if config is not None:
+        if config.host_name:
+            if config.domain_name:
+                md['local-hostname'] = config.host_name + "." +\
+                                       config.domain_name
+            else:
+                md['local-hostname'] = config.host_name
+        if config.timezone:
+            cfg['timezone'] = config.timezone
+        # Generate a unique instance-id so that new config will be applied
+        md['instance-id'] = "iid-vmware-imc-" + util.rand_str(strlen=8)
+    else:
+        # Set instance-id to be same with current instance-id if it exists
+        # when there is no config
+        dp = paths.get_cpath('data')
+        iid_fn = os.path.join(dp, 'instance-id')
+        try:
+            md['instance-id'] = util.load_file(iid_fn).strip()
+        except Exception:
+            md['instance-id'] = "iid-vmware-imc"
 
-    if config.timezone:
-        cfg['timezone'] = config.timezone
-
-    md['instance-id'] = "iid-vmware-imc"
     return (md, ud, cfg)
 
 
