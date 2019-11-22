@@ -173,7 +173,6 @@ def parse_authorized_keys(fnames):
                     contents.append(parser.parse(line))
         except (IOError, OSError):
             util.logexc(LOG, "Error reading lines from %s", fname)
-            lines = []
 
     return contents
 
@@ -213,52 +212,40 @@ def users_ssh_info(username):
     return (os.path.join(pw_ent.pw_dir, '.ssh'), pw_ent)
 
 
-def render_authorizedkeysfile(value, homedir, username):
-    if value is None:
+def render_authorizedkeysfile_paths(value, homedir, username):
+    # The 'AuthorizedKeysFile' may contain tokens
+    # of the form %T which are substituted during connection set-up.
+    # The following tokens are defined: %% is replaced by a literal
+    # '%', %h is replaced by the home directory of the user being
+    # authenticated and %u is replaced by the username of that user.
+    macros = (("%h", homedir), ("%u", username), ("%%", "%"))
+    if not value:
         value = "%h/.ssh/authorized_keys"
-    for macro, field in (("%h", homedir), ("%u", username), ("%%", "%")):
-        value = value.replace(macro, field)
-        if not value.startswith("/"):
-            value = os.path.join(homedir, value)
-    return value
+    paths = re.split(r'(?<!\\) ', value)
+    rendered = []
+    for path in paths:
+        for macro, field in macros:
+            path = path.replace(macro, field)
+        if not path.startswith("/"):
+            path = os.path.join(homedir, path)
+        rendered.append(path)
+    return rendered
 
 
 def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
     (ssh_dir, pw_ent) = users_ssh_info(username)
+    default_authorizedkeys_file = os.path.join(ssh_dir, 'authorized_keys')
     auth_key_fns = []
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         try:
-            default_authorizedkeys_file = "%h/.ssh/authorized_keys"
-
-            # The 'AuthorizedKeysFile' may contain tokens
-            # of the form %T which are substituted during connection set-up.
-            # The following tokens are defined: %% is replaced by a literal
-            # '%', %h is replaced by the home directory of the user being
-            # authenticated and %u is replaced by the username of that user.
             ssh_cfg = parse_ssh_config_map(sshd_cfg_file)
-            auth_key_fns = re.split(
-                    r'(?<!\\) ',
-                    ssh_cfg.get("authorizedkeysfile", '').strip())
-
-            if not auth_key_fns:
-                auth_key_fns[0] = default_authorizedkeys_file
-            elif len(auth_key_fns) > 1:
-                util.logexc(
-                        LOG,
-                        "Looks like there's more than one authorizedkeys file"
-                        " configured. Make sure there's no white spaces in"
-                        " their paths. If they do, escape with '\\'.")
-
-            for i in range(len(auth_key_fns)):
-                auth_key_fns[i] = render_authorizedkeysfile(
-                        auth_key_fns[i],
-                        pw_ent.pw_dir,
-                        username)
-                print(auth_key_fns[i])
+            auth_key_fns = render_authorizedkeysfile_paths(
+                ssh_cfg.get("authorizedkeysfile", "%h/.ssh/authorized_keys"),
+                pw_ent.pw_dir, username)
 
         except (IOError, OSError):
             # Give up and use a default key filename
-            auth_key_fns[0] = os.path.join(ssh_dir, 'authorized_keys')
+            auth_key_fns[0] = default_authorizedkeys_file
             util.logexc(LOG, "Failed extracting 'AuthorizedKeysFile' in ssh "
                         "config from %r, using 'AuthorizedKeysFile' file "
                         "%r instead", DEF_SSHD_CFG, auth_key_fns[0])

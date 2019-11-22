@@ -1,11 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from mock import patch
+from collections import namedtuple
 
 from cloudinit import ssh_util
 from cloudinit.tests import helpers as test_helpers
 from cloudinit import util
-from cloudinit import distros
+
+# https://stackoverflow.com/questions/11351032/
+FakePwEnt = namedtuple(
+    'FakePwEnt',
+    ['pw_dir', 'pw_gecos', 'pw_name', 'pw_passwd', 'pw_shell', 'pwd_uid'])
+FakePwEnt.__new__.__defaults__ = tuple(
+    "UNSET_%s" % n for n in FakePwEnt._fields)
 
 
 VALID_CONTENT = {
@@ -56,45 +63,6 @@ TEST_OPTIONS = (
     "no-port-forwarding,no-agent-forwarding,no-X11-forwarding,"
     'command="echo \'Please login as the user \"ubuntu\" rather than the'
     'user \"root\".\';echo;sleep 10"')
-
-
-class MyBaseDistro(distros.Distro):
-    # MyBaseDistro is here to test TestMultipleSshAuthorizedKeysFile
-    # And for that we need to create a new user
-
-    def __init__(self, name="basedistro", cfg=None, paths=None):
-        if not cfg:
-            cfg = {}
-        if not paths:
-            paths = {}
-        super(MyBaseDistro, self).__init__(name, cfg, paths)
-
-    def install_packages(self, pkglist):
-        raise NotImplementedError()
-
-    def _write_network(self, settings):
-        raise NotImplementedError()
-
-    def package_command(self, cmd, args=None, pkgs=None):
-        raise NotImplementedError()
-
-    def update_package_sources(self):
-        raise NotImplementedError()
-
-    def apply_locale(self, locale, out_fn=None):
-        raise NotImplementedError()
-
-    def set_timezone(self, tz):
-        raise NotImplementedError()
-
-    def _read_hostname(self, filename, default=None):
-        raise NotImplementedError()
-
-    def _write_hostname(self, hostname, filename):
-        raise NotImplementedError()
-
-    def _read_system_hostname(self):
-        raise NotImplementedError()
 
 
 class TestAuthKeyLineParser(test_helpers.CiTestCase):
@@ -366,75 +334,78 @@ class TestUpdateSshConfig(test_helpers.CiTestCase):
         m_write_file.assert_not_called()
 
 
+class TestBasicAuthorizedKeyParse(test_helpers.CiTestCase):
+    def test_user(self):
+        self.assertEqual(
+            ["/opt/bobby/keys"],
+            ssh_util.render_authorizedkeysfile_paths(
+                "/opt/%u/keys", "/home/bobby", "bobby"))
+
+    def test_multiple(self):
+        self.assertEqual(
+            ["/keys/path1", "/keys/path2"],
+            ssh_util.render_authorizedkeysfile_paths(
+                "/keys/path1 /keys/path2", "/home/bobby", "bobby"))
+
+    def test_relative(self):
+        self.assertEqual(
+            ["/home/bobby/.secret/keys"],
+            ssh_util.render_authorizedkeysfile_paths(
+                ".secret/keys", "/home/bobby", "bobby"))
+
+    def test_home(self):
+        self.assertEqual(
+            ["/homedirs/bobby/.keys"],
+            ssh_util.render_authorizedkeysfile_paths(
+                "%h/.keys", "/homedirs/bobby", "bobby"))
+
+
 class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
-    username = 'foouser'
-    dist = MyBaseDistro()
-    dist.create_user(username)
-    key_entries = []
 
-    def test_multiple_authorizedkeys_file_order1(self):
-        authorized_keys = self.tmp_path('/tmp/authorized_keys')
+    @patch("cloudinit.ssh_util.pwd.getpwnam")
+    def test_multiple_authorizedkeys_file_order1(self, m_getpwnam):
+        fpw = FakePwEnt(pw_name='bobby', pw_dir='/home2/bobby')
+        m_getpwnam.return_value = fpw
+        authorized_keys = self.tmp_path('authorized_keys')
         util.write_file(authorized_keys, VALID_CONTENT['rsa'])
 
-        user_keys = self.tmp_path('/tmp/user_keys')
+        user_keys = self.tmp_path('user_keys')
         util.write_file(user_keys, VALID_CONTENT['dsa'])
 
-        sshd_config = self.tmp_path('/tmp/sshd_config')
+        sshd_config = self.tmp_path('sshd_config')
         util.write_file(
                 sshd_config,
-                "AuthorizedKeysFile /tmp/authorized_keys /tmp/user_keys")
+                "AuthorizedKeysFile %s %s" % (authorized_keys, user_keys))
 
         (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
-                self.username, sshd_config)
+                fpw.pw_name, sshd_config)
         content = ssh_util.update_authorized_keys(
-                auth_key_entries,
-                self.key_entries)
+                auth_key_entries, [])
 
-        self.assertEqual(auth_key_fn, "%h/.ssh/authorized_keys")
+        self.assertEqual("%s/.ssh/authorized_keys" % fpw.pw_dir, auth_key_fn)
         self.assertTrue(VALID_CONTENT['rsa'] in content)
         self.assertTrue(VALID_CONTENT['dsa'] in content)
 
-    def test_multiple_authorizedkeys_file_order2(self):
-        authorized_keys = self.tmp_path('/tmp/authorized_keys')
+    @patch("cloudinit.ssh_util.pwd.getpwnam")
+    def test_multiple_authorizedkeys_file_order2(self, m_getpwnam):
+        fpw = FakePwEnt(pw_name='suzie', pw_dir='/home/suzie')
+        m_getpwnam.return_value = fpw
+        authorized_keys = self.tmp_path('authorized_keys')
         util.write_file(authorized_keys, VALID_CONTENT['rsa'])
 
-        user_keys = self.tmp_path('/tmp/user_keys')
+        user_keys = self.tmp_path('user_keys')
         util.write_file(user_keys, VALID_CONTENT['dsa'])
 
-        sshd_config = self.tmp_path('/tmp/sshd_config')
+        sshd_config = self.tmp_path('sshd_config')
         util.write_file(
                 sshd_config,
-                "AuthorizedKeysFile /tmp/user_keys /tmp/authorized_keys")
+                "AuthorizedKeysFile %s %s" % (authorized_keys, user_keys))
 
         (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
-                self.username, sshd_config)
-        content = ssh_util.update_authorized_keys(
-                auth_key_entries, self.key_entries)
+                fpw.pw_name, sshd_config)
+        content = ssh_util.update_authorized_keys(auth_key_entries, [])
 
-        self.assertEqual(auth_key_fn, "%h/.ssh/authorized_keys")
-        self.assertTrue(VALID_CONTENT['rsa'] in content)
-        self.assertTrue(VALID_CONTENT['dsa'] in content)
-
-    def test_white_spaces(self):
-        authorized_keys = self.tmp_path('/tmp/authorized_keys')
-        util.write_file(authorized_keys, VALID_CONTENT['rsa'])
-
-        user_keys = self.tmp_path('/tmp/user\\ keys')
-        util.write_file(user_keys, VALID_CONTENT['dsa'])
-
-        sshd_config = self.tmp_path('/tmp/sshd_config')
-        util.write_file(
-                sshd_config,
-                "AuthorizedKeysFile /tmp/authorized_keys /tmp/user\\ keys")
-
-        (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
-                self.username,
-                sshd_config)
-        content = ssh_util.update_authorized_keys(
-                auth_key_entries,
-                self.key_entries)
-
-        self.assertEqual(auth_key_fn, "%h/.ssh/authorized_keys")
+        self.assertEqual("%s/.ssh/authorized_keys" % fpw.pw_dir, auth_key_fn)
         self.assertTrue(VALID_CONTENT['rsa'] in content)
         self.assertTrue(VALID_CONTENT['dsa'] in content)
 
