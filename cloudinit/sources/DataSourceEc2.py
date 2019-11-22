@@ -29,6 +29,7 @@ STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 
 API_TOKEN_ROUTE = 'latest/api/token'
+API_TOKEN_DISABLED = '_ec2_dsiable_api_token'
 AWS_TOKEN_TTL_SECONDS = '21600'
 
 
@@ -186,6 +187,30 @@ class DataSourceEc2(sources.DataSource):
         else:
             return self.metadata['instance-id']
 
+    def _maybe_fetch_api_token(self, mdurls, timeout=None, max_wait=None):
+        if self.cloud_name != CloudNames.AWS:
+            return
+
+        urls = []
+        url2base = {}
+        url_path = API_TOKEN_ROUTE
+        request_method = 'PUT'
+        for url in mdurls:
+            cur = '{0}/{1}'.format(url, url_path)
+            urls.append(cur)
+            url2base[cur] = url
+
+        # use the self._status_cb to check for Read errors, which means
+        # we can't reach the API token URL, so we should disable IMDSv2
+        LOG.debug('Fetching Ec2 IMDSv2 API Token')
+        url, response = uhelp.wait_for_url(
+            urls=urls, max_wait=1, timeout=1, status_cb=self._status_cb,
+            headers_cb=self._get_headers, request_method=request_method)
+
+        if url and response:
+            self._api_token = response
+            return url2base[url]
+
     def wait_for_metadata_service(self):
         mcfg = self.ds_cfg
 
@@ -207,37 +232,39 @@ class DataSourceEc2(sources.DataSource):
             LOG.warning("Empty metadata url list! using default list")
             mdurls = self.metadata_urls
 
-        urls = []
-        url2base = {}
-
-        if self.cloud_name == CloudNames.AWS:
-            url_path = API_TOKEN_ROUTE
-            request_method = 'PUT'
-        else:
+        # try the api token path first
+        metadata_address = self._maybe_fetch_api_token(mdurls)
+        if not metadata_address:
+            if self._api_token == API_TOKEN_DISABLED:
+                LOG.warning('Retrying with IMDSv1')
+            # if we can't get a token, use instance-id path
+            urls = []
+            url2base = {}
             url_path = '{ver}/meta-data/instance-id'.format(
                 ver=self.min_metadata_version)
             request_method = 'GET'
-        for url in mdurls:
-            cur = '{0}/{1}'.format(url, url_path)
-            urls.append(cur)
-            url2base[cur] = url
+            for url in mdurls:
+                cur = '{0}/{1}'.format(url, url_path)
+                urls.append(cur)
+                url2base[cur] = url
 
-        start_time = time.time()
-        url, response = uhelp.wait_for_url(
-            urls=urls, max_wait=url_params.max_wait_seconds,
-            timeout=url_params.timeout_seconds, status_cb=LOG.warning,
-            headers_cb=self._get_headers, request_method=request_method)
+            start_time = time.time()
+            url, _ = uhelp.wait_for_url(
+                urls=urls, max_wait=url_params.max_wait_seconds,
+                timeout=url_params.timeout_seconds, status_cb=LOG.warning,
+                headers_cb=self._get_headers, request_method=request_method)
 
-        if url:
-            if API_TOKEN_ROUTE in url and response:
-                self._api_token = response
-            self.metadata_address = url2base[url]
+            if url:
+                metadata_address = url2base[url]
+
+        if metadata_address:
+            self.metadata_address = metadata_address
             LOG.debug("Using metadata source: '%s'", self.metadata_address)
         else:
             LOG.critical("Giving up on md from %s after %s seconds",
                          urls, int(time.time() - start_time))
 
-        return bool(url)
+        return bool(metadata_address)
 
     def device_name_to_device(self, name):
         # Consult metadata service, that has
@@ -457,13 +484,20 @@ class DataSourceEc2(sources.DataSource):
             self._api_token = None
         return True  # always retry
 
+    def _status_cb(self, msg, exc=None):
+        LOG.warning(msg)
+        if 'Read timed out' in msg:
+            LOG.warning('Cannot use Ec2 IMDSv2 API tokens, using IMDSv1')
+            self._api_token = API_TOKEN_DISABLED
+
     def _get_headers(self, url=''):
         """Return a dict of headers for accessing a url.
 
         If _api_token is unset on AWS, attempt to refresh the token via a PUT
         and then return the updated token header.
         """
-        if self.cloud_name != CloudNames.AWS:
+        if self.cloud_name != CloudNames.AWS or (self._api_token ==
+                                                 API_TOKEN_DISABLED):
             return {}
         # Request a 6 hour token if URL is API_TOKEN_ROUTE
         request_token_header = {
