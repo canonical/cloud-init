@@ -3,18 +3,40 @@ Hacking on cloud-init
 *********************
 
 This document describes how to contribute changes to cloud-init.
-It assumes you have a `Launchpad`_ account, and refers to your launchpad user
-as ``LP_USER`` throughout.
+It assumes you have a `GitHub`_ account, and refers to your GitHub user
+as ``GH_USER`` throughout.
 
 Do these things once
 ====================
 
 * To contribute, you must sign the Canonical `contributor license agreement`_
 
-  If you have already signed it as an individual, your Launchpad user will be listed in the `contributor-agreement-canonical`_ group.  Unfortunately there is no easy way to check if an organization or company you are doing work for has signed.  If you are unsure or have questions, email `Josh Powers <mailto:josh.powers@canonical.com>`_ or ping powersj in ``#cloud-init`` channel via freenode.
+  If you have already signed it as an individual, your Launchpad user will be
+  listed in the `contributor-agreement-canonical`_ group.  Unfortunately there
+  is no easy way to check if an organization or company you are doing work for
+  has signed.  When signing the CLA and prompted for 'Project contact' or
+  'Canonical Project Manager' enter 'Josh Powers'.
 
-  When prompted for 'Project contact' or 'Canonical Project Manager' enter
-  'Josh Powers'.
+  For existing contributors who've already signed the agreement, we can verify
+  the link between your `Launchpad`_ account and your `GitHub`_ account by
+  creating a branch with both your Launchpad and GitHub usernames into both
+  Launchpad and GitHub cloud-init repositories.  We've added a tool
+  (tools/migrate-lp-user-to-github) to the cloud-init repository to handle this
+  migration as automatically as possible.
+
+  The cloud-init team will review the two merge proposals and verify
+  that the CLA has been signed for the Launchpad user and record the
+  associated GitHub account.  We will reply to the email address
+  associated with your Launchpad account that you've been clear to
+  contribute to cloud-init on GitHub.
+
+  If your company has signed the CLA for you, please contact us to help
+  in verifying which launchad/GitHub accounts are associated with the
+  company.  For any questions or help with the process, please email:
+
+  `Josh Powers <mailto:josh.powers@canonical.com>`_ with the subject: Cloud-Init CLA
+
+   You also may contanct user ``powersj`` in ``#cloud-init`` channel via IRC freenode.
 
 * Configure git with your email and name for commit messages.
 
@@ -24,26 +46,24 @@ Do these things once
     git config user.name "Your Name"
     git config user.email "Your Email"
 
-* Clone the upstream `repository`_ on Launchpad::
+* Sign into your `GitHub`_ account
 
-    git clone https://git.launchpad.net/cloud-init
-    cd cloud-init
+* Fork the upstream `repository`_ on Github and clicking on the ``Fork`` button
 
-  There is more information on Launchpad as a git hosting site in
-  `Launchpad git documentation`_.
-
-* Create a new remote pointing to your personal Launchpad repository.
-  This is equivalent to 'fork' on github.
+* Create a new remote pointing to your personal GitHub repository.
 
   .. code:: sh
 
-    git remote add LP_USER ssh://LP_USER@git.launchpad.net/~LP_USER/cloud-init
-    git push LP_USER master
+    git clone git://github.com/canonical/cloud-init
+    cd cloud-init
+    git remote add GH_USER git@github.com:GH_USER/cloud-init.git
+    git push GH_USER master
 
-.. _repository: https://git.launchpad.net/cloud-init
+.. _GitHub: https://github.com
+.. _Launchpad: https://launchpad.net
+.. _repository: https://github.com/canonical/cloud-init
 .. _contributor license agreement: http://www.canonical.com/contributors
 .. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
-.. _Launchpad git documentation: https://help.launchpad.net/Code/Git
 
 Do these things for each feature or bug
 =======================================
@@ -61,29 +81,21 @@ Do these things for each feature or bug
 
     tox
 
-* Push your changes to your personal Launchpad repository::
+* Push your changes to your personal GitHub repository::
 
-    git push -u LP_USER my-topic-branch
+    git push -u GH_USER my-topic-branch
 
 * Use your browser to create a merge request:
 
-  - Open the branch on Launchpad.
+  - Open the branch on GitHub
 
     - You can see a web view of your repository and navigate to the branch at:
 
-      ``https://code.launchpad.net/~LP_USER/cloud-init/``
+      ``https://github.com/GH_USER/cloud-init/tree/my-topic-branch``
 
-    - It will typically be at:
-
-      ``https://code.launchpad.net/~LP_USER/cloud-init/+git/cloud-init/+ref/BRANCHNAME``
-
-      for example, here is larsks move-to-git branch: https://code.launchpad.net/~larsks/cloud-init/+git/cloud-init/+ref/feature/move-to-git
-
-  - Click 'Propose for merging'
-  - Select 'lp:cloud-init' as the target repository
-  - Type '``master``' as the Target reference path
-  - Click 'Propose Merge'
-  - On the next page, hit 'Set commit message' and type a git combined git style commit message like::
+  - Click 'Pull Request`
+  - Fill out the pull request title, summarizing the change and a longer
+    message indicating important details about the changes included, like ::
 
       Activate the frobnicator.
 
@@ -100,12 +112,16 @@ Do these things for each feature or bug
 
       LP: #1
 
-Then, someone in the `cloud-init-dev`_ group will review your changes and
-follow up in the merge request.
+    Note that the project continues to use LP: #NNNNN format for closing
+    launchpad bugs rather than GitHub Issues.
+
+  - Click 'Create Pull Request`
+
+Then, someone in the `Ubuntu Server`_ team will review your changes and
+follow up in the pull request.
 
 Feel free to ping and/or join ``#cloud-init`` on freenode irc if you
 have any questions.
 
 .. _tox: https://tox.readthedocs.io/en/latest/
-.. _Launchpad: https://launchpad.net
-.. _cloud-init-dev: https://launchpad.net/~cloud-init-dev/+members#active
+.. _Ubuntu Server: https://github.com/orgs/canonical/teams/ubuntu-server

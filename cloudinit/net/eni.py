@@ -399,6 +399,7 @@ class Renderer(renderer.Renderer):
     def _render_iface(self, iface, render_hwaddress=False):
         sections = []
         subnets = iface.get('subnets', {})
+        accept_ra = iface.pop('accept-ra', None)
         if subnets:
             for index, subnet in enumerate(subnets):
                 ipv4_subnet_mtu = None
@@ -415,9 +416,23 @@ class Renderer(renderer.Renderer):
                         subnet['type'] == 'ipv6_dhcpv6-stateful'):
                     # Configure network settings using DHCP or DHCPv6
                     iface['mode'] = 'dhcp'
+                    if accept_ra is not None:
+                        # Accept router advertisements (0=off, 1=on)
+                        iface['accept_ra'] = '1' if accept_ra else '0'
                 elif subnet['type'] == 'ipv6_dhcpv6-stateless':
                     # Configure network settings using SLAAC from RAs
                     iface['mode'] = 'auto'
+                    # Use stateless DHCPv6 (0=off, 1=on)
+                    iface['dhcp'] = '1'
+                elif subnet['type'] == 'ipv6_slaac':
+                    # Configure network settings using SLAAC from RAs
+                    iface['mode'] = 'auto'
+                    # Use stateless DHCPv6 (0=off, 1=on)
+                    iface['dhcp'] = '0'
+                elif subnet_is_ipv6(subnet) and subnet['type'] == 'static':
+                    if accept_ra is not None:
+                        # Accept router advertisements (0=off, 1=on)
+                        iface['accept_ra'] = '1' if accept_ra else '0'
 
                 # do not emit multiple 'auto $IFACE' lines as older (precise)
                 # ifupdown complains

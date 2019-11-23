@@ -25,6 +25,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
+    usr_lib_exec = '/usr/local/lib'
     rc_conf_fn = "/etc/rc.conf"
     login_conf_fn = '/etc/login.conf'
     login_conf_fn_bak = '/etc/login.conf.orig'

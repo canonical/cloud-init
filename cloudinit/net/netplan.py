@@ -4,7 +4,7 @@ import copy
 import os
 
 from . import renderer
-from .network_state import subnet_is_ipv6, NET_CONFIG_TO_V2
+from .network_state import subnet_is_ipv6, NET_CONFIG_TO_V2, IPV6_DYNAMIC_TYPES
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -52,7 +52,8 @@ def _extract_addresses(config, entry, ifname, features=None):
          'mtu': 1480,
          'netmask': 64,
          'type': 'static'}],
-      'type: physical'
+      'type: physical',
+      'accept-ra': 'true'
     }
 
     An entry dictionary looks like:
@@ -95,6 +96,8 @@ def _extract_addresses(config, entry, ifname, features=None):
             if sn_type == 'dhcp':
                 sn_type += '4'
             entry.update({sn_type: True})
+        elif sn_type in IPV6_DYNAMIC_TYPES:
+            entry.update({'dhcp6': True})
         elif sn_type in ['static']:
             addr = "%s" % subnet.get('address')
             if 'prefix' in subnet:
@@ -147,6 +150,8 @@ def _extract_addresses(config, entry, ifname, features=None):
         ns = entry.get('nameservers', {})
         ns.update({'search': searchdomains})
         entry.update({'nameservers': ns})
+    if 'accept-ra' in config and config['accept-ra'] is not None:
+        entry.update({'accept-ra': util.is_true(config.get('accept-ra'))})
 
 
 def _extract_bond_slaves_by_name(interfaces, entry, bond_master):
