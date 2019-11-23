@@ -72,13 +72,31 @@ PROC_CMDLINE = None
 
 _LSB_RELEASE = {}
 
+_CACHED_RESPONSES = {}
 
+
+def memoize(f):
+    """
+    Function used to cache responses from functions decorated with it.
+    """
+
+    def helper(*x):
+        global _CACHED_RESPONSES
+        if (f, x) not in _CACHED_RESPONSES:
+            _CACHED_RESPONSES[(f, x)] = f(*x)
+        return _CACHED_RESPONSES[(f, x)]
+
+    return helper
+
+
+@memoize
 def get_architecture(target=None):
     out, _ = subp(['dpkg', '--print-architecture'], capture=True,
                   target=target)
     return out.strip()
 
 
+@memoize
 def _lsb_release(target=None):
     fmap = {'Codename': 'codename', 'Description': 'description',
             'Distributor ID': 'id', 'Release': 'release'}
@@ -107,11 +125,7 @@ def lsb_release(target=None):
         # do not use or update cache if target is provided
         return _lsb_release(target)
 
-    global _LSB_RELEASE
-    if not _LSB_RELEASE:
-        data = _lsb_release()
-        _LSB_RELEASE.update(data)
-    return _LSB_RELEASE
+    return _lsb_release()
 
 
 def target_path(target, path=None):
@@ -546,6 +560,7 @@ def is_ipv4(instr):
     return len(toks) == 4
 
 
+@memoize
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
 
@@ -595,6 +610,7 @@ def _parse_redhat_release(release_file=None):
     return {}
 
 
+@memoize
 def get_linux_distro():
     distro_name = ''
     distro_version = ''
@@ -645,6 +661,7 @@ def get_linux_distro():
     return (distro_name, distro_version, flavor)
 
 
+@memoize
 def system_info():
     info = {
         'platform': platform.platform(),
