@@ -1,4 +1,4 @@
-cloud-init (19.3-30-g4bc399e0-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.3-30-g4bc399e0-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
     - ec2: Add support for AWS IMDS v2 (session-oriented) (#55)
