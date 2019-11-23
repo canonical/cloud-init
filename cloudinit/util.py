@@ -68,10 +68,6 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['running-in-container'],
                    ['lxc-is-container'])
 
-PROC_CMDLINE = None
-
-_LSB_RELEASE = {}
-
 _CACHED_RESPONSES = {}
 
 
@@ -1391,13 +1387,10 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
         return contents
 
 
+@memoize
 def get_cmdline():
     if 'DEBUG_PROC_CMDLINE' in os.environ:
         return os.environ["DEBUG_PROC_CMDLINE"]
-
-    global PROC_CMDLINE
-    if PROC_CMDLINE is not None:
-        return PROC_CMDLINE
 
     if is_container():
         try:
@@ -1413,7 +1406,6 @@ def get_cmdline():
         except Exception:
             cmdline = ""
 
-    PROC_CMDLINE = cmdline
     return cmdline
 
 
