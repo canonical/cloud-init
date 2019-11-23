@@ -18,7 +18,7 @@ Cloud-init will identify the cloud it is running on during boot, read any
 provided metadata from the cloud and initialize the system accordingly. This
 may involve setting up the network and storage devices to configuring SSH
 access key and many other aspects of a system. Later on the cloud-init will
-also parse and any optional user or vendor data that was passed to the
+also parse and process any optional user or vendor data that was passed to the
 instance.
 
 Getting help

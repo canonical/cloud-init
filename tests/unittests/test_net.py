@@ -1070,6 +1070,143 @@ NETWORK_CONFIGS = {
                 """),
         },
     },
+    'dhcpv6_accept_ra': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+                accept_ra 1
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    iface0:
+                        accept-ra: true
+                        dhcp6: true
+        """).rstrip(' '),
+        'yaml_v1': textwrap.dedent("""\
+            version: 1
+            config:
+              - type: 'physical'
+                name: 'iface0'
+                subnets:
+                - {'type': 'dhcp6'}
+                accept-ra: true
+        """).rstrip(' '),
+        'yaml_v2': textwrap.dedent("""\
+            version: 2
+            ethernets:
+                iface0:
+                    dhcp6: true
+                    accept-ra: true
+        """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=iface0
+                DHCPV6C=yes
+                IPV6INIT=yes
+                IPV6_FORCE_ACCEPT_RA=yes
+                DEVICE=iface0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                STARTMODE=auto
+                TYPE=Ethernet
+                USERCTL=no
+            """),
+        },
+    },
+    'dhcpv6_reject_ra': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 dhcp
+                accept_ra 0
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    iface0:
+                        accept-ra: false
+                        dhcp6: true
+        """).rstrip(' '),
+        'yaml_v1': textwrap.dedent("""\
+            version: 1
+            config:
+            - type: 'physical'
+              name: 'iface0'
+              subnets:
+              - {'type': 'dhcp6'}
+              accept-ra: false
+        """).rstrip(' '),
+        'yaml_v2': textwrap.dedent("""\
+            version: 2
+            ethernets:
+                iface0:
+                    dhcp6: true
+                    accept-ra: false
+        """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=iface0
+                DHCPV6C=yes
+                IPV6INIT=yes
+                IPV6_FORCE_ACCEPT_RA=no
+                DEVICE=iface0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                STARTMODE=auto
+                TYPE=Ethernet
+                USERCTL=no
+            """),
+        },
+    },
+    'ipv6_slaac': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet6 auto
+                dhcp 0
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    iface0:
+                        dhcp6: true
+        """).rstrip(' '),
+        'yaml': textwrap.dedent("""\
+            version: 1
+            config:
+            - type: 'physical'
+              name: 'iface0'
+              subnets:
+              - {'type': 'ipv6_slaac'}
+        """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=iface0
+                IPV6_AUTOCONF=yes
+                IPV6INIT=yes
+                DEVICE=iface0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                STARTMODE=auto
+                TYPE=Ethernet
+                USERCTL=no
+            """),
+        },
+    },
     'dhcpv6_stateless': {
         'expected_eni': textwrap.dedent("""\
         auto lo
@@ -1077,6 +1214,7 @@ NETWORK_CONFIGS = {
 
         auto iface0
         iface iface0 inet6 auto
+            dhcp 1
     """).rstrip(' '),
         'expected_netplan': textwrap.dedent("""
         network:
@@ -1097,6 +1235,8 @@ NETWORK_CONFIGS = {
             'ifcfg-iface0': textwrap.dedent("""\
             BOOTPROTO=none
             DEVICE=iface0
+            DHCPV6C=yes
+            DHCPV6C_OPTIONS=-S
             IPV6_AUTOCONF=yes
             IPV6INIT=yes
             DEVICE=iface0
@@ -1121,6 +1261,7 @@ NETWORK_CONFIGS = {
             version: 2
             ethernets:
                 iface0:
+                    accept-ra: true
                     dhcp6: true
     """).rstrip(' '),
         'yaml': textwrap.dedent("""\
@@ -1130,6 +1271,7 @@ NETWORK_CONFIGS = {
             name: 'iface0'
             subnets:
             - {'type': 'ipv6_dhcpv6-stateful'}
+            accept-ra: true
     """).rstrip(' '),
         'expected_sysconfig': {
             'ifcfg-iface0': textwrap.dedent("""\
@@ -1137,6 +1279,7 @@ NETWORK_CONFIGS = {
             DEVICE=iface0
             DHCPV6C=yes
             IPV6INIT=yes
+            IPV6_FORCE_ACCEPT_RA=yes
             DEVICE=iface0
             NM_CONTROLLED=no
             ONBOOT=yes
@@ -2884,6 +3027,34 @@ USERCTL=no
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
+    def test_dhcpv6_accept_ra_config_v1(self):
+        entry = NETWORK_CONFIGS['dhcpv6_accept_ra']
+        found = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v1']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_dhcpv6_accept_ra_config_v2(self):
+        entry = NETWORK_CONFIGS['dhcpv6_accept_ra']
+        found = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_dhcpv6_reject_ra_config_v1(self):
+        entry = NETWORK_CONFIGS['dhcpv6_reject_ra']
+        found = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v1']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_dhcpv6_reject_ra_config_v2(self):
+        entry = NETWORK_CONFIGS['dhcpv6_reject_ra']
+        found = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
     def test_dhcpv6_stateless_config(self):
         entry = NETWORK_CONFIGS['dhcpv6_stateless']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
@@ -4022,6 +4193,46 @@ class TestNetplanRoundTrip(CiTestCase):
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
+    def testsimple_render_dhcpv6_accept_ra(self):
+        entry = NETWORK_CONFIGS['dhcpv6_accept_ra']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v1']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_dhcpv6_reject_ra(self):
+        entry = NETWORK_CONFIGS['dhcpv6_reject_ra']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v1']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_ipv6_slaac(self):
+        entry = NETWORK_CONFIGS['ipv6_slaac']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_dhcpv6_stateless(self):
+        entry = NETWORK_CONFIGS['dhcpv6_stateless']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_dhcpv6_stateful(self):
+        entry = NETWORK_CONFIGS['dhcpv6_stateful']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS['all']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
@@ -4154,16 +4365,37 @@ class TestEniRoundTrip(CiTestCase):
 
     def testsimple_render_dhcpv6_stateless(self):
         entry = NETWORK_CONFIGS['dhcpv6_stateless']
-        files = self._render_and_read(network_config=yaml.load(
-            entry['yaml']))
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_ipv6_slaac(self):
+        entry = NETWORK_CONFIGS['ipv6_slaac']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),
             files['/etc/network/interfaces'].splitlines())
 
     def testsimple_render_dhcpv6_stateful(self):
         entry = NETWORK_CONFIGS['dhcpv6_stateless']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_dhcpv6_accept_ra(self):
+        entry = NETWORK_CONFIGS['dhcpv6_accept_ra']
         files = self._render_and_read(network_config=yaml.load(
-            entry['yaml']))
+            entry['yaml_v1']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_dhcpv6_reject_ra(self):
+        entry = NETWORK_CONFIGS['dhcpv6_reject_ra']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v1']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),
             files['/etc/network/interfaces'].splitlines())

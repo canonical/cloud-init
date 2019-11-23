@@ -191,3 +191,21 @@ class TextKvpReporter(CiTestCase):
 
         if "test_diagnostic" not in evt_msg:
             raise AssertionError("missing expected diagnostic message")
+
+    def test_unique_kvp_key(self):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        evt1 = events.ReportingEvent(
+            "event_type", 'event_message',
+            "event_description")
+        reporter.publish_event(evt1)
+
+        evt2 = events.ReportingEvent(
+            "event_type", 'event_message',
+            "event_description", timestamp=evt1.timestamp + 1)
+        reporter.publish_event(evt2)
+
+        reporter.q.join()
+        kvps = list(reporter._iterate_kvps(0))
+        self.assertEqual(2, len(kvps))
+        self.assertNotEqual(kvps[0]["key"], kvps[1]["key"],
+                            "duplicate keys for KVP entries")

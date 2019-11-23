@@ -13,7 +13,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-from socket import inet_ntoa
+from socket import inet_ntoa, getaddrinfo, gaierror
 from struct import pack
 import time
 
@@ -93,7 +93,7 @@ class DataSourceCloudStack(sources.DataSource):
         urls = [uhelp.combine_url(self.metadata_address,
                                   'latest/meta-data/instance-id')]
         start_time = time.time()
-        url = uhelp.wait_for_url(
+        url, _response = uhelp.wait_for_url(
             urls=urls, max_wait=url_params.max_wait_seconds,
             timeout=url_params.timeout_seconds, status_cb=LOG.warning)
 
@@ -154,6 +154,17 @@ class DataSourceCloudStack(sources.DataSource):
     @property
     def availability_zone(self):
         return self.metadata['availability-zone']
+
+
+def get_data_server():
+    # Returns the metadataserver from dns
+    try:
+        addrinfo = getaddrinfo("data-server.", 80)
+    except gaierror:
+        LOG.debug("DNS Entry data-server not found")
+        return None
+    else:
+        return addrinfo[0][4][0]  # return IP
 
 
 def get_default_gateway():
@@ -218,7 +229,14 @@ def get_vr_address():
     # If no virtual router is detected, fallback on default gateway.
     # See http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/4.8/virtual_machines/user-data.html # noqa
 
-    # Try networkd first...
+    # Try data-server DNS entry first
+    latest_address = get_data_server()
+    if latest_address:
+        LOG.debug("Found metadata server '%s' via data-server DNS entry",
+                  latest_address)
+        return latest_address
+
+    # Try networkd second...
     latest_address = dhcp.networkd_get_option_from_leases('SERVER_ADDRESS')
     if latest_address:
         LOG.debug("Found SERVER_ADDRESS '%s' via networkd_leases",

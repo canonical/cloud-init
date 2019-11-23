@@ -76,7 +76,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
         url_params = self.get_url_params()
         start_time = time.time()
-        avail_url = url_helper.wait_for_url(
+        avail_url, _response = url_helper.wait_for_url(
             urls=md_urls, max_wait=url_params.max_wait_seconds,
             timeout=url_params.timeout_seconds)
         if avail_url:

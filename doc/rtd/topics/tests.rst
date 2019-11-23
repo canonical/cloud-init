@@ -23,7 +23,7 @@ configuration users can run the integration tests via tox:
 
 .. code-block:: shell-session
 
-    $ git clone https://git.launchpad.net/cloud-init
+    $ git clone https://github.com/canonical/cloud-init
     $ cd cloud-init
     $ tox -e citest -- -h
 
@@ -53,7 +53,7 @@ explaining how to run one or the other independently.
 
 .. code-block:: shell-session
 
-    $ git clone https://git.launchpad.net/cloud-init
+    $ git clone https://github.com/canonical/cloud-init
     $ cd cloud-init
     $ tox -e citest -- run --verbose \
         --os-name stretch --os-name xenial \

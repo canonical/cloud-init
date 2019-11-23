@@ -547,7 +547,8 @@ class TestNetJson(CiTestCase):
                  'mtu': None,
                  'name': 'enp0s2',
                  'subnets': [{'type': 'ipv6_dhcpv6-stateful'}],
-                 'type': 'physical'}
+                 'type': 'physical',
+                 'accept-ra': True}
             ],
         }
         conv_data = openstack.convert_net_json(in_data, known_macs=KNOWN_MACS)
