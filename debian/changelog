@@ -1,3 +1,44 @@
+cloud-init (19.3-30-g4bc399e0-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - ec2: Add support for AWS IMDS v2 (session-oriented) (#55)
+    - tests: Fix cloudsigma tests when no dmidecode data is present. (#57)
+      [Scott Moser]
+    - net: IPv6, accept_ra, slaac, stateless (#51)
+      [Harald] (LP: #1806014, #1808647)
+    - docs: Update the configdrive datasource links (#44)
+      [Joshua Powers] (LP: #1852461)
+    - lp-to-git-users: adding PengpengSun [Pengpeng Sun]
+    - lp-to-git-users: adding trstringer [Thomas Stringer]
+    - lp-to-git-users: adding hjensas [Harald Jensås]
+    - distro: correctly set usr_lib_exec path for FreeBSD distro (#40)
+      [Igor Galić] (LP: #1852491)
+    - azure: support secondary ipv6 addresses (#33)
+    - Fix metadata check when local-hostname is null (#32)
+      [Mark Goddard] (LP: #1852100)
+    - Merge pull request #38 from blackboxsw/cleanup/run-ci-on-pull-request
+    - switch default FreeBSD salt minion pkg from py27 to py36
+      [Dominic Schlegel]
+    - lp-to-git-users: adding igalic [Igor Galić]
+    - add data-server dns entry as new metadata server detection
+      [Joshua Hügli]
+    - lp-to-git-users: adding chrisglass [Chris Glass]
+    - lp-to-git-users: adding larsks [Lars Kellogg-Stedman]
+    - Merge pull request #31 from raharper/fix/pycodestyle-tip
+    - reporting: Using a uuid to enforce uniqueness on the KVP keys. [momousta]
+    - lp-to-git-users: adding paride [Paride Legovini]
+    - lp-to-git-users: adding powersj [Joshua Powers]
+    - lp-to-git-users: adding blackboxsw
+    - lp-to-git-users: adding raharper
+    - docs: touchups in rtd intro and README.md
+    - doc: update launchpad git refs to github
+    - tools: migrate script needs to write tools/.lp-to-git-user
+    - github: drop pull-request template to prepare for migration
+    - tools: add migrate-lp-user-to-github script to link LP to github
+    - github: new basic project readme
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 22 Nov 2019 20:09:10 -0700
+
 cloud-init (19.3-0ubuntu1) focal; urgency=medium
 
   * New upstream release.
