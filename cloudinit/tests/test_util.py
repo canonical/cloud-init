@@ -387,6 +387,13 @@ class TestUdevadmSettle(CiTestCase):
 @mock.patch('os.path.exists')
 class TestGetLinuxDistro(CiTestCase):
 
+    def setUp(self):
+        self.patch_cache_dict = mock.patch.dict(util._CACHED_RESPONSES, values={}, clear=True)
+        self.patch_cache_dict.start()
+
+    def tearDown(self):
+        self.patch_cache_dict.stop()
+
     @classmethod
     def os_release_exists(self, path):
         """Side effect function"""
