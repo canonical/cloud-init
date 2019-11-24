@@ -21,7 +21,9 @@ key, and the fqdn of the cloud wil be used. If a fqdn specified with the
 the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set, ``fqdn``
 will be used.
 
-**Internal name:** per instance
+**Internal name:** ``cc_set_hostname``
+
+**Module frequency:** per instance
 
 **Supported distros:** all
 
