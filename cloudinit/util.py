@@ -1388,10 +1388,7 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
 
 
 @memoize
-def get_cmdline():
-    if 'DEBUG_PROC_CMDLINE' in os.environ:
-        return os.environ["DEBUG_PROC_CMDLINE"]
-
+def _get_cmdline():
     if is_container():
         try:
             contents = load_file("/proc/1/cmdline")
@@ -1407,6 +1404,13 @@ def get_cmdline():
             cmdline = ""
 
     return cmdline
+
+
+def get_cmdline():
+    if 'DEBUG_PROC_CMDLINE' in os.environ:
+        return os.environ["DEBUG_PROC_CMDLINE"]
+
+    return _get_cmdline()
 
 
 def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
