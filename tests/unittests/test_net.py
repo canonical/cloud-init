@@ -4589,19 +4589,19 @@ class TestNetRenderers(CiTestCase):
         """sysconfig only selected on specific distros (rhel/sles)."""
 
         # Ubuntu with Network-Manager installed
-        m_eni.return_value = False       # no ifupdown (ifquery)
-        m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
-        m_sys_nm.return_value = True     # network-manager is installed
-        m_netplan.return_value = True    # netplan is installed
+        m_eni.return_value = False        # no ifupdown (ifquery)
+        m_sys_scfg.return_value = False   # no sysconfig/ifup/ifdown
+        m_sys_nm.return_value = True      # network-manager is installed
+        m_netplan.return_value = True     # netplan is installed
         m_distro.return_value = ('ubuntu', None, None)
-        m_sys_avail.return_value = False # no sysconfig on Ubuntu
+        m_sys_avail.return_value = False  # no sysconfig on Ubuntu
         self.assertEqual('netplan', renderers.select(priority=None)[0])
 
         # Centos with Network-Manager installed
         m_eni.return_value = False       # no ifupdown (ifquery)
         m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
         m_sys_nm.return_value = True     # network-manager is installed
-        m_netplan.return_value = False    # netplan is not installed
+        m_netplan.return_value = False   # netplan is not installed
         m_distro.return_value = ('centos', None, None)
         m_sys_avail.return_value = True  # sysconfig is available on centos
         self.assertEqual('sysconfig', renderers.select(priority=None)[0])
@@ -4610,7 +4610,7 @@ class TestNetRenderers(CiTestCase):
         m_eni.return_value = False       # no ifupdown (ifquery)
         m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
         m_sys_nm.return_value = True     # network-manager is installed
-        m_netplan.return_value = False    # netplan is not installed
+        m_netplan.return_value = False   # netplan is not installed
         m_distro.return_value = ('opensuse', None, None)
         m_sys_avail.return_value = True  # sysconfig is available on opensuse
         self.assertEqual('sysconfig', renderers.select(priority=None)[0])

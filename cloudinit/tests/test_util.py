@@ -388,7 +388,8 @@ class TestUdevadmSettle(CiTestCase):
 class TestGetLinuxDistro(CiTestCase):
 
     def setUp(self):
-        self.patch_cache_dict = mock.patch.dict(util._CACHED_RESPONSES, values={}, clear=True)
+        self.patch_cache_dict = mock.patch.dict(util._CACHED_RESPONSES,
+                                                values={}, clear=True)
         self.patch_cache_dict.start()
 
     def tearDown(self):
