@@ -406,6 +406,12 @@ class TestGetLinuxDistro(CiTestCase):
         if path == '/etc/redhat-release':
             return 1
 
+    @classmethod
+    def freebsd_version_exists(self, path):
+        """Side effect function """
+        if path == '/bin/freebsd-version':
+            return 1
+
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_distro_quoted_name(self, m_os_release, m_path_exists):
         """Verify we get the correct name if the os-release file has
@@ -423,6 +429,14 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('ubuntu', '16.04', 'xenial'), dist)
+
+    @mock.patch('cloudinit.util.subp')
+    def test_get_linux_freebsd(self, m_subp, m_path_exists):
+        """Verify we get the correct name and release name on FreeBSD."""
+        m_path_exists.side_effect = TestGetLinuxDistro.freebsd_version_exists
+        m_subp.return_value = ("12.0-RELEASE-p10\n", '')
+        dist = util.get_linux_distro()
+        self.assertEqual(('freebsd', '12.0-RELEASE-p10', ''), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_centos6(self, m_os_release, m_path_exists):

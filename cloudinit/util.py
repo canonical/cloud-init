@@ -636,7 +636,8 @@ def get_linux_distro():
             distro_name = 'redhat'
     elif os.path.exists('/bin/freebsd-version'):
         distro_name = 'freebsd'
-        distro_version = subp(['uname', '-r'])
+        distro_version, _ = subp(['uname', '-r'])
+        distro_version = distro_version.strip()
     else:
         dist = ('', '', '')
         try:
