@@ -4576,6 +4576,7 @@ class TestNetRenderers(CiTestCase):
                           priority=['sysconfig', 'eni'])
 
     @mock.patch("cloudinit.net.renderers.netplan.available")
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
     @mock.patch("cloudinit.net.renderers.sysconfig.available_sysconfig")
     @mock.patch("cloudinit.net.renderers.sysconfig.available_nm")
     @mock.patch("cloudinit.net.renderers.eni.available")
@@ -4583,6 +4584,7 @@ class TestNetRenderers(CiTestCase):
     def test_sysconfig_selected_on_sysconfig_enabled_distros(self, m_distro,
                                                              m_eni, m_sys_nm,
                                                              m_sys_scfg,
+                                                             m_sys_avail,
                                                              m_netplan):
         """sysconfig only selected on specific distros (rhel/sles)."""
 
@@ -4592,6 +4594,7 @@ class TestNetRenderers(CiTestCase):
         m_sys_nm.return_value = True     # network-manager is installed
         m_netplan.return_value = True    # netplan is installed
         m_distro.return_value = ('ubuntu', None, None)
+        m_sys_avail.return_value = False # no sysconfig on Ubuntu
         self.assertEqual('netplan', renderers.select(priority=None)[0])
 
         # Centos with Network-Manager installed
@@ -4600,6 +4603,7 @@ class TestNetRenderers(CiTestCase):
         m_sys_nm.return_value = True     # network-manager is installed
         m_netplan.return_value = False    # netplan is not installed
         m_distro.return_value = ('centos', None, None)
+        m_sys_avail.return_value = True  # sysconfig is available on centos
         self.assertEqual('sysconfig', renderers.select(priority=None)[0])
 
         # OpenSuse with Network-Manager installed
@@ -4608,8 +4612,10 @@ class TestNetRenderers(CiTestCase):
         m_sys_nm.return_value = True     # network-manager is installed
         m_netplan.return_value = False    # netplan is not installed
         m_distro.return_value = ('opensuse', None, None)
+        m_sys_avail.return_value = True  # sysconfig is available on opensuse
         self.assertEqual('sysconfig', renderers.select(priority=None)[0])
 
+    @mock.patch.dict("cloudinit.util._CACHED_RESPONSES", values={}, clear=True)
     @mock.patch("cloudinit.net.sysconfig.available_sysconfig")
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_sysconfig_available_uses_variant_mapping(self, m_distro, m_avail):
