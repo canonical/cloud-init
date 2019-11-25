@@ -4593,8 +4593,8 @@ class TestNetRenderers(CiTestCase):
         m_sys_scfg.return_value = False   # no sysconfig/ifup/ifdown
         m_sys_nm.return_value = True      # network-manager is installed
         m_netplan.return_value = True     # netplan is installed
-        m_distro.return_value = ('ubuntu', None, None)
         m_sys_avail.return_value = False  # no sysconfig on Ubuntu
+        m_distro.return_value = ('ubuntu', None, None)
         self.assertEqual('netplan', renderers.select(priority=None)[0])
 
         # Centos with Network-Manager installed
@@ -4602,8 +4602,8 @@ class TestNetRenderers(CiTestCase):
         m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
         m_sys_nm.return_value = True     # network-manager is installed
         m_netplan.return_value = False   # netplan is not installed
-        m_distro.return_value = ('centos', None, None)
         m_sys_avail.return_value = True  # sysconfig is available on centos
+        m_distro.return_value = ('centos', None, None)
         self.assertEqual('sysconfig', renderers.select(priority=None)[0])
 
         # OpenSuse with Network-Manager installed
@@ -4611,8 +4611,8 @@ class TestNetRenderers(CiTestCase):
         m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
         m_sys_nm.return_value = True     # network-manager is installed
         m_netplan.return_value = False   # netplan is not installed
-        m_distro.return_value = ('opensuse', None, None)
         m_sys_avail.return_value = True  # sysconfig is available on opensuse
+        m_distro.return_value = ('opensuse', None, None)
         self.assertEqual('sysconfig', renderers.select(priority=None)[0])
 
     @mock.patch.dict("cloudinit.util._CACHED_RESPONSES", values={}, clear=True)
