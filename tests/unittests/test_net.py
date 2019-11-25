@@ -4615,7 +4615,6 @@ class TestNetRenderers(CiTestCase):
         m_distro.return_value = ('opensuse', None, None)
         self.assertEqual('sysconfig', renderers.select(priority=None)[0])
 
-    @mock.patch.dict("cloudinit.util._CACHED_RESPONSES", values={}, clear=True)
     @mock.patch("cloudinit.net.sysconfig.available_sysconfig")
     @mock.patch("cloudinit.util.get_linux_distro")
     def test_sysconfig_available_uses_variant_mapping(self, m_distro, m_avail):
@@ -4631,6 +4630,8 @@ class TestNetRenderers(CiTestCase):
         ]
         for (distro_name, distro_version, flavor) in distro_values:
             m_distro.return_value = (distro_name, distro_version, flavor)
+            if hasattr(util.system_info, "cache_clear"):
+                util.system_info.cache_clear()
             result = sysconfig.available()
             self.assertTrue(result)
 
