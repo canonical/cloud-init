@@ -50,6 +50,16 @@ from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
 
+try:
+    from functools import lru_cache
+except ImportError:
+    def lru_cache():
+        """pass-thru replace for Python3's lru_cache()"""
+        def wrapper(f):
+            return f
+        return wrapper
+
+
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
 
@@ -67,19 +77,6 @@ FALSE_STRINGS = ('off', '0', 'no', 'false')
 CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['running-in-container'],
                    ['lxc-is-container'])
-
-_CACHED_RESPONSES = {}
-
-
-try:
-    from functools import lru_cache
-except ImportError:
-    def lru_cache():
-        """pass-thru replace for Python3's lru_cache()"""
-        def wrapper(f):
-            return f
-
-        return wrapper
 
 
 @lru_cache()
