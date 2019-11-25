@@ -388,7 +388,9 @@ class TestUdevadmSettle(CiTestCase):
 class TestGetLinuxDistro(CiTestCase):
 
     def setUp(self):
-        util.get_linux_distro.cache_clear()
+        # python2 has no lru_cache, and therefore, no cache_clear()
+        if hasattr(util.get_linux_distro, "cache_clear"):
+            util.get_linux_distro.cache_clear()
 
 
     @classmethod

@@ -74,10 +74,10 @@ _CACHED_RESPONSES = {}
 try:
     from functools import lru_cache
 except ImportError:
-    def lru_cache(f):
+    def lru_cache():
         """pass-thru replace for Python3's lru_cache()"""
-        def wrapper(*x):
-            return f(*x)
+        def wrapper(f):
+            return f
 
         return wrapper
 
