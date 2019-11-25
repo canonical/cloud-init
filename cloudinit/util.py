@@ -71,28 +71,26 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
 _CACHED_RESPONSES = {}
 
 
-def memoize(f):
-    """
-    Function used to cache responses from functions decorated with it.
-    """
+try:
+    from functools import lru_cache
+except ImportError:
+    def lru_cache(f):
+        """pass-thru replace for Python3's lru_cache()"""
+        def wrapper(*x):
+            return f(*x)
 
-    def helper(*x):
-        global _CACHED_RESPONSES
-        if (f, x) not in _CACHED_RESPONSES:
-            _CACHED_RESPONSES[(f, x)] = f(*x)
-        return _CACHED_RESPONSES[(f, x)]
-
-    return helper
+        return wrapper
 
 
-@memoize
+
+@lru_cache()
 def get_architecture(target=None):
     out, _ = subp(['dpkg', '--print-architecture'], capture=True,
                   target=target)
     return out.strip()
 
 
-@memoize
+@lru_cache()
 def _lsb_release(target=None):
     fmap = {'Codename': 'codename', 'Description': 'description',
             'Distributor ID': 'id', 'Release': 'release'}
@@ -556,7 +554,7 @@ def is_ipv4(instr):
     return len(toks) == 4
 
 
-@memoize
+@lru_cache()
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
 
@@ -606,7 +604,7 @@ def _parse_redhat_release(release_file=None):
     return {}
 
 
-@memoize
+@lru_cache()
 def get_linux_distro():
     distro_name = ''
     distro_version = ''
@@ -658,7 +656,7 @@ def get_linux_distro():
     return (distro_name, distro_version, flavor)
 
 
-@memoize
+@lru_cache()
 def system_info():
     info = {
         'platform': platform.platform(),
@@ -1388,7 +1386,7 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
         return contents
 
 
-@memoize
+@lru_cache()
 def _get_cmdline():
     if is_container():
         try:

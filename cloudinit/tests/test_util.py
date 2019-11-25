@@ -388,12 +388,8 @@ class TestUdevadmSettle(CiTestCase):
 class TestGetLinuxDistro(CiTestCase):
 
     def setUp(self):
-        self.patch_cache_dict = mock.patch.dict(util._CACHED_RESPONSES,
-                                                values={}, clear=True)
-        self.patch_cache_dict.start()
+        util.get_linux_distro.cache_clear()
 
-    def tearDown(self):
-        self.patch_cache_dict.stop()
 
     @classmethod
     def os_release_exists(self, path):
