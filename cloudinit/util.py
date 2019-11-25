@@ -82,7 +82,6 @@ except ImportError:
         return wrapper
 
 
-
 @lru_cache()
 def get_architecture(target=None):
     out, _ = subp(['dpkg', '--print-architecture'], capture=True,

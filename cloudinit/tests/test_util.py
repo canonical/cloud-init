@@ -392,7 +392,6 @@ class TestGetLinuxDistro(CiTestCase):
         if hasattr(util.get_linux_distro, "cache_clear"):
             util.get_linux_distro.cache_clear()
 
-
     @classmethod
     def os_release_exists(self, path):
         """Side effect function"""
