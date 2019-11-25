@@ -48,6 +48,33 @@ def azure_ds_telemetry_reporter(func):
     return impl
 
 
+def if_byte_swapped(previous_id, current_id):
+    """
+    Azure stores the instance ID with an incorrect byte ordering for the
+    first parts. This corrects the byte order such that it is consistent with
+    that returned by the metadata service.
+    """
+    def swap_hexstring(s, width=2):
+        r = len(s) % width
+        if r != 0:
+            s = ('0' * (width - (len(s) % width))) + s
+
+        return ''.join(reversed(
+            re.findall(
+                r'[a-f0-9]{{{0}}}'.format(width),
+                s,
+                re.IGNORECASE)))
+
+    parts = current_id.split('-')
+    swapped_id = '-'.join([
+            swap_hexstring(parts[0], width=2),
+            swap_hexstring(parts[1], width=2),
+            swap_hexstring(parts[2], width=2),
+            parts[3],
+            parts[4]
+        ])
+    return previous_id == swapped_id
+
 @azure_ds_telemetry_reporter
 def get_boot_telemetry():
     """Report timestamps related to kernel initialization and systemd
