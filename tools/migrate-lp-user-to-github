@@ -176,9 +176,12 @@ def main():
     VERBOSITY = 1 if args.verbose else 0
     repo_dir = args.repo_dir or PUBLISH_DIR
     if not os.path.exists(repo_dir):
+        cleanup_repo_dir = True
         subp(['git', 'clone',
               LP_UPSTREAM_PATH_TMPL.format(launchpad_user=args.launchpad_user),
               repo_dir])
+    else:
+        cleanup_repo_dir = False
     cwd = os.getcwd()
     os.chdir(repo_dir)
     log("Sycing master branch with upstream")
@@ -196,10 +199,11 @@ def main():
         for push_remote in (lp_remote_name, gh_remote_name):
             subp(['git', 'push', push_remote, MIGRATE_BRANCH_NAME, '--force'])
     except Exception as e:
-        os.chdir(cwd)
-        if os.path.exists(repo_dir):
-            util.del_dir(repo_dir)
         error('Failed setting up migration branches: {0}'.format(e))
+    finally:
+        os.chdir(cwd)
+        if cleanup_repo_dir and os.path.exists(repo_dir):
+            util.del_dir(repo_dir)
     # Make merge request on LP
     log("[launchpad] Automatically creating merge proposal using launchpadlib")
     lp = Launchpad.login_with(
