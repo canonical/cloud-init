@@ -182,10 +182,12 @@ def handle(_name, cfg, cloud, log, args):
                 hashed_plist_in.append(line)
                 hashed_users.append(u)
             else:
+                # in this else branch, we potentially change the password
+                # hence, a deviation from .append(line)
                 if p == "R" or p == "RANDOM":
                     p = rand_user_password()
-                    randlist.append(line)
-                plist_in.append(line)
+                    randlist.append("%s:%s" % (u, p))
+                plist_in.append("%s:%s" % (u, p))
                 users.append(u)
         ch_in = '\n'.join(plist_in) + '\n'
         if users:
