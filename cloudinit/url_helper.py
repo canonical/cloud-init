@@ -81,14 +81,17 @@ def combine_url(base, *add_ons):
     return url
 
 
-def read_file_or_url(url, timeout=5, retries=10,
-                     headers=None, data=None, sec_between=1, ssl_details=None,
-                     headers_cb=None, exception_cb=None):
+def read_file_or_url(url, *args, **kwargs):
+    """Wrapper function around readurl to allow passing a file path as url.
+
+    In the event that url is not a local file path, passthrough any args and
+    kwargs to readurl
+    """
     url = url.lstrip()
     if url.startswith("/"):
         url = "file://%s" % url
     if url.lower().startswith("file://"):
-        if data:
+        if kwargs.get("data"):
             LOG.warning("Unable to post data to file resource %s", url)
         file_path = url[len("file://"):]
         try:
@@ -101,10 +104,7 @@ def read_file_or_url(url, timeout=5, retries=10,
             raise UrlError(cause=e, code=code, headers=None, url=url)
         return FileResponse(file_path, contents=contents)
     else:
-        return readurl(url, timeout=timeout, retries=retries,
-                       headers_cb=headers_cb, data=data,
-                       sec_between=sec_between, ssl_details=ssl_details,
-                       exception_cb=exception_cb)
+        return readurl(url, *args, **kwargs)
 
 
 # Made to have same accessors as UrlResponse so that the

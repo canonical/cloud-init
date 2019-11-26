@@ -67,6 +67,21 @@ class TestReadFileOrUrl(CiTestCase):
         self.assertEqual(result.contents, data)
         self.assertEqual(str(result), data.decode('utf-8'))
 
+    @mock.patch('cloudinit.url_helper.readurl')
+    def test_read_file_or_url_passes_params_to_readurl(self, m_readurl):
+        """read_file_or_url passes all params through to readurl."""
+        url = 'http://hostname/path'
+        response = 'This is my url content\n'
+        m_readurl.return_value = response
+        params = {'url': url, 'timeout': 1, 'retries': 2,
+                  'headers': {'somehdr': 'val'},
+                  'data': 'data', 'sec_between': 1,
+                  'ssl_details': {'cert_file': '/path/cert.pem'},
+                  'headers_cb': 'headers_cb', 'exception_cb': 'exception_cb'}
+        self.assertEqual(response, read_file_or_url(**params))
+        params.pop('url')  # url is passed in as a positional arg
+        self.assertEqual([mock.call(url, **params)], m_readurl.call_args_list)
+
 
 class TestRetryOnUrlExc(CiTestCase):
 
