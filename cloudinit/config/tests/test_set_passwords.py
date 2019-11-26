@@ -125,5 +125,27 @@ class TestSetPasswordsHandle(CiTestCase):
             mock.call(['pw', 'usermod', 'ubuntu', '-p', '01-Jan-1970'])],
             m_subp.call_args_list)
 
+    @mock.patch(MODPATH + "util.is_FreeBSD")
+    @mock.patch(MODPATH + "util.subp")
+    def test_handle_on_chpasswd_list_creates_random_passwords(self, m_subp,
+                                                              m_is_freebsd):
+        """handle parses command set random passwords."""
+        m_is_freebsd.return_value = False
+        cloud = self.tmp_cloud(distro='ubuntu')
+        valid_random_pwds = [
+            'root:R',
+            'ubuntu:RANDOM']
+        cfg = {'chpasswd': {'expire': 'false', 'list': valid_random_pwds}}
+        with mock.patch(MODPATH + 'util.subp') as m_subp:
+            setpass.handle(
+                'IGNORED', cfg=cfg, cloud=cloud, log=self.logger, args=[])
+        self.assertIn(
+            'DEBUG: Handling input for chpasswd as list.',
+            self.logs.getvalue())
+        self.assertNotEqual(
+            [mock.call(['chpasswd'],
+             '\n'.join(valid_random_pwds) + '\n')],
+            m_subp.call_args_list)
+
 
 # vi: ts=4 expandtab
