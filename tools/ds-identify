@@ -287,7 +287,7 @@ detect_virt() {
         if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
             virt="$out"
         fi
-    elif [ "$DI_KERNEL_NAME" = "FreeBSD" ]; then
+    elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
         out=$(sysctl -qn hw.vm_guest 2>/dev/null) && {
             virt="$out"
         }
