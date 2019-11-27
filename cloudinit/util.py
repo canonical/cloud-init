@@ -986,9 +986,6 @@ def load_yaml(blob, default=None, allowed=(dict,)):
 
 
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
-    if base.startswith("/"):
-        base = "file://%s" % base
-
     if base.find("%s") >= 0:
         ud_url = base % ("user-data" + ext)
         md_url = base % ("meta-data" + ext)
