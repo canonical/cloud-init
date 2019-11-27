@@ -48,7 +48,7 @@ def azure_ds_telemetry_reporter(func):
     return impl
 
 
-def if_byte_swapped(previous_id, current_id):
+def if_byte_swapped(previous_id, current_id, ds):
     """
     Azure stores the instance ID with an incorrect byte ordering for the
     first parts. This corrects the byte order such that it is consistent with
@@ -65,15 +65,18 @@ def if_byte_swapped(previous_id, current_id):
                 s,
                 re.IGNORECASE)))
 
-    parts = current_id.split('-')
-    swapped_id = '-'.join([
-            swap_hexstring(parts[0], width=2),
-            swap_hexstring(parts[1], width=2),
-            swap_hexstring(parts[2], width=2),
-            parts[3],
-            parts[4]
-        ])
-    return previous_id == swapped_id
+    if ds.dsname == 'DataSourceAzure':
+        parts = current_id.split('-')
+        swapped_id = '-'.join([
+                swap_hexstring(parts[0], width=2),
+                swap_hexstring(parts[1], width=2),
+                swap_hexstring(parts[2], width=2),
+                parts[3],
+                parts[4]
+            ])
+
+        return previous_id != swapped_id
+    return False
 
 @azure_ds_telemetry_reporter
 def get_boot_telemetry():
