@@ -2691,8 +2691,8 @@ def _call_dmidecode(key, dmidecode_path):
     try:
         cmd = [dmidecode_path, "--string", key]
         (result, _err) = subp(cmd)
-        LOG.debug("dmidecode returned '%s' for '%s'", result, key)
         result = result.strip()
+        LOG.debug("dmidecode returned '%s' for '%s'", result, key)
         if result.replace(".", "") == "":
             return ""
         return result
