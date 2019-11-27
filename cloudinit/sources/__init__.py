@@ -15,6 +15,7 @@ import json
 import os
 import six
 
+from cloudinit.sources.helpers.azure import byte_swapped
 from cloudinit.atomic_helper import write_json
 from cloudinit import importer
 from cloudinit import log as logging
@@ -800,9 +801,11 @@ def instance_id_matches_system_uuid(instance_id, field='system-uuid'):
         return False
 
     dmi_value = util.read_dmi_data(field)
+    previous = dmi_value.lower()
+    current = instance_id.lower()
     if not dmi_value:
         return False
-    return instance_id.lower() == dmi_value.lower()
+    return current == previous or current == byte_swapped(current, previous)
 
 
 def canonical_cloud_id(cloud_name, region, platform):

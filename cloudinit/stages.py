@@ -344,11 +344,8 @@ class Init(object):
 
     def is_new_instance(self):
         previous = self.previous_iid()
-        ds = self.datasource
-        current = self.datasource.get_instance_id()
-        ret = (previous == NO_PREVIOUS_INSTANCE_ID
-               or if_byte_swapped(previous, current, ds)
-               or previous != current)
+        ret = (previous == NO_PREVIOUS_INSTANCE_ID or
+               previous != self.datasource.get_instance_id())
         return ret
 
     def fetch(self, existing="check"):
