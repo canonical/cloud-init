@@ -86,8 +86,9 @@ class TestDataSourceHetzner(CiTestCase):
         self.assertTrue(ret)
 
         m_net.assert_called_once_with(
-            'eth0', '169.254.0.1',
-            16, '169.254.255.255'
+            'eth0', ip='169.254.0.1',
+            prefix_or_mask=16, broadcast='169.254.255.255',
+            connectivity_url=ds.metadata_address
         )
 
         self.assertTrue(m_readmd.called)
