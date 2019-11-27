@@ -50,10 +50,13 @@ class DataSourceHetzner(sources.DataSource):
         if not on_hetzner():
             return False
         nic = cloudnet.find_fallback_nic()
-        with cloudnet.EphemeralIPv4Network(nic, ip="169.254.0.1",
-                                           prefix_or_mask=16,
-                                           broadcast="169.254.255.255",
-                                           connectivity_url=self.metadata_address):
+        with cloudnet.EphemeralIPv4Network(
+                nic,
+                ip="169.254.0.1",
+                prefix_or_mask=16,
+                broadcast="169.254.255.255",
+                connectivity_url=self.metadata_address
+        ):
             md = hc_helper.read_metadata(
                 self.metadata_address, timeout=self.timeout,
                 sec_between=self.wait_retry, retries=self.retries)
