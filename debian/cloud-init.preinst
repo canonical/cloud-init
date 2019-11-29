@@ -3,41 +3,41 @@ set -e
 
 # Remove a no-longer used conffile
 rm_conffile() {
-	local PKGNAME="$1"
-	local CONFFILE="$2"
+    local PKGNAME="$1"
+    local CONFFILE="$2"
 
-	[ -e "$CONFFILE" ] || return 0
+    [ -e "$CONFFILE" ] || return 0
 
-	local md5sum="$(md5sum $CONFFILE | sed -e 's/ .*//')"
-	local old_md5sum="$(dpkg-query -W -f='${Conffiles}' $PKGNAME | \
-			sed -n -e "\' $CONFFILE ' { s/ obsolete$//; s/.* //; p }")"
-	if [ "$md5sum" != "$old_md5sum" ]; then
-		echo "Obsolete conffile $CONFFILE has been modified by you."
-		echo "Saving as $CONFFILE.dpkg-bak ..."
-		mv -f "$CONFFILE" "$CONFFILE".dpkg-bak
-	else
-		echo "Removing obsolete conffile $CONFFILE ..."
-		rm -f "$CONFFILE"
-	fi
+    local md5sum="$(md5sum $CONFFILE | sed -e 's/ .*//')"
+    local old_md5sum="$(dpkg-query -W -f='${Conffiles}' $PKGNAME | \
+            sed -n -e "\' $CONFFILE ' { s/ obsolete$//; s/.* //; p }")"
+    if [ "$md5sum" != "$old_md5sum" ]; then
+        echo "Obsolete conffile $CONFFILE has been modified by you."
+        echo "Saving as $CONFFILE.dpkg-bak ..."
+        mv -f "$CONFFILE" "$CONFFILE".dpkg-bak
+    else
+        echo "Removing obsolete conffile $CONFFILE ..."
+        rm -f "$CONFFILE"
+    fi
 }
 
 # move_sem(src,targets)
 #  rename sem/* items named $src to $targets
 #  (with hard links if more than one)
 move_sem() {
-	local src=$1 f="" targ="" freqid="" dir=/var/lib/cloud/sem
-	shift
-	# link the remaining targets to src, if it exists
-	for f in "${dir}/${src}."*; do
-		# if there were no src entries, nothing to do
-		[ -f "${f}" ] || return 0
-		freqid=${f#${dir}/${src}.} # 'i-abcdefg' or 'always'
-		for targ in "$@"; do
-			[ -e "${dir}/${targ}.${freqid}" ] && continue
-			ln -f "${f}" "${dir}/${targ}.${freqid}"
-		done
-		rm "${f}"
-	done
+    local src=$1 f="" targ="" freqid="" dir=/var/lib/cloud/sem
+    shift
+    # link the remaining targets to src, if it exists
+    for f in "${dir}/${src}."*; do
+        # if there were no src entries, nothing to do
+        [ -f "${f}" ] || return 0
+        freqid=${f#${dir}/${src}.} # 'i-abcdefg' or 'always'
+        for targ in "$@"; do
+            [ -e "${dir}/${targ}.${freqid}" ] && continue
+            ln -f "${f}" "${dir}/${targ}.${freqid}"
+        done
+        rm "${f}"
+    done
    return 0
 }
 
@@ -182,20 +182,20 @@ cleanup_lp1552999() {
 }
 
 case "$1" in
-	install|upgrade)
-		if dpkg --compare-versions "$2" le "0.5.11-0ubuntu1"; then
-			# rename the config entries in sem/ so they're not run again
+    install|upgrade)
+        if dpkg --compare-versions "$2" le "0.5.11-0ubuntu1"; then
+            # rename the config entries in sem/ so they're not run again
 
-			# transition names in 0.5.11 had only short name (no config- prefix)
-			# so create config- entries for each
-			for name in apt-update-upgrade disable-ec2-metadata mounts \
-				puppet runcmd ssh updates-check; do
-				move_sem ${name} config-${name}
-			done
+            # transition names in 0.5.11 had only short name (no config- prefix)
+            # so create config- entries for each
+            for name in apt-update-upgrade disable-ec2-metadata mounts \
+                puppet runcmd ssh updates-check; do
+                move_sem ${name} config-${name}
+            done
 
-			# 0.5.11 split 'config-misc' into 'updates-check' and 'runcmd'
-			move_sem config-misc config-updates-check config-runcmd
-		fi
+            # 0.5.11 split 'config-misc' into 'updates-check' and 'runcmd'
+            move_sem config-misc config-updates-check config-runcmd
+        fi
 
       if dpkg --compare-versions "$2" le "0.5.14-0ubuntu5"; then
          fix_ephemeral0_micro
