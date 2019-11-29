@@ -30,6 +30,7 @@ XS-Python-Version: all
 Vcs-Browser: https://git.launchpad.net/cloud-init/?h=ubuntu/devel
 Vcs-Git: git://git.launchpad.net/cloud-init -b ubuntu/devel
 Standards-Version: 3.9.8
+Rules-Requires-Root: no
 
 Package: cloud-init
 Architecture: all
