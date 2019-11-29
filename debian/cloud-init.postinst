@@ -1,4 +1,6 @@
-#!/bin/sh -e
+#!/bin/sh
+
+set -e
 
 . /usr/share/debconf/confmodule
 
@@ -138,7 +140,7 @@ fix_1336855() {
   [ -r /proc/cmdline ] || return 0
 
   # Don't do anything unless we have grub
-  [ -x /usr/sbin/grub-install ] || return 0
+  command -v grub-install > /dev/null 2>&1 || return 0
 
   # First, identify the kernel device for the parent.
   for parm in $(cat /proc/cmdline); do
@@ -178,7 +180,7 @@ fix_1336855() {
 
   # Find out the parent device for the root device.
   #     example output: sda/sda1
-  block_path=$(udevadm info -q path -n $root_dev | awk '-Fblock/' '{print$NF}')
+  block_path=$(udevadm info -q path -n $root_dev | awk '-Fblock/' '{print$NF}') || return 0
 
   # Extract the parent device name. This works where the device is a block device
   #     example output: /dev/sda
