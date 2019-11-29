@@ -183,31 +183,6 @@ cleanup_lp1552999() {
 
 case "$1" in
 	install|upgrade)
-		# removing obsolete conffiles from the 'ec2-init' package
-		if dpkg --compare-versions "$2" le "0.5.1"; then
-			rm_conffile ec2-init "/etc/init/cloud-ssh-keygen.conf"
-		fi
-		if dpkg --compare-versions "$2" lt "0.5.3"; then
-			rm_conffile ec2-init "/etc/init/ec2init.conf"
-		fi
-		if [ "$2" = "0.5.7-0ubuntu1" ]; then
-			bad_d=/etc/update-motd.d/92-ec2-upgrade-available
-			rm_conffile cloud-init "${bad_d}/motd-hook"
-			# the dir for this file is almost certainly empty, but
-			# if the file above was only moved, or other files there
-			# then leave it be
-			rmdir "${bad_d}" 2>/dev/null || true
-		fi
-
-		if dpkg --compare-versions "$2" le "0.5.10-0ubuntu2"; then
-			old_confs="cloud-apt-update-upgrade cloud-config-misc
-				cloud-config-mounts cloud-config-puppet
-				cloud-config-ssh cloud-disable-ec2-metadata" 
-			for f in ${old_confs}; do
-				rm_conffile cloud-init "/etc/init/${f}.conf"
-			done
-		fi
-
 		if dpkg --compare-versions "$2" le "0.5.11-0ubuntu1"; then
 			# rename the config entries in sem/ so they're not run again
 
