@@ -102,10 +102,10 @@ main() {
         shift;
     done
 
-	[ -n "$TEMP_D" ] ||
+    [ -n "$TEMP_D" ] ||
         TEMP_D=$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXX") ||
-		{ error "failed to make tempdir"; return 1; }
-	trap cleanup EXIT
+        { error "failed to make tempdir"; return 1; }
+    trap cleanup EXIT
 
     [ $# -gt 0 ] || { bad_Usage "must provide commit-ish"; return; }
 
