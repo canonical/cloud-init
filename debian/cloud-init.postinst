@@ -180,7 +180,7 @@ fix_1336855() {
 
   # Find out the parent device for the root device.
   #     example output: sda/sda1
-  block_path=$(udevadm info -q path -n $root_dev | awk '-Fblock/' '{print$NF}')
+  block_path=$(udevadm info -q path -n $root_dev | awk '-Fblock/' '{print$NF}') || return 0
 
   # Extract the parent device name. This works where the device is a block device
   #     example output: /dev/sda
