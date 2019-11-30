@@ -329,6 +329,29 @@ def is_disabled_cfg(cfg):
 
 def find_fallback_nic(blacklist_drivers=None):
     """Return the name of the 'fallback' network device."""
+    if util.is_FreeBSD():
+        return find_fallback_nic_on_freebsd(blacklist_drivers)
+    else:
+        return find_fallback_nic_on_linux(blacklist_drivers)
+
+
+def find_fallback_nic_on_freebsd(blacklist_drivers=None):
+    """Return the name of the 'fallback' network device on FreeBSD.
+
+    @param blacklist_drivers: currently ignored
+    @return default interface, or None
+
+
+    we'll use the first interface from ``ifconfig -l -u ether``
+    """
+    stdout, _stderr = util.subp(['ifconfig', '-l', '-u', 'ether'])
+    if stdout:
+        return stdout.split()[0]
+    return None
+
+
+def find_fallback_nic_on_linux(blacklist_drivers=None):
+    """Return the name of the 'fallback' network device on Linux."""
     if not blacklist_drivers:
         blacklist_drivers = []
 
