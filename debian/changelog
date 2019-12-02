@@ -1,3 +1,23 @@
+cloud-init (19.3-40-gf69d33a7-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - url_helper: read_file_or_url should pass headers param into readurl
+      (#66) (LP: #1854084)
+    - lp-to-git-users: adding elafontaine (#74) [Eric Lafontaine]
+    - lp-to-git-users: adding xiaofengw-vmware [Xiaofeng Wang]
+    - dmidecode: log result *after* stripping [Igor Galić]
+    - cloud_tests: add azure platform support to integration tests
+      [ahosmanmsft]
+    - set_passwords: support for FreeBSD (#46) [Igor Galić]
+    - tools: migrate-lp-user-to-github removes repo_dir if created (#35)
+    - Correct jumbled documentation for cc_set_hostname module (#64)
+      [do3meli] (LP: #1853543)
+    - FreeBSD: fix for get_linux_distro() and lru_cache (#59)
+      [Igor Galić] (LP: #1815030)
+    - lp-to-git-users: adding do3meli [Dominic Schlegel]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 02 Dec 2019 16:26:24 -0700
+
 cloud-init (19.3-30-g4bc399e0-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
