@@ -14,12 +14,11 @@ from configobj import ConfigObj
 
 from . import renderer
 from .network_state import (
-    is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6)
+    is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6, IPV6_DYNAMIC_TYPES)
 
 LOG = logging.getLogger(__name__)
 NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
-KNOWN_DISTROS = [
-    'opensuse', 'sles', 'suse', 'redhat', 'fedora', 'centos']
+KNOWN_DISTROS = ['centos', 'fedora', 'rhel', 'suse']
 
 
 def _make_header(sep='#'):
@@ -331,9 +330,13 @@ class Renderer(renderer.Renderer):
             old_value = iface.get(old_key)
             if old_value is not None:
                 # only set HWADDR on physical interfaces
-                if old_key == 'mac_address' and iface['type'] != 'physical':
+                if (old_key == 'mac_address' and
+                   iface['type'] not in ['physical', 'infiniband']):
                     continue
                 iface_cfg[new_key] = old_value
+
+        if iface['accept-ra'] is not None:
+            iface_cfg['IPV6_FORCE_ACCEPT_RA'] = iface['accept-ra']
 
     @classmethod
     def _render_subnets(cls, iface_cfg, subnets, has_default_route):
@@ -344,10 +347,24 @@ class Renderer(renderer.Renderer):
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             mtu_key = 'MTU'
             subnet_type = subnet.get('type')
-            if subnet_type == 'dhcp6':
+            if subnet_type == 'dhcp6' or subnet_type == 'ipv6_dhcpv6-stateful':
                 # TODO need to set BOOTPROTO to dhcp6 on SUSE
                 iface_cfg['IPV6INIT'] = True
+                # Configure network settings using DHCPv6
                 iface_cfg['DHCPV6C'] = True
+            elif subnet_type == 'ipv6_dhcpv6-stateless':
+                iface_cfg['IPV6INIT'] = True
+                # Configure network settings using SLAAC from RAs and optional
+                # info from dhcp server using DHCPv6
+                iface_cfg['IPV6_AUTOCONF'] = True
+                iface_cfg['DHCPV6C'] = True
+                # Use Information-request to get only stateless configuration
+                # parameters (i.e., without address).
+                iface_cfg['DHCPV6C_OPTIONS'] = '-S'
+            elif subnet_type == 'ipv6_slaac':
+                iface_cfg['IPV6INIT'] = True
+                # Configure network settings using SLAAC from RAs
+                iface_cfg['IPV6_AUTOCONF'] = True
             elif subnet_type in ['dhcp4', 'dhcp']:
                 iface_cfg['BOOTPROTO'] = 'dhcp'
             elif subnet_type == 'static':
@@ -390,9 +407,17 @@ class Renderer(renderer.Renderer):
         ipv6_index = -1
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             subnet_type = subnet.get('type')
+            # metric may apply to both dhcp and static config
+            if 'metric' in subnet:
+                iface_cfg['METRIC'] = subnet['metric']
+            # TODO(hjensas): Including dhcp6 here is likely incorrect. DHCPv6
+            # does not ever provide a default gateway, the default gateway
+            # come from RA's. (https://github.com/openSUSE/wicked/issues/570)
             if subnet_type in ['dhcp', 'dhcp4', 'dhcp6']:
                 if has_default_route and iface_cfg['BOOTPROTO'] != 'none':
                     iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = False
+                continue
+            elif subnet_type in IPV6_DYNAMIC_TYPES:
                 continue
             elif subnet_type == 'static':
                 if subnet_is_ipv6(subnet):
@@ -421,9 +446,6 @@ class Renderer(renderer.Renderer):
                     else:
                         iface_cfg['GATEWAY'] = subnet['gateway']
 
-                if 'metric' in subnet:
-                    iface_cfg['METRIC'] = subnet['metric']
-
                 if 'dns_search' in subnet:
                     iface_cfg['DOMAIN'] = ' '.join(subnet['dns_search'])
 
@@ -439,10 +461,14 @@ class Renderer(renderer.Renderer):
     @classmethod
     def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
         for _, subnet in enumerate(subnets, start=len(iface_cfg.children)):
+            subnet_type = subnet.get('type')
             for route in subnet.get('routes', []):
                 is_ipv6 = subnet.get('ipv6') or is_ipv6_addr(route['gateway'])
 
-                if _is_default_route(route):
+                # Any dynamic configuration method, slaac, dhcpv6-stateful/
+                # stateless should get router information from router RA's.
+                if (_is_default_route(route) and subnet_type not in
+                        IPV6_DYNAMIC_TYPES):
                     if (
                             (subnet.get('ipv4') and
                              route_cfg.has_set_default_ipv4) or
@@ -461,10 +487,17 @@ class Renderer(renderer.Renderer):
                     # TODO(harlowja): add validation that no other iface has
                     # also provided the default route?
                     iface_cfg['DEFROUTE'] = True
+                    # TODO(hjensas): Including dhcp6 here is likely incorrect.
+                    # DHCPv6 does not ever provide a default gateway, the
+                    # default gateway come from RA's.
+                    # (https://github.com/openSUSE/wicked/issues/570)
                     if iface_cfg['BOOTPROTO'] in ('dhcp', 'dhcp4', 'dhcp6'):
+                        # NOTE(hjensas): DHCLIENT_SET_DEFAULT_ROUTE is SuSE
+                        # only. RHEL, CentOS, Fedora does not implement this
+                        # option.
                         iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = True
                     if 'gateway' in route:
-                        if is_ipv6 or is_ipv6_addr(route['gateway']):
+                        if is_ipv6:
                             iface_cfg['IPV6_DEFAULTGW'] = route['gateway']
                             route_cfg.has_set_default_ipv6 = True
                         else:
@@ -578,6 +611,10 @@ class Renderer(renderer.Renderer):
 
     @staticmethod
     def _render_dns(network_state, existing_dns_path=None):
+        # skip writing resolv.conf if network_state doesn't include any input.
+        if not any([len(network_state.dns_nameservers),
+                    len(network_state.dns_searchdomains)]):
+            return None
         content = resolv_conf.ResolvConf("")
         if existing_dns_path and os.path.isfile(existing_dns_path):
             content = resolv_conf.ResolvConf(util.load_file(existing_dns_path))
@@ -585,8 +622,6 @@ class Renderer(renderer.Renderer):
             content.add_nameserver(nameserver)
         for searchdomain in network_state.dns_searchdomains:
             content.add_search_domain(searchdomain)
-        if not str(content):
-            return None
         header = _make_header(';')
         content_str = str(content)
         if not content_str.startswith(header):
@@ -731,7 +766,7 @@ class Renderer(renderer.Renderer):
 def available(target=None):
     sysconfig = available_sysconfig(target=target)
     nm = available_nm(target=target)
-    return (util.get_linux_distro()[0] in KNOWN_DISTROS
+    return (util.system_info()['variant'] in KNOWN_DISTROS
             and any([nm, sysconfig]))
 
 
@@ -744,11 +779,11 @@ def available_sysconfig(target=None):
 
     expected_paths = [
         'etc/sysconfig/network-scripts/network-functions',
-        'etc/sysconfig/network-scripts/ifdown-eth']
+        'etc/sysconfig/config']
     for p in expected_paths:
-        if not os.path.isfile(util.target_path(target, p)):
-            return False
-    return True
+        if os.path.isfile(util.target_path(target, p)):
+            return True
+    return False
 
 
 def available_nm(target=None):

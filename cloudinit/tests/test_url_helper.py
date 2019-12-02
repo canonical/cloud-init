@@ -4,6 +4,7 @@ from cloudinit.url_helper import (
     NOT_FOUND, UrlError, oauth_headers, read_file_or_url, retry_on_url_exc)
 from cloudinit.tests.helpers import CiTestCase, mock, skipIf
 from cloudinit import util
+from cloudinit import version
 
 import httpretty
 import requests
@@ -15,6 +16,9 @@ try:
     _missing_oauthlib_dep = False
 except ImportError:
     _missing_oauthlib_dep = True
+
+
+M_PATH = 'cloudinit.url_helper.'
 
 
 class TestOAuthHeaders(CiTestCase):
@@ -66,6 +70,54 @@ class TestReadFileOrUrl(CiTestCase):
         result = read_file_or_url(url)
         self.assertEqual(result.contents, data)
         self.assertEqual(str(result), data.decode('utf-8'))
+
+    @mock.patch(M_PATH + 'readurl')
+    def test_read_file_or_url_passes_params_to_readurl(self, m_readurl):
+        """read_file_or_url passes all params through to readurl."""
+        url = 'http://hostname/path'
+        response = 'This is my url content\n'
+        m_readurl.return_value = response
+        params = {'url': url, 'timeout': 1, 'retries': 2,
+                  'headers': {'somehdr': 'val'},
+                  'data': 'data', 'sec_between': 1,
+                  'ssl_details': {'cert_file': '/path/cert.pem'},
+                  'headers_cb': 'headers_cb', 'exception_cb': 'exception_cb'}
+        self.assertEqual(response, read_file_or_url(**params))
+        params.pop('url')  # url is passed in as a positional arg
+        self.assertEqual([mock.call(url, **params)], m_readurl.call_args_list)
+
+    def test_wb_read_url_defaults_honored_by_read_file_or_url_callers(self):
+        """Readurl param defaults used when unspecified by read_file_or_url
+
+        Param defaults tested are as follows:
+            retries: 0, additional headers None beyond default, method: GET,
+            data: None, check_status: True and allow_redirects: True
+        """
+        url = 'http://hostname/path'
+
+        m_response = mock.MagicMock()
+
+        class FakeSession(requests.Session):
+            def request(cls, **kwargs):
+                self.assertEqual(
+                    {'url': url, 'allow_redirects': True, 'method': 'GET',
+                     'headers': {
+                         'User-Agent': 'Cloud-Init/%s' % (
+                             version.version_string())}},
+                    kwargs)
+                return m_response
+
+        with mock.patch(M_PATH + 'requests.Session') as m_session:
+            error = requests.exceptions.HTTPError('broke')
+            m_session.side_effect = [error, FakeSession()]
+            # assert no retries and check_status == True
+            with self.assertRaises(UrlError) as context_manager:
+                response = read_file_or_url(url)
+            self.assertEqual('broke', str(context_manager.exception))
+            # assert default headers, method, url and allow_redirects True
+            # Success on 2nd call with FakeSession
+            response = read_file_or_url(url)
+        self.assertEqual(m_response, response._response)
 
 
 class TestRetryOnUrlExc(CiTestCase):

@@ -191,7 +191,9 @@ def register_mock_metaserver(base_url, data):
             register(base_url, 'not found', status=404)
 
     def myreg(*argc, **kwargs):
-        return httpretty.register_uri(httpretty.GET, *argc, **kwargs)
+        url = argc[0]
+        method = httpretty.PUT if ec2.API_TOKEN_ROUTE in url else httpretty.GET
+        return httpretty.register_uri(method, *argc, **kwargs)
 
     register_helper(myreg, base_url, data)
 
@@ -237,6 +239,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
         if md:
             all_versions = (
                 [ds.min_metadata_version] + ds.extended_metadata_versions)
+            token_url = self.data_url('latest', data_item='api/token')
+            register_mock_metaserver(token_url, 'API-TOKEN')
             for version in all_versions:
                 metadata_url = self.data_url(version) + '/'
                 if version == md_version:
@@ -661,5 +665,46 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
             self.assertEqual(
                 expected,
                 ec2.convert_ec2_metadata_network_config(self.network_metadata))
+
+
+class TesIdentifyPlatform(test_helpers.CiTestCase):
+
+    def collmock(self, **kwargs):
+        """return non-special _collect_platform_data updated with changes."""
+        unspecial = {
+            'asset_tag': '3857-0037-2746-7462-1818-3997-77',
+            'serial': 'H23-C4J3JV-R6',
+            'uuid': '81c7e555-6471-4833-9551-1ab366c4cfd2',
+            'uuid_source': 'dmi',
+            'vendor': 'tothecloud',
+        }
+        unspecial.update(**kwargs)
+        return unspecial
+
+    @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
+    def test_identify_zstack(self, m_collect):
+        """zstack should be identified if chassis-asset-tag ends in .zstack.io
+        """
+        m_collect.return_value = self.collmock(asset_tag='123456.zstack.io')
+        self.assertEqual(ec2.CloudNames.ZSTACK, ec2.identify_platform())
+
+    @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
+    def test_identify_zstack_full_domain_only(self, m_collect):
+        """zstack asset-tag matching should match only on full domain boundary.
+        """
+        m_collect.return_value = self.collmock(asset_tag='123456.buzzstack.io')
+        self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
+
+    @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
+    def test_identify_e24cloud(self, m_collect):
+        """e24cloud identified if vendor is e24cloud"""
+        m_collect.return_value = self.collmock(vendor='e24cloud')
+        self.assertEqual(ec2.CloudNames.E24CLOUD, ec2.identify_platform())
+
+    @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
+    def test_identify_e24cloud_negative(self, m_collect):
+        """e24cloud identified if vendor is e24cloud"""
+        m_collect.return_value = self.collmock(vendor='e24cloudyday')
+        self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
 
 # vi: ts=4 expandtab

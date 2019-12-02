@@ -212,8 +212,10 @@ class TestAzureEndpointHttpClient(CiTestCase):
         response = client.get(url, secure=False)
         self.assertEqual(1, self.read_file_or_url.call_count)
         self.assertEqual(self.read_file_or_url.return_value, response)
-        self.assertEqual(mock.call(url, headers=self.regular_headers),
-                         self.read_file_or_url.call_args)
+        self.assertEqual(
+            mock.call(url, headers=self.regular_headers, retries=10,
+                      timeout=5),
+            self.read_file_or_url.call_args)
 
     def test_secure_get(self):
         url = 'MyTestUrl'
@@ -227,8 +229,10 @@ class TestAzureEndpointHttpClient(CiTestCase):
         response = client.get(url, secure=True)
         self.assertEqual(1, self.read_file_or_url.call_count)
         self.assertEqual(self.read_file_or_url.return_value, response)
-        self.assertEqual(mock.call(url, headers=expected_headers),
-                         self.read_file_or_url.call_args)
+        self.assertEqual(
+            mock.call(url, headers=expected_headers, retries=10,
+                      timeout=5),
+            self.read_file_or_url.call_args)
 
     def test_post(self):
         data = mock.MagicMock()
@@ -238,7 +242,8 @@ class TestAzureEndpointHttpClient(CiTestCase):
         self.assertEqual(1, self.read_file_or_url.call_count)
         self.assertEqual(self.read_file_or_url.return_value, response)
         self.assertEqual(
-            mock.call(url, data=data, headers=self.regular_headers),
+            mock.call(url, data=data, headers=self.regular_headers, retries=10,
+                      timeout=5),
             self.read_file_or_url.call_args)
 
     def test_post_with_extra_headers(self):
@@ -250,7 +255,8 @@ class TestAzureEndpointHttpClient(CiTestCase):
         expected_headers = self.regular_headers.copy()
         expected_headers.update(extra_headers)
         self.assertEqual(
-            mock.call(mock.ANY, data=mock.ANY, headers=expected_headers),
+            mock.call(mock.ANY, data=mock.ANY, headers=expected_headers,
+                      retries=10, timeout=5),
             self.read_file_or_url.call_args)
 
 

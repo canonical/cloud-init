@@ -155,8 +155,8 @@ class DataSourceOVF(sources.DataSource):
                 custScriptConfig = get_tools_config(
                     CONFGROUPNAME_GUESTCUSTOMIZATION,
                     GUESTCUSTOMIZATION_ENABLE_CUST_SCRIPTS,
-                    "true")
-                if custScriptConfig.lower() == "false":
+                    "false")
+                if custScriptConfig.lower() != "true":
                     # Update the customization status if there is a
                     # custom script is disabled
                     if special_customization and customscript:
@@ -406,9 +406,7 @@ def read_vmware_imc(config):
     if config.timezone:
         cfg['timezone'] = config.timezone
 
-    # Generate a unique instance-id so that re-customization will
-    # happen in cloud-init
-    md['instance-id'] = "iid-vmware-" + util.rand_str(strlen=8)
+    md['instance-id'] = "iid-vmware-imc"
     return (md, ud, cfg)
 
 

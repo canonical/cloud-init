@@ -90,7 +90,7 @@ class TestCheckCondition(t_help.TestCase):
         mocklog = mock.Mock()
         self.assertEqual(
             psc.check_condition(self.cmd_with_exit(2), mocklog), False)
-        self.assertEqual(mocklog.warn.call_count, 1)
+        self.assertEqual(mocklog.warning.call_count, 1)
 
 
 def check_lps_ret(psc_return, mode=None):
