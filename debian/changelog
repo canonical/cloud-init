@@ -1,3 +1,88 @@
+cloud-init (19.3-40-gf69d33a7-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot. (LP: #1854872)
+    - url_helper: read_file_or_url should pass headers param into readurl (#66)
+    - dmidecode: log result *after* stripping [Igor Galić]
+    - cloud_tests: add azure platform support to integration tests
+      [ahosmanmsft]
+    - set_passwords: support for FreeBSD (#46) [Igor Galić]
+    - tools: migrate-lp-user-to-github removes repo_dir if created (#35)
+    - Correct jumbled documentation for cc_set_hostname module (#64) [do3meli]
+    - FreeBSD: fix for get_linux_distro() and lru_cache (#59) [Igor Galić]
+    - ec2: Add support for AWS IMDS v2 (session-oriented) (#55)
+    - tests: Fix cloudsigma tests when no dmidecode data is present. (#57)
+      [Scott Moser]
+    - net: IPv6, accept_ra, slaac, stateless (#51) [Harald]
+    - docs: Update the configdrive datasource links (#44) [Joshua Powers]
+    - distro: correctly set usr_lib_exec path for FreeBSD distro (#40)
+      [Igor Galić]
+    - azure: support secondary ipv6 addresses (#33)
+    - Fix metadata check when local-hostname is null (#32) [Mark Goddard]
+    - Merge pull request #38 from blackboxsw/cleanup/run-ci-on-pull-request
+    - switch default FreeBSD salt minion pkg from py27 to py36
+      [Dominic Schlegel]
+    - add data-server dns entry as new metadata server detection
+      [Joshua Hügli]
+    - Merge pull request #31 from raharper/fix/pycodestyle-tip
+    - reporting: Using a uuid to enforce uniqueness on the KVP keys. [momousta]
+    - docs: touchups in rtd intro and README.md
+    - doc: update launchpad git refs to github
+    - tools: migrate script needs to write tools/.lp-to-git-user
+    - github: drop pull-request template to prepare for migration
+    - tools: add migrate-lp-user-to-github script to link LP to github
+    - github: new basic project readme
+    - Release 19.3
+    - azure: support matching dhcp route-metrics for dual-stack ipv4 ipv6
+    - configdrive: fix subplatform config-drive for /config-drive source
+      [David Kindred]
+    - DataSourceSmartOS: reconfigure network on each boot [Mike Gerdts]
+    - Add config for ssh-key import and consuming user-data [Pavel Zakharov]
+    - net: fix subnet_is_ipv6() for stateless|stateful [Harald Jensås]
+    - OVF: disable custom script execution by default [Xiaofeng Wang]
+    - cc_puppet: Implement csr_attributes.yaml support [Matthias Baur]
+    - cloud-init.service: on centos/fedora/redhat wait on
+      NetworkManager.service
+    - azure: Do not lock user on instance id change [Sam Eiderman]
+    - net/netplan: use ipv6-mtu key for specifying ipv6 mtu values
+    - Fix usages of yaml, and move yaml_dump to safeyaml.dumps. [Scott Moser]
+    - exoscale: Increase url_max_wait to 120s. [Chris Glass]
+    - net/sysconfig: fix available check on SUSE distros [Robert Schweikert]
+    - docs: Fix incorrect Azure IMDS IP address [Joshua Powers]
+    - introduce .travis.yml
+    - net: enable infiniband support in eni and sysconfig renderers
+      [Darren Birkett]
+    - guestcust_util: handle special characters in config file [Xiaofeng Wang]
+    - fix some more typos in comments [Dominic Schlegel]
+    - replace any deprecated log.warn with log.warning [Dominic Schlegel]
+    - net: handle openstack dhcpv6-stateless configuration [Harald Jensås]
+    - Add .venv/ to .gitignore [Dominic Schlegel]
+    - Small typo fixes in code comments. [Dominic Schlegel]
+    - cloud_test/lxd: Retry container delete a few times
+    - Add Support for e24cloud to Ec2 datasource. [Scott Moser]
+    - Add RbxCloud datasource [Adam Dobrawy]
+    - get_interfaces: don't exclude bridge and bond members
+    - Add support for Arch Linux in render-cloudcfg [Conrad Hoffmann]
+    - util: json.dumps on python 2.7 will handle UnicodeDecodeError on binary
+    - debian/ubuntu: add missing word to netplan/ENI header
+    - ovf: do not generate random instance-id for IMC customization path
+    - sysconfig: only write resolv.conf if network_state has DNS values
+    - sysconfig: use distro variant to check if available
+    - systemd/cloud-init.service.tmpl: start after wicked.service
+      [Robert Schweikert]
+    - docs: fix zstack documentation lints
+    - analyze/show: remove trailing space in output
+    - Add missing space in warning: "not avalid seed" [Brian Candler]
+    - pylintrc: add 'enter_context' to generated-members list
+    - Add datasource for ZStack platform. [Shixin Ruan]
+    - docs: organize TOC and update summary of project [Joshua Powers]
+    - tools: make clean now cleans the dev directory, not the system
+    - docs: create cli specific page [Joshua Powers]
+    - docs: added output examples to analyze.rst [Joshua Powers]
+    - docs: doc8 fixes for instancedata page [Joshua Powers]
+    - docs: clean up formatting, organize boot page [Joshua Powers]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 02 Dec 2019 16:39:32 -0700
+
 cloud-init (19.2-36-g059d049c-0ubuntu2~18.04.1) bionic; urgency=medium
 
   * cherry-pick a7d8d032: get_interfaces: don't exclude bridge and bond
