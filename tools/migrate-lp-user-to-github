@@ -176,24 +176,34 @@ def main():
     VERBOSITY = 1 if args.verbose else 0
     repo_dir = args.repo_dir or PUBLISH_DIR
     if not os.path.exists(repo_dir):
+        cleanup_repo_dir = True
         subp(['git', 'clone',
               LP_UPSTREAM_PATH_TMPL.format(launchpad_user=args.launchpad_user),
               repo_dir])
+    else:
+        cleanup_repo_dir = False
+    cwd = os.getcwd()
     os.chdir(repo_dir)
     log("Sycing master branch with upstream")
     subp(['git', 'checkout', 'master'])
     subp(['git', 'pull'])
-    lp_remote_name, gh_remote_name = add_lp_and_github_remotes(
-        args.launchpad_user, args.github_user)
-    commit_msg = COMMIT_MSG_TMPL.format(
-        gh_username=args.github_user, lp_username=args.launchpad_user)
-    create_migration_branch(
-        MIGRATE_BRANCH_NAME, args.upstream, args.launchpad_user,
-        args.github_user, commit_msg)
+    try:
+        lp_remote_name, gh_remote_name = add_lp_and_github_remotes(
+            args.launchpad_user, args.github_user)
+        commit_msg = COMMIT_MSG_TMPL.format(
+            gh_username=args.github_user, lp_username=args.launchpad_user)
+        create_migration_branch(
+            MIGRATE_BRANCH_NAME, args.upstream, args.launchpad_user,
+            args.github_user, commit_msg)
 
-    for push_remote in (lp_remote_name, gh_remote_name):
-        subp(['git', 'push', push_remote, MIGRATE_BRANCH_NAME, '--force'])
-
+        for push_remote in (lp_remote_name, gh_remote_name):
+            subp(['git', 'push', push_remote, MIGRATE_BRANCH_NAME, '--force'])
+    except Exception as e:
+        error('Failed setting up migration branches: {0}'.format(e))
+    finally:
+        os.chdir(cwd)
+        if cleanup_repo_dir and os.path.exists(repo_dir):
+            util.del_dir(repo_dir)
     # Make merge request on LP
     log("[launchpad] Automatically creating merge proposal using launchpadlib")
     lp = Launchpad.login_with(
@@ -222,6 +232,8 @@ def main():
         " click 'Create pull request' at the following URL:\n"
         "{url}".format(url=GITHUB_PULL_URL.format(
             github_user=args.github_user, branch=MIGRATE_BRANCH_NAME)))
+    if os.path.exists(repo_dir):
+        util.del_dir(repo_dir)
     return 0
 
 

@@ -5,11 +5,13 @@
 from .ec2 import platform as ec2
 from .lxd import platform as lxd
 from .nocloudkvm import platform as nocloudkvm
+from .azurecloud import platform as azurecloud
 
 PLATFORMS = {
     'ec2': ec2.EC2Platform,
     'nocloud-kvm': nocloudkvm.NoCloudKVMPlatform,
     'lxd': lxd.LXDPlatform,
+    'azurecloud': azurecloud.AzureCloudPlatform,
 }
 
 

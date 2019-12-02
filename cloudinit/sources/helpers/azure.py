@@ -183,14 +183,16 @@ class AzureEndpointHttpClient(object):
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
-        return url_helper.read_file_or_url(url, headers=headers)
+        return url_helper.read_file_or_url(url, headers=headers, timeout=5,
+                                           retries=10)
 
     def post(self, url, data=None, extra_headers=None):
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
             headers.update(extra_headers)
-        return url_helper.read_file_or_url(url, data=data, headers=headers)
+        return url_helper.read_file_or_url(url, data=data, headers=headers,
+                                           timeout=5, retries=10)
 
 
 class GoalState(object):
