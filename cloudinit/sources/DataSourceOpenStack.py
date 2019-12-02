@@ -4,6 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import os
 import time
 
 from cloudinit import log as logging
@@ -219,8 +220,9 @@ def read_metadata_service(base_url, ssl_details=None,
 
 def detect_openstack(accept_oracle=False):
     """Return True when a potential OpenStack platform is detected."""
-    if not util.is_x86():
-        return True  # Non-Intel cpus don't properly report dmi product names
+    uname_arch = os.uname()[4]
+    if not (util.is_x86() or uname_arch == 'aarch64'):
+        return True
     product_name = util.read_dmi_data('system-product-name')
     if product_name in VALID_DMI_PRODUCT_NAMES:
         return True
