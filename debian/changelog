@@ -1,3 +1,23 @@
+cloud-init (19.3-40-gf69d33a7-0ubuntu1) focal; urgency=medium
+
+  * New upstream snapshot.
+    - url_helper: read_file_or_url should pass headers param into readurl
+      (#66) (LP: #1854084)
+    - lp-to-git-users: adding elafontaine (#74) [Eric Lafontaine]
+    - lp-to-git-users: adding xiaofengw-vmware [Xiaofeng Wang]
+    - dmidecode: log result *after* stripping [Igor Galić]
+    - cloud_tests: add azure platform support to integration tests
+      [ahosmanmsft]
+    - set_passwords: support for FreeBSD (#46) [Igor Galić]
+    - tools: migrate-lp-user-to-github removes repo_dir if created (#35)
+    - Correct jumbled documentation for cc_set_hostname module (#64)
+      [do3meli] (LP: #1853543)
+    - FreeBSD: fix for get_linux_distro() and lru_cache (#59)
+      [Igor Galić] (LP: #1815030)
+    - lp-to-git-users: adding do3meli [Dominic Schlegel]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 02 Dec 2019 16:26:24 -0700
+
 cloud-init (19.3-30-g4bc399e0-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
@@ -1370,7 +1390,7 @@ cloud-init (0.7.9-212-g865e941f-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - tests: fixes for issues uncovered when moving to python 3.6.
-    - sysconfig: include GATEWAY value if set in subnet 
+    - sysconfig: include GATEWAY value if set in subnet
       [Ryan Harper] (LP: #1686856)
 
  -- Scott Moser <smoser@ubuntu.com>  Wed, 19 Jul 2017 07:54:57 -0400
@@ -1605,7 +1625,7 @@ cloud-init (0.7.9-90-g61eb03fe-0ubuntu2) UNRELEASED; urgency=medium
 cloud-init (0.7.9-90-g61eb03fe-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
-    - OpenStack: add 'dvs' to the list of physical link types. 
+    - OpenStack: add 'dvs' to the list of physical link types.
       (LP: #1674946)
 
  -- Scott Moser <smoser@ubuntu.com>  Mon, 03 Apr 2017 11:10:38 -0400
@@ -1613,7 +1633,7 @@ cloud-init (0.7.9-90-g61eb03fe-0ubuntu1) zesty; urgency=medium
 cloud-init (0.7.9-89-gbf7723e8-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
-    - Fix bug that resulted in an attempt to rename bonds or vlans. 
+    - Fix bug that resulted in an attempt to rename bonds or vlans.
       (LP: #1669860)
     - tests: update OpenNebula and Digital Ocean to not rely on host
       interfaces.
@@ -1670,20 +1690,20 @@ cloud-init (0.7.9-68-gef18b8ac-0ubuntu1) zesty; urgency=medium
 cloud-init (0.7.9-66-g5beecdf8-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
-    - net: add renderers for automatically selecting the renderer. 
+    - net: add renderers for automatically selecting the renderer.
     - doc: fix config drive doc with regard to unpartitioned disks.
       (LP: #1673818)
     - test: Adding integratiron test for password as list [Joshua Powers]
-    - render_network_state: switch arguments around, do not require target 
-    - support 'loopback' as a device type. 
+    - render_network_state: switch arguments around, do not require target
+    - support 'loopback' as a device type.
     - Integration Testing: improve testcase subclassing [Wesley Wiedenmeier]
     - gitignore: adding doc/rtd_html [Joshua Powers]
     - doc: add instructions for running integration tests via tox.
       [Joshua Powers]
-    - test: avoid differences in 'date' output due to daylight savings. 
+    - test: avoid differences in 'date' output due to daylight savings.
     - Fix chef config module in omnibus install. [Jeremy Melvin] (LP: #1583837)
     - Add feature flags to cloudinit.version. [Wesley Wiedenmeier]
-    - tox: add a citest environment 
+    - tox: add a citest environment
     - Support chpasswd/list being a list in addition to a string.
       [Sergio Lystopad] (LP: #1665694)
     - doc: Fix configuration example for cc_set_passwords module.
@@ -2171,7 +2191,7 @@ cloud-init (0.7.7~bzr1242-0ubuntu1) yakkety; urgency=medium
 
   * d/control: Build-Depends on python3-unittest2
   * New upstream snapshot.
-    - DataSourceNoCloud: fix stack trace on reboot, default to dsmode=net 
+    - DataSourceNoCloud: fix stack trace on reboot, default to dsmode=net
       (LP: #1592505)
     - support network rendering to sysconfig (for centos and RHEL)
     - fix errors reported by pylint
@@ -2239,7 +2259,7 @@ cloud-init (0.7.7~bzr1212-0ubuntu1) xenial; urgency=medium
 cloud-init (0.7.7~bzr1209-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.
-    - fallback net config: do not consider devices starting with 
+    - fallback net config: do not consider devices starting with
       'veth' (LP: #1569064)
 
  -- Scott Moser <smoser@ubuntu.com>  Thu, 14 Apr 2016 16:24:38 -0400
@@ -2254,7 +2274,7 @@ cloud-init (0.7.7~bzr1208-0ubuntu1) xenial; urgency=medium
     - SmartOS, CloudSigma: fix error when dmi data is not availble
       (LP: #1569469)
     - DataSourceNoCloud: fix check_instance_id when upgraded (LP: #1568150)
-    - lxd: adds basic support for dpkg based lxd-bridge 
+    - lxd: adds basic support for dpkg based lxd-bridge
       configuration. (LP: #1569018)
     - centos: Ensure that a resolve conf object is written as a string.
       (LP: #1479988)
@@ -2306,7 +2326,7 @@ cloud-init (0.7.7~bzr1189-0ubuntu1) xenial; urgency=medium
     if upgrading from version that did not have network support.
   * New upstream snapshot.
     * initial support for support network configuration in cloud-init --local
-    * do not rely on network metadata service on every boot for 
+    * do not rely on network metadata service on every boot for
       ConfigDrive Openstack Azure (LP: #1553815)
 
  -- Scott Moser <smoser@ubuntu.com>  Thu, 24 Mar 2016 17:36:40 -0400
@@ -2553,7 +2573,7 @@ cloud-init (0.7.7~bzr1088-0ubuntu3) vivid; urgency=medium
 
   * systemd/*.service: don't declare a Wants/Requires on network.target; this
     is a passive target that should only be pulled in by implementors of the
-    networking service.  The requirement for network needs to be 
+    networking service.  The requirement for network needs to be
     expressed as a dependency on network-online.target.  LP: #1440180.
 
  -- Steve Langasek <steve.langasek@ubuntu.com>  Thu, 09 Apr 2015 07:35:55 -0700
@@ -2696,7 +2716,7 @@ cloud-init (0.7.6~bzr1020-0ubuntu1) utopic; urgency=medium
   * New upstream snapshot.
     * cc_grub_dpkg: consider /dev/xvda as candidate for grub installation
       (LP: #1336855)
-    * resizefs: fix backgrounding of resizefs (LP: #1338614) 
+    * resizefs: fix backgrounding of resizefs (LP: #1338614)
     * cloud-init-blocknet: remove debug code
 
  -- Scott Moser <smoser@ubuntu.com>  Tue, 23 Sep 2014 14:20:09 -0400
@@ -2977,7 +2997,7 @@ cloud-init (0.7.3~bzr850-0ubuntu1) saucy; urgency=low
 
 cloud-init (0.7.3~bzr849-0ubuntu2) saucy; urgency=low
 
-  * debian/control: fix bad dependency on python-jsonpatch 
+  * debian/control: fix bad dependency on python-jsonpatch
     by build-depending on python-json-patch, so dh_python2
     can find the right package (LP: #1205358).
 
@@ -3094,14 +3114,14 @@ cloud-init (0.7.2~bzr795-0ubuntu1) raring; urgency=low
 cloud-init (0.7.1-0ubuntu5) raring; urgency=low
 
   * catchup-751-760.patch (sync to 760)
-    * DataSourceConfigDrive: allow config-drive data to come from a 
+    * DataSourceConfigDrive: allow config-drive data to come from a
       CD-ROM (LP: #1100545)
     * Allow 'sr0' to be used as a source for mount config [Vlastimil Holer]
     * do not log passwords provided via config (LP: #1096417)
     * DataSourceCloudStack: Attempt to find the 'virtual router' as provided
-      from dhcp responses, rather than assuming it is the default route 
+      from dhcp responses, rather than assuming it is the default route
       (LP: #1089989) [Gerard Dethier]
-      in the CloudStack environment use virtual router rather than default route 
+      in the CloudStack environment use virtual router rather than default route
     * notify upstart after writing upstart jobs to support filesystems that
       do not support inotify such as overlayfs (LP: #1080841)
     * fix cloud-config 'lock_password' user setup (LP: #1096423)
@@ -3163,7 +3183,7 @@ cloud-init (0.7.1-0ubuntu1) raring; urgency=low
       this relieves that burden from the distro/packaging.
     * group config: fix how group members weren't being translated correctly
       when the group: [member, member...] format was used (LP: #1077245)
-    * work around an issue with boto > 0.6.0 that lazy loaded the return from 
+    * work around an issue with boto > 0.6.0 that lazy loaded the return from
       get_instance_metadata().  This resulted in failure for cloud-init to
       install ssh keys. (LP: #1068801)
     * add power_state_change config module for shutting down stystem after
@@ -3217,7 +3237,7 @@ cloud-init (0.7.0~bzr659-0ubuntu1) quantal; urgency=low
     * documentation fix for landscape config (LP: #1042764)
     * do not write a comment in /etc/hostname (LP: #1052664)
     * fix incorrect ubuntu mirrors for 'ports' arches [Robbie Basak]
-    * fix generation of hostname based on ip address in datasource 
+    * fix generation of hostname based on ip address in datasource
       (LP: #1050962) [Andy Grimm]
     * remove 'start networking' from cloud-init-nonet and replace it
       with container specific fixes (LP: #1031065)
@@ -3278,7 +3298,7 @@ cloud-init (0.7.0~bzr633-0ubuntu1) quantal; urgency=low
       user to be previously present in image. (LP: #1028503)
     * add experimental apt_reboot_if_required flag to reboot if necessary
       after upgrade or package install (LP: #1038108)
-    * improve mirror selection for a distro: 
+    * improve mirror selection for a distro:
       * support arm mirrors (LP: #1028501)
       * support seeding security mirror (LP: #1006963)
       * support dns mirrors including availability-zone reference
@@ -3295,7 +3315,7 @@ cloud-init (0.7.0~bzr614-0ubuntu1) quantal; urgency=low
   * New upstream snapshot.
     * disable searching for 'ubuntu-mirror' in local dns to find a
       local mirror (LP: #974509)
-    * emit the cloud-config event (LP: #1028674) 
+    * emit the cloud-config event (LP: #1028674)
     * write timestamps to console on reboot and shutdown (LP: #1018554)
 
  -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Aug 2012 14:55:37 -0400
@@ -3396,7 +3416,7 @@ cloud-init (0.6.3~bzr547-0ubuntu1) precise; urgency=low
   * New upstream snapshot.
     * rename DataSourceMaaS to DataSourceMAAS.
     * support public-keys in DataSourceMAAS
-    * Warn in user-data processing on non-multipart, non-handled data 
+    * Warn in user-data processing on non-multipart, non-handled data
     * CloudStack data source added (not enabled by default)
   * fix bug in cloud-init.postinst where the name used was wrong
     causing config-apt-pipelining to run more than intended
@@ -3427,7 +3447,7 @@ cloud-init (0.6.3~bzr539-0ubuntu1) precise; urgency=low
     * run-parts now uses internal implementation rather than
       separate command.
     * add MaaS datasource (LP: #942061)
-  * debian/cloud-init.postinst: address population of apt_pipeline 
+  * debian/cloud-init.postinst: address population of apt_pipeline
     setting on installation.
   * debian/cloud-init.postinst: support configuring cloud-init
     maas datasource via preseed values cloud-init/maas-metadata-url and
@@ -3575,7 +3595,7 @@ cloud-init (0.6.1-0ubuntu14) oneiric; urgency=low
   * change the handling of user-data (LP: #810044)
    * boothooks will now run more than once as they were intended
    * cloud-config and user-scripts will be updated from user data every boot
-  * Add a second type of part-handler that will be called on every boot 
+  * Add a second type of part-handler that will be called on every boot
   * fix bad handling of /etc/hosts if manage_etc_hosts was false
 
  -- Scott Moser <smoser@ubuntu.com>  Mon, 08 Aug 2011 12:46:56 -0500
@@ -3603,7 +3623,7 @@ cloud-init (0.6.1-0ubuntu12) oneiric; urgency=low
   [Adam Gandalman]
   * improve the updating of /etc/hosts with correct fqdn when possible
     (LP: #812539)
-   
+
   [Avishai Ish-Shalom]
   * add chef support (cloudinit/CloudConfig/cc_chef.py) (LP: #798844)
 
@@ -3720,7 +3740,7 @@ cloud-init (0.6.1-0ubuntu1) natty; urgency=low
 
 cloud-init (0.6.0-0ubuntu4) natty; urgency=low
 
-  * fix running of user scripts (LP: #711480) (cherry pick 344) 
+  * fix running of user scripts (LP: #711480) (cherry pick 344)
   * fix 2 lintian warnings
 
  -- Scott Moser <smoser@ubuntu.com>  Tue, 01 Feb 2011 16:15:30 -0500
@@ -3763,7 +3783,7 @@ cloud-init (0.6.0-0ubuntu1) natty; urgency=low
   * indicate "all the way up" with message to console and file creation
     in /var/lib/cloud/instance/ (LP: #653271)
   * write ssh keys to console late in boot to ensure they're in console buffer
-  * add support for redirecting output of cloud-init, cloud-config, 
+  * add support for redirecting output of cloud-init, cloud-config,
     cloud-final via the config file, or user data config file
   * add support for posting data about the instance to a url (phone_home)
   * add minimal OVF transport (iso) support
@@ -3775,7 +3795,7 @@ cloud-init (0.6.0-0ubuntu1) natty; urgency=low
     (LP: #641504)
   * add support for reading Rightscale style user data (LP: #668400)
   * make the message on 'disable_root' more clear (LP: #672417)
-  * do not require public key if private is given in ssh cloud-config 
+  * do not require public key if private is given in ssh cloud-config
     (LP: #648905)
 
  -- Scott Moser <smoser@ubuntu.com>  Wed, 26 Jan 2011 17:28:36 -0500
@@ -3878,7 +3898,7 @@ cloud-init (0.5.12-0ubuntu8) maverick; urgency=low
 
 cloud-init (0.5.12-0ubuntu7) maverick; urgency=low
 
-  * update-grub-legacy-ec2:                                                     
+  * update-grub-legacy-ec2:
     - force setting of indomU so output of build process has
       a menu.lst with -ec2 kernels listed.
     - remove 'quite splash' from kernel options
@@ -3889,7 +3909,7 @@ cloud-init (0.5.12-0ubuntu7) maverick; urgency=low
 cloud-init (0.5.12-0ubuntu6) maverick; urgency=low
 
   * fix installation error
-  * add quilt-setup rule for package development 
+  * add quilt-setup rule for package development
 
  -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Jul 2010 12:04:21 -0400
 
@@ -3925,7 +3945,7 @@ cloud-init (0.5.12-0ubuntu1) maverick; urgency=low
 
   * New upstream release.
   * fix cloud-init-run-module to allow 'always' (LP: #568139)
-  * add support for setting debconf selections 
+  * add support for setting debconf selections
   * add cloud-config support for debconf selections (LP: #582667),
     byobu enablement, and ssh-import-lp-id
 
@@ -4115,7 +4135,7 @@ ec2-init (0.4.999-0ubuntu5) karmic; urgency=low
 
 ec2-init (0.4.999-0ubuntu4) karmic; urgency=low
 
-  * set locale to en_US.UTF-8 if get_location_from_availability_zone 
+  * set locale to en_US.UTF-8 if get_location_from_availability_zone
     doesn't have a match (LP: #407949)
 
  -- Scott Moser <smoser@ubuntu.com>  Tue, 20 Oct 2009 09:57:49 -0400
@@ -4199,9 +4219,9 @@ ec2-init (0.3.4ubuntu6) karmic; urgency=low
 
 ec2-init (0.3.4ubuntu5) karmic; urgency=low
 
-  * debian/init: Move instance reboot detection out of python 
+  * debian/init: Move instance reboot detection out of python
     scripts and move them to the init script.
-  * debian/ec2-set-defaults.py: 
+  * debian/ec2-set-defaults.py:
     - Point to the right location for locate (LP: #387611)
     - Default to UTC (LP: #341060)
   * debian/ec2-set-apt-sources.py: If you cant contact EC2 then use the
@@ -4224,7 +4244,7 @@ ec2-init (0.3.4ubuntu3) karmic; urgency=low
 
   * debian/init: Move init script to run before ssh and regenerate the ssh
     host kes in the init script rather than /etc/rc.local (LP: #370628)
-  * ec2-set-apt-sources.py: 
+  * ec2-set-apt-sources.py:
     - Move sources.list to /var/ec2 so it doesnt get removed after user
     reboots.
   * ec2-set-defaults.py:
@@ -4236,7 +4256,7 @@ ec2-init (0.3.4ubuntu3) karmic; urgency=low
 
 ec2-init (0.3.4ubuntu2) karmic; urgency=low
 
-  * Really change the locale when setting up an instance. (LP: #341066) 
+  * Really change the locale when setting up an instance. (LP: #341066)
   * Run ec2-run-user-data script last. (LP: #373055)
   * Minor comment tweaks. (LP: #373057)
 
@@ -4250,7 +4270,7 @@ ec2-init (0.3.4ubuntu1) karmic; urgency=low
 
 ec2-init (0.3.3ubuntu12) jaunty; urgency=low
 
-  * ec2-run-user-data.py: Fix error. 
+  * ec2-run-user-data.py: Fix error.
 
  -- Chuck Short <zulcss@ubuntu.com>  Tue, 07 Apr 2009 08:14:07 -0400
 
@@ -4271,27 +4291,27 @@ ec2-init (0.3.3ubuntu10) jaunty; urgency=low
 
   * ec2-set-hostname.py:
     - Use template for /etc/hosts creation.
-    - Dont use public_hostname in /etc/hosts. (LP: #352745) 
+    - Dont use public_hostname in /etc/hosts. (LP: #352745)
 
  -- Chuck Short <zulcss@ubuntu.com>  Wed, 01 Apr 2009 08:48:05 -0400
 
 ec2-init (0.3.3ubuntu9) jaunty; urgency=low
 
   * ec2-set-apt-sources.py:
-    - Use a template to generate the sources.list and generate it based on the lsb_release. 
+    - Use a template to generate the sources.list and generate it based on the lsb_release.
 
  -- Chuck Short <zulcss@ubuntu.com>  Tue, 31 Mar 2009 15:15:55 -0400
 
 ec2-init (0.3.3ubuntu8) jaunty; urgency=low
 
   * ec2-set-apt-sources.py:
-    - Add the ubuntu-on-ec2 ppa. 
+    - Add the ubuntu-on-ec2 ppa.
 
  -- Chuck Short <zulcss@ubuntu.com>  Tue, 31 Mar 2009 09:37:13 -0400
 
 ec2-init (0.3.3ubuntu7) jaunty; urgency=low
 
-  * debian/rules: Fix typo. 
+  * debian/rules: Fix typo.
 
  -- Chuck Short <zulcss@ubuntu.com>  Sun, 22 Mar 2009 17:14:16 -0400
 
@@ -4299,7 +4319,7 @@ ec2-init (0.3.3ubuntu6) jaunty; urgency=low
 
   * Set the configuration file to jaunty.
   * ec2-fetch-credentials: Fix typo.
-  * ec2-set-defaults.py: 
+  * ec2-set-defaults.py:
     - Remove timezone change when booting the instance.
     - Redirect output to /dev/null.
   * ec2-set-apt-sources.py:
@@ -4343,8 +4363,8 @@ ec2-init (0.3.3ubuntu3~intrepid4) intrepid; urgency=low
 ec2-init (0.3.3ubuntu3) jaunty; urgency=low
 
   * debian/ec2-init: Log results of ec2-run-user-data to syslog.
-  * ec2-run-user-data.py :Dont leave files around and log the 
-    output to syslog. 
+  * ec2-run-user-data.py :Dont leave files around and log the
+    output to syslog.
 
  -- Chuck Short <zulcss@ubuntu.com>  Thu, 26 Feb 2009 10:24:35 -0500
 
@@ -4360,7 +4380,7 @@ ec2-init (0.3.3ubuntu2) jaunty; urgency=low
 
 ec2-init (0.3.3ubuntu1) jaunty; urgency=low
 
-  * debian/init: Fix init script. 
+  * debian/init: Fix init script.
 
  -- Chuck Short <zulcss@ubuntu.com>  Fri, 20 Feb 2009 09:22:54 -0500
 
@@ -4379,7 +4399,7 @@ ec2-init (0.3.3) jaunty; urgency=low
     - Add python-configobj as a dependency.
   * debian/{install,dirs}
     - Create an /etc/ec2-init to read the configuration file and install it.
-  
+
  -- Chuck Short <zulcss@ubuntu.com>  Mon, 09 Feb 2009 10:35:56 -0500
 
 ec2-init (0.3.2) jaunty; urgency=low
@@ -4393,7 +4413,7 @@ ec2-init (0.3.2) jaunty; urgency=low
       public hostname.
   * ec2-fetch-credentials:
     - Copy the ssh keys to the ubuntu user.
-    - Setup authorized keys for root to tell the user to login as the 
+    - Setup authorized keys for root to tell the user to login as the
       ubuntu user when they try to connect.
   * ec2-run-user-data:
     - Create an .already-ran file to check to see if ec2-run-user-data
@@ -4412,7 +4432,7 @@ ec2-init (0.3.1) jaunty; urgency=low
 
 ec2-init (0.3) jaunty; urgency=low
 
-  * ec2-run-user-data: Fix python error when writing a file to the disk. 
+  * ec2-run-user-data: Fix python error when writing a file to the disk.
 
  -- Chuck Short <zulcss@ubuntu.com>  Thu, 15 Jan 2009 11:49:08 -0500
 
@@ -4430,4 +4450,3 @@ ec2-init (0.1) intrepid; urgency=low
   * Initial release (LP: #269434).
 
  -- Soren Hansen <soren@ubuntu.com>  Fri, 12 Sep 2008 15:30:32 +0200
-

@@ -18,7 +18,6 @@ py_prefix=$(${PYTHON} -c 'import sys; print("py%d%d" % (sys.version_info.major, 
 depschecked=/tmp/c-i.dependencieschecked
 pkgs="
     bash
-    chpasswd
     dmidecode
     e2fsprogs
     $py_prefix-Jinja2

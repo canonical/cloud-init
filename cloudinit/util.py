@@ -50,6 +50,16 @@ from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
 
+try:
+    from functools import lru_cache
+except ImportError:
+    def lru_cache():
+        """pass-thru replace for Python3's lru_cache()"""
+        def wrapper(f):
+            return f
+        return wrapper
+
+
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
 
@@ -68,17 +78,15 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['running-in-container'],
                    ['lxc-is-container'])
 
-PROC_CMDLINE = None
 
-_LSB_RELEASE = {}
-
-
+@lru_cache()
 def get_architecture(target=None):
     out, _ = subp(['dpkg', '--print-architecture'], capture=True,
                   target=target)
     return out.strip()
 
 
+@lru_cache()
 def _lsb_release(target=None):
     fmap = {'Codename': 'codename', 'Description': 'description',
             'Distributor ID': 'id', 'Release': 'release'}
@@ -107,11 +115,7 @@ def lsb_release(target=None):
         # do not use or update cache if target is provided
         return _lsb_release(target)
 
-    global _LSB_RELEASE
-    if not _LSB_RELEASE:
-        data = _lsb_release()
-        _LSB_RELEASE.update(data)
-    return _LSB_RELEASE
+    return _lsb_release()
 
 
 def target_path(target, path=None):
@@ -546,6 +550,7 @@ def is_ipv4(instr):
     return len(toks) == 4
 
 
+@lru_cache()
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
 
@@ -595,6 +600,7 @@ def _parse_redhat_release(release_file=None):
     return {}
 
 
+@lru_cache()
 def get_linux_distro():
     distro_name = ''
     distro_version = ''
@@ -622,6 +628,10 @@ def get_linux_distro():
                     flavor = match.groupdict()['codename']
         if distro_name == 'rhel':
             distro_name = 'redhat'
+    elif os.path.exists('/bin/freebsd-version'):
+        distro_name = 'freebsd'
+        distro_version, _ = subp(['uname', '-r'])
+        distro_version = distro_version.strip()
     else:
         dist = ('', '', '')
         try:
@@ -642,6 +652,7 @@ def get_linux_distro():
     return (distro_name, distro_version, flavor)
 
 
+@lru_cache()
 def system_info():
     info = {
         'platform': platform.platform(),
@@ -975,13 +986,6 @@ def load_yaml(blob, default=None, allowed=(dict,)):
 
 
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
-    if base.startswith("/"):
-        base = "file://%s" % base
-
-    # default retries for file is 0. for network is 10
-    if base.startswith("file://"):
-        retries = file_retries
-
     if base.find("%s") >= 0:
         ud_url = base % ("user-data" + ext)
         md_url = base % ("meta-data" + ext)
@@ -989,14 +993,14 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
-    md_resp = url_helper.read_file_or_url(md_url, timeout, retries,
-                                          file_retries)
+    md_resp = url_helper.read_file_or_url(md_url, timeout=timeout,
+                                          retries=retries)
     md = None
     if md_resp.ok():
         md = load_yaml(decode_binary(md_resp.contents), default={})
 
-    ud_resp = url_helper.read_file_or_url(ud_url, timeout, retries,
-                                          file_retries)
+    ud_resp = url_helper.read_file_or_url(ud_url, timeout=timeout,
+                                          retries=retries)
     ud = None
     if ud_resp.ok():
         ud = ud_resp.contents
@@ -1371,14 +1375,8 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
         return contents
 
 
-def get_cmdline():
-    if 'DEBUG_PROC_CMDLINE' in os.environ:
-        return os.environ["DEBUG_PROC_CMDLINE"]
-
-    global PROC_CMDLINE
-    if PROC_CMDLINE is not None:
-        return PROC_CMDLINE
-
+@lru_cache()
+def _get_cmdline():
     if is_container():
         try:
             contents = load_file("/proc/1/cmdline")
@@ -1393,8 +1391,14 @@ def get_cmdline():
         except Exception:
             cmdline = ""
 
-    PROC_CMDLINE = cmdline
     return cmdline
+
+
+def get_cmdline():
+    if 'DEBUG_PROC_CMDLINE' in os.environ:
+        return os.environ["DEBUG_PROC_CMDLINE"]
+
+    return _get_cmdline()
 
 
 def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
@@ -2680,8 +2684,8 @@ def _call_dmidecode(key, dmidecode_path):
     try:
         cmd = [dmidecode_path, "--string", key]
         (result, _err) = subp(cmd)
-        LOG.debug("dmidecode returned '%s' for '%s'", result, key)
         result = result.strip()
+        LOG.debug("dmidecode returned '%s' for '%s'", result, key)
         if result.replace(".", "") == "":
             return ""
         return result

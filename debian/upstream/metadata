@@ -1,0 +1,5 @@
+Name: cloud-init
+Contact: Josh Powers <josh.powers@canonical.com>
+Repository: https://github.com/canonical/cloud-init.git
+Repository-Browse: https://github.com/canonical/cloud-init
+Bug-Submit: https://bugs.launchpad.net/cloud-init
