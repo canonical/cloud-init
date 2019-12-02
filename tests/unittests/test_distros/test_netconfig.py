@@ -109,13 +109,31 @@ auto eth1
 iface eth1 inet dhcp
 """
 
+V1_NET_CFG_IPV6_OUTPUT = """\
+# This file is generated from information provided by the datasource.  Changes
+# to it will not persist across an instance reboot.  To disable cloud-init's
+# network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet6 static
+    address 2607:f0d0:1002:0011::2/64
+    gateway 2607:f0d0:1002:0011::1
+
+auto eth1
+iface eth1 inet dhcp
+"""
+
 V1_NET_CFG_IPV6 = {'config': [{'name': 'eth0',
                                'subnets': [{'address':
                                             '2607:f0d0:1002:0011::2',
                                             'gateway':
                                             '2607:f0d0:1002:0011::1',
                                             'netmask': '64',
-                                            'type': 'static'}],
+                                            'type': 'static6'}],
                                'type': 'physical'},
                               {'name': 'eth1',
                                'subnets': [{'control': 'auto',
@@ -137,6 +155,23 @@ network:
             addresses:
             - 192.168.1.5/24
             gateway4: 192.168.1.254
+        eth1:
+            dhcp4: true
+"""
+
+V1_TO_V2_NET_CFG_IPV6_OUTPUT = """\
+# This file is generated from information provided by the datasource.  Changes
+# to it will not persist across an instance reboot.  To disable cloud-init's
+# network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+network:
+    version: 2
+    ethernets:
+        eth0:
+            addresses:
+            - 2607:f0d0:1002:0011::2/64
+            gateway6: 2607:f0d0:1002:0011::1
         eth1:
             dhcp4: true
 """
@@ -376,6 +411,14 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
                                    V1_NET_CFG,
                                    expected_cfgs=expected_cfgs.copy())
 
+    def test_apply_network_config_ipv6_ub(self):
+        expected_cfgs = {
+            self.eni_path(): V1_NET_CFG_IPV6_OUTPUT
+        }
+        self._apply_and_verify_eni(self.distro.apply_network_config,
+                                   V1_NET_CFG_IPV6,
+                                   expected_cfgs=expected_cfgs.copy())
+
 
 class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
     def setUp(self):
@@ -417,6 +460,16 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify_netplan(self.distro.apply_network_config,
                                        V1_NET_CFG,
+                                       expected_cfgs=expected_cfgs.copy())
+
+    def test_apply_network_config_v1_ipv6_to_netplan_ub(self):
+        expected_cfgs = {
+            self.netplan_path(): V1_TO_V2_NET_CFG_IPV6_OUTPUT,
+        }
+
+        # ub_distro.apply_network_config(V1_NET_CFG_IPV6, False)
+        self._apply_and_verify_netplan(self.distro.apply_network_config,
+                                       V1_NET_CFG_IPV6,
                                        expected_cfgs=expected_cfgs.copy())
 
     def test_apply_network_config_v2_passthrough_ub(self):
