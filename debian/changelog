@@ -1,4 +1,4 @@
-cloud-init (19.3-40-gf69d33a7-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (19.3-40-gf69d33a7-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * New upstream snapshot. (LP: #1854872)
     - url_helper: read_file_or_url should pass headers param into readurl (#66)
