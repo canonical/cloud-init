@@ -789,10 +789,12 @@ def get_interfaces_by_mac_on_freebsd():
     # looks for interface and mac in a list of flatten block
     def find_mac(flat_list):
         for block in flat_list:
-            m = re.search(r"^(\S*): .*ether\s([\da-f:]{17}).*", block)
+            m = re.search(
+                r"^(?P<ifname>\S*): .*ether\s(?P<mac>[\da-f:]{17}).*",
+                block)
             if m:
-                yield (m.group(1), m.group(2))
-    results = {i[1]: i[0] for i in find_mac(flatten(out))}
+                yield (m.group('mac'), m.group('ifname'))
+    results = {mac: ifname for mac, ifname in find_mac(flatten(out))}
     return results
 
 
