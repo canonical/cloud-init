@@ -1,4 +1,4 @@
-cloud-init (19.3-40-gf69d33a7-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.3-40-gf69d33a7-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
     - url_helper: read_file_or_url should pass headers param into readurl
