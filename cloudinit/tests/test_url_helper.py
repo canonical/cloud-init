@@ -98,6 +98,7 @@ class TestReadFileOrUrl(CiTestCase):
         m_response = mock.MagicMock()
 
         class FakeSession(requests.Session):
+            @classmethod
             def request(cls, **kwargs):
                 self.assertEqual(
                     {'url': url, 'allow_redirects': True, 'method': 'GET',
