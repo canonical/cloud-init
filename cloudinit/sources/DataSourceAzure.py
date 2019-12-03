@@ -472,7 +472,7 @@ class DataSourceAzure(sources.DataSource):
         seed = _get_random_seed()
         if seed:
             crawled_data['metadata']['random_seed'] = seed
-        crawled_data['metadata']['instance-id'] = self._correct_iid()
+        crawled_data['metadata']['instance-id'] = self._iid()
 
         if perform_reprovision:
             LOG.info("Reporting ready to Azure after getting ReprovisionData")
@@ -558,7 +558,7 @@ class DataSourceAzure(sources.DataSource):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
-    def _correct_iid(self):
+    def _iid(self):
         previous = util.load_file(os.path.join(
             self.paths.get_cpath('data'),
             'instance-id')).strip()

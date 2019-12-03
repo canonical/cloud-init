@@ -55,7 +55,7 @@ def byte_swapped(previous_id, current_id):
     that returned by the metadata service.
     """
     if previous_id == current_id:
-        return False
+        return None
 
     def swap_hexstring(s, width=2):
         r = len(s) % width
