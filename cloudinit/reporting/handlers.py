@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
+import uuid
 import fcntl
 import json
 import six
@@ -201,10 +202,11 @@ class HyperVKvpReportingHandler(ReportingHandler):
     def _event_key(self, event):
         """
         the event key format is:
-        CLOUD_INIT|<incarnation number>|<event_type>|<event_name>
+        CLOUD_INIT|<incarnation number>|<event_type>|<event_name>|<time>
         """
-        return u"{0}|{1}|{2}".format(self.event_key_prefix,
-                                     event.event_type, event.name)
+        return u"{0}|{1}|{2}|{3}".format(self.event_key_prefix,
+                                         event.event_type, event.name,
+                                         uuid.uuid4())
 
     def _encode_kvp_item(self, key, value):
         data = (struct.pack("%ds%ds" % (

@@ -127,7 +127,7 @@ class DataSourceNoCloud(sources.DataSource):
                         seeded = util.mount_cb(dev, _pp2d_callback,
                                                pp2d_kwargs)
                     except ValueError:
-                        LOG.warning("device %s with label=%s not a"
+                        LOG.warning("device %s with label=%s not a "
                                     "valid seed.", dev, label)
                         continue
 
@@ -266,7 +266,7 @@ def load_cmdline_data(fill, cmdline=None):
              ("ds=nocloud-net", sources.DSMODE_NETWORK)]
     for idstr, dsmode in pairs:
         if parse_cmdline_data(idstr, fill, cmdline):
-            # if dsmode was explicitly in the commanad line, then
+            # if dsmode was explicitly in the command line, then
             # prefer it to the dsmode based on the command line id
             if 'dsmode' not in fill:
                 fill['dsmode'] = dsmode

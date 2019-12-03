@@ -25,6 +25,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
+    usr_lib_exec = '/usr/local/lib'
     rc_conf_fn = "/etc/rc.conf"
     login_conf_fn = '/etc/login.conf'
     login_conf_fn_bak = '/etc/login.conf.orig'
@@ -232,6 +233,13 @@ class Distro(distros.Distro):
         passwd_val = kwargs.get('passwd', None)
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
+
+    def expire_passwd(self, user):
+        try:
+            util.subp(['pw', 'usermod', user, '-p', '01-Jan-1970'])
+        except Exception as e:
+            util.logexc(LOG, "Failed to set pw expiration for %s", user)
+            raise e
 
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:

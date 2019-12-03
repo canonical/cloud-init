@@ -69,6 +69,6 @@ def handle(name, _cfg, cloud, log, args):
             util.subp(cmd)
         except Exception as e:
             # TODO(harlowja), use log exception from utils??
-            log.warn("Emission of upstart event %s failed due to: %s", n, e)
+            log.warning("Emission of upstart event %s failed due to: %s", n, e)
 
 # vi: ts=4 expandtab

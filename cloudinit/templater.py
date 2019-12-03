@@ -44,7 +44,7 @@ MISSING_JINJA_PREFIX = u'CI_MISSING_JINJA_VAR/'
 
 @implements_to_string   # Needed for python2.7. Otherwise cached super.__str__
 class UndefinedJinjaVariable(JUndefined):
-    """Class used to represent any undefined jinja template varible."""
+    """Class used to represent any undefined jinja template variable."""
 
     def __str__(self):
         return u'%s%s' % (MISSING_JINJA_PREFIX, self._undefined_name)
@@ -58,7 +58,7 @@ class UndefinedJinjaVariable(JUndefined):
 
 
 def basic_render(content, params):
-    """This does sumple replacement of bash variable like templates.
+    """This does simple replacement of bash variable like templates.
 
     It identifies patterns like ${a} or $a and can also identify patterns like
     ${a.b} or $a.b which will look for a key 'b' in the dictionary rooted

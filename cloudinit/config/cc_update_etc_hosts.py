@@ -62,8 +62,8 @@ def handle(name, cfg, cloud, log, _args):
     if util.translate_bool(manage_hosts, addons=['template']):
         (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
-            log.warn(("Option 'manage_etc_hosts' was set,"
-                     " but no hostname was found"))
+            log.warning(("Option 'manage_etc_hosts' was set,"
+                         " but no hostname was found"))
             return
 
         # Render from a template file
@@ -80,8 +80,8 @@ def handle(name, cfg, cloud, log, _args):
     elif manage_hosts == "localhost":
         (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
-            log.warn(("Option 'manage_etc_hosts' was set,"
-                     " but no hostname was found"))
+            log.warning(("Option 'manage_etc_hosts' was set,"
+                         " but no hostname was found"))
             return
 
         log.debug("Managing localhost in /etc/hosts")

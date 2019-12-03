@@ -8,7 +8,6 @@
 
 """Resizefs: cloud-config module which resizes the filesystem"""
 
-
 import errno
 import getopt
 import os
@@ -183,7 +182,7 @@ def maybe_get_writable_device_path(devpath, info, log):
             not container):
         devpath = util.rootdev_from_cmdline(util.get_cmdline())
         if devpath is None:
-            log.warn("Unable to find device '/dev/root'")
+            log.warning("Unable to find device '/dev/root'")
             return None
         log.debug("Converted /dev/root to '%s' per kernel cmdline", devpath)
 
@@ -212,8 +211,8 @@ def maybe_get_writable_device_path(devpath, info, log):
             log.debug("Device '%s' did not exist in container. "
                       "cannot resize: %s", devpath, info)
         elif exc.errno == errno.ENOENT:
-            log.warn("Device '%s' did not exist. cannot resize: %s",
-                     devpath, info)
+            log.warning("Device '%s' did not exist. cannot resize: %s",
+                        devpath, info)
         else:
             raise exc
         return None
@@ -223,8 +222,8 @@ def maybe_get_writable_device_path(devpath, info, log):
             log.debug("device '%s' not a block device in container."
                       " cannot resize: %s" % (devpath, info))
         else:
-            log.warn("device '%s' not a block device. cannot resize: %s" %
-                     (devpath, info))
+            log.warning("device '%s' not a block device. cannot resize: %s" %
+                        (devpath, info))
         return None
     return devpath  # The writable block devpath
 
@@ -243,7 +242,7 @@ def handle(name, cfg, _cloud, log, args):
     resize_what = "/"
     result = util.get_mount_info(resize_what, log)
     if not result:
-        log.warn("Could not determine filesystem type of %s", resize_what)
+        log.warning("Could not determine filesystem type of %s", resize_what)
         return
 
     (devpth, fs_type, mount_point) = result
@@ -280,8 +279,8 @@ def handle(name, cfg, _cloud, log, args):
             break
 
     if not resizer:
-        log.warn("Not resizing unknown filesystem type %s for %s",
-                 fs_type, resize_what)
+        log.warning("Not resizing unknown filesystem type %s for %s",
+                    fs_type, resize_what)
         return
 
     resize_cmd = resizer(resize_what, devpth)

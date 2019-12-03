@@ -432,7 +432,7 @@ def handle(name, cfg, cloud, log, _args):
             systemd=cloud.distro.uses_systemd()),
     except util.ProcessExecutionError as e:
         restarted = False
-        log.warn("Failed to reload syslog", e)
+        log.warning("Failed to reload syslog", e)
 
     if restarted:
         # This only needs to run if we *actually* restarted

@@ -26,6 +26,8 @@ class DataSourceExoscale(sources.DataSource):
 
     dsname = 'Exoscale'
 
+    url_max_wait = 120
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceExoscale, self).__init__(sys_cfg, distro, paths)
         LOG.debug("Initializing the Exoscale datasource")
@@ -59,7 +61,7 @@ class DataSourceExoscale(sources.DataSource):
         metadata_url = "{}/{}/meta-data/instance-id".format(
             self.metadata_url, self.api_version)
 
-        url = url_helper.wait_for_url(
+        url, _response = url_helper.wait_for_url(
             urls=[metadata_url],
             max_wait=self.url_max_wait,
             timeout=self.url_timeout,

@@ -138,7 +138,7 @@ def get_tools_config(section, key, defaultVal):
 
     try:
         (outText, _) = util.subp(cmd)
-        m = re.match(r'([a-zA-Z0-9 ]+)=(.*)', outText)
+        m = re.match(r'([^=]+)=(.*)', outText)
         if m:
             retValue = m.group(2).strip()
             logger.debug("Get tools config: [%s] %s = %s",

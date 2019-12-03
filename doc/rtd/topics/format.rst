@@ -196,6 +196,14 @@ Example
 
 Also this `blog`_ post offers another example for more advanced usage.
 
+Disabling User-Data
+===================
+
+Cloud-init can be configured to ignore any user-data provided to instance.
+This allows custom images to prevent users from accidentally breaking closed
+appliances. Setting ``allow_userdata: false`` in the configuration will disable
+cloud-init from processing user-data.
+
 .. [#] See your cloud provider for applicable user-data size limitations...
 .. _blog: http://foss-boss.blogspot.com/2011/01/advanced-cloud-init-custom-handlers.html
 .. vi: textwidth=78

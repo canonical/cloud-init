@@ -91,9 +91,9 @@ V1_NET_CFG = {'config': [{'name': 'eth0',
               'version': 1}
 
 V1_NET_CFG_OUTPUT = """\
-# This file is generated from information provided by
-# the datasource.  Changes to it will not persist across an instance.
-# To disable cloud-init's network configuration capabilities, write a file
+# This file is generated from information provided by the datasource.  Changes
+# to it will not persist across an instance reboot.  To disable cloud-init's
+# network configuration capabilities, write a file
 # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
 # network: {config: disabled}
 auto lo
@@ -125,9 +125,9 @@ V1_NET_CFG_IPV6 = {'config': [{'name': 'eth0',
 
 
 V1_TO_V2_NET_CFG_OUTPUT = """\
-# This file is generated from information provided by
-# the datasource.  Changes to it will not persist across an instance.
-# To disable cloud-init's network configuration capabilities, write a file
+# This file is generated from information provided by the datasource.  Changes
+# to it will not persist across an instance reboot.  To disable cloud-init's
+# network configuration capabilities, write a file
 # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
 # network: {config: disabled}
 network:
@@ -154,9 +154,9 @@ V2_NET_CFG = {
 
 
 V2_TO_V2_NET_CFG_OUTPUT = """\
-# This file is generated from information provided by
-# the datasource.  Changes to it will not persist across an instance.
-# To disable cloud-init's network configuration capabilities, write a file
+# This file is generated from information provided by the datasource.  Changes
+# to it will not persist across an instance reboot.  To disable cloud-init's
+# network configuration capabilities, write a file
 # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
 # network: {config: disabled}
 network:

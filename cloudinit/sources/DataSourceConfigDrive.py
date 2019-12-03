@@ -163,10 +163,10 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
-        if self.seed_dir in self.source:
-            subplatform_type = 'seed-dir'
-        elif self.source.startswith('/dev'):
+        if self.source.startswith('/dev'):
             subplatform_type = 'config-disk'
+        else:
+            subplatform_type = 'seed-dir'
         return '%s (%s)' % (subplatform_type, self.source)
 
 
@@ -234,7 +234,7 @@ def find_candidate_devs(probe_optical=True, dslist=None):
 
     config drive v2:
        Disk should be:
-        * either vfat or iso9660 formated
+        * either vfat or iso9660 formatted
         * labeled with 'config-2' or 'CONFIG-2'
     """
     if dslist is None:
