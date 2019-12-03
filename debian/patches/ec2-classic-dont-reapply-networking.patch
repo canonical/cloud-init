@@ -9,7 +9,7 @@ Last-Update: 2019-03-08
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/sources/DataSourceEc2.py
 +++ b/cloudinit/sources/DataSourceEc2.py
-@@ -334,17 +334,6 @@ class DataSourceEc2(sources.DataSource):
+@@ -381,17 +381,6 @@ class DataSourceEc2(sources.DataSource):
          if isinstance(net_md, dict):
              result = convert_ec2_metadata_network_config(
                  net_md, macs_to_nics=macs_to_nics, fallback_nic=iface)
