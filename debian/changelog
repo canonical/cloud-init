@@ -1,4 +1,4 @@
-cloud-init (19.3-41-gc4735dd3-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (19.3-41-gc4735dd3-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * New upstream snapshot. (LP: #1854872)
     - Fix linting failure in test_url_helper (#83) [Eric Lafontaine]
