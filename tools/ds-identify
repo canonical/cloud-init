@@ -289,7 +289,11 @@ detect_virt() {
             virt="$out"
         fi
     elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
-        out=$(sysctl -qn hw.vm_guest 2>/dev/null) && {
+        out=$(sysctl -qn kern.vm_guest 2>/dev/null) && {
+            # Map FreeBSD's name for Hyper-V to that of systemd-detect-virt
+            if [ "$out" = "hv" ]; then
+                out="microsoft"
+            fi
             virt="$out"
         }
     fi
