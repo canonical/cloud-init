@@ -1193,9 +1193,10 @@ def read_azure_ovf(contents):
     defuser = {}
     if username:
         defuser['name'] = username
-    if password and DEF_PASSWD_REDACTION != password:
-        defuser['passwd'] = encrypt_pass(password)
+    if password:
         defuser['lock_passwd'] = False
+        if DEF_PASSWD_REDACTION != password:
+            defuser['passwd'] = encrypt_pass(password)
 
     if defuser:
         cfg['system_info'] = {'default_user': defuser}
@@ -1320,32 +1321,35 @@ def parse_network_config(imds_metadata):
             LOG.debug('Azure: generating network configuration from IMDS')
             network_metadata = imds_metadata['network']
             for idx, intf in enumerate(network_metadata['interface']):
+                # First IPv4 and/or IPv6 address will be obtained via DHCP.
+                # Any additional IPs of each type will be set as static
+                # addresses.
                 nicname = 'eth{idx}'.format(idx=idx)
-                dev_config = {}
-                for addr4 in intf['ipv4']['ipAddress']:
-                    privateIpv4 = addr4['privateIpAddress']
-                    if privateIpv4:
-                        if dev_config.get('dhcp4', False):
-                            # Append static address config for ip > 1
-                            netPrefix = intf['ipv4']['subnet'][0].get(
-                                'prefix', '24')
-                            if not dev_config.get('addresses'):
-                                dev_config['addresses'] = []
-                            dev_config['addresses'].append(
-                                '{ip}/{prefix}'.format(
-                                    ip=privateIpv4, prefix=netPrefix))
-                        else:
-                            dev_config['dhcp4'] = True
+                dhcp_override = {'route-metric': (idx + 1) * 100}
+                dev_config = {'dhcp4': True, 'dhcp4-overrides': dhcp_override,
+                              'dhcp6': False}
+                for addr_type in ('ipv4', 'ipv6'):
+                    addresses = intf.get(addr_type, {}).get('ipAddress', [])
+                    if addr_type == 'ipv4':
+                        default_prefix = '24'
+                    else:
+                        default_prefix = '128'
+                        if addresses:
+                            dev_config['dhcp6'] = True
                             # non-primary interfaces should have a higher
                             # route-metric (cost) so default routes prefer
                             # primary nic due to lower route-metric value
-                            dev_config['dhcp4-overrides'] = {
-                                'route-metric': (idx + 1) * 100}
-                for addr6 in intf['ipv6']['ipAddress']:
-                    privateIpv6 = addr6['privateIpAddress']
-                    if privateIpv6:
-                        dev_config['dhcp6'] = True
-                        break
+                            dev_config['dhcp6-overrides'] = dhcp_override
+                    for addr in addresses[1:]:
+                        # Append static address config for ip > 1
+                        netPrefix = intf[addr_type]['subnet'][0].get(
+                            'prefix', default_prefix)
+                        privateIp = addr['privateIpAddress']
+                        if not dev_config.get('addresses'):
+                            dev_config['addresses'] = []
+                        dev_config['addresses'].append(
+                            '{ip}/{prefix}'.format(
+                                ip=privateIp, prefix=netPrefix))
                 if dev_config:
                     mac = ':'.join(re.findall(r'..', intf['macAddress']))
                     dev_config.update(

@@ -501,7 +501,7 @@ class Init(object):
             # Init the handlers first
             for (_ctype, mod) in c_handlers.items():
                 if mod in c_handlers.initialized:
-                    # Avoid initing the same module twice (if said module
+                    # Avoid initiating the same module twice (if said module
                     # is registered to more than one content-type).
                     continue
                 handlers.call_begin(mod, data, frequency)
@@ -549,7 +549,11 @@ class Init(object):
         with events.ReportEventStack("consume-user-data",
                                      "reading and applying user-data",
                                      parent=self.reporter):
-            self._consume_userdata(frequency)
+            if util.get_cfg_option_bool(self.cfg, 'allow_userdata', True):
+                self._consume_userdata(frequency)
+            else:
+                LOG.debug('allow_userdata = False: discarding user-data')
+
         with events.ReportEventStack("consume-vendor-data",
                                      "reading and applying vendor-data",
                                      parent=self.reporter):

@@ -7,6 +7,7 @@ import tempfile
 from cloudinit.tests import helpers
 
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import safeyaml
 from cloudinit import stages
 from cloudinit import util
 
@@ -26,7 +27,7 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
             'system_info': {'paths': {'run_dir': new_root}}
         }
         ud = helpers.readResource('user_data.1.txt')
-        cloud_cfg = util.yaml_dumps(cfg)
+        cloud_cfg = safeyaml.dumps(cfg)
         util.ensure_dir(os.path.join(new_root, 'etc', 'cloud'))
         util.write_file(os.path.join(new_root, 'etc',
                                      'cloud', 'cloud.cfg'), cloud_cfg)

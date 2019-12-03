@@ -568,7 +568,7 @@ class DataSource(object):
         defhost = "localhost"
         domain = defdomain
 
-        if not self.metadata or 'local-hostname' not in self.metadata:
+        if not self.metadata or not self.metadata.get('local-hostname'):
             if metadata_only:
                 return None
             # this is somewhat questionable really.

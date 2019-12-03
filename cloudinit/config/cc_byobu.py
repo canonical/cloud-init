@@ -60,7 +60,7 @@ def handle(name, cfg, cloud, log, args):
     valid = ("enable-user", "enable-system", "enable",
              "disable-user", "disable-system", "disable")
     if value not in valid:
-        log.warn("Unknown value %s for byobu_by_default", value)
+        log.warning("Unknown value %s for byobu_by_default", value)
 
     mod_user = value.endswith("-user")
     mod_sys = value.endswith("-system")
@@ -80,8 +80,8 @@ def handle(name, cfg, cloud, log, args):
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
         (user, _user_config) = ug_util.extract_default(users)
         if not user:
-            log.warn(("No default byobu user provided, "
-                      "can not launch %s for the default user"), bl_inst)
+            log.warning(("No default byobu user provided, "
+                         "can not launch %s for the default user"), bl_inst)
         else:
             shcmd += " sudo -Hu \"%s\" byobu-launcher-%s" % (user, bl_inst)
             shcmd += " || X=$(($X+1)); "

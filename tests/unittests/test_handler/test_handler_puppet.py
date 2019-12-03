@@ -6,6 +6,7 @@ from cloudinit import (distros, helpers, cloud, util)
 from cloudinit.tests.helpers import CiTestCase, mock
 
 import logging
+import textwrap
 
 
 LOG = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ class TestPuppetHandle(CiTestCase):
         super(TestPuppetHandle, self).setUp()
         self.new_root = self.tmp_dir()
         self.conf = self.tmp_path('puppet.conf')
+        self.csr_attributes_path = self.tmp_path('csr_attributes.yaml')
 
     def _get_cloud(self, distro):
         paths = helpers.Paths({'templates_dir': self.new_root})
@@ -139,4 +141,36 @@ class TestPuppetHandle(CiTestCase):
             cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
         content = util.load_file(self.conf)
         expected = '[agent]\nserver = puppetmaster.example.org\nother = 3\n\n'
+        self.assertEqual(expected, content)
+
+    @mock.patch('cloudinit.config.cc_puppet.util.subp')
+    def test_handler_puppet_writes_csr_attributes_file(self, m_subp, m_auto):
+        """When csr_attributes is provided
+            creates file in PUPPET_CSR_ATTRIBUTES_PATH."""
+        mycloud = self._get_cloud('ubuntu')
+        mycloud.distro = mock.MagicMock()
+        cfg = {
+            'puppet': {
+              'csr_attributes': {
+                'custom_attributes': {
+                  '1.2.840.113549.1.9.7': '342thbjkt82094y0ut'
+                                          'hhor289jnqthpc2290'},
+                'extension_requests': {
+                  'pp_uuid': 'ED803750-E3C7-44F5-BB08-41A04433FE2E',
+                  'pp_image_name': 'my_ami_image',
+                  'pp_preshared_key': '342thbjkt82094y0uthhor289jnqthpc2290'}
+                }}}
+        csr_attributes = 'cloudinit.config.cc_puppet.' \
+                         'PUPPET_CSR_ATTRIBUTES_PATH'
+        with mock.patch(csr_attributes, self.csr_attributes_path):
+            cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        content = util.load_file(self.csr_attributes_path)
+        expected = textwrap.dedent("""\
+            custom_attributes:
+              1.2.840.113549.1.9.7: 342thbjkt82094y0uthhor289jnqthpc2290
+            extension_requests:
+              pp_image_name: my_ami_image
+              pp_preshared_key: 342thbjkt82094y0uthhor289jnqthpc2290
+              pp_uuid: ED803750-E3C7-44F5-BB08-41A04433FE2E
+            """)
         self.assertEqual(expected, content)

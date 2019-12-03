@@ -12,17 +12,23 @@ import struct
 
 import six
 
+from cloudinit import safeyaml
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
 NETWORK_STATE_VERSION = 1
+IPV6_DYNAMIC_TYPES = ['dhcp6',
+                      'ipv6_slaac',
+                      'ipv6_dhcpv6-stateless',
+                      'ipv6_dhcpv6-stateful']
 NETWORK_STATE_REQUIRED_KEYS = {
     1: ['version', 'config', 'network_state'],
 }
 NETWORK_V2_KEY_FILTER = [
-    'addresses', 'dhcp4', 'dhcp6', 'gateway4', 'gateway6', 'interfaces',
-    'match', 'mtu', 'nameservers', 'renderer', 'set-name', 'wakeonlan'
+    'addresses', 'dhcp4', 'dhcp4-overrides', 'dhcp6', 'dhcp6-overrides',
+    'gateway4', 'gateway6', 'interfaces', 'match', 'mtu', 'nameservers',
+    'renderer', 'set-name', 'wakeonlan', 'accept-ra'
 ]
 
 NET_CONFIG_TO_V2 = {
@@ -253,7 +259,7 @@ class NetworkStateInterpreter(object):
             'config': self._config,
             'network_state': self._network_state,
         }
-        return util.yaml_dumps(state)
+        return safeyaml.dumps(state)
 
     def load(self, state):
         if 'version' not in state:
@@ -272,7 +278,7 @@ class NetworkStateInterpreter(object):
             setattr(self, key, state[key])
 
     def dump_network_state(self):
-        return util.yaml_dumps(self._network_state)
+        return safeyaml.dumps(self._network_state)
 
     def as_dict(self):
         return {'version': self._version, 'config': self._config}
@@ -340,7 +346,8 @@ class NetworkStateInterpreter(object):
             'name': 'eth0',
             'subnets': [
                 {'type': 'dhcp4'}
-             ]
+             ],
+            'accept-ra': 'true'
         }
         '''
 
@@ -360,6 +367,9 @@ class NetworkStateInterpreter(object):
                     self.use_ipv6 = True
                     break
 
+        accept_ra = command.get('accept-ra', None)
+        if accept_ra is not None:
+            accept_ra = util.is_true(accept_ra)
         iface.update({
             'name': command.get('name'),
             'type': command.get('type'),
@@ -370,6 +380,7 @@ class NetworkStateInterpreter(object):
             'address': None,
             'gateway': None,
             'subnets': subnets,
+            'accept-ra': accept_ra
         })
         self._network_state['interfaces'].update({command.get('name'): iface})
         self.dump_network_state()
@@ -613,6 +624,7 @@ class NetworkStateInterpreter(object):
               driver: ixgbe
             set-name: lom1
             dhcp6: true
+            accept-ra: true
           switchports:
             match:
               name: enp2*
@@ -641,7 +653,7 @@ class NetworkStateInterpreter(object):
             driver = match.get('driver', None)
             if driver:
                 phy_cmd['params'] = {'driver': driver}
-            for key in ['mtu', 'match', 'wakeonlan']:
+            for key in ['mtu', 'match', 'wakeonlan', 'accept-ra']:
                 if key in cfg:
                     phy_cmd[key] = cfg[key]
 
@@ -746,12 +758,20 @@ class NetworkStateInterpreter(object):
     def _v2_to_v1_ipcfg(self, cfg):
         """Common ipconfig extraction from v2 to v1 subnets array."""
 
+        def _add_dhcp_overrides(overrides, subnet):
+            if 'route-metric' in overrides:
+                subnet['metric'] = overrides['route-metric']
+
         subnets = []
         if cfg.get('dhcp4'):
-            subnets.append({'type': 'dhcp4'})
+            subnet = {'type': 'dhcp4'}
+            _add_dhcp_overrides(cfg.get('dhcp4-overrides', {}), subnet)
+            subnets.append(subnet)
         if cfg.get('dhcp6'):
+            subnet = {'type': 'dhcp6'}
             self.use_ipv6 = True
-            subnets.append({'type': 'dhcp6'})
+            _add_dhcp_overrides(cfg.get('dhcp6-overrides', {}), subnet)
+            subnets.append(subnet)
 
         gateway4 = None
         gateway6 = None
@@ -918,8 +938,9 @@ def is_ipv6_addr(address):
 
 def subnet_is_ipv6(subnet):
     """Common helper for checking network_state subnets for ipv6."""
-    # 'static6' or 'dhcp6'
-    if subnet['type'].endswith('6'):
+    # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful', 'ipv6_dhcpv6-stateless' or
+    # 'ipv6_slaac'
+    if subnet['type'].endswith('6') or subnet['type'] in IPV6_DYNAMIC_TYPES:
         # This is a request for DHCPv6.
         return True
     elif subnet['type'] == 'static' and is_ipv6_addr(subnet.get('address')):

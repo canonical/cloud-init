@@ -62,13 +62,13 @@ class TestVmwareConfigFile(CiTestCase):
 
         (md1, _, _) = read_vmware_imc(conf)
         self.assertIn(instance_id_prefix, md1["instance-id"])
-        self.assertEqual(len(md1["instance-id"]), len(instance_id_prefix) + 8)
+        self.assertEqual(md1["instance-id"], 'iid-vmware-imc')
 
         (md2, _, _) = read_vmware_imc(conf)
         self.assertIn(instance_id_prefix, md2["instance-id"])
-        self.assertEqual(len(md2["instance-id"]), len(instance_id_prefix) + 8)
+        self.assertEqual(md2["instance-id"], 'iid-vmware-imc')
 
-        self.assertNotEqual(md1["instance-id"], md2["instance-id"])
+        self.assertEqual(md2["instance-id"], md1["instance-id"])
 
     def test_configfile_static_2nics(self):
         """Tests Config class for a configuration with two static NICs."""

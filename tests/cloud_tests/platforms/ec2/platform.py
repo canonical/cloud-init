@@ -135,6 +135,7 @@ class EC2Platform(Platform):
     def _create_internet_gateway(self):
         """Create Internet Gateway and assign to VPC."""
         LOG.debug('creating internet gateway')
+        # pylint: disable=no-member
         internet_gateway = self.ec2_resource.create_internet_gateway()
         internet_gateway.attach_to_vpc(VpcId=self.vpc.id)
         self._tag_resource(internet_gateway)
@@ -190,7 +191,7 @@ class EC2Platform(Platform):
         """Setup AWS EC2 VPC or return existing VPC."""
         LOG.debug('creating new vpc')
         try:
-            vpc = self.ec2_resource.create_vpc(
+            vpc = self.ec2_resource.create_vpc(  # pylint: disable=no-member
                 CidrBlock=self.ipv4_cidr,
                 AmazonProvidedIpv6CidrBlock=True)
         except botocore.exceptions.ClientError as e:

@@ -55,6 +55,8 @@ default_release_config:
             # cloud-init, so must pull cloud-init in from repo using
             # setup_image.upgrade
             upgrade: true
+    azurecloud:
+        boot_timeout: 300
 
 features:
     # all currently supported feature flags

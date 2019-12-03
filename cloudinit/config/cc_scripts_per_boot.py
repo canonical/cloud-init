@@ -40,8 +40,8 @@ def handle(name, _cfg, cloud, log, _args):
     try:
         util.runparts(runparts_path)
     except Exception:
-        log.warn("Failed to run module %s (%s in %s)",
-                 name, SCRIPT_SUBDIR, runparts_path)
+        log.warning("Failed to run module %s (%s in %s)",
+                    name, SCRIPT_SUBDIR, runparts_path)
         raise
 
 # vi: ts=4 expandtab

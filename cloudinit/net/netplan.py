@@ -4,10 +4,11 @@ import copy
 import os
 
 from . import renderer
-from .network_state import subnet_is_ipv6, NET_CONFIG_TO_V2
+from .network_state import subnet_is_ipv6, NET_CONFIG_TO_V2, IPV6_DYNAMIC_TYPES
 
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit import safeyaml
 from cloudinit.net import SYS_CLASS_NET, get_devicelist
 
 KNOWN_SNAPD_CONFIG = b"""\
@@ -34,7 +35,7 @@ def _get_params_dict_by_match(config, match):
                 if key.startswith(match))
 
 
-def _extract_addresses(config, entry, ifname):
+def _extract_addresses(config, entry, ifname, features=None):
     """This method parse a cloudinit.net.network_state dictionary (config) and
        maps netstate keys/values into a dictionary (entry) to represent
        netplan yaml.
@@ -51,7 +52,8 @@ def _extract_addresses(config, entry, ifname):
          'mtu': 1480,
          'netmask': 64,
          'type': 'static'}],
-      'type: physical'
+      'type: physical',
+      'accept-ra': 'true'
     }
 
     An entry dictionary looks like:
@@ -66,7 +68,7 @@ def _extract_addresses(config, entry, ifname):
      'match': {'macaddress': '52:54:00:12:34:00'},
      'mtu': 1501,
      'address': ['192.168.1.2/24', '2001:4800:78ff:1b:be76:4eff:fe06:1000"],
-     'mtu6': 1480}
+     'ipv6-mtu': 1480}
 
     """
 
@@ -79,6 +81,8 @@ def _extract_addresses(config, entry, ifname):
         else:
             return [obj, ]
 
+    if features is None:
+        features = []
     addresses = []
     routes = []
     nameservers = []
@@ -92,6 +96,8 @@ def _extract_addresses(config, entry, ifname):
             if sn_type == 'dhcp':
                 sn_type += '4'
             entry.update({sn_type: True})
+        elif sn_type in IPV6_DYNAMIC_TYPES:
+            entry.update({'dhcp6': True})
         elif sn_type in ['static']:
             addr = "%s" % subnet.get('address')
             if 'prefix' in subnet:
@@ -108,8 +114,8 @@ def _extract_addresses(config, entry, ifname):
                 searchdomains += _listify(subnet.get('dns_search', []))
             if 'mtu' in subnet:
                 mtukey = 'mtu'
-                if subnet_is_ipv6(subnet):
-                    mtukey += '6'
+                if subnet_is_ipv6(subnet) and 'ipv6-mtu' in features:
+                    mtukey = 'ipv6-mtu'
                 entry.update({mtukey: subnet.get('mtu')})
             for route in subnet.get('routes', []):
                 to_net = "%s/%s" % (route.get('network'),
@@ -144,6 +150,8 @@ def _extract_addresses(config, entry, ifname):
         ns = entry.get('nameservers', {})
         ns.update({'search': searchdomains})
         entry.update({'nameservers': ns})
+    if 'accept-ra' in config and config['accept-ra'] is not None:
+        entry.update({'accept-ra': util.is_true(config.get('accept-ra'))})
 
 
 def _extract_bond_slaves_by_name(interfaces, entry, bond_master):
@@ -179,6 +187,7 @@ class Renderer(renderer.Renderer):
     """Renders network information in a /etc/netplan/network.yaml format."""
 
     NETPLAN_GENERATE = ['netplan', 'generate']
+    NETPLAN_INFO = ['netplan', 'info']
 
     def __init__(self, config=None):
         if not config:
@@ -188,6 +197,22 @@ class Renderer(renderer.Renderer):
         self.netplan_header = config.get('netplan_header', None)
         self._postcmds = config.get('postcmds', False)
         self.clean_default = config.get('clean_default', True)
+        self._features = config.get('features', None)
+
+    @property
+    def features(self):
+        if self._features is None:
+            try:
+                info_blob, _err = util.subp(self.NETPLAN_INFO, capture=True)
+                info = util.load_yaml(info_blob)
+                self._features = info['netplan.io']['features']
+            except util.ProcessExecutionError:
+                # if the info subcommand is not present then we don't have any
+                # new features
+                pass
+            except (TypeError, KeyError) as e:
+                LOG.debug('Failed to list features from netplan info: %s', e)
+        return self._features
 
     def render_network_state(self, network_state, templates=None, target=None):
         # check network state for version
@@ -235,9 +260,9 @@ class Renderer(renderer.Renderer):
         # if content already in netplan format, pass it back
         if network_state.version == 2:
             LOG.debug('V2 to V2 passthrough')
-            return util.yaml_dumps({'network': network_state.config},
-                                   explicit_start=False,
-                                   explicit_end=False)
+            return safeyaml.dumps({'network': network_state.config},
+                                  explicit_start=False,
+                                  explicit_end=False)
 
         ethernets = {}
         wifis = {}
@@ -271,7 +296,7 @@ class Renderer(renderer.Renderer):
                     else:
                         del eth['match']
                         del eth['set-name']
-                _extract_addresses(ifcfg, eth, ifname)
+                _extract_addresses(ifcfg, eth, ifname, self.features)
                 ethernets.update({ifname: eth})
 
             elif if_type == 'bond':
@@ -296,7 +321,7 @@ class Renderer(renderer.Renderer):
                 slave_interfaces = ifcfg.get('bond-slaves')
                 if slave_interfaces == 'none':
                     _extract_bond_slaves_by_name(interfaces, bond, ifname)
-                _extract_addresses(ifcfg, bond, ifname)
+                _extract_addresses(ifcfg, bond, ifname, self.features)
                 bonds.update({ifname: bond})
 
             elif if_type == 'bridge':
@@ -331,7 +356,7 @@ class Renderer(renderer.Renderer):
                     bridge.update({'parameters': br_config})
                 if ifcfg.get('mac_address'):
                     bridge['macaddress'] = ifcfg.get('mac_address').lower()
-                _extract_addresses(ifcfg, bridge, ifname)
+                _extract_addresses(ifcfg, bridge, ifname, self.features)
                 bridges.update({ifname: bridge})
 
             elif if_type == 'vlan':
@@ -343,7 +368,7 @@ class Renderer(renderer.Renderer):
                 macaddr = ifcfg.get('mac_address', None)
                 if macaddr is not None:
                     vlan['macaddress'] = macaddr.lower()
-                _extract_addresses(ifcfg, vlan, ifname)
+                _extract_addresses(ifcfg, vlan, ifname, self.features)
                 vlans.update({ifname: vlan})
 
         # inject global nameserver values under each all interface which
@@ -359,10 +384,10 @@ class Renderer(renderer.Renderer):
         # workaround yaml dictionary key sorting when dumping
         def _render_section(name, section):
             if section:
-                dump = util.yaml_dumps({name: section},
-                                       explicit_start=False,
-                                       explicit_end=False,
-                                       noalias=True)
+                dump = safeyaml.dumps({name: section},
+                                      explicit_start=False,
+                                      explicit_end=False,
+                                      noalias=True)
                 txt = util.indent(dump, ' ' * 4)
                 return [txt]
             return []

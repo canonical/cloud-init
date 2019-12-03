@@ -33,6 +33,7 @@ from six import StringIO
 
 from cloudinit import type_utils
 from cloudinit import util
+from cloudinit import safeyaml
 
 SKIP_KEYS = frozenset(['log_cfgs'])
 
@@ -49,7 +50,7 @@ def _make_header(text):
 
 
 def _dumps(obj):
-    text = util.yaml_dumps(obj, explicit_start=False, explicit_end=False)
+    text = safeyaml.dumps(obj, explicit_start=False, explicit_end=False)
     return text.rstrip()
 
 
