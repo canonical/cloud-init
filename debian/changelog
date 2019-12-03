@@ -1,4 +1,4 @@
-cloud-init (19.3-41-gc4735dd3-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.3-41-gc4735dd3-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
     - Fix linting failure in test_url_helper (#83) [Eric Lafontaine]
