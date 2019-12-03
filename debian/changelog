@@ -1,3 +1,10 @@
+cloud-init (19.3-41-gc4735dd3-0ubuntu1) focal; urgency=medium
+
+  * New upstream snapshot.
+    - Fix linting failure in test_url_helper (#83) [Eric Lafontaine]
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 03 Dec 2019 14:46:25 -0700
+
 cloud-init (19.3-40-gf69d33a7-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
