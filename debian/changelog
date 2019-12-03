@@ -1,3 +1,10 @@
+cloud-init (19.2-36-g059d049c-0ubuntu2~16.04.2) UNRELEASED; urgency=medium
+
+  * refresh patches:
+   + debian/patches/ec2-classic-dont-reapply-networking.patch
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 03 Dec 2019 14:58:51 -0700
+
 cloud-init (19.2-36-g059d049c-0ubuntu2~16.04.1) xenial; urgency=medium
 
   * cherry-pick a7d8d032: get_interfaces: don't exclude bridge and bond
