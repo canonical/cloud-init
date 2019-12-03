@@ -457,19 +457,17 @@ class TestDataSource(CiTestCase):
             instance_json['ds']['meta_data'])
 
     @skipIf(not six.PY2, "Only python2 hits UnicodeDecodeErrors on non-utf8")
-    def test_non_utf8_encoding_logs_warning(self):
-        """When non-utf-8 values exist in py2 instance-data is not written."""
+    def test_non_utf8_encoding_gets_b64encoded(self):
+        """When non-utf-8 values exist in py2 instance-data is b64encoded."""
         tmp = self.tmp_dir()
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
             custom_metadata={'key1': 'val1', 'key2': {'key2.1': b'ab\xaadef'}})
         self.assertTrue(datasource.get_data())
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
-        self.assertFalse(os.path.exists(json_file))
-        self.assertIn(
-            "WARNING: Error persisting instance-data.json: 'utf8' codec can't"
-            " decode byte 0xaa in position 2: invalid start byte",
-            self.logs.getvalue())
+        instance_json = util.load_json(util.load_file(json_file))
+        key21_value = instance_json['ds']['meta_data']['key2']['key2.1']
+        self.assertEqual('ci-b64:' + util.b64e(b'ab\xaadef'), key21_value)
 
     def test_get_hostname_subclass_support(self):
         """Validate get_hostname signature on all subclasses of DataSource."""

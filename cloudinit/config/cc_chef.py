@@ -196,7 +196,7 @@ def handle(name, cfg, cloud, log, _args):
     # If there isn't a chef key in the configuration don't do anything
     if 'chef' not in cfg:
         log.debug(("Skipping module named %s,"
-                  " no 'chef' key in configuration"), name)
+                   " no 'chef' key in configuration"), name)
         return
     chef_cfg = cfg['chef']
 
@@ -215,9 +215,9 @@ def handle(name, cfg, cloud, log, _args):
         if vcert != "system":
             util.write_file(vkey_path, vcert)
         elif not os.path.isfile(vkey_path):
-            log.warn("chef validation_cert provided as 'system', but "
-                     "validation_key path '%s' does not exist.",
-                     vkey_path)
+            log.warning("chef validation_cert provided as 'system', but "
+                        "validation_key path '%s' does not exist.",
+                        vkey_path)
 
     # Create the chef config from template
     template_fn = cloud.get_template_filename('chef_client.rb')
@@ -234,8 +234,8 @@ def handle(name, cfg, cloud, log, _args):
         util.ensure_dirs(param_paths)
         templater.render_to_file(template_fn, CHEF_RB_PATH, params)
     else:
-        log.warn("No template found, not rendering to %s",
-                 CHEF_RB_PATH)
+        log.warning("No template found, not rendering to %s",
+                    CHEF_RB_PATH)
 
     # Set the firstboot json
     fb_filename = util.get_cfg_option_str(chef_cfg, 'firstboot_path',
@@ -276,9 +276,9 @@ def run_chef(chef_cfg, log):
         elif isinstance(cmd_args, six.string_types):
             cmd.append(cmd_args)
         else:
-            log.warn("Unknown type %s provided for chef"
-                     " 'exec_arguments' expected list, tuple,"
-                     " or string", type(cmd_args))
+            log.warning("Unknown type %s provided for chef"
+                        " 'exec_arguments' expected list, tuple,"
+                        " or string", type(cmd_args))
             cmd.extend(CHEF_EXEC_DEF_ARGS)
     else:
         cmd.extend(CHEF_EXEC_DEF_ARGS)
@@ -334,7 +334,7 @@ def install_chef(cloud, chef_cfg, log):
             retries=util.get_cfg_option_int(chef_cfg, "omnibus_url_retries"),
             omnibus_version=omnibus_version)
     else:
-        log.warn("Unknown chef install type '%s'", install_type)
+        log.warning("Unknown chef install type '%s'", install_type)
         run = False
     return run
 

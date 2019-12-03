@@ -224,7 +224,7 @@ class UserDataProcessor(object):
                 content = util.load_file(include_once_fn)
             else:
                 try:
-                    resp = read_file_or_url(include_url,
+                    resp = read_file_or_url(include_url, timeout=5, retries=10,
                                             ssl_details=self.ssl_details)
                     if include_once_on and resp.ok():
                         util.write_file(include_once_fn, resp.contents,

@@ -62,4 +62,11 @@ class TestGuestCustUtil(CiTestCase):
                     get_tools_config('section', 'key', 'defaultVal'),
                     'Bar=Wark')
 
+            # value contains specific characters
+            with mock.patch.object(util, 'subp',
+                                   return_value=('[a] b.c_d=e-f', b'')):
+                self.assertEqual(
+                    get_tools_config('section', 'key', 'defaultVal'),
+                    'e-f')
+
 # vi: ts=4 expandtab

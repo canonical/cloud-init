@@ -1,41 +1,77 @@
 .. _index:
 
-#############
-Documentation
-#############
+cloud-init Documentation
+########################
 
-.. rubric:: Everything about cloud-init, a set of **python** scripts and
-            utilities to make your cloud images be all they can be!
+Cloud-init is the *industry standard* multi-distribution method for
+cross-platform cloud instance initialization. It is supported across all
+major public cloud providers, provisioning systems for private cloud
+infrastructure, and bare-metal installations.
 
-*******
-Summary
-*******
+Cloud instances are initialized from a disk image and instance data:
 
-`Cloud-init`_ is the *defacto* multi-distribution package that handles early
-initialization of a cloud instance.
+- Cloud metadata
+- User data (optional)
+- Vendor data (optional)
 
-----
+Cloud-init will identify the cloud it is running on during boot, read any
+provided metadata from the cloud and initialize the system accordingly. This
+may involve setting up the network and storage devices to configuring SSH
+access key and many other aspects of a system. Later on the cloud-init will
+also parse and process any optional user or vendor data that was passed to the
+instance.
+
+Getting help
+************
+
+Having trouble? We would like to help!
+
+- Try the :ref:`FAQ` – its got answers to some common questions
+- Ask a question in the ``#cloud-init`` IRC channel on Freenode
+- Join and ask questions on the `cloud-init mailing list <https://launchpad.net/~cloud-init>`_
+- Find a bug? `Report bugs on Launchpad <https://bugs.launchpad.net/cloud-init/+filebug>`_
 
 .. toctree::
-   :maxdepth: 2
+   :hidden:
+   :titlesonly:
+   :caption: Getting Started
 
-   topics/capabilities.rst
    topics/availability.rst
-   topics/format.rst
-   topics/instancedata.rst
-   topics/dir_layout.rst
-   topics/examples.rst
    topics/boot.rst
-   topics/datasources.rst
-   topics/logging.rst
+   topics/cli.rst
+   topics/faq.rst
+
+.. toctree::
+   :hidden:
+   :titlesonly:
+   :caption: User Data
+
+   topics/format.rst
+   topics/examples.rst
    topics/modules.rst
    topics/merging.rst
-   topics/network-config.rst
+
+.. toctree::
+   :hidden:
+   :titlesonly:
+   :caption: Instance Data
+
+   topics/instancedata.rst
+   topics/datasources.rst
    topics/vendordata.rst
-   topics/debugging.rst
-   topics/moreinfo.rst
+   topics/network-config.rst
+
+.. toctree::
+   :hidden:
+   :titlesonly:
+   :caption: Development
+
    topics/hacking.rst
+   topics/debugging.rst
+   topics/logging.rst
+   topics/dir_layout.rst
+   topics/analyze.rst
+   topics/docs.rst
    topics/tests.rst
 
-.. _Cloud-init: https://launchpad.net/cloud-init
-.. vi: textwidth=78
+.. vi: textwidth=79

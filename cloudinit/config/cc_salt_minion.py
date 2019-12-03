@@ -45,7 +45,7 @@ specify them with ``pkg_name``, ``service_name`` and ``config_dir``.
 
 import os
 
-from cloudinit import util
+from cloudinit import safeyaml, util
 
 # Note: see https://docs.saltstack.com/en/latest/topics/installation/
 # Note: see https://docs.saltstack.com/en/latest/ref/configuration/
@@ -59,7 +59,7 @@ class SaltConstants(object):
 
         # constants tailored for FreeBSD
         if util.is_FreeBSD():
-            self.pkg_name = 'py27-salt'
+            self.pkg_name = 'py36-salt'
             self.srv_name = 'salt_minion'
             self.conf_dir = '/usr/local/etc/salt'
         # constants for any other OS
@@ -97,13 +97,13 @@ def handle(name, cfg, cloud, log, _args):
     if 'conf' in s_cfg:
         # Add all sections from the conf object to minion config file
         minion_config = os.path.join(const.conf_dir, 'minion')
-        minion_data = util.yaml_dumps(s_cfg.get('conf'))
+        minion_data = safeyaml.dumps(s_cfg.get('conf'))
         util.write_file(minion_config, minion_data)
 
     if 'grains' in s_cfg:
         # add grains to /etc/salt/grains
         grains_config = os.path.join(const.conf_dir, 'grains')
-        grains_data = util.yaml_dumps(s_cfg.get('grains'))
+        grains_data = safeyaml.dumps(s_cfg.get('grains'))
         util.write_file(grains_config, grains_data)
 
     # ... copy the key pair if specified

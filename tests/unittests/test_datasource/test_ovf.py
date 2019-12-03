@@ -204,7 +204,7 @@ class TestDatasourceOVF(CiTestCase):
         customscript = self.tmp_path('test-script', self.tdir)
         util.write_file(customscript, "This is the post cust script")
 
-        with mock.patch(MPATH + 'get_tools_config', return_value='false'):
+        with mock.patch(MPATH + 'get_tools_config', return_value='invalid'):
             with mock.patch(MPATH + 'set_customization_status',
                             return_value=('msg', b'')):
                 with self.assertRaises(RuntimeError) as context:
