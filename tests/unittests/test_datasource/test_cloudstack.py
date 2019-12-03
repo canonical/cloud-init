@@ -10,6 +10,9 @@ from cloudinit.tests.helpers import CiTestCase, ExitStack, mock
 import os
 import time
 
+MOD_PATH = 'cloudinit.sources.DataSourceCloudStack'
+DS_PATH = MOD_PATH + '.DataSourceCloudStack'
+
 
 class TestCloudStackPasswordFetching(CiTestCase):
 
@@ -17,7 +20,7 @@ class TestCloudStackPasswordFetching(CiTestCase):
         super(TestCloudStackPasswordFetching, self).setUp()
         self.patches = ExitStack()
         self.addCleanup(self.patches.close)
-        mod_name = 'cloudinit.sources.DataSourceCloudStack'
+        mod_name = MOD_PATH
         self.patches.enter_context(mock.patch('{0}.ec2'.format(mod_name)))
         self.patches.enter_context(mock.patch('{0}.uhelp'.format(mod_name)))
         default_gw = "192.201.20.0"
@@ -56,7 +59,9 @@ class TestCloudStackPasswordFetching(CiTestCase):
         ds.get_data()
         self.assertEqual({}, ds.get_config_obj())
 
-    def test_password_sets_password(self):
+    @mock.patch(DS_PATH + '.wait_for_metadata_service')
+    def test_password_sets_password(self, m_wait):
+        m_wait.return_value = True
         password = 'SekritSquirrel'
         self._set_password_server_response(password)
         ds = DataSourceCloudStack(
@@ -64,7 +69,9 @@ class TestCloudStackPasswordFetching(CiTestCase):
         ds.get_data()
         self.assertEqual(password, ds.get_config_obj()['password'])
 
-    def test_bad_request_doesnt_stop_ds_from_working(self):
+    @mock.patch(DS_PATH + '.wait_for_metadata_service')
+    def test_bad_request_doesnt_stop_ds_from_working(self, m_wait):
+        m_wait.return_value = True
         self._set_password_server_response('bad_request')
         ds = DataSourceCloudStack(
             {}, None, helpers.Paths({'run_dir': self.tmp}))
@@ -79,7 +86,9 @@ class TestCloudStackPasswordFetching(CiTestCase):
                     request_types.append(arg.split()[1])
         self.assertEqual(expected_request_types, request_types)
 
-    def test_valid_response_means_password_marked_as_saved(self):
+    @mock.patch(DS_PATH + '.wait_for_metadata_service')
+    def test_valid_response_means_password_marked_as_saved(self, m_wait):
+        m_wait.return_value = True
         password = 'SekritSquirrel'
         subp = self._set_password_server_response(password)
         ds = DataSourceCloudStack(
@@ -92,7 +101,9 @@ class TestCloudStackPasswordFetching(CiTestCase):
         subp = self._set_password_server_response(response_string)
         ds = DataSourceCloudStack(
             {}, None, helpers.Paths({'run_dir': self.tmp}))
-        ds.get_data()
+        with mock.patch(DS_PATH + '.wait_for_metadata_service') as m_wait:
+            m_wait.return_value = True
+            ds.get_data()
         self.assertRequestTypesSent(subp, ['send_my_password'])
 
     def test_password_not_saved_if_empty(self):

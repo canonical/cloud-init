@@ -4,6 +4,7 @@
 
 import os
 import shutil
+import time
 from tempfile import mkdtemp
 
 from cloudinit.util import load_yaml, subp, ProcessExecutionError, which
@@ -224,7 +225,18 @@ class LXDInstance(Instance):
         LOG.debug("%s: deleting container.", self)
         self.unfreeze()
         self.shutdown()
-        self.pylxd_container.delete(wait=True)
+        retries = [1] * 5
+        for attempt, wait in enumerate(retries):
+            try:
+                self.pylxd_container.delete(wait=True)
+                break
+            except Exception:
+                if attempt + 1 >= len(retries):
+                    raise
+                LOG.debug('Failed to delete container %s (%s/%s) retrying...',
+                          self, attempt + 1, len(retries))
+                time.sleep(wait)
+
         self._pylxd_container = None
 
         if self.platform.container_exists(self.name):

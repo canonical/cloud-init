@@ -14,6 +14,7 @@ from cloudinit import handlers
 from cloudinit import log as logging
 from cloudinit import mergers
 from cloudinit import util
+from cloudinit import safeyaml
 
 from cloudinit.settings import (PER_ALWAYS)
 
@@ -75,7 +76,7 @@ class CloudConfigPartHandler(handlers.Handler):
                 '',
             ]
             lines.extend(file_lines)
-            lines.append(util.yaml_dumps(self.cloud_buf))
+            lines.append(safeyaml.dumps(self.cloud_buf))
         else:
             lines = []
         util.write_file(self.cloud_fn, "\n".join(lines), 0o600)

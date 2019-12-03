@@ -67,5 +67,11 @@ platforms:
     nocloud-kvm:
         enabled: true
         cache_mode: cache=none,aio=native
+    azurecloud:
+        enabled: true
+        region: West US 2
+        vm_size: Standard_DS1_v2
+        storage_sku: standard_lrs
+        tag: ci
 
 # vi: ts=4 expandtab

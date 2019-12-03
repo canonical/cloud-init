@@ -108,7 +108,8 @@ def handle(_name, cfg, cloud, log, _args):
     reboot_fn_exists = os.path.isfile(REBOOT_FILE)
     if (upgrade or pkglist) and reboot_if_required and reboot_fn_exists:
         try:
-            log.warn("Rebooting after upgrade or install per %s", REBOOT_FILE)
+            log.warning("Rebooting after upgrade or install per "
+                        "%s", REBOOT_FILE)
             # Flush the above warning + anything else out...
             logging.flushLoggers(log)
             _fire_reboot(log)
@@ -117,8 +118,8 @@ def handle(_name, cfg, cloud, log, _args):
             errors.append(e)
 
     if len(errors):
-        log.warn("%s failed with exceptions, re-raising the last one",
-                 len(errors))
+        log.warning("%s failed with exceptions, re-raising the last one",
+                    len(errors))
         raise errors[-1]
 
 # vi: ts=4 expandtab

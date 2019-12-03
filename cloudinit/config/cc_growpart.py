@@ -321,7 +321,7 @@ def handle(_name, cfg, _cloud, log, _args):
 
     mycfg = cfg.get('growpart')
     if not isinstance(mycfg, dict):
-        log.warn("'growpart' in config was not a dict")
+        log.warning("'growpart' in config was not a dict")
         return
 
     mode = mycfg.get('mode', "auto")

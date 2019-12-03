@@ -62,7 +62,7 @@ IMDS
 ----
 Azure provides the `instance metadata service (IMDS)
 <https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service>`_
-which is a REST service on ``196.254.196.254`` providing additional
+which is a REST service on ``169.254.169.254`` providing additional
 configuration information to the instance. Cloud-init uses the IMDS for:
 
 - network configuration for the instance which is applied per boot

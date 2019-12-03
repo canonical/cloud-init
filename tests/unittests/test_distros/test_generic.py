@@ -244,5 +244,23 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         with self.assertRaises(NotImplementedError):
             d.get_locale()
 
+    def test_expire_passwd_uses_chpasswd(self):
+        """Test ubuntu.expire_passwd uses the passwd command."""
+        for d_name in ("ubuntu", "rhel"):
+            cls = distros.fetch(d_name)
+            d = cls(d_name, {}, None)
+            with mock.patch("cloudinit.util.subp") as m_subp:
+                d.expire_passwd("myuser")
+            m_subp.assert_called_once_with(["passwd", "--expire", "myuser"])
+
+    def test_expire_passwd_freebsd_uses_pw_command(self):
+        """Test FreeBSD.expire_passwd uses the pw command."""
+        cls = distros.fetch("freebsd")
+        d = cls("freebsd", {}, None)
+        with mock.patch("cloudinit.util.subp") as m_subp:
+            d.expire_passwd("myuser")
+        m_subp.assert_called_once_with(
+            ["pw", "usermod", "myuser", "-p", "01-Jan-1970"])
+
 
 # vi: ts=4 expandtab

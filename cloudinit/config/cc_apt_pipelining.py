@@ -59,7 +59,7 @@ def handle(_name, cfg, _cloud, log, _args):
     elif apt_pipe_value_s in [str(b) for b in range(0, 6)]:
         write_apt_snippet(apt_pipe_value_s, log, DEFAULT_FILE)
     else:
-        log.warn("Invalid option for apt_pipelining: %s", apt_pipe_value)
+        log.warning("Invalid option for apt_pipelining: %s", apt_pipe_value)
 
 
 def write_apt_snippet(setting, log, f_name):

@@ -4,6 +4,7 @@
 
 from ..images import Image
 from .snapshot import EC2Snapshot
+
 from tests.cloud_tests import LOG
 
 
