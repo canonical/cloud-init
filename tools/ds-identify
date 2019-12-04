@@ -186,11 +186,11 @@ dmi_decode() {
         return 1
     }
     case "$1" in
-        sys_vendor) _RET="system-manufacturer";;
-        product_name) _RET="system-product-name";;
-        product_uuid) _RET="system-uuid";;
-        product_serial) _RET="system-serial-number";;
-        chassis_asset_tag) _RET="chassis-asset-tag";;
+        sys_vendor) dmi_field="system-manufacturer";;
+        product_name) dmi_field="system-product-name";;
+        product_uuid) dmi_field="system-uuid";;
+        product_serial) dmi_field="system-serial-number";;
+        chassis_asset_tag) dmi_field="chassis-asset-tag";;
         *) error "Unknown field $sys_field. Cannot call dmidecode."
            return 1;;
     esac
