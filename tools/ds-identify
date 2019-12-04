@@ -201,8 +201,13 @@ dmi_decode() {
 get_dmi_field() {
     local path="${PATH_SYS_CLASS_DMI_ID}/$1"
     _RET="$UNAVAILABLE"
-    if [ -f "$path" ] && [ -r "$path" ]; then
-        read _RET < "${path}" || _RET="$ERROR"
+    if [ -f "${PATH_SYS_CLASS_DMI_ID}" ]; then
+        if [ -f "$path" ] && [ -r "$path" ]; then
+            read _RET < "${path}" || _RET="$ERROR"
+            return
+        fi
+        # if `/sys/class/dmi/id` exists, but not the object we're looking for,
+        # do *not* fallback to dmidecode!
         return
     fi
     dmi_decode "$1" || _RET="$ERROR"
