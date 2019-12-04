@@ -27,8 +27,9 @@ If you need support, start with the [user documentation](https://cloudinit.readt
 If you need additional help consider reaching out with one of the following options:
 
 - Ask a question in the [``#cloud-init`` IRC channel on Freenode](https://webchat.freenode.net/?channel=#cloud-init)
-- Join and ask questions on the [cloud-init mailing list](https://launchpad.net/~cloud-init)
-- Find a bug? [Report bugs on Launchpad](https://bugs.launchpad.net/cloud-init)
+- Search the cloud-init [mailing list archive](https://lists.launchpad.net/cloud-init/)
+- Better yet, join the [cloud-init mailing list](https://launchpad.net/~cloud-init) and participate
+- Find a bug? [Report bugs on Launchpad](https://bugs.launchpad.net/cloud-init/+filebug)
 
 ## Distribution and cloud support
 
@@ -50,6 +51,6 @@ document that outlines the steps necessary to develop, test, and submit code.
 Daily builds are useful if you want to try the latest upstream code for the latest
 features or to verify bug fixes.
 
-For Ubuntu, see the [Daily PPAs](https://code.launchpad.net/~cloud-init-dev/+recipes).
+For Ubuntu, see the [Daily PPAs](https://code.launchpad.net/~cloud-init-dev/+archive/ubuntu/daily)
 
 For CentOS, see the [COPR build repos](https://copr.fedorainfracloud.org/coprs/g/cloud-init/cloud-init-dev/)
