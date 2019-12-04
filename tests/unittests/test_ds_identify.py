@@ -140,7 +140,8 @@ class DsIdentifyBase(CiTestCase):
             {'name': 'blkid', 'out': BLKID_EFI_ROOT},
             {'name': 'ovf_vmware_transport_guestinfo',
              'out': 'No value found', 'ret': 1},
-
+            {'name': 'dmi_decode', 'ret': 1,
+             'err': 'No dmidecode program. ERROR.'},
         ]
 
         written = [d['name'] for d in mocks]
