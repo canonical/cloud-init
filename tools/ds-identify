@@ -289,12 +289,28 @@ detect_virt() {
             virt="$out"
         fi
     elif [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+        # Map FreeBSD's vm_guest names to those systemd-detect-virt that
+        # don't match up. See
+        # https://github.com/freebsd/freebsd/blob/master/sys/kern/subr_param.c#L144-L160
+        # https://www.freedesktop.org/software/systemd/man/systemd-detect-virt.html
+        #
+        #  systemd-detect-virt | kern.vm_guest
+        # ---------------------+---------------
+        #  none                | none
+        #  kvm                 | kvm
+        #  vmware              | vmware
+        #  microsoft           | hv
+        #  oracle              | vbox
+        #  xen                 | xen
+        #  parallels           | parallels
+        #  bhyve               | bhyve
+        #  *                   | generic <- this might be a problem
         out=$(sysctl -qn kern.vm_guest 2>/dev/null) && {
-            # Map FreeBSD's name for Hyper-V to that of systemd-detect-virt
-            if [ "$out" = "hv" ]; then
-                out="microsoft"
-            fi
-            virt="$out"
+            case "$out" in
+                hv) virt="microsoft" ;;
+                vbox) virt="oracle" ;;
+                *) virt="$out"
+            esac
         }
     fi
     _RET="$virt"
