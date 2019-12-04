@@ -70,9 +70,9 @@ def byte_swapped(previous_id, current_id):
 
     parts = current_id.split('-')
     swapped_id = '-'.join([
-            swap_hexstring(parts[0], width=2),
-            swap_hexstring(parts[1], width=2),
-            swap_hexstring(parts[2], width=2),
+            swap_hexstring(parts[0]),
+            swap_hexstring(parts[1]),
+            swap_hexstring(parts[2]),
             parts[3],
             parts[4]
         ])

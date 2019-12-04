@@ -801,11 +801,9 @@ def instance_id_matches_system_uuid(instance_id, field='system-uuid'):
         return False
 
     dmi_value = util.read_dmi_data(field)
-    previous = dmi_value.lower()
-    current = instance_id.lower()
     if not dmi_value:
         return False
-    return current == previous or current == byte_swapped(current, previous)
+    return instance_id.lower() == dmi_value.lower()
 
 
 def canonical_cloud_id(cloud_name, region, platform):
