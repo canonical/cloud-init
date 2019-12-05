@@ -8,7 +8,6 @@
 
 import os
 import pwd
-import re
 
 from cloudinit import log as logging
 from cloudinit import util
