@@ -220,7 +220,7 @@ def render_authorizedkeysfile_paths(value, homedir, username):
     macros = (("%h", homedir), ("%u", username), ("%%", "%"))
     if not value:
         value = "%h/.ssh/authorized_keys"
-    paths = value.strip().split()
+    paths = value.split()
     rendered = []
     for path in paths:
         for macro, field in macros:
