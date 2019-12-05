@@ -15,7 +15,6 @@ import json
 import os
 import six
 
-from cloudinit.sources.helpers.azure import byte_swapped
 from cloudinit.atomic_helper import write_json
 from cloudinit import importer
 from cloudinit import log as logging
