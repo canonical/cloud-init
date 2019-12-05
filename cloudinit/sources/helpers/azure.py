@@ -7,6 +7,7 @@ import re
 import socket
 import struct
 import time
+import textwrap
 
 from cloudinit.net import dhcp
 from cloudinit import stages
@@ -57,27 +58,22 @@ def byte_swapped(previous_id, current_id):
     if previous_id == current_id:
         return None
 
-    def swap_hexstring(s, width=2):
-        r = len(s) % width
-        if r != 0:
-            s = ('0' * (width - (len(s) % width))) + s
-
-        return ''.join(reversed(
-            re.findall(
-                r'[a-f0-9]{{{0}}}'.format(width),
-                s,
-                re.IGNORECASE)))
+    def swap_bytestring(s, width=2):
+        dd = [byte for byte in textwrap.wrap(s, 2)]
+        dd.reverse()
+        return ''.join(dd)
 
     parts = current_id.split('-')
     swapped_id = '-'.join([
-            swap_hexstring(parts[0]),
-            swap_hexstring(parts[1]),
-            swap_hexstring(parts[2]),
+            swap_bytestring(parts[0]),
+            swap_bytestring(parts[1]),
+            swap_bytestring(parts[2]),
             parts[3],
             parts[4]
         ])
 
     return swapped_id if previous_id == swapped_id else None
+
 
 @azure_ds_telemetry_reporter
 def get_boot_telemetry():
