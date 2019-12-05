@@ -425,6 +425,13 @@ class TestDsIdentify(DsIdentifyBase):
         mydata['files'][cfgpath] = 'datasource_list: ["Ec2", "None"]\n'
         self._check_via_dict(mydata, rc=RC_FOUND, dslist=['Ec2', DS_NONE])
 
+    def test_dmi_decode(self):
+        """Test that dmidecode(8) works on systems which don't have /sys
+
+        This will be used on *BSD systems.
+        """
+        self._test_ds_found('Hetzner-dmidecode')
+
     def test_aliyun_identified(self):
         """Test that Aliyun cloud is identified by product id."""
         self._test_ds_found('AliYun')
@@ -923,6 +930,13 @@ VALID_CFG = {
     'Hetzner': {
         'ds': 'Hetzner',
         'files': {P_SYS_VENDOR: 'Hetzner\n'},
+    },
+    'Hetzner-dmidecode': {
+        'ds': 'Hetzner',
+        'mocks': [
+            {'name': 'dmi_decode', 'ret': 0,
+             'out': 'Hetzner\n'}
+        ],
     },
     'IBMCloud-metadata': {
         'ds': 'IBMCloud',
