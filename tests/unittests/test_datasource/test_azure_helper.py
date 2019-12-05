@@ -174,7 +174,7 @@ class TestGoalStateParsing(CiTestCase):
         previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
         current_iid = "544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8"
         swap = azure_helper.byte_swapped(previous_iid, current_iid)
-        self.assertEqual(swap, current_iid)
+        self.assertEqual(swap, previous_iid)
 
     def test_instance_id_no_byte_swap_same_instance_id(self):
         previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
