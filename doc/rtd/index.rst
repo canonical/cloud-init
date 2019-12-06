@@ -67,6 +67,7 @@ Having trouble? We would like to help!
    :caption: Development
 
    topics/hacking.rst
+   topics/security.rst
    topics/debugging.rst
    topics/logging.rst
    topics/dir_layout.rst
