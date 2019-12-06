@@ -299,21 +299,22 @@ detect_virt() {
         # https://github.com/freebsd/freebsd/blob/master/sys/kern/subr_param.c#L144-L160
         # https://www.freedesktop.org/software/systemd/man/systemd-detect-virt.html
         #
-        #  systemd-detect-virt | kern.vm_guest
+        #  systemd    | kern.vm_guest
         # ---------------------+---------------
-        #  none                | none
-        #  kvm                 | kvm
-        #  vmware              | vmware
-        #  microsoft           | hv
-        #  oracle              | vbox
-        #  xen                 | xen
-        #  parallels           | parallels
-        #  bhyve               | bhyve
-        #  *                   | generic <- this might be a problem
+        #  none       | none
+        #  kvm        | kvm
+        #  vmware     | vmware
+        #  microsoft  | hv
+        #  oracle     | vbox
+        #  xen        | xen
+        #  parallels  | parallels
+        #  bhyve      | bhyve
+        #  vm-other   | generic
         out=$(sysctl -qn kern.vm_guest 2>/dev/null) && {
             case "$out" in
                 hv) virt="microsoft" ;;
                 vbox) virt="oracle" ;;
+                generic) "vm-other";;
                 *) virt="$out"
             esac
         }
