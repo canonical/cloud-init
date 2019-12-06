@@ -40,6 +40,7 @@ Having trouble? We would like to help!
    topics/boot.rst
    topics/cli.rst
    topics/faq.rst
+   topics/bugs.rst
 
 .. toctree::
    :hidden:
