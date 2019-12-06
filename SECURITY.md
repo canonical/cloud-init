@@ -50,8 +50,8 @@ determined time for disclosure has arrived the following will occur:
 * An email is sent to the [public cloud-init mailing list](https://lists.launchpad.net/cloud-init/)
 
 The disclosure timeframe is coordinated with the reporter and members of the
-  cloud-init-security list. This depends on a number of factors:
-  
+cloud-init-security list. This depends on a number of factors:
+
 * The reporter might have their own disclosure timeline (e.g. Google Project
   Zero and many others use a 90-days after initial report OR when a fix
   becomes public)
