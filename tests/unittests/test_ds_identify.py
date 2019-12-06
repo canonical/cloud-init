@@ -721,8 +721,8 @@ def _print_run_output(rc, out, err, cfg, files):
         '-- cfg --', util.json_dumps(cfg)]))
     print('-- files --')
     for k, v in files.items():
-        #if "/_shwrap" in k:
-        #    continue
+        if "/_shwrap" in k:
+            continue
         print(' === %s ===' % k)
         for line in v.splitlines():
             print(" " + line)
