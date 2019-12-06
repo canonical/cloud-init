@@ -427,9 +427,9 @@ Azure Cloud
 -----------
 
 To run on Azure Cloud platform users login with Service Principal and export
-credentials file. Region is defaulted and can be set in ``tests/cloud_tests/platforms.yaml``.
-The Service Principal credentials are the standard authentication for Azure SDK
-to interact with Azure Services:
+credentials file. Region is defaulted and can be set in
+``tests/cloud_tests/platforms.yaml``. The Service Principal credentials are
+the standard authentication for Azure SDK to interact with Azure Services:
 
 Create Service Principal account or login
 
