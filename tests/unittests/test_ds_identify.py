@@ -425,18 +425,6 @@ class TestDsIdentify(DsIdentifyBase):
         mydata['files'][cfgpath] = 'datasource_list: ["Ec2", "None"]\n'
         self._check_via_dict(mydata, rc=RC_FOUND, dslist=['Ec2', DS_NONE])
 
-    def test_dmi_decode(self):
-        """Test that dmidecode(8) works on systems which don't have /sys
-
-        This will be used on *BSD systems.
-        """
-        def printCallReturn(r):
-            _print_run_output(r.rc, r.stdout, r.stderr, r.cfg, r.files)
-
-        printCallReturn(
-            self._test_ds_found('Hetzner-dmidecode'))
-        raise Exception("BOOM")
-
     def test_aliyun_identified(self):
         """Test that Aliyun cloud is identified by product id."""
         self._test_ds_found('AliYun')
@@ -636,6 +624,21 @@ class TestDsIdentify(DsIdentifyBase):
     def test_e24cloud_not_active(self):
         """EC2: bobrightbox.com in product_serial is not brightbox'"""
         self._test_ds_not_found('Ec2-E24Cloud-negative')
+
+
+class TestBSDNoSys(DsIdentifyBase):
+    """Test *BSD code paths
+
+    FreeBSD doesn't have /sys so we use dmidecode(8) here
+    It also doesn't have systemd-detect-virt(8), so we use sysctl(8) to query
+    kern.vm_guest, and optionally map it"""
+
+    def test_dmi_decode(self):
+        """Test that dmidecode(8) works on systems which don't have /sys
+
+        This will be used on *BSD systems.
+        """
+        self._test_ds_found('Hetzner-dmidecode')
 
 
 class TestIsIBMProvisioning(DsIdentifyBase):
