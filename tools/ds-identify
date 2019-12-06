@@ -201,7 +201,7 @@ dmi_decode() {
 get_dmi_field() {
     local path="${PATH_SYS_CLASS_DMI_ID}/$1"
     _RET="$UNAVAILABLE"
-    if [ -f "${PATH_SYS_CLASS_DMI_ID}" ]; then
+    if [ -d "${PATH_SYS_CLASS_DMI_ID}" ]; then
         if [ -f "$path" ] && [ -r "$path" ]; then
             read _RET < "${path}" || _RET="$ERROR"
             return

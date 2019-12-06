@@ -430,7 +430,12 @@ class TestDsIdentify(DsIdentifyBase):
 
         This will be used on *BSD systems.
         """
-        self._test_ds_found('Hetzner-dmidecode')
+        def printCallReturn(r):
+            _print_run_output(r.rc, r.stdout, r.stderr, r.cfg, r.files)
+
+        printCallReturn(
+            self._test_ds_found('Hetzner-dmidecode'))
+        raise Exception("BOOM")
 
     def test_aliyun_identified(self):
         """Test that Aliyun cloud is identified by product id."""
@@ -713,8 +718,8 @@ def _print_run_output(rc, out, err, cfg, files):
         '-- cfg --', util.json_dumps(cfg)]))
     print('-- files --')
     for k, v in files.items():
-        if "/_shwrap" in k:
-            continue
+        #if "/_shwrap" in k:
+        #    continue
         print(' === %s ===' % k)
         for line in v.splitlines():
             print(" " + line)
@@ -934,8 +939,7 @@ VALID_CFG = {
     'Hetzner-dmidecode': {
         'ds': 'Hetzner',
         'mocks': [
-            {'name': 'dmi_decode', 'ret': 0,
-             'out': 'Hetzner\n'}
+            {'name': 'dmi_decode', 'ret': 0, 'RET': 'Hetzner'}
         ],
     },
     'IBMCloud-metadata': {
