@@ -23,15 +23,7 @@ class Renderer(renderer.Renderer):
         self.dhcp_interfaces = []
         self._postcmds = config.get('postcmds', True)
 
-    def _render_route(self, route, indent=""):
-        pass
-
-    def _render_iface(self, iface, render_hwaddress=False):
-        pass
-
-    def _write_network(self, settings, target=None):
-        nameservers = []
-        searchdomains = []
+    def _write_ifconfig_entries(self, settings, target=None):
         ifname_by_mac = net.get_interfaces_by_mac()
         for interface in settings.iter_interfaces():
             device_name = interface.get("name")
@@ -50,33 +42,67 @@ class Renderer(renderer.Renderer):
             elif device_mac:
                 device_name = ifname_by_mac[device_mac]
 
-            subnet = interface.get("subnets", [])[0]
             LOG.info('Configuring interface %s', device_name)
+            ifconfig = 'DHCP'  # default
+            for subnet in interface.get("subnets", []):
 
-            if subnet.get('type') == 'static':
-                LOG.debug('Configuring dev %s with %s / %s', device_name,
-                          subnet.get('address'), subnet.get('netmask'))
+                if subnet.get('type') == 'static':
+                    LOG.debug('Configuring dev %s with %s / %s', device_name,
+                              subnet.get('address'), subnet.get('netmask'))
                 # Configure an ipv4 address.
-                ifconfig = (subnet.get('address') + ' netmask ' +
+                    ifconfig = (
+                            subnet.get('address') + ' netmask ' +
                             subnet.get('netmask'))
 
-                # Configure the gateway.
-                rhel_util.update_sysconfig_file(
-                    util.target_path(target, self.rc_conf_fn), {
-                        'defaultrouter': subnet.get('gateway')})
+                # NOTE: Known limitation, we just set one subnet per interface
+                break
 
-                if 'dns_nameservers' in subnet:
-                    nameservers.extend(subnet['dns_nameservers'])
-                if 'dns_search' in subnet:
-                    searchdomains.extend(subnet['dns_search'])
-            else:
+            if ifconfig == 'DHCP':
                 self.dhcp_interfaces.append(device_name)
-                ifconfig = 'DHCP'
-
             rhel_util.update_sysconfig_file(
                 util.target_path(target, self.rc_conf_fn), {
                     'ifconfig_' + device_name: ifconfig})
 
+    def _write_route_entries(self, settings, target=None):
+        routes = list(settings.iter_routes())
+        for interface in settings.iter_interfaces():
+            subnets = interface.get("subnets", [])
+            for subnet in subnets:
+                if subnet.get('type') == 'static':
+                    gateway = subnet.get('gateway')
+                    if gateway:
+                        routes.append({
+                            'network': '0.0.0.0',
+                            'netmask': '0.0.0.0',
+                            'gateway': gateway})
+                    routes += subnet.get('routes', [])
+        route_cpt = 0
+        for route in routes:
+            network = route.get('network')
+            netmask = route.get('netmask')
+            gateway = route.get('gateway')
+            route_cmd = "-route %s/%s %s" % (network, netmask, gateway)
+            if not network:
+                continue
+            if network == '0.0.0.0':
+                rhel_util.update_sysconfig_file(
+                    util.target_path(target, self.rc_conf_fn), {
+                        'defaultrouter': gateway})
+            else:
+                rhel_util.update_sysconfig_file(
+                    util.target_path(target, self.rc_conf_fn), {
+                        'route_net%d' % route_cpt: route_cmd})
+                route_cpt += 1
+
+    def _write_resolve_conf(self, settings, target=None):
+        nameservers = []
+        searchdomains = []
+        for interface in settings.iter_interfaces():
+            for subnet in interface.get("subnets", []):
+                if 'dns_nameservers' in subnet:
+                    nameservers.extend(subnet['dns_nameservers'])
+                if 'dns_search' in subnet:
+                    searchdomains.extend(subnet['dns_search'])
         # Try to read the /etc/resolv.conf or just start from scratch if that
         # fails.
         try:
@@ -102,6 +128,12 @@ class Renderer(renderer.Renderer):
             except ValueError:
                 util.logexc(LOG, "Failed to add search domain %s", domain)
         util.write_file(self.resolv_conf_fn, str(resolvconf), 0o644)
+
+    def _write_network(self, settings, target=None):
+        self._write_ifconfig_entries(settings, target=None)
+        self._write_route_entries(settings, target=None)
+        self._write_resolve_conf(settings, target=None)
+
         self.start_services()
 
     def render_network_state(self, network_state, templates=None, target=None):
