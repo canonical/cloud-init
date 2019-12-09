@@ -3,20 +3,25 @@
 Reporting Bugs
 **************
 
-Logs
-====
+The following documents:
 
-To aid in debugging collecting the necessary logs, first run the
-`collect-logs` subcommand to produce a tarfile that you can easily upload
-to aid in intial debugging of your issue:
+1) How to collect information for reporting bugs
+2) How to file bugs to the upstream cloud-init project or for distro specific
+   packages
+
+Collect Logs
+============
+
+To aid in debugging, please collect the necessary logs. To do so, run the
+`collect-logs` subcommand to produce a tarfile that you can easily upload:
 
 .. code-block:: shell-session
 
   $ cloud-init collect-logs
   Wrote /home/ubuntu/cloud-init.tar.gz
 
-If your cloud-init does not have the  `collect-logs` subcommand, then please
-manually collect the base log files by doing the following:
+If your version of cloud-init does not have the  `collect-logs` subcommand,
+then please manually collect the base log files by doing the following:
 
 .. code-block:: shell-session
 
@@ -25,12 +30,17 @@ manually collect the base log files by doing the following:
   $ sudo tar -cvf cloud-init.tar dmesg.txt journal.txt /run/cloud-init \
       /var/log/cloud-init.log /var/log/cloud-init-output.log
 
-Reporting
-=========
+Report Upstream Bug
+===================
 
-Bugs for upstream cloud-init are tracked using Launchpad. To file a bug,
-`create a Launchpad account`_, login, and then
-`report an upstream cloud-init bug`_.
+Bugs for upstream cloud-init are tracked using Launchpad. To file a bug:
+
+1. Collect the necessary debug logs as described above
+2. `Create a Launchpad account`_ or login to your existing account
+3. `Report an upstream cloud-init bug`_
+
+If debug logs are not provided, you will be asked for them before any
+further time is spent debugging.
 
 If your bug is for a specific distro using cloud-init, please first consider
 reporting it with the upstream distro or confirm that it still occurs
@@ -46,16 +56,17 @@ specific reporting mechanisms:
 Ubuntu
 ------
 
-To report a bug on Ubuntu use the `ubuntu-bug` command to automatically
-collect the necessary logs and file a bug on Launchpad:
+To report a bug on Ubuntu use the `ubuntu-bug` command on the affected
+system to automatically collect the necessary logs and file a bug on
+Launchpad:
 
 .. code-block:: shell-session
 
   $ ubuntu-bug cloud-init
 
 If that does not work or is not an option, please collect the logs using the
-commands above and then report the bug on the `Ubuntu bug tracker`_. Make sure
-to attach your collected logs!
+commands in the above Collect Logs section and then report the bug on the
+`Ubuntu bug tracker`_. Make sure to attach your collected logs!
 
 Debian
 ------
@@ -80,16 +91,17 @@ Arch
 ----
 
 To file a bug against the Arch package of cloud-init please use the
-`Arch bugs`_. See the `Arch bug reporting wiki`_ for more details.
+`Arch Linux Bugtracker`_. See the `Arch bug reporting wiki`_ for more
+details.
 
-.. _create a Launchpad account: https://help.launchpad.net/YourAccount/NewAccount
-.. _report an upstream cloud-init bug: https://bugs.launchpad.net/cloud-init/+filebug
+.. _Create a Launchpad account: https://help.launchpad.net/YourAccount/NewAccount
+.. _Report an upstream cloud-init bug: https://bugs.launchpad.net/cloud-init/+filebug
 .. _Ubuntu bug tracker: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+filebug
 .. _Debian bug tracker: https://bugs.debian.org/cgi-bin/pkgreport.cgi?pkg=cloud-init;dist=unstable
 .. _Debian bug reporting wiki: https://www.debian.org/Bugs/Reporting
 .. _Red Hat bugzilla: https://bugzilla.redhat.com/
 .. _SUSE bugzilla: https://bugzilla.suse.com/index.cgi
-.. _Arch bugs: https://bugs.archlinux.org/
+.. _Arch Linux Bugtracker: https://bugs.archlinux.org/
 .. _Arch bug reporting wiki: https://wiki.archlinux.org/index.php/Bug_reporting_guidelines
 
 .. vi: textwidth=79
