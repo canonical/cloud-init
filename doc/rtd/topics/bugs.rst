@@ -40,7 +40,8 @@ Bugs for upstream cloud-init are tracked using Launchpad. To file a bug:
 3. `Report an upstream cloud-init bug`_
 
 If debug logs are not provided, you will be asked for them before any
-further time is spent debugging.
+further time is spent debugging. If you are unable to obtain the required
+logs please explain why in the bug.
 
 If your bug is for a specific distro using cloud-init, please first consider
 reporting it with the upstream distro or confirm that it still occurs
