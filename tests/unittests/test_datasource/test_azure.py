@@ -1107,7 +1107,7 @@ scbus-1 on xpt0 bus 0
         # not byte-swapped previous
         write_file(
             os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
-            '644CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')  
+            '644CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')
         ds.get_data()
         self.assertEqual(
             'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8', ds.metadata['instance-id'])
