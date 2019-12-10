@@ -392,6 +392,9 @@ class TestAzureDataSource(CiTestCase):
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
         self.paths = helpers.Paths(
             {'cloud_dir': self.tmp, 'run_dir': self.tmp})
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8')
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
 
         self.patches = ExitStack()
@@ -477,7 +480,7 @@ scbus-1 on xpt0 bus 0
             'public-keys': [],
         })
 
-        self.instance_id = 'test-instance-id'
+        self.instance_id = 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8'
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
@@ -645,7 +648,7 @@ scbus-1 on xpt0 bus 0
             'azure_data': {
                 'configurationsettype': 'LinuxProvisioningConfiguration'},
             'imds': NETWORK_METADATA,
-            'instance-id': 'test-instance-id',
+            'instance-id': 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8',
             'local-hostname': u'myhost',
             'random_seed': 'wild'}
 
@@ -1091,6 +1094,17 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(ret)
         self.assertEqual('value', dsrc.metadata['test'])
 
+    def test_instance_id_endianness(self):
+        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            '544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')
+        ds.get_data()
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8')
+        self.assertEqual(self.instance_id, ds.metadata['instance-id'])
+
     def test_instance_id_from_dmidecode_used(self):
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         ds.get_data()
@@ -1292,7 +1306,7 @@ class TestAzureBounce(CiTestCase):
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
-                return 'test-instance-id'
+                return 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8'
             elif key == 'chassis-asset-tag':
                 return '7783-7084-3265-9085-8269-3286-77'
             raise RuntimeError('should not get here')
@@ -1307,6 +1321,9 @@ class TestAzureBounce(CiTestCase):
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
         self.paths = helpers.Paths(
             {'cloud_dir': self.tmp, 'run_dir': self.tmp})
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8')
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
         self.patches = ExitStack()
         self.mock_out_azure_moving_parts()
