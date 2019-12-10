@@ -1097,15 +1097,17 @@ scbus-1 on xpt0 bus 0
     def test_instance_id_endianness(self):
         """Return the previous iid when dmi uuid is the byteswapped iid."""
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        # byte-swapped previous
         write_file(
             os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
-            '544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')  # byte-swapped previous
+            '544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')
         ds.get_data()
         self.assertEqual(
             '544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8', ds.metadata['instance-id'])
+        # not byte-swapped previous
         write_file(
             os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
-            '644CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')  # not byte-swapped previous
+            '644CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')  
         ds.get_data()
         self.assertEqual(
             'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8', ds.metadata['instance-id'])
