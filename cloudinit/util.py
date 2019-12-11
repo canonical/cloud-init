@@ -21,7 +21,8 @@ import os
 import os.path
 import platform
 import pwd
-import random
+# import random Do not import random, see commit for details.
+# (i.e. is_resolvable called to get the meta-data service on dhcp discovery)
 import re
 import shlex
 import shutil
@@ -401,6 +402,7 @@ def translate_bool(val, addons=None):
 
 
 def rand_str(strlen=32, select_from=None):
+    import random
     if not select_from:
         select_from = string.ascii_letters + string.digits
     return "".join([random.choice(select_from) for _x in range(0, strlen)])
