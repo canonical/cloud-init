@@ -1,0 +1,88 @@
+.TH CLOUD-INIT 1
+
+.SH NAME
+cloud-init \- Cloud instance initialization
+
+.SH SYNOPSIS
+.BR "cloud-init" " [-h] [-d] [-f FILES] [--force] [-v] {init,modules,single,query,dhclient-hook,features,analyze,collect-logs,clean,status}"
+
+.SH DESCRIPTION
+Cloud-init provides a mechanism for cloud instance initialization.
+This is done by identifying the cloud platform that is in use, reading
+provided cloud metadata and optional vendor and user
+data, and then intializing the instance as requested.
+
+Generally, this command is not normally meant to be run directly by
+the user. However, some subcommands may useful for development or
+debug of deployments.
+
+.SH OPTIONS
+.TP
+.B "-h, --help"
+Show help message and exit
+
+.TP
+.B "-d, --debug"
+Show additional pre-action logging (default: False)
+
+.TP
+.B "-f <files>, --files <files>"
+Additional YAML configuration files to use
+
+.TP
+.B "--force"
+Force running even if no datasource is found (use at your own risk)
+
+.TP
+.B "-v, --version"
+Show program's version number and exit
+
+.SH SUBCOMMANDS
+Please see the help output for each subcommand for additional details,
+flags, and subcommands.
+
+.TP
+.B "analyze"
+Analyze cloud-init logs and data.
+
+.TP
+.B "collect-logs"
+Collect and tar all cloud-init debug info.
+
+.TP
+.B "clean"
+Remove logs and artifacts so cloud-init can re-run.
+
+.TP
+.B "dhclient-hook"
+Run the dhclient hook to record network info.
+
+.TP
+.B "features"
+List defined features.
+
+.TP
+.B "init"
+Initializes cloud-init and performs initial modules.
+
+.TP
+.B "modules"
+Activates modules using a given configuration key.
+
+.TP
+.B "query"
+Query standardized instance metadata from the command line.
+
+.TP
+.B "single"
+Run a single module.
+
+.TP
+.B "status"
+Report cloud-init status or wait on completion.
+
+.SH COPYRIGHT
+Copyright (C) 2020 Canonical Ltd. License GPL-3 or Apache-2.0
+
+.SH SEE ALSO
+Full documentation at: <https://cloudinit.readthedocs.io>
