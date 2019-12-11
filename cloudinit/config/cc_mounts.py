@@ -230,58 +230,45 @@ def get_fstype(path):
     return util.get_mount_info(path)[1]
 
 
-def create_swapfile(fname, size, method="auto"):
+def create_swapfile(fname, size):
     """Size is in MB."""
-    dd, fallocate, auto = ("dd", "fallocate", "auto")
-    if method not in (dd, fallocate, auto):
-        raise ValueError("Unknown method '%s' in create_swapfile" % method)
+
+    def unlink_f(fname):
+        if os.path.exists(fname):
+            os.unlink(fname)
+
+    def create_swap(fname, size, method):
+        errmsg = "Failed to create swapfile '%s' of size %dMB via %s: %s"
+
+        LOG.debug("Creating swapfile in '%s' on fstype '%s' using '%s'",
+                  fname, fstype, method)
+
+        if method == "fallocate":
+            cmd = ['fallocate', '-l', '%dM' % size, fname]
+        elif method == "dd":
+            cmd = ['dd', 'if=/dev/zero', 'of=%s' % fname, 'bs=1M',
+                   'count=%d' % size]
+
+        try:
+            util.subp(cmd, capture=True)
+        except util.ProcessExecutionError as e:
+            LOG.warning(errmsg, fname, size, method, e)
+
+            if method == "fallocate":
+                LOG.warning("Will attempt with dd.")
+                create_swap(fname, size, "dd")
+            else:
+                unlink_f(fname)
 
     tdir = os.path.dirname(fname)
     util.ensure_dir(tdir)
 
     fstype = get_fstype(tdir)
 
-    if method == "auto":
-        if fstype in ("xfs", "btrfs"):
-            method = dd
-        else:
-            method = fallocate
-
-    LOG.debug("Creating swapfile in '%s' on fstype '%s' using '%s'",
-              fname, fstype, method)
-
-    def unlink_f(fname):
-        if os.path.exists(fname):
-            os.unlink(fname)
-
-    unlink_f(fname)
-
-    msg = "Failed to create swapfile '%s' of size %dMB via %s: %s"
-    if method == fallocate:
-        cmd = ['fallocate', '-l', '%dM' % size, fname]
-        try:
-            util.subp(cmd, capture=True)
-        except util.ProcessExecutionError as e:
-            LOG.warning(msg, fname, size, method, e)
-            LOG.warning("Will attempt with dd.")
-            unlink_f(fname)
-            method = dd
-
-    if method == dd:
-        cmd = ['dd', 'if=/dev/zero', 'of=%s' % fname, 'bs=1M',
-               'count=%d' % size]
-        try:
-            util.subp(cmd, capture=True)
-        except util.ProcessExecutionError as e:
-            LOG.warning(
-                        "Failed to create swapfile '%s' of size %dM via"
-                        " %s: %s",
-                        fname,
-                        size,
-                        method,
-                        e)
-            unlink_f(fname)
-            method = dd
+    if fstype in ("xfs", "btrfs"):
+        create_swap(fname, size, "dd")
+    else:
+        create_swap(fname, size, "fallocate")
 
     try:
         os.chmod(fname, 0o644)
@@ -315,7 +302,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
         LOG.debug("Not creating swap: suggested size was 0")
         return
 
-    util.log_time(LOG.debug, msg="Setting up swap file", func=setup_swapfile,
+    util.log_time(LOG.debug, msg="Setting up swap file", func=create_swapfile,
                   args=[fname, int(size / (2 ** 20))])
 
     return fname
