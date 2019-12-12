@@ -21,9 +21,13 @@ key, and the fqdn of the cloud wil be used. If a fqdn specified with the
 the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set, ``fqdn``
 will be used.
 
+In order to correctly set the hostname, cloud-init will always run this module
+during the init stage. This ensures that the hostname is correctly set on
+some datasources before a DHCP lease is given.
+
 **Internal name:** ``cc_set_hostname``
 
-**Module frequency:** per instance
+**Module frequency:** per always
 
 **Supported distros:** all
 
