@@ -37,7 +37,7 @@ Architecture: all
 Depends: cloud-guest-utils | cloud-utils,
          isc-dhcp-client,
          iproute2,
-         netplan.io | ifupdown,
+         netplan.io,
          procps,
          python3,
          python3-requests,
