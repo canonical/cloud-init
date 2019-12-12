@@ -8,7 +8,7 @@ install:
     - pip install tox
 
 script:
-    - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then tox; fi'
+    - tox
 
 matrix:
     fast_finish: true

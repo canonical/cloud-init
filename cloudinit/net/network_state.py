@@ -73,7 +73,7 @@ def parse_net_config_data(net_config, skip_broken=True):
         # pass the whole net-config as-is
         config = net_config
 
-    if version and config:
+    if version and config is not None:
         nsi = NetworkStateInterpreter(version=version, config=config)
         nsi.parse_config(skip_broken=skip_broken)
         state = nsi.get_network_state()

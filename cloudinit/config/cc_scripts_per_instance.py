@@ -15,6 +15,9 @@ Any scripts in the ``scripts/per-instance`` directory on the datasource will
 be run when a new instance is first booted. Scripts will be run in alphabetical
 order. This module does not accept any config keys.
 
+Some cloud platforms change instance-id if a significant change was made to
+the system. As a result per-instance scripts will run again.
+
 **Internal name:** ``cc_scripts_per_instance``
 
 **Module frequency:** per instance
