@@ -9,11 +9,13 @@
 """
 SSH
 ---
-**Summary:** configure ssh and ssh keys
+**Summary:** configure ssh and ssh keys (host and authorized)
 
-This module handles most configuration for ssh and ssh keys. Many images have
-default ssh keys, which can be removed using ``ssh_deletekeys``. Since removing
-default keys is usually the desired behavior this option is enabled by default.
+This module handles most configuration for ssh and both host and authroized ssh
+keys. Many images have default ssh keys, which can be removed using
+``ssh_deletekeys``. This prevents re-use of a private key from an image on
+multiple machines. Since removing default keys is usually the desired behavior
+this option is enabled by default.
 
 Keys can be added using the ``ssh_keys`` configuration key. The argument to
 this config key should be a dictionary entries for the public and private keys
