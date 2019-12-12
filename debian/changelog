@@ -1,4 +1,4 @@
-cloud-init (19.3-74-g129b1c4e-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.3-74-g129b1c4e-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
     - azure: avoid re-running cloud-init when instance-id is byte-swapped
