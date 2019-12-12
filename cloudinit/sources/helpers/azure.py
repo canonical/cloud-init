@@ -56,7 +56,7 @@ def is_byte_swapped(previous_id, current_id):
     that returned by the metadata service.
     """
     if previous_id == current_id:
-        return None
+        return False
 
     def swap_bytestring(s, width=2):
         dd = [byte for byte in textwrap.wrap(s, 2)]
@@ -72,7 +72,7 @@ def is_byte_swapped(previous_id, current_id):
             parts[4]
         ])
 
-    return swapped_id if previous_id == swapped_id else None
+    return previous_id == swapped_id
 
 
 @azure_ds_telemetry_reporter

@@ -558,14 +558,15 @@ class DataSourceAzure(sources.DataSource):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
-    def _iid(self):
-        previous = util.load_file(os.path.join(
-            self.paths.get_cpath('data'),
-            'instance-id')).strip()
-        iid = util.read_dmi_data(
-            'system-uuid')
-        swap = is_byte_swapped(previous, iid)
-        return swap if swap else iid
+    def _iid(self, previous=None):
+        prev_iid_path = os.path.join(
+            self.paths.get_cpath('data'), 'instance-id')
+        iid = util.read_dmi_data('system-uuid')
+        if os.path.exists(prev_iid_path):
+            previous = util.load_file(prev_iid_path).strip()
+            if is_byte_swapped(previous, iid):
+                return previous
+        return iid
 
     @azure_ds_telemetry_reporter
     def setup(self, is_new_instance):

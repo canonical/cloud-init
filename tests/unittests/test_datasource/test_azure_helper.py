@@ -171,22 +171,23 @@ class TestGoalStateParsing(CiTestCase):
         self.assertEqual(instance_id, goal_state.instance_id)
 
     def test_instance_id_byte_swap(self):
+        """Return true when previous_iid is byteswapped current_iid"""
         previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
         current_iid = "544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8"
-        swap = azure_helper.is_byte_swapped(previous_iid, current_iid)
-        self.assertEqual(swap, previous_iid)
+        self.assertTrue(
+            azure_helper.is_byte_swapped(previous_iid, current_iid))
 
     def test_instance_id_no_byte_swap_same_instance_id(self):
         previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
         current_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        swap = azure_helper.is_byte_swapped(previous_iid, current_iid)
-        self.assertFalse(swap)
+        self.assertFalse(
+            azure_helper.is_byte_swapped(previous_iid, current_iid))
 
     def test_instance_id_no_byte_swap_diff_instance_id(self):
         previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
         current_iid = "G0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        swap = azure_helper.is_byte_swapped(previous_iid, current_iid)
-        self.assertFalse(swap)
+        self.assertFalse(
+            azure_helper.is_byte_swapped(previous_iid, current_iid))
 
     def test_certificates_xml_parsed_and_fetched_correctly(self):
         http_client = mock.MagicMock()
