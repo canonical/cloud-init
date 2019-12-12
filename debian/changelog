@@ -1,3 +1,36 @@
+cloud-init (19.3-74-g129b1c4e-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - azure: avoid re-running cloud-init when instance-id is byte-swapped
+      (#84) [AOhassan]
+    - fix unlocking method on FreeBSD [Igor Galić] (LP: #1854594)
+    - debian: add reference to the manpages [Joshua Powers]
+    - ds_identify: if /sys is not available use dmidecode (#42)
+      [Igor Galić] (LP: #1852442)
+    - docs: add cloud-id manpage [Joshua Powers]
+    - docs: add cloud-init-per manpage [Joshua Powers]
+    - docs: add cloud-init manpage [Joshua Powers]
+    - docs: add additional details to per-instance/once [Joshua Powers]
+    - Merge pull request #96 from fred-lefebvre/master [Joshua Powers]
+    - Update doc-requirements.txt [Joshua Powers]
+    - doc-requirements: add missing dep [Joshua Powers]
+    - Merge pull request #95 from powersj/docs/bugs [Joshua Powers]
+    - dhcp: Support RedHat dhcp rfc3442 lease format for option 121 (#76)
+      [Eric Lafontaine] (LP: #1850642)
+    - network_state: handle empty v1 config (#45) (LP: #1852496)
+    - Merge pull request #94 from gaughen/patch-1 [Joshua Powers]
+    - docs: fix line length and remove highlighting [Joshua Powers]
+    - docs: Add security.md to readthedocs [Joshua Powers]
+    - Multiple file fix for AuthorizedKeysFile config (#60) [Eduardo Otubo]
+    - Merge pull request #88 from OddBloke/travis [Joshua Powers]
+    - doc: update links on README.md [Joshua Powers]
+    - doc: Updates to wording of README.md [Joshua Powers]
+    - Add security.md [Joshua Powers]
+    - setup.py: Amazon Linux sets libexec to /usr/libexec (#52)
+      [Frederick Lefebvre]
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 12 Dec 2019 16:05:35 -0700
+
 cloud-init (19.3-41-gc4735dd3-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
