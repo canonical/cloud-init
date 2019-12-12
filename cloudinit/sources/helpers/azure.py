@@ -49,7 +49,7 @@ def azure_ds_telemetry_reporter(func):
     return impl
 
 
-def byte_swapped(previous_id, current_id):
+def is_byte_swapped(previous_id, current_id):
     """
     Azure stores the instance ID with an incorrect byte ordering for the
     first parts. This corrects the byte order such that it is consistent with

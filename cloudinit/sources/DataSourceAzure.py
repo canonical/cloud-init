@@ -34,7 +34,7 @@ from cloudinit.sources.helpers.azure import (
     get_system_info,
     report_diagnostic_event,
     EphemeralDHCPv4WithReporting,
-    byte_swapped)
+    is_byte_swapped)
 
 LOG = logging.getLogger(__name__)
 
@@ -564,7 +564,7 @@ class DataSourceAzure(sources.DataSource):
             'instance-id')).strip()
         iid = util.read_dmi_data(
             'system-uuid')
-        swap = byte_swapped(previous, iid)
+        swap = is_byte_swapped(previous, iid)
         return swap if swap else iid
 
     @azure_ds_telemetry_reporter

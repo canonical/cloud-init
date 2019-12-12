@@ -173,19 +173,19 @@ class TestGoalStateParsing(CiTestCase):
     def test_instance_id_byte_swap(self):
         previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
         current_iid = "544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8"
-        swap = azure_helper.byte_swapped(previous_iid, current_iid)
+        swap = azure_helper.is_byte_swapped(previous_iid, current_iid)
         self.assertEqual(swap, previous_iid)
 
     def test_instance_id_no_byte_swap_same_instance_id(self):
         previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
         current_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        swap = azure_helper.byte_swapped(previous_iid, current_iid)
+        swap = azure_helper.is_byte_swapped(previous_iid, current_iid)
         self.assertFalse(swap)
 
     def test_instance_id_no_byte_swap_diff_instance_id(self):
         previous_iid = "D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
         current_iid = "G0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8"
-        swap = azure_helper.byte_swapped(previous_iid, current_iid)
+        swap = azure_helper.is_byte_swapped(previous_iid, current_iid)
         self.assertFalse(swap)
 
     def test_certificates_xml_parsed_and_fetched_correctly(self):
