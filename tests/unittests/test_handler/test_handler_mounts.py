@@ -181,6 +181,18 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
         return dev
 
+    def test_swap_integrity(self):
+        '''Ensure that the swap file is correctly created and can
+        swapon succsesfully. Fixing the corener case of:
+        kernel: swapon: swapfile has holes'''
+
+        fstab = '/swap.img swap swap defaults 0 0\n'
+
+        with open(cc_mounts.FSTAB_PATH, 'w') as fd:
+            fd.write(fstab)
+        cc = {'swap': ['filename: /swap.img', 'size: 512', 'maxsize: 512']}
+        cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
+
     def test_fstab_no_swap_device(self):
         '''Ensure that cloud-init adds a discovered swap partition
         to /etc/fstab.'''
