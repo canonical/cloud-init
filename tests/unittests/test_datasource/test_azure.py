@@ -392,9 +392,6 @@ class TestAzureDataSource(CiTestCase):
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
         self.paths = helpers.Paths(
             {'cloud_dir': self.tmp, 'run_dir': self.tmp})
-        write_file(
-            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
-            'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8')
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
 
         self.patches = ExitStack()
@@ -1328,9 +1325,6 @@ class TestAzureBounce(CiTestCase):
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
         self.paths = helpers.Paths(
             {'cloud_dir': self.tmp, 'run_dir': self.tmp})
-        write_file(
-            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
-            'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8')
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
         self.patches = ExitStack()
         self.mock_out_azure_moving_parts()
