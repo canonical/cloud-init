@@ -8,7 +8,7 @@ How do I get help?
 
 Having trouble? We would like to help!
 
-- First go through this page with common questions
+- First go through this page with answers to common questions
 - Use the search bar at the upper left to search these docs
 - Ask a question in the ``#cloud-init`` IRC channel on Freenode
 - Join and ask questions on the `cloud-init mailing list <https://launchpad.net/~cloud-init>`_
@@ -24,24 +24,41 @@ Cloud-init uses two files to log to:
   cloud-init when it runs
 - `/var/log/cloud-init.log`: very detailed log with debugging output,
   detailing each action taken
+- `/run/cloud-init`: contains logs about how cloud-init decided to enable or
+  disable itself, as well as what platforms/datasources were detected. These
+  logs are most useful when trying to determine what cloud-init ran or did not
+  run.
 
-Be aware that each time a system boots, new logs are appended to these files.
-Therefore, the files may have more than one boot worth of information present.
+Be aware that each time a system boots, new logs are appended to the files in
+`/var/log`. Therefore, the files may have more than one boot worth of
+information present.
 
 When reviewing these logs look for any errors or Python tracebacks to check
 for any errors.
 
-Where are the configruation files?
+Where are the configuration files?
 ==================================
+
+Cloud-init config is provided in two places:
+
+- `/etc/cloud/cloud.cfg`
+- `/etc/cloud/cloud.cfg.d/*.cfg`
+
+These files can define the modules that run during instance initialization,
+the datasources to evaluate on boot, and other settings.
+
+Where are the data files?
+=========================
 
 Inside the `/var/lib/cloud/` directory there are two important subdirectories:
 
 instance
 --------
 
-The `/var/lib/cloud/instance` directory contains the information cloud-init
-received from datasources, including vendor and user data. This can be
-helpful to review to ensure the correct data was passed.
+The `/var/lib/cloud/instance` directory is a symbolic link that points
+to the most recenlty used instance-id direcotry. This folder contains the
+information cloud-init received from datasources, including vendor and user
+data. This can be helpful to review to ensure the correct data was passed.
 
 It also contains the `datasource` file that containers the full information
 about what datasource was identified and used to setup the system.
