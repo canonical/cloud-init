@@ -201,7 +201,7 @@ Kernel Command Line
 
 When using the :ref:`datasource_nocloud` datasource, users can pass user data
 via the kernel command line parameters. See the :ref:`datasource_nocloud`
-Datasources documentation for more details.
+datasource documentation for more details.
 
 Disabling User-Data
 ===================
