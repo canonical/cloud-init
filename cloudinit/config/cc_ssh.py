@@ -14,45 +14,21 @@ SSH
 This module handles most configuration for ssh and both host and authorized ssh
 keys.
 
-Host keys are for authenticating a specific instance. Many images have default
-host ssh keys, which can be removed using ``ssh_deletekeys``. This prevents
-re-use of a private host key from an image on multiple machines. Since
-removing default host keys is usually the desired behavior this option is
-enabled by default.
+Authorized Keys
+^^^^^^^^^^^^^^^
 
 Authorized keys are a list of public SSH key pairs that are allowed to
-connect to a system.  Keys can be added using the ``ssh_keys`` configuration
-key. The argument to this config key should be a dictionary entries for the
-public and private keys of each desired key type. Entries in the ``ssh_keys``
-config dict should have keys in the format ``<key type>_private`` and
-``<key type>_public``, e.g. ``rsa_private: <key>`` and
-``rsa_public: <key>``. See below for supported key types. Not all key types
-have to be specified, ones left unspecified will not be used. If this config
-option is used, then no keys will be generated.
+connect to a system. Authorized keys for the default user/first user defined
+in ``users`` can be specified using ``ssh_authorized_keys``. Keys should be
+specified as a list of public keys.
+
+Importing ssh public keys for the default user (defined in ``users``)) is
+enabled by default.  This feature may be disabled by setting
+``allow_publish_ssh_keys: false``.
 
 .. note::
-    when specifying private keys in cloud-config, care should be taken to
-    ensure that the communication between the data source and the instance is
-    secure
-
-.. note::
-    to specify multiline private keys, use yaml multiline syntax
-
-If no keys are specified using ``ssh_keys``, then keys will be generated using
-``ssh-keygen``. By default one public/private pair of each supported key type
-will be generated. The key types to generate can be specified using the
-``ssh_genkeytypes`` config flag, which accepts a list of key types to use. For
-each key type for which this module has been instructed to create a keypair, if
-a key of the same type is already present on the system (i.e. if
-``ssh_deletekeys`` was false), no key will be generated.
-
-Supported key types for the ``ssh_keys`` and the ``ssh_genkeytypes`` config
-flags are:
-
-    - rsa
-    - dsa
-    - ecdsa
-    - ed25519
+    see the ``cc_set_passwords`` module documentation to enable/disable ssh
+    password authentication
 
 Root login can be enabled/disabled using the ``disable_root`` config key. Root
 login options can be manually specified with ``disable_root_opts``. If
@@ -62,17 +38,46 @@ root login is disabled, and root login opts are set to::
 
     no-port-forwarding,no-agent-forwarding,no-X11-forwarding
 
-Authorized keys for the default user/first user defined in ``users`` can be
-specified using ``ssh_authorized_keys``. Keys should be specified as a list of
-public keys.
+Host Keys
+^^^^^^^^^
 
-Importing ssh public keys for the default user (defined in ``users``)) is
-enabled by default.  This feature may be disabled by setting
-``allow_publish_ssh_keys: false``.
+Host keys are for authenticating a specific instance. Many images have default
+host ssh keys, which can be removed using ``ssh_deletekeys``. This prevents
+re-use of a private host key from an image on multiple machines. Since
+removing default host keys is usually the desired behavior this option is
+enabled by default.
+
+Host keys can be added using the ``ssh_keys`` configuration key. The argument
+to this config key should be a dictionary entries for the public and private
+keys of each desired key type. Entries in the ``ssh_keys`` config dict should
+have keys in the format ``<key type>_private`` and ``<key type>_public``,
+e.g. ``rsa_private: <key>`` and ``rsa_public: <key>``. See below for supported
+key types. Not all key types have to be specified, ones left unspecified will
+not be used. If this config option is used, then no keys will be generated.
 
 .. note::
-    see the ``cc_set_passwords`` module documentation to enable/disable ssh
-    password authentication
+    when specifying private host keys in cloud-config, care should be taken to
+    ensure that the communication between the data source and the instance is
+    secure
+
+.. note::
+    to specify multiline private host keys, use yaml multiline syntax
+
+If no host keys are specified using ``ssh_keys``, then keys will be generated
+using ``ssh-keygen``. By default one public/private pair of each supported
+host key type will be generated. The key types to generate can be specified
+using the ``ssh_genkeytypes`` config flag, which accepts a list of host key
+types to use. For each host key type for which this module has been instructed
+to create a keypair, if a key of the same type is already present on the
+system (i.e. if ``ssh_deletekeys`` was false), no key will be generated.
+
+Supported host key types for the ``ssh_keys`` and the ``ssh_genkeytypes``
+config flags are:
+
+    - rsa
+    - dsa
+    - ecdsa
+    - ed25519
 
 **Internal name:** ``cc_ssh``
 
