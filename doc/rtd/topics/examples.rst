@@ -60,8 +60,8 @@ Setup and run `puppet`_
    :language: yaml
    :linenos:
 
-Add apt repositories
-====================
+Add primary apt repositories
+============================
 
 .. literalinclude:: ../../examples/cloud-config-add-apt-repos.txt
    :language: yaml
@@ -135,8 +135,8 @@ Configure instances ssh-keys
    :language: yaml
    :linenos:
 
-Additional apt configuration
-============================
+Additional apt configuration and repositories
+=============================================
 
 .. literalinclude:: ../../examples/cloud-config-apt.txt
     :language: yaml
