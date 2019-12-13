@@ -12,18 +12,23 @@ SSH
 **Summary:** configure ssh and ssh keys (host and authorized)
 
 This module handles most configuration for ssh and both host and authorized ssh
-keys. Many images have default ssh keys, which can be removed using
-``ssh_deletekeys``. This prevents re-use of a private key from an image on
-multiple machines. Since removing default keys is usually the desired behavior
-this option is enabled by default.
+keys.
 
-Keys can be added using the ``ssh_keys`` configuration key. The argument to
-this config key should be a dictionary entries for the public and private keys
-of each desired key type. Entries in the ``ssh_keys`` config dict should
-have keys in the format ``<key type>_private`` and ``<key type>_public``, e.g.
-``rsa_private: <key>`` and ``rsa_public: <key>``. See below for supported key
-types. Not all key types have to be specified, ones left unspecified will not
-be used. If this config option is used, then no keys will be generated.
+Host keys are for authenticating a specific instance. Many images have default
+host ssh keys, which can be removed using ``ssh_deletekeys``. This prevents
+re-use of a private host key from an image on multiple machines. Since
+removing default host keys is usually the desired behavior this option is
+enabled by default.
+
+Authorized keys are a list of public SSH key pairs that are allowed to
+connect to a system.  Keys can be added using the ``ssh_keys`` configuration
+key. The argument to this config key should be a dictionary entries for the
+public and private keys of each desired key type. Entries in the ``ssh_keys``
+config dict should have keys in the format ``<key type>_private`` and
+``<key type>_public``, e.g. ``rsa_private: <key>`` and
+``rsa_public: <key>``. See below for supported key types. Not all key types
+have to be specified, ones left unspecified will not be used. If this config
+option is used, then no keys will be generated.
 
 .. note::
     when specifying private keys in cloud-config, care should be taken to
