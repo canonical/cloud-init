@@ -3,7 +3,6 @@
 *******
 Modules
 *******
-
 .. automodule:: cloudinit.config.cc_apt_configure
 .. automodule:: cloudinit.config.cc_apt_pipelining
 .. automodule:: cloudinit.config.cc_bootcmd
