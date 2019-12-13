@@ -78,7 +78,6 @@ password.
 """
 
 import re
-import sys
 
 from cloudinit.distros import ug_util
 from cloudinit import log as logging
@@ -209,11 +208,6 @@ def handle(_name, cfg, cloud, log, args):
                 util.logexc(
                     log, "Failed to set hashed passwords with chpasswd for %s",
                     hashed_users)
-
-        if len(randlist):
-            blurb = ("Set the following 'random' passwords\n",
-                     '\n'.join(randlist))
-            sys.stderr.write("%s\n%s\n" % blurb)
 
         if expire:
             expired_users = []
