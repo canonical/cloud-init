@@ -358,18 +358,6 @@ def route_info():
     return routes
 
 
-def getgateway():
-    try:
-        routes = route_info()
-    except Exception:
-        pass
-    else:
-        for r in routes.get('ipv4', []):
-            if r['flags'].find("G") >= 0:
-                return "%s[%s]" % (r['gateway'], r['iface'])
-    return None
-
-
 def netdev_pformat():
     lines = []
     empty = "."
