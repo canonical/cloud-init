@@ -33,7 +33,8 @@ from cloudinit.sources.helpers.azure import (
     get_boot_telemetry,
     get_system_info,
     report_diagnostic_event,
-    EphemeralDHCPv4WithReporting)
+    EphemeralDHCPv4WithReporting,
+    is_byte_swapped)
 
 LOG = logging.getLogger(__name__)
 
@@ -471,8 +472,7 @@ class DataSourceAzure(sources.DataSource):
         seed = _get_random_seed()
         if seed:
             crawled_data['metadata']['random_seed'] = seed
-        crawled_data['metadata']['instance-id'] = util.read_dmi_data(
-            'system-uuid')
+        crawled_data['metadata']['instance-id'] = self._iid()
 
         if perform_reprovision:
             LOG.info("Reporting ready to Azure after getting ReprovisionData")
@@ -557,6 +557,16 @@ class DataSourceAzure(sources.DataSource):
     def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
+
+    def _iid(self, previous=None):
+        prev_iid_path = os.path.join(
+            self.paths.get_cpath('data'), 'instance-id')
+        iid = util.read_dmi_data('system-uuid')
+        if os.path.exists(prev_iid_path):
+            previous = util.load_file(prev_iid_path).strip()
+            if is_byte_swapped(previous, iid):
+                return previous
+        return iid
 
     @azure_ds_telemetry_reporter
     def setup(self, is_new_instance):
