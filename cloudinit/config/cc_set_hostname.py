@@ -22,9 +22,9 @@ the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set, ``fqdn``
 will be used.
 
 In order to correctly set the hostname, cloud-init will always run this module
-if metadata from a local source is already received specifying a hostname
-during the init stage. This ensures that the hostname is correctly set on
-some datasources before a DHCP lease is given.
+if metadata from a local source (e.g. nocloud, ovf) specifies a hostname
+during the init stage. Some platforms require the hostname to be set for DHCP
+to succeed; this behaviour ensures that it is.
 
 **Internal name:** ``cc_set_hostname``
 
