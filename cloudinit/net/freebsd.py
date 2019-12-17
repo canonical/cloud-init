@@ -95,8 +95,8 @@ class Renderer(renderer.Renderer):
                 route_cpt += 1
 
     def _write_resolve_conf(self, settings, target=None):
-        nameservers = []
-        searchdomains = []
+        nameservers = settings.dns_nameservers
+        searchdomains = settings.dns_searchdomains
         for interface in settings.iter_interfaces():
             for subnet in interface.get("subnets", []):
                 if 'dns_nameservers' in subnet:
