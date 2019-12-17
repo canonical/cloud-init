@@ -125,3 +125,15 @@ have any questions.
 
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _Ubuntu Server: https://github.com/orgs/canonical/teams/ubuntu-server
+
+Design
+======
+
+This section captures design decisions that are helpful to know when
+hacking on cloud-init.
+
+Cloud Config Modules
+--------------------
+
+* Any new modules should use underscores in any new config options and not
+  hyphens (e.g. `new_option` and *not* `new-option`).
