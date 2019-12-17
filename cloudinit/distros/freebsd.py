@@ -256,7 +256,7 @@ class Distro(distros.Distro):
 
     def lock_passwd(self, name):
         try:
-            util.subp(['pw', 'lock', name])
+            util.subp(['pw', 'usermod', name, '-h', '-'])
         except Exception as e:
             util.logexc(LOG, "Failed to lock user %s", name)
             raise e
