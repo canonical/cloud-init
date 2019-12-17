@@ -147,9 +147,16 @@ class Renderer(renderer.Renderer):
             return
 
         util.subp(['service', 'netif', 'restart'], capture=True)
-        util.subp(['service', 'routing', 'restart'], capture=True)
+        # On FreeBSD 10, the restart of routing and dhclient is likely to fail
+        # because
+        # - routing: it cannot remove the loopback route, but it will still set
+        #   up the default route as expected.
+        # - dhclient: it cannot stop the dhclient started by the netif service.
+        # In both case, the situation is ok, and we can proceed.
+        util.subp(['service', 'routing', 'restart'], capture=True, rcs=[0, 1])
         for dhcp_interface in self.dhcp_interfaces:
             util.subp(['service', 'dhclient', 'restart', dhcp_interface],
+                      rcs=[0, 1],
                       capture=True)
 
 
