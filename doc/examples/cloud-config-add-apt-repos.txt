@@ -1,6 +1,10 @@
 #cloud-config
 
-# Add apt repositories
+# Add primary apt repositories
+#
+# To add 3rd party repositories, see cloud-config-apt.txt or the
+# Additional apt configuration and repositories section.
+#
 #
 # Default: auto select based on cloud metadata
 #  in ec2, the default is <region>.archive.ubuntu.com
