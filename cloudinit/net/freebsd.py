@@ -127,7 +127,9 @@ class Renderer(renderer.Renderer):
                 resolvconf.add_search_domain(domain)
             except ValueError:
                 util.logexc(LOG, "Failed to add search domain %s", domain)
-        util.write_file(self.resolv_conf_fn, str(resolvconf), 0o644)
+        util.write_file(
+            util.target_path(target, self.resolv_conf_fn),
+            str(resolvconf), 0o644)
 
     def _write_network(self, settings, target=None):
         self._write_ifconfig_entries(settings, target=None)
