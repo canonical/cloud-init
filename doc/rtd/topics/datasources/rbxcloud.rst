@@ -1,4 +1,4 @@
-.. _datasource_config_drive:
+.. _datasource_rbx:
 
 Rbx Cloud
 =========
