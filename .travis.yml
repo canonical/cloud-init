@@ -53,3 +53,6 @@ matrix:
           env: TOXENV=pyflakes
         - python: 3.6
           env: TOXENV=pylint
+        - python: 3.6
+          script:
+            - tools/check-cla $TRAVIS_PULL_REQUEST_SLUG

@@ -1,0 +1,35 @@
+#!/bin/bash
+author=${1/\/cloud-init/}
+if [ `grep -c ${author} tools/.lp-to-git-user` = 0 ]; then
+    cat <<EOF
+______________________________________________________________
+
+Hello $author,
+
+Thank you for your contribution to cloud-init.
+
+In order to accept this pull request, you need to have signed
+the Contributor License Agreement (CLA). Please ensure that
+your have signed the CLA by following our hacking guide at:
+https://cloudinit.readthedocs.io/en/latest/topics/hacking.html
+______________________________________________________________
+EOF
+    exit 1
+fi
+cat <<EOF
+______________________________________________________________
+
+Hello $author,
+
+Thank you for your continued contributions to cloud-init and
+for signing the Contributor License Agreement for this project.
+
+Once CI passes, the cloud-init team will assign a reviewer to your
+branch to work on getting it merged.
+
+Thanks again,
+The cloud-init team
+______________________________________________________________
+EOF
+
+exit 0
