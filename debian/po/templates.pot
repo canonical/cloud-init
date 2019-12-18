@@ -146,6 +146,12 @@ msgstr ""
 #. Type: multiselect
 #. Choices
 #: ../cloud-init.templates:1001
+msgid "RbxCloud: HyperOne and Rootbox platforms"
+msgstr ""
+
+#. Type: multiselect
+#. Choices
+#: ../cloud-init.templates:1001
 msgid "None: Failsafe datasource"
 msgstr ""
 
