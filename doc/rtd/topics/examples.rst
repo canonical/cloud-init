@@ -128,7 +128,7 @@ Reboot/poweroff when finished
    :language: yaml
    :linenos:
 
-Configure instances ssh-keys
+Configure instances SSH keys
 ============================
 
 .. literalinclude:: ../../examples/cloud-config-ssh-keys.txt
