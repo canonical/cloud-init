@@ -1,5 +1,7 @@
 cloud-init (19.4-1-g8c96cbc1-0ubuntu1) UNRELEASED; urgency=medium
 
+  * debian/cloud-init.templates: enable RbxCloud: HypeOne and Rootbox detection
+    by default
   * New upstream snapshot.
     - ci: emit names of tests run in Travis (#120)
     - Release 19.4 (LP: #1856761)
