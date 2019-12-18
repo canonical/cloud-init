@@ -1,3 +1,31 @@
+cloud-init (19.4-1-g8c96cbc1-0ubuntu1) focal; urgency=medium
+
+  * debian/cloud-init.templates: enable RbxCloud: HypeOne and Rootbox detection
+    by default
+  * New upstream snapshot.
+    - ci: emit names of tests run in Travis (#120)
+    - Release 19.4 (LP: #1856761)
+    - rbxcloud: fix dsname in RbxCloud [Adam Dobrawy] (LP: #1855196)
+    - tests: Add tests for value of dsname in datasources [Adam Dobrawy]
+    - apport: Add RbxCloud ds [Adam Dobrawy]
+    - docs: Updating index of datasources [Adam Dobrawy]
+    - docs: Fix anchor of datasource_rbx [Adam Dobrawy]
+    - settings: Add RbxCloud [Adam Dobrawy]
+    - doc: specify _ over - in cloud config modules
+      [Joshua Powers] (LP: #1293254)
+    - tools: Detect python to use via env in migrate-lp-user-to-github
+      [Adam Dobrawy]
+    - Partially revert "fix unlocking method on FreeBSD" (#116)
+    - tests: mock uid when running as root (#113)
+      [Joshua Powers] (LP: #1856096)
+    - cloudinit/netinfo: remove unused getgateway (#111)
+    - docs: clear up apt config sections (#107) [Joshua Powers] (LP: #1832823)
+    - doc: add kernel command line option to user data (#105)
+      [Joshua Powers] (LP: #1846524)
+    - config/cloud.cfg.d: update README [Joshua Powers] (LP: #1855006)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 18 Dec 2019 11:02:04 -0700
+
 cloud-init (19.3-74-g129b1c4e-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
