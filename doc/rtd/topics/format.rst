@@ -113,7 +113,7 @@ These things include:
 - apt upgrade should be run on first boot
 - a different apt mirror should be used
 - additional apt sources should be added
-- certain ssh keys should be imported
+- certain SSH keys should be imported
 - *and many more...*
 
 .. note::

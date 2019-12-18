@@ -140,7 +140,7 @@ The current interface that a datasource object must provide is the following:
     # because cloud-config content would be handled elsewhere
     def get_config_obj(self)
 
-    #returns a list of public ssh keys
+    # returns a list of public SSH keys
     def get_public_ssh_keys(self)
 
     # translates a device 'short' name into the actual physical device
