@@ -30,16 +30,17 @@ class Renderer(renderer.Renderer):
             device_mac = interface.get("mac_address")
             if device_name and re.match(r'^lo\d+$', device_name):
                 continue
-            if device_mac and device_name:
+            if device_mac not in ifname_by_mac:
+                LOG.info('Cannot find any device with MAC %s', device_mac)
+            elif device_mac and device_name:
                 cur_name = ifname_by_mac[device_mac]
-                if not cur_name:
-                    LOG.info('Cannot find any device with MAC %s', device_mac)
-                    continue
                 if cur_name != device_name:
+                    LOG.info('netif service will rename interface %s to %s',
+                             cur_name, device_name)
                     rhel_util.update_sysconfig_file(
                         util.target_path(target, self.rc_conf_fn), {
                             'ifconfig_%s_name' % cur_name: device_name})
-            elif device_mac:
+            else:
                 device_name = ifname_by_mac[device_mac]
 
             LOG.info('Configuring interface %s', device_name)
