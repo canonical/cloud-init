@@ -150,7 +150,9 @@ class TestQuery(CiTestCase):
             instance_data=self.instance_data, list_keys=False,
             user_data='ud', vendor_data='vd', varname=None)
         with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
-            self.assertEqual(0, query.handle_args('anyname', args))
+            with mock.patch('os.getuid') as m_getuid:
+                m_getuid.return_value = 100
+                self.assertEqual(0, query.handle_args('anyname', args))
         self.assertEqual(
             '{\n "my_var": "it worked",\n "userdata": "<%s> file:ud",\n'
             ' "vendordata": "<%s> file:vd"\n}\n' % (
@@ -165,7 +167,9 @@ class TestQuery(CiTestCase):
             instance_data=self.instance_data, list_keys=False,
             user_data='ud', vendor_data='vd', varname='my_var')
         with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
-            self.assertEqual(0, query.handle_args('anyname', args))
+            with mock.patch('os.getuid') as m_getuid:
+                m_getuid.return_value = 100
+                self.assertEqual(0, query.handle_args('anyname', args))
         self.assertEqual('it worked\n', m_stdout.getvalue())
 
     def test_handle_args_returns_nested_varname(self):
@@ -177,7 +181,9 @@ class TestQuery(CiTestCase):
             instance_data=self.instance_data, user_data='ud', vendor_data='vd',
             list_keys=False, varname='v1.key_2')
         with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
-            self.assertEqual(0, query.handle_args('anyname', args))
+            with mock.patch('os.getuid') as m_getuid:
+                m_getuid.return_value = 100
+                self.assertEqual(0, query.handle_args('anyname', args))
         self.assertEqual('value-2\n', m_stdout.getvalue())
 
     def test_handle_args_returns_standardized_vars_to_top_level_aliases(self):
@@ -206,7 +212,9 @@ class TestQuery(CiTestCase):
             instance_data=self.instance_data, user_data='ud', vendor_data='vd',
             list_keys=False, varname=None)
         with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
-            self.assertEqual(0, query.handle_args('anyname', args))
+            with mock.patch('os.getuid') as m_getuid:
+                m_getuid.return_value = 100
+                self.assertEqual(0, query.handle_args('anyname', args))
         self.assertEqual(expected, m_stdout.getvalue())
 
     def test_handle_args_list_keys_sorts_top_level_keys_when_no_varname(self):
@@ -221,7 +229,9 @@ class TestQuery(CiTestCase):
             instance_data=self.instance_data, list_keys=True, user_data='ud',
             vendor_data='vd', varname=None)
         with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
-            self.assertEqual(0, query.handle_args('anyname', args))
+            with mock.patch('os.getuid') as m_getuid:
+                m_getuid.return_value = 100
+                self.assertEqual(0, query.handle_args('anyname', args))
         self.assertEqual(expected, m_stdout.getvalue())
 
     def test_handle_args_list_keys_sorts_nested_keys_when_varname(self):
@@ -236,7 +246,9 @@ class TestQuery(CiTestCase):
             instance_data=self.instance_data, list_keys=True,
             user_data='ud', vendor_data='vd', varname='v1')
         with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
-            self.assertEqual(0, query.handle_args('anyname', args))
+            with mock.patch('os.getuid') as m_getuid:
+                m_getuid.return_value = 100
+                self.assertEqual(0, query.handle_args('anyname', args))
         self.assertEqual(expected, m_stdout.getvalue())
 
     def test_handle_args_list_keys_errors_when_varname_is_not_a_dict(self):
@@ -252,7 +264,9 @@ class TestQuery(CiTestCase):
             vendor_data='vd',  varname='top')
         with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
             with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
-                self.assertEqual(1, query.handle_args('anyname', args))
+                with mock.patch('os.getuid') as m_getuid:
+                    m_getuid.return_value = 100
+                    self.assertEqual(1, query.handle_args('anyname', args))
         self.assertEqual('', m_stdout.getvalue())
         self.assertIn(expected_error, m_stderr.getvalue())
 

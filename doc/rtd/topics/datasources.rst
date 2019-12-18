@@ -30,12 +30,12 @@ The following is a list of documents for each supported datasource:
    datasources/aliyun.rst
    datasources/altcloud.rst
    datasources/azure.rst
-   datasources/ec2.rst
-   datasources/e24cloud.rst
    datasources/cloudsigma.rst
    datasources/cloudstack.rst
    datasources/configdrive.rst
    datasources/digitalocean.rst
+   datasources/e24cloud.rst
+   datasources/ec2.rst
    datasources/exoscale.rst
    datasources/fallback.rst
    datasources/gce.rst
@@ -45,6 +45,7 @@ The following is a list of documents for each supported datasource:
    datasources/openstack.rst
    datasources/oracle.rst
    datasources/ovf.rst
+   datasources/rbxcloud.rst
    datasources/smartos.rst
    datasources/zstack.rst
 

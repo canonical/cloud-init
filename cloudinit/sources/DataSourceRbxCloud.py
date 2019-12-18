@@ -197,6 +197,7 @@ def read_user_data_callback(mount_dir):
 
 
 class DataSourceRbxCloud(sources.DataSource):
+    dsname = "RbxCloud"
     update_events = {'network': [
         EventType.BOOT_NEW_INSTANCE,
         EventType.BOOT
