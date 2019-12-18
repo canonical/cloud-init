@@ -9,9 +9,9 @@
 """
 SSH
 ---
-**Summary:** configure ssh and ssh keys (host and authorized)
+**Summary:** configure SSH and SSH keys (host and authorized)
 
-This module handles most configuration for ssh and both host and authorized ssh
+This module handles most configuration for SSH and both host and authorized SSH
 keys.
 
 Authorized Keys
@@ -24,7 +24,7 @@ account's home directory. Authorized keys for the default user defined in
 should be specified as a list of public keys.
 
 .. note::
-    see the ``cc_set_passwords`` module documentation to enable/disable ssh
+    see the ``cc_set_passwords`` module documentation to enable/disable SSH
     password authentication
 
 Root login can be enabled/disabled using the ``disable_root`` config key. Root
@@ -39,7 +39,7 @@ Host Keys
 ^^^^^^^^^
 
 Host keys are for authenticating a specific instance. Many images have default
-host ssh keys, which can be removed using ``ssh_deletekeys``. This prevents
+host SSH keys, which can be removed using ``ssh_deletekeys``. This prevents
 re-use of a private host key from an image on multiple machines. Since
 removing default host keys is usually the desired behavior this option is
 enabled by default.
@@ -225,7 +225,7 @@ def handle(_name, cfg, cloud, log, _args):
         if util.get_cfg_option_bool(cfg, 'allow_public_ssh_keys', True):
             keys = cloud.get_public_ssh_keys() or []
         else:
-            log.debug('Skipping import of publish ssh keys per '
+            log.debug('Skipping import of publish SSH keys per '
                       'config setting: allow_public_ssh_keys=False')
 
         if "ssh_authorized_keys" in cfg:
@@ -234,7 +234,7 @@ def handle(_name, cfg, cloud, log, _args):
 
         apply_credentials(keys, user, disable_root, disable_root_opts)
     except Exception:
-        util.logexc(log, "Applying ssh credentials failed!")
+        util.logexc(log, "Applying SSH credentials failed!")
 
 
 def apply_credentials(keys, user, disable_root, disable_root_opts):
