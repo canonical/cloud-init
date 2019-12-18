@@ -17,14 +17,11 @@ keys.
 Authorized Keys
 ^^^^^^^^^^^^^^^
 
-Authorized keys are a list of public SSH key pairs that are allowed to
-connect to a system. Authorized keys for the default user/first user defined
-in ``users`` can be specified using ``ssh_authorized_keys``. Keys should be
-specified as a list of public keys.
-
-Importing ssh public keys for the default user (defined in ``users``)) is
-enabled by default.  This feature may be disabled by setting
-``allow_publish_ssh_keys: false``.
+Authorized keys are a list of public SSH keys that are allowed to connect to a
+a user account on a system. They are stored in `.ssh/authorized_keys` in that
+account's home directory. Authorized keys for the default user defined in
+``users`` can be specified using ``ssh_authorized_keys``. Keys
+should be specified as a list of public keys.
 
 .. note::
     see the ``cc_set_passwords`` module documentation to enable/disable ssh
