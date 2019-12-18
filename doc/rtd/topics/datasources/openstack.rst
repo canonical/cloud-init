@@ -5,7 +5,7 @@ OpenStack
 
 This datasource supports reading data from the
 `OpenStack Metadata Service
-<https://docs.openstack.org/nova/latest/admin/networking-nova.html#metadata-service>`_.
+<https://docs.openstack.org/nova/latest/admin/metadata-service.html>`_.
 
 Discovery
 -------------
