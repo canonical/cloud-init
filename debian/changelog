@@ -1,4 +1,4 @@
-cloud-init (19.4-1-g8c96cbc1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.4-1-g8c96cbc1-0ubuntu1) focal; urgency=medium
 
   * debian/cloud-init.templates: enable RbxCloud: HypeOne and Rootbox detection
     by default
