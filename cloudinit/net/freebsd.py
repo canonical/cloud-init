@@ -133,9 +133,9 @@ class Renderer(renderer.Renderer):
             str(resolvconf), 0o644)
 
     def _write_network(self, settings, target=None):
-        self._write_ifconfig_entries(settings, target=None)
-        self._write_route_entries(settings, target=None)
-        self._write_resolve_conf(settings, target=None)
+        self._write_ifconfig_entries(settings, target=target)
+        self._write_route_entries(settings, target=target)
+        self._write_resolve_conf(settings, target=target)
 
         self.start_services()
 
