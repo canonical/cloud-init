@@ -45,8 +45,11 @@ class Renderer(renderer.Renderer):
 
             LOG.info('Configuring interface %s', device_name)
             ifconfig = 'DHCP'  # default
-            for subnet in interface.get("subnets", []):
 
+            for subnet in interface.get("subnets", []):
+                if ifconfig != 'DHCP':
+                    LOG.info('The FreeBSD provider only set the first subnet.')
+                    break
                 if subnet.get('type') == 'static':
                     LOG.debug('Configuring dev %s with %s / %s', device_name,
                               subnet.get('address'), subnet.get('netmask'))
@@ -54,9 +57,6 @@ class Renderer(renderer.Renderer):
                     ifconfig = (
                             subnet.get('address') + ' netmask ' +
                             subnet.get('netmask'))
-
-                # NOTE: Known limitation, we just set one subnet per interface
-                break
 
             if ifconfig == 'DHCP':
                 self.dhcp_interfaces.append(device_name)
