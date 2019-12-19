@@ -71,7 +71,7 @@ class Renderer(renderer.Renderer):
             for subnet in subnets:
                 if subnet.get('type') == 'static':
                     gateway = subnet.get('gateway')
-                    if gateway:
+                    if gateway and len(gateway.split('.')) == 4:
                         routes.append({
                             'network': '0.0.0.0',
                             'netmask': '0.0.0.0',
