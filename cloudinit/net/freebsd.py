@@ -23,6 +23,10 @@ class Renderer(renderer.Renderer):
         self.dhcp_interfaces = []
         self._postcmds = config.get('postcmds', True)
 
+    def _update_rc_conf(self, settings, target=None):
+        fn = util.target_path(target, self.rc_conf_fn)
+        rhel_util.update_sysconfig_file(fn, settings)
+
     def _write_ifconfig_entries(self, settings, target=None):
         ifname_by_mac = net.get_interfaces_by_mac()
         for interface in settings.iter_interfaces():
@@ -37,9 +41,9 @@ class Renderer(renderer.Renderer):
                 if cur_name != device_name:
                     LOG.info('netif service will rename interface %s to %s',
                              cur_name, device_name)
-                    rhel_util.update_sysconfig_file(
-                        util.target_path(target, self.rc_conf_fn), {
-                            'ifconfig_%s_name' % cur_name: device_name})
+                    self._update_rc_conf(
+                        {'ifconfig_%s_name' % cur_name: device_name},
+                        target=target)
             else:
                 device_name = ifname_by_mac[device_mac]
 
@@ -65,9 +69,9 @@ class Renderer(renderer.Renderer):
 
             if ifconfig == 'DHCP':
                 self.dhcp_interfaces.append(device_name)
-            rhel_util.update_sysconfig_file(
-                util.target_path(target, self.rc_conf_fn), {
-                    'ifconfig_' + device_name: ifconfig})
+            self._update_rc_conf(
+                {'ifconfig_' + device_name: ifconfig},
+                target=target)
 
     def _write_route_entries(self, settings, target=None):
         routes = list(settings.iter_routes())
@@ -92,13 +96,11 @@ class Renderer(renderer.Renderer):
             gateway = route.get('gateway')
             route_cmd = "-route %s/%s %s" % (network, netmask, gateway)
             if network == '0.0.0.0':
-                rhel_util.update_sysconfig_file(
-                    util.target_path(target, self.rc_conf_fn), {
-                        'defaultrouter': gateway})
+                self._update_rc_conf(
+                    {'defaultrouter': gateway}, target=target)
             else:
-                rhel_util.update_sysconfig_file(
-                    util.target_path(target, self.rc_conf_fn), {
-                        'route_net%d' % route_cpt: route_cmd})
+                self._update_rc_conf(
+                    {'route_net%d' % route_cpt: route_cmd}, target=target)
                 route_cpt += 1
 
     def _write_resolve_conf(self, settings, target=None):
