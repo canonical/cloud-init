@@ -108,11 +108,12 @@ class Renderer(renderer.Renderer):
         # Try to read the /etc/resolv.conf or just start from scratch if that
         # fails.
         try:
-            resolvconf = ResolvConf(util.load_file(self.resolv_conf_fn))
+            resolvconf = ResolvConf(util.load_file(util.target_path(
+                target, self.resolv_conf_fn)))
             resolvconf.parse()
         except IOError:
             util.logexc(LOG, "Failed to parse %s, use new empty file",
-                        self.resolv_conf_fn)
+                        util.target_path(target, self.resolv_conf_fn))
             resolvconf = ResolvConf('')
             resolvconf.parse()
 
