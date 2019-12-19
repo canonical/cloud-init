@@ -14,7 +14,7 @@ Having the server definition accessible by the VM can ve useful in various
 ways. For example it is possible to easily determine from within the VM,
 which network interfaces are connected to public and which to private network.
 Another use is to pass some data to initial VM setup scripts, like setting the
-hostname to the VM name or passing ssh public keys through server meta.
+hostname to the VM name or passing SSH public keys through server meta.
 
 For more information take a look at the Server Context section of CloudSigma
 API Docs: http://cloudsigma-docs.readthedocs.org/en/latest/server_context.html

@@ -112,7 +112,7 @@ def handle_ssh_pwauth(pw_auth, service_cmd=None, service_name="ssh"):
     elif util.is_false(pw_auth):
         cfg_val = 'no'
     else:
-        bmsg = "Leaving ssh config '%s' unchanged." % cfg_name
+        bmsg = "Leaving SSH config '%s' unchanged." % cfg_name
         if pw_auth is None or pw_auth.lower() == 'unchanged':
             LOG.debug("%s ssh_pwauth=%s", bmsg, pw_auth)
         else:
@@ -121,7 +121,7 @@ def handle_ssh_pwauth(pw_auth, service_cmd=None, service_name="ssh"):
 
     updated = update_ssh_config({cfg_name: cfg_val})
     if not updated:
-        LOG.debug("No need to restart ssh service, %s not updated.", cfg_name)
+        LOG.debug("No need to restart SSH service, %s not updated.", cfg_name)
         return
 
     if 'systemctl' in service_cmd:
@@ -129,7 +129,7 @@ def handle_ssh_pwauth(pw_auth, service_cmd=None, service_name="ssh"):
     else:
         cmd = list(service_cmd) + [service_name, "restart"]
     util.subp(cmd)
-    LOG.debug("Restarted the ssh daemon.")
+    LOG.debug("Restarted the SSH daemon.")
 
 
 def handle(_name, cfg, cloud, log, args):
