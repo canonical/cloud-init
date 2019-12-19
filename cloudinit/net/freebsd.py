@@ -80,11 +80,12 @@ class Renderer(renderer.Renderer):
         route_cpt = 0
         for route in routes:
             network = route.get('network')
+            if not network:
+                LOG.debug('Skipping a bad route entry')
+                continue
             netmask = route.get('netmask')
             gateway = route.get('gateway')
             route_cmd = "-route %s/%s %s" % (network, netmask, gateway)
-            if not network:
-                continue
             if network == '0.0.0.0':
                 rhel_util.update_sysconfig_file(
                     util.target_path(target, self.rc_conf_fn), {
