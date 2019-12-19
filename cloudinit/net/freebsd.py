@@ -78,14 +78,15 @@ class Renderer(renderer.Renderer):
         for interface in settings.iter_interfaces():
             subnets = interface.get("subnets", [])
             for subnet in subnets:
-                if subnet.get('type') == 'static':
-                    gateway = subnet.get('gateway')
-                    if gateway and len(gateway.split('.')) == 4:
-                        routes.append({
-                            'network': '0.0.0.0',
-                            'netmask': '0.0.0.0',
-                            'gateway': gateway})
-                    routes += subnet.get('routes', [])
+                if subnet.get('type') != 'static':
+                    continue
+                gateway = subnet.get('gateway')
+                if gateway and len(gateway.split('.')) == 4:
+                    routes.append({
+                        'network': '0.0.0.0',
+                        'netmask': '0.0.0.0',
+                        'gateway': gateway})
+                routes += subnet.get('routes', [])
         route_cpt = 0
         for route in routes:
             network = route.get('network')
