@@ -51,6 +51,11 @@ class Renderer(renderer.Renderer):
                     LOG.info('The FreeBSD provider only set the first subnet.')
                     break
                 if subnet.get('type') == 'static':
+                    if not subnet.get('netmask'):
+                        LOG.debug(
+                                'Skipping IP %s, because there is no netmask',
+                                subnet.get('address'))
+                        continue
                     LOG.debug('Configuring dev %s with %s / %s', device_name,
                               subnet.get('address'), subnet.get('netmask'))
                 # Configure an ipv4 address.
