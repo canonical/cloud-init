@@ -231,15 +231,15 @@ def get_fstype(path):
 
 
 def create_swapfile(fname, size):
-    """Size is in MB."""
+    """Size is in MiB."""
+
+    errmsg = "Failed to create swapfile '%s' of size %dMB via %s: %s"
 
     def unlink_f(fname):
         if os.path.exists(fname):
             os.unlink(fname)
 
     def create_swap(fname, size, method):
-        errmsg = "Failed to create swapfile '%s' of size %dMB via %s: %s"
-
         LOG.debug("Creating swapfile in '%s' on fstype '%s' using '%s'",
                   fname, fstype, method)
 
@@ -253,31 +253,29 @@ def create_swapfile(fname, size):
             util.subp(cmd, capture=True)
         except util.ProcessExecutionError as e:
             LOG.warning(errmsg, fname, size, method, e)
+            unlink_f(fname)
 
-            if method == "fallocate":
-                LOG.warning("Will attempt with dd.")
-                create_swap(fname, size, "dd")
-            else:
-                unlink_f(fname)
+    swap_dir = os.path.dirname(fname)
+    util.ensure_dir(swap_dir)
 
-    tdir = os.path.dirname(fname)
-    util.ensure_dir(tdir)
-
-    fstype = get_fstype(tdir)
+    fstype = get_fstype(swap_dir)
 
     if fstype in ("xfs", "btrfs"):
         create_swap(fname, size, "dd")
     else:
-        create_swap(fname, size, "fallocate")
+        try:
+            create_swap(fname, size, "fallocate")
+        except util.ProcessExecutionError as e:
+            LOG.warning(errmsg, fname, size, "dd", e)
+            LOG.warning("Will attempt with dd.")
+            create_swap(fname, size, "dd")
 
     try:
-        os.chmod(fname, 0o644)
+        os.chmod(fname, 0o600)
         util.subp(['mkswap', fname])
     except util.ProcessExecutionError:
         unlink_f(fname)
         raise
-
-    return
 
 
 def setup_swapfile(fname, size=None, maxsize=None):
@@ -286,7 +284,8 @@ def setup_swapfile(fname, size=None, maxsize=None):
     size: the size to create. set to "auto" for recommended
     maxsize: the maximum size
     """
-    tdir = os.path.dirname(fname)
+    swap_dir = os.path.dirname(fname)
+    mibsize = str(int(size / (2 ** 20)))
     if str(size).lower() == "auto":
         try:
             memsize = util.read_meminfo()['total']
@@ -294,8 +293,8 @@ def setup_swapfile(fname, size=None, maxsize=None):
             LOG.debug("Not creating swap: failed to read meminfo")
             return
 
-        util.ensure_dir(tdir)
-        size = suggested_swapsize(fsys=tdir, maxsize=maxsize,
+        util.ensure_dir(swap_dir)
+        size = suggested_swapsize(fsys=swap_dir, maxsize=maxsize,
                                   memsize=memsize)
 
     if not size:
@@ -303,7 +302,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
         return
 
     util.log_time(LOG.debug, msg="Setting up swap file", func=create_swapfile,
-                  args=[fname, int(size / (2 ** 20))])
+                  args=[fname, mibsize])
 
     return fname
 

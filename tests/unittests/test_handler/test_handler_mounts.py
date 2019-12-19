@@ -183,7 +183,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
     def test_swap_integrity(self):
         '''Ensure that the swap file is correctly created and can
-        swapon succsesfully. Fixing the corener case of:
+        swapon successfully. Fixing the corner case of:
         kernel: swapon: swapfile has holes'''
 
         fstab = '/swap.img swap swap defaults 0 0\n'
