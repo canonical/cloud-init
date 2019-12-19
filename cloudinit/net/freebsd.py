@@ -138,13 +138,13 @@ class Renderer(renderer.Renderer):
         self._write_route_entries(settings, target=target)
         self._write_resolve_conf(settings, target=target)
 
-        self.start_services()
+        self.start_services(run=self._postcmds)
 
     def render_network_state(self, network_state, templates=None, target=None):
         self._write_network(network_state, target=target)
 
-    def start_services(self):
-        if not self._postcmds:
+    def start_services(self, run=False):
+        if not run:
             LOG.debug("freebsd generate postcmd disabled")
             return
 
