@@ -189,6 +189,21 @@ class TestUtil(CiTestCase):
         self.assertEqual(is_rw, False)
 
 
+class TestUptime(CiTestCase):
+
+    @mock.patch('cloudinit.util.boottime')
+    @mock.patch('cloudinit.util.os.path.exists')
+    @mock.patch('cloudinit.util.time.time')
+    def test_uptime_non_linux_path(self, m_time, m_exists, m_boottime):
+        boottime = 1000.0
+        uptime = 10.0
+        m_boottime.return_value = boottime
+        m_time.return_value = boottime + uptime
+        m_exists.return_value = False
+        result = util.uptime()
+        self.assertEqual(str(uptime), result)
+
+
 class TestShellify(CiTestCase):
 
     def test_input_dict_raises_type_error(self):
