@@ -662,10 +662,11 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                 """),
         }
 
-        self._apply_and_verify(self.distro.apply_network_config,
-                               V1_NET_CFG,
-                               expected_cfgs=expected_cfgs.copy(),
-                               with_netplan=True)
+        with mock.patch('cloudinit.util.is_FreeBSD', return_value=False):
+            self._apply_and_verify(self.distro.apply_network_config,
+                                   V1_NET_CFG,
+                                   expected_cfgs=expected_cfgs.copy(),
+                                   with_netplan=True)
 
 
 def get_mode(path, target=None):

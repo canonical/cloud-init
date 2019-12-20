@@ -307,6 +307,9 @@ def device_devid(devname):
 
 
 def get_devicelist():
+    if util.is_FreeBSD():
+        return list(get_interfaces_by_mac().values())
+
     try:
         devs = os.listdir(get_sys_class_path())
     except OSError as e:
