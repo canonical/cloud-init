@@ -186,7 +186,7 @@ def main():
         cleanup_repo_dir = False
     cwd = os.getcwd()
     os.chdir(repo_dir)
-    log("Sycing master branch with upstream")
+    log("Syncing master branch with upstream")
     subp(['git', 'checkout', 'master'])
     subp(['git', 'pull'])
     try:
