@@ -56,7 +56,7 @@ instance
 --------
 
 The `/var/lib/cloud/instance` directory is a symbolic link that points
-to the most recenlty used instance-id direcotry. This folder contains the
+to the most recenlty used instance-id directory. This folder contains the
 information cloud-init received from datasources, including vendor and user
 data. This can be helpful to review to ensure the correct data was passed.
 
