@@ -674,7 +674,9 @@ def convert_net_json(network_json=None, known_macs=None):
             if not mac:
                 raise ValueError("No mac_address or name entry for %s" % d)
             if mac not in known_macs:
-                raise ValueError("Unable to find a system nic for %s" % d)
+                LOG.error("Unable to find a system nic for %s. Skipping..." % d)
+                config.remove(d)
+                continue
             d['name'] = known_macs[mac]
 
         for cfg, key, fmt, target in link_updates:
