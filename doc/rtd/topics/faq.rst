@@ -63,7 +63,7 @@ data. This can be helpful to review to ensure the correct data was passed.
 It also contains the `datasource` file that containers the full information
 about what datasource was identified and used to setup the system.
 
-Finally, the boot-finished file is the last thing that cloud-init does.
+Finally, the `boot-finished` file is the last thing that cloud-init does.
 
 data
 ----
