@@ -40,6 +40,7 @@ CFG_BUILTIN = {
         'IBMCloud',
         'Oracle',
         'Exoscale',
+        'RbxCloud',
         # At the end to act as a 'catch' when none of the above work...
         'None',
     ],

@@ -4,7 +4,7 @@ CloudStack
 ==========
 
 `Apache CloudStack`_ expose user-data, meta-data, user password and account
-sshkey thru the Virtual-Router. The datasource obtains the VR address via
+SSH key thru the Virtual-Router. The datasource obtains the VR address via
 dhcp lease information given to the instance.
 For more details on meta-data and user-data,
 refer the `CloudStack Administrator Guide`_.
