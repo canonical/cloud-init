@@ -78,9 +78,6 @@ Not applicable to write a test for this as it specifies when something should be
 ## scripts vendor
 Not applicable to write a test for this as it specifies when something should be run.
 
-## snappy
-2016-11-17: Need test to install snaps from store
-
 ## snap-config
 2016-11-17: Need to investigate
 
