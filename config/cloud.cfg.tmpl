@@ -103,9 +103,6 @@ cloud_config_modules:
 
 # The modules that run in the 'final' stage
 cloud_final_modules:
-{% if variant in ["ubuntu", "unknown", "debian"] %}
- - snappy  # DEPRECATED- Drop in version 18.2
-{% endif %}
  - package-update-upgrade-install
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - fan
