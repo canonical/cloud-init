@@ -145,7 +145,7 @@ class Distro(object):
         # Write it out
 
         # pylint: disable=assignment-from-no-return
-        # We have implementations in arch, freebsd and gentoo still
+        # We have implementations in arch and gentoo still
         dev_names = self._write_network(settings)
         # pylint: enable=assignment-from-no-return
         # Now try to bring them up
