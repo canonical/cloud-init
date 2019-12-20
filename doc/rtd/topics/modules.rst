@@ -46,7 +46,6 @@ Modules
 .. automodule:: cloudinit.config.cc_set_hostname
 .. automodule:: cloudinit.config.cc_set_passwords
 .. automodule:: cloudinit.config.cc_snap
-.. automodule:: cloudinit.config.cc_snappy
 .. automodule:: cloudinit.config.cc_snap_config
 .. automodule:: cloudinit.config.cc_spacewalk
 .. automodule:: cloudinit.config.cc_ssh

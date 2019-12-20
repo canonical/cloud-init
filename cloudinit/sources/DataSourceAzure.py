@@ -355,16 +355,16 @@ class DataSourceAzure(sources.DataSource):
         for pk in self.cfg.get('_pubkeys', []):
             if pk.get('value', None):
                 key_value = pk['value']
-                LOG.debug("ssh authentication: using value from fabric")
+                LOG.debug("SSH authentication: using value from fabric")
             else:
                 bname = str(pk['fingerprint'] + ".crt")
                 fp_files += [os.path.join(ddir, bname)]
-                LOG.debug("ssh authentication: "
+                LOG.debug("SSH authentication: "
                           "using fingerprint from fabric")
 
         with events.ReportEventStack(
                 name="waiting-for-ssh-public-key",
-                description="wait for agents to retrieve ssh keys",
+                description="wait for agents to retrieve SSH keys",
                 parent=azure_ds_reporter):
             # wait very long for public SSH keys to arrive
             # https://bugs.launchpad.net/cloud-init/+bug/1717611
