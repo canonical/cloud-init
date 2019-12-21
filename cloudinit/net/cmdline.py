@@ -104,7 +104,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     provided here.  There is no good documentation on this unfortunately.
 
     DEVICE=<name> is expected/required and PROTO should indicate if
-    this is 'static' or 'dhcp' or 'dhcp6' (LP: #1621507).
+    this is 'none' or 'dhcp' or 'dhcp6' (LP: #1621507).
     note that IPV6PROTO is also written by newer code to address the
     possibility of both ipv4 and ipv6 getting addresses.
     """
@@ -125,9 +125,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         if data.get('filename'):
             proto = 'dhcp'
         else:
-            proto = 'static'
+            proto = 'none'
 
-    if proto not in ('static', 'dhcp', 'dhcp6'):
+    if proto not in ('none', 'dhcp', 'dhcp6'):
         raise ValueError("Unexpected value for PROTO: %s" % proto)
 
     iface = {
@@ -149,9 +149,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         cur_proto = data.get(pre + 'PROTO', proto)
         subnet = {'type': cur_proto, 'control': 'manual'}
 
-        # only populate address for static types. While the rendered config
+        # only populate address for none types. While the rendered config
         # may have an address for dhcp, that is not really expected.
-        if cur_proto == 'static':
+        if cur_proto == 'none':
             subnet['address'] = data[pre + 'ADDR']
 
         # these fields go right on the subnet
