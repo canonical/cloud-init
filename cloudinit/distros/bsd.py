@@ -114,3 +114,10 @@ class BSD(distros.Distro):
 
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
+
+    def apply_locale(self, locale, out_fn=None):
+        LOG.debug('Cannot set the locale.')
+
+    def apply_network_config_names(self, netconfig):
+        LOG.debug('Cannot rename network interface.')
+        return

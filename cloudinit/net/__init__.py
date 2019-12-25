@@ -336,6 +336,8 @@ def find_fallback_nic(blacklist_drivers=None):
         return find_fallback_nic_on_freebsd(blacklist_drivers)
     elif util.is_NetBSD():
         return find_fallback_nic_on_netbsd(blacklist_drivers)
+    elif util.is_OpenBSD():
+        return find_fallback_nic_on_netbsd(blacklist_drivers)
     else:
         return find_fallback_nic_on_linux(blacklist_drivers)
 
@@ -811,6 +813,8 @@ def get_interfaces_by_mac():
         return get_interfaces_by_mac_on_freebsd()
     elif util.is_NetBSD():
         return get_interfaces_by_mac_on_netbsd()
+    elif util.is_OpenBSD():
+        return get_interfaces_by_mac_on_openbsd()
     else:
         return get_interfaces_by_mac_on_linux()
 
@@ -846,6 +850,21 @@ def get_interfaces_by_mac_on_netbsd():
     ret = {}
     re_field_match = (
             r"(?P<ifname>\w+).*address:\s"
+            r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*")
+    (out, _) = util.subp(['ifconfig', '-a'])
+    if_lines = re.sub(r'\n\s+', ' ', out).splitlines()
+    for line in if_lines:
+        m = re.match(re_field_match, line)
+        if m:
+            fields = m.groupdict()
+            ret[fields['mac']] = fields['ifname']
+    return ret
+
+
+def get_interfaces_by_mac_on_openbsd():
+    ret = {}
+    re_field_match = (
+            r"(?P<ifname>\w+).*lladdr\s"
             r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*")
     (out, _) = util.subp(['ifconfig', '-a'])
     if_lines = re.sub(r'\n\s+', ' ', out).splitlines()
