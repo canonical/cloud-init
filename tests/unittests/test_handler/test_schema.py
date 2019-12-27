@@ -29,6 +29,7 @@ class GetSchemaTest(CiTestCase):
                 'cc_snap',
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
+                'cc_write_files',
                 'cc_zypper_add_repo'
             ],
             [subschema['id'] for subschema in schema['allOf']])
