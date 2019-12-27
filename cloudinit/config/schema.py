@@ -59,6 +59,15 @@ class SchemaValidationError(ValueError):
         super(SchemaValidationError, self).__init__(message)
 
 
+def is_schema_byte_string(checker, instance):
+    try:
+        from jsonschema import Draft4Validator
+    except ImportError:
+        return False
+    return (Draft4Validator.TYPE_CHECKER.is_type(instance, "string") or
+            isinstance(instance, (bytes,)))
+
+
 def validate_cloudconfig_schema(config, schema, strict=False):
     """Validate provided config meets the schema definition.
 
@@ -74,11 +83,17 @@ def validate_cloudconfig_schema(config, schema, strict=False):
     """
     try:
         from jsonschema import Draft4Validator, FormatChecker
+        from jsonschema.validators import extend
     except ImportError:
         logging.debug(
             'Ignoring schema validation. python-jsonschema is not present')
         return
-    validator = Draft4Validator(schema, format_checker=FormatChecker())
+
+    # Add binary type checker for cloud-init schema
+    type_checker = Draft4Validator.TYPE_CHECKER.redefine(
+        'string', is_schema_byte_string)
+    cloudinitValidator = extend(Draft4Validator, type_checker=type_checker)
+    validator = cloudinitValidator(schema, format_checker=FormatChecker())
     errors = ()
     for error in sorted(validator.iter_errors(config), key=lambda e: e.path):
         path = '.'.join([str(p) for p in error.path])
@@ -212,19 +227,22 @@ def _schemapath_for_cloudconfig(config, original_content):
             previous_depth = -1
             path_prefix = ''
         if line.startswith('- '):
+            previous_list_idx = '.%d' % (list_index -1)
+            if path_prefix and path_prefix.endswith(previous_list_idx):
+                path_prefix = path_prefix[:-len(previous_list_idx)]
             key = str(list_index)
-            if path_prefix:
-                key = path_prefix + '.' + key
-            scopes.append((indent_depth, key))
             schema_line_numbers[key] = line_number
-            path_prefix = key
             item_indent = len(re.match(RE_YAML_INDENT, line[1:]).groups()[0])
             item_indent += 1  # For the leading '-' character
             previous_depth = indent_depth
             indent_depth += item_indent
             line = line[item_indent:]  # Strip leading list item + whitespace
             list_index += 1
-        key, value = line.split(':', 1)
+        else:
+            list_index = 0
+            key, value = line.split(':', 1)
+        if path_prefix:
+            key = path_prefix + '.' + key
         while indent_depth <= previous_depth:
             if scopes:
                 previous_depth, path_prefix = scopes.pop()
@@ -234,8 +252,6 @@ def _schemapath_for_cloudconfig(config, original_content):
             else:
                 previous_depth = -1
                 path_prefix = ''
-        if path_prefix:
-            key = path_prefix + '.' + key
         scopes.append((indent_depth, key))
         if value:
             value = value.strip()
