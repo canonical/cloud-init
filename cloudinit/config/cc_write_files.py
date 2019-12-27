@@ -104,8 +104,8 @@ schema = {
                         'type': 'string',
                         'default': '',
                         'description': dedent("""\
-                            Optional content to write or decode into the provided
-                             ``path`` . Default: **''**
+                            Optional content to write or decode into the
+                             provided ``path`` . Default: **''**
                             """),
                     },
                     'owner': {
@@ -131,9 +131,9 @@ schema = {
                         'enum': supported_encoding_types,
                         'description': dedent("""\
                             Optional encoding type of the content. Default is
-                             **text/plain** and no content decoding is performed.
-                             Supported encoding types are: %s.""" %
-                            ", ".join(supported_encoding_types)),
+                             **text/plain** and no content decoding is
+                             performed. Supported encoding types are:
+                             %s.""" % ", ".join(supported_encoding_types)),
                     },
                     'append': {
                         'type': 'boolean',

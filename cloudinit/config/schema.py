@@ -36,7 +36,8 @@ SCHEMA_DOC_TMPL = """
 {examples}
 """
 SCHEMA_PROPERTY_TMPL = '{prefix}**{prop_name}:** ({type}) {description}'
-SCHEMA_LIST_ITEM_TMPL = '{prefix}Each item in **{prop_name}** list supports the following keys:'
+SCHEMA_LIST_ITEM_TMPL = (
+    '{prefix}Each item in **{prop_name}** list supports the following keys:')
 SCHEMA_EXAMPLES_HEADER = '\n**Examples**::\n\n'
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = '\n    # --- Example{0} ---'
 
@@ -227,7 +228,7 @@ def _schemapath_for_cloudconfig(config, original_content):
             previous_depth = -1
             path_prefix = ''
         if line.startswith('- '):
-            previous_list_idx = '.%d' % (list_index -1)
+            previous_list_idx = '.%d' % (list_index - 1)
             if path_prefix and path_prefix.endswith(previous_list_idx):
                 path_prefix = path_prefix[:-len(previous_list_idx)]
             key = str(list_index)
@@ -291,7 +292,6 @@ def _get_property_doc(schema, prefix='    '):
     for prop_key, prop_config in schema.get('properties', {}).items():
         # Define prop_name and dscription for SCHEMA_PROPERTY_TMPL
         description = prop_config.get('description', '')
-        prop_type = _get_property_type(prop_config)
 
         properties.append(SCHEMA_PROPERTY_TMPL.format(
             prefix=prefix,
@@ -384,11 +384,10 @@ def get_parser(parser=None):
             description='Validate cloud-config files or document schema')
     parser.add_argument('-c', '--config-file',
                         help='Path of the cloud-config yaml file to validate')
-    full_schema = get_schema()
     parser.add_argument('-d', '--doc', action='store_true',
-            help='Print specified schema module docs.')
+                        help='Print specified schema module docs.')
     parser.add_argument('-m', '--module', action='store',
-            help='Limit documentation to specified schema module.')
+                        help='Limit documentation to specified schema module.')
     parser.add_argument('--annotate', action="store_true", default=False,
                         help='Annotate existing cloud-config file with errors')
     return parser

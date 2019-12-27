@@ -8,7 +8,7 @@ import shutil
 import tempfile
 
 from cloudinit.config.cc_write_files import (
-    handle, decode_perms, write_files, schema)
+    handle, decode_perms, write_files)
 from cloudinit import log as logging
 from cloudinit import util
 
@@ -42,8 +42,8 @@ YAML_CONTENT_EXPECTED = {
 
 VALID_SCHEMA = {
     'write_files': [
-    {'append': False, 'content': 'a', 'encoding': 'gzip', 'owner': 'jeff',
-     'path': '/some', 'permissions': '0777'}
+        {'append': False, 'content': 'a', 'encoding': 'gzip', 'owner': 'jeff',
+         'path': '/some', 'permissions': '0777'}
     ]
 }
 
@@ -116,7 +116,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
         with self.assertRaises(TypeError):
             handle('cc_write_file', invalid_config, cc, LOG, [])
         self.assertIn(
-            'Invalid config:\nwrite_filest: 1 is not of type \'array\'',
+            'Invalid config:\nwrite_files: 1 is not of type \'array\'',
             self.logs.getvalue())
 
     def test_simple(self):
