@@ -79,9 +79,9 @@ DHCP6_EXPECTED_1 = {
                  'type': 'dhcp6'}]}
 
 
-STATIC_CONTENT_1 = """
+none_CONTENT_1 = """
 DEVICE='eth1'
-PROTO='static'
+PROTO='none'
 IPV4ADDR='10.0.0.2'
 IPV4BROADCAST='10.0.0.255'
 IPV4NETMASK='255.255.255.0'
@@ -94,12 +94,12 @@ DHCPLEASETIME='3600'
 DOMAINSEARCH='foo.com'
 """
 
-STATIC_EXPECTED_1 = {
+none_EXPECTED_1 = {
     'name': 'eth1',
     'type': 'physical',
     'subnets': [{'broadcast': '10.0.0.255', 'control': 'manual',
                  'gateway': '10.0.0.1',
-                 'dns_search': ['foo.com'], 'type': 'static',
+                 'dns_search': ['foo.com'], 'type': 'none',
                  'netmask': '255.255.255.0',
                  'dns_nameservers': ['10.0.1.1'],
                  'address': '10.0.0.2'}],
@@ -145,7 +145,7 @@ config:
     subnets:
     -   address: 10.101.10.47/23
         gateway: 10.101.11.254
-        type: static
+        type: none
     type: bond
 -   id: eno4
     mac_address: 08:94:ef:51:ae:df
@@ -204,7 +204,7 @@ config:
     name: bond0.3502
     subnets:
     -   address: 172.20.80.4/25
-        type: static
+        type: none
     type: vlan
     vlan_id: 3502
     vlan_link: bond0
@@ -213,7 +213,7 @@ config:
     name: bond0.3503
     subnets:
     -   address: 172.20.80.129/25
-        type: static
+        type: none
     type: vlan
     vlan_id: 3503
     vlan_link: bond0
@@ -244,7 +244,7 @@ config:
         -   destination: 213.119.192.0/24
             gateway: 10.101.8.126
             metric: 0
-        type: static
+        type: none
     type: bond
 -   address:
     - 10.101.10.1
@@ -804,14 +804,14 @@ iface lo inet loopback
    dns-search foo.com
 
 auto eth0
-iface eth0 inet static
+iface eth0 inet none
         address 1.2.3.12
         netmask 255.255.255.248
         broadcast 1.2.3.15
         gateway 1.2.3.9
         dns-nameservers 69.9.160.191 69.9.191.4
 auto eth1
-iface eth1 inet static
+iface eth1 inet none
         address 10.248.2.4
         netmask 255.255.255.248
         broadcast 10.248.2.7
@@ -824,14 +824,14 @@ iface lo inet loopback
     dns-search foo.com
 
 auto eth0
-iface eth0 inet static
+iface eth0 inet none
     address 1.2.3.12/29
     broadcast 1.2.3.15
     dns-nameservers 69.9.160.191 69.9.191.4
     gateway 1.2.3.9
 
 auto eth1
-iface eth1 inet static
+iface eth1 inet none
     address 10.248.2.4/29
     broadcast 10.248.2.7
 """.lstrip()
@@ -850,7 +850,7 @@ NETWORK_CONFIGS = {
             iface eth99 inet dhcp
 
             # control-alias eth99
-            iface eth99 inet static
+            iface eth99 inet none
                 address 192.168.21.3/24
                 dns-nameservers 8.8.8.8 8.8.4.4
                 dns-search barley.maas sach.maas
@@ -922,7 +922,7 @@ NETWORK_CONFIGS = {
                   mac_address: "c0:d6:9f:2c:e8:80"
                   subnets:
                       - type: dhcp4
-                      - type: static
+                      - type: none
                         address: 192.168.21.3/24
                         dns_nameservers:
                           - 8.8.8.8
@@ -973,18 +973,18 @@ NETWORK_CONFIGS = {
                 - {'type': 'dhcp6'}
         """).rstrip(' '),
     },
-    'v4_and_v6_static': {
+    'v4_and_v6_none': {
         'expected_eni': textwrap.dedent("""\
             auto lo
             iface lo inet loopback
 
             auto iface0
-            iface iface0 inet static
+            iface iface0 inet none
                 address 192.168.14.2/24
                 mtu 9000
 
             # control-alias iface0
-            iface iface0 inet6 static
+            iface iface0 inet6 none
                 address 2001:1::1/64
                 mtu 1500
         """).rstrip(' '),
@@ -1006,10 +1006,10 @@ NETWORK_CONFIGS = {
                 name: 'iface0'
                 mtu: 8999
                 subnets:
-                  - type: static
+                  - type: none
                     address: 192.168.14.2/24
                     mtu: 9000
-                  - type: static
+                  - type: none
                     address: 2001:1::1/64
                     mtu: 1500
         """).rstrip(' '),
@@ -1320,7 +1320,7 @@ iface eth4 inet manual
 iface eth5 inet dhcp
 
 auto ib0
-iface ib0 inet static
+iface ib0 inet none
     address 192.168.200.7/24
     mtu 9000
     hwaddress a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
@@ -1334,7 +1334,7 @@ iface bond0 inet6 dhcp
     hwaddress aa:bb:cc:dd:ee:ff
 
 auto br0
-iface br0 inet static
+iface br0 inet none
     address 192.168.14.2/24
     bridge_ageing 250
     bridge_bridgeprio 22
@@ -1353,7 +1353,7 @@ iface br0 inet static
     hwaddress bb:bb:bb:bb:bb:aa
 
 # control-alias br0
-iface br0 inet6 static
+iface br0 inet6 none
     address 2001:1::1/64
     post-up route add -A inet6 default gw 2001:4800:78ff:1b::1 || true
     pre-down route del -A inet6 default gw 2001:4800:78ff:1b::1 || true
@@ -1364,7 +1364,7 @@ iface bond0.200 inet dhcp
     vlan_id 200
 
 auto eth0.101
-iface eth0.101 inet static
+iface eth0.101 inet none
     address 192.168.0.2/24
     dns-nameservers 192.168.0.10 10.23.23.134
     dns-search barley.maas sacchromyces.maas brettanomyces.maas
@@ -1375,7 +1375,7 @@ iface eth0.101 inet static
     vlan_id 101
 
 # control-alias eth0.101
-iface eth0.101 inet static
+iface eth0.101 inet none
     address 192.168.2.10/24
 
 post-up route add -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
@@ -1657,7 +1657,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                   mac_address: aa:bb:cc:dd:ee:11
                   mtu: 1500
                   subnets:
-                    - type: static
+                    - type: none
                       # When 'mtu' matches device-level mtu, no warnings
                       mtu: 1500
                       address: 192.168.0.2/24
@@ -1669,7 +1669,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                         - barley.maas
                         - sacchromyces.maas
                         - brettanomyces.maas
-                    - type: static
+                    - type: none
                       address: 192.168.2.10/24
                 # Bond.
                 - type: bond
@@ -1699,7 +1699,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                   mac_address: >-
                     a0:00:02:20:fe:80:00:00:00:00:00:00:ec:0d:9a:03:00:15:e2:c1
                   subnets:
-                      - type: static
+                      - type: none
                         address: 192.168.200.7/24
                         mtu: 9000
                 # A bridge.
@@ -1738,9 +1738,9 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                         - 1 eth3
                         - 2 eth4
                   subnets:
-                      - type: static
+                      - type: none
                         address: 192.168.14.2/24
-                      - type: static
+                      - type: none
                         address: 2001:1::1/64 # default to /64
                         routes:
                           - gateway: 2001:4800:78ff:1b::1
@@ -1793,16 +1793,16 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                   bond-primary: bond0s0
                   bond-primary-reselect: always
                 subnets:
-                  - type: static
+                  - type: none
                     address: 192.168.0.2/24
                     gateway: 192.168.0.1
                     routes:
                      - gateway: 192.168.0.3
                        netmask: 255.255.255.0
                        network: 10.1.3.0
-                  - type: static
+                  - type: none
                     address: 192.168.1.2/24
-                  - type: static
+                  - type: none
                     address: 2001:1::1/92
                     routes:
                         - gateway: 2001:67c:1562:1
@@ -1887,7 +1887,7 @@ iface bond0s1 inet manual
     bond_miimon 100
 
 auto bond0
-iface bond0 inet static
+iface bond0 inet none
     address 192.168.0.2/24
     gateway 192.168.0.1
     bond-downdelay 10
@@ -1906,11 +1906,11 @@ iface bond0 inet static
     pre-down route del -net 10.1.3.0/24 gw 192.168.0.3 || true
 
 # control-alias bond0
-iface bond0 inet static
+iface bond0 inet none
     address 192.168.1.2/24
 
 # control-alias bond0
-iface bond0 inet6 static
+iface bond0 inet6 none
     address 2001:1::1/92
     post-up route add -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 || true
     pre-down route del -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 || true
@@ -2144,12 +2144,12 @@ iface bond0 inet6 static
                 vlan_link: en0
                 vlan_id: 99
                 subnets:
-                  - type: static
+                  - type: none
                     address: '192.168.2.2/24'
-                  - type: static
+                  - type: none
                     address: '192.168.1.2/24'
                     gateway: 192.168.1.1
-                  - type: static
+                  - type: none
                     address: 2001:1::bbbb/96
                     routes:
                      - gateway: 2001:1::1
@@ -2197,13 +2197,13 @@ iface bond0 inet6 static
                 name: eth0
                 mac_address: "52:54:00:12:34:00"
                 subnets:
-                  - type: static
+                  - type: none
                     address: 2001:1::100/96
               - type: physical
                 name: eth1
                 mac_address: "52:54:00:12:34:01"
                 subnets:
-                  - type: static
+                  - type: none
                     address: 2001:1::101/96
               - type: bridge
                 name: br0
@@ -2214,7 +2214,7 @@ iface bond0 inet6 static
                   bridge_stp: 0
                   bridge_bridgeprio: 22
                 subnets:
-                  - type: static
+                  - type: none
                     address: 192.168.2.2/24"""),
         'expected_sysconfig': {
             'ifcfg-br0': textwrap.dedent("""\
@@ -2268,7 +2268,7 @@ iface bond0 inet6 static
                 name: eth0
                 mac_address: "52:54:00:12:34:00"
                 subnets:
-                  - type: static
+                  - type: none
                     address: 192.168.1.2/24
                     control: manual
               - type: physical
@@ -2289,7 +2289,7 @@ iface bond0 inet6 static
             iface lo inet loopback
 
             # control-manual eth0
-            iface eth0 inet static
+            iface eth0 inet none
                 address 192.168.1.2/24
 
             auto eth1
@@ -2375,14 +2375,14 @@ CONFIG_V1_SIMPLE_SUBNET = {
                 'subnets': [{'address': '10.0.2.15',
                              'gateway': '10.0.2.2',
                              'netmask': '255.255.255.0',
-                             'type': 'static'}],
+                             'type': 'none'}],
                 'type': 'physical'}]}
 
 CONFIG_V1_MULTI_IFACE = {
     'version': 1,
     'config': [{'type': 'physical',
                 'mtu': 1500,
-                'subnets': [{'type': 'static',
+                'subnets': [{'type': 'none',
                              'netmask': '255.255.240.0',
                              'routes': [{'netmask': '0.0.0.0',
                                          'network': '0.0.0.0',
@@ -3011,8 +3011,8 @@ USERCTL=no
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_v4_and_v6_static_config(self):
-        entry = NETWORK_CONFIGS['v4_and_v6_static']
+    def test_v4_and_v6_none_config(self):
+        entry = NETWORK_CONFIGS['v4_and_v6_none']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
@@ -3597,8 +3597,8 @@ USERCTL=no
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
-    def test_v4_and_v6_static_config(self):
-        entry = NETWORK_CONFIGS['v4_and_v6_static']
+    def test_v4_and_v6_none_config(self):
+        entry = NETWORK_CONFIGS['v4_and_v6_none']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
@@ -3908,14 +3908,14 @@ class TestCmdlineConfigParsing(CiTestCase):
         found = cmdline._klibc_to_config_entry(DHCP6_CONTENT_1)
         self.assertEqual(found, ('eno1', DHCP6_EXPECTED_1))
 
-    def test_cmdline_convert_static(self):
-        found = cmdline._klibc_to_config_entry(STATIC_CONTENT_1)
-        self.assertEqual(found, ('eth1', STATIC_EXPECTED_1))
+    def test_cmdline_convert_none(self):
+        found = cmdline._klibc_to_config_entry(none_CONTENT_1)
+        self.assertEqual(found, ('eth1', none_EXPECTED_1))
 
     def test_config_from_cmdline_net_cfg(self):
         files = []
         pairs = (('net-eth0.cfg', DHCP_CONTENT_1),
-                 ('net-eth1.cfg', STATIC_CONTENT_1))
+                 ('net-eth1.cfg', none_CONTENT_1))
 
         macs = {'eth1': 'b8:ae:ed:75:ff:2b',
                 'eth0': 'b8:ae:ed:75:ff:2a'}
@@ -3923,10 +3923,10 @@ class TestCmdlineConfigParsing(CiTestCase):
         dhcp = copy.deepcopy(DHCP_EXPECTED_1)
         dhcp['mac_address'] = macs['eth0']
 
-        static = copy.deepcopy(STATIC_EXPECTED_1)
-        static['mac_address'] = macs['eth1']
+        none = copy.deepcopy(none_EXPECTED_1)
+        none['mac_address'] = macs['eth1']
 
-        expected = {'version': 1, 'config': [dhcp, static]}
+        expected = {'version': 1, 'config': [dhcp, none]}
         with temp_utils.tempdir() as tmpd:
             for fname, content in pairs:
                 fp = os.path.join(tmpd, fname)
@@ -4179,8 +4179,8 @@ class TestNetplanRoundTrip(CiTestCase):
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
-    def testsimple_render_v4_and_v6_static(self):
-        entry = NETWORK_CONFIGS['v4_and_v6_static']
+    def testsimple_render_v4_and_v6_none(self):
+        entry = NETWORK_CONFIGS['v4_and_v6_none']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
             entry['expected_netplan'].splitlines(),
@@ -4356,8 +4356,8 @@ class TestEniRoundTrip(CiTestCase):
             entry['expected_eni'].splitlines(),
             files['/etc/network/interfaces'].splitlines())
 
-    def testsimple_render_v4_and_v6_static(self):
-        entry = NETWORK_CONFIGS['v4_and_v6_static']
+    def testsimple_render_v4_and_v6_none(self):
+        entry = NETWORK_CONFIGS['v4_and_v6_none']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),
@@ -4421,7 +4421,7 @@ class TestEniRoundTrip(CiTestCase):
              'subnets': [{
                  'address': '172.23.31.42/26',
                  'dns_nameservers': [], 'gateway': '172.23.31.2',
-                 'type': 'static'}]},
+                 'type': 'none'}]},
             {'type': 'route', 'id': 4,
              'metric': 0, 'destination': '10.0.0.0/12',
              'gateway': '172.23.31.1'},
@@ -4439,7 +4439,7 @@ class TestEniRoundTrip(CiTestCase):
             'auto lo',
             'iface lo inet loopback',
             'auto eth0',
-            'iface eth0 inet static',
+            'iface eth0 inet none',
             '    address 172.23.31.42/26',
             '    gateway 172.23.31.2',
             ('post-up route add -net 10.0.0.0/12 gw '
@@ -4460,7 +4460,7 @@ class TestEniRoundTrip(CiTestCase):
         self.assertEqual(
             expected, [line for line in found if line])
 
-    def test_ipv6_static_routes(self):
+    def test_ipv6_none_routes(self):
         # as reported in bug 1818669
         conf = [
             {'name': 'eno3', 'type': 'physical',
@@ -4469,7 +4469,7 @@ class TestEniRoundTrip(CiTestCase):
                  'dns_nameservers': ['fd00:2::15'],
                  'gateway': 'fd00::1',
                  'ipv6': True,
-                 'type': 'static',
+                 'type': 'none',
                  'routes': [{'netmask': '32',
                              'network': 'fd00:12::',
                              'gateway': 'fd00::2'},
@@ -4493,7 +4493,7 @@ class TestEniRoundTrip(CiTestCase):
             'auto lo',
             'iface lo inet loopback',
             'auto eno3',
-            'iface eno3 inet6 static',
+            'iface eno3 inet6 none',
             '    address fd00::12/64',
             '    dns-nameservers fd00:2::15',
             '    gateway fd00::1',
