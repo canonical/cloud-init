@@ -83,9 +83,6 @@ def get_parser():
     parser.add_argument(
         '-v', '--verbose', required=False, default=False, action='store_true',
         help=('Print all actions.'))
-    parser.add_argument(
-        '--push-remote', required=False, dest='pushremote',
-        help=('QA-only provide remote name into which you want to push'))
     return parser
 
 
@@ -122,7 +119,12 @@ def add_lp_and_github_remotes(lp_user, gh_user):
             " LP repo".format(lp_user))
         lp_remote_name = 'launchpad-{}'.format(lp_user)
         subp(['git', 'remote', 'add', lp_remote_name, lp_remote])
-    subp(['git', 'fetch', lp_remote_name])
+    try:
+        subp(['git', 'fetch', lp_remote_name])
+    except:
+        log("launchpad: Pushing to ensure LP repo exists")
+        subp(['git', 'push', lp_remote_name, 'master:master'])
+        subp(['git', 'fetch', lp_remote_name])
     if not gh_remote_name:
         log("github: Creating git remote github-{} to point at your"
             " GH repo".format(gh_user))
@@ -184,7 +186,7 @@ def main():
         cleanup_repo_dir = False
     cwd = os.getcwd()
     os.chdir(repo_dir)
-    log("Sycing master branch with upstream")
+    log("Syncing master branch with upstream")
     subp(['git', 'checkout', 'master'])
     subp(['git', 'pull'])
     try:

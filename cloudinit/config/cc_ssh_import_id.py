@@ -9,9 +9,9 @@
 """
 SSH Import Id
 -------------
-**Summary:** import ssh id
+**Summary:** import SSH id
 
-This module imports ssh keys from either a public keyserver, usually launchpad
+This module imports SSH keys from either a public keyserver, usually launchpad
 or github using ``ssh-import-id``. Keys are referenced by the username they are
 associated with on the keyserver. The keyserver can be specified by prepending
 either ``lp:`` for launchpad or ``gh:`` for github to the username.
@@ -98,12 +98,12 @@ def import_ssh_ids(ids, user, log):
         raise exc
 
     cmd = ["sudo", "-Hu", user, "ssh-import-id"] + ids
-    log.debug("Importing ssh ids for user %s.", user)
+    log.debug("Importing SSH ids for user %s.", user)
 
     try:
         util.subp(cmd, capture=False)
     except util.ProcessExecutionError as exc:
-        util.logexc(log, "Failed to run command to import %s ssh ids", user)
+        util.logexc(log, "Failed to run command to import %s SSH ids", user)
         raise exc
 
 # vi: ts=4 expandtab
