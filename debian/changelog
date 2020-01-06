@@ -1,3 +1,24 @@
+cloud-init (19.4-16-gf8950d63-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Add support for the amazon variant in cloud.cfg.tmpl (#119)
+      [Frederick Lefebvre]
+    - ci: remove Python 2.7 from CI runs (#137)
+    - modules: drop cc_snap_config config module (#134)
+    - migrate-lp-user-to-github: ensure Launchpad repo exists (#136)
+    - docs: add initial troubleshooting to FAQ (#104) [Joshua Powers]
+    - doc: update cc_set_hostname frequency and descrip (#109)
+      [Joshua Powers] (LP: #1827021)
+    - freebsd: introduce the freebsd renderer (#61) [Gonéri Le Bouder]
+    - cc_snappy: remove deprecated module (#127)
+    - HACKING.rst: clarify that everyone needs to do the LP->GH dance (#130)
+    - freebsd: cloudinit service requires devd (#132) [Gonéri Le Bouder]
+    - cloud-init: fix capitalisation of SSH (#126)
+    - doc: update cc_ssh clarify host and auth keys
+      [Joshua Powers] (LP: #1827021)
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 06 Jan 2020 09:52:22 -0700
+
 cloud-init (19.4-1-g8c96cbc1-0ubuntu1) focal; urgency=medium
 
   * debian/cloud-init.templates: enable RbxCloud: HypeOne and Rootbox detection
