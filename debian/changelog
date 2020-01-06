@@ -1,4 +1,4 @@
-cloud-init (19.4-16-gf8950d63-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.4-16-gf8950d63-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
     - Add support for the amazon variant in cloud.cfg.tmpl (#119)
