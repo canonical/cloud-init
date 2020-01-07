@@ -61,6 +61,10 @@ class SchemaValidationError(ValueError):
 
 
 def is_schema_byte_string(checker, instance):
+    """TYPE_CHECKER override allowing bytes for string type
+
+    For jsonschema v. 3.0.0+
+    """
     try:
         from jsonschema import Draft4Validator
     except ImportError:
@@ -84,16 +88,25 @@ def validate_cloudconfig_schema(config, schema, strict=False):
     """
     try:
         from jsonschema import Draft4Validator, FormatChecker
-        from jsonschema.validators import extend
+        from jsonschema.validators import create, extend
     except ImportError:
         logging.debug(
             'Ignoring schema validation. python-jsonschema is not present')
         return
 
     # Add binary type checker for cloud-init schema
-    type_checker = Draft4Validator.TYPE_CHECKER.redefine(
-        'string', is_schema_byte_string)
-    cloudinitValidator = extend(Draft4Validator, type_checker=type_checker)
+    if hasattr(Draft4Validator, 'TYPE_CHECKER'):  # jsonschema 3.0+
+        type_checker = Draft4Validator.TYPE_CHECKER.redefine(
+            'string', is_schema_byte_string)
+        cloudinitValidator = extend(Draft4Validator, type_checker=type_checker)
+    else:  # jsonschema 2.6 workaround
+        types = Draft4Validator.DEFAULT_TYPES
+        types['string'] = (str, bytes)  # Allow bytes as well as string
+        cloudinitValidator = create(
+            meta_schema=Draft4Validator.META_SCHEMA,
+            validators=Draft4Validator.VALIDATORS,
+            version="draft4",
+            default_types=types)
     validator = cloudinitValidator(schema, format_checker=FormatChecker())
     errors = ()
     for error in sorted(validator.iter_errors(config), key=lambda e: e.path):
