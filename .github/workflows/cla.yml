@@ -9,7 +9,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - run: |
-        echo "::set-env name=CLA_SIGNED::$(grep -q ${{ github.actor }} ./tools/.lp-to-git-user && echo CLA signed || echo CLA not signed)"
+        echo "::set-env name=CLA_SIGNED::$(grep -q ': \"${{ github.actor }}\"' ./tools/.lp-to-git-user && echo CLA signed || echo CLA not signed)"
     - name: Add CLA label
       run: |
         # POST a new label to this issue
