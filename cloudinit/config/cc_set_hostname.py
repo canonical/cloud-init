@@ -21,9 +21,17 @@ key, and the fqdn of the cloud wil be used. If a fqdn specified with the
 the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set, ``fqdn``
 will be used.
 
+This module will run in the init-local stage before networking is configured
+if the hostname is set by metadata or user data on the local system.
+
+This will occur on datasources like nocloud and ovf where metadata and user
+data are available locally. This ensures that the desired hostname is applied
+before any DHCP requests are preformed on these platforms where dynamic DNS is
+based on initial hostname.
+
 **Internal name:** ``cc_set_hostname``
 
-**Module frequency:** per instance
+**Module frequency:** per always
 
 **Supported distros:** all
 

@@ -5,4 +5,4 @@
 #
 # Default: false
 # Aliases: apt_update
-package_update: false
+package_update: true
