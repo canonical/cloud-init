@@ -523,7 +523,7 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(
             ('opensuse-tumbleweed', '20180920', platform.machine()), dist)
 
-    @mock.patch('platform.dist')
+    @mock.patch('platform.dist', create=True)
     def test_get_linux_distro_no_data(self, m_platform_dist, m_path_exists):
         """Verify we get no information if os-release does not exist"""
         m_platform_dist.return_value = ('', '', '')
@@ -531,7 +531,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(('', '', ''), dist)
 
-    @mock.patch('platform.dist')
+    @mock.patch('platform.dist', create=True)
     def test_get_linux_distro_no_impl(self, m_platform_dist, m_path_exists):
         """Verify we get an empty tuple when no information exists and
         Exceptions are not propagated"""
@@ -540,7 +540,7 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(('', '', ''), dist)
 
-    @mock.patch('platform.dist')
+    @mock.patch('platform.dist', create=True)
     def test_get_linux_distro_plat_data(self, m_platform_dist, m_path_exists):
         """Verify we get the correct platform information"""
         m_platform_dist.return_value = ('foo', '1.1', 'aarch64')

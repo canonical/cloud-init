@@ -635,8 +635,8 @@ def get_linux_distro():
     else:
         dist = ('', '', '')
         try:
-            # Will be removed in 3.7
-            dist = platform.dist()  # pylint: disable=W1505
+            # Was removed in 3.8
+            dist = platform.dist()  # pylint: disable=W1505,E1101
         except Exception:
             pass
         finally:
