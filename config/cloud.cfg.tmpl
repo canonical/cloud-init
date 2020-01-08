@@ -21,8 +21,11 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{% if variant in ["centos", "fedora", "rhel"] %}
+{% if variant in ["amazon", "centos", "fedora", "rhel"] %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
+{% if variant == "amazon" %}
+resize_rootfs: noblock
+{% endif %}
 resize_rootfs_tmp: /dev
 ssh_pwauth:   0
 
@@ -41,6 +44,13 @@ datasource_list: ['NoCloud', 'ConfigDrive', 'Azure', 'OpenStack', 'Ec2']
 #      metadata_urls: [ 'blah.com' ]
 #      timeout: 5 # (defaults to 50 seconds)
 #      max_wait: 10 # (defaults to 120 seconds)
+
+
+{% if variant == "amazon" %}
+# Amazon Linux relies on ec2-net-utils for network configuration
+network:
+  config: disabled
+{% endif %}
 
 # The modules that run in the 'init' stage
 cloud_init_modules:
@@ -71,7 +81,6 @@ cloud_config_modules:
 # this can be used by upstart jobs for 'start on cloud-config'.
  - emit_upstart
  - snap
- - snap_config  # DEPRECATED- Drop in version 18.2
 {% endif %}
  - ssh-import-id
  - locale
@@ -103,9 +112,6 @@ cloud_config_modules:
 
 # The modules that run in the 'final' stage
 cloud_final_modules:
-{% if variant in ["ubuntu", "unknown", "debian"] %}
- - snappy  # DEPRECATED- Drop in version 18.2
-{% endif %}
  - package-update-upgrade-install
 {% if variant in ["ubuntu", "unknown", "debian"] %}
  - fan
@@ -137,7 +143,7 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["arch", "centos", "debian", "fedora", "freebsd", "rhel", "suse", "ubuntu"] %}
+{% if variant in ["amazon", "arch", "centos", "debian", "fedora", "freebsd", "rhel", "suse", "ubuntu"] %}
    distro: {{ variant }}
 {% else %}
    # Unknown/fallback distro.
@@ -185,12 +191,18 @@ system_info:
          primary: http://ports.ubuntu.com/ubuntu-ports
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
-{% elif variant in ["arch", "centos", "fedora", "rhel", "suse"] %}
+{% elif variant in ["amazon", "arch", "centos", "fedora", "rhel", "suse"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
+{% if variant == "amazon" %}
+     name: ec2-user
+     lock_passwd: True
+     gecos: EC2 Default User
+{% else %}
      name: {{ variant }}
      lock_passwd: True
      gecos: {{ variant }} Cloud User
+{% endif %}
 {% if variant == "suse" %}
      groups: [cdrom, users]
 {% elif variant == "arch" %}

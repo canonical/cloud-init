@@ -1,0 +1,31 @@
+.TH CLOUD-ID 1
+
+.SH NAME
+cloud-id \- Report the canonical cloud-id for this instance
+
+.SH SYNOPSIS
+.BR "cloud-id" " [-h] [-j] [-l] [-i <INSTANCE_DATA>]"
+
+.SH OPTIONS
+.TP
+.B "-h, --help"
+Show help message and exit
+
+.TP
+.B "-j, --json"
+Report all standardized cloud-id information as json
+
+.TP
+.B "-l, --long"
+Report extended cloud-id information as tab-delimited string
+
+.TP
+.BR "-i <data>, --instance-data <data>"
+Path to instance-data.json file. Default is
+/run/cloud-init/instance-data.json
+
+.SH COPYRIGHT
+Copyright (C) 2020 Canonical Ltd. License GPL-3 or Apache-2.0
+
+.SH SEE ALSO
+Full documentation at: <https://cloudinit.readthedocs.io>

@@ -83,7 +83,7 @@ creates 6 boot scenarios.
 
     There is no information available to identify this scenario.
 
-    The user will be able to ssh in as as root with their public keys that
+    The user will be able to SSH in as as root with their public keys that
     have been installed into /root/ssh/.authorized_keys
     during the provisioning stage.
 

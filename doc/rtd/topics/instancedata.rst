@@ -165,7 +165,7 @@ Examples output:
 
 v1.public_ssh_keys
 ------------------
-A list of ssh keys provided to the instance by the datasource metadata.
+A list of SSH keys provided to the instance by the datasource metadata.
 
 Examples output:
 

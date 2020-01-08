@@ -1,10 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from mock import patch
+from collections import namedtuple
 
 from cloudinit import ssh_util
 from cloudinit.tests import helpers as test_helpers
 from cloudinit import util
+
+# https://stackoverflow.com/questions/11351032/
+FakePwEnt = namedtuple(
+    'FakePwEnt',
+    ['pw_dir', 'pw_gecos', 'pw_name', 'pw_passwd', 'pw_shell', 'pwd_uid'])
+FakePwEnt.__new__.__defaults__ = tuple(
+    "UNSET_%s" % n for n in FakePwEnt._fields)
 
 
 VALID_CONTENT = {
@@ -325,5 +333,80 @@ class TestUpdateSshConfig(test_helpers.CiTestCase):
         self.assertEqual(self.cfgdata, util.load_file(mycfg))
         m_write_file.assert_not_called()
 
+
+class TestBasicAuthorizedKeyParse(test_helpers.CiTestCase):
+    def test_user(self):
+        self.assertEqual(
+            ["/opt/bobby/keys"],
+            ssh_util.render_authorizedkeysfile_paths(
+                "/opt/%u/keys", "/home/bobby", "bobby"))
+
+    def test_multiple(self):
+        self.assertEqual(
+            ["/keys/path1", "/keys/path2"],
+            ssh_util.render_authorizedkeysfile_paths(
+                "/keys/path1 /keys/path2", "/home/bobby", "bobby"))
+
+    def test_relative(self):
+        self.assertEqual(
+            ["/home/bobby/.secret/keys"],
+            ssh_util.render_authorizedkeysfile_paths(
+                ".secret/keys", "/home/bobby", "bobby"))
+
+    def test_home(self):
+        self.assertEqual(
+            ["/homedirs/bobby/.keys"],
+            ssh_util.render_authorizedkeysfile_paths(
+                "%h/.keys", "/homedirs/bobby", "bobby"))
+
+
+class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
+
+    @patch("cloudinit.ssh_util.pwd.getpwnam")
+    def test_multiple_authorizedkeys_file_order1(self, m_getpwnam):
+        fpw = FakePwEnt(pw_name='bobby', pw_dir='/home2/bobby')
+        m_getpwnam.return_value = fpw
+        authorized_keys = self.tmp_path('authorized_keys')
+        util.write_file(authorized_keys, VALID_CONTENT['rsa'])
+
+        user_keys = self.tmp_path('user_keys')
+        util.write_file(user_keys, VALID_CONTENT['dsa'])
+
+        sshd_config = self.tmp_path('sshd_config')
+        util.write_file(
+                sshd_config,
+                "AuthorizedKeysFile %s %s" % (authorized_keys, user_keys))
+
+        (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
+                fpw.pw_name, sshd_config)
+        content = ssh_util.update_authorized_keys(
+                auth_key_entries, [])
+
+        self.assertEqual("%s/.ssh/authorized_keys" % fpw.pw_dir, auth_key_fn)
+        self.assertTrue(VALID_CONTENT['rsa'] in content)
+        self.assertTrue(VALID_CONTENT['dsa'] in content)
+
+    @patch("cloudinit.ssh_util.pwd.getpwnam")
+    def test_multiple_authorizedkeys_file_order2(self, m_getpwnam):
+        fpw = FakePwEnt(pw_name='suzie', pw_dir='/home/suzie')
+        m_getpwnam.return_value = fpw
+        authorized_keys = self.tmp_path('authorized_keys')
+        util.write_file(authorized_keys, VALID_CONTENT['rsa'])
+
+        user_keys = self.tmp_path('user_keys')
+        util.write_file(user_keys, VALID_CONTENT['dsa'])
+
+        sshd_config = self.tmp_path('sshd_config')
+        util.write_file(
+                sshd_config,
+                "AuthorizedKeysFile %s %s" % (authorized_keys, user_keys))
+
+        (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
+                fpw.pw_name, sshd_config)
+        content = ssh_util.update_authorized_keys(auth_key_entries, [])
+
+        self.assertEqual("%s/.ssh/authorized_keys" % fpw.pw_dir, auth_key_fn)
+        self.assertTrue(VALID_CONTENT['rsa'] in content)
+        self.assertTrue(VALID_CONTENT['dsa'] in content)
 
 # vi: ts=4 expandtab

@@ -986,13 +986,6 @@ def load_yaml(blob, default=None, allowed=(dict,)):
 
 
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
-    if base.startswith("/"):
-        base = "file://%s" % base
-
-    # default retries for file is 0. for network is 10
-    if base.startswith("file://"):
-        retries = file_retries
-
     if base.find("%s") >= 0:
         ud_url = base % ("user-data" + ext)
         md_url = base % ("meta-data" + ext)
@@ -1000,14 +993,14 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
-    md_resp = url_helper.read_file_or_url(md_url, timeout, retries,
-                                          file_retries)
+    md_resp = url_helper.read_file_or_url(md_url, timeout=timeout,
+                                          retries=retries)
     md = None
     if md_resp.ok():
         md = load_yaml(decode_binary(md_resp.contents), default={})
 
-    ud_resp = url_helper.read_file_or_url(ud_url, timeout, retries,
-                                          file_retries)
+    ud_resp = url_helper.read_file_or_url(ud_url, timeout=timeout,
+                                          retries=retries)
     ud = None
     if ud_resp.ok():
         ud = ud_resp.contents

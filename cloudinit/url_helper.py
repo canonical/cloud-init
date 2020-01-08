@@ -81,14 +81,19 @@ def combine_url(base, *add_ons):
     return url
 
 
-def read_file_or_url(url, timeout=5, retries=10,
-                     headers=None, data=None, sec_between=1, ssl_details=None,
-                     headers_cb=None, exception_cb=None):
+def read_file_or_url(url, **kwargs):
+    """Wrapper function around readurl to allow passing a file path as url.
+
+    When url is not a local file path, passthrough any kwargs to readurl.
+
+    In the case of parameter passthrough to readurl, default values for some
+    parameters. See: call-signature of readurl in this module for param docs.
+    """
     url = url.lstrip()
     if url.startswith("/"):
         url = "file://%s" % url
     if url.lower().startswith("file://"):
-        if data:
+        if kwargs.get("data"):
             LOG.warning("Unable to post data to file resource %s", url)
         file_path = url[len("file://"):]
         try:
@@ -101,10 +106,7 @@ def read_file_or_url(url, timeout=5, retries=10,
             raise UrlError(cause=e, code=code, headers=None, url=url)
         return FileResponse(file_path, contents=contents)
     else:
-        return readurl(url, timeout=timeout, retries=retries,
-                       headers_cb=headers_cb, data=data,
-                       sec_between=sec_between, ssl_details=ssl_details,
-                       exception_cb=exception_cb)
+        return readurl(url, **kwargs)
 
 
 # Made to have same accessors as UrlResponse so that the
@@ -201,6 +203,35 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             check_status=True, allow_redirects=True, exception_cb=None,
             session=None, infinite=False, log_req_resp=True,
             request_method=None):
+    """Wrapper around requests.Session to read the url and retry if necessary
+
+    :param url: Mandatory url to request.
+    :param data: Optional form data to post the URL. Will set request_method
+        to 'POST' if present.
+    :param timeout: Timeout in seconds to wait for a response
+    :param retries: Number of times to retry on exception if exception_cb is
+        None or exception_cb returns True for the exception caught. Default is
+        to fail with 0 retries on exception.
+    :param sec_between: Default 1: amount of seconds passed to time.sleep
+        between retries. None or -1 means don't sleep.
+    :param headers: Optional dict of headers to send during request
+    :param headers_cb: Optional callable returning a dict of values to send as
+        headers during request
+    :param ssl_details: Optional dict providing key_file, ca_certs, and
+        cert_file keys for use on in ssl connections.
+    :param check_status: Optional boolean set True to raise when HTTPError
+        occurs. Default: True.
+    :param allow_redirects: Optional boolean passed straight to Session.request
+        as 'allow_redirects'. Default: True.
+    :param exception_cb: Optional callable which accepts the params
+        msg and exception and returns a boolean True if retries are permitted.
+    :param session: Optional exiting requests.Session instance to reuse.
+    :param infinite: Bool, set True to retry indefinitely. Default: False.
+    :param log_req_resp: Set False to turn off verbose debug messages.
+    :param request_method: String passed as 'method' to Session.request.
+        Typically GET, or POST. Default: POST if data is provided, GET
+        otherwise.
+    """
     url = _cleanurl(url)
     req_args = {
         'url': url,
