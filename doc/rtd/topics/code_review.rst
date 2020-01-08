@@ -19,7 +19,7 @@ This process has the following goals:
 
 * Ensure that cloud-init community members are receiving code reviews
   in a timely fashion
-* Minimise the time the cloud-init core developers have to spend on the
+* Minimize the time the cloud-init core developers have to spend on the
   parts of the code review process which aren't actual code review
 
 Roles
@@ -54,7 +54,7 @@ should get a PR into good enough shape that it is worth **the
 Committers** spending time reviewing it.  Specifically, they are
 responsible for getting to a point where the continuous integration
 (CI) testing in Travis is passing.  Once a PR is passing CI, it moves
-into the Review phase.
+into the :ref:`Review phase`.
 
 These are the steps that comprise the opening phase:
 
@@ -74,7 +74,7 @@ These are the steps that comprise the opening phase:
       can ask in ``#cloud-init`` on the Freenode IRC network.
 
    CI passes
-      Move on to the Review phase.
+      Move on to the :ref:`Review phase`.
 
 Review Phase
 ============
@@ -166,5 +166,5 @@ will be closed after a further 7 days of inactivity.
 
 These closes are not considered permanent, and the closing message
 should reflect this for the **Proposer**. However, if a PR is reopened,
-it should effectively enter the Opening phase again, as it may need
+it should effectively enter the :ref:`Opening phase` again, as it may need
 some work done to get CI passing again.
