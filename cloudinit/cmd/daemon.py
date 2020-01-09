@@ -10,6 +10,7 @@ import socket
 import sys
 
 from cloudinit.cmd.main import main as cimain
+from cloudinit import log as cilog
 
 NAME = 'daemon'
 CI_SOCKET = "/run/cloud-init/unix.socket"
@@ -79,6 +80,8 @@ def handle_args(name, args):
 
                 try:
                     cimain(sysv_args=sysv_args)
+                    # reset logging between stages
+                    cilog.resetLogging()
                 except Exception:
                     pass
                 completed.add(stage)
