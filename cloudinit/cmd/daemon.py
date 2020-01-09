@@ -71,7 +71,8 @@ def handle_args(name, args):
                 message = None
             if message:
                 command = message.get('command')
-                if not command:
+                if command not in expected:
+                    error('Skipping invalid command "%s"' % command)
                     continue
                 if command == 'local':
                     stage = 'local'
@@ -85,9 +86,6 @@ def handle_args(name, args):
                 elif command == 'final':
                     stage = 'final'
                     sysv_args = ['cloud-init', 'modules', '--mode=final']
-                else:
-                    error('Skipping invalid command "%s"' % command)
-                    continue
 
                 try:
                     cimain(sysv_args=sysv_args)
