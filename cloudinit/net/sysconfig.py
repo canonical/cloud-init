@@ -367,7 +367,7 @@ class Renderer(renderer.Renderer):
                 iface_cfg['IPV6_AUTOCONF'] = True
             elif subnet_type in ['dhcp4', 'dhcp']:
                 iface_cfg['BOOTPROTO'] = 'dhcp'
-            elif subnet_type == 'static':
+            elif subnet_type in ['static', 'static6']:
                 # grep BOOTPROTO sysconfig.txt -A2 | head -3
                 # BOOTPROTO=none|bootp|dhcp
                 # 'bootp' or 'dhcp' cause a DHCP client
@@ -419,7 +419,7 @@ class Renderer(renderer.Renderer):
                 continue
             elif subnet_type in IPV6_DYNAMIC_TYPES:
                 continue
-            elif subnet_type == 'static':
+            elif subnet_type in ['static', 'static6']:
                 if subnet_is_ipv6(subnet):
                     ipv6_index = ipv6_index + 1
                     ipv6_cidr = "%s/%s" % (subnet['address'], subnet['prefix'])
