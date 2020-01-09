@@ -77,6 +77,9 @@ def handle_args(name, args):
                 elif command == 'final':
                     stage = 'final'
                     sysv_args = ['cloud-init', 'modules', '--mode=final']
+                else:
+                    error('Skipping invalid command "%s"' % command)
+                    continue
 
                 try:
                     cimain(sysv_args=sysv_args)
