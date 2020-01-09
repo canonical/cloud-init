@@ -406,7 +406,7 @@ class Renderer(renderer.Renderer):
                 if flavor == 'suse' and subnet_type == 'dhcp4':
                     # Only IPv4 is DHCP, IPv6 may be static
                     iface_cfg['BOOTPROTO'] = 'dhcp4'
-            elif subnet_type == in ['static', 'static6']:
+            elif subnet_type in ['static', 'static6']:
                 # RH info
                 # grep BOOTPROTO sysconfig.txt -A2 | head -3
                 # BOOTPROTO=none|bootp|dhcp
@@ -425,7 +425,14 @@ class Renderer(renderer.Renderer):
                             'Network config: ignoring %s device-level mtu:%s'
                             ' because ipv4 subnet-level mtu:%s provided.',
                             iface_cfg.name, iface_cfg[mtu_key], subnet['mtu'])
-                    iface_cfg[mtu_key] = subnet['mtu']
+                    if subnet_is_ipv6(subnet):
+                        if flavor == 'suse':
+                            # TODO(rjschwei) rite mtu setting to /etc/sysctl.d/
+                            pass
+                        else:
+                            iface_cfg[mtu_key] = subnet['mtu']
+                    else:
+                        iface_cfg[mtu_key] = subnet['mtu']
             elif subnet_type == 'manual':
                 if flavor == 'suse':
                     LOG.debug('Unknown subnet type setting ', subnet_type)

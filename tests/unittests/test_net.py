@@ -993,15 +993,13 @@ NETWORK_CONFIGS = {
                     mtu: 1500
         """).rstrip(' '),
         'expected_sysconfig_opensuse': {
-            # TODO(rjschwei): what should MTU be, RHEL has 2 for IPv6 and
-            # IPv4 but SUSE only has 1, pick the smaller of the values?
             'ifcfg-iface0': textwrap.dedent("""\
                 BOOTPROTO=static
                 IPADDR=192.168.14.2
                 IPADDR6=2001:1::1/64
                 NETMASK=255.255.255.0
                 STARTMODE=auto
-                MTU=1500
+                MTU=9000
                 """),
         },
         'expected_sysconfig_rhel': {
