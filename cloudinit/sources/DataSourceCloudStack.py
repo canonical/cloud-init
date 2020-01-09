@@ -257,11 +257,8 @@ def get_vr_address():
                     dhcptok = words[2]
                     LOG.debug("Found DHCP identifier %s", dhcptok)
                     return dhcptok
-
-    # Try NetworkManager lease files format next...
-    with open(lease_file, "r") as fd:
-        for line in fd:
-            if "SERVER_ADDRESS" in line:
+            # Try NetworkManager lease files format next...
+            elif "SERVER_ADDRESS" in line:
                 words = line.strip().split("=")
                 if len(words) == 2:
                     dhcptok = words[1]
