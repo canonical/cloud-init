@@ -36,6 +36,14 @@ def DomainServer(addr):
             os.unlink(addr)
 
 
+@contextlib.contextmanager
+def accept(sock):
+    """contextmanager wrapper for working with socket.accept() connections."""
+    conn, addr = sock.accept()
+    yield conn, addr
+    conn.close()
+
+
 def log(stream, msg):
     stream.write(msg + '\n')
     stream.flush()
@@ -54,8 +62,8 @@ def handle_args(name, args):
         expected = set(['local', 'net', 'modules', 'final'])
         completed = set()
         while completed != expected:
-            conn, _ = sock.accept()
-            data = conn.recv(1024)
+            with accept(sock) as (conn, _):
+                data = conn.recv(1024)
             try:
                 message = json.loads(data.decode('utf-8'))
             except Exception as e:
@@ -89,7 +97,6 @@ def handle_args(name, args):
                     pass
                 completed.add(stage)
 
-            conn.close()
         info('Cloud-init daemon exiting')
     return 0
 
