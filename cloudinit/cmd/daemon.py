@@ -10,6 +10,7 @@ import socket
 import sys
 
 from cloudinit.cmd.main import main as cimain
+from cloudinit.cmd.status import (_get_status_details, STATUS_DONE)
 from cloudinit import log as cilog
 
 NAME = 'daemon'
@@ -57,11 +58,23 @@ def error(msg):
     log(sys.stderr, "ERROR: " + str(msg))
 
 
+def get_ci_paths():
+    from cloudinit.stages import Init
+    init = Init(ds_deps=[])
+    init.read_cfg()
+    return init.paths
+
+
+def ci_completed(paths):
+    status, _, _ = _get_status_details(paths)
+    return status == STATUS_DONE
+
+
 def handle_args(name, args):
+    ci_paths = get_ci_paths()
     with DomainServer(CI_SOCKET) as sock:
         expected = set(['local', 'net', 'modules', 'final'])
-        completed = set()
-        while completed != expected:
+        while not ci_completed(ci_paths):
             with accept(sock) as (conn, _):
                 data = conn.recv(1024)
             try:
@@ -88,12 +101,12 @@ def handle_args(name, args):
                     sysv_args = ['cloud-init', 'modules', '--mode=final']
 
                 try:
+                    info('Starting stage: %s' % stage)
                     cimain(sysv_args=sysv_args)
                     # reset logging between stages
                     cilog.resetLogging()
                 except Exception:
                     pass
-                completed.add(stage)
 
         info('Cloud-init daemon exiting')
     return 0
