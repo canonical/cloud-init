@@ -1845,9 +1845,7 @@ def uptime():
         else:
             method = 'ctypes'
             # This is the *BSD codepath
-            now = time.time()
-            bootup = boottime()
-            uptime_str = str(now - bootup)
+            uptime_str = str(time.time() - boottime())
 
     except Exception:
         logexc(LOG, "Unable to read uptime using method: %s" % method)
