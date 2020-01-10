@@ -15,14 +15,14 @@ jobs:
         # POST a new label to this issue
         curl --request POST \
         --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/labels \
-        --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+        --header 'authorization: token ${{ secrets.GITHUB_TOKEN }}' \
         --header 'content-type: application/json' \
         --data '{"labels": ["${{env.CLA_SIGNED}}"]}'
     - name: Remove CLA not signed label
       if: env.CLA_SIGNED == 'CLA signed'
       run: |
         curl --request DELETE \
-        --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+        --header 'authorization: token ${{ secrets.GITHUB_TOKEN }}' \
         --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/labels/CLA+not+signed
     - name: Comment about CLA signing
       if: env.CLA_SIGNED == 'CLA not signed'
@@ -30,6 +30,6 @@ jobs:
         # POST a comment directing submitter to sign the CLA
         curl --request POST \
         --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments \
-        --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+        --header 'authorization: token ${{ secrets.GITHUB_TOKEN }}' \
         --header 'content-type: application/json' \
         --data '{"body": "Hello ${{ github.actor }},\n\nThank you for your contribution to cloud-init.\n\nIn order for us to merge this pull request, you need\nto have signed the Contributor License Agreement (CLA).\nPlease ensure that you have signed the CLA by following our\nhacking guide at:\n\nhttps://cloudinit.readthedocs.io/en/latest/topics/hacking.html\n\nThanks,\nYour friendly cloud-init upstream\n"}'
