@@ -1,6 +1,8 @@
 name: Verify Contributor License Agreement
 
-on: [pull_request]
+on:
+  schedule:
+    - '*/5 * * * *'
 
 jobs:
   cla-validate:
