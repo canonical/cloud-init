@@ -2,7 +2,7 @@ name: Verify Contributor License Agreement
 
 on:
   schedule:
-    - '*/5 * * * *'
+    - cron: '*/5 * * * *'
 
 jobs:
   cla-validate:
