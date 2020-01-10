@@ -385,6 +385,7 @@ class Renderer(renderer.Renderer):
             elif subnet_type == 'ipv6_dhcpv6-stateless':
                 if flavor == 'suse':
                     iface_cfg['BOOTPROTO'] = 'dhcp6'
+                    iface_cfg['DHCLIENT6_MODE'] = 'info'
                 else:
                     iface_cfg['IPV6INIT'] = True
                     # Configure network settings using SLAAC from RAs and
@@ -396,7 +397,8 @@ class Renderer(renderer.Renderer):
                     iface_cfg['DHCPV6C_OPTIONS'] = '-S'
             elif subnet_type == 'ipv6_slaac':
                 if flavor == 'suse':
-                    LOG.debug('Unknown subnet type setting ', subnet_type)
+                    iface_cfg['BOOTPROTO'] = 'dhcp6'
+                    iface_cfg['DHCLIENT6_MODE'] = 'info'
                 else:
                     iface_cfg['IPV6INIT'] = True
                     # Configure network settings using SLAAC from RAs
@@ -427,7 +429,8 @@ class Renderer(renderer.Renderer):
                             iface_cfg.name, iface_cfg[mtu_key], subnet['mtu'])
                     if subnet_is_ipv6(subnet):
                         if flavor == 'suse':
-                            # TODO(rjschwei) rite mtu setting to /etc/sysctl.d/
+                            # TODO(rjschwei) write mtu setting to
+                            # /etc/sysctl.d/
                             pass
                         else:
                             iface_cfg[mtu_key] = subnet['mtu']
@@ -435,7 +438,7 @@ class Renderer(renderer.Renderer):
                         iface_cfg[mtu_key] = subnet['mtu']
             elif subnet_type == 'manual':
                 if flavor == 'suse':
-                    LOG.debug('Unknown subnet type setting ', subnet_type)
+                    LOG.debug('Unknown subnet type setting "%s"', subnet_type)
                 else:
                     # If the subnet has an MTU setting, then ONBOOT=True
                     # to apply the setting
