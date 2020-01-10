@@ -24,6 +24,9 @@ jobs:
         curl --request DELETE \
         --header 'authorization: token ${{ secrets.GITHUB_TOKEN }}' \
         --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/labels/CLA+not+signed
+        curl --request GET \
+        --header 'authorization: token ${{ secrets.GITHUB_TOKEN }}' \
+        --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments 
     - name: Comment about CLA signing
       if: env.CLA_SIGNED == 'CLA not signed'
       run: |
