@@ -406,8 +406,11 @@ class Renderer(renderer.Renderer):
             elif subnet_type in ['dhcp4', 'dhcp']:
                 iface_cfg['BOOTPROTO'] = 'dhcp'
                 if flavor == 'suse' and subnet_type == 'dhcp4':
-                    # Only IPv4 is DHCP, IPv6 may be static
-                    iface_cfg['BOOTPROTO'] = 'dhcp4'
+                    # If dhcp6 is already specified the user wants dhcp
+                    # for both protocols
+                    if iface_cfg['BOOTPROTO'] != 'dhcp6':
+                        # Only IPv4 is DHCP, IPv6 may be static
+                        iface_cfg['BOOTPROTO'] = 'dhcp4'
             elif subnet_type in ['static', 'static6']:
                 # RH info
                 # grep BOOTPROTO sysconfig.txt -A2 | head -3
