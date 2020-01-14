@@ -1,3 +1,26 @@
+cloud-init (19.4-33-gbb4131a2-0ubuntu1~19.10.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot. (LP: #1859725)
+    - Only use gpart if it is the BSD gpart (#131) [Conrad Hoffmann]
+    - freebsd: remove superflu exception mapping (#166) [Gonéri Le Bouder]
+    - ssh_auth_key_fingerprints_disable test: fix capitalization (#165)
+      [Paride Legovini]
+    - net: fix rendering of 'static6' in network config (#77)
+    - fixed minor bug with mkswap in cc_disk_setup.py (#143) [andreaf74]
+    - modules: drop cc_snap_config config module (#134)
+    - cc_snappy: remove deprecated module (#127)
+    - cloud-init: fix capitalisation of SSH (#126)
+    - rbxcloud: fix dsname in RbxCloud [Adam Dobrawy]
+    - apport: Add RbxCloud ds [Adam Dobrawy]
+    - settings: Add RbxCloud [Adam Dobrawy]
+    - cloudinit/netinfo: remove unused getgateway (#111)
+    - azure: avoid re-running cloud-init when instance-id is byte-swapped
+      (#84) [AOhassan]
+    - ds_identify: if /sys is not available use dmidecode (#42) [Igor Galić]
+    - network_state: handle empty v1 config (#45)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 14 Jan 2020 15:41:10 -0700
+
 cloud-init (19.3-41-gc4735dd3-0ubuntu1~19.10.1) eoan; urgency=medium
 
   * New upstream snapshot (LP: #1854872)
