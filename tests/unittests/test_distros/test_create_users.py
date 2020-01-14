@@ -206,7 +206,7 @@ class TestCreateUser(CiTestCase):
         user = 'foouser'
         self.dist.create_user(user, ssh_redirect_user='someuser')
         self.assertIn(
-            'WARNING: Unable to disable ssh logins for foouser given '
+            'WARNING: Unable to disable SSH logins for foouser given '
             'ssh_redirect_user: someuser. No cloud public-keys present.\n',
             self.logs.getvalue())
         m_setup_user_keys.assert_not_called()

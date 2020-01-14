@@ -307,6 +307,9 @@ def device_devid(devname):
 
 
 def get_devicelist():
+    if util.is_FreeBSD():
+        return list(get_interfaces_by_mac().values())
+
     try:
         devs = os.listdir(get_sys_class_path())
     except OSError as e:
@@ -329,6 +332,35 @@ def is_disabled_cfg(cfg):
 
 def find_fallback_nic(blacklist_drivers=None):
     """Return the name of the 'fallback' network device."""
+    if util.is_FreeBSD():
+        return find_fallback_nic_on_freebsd(blacklist_drivers)
+    else:
+        return find_fallback_nic_on_linux(blacklist_drivers)
+
+
+def find_fallback_nic_on_freebsd(blacklist_drivers=None):
+    """Return the name of the 'fallback' network device on FreeBSD.
+
+    @param blacklist_drivers: currently ignored
+    @return default interface, or None
+
+
+    we'll use the first interface from ``ifconfig -l -u ether``
+    """
+    stdout, _stderr = util.subp(['ifconfig', '-l', '-u', 'ether'])
+    values = stdout.split()
+    if values:
+        return values[0]
+    # On FreeBSD <= 10, 'ifconfig -l' ignores the interfaces with DOWN
+    # status
+    values = list(get_interfaces_by_mac().values())
+    values.sort()
+    if values:
+        return values[0]
+
+
+def find_fallback_nic_on_linux(blacklist_drivers=None):
+    """Return the name of the 'fallback' network device on Linux."""
     if not blacklist_drivers:
         blacklist_drivers = []
 
@@ -765,6 +797,40 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
 
 
 def get_interfaces_by_mac():
+    if util.is_FreeBSD():
+        return get_interfaces_by_mac_on_freebsd()
+    else:
+        return get_interfaces_by_mac_on_linux()
+
+
+def get_interfaces_by_mac_on_freebsd():
+    (out, _) = util.subp(['ifconfig', '-a', 'ether'])
+
+    # flatten each interface block in a single line
+    def flatten(out):
+        curr_block = ''
+        for l in out.split('\n'):
+            if l.startswith('\t'):
+                curr_block += l
+            else:
+                if curr_block:
+                    yield curr_block
+                curr_block = l
+        yield curr_block
+
+    # looks for interface and mac in a list of flatten block
+    def find_mac(flat_list):
+        for block in flat_list:
+            m = re.search(
+                r"^(?P<ifname>\S*): .*ether\s(?P<mac>[\da-f:]{17}).*",
+                block)
+            if m:
+                yield (m.group('mac'), m.group('ifname'))
+    results = {mac: ifname for mac, ifname in find_mac(flatten(out))}
+    return results
+
+
+def get_interfaces_by_mac_on_linux():
     """Build a dictionary of tuples {mac: name}.
 
     Bridges and any devices that have a 'stolen' mac are excluded."""

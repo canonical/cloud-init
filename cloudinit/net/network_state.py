@@ -73,7 +73,7 @@ def parse_net_config_data(net_config, skip_broken=True):
         # pass the whole net-config as-is
         config = net_config
 
-    if version and config:
+    if version and config is not None:
         nsi = NetworkStateInterpreter(version=version, config=config)
         nsi.parse_config(skip_broken=skip_broken)
         state = nsi.get_network_state()
@@ -941,7 +941,7 @@ def subnet_is_ipv6(subnet):
     # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful', 'ipv6_dhcpv6-stateless' or
     # 'ipv6_slaac'
     if subnet['type'].endswith('6') or subnet['type'] in IPV6_DYNAMIC_TYPES:
-        # This is a request for DHCPv6.
+        # This is a request either static6 type or DHCPv6.
         return True
     elif subnet['type'] == 'static' and is_ipv6_addr(subnet.get('address')):
         return True

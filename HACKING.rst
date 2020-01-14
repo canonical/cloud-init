@@ -17,12 +17,13 @@ Do these things once
   has signed.  When signing the CLA and prompted for 'Project contact' or
   'Canonical Project Manager' enter 'Josh Powers'.
 
-  For existing contributors who've already signed the agreement, we can verify
-  the link between your `Launchpad`_ account and your `GitHub`_ account by
-  creating a branch with both your Launchpad and GitHub usernames into both
-  Launchpad and GitHub cloud-init repositories.  We've added a tool
-  (tools/migrate-lp-user-to-github) to the cloud-init repository to handle this
-  migration as automatically as possible.
+  For first-time signers, or for existing contributors who have already signed
+  the agreement in Launchpad, we need to verify the link between your
+  `Launchpad`_ account and your `GitHub`_ account.  To enable us to do this, we
+  ask that you create a branch with both your Launchpad and GitHub usernames
+  against both the Launchpad and GitHub cloud-init repositories.  We've added a
+  tool (``tools/migrate-lp-user-to-github``) to the cloud-init repository to
+  handle this migration as automatically as possible.
 
   The cloud-init team will review the two merge proposals and verify
   that the CLA has been signed for the Launchpad user and record the
@@ -125,3 +126,15 @@ have any questions.
 
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _Ubuntu Server: https://github.com/orgs/canonical/teams/ubuntu-server
+
+Design
+======
+
+This section captures design decisions that are helpful to know when
+hacking on cloud-init.
+
+Cloud Config Modules
+--------------------
+
+* Any new modules should use underscores in any new config options and not
+  hyphens (e.g. `new_option` and *not* `new-option`).
