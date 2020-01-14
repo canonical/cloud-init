@@ -1,3 +1,16 @@
+cloud-init (19.4-31-g3f6192b3-0ubuntu1) focal; urgency=medium
+
+  * New upstream snapshot.
+    - ssh_auth_key_fingerprints_disable test: fix capitalization (#165)
+      [Paride Legovini]
+    - util: move uptime's else branch into its own boottime function (#53)
+      [Igor Galić] (LP: #1853160)
+    - net: fix rendering of 'static6' in network config (#77) (LP: #1850988)
+    - fixed minor bug with mkswap in cc_disk_setup.py (#143) [andreaf74]
+    - freebsd: fix create_group() cmd (#146) [Gonéri Le Bouder]
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 13 Jan 2020 20:21:09 -0700
+
 cloud-init (19.4-16-gf8950d63-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.

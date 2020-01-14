@@ -60,7 +60,7 @@ class Distro(distros.Distro):
         rhel_util.update_sysconfig_file(filename, {'hostname': hostname})
 
     def create_group(self, name, members):
-        group_add_cmd = ['pw', '-n', name]
+        group_add_cmd = ['pw', 'group', 'add', name]
         if util.is_group(name):
             LOG.warning("Skipping creation of existing group '%s'", name)
         else:
@@ -70,19 +70,20 @@ class Distro(distros.Distro):
             except Exception as e:
                 util.logexc(LOG, "Failed to create group %s", name)
                 raise e
+        if not members:
+            members = []
 
-        if len(members) > 0:
-            for member in members:
-                if not util.is_user(member):
-                    LOG.warning("Unable to add group member '%s' to group '%s'"
-                                "; user does not exist.", member, name)
-                    continue
-                try:
-                    util.subp(['pw', 'usermod', '-n', name, '-G', member])
-                    LOG.info("Added user '%s' to group '%s'", member, name)
-                except Exception:
-                    util.logexc(LOG, "Failed to add user '%s' to group '%s'",
-                                member, name)
+        for member in members:
+            if not util.is_user(member):
+                LOG.warning("Unable to add group member '%s' to group '%s'"
+                            "; user does not exist.", member, name)
+                continue
+            try:
+                util.subp(['pw', 'usermod', '-n', name, '-G', member])
+                LOG.info("Added user '%s' to group '%s'", member, name)
+            except Exception:
+                util.logexc(LOG, "Failed to add user '%s' to group '%s'",
+                            member, name)
 
     def add_user(self, name, **kwargs):
         if util.is_user(name):
