@@ -163,3 +163,63 @@ commandline:
 
 Inspect cloud-init.log for output of what operations were performed as a
 result.
+
+.. _proposed_sru_testing:
+
+Manually verifying cloud-init Stable Release Updates (SRU)
+==============================================================
+In order to retain stability on released Ubuntu series, cloud-init performs
+the following SRU procedure for `CloudinitUpdates`_.
+
+To manually test cloud-init **-proposed** versions
+before they are publicly released to **-updates** pockets:
+
+1. Launch a VM on your favorite platform, providing the cloud-config
+user-data `srutest.yaml`
+
+.. code:: bash
+
+    cat > srutest.yaml <<EOF
+    ## template: jinja
+    #cloud-config
+    ssh_import_id: [$LAUNCHPAD_USER]
+    hostname: SRU-worked-{{v1.cloud_name}}
+    EOF
+
+2. Wait for current cloud-init to complete
+
+.. code:: bash
+
+    ssh ubuntu@<YOUR_VM_IP> -- cloud-init status --wait
+
+3. Setup **-proposed** pockets on your vm and install **-proposed** cloud-init
+
+.. code:: bash
+
+    cat > setup_proposed.sh <<EOF
+    #/bin/bash
+    mirror=http://archive.ubuntu.com/ubuntu
+    echo deb \$mirror \$(lsb_release -sc)-proposed main | tee \
+    /etc/apt/sources.list.d/proposed.list
+    apt-get update -q;
+    apt-get install -qy cloud-init;
+    EOF
+
+    scp setup_proposed.sh ubuntu@<YOUR_VM_IP>:.
+    ssh ubuntu@<YOUR_VM_IP> sudo bash setup_proposed.sh
+
+4. Change hostname and perform a clean reboot to run cloud-init from scratch
+
+.. code:: bash
+
+    ssh ubuntu@<YOUR_VM_IP> sudo hostname something-else
+    ssh ubuntu@<YOUR_VM_IP> -- sudo cloud-init clean --logs --reboot
+
+5. Validate **-proposed** cloud-init came up without error
+
+.. code:: bash
+
+    ssh ubuntu@<YOUR_VM_IP> -- cloud-init status --wait --long
+    ssh ubuntu@<YOUR_VM_IP> -- ! grep Trace "/var/log/cloud-init*"
+
+.. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
