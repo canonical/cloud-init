@@ -67,9 +67,9 @@ class Distro(distros.Distro):
             try:
                 util.subp(group_add_cmd)
                 LOG.info("Created new group %s", name)
-            except Exception as e:
+            except Exception:
                 util.logexc(LOG, "Failed to create group %s", name)
-                raise e
+                raise
         if not members:
             members = []
 
@@ -129,9 +129,9 @@ class Distro(distros.Distro):
         LOG.info("Adding user %s", name)
         try:
             util.subp(pw_useradd_cmd, logstring=log_pw_useradd_cmd)
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, "Failed to create user %s", name)
-            raise e
+            raise
         # Set the password if it is provided
         # For security consideration, only hashed passwd is assumed
         passwd_val = kwargs.get('passwd', None)
@@ -141,9 +141,9 @@ class Distro(distros.Distro):
     def expire_passwd(self, user):
         try:
             util.subp(['pw', 'usermod', user, '-p', '01-Jan-1970'])
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, "Failed to set pw expiration for %s", user)
-            raise e
+            raise
 
     def set_passwd(self, user, passwd, hashed=False):
         if hashed:
@@ -154,16 +154,16 @@ class Distro(distros.Distro):
         try:
             util.subp(['pw', 'usermod', user, hash_opt, '0'],
                       data=passwd, logstring="chpasswd for %s" % user)
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, "Failed to set password for %s", user)
-            raise e
+            raise
 
     def lock_passwd(self, name):
         try:
             util.subp(['pw', 'usermod', name, '-h', '-'])
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, "Failed to lock user %s", name)
-            raise e
+            raise
 
     def create_user(self, name, **kwargs):
         self.add_user(name, **kwargs)
