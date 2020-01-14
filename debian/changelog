@@ -1,3 +1,11 @@
+cloud-init (19.4-33-gbb4131a2-0ubuntu1) focal; urgency=medium
+
+  * New upstream snapshot.
+    - Only use gpart if it is the BSD gpart (#131) [Conrad Hoffmann]
+    - freebsd: remove superfluous exception mapping (#166) [Gonéri Le Bouder]
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 14 Jan 2020 14:02:06 -0700
+
 cloud-init (19.4-31-g3f6192b3-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
