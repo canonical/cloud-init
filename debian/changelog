@@ -1,4 +1,4 @@
-cloud-init (19.4-31-g3f6192b3-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.4-31-g3f6192b3-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
     - ssh_auth_key_fingerprints_disable test: fix capitalization (#165)
