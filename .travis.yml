@@ -8,13 +8,15 @@ install:
     - pip install tox
 
 script:
-    - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then tox; fi'
+    - tox
 
 matrix:
     fast_finish: true
     include:
         - python: 3.6
-          env: TOXENV=py3
+          env:
+              TOXENV=py3
+              NOSE_VERBOSE=2  # List all tests run by nose
         - install:
             - git fetch --unshallow
             - sudo apt-get build-dep -y cloud-init
@@ -41,10 +43,10 @@ matrix:
             - sudo -E su $USER -c 'sbuild --nolog --verbose --dist=xenial cloud-init_*.dsc'
             # Ubuntu LTS: Integration
             - sg lxd -c 'tox -e citest -- run --verbose --preserve-data --data-dir results --os-name xenial --test modules/apt_configure_sources_list.yaml --test modules/ntp_servers --test modules/set_password_list --test modules/user_groups --deb cloud-init_*_all.deb'
-        - python: 2.7
-          env: TOXENV=py27
         - python: 3.4
-          env: TOXENV=xenial
+          env:
+              TOXENV=xenial
+              NOSE_VERBOSE=2  # List all tests run by nose
           # Travis doesn't support Python 3.4 on bionic, so use xenial
           dist: xenial
         - python: 3.6

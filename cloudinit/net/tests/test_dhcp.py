@@ -90,6 +90,32 @@ class TestDHCPRFC3442(CiTestCase):
         write_file(lease_file, content)
         self.assertItemsEqual(expected, parse_dhcp_lease_file(lease_file))
 
+    def test_parse_lease_finds_classless_static_routes(self):
+        """
+        parse_dhcp_lease_file returns classless-static-routes
+        for Centos lease format.
+        """
+        lease_file = self.tmp_path('leases')
+        content = dedent("""
+            lease {
+              interface "wlp3s0";
+              fixed-address 192.168.2.74;
+              option subnet-mask 255.255.255.0;
+              option routers 192.168.2.1;
+              option classless-static-routes 0 130.56.240.1;
+              renew 4 2017/07/27 18:02:30;
+              expire 5 2017/07/28 07:08:15;
+            }
+        """)
+        expected = [
+            {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
+             'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1',
+             'classless-static-routes': '0 130.56.240.1',
+             'renew': '4 2017/07/27 18:02:30',
+             'expire': '5 2017/07/28 07:08:15'}]
+        write_file(lease_file, content)
+        self.assertItemsEqual(expected, parse_dhcp_lease_file(lease_file))
+
     @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_obtain_lease_parses_static_routes(self, m_maybe, m_ipv4):
@@ -98,6 +124,31 @@ class TestDHCPRFC3442(CiTestCase):
             {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
              'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1',
              'rfc3442-classless-static-routes': '0,130,56,240,1',
+             'renew': '4 2017/07/27 18:02:30',
+             'expire': '5 2017/07/28 07:08:15'}]
+        m_maybe.return_value = lease
+        eph = net.dhcp.EphemeralDHCPv4()
+        eph.obtain_lease()
+        expected_kwargs = {
+            'interface': 'wlp3s0',
+            'ip': '192.168.2.74',
+            'prefix_or_mask': '255.255.255.0',
+            'broadcast': '192.168.2.255',
+            'static_routes': [('0.0.0.0/0', '130.56.240.1')],
+            'router': '192.168.2.1'}
+        m_ipv4.assert_called_with(**expected_kwargs)
+
+    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
+    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+    def test_obtain_centos_lease_parses_static_routes(self, m_maybe, m_ipv4):
+        """
+        EphemeralDHPCv4 parses rfc3442 routes for EphemeralIPv4Network
+        for Centos Lease format
+        """
+        lease = [
+            {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
+             'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1',
+             'classless-static-routes': '0 130.56.240.1',
              'renew': '4 2017/07/27 18:02:30',
              'expire': '5 2017/07/28 07:08:15'}]
         m_maybe.return_value = lease
@@ -180,6 +231,20 @@ class TestDHCPParseStaticRoutes(CiTestCase):
 
         logs = self.logs.getvalue()
         self.assertIn(rfc3442, logs.splitlines()[0])
+
+    def test_redhat_format(self):
+        redhat_format = "24.191.168.128 192.168.128.1,0 192.168.128.1"
+        self.assertEqual(sorted([
+            ("191.168.128.0/24", "192.168.128.1"),
+            ("0.0.0.0/0", "192.168.128.1")
+        ]), sorted(parse_static_routes(redhat_format)))
+
+    def test_redhat_format_with_a_space_too_much_after_comma(self):
+        redhat_format = "24.191.168.128 192.168.128.1, 0 192.168.128.1"
+        self.assertEqual(sorted([
+            ("191.168.128.0/24", "192.168.128.1"),
+            ("0.0.0.0/0", "192.168.128.1")
+        ]), sorted(parse_static_routes(redhat_format)))
 
 
 class TestDHCPDiscoveryClean(CiTestCase):
