@@ -185,7 +185,7 @@ Generally SRU tests of cloud-init perform the following:
 
 Manual SRU verification procedure
 ---------------------------------
-Below are steps that can manually test cloud-init **-proposed** version
+Below are steps that can manually test a pre-release version of cloud-init from **-proposed**
 
 1. Launch a VM on your favorite platform, providing the cloud-config
    user-data and replacing `<YOUR_LAUNCHPAD_USERNAME>` with your username:
