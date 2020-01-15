@@ -220,6 +220,6 @@ before they are publicly released to **-updates** pockets:
 .. code:: bash
 
     ssh ubuntu@<YOUR_VM_IP> -- cloud-init status --wait --long
-    ssh ubuntu@<YOUR_VM_IP> -- ! grep Trace "/var/log/cloud-init*"
+    ssh ubuntu@<YOUR_VM_IP> -- grep Trace "/var/log/cloud-init*"
 
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
