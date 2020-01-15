@@ -1,4 +1,4 @@
-cloud-init (19.4-33-gbb4131a2-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (19.4-33-gbb4131a2-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * refresh patches:
    + debian/patches/azure-apply-network-config-false.patch
