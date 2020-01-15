@@ -171,7 +171,7 @@ Stable Release Updates (SRU) testing for cloud-init
 Once an Ubuntu release has been published, updates to it must follow a special
 procedure called a "stable release update" (or `SRU`_).
 
-The cloud-init project has an exception process it follows when validating
+The cloud-init project has a specific process it follows when validating
 cloud-init for an SRU listed at `CloudinitUpdates`_.
 
 Generally SRU tests of cloud-init perform the following:
