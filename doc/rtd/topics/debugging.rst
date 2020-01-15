@@ -180,7 +180,7 @@ Generally SRU tests of cloud-init perform the following:
    **-proposed** APT pocket (e.g. **bionic-proposed**)
  * Upgrade cloud-init and attempt a clean run of cloud-init to assert the new
    version of cloud-init works properly on various platforms or Ubuntu series
- * Check for tracebacks, errors in behavior or performance regressions
+ * Check for tracebacks or errors in behavior
 
 
 Manual SRU verification procedure
