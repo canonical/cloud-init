@@ -223,21 +223,10 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     return size
 
 
-def get_fstype(path):
-    """Return the type of the filesystem that path is on.
-    If path is a mount point itself, then the type of the filesystem mounted
-    on path rather than its parent dir."""
-    return util.get_mount_info(path)[1]
-
-
 def create_swapfile(fname, size):
     """Size is in MiB."""
 
     errmsg = "Failed to create swapfile '%s' of size %dMB via %s: %s"
-
-    def unlink_f(fname):
-        if os.path.exists(fname):
-            os.unlink(fname)
 
     def create_swap(fname, size, method):
         LOG.debug("Creating swapfile in '%s' on fstype '%s' using '%s'",
@@ -253,12 +242,15 @@ def create_swapfile(fname, size):
             util.subp(cmd, capture=True)
         except util.ProcessExecutionError as e:
             LOG.warning(errmsg, fname, size, method, e)
-            unlink_f(fname)
+            util.del_file(fname)
 
     swap_dir = os.path.dirname(fname)
     util.ensure_dir(swap_dir)
 
-    fstype = get_fstype(swap_dir)
+    """Return the type of the filesystem that path is on.
+    If path is a mount point itself, then the type of the filesystem mounted
+    on path rather than its parent dir."""
+    fstype = util.get_mount_info(swap_dir)[1]
 
     if fstype in ("xfs", "btrfs"):
         create_swap(fname, size, "dd")
@@ -270,11 +262,11 @@ def create_swapfile(fname, size):
             LOG.warning("Will attempt with dd.")
             create_swap(fname, size, "dd")
 
+    util.chmod(fname, 0o600)
     try:
-        os.chmod(fname, 0o600)
         util.subp(['mkswap', fname])
     except util.ProcessExecutionError:
-        unlink_f(fname)
+        util.del_file(fname)
         raise
 
 
