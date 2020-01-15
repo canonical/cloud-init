@@ -245,7 +245,7 @@ Below are steps that can manually test cloud-init **-proposed** version
 
 6. If you encounter an error during SRU testing:
 
-   * Create a `NewCloudInitBug`_ reporting the version of cloud-init affected
+   * Create a `new cloud-init bug`_ reporting the version of cloud-init affected
    * ping upstream cloud-init on Freenode's `#cloud-init IRC channel`_
 
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
