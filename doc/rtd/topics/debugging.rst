@@ -200,7 +200,7 @@ before they are publicly released to **-updates** pockets:
     #/bin/bash
     mirror=http://archive.ubuntu.com/ubuntu
     echo deb \$mirror \$(lsb_release -sc)-proposed main | tee \
-    /etc/apt/sources.list.d/proposed.list
+        /etc/apt/sources.list.d/proposed.list
     apt-get update -q;
     apt-get install -qy cloud-init;
     EOF
