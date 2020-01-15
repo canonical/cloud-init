@@ -174,6 +174,19 @@ if os.uname()[0] == 'FreeBSD':
     USR_LIB_EXEC = "usr/local/lib"
 elif os.path.isfile('/etc/redhat-release'):
     USR_LIB_EXEC = "usr/libexec"
+elif os.path.isfile('/etc/system-release-cpe'):
+    with open('/etc/system-release-cpe') as f:
+        cpe_data = f.read().rstrip().split(':')
+
+        if cpe_data[1] == "\o":
+            # URI formated CPE
+            inc = 0
+        else:
+            # String formated CPE
+            inc = 1
+        (cpe_vendor, cpe_product, cpe_version) = cpe_data[2+inc:5+inc]
+        if cpe_vendor == "amazon":
+            USR_LIB_EXEC = "usr/libexec"
 
 
 class MyEggInfo(egg_info):

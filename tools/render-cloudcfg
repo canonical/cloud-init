@@ -4,8 +4,8 @@ import argparse
 import os
 import sys
 
-VARIANTS = ["arch", "centos", "debian", "fedora", "freebsd", "rhel", "suse",
-            "ubuntu", "unknown"]
+VARIANTS = ["amazon", "arch", "centos", "debian", "fedora", "freebsd", "rhel",
+            "suse", "ubuntu", "unknown"]
 
 if "avoid-pep8-E402-import-not-top-of-file":
     _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

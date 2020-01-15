@@ -36,7 +36,7 @@ ALL_DISTROS = 'all'
 
 OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
-    'redhat': ['centos', 'fedora', 'rhel'],
+    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
     'gentoo': ['gentoo'],
     'freebsd': ['freebsd'],
     'suse': ['opensuse', 'sles'],
@@ -145,7 +145,7 @@ class Distro(object):
         # Write it out
 
         # pylint: disable=assignment-from-no-return
-        # We have implementations in arch, freebsd and gentoo still
+        # We have implementations in arch and gentoo still
         dev_names = self._write_network(settings)
         # pylint: enable=assignment-from-no-return
         # Now try to bring them up
@@ -385,7 +385,7 @@ class Distro(object):
         Add a user to the system using standard GNU tools
         """
         # XXX need to make add_user idempotent somehow as we
-        # still want to add groups or modify ssh keys on pre-existing
+        # still want to add groups or modify SSH keys on pre-existing
         # users in the image.
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
@@ -561,7 +561,7 @@ class Distro(object):
             cloud_keys = kwargs.get('cloud_public_ssh_keys', [])
             if not cloud_keys:
                 LOG.warning(
-                    'Unable to disable ssh logins for %s given'
+                    'Unable to disable SSH logins for %s given'
                     ' ssh_redirect_user: %s. No cloud public-keys present.',
                     name, kwargs['ssh_redirect_user'])
             else:
