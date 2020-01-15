@@ -1,10 +1,76 @@
-cloud-init (19.3-41-gc4735dd3-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+cloud-init (19.4-33-gbb4131a2-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * refresh patches:
    + debian/patches/azure-apply-network-config-false.patch
    + debian/patches/azure-use-walinux-agent.patch
+  * New upstream snapshot. (LP: #1859725)
+    - Only use gpart if it is the BSD gpart (#131) [Conrad Hoffmann]
+    - freebsd: remove superflu exception mapping (#166) [Gonéri Le Bouder]
+    - ssh_auth_key_fingerprints_disable test: fix capitalization (#165)
+      [Paride Legovini]
+    - util: move uptime's else branch into its own boottime function (#53)
+      [Igor Galić]
+    - workflows: add contributor license agreement checker (#155)
+    - net: fix rendering of 'static6' in network config (#77)
+    - Make tests work with Python 3.8 (#139) [Conrad Hoffmann]
+    - fixed minor bug with mkswap in cc_disk_setup.py (#143) [andreaf74]
+    - freebsd: fix create_group() cmd (#146) [Gonéri Le Bouder]
+    - doc: make apt_update example consistent (#154)
+    - doc: add modules page toc with links (#153)
+    - Add support for the amazon variant in cloud.cfg.tmpl (#119)
+      [Frederick Lefebvre]
+    - ci: remove Python 2.7 from CI runs (#137)
+    - modules: drop cc_snap_config config module (#134)
+    - migrate-lp-user-to-github: ensure Launchpad repo exists (#136)
+    - docs: add initial troubleshooting to FAQ (#104) [Joshua Powers]
+    - doc: update cc_set_hostname frequency and descrip (#109) [Joshua Powers]
+    - freebsd: introduce the freebsd renderer (#61) [Gonéri Le Bouder]
+    - cc_snappy: remove deprecated module (#127)
+    - HACKING.rst: clarify that everyone needs to do the LP->GH dance (#130)
+    - freebsd: cloudinit service requires devd (#132) [Gonéri Le Bouder]
+    - cloud-init: fix capitalisation of SSH (#126)
+    - doc: update cc_ssh clarify host and auth keys [Joshua Powers]
+    - ci: emit names of tests run in Travis (#120)
+    - Release 19.4
+    - rbxcloud: fix dsname in RbxCloud [Adam Dobrawy]
+    - tests: Add tests for value of dsname in datasources [Adam Dobrawy]
+    - apport: Add RbxCloud ds [Adam Dobrawy]
+    - docs: Updating index of datasources [Adam Dobrawy]
+    - docs: Fix anchor of datasource_rbx [Adam Dobrawy]
+    - settings: Add RbxCloud [Adam Dobrawy]
+    - doc: specify _ over - in cloud config modules [Joshua Powers]
+    - tools: Detect python to use via env in migrate-lp-user-to-github
+      [Adam Dobrawy]
+    - Partially revert "fix unlocking method on FreeBSD" (#116)
+    - tests: mock uid when running as root (#113) [Joshua Powers]
+    - cloudinit/netinfo: remove unused getgateway (#111)
+    - docs: clear up apt config sections (#107) [Joshua Powers]
+    - doc: add kernel command line option to user data (#105) [Joshua Powers]
+    - config/cloud.cfg.d: update README [Joshua Powers]
+    - azure: avoid re-running cloud-init when instance-id is byte-swapped
+      (#84) [AOhassan]
+    - fix unlocking method on FreeBSD [Igor Galić]
+    - debian: add reference to the manpages [Joshua Powers]
+    - ds_identify: if /sys is not available use dmidecode (#42) [Igor Galić]
+    - docs: add cloud-id manpage [Joshua Powers]
+    - docs: add cloud-init-per manpage [Joshua Powers]
+    - docs: add cloud-init manpage [Joshua Powers]
+    - docs: add additional details to per-instance/once [Joshua Powers]
+    - Update doc-requirements.txt [Joshua Powers]
+    - doc-requirements: add missing dep [Joshua Powers]
+    - dhcp: Support RedHat dhcp rfc3442 lease format for option 121 (#76)
+      [Eric Lafontaine]
+    - network_state: handle empty v1 config (#45)
+    - docs: fix line length and remove highlighting [Joshua Powers]
+    - docs: Add security.md to readthedocs [Joshua Powers]
+    - Multiple file fix for AuthorizedKeysFile config (#60) [Eduardo Otubo]
+    - doc: update links on README.md [Joshua Powers]
+    - doc: Updates to wording of README.md [Joshua Powers]
+    - Add security.md [Joshua Powers]
+    - setup.py: Amazon Linux sets libexec to /usr/libexec (#52)
+      [Frederick Lefebvre]
 
- -- Chad Smith <chad.smith@canonical.com>  Wed, 15 Jan 2020 09:33:38 -0700
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 15 Jan 2020 09:33:39 -0700
 
 cloud-init (19.3-41-gc4735dd3-0ubuntu1~16.04.1) xenial; urgency=medium
 
