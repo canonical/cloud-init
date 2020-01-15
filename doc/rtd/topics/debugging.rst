@@ -167,7 +167,7 @@ result.
 .. _proposed_sru_testing:
 
 Stable Release Updates (SRU) testing for cloud-init
-==============================================================
+===================================================
 Once an Ubuntu release has been published, updates to it must follow a special
 procedure called a "stable release update" (or `SRU`_).
 
