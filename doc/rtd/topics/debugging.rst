@@ -250,5 +250,5 @@ Below are steps that can manually test cloud-init **-proposed** version
 
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
-.. _NewCloudInitBug: https://bugs.launchpad.net/cloud-init/+filebug
+.. _new cloud-init bug: https://bugs.launchpad.net/cloud-init/+filebug
 .. _#cloud-init IRC channel: https://webchat.freenode.net/?channel=#cloud-init
