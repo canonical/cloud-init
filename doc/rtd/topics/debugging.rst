@@ -177,7 +177,7 @@ cloud-init for an SRU listed at `CloudinitUpdates`_.
 Generally SRU tests of cloud-init perform the following:
 
  * Install a pre-release version of cloud-init from the
-   **(xenial|bionic|etc)-proposed** APT pocket
+   **-proposed** APT pocket (e.g. **bionic-proposed**)
  * Upgrade cloud-init and attempt a clean run of cloud-init to assert the new
    version of cloud-init works properly on various platforms or Ubuntu series
  * Check for tracebacks, errors in behavior or performance regressions
