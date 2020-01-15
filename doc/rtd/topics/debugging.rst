@@ -205,7 +205,7 @@ Below are steps that can manually test cloud-init **-proposed** version
     CI_VM_IP=<YOUR_VM_IP>
     ssh ubuntu@$CI_VM_IP -- cloud-init status --wait
 
-3. Setup **-proposed** pockets on your VM and install **-proposed** cloud-init
+3. Set up the **-proposed** pocket on your VM and upgrade to the **-proposed** cloud-init
 
 .. code:: bash
 
