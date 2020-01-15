@@ -177,7 +177,7 @@ before they are publicly released to **-updates** pockets:
 1. Launch a VM on your favorite platform, providing the cloud-config
    user-data `srutest.yaml`:
 
-.. code:: bash
+.. code-block:: bash
 
     cat > srutest.yaml <<EOF
     ## template: jinja
