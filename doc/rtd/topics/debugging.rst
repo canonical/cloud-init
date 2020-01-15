@@ -240,7 +240,7 @@ Below are steps that can manually test cloud-init **-proposed** version
     ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
     # Make sure hostname was set properly to SRU-worked...
     ssh ubuntu@$CI_VM_IP -- hostname
-    # Check for any errors or warnings in cloud-init logs
+    # Check for any errors or warnings in cloud-init logs. (This should produce no output if successful.)
     ssh ubuntu@$CI_VM_IP -- grep Trace "/var/log/cloud-init*"
 
 6. If you encounter an error during SRU testing:
