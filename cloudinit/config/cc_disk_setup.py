@@ -982,7 +982,9 @@ def mkfs(fs_cfg):
 
         # File systems that support the -F flag
         if overwrite or device_type(device) == "disk":
-            fs_cmd.append(lookup_force_flag(fs_type))
+            force_flag = lookup_force_flag(fs_type)
+            if force_flag:
+                fs_cmd.append(force_flag)
 
         # Add the extends FS options
         if fs_opts:

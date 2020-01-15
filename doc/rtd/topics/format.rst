@@ -113,7 +113,7 @@ These things include:
 - apt upgrade should be run on first boot
 - a different apt mirror should be used
 - additional apt sources should be added
-- certain ssh keys should be imported
+- certain SSH keys should be imported
 - *and many more...*
 
 .. note::
@@ -196,6 +196,13 @@ Example
 
 Also this `blog`_ post offers another example for more advanced usage.
 
+Kernel Command Line
+===================
+
+When using the :ref:`datasource_nocloud` datasource, users can pass user data
+via the kernel command line parameters. See the :ref:`datasource_nocloud`
+datasource documentation for more details.
+
 Disabling User-Data
 ===================
 
@@ -206,4 +213,5 @@ cloud-init from processing user-data.
 
 .. [#] See your cloud provider for applicable user-data size limitations...
 .. _blog: http://foss-boss.blogspot.com/2011/01/advanced-cloud-init-custom-handlers.html
+
 .. vi: textwidth=78

@@ -34,12 +34,14 @@ KNOWN_CLOUD_NAMES = [
     'OpenStack',
     'Oracle',
     'OVF',
+    'RbxCloud - (HyperOne, Rootbox, Rubikon)',
     'OpenTelekomCloud',
     'Scaleway',
     'SmartOS',
     'VMware',
     'ZStack',
-    'Other']
+    'Other'
+]
 
 # Potentially clear text collected logs
 CLOUDINIT_LOG = '/var/log/cloud-init.log'

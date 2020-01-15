@@ -1,3 +1,79 @@
+19.4
+ - doc: specify _ over - in cloud config modules
+   [Joshua Powers] (LP: #1293254)
+ - tools: Detect python to use via env in migrate-lp-user-to-github
+   [Adam Dobrawy]
+ - Partially revert "fix unlocking method on FreeBSD" (#116)
+ - tests: mock uid when running as root (#113)
+   [Joshua Powers] (LP: #1856096)
+ - cloudinit/netinfo: remove unused getgateway (#111)
+ - docs: clear up apt config sections (#107) [Joshua Powers] (LP: #1832823)
+ - doc: add kernel command line option to user data (#105)
+   [Joshua Powers] (LP: #1846524)
+ - config/cloud.cfg.d: update README [Joshua Powers] (LP: #1855006)
+ - azure: avoid re-running cloud-init when instance-id is byte-swapped
+   (#84) [AOhassan]
+ - fix unlocking method on FreeBSD [Igor Galić] (LP: #1854594)
+ - debian: add reference to the manpages [Joshua Powers]
+ - ds_identify: if /sys is not available use dmidecode (#42)
+   [Igor Galić] (LP: #1852442)
+ - docs: add cloud-id manpage [Joshua Powers]
+ - docs: add cloud-init-per manpage [Joshua Powers]
+ - docs: add cloud-init manpage [Joshua Powers]
+ - docs: add additional details to per-instance/once [Joshua Powers]
+ - Update doc-requirements.txt [Joshua Powers]
+ - doc-requirements: add missing dep [Joshua Powers]
+ - dhcp: Support RedHat dhcp rfc3442 lease format for option 121 (#76)
+   [Eric Lafontaine] (LP: #1850642)
+ - network_state: handle empty v1 config (#45) (LP: #1852496)
+ - docs: Add document on how to report bugs [Joshua Powers]
+ - Add an Amazon distro in the redhat OS family [Frederick Lefebvre]
+ - removed a couple of "the"s [gaughen]
+ - docs: fix line length and remove highlighting [Joshua Powers]
+ - docs: Add security.md to readthedocs [Joshua Powers]
+ - Multiple file fix for AuthorizedKeysFile config (#60) [Eduardo Otubo]
+ - Revert "travis: only run CI on pull requests"
+ - doc: update links on README.md [Joshua Powers]
+ - doc: Updates to wording of README.md [Joshua Powers]
+ - Add security.md [Joshua Powers]
+ - setup.py: Amazon Linux sets libexec to /usr/libexec (#52)
+   [Frederick Lefebvre]
+ - Fix linting failure in test_url_helper (#83) [Eric Lafontaine]
+ - url_helper: read_file_or_url should pass headers param into readurl
+   (#66) (LP: #1854084)
+ - dmidecode: log result *after* stripping n [Igor Galić]
+ - cloud_tests: add azure platform support to integration tests
+   [ahosmanmsft]
+ - set_passwords: support for FreeBSD (#46) [Igor Galić]
+ - tools: migrate-lp-user-to-github removes repo_dir if created (#35)
+ - Correct jumbled documentation for cc_set_hostname module (#64)
+   [do3meli] (LP: #1853543)
+ - FreeBSD: fix for get_linux_distro() and lru_cache (#59)
+   [Igor Galić] (LP: #1815030)
+ - ec2: Add support for AWS IMDS v2 (session-oriented) (#55)
+ - tests: Fix cloudsigma tests when no dmidecode data is present. (#57)
+   [Scott Moser]
+ - net: IPv6, accept_ra, slaac, stateless (#51)
+   [Harald] (LP: #1806014, #1808647)
+ - docs: Update the configdrive datasource links (#44)
+   [Joshua Powers] (LP: #1852461)
+ - distro: correctly set usr_lib_exec path for FreeBSD distro (#40)
+   [Igor Galić] (LP: #1852491)
+ - azure: support secondary ipv6 addresses (#33)
+ - Fix metadata check when local-hostname is null (#32)
+   [Mark Goddard] (LP: #1852100)
+ - switch default FreeBSD salt minion pkg from py27 to py36
+   [Dominic Schlegel]
+ - travis: only run CI on pull requests
+ - add data-server dns entry as new metadata server detection [Joshua Hügli]
+ - pycodestyle: remove unused local variable
+ - reporting: Using a uuid to enforce uniqueness on the KVP keys. [momousta]
+ - docs: touchups in rtd intro and README.md
+ - doc: update launchpad git refs to github
+ - github: drop pull-request template to prepare for migration
+ - tools: add migrate-lp-user-to-github script to link LP to github
+ - github: new basic project readme
+
 19.3
  - azure: support matching dhcp route-metrics for dual-stack ipv4 ipv6
    (LP: #1850308)

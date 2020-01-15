@@ -12,8 +12,9 @@ Scripts Per Once
 **Summary:** run one time scripts
 
 Any scripts in the ``scripts/per-once`` directory on the datasource will be run
-only once. Scripts will be run in alphabetical order. This module does not
-accept any config keys.
+only once. Changes to the instance will not force a re-run. The only way to
+re-run these scripts is to run the clean subcommand and reboot. Scripts will
+be run in alphabetical order. This module does not accept any config keys.
 
 **Internal name:** ``cc_scripts_per_once``
 

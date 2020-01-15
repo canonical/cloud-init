@@ -1,0 +1,29 @@
+name: Verify Contributor License Agreement
+
+on: [pull_request]
+
+jobs:
+  cla-validate:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - run: |
+        echo "::set-env name=CLA_SIGNED::$(grep -q ': \"${{ github.actor }}\"' ./tools/.lp-to-git-user && echo CLA signed || echo CLA not signed)"
+    - name: Add CLA label
+      run: |
+        # POST a new label to this issue
+        curl --request POST \
+        --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/labels \
+        --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+        --header 'content-type: application/json' \
+        --data '{"labels": ["${{env.CLA_SIGNED}}"]}'
+    - name: Comment about CLA signing
+      if: env.CLA_SIGNED == 'CLA not signed'
+      run: |
+        # POST a comment directing submitter to sign the CLA
+        curl --request POST \
+        --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments \
+        --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+        --header 'content-type: application/json' \
+        --data '{"body": "Hello ${{ github.actor }},\n\nThank you for your contribution to cloud-init.\n\nIn order for us to merge this pull request, you need\nto have signed the Contributor License Agreement (CLA).\nPlease ensure that you have signed the CLA by following our\nhacking guide at:\n\nhttps://cloudinit.readthedocs.io/en/latest/topics/hacking.html\n\nThanks,\nYour friendly cloud-init upstream\n"}'

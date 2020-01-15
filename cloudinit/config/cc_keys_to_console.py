@@ -9,10 +9,10 @@
 """
 Keys to Console
 ---------------
-**Summary:** control which ssh keys may be written to console
+**Summary:** control which SSH keys may be written to console
 
-For security reasons it may be desirable not to write ssh fingerprints and keys
-to the console. To avoid the fingerprint of types of ssh keys being written to
+For security reasons it may be desirable not to write SSH fingerprints and keys
+to the console. To avoid the fingerprint of types of SSH keys being written to
 console the ``ssh_fp_console_blacklist`` config key can be used. By default all
 types of keys will have their fingerprints written to console. To avoid keys
 of a key type being written to console the ``ssh_key_console_blacklist`` config

@@ -40,6 +40,7 @@ Having trouble? We would like to help!
    topics/boot.rst
    topics/cli.rst
    topics/faq.rst
+   topics/bugs.rst
 
 .. toctree::
    :hidden:
@@ -67,6 +68,7 @@ Having trouble? We would like to help!
    :caption: Development
 
    topics/hacking.rst
+   topics/security.rst
    topics/debugging.rst
    topics/logging.rst
    topics/dir_layout.rst
