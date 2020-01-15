@@ -209,7 +209,7 @@ Below are steps that can manually test cloud-init **-proposed** version
 
 .. code:: bash
 
-    # Create a script that will add a -proposed pocket to apt-sources
+    # Create a script that will add the -proposed pocket to APT's sources
     # and install cloud-init from that pocket
     cat > setup_proposed.sh <<EOF
     #/bin/bash
