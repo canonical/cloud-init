@@ -243,7 +243,7 @@ Below are steps that can manually test cloud-init **-proposed** version
     # Check for any errors or warnings in cloud-init logs
     ssh ubuntu@$CI_VM_IP -- grep Trace "/var/log/cloud-init*"
 
-6. If encountering an error during SRU testing:
+6. If you encounter an error during SRU testing:
 
    * Create a `NewCloudInitBug`_ reporting the version of cloud-init affected
    * ping upstream cloud-init on Freenode's `#cloud-init IRC channel`_
