@@ -375,8 +375,12 @@ class Renderer(renderer.Renderer):
             subnet_type = subnet.get('type')
             if subnet_type == 'dhcp6' or subnet_type == 'ipv6_dhcpv6-stateful':
                 if flavor == 'suse':
-                    # Only IPv6 is DHCP, IPv4 may be static
-                    iface_cfg['BOOTPROTO'] = 'dhcp6'
+                    # User wants dhcp for both protocols
+                    if iface_cfg['BOOTPROTO'] == 'dhcp4':
+                        iface_cfg['BOOTPROTO'] = 'dhcp'
+                    else:
+                        # Only IPv6 is DHCP, IPv4 may be static
+                        iface_cfg['BOOTPROTO'] = 'dhcp6'
                     iface_cfg['DHCLIENT6_MODE'] = 'managed'
                 else:
                     iface_cfg['IPV6INIT'] = True
@@ -384,7 +388,12 @@ class Renderer(renderer.Renderer):
                     iface_cfg['DHCPV6C'] = True
             elif subnet_type == 'ipv6_dhcpv6-stateless':
                 if flavor == 'suse':
-                    iface_cfg['BOOTPROTO'] = 'dhcp6'
+                    # User wants dhcp for both protocols
+                    if iface_cfg['BOOTPROTO'] == 'dhcp4':
+                        iface_cfg['BOOTPROTO'] = 'dhcp'
+                    else:
+                        # Only IPv6 is DHCP, IPv4 may be static
+                        iface_cfg['BOOTPROTO'] = 'dhcp6'
                     iface_cfg['DHCLIENT6_MODE'] = 'info'
                 else:
                     iface_cfg['IPV6INIT'] = True
@@ -397,18 +406,24 @@ class Renderer(renderer.Renderer):
                     iface_cfg['DHCPV6C_OPTIONS'] = '-S'
             elif subnet_type == 'ipv6_slaac':
                 if flavor == 'suse':
-                    iface_cfg['BOOTPROTO'] = 'dhcp6'
+                    # User wants dhcp for both protocols
+                    if iface_cfg['BOOTPROTO'] == 'dhcp4':
+                        iface_cfg['BOOTPROTO'] = 'dhcp'
+                    else:
+                        # Only IPv6 is DHCP, IPv4 may be static
+                        iface_cfg['BOOTPROTO'] = 'dhcp6'
                     iface_cfg['DHCLIENT6_MODE'] = 'info'
                 else:
                     iface_cfg['IPV6INIT'] = True
                     # Configure network settings using SLAAC from RAs
                     iface_cfg['IPV6_AUTOCONF'] = True
             elif subnet_type in ['dhcp4', 'dhcp']:
+                bootproto_in = iface_cfg['BOOTPROTO']
                 iface_cfg['BOOTPROTO'] = 'dhcp'
                 if flavor == 'suse' and subnet_type == 'dhcp4':
                     # If dhcp6 is already specified the user wants dhcp
                     # for both protocols
-                    if iface_cfg['BOOTPROTO'] != 'dhcp6':
+                    if bootproto_in != 'dhcp6':
                         # Only IPv4 is DHCP, IPv6 may be static
                         iface_cfg['BOOTPROTO'] = 'dhcp4'
             elif subnet_type in ['static', 'static6']:

@@ -942,6 +942,12 @@ NETWORK_CONFIGS = {
                         dhcp4: true
                         dhcp6: true
         """).rstrip(' '),
+        'expected_sysconfig_opensuse': {
+            'ifcfg-iface0':  textwrap.dedent("""\
+                BOOTPROTO=dhcp
+                DHCLIENT6_MODE=managed
+                STARTMODE=auto""")
+        },
         'yaml': textwrap.dedent("""\
             version: 1
             config:
@@ -1018,6 +1024,23 @@ NETWORK_CONFIGS = {
                 IPV6_MTU=1500
                 """),
         },
+    },
+    'v6_and_v4': {
+        'expected_sysconfig_opensuse': {
+            'ifcfg-iface0':  textwrap.dedent("""\
+                BOOTPROTO=dhcp
+                DHCLIENT6_MODE=managed
+                STARTMODE=auto""")
+        },
+        'yaml': textwrap.dedent("""\
+            version: 1
+            config:
+              - type: 'physical'
+                name: 'iface0'
+                subnets:
+                  - type: dhcp6
+                  - type: dhcp4
+        """).rstrip(' '),
     },
     'dhcpv6_only': {
         'expected_eni': textwrap.dedent("""\
@@ -3696,6 +3719,18 @@ STARTMODE=auto
 
     def test_dhcpv6_stateless_config(self):
         entry = NETWORK_CONFIGS['dhcpv6_stateless']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_render_v4_and_v6(self):
+        entry = NETWORK_CONFIGS['v4_and_v6']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_render_v6_and_v4(self):
+        entry = NETWORK_CONFIGS['v6_and_v4']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
