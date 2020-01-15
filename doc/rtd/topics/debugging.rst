@@ -175,7 +175,7 @@ To manually test cloud-init **-proposed** versions
 before they are publicly released to **-updates** pockets:
 
 1. Launch a VM on your favorite platform, providing the cloud-config
-user-data `srutest.yaml`
+   user-data `srutest.yaml`:
 
 .. code:: bash
 
