@@ -6,7 +6,7 @@ Forwarded: not-needed
 Author: Scott Moser <smoser@ubuntu.com>
 --- a/cloudinit/sources/DataSourceAzure.py
 +++ b/cloudinit/sources/DataSourceAzure.py
-@@ -214,7 +214,7 @@ if util.is_FreeBSD():
+@@ -215,7 +215,7 @@ if util.is_FreeBSD():
      PLATFORM_ENTROPY_SOURCE = None
  
  BUILTIN_DS_CONFIG = {
