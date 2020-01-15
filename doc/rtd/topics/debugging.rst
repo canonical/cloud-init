@@ -198,7 +198,7 @@ Below are steps that can manually test cloud-init **-proposed** version
     hostname: SRU-worked-{{v1.cloud_name}}
 
 2. Wait for current cloud-init to complete, replace `<YOUR_VM_IP>` with the IP
-   address of the VM that was launched in step 1:
+   address of the VM that you launched in step 1:
 
 .. code:: bash
 
