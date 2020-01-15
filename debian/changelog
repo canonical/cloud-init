@@ -1,4 +1,4 @@
-cloud-init (19.4-33-gbb4131a2-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (19.4-33-gbb4131a2-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * New upstream snapshot. (LP: #1859725)
     - Only use gpart if it is the BSD gpart (#131) [Conrad Hoffmann]
