@@ -453,14 +453,14 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile2))
         self.assertFalse(os.path.isfile(self.aptlistfile3))
 
-    @mock.patch("cloudinit.config.cc_apt_configure.util.get_architecture")
-    def test_apt_v3_list_rename(self, m_get_architecture):
+    @mock.patch("cloudinit.config.cc_apt_configure.util.get_dpkg_architecture")
+    def test_apt_v3_list_rename(self, m_get_dpkg_architecture):
         """test_apt_v3_list_rename - Test find mirror and apt list renaming"""
         pre = "/var/lib/apt/lists"
         # filenames are archive dependent
 
         arch = 's390x'
-        m_get_architecture.return_value = arch
+        m_get_dpkg_architecture.return_value = arch
         component = "ubuntu-ports"
         archive = "ports.ubuntu.com"
 
@@ -491,13 +491,13 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
 
         mockren.assert_any_call(fromfn, tofn)
 
-    @mock.patch("cloudinit.config.cc_apt_configure.util.get_architecture")
-    def test_apt_v3_list_rename_non_slash(self, m_get_architecture):
+    @mock.patch("cloudinit.config.cc_apt_configure.util.get_dpkg_architecture")
+    def test_apt_v3_list_rename_non_slash(self, m_get_dpkg_architecture):
         target = os.path.join(self.tmp, "rename_non_slash")
         apt_lists_d = os.path.join(target, "./" + cc_apt_configure.APT_LISTS)
 
         arch = 'amd64'
-        m_get_architecture.return_value = arch
+        m_get_dpkg_architecture.return_value = arch
 
         mirror_path = "some/random/path/"
         primary = "http://test.ubuntu.com/" + mirror_path
@@ -626,10 +626,12 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         self.assertEqual(mirrors['SECURITY'],
                          smir)
 
-    @mock.patch("cloudinit.config.cc_apt_configure.util.get_architecture")
-    def test_apt_v3_get_def_mir_non_intel_no_arch(self, m_get_architecture):
+    @mock.patch("cloudinit.config.cc_apt_configure.util.get_dpkg_architecture")
+    def test_apt_v3_get_def_mir_non_intel_no_arch(
+        self, m_get_dpkg_architecture
+    ):
         arch = 'ppc64el'
-        m_get_architecture.return_value = arch
+        m_get_dpkg_architecture.return_value = arch
         expected = {'PRIMARY': 'http://ports.ubuntu.com/ubuntu-ports',
                     'SECURITY': 'http://ports.ubuntu.com/ubuntu-ports'}
         self.assertEqual(expected, cc_apt_configure.get_default_mirrors())
