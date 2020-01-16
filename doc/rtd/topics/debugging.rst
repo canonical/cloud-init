@@ -168,8 +168,8 @@ result.
 
 Stable Release Updates (SRU) testing for cloud-init
 ===================================================
-Once an Ubuntu release is stable (i.e. after it is released), updates for it must follow a special
-procedure called a "stable release update" (or `SRU`_).
+Once an Ubuntu release is stable (i.e. after it is released), updates for it
+must follow a special procedure called a "stable release update" (or `SRU`_).
 
 The cloud-init project has a specific process it follows when validating
 a cloud-init SRU, documented in the `CloudinitUpdates`_ wiki page.
@@ -244,8 +244,9 @@ from **-proposed**
 
 .. code:: bash
 
-    # Block until cloud-init completes and verify from --long that the proper
-    # datasource was detected. Errors would show up in --long
+    # Block until cloud-init completes and verify from --long the datasource
+    # from step 1. Errors would show up in --long
+
     ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
     # Make sure hostname was set properly to SRU-worked-<cloud name>
     ssh ubuntu@$CI_VM_IP -- hostname
@@ -256,8 +257,8 @@ from **-proposed**
 6. If you encounter an error during SRU testing:
 
    * Create a `new cloud-init bug`_ reporting the version of cloud-init
-     affected **and** ping upstream cloud-init on Freenode's
-     `#cloud-init IRC channel`_
+     affected
+   * Ping upstream cloud-init on Freenode's `#cloud-init IRC channel`_
 
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
