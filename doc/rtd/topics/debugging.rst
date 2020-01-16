@@ -188,6 +188,11 @@ Manual SRU verification procedure
 Below are steps that can manually test a pre-release version of cloud-init
 from **-proposed**
 
+.. note::
+    For each SRU, upstream manually validates cloud-init upgrades for **Ubuntu**
+    on these platforms: **Amazon Ec2, Azure, GCE, OpenStack, Oracle,
+    Softlayer (IBM), NoCloud (LXD&KVM)**
+
 1. Launch a VM on your favorite platform, providing the cloud-config
    user-data and replacing `<YOUR_LAUNCHPAD_USERNAME>` with your username:
 
@@ -251,8 +256,8 @@ from **-proposed**
 6. If you encounter an error during SRU testing:
 
    * Create a `new cloud-init bug`_ reporting the version of cloud-init
-     affected
-   * ping upstream cloud-init on Freenode's `#cloud-init IRC channel`_
+     affected **and** ping upstream cloud-init on Freenode's
+     `#cloud-init IRC channel`_
 
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
