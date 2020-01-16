@@ -79,7 +79,7 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
 
 
 @lru_cache()
-def get_architecture(target=None):
+def get_dpkg_architecture(target=None):
     out, _ = subp(['dpkg', '--print-architecture'], capture=True,
                   target=target)
     return out.strip()

@@ -253,7 +253,7 @@ def get_default_mirrors(arch=None, target=None):
        architecture, for more see:
        https://wiki.ubuntu.com/UbuntuDevelopment/PackageArchive#Ports"""
     if arch is None:
-        arch = util.get_architecture(target)
+        arch = util.get_dpkg_architecture(target)
     if arch in PRIMARY_ARCHES:
         return PRIMARY_ARCH_MIRRORS.copy()
     if arch in PORTS_ARCHES:
@@ -303,7 +303,7 @@ def apply_apt(cfg, cloud, target):
     LOG.debug("handling apt config: %s", cfg)
 
     release = util.lsb_release(target=target)['codename']
-    arch = util.get_architecture(target)
+    arch = util.get_dpkg_architecture(target)
     mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
     LOG.debug("Apt Mirror info: %s", mirrors)
 
@@ -896,7 +896,7 @@ def find_apt_mirror_info(cfg, cloud, arch=None):
     """
 
     if arch is None:
-        arch = util.get_architecture()
+        arch = util.get_dpkg_architecture()
         LOG.debug("got arch for mirror selection: %s", arch)
     pmirror = get_mirror(cfg, "primary", arch, cloud)
     LOG.debug("got primary mirror: %s", pmirror)

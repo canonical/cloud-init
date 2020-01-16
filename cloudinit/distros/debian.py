@@ -205,7 +205,7 @@ class Distro(distros.Distro):
                          ["update"], freq=PER_INSTANCE)
 
     def get_primary_arch(self):
-        return util.get_architecture()
+        return util.get_dpkg_architecture()
 
 
 def _get_wrapper_prefix(cmd, mode):
