@@ -2,76 +2,138 @@
 Code Review Process
 *******************
 
-In order to manage incoming pull requests effectively, and to ensure
-that community members (like you!) submitting them understand what to
-expect, cloud-init has a documented code review process.
+In order to manage incoming pull requests effectively, and provide
+timely feedback and/or acceptance this document serves as a guideline
+for the review process and outlines the expectations for those
+submitting code to the project as well as those reviewing the code.
+Code is reviewed for acceptance by at least one core team member (later
+referred to as committers), but comments and suggestions from others
+are encouraged and welcome.
 
-The language used is intentionally formal, in a bid to avoid ambiguity,
-but the *experience* of working through the code review process should
-not be, so please don't be put off!  If you have any questions about
-this process, please do ask them in ``#cloud-init`` on the Freenode IRC
-network.
+While there is formality inherent in a code review process, and this is
+reflected by the language chosen in this document, we try to keep
+formalities to a minimum. The process is intended to provide timely and
+actionable feedback for any submission.
+
+Asking For Help
+===============
+
+cloud-init contributors, potential contributors, community members and
+users are encouraged to ask for any help that they need.  If you have
+questions about the code review process, or at any point during the
+code review process, these are the available avenues:
+
+* if you have an open Pull Request, comment on that pull request
+* join the ``#cloud-init`` channel on the Freenode IRC network and ask
+  away
+* send an email to the cloud-init mailing list,
+  cloud-init@lists.launchpad.net
+
+These are listed in rough order of preference, but use whichever of
+them you are most comfortable with.
 
 Goals
 =====
 
 This process has the following goals:
 
-* Ensure that cloud-init community members are receiving code reviews
-  in a timely fashion
-* Minimize the time the cloud-init core developers have to spend on the
-  parts of the code review process which aren't actual code review
+* Ensure code reviews occur in a timely fashion and provide actionable
+  feedback if changes are desirable.
+* Ensure the minimization of ancillary problems to increase the
+  efficiency for those reviewing the submitted code
 
-Roles
-=====
+Role Definitions
+================
 
-For ease of understanding, we will refer to two different roles
-throughout the process:
+Any code review process will have (at least) two involved parties.  For
+our purposes, these parties are referred to as **Proposer** and
+**Reviewer**.  (We also have the **Committer** role which is a special
+case of the **Reviewer** role.)  The terms are defined here (and the
+use of the singular form is not meant to imply that they refer to a
+single person):
 
 Proposer
-   The developer proposing a pull request (hereafter known as a PR).
-   This could be a core developer or community member.  (This is likely
-   the role you will be taking in this process.)
+   The person proposing a pull request (hereafter known as a PR).
 
-the Committers
-   The group of cloud-init core developers.
+Reviewer
+   A person who is reviewing a pull request.
 
-   In this process doc, cloud-init core developers are treated as a
-   bloc of interchangeable people.  This is a simplification, as in
-   reality we will need to manage transfer of reviews, dismissal of
-   stale reviews, parallel reviews from multiple committers, etc.  If
-   we find that handling these on an ad-hoc basis is causing problems,
-   then we should revisit and expand this process to include them.
+Committer
+   A cloud-init core developer (i.e. a person who has permission to
+   merge PRs into master).
 
-   (If the **Proposer** is a core developer, then they are not
-   considered part of this group for the purposes of this process.)
+Prerequisites For Landing Pull Requests
+=======================================
+
+Before a pull request can be landed into master, the following
+conditions *must* be met:
+
+* the CLA has been signed by the **Proposer**
+* all required status checks are passing
+* at least one "Approve" review from a **Committer**
+* no "Request changes" reviews from any **Committer**
+
+The following conditions *should* be met:
+
+* any Python functions/methods/classes have docstrings added/updated
+* any changes to config module behaviour are captured in the
+  documentation of the config module
+* any Python code added has corresponding unit tests
+* no "Request changes" reviews from any **Reviewer**
+
+These conditions can be relaxed at the discretion of the
+**Committers** on a case-by-case basis.  Generally, for accountability,
+this should not be the decision of a single **Committer**, and the
+decision should be documented in comments on the PR.
+
+(To take a specific example, the ``cc_phone_home`` module had no tests
+at the time `PR #237
+<https://github.com/canonical/cloud-init/pull/237>`_ was submitted, so
+the **Proposer** was not expected to write a full set of tests for
+their minor modification, but they were expected to update the config
+module docs.)
+
+Non-Committer Reviews
+=====================
+
+Reviews from non-**Committers** are *always* welcome.  Please feel
+empowered to review PRs and leave your thoughts and comments on any
+submitted PRs, regardless of the **Proposer**.
+
+Much of the below process is written in terms of the **Committers**.
+This is not intended to reflect that reviews should only come from that
+group, but acknowledges that we are ultimately responsible for
+maintaining the standards of the codebase.  It would be entirely
+reasonable (and very welcome) for a **Reviewer** to only examine part
+of a PR, but it would not be appropriate for a **Committer** to merge a
+PR without full scrutiny.
 
 Opening Phase
 =============
 
-In this phase, the **Proposer** is responsible for all actions. They
-should get a PR into good enough shape that it is worth **the
-Committers** spending time reviewing it.  Specifically, they are
-responsible for getting to a point where the continuous integration
-(CI) testing in Travis is passing.  Once a PR is passing CI, it moves
-into the :ref:`Review phase`.
+In this phase, the **Proposer** is responsible for opening a pull
+request and meeting the prerequisites laid out above.
+
+If they need help understanding the prerequisites, or help meeting the
+prerequisites, then they can (and should!) ask for help.  See the
+:ref:`Asking For Help` section above for the ways to do that.
 
 These are the steps that comprise the opening phase:
 
 1. The **Proposer** opens PR
 
-2. An automated comment will be added to the PR, outlining the steps
-   expected of the **Proposer** before a **Committer** will review
-   their PR.  (N.B. This automation is not yet implemented!)
-
-3. CI runs automatically, and if
+2. CI runs automatically, and if
 
    CI fails
       The **Proposer** is expected to fix CI failures.  If the
       **Proposer** doesn't understand the nature of the failures they
       are seeing, they should comment in the pull request to request
-      assistance.  Alternatively, for more immediate assistance, they
-      can ask in ``#cloud-init`` on the Freenode IRC network.
+      assistance, or use another way of :ref:`Asking For Help`.
+
+      (Note that if assistance is not requested, the **Committers**
+      will assume that the **Proposer** is working on addressing the
+      failures themselves.  If you require assistance, please do ask
+      for help!)
 
    CI passes
       Move on to the :ref:`Review phase`.
@@ -79,31 +141,53 @@ These are the steps that comprise the opening phase:
 Review Phase
 ============
 
-In this phase, the **Proposer** and the **Committers** will iterate
+In this phase, the **Proposer** and the **Reviewers** will iterate
 together to, hopefully, get the PR merged into the cloud-init codebase.
 There are three potential outcomes: merged, rejected permanently, and
 temporarily closed.
+
+(In the below, when the verbs "merge" or "squash merge" are used, they
+should be understood to mean "squash merged using the GitHub UI", which
+is the only way that changes can land in cloud-init's master branch.)
 
 These are the steps that comprise the review phase:
 
 1. **The Committers** assign a **Committer** to the PR
 
-   The cloud-init core developers will work amongst themselves to
-   ensure that this happens in a timely fashion.  (Generally,
-   assignment will happen at the team's daily internal meeting.)  Note
-   that, in GitHub terms, this is setting an Assignee, not requesting a
-   review.
+   This **Committer** is expected to shepherd the PR to completion (and
+   merge it, if that is the outcome reached).  This means that they
+   will perform an initial review, and monitor the pull request to
+   ensure that the **Proposer** is receiving any assistance that they
+   require.  The **Committers** will perform this assignment on a daily
+   basis.
 
-2. That **Committer** reviews the PR, resulting in one of the
-   following:
+   This assignment is intended to ensure that the **Proposer** has a
+   clear point of contact with a cloud-init core developer, and that
+   they get timely feedback after submitting a PR.  It *is not*
+   intended to preclude reviews from any other **Reviewers**, nor to
+   imply that the **Committer** has ownership over the review process.
+
+   The assigned **Committer** may choose to delegate the code review of
+   a PR to another **Reviewer** if they think that they would be better
+   suited.
+
+   (Note that, in GitHub terms, this is setting an Assignee, not
+   requesting a review.)
+
+2. That **Committer** performs an initial review of the PR, resulting
+   in one of the following:
 
    Approve
-     The **Committer** will squash merge immediately.
+     If the submitted PR meets all of the :ref:`Prerequisites for
+     Landing Pull Requests` and passes code review, then the
+     **Committer** will squash merge immediately.
 
      There may be circumstances where a PR should not be merged
-     immediately; these will be handled case-by-case, and the
-     **Proposer** should make this requirement very clear in their pull
-     request description.
+     immediately.  The ``wip`` label will be applied to PRs for which
+     this is true.  Only **Committers** are able to apply labels to
+     pull requests, so anyone who believes that this label should be
+     applied to a PR should request its application in a comment on the
+     PR.
 
      The review process is **DONE**.
 
@@ -111,15 +195,19 @@ These are the steps that comprise the review phase:
      If the **Proposer** submits their PR with "Allow edits from
      maintainer" enabled, and the only changes the **Committer**
      requests are minor "nits", the **Committer** can push fixes for
-     those nits and squash merge.  (If a **Proposer** wants to opt-out
-     of this, then they should uncheck "Allow edits from maintainer"
-     when submitting their PR.)
+     those nits and *immediately* squash merge.  If the **Committer**
+     does not wish to fix these nits but believes they should block a
+     straight-up Approve, then their review should be "Needs Changes"
+     instead.
 
      A nit is understood to be something like a minor style issue or a
      spelling error, generally confined to a single line of code.
 
      If a **Committer** is unsure as to whether their requested change
      is a nit, they should not treat it as a nit.
+
+     (If a **Proposer** wants to opt-out of this, then they should
+     uncheck "Allow edits from maintainer" when submitting their PR.)
 
      The review process is **DONE**.
 
