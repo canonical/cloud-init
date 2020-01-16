@@ -185,7 +185,7 @@ Generally an SRU test of cloud-init performs the following:
 
 Manual SRU verification procedure
 ---------------------------------
-Below are steps that can manually test a pre-release version of cloud-init
+Below are steps to manually test a pre-release version of cloud-init
 from **-proposed**
 
 .. note::
