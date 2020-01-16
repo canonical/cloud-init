@@ -206,7 +206,7 @@ from **-proposed**
 2. Wait for current cloud-init to complete, replace `<YOUR_VM_IP>` with the IP
    address of the VM that you launched in step 1:
 
-.. code:: bash
+.. code-block:: bash
 
     CI_VM_IP=<YOUR_VM_IP>
     # Make note of the datasource cloud-init detected in --long output.
@@ -214,9 +214,9 @@ from **-proposed**
     ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
 
 3. Set up the **-proposed** pocket on your VM and upgrade to the **-proposed**
-   cloud-init
+   cloud-init:
 
-.. code:: bash
+.. code-block:: bash
 
     # Create a script that will add the -proposed pocket to APT's sources
     # and install cloud-init from that pocket
@@ -235,14 +235,14 @@ from **-proposed**
 4. Change hostname, clean cloud-init's state, and reboot to run cloud-init
    from scratch:
 
-.. code:: bash
+.. code-block:: bash
 
     ssh ubuntu@$CI_VM_IP -- sudo hostname something-else
     ssh ubuntu@$CI_VM_IP -- sudo cloud-init clean --logs --reboot
 
 5. Validate **-proposed** cloud-init came up without error
 
-.. code:: bash
+.. code-block:: bash
 
     # Block until cloud-init completes and verify from --long the datasource
     # from step 1. Errors would show up in --long
