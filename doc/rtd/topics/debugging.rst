@@ -193,7 +193,7 @@ from **-proposed**
     on these platforms: **Amazon Ec2, Azure, GCE, OpenStack, Oracle,
     Softlayer (IBM), NoCloud (LXD&KVM)**
 
-1. Launch a VM on your favorite platform, providing the cloud-config
+1. Launch a VM on your favorite platform, providing this cloud-config
    user-data and replacing `<YOUR_LAUNCHPAD_USERNAME>` with your username:
 
 .. code-block:: yaml
