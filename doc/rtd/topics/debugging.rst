@@ -190,7 +190,7 @@ from **-proposed**
 
 .. note::
     For each SRU, upstream manually validates cloud-init upgrades for **Ubuntu**
-    on these platforms: **Amazon Ec2, Azure, GCE, OpenStack, Oracle,
+    on these platforms: **Amazon EC2, Azure, GCE, OpenStack, Oracle,
     Softlayer (IBM), LXD, KVM**
 
 1. Launch a VM on your favorite platform, providing this cloud-config
