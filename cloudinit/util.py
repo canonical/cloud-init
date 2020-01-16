@@ -80,6 +80,11 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
 
 @lru_cache()
 def get_dpkg_architecture(target=None):
+    """Return the sanitized string output by `dpkg --print-architecture`.
+
+    N.B. This function is wrapped in functools.lru_cache, so repeated calls
+    won't shell out every time.
+    """
     out, _ = subp(['dpkg', '--print-architecture'], capture=True,
                   target=target)
     return out.strip()
