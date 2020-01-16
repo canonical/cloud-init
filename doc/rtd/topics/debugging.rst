@@ -189,7 +189,7 @@ Below are steps to manually test a pre-release version of cloud-init
 from **-proposed**
 
 .. note::
-    For each SRU, upstream manually validates cloud-init upgrades for **Ubuntu**
+    For each Ubuntu SRU, the Ubuntu Server team manually validates the new version of cloud-init
     on these platforms: **Amazon EC2, Azure, GCE, OpenStack, Oracle,
     Softlayer (IBM), LXD, KVM**
 
