@@ -487,7 +487,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         with mock.patch.object(os, 'rename') as mockren:
             with mock.patch.object(glob, 'glob',
                                    return_value=[fromfn]):
-                cc_apt_configure.rename_apt_lists(mirrors, TARGET)
+                cc_apt_configure.rename_apt_lists(mirrors, TARGET, arch)
 
         mockren.assert_any_call(fromfn, tofn)
 
@@ -496,7 +496,8 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         target = os.path.join(self.tmp, "rename_non_slash")
         apt_lists_d = os.path.join(target, "./" + cc_apt_configure.APT_LISTS)
 
-        m_get_architecture.return_value = 'amd64'
+        arch = 'amd64'
+        m_get_architecture.return_value = arch
 
         mirror_path = "some/random/path/"
         primary = "http://test.ubuntu.com/" + mirror_path
@@ -532,7 +533,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
             fpath = os.path.join(apt_lists_d, opre + suff)
             util.write_file(fpath, content=fpath)
 
-        cc_apt_configure.rename_apt_lists(mirrors, target)
+        cc_apt_configure.rename_apt_lists(mirrors, target, arch)
         found = sorted(os.listdir(apt_lists_d))
         self.assertEqual(expected, found)
 

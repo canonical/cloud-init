@@ -309,7 +309,7 @@ def apply_apt(cfg, cloud, target):
 
     if util.is_false(cfg.get('preserve_sources_list', False)):
         generate_sources_list(cfg, release, mirrors, cloud)
-        rename_apt_lists(mirrors, target=target, arch=arch)
+        rename_apt_lists(mirrors, target, arch)
 
     try:
         apply_apt_config(cfg, APT_PROXY_FN, APT_CONFIG_FN)
@@ -427,10 +427,8 @@ def mirrorurl_to_apt_fileprefix(mirror):
     return string
 
 
-def rename_apt_lists(new_mirrors, target=None, arch=None):
+def rename_apt_lists(new_mirrors, target, arch):
     """rename_apt_lists - rename apt lists to preserve old cache data"""
-    if not arch:
-        arch = util.get_architecture(target)
     default_mirrors = get_default_mirrors(arch)
 
     pre = util.target_path(target, APT_LISTS)
