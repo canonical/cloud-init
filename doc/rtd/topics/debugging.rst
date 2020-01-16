@@ -210,7 +210,7 @@ from **-proposed**
 
     CI_VM_IP=<YOUR_VM_IP>
     # Make note of the datasource cloud-init detected in --long output.
-    # In step 5, confirm the same datasource got detected after upgrade.
+    # In step 5, you will use this to confirm the same datasource is detected after upgrade.
     ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
 
 3. Set up the **-proposed** pocket on your VM and upgrade to the **-proposed**
