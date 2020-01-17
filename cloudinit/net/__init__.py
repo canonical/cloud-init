@@ -1035,9 +1035,16 @@ class EphemeralIPv4Network(object):
             via_arg = []
             if gateway != "0.0.0.0/0":
                 via_arg = ['via', gateway]
-            util.subp(
-                ['ip', '-4', 'route', 'add', net_address] + via_arg +
-                ['dev', self.interface], capture=True)
+            try:
+                util.subp(
+                    ['ip', '-4', 'route', 'add', net_address] + via_arg +
+                    ['dev', self.interface], capture=True)
+            except util.ProcessExecutionError as e:
+                if e.exit_code != 2:
+                    raise
+                LOG.debug(
+                    'Skip ephemeral network setup, %s already has route %s',
+                    self.interface, net_address)
             self.cleanup_cmds.insert(
                 0, ['ip', '-4', 'route', 'del', net_address] + via_arg +
                    ['dev', self.interface])
