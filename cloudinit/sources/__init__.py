@@ -9,20 +9,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
-from collections import namedtuple
 import copy
 import json
 import os
+from collections import namedtuple
 
-from cloudinit.atomic_helper import write_json
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.event import EventType
 from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
-
+from cloudinit.atomic_helper import write_json
+from cloudinit.event import EventType
 from cloudinit.filters import launch_index
 from cloudinit.reporting import events
 
