@@ -15,8 +15,6 @@ import os
 import re
 import time
 
-import six
-
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
@@ -458,7 +456,7 @@ def maybe_cdrom_device(devname):
     """
     if not devname:
         return False
-    elif not isinstance(devname, six.string_types):
+    elif not isinstance(devname, str):
         raise ValueError("Unexpected input for devname: %s" % devname)
 
     # resolve '..' and multi '/' elements
