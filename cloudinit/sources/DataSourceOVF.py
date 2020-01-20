@@ -8,17 +8,15 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from xml.dom import minidom
-
 import base64
 import os
 import re
 import time
+from xml.dom import minidom
 
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
-
 from cloudinit.sources.helpers.vmware.imc.config \
     import Config
 from cloudinit.sources.helpers.vmware.imc.config_custom_script \
