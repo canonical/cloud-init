@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
-import uuid
 import fcntl
 import json
 import os
@@ -9,11 +8,12 @@ import queue
 import struct
 import threading
 import time
+import uuid
+from datetime import datetime
 
 from cloudinit import log as logging
 from cloudinit.registry import DictRegistry
 from cloudinit import (url_helper, util)
-from datetime import datetime
 
 LOG = logging.getLogger(__name__)
 
