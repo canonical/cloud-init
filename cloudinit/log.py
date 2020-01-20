@@ -8,15 +8,13 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import collections
+import io
 import logging
 import logging.config
 import logging.handlers
-
-import collections
-import io
 import os
 import sys
-
 import time
 
 # Logging levels for easy access
