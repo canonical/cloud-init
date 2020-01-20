@@ -10,16 +10,16 @@
 
 import json
 import os
-import requests
 import time
-
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
-from requests import exceptions
 from urllib.parse import urlparse, urlunparse, quote
+
+import requests
+from requests import exceptions
 
 from cloudinit import log as logging
 from cloudinit import version
