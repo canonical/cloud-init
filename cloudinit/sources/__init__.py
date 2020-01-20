@@ -13,7 +13,6 @@ from collections import namedtuple
 import copy
 import json
 import os
-import six
 
 from cloudinit.atomic_helper import write_json
 from cloudinit import importer
@@ -136,8 +135,7 @@ URLParams = namedtuple(
     'URLParms', ['max_wait_seconds', 'timeout_seconds', 'num_retries'])
 
 
-@six.add_metaclass(abc.ABCMeta)
-class DataSource(object):
+class DataSource(metaclass=abc.ABCMeta):
 
     dsmode = DSMODE_NETWORK
     default_locale = 'en_US.UTF-8'
@@ -436,7 +434,7 @@ class DataSource(object):
             return self._cloud_name
         if self.metadata and self.metadata.get(METADATA_CLOUD_NAME_KEY):
             cloud_name = self.metadata.get(METADATA_CLOUD_NAME_KEY)
-            if isinstance(cloud_name, six.string_types):
+            if isinstance(cloud_name, str):
                 self._cloud_name = cloud_name.lower()
             else:
                 self._cloud_name = self._get_cloud_name().lower()
@@ -718,8 +716,8 @@ def normalize_pubkey_data(pubkey_data):
     if not pubkey_data:
         return keys
 
-    if isinstance(pubkey_data, six.string_types):
-        return str(pubkey_data).splitlines()
+    if isinstance(pubkey_data, str):
+        return pubkey_data.splitlines()
 
     if isinstance(pubkey_data, (list, set)):
         return list(pubkey_data)
@@ -729,7 +727,7 @@ def normalize_pubkey_data(pubkey_data):
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
-            if isinstance(klist, six.string_types):
+            if isinstance(klist, str):
                 klist = [klist]
             if isinstance(klist, (list, set)):
                 for pkey in klist:
@@ -837,7 +835,7 @@ def convert_vendordata(data, recurse=True):
     """
     if not data:
         return None
-    if isinstance(data, six.string_types):
+    if isinstance(data, str):
         return data
     if isinstance(data, list):
         return copy.deepcopy(data)
