@@ -10,7 +10,6 @@
 
 import abc
 import os
-import six
 
 from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES)
 
@@ -60,8 +59,7 @@ INCLUSION_SRCH = sorted(list(INCLUSION_TYPES_MAP.keys()),
                         key=(lambda e: 0 - len(e)))
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Handler(object):
+class Handler(metaclass=abc.ABCMeta):
 
     def __init__(self, frequency, version=2):
         self.handler_version = version
@@ -159,7 +157,7 @@ def _extract_first_or_bytes(blob, size):
     # Extract the first line or upto X symbols for text objects
     # Extract first X bytes for binary objects
     try:
-        if isinstance(blob, six.string_types):
+        if isinstance(blob, str):
             start = blob.split("\n", 1)[0]
         else:
             # We want to avoid decoding the whole blob (it might be huge)
