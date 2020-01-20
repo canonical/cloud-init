@@ -9,7 +9,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
