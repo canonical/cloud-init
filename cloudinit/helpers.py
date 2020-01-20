@@ -12,6 +12,7 @@ from time import time
 
 import contextlib
 import os
+import six
 
 from six import StringIO
 from six.moves.configparser import (
@@ -25,6 +26,10 @@ from cloudinit import type_utils
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
+
+if six.PY2:
+    class PermissionError(OSError):
+        pass
 
 
 class LockFailure(Exception):
