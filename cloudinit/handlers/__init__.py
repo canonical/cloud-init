@@ -11,12 +11,11 @@
 import abc
 import os
 
-from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES)
-
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import type_utils
 from cloudinit import util
+from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES)
 
 LOG = logging.getLogger(__name__)
 
