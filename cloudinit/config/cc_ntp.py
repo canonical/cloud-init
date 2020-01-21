@@ -17,7 +17,6 @@ from cloudinit import util
 
 import copy
 import os
-import six
 from textwrap import dedent
 
 LOG = logging.getLogger(__name__)
@@ -460,7 +459,7 @@ def supplemental_schema_validation(ntp_config):
     for key, value in sorted(ntp_config.items()):
         keypath = 'ntp:config:' + key
         if key == 'confpath':
-            if not all([value, isinstance(value, six.string_types)]):
+            if not all([value, isinstance(value, str)]):
                 errors.append(
                     'Expected a config file path {keypath}.'
                     ' Found ({value})'.format(keypath=keypath, value=value))
@@ -472,11 +471,11 @@ def supplemental_schema_validation(ntp_config):
         elif key in ('template', 'template_name'):
             if value is None:  # Either template or template_name can be none
                 continue
-            if not isinstance(value, six.string_types):
+            if not isinstance(value, str):
                 errors.append(
                     'Expected a string type for {keypath}.'
                     ' Found ({value})'.format(keypath=keypath, value=value))
-        elif not isinstance(value, six.string_types):
+        elif not isinstance(value, str):
             errors.append(
                 'Expected a string type for {keypath}.'
                 ' Found ({value})'.format(keypath=keypath, value=value))
