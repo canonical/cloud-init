@@ -49,14 +49,14 @@ key returns 0.
         condition: <true/false/command>
 """
 
-from cloudinit.settings import PER_INSTANCE
-from cloudinit import util
-
 import errno
 import os
 import re
 import subprocess
 import time
+
+from cloudinit.settings import PER_INSTANCE
+from cloudinit import util
 
 frequency = PER_INSTANCE
 
