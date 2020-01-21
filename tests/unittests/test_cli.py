@@ -1,8 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from collections import namedtuple
 import os
 import io
+from collections import namedtuple
 
 from cloudinit.cmd import main as cli
 from cloudinit.tests import helpers as test_helpers
