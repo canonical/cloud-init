@@ -8,8 +8,8 @@ from cloudinit.tests.helpers import CiTestCase, FilesystemMockingTestCase
 
 import base64
 import gzip
+import io
 import shutil
-import six
 import tempfile
 
 LOG = logging.getLogger(__name__)
@@ -138,7 +138,7 @@ class TestDecodePerms(CiTestCase):
 
 
 def _gzip_bytes(data):
-    buf = six.BytesIO()
+    buf = io.BytesIO()
     fp = None
     try:
         fp = gzip.GzipFile(fileobj=buf, mode="wb")
