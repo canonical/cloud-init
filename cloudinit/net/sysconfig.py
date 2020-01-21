@@ -1,9 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import io
 import os
 import re
-
-import six
 
 from cloudinit.distros.parsers import networkmanager_conf
 from cloudinit.distros.parsers import resolv_conf
@@ -96,7 +95,7 @@ class ConfigMap(object):
         return len(self._conf)
 
     def to_string(self):
-        buf = six.StringIO()
+        buf = io.StringIO()
         buf.write(_make_header())
         if self._conf:
             buf.write("\n")
@@ -104,7 +103,7 @@ class ConfigMap(object):
             value = self._conf[key]
             if isinstance(value, bool):
                 value = self._bool_map[value]
-            if not isinstance(value, six.string_types):
+            if not isinstance(value, str):
                 value = str(value)
             buf.write("%s=%s\n" % (key, _quote_value(value)))
         return buf.getvalue()
@@ -150,7 +149,7 @@ class Route(ConfigMap):
         # only accept ipv4 and ipv6
         if proto not in ['ipv4', 'ipv6']:
             raise ValueError("Unknown protocol '%s'" % (str(proto)))
-        buf = six.StringIO()
+        buf = io.StringIO()
         buf.write(_make_header())
         if self._conf:
             buf.write("\n")
