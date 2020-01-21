@@ -2,13 +2,14 @@
 
 """Tests for cloudinit.log """
 
-from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
-from cloudinit import log as ci_logging
-from cloudinit.tests.helpers import CiTestCase
 import datetime
 import io
 import logging
 import time
+
+from cloudinit import log as ci_logging
+from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
+from cloudinit.tests.helpers import CiTestCase
 
 
 class TestCloudInitLogger(CiTestCase):
