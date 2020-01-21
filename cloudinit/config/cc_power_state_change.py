@@ -55,7 +55,6 @@ from cloudinit import util
 import errno
 import os
 import re
-import six
 import subprocess
 import time
 
@@ -183,7 +182,7 @@ def load_power_state(cfg):
                          pstate['timeout'])
 
     condition = pstate.get("condition", True)
-    if not isinstance(condition, six.string_types + (list, bool)):
+    if not isinstance(condition, (str, list, bool)):
         raise TypeError("condition type %s invalid. must be list, bool, str")
     return (args, timeout, condition)
 
