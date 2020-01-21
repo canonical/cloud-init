@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import io
 import logging
 import os
 import re
@@ -10,7 +11,6 @@ import stat
 import tempfile
 
 import json
-import six
 import sys
 import yaml
 
@@ -320,7 +320,7 @@ class TestLoadYaml(helpers.CiTestCase):
 
     def test_python_unicode(self):
         # complex type of python/unicode is explicitly allowed
-        myobj = {'1': six.text_type("FOOBAR")}
+        myobj = {'1': "FOOBAR"}
         safe_yaml = yaml.dump(myobj)
         self.assertEqual(util.load_yaml(blob=safe_yaml,
                                         default=self.mydefault),
@@ -663,8 +663,8 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         self.patchOS(self.root)
         self.patchUtils(self.root)
         self.patchOpen(self.root)
-        self.stdout = six.StringIO()
-        self.stderr = six.StringIO()
+        self.stdout = io.StringIO()
+        self.stderr = io.StringIO()
         self.patchStdoutAndStderr(self.stdout, self.stderr)
 
     def test_stderr_used_by_default(self):
@@ -879,8 +879,8 @@ class TestSubp(helpers.CiTestCase):
         """Raised exc should have stderr, stdout as string if no decode."""
         with self.assertRaises(util.ProcessExecutionError) as cm:
             util.subp([BOGUS_COMMAND], decode=True)
-        self.assertTrue(isinstance(cm.exception.stdout, six.string_types))
-        self.assertTrue(isinstance(cm.exception.stderr, six.string_types))
+        self.assertTrue(isinstance(cm.exception.stdout, str))
+        self.assertTrue(isinstance(cm.exception.stderr, str))
 
     def test_bunch_of_slashes_in_path(self):
         self.assertEqual("/target/my/path/",
