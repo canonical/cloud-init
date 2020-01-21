@@ -6,18 +6,17 @@
 
 """NTP: enable and configure ntp"""
 
-from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+import copy
+import os
+from textwrap import dedent
+
 from cloudinit import log as logging
-from cloudinit.settings import PER_INSTANCE
 from cloudinit import temp_utils
 from cloudinit import templater
 from cloudinit import type_utils
 from cloudinit import util
-
-import copy
-import os
-from textwrap import dedent
+from cloudinit.config.schema import get_schema_doc, validate_cloudconfig_schema
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
