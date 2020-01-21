@@ -5,10 +5,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-import six
-from six import StringIO
-
 import re
+from io import StringIO
 
 from cloudinit import distros
 from cloudinit import helpers
@@ -108,8 +106,7 @@ class Distro(distros.Distro):
         }
 
         for key, val in kwargs.items():
-            if (key in pw_useradd_opts and val and
-               isinstance(val, six.string_types)):
+            if key in pw_useradd_opts and val and isinstance(val, str):
                 pw_useradd_cmd.extend([pw_useradd_opts[key], val])
 
             elif key in pw_useradd_flags and val:
