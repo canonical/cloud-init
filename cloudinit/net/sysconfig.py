@@ -4,12 +4,12 @@ import io
 import os
 import re
 
-from cloudinit.distros.parsers import networkmanager_conf
-from cloudinit.distros.parsers import resolv_conf
+from configobj import ConfigObj
+
 from cloudinit import log as logging
 from cloudinit import util
-
-from configobj import ConfigObj
+from cloudinit.distros.parsers import networkmanager_conf
+from cloudinit.distros.parsers import resolv_conf
 
 from . import renderer
 from .network_state import (
