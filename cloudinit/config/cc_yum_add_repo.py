@@ -32,11 +32,7 @@ entry, the config entry will be skipped.
 
 import io
 import os
-
-try:
-    from configparser import ConfigParser
-except ImportError:
-    from ConfigParser import ConfigParser
+from configparser import ConfigParser
 
 from cloudinit import util
 
