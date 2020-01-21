@@ -3,15 +3,14 @@
 from __future__ import print_function
 
 import io
+import json
 import logging
 import os
 import re
 import shutil
 import stat
-import tempfile
-
-import json
 import sys
+import tempfile
 import yaml
 
 from cloudinit import importer, util
