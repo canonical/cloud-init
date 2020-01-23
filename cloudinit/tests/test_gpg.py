@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Test gpg module."""
 
+from unittest import mock
+
 from cloudinit import gpg
 from cloudinit import util
 from cloudinit.tests.helpers import CiTestCase
-
-import mock
 
 
 @mock.patch("cloudinit.gpg.time.sleep")

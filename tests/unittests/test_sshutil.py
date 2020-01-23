@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from mock import patch
 from collections import namedtuple
+from unittest.mock import patch
 
 from cloudinit import ssh_util
 from cloudinit.tests import helpers as test_helpers

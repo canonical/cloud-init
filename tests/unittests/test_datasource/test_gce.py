@@ -7,8 +7,8 @@
 import datetime
 import httpretty
 import json
-import mock
 import re
+from unittest import mock
 
 from base64 import b64encode, b64decode
 from six.moves.urllib_parse import urlparse
