@@ -12,8 +12,6 @@ import gzip
 import io
 import os
 
-import six
-
 from cloudinit import util
 
 from . import get_devicelist
@@ -22,8 +20,7 @@ from . import read_sys_net_safe
 _OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
 
 
-@six.add_metaclass(abc.ABCMeta)
-class InitramfsNetworkConfigSource(object):
+class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
     """ABC for net config sources that read config written by initramfses"""
 
     @abc.abstractmethod

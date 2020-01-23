@@ -78,7 +78,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         get_rel = rpatcher.start()
         get_rel.return_value = {'codename': "fakerelease"}
         self.addCleanup(rpatcher.stop)
-        apatcher = mock.patch("cloudinit.util.get_architecture")
+        apatcher = mock.patch("cloudinit.util.get_dpkg_architecture")
         get_arch = apatcher.start()
         get_arch.return_value = 'amd64'
         self.addCleanup(apatcher.stop)
