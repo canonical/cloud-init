@@ -114,7 +114,7 @@ def load_os_config(platform_name, os_name, require_enabled=False,
     feature_conf = main_conf['features']
     feature_groups = conf.get('feature_groups', [])
     overrides = merge_config(get(conf, 'features'), feature_overrides)
-    conf['arch'] = c_util.get_architecture()
+    conf['arch'] = c_util.get_dpkg_architecture()
     conf['features'] = merge_feature_groups(
         feature_conf, feature_groups, overrides)
 
