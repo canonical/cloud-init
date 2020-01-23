@@ -5,11 +5,7 @@
 import gzip
 import logging
 import os
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 from six import BytesIO, StringIO
 

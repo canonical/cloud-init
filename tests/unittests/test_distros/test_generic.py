@@ -8,11 +8,7 @@ from cloudinit.tests import helpers
 import os
 import shutil
 import tempfile
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 unknown_arch_info = {
     'arches': ['default'],

@@ -4,11 +4,7 @@ import copy
 import os
 from six import StringIO
 from textwrap import dedent
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 from cloudinit import distros
 from cloudinit.distros.parsers.sys_conf import SysConf
