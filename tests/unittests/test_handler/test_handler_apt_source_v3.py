@@ -11,13 +11,8 @@ import shutil
 import socket
 import tempfile
 
-from unittest import TestCase
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-from mock import call
+from unittest import TestCase, mock
+from unittest.mock import call
 
 from cloudinit import cloud
 from cloudinit import distros
