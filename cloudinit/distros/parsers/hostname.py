@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from six import StringIO
+from io import StringIO
 
 from cloudinit.distros.parsers import chop_comment
 
