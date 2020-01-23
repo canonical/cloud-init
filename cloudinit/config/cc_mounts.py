@@ -247,9 +247,6 @@ def create_swapfile(fname, size):
     swap_dir = os.path.dirname(fname)
     util.ensure_dir(swap_dir)
 
-    """Return the type of the filesystem that path is on.
-    If path is a mount point itself, then the type of the filesystem mounted
-    on path rather than its parent dir."""
     fstype = util.get_mount_info(swap_dir)[1]
 
     if fstype in ("xfs", "btrfs"):
