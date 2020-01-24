@@ -1,7 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import os.path
-
 from cloudinit.config import cc_ssh_import_id
 from cloudinit.tests.helpers import CiTestCase, mock
 import logging
@@ -10,8 +8,10 @@ LOG = logging.getLogger(__name__)
 
 MODPATH = "cloudinit.config.cc_ssh_import_id."
 
+
 class DummyCloud(object):
     distro = 'dummy'
+
 
 class TestHandleSshImportId(CiTestCase):
     """Test cc_ssh_import_id handling of import-id config."""
@@ -41,7 +41,6 @@ class TestHandleSshImportId(CiTestCase):
         cc_ssh_import_id.handle(None, mycfg, mycloud, LOG, [])
         m_import.has_calls([
             mock.call(['foo', 'bar', 'baz'], 'ubuntu', LOG)])
-
 
     @mock.patch(MODPATH + 'ug_util.normalize_users_groups')
     @mock.patch(MODPATH + 'import_ssh_ids')
@@ -81,7 +80,6 @@ class TestHandleSshImportId(CiTestCase):
         m_import.has_calls([
             mock.call(['foo', 'bar', 'baz'], 'ubuntu', LOG)])
 
-
     @mock.patch(MODPATH + 'ug_util.normalize_users_groups')
     @mock.patch(MODPATH + 'import_ssh_ids')
     def test_handle_import_empty_list(self, m_import, m_ugroups):
@@ -103,4 +101,3 @@ class TestHandleSshImportId(CiTestCase):
             {'ubuntu': {'default': True, 'ssh_import_id': []}}, None)
         cc_ssh_import_id.handle(None, mycfg, mycloud, LOG, [])
         self.assertEqual(m_import.call_count, 0)
-
