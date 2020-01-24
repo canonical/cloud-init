@@ -28,6 +28,10 @@ either ``lp:`` for launchpad or ``gh:`` for github to the username.
         - user
         - gh:user
         - lp:user
+
+    ssh_import_id: lp:user2
+
+    ssh_import_id: lp:user1 user2 user3
 """
 
 from cloudinit.distros import ug_util
@@ -56,13 +60,16 @@ def handle(_name, cfg, cloud, log, args):
     for (user, user_cfg) in users.items():
         import_ids = []
         if user_cfg['default']:
-            import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
+            import_ids = cfg.get("ssh_import_id", [])
         else:
-            try:
-                import_ids = user_cfg['ssh_import_id']
-            except Exception:
-                log.debug("User %s is not configured for ssh_import_id", user)
-                continue
+            import_ids = user_cfg.get('ssh_import_id', [])
+
+        if not import_ids:
+            continue
+
+        # handle space separated list
+        if isinstance(import_ids, str):
+            import_ids = import_ids.split(" ")
 
         try:
             import_ids = util.uniq_merge(import_ids)
