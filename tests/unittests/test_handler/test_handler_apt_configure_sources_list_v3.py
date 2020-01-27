@@ -7,12 +7,8 @@ import logging
 import os
 import shutil
 import tempfile
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-from mock import call
+from unittest import mock
+from unittest.mock import call
 
 from cloudinit import cloud
 from cloudinit import distros

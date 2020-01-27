@@ -12,14 +12,10 @@ import stat
 import sys
 import tempfile
 import yaml
+from unittest import mock
 
 from cloudinit import importer, util
 from cloudinit.tests import helpers
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 
 BASH = util.which('bash')
