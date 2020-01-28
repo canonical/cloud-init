@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import io
 import os
 import re
@@ -86,7 +87,7 @@ class ConfigMap(object):
         return self._conf[key]
 
     def get(self, key):
-        return self._conf.get(key, None)
+        return self._conf.get(key)
 
     def __contains__(self, key):
         return key in self._conf
@@ -110,6 +111,9 @@ class ConfigMap(object):
                 value = str(value)
             buf.write("%s=%s\n" % (key, _quote_value(value)))
         return buf.getvalue()
+
+    def update(self, updates):
+        self._conf.update(updates)
 
 
 class Route(ConfigMap):
@@ -271,17 +275,29 @@ class Renderer(renderer.Renderer):
     #      s1-networkscripts-interfaces.html (or other docs for
     #                                         details about this)
 
-    iface_defaults_rh = tuple([
-        ('ONBOOT', True),
-        ('USERCTL', False),
-        ('NM_CONTROLLED', False),
-        ('BOOTPROTO', 'none'),
-    ])
+    iface_defaults = {
+        'rhel': {'ONBOOT': True, 'USERCTL': False, 'NM_CONTROLLED': False,
+                 'BOOTPROTO': 'none'},
+        'suse': {'BOOTPROTO': 'static', 'STARTMODE': 'auto'},
+    }
 
-    iface_defaults_suse = tuple([
-        ('BOOTPROTO', 'static'),
-        ('STARTMODE', 'auto'),
-    ])
+    cfg_key_maps = {
+        'rhel': {
+            'accept-ra': 'IPV6_FORCE_ACCEPT_RA',
+            'bridge_stp': 'STP',
+            'bridge_ageing': 'AGEING',
+            'bridge_bridgeprio': 'PRIO',
+            'mac_address': 'HWADDR',
+            'mtu': 'MTU',
+        },
+        'suse': {
+            'bridge_stp': 'BRIDGE_STP',
+            'bridge_ageing': 'BRIDGE_AGEINGTIME',
+            'bridge_bridgeprio': 'BRIDGE_PRIORITY',
+            'mac_address': 'LLADDR',
+            'mtu': 'MTU',
+        },
+    }
 
     # If these keys exist, then their values will be used to form
     # a BONDING_OPTS grouping; otherwise no grouping will be set.
@@ -303,18 +319,6 @@ class Renderer(renderer.Renderer):
         ('bond_primary_reselect', "primary_reselect=%s"),
     ])
 
-    bridge_opts_keys_rh = tuple([
-        ('bridge_stp', 'STP'),
-        ('bridge_ageing', 'AGEING'),
-        ('bridge_bridgeprio', 'PRIO'),
-    ])
-
-    bridge_opts_keys_suse = tuple([
-        ('bridge_stp', 'BRIDGE_STP'),
-        ('bridge_ageing', 'BRIDGE_AGEINGTIME'),
-        ('bridge_bridgeprio', 'BRIDGE_PRIORITY'),
-    ])
-
     templates = {}
 
     def __init__(self, config=None):
@@ -332,31 +336,23 @@ class Renderer(renderer.Renderer):
             'iface_templates': config.get('iface_templates'),
             'route_templates': config.get('route_templates'),
         }
-        self.flavor = config.get('flavor', 'rh')
+        self.flavor = config.get('flavor', 'rhel')
 
     @classmethod
     def _render_iface_shared(cls, iface, iface_cfg, flavor):
-        if flavor == 'suse':
-            iface_defaults = cls.iface_defaults_suse
-            mac_map = ('mac_address', 'LLADDR')
-        else:
-            iface_defaults = cls.iface_defaults_rh
-            mac_map = ('mac_address', 'HWADDR')
+        flavor_defaults = copy.deepcopy(cls.iface_defaults.get(flavor, {}))
+        iface_cfg.update(flavor_defaults)
 
-        for k, v in iface_defaults:
-            iface_cfg[k] = v
-
-        for (old_key, new_key) in [mac_map, ('mtu', 'MTU')]:
+        for old_key in ('mac_address', 'mtu', 'accept-ra'):
             old_value = iface.get(old_key)
             if old_value is not None:
                 # only set HWADDR on physical interfaces
                 if (old_key == 'mac_address' and
                    iface['type'] not in ['physical', 'infiniband']):
                     continue
-                iface_cfg[new_key] = old_value
-
-        if iface['accept-ra'] is not None and flavor != 'suse':
-            iface_cfg['IPV6_FORCE_ACCEPT_RA'] = iface['accept-ra']
+                new_key = cls.cfg_key_maps[flavor].get(old_key)
+                if new_key:
+                    iface_cfg[new_key] = old_value
 
     @classmethod
     def _render_subnets(cls, iface_cfg, subnets, has_default_route, flavor):
@@ -748,17 +744,17 @@ class Renderer(renderer.Renderer):
 
     @classmethod
     def _render_bridge_interfaces(cls, network_state, iface_contents, flavor):
-        if flavor == 'suse':
-            bridge_opts_keys = cls.bridge_opts_keys_suse
-        else:
-            bridge_opts_keys = cls.bridge_opts_keys_rh
+        bridge_key_map = {
+            old_k: new_k for old_k, new_k in cls.cfg_key_maps[flavor].items()
+            if old_k.startswith('bridge')}
         bridge_filter = renderer.filter_by_type('bridge')
+
         for iface in network_state.iter_interfaces(bridge_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             if flavor != 'suse':
                 iface_cfg.kind = 'bridge'
-            for old_key, new_key in bridge_opts_keys:
+            for old_key, new_key in bridge_key_map.items():
                 if old_key in iface:
                     iface_cfg[new_key] = iface[old_key]
 
