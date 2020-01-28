@@ -10,31 +10,21 @@
 
 import json
 import os
-import requests
-import six
 import time
-
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
+from http.client import NOT_FOUND
 from itertools import count
-from requests import exceptions
+from urllib.parse import urlparse, urlunparse, quote
 
-from six.moves.urllib.parse import (
-    urlparse, urlunparse,
-    quote as urlquote)
+import requests
+from requests import exceptions
 
 from cloudinit import log as logging
 from cloudinit import version
 
 LOG = logging.getLogger(__name__)
-
-if six.PY2:
-    import httplib
-    NOT_FOUND = httplib.NOT_FOUND
-else:
-    import http.client
-    NOT_FOUND = http.client.NOT_FOUND
 
 
 # Check if requests has ssl support (added in requests >= 0.8.8)
@@ -71,7 +61,7 @@ def combine_url(base, *add_ons):
         path = url_parsed[2]
         if path and not path.endswith("/"):
             path += "/"
-        path += urlquote(str(add_on), safe="/:")
+        path += quote(str(add_on), safe="/:")
         url_parsed[2] = path
         return urlunparse(url_parsed)
 
