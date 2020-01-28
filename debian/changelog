@@ -1,3 +1,10 @@
+cloud-init (19.4-33-gbb4131a2-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+
+  * refresh patches:
+   + debian/patches/ubuntu-advantage-revert-tip.patch
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Tue, 28 Jan 2020 10:43:10 -0600
+
 cloud-init (19.4-33-gbb4131a2-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * refresh patches:
