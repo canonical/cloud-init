@@ -11,7 +11,7 @@ Last-Update: 2019-05-10
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/config/cc_ubuntu_advantage.py
 +++ b/cloudinit/config/cc_ubuntu_advantage.py
-@@ -1,143 +1,150 @@
+@@ -1,141 +1,150 @@
 +# Copyright (C) 2018 Canonical Ltd.
 +#
  # This file is part of cloud-init. See LICENSE file for license information.
@@ -22,8 +22,6 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +import sys
  from textwrap import dedent
  
--import six
--
 +from cloudinit import log as logging
  from cloudinit.config.schema import (
      get_schema_doc, validate_cloudconfig_schema)
@@ -91,34 +89,34 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -        # the environment supports said service. Otherwise warnings will
 -        # be logged for incompatible services specified.
 +        # Enable Extended Security Maintenance using your service auth token
-+        ubuntu-advantage:
-+            commands:
-+              00: ubuntu-advantage enable-esm <token>
-+    """), dedent("""\
-+        # Enable livepatch by providing your livepatch token
          ubuntu-advantage:
 -          token: <ua_contract_token>
 -          enable:
 -          - fips
 -          - esm
 +            commands:
-+                00: ubuntu-advantage enable-livepatch <livepatch-token>
-+
++              00: ubuntu-advantage enable-esm <token>
      """), dedent("""\
 -        # Attach the machine to an Ubuntu Advantage support contract and enable
 -        # the FIPS service.  Perform a reboot once cloud-init has
 -        # completed.
 -        power_state:
 -          mode: reboot
-+        # Convenience: the ubuntu-advantage command can be omitted when
-+        # specifying commands as a list and 'ubuntu-advantage' will
-+        # automatically be prepended.
-+        # The following commands are equivalent
++        # Enable livepatch by providing your livepatch token
          ubuntu-advantage:
 -          token: <ua_contract_token>
 -          enable:
 -          - fips
 -        """)],
++            commands:
++                00: ubuntu-advantage enable-livepatch <livepatch-token>
++
++    """), dedent("""\
++        # Convenience: the ubuntu-advantage command can be omitted when
++        # specifying commands as a list and 'ubuntu-advantage' will
++        # automatically be prepended.
++        # The following commands are equivalent
++        ubuntu-advantage:
 +            commands:
 +                00: ['enable-livepatch', 'my-token']
 +                01: ['ubuntu-advantage', 'enable-livepatch', 'my-token']
@@ -180,7 +178,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -
 -    if enable is None:
 -        enable = []
--    elif isinstance(enable, six.string_types):
+-    elif isinstance(enable, str):
 -        LOG.warning('ubuntu_advantage: enable should be a list, not'
 -                    ' a string; treating as a single enable')
 -        enable = [enable]
@@ -257,7 +255,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
          return
      try:
          cloud.distro.update_package_sources()
-@@ -152,28 +159,14 @@ def maybe_install_ua_tools(cloud):
+@@ -150,28 +159,14 @@ def maybe_install_ua_tools(cloud):
  
  
  def handle(name, cfg, cloud, log, args):
