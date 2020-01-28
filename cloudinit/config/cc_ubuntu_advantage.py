@@ -4,8 +4,6 @@
 
 from textwrap import dedent
 
-import six
-
 from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit import log as logging
@@ -98,7 +96,7 @@ def configure_ua(token=None, enable=None):
 
     if enable is None:
         enable = []
-    elif isinstance(enable, six.string_types):
+    elif isinstance(enable, str):
         LOG.warning('ubuntu_advantage: enable should be a list, not'
                     ' a string; treating as a single enable')
         enable = [enable]

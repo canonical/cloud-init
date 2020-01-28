@@ -43,7 +43,7 @@ matrix:
             - sudo -E su $USER -c 'sbuild --nolog --verbose --dist=xenial cloud-init_*.dsc'
             # Ubuntu LTS: Integration
             - sg lxd -c 'tox -e citest -- run --verbose --preserve-data --data-dir results --os-name xenial --test modules/apt_configure_sources_list.yaml --test modules/ntp_servers --test modules/set_password_list --test modules/user_groups --deb cloud-init_*_all.deb'
-        - python: 3.4
+        - python: 3.5
           env:
               TOXENV=xenial
               NOSE_VERBOSE=2  # List all tests run by nose

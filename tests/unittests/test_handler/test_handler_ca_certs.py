@@ -11,11 +11,8 @@ import logging
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 try:
     from contextlib import ExitStack
 except ImportError:
