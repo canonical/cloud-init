@@ -67,9 +67,9 @@ def handle(_name, cfg, cloud, log, args):
         if not import_ids:
             continue
 
-        # handle space separated list
+        # handle whitespace separated list
         if isinstance(import_ids, str):
-            import_ids = import_ids.split(" ")
+            import_ids = import_ids.split()
 
         try:
             import_ids = util.uniq_merge(import_ids)
