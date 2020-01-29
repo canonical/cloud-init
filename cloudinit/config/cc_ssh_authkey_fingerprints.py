@@ -11,7 +11,7 @@ SSH Authkey Fingerprints
 
 Write fingerprints of authorized keys for each user to log. This is enabled by
 default, but can be disabled using ``no_ssh_fingerprints``. The hash type for
-the keys can be specified, but defaults to ``md5``.
+the keys can be specified, but defaults to ``sha256``.
 
 **Internal name:** `` cc_ssh_authkey_fingerprints``
 
@@ -42,7 +42,7 @@ def _split_hash(bin_hash):
     return split_up
 
 
-def _gen_fingerprint(b64_text, hash_meth='md5'):
+def _gen_fingerprint(b64_text, hash_meth='sha256'):
     if not b64_text:
         return ''
     # TBD(harlowja): Maybe we should feed this into 'ssh -lf'?
@@ -65,7 +65,7 @@ def _is_printable_key(entry):
     return False
 
 
-def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5',
+def _pprint_key_entries(user, key_fn, key_entries, hash_meth='sha256',
                         prefix='ci-info: '):
     if not key_entries:
         message = ("%sno authorized SSH keys fingerprints found for user %s.\n"
@@ -101,7 +101,7 @@ def handle(name, cfg, cloud, log, _args):
                    "logging of SSH fingerprints disabled"), name)
         return
 
-    hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "md5")
+    hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "sha256")
     (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     for (user_name, _cfg) in users.items():
         (key_fn, key_entries) = ssh_util.extract_authorized_keys(user_name)
