@@ -20,10 +20,10 @@ from configobj import ConfigObj
 from six import BytesIO
 
 import logging
-import mock
 import os
 import shutil
 import tempfile
+from unittest import mock
 
 LOG = logging.getLogger(__name__)
 

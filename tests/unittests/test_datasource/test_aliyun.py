@@ -2,8 +2,8 @@
 
 import functools
 import httpretty
-import mock
 import os
+from unittest import mock
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay

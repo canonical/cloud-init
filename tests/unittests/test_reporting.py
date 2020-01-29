@@ -2,11 +2,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from unittest import mock
+
 from cloudinit import reporting
 from cloudinit.reporting import events
 from cloudinit.reporting import handlers
-
-import mock
 
 from cloudinit.tests.helpers import TestCase
 
