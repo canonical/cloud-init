@@ -178,7 +178,7 @@ elif os.path.isfile('/etc/system-release-cpe'):
     with open('/etc/system-release-cpe') as f:
         cpe_data = f.read().rstrip().split(':')
 
-        if cpe_data[1] == "\o":
+        if cpe_data[1] == r"\o":
             # URI formated CPE
             inc = 0
         else:
