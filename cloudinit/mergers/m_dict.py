@@ -4,8 +4,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import six
-
 DEF_MERGE_TYPE = 'no_replace'
 MERGE_TYPES = ('replace', DEF_MERGE_TYPE,)
 
@@ -47,7 +45,7 @@ class Merger(object):
                 return new_v
             if isinstance(new_v, (list, tuple)) and self._recurse_array:
                 return self._merger.merge(old_v, new_v)
-            if isinstance(new_v, six.string_types) and self._recurse_str:
+            if isinstance(new_v, str) and self._recurse_str:
                 return self._merger.merge(old_v, new_v)
             if isinstance(new_v, (dict)) and self._recurse_dict:
                 return self._merger.merge(old_v, new_v)
