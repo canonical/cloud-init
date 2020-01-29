@@ -33,8 +33,6 @@ from cloudinit.sources.DataSourceSmartOS import (
     identify_file)
 from cloudinit.event import EventType
 
-import six
-
 from cloudinit import helpers as c_helpers
 from cloudinit.util import (
     b64e, subp, ProcessExecutionError, which, write_file)
@@ -798,7 +796,7 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
         return self.serial.write.call_args[0][0]
 
     def test_get_metadata_writes_bytes(self):
-        self.assertIsInstance(self._get_written_line(), six.binary_type)
+        self.assertIsInstance(self._get_written_line(), bytes)
 
     def test_get_metadata_line_starts_with_v2(self):
         foo = self._get_written_line()
