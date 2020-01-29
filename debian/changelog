@@ -1,7 +1,28 @@
-cloud-init (19.4-33-gbb4131a2-0ubuntu1~18.04.2) UNRELEASED; urgency=medium
+cloud-init (19.4-51-g8409dd7d-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
   * refresh patches:
    + debian/patches/ubuntu-advantage-revert-tip.patch
+  * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
+    - HACKING.rst: update CLA link (#199)
+    - Scaleway: Fix DatasourceScaleway to avoid backtrace (#128)
+      [Louis Bouchard]
+    - cloudinit/cmd/devel/net_convert.py: add missing space (#191)
+    - tools/run-container: drop support for python2 (#192) [Paride Legovini]
+    - Print ssh key fingerprints using sha256 hash (#188)
+    - Make the RPM build use Python 3 (#190) [Paride Legovini]
+    - cc_set_password: increase random pwlength from 9 to 20 (#189)
+    - .travis.yml: use correct Python version for xenial tests (#185)
+    - cloudinit: remove ImportError handling for mock imports (#182)
+    - Do not use fallocate in swap file creation on xfs. (#70) [Eduardo Otubo]
+    - .readthedocs.yaml: install cloud-init when building docs (#181)
+    - Introduce an RTD config file, and pin the Sphinx version to the RTD
+      default (#180)
+    - Drop most of the remaining use of six (#179)
+    - Start removing dependency on six (#178)
+    - Add Rootbox & HyperOne to list of cloud in README (#176) [Adam Dobrawy]
+    - docs: add proposed SRU testing procedure (#167)
+    - util: rename get_architecture to get_dpkg_architecture (#173)
+    - Ensure util.get_architecture() runs only once (#172)
 
  -- Ryan Harper <ryan.harper@canonical.com>  Wed, 29 Jan 2020 12:09:51 -0600
 
