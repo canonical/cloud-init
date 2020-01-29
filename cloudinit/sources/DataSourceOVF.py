@@ -8,19 +8,15 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from xml.dom import minidom
-
 import base64
 import os
 import re
 import time
-
-import six
+from xml.dom import minidom
 
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
-
 from cloudinit.sources.helpers.vmware.imc.config \
     import Config
 from cloudinit.sources.helpers.vmware.imc.config_custom_script \
@@ -458,7 +454,7 @@ def maybe_cdrom_device(devname):
     """
     if not devname:
         return False
-    elif not isinstance(devname, six.string_types):
+    elif not isinstance(devname, str):
         raise ValueError("Unexpected input for devname: %s" % devname)
 
     # resolve '..' and multi '/' elements

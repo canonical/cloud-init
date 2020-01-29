@@ -8,17 +8,13 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import collections
+import io
 import logging
 import logging.config
 import logging.handlers
-
-import collections
 import os
 import sys
-
-import six
-from six import StringIO
-
 import time
 
 # Logging levels for easy access
@@ -74,13 +70,13 @@ def setupLogging(cfg=None):
 
     log_cfgs = []
     log_cfg = cfg.get('logcfg')
-    if log_cfg and isinstance(log_cfg, six.string_types):
+    if log_cfg and isinstance(log_cfg, str):
         # If there is a 'logcfg' entry in the config,
         # respect it, it is the old keyname
         log_cfgs.append(str(log_cfg))
     elif "log_cfgs" in cfg:
         for a_cfg in cfg['log_cfgs']:
-            if isinstance(a_cfg, six.string_types):
+            if isinstance(a_cfg, str):
                 log_cfgs.append(a_cfg)
             elif isinstance(a_cfg, (collections.Iterable)):
                 cfg_str = [str(c) for c in a_cfg]
@@ -100,7 +96,7 @@ def setupLogging(cfg=None):
                 # is acting as a file)
                 pass
             else:
-                log_cfg = StringIO(log_cfg)
+                log_cfg = io.StringIO(log_cfg)
             # Attempt to load its config
             logging.config.fileConfig(log_cfg)
             # The first one to work wins!

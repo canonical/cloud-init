@@ -4,8 +4,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import six
-
 
 class Merger(object):
     def __init__(self, _merger, opts):
@@ -23,13 +21,10 @@ class Merger(object):
     # perform the following action, if appending we will
     # merge them together, otherwise we will just return value.
     def _on_str(self, value, merge_with):
-        if not isinstance(value, six.string_types):
+        if not isinstance(value, str):
             return merge_with
         if not self._append:
             return merge_with
-        if isinstance(value, six.text_type):
-            return value + six.text_type(merge_with)
-        else:
-            return value + six.binary_type(merge_with)
+        return value + merge_with
 
 # vi: ts=4 expandtab
