@@ -2,7 +2,7 @@
 
 from datetime import datetime
 import os
-from six import StringIO
+from io import StringIO
 
 from cloudinit.cmd.devel import logs
 from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE

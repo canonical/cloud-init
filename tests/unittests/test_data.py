@@ -5,9 +5,8 @@
 import gzip
 import logging
 import os
+from io import BytesIO, StringIO
 from unittest import mock
-
-from six import BytesIO, StringIO
 
 from email import encoders
 from email.mime.application import MIMEApplication
