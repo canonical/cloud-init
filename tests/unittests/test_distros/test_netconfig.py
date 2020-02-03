@@ -2,7 +2,7 @@
 
 import copy
 import os
-from six import StringIO
+from io import StringIO
 from textwrap import dedent
 from unittest import mock
 
