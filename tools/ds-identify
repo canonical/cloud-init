@@ -52,8 +52,15 @@
 #
 # ci.datasource.ec2.strict_id: (true|false|warn[,0-9])
 #     if ec2 datasource does not strictly match,
-#        return not_found if true
-#        return maybe if false or warn*.
+#        return DS_FOUND if true
+#        return DS_MAYBE if false or warn*.
+#
+# ci.datasource.none.always_found: (true|false)
+#     if DataSourceNone should be considered as found,
+#        return DS_FOUND if true
+#        return DS_NOT_FOUND if false (the default)
+#     This setting enables an image to run cloud-init even if no other
+#     datasources have been positively identified.
 #
 
 set -u
@@ -132,6 +139,7 @@ DI_ON_MAYBE=""
 DI_ON_NOTFOUND=""
 
 DI_EC2_STRICT_ID_DEFAULT="true"
+DI_NONE_ALWAYS_FOUND_DEFAULT="false"
 
 _IS_IBM_CLOUD=""
 
@@ -909,7 +917,6 @@ ec2_read_strict_setting() {
     #  2. ds-identify config
     #  3. system config (/etc/cloud/cloud.cfg.d/*Ec2*.cfg)
     #  4. kernel command line (undocumented)
-    #  5. user-data or vendor-data (not available here)
     local default="$1" key="ci.datasource.ec2.strict_id" val=""
 
     # 4. kernel command line
@@ -1137,8 +1144,71 @@ dscheck_SmartOS() {
     return ${DS_NOT_FOUND}
 }
 
+none_read_always_found_setting() {
+    # The 'ci.datasource.none.always_found' setting controls whether
+    # to enable DataSourceNone if no other datasources are positively
+    # identified or to proceed with the notfound policy, which
+    # disables cloud-init by default.
+    # order of precedence is:
+    #  1. builtin setting here cloud-init/ds-identify builtin
+    #  2. ds-identify config
+    #  3. system config (/etc/cloud/cloud.cfg.d/*None*.cfg)
+    #  4. kernel command line (undocumented)
+    local default="$1" key="ci.datasource.none.always_found" val=""
+
+    # 4. kernel command line
+    case " ${DI_KERNEL_CMDLINE} " in
+        *\ $key=*\ )
+            val=${DI_KERNEL_CMDLINE##*$key=}
+            val=${val%% *};
+            _RET=${val:-$default}
+            return 0
+    esac
+
+    # 3. look for the key 'always_found' (datasource/None/always_found)
+    # only in cloud.cfg or cloud.cfg.d/None.cfg (case insensitive)
+    local cfg="${PATH_ETC_CI_CFG}" cfg_d="${PATH_ETC_CI_CFG_D}"
+    if check_config always_found "$cfg" "$cfg_d/*[Nn][Oo][Nn][Ee]*.cfg"; then
+        debug 2 "${_RET_fname} set always_found to $_RET"
+        return 0
+    fi
+
+    # 2. ds-identify config (datasource.none.always_found)
+    local config="${PATH_DI_CONFIG}"
+    if [ -f "$config" ]; then
+        if _read_config "$key" < "$config"; then
+            _RET=${_RET:-$default}
+            return 0
+        fi
+    fi
+
+    # 1. Default
+    _RET=$default
+    return 0
+}
+
 dscheck_None() {
-    return ${DS_NOT_FOUND}
+    local default="${DI_NONE_ALWAYS_FOUND_DEFAULT}"
+    if none_read_always_found_setting "$default"; then
+        alwaysfound="$_RET"
+    else
+        debug 1 "none_read_always_found_setting returned non-zero: $?. using '$default'."
+        alwaysfound="$default"
+    fi
+
+    local key="datasource/none/always_found"
+    case "$alwaysfound" in
+        true|false) :;;
+        *)
+            warn "$key was set to invalid '$alwaysfound'. using '$default'"
+            alwaysfound="$default";;
+    esac
+
+    if [ "$alwaysfound" = "true" ]; then
+        return $DS_FOUND
+    else
+        return $DS_NOT_FOUND
+    fi
 }
 
 dscheck_Scaleway() {
