@@ -1,4 +1,4 @@
-cloud-init (19.4-56-g06e324ff-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (19.4-56-g06e324ff-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
     - sysconfig: distro-specific config rendering for BOOTPROTO option (#162)
