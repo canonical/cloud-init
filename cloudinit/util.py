@@ -79,14 +79,19 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
 
 
 @lru_cache()
-def get_architecture(target=None):
+def get_dpkg_architecture(target=None):
+    """Return the sanitized string output by `dpkg --print-architecture`.
+
+    N.B. This function is wrapped in functools.lru_cache, so repeated calls
+    won't shell out every time.
+    """
     out, _ = subp(['dpkg', '--print-architecture'], capture=True,
                   target=target)
     return out.strip()
 
 
 @lru_cache()
-def _lsb_release(target=None):
+def lsb_release(target=None):
     fmap = {'Codename': 'codename', 'Description': 'description',
             'Distributor ID': 'id', 'Release': 'release'}
 
@@ -107,14 +112,6 @@ def _lsb_release(target=None):
         data = dict((v, "UNAVAILABLE") for v in fmap.values())
 
     return data
-
-
-def lsb_release(target=None):
-    if target_path(target) != "/":
-        # do not use or update cache if target is provided
-        return _lsb_release(target)
-
-    return _lsb_release()
 
 
 def target_path(target, path=None):

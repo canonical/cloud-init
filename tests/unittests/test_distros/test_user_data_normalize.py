@@ -1,12 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from unittest import mock
+
 from cloudinit import distros
 from cloudinit.distros import ug_util
 from cloudinit import helpers
 from cloudinit import settings
 
 from cloudinit.tests.helpers import TestCase
-import mock
 
 
 bcfg = {

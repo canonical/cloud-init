@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import mock
+from unittest import mock
 
 from cloudinit.config import cc_set_passwords as setpass
 from cloudinit.tests.helpers import CiTestCase

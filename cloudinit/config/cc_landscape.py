@@ -56,8 +56,7 @@ The following default client config is provided, but can be overridden::
 """
 
 import os
-
-from six import BytesIO
+from io import BytesIO
 
 from configobj import ConfigObj
 

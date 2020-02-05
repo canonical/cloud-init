@@ -12,8 +12,6 @@ import gzip
 import io
 import os
 
-import six
-
 from cloudinit import util
 
 from . import get_devicelist
@@ -22,8 +20,7 @@ from . import read_sys_net_safe
 _OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
 
 
-@six.add_metaclass(abc.ABCMeta)
-class InitramfsNetworkConfigSource(object):
+class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
     """ABC for net config sources that read config written by initramfses"""
 
     @abc.abstractmethod
@@ -104,9 +101,12 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     provided here.  There is no good documentation on this unfortunately.
 
     DEVICE=<name> is expected/required and PROTO should indicate if
-    this is 'static' or 'dhcp' or 'dhcp6' (LP: #1621507).
+    this is 'none' (static) or 'dhcp' or 'dhcp6' (LP: #1621507).
     note that IPV6PROTO is also written by newer code to address the
     possibility of both ipv4 and ipv6 getting addresses.
+
+    Full syntax is documented at:
+    https://git.kernel.org/pub/scm/libs/klibc/klibc.git/plain/usr/kinit/ipconfig/README.ipconfig
     """
 
     if mac_addrs is None:
@@ -125,9 +125,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         if data.get('filename'):
             proto = 'dhcp'
         else:
-            proto = 'static'
+            proto = 'none'
 
-    if proto not in ('static', 'dhcp', 'dhcp6'):
+    if proto not in ('none', 'dhcp', 'dhcp6'):
         raise ValueError("Unexpected value for PROTO: %s" % proto)
 
     iface = {
@@ -147,6 +147,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
 
         # PROTO for ipv4, IPV6PROTO for ipv6
         cur_proto = data.get(pre + 'PROTO', proto)
+        # ipconfig's 'none' is called 'static'
+        if cur_proto == 'none':
+            cur_proto = 'static'
         subnet = {'type': cur_proto, 'control': 'manual'}
 
         # only populate address for static types. While the rendered config

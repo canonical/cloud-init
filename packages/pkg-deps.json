@@ -29,27 +29,27 @@
       ],
       "renames" : {
          "jinja2" : {
-            "3" : "python34-jinja2"
+            "3" : "python36-jinja2"
          },
          "jsonschema" : {
-            "3" : "python34-jsonschema"
+            "3" : "python36-jsonschema"
          },
          "pyflakes" : {
             "2" : "pyflakes",
-            "3" : "python34-pyflakes"
+            "3" : "python36-pyflakes"
          },
          "pyyaml" : {
             "2" : "PyYAML",
-            "3" : "python34-PyYAML"
+            "3" : "python36-PyYAML"
          },
          "pyserial" : {
             "2" : "pyserial"
          },
          "requests" : {
-            "3" : "python34-requests"
+            "3" : "python36-requests"
          },
          "six" : {
-            "3" : "python34-six"
+            "3" : "python36-six"
          }
       },
       "requires" : [

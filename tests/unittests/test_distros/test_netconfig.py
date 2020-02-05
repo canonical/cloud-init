@@ -2,13 +2,9 @@
 
 import copy
 import os
-from six import StringIO
+from io import StringIO
 from textwrap import dedent
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 from cloudinit import distros
 from cloudinit.distros.parsers.sys_conf import SysConf
@@ -489,7 +485,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 NETMASK=255.255.255.0
                 NM_CONTROLLED=no
                 ONBOOT=yes
-                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -498,7 +493,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth1
                 NM_CONTROLLED=no
                 ONBOOT=yes
-                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -517,13 +511,11 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 BOOTPROTO=none
                 DEFROUTE=yes
                 DEVICE=eth0
-                IPADDR6=2607:f0d0:1002:0011::2/64
                 IPV6ADDR=2607:f0d0:1002:0011::2/64
                 IPV6INIT=yes
                 IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
                 NM_CONTROLLED=no
                 ONBOOT=yes
-                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -532,7 +524,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth1
                 NM_CONTROLLED=no
                 ONBOOT=yes
-                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -577,26 +568,14 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
         """Opensuse uses apply_network_config and renders sysconfig"""
         expected_cfgs = {
             self.ifcfg_path('eth0'): dedent("""\
-                BOOTPROTO=none
-                DEFROUTE=yes
-                DEVICE=eth0
-                GATEWAY=192.168.1.254
+                BOOTPROTO=static
                 IPADDR=192.168.1.5
                 NETMASK=255.255.255.0
-                NM_CONTROLLED=no
-                ONBOOT=yes
                 STARTMODE=auto
-                TYPE=Ethernet
-                USERCTL=no
                 """),
             self.ifcfg_path('eth1'): dedent("""\
-                BOOTPROTO=dhcp
-                DEVICE=eth1
-                NM_CONTROLLED=no
-                ONBOOT=yes
+                BOOTPROTO=dhcp4
                 STARTMODE=auto
-                TYPE=Ethernet
-                USERCTL=no
                 """),
         }
         self._apply_and_verify(self.distro.apply_network_config,
@@ -607,27 +586,13 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
         """Opensuse uses apply_network_config and renders sysconfig w/ipv6"""
         expected_cfgs = {
             self.ifcfg_path('eth0'): dedent("""\
-                BOOTPROTO=none
-                DEFROUTE=yes
-                DEVICE=eth0
+                BOOTPROTO=static
                 IPADDR6=2607:f0d0:1002:0011::2/64
-                IPV6ADDR=2607:f0d0:1002:0011::2/64
-                IPV6INIT=yes
-                IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
-                NM_CONTROLLED=no
-                ONBOOT=yes
                 STARTMODE=auto
-                TYPE=Ethernet
-                USERCTL=no
             """),
             self.ifcfg_path('eth1'): dedent("""\
-                BOOTPROTO=dhcp
-                DEVICE=eth1
-                NM_CONTROLLED=no
-                ONBOOT=yes
+                BOOTPROTO=dhcp4
                 STARTMODE=auto
-                TYPE=Ethernet
-                USERCTL=no
             """),
         }
         self._apply_and_verify(self.distro.apply_network_config,
