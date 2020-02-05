@@ -5,13 +5,8 @@
 import gzip
 import logging
 import os
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-
-from six import BytesIO, StringIO
+from io import BytesIO, StringIO
+from unittest import mock
 
 from email import encoders
 from email.mime.application import MIMEApplication

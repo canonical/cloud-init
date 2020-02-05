@@ -6,10 +6,8 @@
 
 import copy
 import os
+import pickle
 import sys
-
-import six
-from six.moves import cPickle as pickle
 
 from cloudinit.settings import (
     FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, RUN_CLOUD_CONFIG)
@@ -758,7 +756,7 @@ class Modules(object):
         for item in cfg_mods:
             if not item:
                 continue
-            if isinstance(item, six.string_types):
+            if isinstance(item, str):
                 module_list.append({
                     'mod': item.strip(),
                 })

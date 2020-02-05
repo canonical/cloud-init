@@ -4,7 +4,6 @@ import httpretty
 import json
 import logging
 import os
-import six
 
 from cloudinit import cloud
 from cloudinit.config import cc_chef
@@ -178,7 +177,7 @@ class TestChef(FilesystemMockingTestCase):
                 continue
             # the value from the cfg overrides that in the default
             val = cfg['chef'].get(k, v)
-            if isinstance(val, six.string_types):
+            if isinstance(val, str):
                 self.assertIn(val, c)
         c = util.load_file(cc_chef.CHEF_FB_PATH)
         self.assertEqual({}, json.loads(c))

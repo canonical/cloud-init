@@ -79,8 +79,6 @@ from cloudinit import templater
 from cloudinit import url_helper
 from cloudinit import util
 
-import six
-
 RUBY_VERSION_DEFAULT = "1.8"
 
 CHEF_DIRS = tuple([
@@ -273,7 +271,7 @@ def run_chef(chef_cfg, log):
         cmd_args = chef_cfg['exec_arguments']
         if isinstance(cmd_args, (list, tuple)):
             cmd.extend(cmd_args)
-        elif isinstance(cmd_args, six.string_types):
+        elif isinstance(cmd_args, str):
             cmd.append(cmd_args)
         else:
             log.warning("Unknown type %s provided for chef"

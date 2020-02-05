@@ -1,3 +1,40 @@
+cloud-init (19.4-56-g06e324ff-0ubuntu1) focal; urgency=medium
+
+  * New upstream snapshot.
+    - sysconfig: distro-specific config rendering for BOOTPROTO option (#162)
+      [Robert Schweikert] (LP: #1800854)
+    - cloudinit: replace "from six import X" imports (except in util.py) (#183)
+    - run-container: use 'test -n' instead of 'test ! -z' (#202)
+      [Paride Legovini]
+    - net/cmdline: correctly handle static ip= config (#201)
+      [Dimitri John Ledkov] (LP: #1861412)
+    - Replace mock library with unittest.mock (#186)
+    - HACKING.rst: update CLA link (#199)
+    - Scaleway: Fix DatasourceScaleway to avoid backtrace (#128)
+      [Louis Bouchard]
+    - cloudinit/cmd/devel/net_convert.py: add missing space (#191)
+    - tools/run-container: drop support for python2 (#192) [Paride Legovini]
+    - Print ssh key fingerprints using sha256 hash (#188) (LP: #1860789)
+    - Make the RPM build use Python 3 (#190) [Paride Legovini]
+    - cc_set_password: increase random pwlength from 9 to 20 (#189)
+      (LP: #1860795) (CVE-2020-8632)
+    - .travis.yml: use correct Python version for xenial tests (#185)
+    - cloudinit: remove ImportError handling for mock imports (#182)
+    - Do not use fallocate in swap file creation on xfs. (#70)
+      [Eduardo Otubo] (LP: #1781781)
+    - .readthedocs.yaml: install cloud-init when building docs (#181)
+      (LP: #1860450)
+    - Introduce an RTD config file, and pin the Sphinx version to the RTD
+      default (#180)
+    - Drop most of the remaining use of six (#179)
+    - Start removing dependency on six (#178)
+    - Add Rootbox & HyperOne to list of cloud in README (#176) [Adam Dobrawy]
+    - docs: add proposed SRU testing procedure (#167)
+    - util: rename get_architecture to get_dpkg_architecture (#173)
+    - Ensure util.get_architecture() runs only once (#172)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 05 Feb 2020 13:56:17 -0700
+
 cloud-init (19.4-33-gbb4131a2-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.

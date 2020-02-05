@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import functools
 import httpretty
+import io
 import logging
 import os
 import random
@@ -12,9 +13,8 @@ import string
 import sys
 import tempfile
 import time
+from unittest import mock
 
-import mock
-import six
 import unittest2
 from unittest2.util import strclass
 
@@ -72,7 +72,7 @@ def retarget_many_wrapper(new_base, am, old_func):
             # Python 3 some of these now accept file-descriptors (integers).
             # That breaks rebase_path() so in lieu of a better solution, just
             # don't rebase if we get a fd.
-            if isinstance(path, six.string_types):
+            if isinstance(path, str):
                 n_args[i] = rebase_path(path, new_base)
         return old_func(*n_args, **kwds)
     return wrapper
@@ -149,7 +149,7 @@ class CiTestCase(TestCase):
         if self.with_logs:
             # Create a log handler so unit tests can search expected logs.
             self.logger = logging.getLogger()
-            self.logs = six.StringIO()
+            self.logs = io.StringIO()
             formatter = logging.Formatter('%(levelname)s: %(message)s')
             handler = logging.StreamHandler(self.logs)
             handler.setFormatter(formatter)
@@ -166,7 +166,7 @@ class CiTestCase(TestCase):
         else:
             cmd = args[0]
 
-        if not isinstance(cmd, six.string_types):
+        if not isinstance(cmd, str):
             cmd = cmd[0]
         pass_through = False
         if not isinstance(self.allowed_subp, (list, bool)):
@@ -346,8 +346,9 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 
     def patchOpen(self, new_root):
         trap_func = retarget_many_wrapper(new_root, 1, open)
-        name = 'builtins.open' if six.PY3 else '__builtin__.open'
-        self.patched_funcs.enter_context(mock.patch(name, trap_func))
+        self.patched_funcs.enter_context(
+            mock.patch('builtins.open', trap_func)
+        )
 
     def patchStdoutAndStderr(self, stdout=None, stderr=None):
         if stdout is not None:
@@ -420,7 +421,7 @@ def populate_dir(path, files):
         p = os.path.sep.join([path, name])
         util.ensure_dir(os.path.dirname(p))
         with open(p, "wb") as fp:
-            if isinstance(content, six.binary_type):
+            if isinstance(content, bytes):
                 fp.write(content)
             else:
                 fp.write(content.encode('utf-8'))

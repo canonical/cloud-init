@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from six import StringIO
 import os
+from io import StringIO
 
 from collections import namedtuple
 from cloudinit.cmd.devel import render

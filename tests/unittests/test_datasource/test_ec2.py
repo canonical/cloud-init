@@ -3,7 +3,7 @@
 import copy
 import httpretty
 import json
-import mock
+from unittest import mock
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
