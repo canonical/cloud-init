@@ -22,4 +22,7 @@ cloudlocal_start()
 }
 
 load_rc_config $name
+
+: ${cloudinitlocal_enable="NO"}
+
 run_rc_command "$1"
