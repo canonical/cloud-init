@@ -111,6 +111,13 @@ class AzureCloudPlatform(Platform):
 
     def destroy(self):
         """Delete all resources in resource group."""
+        preserve_instance = __import__(
+            'tests.cloud_tests.stage').PlatformComponent.preserve_instance
+        if preserve_instance:
+            LOG.debug('Not removing resource group %s due to --preserve-instance'
+                      ' setting; requires manual removal' % self.resource_group)
+            return
+
         LOG.debug("Deleting resource group: %s", self.resource_group.name)
         delete = self.resource_client.resource_groups.delete(
             self.resource_group.name)
