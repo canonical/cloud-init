@@ -114,8 +114,9 @@ class AzureCloudPlatform(Platform):
         preserve_instance = __import__(
             'tests.cloud_tests.stage').PlatformComponent.preserve_instance
         if preserve_instance:
-            LOG.debug('Not removing resource group %s due to --preserve-instance'
-                      ' setting; requires manual removal' % self.resource_group)
+            LOG.debug('Not removing resource group %s due to '
+                      '--preserve-instance setting; requires '
+                      'manual removal', self.resource_group)
             return
 
         LOG.debug("Deleting resource group: %s", self.resource_group.name)
