@@ -3,10 +3,10 @@
 import copy
 import errno
 import httpretty
-import mock
 import os
 import requests
 import textwrap
+from unittest import mock
 
 import cloudinit.net as net
 from cloudinit.util import ensure_file, write_file, ProcessExecutionError
