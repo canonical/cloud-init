@@ -347,7 +347,7 @@ wait_for_boot() {
     run_self_inside "$name" wait_inside "$name" "$wtime" "$VERBOSITY" ||
         { errorrc "wait inside $name failed."; return; }
 
-    if [ ! -z "${http_proxy-}" ]; then
+    if [ -n "${http_proxy-}" ]; then
         if [ "$OS_NAME" = "centos" ]; then
             debug 1 "configuring proxy ${http_proxy}"
             inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
