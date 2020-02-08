@@ -13,12 +13,10 @@ from cloudinit import util
 
 
 def get_rc_config_value(key, fn='/etc/rc.conf'):
-    contents = {}
+    key_prefix = '{}='.format(key)
     for line in util.load_file(fn).splitlines():
-        if '=' in line:
-            k, v = line.split('=', 1)
-            contents[k] = v
-    return contents.get(key)
+        if line.startswith(key_prefix):
+            return line.replace(key_prefix, '')
 
 
 def set_rc_config_value(key, value, fn='/etc/rc.conf'):
