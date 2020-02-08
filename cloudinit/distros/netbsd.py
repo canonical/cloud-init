@@ -42,7 +42,7 @@ class Distro(distros.Distro):
         bsd_util.set_rc_config_value('hostname', hostname,
                                      fn='/etc/rc.conf')
 
-    def create_group(self, name, members):
+    def create_group(self, name, members=None):
         group_add_cmd = ['groupadd', name]
         if util.is_group(name):
             LOG.warning("Skipping creation of existing group '%s'", name)
