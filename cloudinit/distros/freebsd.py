@@ -57,7 +57,7 @@ class Distro(distros.Distro):
     def _write_hostname(self, hostname, filename):
         rhel_util.update_sysconfig_file(filename, {'hostname': hostname})
 
-    def create_group(self, name, members):
+    def create_group(self, name, members=None):
         group_add_cmd = ['pw', 'group', 'add', name]
         if util.is_group(name):
             LOG.warning("Skipping creation of existing group '%s'", name)
