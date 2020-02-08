@@ -4,6 +4,13 @@ import shlex
 
 from cloudinit import util
 
+# On NetBSD, /etc/rc.conf comes with a if block:
+#   if [ -r /etc/defaults/rc.conf ]; then
+# as a consequence, the file is not a regular key/value list
+# anymore and we cannot use cloudinit.distros.parsers.sys_conf
+# The module comes with a more naive parser, but is able to
+# preserve these if blocks.
+
 
 def get_rc_config_value(key, fn='/etc/rc.conf'):
     contents = {}
