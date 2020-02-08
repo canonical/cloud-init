@@ -11,7 +11,6 @@ from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit import ssh_util
 from cloudinit import util
 from cloudinit.distros import bsd_util
 
@@ -152,27 +151,6 @@ class Distro(distros.Distro):
         except Exception:
             util.logexc(LOG, "Failed to lock user %s", name)
             raise
-
-    def create_user(self, name, **kwargs):
-        self.add_user(name, **kwargs)
-
-        # Set password if plain-text password provided and non-empty
-        if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
-            self.set_passwd(name, kwargs['plain_text_passwd'])
-
-        # Default locking down the account. 'lock_passwd' defaults to True.
-        # lock account unless lock_password is False.
-        if kwargs.get('lock_passwd', True):
-            self.lock_passwd(name)
-
-        # Configure sudo access
-        if 'sudo' in kwargs and kwargs['sudo'] is not False:
-            self.write_sudo_rules(name, kwargs['sudo'])
-
-        # Import SSH keys
-        if 'ssh_authorized_keys' in kwargs:
-            keys = set(kwargs['ssh_authorized_keys']) or []
-            ssh_util.setup_user_keys(keys, name, options=None)
 
     def generate_fallback_config(self):
         nconf = {'config': [], 'version': 1}
