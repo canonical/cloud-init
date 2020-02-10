@@ -61,8 +61,7 @@ used::
 
 import base64
 import os
-
-from six import BytesIO
+from io import BytesIO
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE

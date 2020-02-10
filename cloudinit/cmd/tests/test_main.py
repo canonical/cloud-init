@@ -3,7 +3,7 @@
 from collections import namedtuple
 import copy
 import os
-from six import StringIO
+from io import StringIO
 
 from cloudinit.cmd import main
 from cloudinit import safeyaml

@@ -1,8 +1,11 @@
 .. _modules:
 
+
 *******
 Modules
 *******
+.. contents:: Table of Contents
+
 .. automodule:: cloudinit.config.cc_apt_configure
 .. automodule:: cloudinit.config.cc_apt_pipelining
 .. automodule:: cloudinit.config.cc_bootcmd
@@ -46,8 +49,6 @@ Modules
 .. automodule:: cloudinit.config.cc_set_hostname
 .. automodule:: cloudinit.config.cc_set_passwords
 .. automodule:: cloudinit.config.cc_snap
-.. automodule:: cloudinit.config.cc_snappy
-.. automodule:: cloudinit.config.cc_snap_config
 .. automodule:: cloudinit.config.cc_spacewalk
 .. automodule:: cloudinit.config.cc_ssh
 .. automodule:: cloudinit.config.cc_ssh_authkey_fingerprints

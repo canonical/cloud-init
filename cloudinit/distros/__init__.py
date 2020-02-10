@@ -9,13 +9,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import six
-from six import StringIO
-
 import abc
 import os
 import re
 import stat
+from io import StringIO
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -36,7 +34,7 @@ ALL_DISTROS = 'all'
 
 OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
-    'redhat': ['centos', 'fedora', 'rhel'],
+    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
     'gentoo': ['gentoo'],
     'freebsd': ['freebsd'],
     'suse': ['opensuse', 'sles'],
@@ -53,8 +51,7 @@ _EC2_AZ_RE = re.compile('^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$')
 PREFERRED_NTP_CLIENTS = ['chrony', 'systemd-timesyncd', 'ntp', 'ntpdate']
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Distro(object):
+class Distro(metaclass=abc.ABCMeta):
 
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
@@ -145,7 +142,7 @@ class Distro(object):
         # Write it out
 
         # pylint: disable=assignment-from-no-return
-        # We have implementations in arch, freebsd and gentoo still
+        # We have implementations in arch and gentoo still
         dev_names = self._write_network(settings)
         # pylint: enable=assignment-from-no-return
         # Now try to bring them up
@@ -385,7 +382,7 @@ class Distro(object):
         Add a user to the system using standard GNU tools
         """
         # XXX need to make add_user idempotent somehow as we
-        # still want to add groups or modify ssh keys on pre-existing
+        # still want to add groups or modify SSH keys on pre-existing
         # users in the image.
         if util.is_user(name):
             LOG.info("User %s already exists, skipping.", name)
@@ -429,7 +426,7 @@ class Distro(object):
         # support kwargs having groups=[list] or groups="g1,g2"
         groups = kwargs.get('groups')
         if groups:
-            if isinstance(groups, six.string_types):
+            if isinstance(groups, str):
                 groups = groups.split(",")
 
             # remove any white spaces in group names, most likely
@@ -544,7 +541,7 @@ class Distro(object):
         if 'ssh_authorized_keys' in kwargs:
             # Try to handle this in a smart manner.
             keys = kwargs['ssh_authorized_keys']
-            if isinstance(keys, six.string_types):
+            if isinstance(keys, str):
                 keys = [keys]
             elif isinstance(keys, dict):
                 keys = list(keys.values())
@@ -561,7 +558,7 @@ class Distro(object):
             cloud_keys = kwargs.get('cloud_public_ssh_keys', [])
             if not cloud_keys:
                 LOG.warning(
-                    'Unable to disable ssh logins for %s given'
+                    'Unable to disable SSH logins for %s given'
                     ' ssh_redirect_user: %s. No cloud public-keys present.',
                     name, kwargs['ssh_redirect_user'])
             else:
@@ -589,6 +586,13 @@ class Distro(object):
             util.subp(cmd)
         except Exception as e:
             util.logexc(LOG, 'Failed to disable password for user %s', name)
+            raise e
+
+    def expire_passwd(self, user):
+        try:
+            util.subp(['passwd', '--expire', user])
+        except Exception as e:
+            util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
 
     def set_passwd(self, user, passwd, hashed=False):
@@ -661,7 +665,7 @@ class Distro(object):
         if isinstance(rules, (list, tuple)):
             for rule in rules:
                 lines.append("%s %s" % (user, rule))
-        elif isinstance(rules, six.string_types):
+        elif isinstance(rules, str):
             lines.append("%s %s" % (user, rules))
         else:
             msg = "Can not create sudoers rule addition with type %r"

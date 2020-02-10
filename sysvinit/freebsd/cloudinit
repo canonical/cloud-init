@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # PROVIDE: cloudinit
-# REQUIRE: FILESYSTEMS NETWORKING cloudinitlocal
+# REQUIRE: FILESYSTEMS NETWORKING cloudinitlocal ldconfig devd
 # BEFORE:  cloudconfig cloudfinal
 
 . /etc/rc.subr
@@ -22,4 +22,7 @@ cloudinit_start()
 }
 
 load_rc_config $name
+
+: ${cloudinit_enable="NO"}
+
 run_rc_command "$1"

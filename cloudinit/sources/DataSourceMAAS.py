@@ -136,7 +136,7 @@ class DataSourceMAAS(sources.DataSource):
             url = url[:-1]
         check_url = "%s/%s/meta-data/instance-id" % (url, MD_VERSION)
         urls = [check_url]
-        url = self.oauth_helper.wait_for_url(
+        url, _response = self.oauth_helper.wait_for_url(
             urls=urls, max_wait=max_wait, timeout=timeout)
 
         if url:

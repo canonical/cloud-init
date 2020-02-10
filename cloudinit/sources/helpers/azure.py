@@ -7,6 +7,7 @@ import re
 import socket
 import struct
 import time
+import textwrap
 
 from cloudinit.net import dhcp
 from cloudinit import stages
@@ -46,6 +47,32 @@ def azure_ds_telemetry_reporter(func):
                 parent=azure_ds_reporter):
             return func(*args, **kwargs)
     return impl
+
+
+def is_byte_swapped(previous_id, current_id):
+    """
+    Azure stores the instance ID with an incorrect byte ordering for the
+    first parts. This corrects the byte order such that it is consistent with
+    that returned by the metadata service.
+    """
+    if previous_id == current_id:
+        return False
+
+    def swap_bytestring(s, width=2):
+        dd = [byte for byte in textwrap.wrap(s, 2)]
+        dd.reverse()
+        return ''.join(dd)
+
+    parts = current_id.split('-')
+    swapped_id = '-'.join([
+            swap_bytestring(parts[0]),
+            swap_bytestring(parts[1]),
+            swap_bytestring(parts[2]),
+            parts[3],
+            parts[4]
+        ])
+
+    return previous_id == swapped_id
 
 
 @azure_ds_telemetry_reporter
@@ -183,14 +210,16 @@ class AzureEndpointHttpClient(object):
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
-        return url_helper.read_file_or_url(url, headers=headers)
+        return url_helper.read_file_or_url(url, headers=headers, timeout=5,
+                                           retries=10)
 
     def post(self, url, data=None, extra_headers=None):
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
             headers.update(extra_headers)
-        return url_helper.read_file_or_url(url, data=data, headers=headers)
+        return url_helper.read_file_or_url(url, data=data, headers=headers,
+                                           timeout=5, retries=10)
 
 
 class GoalState(object):

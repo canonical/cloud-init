@@ -10,29 +10,18 @@
 
 import types
 
-import six
 
-
-if six.PY3:
-    _NAME_TYPES = (
-        types.ModuleType,
-        types.FunctionType,
-        types.LambdaType,
-        type,
-    )
-else:
-    _NAME_TYPES = (
-        types.TypeType,
-        types.ModuleType,
-        types.FunctionType,
-        types.LambdaType,
-        types.ClassType,
-    )
+_NAME_TYPES = (
+    types.ModuleType,
+    types.FunctionType,
+    types.LambdaType,
+    type,
+)
 
 
 def obj_name(obj):
     if isinstance(obj, _NAME_TYPES):
-        return six.text_type(obj.__name__)
+        return str(obj.__name__)
     else:
         if not hasattr(obj, '__class__'):
             return repr(obj)

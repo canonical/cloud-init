@@ -3,7 +3,6 @@
 import copy
 import inspect
 import os
-import six
 import stat
 
 from cloudinit.event import EventType
@@ -13,7 +12,7 @@ from cloudinit.sources import (
     EXPERIMENTAL_TEXT, INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE,
     METADATA_UNKNOWN, REDACT_SENSITIVE_VALUE, UNSET, DataSource,
     canonical_cloud_id, redact_sensitive_keys)
-from cloudinit.tests.helpers import CiTestCase, skipIf, mock
+from cloudinit.tests.helpers import CiTestCase, mock
 from cloudinit.user_data import UserDataProcessor
 from cloudinit import util
 
@@ -422,7 +421,6 @@ class TestDataSource(CiTestCase):
             {'network_json': 'is good'},
             instance_data['ds']['network_json'])
 
-    @skipIf(not six.PY3, "json serialization on <= py2.7 handles bytes")
     def test_get_data_base64encodes_unserializable_bytes(self):
         """On py3, get_data base64encodes any unserializable content."""
         tmp = self.tmp_dir()
@@ -439,35 +437,6 @@ class TestDataSource(CiTestCase):
         self.assertEqual(
             {'key1': 'val1', 'key2': {'key2.1': 'EjM='}},
             instance_json['ds']['meta_data'])
-
-    @skipIf(not six.PY2, "json serialization on <= py2.7 handles bytes")
-    def test_get_data_handles_bytes_values(self):
-        """On py2 get_data handles bytes values without having to b64encode."""
-        tmp = self.tmp_dir()
-        datasource = DataSourceTestSubclassNet(
-            self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
-            custom_metadata={'key1': 'val1', 'key2': {'key2.1': b'\x123'}})
-        self.assertTrue(datasource.get_data())
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
-        content = util.load_file(json_file)
-        instance_json = util.load_json(content)
-        self.assertEqual([], instance_json['base64_encoded_keys'])
-        self.assertEqual(
-            {'key1': 'val1', 'key2': {'key2.1': '\x123'}},
-            instance_json['ds']['meta_data'])
-
-    @skipIf(not six.PY2, "Only python2 hits UnicodeDecodeErrors on non-utf8")
-    def test_non_utf8_encoding_gets_b64encoded(self):
-        """When non-utf-8 values exist in py2 instance-data is b64encoded."""
-        tmp = self.tmp_dir()
-        datasource = DataSourceTestSubclassNet(
-            self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
-            custom_metadata={'key1': 'val1', 'key2': {'key2.1': b'ab\xaadef'}})
-        self.assertTrue(datasource.get_data())
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
-        instance_json = util.load_json(util.load_file(json_file))
-        key21_value = instance_json['ds']['meta_data']['key2']['key2.1']
-        self.assertEqual('ci-b64:' + util.b64e(b'ab\xaadef'), key21_value)
 
     def test_get_hostname_subclass_support(self):
         """Validate get_hostname signature on all subclasses of DataSource."""

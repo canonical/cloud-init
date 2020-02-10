@@ -1,9 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from unittest import mock
+
 from cloudinit.tests.helpers import CiTestCase
 from cloudinit import version
-
-import mock
 
 
 class TestExportsFeatures(CiTestCase):

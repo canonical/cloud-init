@@ -423,6 +423,57 @@ generated when running ``aws configure``:
     region = us-west-2
 
 
+Azure Cloud
+-----------
+
+To run on Azure Cloud platform users login with Service Principal and export
+credentials file. Region is defaulted and can be set in
+``tests/cloud_tests/platforms.yaml``. The Service Principal credentials are
+the standard authentication for Azure SDK to interact with Azure Services:
+
+Create Service Principal account or login
+
+.. code-block:: shell-session
+
+    $ az ad sp create-for-rbac --name "APP_ID" --password "STRONG-SECRET-PASSWORD"
+
+.. code-block:: shell-session
+
+    $ az login --service-principal --username "APP_ID" --password "STRONG-SECRET-PASSWORD"
+
+Export credentials
+
+.. code-block:: shell-session
+
+    $ az ad sp create-for-rbac --sdk-auth > $HOME/.azure/credentials.json
+
+.. code-block:: json
+
+    {
+        "clientId": "<Service principal ID>",
+        "clientSecret": "<Service principal secret/password>",
+        "subscriptionId": "<Subscription associated with the service principal>",
+        "tenantId": "<The service principal's tenant>",
+        "activeDirectoryEndpointUrl": "https://login.microsoftonline.com",
+        "resourceManagerEndpointUrl": "https://management.azure.com/",
+        "activeDirectoryGraphResourceId": "https://graph.windows.net/",
+        "sqlManagementEndpointUrl": "https://management.core.windows.net:8443/",
+        "galleryEndpointUrl": "https://gallery.azure.com/",
+        "managementEndpointUrl": "https://management.core.windows.net/"
+    }
+
+Set region in platforms.yaml
+
+.. code-block:: yaml
+
+    azurecloud:
+        enabled: true
+        region: West US 2
+        vm_size: Standard_DS1_v2
+        storage_sku: standard_lrs
+        tag: ci
+
+
 Architecture
 ============
 

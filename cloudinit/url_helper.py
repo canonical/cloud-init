@@ -10,31 +10,21 @@
 
 import json
 import os
-import requests
-import six
 import time
-
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
+from http.client import NOT_FOUND
 from itertools import count
-from requests import exceptions
+from urllib.parse import urlparse, urlunparse, quote
 
-from six.moves.urllib.parse import (
-    urlparse, urlunparse,
-    quote as urlquote)
+import requests
+from requests import exceptions
 
 from cloudinit import log as logging
 from cloudinit import version
 
 LOG = logging.getLogger(__name__)
-
-if six.PY2:
-    import httplib
-    NOT_FOUND = httplib.NOT_FOUND
-else:
-    import http.client
-    NOT_FOUND = http.client.NOT_FOUND
 
 
 # Check if requests has ssl support (added in requests >= 0.8.8)
@@ -71,7 +61,7 @@ def combine_url(base, *add_ons):
         path = url_parsed[2]
         if path and not path.endswith("/"):
             path += "/"
-        path += urlquote(str(add_on), safe="/:")
+        path += quote(str(add_on), safe="/:")
         url_parsed[2] = path
         return urlunparse(url_parsed)
 
@@ -81,14 +71,19 @@ def combine_url(base, *add_ons):
     return url
 
 
-def read_file_or_url(url, timeout=5, retries=10,
-                     headers=None, data=None, sec_between=1, ssl_details=None,
-                     headers_cb=None, exception_cb=None):
+def read_file_or_url(url, **kwargs):
+    """Wrapper function around readurl to allow passing a file path as url.
+
+    When url is not a local file path, passthrough any kwargs to readurl.
+
+    In the case of parameter passthrough to readurl, default values for some
+    parameters. See: call-signature of readurl in this module for param docs.
+    """
     url = url.lstrip()
     if url.startswith("/"):
         url = "file://%s" % url
     if url.lower().startswith("file://"):
-        if data:
+        if kwargs.get("data"):
             LOG.warning("Unable to post data to file resource %s", url)
         file_path = url[len("file://"):]
         try:
@@ -101,10 +96,7 @@ def read_file_or_url(url, timeout=5, retries=10,
             raise UrlError(cause=e, code=code, headers=None, url=url)
         return FileResponse(file_path, contents=contents)
     else:
-        return readurl(url, timeout=timeout, retries=retries, headers=headers,
-                       headers_cb=headers_cb, data=data,
-                       sec_between=sec_between, ssl_details=ssl_details,
-                       exception_cb=exception_cb)
+        return readurl(url, **kwargs)
 
 
 # Made to have same accessors as UrlResponse so that the
@@ -201,6 +193,35 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             check_status=True, allow_redirects=True, exception_cb=None,
             session=None, infinite=False, log_req_resp=True,
             request_method=None):
+    """Wrapper around requests.Session to read the url and retry if necessary
+
+    :param url: Mandatory url to request.
+    :param data: Optional form data to post the URL. Will set request_method
+        to 'POST' if present.
+    :param timeout: Timeout in seconds to wait for a response
+    :param retries: Number of times to retry on exception if exception_cb is
+        None or exception_cb returns True for the exception caught. Default is
+        to fail with 0 retries on exception.
+    :param sec_between: Default 1: amount of seconds passed to time.sleep
+        between retries. None or -1 means don't sleep.
+    :param headers: Optional dict of headers to send during request
+    :param headers_cb: Optional callable returning a dict of values to send as
+        headers during request
+    :param ssl_details: Optional dict providing key_file, ca_certs, and
+        cert_file keys for use on in ssl connections.
+    :param check_status: Optional boolean set True to raise when HTTPError
+        occurs. Default: True.
+    :param allow_redirects: Optional boolean passed straight to Session.request
+        as 'allow_redirects'. Default: True.
+    :param exception_cb: Optional callable which accepts the params
+        msg and exception and returns a boolean True if retries are permitted.
+    :param session: Optional exiting requests.Session instance to reuse.
+    :param infinite: Bool, set True to retry indefinitely. Default: False.
+    :param log_req_resp: Set False to turn off verbose debug messages.
+    :param request_method: String passed as 'method' to Session.request.
+        Typically GET, or POST. Default: POST if data is provided, GET
+        otherwise.
+    """
     url = _cleanurl(url)
     req_args = {
         'url': url,
@@ -310,7 +331,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
 
 def wait_for_url(urls, max_wait=None, timeout=None,
                  status_cb=None, headers_cb=None, sleep_time=1,
-                 exception_cb=None, sleep_time_cb=None):
+                 exception_cb=None, sleep_time_cb=None, request_method=None):
     """
     urls:      a list of urls to try
     max_wait:  roughly the maximum time to wait before giving up
@@ -325,6 +346,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                   'exception', the exception that occurred.
     sleep_time_cb: call method with 2 arguments (response, loop_n) that
                    generates the next sleep time.
+    request_method: indicate the type of HTTP request, GET, PUT, or POST
+    returns: tuple of (url, response contents), on failure, (False, None)
 
     the idea of this routine is to wait for the EC2 metadata service to
     come up.  On both Eucalyptus and EC2 we have seen the case where
@@ -381,8 +404,9 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                 else:
                     headers = {}
 
-                response = readurl(url, headers=headers, timeout=timeout,
-                                   check_status=False)
+                response = readurl(
+                    url, headers=headers, timeout=timeout,
+                    check_status=False, request_method=request_method)
                 if not response.contents:
                     reason = "empty response [%s]" % (response.code)
                     url_exc = UrlError(ValueError(reason), code=response.code,
@@ -392,7 +416,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     url_exc = UrlError(ValueError(reason), code=response.code,
                                        headers=response.headers, url=url)
                 else:
-                    return url
+                    return url, response.contents
             except UrlError as e:
                 reason = "request error [%s]" % e
                 url_exc = e
@@ -421,7 +445,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                   sleep_time)
         time.sleep(sleep_time)
 
-    return False
+    return False, None
 
 
 class OauthUrlHelper(object):

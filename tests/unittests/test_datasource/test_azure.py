@@ -477,7 +477,7 @@ scbus-1 on xpt0 bus 0
             'public-keys': [],
         })
 
-        self.instance_id = 'test-instance-id'
+        self.instance_id = 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8'
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
@@ -645,7 +645,7 @@ scbus-1 on xpt0 bus 0
             'azure_data': {
                 'configurationsettype': 'LinuxProvisioningConfiguration'},
             'imds': NETWORK_METADATA,
-            'instance-id': 'test-instance-id',
+            'instance-id': 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8',
             'local-hostname': u'myhost',
             'random_seed': 'wild'}
 
@@ -1091,6 +1091,24 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(ret)
         self.assertEqual('value', dsrc.metadata['test'])
 
+    def test_instance_id_endianness(self):
+        """Return the previous iid when dmi uuid is the byteswapped iid."""
+        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        # byte-swapped previous
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            '544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')
+        ds.get_data()
+        self.assertEqual(
+            '544CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8', ds.metadata['instance-id'])
+        # not byte-swapped previous
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            '644CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')
+        ds.get_data()
+        self.assertEqual(
+            'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8', ds.metadata['instance-id'])
+
     def test_instance_id_from_dmidecode_used(self):
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         ds.get_data()
@@ -1292,7 +1310,7 @@ class TestAzureBounce(CiTestCase):
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
-                return 'test-instance-id'
+                return 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8'
             elif key == 'chassis-asset-tag':
                 return '7783-7084-3265-9085-8269-3286-77'
             raise RuntimeError('should not get here')

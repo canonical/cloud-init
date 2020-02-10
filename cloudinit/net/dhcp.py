@@ -10,6 +10,7 @@ import os
 import re
 import signal
 import time
+from io import StringIO
 
 from cloudinit.net import (
     EphemeralIPv4Network, find_fallback_nic, get_devicelist,
@@ -17,7 +18,6 @@ from cloudinit.net import (
 from cloudinit.net.network_state import mask_and_ipv4_to_bcast_addr as bcip
 from cloudinit import temp_utils
 from cloudinit import util
-from six import StringIO
 
 LOG = logging.getLogger(__name__)
 
@@ -92,9 +92,12 @@ class EphemeralDHCPv4(object):
         nmap = {'interface': 'interface', 'ip': 'fixed-address',
                 'prefix_or_mask': 'subnet-mask',
                 'broadcast': 'broadcast-address',
-                'static_routes': 'rfc3442-classless-static-routes',
+                'static_routes': [
+                    'rfc3442-classless-static-routes',
+                    'classless-static-routes'
+                ],
                 'router': 'routers'}
-        kwargs = dict([(k, self.lease.get(v)) for k, v in nmap.items()])
+        kwargs = self.extract_dhcp_options_mapping(nmap)
         if not kwargs['broadcast']:
             kwargs['broadcast'] = bcip(kwargs['prefix_or_mask'], kwargs['ip'])
         if kwargs['static_routes']:
@@ -106,6 +109,25 @@ class EphemeralDHCPv4(object):
         ephipv4.__enter__()
         self._ephipv4 = ephipv4
         return self.lease
+
+    def extract_dhcp_options_mapping(self, nmap):
+        result = {}
+        for internal_reference, lease_option_names in nmap.items():
+            if isinstance(lease_option_names, list):
+                self.get_first_option_value(
+                    internal_reference,
+                    lease_option_names,
+                    result
+                )
+            else:
+                result[internal_reference] = self.lease.get(lease_option_names)
+        return result
+
+    def get_first_option_value(self, internal_mapping,
+                               lease_option_names, result):
+        for different_names in lease_option_names:
+            if not result.get(internal_mapping):
+                result[internal_mapping] = self.lease.get(different_names)
 
 
 def maybe_perform_dhcp_discovery(nic=None):
@@ -281,16 +303,22 @@ def parse_static_routes(rfc3442):
     """ parse rfc3442 format and return a list containing tuple of strings.
 
     The tuple is composed of the network_address (including net length) and
-    gateway for a parsed static route.
+    gateway for a parsed static route.  It can parse two formats of rfc3442,
+    one from dhcpcd and one from dhclient (isc).
 
-    @param rfc3442: string in rfc3442 format
+    @param rfc3442: string in rfc3442 format (isc or dhcpd)
     @returns: list of tuple(str, str) for all valid parsed routes until the
               first parsing error.
 
     E.g.
-    sr = parse_state_routes("32,169,254,169,254,130,56,248,255,0,130,56,240,1")
-    sr = [
+    sr=parse_static_routes("32,169,254,169,254,130,56,248,255,0,130,56,240,1")
+    sr=[
         ("169.254.169.254/32", "130.56.248.255"), ("0.0.0.0/0", "130.56.240.1")
+    ]
+
+    sr2 = parse_static_routes("24.191.168.128 192.168.128.1,0 192.168.128.1")
+    sr2 = [
+        ("191.168.128.0/24", "192.168.128.1"), ("0.0.0.0/0", "192.168.128.1")
     ]
 
     Python version of isc-dhclient's hooks:
@@ -298,7 +326,7 @@ def parse_static_routes(rfc3442):
     """
     # raw strings from dhcp lease may end in semi-colon
     rfc3442 = rfc3442.rstrip(";")
-    tokens = rfc3442.split(',')
+    tokens = [tok for tok in re.split(r"[, .]", rfc3442) if tok]
     static_routes = []
 
     def _trunc_error(cidr, required, remain):

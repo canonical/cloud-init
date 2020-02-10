@@ -140,7 +140,8 @@ class DsIdentifyBase(CiTestCase):
             {'name': 'blkid', 'out': BLKID_EFI_ROOT},
             {'name': 'ovf_vmware_transport_guestinfo',
              'out': 'No value found', 'ret': 1},
-
+            {'name': 'dmi_decode', 'ret': 1,
+             'err': 'No dmidecode program. ERROR.'},
         ]
 
         written = [d['name'] for d in mocks]
@@ -625,6 +626,21 @@ class TestDsIdentify(DsIdentifyBase):
         self._test_ds_not_found('Ec2-E24Cloud-negative')
 
 
+class TestBSDNoSys(DsIdentifyBase):
+    """Test *BSD code paths
+
+    FreeBSD doesn't have /sys so we use dmidecode(8) here
+    It also doesn't have systemd-detect-virt(8), so we use sysctl(8) to query
+    kern.vm_guest, and optionally map it"""
+
+    def test_dmi_decode(self):
+        """Test that dmidecode(8) works on systems which don't have /sys
+
+        This will be used on *BSD systems.
+        """
+        self._test_ds_found('Hetzner-dmidecode')
+
+
 class TestIsIBMProvisioning(DsIdentifyBase):
     """Test the is_ibm_provisioning method in ds-identify."""
 
@@ -922,6 +938,12 @@ VALID_CFG = {
     'Hetzner': {
         'ds': 'Hetzner',
         'files': {P_SYS_VENDOR: 'Hetzner\n'},
+    },
+    'Hetzner-dmidecode': {
+        'ds': 'Hetzner',
+        'mocks': [
+            {'name': 'dmi_decode', 'ret': 0, 'RET': 'Hetzner'}
+        ],
     },
     'IBMCloud-metadata': {
         'ds': 'IBMCloud',

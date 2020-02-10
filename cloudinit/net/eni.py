@@ -429,7 +429,9 @@ class Renderer(renderer.Renderer):
                     iface['mode'] = 'auto'
                     # Use stateless DHCPv6 (0=off, 1=on)
                     iface['dhcp'] = '0'
-                elif subnet_is_ipv6(subnet) and subnet['type'] == 'static':
+                elif subnet_is_ipv6(subnet):
+                    # mode might be static6, eni uses 'static'
+                    iface['mode'] = 'static'
                     if accept_ra is not None:
                         # Accept router advertisements (0=off, 1=on)
                         iface['accept_ra'] = '1' if accept_ra else '0'

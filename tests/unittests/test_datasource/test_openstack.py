@@ -8,11 +8,10 @@ import copy
 import httpretty as hp
 import json
 import re
+from io import StringIO
+from urllib.parse import urlparse
 
 from cloudinit.tests import helpers as test_helpers
-
-from six.moves.urllib.parse import urlparse
-from six import StringIO, text_type
 
 from cloudinit import helpers
 from cloudinit import settings
@@ -569,8 +568,7 @@ class TestMetadataReader(test_helpers.HttprettyTestCase):
         'uuid': 'b0fa911b-69d4-4476-bbe2-1c92bff6535c'}
 
     def register(self, path, body=None, status=200):
-        content = (body if not isinstance(body, text_type)
-                   else body.encode('utf-8'))
+        content = body if not isinstance(body, str) else body.encode('utf-8')
         hp.register_uri(
             hp.GET, self.burl + "openstack" + path, status=status,
             body=content)

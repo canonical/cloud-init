@@ -7,8 +7,8 @@ from cloudinit.tests.helpers import CiTestCase, dir2dict, populate_dir
 
 import argparse
 import json
-import mock
 import os
+from unittest import mock
 
 
 class TestDhclientHook(CiTestCase):

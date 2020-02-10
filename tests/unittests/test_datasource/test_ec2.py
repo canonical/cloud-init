@@ -3,7 +3,7 @@
 import copy
 import httpretty
 import json
-import mock
+from unittest import mock
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
@@ -191,7 +191,9 @@ def register_mock_metaserver(base_url, data):
             register(base_url, 'not found', status=404)
 
     def myreg(*argc, **kwargs):
-        return httpretty.register_uri(httpretty.GET, *argc, **kwargs)
+        url = argc[0]
+        method = httpretty.PUT if ec2.API_TOKEN_ROUTE in url else httpretty.GET
+        return httpretty.register_uri(method, *argc, **kwargs)
 
     register_helper(myreg, base_url, data)
 
@@ -237,6 +239,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
         if md:
             all_versions = (
                 [ds.min_metadata_version] + ds.extended_metadata_versions)
+            token_url = self.data_url('latest', data_item='api/token')
+            register_mock_metaserver(token_url, 'API-TOKEN')
             for version in all_versions:
                 metadata_url = self.data_url(version) + '/'
                 if version == md_version:

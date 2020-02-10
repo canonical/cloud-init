@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import mock
+from unittest import mock
 
 from cloudinit.config import cc_set_passwords as setpass
 from cloudinit.tests.helpers import CiTestCase
@@ -45,7 +45,7 @@ class TestHandleSshPwauth(CiTestCase):
         """If config is not updated, then no system restart should be done."""
         setpass.handle_ssh_pwauth(True)
         m_subp.assert_not_called()
-        self.assertIn("No need to restart ssh", self.logs.getvalue())
+        self.assertIn("No need to restart SSH", self.logs.getvalue())
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
     @mock.patch(MODPATH + "util.subp")
@@ -74,13 +74,13 @@ class TestSetPasswordsHandle(CiTestCase):
 
     with_logs = True
 
-    def test_handle_on_empty_config(self):
+    def test_handle_on_empty_config(self, *args):
         """handle logs that no password has changed when config is empty."""
         cloud = self.tmp_cloud(distro='ubuntu')
         setpass.handle(
             'IGNORED', cfg={}, cloud=cloud, log=self.logger, args=[])
         self.assertEqual(
-            "DEBUG: Leaving ssh config 'PasswordAuthentication' unchanged. "
+            "DEBUG: Leaving SSH config 'PasswordAuthentication' unchanged. "
             'ssh_pwauth=None\n',
             self.logs.getvalue())
 
@@ -107,5 +107,45 @@ class TestSetPasswordsHandle(CiTestCase):
             [mock.call(['chpasswd', '-e'],
              '\n'.join(valid_hashed_pwds) + '\n')],
             m_subp.call_args_list)
+
+    @mock.patch(MODPATH + "util.is_FreeBSD")
+    @mock.patch(MODPATH + "util.subp")
+    def test_freebsd_calls_custom_pw_cmds_to_set_and_expire_passwords(
+            self, m_subp, m_is_freebsd):
+        """FreeBSD calls custom pw commands instead of chpasswd and passwd"""
+        m_is_freebsd.return_value = True
+        cloud = self.tmp_cloud(distro='freebsd')
+        valid_pwds = ['ubuntu:passw0rd']
+        cfg = {'chpasswd': {'list': valid_pwds}}
+        setpass.handle(
+            'IGNORED', cfg=cfg, cloud=cloud, log=self.logger, args=[])
+        self.assertEqual([
+            mock.call(['pw', 'usermod', 'ubuntu', '-h', '0'], data='passw0rd',
+                      logstring="chpasswd for ubuntu"),
+            mock.call(['pw', 'usermod', 'ubuntu', '-p', '01-Jan-1970'])],
+            m_subp.call_args_list)
+
+    @mock.patch(MODPATH + "util.is_FreeBSD")
+    @mock.patch(MODPATH + "util.subp")
+    def test_handle_on_chpasswd_list_creates_random_passwords(self, m_subp,
+                                                              m_is_freebsd):
+        """handle parses command set random passwords."""
+        m_is_freebsd.return_value = False
+        cloud = self.tmp_cloud(distro='ubuntu')
+        valid_random_pwds = [
+            'root:R',
+            'ubuntu:RANDOM']
+        cfg = {'chpasswd': {'expire': 'false', 'list': valid_random_pwds}}
+        with mock.patch(MODPATH + 'util.subp') as m_subp:
+            setpass.handle(
+                'IGNORED', cfg=cfg, cloud=cloud, log=self.logger, args=[])
+        self.assertIn(
+            'DEBUG: Handling input for chpasswd as list.',
+            self.logs.getvalue())
+        self.assertNotEqual(
+            [mock.call(['chpasswd'],
+             '\n'.join(valid_random_pwds) + '\n')],
+            m_subp.call_args_list)
+
 
 # vi: ts=4 expandtab

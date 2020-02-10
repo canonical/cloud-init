@@ -1,0 +1,5 @@
+doc8
+m2r
+sphinx<2
+sphinx_rtd_theme
+pyyaml

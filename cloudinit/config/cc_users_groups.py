@@ -51,14 +51,14 @@ config keys for an entry in ``users`` are as follows:
       a Snappy user through ``snap create-user``. If an Ubuntu SSO account is
       associated with the address, username and SSH keys will be requested from
       there. Default: none
-    - ``ssh_authorized_keys``: Optional. List of ssh keys to add to user's
+    - ``ssh_authorized_keys``: Optional. List of SSH keys to add to user's
       authkeys file. Default: none. This key can not be combined with
       ``ssh_redirect_user``.
     - ``ssh_import_id``: Optional. SSH id to import for user. Default: none.
       This key can not be combined with ``ssh_redirect_user``.
     - ``ssh_redirect_user``: Optional. Boolean set to true to disable SSH
-      logins for this user. When specified, all cloud meta-data public ssh
-      keys will be set up in a disabled state for this username. Any ssh login
+      logins for this user. When specified, all cloud meta-data public SSH
+      keys will be set up in a disabled state for this username. Any SSH login
       as this username will timeout and prompt with a message to login instead
       as the configured <default_username> for this instance. Default: false.
       This key can not be combined with ``ssh_import_id`` or
