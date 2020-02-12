@@ -412,8 +412,8 @@ def read_vmware_imc(config, paths=None):
                 md['local-hostname'] = config.host_name
         if config.timezone:
             cfg['timezone'] = config.timezone
-        # Generate a unique instance-id so that new config will be applied
-        md['instance-id'] = "iid-vmware-imc-" + util.rand_str(strlen=8)
+
+        md['instance-id'] = "iid-vmware-imc"
     else:
         # Set instance-id to be same with current instance-id if it exists
         # when there is no config
