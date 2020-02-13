@@ -64,7 +64,7 @@ fs_setup:
       filesystem: ext4
       device: ephemeral0.0
 
-# Cavaut for SmartOS: if ephemeral disk is not defined, then the disk will
+# Caveat for SmartOS: if ephemeral disk is not defined, then the disk will
 #    not be automatically added to the mounts.
 
 
