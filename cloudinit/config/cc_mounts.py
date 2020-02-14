@@ -25,7 +25,7 @@ mountpoint (i.e. ``[ sda1 ]`` or ``[ sda1, null ]``).
 
 The ``mount_default_fields`` config key allows default options to be specified
 for the values in a ``mounts`` entry that are not specified, aside from the
-``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 7
+``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 6
 values. It defaults to::
 
     mount_default_fields: [none, none, "auto", "defaults,nobootwait", "0", "2"]
