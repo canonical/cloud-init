@@ -140,7 +140,7 @@ class ResizeGrowPart(object):
         return False
 
     def resize(self, diskdev, partnum, partdev):
-        before = get_size(partdev)
+        before = get_size(diskdev, partdev)
         try:
             util.subp(["growpart", '--dry-run', diskdev, partnum])
         except util.ProcessExecutionError as e:
@@ -151,12 +151,14 @@ class ResizeGrowPart(object):
             return (before, before)
 
         try:
-            util.subp(["growpart", diskdev, partnum])
+            out, err = util.subp(["growpart", '-v', diskdev, partnum])
+            LOG.debug('growpart: %s', out)
         except util.ProcessExecutionError as e:
-            util.logexc(LOG, "Failed: growpart %s %s", diskdev, partnum)
+            util.logexc(LOG, "Failed: growpart %s %s: %s",
+                        diskdev, partnum, err)
             raise ResizeFailedException(e)
 
-        return (before, get_size(partdev))
+        return (before, get_size(diskdev, partdev))
 
 
 class ResizeGpart(object):
@@ -188,7 +190,7 @@ class ResizeGpart(object):
                 util.logexc(LOG, "Failed: gpart recover %s", diskdev)
                 raise ResizeFailedException(e)
 
-        before = get_size(partdev)
+        before = get_size(diskdev, partdev)
         try:
             util.subp(["gpart", "resize", "-i", partnum, diskdev])
         except util.ProcessExecutionError as e:
@@ -199,15 +201,30 @@ class ResizeGpart(object):
         # first when this module has finished.
         open('/var/run/reboot-required', 'a').close()
 
-        return (before, get_size(partdev))
+        return (before, get_size(diskdev, partdev))
 
 
-def get_size(filename):
-    fd = os.open(filename, os.O_RDONLY)
-    try:
-        return os.lseek(fd, 0, os.SEEK_END)
-    finally:
-        os.close(fd)
+def get_size(diskdev, partdev):
+    # take a shared lock on the diskdev on which partdev resides.  This will
+    # prevent us from reading while the device is being modified.
+    retries = [.5, .5, .5, .5]
+    diskfd = os.open(diskdev, os.O_RDONLY)
+    partfd = os.open(partdev, os.O_RDONLY)
+    for attempt, wait in enumerate(retries):
+        try:
+            out, _err = util.subp(['flock', '--shared', '--timeout',
+                                  str(wait), str(diskfd)])
+            LOG.debug('flock --shared: %s', out)
+        except util.ProcessExecutionError:
+            if attempt + 1 >= len(retries):
+                raise
+            continue
+
+        try:
+            return os.lseek(partfd, 0, os.SEEK_END)
+        finally:
+            os.close(partfd)
+            os.close(diskfd)
 
 
 def device_part_info(devpath):
@@ -282,6 +299,13 @@ def resize_devices(resizer, devices):
             info.append((devent, RESIZE.SKIPPED,
                          "unable to convert to device: %s" % e,))
             continue
+
+        # obtain the real path to the block device
+        blockdev_rp = os.path.realpath(blockdev)
+        if blockdev_rp != blockdev:
+            LOG.debug('growpart: blockdev %s resolved to %s',
+                      blockdev, blockdev_rp)
+            blockdev = blockdev_rp
 
         try:
             statret = os.stat(blockdev)

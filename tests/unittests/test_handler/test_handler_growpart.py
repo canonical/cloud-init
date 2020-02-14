@@ -4,14 +4,13 @@ from cloudinit import cloud
 from cloudinit.config import cc_growpart
 from cloudinit import util
 
-from cloudinit.tests.helpers import TestCase
+from cloudinit.tests.helpers import CiTestCase, mock
+
 
 import errno
 import logging
 import os
 import re
-import unittest
-from unittest import mock
 
 try:
     from contextlib import ExitStack
@@ -62,7 +61,7 @@ usage: gpart add -t type [-a alignment] [-b start] <SNIP> geom
 """
 
 
-class TestDisabled(unittest.TestCase):
+class TestDisabled(CiTestCase):
     def setUp(self):
         super(TestDisabled, self).setUp()
         self.name = "growpart"
@@ -84,7 +83,7 @@ class TestDisabled(unittest.TestCase):
             self.assertEqual(mockobj.call_count, 0)
 
 
-class TestConfig(TestCase):
+class TestConfig(CiTestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
         self.name = "growpart"
@@ -170,7 +169,7 @@ class TestConfig(TestCase):
             rsdevs.assert_called_once_with(myresizer, ['/'])
 
 
-class TestResize(unittest.TestCase):
+class TestResize(CiTestCase):
     def setUp(self):
         super(TestResize, self).setUp()
         self.name = "growpart"
@@ -180,12 +179,15 @@ class TestResize(unittest.TestCase):
         # test simple device list
         # this patches out devent2dev, os.stat, and device_part_info
         # so in the end, doesn't test a lot
-        devs = ["/dev/XXda1", "/dev/YYda2"]
+        devs = ["/dev/XXda1", "/dev/disk/by-partuuid/123-111"]
+        # test the os.path.realpath code
+        devsym = {"/dev/disk/by-partuuid/123-111": "/dev/YYda2"}
         devstat_ret = Bunch(st_mode=25008, st_ino=6078, st_dev=5,
                             st_nlink=1, st_uid=0, st_gid=6, st_size=0,
                             st_atime=0, st_mtime=0, st_ctime=0)
         enoent = ["/dev/NOENT"]
         real_stat = os.stat
+        real_realpath = os.path.realpath
         resize_calls = []
 
         class myresizer(object):
@@ -196,7 +198,7 @@ class TestResize(unittest.TestCase):
                 return (1024, 1024)  # old size, new size
 
         def mystat(path):
-            if path in devs:
+            if path in devs or path in devsym.values():
                 return devstat_ret
             if path in enoent:
                 e = OSError("%s: does not exist" % path)
@@ -204,10 +206,18 @@ class TestResize(unittest.TestCase):
                 raise e
             return real_stat(path)
 
+        def myrealpath(path):
+            if path in devsym:
+                r = devsym[path]
+            else:
+                r = real_realpath(path)
+            return r
+
         try:
             opinfo = cc_growpart.device_part_info
             cc_growpart.device_part_info = simple_device_part_info
             os.stat = mystat
+            os.path.realpath = myrealpath
 
             resized = cc_growpart.resize_devices(myresizer(), devs + enoent)
 
@@ -220,15 +230,50 @@ class TestResize(unittest.TestCase):
             self.assertEqual(cc_growpart.RESIZE.NOCHANGE,
                              find("/dev/XXda1", resized)[1])
             self.assertEqual(cc_growpart.RESIZE.CHANGED,
-                             find("/dev/YYda2", resized)[1])
+                             find("/dev/disk/by-partuuid/123-111", resized)[1])
             self.assertEqual(cc_growpart.RESIZE.SKIPPED,
                              find(enoent[0], resized)[1])
-            # self.assertEqual(resize_calls,
-            #                 [("/dev/XXda", "1", "/dev/XXda1"),
-            #                  ("/dev/YYda", "2", "/dev/YYda2")])
+            self.assertEqual(resize_calls,
+                             [("/dev/XXda", "1", "/dev/XXda1"),
+                              ("/dev/YYda", "2", "/dev/YYda2")])
         finally:
             cc_growpart.device_part_info = opinfo
             os.stat = real_stat
+            os.path.realpath = real_realpath
+
+
+class TestGetSize(CiTestCase):
+
+    with_logs = True
+
+    def setUp(self):
+        super(TestGetSize, self).setUp()
+        self.root = self.tmp_dir()
+        self.add_patch('cloudinit.config.cc_growpart.util.subp', 'm_subp')
+        self.m_subp.return_value = ("", "")
+        self.mydisk = self.root + "/mydisk"
+        self.mypart = self.root + "/mydiskp1"
+        util.write_file(self.mydisk, "")
+        util.write_file(self.mypart, "Dang JJ!")
+
+    def test_get_size(self):
+        self.assertEqual(8, cc_growpart.get_size(self.mydisk, self.mypart))
+        self.assertEqual(1, self.m_subp.call_count)
+
+    def test_get_size_retry(self):
+        self.m_subp.side_effect = iter([
+            util.ProcessExecutionError(stdout="", stderr="Error", exit_code=1),
+            ("", "")
+        ])
+        cc_growpart.get_size(self.mydisk, self.mypart)
+        self.assertEqual(2, self.m_subp.call_count)
+
+    def test_get_size_retry_raise(self):
+        self.m_subp.side_effect = (
+            util.ProcessExecutionError(stdout="", stderr="Error", exit_code=1))
+        with self.assertRaises(util.ProcessExecutionError):
+            cc_growpart.get_size(self.mydisk, self.mypart)
+        self.assertEqual(4, self.m_subp.call_count)
 
 
 def simple_device_part_info(devpath):
