@@ -8,53 +8,25 @@ import os
 import re
 from io import StringIO
 
-from cloudinit import distros
-from cloudinit import helpers
+import cloudinit.distros.bsd
 from cloudinit import log as logging
-from cloudinit import net
 from cloudinit import util
-from cloudinit.distros import rhel_util
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
 
-class Distro(distros.Distro):
+class Distro(cloudinit.distros.bsd.BSD):
     usr_lib_exec = '/usr/local/lib'
-    rc_conf_fn = "/etc/rc.conf"
     login_conf_fn = '/etc/login.conf'
     login_conf_fn_bak = '/etc/login.conf.orig'
     ci_sudoers_fn = '/usr/local/etc/sudoers.d/90-cloud-init-users'
-    hostname_conf_fn = '/etc/rc.conf'
-
-    def __init__(self, name, cfg, paths):
-        distros.Distro.__init__(self, name, cfg, paths)
-        # This will be used to restrict certain
-        # calls from repeatly happening (when they
-        # should only happen say once per instance...)
-        self._runner = helpers.Runners(paths)
-        self.osfamily = 'freebsd'
-        cfg['ssh_svcname'] = 'sshd'
 
     def _select_hostname(self, hostname, fqdn):
         # Should be FQDN if available. See rc.conf(5) in FreeBSD
         if fqdn:
             return fqdn
         return hostname
-
-    def _read_system_hostname(self):
-        sys_hostname = self._read_hostname(self.hostname_conf_fn)
-        return (self.hostname_conf_fn, sys_hostname)
-
-    def _read_hostname(self, filename, default=None):
-        (_exists, contents) = rhel_util.read_sysconfig_file(filename)
-        if contents.get('hostname'):
-            return contents['hostname']
-        else:
-            return default
-
-    def _write_hostname(self, hostname, filename):
-        rhel_util.update_sysconfig_file(filename, {'hostname': hostname})
 
     def create_group(self, name, members=None):
         group_add_cmd = ['pw', 'group', 'add', name]
@@ -161,17 +133,6 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Failed to lock user %s", name)
             raise
 
-    def generate_fallback_config(self):
-        nconf = {'config': [], 'version': 1}
-        for mac, name in net.get_interfaces_by_mac().items():
-            nconf['config'].append(
-                {'type': 'physical', 'name': name,
-                 'mac_address': mac, 'subnets': [{'type': 'dhcp'}]})
-        return nconf
-
-    def _write_network_config(self, netconfig):
-        return self._supported_write_network_config(netconfig)
-
     def apply_locale(self, locale, out_fn=None):
         # Adjust the locals value to the new value
         newconf = StringIO()
@@ -230,9 +191,6 @@ class Distro(distros.Distro):
 
         # Allow the output of this to flow outwards (ie not be captured)
         util.subp(cmd, env=e, capture=False)
-
-    def set_timezone(self, tz):
-        distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,

@@ -7,39 +7,15 @@ import os
 import platform
 import six
 
-from cloudinit import distros
-from cloudinit import helpers
+import cloudinit.distros.bsd
 from cloudinit import log as logging
-from cloudinit import net
 from cloudinit import util
-from cloudinit.distros import bsd_util
 
 LOG = logging.getLogger(__name__)
 
 
-class Distro(distros.Distro):
-    hostname_conf_fn = '/etc/rc.conf'
+class Distro(cloudinit.distros.bsd.BSD):
     ci_sudoers_fn = '/usr/pkg/etc/sudoers.d/90-cloud-init-users'
-
-    def __init__(self, name, cfg, paths):
-        distros.Distro.__init__(self, name, cfg, paths)
-        # This will be used to restrict certain
-        # calls from repeatly happening (when they
-        # should only happen say once per instance...)
-        self._runner = helpers.Runners(paths)
-        self.osfamily = 'netbsd'
-        cfg['ssh_svcname'] = 'sshd'
-
-    def _read_system_hostname(self):
-        sys_hostname = self._read_hostname(filename='/etc/rc.conf')
-        return ('/etc/rc.conf', sys_hostname)
-
-    def _read_hostname(self, filename, default=None):
-        return bsd_util.get_rc_config_value('hostname')
-
-    def _write_hostname(self, hostname, filename):
-        bsd_util.set_rc_config_value('hostname', hostname,
-                                     fn='/etc/rc.conf')
 
     def create_group(self, name, members=None):
         group_add_cmd = ['groupadd', name]
@@ -152,22 +128,11 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Failed to lock user %s", name)
             raise
 
-    def generate_fallback_config(self):
-        nconf = {'config': [], 'version': 1}
-        for mac, name in net.get_interfaces_by_mac().items():
-            nconf['config'].append(
-                {'type': 'physical', 'name': name,
-                 'mac_address': mac, 'subnets': [{'type': 'dhcp'}]})
-        return nconf
-
-    def _write_network_config(self, netconfig):
-        return self._supported_write_network_config(netconfig)
-
     def apply_locale(self, locale, out_fn=None):
         LOG.debug('Cannot set the locale.')
 
     def apply_network_config_names(self, netconfig):
-        # NetBSD cannot rename interfaces (and so simplify our life here)
+        LOG.debug('NetBSD cannot rename network interface.')
         return
 
     def install_packages(self, pkglist):
@@ -198,9 +163,6 @@ class Distro(distros.Distro):
 
         # Allow the output of this to flow outwards (ie not be captured)
         util.subp(cmd, env=e, capture=False)
-
-    def set_timezone(self, tz):
-        distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def update_package_sources(self):
         pass
