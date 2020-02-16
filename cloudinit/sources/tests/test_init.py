@@ -288,12 +288,18 @@ class TestDataSource(CiTestCase):
         tmp = self.tmp_dir()
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
-        datasource.get_data()
+        sys_info = {"variant": "ubuntu", "dist": ["ubuntu", "16.04", "xenial"]}
+        with mock.patch("cloudinit.util.system_info") as m_system_info:
+            m_system_info.return_value = sys_info
+            datasource.get_data()
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         content = util.load_file(json_file)
         expected = {
             'base64_encoded_keys': [],
+            'cfg': {'_doc': 'Merged cloud-init system config',
+                    'datasource': {'_undef': {'key1': False}}},
             'sensitive_keys': [],
+            'sys_info': sys_info,
             'v1': {
                 '_beta_keys': ['subplatform'],
                 'availability-zone': 'myaz',
@@ -331,7 +337,10 @@ class TestDataSource(CiTestCase):
                     'cred1': 'sekret', 'cred2': 'othersekret'}}})
         self.assertEqual(
             ('security-credentials',), datasource.sensitive_metadata_keys)
-        datasource.get_data()
+        sys_info = {"variant": "ubuntu", "dist": ["ubuntu", "16.04", "xenial"]}
+        with mock.patch("cloudinit.util.system_info") as m_system_info:
+            m_system_info.return_value = sys_info
+            datasource.get_data()
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         redacted = util.load_json(util.load_file(json_file))
         expected = {
@@ -383,7 +392,10 @@ class TestDataSource(CiTestCase):
         content = util.load_file(sensitive_json_file)
         expected = {
             'base64_encoded_keys': [],
+            'cfg': {'_doc': 'Merged cloud-init system config',
+                    'datasource': {'_undef': {'key1': False}}},
             'sensitive_keys': ['ds/meta_data/some/security-credentials'],
+            'sys_info': sys_info,
             'v1': {
                 '_beta_keys': ['subplatform'],
                 'availability-zone': 'myaz',

@@ -302,6 +302,11 @@ class DataSource(metaclass=abc.ABCMeta):
         instance_data.update(
             self._get_standardized_metadata())
         instance_data['ds']['_doc'] = EXPERIMENTAL_TEXT
+        # Add merged cloud.cfg and sys info for jinja templates and cli query
+        instance_data['cfg'] = copy.deepcopy(self.sys_cfg)
+        instance_data['cfg']['_doc'] = 'Merged cloud-init system config'
+        instance_data['sys_info'] = util.system_info()
+
         try:
             # Process content base64encoding unserializable values
             content = util.json_dumps(instance_data)
