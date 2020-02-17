@@ -348,6 +348,14 @@ class TestVmwareConfigFile(CiTestCase):
         conf = Config(cf)
         self.assertEqual("test-script", conf.custom_script_name)
 
+    def test_post_gc_status(self):
+        cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
+        conf = Config(cf)
+        self.assertFalse(conf.post_gc_status)
+        cf._insertKey("MISC|POST-GC-STATUS", "YES")
+        conf = Config(cf)
+        self.assertTrue(conf.post_gc_status)
+
 
 class TestVmwareNetConfig(CiTestCase):
     """Test conversion of vmware config to cloud-init config."""
