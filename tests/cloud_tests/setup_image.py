@@ -229,7 +229,7 @@ def setup_image(args, image):
     except Exception as e:
         info = "N/A (%s)" % e
 
-    LOG.info('setting up %s (%s)', image, info)
+    LOG.info('setting up image %s (info %s)', image, info)
     res = stage.run_stage(
         'set up for {}'.format(image), calls, continue_after_error=False)
     return res

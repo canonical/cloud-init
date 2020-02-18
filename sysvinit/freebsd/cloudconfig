@@ -22,4 +22,7 @@ cloudconfig_start()
 }
 
 load_rc_config $name
+
+: ${cloudconfig_enable="NO"}
+
 run_rc_command "$1"
