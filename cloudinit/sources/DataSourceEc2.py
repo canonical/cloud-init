@@ -31,6 +31,9 @@ STRICT_ID_DEFAULT = "warn"
 API_TOKEN_ROUTE = 'latest/api/token'
 API_TOKEN_DISABLED = '_ec2_disable_api_token'
 AWS_TOKEN_TTL_SECONDS = '21600'
+AWS_TOKEN_PUT_HEADER = 'X-aws-ec2-metadata-token'
+AWS_TOKEN_REQ_HEADER = AWS_TOKEN_PUT_HEADER + '-ttl-seconds'
+AWS_TOKEN_REDACT = [AWS_TOKEN_PUT_HEADER, AWS_TOKEN_REQ_HEADER]
 
 
 class CloudNames(object):
@@ -158,7 +161,8 @@ class DataSourceEc2(sources.DataSource):
         for api_ver in self.extended_metadata_versions:
             url = url_tmpl.format(self.metadata_address, api_ver)
             try:
-                resp = uhelp.readurl(url=url, headers=headers)
+                resp = uhelp.readurl(url=url, headers=headers,
+                                     headers_redact=AWS_TOKEN_REDACT)
             except uhelp.UrlError as e:
                 LOG.debug('url %s raised exception %s', url, e)
             else:
@@ -180,6 +184,7 @@ class DataSourceEc2(sources.DataSource):
                 self.identity = ec2.get_instance_identity(
                     api_version, self.metadata_address,
                     headers_cb=self._get_headers,
+                    headers_redact=AWS_TOKEN_REDACT,
                     exception_cb=self._refresh_stale_aws_token_cb).get(
                         'document', {})
             return self.identity.get(
@@ -205,7 +210,8 @@ class DataSourceEc2(sources.DataSource):
         LOG.debug('Fetching Ec2 IMDSv2 API Token')
         url, response = uhelp.wait_for_url(
             urls=urls, max_wait=1, timeout=1, status_cb=self._status_cb,
-            headers_cb=self._get_headers, request_method=request_method)
+            headers_cb=self._get_headers, request_method=request_method,
+            headers_redact=AWS_TOKEN_REDACT)
 
         if url and response:
             self._api_token = response
@@ -252,7 +258,8 @@ class DataSourceEc2(sources.DataSource):
             url, _ = uhelp.wait_for_url(
                 urls=urls, max_wait=url_params.max_wait_seconds,
                 timeout=url_params.timeout_seconds, status_cb=LOG.warning,
-                headers_cb=self._get_headers, request_method=request_method)
+                headers_redact=AWS_TOKEN_REDACT, headers_cb=self._get_headers,
+                request_method=request_method)
 
             if url:
                 metadata_address = url2base[url]
@@ -420,6 +427,7 @@ class DataSourceEc2(sources.DataSource):
         if not self.wait_for_metadata_service():
             return {}
         api_version = self.get_metadata_api_version()
+        redact = AWS_TOKEN_REDACT
         crawled_metadata = {}
         if self.cloud_name == CloudNames.AWS:
             exc_cb = self._refresh_stale_aws_token_cb
@@ -429,14 +437,17 @@ class DataSourceEc2(sources.DataSource):
         try:
             crawled_metadata['user-data'] = ec2.get_instance_userdata(
                 api_version, self.metadata_address,
-                headers_cb=self._get_headers, exception_cb=exc_cb_ud)
+                headers_cb=self._get_headers, headers_redact=redact,
+                exception_cb=exc_cb_ud)
             crawled_metadata['meta-data'] = ec2.get_instance_metadata(
                 api_version, self.metadata_address,
-                headers_cb=self._get_headers, exception_cb=exc_cb)
+                headers_cb=self._get_headers, headers_redact=redact,
+                exception_cb=exc_cb)
             if self.cloud_name == CloudNames.AWS:
                 identity = ec2.get_instance_identity(
                     api_version, self.metadata_address,
-                    headers_cb=self._get_headers, exception_cb=exc_cb)
+                    headers_cb=self._get_headers, headers_redact=redact,
+                    exception_cb=exc_cb)
                 crawled_metadata['dynamic'] = {'instance-identity': identity}
         except Exception:
             util.logexc(
@@ -455,11 +466,12 @@ class DataSourceEc2(sources.DataSource):
         if self.cloud_name != CloudNames.AWS:
             return None
         LOG.debug("Refreshing Ec2 metadata API token")
-        request_header = {'X-aws-ec2-metadata-token-ttl-seconds': seconds}
+        request_header = {AWS_TOKEN_REQ_HEADER: seconds}
         token_url = '{}/{}'.format(self.metadata_address, API_TOKEN_ROUTE)
         try:
-            response = uhelp.readurl(
-                token_url, headers=request_header, request_method="PUT")
+            response = uhelp.readurl(token_url, headers=request_header,
+                                     headers_redact=AWS_TOKEN_REDACT,
+                                     request_method="PUT")
         except uhelp.UrlError as e:
             LOG.warning(
                 'Unable to get API token: %s raised exception %s',
@@ -500,8 +512,7 @@ class DataSourceEc2(sources.DataSource):
                                                  API_TOKEN_DISABLED):
             return {}
         # Request a 6 hour token if URL is API_TOKEN_ROUTE
-        request_token_header = {
-            'X-aws-ec2-metadata-token-ttl-seconds': AWS_TOKEN_TTL_SECONDS}
+        request_token_header = {AWS_TOKEN_REQ_HEADER: AWS_TOKEN_TTL_SECONDS}
         if API_TOKEN_ROUTE in url:
             return request_token_header
         if not self._api_token:
@@ -511,7 +522,7 @@ class DataSourceEc2(sources.DataSource):
             self._api_token = self._refresh_api_token()
             if not self._api_token:
                 return {}
-        return {'X-aws-ec2-metadata-token': self._api_token}
+        return {AWS_TOKEN_PUT_HEADER: self._api_token}
 
 
 class DataSourceEc2Local(DataSourceEc2):
