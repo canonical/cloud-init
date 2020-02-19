@@ -32,6 +32,7 @@ LOG = logging.getLogger(__name__)
 SSL_ENABLED = False
 CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
 _REQ_VER = None
+REDACTED = 'REDACTED'
 try:
     from distutils.version import LooseVersion
     import pkg_resources
@@ -286,7 +287,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                     if hkey in headers_redact:
                         filtered_req_args[k][hkey] = (
                             copy.deepcopy(req_args[k][hkey]))
-                        filtered_req_args[k][hkey] = 'REDACTED'
+                        filtered_req_args[k][hkey] = REDACTED
         try:
 
             if log_req_resp:
