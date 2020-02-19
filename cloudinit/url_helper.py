@@ -8,6 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import json
 import os
 import time
@@ -189,9 +190,9 @@ def _get_ssl_args(url, ssl_details):
 
 
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
-            headers=None, headers_cb=None, ssl_details=None,
-            check_status=True, allow_redirects=True, exception_cb=None,
-            session=None, infinite=False, log_req_resp=True,
+            headers=None, headers_cb=None, headers_redact=None,
+            ssl_details=None, check_status=True, allow_redirects=True,
+            exception_cb=None, session=None, infinite=False, log_req_resp=True,
             request_method=None):
     """Wrapper around requests.Session to read the url and retry if necessary
 
@@ -207,6 +208,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     :param headers: Optional dict of headers to send during request
     :param headers_cb: Optional callable returning a dict of values to send as
         headers during request
+    :param headers_redact: Optional list of header names to redact from the log
     :param ssl_details: Optional dict providing key_file, ca_certs, and
         cert_file keys for use on in ssl connections.
     :param check_status: Optional boolean set True to raise when HTTPError
@@ -233,6 +235,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     req_args['method'] = request_method
     if timeout is not None:
         req_args['timeout'] = max(float(timeout), 0)
+    if headers_redact is None:
+        headers_redact = []
     # It doesn't seem like config
     # was added in older library versions (or newer ones either), thus we
     # need to manually do the retries if it wasn't...
@@ -277,6 +281,11 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             if k == 'data':
                 continue
             filtered_req_args[k] = v
+            if k == 'headers':
+                filtered_req_args[k] = copy.deepcopy(req_args[k])
+                for hkey, _hval in v.items():
+                    if hkey in headers_redact:
+                        filtered_req_args[k][hkey] = 'REDACTED'
         try:
 
             if log_req_resp:
@@ -329,8 +338,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     return None  # Should throw before this...
 
 
-def wait_for_url(urls, max_wait=None, timeout=None,
-                 status_cb=None, headers_cb=None, sleep_time=1,
+def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
+                 headers_cb=None, headers_redact=None, sleep_time=1,
                  exception_cb=None, sleep_time_cb=None, request_method=None):
     """
     urls:      a list of urls to try
@@ -342,6 +351,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     status_cb: call method with string message when a url is not available
     headers_cb: call method with single argument of url to get headers
                 for request.
+    headers_redact: a list of header names to redact from the log
     exception_cb: call method with 2 arguments 'msg' (per status_cb) and
                   'exception', the exception that occurred.
     sleep_time_cb: call method with 2 arguments (response, loop_n) that
@@ -405,8 +415,9 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     headers = {}
 
                 response = readurl(
-                    url, headers=headers, timeout=timeout,
-                    check_status=False, request_method=request_method)
+                    url, headers=headers, headers_redact=headers_redact,
+                    timeout=timeout, check_status=False,
+                    request_method=request_method)
                 if not response.contents:
                     reason = "empty response [%s]" % (response.code)
                     url_exc = UrlError(ValueError(reason), code=response.code,
