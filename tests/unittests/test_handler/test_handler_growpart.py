@@ -249,31 +249,15 @@ class TestGetSize(CiTestCase):
     def setUp(self):
         super(TestGetSize, self).setUp()
         self.root = self.tmp_dir()
-        self.add_patch('cloudinit.config.cc_growpart.util.subp', 'm_subp')
-        self.m_subp.return_value = ("", "")
-        self.mydisk = self.root + "/mydisk"
         self.mypart = self.root + "/mydiskp1"
-        util.write_file(self.mydisk, "")
         util.write_file(self.mypart, "Dang JJ!")
 
     def test_get_size(self):
-        self.assertEqual(8, cc_growpart.get_size(self.mydisk, self.mypart))
-        self.assertEqual(1, self.m_subp.call_count)
+        self.assertEqual(8, cc_growpart.get_size(self.mypart))
 
-    def test_get_size_retry(self):
-        self.m_subp.side_effect = iter([
-            util.ProcessExecutionError(stdout="", stderr="Error", exit_code=1),
-            ("", "")
-        ])
-        cc_growpart.get_size(self.mydisk, self.mypart)
-        self.assertEqual(2, self.m_subp.call_count)
-
-    def test_get_size_retry_raise(self):
-        self.m_subp.side_effect = (
-            util.ProcessExecutionError(stdout="", stderr="Error", exit_code=1))
-        with self.assertRaises(util.ProcessExecutionError):
-            cc_growpart.get_size(self.mydisk, self.mypart)
-        self.assertEqual(4, self.m_subp.call_count)
+    def test_get_size_errors(self):
+        with self.assertRaises(OSError):
+           cc_growpart.get_size(self.random_string())
 
 
 def simple_device_part_info(devpath):
