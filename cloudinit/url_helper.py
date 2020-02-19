@@ -8,7 +8,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import copy
 import json
 import os
 import time
@@ -281,13 +280,14 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
         for (k, v) in req_args.items():
             if k == 'data':
                 continue
-            filtered_req_args[k] = v
-            if k == 'headers':
-                for hkey, _hval in v.items():
+            if k != 'headers':
+                filtered_req_args[k] = v
+            else:
+                filtered_req_args[k] = {}
+                for hkey, hval in v.items():
                     if hkey in headers_redact:
-                        filtered_req_args[k][hkey] = (
-                            copy.deepcopy(req_args[k][hkey]))
-                        filtered_req_args[k][hkey] = REDACTED
+                        hval = REDACTED
+                    filtered_req_args[k][hkey] = hval
         try:
 
             if log_req_resp:
