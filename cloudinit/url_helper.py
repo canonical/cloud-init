@@ -282,9 +282,10 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                 continue
             filtered_req_args[k] = v
             if k == 'headers':
-                filtered_req_args[k] = copy.deepcopy(req_args[k])
                 for hkey, _hval in v.items():
                     if hkey in headers_redact:
+                        filtered_req_args[k][hkey] = (
+                            copy.deepcopy(req_args[k][hkey]))
                         filtered_req_args[k][hkey] = 'REDACTED'
         try:
 
