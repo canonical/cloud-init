@@ -27,8 +27,8 @@ Build-Depends: debhelper (>= 9.20160709),
                python3-unittest2,
                python3-yaml
 XS-Python-Version: all
-Vcs-Browser: https://git.launchpad.net/cloud-init/?h=ubuntu/devel
-Vcs-Git: https://git.launchpad.net/cloud-init -b ubuntu/devel
+Vcs-Browser: https://github.com/canonical/cloud-init/tree/ubuntu/devel
+Vcs-Git: https://github.com/canonical/cloud-init -b ubuntu/devel
 Standards-Version: 4.4.1
 Rules-Requires-Root: no
 

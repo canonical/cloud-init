@@ -1,3 +1,22 @@
+cloud-init (20.1-0ubuntu1) focal; urgency=medium
+
+  * New upstream release.
+    - Release 20.1 (#222) (LP: #1863954)
+    - Update tooling for GitHub-based new releases (#223)
+    - ec2: Do not log IMDSv2 token values, instead use REDACTED (#219)
+      (LP: #1863943)
+    - utils: use SystemRandom when generating random password. (#204)
+      [Dimitri John Ledkov]
+    - docs: mount_default_files is a list of 6 items, not 7 (#212)
+    - azurecloud: fix issues with instances not starting (#205) (LP: #1861921)
+    - unittest: fix stderr leak in cc_set_password random unittest
+      output. (#208)
+    - cc_disk_setup: add swap filesystem force flag (#207)
+    - import sysvinit patches from freebsd-ports tree (#161) [Igor Galić]
+    - docs: fix typo (#195) [Edwin Kofler]
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Thu, 20 Feb 2020 16:36:44 -0500
+
 cloud-init (19.4-56-g06e324ff-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.

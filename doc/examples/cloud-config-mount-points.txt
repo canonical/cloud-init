@@ -34,7 +34,7 @@ mounts:
 
 # mount_default_fields
 # These values are used to fill in any entries in 'mounts' that are not
-# complete.  This must be an array, and must have 7 fields.
+# complete.  This must be an array, and must have 6 fields.
 mount_default_fields: [ None, None, "auto", "defaults,nofail", "0", "2" ]
 
 
