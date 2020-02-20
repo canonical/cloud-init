@@ -252,7 +252,7 @@ def create_swapfile(fname, size):
     kernel_version = str.split(kernel_version, '.')
     kernel_version = tuple(map(int, kernel_version))
 
-    if (fstype == "xfs" and kernel_version <= (4,18)) or fstype == "btrfs":
+    if (fstype == "xfs" and kernel_version <= (4, 18)) or fstype == "btrfs":
         create_swap(fname, size, "dd")
     else:
         try:
