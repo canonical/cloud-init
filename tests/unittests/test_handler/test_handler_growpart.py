@@ -277,6 +277,7 @@ class TestResizeGrowPart(CiTestCase):
         super(TestResizeGrowPart, self).setUp()
         self.resizer = cc_growpart.ResizeGrowPart()
         self.add_patch('cloudinit.config.cc_growpart.util.subp', 'm_subp')
+        self.add_patch('cloudinit.config.cc_growpart.util.multi_log', 'm_mlog')
 
     def test_get_size(self):
         self.assertEqual(('1021952', '2045919'),

@@ -172,7 +172,7 @@ class ResizeGrowPart(object):
         try:
             out, _err = util.subp(["growpart", '-v', diskdev, partnum],
                                   rcs=[0, 1])
-            LOG.debug('growpart: %s', out)
+            util.multi_log('growpart: %s' % out, stderr=False, log=LOG)
             return self.get_size(out)
         except util.ProcessExecutionError as e:
             util.logexc(LOG, "Failed: growpart error: %s", e)
