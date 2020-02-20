@@ -74,6 +74,10 @@ class TestSetPasswordsHandle(CiTestCase):
 
     with_logs = True
 
+    def setUp(self):
+        super(TestSetPasswordsHandle, self).setUp()
+        self.add_patch('cloudinit.config.cc_set_passwords.sys.stderr', 'm_err')
+
     def test_handle_on_empty_config(self, *args):
         """handle logs that no password has changed when config is empty."""
         cloud = self.tmp_cloud(distro='ubuntu')

@@ -397,9 +397,10 @@ def translate_bool(val, addons=None):
 
 
 def rand_str(strlen=32, select_from=None):
+    r = random.SystemRandom()
     if not select_from:
         select_from = string.ascii_letters + string.digits
-    return "".join([random.choice(select_from) for _x in range(0, strlen)])
+    return "".join([r.choice(select_from) for _x in range(0, strlen)])
 
 
 def rand_dict_key(dictionary, postfix=None):
