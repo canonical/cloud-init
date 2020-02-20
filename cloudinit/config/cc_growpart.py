@@ -93,6 +93,10 @@ GROWPART_CHANGED = (r".*old:\ size=(?P<old_size>\d+)\ end=(?P<old_end>\d+)\ "
                     r"new:\ size=(?P<new_size>\d+)(\s|\S)"
                     r"end=(?P<new_end>\d+)")
 
+# Linux hard-codes sector size to 512 for user-space
+# https://lkml.org/lkml/2015/8/17/269
+SECTOR_SIZE_SHIFT = 9  # 512
+
 
 def resizer_factory(mode):
     resize_class = None
@@ -165,6 +169,12 @@ class ResizeGrowPart(object):
 
         except AttributeError:
             raise ValueError(noparse)
+
+        # Convert sectors to bytes.  growpart reports size in sectors
+        if before:
+            before = str(int(before) << SECTOR_SIZE_SHIFT)
+        if after:
+            after = str(int(after) << SECTOR_SIZE_SHIFT)
 
         return (before, after)
 

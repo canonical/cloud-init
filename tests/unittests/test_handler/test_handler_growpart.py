@@ -280,15 +280,15 @@ class TestResizeGrowPart(CiTestCase):
         self.add_patch('cloudinit.config.cc_growpart.util.multi_log', 'm_mlog')
 
     def test_get_size(self):
-        self.assertEqual(('1021952', '2045919'),
+        self.assertEqual(('523239424', '1047510528'),
                          self.resizer.get_size(GROWPART_CHANGED_1))
 
     def test_get_size_older_release(self):
-        self.assertEqual(('1021952', '2045919'),
+        self.assertEqual(('523239424', '1047510528'),
                          self.resizer.get_size(GROWPART_CHANGED_2))
 
     def test_get_size_no_change(self):
-        self.assertEqual(('83883999', '83883999'),
+        self.assertEqual(('42948607488', '42948607488'),
                          self.resizer.get_size(GROWPART_NOCHANGE_1))
 
     def test_get_size_error_raises_valueerror_exception(self):
@@ -306,7 +306,7 @@ class TestResizeGrowPart(CiTestCase):
         partnum = "1"
         partdev = "%sp%s" % (diskdev, partnum)
         self.m_subp.return_value = (GROWPART_CHANGED_1, "")
-        self.assertEqual(('1021952', '2045919'),
+        self.assertEqual(('523239424', '1047510528'),
                          self.resizer.resize(diskdev, partnum, partdev))
         self.assertEqual(1, len(self.m_subp.call_args_list))
         self.assertEqual(
@@ -318,7 +318,7 @@ class TestResizeGrowPart(CiTestCase):
         partnum = "1"
         partdev = "%sp%s" % (diskdev, partnum)
         self.m_subp.return_value = (GROWPART_NOCHANGE_1, "")
-        self.assertEqual(("83883999", "83883999"),
+        self.assertEqual(('42948607488', '42948607488'),
                          self.resizer.resize(diskdev, partnum, partdev))
         self.assertEqual(1, len(self.m_subp.call_args_list))
         self.assertEqual(
