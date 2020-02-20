@@ -269,13 +269,14 @@ class TestGetSize(CiTestCase):
             cc_growpart.get_size(self.random_string())
 
 
-class TestResizeGrowPartGetSize(CiTestCase):
+class TestResizeGrowPart(CiTestCase):
 
     with_logs = True
 
     def setUp(self):
-        super(TestResizeGrowPartGetSize, self).setUp()
+        super(TestResizeGrowPart, self).setUp()
         self.resizer = cc_growpart.ResizeGrowPart()
+        self.add_patch('cloudinit.config.cc_growpart.util.subp', 'm_subp')
 
     def test_get_size(self):
         self.assertEqual(('1021952', '2045919'),
@@ -298,6 +299,44 @@ class TestResizeGrowPartGetSize(CiTestCase):
             self.resizer.get_size("CHANGED:" + self.random_string())
         with self.assertRaises(ValueError):
             self.resizer.get_size("NOCHANGE:" + self.random_string())
+
+    def test_resize_changed(self):
+        diskdev = self.random_string()
+        partnum = "1"
+        partdev = "%sp%s" % (diskdev, partnum)
+        self.m_subp.return_value = (GROWPART_CHANGED_1, "")
+        self.assertEqual(('1021952', '2045919'),
+                         self.resizer.resize(diskdev, partnum, partdev))
+        self.assertEqual(1, len(self.m_subp.call_args_list))
+        self.assertEqual(
+            mock.call(['growpart', '-v', diskdev, partnum], rcs=[0, 1]),
+            self.m_subp.call_args_list[0])
+
+    def test_resize_nochange(self):
+        diskdev = self.random_string()
+        partnum = "1"
+        partdev = "%sp%s" % (diskdev, partnum)
+        self.m_subp.return_value = (GROWPART_NOCHANGE_1, "")
+        self.assertEqual(("83883999", "83883999"),
+                         self.resizer.resize(diskdev, partnum, partdev))
+        self.assertEqual(1, len(self.m_subp.call_args_list))
+        self.assertEqual(
+            mock.call(['growpart', '-v', diskdev, partnum], rcs=[0, 1]),
+            self.m_subp.call_args_list[0])
+
+    def test_resize_raise_on_other_exit_code_errors(self):
+        diskdev = self.random_string()
+        partnum = "1"
+        partdev = "%sp%s" % (diskdev, partnum)
+        self.m_subp.side_effect = util.ProcessExecutionError(stdout="",
+                                                             stderr="Error",
+                                                             exit_code=2)
+        with self.assertRaises(cc_growpart.ResizeFailedException):
+            self.resizer.resize(diskdev, partnum, partdev)
+        self.assertEqual(1, len(self.m_subp.call_args_list))
+        self.assertEqual(
+            mock.call(['growpart', '-v', diskdev, partnum], rcs=[0, 1]),
+            self.m_subp.call_args_list[0])
 
 
 def simple_device_part_info(devpath):
