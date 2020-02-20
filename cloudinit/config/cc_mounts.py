@@ -65,7 +65,7 @@ swap file is created.
 from string import whitespace
 
 import logging
-import os.path
+import os
 import re
 
 from cloudinit import type_utils
@@ -262,10 +262,11 @@ def create_swapfile(fname: str, size: str) -> None:
     util.ensure_dir(swap_dir)
 
     fstype = util.get_mount_info(swap_dir)[1]
-    kernel_version = float(re.sub('.*?(-?\d+(\.\d+)?).*', r'\1',
-        str(os.uname()[2])))
+    kernel_version = re.sub(r'.*?(\d+(\.\d+)?).*', r'\1', str(os.uname()[2]))
+    kernel_version = str.split(kernel_version, '.')
+    kernel_version = tuple(map(int, kernel_version))
 
-    if (fstype == "xfs" and kernel_version <= 4.18) or fstype == "btrfs":
+    if (fstype == "xfs" and kernel_version <= (4,18)) or fstype == "btrfs":
         create_swap(fname, size, "dd")
     else:
         try:
