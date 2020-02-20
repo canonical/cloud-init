@@ -119,6 +119,7 @@ data = {
     'extra': extra,
     'commit': commit,
     'distance': distance,
+    'is_release_branch_ci': is_release_branch_ci,
 }
 
 if output_json:
