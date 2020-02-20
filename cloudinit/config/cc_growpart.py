@@ -169,16 +169,19 @@ class ResizeGrowPart(object):
         return (before, after)
 
     def resize(self, diskdev, partnum, partdev):
+        out = None
         try:
             out, _err = util.subp(["growpart", '-v', diskdev, partnum],
                                   rcs=[0, 1])
-            util.multi_log('growpart: %s' % out, stderr=False, log=LOG)
-            return self.get_size(out)
         except util.ProcessExecutionError as e:
             util.logexc(LOG, "Failed: growpart error: %s", e)
             raise ResizeFailedException(e)
+
+        util.multi_log('growpart: %s' % out, stderr=False, log=LOG)
+        try:
+            return self.get_size(out)
         except ValueError as e:
-            util.logexc(LOG, "get_size error: %s", e)
+            util.logexc(LOG, "Failed: get_size error: %s", e)
             raise ResizeFailedException(e)
 
 
