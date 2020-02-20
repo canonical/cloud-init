@@ -1,4 +1,4 @@
-cloud-init (20.1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.1-0ubuntu1) focal; urgency=medium
 
   * New upstream release.
     - Release 20.1 (#222) (LP: #1863954)
