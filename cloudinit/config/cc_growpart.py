@@ -89,6 +89,9 @@ class RESIZE(object):
 
 
 LOG = logging.getLogger(__name__)
+GROWPART_CHANGED = (r".*old:\ size=(?P<old_size>\d+)\ end=(?P<old_end>\d+)\ "
+                    r"new:\ size=(?P<new_size>\d+)(\s|\S)"
+                    r"end=(?P<new_end>\d+)")
 
 
 def resizer_factory(mode):
@@ -139,26 +142,45 @@ class ResizeGrowPart(object):
             pass
         return False
 
-    def resize(self, diskdev, partnum, partdev):
-        before = get_size(partdev)
+    def get_size(self, output):
+        """
+        CHANGED: resizer=sfdisk partition=1 start=2048 old: size=1021952
+                 end=1024000 new: size=2045919 end=2047967
+        CHANGED: partition=1 start=2048 old: size=1021952 end=1024000
+                 new: size=2045919,end=2047967
+        NOCHANGE: partition 1 is size 83883999. it cannot be grown
+        """
+        m = before = after = None
+        noparse = "Failed to parse growpart output: %s" % output
         try:
-            util.subp(["growpart", '--dry-run', diskdev, partnum])
-        except util.ProcessExecutionError as e:
-            if e.exit_code != 1:
-                util.logexc(LOG, "Failed growpart --dry-run for (%s, %s)",
-                            diskdev, partnum)
-                raise ResizeFailedException(e)
-            return (before, before)
+            if output.startswith('CHANGED:'):
+                m = re.match(GROWPART_CHANGED, output)
+                before = m.group('old_size')
+                after = m.group('new_size')
+            elif output.startswith('NOCHANGE:'):
+                m = re.match(r'.*is\ size\ (?P<old_size>\d+)\.', output)
+                before = after = m.group('old_size')
+            else:
+                raise ValueError(noparse)
 
+        except AttributeError:
+            raise ValueError(noparse)
+
+        return (before, after)
+
+    def resize(self, diskdev, partnum, partdev):
         try:
             out, err = util.subp(["growpart", '-v', diskdev, partnum])
             LOG.debug('growpart: %s', out)
+            return self.get_size(out)
         except util.ProcessExecutionError as e:
-            util.logexc(LOG, "Failed: growpart %s %s: %s",
-                        diskdev, partnum, err)
+            if e.exit_code != 1:
+                util.logexc(LOG, "Failed: growpart %s %s: %s",
+                            diskdev, partnum, err)
+                raise ResizeFailedException(e)
+        except ValueError as e:
+            util.logexc(LOG, "get_size error: %s", e)
             raise ResizeFailedException(e)
-
-        return (before, get_size(partdev))
 
 
 class ResizeGpart(object):

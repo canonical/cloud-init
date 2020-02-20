@@ -60,6 +60,15 @@ usage: gpart add -t type [-a alignment] [-b start] <SNIP> geom
 <SNIP>
 """
 
+GROWPART_CHANGED_1 = (
+    "CHANGED: resizer=sfdisk partition=1 start=2048 old: size=1021952 "
+    "end=1024000 new: size=2045919 end=2047967")
+GROWPART_CHANGED_2 = (
+    "CHANGED: partition=1 start=2048 old: size=1021952 end=1024000 new: "
+    "size=2045919,end=2047967")
+GROWPART_NOCHANGE_1 = (
+    "NOCHANGE: partition 1 is size 83883999. it cannot be grown")
+
 
 class TestDisabled(CiTestCase):
     def setUp(self):
@@ -257,7 +266,38 @@ class TestGetSize(CiTestCase):
 
     def test_get_size_errors(self):
         with self.assertRaises(OSError):
-           cc_growpart.get_size(self.random_string())
+            cc_growpart.get_size(self.random_string())
+
+
+class TestResizeGrowPartGetSize(CiTestCase):
+
+    with_logs = True
+
+    def setUp(self):
+        super(TestResizeGrowPartGetSize, self).setUp()
+        self.resizer = cc_growpart.ResizeGrowPart()
+
+    def test_get_size(self):
+        self.assertEqual(('1021952', '2045919'),
+                         self.resizer.get_size(GROWPART_CHANGED_1))
+
+    def test_get_size_older_release(self):
+        self.assertEqual(('1021952', '2045919'),
+                         self.resizer.get_size(GROWPART_CHANGED_2))
+
+    def test_get_size_no_change(self):
+        self.assertEqual(('83883999', '83883999'),
+                         self.resizer.get_size(GROWPART_NOCHANGE_1))
+
+    def test_get_size_error_raises_valueerror_exception(self):
+        with self.assertRaises(ValueError):
+            self.resizer.get_size(self.random_string())
+
+    def test_get_size_raises_valuerror_bad_change_nochange_output(self):
+        with self.assertRaises(ValueError):
+            self.resizer.get_size("CHANGED:" + self.random_string())
+        with self.assertRaises(ValueError):
+            self.resizer.get_size("NOCHANGE:" + self.random_string())
 
 
 def simple_device_part_info(devpath):
