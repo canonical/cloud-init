@@ -10,7 +10,7 @@ from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 from copy import copy
 import os
-from six import StringIO
+from io import StringIO
 from textwrap import dedent
 from yaml import safe_load
 

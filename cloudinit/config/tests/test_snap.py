@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import re
-from six import StringIO
+from io import StringIO
 
 from cloudinit.config.cc_snap import (
     ASSERTIONS_FILE, add_assertions, handle, maybe_install_squashfuse,

@@ -11,9 +11,9 @@ import argparse
 import copy
 import httpretty
 import json
-import mock
 import os
 import uuid
+from unittest import mock
 
 DS_PATH = "cloudinit.sources.DataSourceOracle"
 MD_VER = "2013-10-17"

@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import mock
+from unittest import mock
 
 from cloudinit.config import cc_set_passwords as setpass
 from cloudinit.tests.helpers import CiTestCase
@@ -73,6 +73,10 @@ class TestSetPasswordsHandle(CiTestCase):
     """Test cc_set_passwords.handle"""
 
     with_logs = True
+
+    def setUp(self):
+        super(TestSetPasswordsHandle, self).setUp()
+        self.add_patch('cloudinit.config.cc_set_passwords.sys.stderr', 'm_err')
 
     def test_handle_on_empty_config(self, *args):
         """handle logs that no password has changed when config is empty."""

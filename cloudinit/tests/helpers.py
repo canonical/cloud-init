@@ -13,8 +13,8 @@ import string
 import sys
 import tempfile
 import time
+from unittest import mock
 
-import mock
 import unittest2
 from unittest2.util import strclass
 

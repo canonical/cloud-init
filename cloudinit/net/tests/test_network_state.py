@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import mock
+from unittest import mock
+
 from cloudinit.net import network_state
 from cloudinit.tests.helpers import CiTestCase
 

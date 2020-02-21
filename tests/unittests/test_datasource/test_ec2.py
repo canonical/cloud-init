@@ -3,7 +3,7 @@
 import copy
 import httpretty
 import json
-import mock
+from unittest import mock
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
@@ -428,6 +428,23 @@ class TestEc2(test_helpers.HttprettyTestCase):
             md={'md': DEFAULT_METADATA})
         self.assertTrue(ds.get_data())
         self.assertFalse(ds.is_classic_instance())
+
+    def test_aws_token_redacted(self):
+        """Verify that aws tokens are redacted when logged."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
+            md={'md': DEFAULT_METADATA})
+        self.assertTrue(ds.get_data())
+        all_logs = self.logs.getvalue().splitlines()
+        REDACT_TTL = "'X-aws-ec2-metadata-token-ttl-seconds': 'REDACTED'"
+        REDACT_TOK = "'X-aws-ec2-metadata-token': 'REDACTED'"
+        logs_with_redacted_ttl = [log for log in all_logs if REDACT_TTL in log]
+        logs_with_redacted = [log for log in all_logs if REDACT_TOK in log]
+        logs_with_token = [log for log in all_logs if 'API-TOKEN' in log]
+        self.assertEqual(1, len(logs_with_redacted_ttl))
+        self.assertEqual(79, len(logs_with_redacted))
+        self.assertEqual(0, len(logs_with_token))
 
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_valid_platform_with_strict_true(self, m_dhcp):
