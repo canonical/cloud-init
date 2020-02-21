@@ -65,7 +65,13 @@ output_json = '--json' in sys.argv
 src_version = ci_version.version_string()
 version_long = None
 
-if is_gitdir(_tdir) and which("git"):
+# If we're performing CI for a new release branch (which our tooling creates
+# with an "upstream/" prefix), then we don't want to enforce strict version
+# matching because we know it will fail.
+is_release_branch_ci = (
+    os.environ.get("TRAVIS_PULL_REQUEST_BRANCH", "").startswith("upstream/")
+)
+if is_gitdir(_tdir) and which("git") and not is_release_branch_ci:
     flags = []
     if use_tags:
         flags = ['--tags']
@@ -113,6 +119,7 @@ data = {
     'extra': extra,
     'commit': commit,
     'distance': distance,
+    'is_release_branch_ci': is_release_branch_ci,
 }
 
 if output_json:
