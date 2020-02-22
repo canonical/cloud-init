@@ -12,18 +12,26 @@ from cloudinit import util
 # preserve these if blocks.
 
 
+def _unquote(value):
+    if value[0] == value[-1] and value[0] in ['"', "'"]:
+        return value[1:-1]
+    return value
+
+
 def get_rc_config_value(key, fn='/etc/rc.conf'):
     key_prefix = '{}='.format(key)
     for line in util.load_file(fn).splitlines():
         if line.startswith(key_prefix):
-            return line.replace(key_prefix, '')
+            value = line.replace(key_prefix, '')
+            return _unquote(value)
 
 
 def set_rc_config_value(key, value, fn='/etc/rc.conf'):
     lines = []
     done = False
     value = shlex.quote(value)
-    for line in util.load_file(fn).splitlines():
+    original_content = util.load_file(fn)
+    for line in original_content.splitlines():
         if '=' in line:
             k, v = line.split('=', 1)
             if k == key:
@@ -34,8 +42,9 @@ def set_rc_config_value(key, value, fn='/etc/rc.conf'):
             lines.append(line)
     if not done:
         lines.append('='.join([key, value]))
-    with open(fn, 'w') as fd:
-        fd.write('\n'.join(lines) + '\n')
+    new_content = '\n'.join(lines) + '\n'
+    if new_content != original_content:
+        util.write_file(fn, new_content)
 
 
 # vi: ts=4 expandtab
