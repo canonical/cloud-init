@@ -3,7 +3,7 @@ import platform
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import net
-from cloudinit.distros import bsd_util
+from cloudinit.distros import bsd_utils
 
 
 class BSD(distros.Distro):
@@ -24,11 +24,12 @@ class BSD(distros.Distro):
         return (self.hostname_conf_fn, sys_hostname)
 
     def _read_hostname(self, filename, default=None):
-        return bsd_util.get_rc_config_value('hostname')
+        return bsd_utils.get_rc_config_value('hostname')
 
     def _write_hostname(self, hostname, filename):
-        bsd_util.set_rc_config_value('hostname', hostname,
-                                     fn='/etc/rc.conf')
+        bsd_utils.set_rc_config_value(
+                'hostname', hostname,
+                fn='/etc/rc.conf')
 
     def generate_fallback_config(self):
         nconf = {'config': [], 'version': 1}

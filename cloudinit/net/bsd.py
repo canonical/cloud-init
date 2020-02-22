@@ -6,7 +6,7 @@ from cloudinit import log as logging
 from cloudinit import net
 from cloudinit import util
 from cloudinit.distros.parsers.resolv_conf import ResolvConf
-from cloudinit.distros import bsd_util
+from cloudinit.distros import bsd_utils
 
 from . import renderer
 
@@ -19,11 +19,11 @@ class BSDRenderer(renderer.Renderer):
 
     def get_rc_config_value(self, key):
         fn = util.target_path(self.target, self.rc_conf_fn)
-        bsd_util.get_rc_config_value(key, fn=fn)
+        bsd_utils.get_rc_config_value(key, fn=fn)
 
     def set_rc_config_value(self, key, value):
         fn = util.target_path(self.target, self.rc_conf_fn)
-        bsd_util.set_rc_config_value(key, value, fn=fn)
+        bsd_utils.set_rc_config_value(key, value, fn=fn)
 
     def __init__(self, config=None):
         if not config:
