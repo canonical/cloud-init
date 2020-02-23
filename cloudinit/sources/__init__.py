@@ -218,14 +218,15 @@ class DataSource(metaclass=abc.ABCMeta):
     def __str__(self):
         return type_utils.obj_name(self)
 
-    def _get_standardized_metadata(self):
+    def _get_standardized_metadata(self, instance_data):
         """Return a dictionary of standardized metadata keys."""
         local_hostname = self.get_hostname()
         instance_id = self.get_instance_id()
         availability_zone = self.availability_zone
         # In the event of upgrade from existing cloudinit, pickled datasource
         # will not contain these new class attributes. So we need to recrawl
-        # metadata to discover that content.
+        # metadata to discover that content
+        sysinfo = instance_data["sys_info"]
         return {
             'v1': {
                 '_beta_keys': ['subplatform'],
@@ -233,14 +234,22 @@ class DataSource(metaclass=abc.ABCMeta):
                 'availability_zone': availability_zone,
                 'cloud-name': self.cloud_name,
                 'cloud_name': self.cloud_name,
+                'distro': sysinfo["dist"][0],
+                'distro_version': sysinfo["dist"][1],
+                'distro_release': sysinfo["dist"][2],
                 'platform': self.platform_type,
                 'public_ssh_keys': self.get_public_ssh_keys(),
+                'python': sysinfo["python"],
                 'instance-id': instance_id,
                 'instance_id': instance_id,
+                'kernel': sysinfo["uname"][2],
                 'local-hostname': local_hostname,
                 'local_hostname': local_hostname,
+                'machine': sysinfo["uname"][4],
                 'region': self.region,
-                'subplatform': self.subplatform}}
+                'subplatform': self.subplatform,
+                'system_platform': sysinfo["platform"],
+                'variant': sysinfo["variant"]}}
 
     def clear_cached_attrs(self, attr_defaults=()):
         """Reset any cached metadata attributes to datasource defaults.
@@ -299,14 +308,13 @@ class DataSource(metaclass=abc.ABCMeta):
                 ec2_metadata = getattr(self, 'ec2_metadata')
                 if ec2_metadata != UNSET:
                     instance_data['ds']['ec2_metadata'] = ec2_metadata
-        instance_data.update(
-            self._get_standardized_metadata())
         instance_data['ds']['_doc'] = EXPERIMENTAL_TEXT
         # Add merged cloud.cfg and sys info for jinja templates and cli query
         instance_data['cfg'] = copy.deepcopy(self.sys_cfg)
         instance_data['cfg']['_doc'] = 'Merged cloud-init system config'
         instance_data['sys_info'] = util.system_info()
-
+        instance_data.update(
+            self._get_standardized_metadata(instance_data))
         try:
             # Process content base64encoding unserializable values
             content = util.json_dumps(instance_data)

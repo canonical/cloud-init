@@ -288,7 +288,7 @@ class TestDataSource(CiTestCase):
         tmp = self.tmp_dir()
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
-        sys_info = {"variant": "ubuntu", "dist": ["ubuntu", "16.04", "xenial"]}
+        sys_info = {"python": "3.7", "platform": "Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal", "uname": ["Linux", "myhost", "5.4.0-24-generic", "SMP blah", "x86_64"],  "variant": "ubuntu", "dist": ["ubuntu", "20.04", "focal"]}
         with mock.patch("cloudinit.util.system_info") as m_system_info:
             m_system_info.return_value = sys_info
             datasource.get_data()
@@ -306,14 +306,22 @@ class TestDataSource(CiTestCase):
                 'availability_zone': 'myaz',
                 'cloud-name': 'subclasscloudname',
                 'cloud_name': 'subclasscloudname',
+                'distro': 'ubuntu',
+                'distro_release': 'focal',
+                'distro_version': '20.04',
                 'instance-id': 'iid-datasource',
                 'instance_id': 'iid-datasource',
                 'local-hostname': 'test-subclass-hostname',
                 'local_hostname': 'test-subclass-hostname',
+                'kernel': '5.4.0-24-generic',
+                'machine': 'x86_64',
                 'platform': 'mytestsubclass',
                 'public_ssh_keys': [],
+                'python': '3.7',
                 'region': 'myregion',
-                'subplatform': 'unknown'},
+                'system_platform': 'Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal',
+                'subplatform': 'unknown',
+                'variant': 'ubuntu'},
             'ds': {
                 '_doc': EXPERIMENTAL_TEXT,
                 'meta_data': {'availability_zone': 'myaz',
@@ -337,7 +345,7 @@ class TestDataSource(CiTestCase):
                     'cred1': 'sekret', 'cred2': 'othersekret'}}})
         self.assertEqual(
             ('security-credentials',), datasource.sensitive_metadata_keys)
-        sys_info = {"variant": "ubuntu", "dist": ["ubuntu", "16.04", "xenial"]}
+        sys_info = {"python": "3.7", "platform": "Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal", "uname": ["Linux", "myhost", "5.4.0-24-generic", "SMP blah", "x86_64"],  "variant": "ubuntu", "dist": ["ubuntu", "20.04", "focal"]}
         with mock.patch("cloudinit.util.system_info") as m_system_info:
             m_system_info.return_value = sys_info
             datasource.get_data()
@@ -402,14 +410,22 @@ class TestDataSource(CiTestCase):
                 'availability_zone': 'myaz',
                 'cloud-name': 'subclasscloudname',
                 'cloud_name': 'subclasscloudname',
+                'distro': 'ubuntu',
+                'distro_release': 'focal',
+                'distro_version': '20.04',
                 'instance-id': 'iid-datasource',
                 'instance_id': 'iid-datasource',
+                'kernel': '5.4.0-24-generic',
                 'local-hostname': 'test-subclass-hostname',
                 'local_hostname': 'test-subclass-hostname',
+                'machine': 'x86_64',
                 'platform': 'mytestsubclass',
                 'public_ssh_keys': [],
+                'python': '3.7',
                 'region': 'myregion',
-                'subplatform': 'unknown'},
+                'subplatform': 'unknown',
+                'system_platform': 'Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal',
+                'variant': 'ubuntu'},
             'ds': {
                 '_doc': EXPERIMENTAL_TEXT,
                 'meta_data': {
