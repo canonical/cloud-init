@@ -268,9 +268,11 @@ def setup_user_keys(keys, username, options=None):
 
     # Extract the old and make the new
     (auth_key_fn, auth_key_entries) = extract_authorized_keys(username)
+    key_dir = os.path.dirname(auth_key_fn)
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         content = update_authorized_keys(auth_key_entries, key_entries)
-        util.ensure_dir(os.path.dirname(auth_key_fn), mode=0o700)
+        if not os.path.exists(key_dir):
+            util.ensure_dir(key_dir, mode=0o700)
         util.write_file(auth_key_fn, content, mode=0o600)
         util.chownbyid(auth_key_fn, pwent.pw_uid, pwent.pw_gid)
 
