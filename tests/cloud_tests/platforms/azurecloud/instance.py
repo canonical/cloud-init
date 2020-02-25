@@ -41,6 +41,7 @@ class AzureCloudInstance(Instance):
         self.ssh_ip = None
         self.instance = None
         self.image_id = image_id
+        self.vm_name = 'ci-azure-i-%s' % self.platform.tag
         self.user_data = user_data
         self.ssh_key_file = os.path.join(
             platform.config['data_dir'], platform.config['private_key'])
@@ -74,16 +75,18 @@ class AzureCloudInstance(Instance):
                 self.image_id
             )
             image_exists = True
-            LOG.debug('image found, launching instance')
+            LOG.debug('image found, launching instance, image_id=%s',
+                      self.image_id)
         except CloudError:
-            LOG.debug(
-                'image not found, launching instance with base image')
+            LOG.debug(('image not found, launching instance with base image, '
+                       'image_id=%s'), self.image_id)
             pass
 
         vm_params = {
+            'name': self.vm_name,
             'location': self.platform.location,
             'os_profile': {
-                'computer_name': 'CI',
+                'computer_name': 'CI-%s' % self.platform.tag,
                 'admin_username': self.ssh_username,
                 "customData": self.user_data,
                 "linuxConfiguration": {
@@ -129,7 +132,9 @@ class AzureCloudInstance(Instance):
         try:
             self.instance = self.platform.compute_client.virtual_machines.\
                 create_or_update(self.platform.resource_group.name,
-                                 self.image_id, vm_params)
+                                 self.vm_name, vm_params)
+            LOG.debug('creating instance %s from image_id=%s', self.vm_name,
+                      self.image_id)
         except CloudError:
             raise RuntimeError('failed creating instance:\n{}'.format(
                 traceback.format_exc()))

@@ -222,4 +222,22 @@ class TestMkfsCommandHandling(CiTestCase):
              '-L', 'without_cmd', '-F', 'are', 'added'],
             shell=False)
 
+    @mock.patch('cloudinit.config.cc_disk_setup.util.which')
+    def test_mkswap(self, m_which, subp, *args):
+        """mkfs observes extra_opts and overwrite settings when cmd is not
+        present."""
+        m_which.side_effect = iter([None, '/sbin/mkswap'])
+        cc_disk_setup.mkfs({
+            'filesystem': 'swap',
+            'device': '/dev/xdb1',
+            'label': 'swap',
+            'overwrite': True,
+        })
+
+        self.assertEqual([mock.call('mkfs.swap'), mock.call('mkswap')],
+                         m_which.call_args_list)
+        subp.assert_called_once_with(
+            ['/sbin/mkswap', '/dev/xdb1', '-L', 'swap', '-f'], shell=False)
+
+#
 # vi: ts=4 expandtab

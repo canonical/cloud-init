@@ -825,6 +825,7 @@ def lookup_force_flag(fs):
         'btrfs': '-f',
         'xfs': '-f',
         'reiserfs': '-f',
+        'swap': '-f',
     }
 
     if 'ext' in fs.lower():
