@@ -42,4 +42,3 @@ class TestConvertNetJson(test_helpers.CiTestCase):
                 expected,
                 openstack.convert_net_json(network_json=net_json,
                                            known_macs=macs))
-
