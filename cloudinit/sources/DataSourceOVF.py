@@ -141,7 +141,8 @@ class DataSourceOVF(sources.DataSource):
             try:
                 cf = ConfigFile(vmwareImcConfigFilePath)
                 self._vmware_cust_conf = Config(cf)
-                if self._vmware_cust_conf.post_gc_status:
+                post_gc_status = self._vmware_cust_conf.post_gc_status
+                if post_gc_status:
                     set_gc_status("Started")
 
                 (md, ud, cfg) = read_vmware_imc(self._vmware_cust_conf)
@@ -171,11 +172,12 @@ class DataSourceOVF(sources.DataSource):
                     self.paths.get_cpath("scripts"),
                     "per-instance")
             except Exception as e:
-                self._raise_error_status(
+                _raise_error_status(
                     "Error parsing the customization Config File",
                     e,
                     GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                    vmwareImcConfigFilePath)
+                    vmwareImcConfigFilePath,
+                    post_gc_status)
 
             if special_customization:
                 if customscript:
@@ -183,11 +185,12 @@ class DataSourceOVF(sources.DataSource):
                         precust = PreCustomScript(customscript, imcdirpath)
                         precust.execute()
                     except Exception as e:
-                        self._raise_error_status(
+                        _raise_error_status(
                             "Error executing pre-customization script",
                             e,
                             GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                            vmwareImcConfigFilePath)
+                            vmwareImcConfigFilePath,
+                            post_gc_status)
 
             try:
                 LOG.debug("Preparing the Network configuration")
@@ -197,11 +200,12 @@ class DataSourceOVF(sources.DataSource):
                     True,
                     self.distro.osfamily)
             except Exception as e:
-                self._raise_error_status(
+                _raise_error_status(
                     "Error preparing Network Configuration",
                     e,
                     GuestCustEvent.GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
-                    vmwareImcConfigFilePath)
+                    vmwareImcConfigFilePath,
+                    post_gc_status)
 
             if special_customization:
                 LOG.debug("Applying password customization")
@@ -215,11 +219,12 @@ class DataSourceOVF(sources.DataSource):
                     else:
                         LOG.debug("Changing password is not needed")
                 except Exception as e:
-                    self._raise_error_status(
+                    _raise_error_status(
                         "Error applying Password Configuration",
                         e,
                         GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                        vmwareImcConfigFilePath)
+                        vmwareImcConfigFilePath,
+                        post_gc_status)
 
                 if customscript:
                     try:
@@ -228,11 +233,12 @@ class DataSourceOVF(sources.DataSource):
                                                     ccScriptsDir)
                         postcust.execute()
                     except Exception as e:
-                        self._raise_error_status(
+                        _raise_error_status(
                             "Error executing post-customization script",
                             e,
                             GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                            vmwareImcConfigFilePath)
+                            vmwareImcConfigFilePath,
+                            post_gc_status)
 
             if product_marker:
                 try:
@@ -240,11 +246,12 @@ class DataSourceOVF(sources.DataSource):
                         product_marker,
                         os.path.join(self.paths.cloud_dir, 'data'))
                 except Exception as e:
-                    self._raise_error_status(
+                    _raise_error_status(
                         "Error creating marker files",
                         e,
                         GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                        vmwareImcConfigFilePath)
+                        vmwareImcConfigFilePath,
+                        post_gc_status)
 
             self._vmware_cust_found = True
             found.append('vmware-tools')
@@ -256,7 +263,7 @@ class DataSourceOVF(sources.DataSource):
             set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
-            if self._vmware_cust_conf.post_gc_status:
+            if post_gc_status:
                 set_gc_status("Successful")
 
         else:
@@ -323,20 +330,6 @@ class DataSourceOVF(sources.DataSource):
     # because cloud-config content would be handled elsewhere
     def get_config_obj(self):
         return self.cfg
-
-    def _raise_error_status(self, prefix, error, event, config_file):
-        """
-        Raise error and send customization status to the underlying VMware
-        Virtualization Platform. Also, cleanup the imc directory.
-        """
-        LOG.debug('%s: %s', prefix, error)
-        set_customization_status(
-            GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
-            event)
-        if self._vmware_cust_conf.post_gc_status:
-            set_gc_status(prefix)
-        util.del_dir(os.path.dirname(config_file))
-        raise error
 
     @property
     def network_config(self):
@@ -664,5 +657,20 @@ def setup_marker_files(markerid, marker_dir):
         if fname.startswith(".markerfile"):
             util.del_file(os.path.join(marker_dir, fname))
     open(markerfile, 'w').close()
+
+
+def _raise_error_status(prefix, error, event, config_file, post_gc_status):
+    """
+    Raise error and send customization status to the underlying VMware
+    Virtualization Platform. Also, cleanup the imc directory.
+    """
+    LOG.debug('%s: %s', prefix, error)
+    set_customization_status(
+        GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+        event)
+    if post_gc_status:
+        set_gc_status(prefix)
+    util.del_dir(os.path.dirname(config_file))
+    raise error
 
 # vi: ts=4 expandtab
