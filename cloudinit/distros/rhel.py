@@ -91,10 +91,10 @@ class Distro(distros.Distro):
             rhel_util.update_sysconfig_file(out_fn, host_cfg)
 
     def _select_hostname(self, hostname, fqdn):
-        # Should be fqdn if we can use it
-        # See: https://www.centos.org/docs/5/html/Deployment_Guide-en-US/ch-sysconfig.html#s2-sysconfig-network # noqa
-        if fqdn:
-            return fqdn
+        # Red Hat recommend using the FDQN: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/ch-configure_host_names#sec-Recommended_Naming_Practices # noqa
+        # However the hostname can be up to 64 bytes and
+        # the FDQN can be up to 255 bytes (RFC 1035),
+        # so the hostname is used.
         return hostname
 
     def _read_system_hostname(self):
