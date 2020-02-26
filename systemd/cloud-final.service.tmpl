@@ -16,6 +16,7 @@ RemainAfterExit=yes
 TimeoutSec=0
 KillMode=process
 TasksMax=infinity
+ExecStartPost=/usr/bin/systemctl try-restart NetworkManager.service
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
