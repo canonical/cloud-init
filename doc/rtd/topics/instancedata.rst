@@ -76,12 +76,20 @@ There are three basic top-level keys:
   'security sensitive'. Only the keys listed here will be redacted from
   instance-data.json for non-root users.
 
+* **cfg**: Merged cloud-init 'system_config' from `/etc/cloud/cloud.cfg` and
+  `/etc/cloud/cloud-cfg.d`. Be wary, if the image includes sensitive
+  cloud configuration such as passwords on the filesystem, that data could
+  be present here.
+
 * **ds**: Datasource-specific metadata crawled for the specific cloud
   platform. It should closely represent the structure of the cloud metadata
   crawled. The structure of content and details provided are entirely
   cloud-dependent. Mileage will vary depending on what the cloud exposes.
   The content exposed under the 'ds' key is currently **experimental** and
   expected to change slightly in the upcoming cloud-init release.
+
+* **sys_info**: Information about the underlying os, python, architecture and
+  kernel. This represents the data collected by `cloudinit.util.system_info`.
 
 * **v1**: Standardized cloud-init metadata keys, these keys are guaranteed to
   exist on all cloud platforms. They will also retain their current behavior
