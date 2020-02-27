@@ -127,9 +127,8 @@ Example output:
 
 v1.distro, v1.distro_version, v1.distro_release
 -----------------------------------------------
-This shall the distro name, version and release as indicated by
-`/etc/os-release` or some comparable equivalent from the filesystem.
-This is determined by `cloudinit.util.get_linux_distro`.
+This shall be the distro name, version and release as determined by
+`cloudinit.util.get_linux_distro`.
 
 Example output:
 
@@ -150,8 +149,8 @@ Examples output:
 
 - i-<hash>
 
-v1.kernel
----------
+v1.kernel_release
+-----------------
 This shall the running kernel `uname -r`
 
 Example output:
@@ -214,9 +213,10 @@ Examples output:
 
 - ['ssh-rsa AA...', ...]
 
-v1.python
----------
-The default version of python on the system
+v1.python_version
+-----------------
+The version of python that is running cloud-init as determined by
+`cloudinit.util.system_info`
 
 Example output:
 
@@ -448,12 +448,12 @@ instance:
     }
    },
    "instance_id": "i-0929128ff2f73a2f1",
-   "kernel": "5.3.0-1010-aws",
+   "kernel_release": "5.3.0-1010-aws",
    "local_hostname": "ip-172-31-81-43",
    "machine": "x86_64",
    "platform": "ec2",
    "public_ssh_keys": [],
-   "python": "3.7.6",
+   "python_version": "3.7.6",
    "region": "us-east-1",
    "sensitive_keys": [],
    "subplatform": "metadata (http://169.254.169.254)",
