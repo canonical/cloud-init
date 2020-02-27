@@ -117,6 +117,22 @@ Example output:
 - nocloud
 - ovf
 
+v1.distro, v1.distro_version, v1.distro_release
+-----------------------------------------------
+This shall the distro name, version and release as indicated by
+`/etc/os-release` or some comparable equivalent from the filesystem.
+This is determined by `cloudinit.util.get_linux_distro`.
+
+Example output:
+
+- centos, 7.5, core
+- debian, 9, stretch
+- freebsd, 12.0-release-p10,
+- opensuse, 42.3, x86_64
+- opensuse-tumbleweed, 20180920, x86_64
+- redhat, 7.5, 'maipo'
+- sles, 12.3, x86_64
+- ubuntu, 20.04, focal
 
 v1.instance_id
 --------------
@@ -126,6 +142,14 @@ Examples output:
 
 - i-<hash>
 
+v1.kernel
+---------
+This shall the running kernel `uname -r`
+
+Example output:
+
+- 5.3.0-1010-aws
+
 v1.local_hostname
 -----------------
 The internal or local hostname of the system.
@@ -134,6 +158,17 @@ Examples output:
 
 - ip-10-41-41-70
 - <user-provided-hostname>
+
+v1.machine
+----------
+This shall the running cpu machine architecture `uname -m`
+
+Example output:
+
+- x86_64
+- i686
+- ppc64le
+- s390x
 
 v1.platform
 -------------
@@ -154,7 +189,7 @@ v1.subplatform
 Additional platform details describing the specific source or type of metadata
 used. The format of subplatform will be:
 
-``<subplatform_type> (<url_file_or_dev_path>``
+``<subplatform_type> (<url_file_or_dev_path>)``
 
 Examples output:
 
@@ -170,6 +205,14 @@ A list of SSH keys provided to the instance by the datasource metadata.
 Examples output:
 
 - ['ssh-rsa AA...', ...]
+
+v1.python
+---------
+The default version of python on the system
+
+Example output:
+
+- 3.7.6
 
 v1.region
 ---------
