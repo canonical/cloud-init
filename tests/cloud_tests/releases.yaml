@@ -131,6 +131,22 @@ features:
 
 releases:
     # UBUNTU =================================================================
+    focal:
+        # EOL: Apr 2025
+        default:
+            enabled: true
+            release: focal
+            version: 20.04
+            os: ubuntu
+            feature_groups:
+                - base
+                - debian_base
+                - ubuntu_specific
+        lxd:
+            sstreams_server: https://cloud-images.ubuntu.com/daily
+            alias: focal
+            setup_overrides: null
+            override_templates: false
     eoan:
         # EOL: Jul 2020
         default:
