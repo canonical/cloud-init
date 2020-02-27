@@ -1,3 +1,16 @@
+cloud-init (20.1-5-g67c8e53c-0ubuntu1) focal; urgency=medium
+
+  * New upstream snapshot.
+    - docs: typo fixed: dta → data [Alexey Vazhnov]
+    - Fixes typo on Amazon Web Services (#217) [Nick Wales]
+    - Fix docs for OpenStack DMI Asset Tag (#228)
+      [Mark T. Voelker] (LP: #1669875)
+    - Add physical network type: cascading to openstack helpers (#200)
+      [sab-systems]
+    - tests: add focal integration tests for ubuntu (#225)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 27 Feb 2020 16:56:16 -0700
+
 cloud-init (20.1-0ubuntu1) focal; urgency=medium
 
   * New upstream release.
