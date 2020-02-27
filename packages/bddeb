@@ -177,6 +177,11 @@ def main():
 
         # output like 0.7.6-1022-g36e92d3
         ver_data = read_version()
+        if ver_data['is_release_branch_ci']:
+            # If we're performing CI for a new release branch, we don't yet
+            # have the tag required to generate version_long; use version
+            # instead.
+            ver_data['version_long'] = ver_data['version']
 
         # This is really only a temporary archive
         # since we will extract it then add in the debian
@@ -192,7 +197,9 @@ def main():
                 break
         if path is None:
             print("Creating a temp tarball using the 'make-tarball' helper")
-            run_helper('make-tarball', ['--long', '--output=' + tarball_fp])
+            run_helper('make-tarball',
+                       ['--version', ver_data['version_long'],
+                        '--output=' + tarball_fp])
 
         print("Extracting temporary tarball %r" % (tarball))
         cmd = ['tar', '-xvzf', tarball_fp, '-C', tdir]

@@ -19,7 +19,8 @@ checks the following environment attributes as a potential OpenStack platform:
 
    * **/proc/1/environ**: Nova-lxd contains *product_name=OpenStack Nova*
    * **DMI product_name**: Either *Openstack Nova* or *OpenStack Compute*
-   * **DMI chassis_asset_tag** is *OpenTelekomCloud*
+   * **DMI chassis_asset_tag** is *OpenTelekomCloud* or *OpenStack Nova*
+     (since 19.2) or *OpenStack Compute* (since 19.2)
 
 
 Configuration
