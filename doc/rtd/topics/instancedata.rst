@@ -241,6 +241,263 @@ instance:
 .. sourcecode:: json
 
   {
+   "_beta_keys": [
+    "subplatform"
+   ],
+   "availability_zone": "us-east-1b",
+   "base64_encoded_keys": [],
+   "cfg": {
+    "_doc": "Merged cloud-init system config",
+    "_log": [
+     "[loggers]\nkeys=root,cloudinit\n\n[handlers]\nkeys=consoleHandler,cloudLogHandler\n\n[formatters]\nkeys=simpleFormatter,arg0Formatter\n\n[logger_root]\nlevel=DEBUG\nhandlers=consoleHandler,cloudLogHandler\n\n[logger_cloudinit]\nlevel=DEBUG\nqualname=cloudinit\nhandlers=\npropagate=1\n\n[handler_consoleHandler]\nclass=StreamHandler\nlevel=WARNING\nformatter=arg0Formatter\nargs=(sys.stderr,)\n\n[formatter_arg0Formatter]\nformat=%(asctime)s - %(filename)s[%(levelname)s]: %(message)s\n\n[formatter_simpleFormatter]\nformat=[CLOUDINIT] %(filename)s[%(levelname)s]: %(message)s\n",
+     "[handler_cloudLogHandler]\nclass=FileHandler\nlevel=DEBUG\nformatter=arg0Formatter\nargs=('/var/log/cloud-init.log',)\n",
+     "[handler_cloudLogHandler]\nclass=handlers.SysLogHandler\nlevel=DEBUG\nformatter=simpleFormatter\nargs=(\"/dev/log\", handlers.SysLogHandler.LOG_USER)\n"
+    ],
+    "cloud_config_modules": [
+     "emit_upstart",
+     "snap",
+     "ssh-import-id",
+     "locale",
+     "set-passwords",
+     "grub-dpkg",
+     "apt-pipelining",
+     "apt-configure",
+     "ubuntu-advantage",
+     "ntp",
+     "timezone",
+     "disable-ec2-metadata",
+     "runcmd",
+     "byobu"
+    ],
+    "cloud_final_modules": [
+     "package-update-upgrade-install",
+     "fan",
+     "landscape",
+     "lxd",
+     "ubuntu-drivers",
+     "puppet",
+     "chef",
+     "mcollective",
+     "salt-minion",
+     "rightscale_userdata",
+     "scripts-vendor",
+     "scripts-per-once",
+     "scripts-per-boot",
+     "scripts-per-instance",
+     "scripts-user",
+     "ssh-authkey-fingerprints",
+     "keys-to-console",
+     "phone-home",
+     "final-message",
+     "power-state-change"
+    ],
+    "cloud_init_modules": [
+     "migrator",
+     "seed_random",
+     "bootcmd",
+     "write-files",
+     "growpart",
+     "resizefs",
+     "disk_setup",
+     "mounts",
+     "set_hostname",
+     "update_hostname",
+     "update_etc_hosts",
+     "ca-certs",
+     "rsyslog",
+     "users-groups",
+     "ssh"
+    ],
+    "datasource_list": [
+     "Ec2",
+     "None"
+    ],
+    "def_log_file": "/var/log/cloud-init.log",
+    "disable_root": true,
+    "log_cfgs": [
+     [
+      "[loggers]\nkeys=root,cloudinit\n\n[handlers]\nkeys=consoleHandler,cloudLogHandler\n\n[formatters]\nkeys=simpleFormatter,arg0Formatter\n\n[logger_root]\nlevel=DEBUG\nhandlers=consoleHandler,cloudLogHandler\n\n[logger_cloudinit]\nlevel=DEBUG\nqualname=cloudinit\nhandlers=\npropagate=1\n\n[handler_consoleHandler]\nclass=StreamHandler\nlevel=WARNING\nformatter=arg0Formatter\nargs=(sys.stderr,)\n\n[formatter_arg0Formatter]\nformat=%(asctime)s - %(filename)s[%(levelname)s]: %(message)s\n\n[formatter_simpleFormatter]\nformat=[CLOUDINIT] %(filename)s[%(levelname)s]: %(message)s\n",
+      "[handler_cloudLogHandler]\nclass=FileHandler\nlevel=DEBUG\nformatter=arg0Formatter\nargs=('/var/log/cloud-init.log',)\n"
+     ]
+    ],
+    "output": {
+     "all": "| tee -a /var/log/cloud-init-output.log"
+    },
+    "preserve_hostname": false,
+    "syslog_fix_perms": [
+     "syslog:adm",
+     "root:adm",
+     "root:wheel",
+     "root:root"
+    ],
+    "users": [
+     "default"
+    ],
+    "vendor_data": {
+     "enabled": true,
+     "prefix": []
+    }
+   },
+   "cloud_name": "aws",
+   "distro": "ubuntu",
+   "distro_release": "focal",
+   "distro_version": "20.04",
+   "ds": {
+    "_doc": "EXPERIMENTAL: The structure and format of content scoped under the 'ds' key may change in subsequent releases of cloud-init.",
+    "_metadata_api_version": "2016-09-02",
+    "dynamic": {
+     "instance_identity": {
+      "document": {
+       "accountId": "329910648901",
+       "architecture": "x86_64",
+       "availabilityZone": "us-east-1b",
+       "billingProducts": null,
+       "devpayProductCodes": null,
+       "imageId": "ami-02e8aa396f8be3b6d",
+       "instanceId": "i-0929128ff2f73a2f1",
+       "instanceType": "t2.micro",
+       "kernelId": null,
+       "marketplaceProductCodes": null,
+       "pendingTime": "2020-02-27T20:46:18Z",
+       "privateIp": "172.31.81.43",
+       "ramdiskId": null,
+       "region": "us-east-1",
+       "version": "2017-09-30"
+      },
+      "pkcs7": [
+       "MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAaCAJIAEggHcewog",
+       "REDACTED",
+       "AhQUgq0iPWqPTVnT96tZE6L1XjjLHQAAAAAAAA=="
+      ],
+      "rsa2048": [
+       "MIAGCSqGSIb3DQEHAqCAMIACAQExDzANBglghkgBZQMEAgEFADCABgkqhkiG9w0BBwGggCSABIIB",
+       "REDACTED",
+       "clYQvuE45xXm7Yreg3QtQbrP//owl1eZHj6s350AAAAAAAA="
+      ],
+      "signature": [
+       "dA+QV+LLCWCRNddnrKleYmh2GvYo+t8urDkdgmDSsPi",
+       "REDACTED",
+       "kDT4ygyJLFkd3b4qjAs="
+      ]
+     }
+    },
+    "meta_data": {
+     "ami_id": "ami-02e8aa396f8be3b6d",
+     "ami_launch_index": "0",
+     "ami_manifest_path": "(unknown)",
+     "block_device_mapping": {
+      "ami": "/dev/sda1",
+      "root": "/dev/sda1"
+     },
+     "hostname": "ip-172-31-81-43.ec2.internal",
+     "instance_action": "none",
+     "instance_id": "i-0929128ff2f73a2f1",
+     "instance_type": "t2.micro",
+     "local_hostname": "ip-172-31-81-43.ec2.internal",
+     "local_ipv4": "172.31.81.43",
+     "mac": "12:7e:c9:93:29:af",
+     "metrics": {
+      "vhostmd": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+     },
+     "network": {
+      "interfaces": {
+       "macs": {
+        "12:7e:c9:93:29:af": {
+         "device_number": "0",
+         "interface_id": "eni-0c07a0474339b801d",
+         "ipv4_associations": {
+          "3.89.187.177": "172.31.81.43"
+         },
+         "local_hostname": "ip-172-31-81-43.ec2.internal",
+         "local_ipv4s": "172.31.81.43",
+         "mac": "12:7e:c9:93:29:af",
+         "owner_id": "329910648901",
+         "public_hostname": "ec2-3-89-187-177.compute-1.amazonaws.com",
+         "public_ipv4s": "3.89.187.177",
+         "security_group_ids": "sg-0100038b68aa79986",
+         "security_groups": "launch-wizard-3",
+         "subnet_id": "subnet-04e2d12a",
+         "subnet_ipv4_cidr_block": "172.31.80.0/20",
+         "vpc_id": "vpc-210b4b5b",
+         "vpc_ipv4_cidr_block": "172.31.0.0/16",
+         "vpc_ipv4_cidr_blocks": "172.31.0.0/16"
+        }
+       }
+      }
+     },
+     "placement": {
+      "availability_zone": "us-east-1b"
+     },
+     "profile": "default-hvm",
+     "public_hostname": "ec2-3-89-187-177.compute-1.amazonaws.com",
+     "public_ipv4": "3.89.187.177",
+     "reservation_id": "r-0c481643d15766a02",
+     "security_groups": "launch-wizard-3",
+     "services": {
+      "domain": "amazonaws.com",
+      "partition": "aws"
+     }
+    }
+   },
+   "instance_id": "i-0929128ff2f73a2f1",
+   "kernel": "5.3.0-1010-aws",
+   "local_hostname": "ip-172-31-81-43",
+   "machine": "x86_64",
+   "platform": "ec2",
+   "public_ssh_keys": [],
+   "python": "3.7.6",
+   "region": "us-east-1",
+   "sensitive_keys": [],
+   "subplatform": "metadata (http://169.254.169.254)",
+   "sys_info": {
+    "dist": [
+     "ubuntu",
+     "20.04",
+     "focal"
+    ],
+    "platform": "Linux-5.3.0-1010-aws-x86_64-with-Ubuntu-20.04-focal",
+    "python": "3.7.6",
+    "release": "5.3.0-1010-aws",
+    "system": "Linux",
+    "uname": [
+     "Linux",
+     "ip-172-31-81-43",
+     "5.3.0-1010-aws",
+     "#11-Ubuntu SMP Thu Jan 16 07:59:32 UTC 2020",
+     "x86_64",
+     "x86_64"
+    ],
+    "variant": "ubuntu"
+   },
+   "system_platform": "Linux-5.3.0-1010-aws-x86_64-with-Ubuntu-20.04-focal",
+   "userdata": "<redacted for non-root user> file:/var/lib/cloud/instance/user-data.txt",
+   "v1": {
+    "_beta_keys": [
+     "subplatform"
+    ],
+    "availability_zone": "us-east-1b",
+    "cloud_name": "aws",
+    "distro": "ubuntu",
+    "distro_release": "focal",
+    "distro_version": "20.04",
+    "instance_id": "i-0929128ff2f73a2f1",
+    "kernel": "5.3.0-1010-aws",
+    "local_hostname": "ip-172-31-81-43",
+    "machine": "x86_64",
+    "platform": "ec2",
+    "public_ssh_keys": [],
+    "python": "3.7.6",
+    "region": "us-east-1",
+    "subplatform": "metadata (http://169.254.169.254)",
+    "system_platform": "Linux-5.3.0-1010-aws-x86_64-with-Ubuntu-20.04-focal",
+    "variant": "ubuntu"
+   },
+   "variant": "ubuntu",
+   "vendordata": "<redacted for non-root user> file:/var/lib/cloud/instance/vendor-data.txt"
+  }
+
+
+  {
    "base64_encoded_keys": [],
    "ds": {
     "_doc": "EXPERIMENTAL: The structure and format of content scoped under the 'ds' key may change in subsequent releases of cloud-init.",
@@ -266,45 +523,17 @@ instance:
       },
       "pkcs7": [
        "MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAaCAJIAEggHbewog",
-       "ICJkZXZwYXlQcm9kdWN0Q29kZXMiIDogbnVsbCwKICAibWFya2V0cGxhY2VQcm9kdWN0Q29kZXMi",
-       "IDogbnVsbCwKICAicHJpdmF0ZUlwIiA6ICIxMC40MS40MS45NSIsCiAgInZlcnNpb24iIDogIjIw",
-       "MTctMDktMzAiLAogICJpbnN0YW5jZUlkIiA6ICJpLTA3NWYwODhjNzJhZDMyNzFjIiwKICAiYmls",
-       "bGluZ1Byb2R1Y3RzIiA6IG51bGwsCiAgImluc3RhbmNlVHlwZSIgOiAidDIubWljcm8iLAogICJh",
-       "Y2NvdW50SWQiIDogIjQzNzUyNjAwNjkyNSIsCiAgImF2YWlsYWJpbGl0eVpvbmUiIDogInVzLWVh",
-       "c3QtMmIiLAogICJrZXJuZWxJZCIgOiBudWxsLAogICJyYW1kaXNrSWQiIDogbnVsbCwKICAiYXJj",
-       "aGl0ZWN0dXJlIiA6ICJ4ODZfNjQiLAogICJpbWFnZUlkIiA6ICJhbWktMDc5NjM4YWFlNzA0NmJk",
-       "ZDIiLAogICJwZW5kaW5nVGltZSIgOiAiMjAxOC0xMC0wNVQyMDoxMDo0M1oiLAogICJyZWdpb24i",
-       "IDogInVzLWVhc3QtMiIKfQAAAAAAADGCARcwggETAgEBMGkwXDELMAkGA1UEBhMCVVMxGTAXBgNV",
-       "BAgTEFdhc2hpbmd0b24gU3RhdGUxEDAOBgNVBAcTB1NlYXR0bGUxIDAeBgNVBAoTF0FtYXpvbiBX",
-       "ZWIgU2VydmljZXMgTExDAgkAlrpI2eVeGmcwCQYFKw4DAhoFAKBdMBgGCSqGSIb3DQEJAzELBgkq",
-       "hkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTE4MTAwNTIwMTA0OFowIwYJKoZIhvcNAQkEMRYEFK0k",
-       "Tz6n1A8/zU1AzFj0riNQORw2MAkGByqGSM44BAMELjAsAhRNrr174y98grPBVXUforN/6wZp8AIU",
+       "REDACTED",
        "JLZBkrB2GJA8A4WJ1okq++jSrBIAAAAAAAA="
       ],
       "rsa2048": [
        "MIAGCSqGSIb3DQEHAqCAMIACAQExDzANBglghkgBZQMEAgEFADCABgkqhkiG9w0BBwGggCSABIIB",
-       "23sKICAiZGV2cGF5UHJvZHVjdENvZGVzIiA6IG51bGwsCiAgIm1hcmtldHBsYWNlUHJvZHVjdENv",
-       "ZGVzIiA6IG51bGwsCiAgInByaXZhdGVJcCIgOiAiMTAuNDEuNDEuOTUiLAogICJ2ZXJzaW9uIiA6",
-       "ICIyMDE3LTA5LTMwIiwKICAiaW5zdGFuY2VJZCIgOiAiaS0wNzVmMDg4YzcyYWQzMjcxYyIsCiAg",
-       "ImJpbGxpbmdQcm9kdWN0cyIgOiBudWxsLAogICJpbnN0YW5jZVR5cGUiIDogInQyLm1pY3JvIiwK",
-       "ICAiYWNjb3VudElkIiA6ICI0Mzc1MjYwMDY5MjUiLAogICJhdmFpbGFiaWxpdHlab25lIiA6ICJ1",
-       "cy1lYXN0LTJiIiwKICAia2VybmVsSWQiIDogbnVsbCwKICAicmFtZGlza0lkIiA6IG51bGwsCiAg",
-       "ImFyY2hpdGVjdHVyZSIgOiAieDg2XzY0IiwKICAiaW1hZ2VJZCIgOiAiYW1pLTA3OTYzOGFhZTcw",
-       "NDZiZGQyIiwKICAicGVuZGluZ1RpbWUiIDogIjIwMTgtMTAtMDVUMjA6MTA6NDNaIiwKICAicmVn",
-       "aW9uIiA6ICJ1cy1lYXN0LTIiCn0AAAAAAAAxggH/MIIB+wIBATBpMFwxCzAJBgNVBAYTAlVTMRkw",
-       "FwYDVQQIExBXYXNoaW5ndG9uIFN0YXRlMRAwDgYDVQQHEwdTZWF0dGxlMSAwHgYDVQQKExdBbWF6",
-       "b24gV2ViIFNlcnZpY2VzIExMQwIJAM07oeX4xevdMA0GCWCGSAFlAwQCAQUAoGkwGAYJKoZIhvcN",
-       "AQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMTgxMDA1MjAxMDQ4WjAvBgkqhkiG9w0B",
-       "CQQxIgQgkYz0pZk3zJKBi4KP4egeOKJl/UYwu5UdE7id74pmPwMwDQYJKoZIhvcNAQEBBQAEggEA",
-       "dC3uIGGNul1OC1mJKSH3XoBWsYH20J/xhIdftYBoXHGf2BSFsrs9ZscXd2rKAKea4pSPOZEYMXgz",
-       "lPuT7W0WU89N3ZKviy/ReMSRjmI/jJmsY1lea6mlgcsJXreBXFMYucZvyeWGHdnCjamoKWXkmZlM",
-       "mSB1gshWy8Y7DzoKviYPQZi5aI54XK2Upt4kGme1tH1NI2Cq+hM4K+adxTbNhS3uzvWaWzMklUuU",
-       "QHX2GMmjAVRVc8vnA8IAsBCJJp+gFgYzi09IK+cwNgCFFPADoG6jbMHHf4sLB3MUGpiA+G9JlCnM",
+       "REDACTED",
        "fmkjI2pNRB8spc0k4UG4egqLrqCz67WuK38tjwAAAAAAAA=="
       ],
       "signature": [
        "Tsw6h+V3WnxrNVSXBYIOs1V4j95YR1mLPPH45XnhX0/Ei3waJqf7/7EEKGYP1Cr4PTYEULtZ7Mvf",
-       "+xJpM50Ivs2bdF7o0c4vnplRWe3f06NI9pv50dr110j/wNzP4MZ1pLhJCqubQOaaBTF3LFutgRrt",
+       "REDACTED",
        "r4B0mN3p7EcqD8G+ll0="
       ]
      }
@@ -365,7 +594,7 @@ instance:
      "public-ipv4": "18.218.221.122",
      "public-keys": {
       "cloud-init-integration": [
-       "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB cloud-init-integration"
+       "ssh-rsa REDACTED"
       ]
      },
      "reservation-id": "r-0594a20e31f6cfe46",
@@ -388,7 +617,7 @@ instance:
     "local_hostname": "ip-10-41-41-95",
     "platform": "ec2",
     "public_ssh_keys": [
-     "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSL7uWGj8cgWyIOaspgKdVy0cKJ+UTjfv7jBOjG2H/GN8bJVXy72XAvnhM0dUM+CCs8FOf0YlPX+Frvz2hKInrmRhZVwRSL129PasD12MlI3l44u6IwS1o/W86Q+tkQYEljtqDOo0a+cOsaZkvUNzUyEXUwz/lmYa6G4hMKZH4NBj7nbAAF96wsMCoyNwbWryBnDYUr6wMbjRR1J9Pw7Xh7WRC73wy4Va2YuOgbD3V/5ZrFPLbWZW/7TFXVrql04QVbyei4aiFR5n//GvoqwQDNe58LmbzX/xvxyKJYdny2zXmdAhMxbrpFQsfpkJ9E/H5w0yOdSvnWbUoG5xNGoOB cloud-init-integration"
+     "ssh-rsa REDACTED"
     ],
     "region": "us-east-2",
     "subplatform": "metadata (http://169.254.169.254)"
