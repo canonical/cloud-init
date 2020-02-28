@@ -233,7 +233,7 @@ class Init(object):
             else:
                 return (None, "cache invalid in datasource: %s" % ds)
 
-    def _get_data_source(self, existing):
+    def _get_data_source(self, existing, fallback):
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
 
@@ -248,17 +248,40 @@ class Init(object):
             LOG.debug(myrep.description)
 
         if not ds:
-            util.del_file(self.paths.instance_link)
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
             # (which will affect user-data handlers down the line...)
-            (ds, dsname) = sources.find_source(self.cfg,
-                                               self.distro,
-                                               self.paths,
-                                               copy.deepcopy(self.ds_deps),
-                                               cfg_list,
-                                               pkg_list, self.reporter)
+            try:
+                (ds, dsname) = sources.find_source(self.cfg,
+                                                   self.distro,
+                                                   self.paths,
+                                                   copy.deepcopy(self.ds_deps),
+                                                   cfg_list,
+                                                   pkg_list, self.reporter)
+            except sources.DataSourceNotFoundException as e:
+                # Could not find a valid datasource.
+                if fallback:
+                    LOG.info("No datasource found - "
+                             "Trying to Load last one from cache")
+                    ds = self._restore_from_cache()
+                if not ds:
+                    raise e
+                dsname = ds.dsname
+                restored_iid = ds.metadata.get('instance-id', None)
+                for dsource in sources.list_sources(cfg_list,
+                                                    self.ds_deps,
+                                                    pkg_list):
+                    if (dsource.dsname == dsname and
+                       self.previous_iid() == restored_iid):
+                        break
+                else:
+                    LOG.info("Cached datasource '%s' doesn't match "
+                             "datasources enabled in the configuration",
+                             ds.dsname)
+                    raise e
+
             LOG.info("Loaded datasource %s - %s", dsname, ds)
+
         self.datasource = ds
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
@@ -346,8 +369,8 @@ class Init(object):
                previous != self.datasource.get_instance_id())
         return ret
 
-    def fetch(self, existing="check"):
-        return self._get_data_source(existing=existing)
+    def fetch(self, existing="check", fallback=False):
+        return self._get_data_source(existing=existing, fallback=fallback)
 
     def instancify(self):
         return self._reflect_cur_instance()

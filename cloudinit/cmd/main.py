@@ -280,7 +280,7 @@ def main_init(name, args):
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:
-        existing = "trust"
+        existing = "check"
         sys.stderr.write("%s\n" % (netinfo.debug_info()))
         LOG.debug(("Checking to see if files that we need already"
                    " exist from a previous run that would allow us"
@@ -320,7 +320,8 @@ def main_init(name, args):
 
     # Stage 5
     try:
-        init.fetch(existing=existing)
+        init.fetch(existing=existing,
+                   fallback=(mode == sources.DSMODE_NETWORK))
         # if in network mode, and the datasource is local
         # then work was done at that stage.
         if mode == sources.DSMODE_NETWORK and init.datasource.dsmode != mode:
