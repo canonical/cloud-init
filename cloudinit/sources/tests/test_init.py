@@ -55,6 +55,7 @@ class InvalidDataSourceTestSubclassNet(DataSource):
 class TestDataSource(CiTestCase):
 
     with_logs = True
+    maxDiff = None
 
     def setUp(self):
         super(TestDataSource, self).setUp()
@@ -302,9 +303,8 @@ class TestDataSource(CiTestCase):
         content = util.load_file(json_file)
         expected = {
             'base64_encoded_keys': [],
-            'cfg': {'_doc': 'Merged cloud-init system config',
-                    'datasource': {'_undef': {'key1': False}}},
-            'sensitive_keys': [],
+            'ci_cfg': REDACT_SENSITIVE_VALUE,
+            'sensitive_keys': ['ci_cfg'],
             'sys_info': sys_info,
             'v1': {
                 '_beta_keys': ['subplatform'],
@@ -330,6 +330,7 @@ class TestDataSource(CiTestCase):
                 'subplatform': 'unknown',
                 'variant': 'ubuntu'},
             'ds': {
+
                 '_doc': EXPERIMENTAL_TEXT,
                 'meta_data': {'availability_zone': 'myaz',
                               'local-hostname': 'test-subclass-hostname',
@@ -351,7 +352,8 @@ class TestDataSource(CiTestCase):
                 'some': {'security-credentials': {
                     'cred1': 'sekret', 'cred2': 'othersekret'}}})
         self.assertEqual(
-            ('security-credentials',), datasource.sensitive_metadata_keys)
+            ('ci_cfg', 'security-credentials',),
+            datasource.sensitive_metadata_keys)
         sys_info = {
             "python": "3.7",
             "platform":
@@ -413,9 +415,9 @@ class TestDataSource(CiTestCase):
         content = util.load_file(sensitive_json_file)
         expected = {
             'base64_encoded_keys': [],
-            'cfg': {'_doc': 'Merged cloud-init system config',
-                    'datasource': {'_undef': {'key1': False}}},
-            'sensitive_keys': ['ds/meta_data/some/security-credentials'],
+            'ci_cfg': REDACT_SENSITIVE_VALUE,
+            'sensitive_keys': [
+                'ci_cfg', 'ds/meta_data/some/security-credentials'],
             'sys_info': sys_info,
             'v1': {
                 '_beta_keys': ['subplatform'],

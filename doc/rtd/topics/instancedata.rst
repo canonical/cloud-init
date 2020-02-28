@@ -76,10 +76,10 @@ There are three basic top-level keys:
   'security sensitive'. Only the keys listed here will be redacted from
   instance-data.json for non-root users.
 
-* **cfg**: Merged cloud-init 'system_config' from `/etc/cloud/cloud.cfg` and
-  `/etc/cloud/cloud-cfg.d`. Be wary, if the image includes sensitive
-  cloud configuration such as passwords on the filesystem, that data could
-  be present here.
+* **ci_cfg**: Merged cloud-init 'system_config' from `/etc/cloud/cloud.cfg`
+  and  `/etc/cloud/cloud-cfg.d`. Values under this key could contain sensitive
+  information such as passwords, so it is included in the **sensitive-keys**
+  list which is only readable by root.
 
 * **ds**: Datasource-specific metadata crawled for the specific cloud
   platform. It should closely represent the structure of the cloud metadata
@@ -254,7 +254,7 @@ instance:
    ],
    "availability_zone": "us-east-1b",
    "base64_encoded_keys": [],
-   "cfg": {
+   "ci_cfg": {
     "_doc": "Merged cloud-init system config",
     "_log": [
      "[loggers]\nkeys=root,cloudinit\n\n[handlers]\nkeys=consoleHandler,cloudLogHandler\n\n[formatters]\nkeys=simpleFormatter,arg0Formatter\n\n[logger_root]\nlevel=DEBUG\nhandlers=consoleHandler,cloudLogHandler\n\n[logger_cloudinit]\nlevel=DEBUG\nqualname=cloudinit\nhandlers=\npropagate=1\n\n[handler_consoleHandler]\nclass=StreamHandler\nlevel=WARNING\nformatter=arg0Formatter\nargs=(sys.stderr,)\n\n[formatter_arg0Formatter]\nformat=%(asctime)s - %(filename)s[%(levelname)s]: %(message)s\n\n[formatter_simpleFormatter]\nformat=[CLOUDINIT] %(filename)s[%(levelname)s]: %(message)s\n",
