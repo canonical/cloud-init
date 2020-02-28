@@ -187,6 +187,8 @@ def collect_platform(args, platform_name):
     platform_config = config.load_platform_config(
         platform_name, require_enabled=True)
     platform_config['data_dir'] = args.data_dir
+    platform_config['preserve_instance'] = args.preserve_instance
+    platform_config['preserve_data'] = args.preserve_data
     LOG.debug('platform config: %s', platform_config)
     component = PlatformComponent(
         partial(platforms.get_platform, platform_name, platform_config))

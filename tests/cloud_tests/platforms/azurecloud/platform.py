@@ -40,6 +40,7 @@ class AzureCloudPlatform(Platform):
         self.storage_sku = config['storage_sku']
         self.vm_size = config['vm_size']
         self.location = config['region']
+        self.preserve_instance = config['preserve_instance']
 
         try:
             self.credentials, self.subscription_id = self._get_credentials()
@@ -112,9 +113,7 @@ class AzureCloudPlatform(Platform):
 
     def destroy(self):
         """Delete all resources in resource group."""
-        preserve_instance = __import__(
-            'tests.cloud_tests.stage').PlatformComponent.preserve_instance
-        if preserve_instance:
+        if self.preserve_instance:
             LOG.debug('Not removing resource group %s due to '
                       '--preserve-instance setting; requires '
                       'manual removal', self.resource_group)
