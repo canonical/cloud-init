@@ -543,7 +543,7 @@ class TestGetLinuxDistro(CiTestCase):
                                       m_platform_system, m_path_exists):
         """Verify we get no information if os-release does not exist"""
         m_platform_dist.return_value = ('', '', '')
-        m_platform_system.return_value = None
+        m_platform_system.return_value = "Linux"
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         self.assertEqual(('', '', ''), dist)
@@ -555,7 +555,7 @@ class TestGetLinuxDistro(CiTestCase):
         """Verify we get an empty tuple when no information exists and
         Exceptions are not propagated"""
         m_platform_dist.side_effect = Exception()
-        m_platform_system.return_value = None
+        m_platform_system.return_value = "Linux"
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         self.assertEqual(('', '', ''), dist)
@@ -566,7 +566,7 @@ class TestGetLinuxDistro(CiTestCase):
                                         m_platform_system, m_path_exists):
         """Verify we get the correct platform information"""
         m_platform_dist.return_value = ('foo', '1.1', 'aarch64')
-        m_platform_system.return_value = None
+        m_platform_system.return_value = "Linux"
         m_path_exists.return_value = 0
         dist = util.get_linux_distro()
         self.assertEqual(('foo', '1.1', 'aarch64'), dist)

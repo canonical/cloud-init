@@ -147,7 +147,7 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["amazon", "arch", "centos", "debian", "fedora", "freebsd", "rhel", "suse", "ubuntu", "netbsd"] %}
+{% if variant in ["amazon", "arch", "centos", "debian", "fedora", "freebsd", "netbsd", "rhel", "suse", "ubuntu"] %}
    distro: {{ variant }}
 {% else %}
    # Unknown/fallback distro.
@@ -239,10 +239,7 @@ system_info:
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/sh
 {% endif %}
-{% if variant in ["freebsd"] %}
+{% if variant in ["freebsd", "netbsd"] %}
    network:
-      renderers: ['freebsd']
-{% elif variant in ["netbsd"] %}
-   network:
-      renderers: ['netbsd']
+      renderers: ['{{ variant }}']
 {% endif %}
