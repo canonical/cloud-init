@@ -463,9 +463,9 @@ main() {
         return
     }
 
-    inside_as_cd "$name" root "$cdir" \
-        python3 ./tools/read-dependencies "--distro=${OS_NAME}" \
-            --test-distro || {
+    local rdcmd=(python3 tools/read-dependencies "--distro=${OS_NAME}" --install)
+    [[ ${OS_NAME} =~ (ubuntu|debian) ]] && rdcmd+=('--test-distro')
+    inside_as_cd "$name" root "$cdir" "${rdcmd[@]}" || {
         errorrc "FAIL: failed to install dependencies with read-dependencies"
         return
     }
