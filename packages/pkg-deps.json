@@ -6,14 +6,8 @@
          "dh-systemd"
       ],
       "renames" : {
-         "pyyaml" : {
-            "2" : "python-yaml",
-            "3" : "python3-yaml"
-         },
-         "pyserial" : {
-            "2" : "python-serial",
-            "3" : "python3-serial"
-         }
+         "pyyaml" : "python3-yaml",
+         "pyserial" : "python3-serial"
       },
       "requires" : [
          "procps"
@@ -21,33 +15,12 @@
    },
    "redhat" : {
       "build-requires" : [
-         "python-devel",
-         "python-setuptools"
+         "python3-devel"
       ],
       "renames" : {
-         "jinja2" : {
-            "3" : "python36-jinja2"
-         },
-         "jsonschema" : {
-            "3" : "python36-jsonschema"
-         },
-         "pyflakes" : {
-            "2" : "pyflakes",
-            "3" : "python36-pyflakes"
-         },
-         "pyyaml" : {
-            "2" : "PyYAML",
-            "3" : "python36-PyYAML"
-         },
-         "pyserial" : {
-            "2" : "pyserial"
-         },
-         "pytest": {
-             "3": "python36-pytest"
-         },
-         "requests" : {
-            "3" : "python36-requests"
-         }
+         "httpretty" : "",
+         "unittest2" : "",
+         "contextlib2" : ""
       },
       "requires" : [
          "e2fsprogs",
@@ -61,9 +34,6 @@
    },
    "suse" : {
       "renames" : {
-         "pyyaml" : {
-            "2" : "python-yaml"
-         }
       },
       "build-requires" : [
          "fdupes",
