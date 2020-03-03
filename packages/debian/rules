@@ -1,4 +1,3 @@
-## template:basic
 #!/usr/bin/make -f
 INIT_SYSTEM ?= systemd
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
