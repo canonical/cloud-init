@@ -4066,6 +4066,11 @@ class TestCmdlineConfigParsing(CiTestCase):
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         self.assertEqual(found, self.simple_cfg)
 
+    def test_cmdline_with_net_config_disabled(self):
+        raw_cmdline = 'ro network-config=disabled root=foo'
+        found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
+        self.assertEqual(found, {'config': 'disabled'})
+
     def test_cmdline_with_b64_gz(self):
         data = _gzip_data(json.dumps(self.simple_cfg).encode())
         encoded_text = base64.b64encode(data).decode()
