@@ -250,14 +250,14 @@ def _decomp_gzip(blob):
 
 
 def _b64dgz(data):
-    """Decode a base64 string if encoded, if gzipped transparently uncompress
+    """Decode a string base64 encoding, if gzipped, uncompress as well
 
-    :return decompressed unencoded string of the data
+    :return: decompressed unencoded string of the data
     """
     try:
         blob = base64.b64decode(data)
     except (TypeError, ValueError):
-        return data
+        raise ValueError("Invalid base64 text: %s" % data)
 
     return _decomp_gzip(blob)
 
