@@ -318,6 +318,51 @@ class TestDataSource(CiTestCase):
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
         self.assertEqual(expected, util.load_json(content))
 
+    def test_get_data_writes_redacted_json_instance_data(self):
+        """get_data writes redacted content to public INSTANCE_JSON_FILE."""
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
+            custom_metadata={
+                'availability_zone': 'myaz',
+                'local-hostname': 'test-subclass-hostname',
+                'region': 'myregion',
+                'some': {'security-credentials': {
+                    'cred1': 'sekret', 'cred2': 'othersekret'}}})
+        self.assertEqual(
+            ('security-credentials',), datasource.sensitive_metadata_keys)
+        datasource.get_data()
+        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
+        redacted = util.load_json(util.load_file(json_file))
+        expected = {
+            'base64_encoded_keys': [],
+            'sensitive_keys': ['ds/meta_data/some/security-credentials'],
+            'v1': {
+                '_beta_keys': ['subplatform'],
+                'availability-zone': 'myaz',
+                'availability_zone': 'myaz',
+                'cloud-name': 'subclasscloudname',
+                'cloud_name': 'subclasscloudname',
+                'instance-id': 'iid-datasource',
+                'instance_id': 'iid-datasource',
+                'local-hostname': 'test-subclass-hostname',
+                'local_hostname': 'test-subclass-hostname',
+                'platform': 'mytestsubclass',
+                'public_ssh_keys': [],
+                'region': 'myregion',
+                'subplatform': 'unknown'},
+            'ds': {
+                '_doc': EXPERIMENTAL_TEXT,
+                'meta_data': {
+                    'availability_zone': 'myaz',
+                    'local-hostname': 'test-subclass-hostname',
+                    'region': 'myregion',
+                    'some': {'security-credentials': REDACT_SENSITIVE_VALUE}}}
+        }
+        self.assertEqual(expected, redacted)
+        file_stat = os.stat(json_file)
+        self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
+
     def test_get_data_writes_json_instance_data_sensitive(self):
         """get_data writes INSTANCE_JSON_SENSITIVE_FILE as readonly root."""
         tmp = self.tmp_dir()
@@ -332,12 +377,7 @@ class TestDataSource(CiTestCase):
         self.assertEqual(
             ('security-credentials',), datasource.sensitive_metadata_keys)
         datasource.get_data()
-        json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         sensitive_json_file = self.tmp_path(INSTANCE_JSON_SENSITIVE_FILE, tmp)
-        redacted = util.load_json(util.load_file(json_file))
-        self.assertEqual(
-            REDACT_SENSITIVE_VALUE,
-            redacted['ds']['meta_data']['some']['security-credentials'])
         content = util.load_file(sensitive_json_file)
         expected = {
             'base64_encoded_keys': [],
@@ -365,7 +405,6 @@ class TestDataSource(CiTestCase):
                     'some': {'security-credentials':
                                  {'cred1': 'sekret', 'cred2': 'othersekret'}}}}
         }
-        self.maxDiff = None
         self.assertEqual(expected, util.load_json(content))
         file_stat = os.stat(sensitive_json_file)
         self.assertEqual(0o600, stat.S_IMODE(file_stat.st_mode))
