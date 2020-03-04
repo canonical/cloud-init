@@ -336,7 +336,7 @@ class TestDataSource(CiTestCase):
         sensitive_json_file = self.tmp_path(INSTANCE_JSON_SENSITIVE_FILE, tmp)
         redacted = util.load_json(util.load_file(json_file))
         self.assertEqual(
-            {'cred1': 'sekret', 'cred2': 'othersekret'},
+            REDACT_SENSITIVE_VALUE,
             redacted['ds']['meta_data']['some']['security-credentials'])
         content = util.load_file(sensitive_json_file)
         expected = {
@@ -362,7 +362,8 @@ class TestDataSource(CiTestCase):
                     'availability_zone': 'myaz',
                     'local-hostname': 'test-subclass-hostname',
                     'region': 'myregion',
-                    'some': {'security-credentials': REDACT_SENSITIVE_VALUE}}}
+                    'some': {'security-credentials':
+                                 {'cred1': 'sekret', 'cred2': 'othersekret'}}}}
         }
         self.maxDiff = None
         self.assertEqual(expected, util.load_json(content))
