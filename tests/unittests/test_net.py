@@ -4017,6 +4017,8 @@ class TestEniNetworkStateToEni(CiTestCase):
 
 
 class TestCmdlineConfigParsing(CiTestCase):
+    with_logs = True
+
     simple_cfg = {
         'config': [{"type": "physical", "name": "eth0",
                     "mac_address": "c0:d6:9f:2c:e8:80",
@@ -4070,6 +4072,16 @@ class TestCmdlineConfigParsing(CiTestCase):
         raw_cmdline = 'ro network-config=disabled root=foo'
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         self.assertEqual(found, {'config': 'disabled'})
+
+    def test_cmdline_with_net_config_unencoded_logs_error(self):
+        """network-config cannot be unencoded besides 'disabled'."""
+        raw_cmdline = 'ro network-config={config:disabled} root=foo'
+        found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
+        self.assertIsNone(found)
+        expected_log = (
+            'ERROR: Expected base64 encoded kernel commandline parameter'
+            ' network-config. Ignoring network-config={config:disabled}.')
+        self.assertIn(expected_log, self.logs.getvalue())
 
     def test_cmdline_with_b64_gz(self):
         data = _gzip_data(json.dumps(self.simple_cfg).encode())

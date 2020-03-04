@@ -10,6 +10,7 @@ import base64
 import glob
 import gzip
 import io
+import logging
 import os
 
 from cloudinit import util
@@ -252,12 +253,16 @@ def _decomp_gzip(blob):
 def _b64dgz(data):
     """Decode a string base64 encoding, if gzipped, uncompress as well
 
-    :return: decompressed unencoded string of the data
+    :return: decompressed unencoded string of the data or empty string on
+       unencoded data.
     """
     try:
         blob = base64.b64decode(data)
     except (TypeError, ValueError):
-        raise ValueError("Invalid base64 text: %s" % data)
+        logging.error(
+            "Expected base64 encoded kernel commandline parameter"
+            " network-config. Ignoring network-config=%s.", data)
+        return ''
 
     return _decomp_gzip(blob)
 
