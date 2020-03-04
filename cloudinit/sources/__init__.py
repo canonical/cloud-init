@@ -193,7 +193,7 @@ class DataSource(metaclass=abc.ABCMeta):
 
     # N-tuple of keypaths or keynames redact from instance-data.json for
     # non-root users
-    sensitive_metadata_keys = ('ci_cfg', 'security-credentials',)
+    sensitive_metadata_keys = ('merged_cfg', 'security-credentials',)
 
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
@@ -310,8 +310,10 @@ class DataSource(metaclass=abc.ABCMeta):
                     instance_data['ds']['ec2_metadata'] = ec2_metadata
         instance_data['ds']['_doc'] = EXPERIMENTAL_TEXT
         # Add merged cloud.cfg and sys info for jinja templates and cli query
-        instance_data['ci_cfg'] = copy.deepcopy(self.sys_cfg)
-        instance_data['ci_cfg']['_doc'] = 'Merged cloud-init system config'
+        instance_data['merged_cfg'] = copy.deepcopy(self.sys_cfg)
+        instance_data['merged_cfg']['_doc'] = (
+            'Merged cloud-init system config from /etc/cloud/cloud.cfg and'
+            ' /etc/cloud/cloud.cfg.d/')
         instance_data['sys_info'] = util.system_info()
         instance_data.update(
             self._get_standardized_metadata(instance_data))

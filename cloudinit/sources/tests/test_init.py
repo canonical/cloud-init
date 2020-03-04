@@ -303,8 +303,8 @@ class TestDataSource(CiTestCase):
         content = util.load_file(json_file)
         expected = {
             'base64_encoded_keys': [],
-            'ci_cfg': REDACT_SENSITIVE_VALUE,
-            'sensitive_keys': ['ci_cfg'],
+            'merged_cfg': REDACT_SENSITIVE_VALUE,
+            'sensitive_keys': ['merged_cfg'],
             'sys_info': sys_info,
             'v1': {
                 '_beta_keys': ['subplatform'],
@@ -352,7 +352,7 @@ class TestDataSource(CiTestCase):
                 'some': {'security-credentials': {
                     'cred1': 'sekret', 'cred2': 'othersekret'}}})
         self.assertEqual(
-            ('ci_cfg', 'security-credentials',),
+            ('merged_cfg', 'security-credentials',),
             datasource.sensitive_metadata_keys)
         sys_info = {
             "python": "3.7",
@@ -415,9 +415,9 @@ class TestDataSource(CiTestCase):
         content = util.load_file(sensitive_json_file)
         expected = {
             'base64_encoded_keys': [],
-            'ci_cfg': REDACT_SENSITIVE_VALUE,
+            'merged_cfg': REDACT_SENSITIVE_VALUE,
             'sensitive_keys': [
-                'ci_cfg', 'ds/meta_data/some/security-credentials'],
+                'merged_cfg', 'ds/meta_data/some/security-credentials'],
             'sys_info': sys_info,
             'v1': {
                 '_beta_keys': ['subplatform'],

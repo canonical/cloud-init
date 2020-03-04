@@ -76,7 +76,7 @@ There are three basic top-level keys:
   'security sensitive'. Only the keys listed here will be redacted from
   instance-data.json for non-root users.
 
-* **ci_cfg**: Merged cloud-init 'system_config' from `/etc/cloud/cloud.cfg`
+* **merged_cfg**: Merged cloud-init 'system_config' from `/etc/cloud/cloud.cfg`
   and  `/etc/cloud/cloud-cfg.d`. Values under this key could contain sensitive
   information such as passwords, so it is included in the **sensitive-keys**
   list which is only readable by root.
@@ -151,7 +151,7 @@ Examples output:
 
 v1.kernel_release
 -----------------
-This shall the running kernel `uname -r`
+This shall be the running kernel `uname -r`
 
 Example output:
 
@@ -168,7 +168,7 @@ Examples output:
 
 v1.machine
 ----------
-This shall the running cpu machine architecture `uname -m`
+This shall be the running cpu machine architecture `uname -m`
 
 Example output:
 
@@ -254,8 +254,8 @@ instance:
    ],
    "availability_zone": "us-east-1b",
    "base64_encoded_keys": [],
-   "ci_cfg": {
-    "_doc": "Merged cloud-init system config",
+   "merged_cfg": {
+    "_doc": "Merged cloud-init system config from /etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/",
     "_log": [
      "[loggers]\nkeys=root,cloudinit\n\n[handlers]\nkeys=consoleHandler,cloudLogHandler\n\n[formatters]\nkeys=simpleFormatter,arg0Formatter\n\n[logger_root]\nlevel=DEBUG\nhandlers=consoleHandler,cloudLogHandler\n\n[logger_cloudinit]\nlevel=DEBUG\nqualname=cloudinit\nhandlers=\npropagate=1\n\n[handler_consoleHandler]\nclass=StreamHandler\nlevel=WARNING\nformatter=arg0Formatter\nargs=(sys.stderr,)\n\n[formatter_arg0Formatter]\nformat=%(asctime)s - %(filename)s[%(levelname)s]: %(message)s\n\n[formatter_simpleFormatter]\nformat=[CLOUDINIT] %(filename)s[%(levelname)s]: %(message)s\n",
      "[handler_cloudLogHandler]\nclass=FileHandler\nlevel=DEBUG\nformatter=arg0Formatter\nargs=('/var/log/cloud-init.log',)\n",
