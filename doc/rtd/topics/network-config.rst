@@ -39,8 +39,8 @@ network interface.
 .. note::
 
   The network-config value is expected to be a Base64 encoded YAML string in
-  :ref:`network_config_v1` format. Optionally it can be compressed with
-  `gzip` prior to Base64 encoding.
+  :ref:`network_config_v1` or :ref:`network_config_v2` format. Optionally it
+  can be compressed with ``gzip`` prior to Base64 encoding.
 
 
 Disabling Network Configuration
