@@ -318,7 +318,7 @@ class TestDataSource(CiTestCase):
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
         self.assertEqual(expected, util.load_json(content))
 
-    def test_get_data_writes_redacted_json_instance_data(self):
+    def test_get_data_writes_redacted_public_json_instance_data(self):
         """get_data writes redacted content to public INSTANCE_JSON_FILE."""
         tmp = self.tmp_dir()
         datasource = DataSourceTestSubclassNet(
@@ -364,7 +364,9 @@ class TestDataSource(CiTestCase):
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
 
     def test_get_data_writes_json_instance_data_sensitive(self):
-        """get_data writes INSTANCE_JSON_SENSITIVE_FILE as readonly root."""
+        """
+        get_data writes unmodified data to sensitive file as root-readonly.
+        """
         tmp = self.tmp_dir()
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
@@ -402,8 +404,9 @@ class TestDataSource(CiTestCase):
                     'availability_zone': 'myaz',
                     'local-hostname': 'test-subclass-hostname',
                     'region': 'myregion',
-                    'some': {'security-credentials':
-                                 {'cred1': 'sekret', 'cred2': 'othersekret'}}}}
+                    'some': {
+                        'security-credentials':
+                            {'cred1': 'sekret', 'cred2': 'othersekret'}}}}
         }
         self.assertEqual(expected, util.load_json(content))
         file_stat = os.stat(sensitive_json_file)
