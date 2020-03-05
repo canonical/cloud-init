@@ -3,14 +3,15 @@ CWD=$(shell pwd)
 YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
+PYTHON = python3
 PIP_INSTALL := pip install
 
 ifeq ($(distro),)
   distro = redhat
 endif
 
-READ_VERSION=$(shell python3 $(CWD)/tools/read-version || echo read-version-failed)
-CODE_VERSION=$(shell python3 -c "from cloudinit import version; print(version.version_string())")
+READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-failed)
+CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
 
 
 all: check
@@ -29,10 +30,10 @@ unittest: clean_pyc
 	python3 -m pytest -v tests/unittests cloudinit
 
 ci-deps-ubuntu:
-	@python3 $(CWD)/tools/read-dependencies --distro ubuntu --test-distro
+	@$(PYTHON) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro
 
 ci-deps-centos:
-	@python3 $(CWD)/tools/read-dependencies --distro centos --test-distro
+	@$(PYTHON) $(CWD)/tools/read-dependencies --distro centos --test-distro
 
 pip-requirements:
 	@echo "Installing cloud-init dependencies..."
@@ -51,7 +52,7 @@ check_version:
 	    else true; fi
 
 config/cloud.cfg:
-	python3 ./tools/render-cloudcfg config/cloud.cfg.tmpl config/cloud.cfg
+	$(PYTHON) ./tools/render-cloudcfg config/cloud.cfg.tmpl config/cloud.cfg
 
 clean_pyc:
 	@find . -type f -name "*.pyc" -delete
@@ -61,26 +62,26 @@ clean: clean_pyc
 	rm -rf doc/rtd_html .tox .coverage
 
 yaml:
-	@python3 $(CWD)/tools/validate-yaml.py $(YAML_FILES)
+	@$(PYTHON) $(CWD)/tools/validate-yaml.py $(YAML_FILES)
 
 rpm:
-	python3 ./packages/brpm --distro=$(distro)
+	$(PYTHON) ./packages/brpm --distro=$(distro)
 
 srpm:
-	python3 ./packages/brpm --srpm --distro=$(distro)
+	$(PYTHON) ./packages/brpm --srpm --distro=$(distro)
 
 deb:
 	@which debuild || \
 		{ echo "Missing devscripts dependency. Install with:"; \
 		  echo sudo apt-get install devscripts; exit 1; }
 
-	python3 ./packages/bddeb
+	$(PYTHON) ./packages/bddeb
 
 deb-src:
 	@which debuild || \
 		{ echo "Missing devscripts dependency. Install with:"; \
 		  echo sudo apt-get install devscripts; exit 1; }
-	python3 ./packages/bddeb -S -d
+	$(PYTHON) ./packages/bddeb -S -d
 
 doc:
 	tox -e doc
