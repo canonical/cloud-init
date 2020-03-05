@@ -113,17 +113,17 @@ schema = {
                         'default': DEFAULT_OWNER,
                         'description': dedent("""\
                             Optional owner:group to chown on the file. Default:
-                             **root:root**
-                        """),
+                             **{owner}**
+                        """.format(owner=DEFAULT_OWNER)),
                     },
                     'permissions': {
                         'type': 'string',
-                        'default': '0644',
+                        'default': oct(DEFAULT_PERMS).replace('o', ''),
                         'description': dedent("""\
                             Optional file permissions to set on ``path``
                              represented as an octal string '0###'. Default:
-                             **'0644'**
-                        """),
+                             **'{perms}'**
+                        """.format(perms=oct(DEFAULT_PERMS).replace('o', ''))),
                     },
                     'encoding': {
                         'type': 'string',
