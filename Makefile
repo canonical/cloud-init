@@ -24,7 +24,7 @@ pep8:
 	@$(CWD)/tools/run-pep8
 
 pyflakes:
-	@$(CWD)/tools/run-pyflakes3
+	@$(CWD)/tools/run-pyflakes
 
 unittest: clean_pyc
 	python3 -m pytest -v tests/unittests cloudinit
