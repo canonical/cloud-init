@@ -4,7 +4,7 @@ YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
 PYTHON = python3
-PIP_INSTALL := pip install
+PIP_INSTALL := pip3 install
 
 ifeq ($(distro),)
   distro = redhat
