@@ -5074,10 +5074,10 @@ class TestInterfacesSorting(CiTestCase):
         self.assertEqual(
             sorted(data, key=natural_sort_key),
             ['ens2', 'ens3', 'ens5', 'ens6', 'ens13', 'ens20'])
-        data2 = ['enp2s0', 'enp2s3', 'enp0s3', 'enp0s13', 'enp0s8', 'enp1s2']
+        data2 = ['enp2s0', 'ens3', 'enp2s3', 'enp0s3', 'enp0s13', 'enp0s8', 'enp1s2']
         self.assertEqual(
             sorted(data2, key=natural_sort_key),
-            ['enp0s3', 'enp0s8', 'enp1s2', 'enp2s0', 'enp2s3', 'enp0s13'])
+            ['ens3', 'enp0s3', 'enp0s8', 'enp1s2', 'enp2s0', 'enp2s3', 'enp0s13'])
 
 
 class TestGetIBHwaddrsByInterface(CiTestCase):
