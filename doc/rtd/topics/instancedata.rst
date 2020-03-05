@@ -103,7 +103,7 @@ v1.cloud_name
 -------------
 Where possible this will indicate the 'name' of the cloud the system is running
 on. This is different than the 'platform' item. For example, the cloud name of
-Amazone Web Services is 'aws', while the platform is 'ec2'.
+Amazon Web Services is 'aws', while the platform is 'ec2'.
 
 If determining a specific name is not possible or provided in meta-data, then
 this filed may contain the same content as 'platform'.
