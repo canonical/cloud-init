@@ -27,8 +27,9 @@ def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
     ['ens0', 'ens3', 'ens8', 'ens10', 'ens12', 'eth0'] instead of the simple
     python way which will produce ['ens0', 'ens10', 'ens12', 'ens3', 'ens8',
     'eth0']."""
-    return [int(text) if text.isdigit() else text.lower()
-            for text in re.split(_nsre, s)]
+    #return [int(text) if text.isdigit() else text.lower()
+    #        for text in re.split(_nsre, s)]
+    return (len(s), s.lower())
 
 
 def get_sys_class_path():
