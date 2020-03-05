@@ -20,15 +20,13 @@ SYS_CLASS_NET = "/sys/class/net/"
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
 
 
-def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
+def natural_sort_key(s):
     """Sorting for Humans: natural sort order. Can be use as the key to sort
     functions.
     This will sort ['eth0', 'ens3', 'ens10', 'ens12', 'ens8', 'ens0'] as
-    ['ens0', 'ens3', 'ens8', 'ens10', 'ens12', 'eth0'] instead of the simple
+    ['ens0', 'ens3', 'ens8', 'eth0', 'ens10', 'ens12'] instead of the simple
     python way which will produce ['ens0', 'ens10', 'ens12', 'ens3', 'ens8',
     'eth0']."""
-    #return [int(text) if text.isdigit() else text.lower()
-    #        for text in re.split(_nsre, s)]
     return (len(s), s.lower())
 
 
