@@ -315,12 +315,12 @@ class DataSource(metaclass=abc.ABCMeta):
         except UnicodeDecodeError as e:
             LOG.warning('Error persisting instance-data.json: %s', str(e))
             return False
-        json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
-        write_json(json_file, processed_data)  # World readable
         json_sensitive_file = os.path.join(self.paths.run_dir,
                                            INSTANCE_JSON_SENSITIVE_FILE)
-        write_json(json_sensitive_file,
-                   redact_sensitive_keys(processed_data), mode=0o600)
+        write_json(json_sensitive_file, processed_data, mode=0o600)
+        json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
+        # World readable
+        write_json(json_file, redact_sensitive_keys(processed_data))
         return True
 
     def _get_data(self):
