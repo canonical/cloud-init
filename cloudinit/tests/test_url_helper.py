@@ -1,7 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.url_helper import (
-    NOT_FOUND, UrlError, oauth_headers, read_file_or_url, retry_on_url_exc)
+    NOT_FOUND, UrlError, REDACTED, oauth_headers, read_file_or_url,
+    retry_on_url_exc)
 from cloudinit.tests.helpers import CiTestCase, mock, skipIf
 from cloudinit import util
 from cloudinit import version
@@ -50,6 +51,9 @@ class TestOAuthHeaders(CiTestCase):
 
 
 class TestReadFileOrUrl(CiTestCase):
+
+    with_logs = True
+
     def test_read_file_or_url_str_from_file(self):
         """Test that str(result.contents) on file is text version of contents.
         It should not be "b'data'", but just "'data'" """
@@ -70,6 +74,34 @@ class TestReadFileOrUrl(CiTestCase):
         result = read_file_or_url(url)
         self.assertEqual(result.contents, data)
         self.assertEqual(str(result), data.decode('utf-8'))
+
+    @httpretty.activate
+    def test_read_file_or_url_str_from_url_redacting_headers_from_logs(self):
+        """Headers are redacted from logs but unredacted in requests."""
+        url = 'http://hostname/path'
+        headers = {'sensitive': 'sekret', 'server': 'blah'}
+        httpretty.register_uri(httpretty.GET, url)
+
+        read_file_or_url(url, headers=headers, headers_redact=['sensitive'])
+        logs = self.logs.getvalue()
+        for k in headers.keys():
+            self.assertEqual(headers[k],  httpretty.last_request().headers[k])
+        self.assertIn(REDACTED, logs)
+        self.assertNotIn('sekret', logs)
+
+    @httpretty.activate
+    def test_read_file_or_url_str_from_url_redacts_noheaders(self):
+        """When no headers_redact, header values are in logs and requests."""
+        url = 'http://hostname/path'
+        headers = {'sensitive': 'sekret', 'server': 'blah'}
+        httpretty.register_uri(httpretty.GET, url)
+
+        read_file_or_url(url, headers=headers)
+        for k in headers.keys():
+            self.assertEqual(headers[k], httpretty.last_request().headers[k])
+        logs = self.logs.getvalue()
+        self.assertNotIn(REDACTED, logs)
+        self.assertIn('sekret', logs)
 
     @mock.patch(M_PATH + 'readurl')
     def test_read_file_or_url_passes_params_to_readurl(self, m_readurl):

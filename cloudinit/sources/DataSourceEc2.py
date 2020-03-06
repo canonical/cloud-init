@@ -29,7 +29,6 @@ STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 
 API_TOKEN_ROUTE = 'latest/api/token'
-API_TOKEN_DISABLED = '_ec2_disable_api_token'
 AWS_TOKEN_TTL_SECONDS = '21600'
 AWS_TOKEN_PUT_HEADER = 'X-aws-ec2-metadata-token'
 AWS_TOKEN_REQ_HEADER = AWS_TOKEN_PUT_HEADER + '-ttl-seconds'
@@ -193,6 +192,12 @@ class DataSourceEc2(sources.DataSource):
             return self.metadata['instance-id']
 
     def _maybe_fetch_api_token(self, mdurls, timeout=None, max_wait=None):
+        """ Get an API token for EC2 Instance Metadata Service.
+
+        On EC2. IMDS will always answer an API token, unless
+        the instance owner has disabled the IMDS HTTP endpoint or
+        the network topology conflicts with the configured hop-limit.
+        """
         if self.cloud_name != CloudNames.AWS:
             return
 
@@ -205,17 +210,32 @@ class DataSourceEc2(sources.DataSource):
             urls.append(cur)
             url2base[cur] = url
 
-        # use the self._status_cb to check for Read errors, which means
-        # we can't reach the API token URL, so we should disable IMDSv2
+        # use the self._imds_exception_cb to check for Read errors
         LOG.debug('Fetching Ec2 IMDSv2 API Token')
-        url, response = uhelp.wait_for_url(
-            urls=urls, max_wait=1, timeout=1, status_cb=self._status_cb,
-            headers_cb=self._get_headers, request_method=request_method,
-            headers_redact=AWS_TOKEN_REDACT)
+
+        response = None
+        url = None
+        url_params = self.get_url_params()
+        try:
+            url, response = uhelp.wait_for_url(
+                urls=urls, max_wait=url_params.max_wait_seconds,
+                timeout=url_params.timeout_seconds, status_cb=LOG.warning,
+                headers_cb=self._get_headers,
+                exception_cb=self._imds_exception_cb,
+                request_method=request_method,
+                headers_redact=AWS_TOKEN_REDACT)
+        except uhelp.UrlError:
+            # We use the raised exception to interupt the retry loop.
+            # Nothing else to do here.
+            pass
 
         if url and response:
             self._api_token = response
             return url2base[url]
+
+        # If we get here, then wait_for_url timed out, waiting for IMDS
+        # or the IMDS HTTP endpoint is disabled
+        return None
 
     def wait_for_metadata_service(self):
         mcfg = self.ds_cfg
@@ -240,9 +260,11 @@ class DataSourceEc2(sources.DataSource):
 
         # try the api token path first
         metadata_address = self._maybe_fetch_api_token(mdurls)
-        if not metadata_address:
-            if self._api_token == API_TOKEN_DISABLED:
-                LOG.warning('Retrying with IMDSv1')
+        # When running on EC2, we always access IMDS with an API token.
+        # If we could not get an API token, then we assume the IMDS
+        # endpoint was disabled and we move on without a data source.
+        # Fallback to IMDSv1 if not running on EC2
+        if not metadata_address and self.cloud_name != CloudNames.AWS:
             # if we can't get a token, use instance-id path
             urls = []
             url2base = {}
@@ -267,6 +289,8 @@ class DataSourceEc2(sources.DataSource):
         if metadata_address:
             self.metadata_address = metadata_address
             LOG.debug("Using metadata source: '%s'", self.metadata_address)
+        elif self.cloud_name == CloudNames.AWS:
+            LOG.warning("IMDS's HTTP endpoint is probably disabled")
         else:
             LOG.critical("Giving up on md from %s after %s seconds",
                          urls, int(time.time() - start_time))
@@ -496,11 +520,29 @@ class DataSourceEc2(sources.DataSource):
             self._api_token = None
         return True  # always retry
 
-    def _status_cb(self, msg, exc=None):
-        LOG.warning(msg)
-        if 'Read timed out' in msg:
-            LOG.warning('Cannot use Ec2 IMDSv2 API tokens, using IMDSv1')
-            self._api_token = API_TOKEN_DISABLED
+    def _imds_exception_cb(self, msg, exception=None):
+        """Fail quickly on proper AWS if IMDSv2 rejects API token request
+
+        Guidance from Amazon is that if IMDSv2 had disabled token requests
+        by returning a 403, or cloud-init malformed requests resulting in
+        other 40X errors, we want the datasource detection to fail quickly
+        without retries as those symptoms will likely not be resolved by
+        retries.
+
+        Exceptions such as requests.ConnectionError due to IMDS being
+        temporarily unroutable or unavailable will still retry due to the
+        callsite wait_for_url.
+        """
+        if isinstance(exception, uhelp.UrlError):
+            # requests.ConnectionError will have exception.code == None
+            if exception.code and exception.code >= 400:
+                if exception.code == 403:
+                    LOG.warning('Ec2 IMDS endpoint returned a 403 error. '
+                                'HTTP endpoint is disabled. Aborting.')
+                else:
+                    LOG.warning('Fatal error while requesting '
+                                'Ec2 IMDSv2 API tokens')
+                raise exception
 
     def _get_headers(self, url=''):
         """Return a dict of headers for accessing a url.
@@ -508,8 +550,7 @@ class DataSourceEc2(sources.DataSource):
         If _api_token is unset on AWS, attempt to refresh the token via a PUT
         and then return the updated token header.
         """
-        if self.cloud_name != CloudNames.AWS or (self._api_token ==
-                                                 API_TOKEN_DISABLED):
+        if self.cloud_name != CloudNames.AWS:
             return {}
         # Request a 6 hour token if URL is API_TOKEN_ROUTE
         request_token_header = {AWS_TOKEN_REQ_HEADER: AWS_TOKEN_TTL_SECONDS}

@@ -1,3 +1,17 @@
+cloud-init (20.1-9-g1f860e5a-0ubuntu1) focal; urgency=medium
+
+  * New upstream snapshot: bug-fix-only during feature freeze
+    - ec2: Do not fallback to IMDSv1 on EC2 (#216)
+      [Frederick Lefebvre] (LP: #1866290)
+    - instance-data: write redacted cfg to instance-data.json (#233)
+      (LP: #1865947)
+    - net: support network-config:disabled on the kernel commandline (#232)
+      (LP: #1862702)
+    - ec2: only redact token request headers in logs, avoid altering request
+      (#230) (LP: #1865882)
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 06 Mar 2020 11:01:15 -0700
+
 cloud-init (20.1-5-g67c8e53c-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
