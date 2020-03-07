@@ -350,7 +350,7 @@ class TestDataSource(CiTestCase):
                 'region': 'myregion',
                 'some': {'security-credentials': {
                     'cred1': 'sekret', 'cred2': 'othersekret'}}})
-        self.assertEqual(
+        self.assertItemsEqual(
             ('merged_cfg', 'security-credentials',),
             datasource.sensitive_metadata_keys)
         sys_info = {
@@ -401,7 +401,7 @@ class TestDataSource(CiTestCase):
                     'region': 'myregion',
                     'some': {'security-credentials': REDACT_SENSITIVE_VALUE}}}
         }
-        self.assertEqual(expected, redacted)
+        self.assertItemsEqual(expected, redacted)
         file_stat = os.stat(json_file)
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
 
@@ -426,7 +426,7 @@ class TestDataSource(CiTestCase):
                       "x86_64"],
             "variant": "ubuntu", "dist": ["ubuntu", "20.04", "focal"]}
 
-        self.assertEqual(
+        self.assertItemsEqual(
             ('merged_cfg', 'security-credentials',),
             datasource.sensitive_metadata_keys)
         with mock.patch("cloudinit.util.system_info", return_value=sys_info):
@@ -476,7 +476,7 @@ class TestDataSource(CiTestCase):
                         'security-credentials':
                             {'cred1': 'sekret', 'cred2': 'othersekret'}}}}
         }
-        self.assertEqual(expected, util.load_json(content))
+        self.assertItemsEqual(expected, util.load_json(content))
         file_stat = os.stat(sensitive_json_file)
         self.assertEqual(0o600, stat.S_IMODE(file_stat.st_mode))
         self.assertEqual(expected, util.load_json(content))

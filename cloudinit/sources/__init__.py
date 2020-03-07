@@ -89,26 +89,26 @@ def process_instance_metadata(metadata, key_path='', sensitive_keys=()):
     @return Dict copy of processed metadata.
     """
     md_copy = copy.deepcopy(metadata)
-    md_copy['base64_encoded_keys'] = []
-    md_copy['sensitive_keys'] = []
+    base64_encoded_keys = []
+    sens_keys = []
     for key, val in metadata.items():
         if key_path:
             sub_key_path = key_path + '/' + key
         else:
             sub_key_path = key
         if key in sensitive_keys or sub_key_path in sensitive_keys:
-            md_copy['sensitive_keys'].append(sub_key_path)
+            sens_keys.append(sub_key_path)
         if isinstance(val, str) and val.startswith('ci-b64:'):
-            md_copy['base64_encoded_keys'].append(sub_key_path)
+            base64_encoded_keys.append(sub_key_path)
             md_copy[key] = val.replace('ci-b64:', '')
         if isinstance(val, dict):
             return_val = process_instance_metadata(
                 val, sub_key_path, sensitive_keys)
-            md_copy['base64_encoded_keys'].extend(
-                return_val.pop('base64_encoded_keys'))
-            md_copy['sensitive_keys'].extend(
-                return_val.pop('sensitive_keys'))
+            base64_encoded_keys.extend(return_val.pop('base64_encoded_keys'))
+            sens_keys.extend(return_val.pop('sensitive_keys'))
             md_copy[key] = return_val
+    md_copy['base64_encoded_keys'] = sorted(base64_encoded_keys)
+    md_copy['sensitive_keys'] = sorted(sens_keys)
     return md_copy
 
 
