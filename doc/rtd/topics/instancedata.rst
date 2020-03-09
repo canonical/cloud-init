@@ -243,8 +243,8 @@ Examples output:
 Example Output
 --------------
 
-Below is an example of ``/run/cloud-init/instance_data.json`` on an EC2
-instance:
+Below is an example of ``/run/cloud-init/instance-data-sensitive.json`` on an
+EC2 instance:
 
 .. sourcecode:: json
 
@@ -373,12 +373,12 @@ instance:
        "version": "2017-09-30"
       },
       "pkcs7": [
-       "MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAaCAJIAEggHcewog",
+       "MIAGCSqGSIb3DQ...",
        "REDACTED",
        "AhQUgq0iPWqPTVnT96tZE6L1XjjLHQAAAAAAAA=="
       ],
       "rsa2048": [
-       "MIAGCSqGSIb3DQEHAqCAMIACAQExDzANBglghkgBZQMEAgEFADCABgkqhkiG9w0BBwGggCSABIIB",
+       "MIAGCSqGSIb...",
        "REDACTED",
        "clYQvuE45xXm7Yreg3QtQbrP//owl1eZHj6s350AAAAAAAA="
       ],
@@ -478,7 +478,7 @@ instance:
     "variant": "ubuntu"
    },
    "system_platform": "Linux-5.3.0-1010-aws-x86_64-with-Ubuntu-20.04-focal",
-   "userdata": "<redacted for non-root user> file:/var/lib/cloud/instance/user-data.txt",
+   "userdata": "#cloud-config\nssh_import_id: [<my-launchpad-id>]\n...",
    "v1": {
     "_beta_keys": [
      "subplatform"
@@ -501,135 +501,7 @@ instance:
     "variant": "ubuntu"
    },
    "variant": "ubuntu",
-   "vendordata": "<redacted for non-root user> file:/var/lib/cloud/instance/vendor-data.txt"
-  }
-
-
-  {
-   "base64_encoded_keys": [],
-   "ds": {
-    "_doc": "EXPERIMENTAL: The structure and format of content scoped under the 'ds' key may change in subsequent releases of cloud-init.",
-    "_metadata_api_version": "2016-09-02",
-    "dynamic": {
-     "instance-identity": {
-      "document": {
-       "accountId": "437526006925",
-       "architecture": "x86_64",
-       "availabilityZone": "us-east-2b",
-       "billingProducts": null,
-       "devpayProductCodes": null,
-       "imageId": "ami-079638aae7046bdd2",
-       "instanceId": "i-075f088c72ad3271c",
-       "instanceType": "t2.micro",
-       "kernelId": null,
-       "marketplaceProductCodes": null,
-       "pendingTime": "2018-10-05T20:10:43Z",
-       "privateIp": "10.41.41.95",
-       "ramdiskId": null,
-       "region": "us-east-2",
-       "version": "2017-09-30"
-      },
-      "pkcs7": [
-       "MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAaCAJIAEggHbewog",
-       "REDACTED",
-       "JLZBkrB2GJA8A4WJ1okq++jSrBIAAAAAAAA="
-      ],
-      "rsa2048": [
-       "MIAGCSqGSIb3DQEHAqCAMIACAQExDzANBglghkgBZQMEAgEFADCABgkqhkiG9w0BBwGggCSABIIB",
-       "REDACTED",
-       "fmkjI2pNRB8spc0k4UG4egqLrqCz67WuK38tjwAAAAAAAA=="
-      ],
-      "signature": [
-       "Tsw6h+V3WnxrNVSXBYIOs1V4j95YR1mLPPH45XnhX0/Ei3waJqf7/7EEKGYP1Cr4PTYEULtZ7Mvf",
-       "REDACTED",
-       "r4B0mN3p7EcqD8G+ll0="
-      ]
-     }
-    },
-    "meta-data": {
-     "ami-id": "ami-079638aae7046bdd2",
-     "ami-launch-index": "0",
-     "ami-manifest-path": "(unknown)",
-     "block-device-mapping": {
-      "ami": "/dev/sda1",
-      "ephemeral0": "sdb",
-      "ephemeral1": "sdc",
-      "root": "/dev/sda1"
-     },
-     "hostname": "ip-10-41-41-95.us-east-2.compute.internal",
-     "instance-action": "none",
-     "instance-id": "i-075f088c72ad3271c",
-     "instance-type": "t2.micro",
-     "local-hostname": "ip-10-41-41-95.us-east-2.compute.internal",
-     "local-ipv4": "10.41.41.95",
-     "mac": "06:74:8f:39:cd:a6",
-     "metrics": {
-      "vhostmd": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-     },
-     "network": {
-      "interfaces": {
-       "macs": {
-       "06:74:8f:39:cd:a6": {
-        "device-number": "0",
-        "interface-id": "eni-052058bbd7831eaae",
-        "ipv4-associations": {
-         "18.218.221.122": "10.41.41.95"
-        },
-        "local-hostname": "ip-10-41-41-95.us-east-2.compute.internal",
-        "local-ipv4s": "10.41.41.95",
-        "mac": "06:74:8f:39:cd:a6",
-        "owner-id": "437526006925",
-        "public-hostname": "ec2-18-218-221-122.us-east-2.compute.amazonaws.com",
-        "public-ipv4s": "18.218.221.122",
-        "security-group-ids": "sg-828247e9",
-        "security-groups": "Cloud-init integration test secgroup",
-        "subnet-id": "subnet-282f3053",
-        "subnet-ipv4-cidr-block": "10.41.41.0/24",
-        "subnet-ipv6-cidr-blocks": "2600:1f16:b80:ad00::/64",
-        "vpc-id": "vpc-252ef24d",
-        "vpc-ipv4-cidr-block": "10.41.0.0/16",
-        "vpc-ipv4-cidr-blocks": "10.41.0.0/16",
-        "vpc-ipv6-cidr-blocks": "2600:1f16:b80:ad00::/56"
-       }
-       }
-      }
-     },
-     "placement": {
-      "availability-zone": "us-east-2b"
-     },
-     "profile": "default-hvm",
-     "public-hostname": "ec2-18-218-221-122.us-east-2.compute.amazonaws.com",
-     "public-ipv4": "18.218.221.122",
-     "public-keys": {
-      "cloud-init-integration": [
-       "ssh-rsa REDACTED"
-      ]
-     },
-     "reservation-id": "r-0594a20e31f6cfe46",
-     "security-groups": "Cloud-init integration test secgroup",
-     "services": {
-      "domain": "amazonaws.com",
-      "partition": "aws"
-     }
-    }
-   },
-   "sensitive_keys": [],
-   "v1": {
-    "_beta_keys": [
-     "subplatform"
-    ],
-    "availability-zone": "us-east-2b",
-    "availability_zone": "us-east-2b",
-    "cloud_name": "aws",
-    "instance_id": "i-075f088c72ad3271c",
-    "local_hostname": "ip-10-41-41-95",
-    "platform": "ec2",
-    "public_ssh_keys": [
-     "ssh-rsa REDACTED"
-    ],
-    "region": "us-east-2",
-    "subplatform": "metadata (http://169.254.169.254)"
-   }
+   "vendordata": ""
   }
 
 
