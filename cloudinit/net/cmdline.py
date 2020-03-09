@@ -35,7 +35,7 @@ class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def render_config(self):
         # type: () -> dict
-        """Render a v1 network config from the initramfs configuration"""
+        """Render a v1 or v2 network config from the initramfs configuration"""
         pass
 
 
@@ -91,7 +91,35 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
         )
 
 
-_INITRAMFS_CONFIG_SOURCES = [KlibcNetworkConfigSource]
+class NetplanConfigSource(InitramfsNetworkConfigSource):
+    """InitramfsNetworkConfigSource for netplan initramfs. """
+
+    def __init__(self, _files=None):
+        self._files = _files
+
+        # Set defaults here, as they require computation that we don't want to
+        # do at method definition time
+        if self._files is None:
+            self._files = _get_netplan_net_cfg_files()
+
+    def is_applicable(self):
+        # type: () -> bool
+        """
+        Return whether this system has netplan initramfs network config or not
+
+        Will return True if one or more netplan files exist in
+        /run/netplan/*.yaml
+        """
+        if len(self._files):
+                return True
+        return False
+
+    def render_config(self):
+        # type: () -> dict
+        return config_from_netplan_net_cfg(files=self._files)
+
+
+_INITRAMFS_CONFIG_SOURCES = [NetplanConfigSource, KlibcNetworkConfigSource]
 
 
 def _klibc_to_config_entry(content, mac_addrs=None):
@@ -218,13 +246,28 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     return {'config': entries, 'version': 1}
 
 
+def _get_netplan_net_cfg_files():
+    return glob.glob('/run/netplan/*.yaml')
+
+
+def config_from_netplan_net_cfg_files(files=None):
+    if files is None:
+        files = _get_netplan_net_cfg_files()
+
+    configs = []
+    for cfg_file in files:
+        configs.append(util.yaml.load(cfg_file))
+
+    return util.mergemanydict(configs)
+
+
 def read_initramfs_config():
     """
     Return v1 network config for initramfs-configured networking (or None)
 
     This will consider each _INITRAMFS_CONFIG_SOURCES entry in turn, and return
-    v1 network configuration for the first one that is applicable.  If none are
-    applicable, return None.
+    v1 or v2 network configuration for the first one that is applicable.
+    If none are applicable, return None.
     """
     for src_cls in _INITRAMFS_CONFIG_SOURCES:
         cfg_source = src_cls()
