@@ -250,13 +250,13 @@ def _get_netplan_net_cfg_files():
     return glob.glob('/run/netplan/*.yaml')
 
 
-def config_from_netplan_net_cfg_files(files=None):
+def config_from_netplan_net_cfg(files=None):
     if files is None:
         files = _get_netplan_net_cfg_files()
 
     configs = []
     for cfg_file in files:
-        configs.append(util.yaml.load(cfg_file))
+        configs.append(util.read_conf(cfg_file))
 
     return util.mergemanydict(configs)
 

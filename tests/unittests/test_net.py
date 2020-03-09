@@ -2,23 +2,16 @@
 
 from cloudinit import net
 from cloudinit import distros
-from cloudinit.net import cmdline
 from cloudinit.net import (
     eni, interface_has_own_mac, natural_sort_key, netplan, network_state,
     renderers, sysconfig)
 from cloudinit.sources.helpers import openstack
-from cloudinit import temp_utils
 from cloudinit import util
 from cloudinit import safeyaml as yaml
 
-from cloudinit.tests.helpers import (
-    CiTestCase, FilesystemMockingTestCase, dir2dict, mock, populate_dir)
+from cloudinit.tests.helpers import CiTestCase, dir2dict, mock, populate_dir
 
-import base64
 import copy
-import gzip
-import io
-import json
 import os
 import re
 import textwrap

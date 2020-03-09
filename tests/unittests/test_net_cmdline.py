@@ -1,6 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit import temp_utils
 from cloudinit import util
@@ -94,6 +93,61 @@ STATIC_EXPECTED_1 = {
                  'netmask': '255.255.255.0',
                  'dns_nameservers': ['10.0.1.1'],
                  'address': '10.0.0.2'}],
+}
+
+NETPLAN_DHCP_CONTENT_1 = """\
+network:
+  version: 2
+  ethernets:
+      ens3:
+         dhcp4: true
+         match:
+           macaddress: 00:11:22:33:44:55
+         set-name: ens3
+"""
+
+NETPLAN_DHCP_CONTENT_2 = """\
+network:
+  version: 2
+  ethernets:
+      ens5:
+         dhcp4: false
+         dhcp6: true
+         match:
+           macaddress: aa:bb:cc:dd:ee:ff
+         set-name: ens5
+"""
+
+NETPLAN_DHCP_EXPECTED_1 = {
+    'network': {
+        'version': 2,
+        'ethernets': {
+            'ens3': {
+                'dhcp4': True,
+                'match': {'macaddress': '00:11:22:33:44:55'},
+                'set-name': 'ens3'
+            },
+        },
+    }
+}
+
+NETPLAN_DHCP_EXPECTED_1_2 = {
+    'network': {
+        'version': 2,
+        'ethernets': {
+            'ens3': {
+                'dhcp4': True,
+                'match': {'macaddress': '00:11:22:33:44:55'},
+                'set-name': 'ens3'
+            },
+            'ens5': {
+                'dhcp4': False,
+                'dhcp6': True,
+                'match': {'macaddress': 'aa:bb:cc:dd:ee:ff'},
+                'set-name': 'ens5'
+            },
+        }
+    }
 }
 
 
@@ -273,6 +327,71 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         found = src.render_config()
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], expected)
+
+
+class TestNetplanConfigSource(FilesystemMockingTestCase):
+
+    maxDiff = None
+    with_logs = True
+
+    def test_netplan_single_file(self):
+        content = {'/run/netplan/ens3.yaml': NETPLAN_DHCP_CONTENT_1}
+        expected = copy.deepcopy(NETPLAN_DHCP_EXPECTED_1)
+        root = self.tmp_dir()
+        populate_dir(root, content)
+        self.reRoot(root)
+        src = cmdline.NetplanConfigSource()
+        self.assertTrue(src.is_applicable())
+        found = src.render_config()
+        self.assertEqual(expected, found)
+
+    def test_netplan_multiple_files(self):
+        content = {
+            '/run/netplan/ens3.yaml': NETPLAN_DHCP_CONTENT_1,
+            '/run/netplan/ens5.yaml': NETPLAN_DHCP_CONTENT_2,
+        }
+        expected = copy.deepcopy(NETPLAN_DHCP_EXPECTED_1_2)
+        root = self.tmp_dir()
+        populate_dir(root, content)
+        self.reRoot(root)
+        src = cmdline.NetplanConfigSource()
+        self.assertTrue(src.is_applicable())
+        found = src.render_config()
+        self.assertEqual(expected, found)
+
+    def test_netplan_bad_file(self):
+        content = {'/run/netplan/ens3.yaml': self.random_string()}
+        root = self.tmp_dir()
+        populate_dir(root, content)
+        self.reRoot(root)
+        src = cmdline.NetplanConfigSource()
+        self.assertTrue(src.is_applicable())
+        found = src.render_config()
+        self.assertEqual({}, found)
+
+    def test_netplan_multiple_files_with_bad_files(self):
+        content = {
+            '/run/netplan/ens2.yaml': self.random_string(),
+            '/run/netplan/ens3.yaml': NETPLAN_DHCP_CONTENT_1,
+            '/run/netplan/ens4.yaml': self.random_string(),
+            '/run/netplan/ens5.yaml': NETPLAN_DHCP_CONTENT_2,
+            '/run/netplan/ens7.yaml': self.random_string(),
+        }
+        expected = copy.deepcopy(NETPLAN_DHCP_EXPECTED_1_2)
+        root = self.tmp_dir()
+        populate_dir(root, content)
+        self.reRoot(root)
+        src = cmdline.NetplanConfigSource()
+        self.assertTrue(src.is_applicable())
+        found = src.render_config()
+        self.assertEqual(expected, found)
+
+    def test_netplan_no_files(self):
+        root = self.tmp_dir()
+        self.reRoot(root)
+        src = cmdline.NetplanConfigSource()
+        self.assertFalse(src.is_applicable())
+        self.assertEqual({}, src.render_config())
 
 
 class TestReadInitramfsConfig(CiTestCase):
