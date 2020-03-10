@@ -80,6 +80,9 @@ The settings that may be configured are:
  * **timeout**: the timeout value provided to urlopen for each individual http
    request.  This is used both when selecting a metadata_url and when crawling
    the metadata service. (default: 50)
+ * **configure_secondary_ips**: Boolean (default: True) to allow cloud-init
+   to configure any secondary IPs described by the metadata service.
+   On Ubuntu Xenial, Bionic and Eoan the default is False.
 
 An example configuration with the default values is provided below:
 
