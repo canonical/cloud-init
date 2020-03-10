@@ -1,4 +1,4 @@
-cloud-init (20.1-10-g71af48df-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.1-10-g71af48df-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot.
     - instance-data: add cloud-init merged_cfg and sys_info keys to json
