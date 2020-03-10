@@ -1,3 +1,11 @@
+cloud-init (20.1-10-g71af48df-0ubuntu1) focal; urgency=medium
+
+  * New upstream snapshot.
+    - instance-data: add cloud-init merged_cfg and sys_info keys to json
+      (#214) (LP: #1865969)
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 10 Mar 2020 11:14:53 -0600
+
 cloud-init (20.1-9-g1f860e5a-0ubuntu1) focal; urgency=medium
 
   * New upstream snapshot: bug-fix-only during feature freeze
