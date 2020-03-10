@@ -656,7 +656,7 @@ def system_info():
         'system': platform.system(),
         'release': platform.release(),
         'python': platform.python_version(),
-        'uname': platform.uname(),
+        'uname': list(platform.uname()),
         'dist': get_linux_distro()
     }
     system = info['system'].lower()
