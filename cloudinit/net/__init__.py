@@ -20,14 +20,17 @@ SYS_CLASS_NET = "/sys/class/net/"
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
 
 
-def natural_sort_key(s):
+def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
     """Sorting for Humans: natural sort order. Can be use as the key to sort
     functions.
-    This will sort ['eth0', 'ens3', 'ens10', 'ens12', 'ens8', 'ens0'] as
-    ['ens0', 'ens3', 'ens8', 'eth0', 'ens10', 'ens12'] instead of the simple
-    python way which will produce ['ens0', 'ens10', 'ens12', 'ens3', 'ens8',
-    'eth0']."""
-    return (len(s), s.lower())
+    This will sort ['eth0', 'ens3', 'ens10', 'ens12', 'enp0s4', 'ens0'] as
+    ['ens0', 'ens3', 'ens8', 'ens10', 'ens12', 'eth0', 'enp0s4'] instead of
+    the simple python way which would produce
+    ['enp0s4', 'ens0', 'ens10', 'ens12', 'ens3', 'ens8', 'eth0'].
+    Note that the we sort shorter names (counting alpha letters only) first"""
+    return (sum(map(lambda x: int(x.isalpha()), s)),
+            [int(text) if text.isdigit() else text.lower()
+             for text in re.split(_nsre, s)])
 
 
 def get_sys_class_path():
