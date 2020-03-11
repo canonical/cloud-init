@@ -24,6 +24,9 @@ jobs:
           Thanks,
           Your friendly cloud-init upstream
         EOF
-        grep -q ': \"${{ github.event.pull_request.user.login }}\"' ./tools/.lp-to-git-user && \
-           echo "Thanks ${{ github.event.pull_request.user.login }} for signing cloud-init's CLA" || \
-           (cat unsigned-cla.txt && exit 1)
+        if grep -q ': \"${{ github.event.pull_request.user.login }}\"' ./tools/.lp-to-git-user; then
+            echo "Thanks ${{ github.event.pull_request.user.login }} for signing cloud-init's CLA"
+        else
+           cat unsigned-cla.txt
+           exit 1
+        fi
