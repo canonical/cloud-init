@@ -23,8 +23,12 @@ cloud-init (19.4-51-g8409dd7d-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
     - docs: add proposed SRU testing procedure (#167)
     - util: rename get_architecture to get_dpkg_architecture (#173)
     - Ensure util.get_architecture() runs only once (#172)
+  * d/control: add python3-pytest to Build-Depends
+    - This fixes upstream daily builds.  python3-nose is not removed from
+      Build-Depends because, currently, the Ubuntu package builds will still
+      use it for testing.
 
- -- Ryan Harper <ryan.harper@canonical.com>  Wed, 29 Jan 2020 12:09:51 -0600
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Wed, 11 Mar 2020 17:02:06 -0400
 
 cloud-init (19.4-33-gbb4131a2-0ubuntu1~18.04.1) bionic; urgency=medium
 
