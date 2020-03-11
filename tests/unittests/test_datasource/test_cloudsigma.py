@@ -3,6 +3,7 @@
 import copy
 
 from cloudinit.cs_utils import Cepko
+from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import sources
 from cloudinit.sources import DataSourceCloudSigma
@@ -47,8 +48,11 @@ class DataSourceCloudSigmaTest(test_helpers.CiTestCase):
         self.paths = helpers.Paths({'run_dir': self.tmp_dir()})
         self.add_patch(DS_PATH + '.is_running_in_cloudsigma',
                        "m_is_container", return_value=True)
+
+        distro_cls = distros.fetch("ubuntu")
+        distro = distro_cls("ubuntu", cfg={}, paths=self.paths)
         self.datasource = DataSourceCloudSigma.DataSourceCloudSigma(
-            "", "", paths=self.paths)
+            sys_cfg={}, distro=distro, paths=self.paths)
         self.datasource.cepko = CepkoMock(SERVER_CONTEXT)
 
     def test_get_hostname(self):
