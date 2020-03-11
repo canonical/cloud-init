@@ -8,10 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Check CLA signing status for ${{ github.actor}}
+    - name: Check CLA signing status for ${{ github.event.pull_request.user.login }}
       run: |
         cat > unsigned-cla.txt <<EOF
-          Hello ${{ github.actor }},
+          Hello ${{ github.event.pull_request.user.login }},
 
           Thank you for your contribution to cloud-init.
 
@@ -24,6 +24,6 @@ jobs:
           Thanks,
           Your friendly cloud-init upstream
         EOF
-        grep -q ': \"${{ github.actor }}\"' ./tools/.lp-to-git-user && \
-           echo "Thanks ${{ github.actor }} for signing cloud-init's CLA" || \
+        grep -q ': \"${{ github.event.pull_request.user.login }}\"' ./tools/.lp-to-git-user && \
+           echo "Thanks ${{ github.event.pull_request.user.login }} for signing cloud-init's CLA" || \
            (cat unsigned-cla.txt && exit 1)
