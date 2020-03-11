@@ -32,7 +32,7 @@ jobs:
             return 1
         }
 
-        if has_signed ${{ github.event.pull_request.user.login }}; then
+        if has_signed "${{ github.event.pull_request.user.login }}"; then
             echo "Thanks ${{ github.event.pull_request.user.login }} for signing cloud-init's CLA"
         else
            cat unsigned-cla.txt
