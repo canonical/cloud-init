@@ -462,7 +462,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
                     m_get_interfaces_by_mac.return_value = {mac1: 'eth9'}
                     m_find_fallback.return_value = 'eth9'
                     m_get_mac.return_value = mac1
-                    self.assertEqual(expected, ds.network_config)
+                    self.assertItemsEqual(expected, ds.network_config)
 
     def test_network_config_property_is_cached_in_datasource(self):
         """network_config property is cached in DataSourceEc2."""
