@@ -62,7 +62,7 @@ class DataSourceEc2(sources.DataSource):
 
     # Priority ordered list of additional metadata versions which will be tried
     # for extended metadata content. IPv6 support comes in 2016-09-02
-    extended_metadata_versions = ['2016-09-02']
+    extended_metadata_versions = ['2018-09-24', '2016-09-02']
 
     # Setup read_url parameters per get_url_params.
     url_max_wait = 120
@@ -410,8 +410,13 @@ class DataSourceEc2(sources.DataSource):
         macs_to_nics = {net.get_interface_mac(iface): iface}
         net_md = self.metadata.get('network')
         if isinstance(net_md, dict):
+            # SRU_BLOCKER: xenial, bionic and disco should default
+            # configure_secondary_ips to False to retain original behavior on
+            # those releases.
             result = convert_ec2_metadata_network_config(
-                net_md, macs_to_nics=macs_to_nics, fallback_nic=iface)
+                net_md, macs_to_nics=macs_to_nics, fallback_nic=iface,
+                config_secondary_ips=util.is_true(
+                    self.ds_cfg.get('configure_secondary_ips', True)))
 
             # RELEASE_BLOCKER: xenial should drop the below if statement,
             # because the issue being addressed doesn't exist pre-netplan.
@@ -719,8 +724,9 @@ def _collect_platform_data():
     return data
 
 
-def convert_ec2_metadata_network_config(network_md, macs_to_nics=None,
-                                        fallback_nic=None):
+def convert_ec2_metadata_network_config(
+        network_md, macs_to_nics=None, fallback_nic=None,
+        config_secondary_ips=True):
     """Convert ec2 metadata to network config version 1 data dict.
 
     @param: network_md: 'network' portion of EC2 metadata.
@@ -731,25 +737,66 @@ def convert_ec2_metadata_network_config(network_md, macs_to_nics=None,
        not provided, get_interfaces_by_mac is called to get it from the OS.
     @param: fallback_nic: Optionally provide the primary nic interface name.
        This nic will be guaranteed to minimally have a dhcp4 configuration.
+    @param: config_secondary_ips: Boolean set True to configure any
+       secondary IPs described by the metadata service.
 
-    @return A dict of network config version 1 based on the metadata and macs.
+    @return A dict of network config version 2 based on the metadata and macs.
     """
-    netcfg = {'version': 1, 'config': []}
+    netcfg = {'version': 2, 'ethernets': {}}
     if not macs_to_nics:
         macs_to_nics = net.get_interfaces_by_mac()
     macs_metadata = network_md['interfaces']['macs']
+    nic_idx = 0
     for mac, nic_name in macs_to_nics.items():
         nic_metadata = macs_metadata.get(mac)
         if not nic_metadata:
             continue  # Not a physical nic represented in metadata
-        nic_cfg = {'type': 'physical', 'name': nic_name, 'subnets': []}
-        nic_cfg['mac_address'] = mac
-        if (nic_name == fallback_nic or nic_metadata.get('public-ipv4s') or
-                nic_metadata.get('local-ipv4s')):
-            nic_cfg['subnets'].append({'type': 'dhcp4'})
-        if nic_metadata.get('ipv6s'):
-            nic_cfg['subnets'].append({'type': 'dhcp6'})
-        netcfg['config'].append(nic_cfg)
+        nic_idx += 1
+        dev_config = {'dhcp4': True, 'dhcp6': False,
+                      'match': {'macaddress': mac.lower()},
+                      'set-name': nic_name}
+        ipv4s = nic_metadata.get('local-ipv4s')
+        ipv6s = nic_metadata.get('ipv6s')
+        if ipv6s:
+            dev_config['dhcp6'] = True
+        # In version < 2018-09-24 local_ipv4s or ipv6s is a str with one IP
+        secondary_ipv4 = bool(isinstance(ipv4s, list) and len(ipv4s) > 1)
+        secondary_ipv6 = bool(isinstance(ipv6s, list) and len(ipv6s) > 1)
+        if secondary_ipv4 or secondary_ipv6:
+            if not config_secondary_ips:
+                LOG.debug(
+                    'Skipping secondary IP address setup.'
+                    ' Datasource configure_secondary_ips is False')
+            else:
+                ip_metadata = {
+                    'ipv4': {'cidr_key': 'subnet-ipv4-cidr-block',
+                             'has_secondary_ips': secondary_ipv4,
+                             'ips': ipv4s,
+                             'prefix_default': '24'},
+                    'ipv6': {'cidr_key': 'subnet-ipv6-cidr-block',
+                             'has_secondary_ips': secondary_ipv6,
+                             'ips': ipv6s,
+                             'prefix_default': '128'},
+                }
+                for ip_type, md_vals in ip_metadata.items():
+                    if not md_vals['has_secondary_ips']:
+                        continue
+                    cidr = nic_metadata.get(md_vals['cidr_key'])
+                    prefix = md_vals['prefix_default']
+                    if not cidr or len(cidr.split('/')) != 2:
+                        LOG.warning(
+                            'Could not parse %s %s. %s network'
+                            ' config prefix defaults to /%s',
+                            md_vals['cidr_key'], cidr, ip_type, prefix)
+                    else:
+                        prefix = cidr.split('/')[1]
+                    # We know we have > 1 ips for in metadata for this IP type
+                    for ip in md_vals['ips'][1:]:
+                        if 'addresses' not in dev_config:
+                            dev_config['addresses'] = []
+                        dev_config['addresses'].append(
+                            '{ip}/{prefix}'.format(ip=ip, prefix=prefix))
+        netcfg['ethernets'][nic_name] = dev_config
     return netcfg
 
 
