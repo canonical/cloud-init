@@ -410,13 +410,13 @@ class DataSourceEc2(sources.DataSource):
         macs_to_nics = {net.get_interface_mac(iface): iface}
         net_md = self.metadata.get('network')
         if isinstance(net_md, dict):
-            # SRU_BLOCKER: xenial, bionic and disco should default
+            # SRU_BLOCKER: xenial, bionic and eoan should default
             # configure_secondary_ips to False to retain original behavior on
             # those releases.
             result = convert_ec2_metadata_network_config(
                 net_md, macs_to_nics=macs_to_nics, fallback_nic=iface,
-                config_secondary_ips=util.is_true(
-                    self.ds_cfg.get('configure_secondary_ips', True)))
+                config_secondary_ips=util.get_cfg_option_bool(
+                    self.ds_cfg, 'configure_secondary_ips', True))
 
             # RELEASE_BLOCKER: xenial should drop the below if statement,
             # because the issue being addressed doesn't exist pre-netplan.
@@ -746,12 +746,10 @@ def convert_ec2_metadata_network_config(
     if not macs_to_nics:
         macs_to_nics = net.get_interfaces_by_mac()
     macs_metadata = network_md['interfaces']['macs']
-    nic_idx = 0
     for mac, nic_name in macs_to_nics.items():
         nic_metadata = macs_metadata.get(mac)
         if not nic_metadata:
             continue  # Not a physical nic represented in metadata
-        nic_idx += 1
         dev_config = {'dhcp4': True, 'dhcp6': False,
                       'match': {'macaddress': mac.lower()},
                       'set-name': nic_name}
