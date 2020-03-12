@@ -248,14 +248,15 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     names = {}
     for cfg_file in files:
         parsed = _klibc_to_config_entry(util.load_file(cfg_file),
-                                             mac_addrs=mac_addrs)
+                                        mac_addrs=mac_addrs)
         for (name, entry) in parsed:
             if name in names:
                 prev = names[name]['entry']
                 if prev.get('mac_address') != entry.get('mac_address'):
                     raise ValueError(
-                        "device '{name}' was defined multiple times ({files})"
-                        " but had differing mac addresses: {old} -> {new}.".format(
+                        "device '{name}' was defined multiple times ({files}) "
+                        "but had differing mac addresses: "
+                        "{old} -> {new}.".format(
                             name=name, files=' '.join(names[name]['files']),
                             old=prev.get('mac_address'),
                             new=entry.get('mac_address')))

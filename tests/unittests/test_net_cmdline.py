@@ -121,7 +121,8 @@ VLAN_STATIC_EXPECTED_1 = {
 }
 
 VLAN_STATIC_EXPECTED_2 = {
-    'name': 'ens3.2653', 'type': 'vlan', 'vlan_id': '2653', 'vlan_link': 'ens3',
+    'name': 'ens3.2653', 'type': 'vlan',
+    'vlan_id': '2653', 'vlan_link': 'ens3',
     'subnets': [{'address': '10.245.236.14',
                  'broadcast': '10.245.236.255',
                  'dns_nameservers': ['10.245.236.1'],
@@ -130,8 +131,6 @@ VLAN_STATIC_EXPECTED_2 = {
                  'control': 'manual',
                  'type': 'static'}],
 }
-
-
 
 NETPLAN_DHCP_CONTENT_1 = """\
 network:
