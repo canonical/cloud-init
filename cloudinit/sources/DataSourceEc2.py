@@ -746,17 +746,22 @@ def convert_ec2_metadata_network_config(
     if not macs_to_nics:
         macs_to_nics = net.get_interfaces_by_mac()
     macs_metadata = network_md['interfaces']['macs']
-    for mac, nic_name in macs_to_nics.items():
+    nic_idx = 1
+    for mac, nic_name in sorted(macs_to_nics.items()):
         nic_metadata = macs_metadata.get(mac)
         if not nic_metadata:
             continue  # Not a physical nic represented in metadata
-        dev_config = {'dhcp4': True, 'dhcp6': False,
+        dhcp_override = {'route-metric': nic_idx * 100}
+        nic_idx += 1
+        dev_config = {'dhcp4': True, 'dhcp4-overrides': dhcp_override,
+                      'dhcp6': False,
                       'match': {'macaddress': mac.lower()},
                       'set-name': nic_name}
         ipv4s = nic_metadata.get('local-ipv4s')
         ipv6s = nic_metadata.get('ipv6s')
         if ipv6s:
             dev_config['dhcp6'] = True
+            dev_config['dhcp6-overrides'] = dhcp_override
         # In version < 2018-09-24 local_ipv4s or ipv6s is a str with one IP
         secondary_ipv4 = bool(isinstance(ipv4s, list) and len(ipv4s) > 1)
         secondary_ipv6 = bool(isinstance(ipv6s, list) and len(ipv6s) > 1)
