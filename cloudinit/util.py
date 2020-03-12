@@ -552,6 +552,11 @@ def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
 
 
+@lru_cache()
+def is_NetBSD():
+    return system_info()['variant'] == "netbsd"
+
+
 def get_cfg_option_bool(yobj, key, default=False):
     if key not in yobj:
         return default
@@ -625,10 +630,9 @@ def get_linux_distro():
                     flavor = match.groupdict()['codename']
         if distro_name == 'rhel':
             distro_name = 'redhat'
-    elif os.path.exists('/bin/freebsd-version'):
-        distro_name = 'freebsd'
-        distro_version, _ = subp(['uname', '-r'])
-        distro_version = distro_version.strip()
+    elif 'BSD' in platform.system():
+        distro_name = platform.system().lower()
+        distro_version = platform.release()
     else:
         dist = ('', '', '')
         try:
@@ -675,7 +679,7 @@ def system_info():
             var = 'suse'
         else:
             var = 'linux'
-    elif system in ('windows', 'darwin', "freebsd"):
+    elif system in ('windows', 'darwin', "freebsd", "netbsd"):
         var = system
 
     info['variant'] = var
@@ -1254,6 +1258,21 @@ def close_stdin():
         os.dup2(fp.fileno(), sys.stdin.fileno())
 
 
+def find_devs_with_netbsd(criteria=None, oformat='device',
+                          tag=None, no_cache=False, path=None):
+    if not path:
+        path = "/dev/cd0"
+    cmd = ["mscdlabel", path]
+    out, _ = subp(cmd, capture=True, decode="replace", rcs=[0, 1])
+    result = out.split()
+    if result and len(result) > 2:
+        if criteria == "TYPE=iso9660" and "ISO" in result:
+            return [path]
+        if criteria == "LABEL=CONFIG-2" and '"config-2"' in result:
+            return [path]
+    return []
+
+
 def find_devs_with(criteria=None, oformat='device',
                    tag=None, no_cache=False, path=None):
     """
@@ -1263,6 +1282,10 @@ def find_devs_with(criteria=None, oformat='device',
       LABEL=<label>
       UUID=<uuid>
     """
+    if is_NetBSD():
+        return find_devs_with_netbsd(criteria, oformat,
+                                     tag, no_cache, path)
+
     blk_id_cmd = ['blkid']
     options = []
     if criteria:
