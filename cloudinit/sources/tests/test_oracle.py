@@ -11,10 +11,9 @@ import argparse
 import copy
 import httpretty
 import json
-import mock
 import os
-import six
 import uuid
+from unittest import mock
 
 DS_PATH = "cloudinit.sources.DataSourceOracle"
 MD_VER = "2013-10-17"
@@ -334,7 +333,7 @@ class TestReadMetaData(test_helpers.HttprettyTestCase):
         for k, v in data.items():
             httpretty.register_uri(
                 httpretty.GET, self.mdurl + MD_VER + "/" + k,
-                v if not isinstance(v, six.text_type) else v.encode('utf-8'))
+                v if not isinstance(v, str) else v.encode('utf-8'))
 
     def test_broken_no_sys_uuid(self, m_read_system_uuid):
         """Datasource requires ability to read system_uuid and true return."""

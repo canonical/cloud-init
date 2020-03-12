@@ -10,8 +10,8 @@ import configobj
 import logging
 import os
 import shutil
-from six import BytesIO
 import tempfile
+from io import BytesIO
 
 LOG = logging.getLogger(__name__)
 

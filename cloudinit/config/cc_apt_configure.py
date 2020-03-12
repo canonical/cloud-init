@@ -253,7 +253,7 @@ def get_default_mirrors(arch=None, target=None):
        architecture, for more see:
        https://wiki.ubuntu.com/UbuntuDevelopment/PackageArchive#Ports"""
     if arch is None:
-        arch = util.get_architecture(target)
+        arch = util.get_dpkg_architecture(target)
     if arch in PRIMARY_ARCHES:
         return PRIMARY_ARCH_MIRRORS.copy()
     if arch in PORTS_ARCHES:
@@ -303,13 +303,13 @@ def apply_apt(cfg, cloud, target):
     LOG.debug("handling apt config: %s", cfg)
 
     release = util.lsb_release(target=target)['codename']
-    arch = util.get_architecture(target)
+    arch = util.get_dpkg_architecture(target)
     mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
     LOG.debug("Apt Mirror info: %s", mirrors)
 
     if util.is_false(cfg.get('preserve_sources_list', False)):
         generate_sources_list(cfg, release, mirrors, cloud)
-        rename_apt_lists(mirrors, target)
+        rename_apt_lists(mirrors, target, arch)
 
     try:
         apply_apt_config(cfg, APT_PROXY_FN, APT_CONFIG_FN)
@@ -427,9 +427,9 @@ def mirrorurl_to_apt_fileprefix(mirror):
     return string
 
 
-def rename_apt_lists(new_mirrors, target=None):
+def rename_apt_lists(new_mirrors, target, arch):
     """rename_apt_lists - rename apt lists to preserve old cache data"""
-    default_mirrors = get_default_mirrors(util.get_architecture(target))
+    default_mirrors = get_default_mirrors(arch)
 
     pre = util.target_path(target, APT_LISTS)
     for (name, omirror) in default_mirrors.items():
@@ -896,7 +896,7 @@ def find_apt_mirror_info(cfg, cloud, arch=None):
     """
 
     if arch is None:
-        arch = util.get_architecture()
+        arch = util.get_dpkg_architecture()
         LOG.debug("got arch for mirror selection: %s", arch)
     pmirror = get_mirror(cfg, "primary", arch, cloud)
     LOG.debug("got primary mirror: %s", pmirror)

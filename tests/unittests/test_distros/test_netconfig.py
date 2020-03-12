@@ -2,13 +2,9 @@
 
 import copy
 import os
-from six import StringIO
+from io import StringIO
 from textwrap import dedent
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 from cloudinit import distros
 from cloudinit.distros.parsers.sys_conf import SysConf
@@ -110,13 +106,31 @@ auto eth1
 iface eth1 inet dhcp
 """
 
+V1_NET_CFG_IPV6_OUTPUT = """\
+# This file is generated from information provided by the datasource.  Changes
+# to it will not persist across an instance reboot.  To disable cloud-init's
+# network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet6 static
+    address 2607:f0d0:1002:0011::2/64
+    gateway 2607:f0d0:1002:0011::1
+
+auto eth1
+iface eth1 inet dhcp
+"""
+
 V1_NET_CFG_IPV6 = {'config': [{'name': 'eth0',
                                'subnets': [{'address':
                                             '2607:f0d0:1002:0011::2',
                                             'gateway':
                                             '2607:f0d0:1002:0011::1',
                                             'netmask': '64',
-                                            'type': 'static'}],
+                                            'type': 'static6'}],
                                'type': 'physical'},
                               {'name': 'eth1',
                                'subnets': [{'control': 'auto',
@@ -138,6 +152,23 @@ network:
             addresses:
             - 192.168.1.5/24
             gateway4: 192.168.1.254
+        eth1:
+            dhcp4: true
+"""
+
+V1_TO_V2_NET_CFG_IPV6_OUTPUT = """\
+# This file is generated from information provided by the datasource.  Changes
+# to it will not persist across an instance reboot.  To disable cloud-init's
+# network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+network:
+    version: 2
+    ethernets:
+        eth0:
+            addresses:
+            - 2607:f0d0:1002:0011::2/64
+            gateway6: 2607:f0d0:1002:0011::1
         eth1:
             dhcp4: true
 """
@@ -344,6 +375,14 @@ class TestNetCfgDistroUbuntuEni(TestNetCfgDistroBase):
                                    V1_NET_CFG,
                                    expected_cfgs=expected_cfgs.copy())
 
+    def test_apply_network_config_ipv6_ub(self):
+        expected_cfgs = {
+            self.eni_path(): V1_NET_CFG_IPV6_OUTPUT
+        }
+        self._apply_and_verify_eni(self.distro.apply_network_config,
+                                   V1_NET_CFG_IPV6,
+                                   expected_cfgs=expected_cfgs.copy())
+
 
 class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
     def setUp(self):
@@ -385,6 +424,16 @@ class TestNetCfgDistroUbuntuNetplan(TestNetCfgDistroBase):
         # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify_netplan(self.distro.apply_network_config,
                                        V1_NET_CFG,
+                                       expected_cfgs=expected_cfgs.copy())
+
+    def test_apply_network_config_v1_ipv6_to_netplan_ub(self):
+        expected_cfgs = {
+            self.netplan_path(): V1_TO_V2_NET_CFG_IPV6_OUTPUT,
+        }
+
+        # ub_distro.apply_network_config(V1_NET_CFG_IPV6, False)
+        self._apply_and_verify_netplan(self.distro.apply_network_config,
+                                       V1_NET_CFG_IPV6,
                                        expected_cfgs=expected_cfgs.copy())
 
     def test_apply_network_config_v2_passthrough_ub(self):
@@ -436,7 +485,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 NETMASK=255.255.255.0
                 NM_CONTROLLED=no
                 ONBOOT=yes
-                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -445,7 +493,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth1
                 NM_CONTROLLED=no
                 ONBOOT=yes
-                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -464,13 +511,11 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 BOOTPROTO=none
                 DEFROUTE=yes
                 DEVICE=eth0
-                IPADDR6=2607:f0d0:1002:0011::2/64
                 IPV6ADDR=2607:f0d0:1002:0011::2/64
                 IPV6INIT=yes
                 IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
                 NM_CONTROLLED=no
                 ONBOOT=yes
-                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -479,7 +524,6 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth1
                 NM_CONTROLLED=no
                 ONBOOT=yes
-                STARTMODE=auto
                 TYPE=Ethernet
                 USERCTL=no
                 """),
@@ -524,26 +568,14 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
         """Opensuse uses apply_network_config and renders sysconfig"""
         expected_cfgs = {
             self.ifcfg_path('eth0'): dedent("""\
-                BOOTPROTO=none
-                DEFROUTE=yes
-                DEVICE=eth0
-                GATEWAY=192.168.1.254
+                BOOTPROTO=static
                 IPADDR=192.168.1.5
                 NETMASK=255.255.255.0
-                NM_CONTROLLED=no
-                ONBOOT=yes
                 STARTMODE=auto
-                TYPE=Ethernet
-                USERCTL=no
                 """),
             self.ifcfg_path('eth1'): dedent("""\
-                BOOTPROTO=dhcp
-                DEVICE=eth1
-                NM_CONTROLLED=no
-                ONBOOT=yes
+                BOOTPROTO=dhcp4
                 STARTMODE=auto
-                TYPE=Ethernet
-                USERCTL=no
                 """),
         }
         self._apply_and_verify(self.distro.apply_network_config,
@@ -554,27 +586,13 @@ class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
         """Opensuse uses apply_network_config and renders sysconfig w/ipv6"""
         expected_cfgs = {
             self.ifcfg_path('eth0'): dedent("""\
-                BOOTPROTO=none
-                DEFROUTE=yes
-                DEVICE=eth0
+                BOOTPROTO=static
                 IPADDR6=2607:f0d0:1002:0011::2/64
-                IPV6ADDR=2607:f0d0:1002:0011::2/64
-                IPV6INIT=yes
-                IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
-                NM_CONTROLLED=no
-                ONBOOT=yes
                 STARTMODE=auto
-                TYPE=Ethernet
-                USERCTL=no
             """),
             self.ifcfg_path('eth1'): dedent("""\
-                BOOTPROTO=dhcp
-                DEVICE=eth1
-                NM_CONTROLLED=no
-                ONBOOT=yes
+                BOOTPROTO=dhcp4
                 STARTMODE=auto
-                TYPE=Ethernet
-                USERCTL=no
             """),
         }
         self._apply_and_verify(self.distro.apply_network_config,

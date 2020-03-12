@@ -2,8 +2,6 @@ CWD=$(shell pwd)
 PYVER ?= $(shell for p in python3 python2; do \
 	out=$$(command -v $$p 2>&1) && echo $$p && exit; done; exit 1)
 
-noseopts ?= -v
-
 YAML_FILES=$(shell find cloudinit tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
@@ -48,10 +46,10 @@ pyflakes3:
 	@$(CWD)/tools/run-pyflakes3
 
 unittest: clean_pyc
-	nosetests $(noseopts) tests/unittests cloudinit
+	python -m pytest -v tests/unittests cloudinit
 
 unittest3: clean_pyc
-	nosetests3 $(noseopts) tests/unittests cloudinit
+	python3 -m pytest -v tests/unittests cloudinit
 
 ci-deps-ubuntu:
 	@$(PYVER) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro

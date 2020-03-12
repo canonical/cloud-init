@@ -77,11 +77,10 @@ See https://puppet.com/docs/puppet/latest/config_file_csr_attributes.html
                 pp_preshared_key: 342thbjkt82094y0uthhor289jnqthpc2290
 """
 
-from six import StringIO
-
 import os
 import socket
 import yaml
+from io import StringIO
 
 from cloudinit import helpers
 from cloudinit import util

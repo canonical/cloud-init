@@ -188,7 +188,7 @@ class DataSourceScaleway(sources.DataSource):
         self.retries = int(self.ds_cfg.get('retries', DEF_MD_RETRIES))
         self.timeout = int(self.ds_cfg.get('timeout', DEF_MD_TIMEOUT))
         self._fallback_interface = None
-        self._network_config = None
+        self._network_config = sources.UNSET
 
     def _crawl_metadata(self):
         resp = url_helper.readurl(self.metadata_address,
@@ -227,7 +227,12 @@ class DataSourceScaleway(sources.DataSource):
         Configure networking according to data received from the
         metadata API.
         """
-        if self._network_config:
+        if self._network_config is None:
+            LOG.warning('Found None as cached _network_config. '
+                        'Resetting to %s', sources.UNSET)
+            self._network_config = sources.UNSET
+
+        if self._network_config != sources.UNSET:
             return self._network_config
 
         if self._fallback_interface is None:

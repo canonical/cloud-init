@@ -5,7 +5,6 @@
 import argparse
 from errno import EACCES
 import os
-import six
 import sys
 
 from cloudinit.handlers.jinja_template import (
@@ -149,7 +148,7 @@ def handle_args(name, args):
             response = '\n'.join(sorted(response.keys()))
     elif args.list_keys:
         response = '\n'.join(sorted(response.keys()))
-    if not isinstance(response, six.string_types):
+    if not isinstance(response, str):
         response = util.json_dumps(response)
     print(response)
     return 0

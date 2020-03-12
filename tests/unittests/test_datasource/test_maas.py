@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from copy import copy
-import mock
 import os
 import shutil
 import tempfile
 import yaml
+from unittest import mock
 
 from cloudinit.sources import DataSourceMAAS
 from cloudinit import url_helper

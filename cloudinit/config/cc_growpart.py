@@ -22,11 +22,11 @@ mountpoint in the filesystem or a path to the block device in ``/dev``.
 
 The utility to use for resizing can be selected using the ``mode`` config key.
 If ``mode`` key is set to ``auto``, then any available utility (either
-``growpart`` or ``gpart``) will be used. If neither utility is available, no
-error will be raised. If ``mode`` is set to ``growpart``, then the ``growpart``
-utility will be used. If this utility is not available on the system, this will
-result in an error. If ``mode`` is set to ``off`` or ``false``, then
-``cc_growpart`` will take no action.
+``growpart`` or BSD ``gpart``) will be used. If neither utility is available,
+no error will be raised. If ``mode`` is set to ``growpart``, then the
+``growpart`` utility will be used. If this utility is not available on the
+system, this will result in an error. If ``mode`` is set to ``off`` or
+``false``, then ``cc_growpart`` will take no action.
 
 There is some functionality overlap between this module and the ``growroot``
 functionality of ``cloud-initramfs-tools``. However, there are some situations
@@ -132,7 +132,7 @@ class ResizeGrowPart(object):
 
         try:
             (out, _err) = util.subp(["growpart", "--help"], env=myenv)
-            if re.search(r"--update\s+", out, re.DOTALL):
+            if re.search(r"--update\s+", out):
                 return True
 
         except util.ProcessExecutionError:
@@ -161,9 +161,17 @@ class ResizeGrowPart(object):
 
 class ResizeGpart(object):
     def available(self):
-        if not util.which('gpart'):
-            return False
-        return True
+        myenv = os.environ.copy()
+        myenv['LANG'] = 'C'
+
+        try:
+            (_out, err) = util.subp(["gpart", "help"], env=myenv, rcs=[0, 1])
+            if re.search(r"gpart recover ", err):
+                return True
+
+        except util.ProcessExecutionError:
+            pass
+        return False
 
     def resize(self, diskdev, partnum, partdev):
         """

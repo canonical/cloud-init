@@ -1,0 +1,40 @@
+name: Verify Contributor License Agreement
+
+on: [pull_request]
+
+jobs:
+  cla-validate:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Check CLA signing status for ${{ github.event.pull_request.user.login }}
+      run: |
+        cat > unsigned-cla.txt <<EOF
+          Hello ${{ github.event.pull_request.user.login }},
+
+          Thank you for your contribution to cloud-init.
+
+          In order for us to merge this pull request, you need
+          to have signed the Contributor License Agreement (CLA).
+          Please sign the CLA by following our
+          hacking guide at:
+            https://cloudinit.readthedocs.io/en/latest/topics/hacking.html
+
+          Thanks,
+          Your friendly cloud-init upstream
+        EOF
+
+        has_signed() {
+            username="$1"
+            grep -q ": \"$username\"" ./tools/.lp-to-git-user && return 0
+            grep -q "^$username$" ./tools/.github-cla-signers && return 0
+            return 1
+        }
+
+        if has_signed "${{ github.event.pull_request.user.login }}"; then
+            echo "Thanks ${{ github.event.pull_request.user.login }} for signing cloud-init's CLA"
+        else
+           cat unsigned-cla.txt
+           exit 1
+        fi

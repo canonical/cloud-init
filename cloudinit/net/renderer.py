@@ -6,7 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
-import six
+import io
 
 from .network_state import parse_net_config_data
 from .udev import generate_udev_rule
@@ -34,7 +34,7 @@ class Renderer(object):
         """Given state, emit udev rules to map mac to ifname."""
         # TODO(harlowja): this seems shared between eni renderer and
         # this, so move it to a shared location.
-        content = six.StringIO()
+        content = io.StringIO()
         for iface in network_state.iter_interfaces(filter_by_physical):
             # for physical interfaces write out a persist net udev rule
             if 'name' in iface and iface.get('mac_address'):

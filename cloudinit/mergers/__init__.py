@@ -6,8 +6,6 @@
 
 import re
 
-import six
-
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import type_utils
@@ -85,7 +83,7 @@ def dict_extract_mergers(config):
         raw_mergers = config.pop('merge_type', None)
     if raw_mergers is None:
         return parsed_mergers
-    if isinstance(raw_mergers, six.string_types):
+    if isinstance(raw_mergers, str):
         return string_extract_mergers(raw_mergers)
     for m in raw_mergers:
         if isinstance(m, (dict)):

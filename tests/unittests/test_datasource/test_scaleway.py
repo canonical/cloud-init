@@ -7,6 +7,7 @@ import requests
 
 from cloudinit import helpers
 from cloudinit import settings
+from cloudinit import sources
 from cloudinit.sources import DataSourceScaleway
 
 from cloudinit.tests.helpers import mock, HttprettyTestCase, CiTestCase
@@ -403,3 +404,51 @@ class TestDataSourceScaleway(HttprettyTestCase):
 
         netcfg = self.datasource.network_config
         self.assertEqual(netcfg, '0xdeadbeef')
+
+    @mock.patch('cloudinit.sources.DataSourceScaleway.net.find_fallback_nic')
+    @mock.patch('cloudinit.util.get_cmdline')
+    def test_network_config_unset(self, m_get_cmdline, fallback_nic):
+        """
+        _network_config will be set to sources.UNSET after the first boot.
+        Make sure it behave correctly.
+        """
+        m_get_cmdline.return_value = 'scaleway'
+        fallback_nic.return_value = 'ens2'
+        self.datasource.metadata['ipv6'] = None
+        self.datasource._network_config = sources.UNSET
+
+        resp = {'version': 1,
+                'config': [{
+                     'type': 'physical',
+                     'name': 'ens2',
+                     'subnets': [{'type': 'dhcp4'}]}]
+                }
+
+        netcfg = self.datasource.network_config
+        self.assertEqual(netcfg, resp)
+
+    @mock.patch('cloudinit.sources.DataSourceScaleway.LOG.warning')
+    @mock.patch('cloudinit.sources.DataSourceScaleway.net.find_fallback_nic')
+    @mock.patch('cloudinit.util.get_cmdline')
+    def test_network_config_cached_none(self, m_get_cmdline, fallback_nic,
+                                        logwarning):
+        """
+        network_config() should return config data if cached data is None
+        rather than sources.UNSET
+        """
+        m_get_cmdline.return_value = 'scaleway'
+        fallback_nic.return_value = 'ens2'
+        self.datasource.metadata['ipv6'] = None
+        self.datasource._network_config = None
+
+        resp = {'version': 1,
+                'config': [{
+                     'type': 'physical',
+                     'name': 'ens2',
+                     'subnets': [{'type': 'dhcp4'}]}]
+                }
+
+        netcfg = self.datasource.network_config
+        self.assertEqual(netcfg, resp)
+        logwarning.assert_called_with('Found None as cached _network_config. '
+                                      'Resetting to %s', sources.UNSET)

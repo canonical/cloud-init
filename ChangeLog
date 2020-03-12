@@ -1,3 +1,76 @@
+20.1
+ - ec2: Do not log IMDSv2 token values, instead use REDACTED (#219)
+   (LP: #1863943)
+ - utils: use SystemRandom when generating random password. (#204)
+   [Dimitri John Ledkov]
+ - docs: mount_default_files is a list of 6 items, not 7 (#212)
+ - azurecloud: fix issues with instances not starting (#205) (LP: #1861921)
+ - unittest: fix stderr leak in cc_set_password random unittest
+   output. (#208)
+ - cc_disk_setup: add swap filesystem force flag (#207)
+ - import sysvinit patches from freebsd-ports tree (#161) [Igor Galić]
+ - docs: fix typo (#195) [Edwin Kofler]
+ - sysconfig: distro-specific config rendering for BOOTPROTO option (#162)
+   [Robert Schweikert] (LP: #1800854)
+ - cloudinit: replace "from six import X" imports (except in util.py) (#183)
+ - run-container: use 'test -n' instead of 'test ! -z' (#202)
+   [Paride Legovini]
+ - net/cmdline: correctly handle static ip= config (#201)
+   [Dimitri John Ledkov] (LP: #1861412)
+ - Replace mock library with unittest.mock (#186)
+ - HACKING.rst: update CLA link (#199)
+ - Scaleway: Fix DatasourceScaleway to avoid backtrace (#128)
+   [Louis Bouchard]
+ - cloudinit/cmd/devel/net_convert.py: add missing space (#191)
+ - tools/run-container: drop support for python2 (#192) [Paride Legovini]
+ - Print ssh key fingerprints using sha256 hash (#188) (LP: #1860789)
+ - Make the RPM build use Python 3 (#190) [Paride Legovini]
+ - cc_set_password: increase random pwlength from 9 to 20 (#189)
+   (LP: #1860795)
+ - .travis.yml: use correct Python version for xenial tests (#185)
+ - cloudinit: remove ImportError handling for mock imports (#182)
+ - Do not use fallocate in swap file creation on xfs. (#70)
+   [Eduardo Otubo] (LP: #1781781)
+ - .readthedocs.yaml: install cloud-init when building docs (#181)
+   (LP: #1860450)
+ - Introduce an RTD config file, and pin the Sphinx version to the RTD
+   default (#180)
+ - Drop most of the remaining use of six (#179)
+ - Start removing dependency on six (#178)
+ - Add Rootbox & HyperOne to list of cloud in README (#176) [Adam Dobrawy]
+ - docs: add proposed SRU testing procedure (#167)
+ - util: rename get_architecture to get_dpkg_architecture (#173)
+ - Ensure util.get_architecture() runs only once (#172)
+ - Only use gpart if it is the BSD gpart (#131) [Conrad Hoffmann]
+ - freebsd: remove superflu exception mapping (#166) [Gonéri Le Bouder]
+ - ssh_auth_key_fingerprints_disable test: fix capitalization (#165)
+   [Paride Legovini]
+ - util: move uptime's else branch into its own boottime function (#53)
+   [Igor Galić] (LP: #1853160)
+ - workflows: add contributor license agreement checker (#155)
+ - net: fix rendering of 'static6' in network config (#77) (LP: #1850988)
+ - Make tests work with Python 3.8 (#139) [Conrad Hoffmann]
+ - fixed minor bug with mkswap in cc_disk_setup.py (#143) [andreaf74]
+ - freebsd: fix create_group() cmd (#146) [Gonéri Le Bouder]
+ - doc: make apt_update example consistent (#154)
+ - doc: add modules page toc with links (#153) (LP: #1852456)
+ - Add support for the amazon variant in cloud.cfg.tmpl (#119)
+   [Frederick Lefebvre]
+ - ci: remove Python 2.7 from CI runs (#137)
+ - modules: drop cc_snap_config config module (#134)
+ - migrate-lp-user-to-github: ensure Launchpad repo exists (#136)
+ - docs: add initial troubleshooting to FAQ (#104) [Joshua Powers]
+ - doc: update cc_set_hostname frequency and descrip (#109)
+   [Joshua Powers] (LP: #1827021)
+ - freebsd: introduce the freebsd renderer (#61) [Gonéri Le Bouder]
+ - cc_snappy: remove deprecated module (#127)
+ - HACKING.rst: clarify that everyone needs to do the LP->GH dance (#130)
+ - freebsd: cloudinit service requires devd (#132) [Gonéri Le Bouder]
+ - cloud-init: fix capitalisation of SSH (#126)
+ - doc: update cc_ssh clarify host and auth keys
+   [Joshua Powers] (LP: #1827021)
+ - ci: emit names of tests run in Travis (#120)
+
 19.4
  - doc: specify _ over - in cloud config modules
    [Joshua Powers] (LP: #1293254)

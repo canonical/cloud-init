@@ -13,13 +13,11 @@ import glob
 import os
 import random
 import re
-import six
 import string
 
 SOURCE_PAT = "source*.*yaml"
 EXPECTED_PAT = "expected%s.yaml"
-TYPES = [dict, str, list, tuple, None]
-TYPES.extend(six.integer_types)
+TYPES = [dict, str, list, tuple, None, int]
 
 
 def _old_mergedict(src, cand):
@@ -85,7 +83,7 @@ def _make_dict(current_depth, max_depth, rand):
                     pass
             if t in [tuple]:
                 base = tuple(base)
-    elif t in six.integer_types:
+    elif t in [int]:
         base = rand.randint(0, 2 ** 8)
     elif t in [str]:
         base = _random_str(rand)

@@ -2,6 +2,7 @@
 
 import glob
 import os
+from io import StringIO
 
 from cloudinit.config import cc_zypper_add_repo
 from cloudinit import util
@@ -10,7 +11,6 @@ from cloudinit.tests import helpers
 from cloudinit.tests.helpers import mock
 
 import logging
-from six import StringIO
 
 LOG = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ import os
 import struct
 import time
 import re
-import mock
+from unittest import mock
 
 from cloudinit import util
 from cloudinit.tests.helpers import CiTestCase

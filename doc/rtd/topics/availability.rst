@@ -14,8 +14,8 @@ distributions and clouds, both public and private.
 Distributions
 =============
 
-Cloud-init has support across all major Linux distributions and
-FreeBSD:
+Cloud-init has support across all major Linux distributions, FreeBSD
+and NetBSD:
 
 - Ubuntu
 - SLES/openSUSE
@@ -25,6 +25,7 @@ FreeBSD:
 - Debian
 - ArchLinux
 - FreeBSD
+- NetBSD
 
 Clouds
 ======

@@ -236,7 +236,7 @@ def handle(_name, cfg, cloud, log, args):
         raise errors[-1]
 
 
-def rand_user_password(pwlen=9):
+def rand_user_password(pwlen=20):
     return util.rand_str(pwlen, select_from=PW_SET)
 
 

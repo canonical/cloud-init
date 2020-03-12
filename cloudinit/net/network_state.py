@@ -10,8 +10,6 @@ import logging
 import socket
 import struct
 
-import six
-
 from cloudinit import safeyaml
 from cloudinit import util
 
@@ -186,7 +184,7 @@ class NetworkState(object):
 
     def iter_interfaces(self, filter_func=None):
         ifaces = self._network_state.get('interfaces', {})
-        for iface in six.itervalues(ifaces):
+        for iface in ifaces.values():
             if filter_func is None:
                 yield iface
             else:
@@ -220,8 +218,7 @@ class NetworkState(object):
             )
 
 
-@six.add_metaclass(CommandHandlerMeta)
-class NetworkStateInterpreter(object):
+class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
 
     initial_network_state = {
         'interfaces': {},
@@ -941,7 +938,7 @@ def subnet_is_ipv6(subnet):
     # 'static6', 'dhcp6', 'ipv6_dhcpv6-stateful', 'ipv6_dhcpv6-stateless' or
     # 'ipv6_slaac'
     if subnet['type'].endswith('6') or subnet['type'] in IPV6_DYNAMIC_TYPES:
-        # This is a request for DHCPv6.
+        # This is a request either static6 type or DHCPv6.
         return True
     elif subnet['type'] == 'static' and is_ipv6_addr(subnet.get('address')):
         return True
@@ -970,7 +967,7 @@ def ipv4_mask_to_net_prefix(mask):
     """
     if isinstance(mask, int):
         return mask
-    if isinstance(mask, six.string_types):
+    if isinstance(mask, str):
         try:
             return int(mask)
         except ValueError:
@@ -997,7 +994,7 @@ def ipv6_mask_to_net_prefix(mask):
 
     if isinstance(mask, int):
         return mask
-    if isinstance(mask, six.string_types):
+    if isinstance(mask, str):
         try:
             return int(mask)
         except ValueError:

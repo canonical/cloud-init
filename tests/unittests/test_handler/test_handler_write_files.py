@@ -1,16 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config.cc_write_files import write_files, decode_perms
-from cloudinit import log as logging
-from cloudinit import util
-
-from cloudinit.tests.helpers import CiTestCase, FilesystemMockingTestCase
-
 import base64
 import gzip
+import io
 import shutil
-import six
 import tempfile
+
+from cloudinit import log as logging
+from cloudinit import util
+from cloudinit.config.cc_write_files import write_files, decode_perms
+from cloudinit.tests.helpers import CiTestCase, FilesystemMockingTestCase
 
 LOG = logging.getLogger(__name__)
 
@@ -138,7 +137,7 @@ class TestDecodePerms(CiTestCase):
 
 
 def _gzip_bytes(data):
-    buf = six.BytesIO()
+    buf = io.BytesIO()
     fp = None
     try:
         fp = gzip.GzipFile(fileobj=buf, mode="wb")

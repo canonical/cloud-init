@@ -57,7 +57,6 @@ binary gzip data can be specified and will be decoded before being written.
 
 import base64
 import os
-import six
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
@@ -126,7 +125,7 @@ def decode_perms(perm, default):
     if perm is None:
         return default
     try:
-        if isinstance(perm, six.integer_types + (float,)):
+        if isinstance(perm, (int, float)):
             # Just 'downcast' it (if a float)
             return int(perm)
         else:

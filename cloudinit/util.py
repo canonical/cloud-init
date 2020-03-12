@@ -10,7 +10,6 @@
 
 import contextlib
 import copy as obj_copy
-import ctypes
 import email
 import glob
 import grp
@@ -80,14 +79,19 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
 
 
 @lru_cache()
-def get_architecture(target=None):
+def get_dpkg_architecture(target=None):
+    """Return the sanitized string output by `dpkg --print-architecture`.
+
+    N.B. This function is wrapped in functools.lru_cache, so repeated calls
+    won't shell out every time.
+    """
     out, _ = subp(['dpkg', '--print-architecture'], capture=True,
                   target=target)
     return out.strip()
 
 
 @lru_cache()
-def _lsb_release(target=None):
+def lsb_release(target=None):
     fmap = {'Codename': 'codename', 'Description': 'description',
             'Distributor ID': 'id', 'Release': 'release'}
 
@@ -108,14 +112,6 @@ def _lsb_release(target=None):
         data = dict((v, "UNAVAILABLE") for v in fmap.values())
 
     return data
-
-
-def lsb_release(target=None):
-    if target_path(target) != "/":
-        # do not use or update cache if target is provided
-        return _lsb_release(target)
-
-    return _lsb_release()
 
 
 def target_path(target, path=None):
@@ -401,9 +397,10 @@ def translate_bool(val, addons=None):
 
 
 def rand_str(strlen=32, select_from=None):
+    r = random.SystemRandom()
     if not select_from:
         select_from = string.ascii_letters + string.digits
-    return "".join([random.choice(select_from) for _x in range(0, strlen)])
+    return "".join([r.choice(select_from) for _x in range(0, strlen)])
 
 
 def rand_dict_key(dictionary, postfix=None):
@@ -555,6 +552,11 @@ def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
 
 
+@lru_cache()
+def is_NetBSD():
+    return system_info()['variant'] == "netbsd"
+
+
 def get_cfg_option_bool(yobj, key, default=False):
     if key not in yobj:
         return default
@@ -628,15 +630,14 @@ def get_linux_distro():
                     flavor = match.groupdict()['codename']
         if distro_name == 'rhel':
             distro_name = 'redhat'
-    elif os.path.exists('/bin/freebsd-version'):
-        distro_name = 'freebsd'
-        distro_version, _ = subp(['uname', '-r'])
-        distro_version = distro_version.strip()
+    elif 'BSD' in platform.system():
+        distro_name = platform.system().lower()
+        distro_version = platform.release()
     else:
         dist = ('', '', '')
         try:
-            # Will be removed in 3.7
-            dist = platform.dist()  # pylint: disable=W1505
+            # Was removed in 3.8
+            dist = platform.dist()  # pylint: disable=W1505,E1101
         except Exception:
             pass
         finally:
@@ -659,7 +660,7 @@ def system_info():
         'system': platform.system(),
         'release': platform.release(),
         'python': platform.python_version(),
-        'uname': platform.uname(),
+        'uname': list(platform.uname()),
         'dist': get_linux_distro()
     }
     system = info['system'].lower()
@@ -678,7 +679,7 @@ def system_info():
             var = 'suse'
         else:
             var = 'linux'
-    elif system in ('windows', 'darwin', "freebsd"):
+    elif system in ('windows', 'darwin', "freebsd", "netbsd"):
         var = system
 
     info['variant'] = var
@@ -1257,6 +1258,21 @@ def close_stdin():
         os.dup2(fp.fileno(), sys.stdin.fileno())
 
 
+def find_devs_with_netbsd(criteria=None, oformat='device',
+                          tag=None, no_cache=False, path=None):
+    if not path:
+        path = "/dev/cd0"
+    cmd = ["mscdlabel", path]
+    out, _ = subp(cmd, capture=True, decode="replace", rcs=[0, 1])
+    result = out.split()
+    if result and len(result) > 2:
+        if criteria == "TYPE=iso9660" and "ISO" in result:
+            return [path]
+        if criteria == "LABEL=CONFIG-2" and '"config-2"' in result:
+            return [path]
+    return []
+
+
 def find_devs_with(criteria=None, oformat='device',
                    tag=None, no_cache=False, path=None):
     """
@@ -1266,6 +1282,10 @@ def find_devs_with(criteria=None, oformat='device',
       LABEL=<label>
       UUID=<uuid>
     """
+    if is_NetBSD():
+        return find_devs_with_netbsd(criteria, oformat,
+                                     tag, no_cache, path)
+
     blk_id_cmd = ['blkid']
     options = []
     if criteria:
@@ -1807,6 +1827,33 @@ def time_rfc2822():
     return ts
 
 
+def boottime():
+    """Use sysctlbyname(3) via ctypes to find kern.boottime
+
+    kern.boottime is of type struct timeval. Here we create a
+    private class to easier unpack it.
+
+    @return boottime: float to be compatible with linux
+    """
+    import ctypes
+
+    NULL_BYTES = b"\x00"
+
+    class timeval(ctypes.Structure):
+        _fields_ = [
+            ("tv_sec", ctypes.c_int64),
+            ("tv_usec", ctypes.c_int64)
+        ]
+    libc = ctypes.CDLL('/lib/libc.so.7')
+    size = ctypes.c_size_t()
+    size.value = ctypes.sizeof(timeval)
+    buf = timeval()
+    if libc.sysctlbyname(b"kern.boottime" + NULL_BYTES, ctypes.byref(buf),
+                         ctypes.byref(size), None, 0) != -1:
+        return buf.tv_sec + buf.tv_usec / 1000000.0
+    raise RuntimeError("Unable to retrieve kern.boottime on this system")
+
+
 def uptime():
     uptime_str = '??'
     method = 'unknown'
@@ -1818,15 +1865,8 @@ def uptime():
                 uptime_str = contents.split()[0]
         else:
             method = 'ctypes'
-            libc = ctypes.CDLL('/lib/libc.so.7')
-            size = ctypes.c_size_t()
-            buf = ctypes.c_int()
-            size.value = ctypes.sizeof(buf)
-            libc.sysctlbyname("kern.boottime", ctypes.byref(buf),
-                              ctypes.byref(size), None, 0)
-            now = time.time()
-            bootup = buf.value
-            uptime_str = now - bootup
+            # This is the *BSD codepath
+            uptime_str = str(time.time() - boottime())
 
     except Exception:
         logexc(LOG, "Unable to read uptime using method: %s" % method)

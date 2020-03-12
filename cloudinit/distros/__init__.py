@@ -9,13 +9,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import six
-from six import StringIO
-
 import abc
 import os
 import re
 import stat
+from io import StringIO
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -53,8 +51,7 @@ _EC2_AZ_RE = re.compile('^[a-z][a-z]-(?:[a-z]+-)+[0-9][a-z]$')
 PREFERRED_NTP_CLIENTS = ['chrony', 'systemd-timesyncd', 'ntp', 'ntpdate']
 
 
-@six.add_metaclass(abc.ABCMeta)
-class Distro(object):
+class Distro(metaclass=abc.ABCMeta):
 
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
@@ -429,7 +426,7 @@ class Distro(object):
         # support kwargs having groups=[list] or groups="g1,g2"
         groups = kwargs.get('groups')
         if groups:
-            if isinstance(groups, six.string_types):
+            if isinstance(groups, str):
                 groups = groups.split(",")
 
             # remove any white spaces in group names, most likely
@@ -544,7 +541,7 @@ class Distro(object):
         if 'ssh_authorized_keys' in kwargs:
             # Try to handle this in a smart manner.
             keys = kwargs['ssh_authorized_keys']
-            if isinstance(keys, six.string_types):
+            if isinstance(keys, str):
                 keys = [keys]
             elif isinstance(keys, dict):
                 keys = list(keys.values())
@@ -668,7 +665,7 @@ class Distro(object):
         if isinstance(rules, (list, tuple)):
             for rule in rules:
                 lines.append("%s %s" % (user, rule))
-        elif isinstance(rules, six.string_types):
+        elif isinstance(rules, str):
             lines.append("%s %s" % (user, rules))
         else:
             msg = "Can not create sudoers rule addition with type %r"

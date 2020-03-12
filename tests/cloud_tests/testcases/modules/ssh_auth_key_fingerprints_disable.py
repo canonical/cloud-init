@@ -11,6 +11,6 @@ class TestSshKeyFingerprintsDisable(base.CloudTestCase):
         """Verify disabled."""
         out = self.get_data_file('cloud-init.log')
         self.assertIn('Skipping module named ssh-authkey-fingerprints, '
-                      'logging of ssh fingerprints disabled', out)
+                      'logging of SSH fingerprints disabled', out)
 
 # vi: ts=4 expandtab

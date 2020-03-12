@@ -10,6 +10,7 @@ import os
 import re
 import signal
 import time
+from io import StringIO
 
 from cloudinit.net import (
     EphemeralIPv4Network, find_fallback_nic, get_devicelist,
@@ -17,7 +18,6 @@ from cloudinit.net import (
 from cloudinit.net.network_state import mask_and_ipv4_to_bcast_addr as bcip
 from cloudinit import temp_utils
 from cloudinit import util
-from six import StringIO
 
 LOG = logging.getLogger(__name__)
 

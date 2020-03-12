@@ -21,26 +21,26 @@ class AzureCloudImage(Image):
         @param image_id: image id used to boot instance
         """
         super(AzureCloudImage, self).__init__(platform, config)
-        self.image_id = image_id
         self._img_instance = None
+        self.image_id = image_id
 
     @property
     def _instance(self):
         """Internal use only, returns a running instance"""
-        LOG.debug('creating instance')
         if not self._img_instance:
             self._img_instance = self.platform.create_instance(
                 self.properties, self.config, self.features,
                 self.image_id, user_data=None)
+            self._img_instance.start(wait=True, wait_for_cloud_init=True)
         return self._img_instance
 
     def destroy(self):
         """Delete the instance used to create a custom image."""
-        LOG.debug('deleting VM that was used to create image')
         if self._img_instance:
-            LOG.debug('Deleting instance %s', self._img_instance.name)
+            LOG.debug('Deleting backing instance %s',
+                      self._img_instance.vm_name)
             delete_vm = self.platform.compute_client.virtual_machines.delete(
-                self.platform.resource_group.name, self.image_id)
+                self.platform.resource_group.name, self._img_instance.vm_name)
             delete_vm.wait()
 
         super(AzureCloudImage, self).destroy()
@@ -48,7 +48,7 @@ class AzureCloudImage(Image):
     def _execute(self, *args, **kwargs):
         """Execute command in image, modifying image."""
         LOG.debug('executing commands on image')
-        self._instance.start()
+        self._instance.start(wait=True)
         return self._instance._execute(*args, **kwargs)
 
     def push_file(self, local_path, remote_path):
@@ -72,21 +72,26 @@ class AzureCloudImage(Image):
         Otherwise runs the clean script, deallocates, generalizes
         and creates custom image from instance.
         """
-        LOG.debug('creating image from VM')
+        LOG.debug('creating snapshot of image')
         if not self._img_instance:
+            LOG.debug('No existing image, snapshotting base image')
             return AzureCloudSnapshot(self.platform, self.properties,
                                       self.config, self.features,
-                                      self.image_id, delete_on_destroy=False)
+                                      self._instance.vm_name,
+                                      delete_on_destroy=False)
 
+        LOG.debug('creating snapshot from instance: %s', self._img_instance)
         if self.config.get('boot_clean_script'):
             self._img_instance.run_script(self.config.get('boot_clean_script'))
 
+        LOG.debug('deallocating instance %s', self._instance.vm_name)
         deallocate = self.platform.compute_client.virtual_machines.deallocate(
-            self.platform.resource_group.name, self.image_id)
+            self.platform.resource_group.name, self._instance.vm_name)
         deallocate.wait()
 
+        LOG.debug('generalizing instance %s', self._instance.vm_name)
         self.platform.compute_client.virtual_machines.generalize(
-            self.platform.resource_group.name, self.image_id)
+            self.platform.resource_group.name, self._instance.vm_name)
 
         image_params = {
             "location": self.platform.location,
@@ -96,13 +101,16 @@ class AzureCloudImage(Image):
                 }
             }
         }
+        LOG.debug('updating resource group image %s', self._instance.vm_name)
         self.platform.compute_client.images.create_or_update(
-            self.platform.resource_group.name, self.image_id,
+            self.platform.resource_group.name, self._instance.vm_name,
             image_params)
 
+        LOG.debug('destroying self')
         self.destroy()
 
+        LOG.debug('snapshot complete')
         return AzureCloudSnapshot(self.platform, self.properties, self.config,
-                                  self.features, self.image_id)
+                                  self.features, self._instance.vm_name)
 
 # vi: ts=4 expandtab

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# PROVIDE: cloudinitlocal
+# REQUIRE: NETWORKING
+
+# After NETWORKING because we don't want staticroute to wipe
+# the route set by the DHCP client toward the meta-data server.
+$_rc_subr_loaded . /etc/rc.subr
+
+name="cloudinitlocal"
+start_cmd="start_cloud_init_local"
+start_cloud_init_local()
+{
+    /usr/pkg/bin/cloud-init init -l
+}
+
+load_rc_config $name
+run_rc_command "$1"

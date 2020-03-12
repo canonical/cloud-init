@@ -2,7 +2,7 @@
 
 from collections import namedtuple
 import os
-from six import StringIO
+from io import StringIO
 from textwrap import dedent
 
 from cloudinit.atomic_helper import write_json

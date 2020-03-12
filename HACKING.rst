@@ -63,7 +63,7 @@ Do these things once
 .. _GitHub: https://github.com
 .. _Launchpad: https://launchpad.net
 .. _repository: https://github.com/canonical/cloud-init
-.. _contributor license agreement: http://www.canonical.com/contributors
+.. _contributor license agreement: https://ubuntu.com/legal/contributors
 .. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
 
 Do these things for each feature or bug

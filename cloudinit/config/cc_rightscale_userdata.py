@@ -50,12 +50,11 @@ user scripts configuration directory, to be run later by ``cc_scripts_user``.
 #
 
 import os
+from urllib.parse import parse_qs
 
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import url_helper as uhelp
 from cloudinit import util
-
-from six.moves.urllib_parse import parse_qs
 
 frequency = PER_INSTANCE
 

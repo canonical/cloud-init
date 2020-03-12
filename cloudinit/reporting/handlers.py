@@ -1,25 +1,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
-import uuid
 import fcntl
 import json
-import six
 import os
+import queue
 import struct
 import threading
 import time
+import uuid
+from datetime import datetime
 
 from cloudinit import log as logging
 from cloudinit.registry import DictRegistry
 from cloudinit import (url_helper, util)
-from datetime import datetime
-from six.moves.queue import Empty as QueueEmptyError
-
-if six.PY2:
-    from multiprocessing.queues import JoinableQueue as JQueue
-else:
-    from queue import Queue as JQueue
 
 LOG = logging.getLogger(__name__)
 
@@ -28,8 +22,7 @@ class ReportException(Exception):
     pass
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ReportingHandler(object):
+class ReportingHandler(metaclass=abc.ABCMeta):
     """Base class for report handlers.
 
     Implement :meth:`~publish_event` for controlling what
@@ -141,7 +134,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
             self._kvp_file_path)
 
         self._event_types = event_types
-        self.q = JQueue()
+        self.q = queue.Queue()
         self.incarnation_no = self._get_incarnation_no()
         self.event_key_prefix = u"{0}|{1}".format(self.EVENT_PREFIX,
                                                   self.incarnation_no)
@@ -303,7 +296,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
                         # get all the rest of the events in the queue
                         event = self.q.get(block=False)
                         items_from_queue += 1
-                    except QueueEmptyError:
+                    except queue.Empty:
                         event = None
                 try:
                     self._append_kvp_item(encoded_data)

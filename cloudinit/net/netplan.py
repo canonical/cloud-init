@@ -98,7 +98,7 @@ def _extract_addresses(config, entry, ifname, features=None):
             entry.update({sn_type: True})
         elif sn_type in IPV6_DYNAMIC_TYPES:
             entry.update({'dhcp6': True})
-        elif sn_type in ['static']:
+        elif sn_type in ['static', 'static6']:
             addr = "%s" % subnet.get('address')
             if 'prefix' in subnet:
                 addr += "/%d" % subnet.get('prefix')

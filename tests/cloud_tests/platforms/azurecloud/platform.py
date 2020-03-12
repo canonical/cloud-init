@@ -74,8 +74,9 @@ class AzureCloudPlatform(Platform):
         @param user_data: test user-data to pass to instance
         @return_value: cloud_tests.instances instance
         """
-        user_data = str(base64.b64encode(
-            user_data.encode('utf-8')), 'utf-8')
+        if user_data is not None:
+            user_data = str(base64.b64encode(
+                user_data.encode('utf-8')), 'utf-8')
 
         return AzureCloudInstance(self, properties, config, features,
                                   image_id, user_data)

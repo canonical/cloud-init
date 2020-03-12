@@ -3,7 +3,8 @@
 import copy
 import httpretty
 import json
-import mock
+import requests
+from unittest import mock
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
@@ -200,6 +201,7 @@ def register_mock_metaserver(base_url, data):
 
 class TestEc2(test_helpers.HttprettyTestCase):
     with_logs = True
+    maxDiff = None
 
     valid_platform_data = {
         'uuid': 'ec212f79-87d1-2f1d-588f-d86dc0fd5412',
@@ -428,6 +430,69 @@ class TestEc2(test_helpers.HttprettyTestCase):
             md={'md': DEFAULT_METADATA})
         self.assertTrue(ds.get_data())
         self.assertFalse(ds.is_classic_instance())
+
+    def test_aws_inaccessible_imds_service_fails_with_retries(self):
+        """Inaccessibility of http://169.254.169.254 are retried."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
+            md=None)
+
+        conn_error = requests.exceptions.ConnectionError(
+           '[Errno 113] no route to host')
+
+        mock_success = mock.MagicMock(contents=b'fakesuccess')
+        mock_success.ok.return_value = True
+
+        with mock.patch('cloudinit.url_helper.readurl') as m_readurl:
+            m_readurl.side_effect = (conn_error, conn_error, mock_success)
+            with mock.patch('cloudinit.url_helper.time.sleep'):
+                self.assertTrue(ds.wait_for_metadata_service())
+
+        # Just one /latest/api/token request
+        self.assertEqual(3, len(m_readurl.call_args_list))
+        for readurl_call in m_readurl.call_args_list:
+            self.assertIn('latest/api/token', readurl_call[0][0])
+
+    def test_aws_token_403_fails_without_retries(self):
+        """Verify that 403s fetching AWS tokens are not retried."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
+            md=None)
+        token_url = self.data_url('latest', data_item='api/token')
+        httpretty.register_uri(httpretty.PUT, token_url, body={}, status=403)
+        self.assertFalse(ds.get_data())
+        # Just one /latest/api/token request
+        logs = self.logs.getvalue()
+        failed_put_log = '"PUT /latest/api/token HTTP/1.1" 403 0'
+        expected_logs = [
+            'WARNING: Ec2 IMDS endpoint returned a 403 error. HTTP endpoint is'
+            ' disabled. Aborting.',
+            "WARNING: IMDS's HTTP endpoint is probably disabled",
+            failed_put_log
+        ]
+        for log in expected_logs:
+            self.assertIn(log, logs)
+        self.assertEqual(
+            1, len([l for l in logs.splitlines() if failed_put_log in l]))
+
+    def test_aws_token_redacted(self):
+        """Verify that aws tokens are redacted when logged."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
+            md={'md': DEFAULT_METADATA})
+        self.assertTrue(ds.get_data())
+        all_logs = self.logs.getvalue().splitlines()
+        REDACT_TTL = "'X-aws-ec2-metadata-token-ttl-seconds': 'REDACTED'"
+        REDACT_TOK = "'X-aws-ec2-metadata-token': 'REDACTED'"
+        logs_with_redacted_ttl = [log for log in all_logs if REDACT_TTL in log]
+        logs_with_redacted = [log for log in all_logs if REDACT_TOK in log]
+        logs_with_token = [log for log in all_logs if 'API-TOKEN' in log]
+        self.assertEqual(1, len(logs_with_redacted_ttl))
+        self.assertEqual(79, len(logs_with_redacted))
+        self.assertEqual(0, len(logs_with_token))
 
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_valid_platform_with_strict_true(self, m_dhcp):

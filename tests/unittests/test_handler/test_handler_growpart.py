@@ -11,11 +11,8 @@ import logging
 import os
 import re
 import unittest
+from unittest import mock
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 try:
     from contextlib import ExitStack
 except ImportError:
@@ -50,6 +47,18 @@ growpart disk partition
    Example:
     - growpart /dev/sda 1
       Resize partition 1 on /dev/sda
+"""
+
+HELP_GPART = """
+usage: gpart add -t type [-a alignment] [-b start] <SNIP> geom
+       gpart backup geom
+       gpart bootcode [-b bootcode] [-p partcode -i index] [-f flags] geom
+<SNIP>
+       gpart resize -i index [-a alignment] [-s size] [-f flags] geom
+       gpart restore [-lF] [-f flags] provider [...]
+       gpart recover [-f flags] geom
+       gpart help
+<SNIP>
 """
 
 
@@ -97,8 +106,9 @@ class TestConfig(TestCase):
             self.handle(self.name, config, self.cloud_init, self.log,
                         self.args)
 
-            mockobj.assert_called_once_with(
-                ['growpart', '--help'], env={'LANG': 'C'})
+            mockobj.assert_has_calls([
+                mock.call(['growpart', '--help'], env={'LANG': 'C'}),
+                mock.call(['gpart', 'help'], env={'LANG': 'C'}, rcs=[0, 1])])
 
     @mock.patch.dict("os.environ", clear=True)
     def test_no_resizers_mode_growpart_is_exception(self):
@@ -123,6 +133,18 @@ class TestConfig(TestCase):
 
             mockobj.assert_called_once_with(
                 ['growpart', '--help'], env={'LANG': 'C'})
+
+    @mock.patch.dict("os.environ", clear=True)
+    def test_mode_auto_falls_back_to_gpart(self):
+        with mock.patch.object(
+                util, 'subp',
+                return_value=("", HELP_GPART)) as mockobj:
+            ret = cc_growpart.resizer_factory(mode="auto")
+            self.assertIsInstance(ret, cc_growpart.ResizeGpart)
+
+            mockobj.assert_has_calls([
+                mock.call(['growpart', '--help'], env={'LANG': 'C'}),
+                mock.call(['gpart', 'help'], env={'LANG': 'C'}, rcs=[0, 1])])
 
     def test_handle_with_no_growpart_entry(self):
         # if no 'growpart' entry in config, then mode=auto should be used

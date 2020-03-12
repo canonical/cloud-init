@@ -2,13 +2,14 @@
 
 """Tests for cloudinit.log """
 
-from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
-from cloudinit import log as ci_logging
-from cloudinit.tests.helpers import CiTestCase
 import datetime
+import io
 import logging
-import six
 import time
+
+from cloudinit import log as ci_logging
+from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
+from cloudinit.tests.helpers import CiTestCase
 
 
 class TestCloudInitLogger(CiTestCase):
@@ -18,7 +19,7 @@ class TestCloudInitLogger(CiTestCase):
         # of sys.stderr, we'll plug in a StringIO() object so we can see
         # what gets logged
         logging.Formatter.converter = time.gmtime
-        self.ci_logs = six.StringIO()
+        self.ci_logs = io.StringIO()
         self.ci_root = logging.getLogger()
         console = logging.StreamHandler(self.ci_logs)
         console.setFormatter(logging.Formatter(ci_logging.DEF_CON_FORMAT))
