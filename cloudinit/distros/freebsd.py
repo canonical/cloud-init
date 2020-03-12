@@ -21,6 +21,9 @@ class Distro(cloudinit.distros.bsd.BSD):
     login_conf_fn = '/etc/login.conf'
     login_conf_fn_bak = '/etc/login.conf.orig'
     ci_sudoers_fn = '/usr/local/etc/sudoers.d/90-cloud-init-users'
+    group_add_cmd_prefix = ['pw', 'group', 'add']
+    pkg_cmd_install_prefix = ["pkg", "install"]
+    pkg_cmd_remove_prefix = ["pkg", "remove"]
 
     def _select_hostname(self, hostname, fqdn):
         # Should be FQDN if available. See rc.conf(5) in FreeBSD
@@ -28,31 +31,8 @@ class Distro(cloudinit.distros.bsd.BSD):
             return fqdn
         return hostname
 
-    def create_group(self, name, members=None):
-        group_add_cmd = ['pw', 'group', 'add', name]
-        if util.is_group(name):
-            LOG.warning("Skipping creation of existing group '%s'", name)
-        else:
-            try:
-                util.subp(group_add_cmd)
-                LOG.info("Created new group %s", name)
-            except Exception:
-                util.logexc(LOG, "Failed to create group %s", name)
-                raise
-        if not members:
-            members = []
-
-        for member in members:
-            if not util.is_user(member):
-                LOG.warning("Unable to add group member '%s' to group '%s'"
-                            "; user does not exist.", member, name)
-                continue
-            try:
-                util.subp(['pw', 'usermod', '-n', name, '-G', member])
-                LOG.info("Added user '%s' to group '%s'", member, name)
-            except Exception:
-                util.logexc(LOG, "Failed to add user '%s' to group '%s'",
-                            member, name)
+    def _get_add_member_to_group_cmd(self, member_name, group_name):
+        return ['pw', 'usermod', '-n', member_name, '-G', group_name]
 
     def add_user(self, name, **kwargs):
         if util.is_user(name):
@@ -134,7 +114,7 @@ class Distro(cloudinit.distros.bsd.BSD):
             raise
 
     def apply_locale(self, locale, out_fn=None):
-        # Adjust the locals value to the new value
+        # Adjust the locales value to the new value
         newconf = StringIO()
         for line in util.load_file(self.login_conf_fn).splitlines():
             newconf.write(re.sub(r'^default:',
@@ -164,36 +144,17 @@ class Distro(cloudinit.distros.bsd.BSD):
         # /etc/rc.conf a line with the following format:
         #    ifconfig_OLDNAME_name=NEWNAME
         # FreeBSD network script will rename the interface automatically.
-        return
+        pass
 
-    def install_packages(self, pkglist):
-        self.update_package_sources()
-        self.package_command('install', pkgs=pkglist)
-
-    def package_command(self, command, args=None, pkgs=None):
-        if pkgs is None:
-            pkgs = []
-
+    def _get_pkg_cmd_environ(self):
+        """Return environment vars used in *BSD package_command operations"""
         e = os.environ.copy()
         e['ASSUME_ALWAYS_YES'] = 'YES'
-
-        cmd = ['pkg']
-        if args and isinstance(args, str):
-            cmd.append(args)
-        elif args and isinstance(args, list):
-            cmd.extend(args)
-
-        if command:
-            cmd.append(command)
-
-        pkglist = util.expand_package_list('%s-%s', pkgs)
-        cmd.extend(pkglist)
-
-        # Allow the output of this to flow outwards (ie not be captured)
-        util.subp(cmd, env=e, capture=False)
+        return e
 
     def update_package_sources(self):
-        self._runner.run("update-sources", self.package_command,
-                         ["update"], freq=PER_INSTANCE)
+        self._runner.run(
+            "update-sources", self.package_command,
+            ["update"], freq=PER_INSTANCE)
 
 # vi: ts=4 expandtab

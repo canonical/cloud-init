@@ -17,30 +17,12 @@ LOG = logging.getLogger(__name__)
 class Distro(cloudinit.distros.bsd.BSD):
     ci_sudoers_fn = '/usr/pkg/etc/sudoers.d/90-cloud-init-users'
 
-    def create_group(self, name, members=None):
-        group_add_cmd = ['groupadd', name]
-        if util.is_group(name):
-            LOG.warning("Skipping creation of existing group '%s'", name)
-        else:
-            try:
-                util.subp(group_add_cmd)
-                LOG.info("Created new group %s", name)
-            except Exception:
-                util.logexc(LOG, "Failed to create group %s", name)
+    group_add_cmd_prefix = ["groupadd"]
+    pkg_cmd_install_prefix = ["pkg_add", "-U"]
+    pkg_cmd_remove_prefix = ['pkg_delete']
 
-        if not members:
-            members = []
-        for member in members:
-            if not util.is_user(member):
-                LOG.warning("Unable to add group member '%s' to group '%s'"
-                            "; user does not exist.", member, name)
-                continue
-            try:
-                util.subp(['usermod', '-G', name, member])
-                LOG.info("Added user '%s' to group '%s'", member, name)
-            except Exception:
-                util.logexc(LOG, "Failed to add user '%s' to group '%s'",
-                            member, name)
+    def _get_add_member_to_group_cmd(self, member_name, group_name):
+        return ['usermod', '-G', group_name, member_name]
 
     def add_user(self, name, **kwargs):
         if util.is_user(name):
@@ -92,9 +74,9 @@ class Distro(cloudinit.distros.bsd.BSD):
         if passwd_val is not None:
             self.set_passwd(name, passwd_val, hashed=True)
 
-    def set_passwd(self, user, password, hashed=False):
+    def set_passwd(self, user, passwd, hashed=False):
         if hashed:
-            hashed_pw = password
+            hashed_pw = passwd
         elif not hasattr(crypt, 'METHOD_BLOWFISH'):
             # crypt.METHOD_BLOWFISH comes with Python 3.7 which is available
             # on NetBSD 7 and 8.
@@ -105,7 +87,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         else:
             method = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
             hashed_pw = crypt.crypt(
-                    password,
+                    passwd,
                     crypt.mksalt(method))
 
         try:
@@ -133,36 +115,16 @@ class Distro(cloudinit.distros.bsd.BSD):
 
     def apply_network_config_names(self, netconfig):
         LOG.debug('NetBSD cannot rename network interface.')
-        return
 
-    def install_packages(self, pkglist):
-        self.package_command('install', pkgs=pkglist)
-
-    def package_command(self, command, args=None, pkgs=None):
-        if pkgs is None:
-            pkgs = []
-
+    def _get_pkg_cmd_environ(self):
+        """Return environment vars used in *BSD package_command operations"""
         os_release = platform.release()
         os_arch = platform.machine()
         e = os.environ.copy()
         e['PKG_PATH'] = (
                 'http://cdn.netbsd.org/pub/pkgsrc/'
                 'packages/NetBSD/%s/%s/All') % (os_arch, os_release)
-
-        if command == 'install':
-            cmd = ['pkg_add', '-U']
-        elif command == 'remove':
-            cmd = ['pkg_delete']
-        if args and isinstance(args, str):
-            cmd.append(args)
-        elif args and isinstance(args, list):
-            cmd.extend(args)
-
-        pkglist = util.expand_package_list('%s-%s', pkgs)
-        cmd.extend(pkglist)
-
-        # Allow the output of this to flow outwards (ie not be captured)
-        util.subp(cmd, env=e, capture=False)
+        return e
 
     def update_package_sources(self):
         pass
