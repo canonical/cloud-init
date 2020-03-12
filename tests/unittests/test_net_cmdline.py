@@ -95,6 +95,44 @@ STATIC_EXPECTED_1 = {
                  'address': '10.0.0.2'}],
 }
 
+VLAN_STATIC_CONTENT_1 = """
+DEVICE='ens3.2653'
+PROTO='none'
+IPV4ADDR='10.245.236.14'
+IPV4BROADCAST='10.245.236.255'
+IPV4NETMASK='255.255.255.0'
+IPV4GATEWAY='10.245.236.1'
+IPV4DNS0='10.245.236.1'
+IPV4DNS1='0.0.0.0'
+HOSTNAME='s1lp14'
+DNSDOMAIN=''
+NISDOMAIN=''
+ROOTSERVER='0.0.0.0'
+ROOTPATH=''
+filename=''
+UPTIME='4'
+DHCPLEASETIME='0'
+DOMAINSEARCH=''
+"""
+
+VLAN_STATIC_EXPECTED_1 = {
+    'name': 'ens3', 'type': 'physical',
+    'subnets': [{'type': 'static', 'control': 'manual'}],
+}
+
+VLAN_STATIC_EXPECTED_2 = {
+    'name': 'ens3.2653', 'type': 'vlan', 'vlan_id': '2653', 'vlan_link': 'ens3',
+    'subnets': [{'address': '10.245.236.14',
+                 'broadcast': '10.245.236.255',
+                 'dns_nameservers': ['10.245.236.1'],
+                 'gateway': '10.245.236.1',
+                 'netmask': '255.255.255.0',
+                 'control': 'manual',
+                 'type': 'static'}],
+}
+
+
+
 NETPLAN_DHCP_CONTENT_1 = """\
 network:
   version: 2
@@ -129,55 +167,48 @@ network:
          set-name: mgmt3
 """
 
-
 NETPLAN_DHCP_EXPECTED_1 = {
-    'network': {
-        'version': 2,
-        'ethernets': {
-            'ens3': {
-                'dhcp4': True,
-                'match': {'macaddress': '00:11:22:33:44:55'},
-                'set-name': 'ens3'
-            },
+    'version': 2,
+    'ethernets': {
+        'ens3': {
+            'dhcp4': True,
+            'match': {'macaddress': '00:11:22:33:44:55'},
+            'set-name': 'ens3'
+        },
+    },
+}
+
+NETPLAN_DHCP_EXPECTED_1_2 = {
+    'version': 2,
+    'ethernets': {
+        'ens3': {
+            'dhcp4': True,
+            'match': {'macaddress': '00:11:22:33:44:55'},
+            'set-name': 'ens3'
+        },
+        'ens5': {
+            'dhcp4': False,
+            'dhcp6': True,
+            'match': {'macaddress': 'aa:bb:cc:dd:ee:ff'},
+            'set-name': 'ens5'
         },
     }
 }
 
-NETPLAN_DHCP_EXPECTED_1_2 = {
-    'network': {
-        'version': 2,
-        'ethernets': {
-            'ens3': {
-                'dhcp4': True,
-                'match': {'macaddress': '00:11:22:33:44:55'},
-                'set-name': 'ens3'
-            },
-            'ens5': {
-                'dhcp4': False,
-                'dhcp6': True,
-                'match': {'macaddress': 'aa:bb:cc:dd:ee:ff'},
-                'set-name': 'ens5'
-            },
-        }
-    }
-}
-
 NETPLAN_DHCP_EXPECTED_1_2_3 = {
-    'network': {
-        'version': 2,
-        'ethernets': {
-            'ens3': {
-                'dhcp4': False,
-                'match': {'macaddress': '00:11:22:33:44:55'},
-                'set-name': 'mgmt3'
-            },
-            'ens5': {
-                'dhcp4': False,
-                'dhcp6': True,
-                'match': {'macaddress': 'aa:bb:cc:dd:ee:ff'},
-                'set-name': 'ens5'
-            },
-        }
+    'version': 2,
+    'ethernets': {
+        'ens3': {
+            'dhcp4': False,
+            'match': {'macaddress': '00:11:22:33:44:55'},
+            'set-name': 'mgmt3'
+        },
+        'ens5': {
+            'dhcp4': False,
+            'dhcp6': True,
+            'match': {'macaddress': 'aa:bb:cc:dd:ee:ff'},
+            'set-name': 'ens5'
+        },
     }
 }
 
@@ -200,15 +231,20 @@ class TestCmdlineConfigParsing(CiTestCase):
 
     def test_cmdline_convert_dhcp(self):
         found = cmdline._klibc_to_config_entry(DHCP_CONTENT_1)
-        self.assertEqual(found, ('eth0', DHCP_EXPECTED_1))
+        self.assertEqual(found, [('eth0', DHCP_EXPECTED_1)])
 
     def test_cmdline_convert_dhcp6(self):
         found = cmdline._klibc_to_config_entry(DHCP6_CONTENT_1)
-        self.assertEqual(found, ('eno1', DHCP6_EXPECTED_1))
+        self.assertEqual(found, [('eno1', DHCP6_EXPECTED_1)])
 
     def test_cmdline_convert_static(self):
         found = cmdline._klibc_to_config_entry(STATIC_CONTENT_1)
-        self.assertEqual(found, ('eth1', STATIC_EXPECTED_1))
+        self.assertEqual(found, [('eth1', STATIC_EXPECTED_1)])
+
+    def test_cmdline_convert_static_vlan(self):
+        found = cmdline._klibc_to_config_entry(VLAN_STATIC_CONTENT_1)
+        self.assertEqual(found[0], ('ens3', VLAN_STATIC_EXPECTED_1))
+        self.assertEqual(found[1], ('ens3.2653', VLAN_STATIC_EXPECTED_2))
 
     def test_config_from_cmdline_net_cfg(self):
         files = []

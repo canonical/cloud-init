@@ -136,6 +136,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     note that IPV6PROTO is also written by newer code to address the
     possibility of both ipv4 and ipv6 getting addresses.
 
+    if DEVICE contains a '.' this indicates it is a VLAN device and
+    we must return config for the base device and vlan layer.
+
     Full syntax is documented at:
     https://git.kernel.org/pub/scm/libs/klibc/klibc.git/plain/usr/kinit/ipconfig/README.ipconfig
     """
@@ -161,6 +164,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     if proto not in ('none', 'dhcp', 'dhcp6'):
         raise ValueError("Unexpected value for PROTO: %s" % proto)
 
+    entries = []
     iface = {
         'type': 'physical',
         'name': name,
@@ -169,6 +173,22 @@ def _klibc_to_config_entry(content, mac_addrs=None):
 
     if name in mac_addrs:
         iface['mac_address'] = mac_addrs[name]
+
+    # handle a vlan link interface first
+    if '.' in name:
+        link_name, vlan_id = name.split('.')
+        # update iface attributes for vlan type
+        iface['type'] = 'vlan'
+        iface['vlan_id'] = vlan_id
+        iface['vlan_link'] = link_name
+        link_iface = {
+            'type': 'physical', 'name': link_name,
+            'subnets': [{'type': 'static', 'control': 'manual'}],
+        }
+        if link_name in mac_addrs:
+            link_iface['mac_address'] = mac_addrs[link_name]
+
+        entries.append((link_name, link_iface))
 
     # Handle both IPv4 and IPv6 values
     for pre in ('IPV4', 'IPV6'):
@@ -210,9 +230,10 @@ def _klibc_to_config_entry(content, mac_addrs=None):
                 else:
                     subnet['dns_search'] = search.split()
 
-        iface['subnets'].append(subnet)
+    iface['subnets'].append(subnet)
+    entries.append((name, iface))
 
-    return name, iface
+    return entries
 
 
 def _get_klibc_net_cfg_files():
@@ -226,22 +247,23 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     entries = []
     names = {}
     for cfg_file in files:
-        name, entry = _klibc_to_config_entry(util.load_file(cfg_file),
+        parsed = _klibc_to_config_entry(util.load_file(cfg_file),
                                              mac_addrs=mac_addrs)
-        if name in names:
-            prev = names[name]['entry']
-            if prev.get('mac_address') != entry.get('mac_address'):
-                raise ValueError(
-                    "device '{name}' was defined multiple times ({files})"
-                    " but had differing mac addresses: {old} -> {new}.".format(
-                        name=name, files=' '.join(names[name]['files']),
-                        old=prev.get('mac_address'),
-                        new=entry.get('mac_address')))
-            prev['subnets'].extend(entry['subnets'])
-            names[name]['files'].append(cfg_file)
-        else:
-            names[name] = {'files': [cfg_file], 'entry': entry}
-            entries.append(entry)
+        for (name, entry) in parsed:
+            if name in names:
+                prev = names[name]['entry']
+                if prev.get('mac_address') != entry.get('mac_address'):
+                    raise ValueError(
+                        "device '{name}' was defined multiple times ({files})"
+                        " but had differing mac addresses: {old} -> {new}.".format(
+                            name=name, files=' '.join(names[name]['files']),
+                            old=prev.get('mac_address'),
+                            new=entry.get('mac_address')))
+                prev['subnets'].extend(entry['subnets'])
+                names[name]['files'].append(cfg_file)
+            else:
+                names[name] = {'files': [cfg_file], 'entry': entry}
+                entries.append(entry)
 
     return {'config': entries, 'version': 1}
 
@@ -257,8 +279,9 @@ def config_from_netplan_net_cfg(files=None):
     configs = []
     for cfg_file in files:
         configs.append(util.read_conf(cfg_file))
+        util.del_file(cfg_file)
 
-    return util.mergemanydict(configs)
+    return util.mergemanydict(configs).get('network', {})
 
 
 def read_initramfs_config():
