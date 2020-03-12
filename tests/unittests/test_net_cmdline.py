@@ -118,6 +118,18 @@ network:
          set-name: ens5
 """
 
+NETPLAN_DHCP_CONTENT_3 = """\
+network:
+  version: 2
+  ethernets:
+      ens3:
+         dhcp4: false
+         match:
+           macaddress: 00:11:22:33:44:55
+         set-name: mgmt3
+"""
+
+
 NETPLAN_DHCP_EXPECTED_1 = {
     'network': {
         'version': 2,
@@ -139,6 +151,25 @@ NETPLAN_DHCP_EXPECTED_1_2 = {
                 'dhcp4': True,
                 'match': {'macaddress': '00:11:22:33:44:55'},
                 'set-name': 'ens3'
+            },
+            'ens5': {
+                'dhcp4': False,
+                'dhcp6': True,
+                'match': {'macaddress': 'aa:bb:cc:dd:ee:ff'},
+                'set-name': 'ens5'
+            },
+        }
+    }
+}
+
+NETPLAN_DHCP_EXPECTED_1_2_3 = {
+    'network': {
+        'version': 2,
+        'ethernets': {
+            'ens3': {
+                'dhcp4': False,
+                'match': {'macaddress': '00:11:22:33:44:55'},
+                'set-name': 'mgmt3'
             },
             'ens5': {
                 'dhcp4': False,
@@ -351,6 +382,21 @@ class TestNetplanConfigSource(FilesystemMockingTestCase):
             '/run/netplan/ens5.yaml': NETPLAN_DHCP_CONTENT_2,
         }
         expected = copy.deepcopy(NETPLAN_DHCP_EXPECTED_1_2)
+        root = self.tmp_dir()
+        populate_dir(root, content)
+        self.reRoot(root)
+        src = cmdline.NetplanConfigSource()
+        self.assertTrue(src.is_applicable())
+        found = src.render_config()
+        self.assertEqual(expected, found)
+
+    def test_netplan_multiple_files_with_overlap(self):
+        content = {
+            '/run/netplan/ens3.yaml': NETPLAN_DHCP_CONTENT_1,
+            '/run/netplan/ens5.yaml': NETPLAN_DHCP_CONTENT_2,
+            '/run/netplan/99-mgmt.yaml': NETPLAN_DHCP_CONTENT_3,
+        }
+        expected = copy.deepcopy(NETPLAN_DHCP_EXPECTED_1_2_3)
         root = self.tmp_dir()
         populate_dir(root, content)
         self.reRoot(root)

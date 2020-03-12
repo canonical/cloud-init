@@ -247,7 +247,7 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
 
 
 def _get_netplan_net_cfg_files():
-    return glob.glob('/run/netplan/*.yaml')
+    return sorted(glob.glob('/run/netplan/*.yaml'))
 
 
 def config_from_netplan_net_cfg(files=None):
