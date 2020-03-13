@@ -56,7 +56,7 @@ class TestGenerateResolvConf:
             # Two options
             (
                 {"options": {"foo": "some_value", "bar": "other_value"}},
-                "options foo:some_value bar:other_value",
+                "options bar:other_value foo:some_value",
             ),
             # Everything
             (
@@ -68,7 +68,7 @@ class TestGenerateResolvConf:
                         "spam": True,
                     }
                 },
-                "options spam foo:some_value bar:other_value",
+                "options spam bar:other_value foo:some_value",
             ),
         ],
     )

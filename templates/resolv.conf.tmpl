@@ -32,7 +32,7 @@ options
  {{flag-}}
 {% endfor %}
 
-{%- for key, value in options.items() %}
+{%- for key, value in options.items()|sort %}
  {{key}}:{{value-}}
 {% endfor %}
 {% endif %}
