@@ -81,13 +81,15 @@ The settings that may be configured are:
  * **timeout**: the timeout value provided to urlopen for each individual http
    request.  This is used both when selecting a metadata_url and when crawling
    the metadata service. (default: 50)
- * **apply_network_conig**: Boolean (default: True) to allow cloud-init
-   to configure any secondary NICs and secondoary IPs described by the
-   metadata service. Each network interface will enable dhcp4 to obtain
-   primary address and route. Secondary IPv4/IPv6 addresses are configured as
-   static IP addresses on the NIC if either ``local-ipv4s`` or ``ipv6s``
-   contain multiple addresses in the list. Each address greater than one
-   represented in that metadata is a secondary address.
+ * **apply_network_config**: Boolean (default: True) to allow cloud-init
+   to configure any secondary NICs and secondary IPs described by the
+   metadata service. All network interfaces are configured with DHCP (v4) to
+   obtain an primary IPv4 address and route. Interfaces which have a
+   non-empty 'ipv6s' list will also enable DHCPv6 to obtain a primary IPv6
+   address and route. The DHCP response (v4 and v6) return an IP that matches
+   the first element of local-ipv4s and ipv6s lists respectively. All
+   additional values (secondary addresses) in the static ip lists will be
+   added to interface.
 
 An example configuration with the default values is provided below:
 
@@ -98,6 +100,7 @@ An example configuration with the default values is provided below:
     metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
     max_wait: 120
     timeout: 50
+    apply_network_config: true
 
 Notes
 -----
@@ -113,7 +116,8 @@ Notes
  * For EC2 instances with multiple network interfaces (NICs) attached, dhcp4
    will be enabled to obtain the primary private IPv4 address of those NICs.
    Wherever dhcp4 or dhcp6 is enabled for a NIC, a dhcp route-metric will be
-   added with the value of ``<interface_num + 1> * 100`` to ensure dhcp
+   added with the value of ``<device-number + 1> * 100`` to ensure dhcp
    routes on the primary NIC are preferred to any secondary NICs.
+   For example: eth0 will have a DHCP route-metric of 100, eth1 will be 200.
 
 .. vi: textwidth=78
