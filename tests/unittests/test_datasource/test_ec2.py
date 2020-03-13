@@ -767,7 +767,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
 
     def setUp(self):
         super(TestConvertEc2MetadataNetworkConfig, self).setUp()
-        self.mac1 = '06:17:04:D7:26:09'
+        self.mac1 = '06:17:04:d7:26:09'
         self.network_metadata = {
             'interfaces': {'macs': {
                 self.mac1: {'mac': self.mac1, 'public-ipv4s': '172.31.2.16'}}}}
@@ -778,7 +778,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
 
         # DE:AD:BE:EF:FF:FF represented by OS but not in metadata
         expected = {'version': 2, 'ethernets': {'eth9': {
-            'match': {'macaddress': self.mac1.lower()}, 'set-name': 'eth9',
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
             'dhcp4': True, 'dhcp4-overrides': {'route-metric': 100},
             'dhcp6': False}}}
         self.assertEqual(
@@ -795,7 +795,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
         nic1_metadata.pop('public-ipv4s')
         expected = {'version': 2, 'ethernets': {'eth9': {
-            'match': {'macaddress': self.mac1.lower()}, 'set-name': 'eth9',
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
             'dhcp4': True, 'dhcp4-overrides': {'route-metric': 100},
             'dhcp6': True, 'dhcp6-overrides': {'route-metric': 100}}}}
         self.assertEqual(
@@ -812,7 +812,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         nic1_metadata['local-ipv4s'] = '172.3.3.15'
         nic1_metadata.pop('public-ipv4s')
         expected = {'version': 2, 'ethernets': {'eth9': {
-            'match': {'macaddress': self.mac1.lower()}, 'set-name': 'eth9',
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
             'dhcp4': True, 'dhcp4-overrides': {'route-metric': 100},
             'dhcp6': False}}}
         self.assertEqual(
@@ -830,7 +830,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
 
         # When no ipv4 or ipv6 content but fallback_nic set, set dhcp4 config.
         expected = {'version': 2, 'ethernets': {'eth9': {
-            'match': {'macaddress': self.mac1.lower()}, 'set-name': 'eth9',
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
             'dhcp4': True, 'dhcp4-overrides': {'route-metric': 100},
             'dhcp6': False}}}
         self.assertEqual(
@@ -839,7 +839,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                 network_metadata_ipv6, macs_to_nics, fallback_nic='eth9'))
 
     def test_convert_ec2_metadata_network_config_handles_local_v4_and_v6(self):
-        """When dhcp6 is public and dhcp4 is set to local enable both."""
+        """When ipv6s and local-ipv4s are non-empty, enable dhcp6 and dhcp4."""
         macs_to_nics = {self.mac1: 'eth9'}
         network_metadata_both = copy.deepcopy(self.network_metadata)
         nic1_metadata = (
@@ -848,7 +848,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         nic1_metadata.pop('public-ipv4s')
         nic1_metadata['local-ipv4s'] = '10.0.0.42'  # Local ipv4 only on vpc
         expected = {'version': 2, 'ethernets': {'eth9': {
-            'match': {'macaddress': self.mac1.lower()}, 'set-name': 'eth9',
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
             'dhcp4': True, 'dhcp4-overrides': {'route-metric': 100},
             'dhcp6': True, 'dhcp6-overrides': {'route-metric': 100}}}}
         self.assertEqual(
@@ -857,8 +857,8 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
                 network_metadata_both, macs_to_nics))
 
     def test_convert_ec2_metadata_network_config_handles_multiple_nics(self):
-        """When dhcp6 is public and dhcp4 is set to local enable both."""
-        mac2 = '06:17:04:D7:26:0A'
+        """DHCP route-metric increases on secondary NICs for IPv4 and IPv6."""
+        mac2 = '06:17:04:d7:26:0a'
         macs_to_nics = {self.mac1: 'eth9', mac2: 'eth10'}
         network_metadata_both = copy.deepcopy(self.network_metadata)
         # Add 2nd nic info
@@ -870,11 +870,11 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         nic1_metadata['local-ipv4s'] = '10.0.0.42'  # Local ipv4 only on vpc
         expected = {'version': 2, 'ethernets': {
             'eth9': {
-                'match': {'macaddress': self.mac1.lower()}, 'set-name': 'eth9',
+                'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
                 'dhcp4': True, 'dhcp4-overrides': {'route-metric': 100},
                 'dhcp6': True, 'dhcp6-overrides': {'route-metric': 100}},
             'eth10': {
-                'match': {'macaddress': mac2.lower()}, 'set-name': 'eth10',
+                'match': {'macaddress': mac2}, 'set-name': 'eth10',
                 'dhcp4': True, 'dhcp4-overrides': {'route-metric': 200},
                 'dhcp6': False}}}
         self.assertEqual(
@@ -890,7 +890,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
             network_metadata_both['interfaces']['macs'][self.mac1])
         nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
         expected = {'version': 2, 'ethernets': {'eth9': {
-            'match': {'macaddress': self.mac1.lower()}, 'set-name': 'eth9',
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
             'dhcp4': True, 'dhcp4-overrides': {'route-metric': 100},
             'dhcp6': True, 'dhcp6-overrides': {'route-metric': 100}}}}
         self.assertEqual(
@@ -901,7 +901,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
     def test_convert_ec2_metadata_gets_macs_from_get_interfaces_by_mac(self):
         """Convert Ec2 Metadata calls get_interfaces_by_mac by default."""
         expected = {'version': 2, 'ethernets': {'eth9': {
-            'match': {'macaddress': self.mac1.lower()},
+            'match': {'macaddress': self.mac1},
             'set-name': 'eth9', 'dhcp4': True,
             'dhcp4-overrides': {'route-metric': 100}, 'dhcp6': False}}}
         patch_path = M_PATH_NET + 'get_interfaces_by_mac'
