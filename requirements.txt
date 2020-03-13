@@ -32,6 +32,3 @@ jsonpatch
 
 # For validating cloud-config sections per schema definitions
 jsonschema
-
-# For Python 2/3 compatibility
-six
