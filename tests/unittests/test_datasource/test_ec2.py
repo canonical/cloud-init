@@ -751,16 +751,40 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
 class TestGetSecondaryAddresses(test_helpers.CiTestCase):
 
+    mac = '06:17:04:d7:26:ff'
+    with_logs = True
+
     def test_md_with_no_secondary_addresses(self):
         """Empty list is returned when nic metadata contains no secondary ip"""
-        self.assertEqual([], ec2.get_secondary_addresses(NIC2_MD))
+        self.assertEqual([], ec2.get_secondary_addresses(NIC2_MD, self.mac))
 
     def test_md_with_secondary_v4_and_v6_addresses(self):
         """All secondary addresses are returned from nic metadata"""
         self.assertEqual(
             ['172.31.45.70/20', '2600:1f16:292:100:f152:2222:3333:4444/128',
              '2600:1f16:292:100:f153:12a3:c37c:11f9/128'],
-            ec2.get_secondary_addresses(NIC1_MD_IPV4_IPV6_MULTI_IP))
+            ec2.get_secondary_addresses(NIC1_MD_IPV4_IPV6_MULTI_IP, self.mac))
+
+    def test_invalid_ipv4_ipv6_cidr_metadata_logged_with_defaults(self):
+        """Any invalid subnet-ipv(4|6)-cidr-block values use defaults"""
+        invalid_cidr_md = copy.deepcopy(NIC1_MD_IPV4_IPV6_MULTI_IP)
+        invalid_cidr_md['subnet-ipv4-cidr-block'] = "something-unexpected"
+        invalid_cidr_md['subnet-ipv6-cidr-block'] = "not/sure/what/this/is"
+        self.assertEqual(
+            ['172.31.45.70/24', '2600:1f16:292:100:f152:2222:3333:4444/128',
+             '2600:1f16:292:100:f153:12a3:c37c:11f9/128'],
+            ec2.get_secondary_addresses(invalid_cidr_md, self.mac))
+        expected_logs = [
+           "WARNING: Could not parse subnet-ipv4-cidr-block"
+           " something-unexpected for mac 06:17:04:d7:26:ff."
+           " ipv4 network config prefix defaults to /24",
+           "WARNING: Could not parse subnet-ipv6-cidr-block"
+           " not/sure/what/this/is for mac 06:17:04:d7:26:ff."
+           " ipv6 network config prefix defaults to /128"
+        ]
+        logs = self.logs.getvalue()
+        for log in expected_logs:
+            self.assertIn(log, logs)
 
 
 class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):

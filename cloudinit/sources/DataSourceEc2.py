@@ -777,14 +777,14 @@ def convert_ec2_metadata_network_config(
         if nic_metadata.get('ipv6s'):  # Any IPv6 addresses configured
             dev_config['dhcp6'] = True
             dev_config['dhcp6-overrides'] = dhcp_override
-        dev_config['addresses'] = get_secondary_addresses(nic_metadata)
+        dev_config['addresses'] = get_secondary_addresses(nic_metadata, mac)
         if not dev_config['addresses']:
             dev_config.pop('addresses')  # Since we found none configured
         netcfg['ethernets'][nic_name] = dev_config
     return netcfg
 
 
-def get_secondary_addresses(nic_metadata):
+def get_secondary_addresses(nic_metadata, mac):
     """Parse interface-specific nic metadata and return and any secondary IPs
 
     :return: List of secondary IPv4 or IPv6 addresses to configure on the
@@ -815,9 +815,9 @@ def get_secondary_addresses(nic_metadata):
         prefix = md_vals['prefix_default']
         if not cidr or len(cidr.split('/')) != 2:
             LOG.warning(
-                'Could not parse %s %s. %s network'
+                'Could not parse %s %s for mac %s. %s network'
                 ' config prefix defaults to /%s',
-                md_vals['cidr_key'], cidr, ip_type, prefix)
+                md_vals['cidr_key'], cidr, mac, ip_type, prefix)
         else:
             prefix = cidr.split('/')[1]
         # We know we have > 1 ips for in metadata for this IP type
