@@ -5,7 +5,6 @@
 import crypt
 import os
 import platform
-import six
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
@@ -46,8 +45,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         }
 
         for key, val in kwargs.items():
-            if (key in adduser_opts and val and
-               isinstance(val, six.string_types)):
+            if key in adduser_opts and val and isinstance(val, str):
                 adduser_cmd.extend([adduser_opts[key], val])
 
             elif key in adduser_flags and val:
