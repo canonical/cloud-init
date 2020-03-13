@@ -752,7 +752,9 @@ def convert_ec2_metadata_network_config(
         LOG.debug(
             'Skipping network configuration for secondary NICs and IPs.'
             'Datasource apply_network_config value is set False')
-        mac, nic_name = macs_to_nics[fallback_nic]
+        for mac, nic_name in macs_to_nics.items():
+            if nic_name == fallback_nic:
+                break
         dev_config = {'dhcp4': True,
                       'dhcp6': False,
                       'match': {'macaddress': mac.lower()},
