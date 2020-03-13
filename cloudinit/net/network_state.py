@@ -806,10 +806,6 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
 
         # v2 routes are bound to the interface, in v1 we add them under
         # the first subnet since there isn't an equivalent interface level.
-        # Ordering of subnet config for ipv4 vs ipv6 definitions does not
-        # matter on internal net state. The network renderers, such as netplan,
-        # emit that network config up in the specific interface scope instead
-        # of individual subnet addresses.
         if len(subnets) and len(routes):
             subnets[0]['routes'] = routes
 
