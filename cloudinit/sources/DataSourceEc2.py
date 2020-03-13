@@ -736,14 +736,20 @@ def convert_ec2_metadata_network_config(
     @param: fallback_nic: Optionally provide the primary nic interface name.
        This nic will be guaranteed to minimally have a dhcp4 configuration.
     @param: apply_network_config: Boolean set True to configure all networking
-       presented by IMDS. This includes rendering secondary IPv4 or IPv6
-       addresses on any NICs and rendering network config on secondary NICs.
+       presented by IMDS. This includes rendering secondary IPv4 and IPv6
+       addresses on all NICs and rendering network config on secondary NICs.
+       If False, only the primary nic will be configured and only with dhcp
+       (IPv4/IPv6).
 
     @return A dict of network config version 2 based on the metadata and macs.
     """
     netcfg = {'version': 2, 'ethernets': {}}
     if not macs_to_nics:
         macs_to_nics = net.get_interfaces_by_mac()
+    if not apply_network_config:
+        LOG.debug(
+            'Skipping network configuration for secondary NICs and IPs.'
+            'Datasource apply_network_config value is set False')
     macs_metadata = network_md['interfaces']['macs']
     nic_idx = 1
     for mac, nic_name in sorted(macs_to_nics.items()):
@@ -768,11 +774,6 @@ def convert_ec2_metadata_network_config(
             dev_config['addresses'] = get_secondary_addresses(nic_metadata)
             if not dev_config['addresses']:
                 dev_config.pop('addresses')  # Since we found none configured
-        else:
-            LOG.debug(
-                'Skipping secondary IP address setup.'
-                ' Datasource configure_secondary_ips is False')
-
         netcfg['ethernets'][nic_name] = dev_config
     return netcfg
 

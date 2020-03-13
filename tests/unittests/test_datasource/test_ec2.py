@@ -758,7 +758,7 @@ class TestGetSecondaryAddresses(test_helpers.CiTestCase):
     def test_md_with_secondary_v4_and_v6_addresses(self):
         """All secondary addresses are returned from nic metadata"""
         self.assertEqual(
-            ['172.31.45.70/20','2600:1f16:292:100:f152:2222:3333:4444/128',
+            ['172.31.45.70/20', '2600:1f16:292:100:f152:2222:3333:4444/128',
              '2600:1f16:292:100:f153:12a3:c37c:11f9/128'],
             ec2.get_secondary_addresses(NIC1_MD_IPV4_IPV6_MULTI_IP))
 
