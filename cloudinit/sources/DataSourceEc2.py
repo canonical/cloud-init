@@ -746,18 +746,25 @@ def convert_ec2_metadata_network_config(
     netcfg = {'version': 2, 'ethernets': {}}
     if not macs_to_nics:
         macs_to_nics = net.get_interfaces_by_mac()
+    macs_metadata = network_md['interfaces']['macs']
+
     if not apply_network_config:
         LOG.debug(
             'Skipping network configuration for secondary NICs and IPs.'
             'Datasource apply_network_config value is set False')
-    macs_metadata = network_md['interfaces']['macs']
+        mac, nic_name = macs_to_nics[fallback_nic]
+        dev_config = {'dhcp4': True,
+                      'dhcp6': False,
+                      'match': {'macaddress': mac.lower()},
+                      'set-name': nic_name}
+        nic_metadata = macs_metadata.get(mac)
+        if nic_metadata.get('ipv6s'):  # Any IPv6 addresses configured
+            dev_config['dhcp6'] = True
+        netcfg['ethernets'][nic_name] = dev_config
+        return netcfg
+    # Apply network config for all nics and any secondary IPv4/v6 addresses
     nic_idx = 1
     for mac, nic_name in sorted(macs_to_nics.items()):
-        if not apply_network_config:
-            # Skip network config on all non-primary nics when
-            # apply_network_config is False (Xenial, Bionic, Eoan)
-            if fallback_nic and fallback_nic != nic_name:
-                continue
         nic_metadata = macs_metadata.get(mac)
         if not nic_metadata:
             continue  # Not a physical nic represented in metadata
@@ -770,10 +777,9 @@ def convert_ec2_metadata_network_config(
         if nic_metadata.get('ipv6s'):  # Any IPv6 addresses configured
             dev_config['dhcp6'] = True
             dev_config['dhcp6-overrides'] = dhcp_override
-        if apply_network_config:
-            dev_config['addresses'] = get_secondary_addresses(nic_metadata)
-            if not dev_config['addresses']:
-                dev_config.pop('addresses')  # Since we found none configured
+        dev_config['addresses'] = get_secondary_addresses(nic_metadata)
+        if not dev_config['addresses']:
+            dev_config.pop('addresses')  # Since we found none configured
         netcfg['ethernets'][nic_name] = dev_config
     return netcfg
 
