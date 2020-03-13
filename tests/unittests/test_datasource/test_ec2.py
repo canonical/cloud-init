@@ -117,6 +117,56 @@ DEFAULT_METADATA = {
 # python3 -c 'import json
 # from cloudinit.ec2_utils import get_instance_metadata as gm
 # print(json.dumps(gm("2018-09-24"), indent=1, sort_keys=True))'
+
+NIC1_MD_IPV4_IPV6_MULTI_IP = {
+    "device-number": "0",
+    "interface-id": "eni-0d6335689899ce9cc",
+    "ipv4-associations": {
+        "18.218.219.181": "172.31.44.13"
+    },
+    "ipv6s": [
+        "2600:1f16:292:100:c187:593c:4349:136",
+        "2600:1f16:292:100:f153:12a3:c37c:11f9",
+        "2600:1f16:292:100:f152:2222:3333:4444"
+    ],
+    "local-hostname": ("ip-172-31-44-13.us-east-2."
+                       "compute.internal"),
+    "local-ipv4s": [
+        "172.31.44.13",
+        "172.31.45.70"
+    ],
+    "mac": "0a:07:84:3d:6e:38",
+    "owner-id": "329910648901",
+    "public-hostname": ("ec2-18-218-219-181.us-east-2."
+                        "compute.amazonaws.com"),
+    "public-ipv4s": "18.218.219.181",
+    "security-group-ids": "sg-0c387755222ba8d2e",
+    "security-groups": "launch-wizard-4",
+    "subnet-id": "subnet-9d7ba0d1",
+    "subnet-ipv4-cidr-block": "172.31.32.0/20",
+    "subnet_ipv6_cidr_blocks": "2600:1f16:292:100::/64",
+    "vpc-id": "vpc-a07f62c8",
+    "vpc-ipv4-cidr-block": "172.31.0.0/16",
+    "vpc-ipv4-cidr-blocks": "172.31.0.0/16",
+    "vpc_ipv6_cidr_blocks": "2600:1f16:292:100::/56"
+}
+
+NIC2_MD = {
+    "device_number": "1",
+    "interface_id": "eni-043cdce36ded5e79f",
+    "local_hostname": "ip-172-31-47-221.us-east-2.compute.internal",
+    "local_ipv4s": "172.31.47.221",
+    "mac": "0a:75:69:92:e2:16",
+    "owner_id": "329910648901",
+    "security_group_ids": "sg-0d68fef37d8cc9b77",
+    "security_groups": "launch-wizard-17",
+    "subnet_id": "subnet-9d7ba0d1",
+    "subnet_ipv4_cidr_block": "172.31.32.0/20",
+    "vpc_id": "vpc-a07f62c8",
+    "vpc_ipv4_cidr_block": "172.31.0.0/16",
+    "vpc_ipv4_cidr_blocks": "172.31.0.0/16"
+}
+
 SECONDARY_IP_METADATA_2018_09_24 = {
     "ami-id": "ami-0986c2ac728528ac2",
     "ami-launch-index": "0",
@@ -153,38 +203,7 @@ SECONDARY_IP_METADATA_2018_09_24 = {
     "network": {
         "interfaces": {
             "macs": {
-                "0a:07:84:3d:6e:38": {
-                    "device-number": "0",
-                    "interface-id": "eni-0d6335689899ce9cc",
-                    "ipv4-associations": {
-                        "18.218.219.181": "172.31.44.13"
-                    },
-                    "ipv6s": [
-                        "2600:1f16:292:100:c187:593c:4349:136",
-                        "2600:1f16:292:100:f153:12a3:c37c:11f9",
-                        "2600:1f16:292:100:f152:2222:3333:4444"
-                    ],
-                    "local-hostname": ("ip-172-31-44-13.us-east-2."
-                                       "compute.internal"),
-                    "local-ipv4s": [
-                        "172.31.44.13",
-                        "172.31.45.70"
-                    ],
-                    "mac": "0a:07:84:3d:6e:38",
-                    "owner-id": "329910648901",
-                    "public-hostname": ("ec2-18-218-219-181.us-east-2."
-                                        "compute.amazonaws.com"),
-                    "public-ipv4s": "18.218.219.181",
-                    "security-group-ids": "sg-0c387755222ba8d2e",
-                    "security-groups": "launch-wizard-4",
-                    "subnet-id": "subnet-9d7ba0d1",
-                    "subnet-ipv4-cidr-block": "172.31.32.0/20",
-                    "subnet_ipv6_cidr_blocks": "2600:1f16:292:100::/64",
-                    "vpc-id": "vpc-a07f62c8",
-                    "vpc-ipv4-cidr-block": "172.31.0.0/16",
-                    "vpc-ipv4-cidr-blocks": "172.31.0.0/16",
-                    "vpc_ipv6_cidr_blocks": "2600:1f16:292:100::/56"
-                }
+                "0a:07:84:3d:6e:38": NIC1_MD_IPV4_IPV6_MULTI_IP,
             }
         }
     },
@@ -206,22 +225,6 @@ SECONDARY_IP_METADATA_2018_09_24 = {
         "domain": "amazonaws.com",
         "partition": "aws"
     }
-}
-
-NIC2_MD = {
-    "device_number": "1",
-    "interface_id": "eni-043cdce36ded5e79f",
-    "local_hostname": "ip-172-31-47-221.us-east-2.compute.internal",
-    "local_ipv4s": "172.31.47.221",
-    "mac": "0a:75:69:92:e2:16",
-    "owner_id": "329910648901",
-    "security_group_ids": "sg-0d68fef37d8cc9b77",
-    "security_groups": "launch-wizard-17",
-    "subnet_id": "subnet-9d7ba0d1",
-    "subnet_ipv4_cidr_block": "172.31.32.0/20",
-    "vpc_id": "vpc-a07f62c8",
-    "vpc_ipv4_cidr_block": "172.31.0.0/16",
-    "vpc_ipv4_cidr_blocks": "172.31.0.0/16"
 }
 
 M_PATH_NET = 'cloudinit.sources.DataSourceEc2.net.'
@@ -453,8 +456,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
         expected = {'version': 2, 'ethernets': {'eth9': {
             'match': {'macaddress': mac1}, 'set-name': 'eth9',
             'addresses': ['172.31.45.70/20',
-                          '2600:1f16:292:100:f153:12a3:c37c:11f9/128',
-                          '2600:1f16:292:100:f152:2222:3333:4444/128'],
+                          '2600:1f16:292:100:f152:2222:3333:4444/128',
+                          '2600:1f16:292:100:f153:12a3:c37c:11f9/128'],
             'dhcp4': True, 'dhcp4-overrides': {'route-metric': 100},
             'dhcp6': True, 'dhcp6-overrides': {'route-metric': 100}}}}
         patch_path = M_PATH_NET + 'get_interfaces_by_mac'
@@ -494,10 +497,10 @@ class TestEc2(test_helpers.HttprettyTestCase):
         register_mock_metaserver(
             'http://169.254.169.254/2009-04-04/meta-data/', DEFAULT_METADATA)
         mac1 = '06:17:04:d7:26:09'  # Defined in DEFAULT_METADATA
-        get_interface_mac_path = M_PATH_NET + 'get_interface_mac'
+        get_interface_mac_path = M_PATH_NET + 'get_interfaces_by_mac'
         ds.fallback_nic = 'eth9'
         with mock.patch(get_interface_mac_path) as m_get_interface_mac:
-            m_get_interface_mac.return_value = mac1
+            m_get_interface_mac.return_value = {mac1: 'eth9'}
             nc = ds.network_config  # Will re-crawl network metadata
             self.assertIsNotNone(nc)
         self.assertIn(
@@ -744,6 +747,20 @@ class TestEc2(test_helpers.HttprettyTestCase):
             prefix_or_mask='255.255.255.0', router='192.168.2.1',
             static_routes=None)
         self.assertIn('Crawl of metadata service took', self.logs.getvalue())
+
+
+class TestGetSecondaryAddresses(test_helpers.CiTestCase):
+
+    def test_md_with_no_secondary_addresses(self):
+        """Empty list is returned when nic metadata contains no secondary ip"""
+        self.assertEqual([], ec2.get_secondary_addresses(NIC2_MD))
+
+    def test_md_with_ipv4_and_ipv6_addresses(self):
+        """All secondary addresses are returned from nic metadata"""
+        self.assertEqual(
+            ['172.31.45.70/20','2600:1f16:292:100:f152:2222:3333:4444/128',
+             '2600:1f16:292:100:f153:12a3:c37c:11f9/128'],
+            ec2.get_secondary_addresses(NIC1_MD_IPV4_IPV6_MULTI_IP))
 
 
 class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
