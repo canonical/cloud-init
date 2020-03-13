@@ -727,7 +727,7 @@ def _collect_platform_data():
 def convert_ec2_metadata_network_config(
         network_md, macs_to_nics=None, fallback_nic=None,
         config_secondary_ips=True):
-    """Convert ec2 metadata to network config version 1 data dict.
+    """Convert ec2 metadata to network config version 2 data dict.
 
     @param: network_md: 'network' portion of EC2 metadata.
        generally formed as {"interfaces": {"macs": {}} where

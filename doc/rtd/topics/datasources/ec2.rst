@@ -42,6 +42,7 @@ Note that there are multiple versions of this data provided, cloud-init
 by default uses **2009-04-04** but newer versions can be supported with
 relative ease (newer versions have more data exposed, while maintaining
 backward compatibility with the previous versions).
+Version **2016-09-02** is required for secondary IP address support.
 
 To see which versions are supported from your cloud provider use the following
 URL:
@@ -81,7 +82,12 @@ The settings that may be configured are:
    request.  This is used both when selecting a metadata_url and when crawling
    the metadata service. (default: 50)
  * **configure_secondary_ips**: Boolean (default: True) to allow cloud-init
-   to configure any secondary IPs described by the metadata service.
+   to configure any secondary IPs described by the metadata service. Each
+   network interface will enable dhcp4 to obtain primary address and route.
+   Secondary IPv4/IPv6 addresses are configured as static IP addresses on the
+   NIC if either ``local-ipv4s`` or ``ipv6s`` contain multiple addresses in the
+   list. Each address greater than one represented in that metadata is a
+   secondary address.
 
 An example configuration with the default values is provided below:
 
@@ -103,5 +109,11 @@ Notes
    generated only in the first boot of the instance.
    The check for the instance type is performed by is_classic_instance()
    method.
+
+ * For EC2 instances with multiple network interfaces (NICs) attached, dhcp4
+   will be enabled to obtain the primary private IPv4 address of those NICs.
+   Wherever dhcp4 or dhcp6 is enabled for a NIC, a dhcp route-metric will be
+   added with the value of ``<interface_num + 1> * 100`` to ensure dhcp
+   routes on the primary NIC are preferred to any secondary NICs.
 
 .. vi: textwidth=78
