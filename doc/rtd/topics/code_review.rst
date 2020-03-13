@@ -38,7 +38,7 @@ Goals
 This process has the following goals:
 
 * Ensure code reviews occur in a timely fashion and provide actionable
-  feedback if changes are desirable.
+  feedback if changes are desired.
 * Ensure the minimization of ancillary problems to increase the
   efficiency for those reviewing the submitted code
 
@@ -56,7 +56,7 @@ Proposer
    The person proposing a pull request (hereafter known as a PR).
 
 Reviewer
-   A person who is reviewing a pull request.
+   A person who is reviewing a PR.
 
 Committer
    A cloud-init core developer (i.e. a person who has permission to
@@ -65,8 +65,8 @@ Committer
 Prerequisites For Landing Pull Requests
 =======================================
 
-Before a pull request can be landed into master, the following
-conditions *must* be met:
+Before a PR can be landed into master, the following conditions *must*
+be met:
 
 * the CLA has been signed by the **Proposer**
 * all required status checks are passing
@@ -127,8 +127,8 @@ These are the steps that comprise the opening phase:
    CI fails
       The **Proposer** is expected to fix CI failures.  If the
       **Proposer** doesn't understand the nature of the failures they
-      are seeing, they should comment in the pull request to request
-      assistance, or use another way of :ref:`Asking For Help`.
+      are seeing, they should comment in the PR to request assistance,
+      or use another way of :ref:`Asking For Help`.
 
       (Note that if assistance is not requested, the **Committers**
       will assume that the **Proposer** is working on addressing the
@@ -156,10 +156,9 @@ These are the steps that comprise the review phase:
 
    This **Committer** is expected to shepherd the PR to completion (and
    merge it, if that is the outcome reached).  This means that they
-   will perform an initial review, and monitor the pull request to
-   ensure that the **Proposer** is receiving any assistance that they
-   require.  The **Committers** will perform this assignment on a daily
-   basis.
+   will perform an initial review, and monitor the PR to ensure that
+   the **Proposer** is receiving any assistance that they require.  The
+   **Committers** will perform this assignment on a daily basis.
 
    This assignment is intended to ensure that the **Proposer** has a
    clear point of contact with a cloud-init core developer, and that
@@ -185,9 +184,8 @@ These are the steps that comprise the review phase:
      There may be circumstances where a PR should not be merged
      immediately.  The ``wip`` label will be applied to PRs for which
      this is true.  Only **Committers** are able to apply labels to
-     pull requests, so anyone who believes that this label should be
-     applied to a PR should request its application in a comment on the
-     PR.
+     PRs, so anyone who believes that this label should be applied to a
+     PR should request its application in a comment on the PR.
 
      The review process is **DONE**.
 
