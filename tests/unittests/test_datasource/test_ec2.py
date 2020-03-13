@@ -452,7 +452,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
             m_find_fallback.return_value = 'eth9'
             ds.get_data()
 
-        mac1 = '0a:07:84:3d:6e:38'  # IPv4 with 1 secondary IP
+        mac1 = '0a:07:84:3d:6e:38'  # 1 secondary IPv4 and 2 secondary IPv6
         expected = {'version': 2, 'ethernets': {'eth9': {
             'match': {'macaddress': mac1}, 'set-name': 'eth9',
             'addresses': ['172.31.45.70/20',
@@ -499,8 +499,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
         mac1 = '06:17:04:d7:26:09'  # Defined in DEFAULT_METADATA
         get_interface_mac_path = M_PATH_NET + 'get_interfaces_by_mac'
         ds.fallback_nic = 'eth9'
-        with mock.patch(get_interface_mac_path) as m_get_interface_mac:
-            m_get_interface_mac.return_value = {mac1: 'eth9'}
+        with mock.patch(get_interface_mac_path) as m_get_interfaces_by_mac:
+            m_get_interfaces_by_mac.return_value = {mac1: 'eth9'}
             nc = ds.network_config  # Will re-crawl network metadata
             self.assertIsNotNone(nc)
         self.assertIn(
@@ -755,7 +755,7 @@ class TestGetSecondaryAddresses(test_helpers.CiTestCase):
         """Empty list is returned when nic metadata contains no secondary ip"""
         self.assertEqual([], ec2.get_secondary_addresses(NIC2_MD))
 
-    def test_md_with_ipv4_and_ipv6_addresses(self):
+    def test_md_with_secondary_v4_and_v6_addresses(self):
         """All secondary addresses are returned from nic metadata"""
         self.assertEqual(
             ['172.31.45.70/20','2600:1f16:292:100:f152:2222:3333:4444/128',
