@@ -749,9 +749,6 @@ def convert_ec2_metadata_network_config(
     macs_metadata = network_md['interfaces']['macs']
 
     if not apply_network_config:
-        LOG.debug(
-            'Skipping network configuration for secondary NICs and IPs.'
-            'Datasource apply_network_config value is set False')
         for mac, nic_name in macs_to_nics.items():
             if nic_name == fallback_nic:
                 break
