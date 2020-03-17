@@ -118,6 +118,7 @@ Notes
    Wherever dhcp4 or dhcp6 is enabled for a NIC, a dhcp route-metric will be
    added with the value of ``<device-number + 1> * 100`` to ensure dhcp
    routes on the primary NIC are preferred to any secondary NICs.
-   For example: eth0 will have a DHCP route-metric of 100, eth1 will be 200.
+   For example: the primary NIC will have a DHCP route-metric of 100,
+   the next NIC will be 200.
 
 .. vi: textwidth=78
