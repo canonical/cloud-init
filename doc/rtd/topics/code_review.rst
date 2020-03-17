@@ -10,10 +10,8 @@ Code is reviewed for acceptance by at least one core team member (later
 referred to as committers), but comments and suggestions from others
 are encouraged and welcome.
 
-While there is formality inherent in a code review process, and this is
-reflected by the language chosen in this document, we try to keep
-formalities to a minimum. The process is intended to provide timely and
-actionable feedback for any submission.
+The process is intended to provide timely and actionable feedback for
+any submission.
 
 Asking For Help
 ===============
