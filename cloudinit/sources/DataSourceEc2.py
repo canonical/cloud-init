@@ -762,11 +762,13 @@ def convert_ec2_metadata_network_config(
         netcfg['ethernets'][nic_name] = dev_config
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
-    for nic_idx, (mac, nic_name) in enumerate(sorted(macs_to_nics.items()), 1):
+    nic_idx = 1
+    for mac, nic_name in sorted(macs_to_nics.items()):
         nic_metadata = macs_metadata.get(mac)
         if not nic_metadata:
             continue  # Not a physical nic represented in metadata
         dhcp_override = {'route-metric': nic_idx * 100}
+        nic_idx += 1
         dev_config = {'dhcp4': True, 'dhcp4-overrides': dhcp_override,
                       'dhcp6': False,
                       'match': {'macaddress': mac.lower()},
@@ -778,6 +780,11 @@ def convert_ec2_metadata_network_config(
         if not dev_config['addresses']:
             dev_config.pop('addresses')  # Since we found none configured
         netcfg['ethernets'][nic_name] = dev_config
+    # Remove route-metric dhcp overrides if only one nic configured
+    if len(netcfg['ethernets']) == 1:
+        for nic_name in netcfg['ethernets'].keys():
+            netcfg['ethernets'][nic_name].pop('dhcp4-overrides')
+            netcfg['ethernets'][nic_name].pop('dhcp6-overrides', None)
     return netcfg
 
 
