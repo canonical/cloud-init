@@ -12,7 +12,6 @@ pkgs="
    py37-oauthlib
    py37-requests
    py37-setuptools
-   py37-six
    py37-yaml
    sudo
 "
