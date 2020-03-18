@@ -172,7 +172,7 @@ class CloudTestCase(unittest2.TestCase):
                 'Skipping instance-data.json test.'
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
-        self.assertItemsEqual(['ci_cfg'], instance_data['sensitive_keys'])
+        self.assertItemsEqual(['merged_cfg'], instance_data['sensitive_keys'])
         ds = instance_data.get('ds', {})
         v1_data = instance_data.get('v1', {})
         metadata = ds.get('meta-data', {})
