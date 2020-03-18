@@ -81,10 +81,10 @@ The settings that may be configured are:
  * **timeout**: the timeout value provided to urlopen for each individual http
    request.  This is used both when selecting a metadata_url and when crawling
    the metadata service. (default: 50)
- * **apply_network_config**: Boolean (default: True) to allow cloud-init
-   to configure any secondary NICs and secondary IPs described by the
-   metadata service. All network interfaces are configured with DHCP (v4) to
-   obtain an primary IPv4 address and route. Interfaces which have a
+ * **apply_full_imds_network_config**: Boolean (default: True) to allow
+   cloud-init to configure any secondary NICs and secondary IPs described by
+   the metadata service. All network interfaces are configured with DHCP (v4)
+   to obtain an primary IPv4 address and route. Interfaces which have a
    non-empty 'ipv6s' list will also enable DHCPv6 to obtain a primary IPv6
    address and route. The DHCP response (v4 and v6) return an IP that matches
    the first element of local-ipv4s and ipv6s lists respectively. All
@@ -100,7 +100,7 @@ An example configuration with the default values is provided below:
     metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
     max_wait: 120
     timeout: 50
-    apply_network_config: true
+    apply_full_imds_network_config: true
 
 Notes
 -----

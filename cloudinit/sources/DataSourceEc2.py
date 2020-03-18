@@ -409,12 +409,12 @@ class DataSourceEc2(sources.DataSource):
         net_md = self.metadata.get('network')
         if isinstance(net_md, dict):
             # SRU_BLOCKER: xenial, bionic and eoan should default
-            # apply_network_config to False to retain original behavior on
-            # those releases.
+            # apply_full_imds_network_config to False to retain original
+            # behavior on those releases.
             result = convert_ec2_metadata_network_config(
                 net_md, fallback_nic=iface,
                 full_network_config=util.get_cfg_option_bool(
-                    self.ds_cfg, 'apply_network_config', True))
+                    self.ds_cfg, 'apply_full_imds_network_config', True))
 
             # RELEASE_BLOCKER: xenial should drop the below if statement,
             # because the issue being addressed doesn't exist pre-netplan.
