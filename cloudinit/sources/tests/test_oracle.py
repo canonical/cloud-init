@@ -588,8 +588,6 @@ class TestNetworkConfigFromOpcImds(test_helpers.CiTestCase):
 
 class TestNetworkConfigFiltersNetFailover(test_helpers.CiTestCase):
 
-    with_logs = True
-
     def setUp(self):
         super(TestNetworkConfigFiltersNetFailover, self).setUp()
         self.add_patch(DS_PATH + '.get_interfaces_by_mac',
