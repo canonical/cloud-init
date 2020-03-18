@@ -4,8 +4,10 @@ cloud-init (20.1-10-g71af48df-0ubuntu2) UNRELEASED; urgency=medium
     - This fixes upstream daily builds.  python3-nose is not removed from
       Build-Depends because, currently, the Ubuntu package builds will still
       use it for testing.
+  * cherry-pick 6600c642: ec2: render network on all NICs and add
+    secondary IPs as (LP: #1866930)
 
- -- Daniel Watkins <oddbloke@ubuntu.com>  Wed, 11 Mar 2020 15:24:42 -0400
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 18 Mar 2020 13:59:54 -0600
 
 cloud-init (20.1-10-g71af48df-0ubuntu1) focal; urgency=medium
 
