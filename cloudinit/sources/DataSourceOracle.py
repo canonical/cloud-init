@@ -248,15 +248,9 @@ class DataSourceOracle(sources.DataSource):
     @property
     def network_config(self):
         """Network config is read from initramfs provided files
+
         If none is present, then we fall back to fallback configuration.
-
-        One thing to note here is that this method is not currently
-        considered at all if there is is kernel/initramfs provided
-        data.  In that case, stages considers that the cmdline data
-        overrides datasource provided data and does not consult here.
-
-        We nonetheless return cmdline provided config if present
-        and fallback to generate fallback."""
+        """
         if self._network_config == sources.UNSET:
             # this is v1
             self._network_config = cmdline.read_initramfs_config()
