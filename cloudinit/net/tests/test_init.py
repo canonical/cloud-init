@@ -341,8 +341,6 @@ class TestGenerateFallbackConfig(CiTestCase):
 
 class TestNetFindFallBackNic(CiTestCase):
 
-    with_logs = True
-
     def setUp(self):
         super(TestNetFindFallBackNic, self).setUp()
         sys_mock = mock.patch('cloudinit.net.get_sys_class_path')
@@ -995,8 +993,6 @@ class TestExtractPhysdevs(CiTestCase):
 
 class TestWaitForPhysdevs(CiTestCase):
 
-    with_logs = True
-
     def setUp(self):
         super(TestWaitForPhysdevs, self).setUp()
         self.add_patch('cloudinit.net.get_interfaces_by_mac',
@@ -1070,8 +1066,6 @@ class TestWaitForPhysdevs(CiTestCase):
 
 
 class TestNetFailOver(CiTestCase):
-
-    with_logs = True
 
     def setUp(self):
         super(TestNetFailOver, self).setUp()

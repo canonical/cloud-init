@@ -158,7 +158,6 @@ class TestMAASDataSource(CiTestCase):
 
 @mock.patch("cloudinit.sources.DataSourceMAAS.url_helper.OauthUrlHelper")
 class TestGetOauthHelper(CiTestCase):
-    with_logs = True
     base_cfg = {'consumer_key': 'FAKE_CONSUMER_KEY',
                 'token_key': 'FAKE_TOKEN_KEY',
                 'token_secret': 'FAKE_TOKEN_SECRET',
