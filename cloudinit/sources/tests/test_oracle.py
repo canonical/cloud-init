@@ -1,19 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.sources import DataSourceOracle as oracle
-from cloudinit.sources import BrokenMetadata, NetworkConfigSource
-from cloudinit import helpers
-
-from cloudinit.tests import helpers as test_helpers
-
-from textwrap import dedent
 import argparse
 import copy
-import httpretty
 import json
 import os
 import uuid
+from textwrap import dedent
 from unittest import mock
+
+import httpretty
+
+from cloudinit import helpers
+from cloudinit.sources import BrokenMetadata
+from cloudinit.sources import DataSourceOracle as oracle
+from cloudinit.sources import NetworkConfigSource
+from cloudinit.tests import helpers as test_helpers
 
 DS_PATH = "cloudinit.sources.DataSourceOracle"
 MD_VER = "2013-10-17"
