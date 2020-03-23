@@ -163,7 +163,7 @@ def handle(_name, cfg, cloud, log, _args):
 def update_disk_setup_devices(disk_setup, tformer):
     # update 'disk_setup' dictionary anywhere were a device may occur
     # update it with the response from 'tformer'
-    for origname in disk_setup.keys():
+    for origname in list(disk_setup):
         transformed = tformer(origname)
         if transformed is None or transformed == origname:
             continue
