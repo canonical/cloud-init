@@ -1230,9 +1230,14 @@ def search_for_mirror(candidates):
     Search through a list of mirror urls for one that works
     This needs to return quickly.
     """
+    if candidates is None:
+        return None
+
+    LOG.debug("search for mirror in candidates: '%s'", candidates)
     for cand in candidates:
         try:
             if is_resolvable_url(cand):
+                LOG.debug("found working mirror: '%s'", cand)
                 return cand
         except Exception:
             pass

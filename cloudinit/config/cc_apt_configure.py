@@ -763,25 +763,6 @@ def convert_to_v3_apt_format(cfg):
     return cfg
 
 
-def search_for_mirror(candidates):
-    """
-    Search through a list of mirror urls for one that works
-    This needs to return quickly.
-    """
-    if candidates is None:
-        return None
-
-    LOG.debug("search for mirror in candidates: '%s'", candidates)
-    for cand in candidates:
-        try:
-            if util.is_resolvable_url(cand):
-                LOG.debug("found working mirror: '%s'", cand)
-                return cand
-        except Exception:
-            pass
-    return None
-
-
 def search_for_mirror_dns(configured, mirrortype, cfg, cloud):
     """
     Try to resolve a list of predefines DNS names to pick mirrors
@@ -813,7 +794,7 @@ def search_for_mirror_dns(configured, mirrortype, cfg, cloud):
         for post in doms:
             mirror_list.append(mirrorfmt % (post))
 
-        mirror = search_for_mirror(mirror_list)
+        mirror = util.search_for_mirror(mirror_list)
 
     return mirror
 
@@ -876,7 +857,7 @@ def get_mirror(cfg, mirrortype, arch, cloud):
     # fallback to search if specified
     if mirror is None:
         # list of mirrors to try to resolve
-        mirror = search_for_mirror(mcfg.get("search", None))
+        mirror = util.search_for_mirror(mcfg.get("search", None))
 
     # fallback to search_dns if specified
     if mirror is None:
