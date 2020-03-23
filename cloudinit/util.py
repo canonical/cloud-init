@@ -1839,7 +1839,7 @@ def boottime():
             ("tv_sec", ctypes.c_int64),
             ("tv_usec", ctypes.c_int64)
         ]
-    libc = ctypes.CDLL('/lib/libc.so.7')
+    libc = ctypes.CDLL('libc.so')
     size = ctypes.c_size_t()
     size.value = ctypes.sizeof(timeval)
     buf = timeval()
