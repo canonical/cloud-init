@@ -68,6 +68,7 @@ Having trouble? We would like to help!
    :caption: Development
 
    topics/hacking.rst
+   topics/code_review.rst
    topics/security.rst
    topics/debugging.rst
    topics/logging.rst
