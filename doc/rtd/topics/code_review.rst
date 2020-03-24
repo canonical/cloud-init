@@ -250,5 +250,5 @@ will be closed after a further 7 days of inactivity.
 
 These closes are not considered permanent, and the closing message
 should reflect this for the **Proposer**. However, if a PR is reopened,
-it should effectively enter the :ref:`Opening phase` again, as it may need
-some work done to get CI passing again.
+it should effectively enter the :ref:`Opening phase` again, as it may
+need some work done to get CI passing again.
