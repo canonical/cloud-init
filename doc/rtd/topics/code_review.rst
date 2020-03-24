@@ -66,7 +66,8 @@ Prerequisites For Landing Pull Requests
 Before a PR can be landed into master, the following conditions *must*
 be met:
 
-* the CLA has been signed by the **Proposer**
+* the CLA has been signed by the **Proposer** (or is covered by an
+  entity-level CLA signature)
 * all required status checks are passing
 * at least one "Approve" review from a **Committer**
 * no "Request changes" reviews from any **Committer**
@@ -243,10 +244,10 @@ These are the steps that comprise the review phase:
 Inactive Pull Requests
 ======================
 
-PRs may be closed if they have been waiting on **Proposer** action for
-a certain amount of time without activity.  A PR will be marked as
-stale (with an explanatory comment) after 14 days of inactivity.  It
-will be closed after a further 7 days of inactivity.
+PRs will be temporarily closed if they have been waiting on
+**Proposer** action for a certain amount of time without activity.  A
+PR will be marked as stale (with an explanatory comment) after 14 days
+of inactivity.  It will be closed after a further 7 days of inactivity.
 
 These closes are not considered permanent, and the closing message
 should reflect this for the **Proposer**. However, if a PR is reopened,
