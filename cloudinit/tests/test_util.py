@@ -681,7 +681,6 @@ class TestReadCcFromCmdline(CiTestCase):
                           'runcmd': [['ls', '-l'], 'echo hi']},
                          util.read_conf_from_cmdline(cmdline=cmdline))
 
-
     def test_multi_section_tokens(self):
         """Parse and merge multiple yaml content sections."""
         cmdline = "cc:ssh_import_id: [smoser, bob] end_cc "
