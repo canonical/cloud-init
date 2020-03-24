@@ -13,7 +13,7 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 
 
-class Distro(cloudinit.distros.bsd.BSD):
+class NetBSD(cloudinit.distros.bsd.BSD):
     ci_sudoers_fn = '/usr/pkg/etc/sudoers.d/90-cloud-init-users'
 
     group_add_cmd_prefix = ["groupadd"]
@@ -115,7 +115,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         LOG.debug('NetBSD cannot rename network interface.')
 
     def _get_pkg_cmd_environ(self):
-        """Return environment vars used in NetBSD package_command operations"""
+        """Return env vars used in NetBSD package_command operations"""
         os_release = platform.release()
         os_arch = platform.machine()
         e = os.environ.copy()
@@ -127,5 +127,8 @@ class Distro(cloudinit.distros.bsd.BSD):
     def update_package_sources(self):
         pass
 
+
+class Distro(NetBSD):
+    pass
 
 # vi: ts=4 expandtab
