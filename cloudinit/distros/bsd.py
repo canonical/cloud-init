@@ -120,4 +120,3 @@ class BSD(distros.Distro):
 
     def apply_network_config_names(self, netconfig):
         LOG.debug('Cannot rename network interface.')
-        return

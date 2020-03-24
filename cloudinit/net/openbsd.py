@@ -9,9 +9,6 @@ LOG = logging.getLogger(__name__)
 
 class Renderer(cloudinit.net.bsd.BSDRenderer):
 
-    def __init__(self, config=None):
-        super(Renderer, self).__init__()
-
     def write_config(self):
         for device_name, v in self.interface_configurations.items():
             if_file = 'etc/hostname.%s' % device_name
