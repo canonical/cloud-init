@@ -18,6 +18,9 @@ class BSD(distros.Distro):
     group_add_cmd_prefix = []
     pkg_cmd_install_prefix = []
     pkg_cmd_remove_prefix = []
+    # There is no need to update the package cache on NetBSD and OpenBSD
+    # TODO neither freebsd nor netbsd handles a command 'upgrade'
+    pkg_cmd_update_prefix = None
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
@@ -86,12 +89,14 @@ class BSD(distros.Distro):
         if pkgs is None:
             pkgs = []
 
-        # TODO neither freebsd nor netbsd handles a command 'upgrade'
-        # provided by cloudinit/config/cc_package_update_upgrade_install.py
         if command == 'install':
             cmd = self.pkg_cmd_install_prefix
         elif command == 'remove':
             cmd = self.pkg_cmd_remove_prefix
+        elif command == 'update':
+            if not self.pkg_cmd_update_prefix:
+                return
+            cmd = self.pkg_cmd_update_prefix
 
         if args and isinstance(args, str):
             cmd.append(args)
