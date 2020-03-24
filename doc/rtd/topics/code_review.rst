@@ -143,7 +143,8 @@ Review Phase
 In this phase, the **Proposer** and the **Reviewers** will iterate
 together to, hopefully, get the PR merged into the cloud-init codebase.
 There are three potential outcomes: merged, rejected permanently, and
-temporarily closed.
+temporarily closed.  (The first two are covered in this section; see
+:ref:`Inactive Pull Requests` for details about temporary closure.)
 
 (In the below, when the verbs "merge" or "squash merge" are used, they
 should be understood to mean "squash merged using the GitHub UI", which
