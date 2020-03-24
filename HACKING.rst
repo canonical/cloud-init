@@ -165,6 +165,10 @@ The following guidelines should be following:
 * pytest tests should use bare ``assert`` statements, to take advantage
   of pytest's `assertion introspection`_
 
+  * For ``==`` and other commutative assertions, the expected value
+    should be placed before the value under test:
+    ``assert expected_value == function_under_test()``
+
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
