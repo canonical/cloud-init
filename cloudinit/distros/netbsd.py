@@ -115,7 +115,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         LOG.debug('NetBSD cannot rename network interface.')
 
     def _get_pkg_cmd_environ(self):
-        """Return environment vars used in *BSD package_command operations"""
+        """Return environment vars used in NetBSD package_command operations"""
         os_release = platform.release()
         os_arch = platform.machine()
         e = os.environ.copy()

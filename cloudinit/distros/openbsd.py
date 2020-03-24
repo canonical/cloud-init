@@ -116,10 +116,8 @@ class Distro(cloudinit.distros.bsd.BSD):
             util.logexc(LOG, "Failed to lock user %s", name)
             raise
 
-    def package_command(self, command, args=None, pkgs=None):
-        if pkgs is None:
-            pkgs = []
-
+    def _get_pkg_cmd_environ(self):
+        """Return environment vars used in OpenBSD package_command operations"""
         os_release = platform.release()
         os_arch = platform.machine()
         e = os.environ.copy()
@@ -127,21 +125,7 @@ class Distro(cloudinit.distros.bsd.BSD):
                 'ftp://ftp.openbsd.org/pub/OpenBSD/{os_release}/'
                 'packages/{os_arch}/').format(
                         os_arch=os_arch, os_release=os_release)
-
-        if command == 'install':
-            cmd = ['pkg_add', '-U']
-        elif command == 'remove':
-            cmd = ['pkg_delete']
-        if args and isinstance(args, str):
-            cmd.append(args)
-        elif args and isinstance(args, list):
-            cmd.extend(args)
-
-        pkglist = util.expand_package_list('%s-%s', pkgs)
-        cmd.extend(pkglist)
-
-        # Allow the output of this to flow outwards (ie not be captured)
-        util.subp(cmd, env=e, capture=False)
+        return e
 
     def update_package_sources(self):
         pass
