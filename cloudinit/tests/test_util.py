@@ -6,6 +6,7 @@ import base64
 import logging
 import json
 import platform
+import pytest
 
 import cloudinit.util as util
 
@@ -606,124 +607,98 @@ class TestIsLXD(CiTestCase):
         m_exists.assert_called_once_with('/dev/lxd/sock')
 
 
-class TestReadCcFromCmdline(CiTestCase):
-    def test_returns_none_with_no_marker(self):
-        """Return None if cmdline has no cc:<YAML>end_cc content."""
-        self.assertIsNone(
-            util.read_conf_from_cmdline(cmdline=self.random_string()))
+class TestReadCcFromCmdline:
 
-    def test_empty_yaml_content(self):
-        """Return None if YAML content is empty string."""
-        cmdline = 'foo cc: end_cc bar'
-        self.assertIsNone(util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_mapping_content_no_end_marker(self):
-        """Return expected dictionary without trailing end_cc marker."""
-        cmdline = 'foo cc: ssh_pwauth: true'
-        self.assertEqual({'ssh_pwauth': True},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_mapping_content_no_end_marker_trailing_newline(self):
-        """Return expected dictionary w escaped newline and no end_cc."""
-        cmdline = "foo cc: ssh_pwauth: true\\n"
-        self.assertEqual({'ssh_pwauth': True},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_mapping_using_start_end_end_marker(self):
-        """Return expected dictionary of yaml between cc: and end_cc."""
-        cmdline = "foo cc: ssh_pwauth: true end_cc bar"
-        self.assertEqual({'ssh_pwauth': True},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_mapping_with_list_no_end_marker_newline(self):
-        """Return dict with list value w escaped newline, no end_cc."""
-        cmdline = "cc: ssh_import_id: [smoser, kirkland]\\n"
-        self.assertEqual({'ssh_import_id': ['smoser', 'kirkland']},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_mapping_list_with_urlencoded_brackets(self):
-        """Parse urlencoded brackets in yaml content."""
-        cmdline = "cc: ssh_import_id: %5Bsmoser, kirkland%5D end_cc"
-        self.assertEqual({'ssh_import_id': ['smoser', 'kirkland']},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_mapping_urlencoded(self):
-        """Parse complete urlencoded yaml content."""
-        cmdline = "cc: ssh_import_id%3A%20%5Buser1%2C%20user2%5D end_cc"
-        self.assertEqual({'ssh_import_id': ['user1', 'user2']},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_nested_mappings(self):
-        """Parse nested dictionary in yaml content."""
-        cmdline = "cc: ntp: {enabled: true, ntp_client: myclient} end_cc"
-        self.assertEqual({'ntp': {'enabled': True, 'ntp_client': 'myclient'}},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_mapping_list_with_no_brackets_single_entry(self):
-        """Parse single mapping value in yaml content."""
-        cmdline = "cc: ssh_import_id: smoser end_cc"
-        self.assertEqual({'ssh_import_id': 'smoser'},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_multiline_content(self):
-        """Parse multiline content with multiple mapping and nested lists."""
-        cmdline = ("cc: ssh_import_id: [smoser, bob]\\n"
-                   "runcmd: [ [ ls, -l ], echo hi ] end_cc")
-        self.assertEqual({'ssh_import_id': ['smoser', 'bob'],
-                          'runcmd': [['ls', '-l'], 'echo hi']},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_multiline_encoded_content(self):
-        """Parse multiline encoded content w/ mappings and nested lists."""
-        cmdline = ("cc: ssh_import_id: %5Bsmoser, bob%5D\\n"
-                   "runcmd: [ [ ls, -l ], echo hi ] end_cc")
-        self.assertEqual({'ssh_import_id': ['smoser', 'bob'],
-                          'runcmd': [['ls', '-l'], 'echo hi']},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_multiline_encoded_content_with_escaped_newlines(self):
-        """ test encoded escaped newlines work.
-
-        unquote(encoded_content)
-        'ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ]'
-        """
-        encoded_content = (
-            'ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%5Cn'
-            'runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C%20echo%20hi%20%5D')
-        cmdline = "cc: " + encoded_content +  " end_cc"
-        self.assertEqual({'ssh_import_id': ['smoser', 'bob'],
-                          'runcmd': [['ls', '-l'], 'echo hi']},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_multiline_encoded_content_with_newlines(self):
-        """ test encoded newlines work.
-
-        unquote(encoded_content)
-        'ssh_import_id: [smoser, bob]\nruncmd: [ [ ls, -l ], echo hi ]'
-        """
-        encoded_content = (
-            'ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%0A'
-            'runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C%20echo%20hi%20%5D')
-        cmdline = "cc: " + encoded_content +  " end_cc"
-        self.assertEqual({'ssh_import_id': ['smoser', 'bob'],
-                          'runcmd': [['ls', '-l'], 'echo hi']},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_multi_section_tokens(self):
-        """Parse and merge multiple yaml content sections."""
-        cmdline = "cc:ssh_import_id: [smoser, bob] end_cc "
-        cmdline += "cc: runcmd: [ [ ls, -l ] ] end_cc"
-        self.assertEqual({'ssh_import_id': ['smoser', 'bob'],
-                          'runcmd': [['ls', '-l']]},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
-
-    def test_multi_section_encoded_tokens(self):
-        """Parse and merge multiple encoded yaml content sections."""
-        cmdline = "'cc:ssh_import_id%3A%20%5Bsmoser%5D end_cc "
-        cmdline += "cc:runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%20%5D end_cc"
-        self.assertEqual({'ssh_import_id': ['smoser'],
-                          'runcmd': [['ls', '-l']]},
-                         util.read_conf_from_cmdline(cmdline=cmdline))
+    @pytest.mark.parametrize(
+        "cmdline,expected_cfg",
+        [
+            # Return None if cmdline has no cc:<YAML>end_cc content.
+            (CiTestCase.random_string(), None),
+            # Return None if YAML content is empty string.
+            ('foo cc: end_cc bar', None),
+            # Return expected dictionary without trailing end_cc marker.
+            ('foo cc: ssh_pwauth: true', {'ssh_pwauth': True}),
+            # Return expected dictionary w escaped newline and no end_cc.
+            ('foo cc: ssh_pwauth: true\\n', {'ssh_pwauth': True}),
+            # Return expected dictionary of yaml between cc: and end_cc.
+            ('foo cc: ssh_pwauth: true end_cc bar', {'ssh_pwauth': True}),
+            # Return dict with list value w escaped newline, no end_cc.
+            (
+                'cc: ssh_import_id: [smoser, kirkland]\\n',
+                {'ssh_import_id': ['smoser', 'kirkland']}
+            ),
+            # Parse urlencoded brackets in yaml content.
+            (
+                'cc: ssh_import_id: %5Bsmoser, kirkland%5D end_cc',
+                {'ssh_import_id': ['smoser', 'kirkland']}
+            ),
+            # Parse complete urlencoded yaml content.
+            (
+                'cc: ssh_import_id%3A%20%5Buser1%2C%20user2%5D end_cc',
+                {'ssh_import_id': ['user1', 'user2']}
+            ),
+            # Parse nested dictionary in yaml content.
+            (
+                'cc: ntp: {enabled: true, ntp_client: myclient} end_cc',
+                {'ntp': {'enabled': True, 'ntp_client': 'myclient'}}
+            ),
+            # Parse single mapping value in yaml content.
+            ('cc: ssh_import_id: smoser end_cc', {'ssh_import_id': 'smoser'}),
+            # Parse multiline content with multiple mapping and nested lists.
+            (
+                ('cc: ssh_import_id: [smoser, bob]\\n'
+                 'runcmd: [ [ ls, -l ], echo hi ] end_cc'),
+                {'ssh_import_id': ['smoser', 'bob'],
+                 'runcmd': [['ls', '-l'], 'echo hi']}
+            ),
+            # Parse multiline encoded content w/ mappings and nested lists.
+            (
+                ('cc: ssh_import_id: %5Bsmoser, bob%5D\\n'
+                 'runcmd: [ [ ls, -l ], echo hi ] end_cc'),
+                {'ssh_import_id': ['smoser', 'bob'],
+                 'runcmd': [['ls', '-l'], 'echo hi']}
+            ),
+            # test encoded escaped newlines work.
+            #
+            # unquote(encoded_content)
+            # 'ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ]'
+            (
+                ('cc: ' +
+                 ('ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%5Cn'
+                  'runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C'
+                  '%20echo%20hi%20%5D') + ' end_cc'),
+                {'ssh_import_id': ['smoser', 'bob'],
+                 'runcmd': [['ls', '-l'], 'echo hi']}
+            ),
+            # test encoded newlines work.
+            #
+            # unquote(encoded_content)
+            # 'ssh_import_id: [smoser, bob]\nruncmd: [ [ ls, -l ], echo hi ]'
+            (
+                ("cc: " +
+                    ('ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%0A'
+                     'runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C'
+                     '%20echo%20hi%20%5D') + ' end_cc'),
+                {'ssh_import_id': ['smoser', 'bob'],
+                 'runcmd': [['ls', '-l'], 'echo hi']}
+            ),
+            # Parse and merge multiple yaml content sections.
+            (
+                ('cc:ssh_import_id: [smoser, bob] end_cc '
+                 'cc: runcmd: [ [ ls, -l ] ] end_cc'),
+                {'ssh_import_id': ['smoser', 'bob'],
+                 'runcmd': [['ls', '-l']]}
+            ),
+            # Parse and merge multiple encoded yaml content sections.
+            (
+                ('cc:ssh_import_id%3A%20%5Bsmoser%5D end_cc '
+                 'cc:runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%20%5D end_cc'),
+                {'ssh_import_id': ['smoser'], 'runcmd': [['ls', '-l']]}
+            ),
+        ]
+    )
+    def test_read_conf_from_cmdline_config(self, expected_cfg, cmdline):
+        assert expected_cfg == util.read_conf_from_cmdline(cmdline=cmdline)
 
 
 # vi: ts=4 expandtab
