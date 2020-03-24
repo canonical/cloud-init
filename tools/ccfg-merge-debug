@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 from cloudinit import handlers
 from cloudinit.handlers import cloud_config as cc_part
