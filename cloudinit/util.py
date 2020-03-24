@@ -1078,7 +1078,7 @@ def read_cc_from_cmdline(cmdline=None):
             end = clen
         tokens.append(
             parse.unquote(
-                cmdline[begin + begin_l:end].lstrip().replace("\\n", "\n")))
+                cmdline[begin + begin_l:end].lstrip()).replace("\\n", "\n"))
         begin = cmdline.find(tag_begin, end + end_l)
 
     return '\n'.join(tokens)

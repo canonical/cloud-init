@@ -681,6 +681,34 @@ class TestReadCcFromCmdline(CiTestCase):
                           'runcmd': [['ls', '-l'], 'echo hi']},
                          util.read_conf_from_cmdline(cmdline=cmdline))
 
+    def test_multiline_encoded_content_with_escaped_newlines(self):
+        """ test encoded escaped newlines work.
+
+        unquote(encoded_content)
+        'ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ]'
+        """
+        encoded_content = (
+            'ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%5Cn'
+            'runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C%20echo%20hi%20%5D')
+        cmdline = "cc: " + encoded_content +  " end_cc"
+        self.assertEqual({'ssh_import_id': ['smoser', 'bob'],
+                          'runcmd': [['ls', '-l'], 'echo hi']},
+                         util.read_conf_from_cmdline(cmdline=cmdline))
+
+    def test_multiline_encoded_content_with_newlines(self):
+        """ test encoded newlines work.
+
+        unquote(encoded_content)
+        'ssh_import_id: [smoser, bob]\nruncmd: [ [ ls, -l ], echo hi ]'
+        """
+        encoded_content = (
+            'ssh_import_id%3A%20%5Bsmoser%2C%20bob%5D%0A'
+            'runcmd%3A%20%5B%20%5B%20ls%2C%20-l%20%5D%2C%20echo%20hi%20%5D')
+        cmdline = "cc: " + encoded_content +  " end_cc"
+        self.assertEqual({'ssh_import_id': ['smoser', 'bob'],
+                          'runcmd': [['ls', '-l'], 'echo hi']},
+                         util.read_conf_from_cmdline(cmdline=cmdline))
+
     def test_multi_section_tokens(self):
         """Parse and merge multiple yaml content sections."""
         cmdline = "cc:ssh_import_id: [smoser, bob] end_cc "
