@@ -1286,7 +1286,22 @@ def find_devs_with_netbsd(criteria=None, oformat='device',
 
 def find_devs_with_openbsd(criteria=None, oformat='device',
                            tag=None, no_cache=False, path=None):
-    return ["/dev/cd0a"]
+    out, _err = subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
+    devlist = []
+    for entry in out.split(','):
+        if not entry.endswith(':'):
+            # ffs partition with a serial, not a config-drive
+            continue
+        if entry == 'fd0:':
+            continue
+        part_id = 'a' if entry.startswith('cd') else 'i'
+        devlist.append(entry[:-1] + part_id)
+    if criteria:
+        if criteria == "TYPE=iso9660":
+            devlist = [i for i in devlist if i.startswith('cd')]
+        elif criteria == "LABEL=CONFIG-2":
+            devlist = [i for i in devlist if not i.startswith('cd')]
+    return ['/dev/' + i for i in devlist]
 
 
 def find_devs_with(criteria=None, oformat='device',

@@ -48,15 +48,6 @@ class DataSourceNoCloud(sources.DataSource):
                 if ('label "%s"' % label) in mscdlabel_out:
                     devlist.append('/dev/' + dev)
                     devlist.append('/dev/' + dev + 'a')  # NetBSD 7
-        elif util.is_OpenBSD():
-            out, _err = util.subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
-            devlist = []
-            for entry in out.split(','):
-                if not entry.endswith(':'):
-                    # ffs partition with a serial, not a config-drive
-                    continue
-                part_id = 'a' if entry.startswith('cd') else 'i'
-                devlist.append(entry + part_id)
         else:
             # Query optical drive to get it in blkid cache for 2.6 kernels
             util.find_devs_with(path="/dev/sr0")
