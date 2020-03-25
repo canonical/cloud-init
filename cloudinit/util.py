@@ -543,6 +543,11 @@ def is_ipv4(instr):
 
 
 @lru_cache()
+def is_BSD():
+    return 'BSD' in platform.system()
+
+
+@lru_cache()
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
 
@@ -625,7 +630,7 @@ def get_linux_distro():
                     flavor = match.groupdict()['codename']
         if distro_name == 'rhel':
             distro_name = 'redhat'
-    elif 'BSD' in platform.system():
+    elif is_BSD():
         distro_name = platform.system().lower()
         distro_version = platform.release()
     else:
