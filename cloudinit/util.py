@@ -1053,7 +1053,7 @@ def read_conf_with_confd(cfgfile):
 
 
 def read_conf_from_cmdline(cmdline=None):
-    # return a dictionary or config on the cmdline or None
+    # return a dictionary of config on the cmdline or None
     return load_yaml(read_cc_from_cmdline(cmdline=cmdline))
 
 
@@ -1061,11 +1061,12 @@ def read_cc_from_cmdline(cmdline=None):
     # this should support reading cloud-config information from
     # the kernel command line.  It is intended to support content of the
     # format:
-    #  cc: <yaml content here> [end_cc]
+    #  cc: <yaml content here|urlencoded yaml content> [end_cc]
     # this would include:
     # cc: ssh_import_id: [smoser, kirkland]\\n
     # cc: ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ] end_cc
     # cc:ssh_import_id: [smoser] end_cc cc:runcmd: [ [ ls, -l ] ] end_cc
+    # cc:ssh_import_id: %5Bsmoser%5D end_cc
     if cmdline is None:
         cmdline = get_cmdline()
 
@@ -1080,9 +1081,9 @@ def read_cc_from_cmdline(cmdline=None):
         end = cmdline.find(tag_end, begin + begin_l)
         if end < 0:
             end = clen
-        tokens.append(cmdline[begin + begin_l:end].lstrip().replace("\\n",
-                                                                    "\n"))
-
+        tokens.append(
+            parse.unquote(
+                cmdline[begin + begin_l:end].lstrip()).replace("\\n", "\n"))
         begin = cmdline.find(tag_begin, end + end_l)
 
     return '\n'.join(tokens)
