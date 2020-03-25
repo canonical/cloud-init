@@ -164,8 +164,11 @@ The following guidelines should be following:
   test file
 
   * These can be easily distinguished by their definition: pytest
-    classes will not use inheritance at all, whereas ``TestCase``
-    classes will subclass (indirectly) from ``TestCase``
+    classes will not use inheritance at all (e.g.
+    `TestGetPackageMirrorInfo`_), whereas ``TestCase`` classes will
+    subclass (indirectly) from ``TestCase`` (e.g.
+    `TestPrependBaseCommands`_)
+
 
 * pytest tests should use bare ``assert`` statements, to take advantage
   of pytest's `assertion introspection`_
@@ -176,4 +179,6 @@ The following guidelines should be following:
 
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
+.. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
+.. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/master/cloudinit/tests/test_subp.py#L9
 .. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
