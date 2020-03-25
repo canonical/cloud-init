@@ -11,7 +11,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
 
     def write_config(self):
         for device_name, v in self.interface_configurations.items():
-            if_file = 'etc/hostname.{1}'.format(device_name)
+            if_file = 'etc/hostname.{}'.format(device_name)
             fn = util.target_path(self.target, if_file)
             content = 'dhcp\n'
             try:
