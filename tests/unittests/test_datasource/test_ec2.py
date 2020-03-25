@@ -3,6 +3,7 @@
 import copy
 import httpretty
 import json
+import requests
 from unittest import mock
 
 from cloudinit import helpers
@@ -112,6 +113,122 @@ DEFAULT_METADATA = {
     "services": {"domain": "amazonaws.com", "partition": "aws"},
 }
 
+# collected from api version 2018-09-24/ with
+# python3 -c 'import json
+# from cloudinit.ec2_utils import get_instance_metadata as gm
+# print(json.dumps(gm("2018-09-24"), indent=1, sort_keys=True))'
+
+NIC1_MD_IPV4_IPV6_MULTI_IP = {
+    "device-number": "0",
+    "interface-id": "eni-0d6335689899ce9cc",
+    "ipv4-associations": {
+        "18.218.219.181": "172.31.44.13"
+    },
+    "ipv6s": [
+        "2600:1f16:292:100:c187:593c:4349:136",
+        "2600:1f16:292:100:f153:12a3:c37c:11f9",
+        "2600:1f16:292:100:f152:2222:3333:4444"
+    ],
+    "local-hostname": ("ip-172-31-44-13.us-east-2."
+                       "compute.internal"),
+    "local-ipv4s": [
+        "172.31.44.13",
+        "172.31.45.70"
+    ],
+    "mac": "0a:07:84:3d:6e:38",
+    "owner-id": "329910648901",
+    "public-hostname": ("ec2-18-218-219-181.us-east-2."
+                        "compute.amazonaws.com"),
+    "public-ipv4s": "18.218.219.181",
+    "security-group-ids": "sg-0c387755222ba8d2e",
+    "security-groups": "launch-wizard-4",
+    "subnet-id": "subnet-9d7ba0d1",
+    "subnet-ipv4-cidr-block": "172.31.32.0/20",
+    "subnet_ipv6_cidr_blocks": "2600:1f16:292:100::/64",
+    "vpc-id": "vpc-a07f62c8",
+    "vpc-ipv4-cidr-block": "172.31.0.0/16",
+    "vpc-ipv4-cidr-blocks": "172.31.0.0/16",
+    "vpc_ipv6_cidr_blocks": "2600:1f16:292:100::/56"
+}
+
+NIC2_MD = {
+    "device_number": "1",
+    "interface_id": "eni-043cdce36ded5e79f",
+    "local_hostname": "ip-172-31-47-221.us-east-2.compute.internal",
+    "local_ipv4s": "172.31.47.221",
+    "mac": "0a:75:69:92:e2:16",
+    "owner_id": "329910648901",
+    "security_group_ids": "sg-0d68fef37d8cc9b77",
+    "security_groups": "launch-wizard-17",
+    "subnet_id": "subnet-9d7ba0d1",
+    "subnet_ipv4_cidr_block": "172.31.32.0/20",
+    "vpc_id": "vpc-a07f62c8",
+    "vpc_ipv4_cidr_block": "172.31.0.0/16",
+    "vpc_ipv4_cidr_blocks": "172.31.0.0/16"
+}
+
+SECONDARY_IP_METADATA_2018_09_24 = {
+    "ami-id": "ami-0986c2ac728528ac2",
+    "ami-launch-index": "0",
+    "ami-manifest-path": "(unknown)",
+    "block-device-mapping": {
+        "ami": "/dev/sda1",
+        "root": "/dev/sda1"
+    },
+    "events": {
+        "maintenance": {
+            "history": "[]",
+            "scheduled": "[]"
+        }
+    },
+    "hostname": "ip-172-31-44-13.us-east-2.compute.internal",
+    "identity-credentials": {
+        "ec2": {
+            "info": {
+                "AccountId": "329910648901",
+                "Code": "Success",
+                "LastUpdated": "2019-07-06T14:22:56Z"
+            }
+        }
+    },
+    "instance-action": "none",
+    "instance-id": "i-069e01e8cc43732f8",
+    "instance-type": "t2.micro",
+    "local-hostname": "ip-172-31-44-13.us-east-2.compute.internal",
+    "local-ipv4": "172.31.44.13",
+    "mac": "0a:07:84:3d:6e:38",
+    "metrics": {
+        "vhostmd": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+    },
+    "network": {
+        "interfaces": {
+            "macs": {
+                "0a:07:84:3d:6e:38": NIC1_MD_IPV4_IPV6_MULTI_IP,
+            }
+        }
+    },
+    "placement": {
+        "availability-zone": "us-east-2c"
+    },
+    "profile": "default-hvm",
+    "public-hostname": (
+        "ec2-18-218-219-181.us-east-2.compute.amazonaws.com"),
+    "public-ipv4": "18.218.219.181",
+    "public-keys": {
+        "yourkeyname,e": [
+            "ssh-rsa AAAAW...DZ yourkeyname"
+        ]
+    },
+    "reservation-id": "r-09b4917135cdd33be",
+    "security-groups": "launch-wizard-4",
+    "services": {
+        "domain": "amazonaws.com",
+        "partition": "aws"
+    }
+}
+
+M_PATH_NET = 'cloudinit.sources.DataSourceEc2.net.'
+
 
 def _register_ssh_keys(rfunc, base_url, keys_data):
     """handle ssh key inconsistencies.
@@ -200,6 +317,7 @@ def register_mock_metaserver(base_url, data):
 
 class TestEc2(test_helpers.HttprettyTestCase):
     with_logs = True
+    maxDiff = None
 
     valid_platform_data = {
         'uuid': 'ec212f79-87d1-2f1d-588f-d86dc0fd5412',
@@ -265,30 +383,23 @@ class TestEc2(test_helpers.HttprettyTestCase):
                         register_mock_metaserver(instance_id_url, None)
         return ds
 
-    def test_network_config_property_returns_version_1_network_data(self):
-        """network_config property returns network version 1 for metadata.
-
-        Only one device is configured even when multiple exist in metadata.
-        """
+    def test_network_config_property_returns_version_2_network_data(self):
+        """network_config property returns network version 2 for metadata"""
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
             md={'md': DEFAULT_METADATA})
-        find_fallback_path = (
-            'cloudinit.sources.DataSourceEc2.net.find_fallback_nic')
+        find_fallback_path = M_PATH_NET + 'find_fallback_nic'
         with mock.patch(find_fallback_path) as m_find_fallback:
             m_find_fallback.return_value = 'eth9'
             ds.get_data()
 
         mac1 = '06:17:04:d7:26:09'  # Defined in DEFAULT_METADATA
-        expected = {'version': 1, 'config': [
-            {'mac_address': '06:17:04:d7:26:09', 'name': 'eth9',
-             'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}],
-             'type': 'physical'}]}
-        patch_path = (
-            'cloudinit.sources.DataSourceEc2.net.get_interfaces_by_mac')
-        get_interface_mac_path = (
-            'cloudinit.sources.DataSourceEc2.net.get_interface_mac')
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': '06:17:04:d7:26:09'}, 'set-name': 'eth9',
+            'dhcp4': True, 'dhcp6': True}}}
+        patch_path = M_PATH_NET + 'get_interfaces_by_mac'
+        get_interface_mac_path = M_PATH_NET + 'get_interface_mac'
         with mock.patch(patch_path) as m_get_interfaces_by_mac:
             with mock.patch(find_fallback_path) as m_find_fallback:
                 with mock.patch(get_interface_mac_path) as m_get_mac:
@@ -297,30 +408,59 @@ class TestEc2(test_helpers.HttprettyTestCase):
                     m_get_mac.return_value = mac1
                     self.assertEqual(expected, ds.network_config)
 
-    def test_network_config_property_set_dhcp4_on_private_ipv4(self):
-        """network_config property configures dhcp4 on private ipv4 nics.
+    def test_network_config_property_set_dhcp4(self):
+        """network_config property configures dhcp4 on nics with local-ipv4s.
 
-        Only one device is configured even when multiple exist in metadata.
+        Only one device is configured based on get_interfaces_by_mac even when
+        multiple MACs exist in metadata.
         """
         ds = self._setup_ds(
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
             md={'md': DEFAULT_METADATA})
-        find_fallback_path = (
-            'cloudinit.sources.DataSourceEc2.net.find_fallback_nic')
+        find_fallback_path = M_PATH_NET + 'find_fallback_nic'
         with mock.patch(find_fallback_path) as m_find_fallback:
             m_find_fallback.return_value = 'eth9'
             ds.get_data()
 
         mac1 = '06:17:04:d7:26:0A'  # IPv4 only in DEFAULT_METADATA
-        expected = {'version': 1, 'config': [
-            {'mac_address': '06:17:04:d7:26:0A', 'name': 'eth9',
-             'subnets': [{'type': 'dhcp4'}],
-             'type': 'physical'}]}
-        patch_path = (
-            'cloudinit.sources.DataSourceEc2.net.get_interfaces_by_mac')
-        get_interface_mac_path = (
-            'cloudinit.sources.DataSourceEc2.net.get_interface_mac')
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': mac1.lower()}, 'set-name': 'eth9',
+            'dhcp4': True, 'dhcp6': False}}}
+        patch_path = M_PATH_NET + 'get_interfaces_by_mac'
+        get_interface_mac_path = M_PATH_NET + 'get_interface_mac'
+        with mock.patch(patch_path) as m_get_interfaces_by_mac:
+            with mock.patch(find_fallback_path) as m_find_fallback:
+                with mock.patch(get_interface_mac_path) as m_get_mac:
+                    m_get_interfaces_by_mac.return_value = {mac1: 'eth9'}
+                    m_find_fallback.return_value = 'eth9'
+                    m_get_mac.return_value = mac1
+                    self.assertEqual(expected, ds.network_config)
+
+    def test_network_config_property_secondary_private_ips(self):
+        """network_config property configures any secondary ipv4 addresses.
+
+        Only one device is configured based on get_interfaces_by_mac even when
+        multiple MACs exist in metadata.
+        """
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
+            md={'md': SECONDARY_IP_METADATA_2018_09_24})
+        find_fallback_path = M_PATH_NET + 'find_fallback_nic'
+        with mock.patch(find_fallback_path) as m_find_fallback:
+            m_find_fallback.return_value = 'eth9'
+            ds.get_data()
+
+        mac1 = '0a:07:84:3d:6e:38'  # 1 secondary IPv4 and 2 secondary IPv6
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': mac1}, 'set-name': 'eth9',
+            'addresses': ['172.31.45.70/20',
+                          '2600:1f16:292:100:f152:2222:3333:4444/128',
+                          '2600:1f16:292:100:f153:12a3:c37c:11f9/128'],
+            'dhcp4': True, 'dhcp6': True}}}
+        patch_path = M_PATH_NET + 'get_interfaces_by_mac'
+        get_interface_mac_path = M_PATH_NET + 'get_interface_mac'
         with mock.patch(patch_path) as m_get_interfaces_by_mac:
             with mock.patch(find_fallback_path) as m_find_fallback:
                 with mock.patch(get_interface_mac_path) as m_get_mac:
@@ -356,21 +496,18 @@ class TestEc2(test_helpers.HttprettyTestCase):
         register_mock_metaserver(
             'http://169.254.169.254/2009-04-04/meta-data/', DEFAULT_METADATA)
         mac1 = '06:17:04:d7:26:09'  # Defined in DEFAULT_METADATA
-        get_interface_mac_path = (
-            'cloudinit.sources.DataSourceEc2.net.get_interface_mac')
+        get_interface_mac_path = M_PATH_NET + 'get_interfaces_by_mac'
         ds.fallback_nic = 'eth9'
-        with mock.patch(get_interface_mac_path) as m_get_interface_mac:
-            m_get_interface_mac.return_value = mac1
+        with mock.patch(get_interface_mac_path) as m_get_interfaces_by_mac:
+            m_get_interfaces_by_mac.return_value = {mac1: 'eth9'}
             nc = ds.network_config  # Will re-crawl network metadata
             self.assertIsNotNone(nc)
         self.assertIn(
             'Refreshing stale metadata from prior to upgrade',
             self.logs.getvalue())
-        expected = {'version': 1, 'config': [
-            {'mac_address': '06:17:04:d7:26:09',
-             'name': 'eth9',
-             'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}],
-             'type': 'physical'}]}
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': mac1}, 'set-name': 'eth9',
+            'dhcp4': True, 'dhcp6': True}}}
         self.assertEqual(expected, ds.network_config)
 
     def test_ec2_get_instance_id_refreshes_identity_on_upgrade(self):
@@ -429,6 +566,52 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertTrue(ds.get_data())
         self.assertFalse(ds.is_classic_instance())
 
+    def test_aws_inaccessible_imds_service_fails_with_retries(self):
+        """Inaccessibility of http://169.254.169.254 are retried."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
+            md=None)
+
+        conn_error = requests.exceptions.ConnectionError(
+           '[Errno 113] no route to host')
+
+        mock_success = mock.MagicMock(contents=b'fakesuccess')
+        mock_success.ok.return_value = True
+
+        with mock.patch('cloudinit.url_helper.readurl') as m_readurl:
+            m_readurl.side_effect = (conn_error, conn_error, mock_success)
+            with mock.patch('cloudinit.url_helper.time.sleep'):
+                self.assertTrue(ds.wait_for_metadata_service())
+
+        # Just one /latest/api/token request
+        self.assertEqual(3, len(m_readurl.call_args_list))
+        for readurl_call in m_readurl.call_args_list:
+            self.assertIn('latest/api/token', readurl_call[0][0])
+
+    def test_aws_token_403_fails_without_retries(self):
+        """Verify that 403s fetching AWS tokens are not retried."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
+            md=None)
+        token_url = self.data_url('latest', data_item='api/token')
+        httpretty.register_uri(httpretty.PUT, token_url, body={}, status=403)
+        self.assertFalse(ds.get_data())
+        # Just one /latest/api/token request
+        logs = self.logs.getvalue()
+        failed_put_log = '"PUT /latest/api/token HTTP/1.1" 403 0'
+        expected_logs = [
+            'WARNING: Ec2 IMDS endpoint returned a 403 error. HTTP endpoint is'
+            ' disabled. Aborting.',
+            "WARNING: IMDS's HTTP endpoint is probably disabled",
+            failed_put_log
+        ]
+        for log in expected_logs:
+            self.assertIn(log, logs)
+        self.assertEqual(
+            1, len([l for l in logs.splitlines() if failed_put_log in l]))
+
     def test_aws_token_redacted(self):
         """Verify that aws tokens are redacted when logged."""
         ds = self._setup_ds(
@@ -443,7 +626,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         logs_with_redacted = [log for log in all_logs if REDACT_TOK in log]
         logs_with_token = [log for log in all_logs if 'API-TOKEN' in log]
         self.assertEqual(1, len(logs_with_redacted_ttl))
-        self.assertEqual(79, len(logs_with_redacted))
+        self.assertEqual(81, len(logs_with_redacted))
         self.assertEqual(0, len(logs_with_token))
 
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
@@ -564,6 +747,44 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.assertIn('Crawl of metadata service took', self.logs.getvalue())
 
 
+class TestGetSecondaryAddresses(test_helpers.CiTestCase):
+
+    mac = '06:17:04:d7:26:ff'
+    with_logs = True
+
+    def test_md_with_no_secondary_addresses(self):
+        """Empty list is returned when nic metadata contains no secondary ip"""
+        self.assertEqual([], ec2.get_secondary_addresses(NIC2_MD, self.mac))
+
+    def test_md_with_secondary_v4_and_v6_addresses(self):
+        """All secondary addresses are returned from nic metadata"""
+        self.assertEqual(
+            ['172.31.45.70/20', '2600:1f16:292:100:f152:2222:3333:4444/128',
+             '2600:1f16:292:100:f153:12a3:c37c:11f9/128'],
+            ec2.get_secondary_addresses(NIC1_MD_IPV4_IPV6_MULTI_IP, self.mac))
+
+    def test_invalid_ipv4_ipv6_cidr_metadata_logged_with_defaults(self):
+        """Any invalid subnet-ipv(4|6)-cidr-block values use defaults"""
+        invalid_cidr_md = copy.deepcopy(NIC1_MD_IPV4_IPV6_MULTI_IP)
+        invalid_cidr_md['subnet-ipv4-cidr-block'] = "something-unexpected"
+        invalid_cidr_md['subnet-ipv6-cidr-block'] = "not/sure/what/this/is"
+        self.assertEqual(
+            ['172.31.45.70/24', '2600:1f16:292:100:f152:2222:3333:4444/128',
+             '2600:1f16:292:100:f153:12a3:c37c:11f9/128'],
+            ec2.get_secondary_addresses(invalid_cidr_md, self.mac))
+        expected_logs = [
+           "WARNING: Could not parse subnet-ipv4-cidr-block"
+           " something-unexpected for mac 06:17:04:d7:26:ff."
+           " ipv4 network config prefix defaults to /24",
+           "WARNING: Could not parse subnet-ipv6-cidr-block"
+           " not/sure/what/this/is for mac 06:17:04:d7:26:ff."
+           " ipv6 network config prefix defaults to /128"
+        ]
+        logs = self.logs.getvalue()
+        for log in expected_logs:
+            self.assertIn(log, logs)
+
+
 class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
 
     def setUp(self):
@@ -571,16 +792,16 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         self.mac1 = '06:17:04:d7:26:09'
         self.network_metadata = {
             'interfaces': {'macs': {
-                self.mac1: {'public-ipv4s': '172.31.2.16'}}}}
+                self.mac1: {'mac': self.mac1, 'public-ipv4s': '172.31.2.16'}}}}
 
     def test_convert_ec2_metadata_network_config_skips_absent_macs(self):
         """Any mac absent from metadata is skipped by network config."""
         macs_to_nics = {self.mac1: 'eth9', 'DE:AD:BE:EF:FF:FF': 'vitualnic2'}
 
         # DE:AD:BE:EF:FF:FF represented by OS but not in metadata
-        expected = {'version': 1, 'config': [
-            {'mac_address': self.mac1, 'type': 'physical',
-             'name': 'eth9', 'subnets': [{'type': 'dhcp4'}]}]}
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
+            'dhcp4': True, 'dhcp6': False}}}
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
@@ -594,15 +815,15 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
             network_metadata_ipv6['interfaces']['macs'][self.mac1])
         nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
         nic1_metadata.pop('public-ipv4s')
-        expected = {'version': 1, 'config': [
-            {'mac_address': self.mac1, 'type': 'physical',
-             'name': 'eth9', 'subnets': [{'type': 'dhcp6'}]}]}
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
+            'dhcp4': True, 'dhcp6': True}}}
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
                 network_metadata_ipv6, macs_to_nics))
 
-    def test_convert_ec2_metadata_network_config_handles_local_dhcp4(self):
+    def test_convert_ec2_metadata_network_config_local_only_dhcp4(self):
         """Config dhcp4 when there are no public addresses in public-ipv4s."""
         macs_to_nics = {self.mac1: 'eth9'}
         network_metadata_ipv6 = copy.deepcopy(self.network_metadata)
@@ -610,9 +831,9 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
             network_metadata_ipv6['interfaces']['macs'][self.mac1])
         nic1_metadata['local-ipv4s'] = '172.3.3.15'
         nic1_metadata.pop('public-ipv4s')
-        expected = {'version': 1, 'config': [
-            {'mac_address': self.mac1, 'type': 'physical',
-             'name': 'eth9', 'subnets': [{'type': 'dhcp4'}]}]}
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
+            'dhcp4': True, 'dhcp6': False}}}
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
@@ -627,16 +848,16 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         nic1_metadata['public-ipv4s'] = ''
 
         # When no ipv4 or ipv6 content but fallback_nic set, set dhcp4 config.
-        expected = {'version': 1, 'config': [
-            {'mac_address': self.mac1, 'type': 'physical',
-             'name': 'eth9', 'subnets': [{'type': 'dhcp4'}]}]}
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
+            'dhcp4': True, 'dhcp6': False}}}
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
                 network_metadata_ipv6, macs_to_nics, fallback_nic='eth9'))
 
     def test_convert_ec2_metadata_network_config_handles_local_v4_and_v6(self):
-        """When dhcp6 is public and dhcp4 is set to local enable both."""
+        """When ipv6s and local-ipv4s are non-empty, enable dhcp6 and dhcp4."""
         macs_to_nics = {self.mac1: 'eth9'}
         network_metadata_both = copy.deepcopy(self.network_metadata)
         nic1_metadata = (
@@ -644,10 +865,35 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
         nic1_metadata.pop('public-ipv4s')
         nic1_metadata['local-ipv4s'] = '10.0.0.42'  # Local ipv4 only on vpc
-        expected = {'version': 1, 'config': [
-            {'mac_address': self.mac1, 'type': 'physical',
-             'name': 'eth9',
-             'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]}]}
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
+            'dhcp4': True, 'dhcp6': True}}}
+        self.assertEqual(
+            expected,
+            ec2.convert_ec2_metadata_network_config(
+                network_metadata_both, macs_to_nics))
+
+    def test_convert_ec2_metadata_network_config_handles_multiple_nics(self):
+        """DHCP route-metric increases on secondary NICs for IPv4 and IPv6."""
+        mac2 = '06:17:04:d7:26:0a'
+        macs_to_nics = {self.mac1: 'eth9', mac2: 'eth10'}
+        network_metadata_both = copy.deepcopy(self.network_metadata)
+        # Add 2nd nic info
+        network_metadata_both['interfaces']['macs'][mac2] = NIC2_MD
+        nic1_metadata = (
+            network_metadata_both['interfaces']['macs'][self.mac1])
+        nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
+        nic1_metadata.pop('public-ipv4s')  # No public-ipv4 IPs in cfg
+        nic1_metadata['local-ipv4s'] = '10.0.0.42'  # Local ipv4 only on vpc
+        expected = {'version': 2, 'ethernets': {
+            'eth9': {
+                'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
+                'dhcp4': True, 'dhcp4-overrides': {'route-metric': 100},
+                'dhcp6': True, 'dhcp6-overrides': {'route-metric': 100}},
+            'eth10': {
+                'match': {'macaddress': mac2}, 'set-name': 'eth10',
+                'dhcp4': True, 'dhcp4-overrides': {'route-metric': 200},
+                'dhcp6': False}}}
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
@@ -660,10 +906,9 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         nic1_metadata = (
             network_metadata_both['interfaces']['macs'][self.mac1])
         nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
-        expected = {'version': 1, 'config': [
-            {'mac_address': self.mac1, 'type': 'physical',
-             'name': 'eth9',
-             'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]}]}
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': self.mac1}, 'set-name': 'eth9',
+            'dhcp4': True, 'dhcp6': True}}}
         self.assertEqual(
             expected,
             ec2.convert_ec2_metadata_network_config(
@@ -671,12 +916,10 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
 
     def test_convert_ec2_metadata_gets_macs_from_get_interfaces_by_mac(self):
         """Convert Ec2 Metadata calls get_interfaces_by_mac by default."""
-        expected = {'version': 1, 'config': [
-            {'mac_address': self.mac1, 'type': 'physical',
-             'name': 'eth9',
-             'subnets': [{'type': 'dhcp4'}]}]}
-        patch_path = (
-            'cloudinit.sources.DataSourceEc2.net.get_interfaces_by_mac')
+        expected = {'version': 2, 'ethernets': {'eth9': {
+            'match': {'macaddress': self.mac1},
+            'set-name': 'eth9', 'dhcp4': True, 'dhcp6': False}}}
+        patch_path = M_PATH_NET + 'get_interfaces_by_mac'
         with mock.patch(patch_path) as m_get_interfaces_by_mac:
             m_get_interfaces_by_mac.return_value = {self.mac1: 'eth9'}
             self.assertEqual(

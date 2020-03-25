@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# PROVIDE: cloudfinal
+# REQUIRE: LOGIN cloudconfig
+
+$_rc_subr_loaded . /etc/rc.subr
+
+name="cloudinit"
+start_cmd="start_cloud_init"
+start_cloud_init()
+{
+    /usr/pkg/bin/cloud-init modules --mode final
+}
+
+load_rc_config $name
+run_rc_command "$1"

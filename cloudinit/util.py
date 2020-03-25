@@ -15,6 +15,7 @@ import glob
 import grp
 import gzip
 import hashlib
+import io
 import json
 import os
 import os.path
@@ -30,13 +31,11 @@ import string
 import subprocess
 import sys
 import time
+from urllib import parse
 
 from errno import ENOENT, ENOEXEC
 
 from base64 import b64decode, b64encode
-from six.moves.urllib import parse as urlparse
-
-import six
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -118,7 +117,7 @@ def target_path(target, path=None):
     # return 'path' inside target, accepting target as None
     if target in (None, ""):
         target = "/"
-    elif not isinstance(target, six.string_types):
+    elif not isinstance(target, str):
         raise ValueError("Unexpected input for target: %s" % target)
     else:
         target = os.path.abspath(target)
@@ -138,14 +137,14 @@ def target_path(target, path=None):
 
 def decode_binary(blob, encoding='utf-8'):
     # Converts a binary type into a text type using given encoding.
-    if isinstance(blob, six.string_types):
+    if isinstance(blob, str):
         return blob
     return blob.decode(encoding)
 
 
 def encode_text(text, encoding='utf-8'):
     # Converts a text string into a binary type using given encoding.
-    if isinstance(text, six.binary_type):
+    if isinstance(text, bytes):
         return text
     return text.encode(encoding)
 
@@ -175,8 +174,7 @@ def fully_decoded_payload(part):
     # bytes, first try to decode to str via CT charset, and failing that, try
     # utf-8 using surrogate escapes.
     cte_payload = part.get_payload(decode=True)
-    if (six.PY3 and
-            part.get_content_maintype() == 'text' and
+    if (part.get_content_maintype() == 'text' and
             isinstance(cte_payload, bytes)):
         charset = part.get_charset()
         if charset and charset.input_codec:
@@ -240,7 +238,7 @@ class ProcessExecutionError(IOError):
         else:
             self.description = description
 
-        if not isinstance(exit_code, six.integer_types):
+        if not isinstance(exit_code, int):
             self.exit_code = self.empty_attr
         else:
             self.exit_code = exit_code
@@ -281,7 +279,7 @@ class ProcessExecutionError(IOError):
         """
         if data is bytes object, decode
         """
-        return text.decode() if isinstance(text, six.binary_type) else text
+        return text.decode() if isinstance(text, bytes) else text
 
     def _indent_text(self, text, indent_level=8):
         """
@@ -290,7 +288,7 @@ class ProcessExecutionError(IOError):
         cr = '\n'
         indent = ' ' * indent_level
         # if input is bytes, return bytes
-        if isinstance(text, six.binary_type):
+        if isinstance(text, bytes):
             cr = cr.encode()
             indent = indent.encode()
         # remove any newlines at end of text first to prevent unneeded blank
@@ -322,9 +320,6 @@ class SeLinuxGuard(object):
             return
 
         path = os.path.realpath(self.path)
-        # path should be a string, not unicode
-        if six.PY2:
-            path = str(path)
         try:
             stats = os.lstat(path)
             self.selinux.matchpathcon(path, stats[stat.ST_MODE])
@@ -369,7 +364,7 @@ def is_true(val, addons=None):
     check_set = TRUE_STRINGS
     if addons:
         check_set = list(check_set) + addons
-    if six.text_type(val).lower().strip() in check_set:
+    if str(val).lower().strip() in check_set:
         return True
     return False
 
@@ -380,7 +375,7 @@ def is_false(val, addons=None):
     check_set = FALSE_STRINGS
     if addons:
         check_set = list(check_set) + addons
-    if six.text_type(val).lower().strip() in check_set:
+    if str(val).lower().strip() in check_set:
         return True
     return False
 
@@ -441,7 +436,7 @@ def uniq_merge_sorted(*lists):
 def uniq_merge(*lists):
     combined_list = []
     for a_list in lists:
-        if isinstance(a_list, six.string_types):
+        if isinstance(a_list, str):
             a_list = a_list.strip().split(",")
             # Kickout the empty ones
             a_list = [a for a in a_list if len(a)]
@@ -464,7 +459,7 @@ def clean_filename(fn):
 
 def decomp_gzip(data, quiet=True, decode=True):
     try:
-        buf = six.BytesIO(encode_text(data))
+        buf = io.BytesIO(encode_text(data))
         with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
             # E1101 is https://github.com/PyCQA/pylint/issues/1444
             if decode:
@@ -475,7 +470,7 @@ def decomp_gzip(data, quiet=True, decode=True):
         if quiet:
             return data
         else:
-            raise DecompressionError(six.text_type(e))
+            raise DecompressionError(str(e))
 
 
 def extract_usergroup(ug_pair):
@@ -548,8 +543,18 @@ def is_ipv4(instr):
 
 
 @lru_cache()
+def is_BSD():
+    return 'BSD' in platform.system()
+
+
+@lru_cache()
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
+
+
+@lru_cache()
+def is_NetBSD():
+    return system_info()['variant'] == "netbsd"
 
 
 def get_cfg_option_bool(yobj, key, default=False):
@@ -562,7 +567,7 @@ def get_cfg_option_str(yobj, key, default=None):
     if key not in yobj:
         return default
     val = yobj[key]
-    if not isinstance(val, six.string_types):
+    if not isinstance(val, str):
         val = str(val)
     return val
 
@@ -625,10 +630,9 @@ def get_linux_distro():
                     flavor = match.groupdict()['codename']
         if distro_name == 'rhel':
             distro_name = 'redhat'
-    elif os.path.exists('/bin/freebsd-version'):
-        distro_name = 'freebsd'
-        distro_version, _ = subp(['uname', '-r'])
-        distro_version = distro_version.strip()
+    elif is_BSD():
+        distro_name = platform.system().lower()
+        distro_version = platform.release()
     else:
         dist = ('', '', '')
         try:
@@ -656,7 +660,7 @@ def system_info():
         'system': platform.system(),
         'release': platform.release(),
         'python': platform.python_version(),
-        'uname': platform.uname(),
+        'uname': list(platform.uname()),
         'dist': get_linux_distro()
     }
     system = info['system'].lower()
@@ -675,7 +679,7 @@ def system_info():
             var = 'suse'
         else:
             var = 'linux'
-    elif system in ('windows', 'darwin', "freebsd"):
+    elif system in ('windows', 'darwin', "freebsd", "netbsd"):
         var = system
 
     info['variant'] = var
@@ -703,7 +707,7 @@ def get_cfg_option_list(yobj, key, default=None):
     if isinstance(val, (list)):
         cval = [v for v in val]
         return cval
-    if not isinstance(val, six.string_types):
+    if not isinstance(val, str):
         val = str(val)
     return [val]
 
@@ -724,7 +728,7 @@ def get_cfg_by_path(yobj, keyp, default=None):
     @return: The value of the item at keyp."
         is not found."""
 
-    if isinstance(keyp, six.string_types):
+    if isinstance(keyp, str):
         keyp = keyp.split("/")
     cur = yobj
     for tok in keyp:
@@ -822,7 +826,7 @@ def make_url(scheme, host, port=None,
     pieces.append(query or '')
     pieces.append(fragment or '')
 
-    return urlparse.urlunparse(pieces)
+    return parse.urlunparse(pieces)
 
 
 def mergemanydict(srcs, reverse=False):
@@ -1031,7 +1035,7 @@ def read_conf_with_confd(cfgfile):
     if "conf_d" in cfg:
         confd = cfg['conf_d']
         if confd:
-            if not isinstance(confd, six.string_types):
+            if not isinstance(confd, str):
                 raise TypeError(("Config file %s contains 'conf_d' "
                                  "with non-string type %s") %
                                 (cfgfile, type_utils.obj_name(confd)))
@@ -1049,7 +1053,7 @@ def read_conf_with_confd(cfgfile):
 
 
 def read_conf_from_cmdline(cmdline=None):
-    # return a dictionary or config on the cmdline or None
+    # return a dictionary of config on the cmdline or None
     return load_yaml(read_cc_from_cmdline(cmdline=cmdline))
 
 
@@ -1057,11 +1061,12 @@ def read_cc_from_cmdline(cmdline=None):
     # this should support reading cloud-config information from
     # the kernel command line.  It is intended to support content of the
     # format:
-    #  cc: <yaml content here> [end_cc]
+    #  cc: <yaml content here|urlencoded yaml content> [end_cc]
     # this would include:
     # cc: ssh_import_id: [smoser, kirkland]\\n
     # cc: ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ] end_cc
     # cc:ssh_import_id: [smoser] end_cc cc:runcmd: [ [ ls, -l ] ] end_cc
+    # cc:ssh_import_id: %5Bsmoser%5D end_cc
     if cmdline is None:
         cmdline = get_cmdline()
 
@@ -1076,9 +1081,9 @@ def read_cc_from_cmdline(cmdline=None):
         end = cmdline.find(tag_end, begin + begin_l)
         if end < 0:
             end = clen
-        tokens.append(cmdline[begin + begin_l:end].lstrip().replace("\\n",
-                                                                    "\n"))
-
+        tokens.append(
+            parse.unquote(
+                cmdline[begin + begin_l:end].lstrip()).replace("\\n", "\n"))
         begin = cmdline.find(tag_begin, end + end_l)
 
     return '\n'.join(tokens)
@@ -1223,7 +1228,7 @@ def is_resolvable_url(url):
     """determine if this url is resolvable (existing or ip)."""
     return log_time(logfunc=LOG.debug, msg="Resolving URL: " + url,
                     func=is_resolvable,
-                    args=(urlparse.urlparse(url).hostname,))
+                    args=(parse.urlparse(url).hostname,))
 
 
 def search_for_mirror(candidates):
@@ -1231,9 +1236,14 @@ def search_for_mirror(candidates):
     Search through a list of mirror urls for one that works
     This needs to return quickly.
     """
+    if candidates is None:
+        return None
+
+    LOG.debug("search for mirror in candidates: '%s'", candidates)
     for cand in candidates:
         try:
             if is_resolvable_url(cand):
+                LOG.debug("found working mirror: '%s'", cand)
                 return cand
         except Exception:
             pass
@@ -1254,6 +1264,21 @@ def close_stdin():
         os.dup2(fp.fileno(), sys.stdin.fileno())
 
 
+def find_devs_with_netbsd(criteria=None, oformat='device',
+                          tag=None, no_cache=False, path=None):
+    if not path:
+        path = "/dev/cd0"
+    cmd = ["mscdlabel", path]
+    out, _ = subp(cmd, capture=True, decode="replace", rcs=[0, 1])
+    result = out.split()
+    if result and len(result) > 2:
+        if criteria == "TYPE=iso9660" and "ISO" in result:
+            return [path]
+        if criteria == "LABEL=CONFIG-2" and '"config-2"' in result:
+            return [path]
+    return []
+
+
 def find_devs_with(criteria=None, oformat='device',
                    tag=None, no_cache=False, path=None):
     """
@@ -1263,6 +1288,10 @@ def find_devs_with(criteria=None, oformat='device',
       LABEL=<label>
       UUID=<uuid>
     """
+    if is_NetBSD():
+        return find_devs_with_netbsd(criteria, oformat,
+                                     tag, no_cache, path)
+
     blk_id_cmd = ['blkid']
     options = []
     if criteria:
@@ -1355,7 +1384,7 @@ def uniq_list(in_list):
 
 def load_file(fname, read_cb=None, quiet=False, decode=True):
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
-    ofh = six.BytesIO()
+    ofh = io.BytesIO()
     try:
         with open(fname, 'rb') as ifh:
             pipe_in_out(ifh, ofh, chunk_cb=read_cb)
@@ -1821,7 +1850,7 @@ def boottime():
             ("tv_sec", ctypes.c_int64),
             ("tv_usec", ctypes.c_int64)
         ]
-    libc = ctypes.CDLL('/lib/libc.so.7')
+    libc = ctypes.CDLL('libc.so')
     size = ctypes.c_size_t()
     size.value = ctypes.sizeof(timeval)
     buf = timeval()
@@ -2051,13 +2080,13 @@ def subp(args, data=None, rcs=None, env=None, capture=True,
     # Popen converts entries in the arguments array from non-bytes to bytes.
     # When locale is unset it may use ascii for that encoding which can
     # cause UnicodeDecodeErrors. (LP: #1751051)
-    if isinstance(args, six.binary_type):
+    if isinstance(args, bytes):
         bytes_args = args
-    elif isinstance(args, six.string_types):
+    elif isinstance(args, str):
         bytes_args = args.encode("utf-8")
     else:
         bytes_args = [
-            x if isinstance(x, six.binary_type) else x.encode("utf-8")
+            x if isinstance(x, bytes) else x.encode("utf-8")
             for x in args]
     try:
         sp = subprocess.Popen(bytes_args, stdout=stdout,
@@ -2136,10 +2165,10 @@ def shellify(cmdlist, add_header=True):
         if isinstance(args, (list, tuple)):
             fixed = []
             for f in args:
-                fixed.append("'%s'" % (six.text_type(f).replace("'", escaped)))
+                fixed.append("'%s'" % (str(f).replace("'", escaped)))
             content = "%s%s\n" % (content, ' '.join(fixed))
             cmds_made += 1
-        elif isinstance(args, six.string_types):
+        elif isinstance(args, str):
             content = "%s%s\n" % (content, args)
             cmds_made += 1
         else:
@@ -2265,7 +2294,7 @@ def expand_package_list(version_fmt, pkgs):
 
     pkglist = []
     for pkg in pkgs:
-        if isinstance(pkg, six.string_types):
+        if isinstance(pkg, str):
             pkglist.append(pkg)
             continue
 
@@ -2765,7 +2794,7 @@ def read_dmi_data(key):
 
 def message_from_string(string):
     if sys.version_info[:2] < (2, 7):
-        return email.message_from_file(six.StringIO(string))
+        return email.message_from_file(io.StringIO(string))
     return email.message_from_string(string)
 
 
