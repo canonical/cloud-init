@@ -9,7 +9,18 @@ from unittest import mock
 
 import pytest
 
-from cloudinit.distros import _get_package_mirror_info
+from cloudinit.distros import _get_package_mirror_info, LDH_ASCII_CHARS
+
+
+# Define a set of characters we would expect to be replaced
+INVALID_URL_CHARS = [
+    chr(x) for x in range(127) if chr(x) not in LDH_ASCII_CHARS
+]
+for separator in [":", ".", "/", "#", "?", "@", "[", "]"]:
+    # Remove from the set characters that either separate hostname parts (":",
+    # "."), terminate hostnames ("/", "#", "?", "@"), or cause Python to be
+    # unable to parse URLs ("[", "]").
+    INVALID_URL_CHARS.remove(separator)
 
 
 class TestGetPackageMirrorInfo:
@@ -75,7 +86,33 @@ class TestGetPackageMirrorInfo:
         (None, 'fake-region',
          ['http://RG-%(region)s-2/ubuntu', 'http://RG-%(region)s-1/ubuntu'],
          ['http://rg-fake-region-2/ubuntu', 'http://rg-fake-region-1/ubuntu']),
-    ))
+        # Test that non-ASCII hostnames are IDNA encoded;
+        # "IDNA-ТεЅТ̣".encode('idna') == b"xn--idna--4kd53hh6aba3q"
+        (None, 'ТεЅТ̣', ['http://www.IDNA-%(region)s.com/ubuntu'],
+         ['http://www.xn--idna--4kd53hh6aba3q.com/ubuntu']),
+        # Test that non-ASCII hostnames with a port are IDNA encoded;
+        # "IDNA-ТεЅТ̣".encode('idna') == b"xn--idna--4kd53hh6aba3q"
+        (None, 'ТεЅТ̣', ['http://www.IDNA-%(region)s.com:8080/ubuntu'],
+         ['http://www.xn--idna--4kd53hh6aba3q.com:8080/ubuntu']),
+        # Test that non-ASCII non-hostname parts of URLs are unchanged
+        (None, 'ТεЅТ̣', ['http://www.example.com/%(region)s/ubuntu'],
+         ['http://www.example.com/ТεЅТ̣/ubuntu']),
+        # Test that IPv4 addresses are unchanged
+        (None, 'fk-fake-1', ['http://192.168.1.1:8080/%(region)s/ubuntu'],
+         ['http://192.168.1.1:8080/fk-fake-1/ubuntu']),
+        # Test that IPv6 addresses are unchanged
+        (None, 'fk-fake-1',
+         ['http://[2001:67c:1360:8001::23]/%(region)s/ubuntu'],
+         ['http://[2001:67c:1360:8001::23]/fk-fake-1/ubuntu']),
+    ) + (
+        # Dynamically generate a test case for each non-LDH
+        # (Letters/Digits/Hyphen) ASCII character, testing that it is
+        # substituted with a hyphen
+        tuple(
+            (None, 'fk{0}fake{0}1'.format(invalid_char),
+             ['http://%(region)s/ubuntu'], ['http://fk-fake-1/ubuntu'])
+            for invalid_char in INVALID_URL_CHARS))
+    )
     def test_substitution(self, availability_zone, region, patterns, expected):
         """Test substitution works as expected."""
         m_data_source = mock.Mock(
