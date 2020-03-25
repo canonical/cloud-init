@@ -60,6 +60,9 @@ Do these things once
     git remote add GH_USER git@github.com:GH_USER/cloud-init.git
     git push GH_USER master
 
+* Read through the cloud-init `Code Review Process`_, so you understand
+  how your changes will end up in cloud-init's codebase.
+
 .. _GitHub: https://github.com
 .. _Launchpad: https://launchpad.net
 .. _repository: https://github.com/canonical/cloud-init
@@ -119,13 +122,15 @@ Do these things for each feature or bug
   - Click 'Create Pull Request`
 
 Then, someone in the `Ubuntu Server`_ team will review your changes and
-follow up in the pull request.
+follow up in the pull request.  Look at the `Code Review Process`_ doc
+to understand the following steps.
 
 Feel free to ping and/or join ``#cloud-init`` on freenode irc if you
 have any questions.
 
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _Ubuntu Server: https://github.com/orgs/canonical/teams/ubuntu-server
+.. _Code Review Process: https://cloudinit.readthedocs.io/en/latest/topics/code_review.html
 
 Design
 ======
