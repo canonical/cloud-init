@@ -440,13 +440,15 @@ class TestGetLinuxDistro(CiTestCase):
     @mock.patch('platform.system')
     @mock.patch('platform.release')
     @mock.patch('cloudinit.util._parse_redhat_release')
-    def test_get_linux_freebsd(self, m_path_exists, m_platform_release,
-                               m_platform_system, m_parse_redhat_release):
+    def test_get_linux_freebsd(self, m_parse_redhat_release,
+                               m_platform_release,
+                               m_platform_system, m_path_exists):
         """Verify we get the correct name and release name on FreeBSD."""
         m_path_exists.return_value = False
         m_platform_release.return_value = '12.0-RELEASE-p10'
         m_platform_system.return_value = 'FreeBSD'
         m_parse_redhat_release.return_value = {}
+        util.is_BSD.cache_clear()
         dist = util.get_linux_distro()
         self.assertEqual(('freebsd', '12.0-RELEASE-p10', ''), dist)
 
