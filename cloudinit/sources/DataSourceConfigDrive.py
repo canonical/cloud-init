@@ -72,7 +72,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             dslist = self.sys_cfg.get('datasource_list')
             for dev in find_candidate_devs(dslist=dslist):
                 mtype = None
-                if (util.is_FreeBSD() or util.is_NetBSD() or util.is_NetBSD()):
+                if util.is_BSD():
                     if dev.startswith("/dev/cd"):
                         mtype = "cd9660"
                 try:

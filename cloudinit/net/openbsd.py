@@ -11,13 +11,16 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
 
     def write_config(self):
         for device_name, v in self.interface_configurations.items():
-            if_file = 'etc/hostname.%s' % device_name
+            if_file = 'etc/hostname.{1}'.format(device_name)
             fn = util.target_path(self.target, if_file)
             content = 'dhcp\n'
-            if isinstance(v, dict):
-                content = "inet {address} {netmask}\n".format(
-                            address=v.get('address'),
-                            netmask=v.get('netmask'))
+            try:
+                if isinstance(v, dict):
+                    content = "inet {address} {netmask}\n".format(
+                                address=v['address'],
+                                netmask=v['netmask'])
+            except KeyError:
+                LOG.error("Invalid static configuration for %s", device_name)
             util.write_file(fn, content)
 
     def start_services(self, run=False):

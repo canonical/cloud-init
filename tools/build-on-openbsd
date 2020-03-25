@@ -21,7 +21,7 @@ pkgs="
 
 touch $depschecked
 
-python3.7 setup.py build
-python3.7 setup.py install -O1 --distro openbsd --skip-build
+python3 setup.py build
+python3 setup.py install -O1 --distro openbsd --skip-build
 
 echo "Installation completed."

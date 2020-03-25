@@ -51,12 +51,12 @@ class DataSourceNoCloud(sources.DataSource):
         elif util.is_OpenBSD():
             out, _err = util.subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
             devlist = []
-            for i in out.split(','):
-                if i[-1] != ':':
+            for entry in out.split(','):
+                if not entry.endswith(':'):
                     # ffs partition with a serial, not a config-drive
                     continue
-                part_id = 'a' if i.startswith('cd') else 'i'
-                devlist.append(i + part_id)
+                part_id = 'a' if entry.startswith('cd') else 'i'
+                devlist.append(entry + part_id)
         else:
             # Query optical drive to get it in blkid cache for 2.6 kernels
             util.find_devs_with(path="/dev/sr0")

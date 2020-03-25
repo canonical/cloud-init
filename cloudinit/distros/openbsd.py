@@ -16,8 +16,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     hostname_conf_fn = '/etc/myname'
 
     def _read_hostname(self, filename, default=None):
-        with open(self.hostname_conf_fn, 'r') as fd:
-            return fd.read()
+        return util.load_file(self.hostname_conf_fn)
 
     def _write_hostname(self, hostname, filename):
         content = hostname + '\n'
