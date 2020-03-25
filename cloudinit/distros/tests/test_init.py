@@ -25,14 +25,16 @@ class TestGetPackageMirrorInfo:
         # Empty info gives empty return
         ({}, {}),
         # failsafe values used if present
-        ({'failsafe': {'primary': 'value', 'security': 'other'}},
-         {'primary': 'value', 'security': 'other'}),
+        ({'failsafe': {'primary': 'http://value', 'security': 'http://other'}},
+         {'primary': 'http://value', 'security': 'http://other'}),
         # search values used if present
-        ({'search': {'primary': ['value'], 'security': ['other']}},
-         {'primary': ['value'], 'security': ['other']}),
+        ({'search': {'primary': ['http://value'],
+                     'security': ['http://other']}},
+         {'primary': ['http://value'], 'security': ['http://other']}),
         # failsafe values used if search value not present
-        ({'search': {'primary': ['value']}, 'failsafe': {'security': 'other'}},
-         {'primary': ['value'], 'security': 'other'})
+        ({'search': {'primary': ['http://value']},
+          'failsafe': {'security': 'http://other'}},
+         {'primary': ['http://value'], 'security': 'http://other'})
     ])
     def test_get_package_mirror_info_failsafe(self, mirror_info, expected):
         """
@@ -48,25 +50,31 @@ class TestGetPackageMirrorInfo:
     def test_failsafe_used_if_all_search_results_filtered_out(self):
         """Test the failsafe option used if all search options eliminated."""
         mirror_info = {
-            'search': {'primary': ['value']}, 'failsafe': {'primary': 'other'}
+            'search': {'primary': ['http://value']},
+            'failsafe': {'primary': 'http://other'}
         }
-        assert {'primary': 'other'} == _get_package_mirror_info(
+        assert {'primary': 'http://other'} == _get_package_mirror_info(
             mirror_info, mirror_filter=lambda x: False)
 
     @pytest.mark.parametrize('availability_zone,region,patterns,expected', (
         # Test ec2_region alone
-        ('fk-fake-1f', None, ['EC2-%(ec2_region)s'], ['EC2-fk-fake-1']),
+        ('fk-fake-1f', None, ['http://EC2-%(ec2_region)s/ubuntu'],
+         ['http://ec2-fk-fake-1/ubuntu']),
         # Test availability_zone alone
-        ('fk-fake-1f', None, ['AZ-%(availability_zone)s'], ['AZ-fk-fake-1f']),
+        ('fk-fake-1f', None, ['http://AZ-%(availability_zone)s/ubuntu'],
+         ['http://az-fk-fake-1f/ubuntu']),
         # Test region alone
-        (None, 'fk-fake-1', ['RG-%(region)s'], ['RG-fk-fake-1']),
+        (None, 'fk-fake-1', ['http://RG-%(region)s/ubuntu'],
+         ['http://rg-fk-fake-1/ubuntu']),
         # Test that ec2_region is not available for non-matching AZs
         ('fake-fake-1f', None,
-         ['EC2-%(ec2_region)s', 'AZ-%(availability_zone)s'],
-         ['AZ-fake-fake-1f']),
+         ['http://EC2-%(ec2_region)s/ubuntu',
+          'http://AZ-%(availability_zone)s/ubuntu'],
+         ['http://az-fake-fake-1f/ubuntu']),
         # Test that template order maintained
-        (None, 'fake-region', ['RG-%(region)s-2', 'RG-%(region)s-1'],
-         ['RG-fake-region-2', 'RG-fake-region-1']),
+        (None, 'fake-region',
+         ['http://RG-%(region)s-2/ubuntu', 'http://RG-%(region)s-1/ubuntu'],
+         ['http://rg-fake-region-2/ubuntu', 'http://rg-fake-region-1/ubuntu']),
     ))
     def test_substitution(self, availability_zone, region, patterns, expected):
         """Test substitution works as expected."""
