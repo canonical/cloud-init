@@ -13,6 +13,9 @@ stage
 *.cover
 .idea/
 .venv/
+.pc/
+.cache/
+.mypy_cache/
 
 # Ignore packaging artifacts
 cloud-init.dsc

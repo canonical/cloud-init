@@ -136,6 +136,7 @@ if '--distro' in sys.argv:
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
     'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
+    'sysvinit_netbsd': [f for f in glob('sysvinit/netbsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
     'sysvinit_openrc': [f for f in glob('sysvinit/gentoo/*') if is_f(f)],
     'sysvinit_suse': [f for f in glob('sysvinit/suse/*') if is_f(f)],
@@ -152,6 +153,7 @@ INITSYS_FILES = {
 INITSYS_ROOTS = {
     'sysvinit': 'etc/rc.d/init.d',
     'sysvinit_freebsd': 'usr/local/etc/rc.d',
+    'sysvinit_netbsd': 'usr/local/etc/rc.d',
     'sysvinit_deb': 'etc/init.d',
     'sysvinit_openrc': 'etc/init.d',
     'sysvinit_suse': 'etc/init.d',
@@ -272,7 +274,7 @@ data_files = [
     (USR + '/share/doc/cloud-init/examples/seed',
         [f for f in glob('doc/examples/seed/*') if is_f(f)]),
 ]
-if os.uname()[0] != 'FreeBSD':
+if os.uname()[0] not in ['FreeBSD', 'NetBSD']:
     data_files.extend([
         (ETC + '/NetworkManager/dispatcher.d/',
          ['tools/hook-network-manager']),

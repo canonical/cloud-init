@@ -19,6 +19,7 @@ keys to post. Available keys are:
     - ``pub_key_dsa``
     - ``pub_key_rsa``
     - ``pub_key_ecdsa``
+    - ``pub_key_ed25519``
     - ``instance_id``
     - ``hostname``
     - ``fdqn``
@@ -52,6 +53,7 @@ POST_LIST_ALL = [
     'pub_key_dsa',
     'pub_key_rsa',
     'pub_key_ecdsa',
+    'pub_key_ed25519',
     'instance_id',
     'hostname',
     'fqdn'
@@ -105,6 +107,7 @@ def handle(name, cfg, cloud, log, args):
         'pub_key_dsa': '/etc/ssh/ssh_host_dsa_key.pub',
         'pub_key_rsa': '/etc/ssh/ssh_host_rsa_key.pub',
         'pub_key_ecdsa': '/etc/ssh/ssh_host_ecdsa_key.pub',
+        'pub_key_ed25519': '/etc/ssh/ssh_host_ed25519_key.pub',
     }
 
     for (n, path) in pubkeys.items():

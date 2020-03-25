@@ -737,7 +737,6 @@ class TestReadSeeded(helpers.TestCase):
 
 
 class TestSubp(helpers.CiTestCase):
-    with_logs = True
     allowed_subp = [BASH, 'cat', helpers.CiTestCase.SUBP_SHELL_TRUE,
                     BOGUS_COMMAND, sys.executable]
 

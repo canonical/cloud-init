@@ -197,7 +197,7 @@ supplying an updated configuration in cloud-config. ::
 
   system_info:
     network:
-      renderers: ['netplan', 'eni', 'sysconfig', 'freebsd']
+      renderers: ['netplan', 'eni', 'sysconfig', 'freebsd', 'netbsd']
 
 
 Network Configuration Tools

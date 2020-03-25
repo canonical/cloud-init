@@ -383,8 +383,6 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
 class TestAzureDataSource(CiTestCase):
 
-    with_logs = True
-
     def setUp(self):
         super(TestAzureDataSource, self).setUp()
         self.tmp = self.tmp_dir()

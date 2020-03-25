@@ -1,0 +1,36 @@
+#!/bin/sh
+
+fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
+
+# Check dependencies:
+depschecked=/tmp/c-i.dependencieschecked
+pkgs="
+   bash
+   dmidecode
+   py37-configobj
+   py37-jinja2
+   py37-oauthlib
+   py37-requests
+   py37-setuptools
+   py37-yaml
+   sudo
+"
+[ -f "$depschecked" ] || pkg_add ${pkgs} || fail "install packages"
+
+touch $depschecked
+
+# Build the code and install in /usr/pkg/:
+python3.7 setup.py build
+python3.7 setup.py install -O1 --distro netbsd --skip-build --init-system sysvinit_netbsd
+mv -v /usr/local/etc/rc.d/cloud* /etc/rc.d
+
+# Enable cloud-init in /etc/rc.conf:
+sed -i.bak -e "/^cloud.*=.*/d" /etc/rc.conf
+echo '
+# You can safely remove the following lines starting with "cloud"
+cloudinitlocal="YES"
+cloudinit="YES"
+cloudconfig="YES"
+cloudfinal="YES"' >> /etc/rc.conf
+
+echo "Installation completed."
