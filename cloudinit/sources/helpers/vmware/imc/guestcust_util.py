@@ -156,9 +156,12 @@ def get_tools_config(section, key, defaultVal):
 
 # Sets message to the VMX guestinfo.gc.status property to the
 # underlying VMware Virtualization Platform.
-def set_gc_status(gcMsg):
-    rpc = "info-set guestinfo.gc.status %s" % gcMsg
-    return send_rpc(rpc)
+def set_gc_status(config, gcMsg):
+    if config and config.post_gc_status:
+        rpc = "info-set guestinfo.gc.status %s" % gcMsg
+        return send_rpc(rpc)
+    else:
+        return None
 
 
 # vi: ts=4 expandtab
