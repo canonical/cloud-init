@@ -15,6 +15,7 @@ import os
 import shutil
 import sys
 import tempfile
+import platform
 
 import setuptools
 from setuptools.command.install import install
@@ -230,7 +231,7 @@ class InitsysInstallData(install):
         if self.init_system and isinstance(self.init_system, str):
             self.init_system = self.init_system.split(",")
 
-        if len(self.init_system) == 0:
+        if len(self.init_system) == 0 and not platform.system().endswith('BSD'):
             self.init_system = ['systemd']
 
         bad = [f for f in self.init_system if f not in INITSYS_TYPES]
@@ -274,7 +275,7 @@ data_files = [
     (USR + '/share/doc/cloud-init/examples/seed',
         [f for f in glob('doc/examples/seed/*') if is_f(f)]),
 ]
-if os.uname()[0] not in ['FreeBSD', 'NetBSD']:
+if not platform.system().endswith('BSD'):
     data_files.extend([
         (ETC + '/NetworkManager/dispatcher.d/',
          ['tools/hook-network-manager']),

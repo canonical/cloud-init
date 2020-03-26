@@ -557,6 +557,11 @@ def is_NetBSD():
     return system_info()['variant'] == "netbsd"
 
 
+@lru_cache()
+def is_OpenBSD():
+    return system_info()['variant'] == "openbsd"
+
+
 def get_cfg_option_bool(yobj, key, default=False):
     if key not in yobj:
         return default
@@ -679,7 +684,7 @@ def system_info():
             var = 'suse'
         else:
             var = 'linux'
-    elif system in ('windows', 'darwin', "freebsd", "netbsd"):
+    elif system in ('windows', 'darwin', "freebsd", "netbsd", "openbsd"):
         var = system
 
     info['variant'] = var
@@ -1279,6 +1284,27 @@ def find_devs_with_netbsd(criteria=None, oformat='device',
     return []
 
 
+def find_devs_with_openbsd(criteria=None, oformat='device',
+                           tag=None, no_cache=False, path=None):
+    out, _err = subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
+    devlist = []
+    for entry in out.split(','):
+        if not entry.endswith(':'):
+            # ffs partition with a serial, not a config-drive
+            continue
+        if entry == 'fd0:':
+            continue
+        part_id = 'a' if entry.startswith('cd') else 'i'
+        devlist.append(entry[:-1] + part_id)
+    if criteria == "TYPE=iso9660":
+        devlist = [i for i in devlist if i.startswith('cd')]
+    elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
+        devlist = [i for i in devlist if not i.startswith('cd')]
+    elif criteria:
+        LOG.debug("Unexpected criteria: %s", criteria)
+    return ['/dev/' + i for i in devlist]
+
+
 def find_devs_with(criteria=None, oformat='device',
                    tag=None, no_cache=False, path=None):
     """
@@ -1291,6 +1317,9 @@ def find_devs_with(criteria=None, oformat='device',
     if is_NetBSD():
         return find_devs_with_netbsd(criteria, oformat,
                                      tag, no_cache, path)
+    elif is_OpenBSD():
+        return find_devs_with_openbsd(criteria, oformat,
+                                      tag, no_cache, path)
 
     blk_id_cmd = ['blkid']
     options = []
