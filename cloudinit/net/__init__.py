@@ -335,14 +335,14 @@ def find_fallback_nic(blacklist_drivers=None):
     if util.is_FreeBSD():
         return find_fallback_nic_on_freebsd(blacklist_drivers)
     elif util.is_NetBSD():
-        return find_fallback_nic_on_netbsd(blacklist_drivers)
+        return find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers)
     elif util.is_OpenBSD():
-        return find_fallback_nic_on_netbsd(blacklist_drivers)
+        return find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers)
     else:
         return find_fallback_nic_on_linux(blacklist_drivers)
 
 
-def find_fallback_nic_on_netbsd(blacklist_drivers=None):
+def find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers=None):
     values = list(sorted(
         get_interfaces_by_mac().values(),
         key=natural_sort_key))

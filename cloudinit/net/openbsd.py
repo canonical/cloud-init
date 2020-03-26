@@ -20,7 +20,9 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                                 address=v['address'],
                                 netmask=v['netmask'])
             except KeyError:
-                LOG.error("Invalid static configuration for %s", device_name)
+                LOG.error((
+                    "Invalid static configuration for %s,"
+                    "falling back to dhcp"), device_name)
             util.write_file(fn, content)
 
     def start_services(self, run=False):
