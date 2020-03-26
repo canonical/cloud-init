@@ -50,9 +50,6 @@
          },
          "requests" : {
             "3" : "python36-requests"
-         },
-         "six" : {
-            "3" : "python36-six"
          }
       },
       "requires" : [

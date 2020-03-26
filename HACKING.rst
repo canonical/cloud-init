@@ -60,6 +60,9 @@ Do these things once
     git remote add GH_USER git@github.com:GH_USER/cloud-init.git
     git push GH_USER master
 
+* Read through the cloud-init `Code Review Process`_, so you understand
+  how your changes will end up in cloud-init's codebase.
+
 .. _GitHub: https://github.com
 .. _Launchpad: https://launchpad.net
 .. _repository: https://github.com/canonical/cloud-init
@@ -119,13 +122,15 @@ Do these things for each feature or bug
   - Click 'Create Pull Request`
 
 Then, someone in the `Ubuntu Server`_ team will review your changes and
-follow up in the pull request.
+follow up in the pull request.  Look at the `Code Review Process`_ doc
+to understand the following steps.
 
 Feel free to ping and/or join ``#cloud-init`` on freenode irc if you
 have any questions.
 
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _Ubuntu Server: https://github.com/orgs/canonical/teams/ubuntu-server
+.. _Code Review Process: https://cloudinit.readthedocs.io/en/latest/topics/code_review.html
 
 Design
 ======
@@ -138,3 +143,42 @@ Cloud Config Modules
 
 * Any new modules should use underscores in any new config options and not
   hyphens (e.g. `new_option` and *not* `new-option`).
+
+Unit Testing
+------------
+
+cloud-init uses `pytest`_ to run its tests, and has tests written both
+as ``unittest.TestCase`` sub-classes and as un-subclassed pytest tests.
+The following guidelines should be following:
+
+* For ease of organisation and greater accessibility for developers not
+  familiar with pytest, all cloud-init unit tests must be contained
+  within test classes
+
+  * Put another way, module-level test functions should not be used
+
+* pytest test classes should use `pytest fixtures`_ to share
+  functionality instead of inheritance
+* As all tests are contained within classes, it is acceptable to mix
+  ``TestCase`` test classes and pytest test classes within the same
+  test file
+
+  * These can be easily distinguished by their definition: pytest
+    classes will not use inheritance at all (e.g.
+    `TestGetPackageMirrorInfo`_), whereas ``TestCase`` classes will
+    subclass (indirectly) from ``TestCase`` (e.g.
+    `TestPrependBaseCommands`_)
+
+
+* pytest tests should use bare ``assert`` statements, to take advantage
+  of pytest's `assertion introspection`_
+
+  * For ``==`` and other commutative assertions, the expected value
+    should be placed before the value under test:
+    ``assert expected_value == function_under_test()``
+
+.. _pytest: https://docs.pytest.org/
+.. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
+.. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
+.. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/master/cloudinit/tests/test_subp.py#L9
+.. _assertion introspection: https://docs.pytest.org/en/latest/assert.html

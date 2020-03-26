@@ -336,8 +336,18 @@ def find_fallback_nic(blacklist_drivers=None):
     """Return the name of the 'fallback' network device."""
     if util.is_FreeBSD():
         return find_fallback_nic_on_freebsd(blacklist_drivers)
+    elif util.is_NetBSD() or util.is_OpenBSD():
+        return find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers)
     else:
         return find_fallback_nic_on_linux(blacklist_drivers)
+
+
+def find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers=None):
+    values = list(sorted(
+        get_interfaces_by_mac().values(),
+        key=natural_sort_key))
+    if values:
+        return values[0]
 
 
 def find_fallback_nic_on_freebsd(blacklist_drivers=None):
@@ -801,6 +811,10 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
 def get_interfaces_by_mac():
     if util.is_FreeBSD():
         return get_interfaces_by_mac_on_freebsd()
+    elif util.is_NetBSD():
+        return get_interfaces_by_mac_on_netbsd()
+    elif util.is_OpenBSD():
+        return get_interfaces_by_mac_on_openbsd()
     else:
         return get_interfaces_by_mac_on_linux()
 
@@ -830,6 +844,36 @@ def get_interfaces_by_mac_on_freebsd():
                 yield (m.group('mac'), m.group('ifname'))
     results = {mac: ifname for mac, ifname in find_mac(flatten(out))}
     return results
+
+
+def get_interfaces_by_mac_on_netbsd():
+    ret = {}
+    re_field_match = (
+            r"(?P<ifname>\w+).*address:\s"
+            r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*")
+    (out, _) = util.subp(['ifconfig', '-a'])
+    if_lines = re.sub(r'\n\s+', ' ', out).splitlines()
+    for line in if_lines:
+        m = re.match(re_field_match, line)
+        if m:
+            fields = m.groupdict()
+            ret[fields['mac']] = fields['ifname']
+    return ret
+
+
+def get_interfaces_by_mac_on_openbsd():
+    ret = {}
+    re_field_match = (
+        r"(?P<ifname>\w+).*lladdr\s"
+        r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*")
+    (out, _) = util.subp(['ifconfig', '-a'])
+    if_lines = re.sub(r'\n\s+', ' ', out).splitlines()
+    for line in if_lines:
+        m = re.match(re_field_match, line)
+        if m:
+            fields = m.groupdict()
+            ret[fields['mac']] = fields['ifname']
+    return ret
 
 
 def get_interfaces_by_mac_on_linux():

@@ -47,7 +47,6 @@ matrix:
           env:
               TOXENV=xenial
               PYTEST_ADDOPTS=-v  # List all tests run by pytest
-          # Travis doesn't support Python 3.4 on bionic, so use xenial
           dist: xenial
         - python: 3.6
           env: TOXENV=pycodestyle
