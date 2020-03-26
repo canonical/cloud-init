@@ -334,9 +334,7 @@ def find_fallback_nic(blacklist_drivers=None):
     """Return the name of the 'fallback' network device."""
     if util.is_FreeBSD():
         return find_fallback_nic_on_freebsd(blacklist_drivers)
-    elif util.is_NetBSD():
-        return find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers)
-    elif util.is_OpenBSD():
+    elif util.is_NetBSD() or util.is_OpenBSD():
         return find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers)
     else:
         return find_fallback_nic_on_linux(blacklist_drivers)
