@@ -9,13 +9,10 @@ Author: Scott Moser <smoser@ubuntu.com>
 
 --- a/requirements.txt
 +++ b/requirements.txt
-@@ -31,7 +31,8 @@ requests
+@@ -31,4 +31,5 @@ requests
  jsonpatch
  
  # For validating cloud-config sections per schema definitions
 -jsonschema
 +## Do not add dependencies to a stable release (SRU).
 +#jsonschema
- 
- # For Python 2/3 compatibility
- six

@@ -15,7 +15,7 @@ Author: Chad Smith <chad.smith@canonical.com>
 
 --- a/cloudinit/sources/DataSourceOpenStack.py
 +++ b/cloudinit/sources/DataSourceOpenStack.py
-@@ -98,10 +98,9 @@ class DataSourceOpenStack(openstack.Sour
+@@ -101,10 +101,9 @@ class DataSourceOpenStack(openstack.Sour
          if self._network_config != sources.UNSET:
              return self._network_config
  
@@ -30,7 +30,7 @@ Author: Chad Smith <chad.smith@canonical.com>
          if self.network_json == sources.UNSET:
 --- a/tests/unittests/test_datasource/test_openstack.py
 +++ b/tests/unittests/test_datasource/test_openstack.py
-@@ -345,6 +345,7 @@ class TestOpenStackDataSource(test_helpe
+@@ -344,6 +344,7 @@ class TestOpenStackDataSource(test_helpe
              settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
          sample_json = {'links': [{'ethernet_mac_address': 'mymac'}],
                         'networks': [], 'services': []}

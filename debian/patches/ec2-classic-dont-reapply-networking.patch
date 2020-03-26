@@ -9,10 +9,10 @@ Last-Update: 2019-03-08
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/sources/DataSourceEc2.py
 +++ b/cloudinit/sources/DataSourceEc2.py
-@@ -381,17 +381,6 @@ class DataSourceEc2(sources.DataSource):
-         if isinstance(net_md, dict):
-             result = convert_ec2_metadata_network_config(
-                 net_md, macs_to_nics=macs_to_nics, fallback_nic=iface)
+@@ -415,17 +415,6 @@ class DataSourceEc2(sources.DataSource):
+                 net_md, fallback_nic=iface,
+                 full_network_config=util.get_cfg_option_bool(
+                     self.ds_cfg, 'apply_full_imds_network_config', True))
 -
 -            # RELEASE_BLOCKER: xenial should drop the below if statement,
 -            # because the issue being addressed doesn't exist pre-netplan.
