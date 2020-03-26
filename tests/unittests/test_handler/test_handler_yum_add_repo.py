@@ -1,14 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_yum_add_repo
-from cloudinit import util
-
-from cloudinit.tests import helpers
-
 import logging
 import shutil
 import tempfile
 from io import StringIO
+
+from cloudinit import util
+from cloudinit.config import cc_yum_add_repo
+from cloudinit.tests import helpers
 
 LOG = logging.getLogger(__name__)
 
