@@ -2,7 +2,10 @@ cloud-init (19.4-51-g8409dd7d-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * refresh patches:
    + debian/patches/ubuntu-advantage-revert-tip.patch
-  * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
+  * refresh patches:
+   + debian/patches/ec2-classic-dont-reapply-networking.patch
+   + debian/patches/openstack-no-network-config.patch
+   + debian/patches/stable-release-no-jsonschema-dep.patch
     - HACKING.rst: update CLA link (#199)
     - Scaleway: Fix DatasourceScaleway to avoid backtrace (#128)
       [Louis Bouchard]
@@ -28,7 +31,7 @@ cloud-init (19.4-51-g8409dd7d-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
       Build-Depends because, currently, the Ubuntu package builds will still
       use it for testing.
 
- -- Ryan Harper <ryan.harper@canonical.com>  Wed, 29 Jan 2020 11:52:19 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 26 Mar 2020 16:12:56 -0600
 
 cloud-init (19.4-33-gbb4131a2-0ubuntu1~16.04.1) xenial; urgency=medium
 
