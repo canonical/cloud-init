@@ -14,7 +14,11 @@ LOG = logging.getLogger(__name__)
 
 
 class NetBSD(cloudinit.distros.bsd.BSD):
-    """OpenBSD inherite from this class."""
+    """
+    Distro subclass for NetBSD.
+
+    (N.B. OpenBSD inherits from this class.)
+    """
 
     ci_sudoers_fn = '/usr/pkg/etc/sudoers.d/90-cloud-init-users'
 

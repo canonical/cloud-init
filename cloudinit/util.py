@@ -1296,11 +1296,12 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
             continue
         part_id = 'a' if entry.startswith('cd') else 'i'
         devlist.append(entry[:-1] + part_id)
-    if criteria:
-        if criteria == "TYPE=iso9660":
-            devlist = [i for i in devlist if i.startswith('cd')]
-        elif criteria == "LABEL=CONFIG-2":
-            devlist = [i for i in devlist if not i.startswith('cd')]
+    if criteria == "TYPE=iso9660":
+        devlist = [i for i in devlist if i.startswith('cd')]
+    elif criteria == "LABEL=CONFIG-2":
+        devlist = [i for i in devlist if not i.startswith('cd')]
+    elif criteria:
+        LOG.debug("Unexpected criteria: %s", criteria)
     return ['/dev/' + i for i in devlist]
 
 
