@@ -841,7 +841,7 @@ VALID_CFG = {
     'OpenStack-SAPCCloud': {
         # SAP CCloud hosts use OpenStack on VMware
         'ds': 'OpenStack',
-        'files': {P_CHASSIS_ASSES_TAG: 'SAP CCloud VM\n'},
+        'files': {P_CHASSIS_ASSET_TAG: 'SAP CCloud VM\n'},
         'mocks': [MOCK_VIRT_IS_VMWARE],
     },
     'OpenStack-AssetTag-Nova': {
