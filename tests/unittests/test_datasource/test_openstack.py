@@ -510,6 +510,24 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             'Expected detect_openstack == True on OpenTelekomCloud')
 
     @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    def test_detect_openstack_sapccloud_chassis_asset_tag(self, m_dmi,
+                                                          m_is_x86):
+        """Return True on OpenStack reporting SAP CCloud VM asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_dmi_read(dmi_key):
+            if dmi_key == 'system-product-name':
+                return 'VMware Virtual Platform'  # SAP CCloud uses VMware
+            if dmi_key == 'chassis-asset-tag':
+                return 'SAP CCloud VM'
+            assert False, 'Unexpected dmi read of %s' % dmi_key
+
+        m_dmi.side_effect = fake_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            'Expected detect_openstack == True on SAP CCloud VM')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
     def test_detect_openstack_oraclecloud_chassis_asset_tag(self, m_dmi,
                                                             m_is_x86):
         """Return True on OpenStack reporting Oracle cloud asset-tag."""
