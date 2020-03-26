@@ -1171,4 +1171,23 @@ class TestGetProcEnv(helpers.TestCase):
         my_ppid = os.getppid()
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
+
+@mock.patch('cloudinit.util.subp')
+def test_find_devs_with_openbsd(m_subp):
+    m_subp.return_value = (
+        'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+    )
+    devlist = util.find_devs_with_openbsd()
+    assert devlist == ['/dev/cd0a', '/dev/sd1i']
+
+
+@mock.patch('cloudinit.util.subp')
+def test_find_devs_with_openbsd_with_criteria(m_subp):
+    m_subp.return_value = (
+        'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+    )
+    devlist = util.find_devs_with_openbsd(criteria="TYPE=iso9660")
+    assert devlist == ['/dev/cd0a']
+
+
 # vi: ts=4 expandtab
