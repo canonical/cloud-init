@@ -143,3 +143,37 @@ Cloud Config Modules
 
 * Any new modules should use underscores in any new config options and not
   hyphens (e.g. `new_option` and *not* `new-option`).
+
+Unit Testing
+------------
+
+cloud-init uses `pytest`_ to run its tests, and has tests written both
+as ``unittest.TestCase`` sub-classes and as un-subclassed pytest tests.
+The following guidelines should be following:
+
+* For ease of organisation and greater accessibility for developers not
+  familiar with pytest, all cloud-init unit tests must be contained
+  within test classes
+
+  * Put another way, module-level test functions should not be used
+
+* pytest test classes should use `pytest fixtures`_ to share
+  functionality instead of inheritance
+* As all tests are contained within classes, it is acceptable to mix
+  ``TestCase`` test classes and pytest test classes within the same
+  test file
+
+  * These can be easily distinguished by their definition: pytest
+    classes will not use inheritance at all, whereas ``TestCase``
+    classes will subclass (indirectly) from ``TestCase``
+
+* pytest tests should use bare ``assert`` statements, to take advantage
+  of pytest's `assertion introspection`_
+
+  * For ``==`` and other commutative assertions, the expected value
+    should be placed before the value under test:
+    ``assert expected_value == function_under_test()``
+
+.. _pytest: https://docs.pytest.org/
+.. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
+.. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
