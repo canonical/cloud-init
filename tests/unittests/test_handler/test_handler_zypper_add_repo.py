@@ -1,16 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import glob
+import logging
 import os
 from io import StringIO
 
-from cloudinit.config import cc_zypper_add_repo
 from cloudinit import util
-
+from cloudinit.config import cc_zypper_add_repo
 from cloudinit.tests import helpers
 from cloudinit.tests.helpers import mock
-
-import logging
 
 LOG = logging.getLogger(__name__)
 
