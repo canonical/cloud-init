@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from copy import copy
-import mock
 import os
 import shutil
 import tempfile
 import yaml
+from unittest import mock
 
 from cloudinit.sources import DataSourceMAAS
 from cloudinit import url_helper
@@ -158,7 +158,6 @@ class TestMAASDataSource(CiTestCase):
 
 @mock.patch("cloudinit.sources.DataSourceMAAS.url_helper.OauthUrlHelper")
 class TestGetOauthHelper(CiTestCase):
-    with_logs = True
     base_cfg = {'consumer_key': 'FAKE_CONSUMER_KEY',
                 'token_key': 'FAKE_TOKEN_KEY',
                 'token_secret': 'FAKE_TOKEN_SECRET',

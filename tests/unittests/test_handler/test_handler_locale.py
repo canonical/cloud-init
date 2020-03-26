@@ -17,20 +17,17 @@ from cloudinit.tests import helpers as t_help
 
 from configobj import ConfigObj
 
-from six import BytesIO
-
 import logging
-import mock
 import os
 import shutil
 import tempfile
+from io import BytesIO
+from unittest import mock
 
 LOG = logging.getLogger(__name__)
 
 
 class TestLocale(t_help.FilesystemMockingTestCase):
-
-    with_logs = True
 
     def setUp(self):
         super(TestLocale, self).setUp()

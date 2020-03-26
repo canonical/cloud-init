@@ -7,8 +7,8 @@ from cloudinit.tests import helpers
 
 import logging
 import shutil
-from six import StringIO
 import tempfile
+from io import StringIO
 
 LOG = logging.getLogger(__name__)
 

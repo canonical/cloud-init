@@ -126,7 +126,7 @@ Begins with: ``#cloud-config`` or ``Content-Type: text/cloud-config`` when
 using a MIME archive.
 
 .. note::
-   New in cloud-init v. 18.4: Cloud config dta can also render cloud instance
+   New in cloud-init v. 18.4: Cloud config data can also render cloud instance
    metadata variables using jinja templating. See
    :ref:`instance_metadata` for more information.
 

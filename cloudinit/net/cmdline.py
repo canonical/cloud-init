@@ -10,6 +10,7 @@ import base64
 import glob
 import gzip
 import io
+import logging
 import os
 
 from cloudinit import util
@@ -18,6 +19,8 @@ from . import get_devicelist
 from . import read_sys_net_safe
 
 _OPEN_ISCSI_INTERFACE_FILE = "/run/initramfs/open-iscsi.interface"
+
+KERNEL_CMDLINE_NETWORK_CONFIG_DISABLED = "disabled"
 
 
 class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
@@ -101,9 +104,12 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     provided here.  There is no good documentation on this unfortunately.
 
     DEVICE=<name> is expected/required and PROTO should indicate if
-    this is 'static' or 'dhcp' or 'dhcp6' (LP: #1621507).
+    this is 'none' (static) or 'dhcp' or 'dhcp6' (LP: #1621507).
     note that IPV6PROTO is also written by newer code to address the
     possibility of both ipv4 and ipv6 getting addresses.
+
+    Full syntax is documented at:
+    https://git.kernel.org/pub/scm/libs/klibc/klibc.git/plain/usr/kinit/ipconfig/README.ipconfig
     """
 
     if mac_addrs is None:
@@ -122,9 +128,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         if data.get('filename'):
             proto = 'dhcp'
         else:
-            proto = 'static'
+            proto = 'none'
 
-    if proto not in ('static', 'dhcp', 'dhcp6'):
+    if proto not in ('none', 'dhcp', 'dhcp6'):
         raise ValueError("Unexpected value for PROTO: %s" % proto)
 
     iface = {
@@ -144,6 +150,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
 
         # PROTO for ipv4, IPV6PROTO for ipv6
         cur_proto = data.get(pre + 'PROTO', proto)
+        # ipconfig's 'none' is called 'static'
+        if cur_proto == 'none':
+            cur_proto = 'static'
         subnet = {'type': cur_proto, 'control': 'manual'}
 
         # only populate address for static types. While the rendered config
@@ -227,34 +236,35 @@ def read_initramfs_config():
     return None
 
 
-def _decomp_gzip(blob, strict=True):
-    # decompress blob. raise exception if not compressed unless strict=False.
+def _decomp_gzip(blob):
+    # decompress blob or return original blob
     with io.BytesIO(blob) as iobuf:
         gzfp = None
         try:
             gzfp = gzip.GzipFile(mode="rb", fileobj=iobuf)
             return gzfp.read()
         except IOError:
-            if strict:
-                raise
             return blob
         finally:
             if gzfp:
                 gzfp.close()
 
 
-def _b64dgz(b64str, gzipped="try"):
-    # decode a base64 string.  If gzipped is true, transparently uncompresss
-    # if gzipped is 'try', then try gunzip, returning the original on fail.
+def _b64dgz(data):
+    """Decode a string base64 encoding, if gzipped, uncompress as well
+
+    :return: decompressed unencoded string of the data or empty string on
+       unencoded data.
+    """
     try:
-        blob = base64.b64decode(b64str)
-    except TypeError:
-        raise ValueError("Invalid base64 text: %s" % b64str)
+        blob = base64.b64decode(data)
+    except (TypeError, ValueError):
+        logging.error(
+            "Expected base64 encoded kernel commandline parameter"
+            " network-config. Ignoring network-config=%s.", data)
+        return ''
 
-    if not gzipped:
-        return blob
-
-    return _decomp_gzip(blob, strict=gzipped != "try")
+    return _decomp_gzip(blob)
 
 
 def read_kernel_cmdline_config(cmdline=None):
@@ -267,6 +277,8 @@ def read_kernel_cmdline_config(cmdline=None):
             if tok.startswith("network-config="):
                 data64 = tok.split("=", 1)[1]
         if data64:
+            if data64 == KERNEL_CMDLINE_NETWORK_CONFIG_DISABLED:
+                return {"config": "disabled"}
             return util.load_yaml(_b64dgz(data64))
 
     return None

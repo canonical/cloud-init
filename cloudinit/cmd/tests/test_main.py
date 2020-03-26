@@ -3,7 +3,7 @@
 from collections import namedtuple
 import copy
 import os
-from six import StringIO
+from io import StringIO
 
 from cloudinit.cmd import main
 from cloudinit import safeyaml
@@ -17,8 +17,6 @@ myargs = namedtuple('MyArgs', 'debug files force local reporter subcommand')
 
 
 class TestMain(FilesystemMockingTestCase):
-
-    with_logs = True
 
     def setUp(self):
         super(TestMain, self).setUp()

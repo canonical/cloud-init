@@ -30,8 +30,10 @@ default_release_config:
         mirror_url: https://cloud-images.ubuntu.com/daily
         mirror_dir: '/srv/citest/images'
         keyring: /usr/share/keyrings/ubuntu-cloudimage-keyring.gpg
-        # The OS version formatted as Major.Minor is used to compare releases
-        version: null   # Each release needs to define this, for example 16.04
+        # The OS version formatted as Major.Minor is used to compare releases.
+        # Each release needs to define this, for example "16.04". Quoting is
+        # necessary to ensure the version is treated as a string.
+        version: null
 
     ec2:
         # Choose from: [ebs, instance-store]
@@ -131,12 +133,28 @@ features:
 
 releases:
     # UBUNTU =================================================================
+    focal:
+        # EOL: Apr 2025
+        default:
+            enabled: true
+            release: focal
+            version: "20.04"
+            os: ubuntu
+            feature_groups:
+                - base
+                - debian_base
+                - ubuntu_specific
+        lxd:
+            sstreams_server: https://cloud-images.ubuntu.com/daily
+            alias: focal
+            setup_overrides: null
+            override_templates: false
     eoan:
         # EOL: Jul 2020
         default:
             enabled: true
             release: eoan
-            version: 19.10
+            version: "19.10"
             os: ubuntu
             feature_groups:
                 - base
@@ -152,7 +170,7 @@ releases:
         default:
             enabled: true
             release: disco
-            version: 19.04
+            version: "19.04"
             os: ubuntu
             feature_groups:
                 - base
@@ -168,7 +186,7 @@ releases:
         default:
             enabled: true
             release: cosmic
-            version: 18.10
+            version: "18.10"
             os: ubuntu
             feature_groups:
                 - base
@@ -184,7 +202,7 @@ releases:
         default:
             enabled: true
             release: bionic
-            version: 18.04
+            version: "18.04"
             os: ubuntu
             feature_groups:
                 - base
@@ -200,7 +218,7 @@ releases:
         default:
             enabled: true
             release: artful
-            version: 17.10
+            version: "17.10"
             os: ubuntu
             feature_groups:
                 - base
@@ -216,7 +234,7 @@ releases:
         default:
             enabled: true
             release: xenial
-            version: 16.04
+            version: "16.04"
             os: ubuntu
             feature_groups:
                 - base
@@ -232,7 +250,7 @@ releases:
         default:
             enabled: true
             release: trusty
-            version: 14.04
+            version: "14.04"
             os: ubuntu
             feature_groups:
                 - base

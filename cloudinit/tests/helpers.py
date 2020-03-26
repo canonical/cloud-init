@@ -13,8 +13,8 @@ import string
 import sys
 import tempfile
 import time
+from unittest import mock
 
-import mock
 import unittest2
 from unittest2.util import strclass
 
@@ -363,6 +363,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             root = self.tmp_dir()
         self.patchUtils(root)
         self.patchOS(root)
+        self.patchOpen(root)
         return root
 
     @contextmanager

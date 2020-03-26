@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import mock
+from unittest import mock
 
 from cloudinit.config import cc_set_passwords as setpass
 from cloudinit.tests.helpers import CiTestCase
@@ -74,6 +74,10 @@ class TestSetPasswordsHandle(CiTestCase):
 
     with_logs = True
 
+    def setUp(self):
+        super(TestSetPasswordsHandle, self).setUp()
+        self.add_patch('cloudinit.config.cc_set_passwords.sys.stderr', 'm_err')
+
     def test_handle_on_empty_config(self, *args):
         """handle logs that no password has changed when config is empty."""
         cloud = self.tmp_cloud(distro='ubuntu')
@@ -108,12 +112,12 @@ class TestSetPasswordsHandle(CiTestCase):
              '\n'.join(valid_hashed_pwds) + '\n')],
             m_subp.call_args_list)
 
-    @mock.patch(MODPATH + "util.is_FreeBSD")
+    @mock.patch(MODPATH + "util.is_BSD")
     @mock.patch(MODPATH + "util.subp")
-    def test_freebsd_calls_custom_pw_cmds_to_set_and_expire_passwords(
-            self, m_subp, m_is_freebsd):
-        """FreeBSD calls custom pw commands instead of chpasswd and passwd"""
-        m_is_freebsd.return_value = True
+    def test_bsd_calls_custom_pw_cmds_to_set_and_expire_passwords(
+            self, m_subp, m_is_bsd):
+        """BSD don't use chpasswd"""
+        m_is_bsd.return_value = True
         cloud = self.tmp_cloud(distro='freebsd')
         valid_pwds = ['ubuntu:passw0rd']
         cfg = {'chpasswd': {'list': valid_pwds}}
@@ -125,12 +129,12 @@ class TestSetPasswordsHandle(CiTestCase):
             mock.call(['pw', 'usermod', 'ubuntu', '-p', '01-Jan-1970'])],
             m_subp.call_args_list)
 
-    @mock.patch(MODPATH + "util.is_FreeBSD")
+    @mock.patch(MODPATH + "util.is_BSD")
     @mock.patch(MODPATH + "util.subp")
     def test_handle_on_chpasswd_list_creates_random_passwords(self, m_subp,
-                                                              m_is_freebsd):
+                                                              m_is_bsd):
         """handle parses command set random passwords."""
-        m_is_freebsd.return_value = False
+        m_is_bsd.return_value = False
         cloud = self.tmp_cloud(distro='ubuntu')
         valid_random_pwds = [
             'root:R',

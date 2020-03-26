@@ -3,10 +3,10 @@
 import copy
 import errno
 import httpretty
-import mock
 import os
 import requests
 import textwrap
+from unittest import mock
 
 import cloudinit.net as net
 from cloudinit.util import ensure_file, write_file, ProcessExecutionError
@@ -340,8 +340,6 @@ class TestGenerateFallbackConfig(CiTestCase):
 
 
 class TestNetFindFallBackNic(CiTestCase):
-
-    with_logs = True
 
     def setUp(self):
         super(TestNetFindFallBackNic, self).setUp()
@@ -995,8 +993,6 @@ class TestExtractPhysdevs(CiTestCase):
 
 class TestWaitForPhysdevs(CiTestCase):
 
-    with_logs = True
-
     def setUp(self):
         super(TestWaitForPhysdevs, self).setUp()
         self.add_patch('cloudinit.net.get_interfaces_by_mac',
@@ -1070,8 +1066,6 @@ class TestWaitForPhysdevs(CiTestCase):
 
 
 class TestNetFailOver(CiTestCase):
-
-    with_logs = True
 
     def setUp(self):
         super(TestNetFailOver, self).setUp()

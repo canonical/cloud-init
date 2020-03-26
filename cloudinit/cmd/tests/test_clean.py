@@ -5,7 +5,7 @@ from cloudinit.util import ensure_dir, sym_link, write_file
 from cloudinit.tests.helpers import CiTestCase, wrap_and_call, mock
 from collections import namedtuple
 import os
-from six import StringIO
+from io import StringIO
 
 mypaths = namedtuple('MyPaths', 'cloud_dir')
 
