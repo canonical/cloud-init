@@ -160,8 +160,7 @@ def set_gc_status(config, gcMsg):
     if config and config.post_gc_status:
         rpc = "info-set guestinfo.gc.status %s" % gcMsg
         return send_rpc(rpc)
-    else:
-        return None
+    return None
 
 
 # vi: ts=4 expandtab
