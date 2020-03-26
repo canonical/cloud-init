@@ -30,7 +30,7 @@ OCTET_TYPE = handlers.OCTET_TYPE
 CONTENT_TYPE = 'Content-Type'
 
 # Various special content types that cause special actions
-TYPE_NEEDED = ["text/plain", "text/x-not-multipart", "text/x-shellscript", "text/x-yaml"]
+TYPE_NEEDED = ["text/plain", "text/x-not-multipart"]
 INCLUDE_TYPES = ['text/x-include-url', 'text/x-include-once-url']
 ARCHIVE_TYPES = ["text/cloud-config-archive"]
 UNDEF_TYPE = "text/plain"
