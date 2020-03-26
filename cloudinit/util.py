@@ -543,6 +543,11 @@ def is_ipv4(instr):
 
 
 @lru_cache()
+def is_BSD():
+    return 'BSD' in platform.system()
+
+
+@lru_cache()
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
 
@@ -625,7 +630,7 @@ def get_linux_distro():
                     flavor = match.groupdict()['codename']
         if distro_name == 'rhel':
             distro_name = 'redhat'
-    elif 'BSD' in platform.system():
+    elif is_BSD():
         distro_name = platform.system().lower()
         distro_version = platform.release()
     else:
@@ -1048,7 +1053,7 @@ def read_conf_with_confd(cfgfile):
 
 
 def read_conf_from_cmdline(cmdline=None):
-    # return a dictionary or config on the cmdline or None
+    # return a dictionary of config on the cmdline or None
     return load_yaml(read_cc_from_cmdline(cmdline=cmdline))
 
 
@@ -1056,11 +1061,12 @@ def read_cc_from_cmdline(cmdline=None):
     # this should support reading cloud-config information from
     # the kernel command line.  It is intended to support content of the
     # format:
-    #  cc: <yaml content here> [end_cc]
+    #  cc: <yaml content here|urlencoded yaml content> [end_cc]
     # this would include:
     # cc: ssh_import_id: [smoser, kirkland]\\n
     # cc: ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ] end_cc
     # cc:ssh_import_id: [smoser] end_cc cc:runcmd: [ [ ls, -l ] ] end_cc
+    # cc:ssh_import_id: %5Bsmoser%5D end_cc
     if cmdline is None:
         cmdline = get_cmdline()
 
@@ -1075,9 +1081,9 @@ def read_cc_from_cmdline(cmdline=None):
         end = cmdline.find(tag_end, begin + begin_l)
         if end < 0:
             end = clen
-        tokens.append(cmdline[begin + begin_l:end].lstrip().replace("\\n",
-                                                                    "\n"))
-
+        tokens.append(
+            parse.unquote(
+                cmdline[begin + begin_l:end].lstrip()).replace("\\n", "\n"))
         begin = cmdline.find(tag_begin, end + end_l)
 
     return '\n'.join(tokens)
@@ -1230,9 +1236,14 @@ def search_for_mirror(candidates):
     Search through a list of mirror urls for one that works
     This needs to return quickly.
     """
+    if candidates is None:
+        return None
+
+    LOG.debug("search for mirror in candidates: '%s'", candidates)
     for cand in candidates:
         try:
             if is_resolvable_url(cand):
+                LOG.debug("found working mirror: '%s'", cand)
                 return cand
         except Exception:
             pass
@@ -1839,7 +1850,7 @@ def boottime():
             ("tv_sec", ctypes.c_int64),
             ("tv_usec", ctypes.c_int64)
         ]
-    libc = ctypes.CDLL('/lib/libc.so.7')
+    libc = ctypes.CDLL('libc.so')
     size = ctypes.c_size_t()
     size.value = ctypes.sizeof(timeval)
     buf = timeval()

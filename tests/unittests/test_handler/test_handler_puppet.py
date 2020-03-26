@@ -16,8 +16,6 @@ LOG = logging.getLogger(__name__)
 @mock.patch('cloudinit.config.cc_puppet.os')
 class TestAutostartPuppet(CiTestCase):
 
-    with_logs = True
-
     def test_wb_autostart_puppet_updates_puppet_default(self, m_os, m_util):
         """Update /etc/default/puppet to autostart if it exists."""
 
