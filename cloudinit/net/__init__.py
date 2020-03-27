@@ -11,8 +11,8 @@ import os
 import re
 from functools import partial
 
-from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit import util
+from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
