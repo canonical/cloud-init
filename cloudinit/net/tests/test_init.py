@@ -2,16 +2,17 @@
 
 import copy
 import errno
-import httpretty
 import os
-import requests
 import textwrap
 from unittest import mock
 
+import httpretty
+import requests
+
 import cloudinit.net as net
-from cloudinit.util import ensure_file, write_file, ProcessExecutionError
-from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase
 from cloudinit import safeyaml as yaml
+from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase
+from cloudinit.util import ProcessExecutionError, ensure_file, write_file
 
 
 class TestSysDevPath(CiTestCase):
