@@ -726,7 +726,7 @@ class Distro(metaclass=abc.ABCMeta):
 
 
 def _apply_hostname_transformations_to_url(
-    url: str, transformations: "List[Callable[[str], str]]"
+    url: str, transformations: "List[Callable[[str], Optional[str]]]"
 ) -> str:
     """
     Apply transformations to a URL's hostname, return transformed URL.
@@ -737,8 +737,10 @@ def _apply_hostname_transformations_to_url(
     :param url:
         The URL to operate on.
     :param transformations:
-        A list of ``(str) -> str`` functions, which will be applied in order to
-        the hostname portion of the URL.
+        A list of ``(str) -> Optional[str]`` functions, which will be applied
+        in order to the hostname portion of the URL.  If any function
+        (regardless of ordering) returns None, ``url`` will be returned without
+        any modification.
 
     :return:
         A string whose value is ``url`` with the hostname ``transformations``
@@ -748,14 +750,12 @@ def _apply_hostname_transformations_to_url(
     parts = urllib.parse.urlsplit(url)
     new_hostname = parts.hostname
 
-    if net.is_ip_address(new_hostname):
-        # TODO: move this check out of this generic function
-        # This is an IP address, not a hostname, so no need to
-        # apply the transformations
-        return url
-
     for transformation in transformations:
         new_hostname = transformation(new_hostname)
+        if new_hostname is None:
+            # If a transformation returns None, that indicates we should abort
+            # processing and return `url` unmodified
+            return url
 
     new_netloc = new_hostname
     if parts.port is not None:
@@ -803,6 +803,10 @@ def _sanitize_mirror_url(url: str) -> str:
     # Acceptable characters are LDH characters, plus "." to separate each label
     acceptable_chars = LDH_ASCII_CHARS + "."
     transformations = [
+        # This is an IP address, not a hostname, so no need to apply the
+        # transformations
+        lambda hostname: None if net.is_ip_address(hostname) else hostname,
+
         # Encode with IDNA to get the correct characters (as `bytes`), then
         # decode with ASCII so we return a `str`
         lambda hostname: hostname.encode('idna').decode('ascii'),
