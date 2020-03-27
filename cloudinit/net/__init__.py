@@ -6,6 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import errno
+import ipaddress
 import logging
 import os
 import re
@@ -957,6 +958,22 @@ def has_url_connectivity(url):
     try:
         readurl(url, timeout=5)
     except UrlError:
+        return False
+    return True
+
+
+def is_ip_address(s: str) -> bool:
+    """Returns a bool indicating if ``s`` is an IP address.
+
+    :param s:
+        The string to test.
+
+    :return:
+        A bool indicating if the string contains an IP address or not.
+    """
+    try:
+        ipaddress.ip_address(s)
+    except ValueError:
         return False
     return True
 
