@@ -36,27 +36,14 @@ class DataSourceNoCloud(sources.DataSource):
         return "%s [seed=%s][dsmode=%s]" % (root, self.seed, self.dsmode)
 
     def _get_devices(self, label):
-        if util.is_FreeBSD():
-            devlist = [
-                p for p in ['/dev/msdosfs/' + label, '/dev/iso9660/' + label]
-                if os.path.exists(p)]
-        elif util.is_NetBSD():
-            out, _err = util.subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
-            devlist = []
-            for dev in out.split():
-                mscdlabel_out, _ = util.subp(['mscdlabel', dev], rcs=[0, 1])
-                if ('label "%s"' % label) in mscdlabel_out:
-                    devlist.append('/dev/' + dev)
-                    devlist.append('/dev/' + dev + 'a')  # NetBSD 7
-        else:
-            fslist = util.find_devs_with("TYPE=vfat")
-            fslist.extend(util.find_devs_with("TYPE=iso9660"))
+        fslist = util.find_devs_with("TYPE=vfat")
+        fslist.extend(util.find_devs_with("TYPE=iso9660"))
 
-            label_list = util.find_devs_with("LABEL=%s" % label.upper())
-            label_list.extend(util.find_devs_with("LABEL=%s" % label.lower()))
+        label_list = util.find_devs_with("LABEL=%s" % label.upper())
+        label_list.extend(util.find_devs_with("LABEL=%s" % label.lower()))
 
-            devlist = list(set(fslist) & set(label_list))
-            devlist.sort(reverse=True)
+        devlist = list(set(fslist) & set(label_list))
+        devlist.sort(reverse=True)
         return devlist
 
     def _get_data(self):

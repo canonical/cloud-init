@@ -1190,4 +1190,78 @@ def test_find_devs_with_openbsd_with_criteria(m_subp):
     assert devlist == ['/dev/cd0a']
 
 
+@mock.patch('glob.glob')
+def test_find_devs_with_freebsd(m_glob):
+    def fake_glob(pattern):
+        msdos = ["/dev/msdosfs/EFISYS"]
+        iso9660 = ["/dev/iso9660/config-2"]
+        if pattern == "/dev/msdosfs/*":
+            return msdos
+        elif pattern == "/dev/iso9660/*":
+            return iso9660
+        raise Exception
+    m_glob.side_effect = fake_glob
+
+    devlist = util.find_devs_with_freebsd()
+    assert set(devlist) == set([
+        '/dev/iso9660/config-2', '/dev/msdosfs/EFISYS'])
+    devlist = util.find_devs_with_freebsd(criteria="TYPE=iso9660")
+    assert devlist == ['/dev/iso9660/config-2']
+    devlist = util.find_devs_with_freebsd(criteria="TYPE=vfat")
+    assert devlist == ['/dev/msdosfs/EFISYS']
+
+
+@mock.patch("cloudinit.util.subp")
+def test_find_devs_with_netbsd(m_subp):
+    side_effect_values = [
+        ("ld0 dk0 dk1 cd0", ""),
+        (
+            (
+                "mscdlabel: CDIOREADTOCHEADER: "
+                "Inappropriate ioctl for device\n"
+                "track (ctl=4) at sector 0\n"
+                "disklabel not written\n"
+            ),
+            "",
+        ),
+        (
+            (
+                "mscdlabel: CDIOREADTOCHEADER: "
+                "Inappropriate ioctl for device\n"
+                "track (ctl=4) at sector 0\n"
+                "disklabel not written\n"
+            ),
+            "",
+        ),
+        (
+            (
+                "mscdlabel: CDIOREADTOCHEADER: "
+                "Inappropriate ioctl for device\n"
+                "track (ctl=4) at sector 0\n"
+                "disklabel not written\n"
+            ),
+            "",
+        ),
+        (
+            (
+                "track (ctl=4) at sector 0\n"
+                'ISO filesystem, label "config-2", '
+                "creation time: 2020/03/31 17:29\n"
+                "adding as 'a'\n"
+            ),
+            "",
+        ),
+    ]
+    m_subp.side_effect = side_effect_values
+    devlist = util.find_devs_with_netbsd()
+    assert set(devlist) == set(
+        ["/dev/ld0", "/dev/dk0", "/dev/dk1", "/dev/cd0"]
+    )
+    m_subp.side_effect = side_effect_values
+    devlist = util.find_devs_with_netbsd(criteria="TYPE=iso9660")
+    assert devlist == ["/dev/cd0"]
+    m_subp.side_effect = side_effect_values
+    devlist = util.find_devs_with_netbsd(criteria="TYPE=vfat")
+    assert devlist == ["/dev/ld0", "/dev/dk0", "/dev/dk1"]
+
 # vi: ts=4 expandtab
