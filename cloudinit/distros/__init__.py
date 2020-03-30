@@ -725,9 +725,7 @@ class Distro(metaclass=abc.ABCMeta):
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
 
-def _apply_hostname_transformations_to_url(
-    url: str, transformations: "List[Callable[[str], Optional[str]]]"
-) -> "Optional[str]":
+def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
     Apply transformations to a URL's hostname, return transformed URL.
 
@@ -766,7 +764,7 @@ def _apply_hostname_transformations_to_url(
     return urllib.parse.urlunsplit(parts._replace(netloc=new_netloc))
 
 
-def _sanitize_mirror_url(url: str) -> "Optional[str]":
+def _sanitize_mirror_url(url: str):
     """
     Given a mirror URL, replace or remove any invalid URI characters.
 
