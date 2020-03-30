@@ -57,6 +57,7 @@ def gzip_text(text):
     f.close()
     return contents.getvalue()
 
+
 # FIXME: these tests shouldn't be checking log output??
 # Weirddddd...
 class TestConsumeUserData(helpers.FilesystemMockingTestCase):
@@ -245,7 +246,6 @@ c: d
         cc = util.load_yaml(cc_contents)
         self.assertEqual(1, len(cc))
         self.assertEqual('c', cc['a'])
-
 
     def test_vendor_user_yaml_cloud_config(self):
         vendor_blob = '''
