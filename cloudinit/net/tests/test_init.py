@@ -1316,4 +1316,26 @@ class TestIsIpAddress:
         expected_call = mock.call(mock.sentinel.ip_address_in)
         assert [expected_call] == m_ip_address.call_args_list
 
+
+class TestIsIpv4Address:
+    """Tests for net.is_ipv4_address.
+
+    Instead of testing with values we rely on the ipaddress stdlib module to
+    handle all values correctly, so simply test that is_ipv4_address defers to
+    the ipaddress module correctly.
+    """
+
+    @pytest.mark.parametrize('ipv4address_mock,expected_return', (
+        (mock.Mock(side_effect=ValueError), False),
+        (mock.Mock(return_value=ipaddress.IPv4Address('192.168.0.1')), True),
+    ))
+    def test_is_ip_address(self, ipv4address_mock, expected_return):
+        with mock.patch('cloudinit.net.ipaddress.IPv4Address',
+                        ipv4address_mock) as m_ipv4address:
+            ret = net.is_ipv4_address(mock.sentinel.ip_address_in)
+        assert expected_return == ret
+        expected_call = mock.call(mock.sentinel.ip_address_in)
+        assert [expected_call] == m_ipv4address.call_args_list
+
+
 # vi: ts=4 expandtab
