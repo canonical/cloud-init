@@ -104,6 +104,11 @@ class TestGetPackageMirrorInfo:
         (None, 'fk-fake-1',
          ['http://[2001:67c:1360:8001::23]/%(region)s/ubuntu'],
          ['http://[2001:67c:1360:8001::23]/fk-fake-1/ubuntu']),
+        # Test that unparseable URLs are filtered out of the mirror list
+        (None, 'inv[lid',
+         ['http://%(region)s.in.hostname/should/be/filtered',
+          'http://but.not.in.the.path/%(region)s'],
+         ['http://but.not.in.the.path/inv[lid']),
     ) + (
         # Dynamically generate a test case for each non-LDH
         # (Letters/Digits/Hyphen) ASCII character, testing that it is

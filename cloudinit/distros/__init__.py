@@ -727,7 +727,7 @@ class Distro(metaclass=abc.ABCMeta):
 
 def _apply_hostname_transformations_to_url(
     url: str, transformations: "List[Callable[[str], Optional[str]]]"
-) -> str:
+) -> "Optional[str]":
     """
     Apply transformations to a URL's hostname, return transformed URL.
 
@@ -744,10 +744,13 @@ def _apply_hostname_transformations_to_url(
 
     :return:
         A string whose value is ``url`` with the hostname ``transformations``
-        applied.
+        applied, or ``None`` if ``url`` is unparseable.
     """
-    # TODO: handle completely invalid URLs gracefully
-    parts = urllib.parse.urlsplit(url)
+    try:
+        parts = urllib.parse.urlsplit(url)
+    except ValueError:
+        # If we can't even parse the URL, we shouldn't use it for anything
+        return None
     new_hostname = parts.hostname
 
     for transformation in transformations:
@@ -763,7 +766,7 @@ def _apply_hostname_transformations_to_url(
     return urllib.parse.urlunsplit(parts._replace(netloc=new_netloc))
 
 
-def _sanitize_mirror_url(url: str) -> str:
+def _sanitize_mirror_url(url: str) -> "Optional[str]":
     """
     Given a mirror URL, replace or remove any invalid URI characters.
 
@@ -798,7 +801,7 @@ def _sanitize_mirror_url(url: str) -> str:
 
     :return:
         A sanitized version of the URL, which will have been IDNA encoded if
-        necessary.
+        necessary, or ``None`` if the generated string is not a parseable URL.
     """
     # Acceptable characters are LDH characters, plus "." to separate each label
     acceptable_chars = LDH_ASCII_CHARS + "."
@@ -853,7 +856,8 @@ def _get_package_mirror_info(mirror_info, data_source=None,
                 continue
 
             mirror = _sanitize_mirror_url(mirror)
-            mirrors.append(mirror)
+            if mirror is not None:
+                mirrors.append(mirror)
 
         found = mirror_filter(mirrors)
         if found:
