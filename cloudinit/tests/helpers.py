@@ -197,16 +197,6 @@ class CiTestCase(TestCase):
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
-    def sys_exit(self, code):
-        """Provide a wrapper around sys.exit for python 2.6
-
-        In 2.6, this code would produce 'cm.exception' with value int(2)
-        rather than the SystemExit that was raised by sys.exit(2).
-            with assertRaises(SystemExit) as cm:
-                sys.exit(2)
-        """
-        raise SystemExit(code)
-
     def tmp_cloud(self, distro, sys_cfg=None, metadata=None):
         """Create a cloud with tmp working directory paths.
 
