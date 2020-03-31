@@ -602,7 +602,7 @@ class DataSource(metaclass=abc.ABCMeta):
             # if there is an ipv4 address in 'local-hostname', then
             # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
             lhost = self.metadata['local-hostname']
-            if util.is_ipv4(lhost):
+            if net.is_ipv4_address(lhost):
                 toks = []
                 if resolve_ip:
                     toks = util.gethostbyaddr(lhost)
