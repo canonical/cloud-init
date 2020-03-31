@@ -25,6 +25,7 @@ LOG = logging.getLogger(__name__)
 NOT_MULTIPART_TYPE = handlers.NOT_MULTIPART_TYPE
 PART_FN_TPL = handlers.PART_FN_TPL
 OCTET_TYPE = handlers.OCTET_TYPE
+INCLUDE_MAP = handlers.INCLUSION_TYPES_MAP
 
 # Saves typing errors
 CONTENT_TYPE = 'Content-Type'
@@ -115,7 +116,8 @@ class UserDataProcessor(object):
             # Attempt to figure out the payloads content-type
             if not ctype_orig:
                 ctype_orig = UNDEF_TYPE
-            if ctype_orig in TYPE_NEEDED:
+            if ctype_orig in TYPE_NEEDED or (ctype_orig in
+                                             INCLUDE_MAP.values()):
                 ctype = find_ctype(payload)
             if ctype is None:
                 ctype = ctype_orig
