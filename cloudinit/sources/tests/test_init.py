@@ -551,9 +551,7 @@ class TestDataSource(CiTestCase):
 
     def test_get_hostname_subclass_support(self):
         """Validate get_hostname signature on all subclasses of DataSource."""
-        # Use inspect.getfullargspec when we drop py2.6 and py2.7
-        get_args = inspect.getargspec  # pylint: disable=W1505
-        base_args = get_args(DataSource.get_hostname)  # pylint: disable=W1505
+        base_args = inspect.getfullargspec(DataSource.get_hostname)
         # Import all DataSource subclasses so we can inspect them.
         modules = util.find_modules(os.path.dirname(os.path.dirname(__file__)))
         for _loc, name in modules.items():
@@ -565,13 +563,13 @@ class TestDataSource(CiTestCase):
                 continue
             self.assertEqual(
                 base_args,
-                get_args(child.get_hostname),  # pylint: disable=W1505
+                inspect.getfullargspec(child.get_hostname),
                 '%s does not implement DataSource.get_hostname params'
                 % child)
             for grandchild in child.__subclasses__():
                 self.assertEqual(
                     base_args,
-                    get_args(grandchild.get_hostname),  # pylint: disable=W1505
+                    inspect.getfullargspec(grandchild.get_hostname),
                     '%s does not implement DataSource.get_hostname params'
                     % grandchild)
 

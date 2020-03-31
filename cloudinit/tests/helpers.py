@@ -23,11 +23,6 @@ try:
 except ImportError:
     from contextlib2 import ExitStack, contextmanager
 
-try:
-    from configparser import ConfigParser
-except ImportError:
-    from ConfigParser import ConfigParser
-
 from cloudinit.config.schema import (
     SchemaValidationError, validate_cloudconfig_schema)
 from cloudinit import cloud
@@ -113,16 +108,6 @@ class TestCase(unittest2.TestCase):
         p = m.start()
         self.addCleanup(m.stop)
         setattr(self, attr, p)
-
-    # prefer python3 read_file over readfp but allow fallback
-    def parse_and_read(self, contents):
-        parser = ConfigParser()
-        if hasattr(parser, 'read_file'):
-            parser.read_file(contents)
-        elif hasattr(parser, 'readfp'):
-            # pylint: disable=W1505
-            parser.readfp(contents)
-        return parser
 
 
 class CiTestCase(TestCase):
