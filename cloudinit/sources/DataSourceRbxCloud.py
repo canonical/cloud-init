@@ -55,11 +55,18 @@ def gratuitous_arp(items, distro):
     if distro.name in ['fedora', 'centos', 'rhel']:
         source_param = '-s'
     for item in items:
-        _sub_arp([
-            '-c', '2',
-            source_param, item['source'],
-            item['destination']
-        ])
+        try:
+            _sub_arp([
+                '-c', '2',
+                source_param, item['source'],
+                item['destination']
+            ])
+        except util.ProcessExecutionError as error:
+            # warning, because the system is able to function properly
+            # despite no success - some ARP table may be waiting for
+            # expiration, but the system may continue
+            LOG.warning('Failed to arping from "%s" to "%s": %s',
+                        item['source'], item['destination'], error)
 
 
 def get_md():
