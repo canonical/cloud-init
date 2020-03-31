@@ -27,14 +27,12 @@ class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
     """ABC for net config sources that read config written by initramfses"""
 
     @abc.abstractmethod
-    def is_applicable(self):
-        # type: () -> bool
+    def is_applicable(self) -> bool:
         """Is this initramfs config source applicable to the current system?"""
         pass
 
     @abc.abstractmethod
-    def render_config(self):
-        # type: () -> dict
+    def render_config(self) -> dict:
         """Render a v1 network config from the initramfs configuration"""
         pass
 
@@ -65,8 +63,7 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
                 if mac_addr:
                     self._mac_addrs[k] = mac_addr
 
-    def is_applicable(self):
-        # type: () -> bool
+    def is_applicable(self) -> bool:
         """
         Return whether this system has klibc initramfs network config or not
 
@@ -84,8 +81,7 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
                 return True
         return False
 
-    def render_config(self):
-        # type: () -> dict
+    def render_config(self) -> dict:
         return config_from_klibc_net_cfg(
             files=self._files, mac_addrs=self._mac_addrs,
         )
