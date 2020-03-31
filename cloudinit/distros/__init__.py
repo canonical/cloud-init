@@ -816,6 +816,11 @@ def _sanitize_mirror_url(url: str):
         lambda hostname: ''.join(
             c if c in acceptable_chars else "-" for c in hostname
         ),
+
+        # Drop leading/trailing hyphens from each part of the hostname
+        lambda hostname: '.'.join(
+            part.strip('-') for part in hostname.split('.')
+        ),
     ]
 
     return _apply_hostname_transformations_to_url(url, transformations)

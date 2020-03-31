@@ -109,6 +109,9 @@ class TestGetPackageMirrorInfo:
          ['http://%(region)s.in.hostname/should/be/filtered',
           'http://but.not.in.the.path/%(region)s'],
          ['http://but.not.in.the.path/inv[lid']),
+        (None, '-some-region-',
+         ['http://-lead-ing.%(region)s.trail-ing-.example.com/ubuntu'],
+         ['http://lead-ing.some-region.trail-ing.example.com/ubuntu']),
     ) + tuple(
         # Dynamically generate a test case for each non-LDH
         # (Letters/Digits/Hyphen) ASCII character, testing that it is
