@@ -198,4 +198,9 @@ additional Python module on platforms using Python 3.4.  As such
 platforms are generally in maintenance mode, the introduction of a new
 dependency may act as a break in compatibility in practical terms.
 
+Similarly, only function annotations are appropriate for use, as the
+variable annotations specified in `PEP-526`_ were introduced in Python
+3.6.
+
 .. _PEP-484: https://www.python.org/dev/peps/pep-0484/
+.. _PEP-526: https://www.python.org/dev/peps/pep-0526/
