@@ -11,33 +11,27 @@ Do these things once
 
 * To contribute, you must sign the Canonical `contributor license agreement`_
 
-  If you have already signed it as an individual, your Launchpad user will be
-  listed in the `contributor-agreement-canonical`_ group.  Unfortunately there
-  is no easy way to check if an organization or company you are doing work for
-  has signed.  When signing the CLA and prompted for 'Project contact' or
-  'Canonical Project Manager' enter 'Josh Powers'.
+  * If you have already signed it as an individual, your Launchpad user
+    will be listed in the `contributor-agreement-canonical`_ group.
+    (Unfortunately there is no easy way to check if an organization or
+    company you are doing work for has signed.)
 
-  For first-time signers, or for existing contributors who have already signed
-  the agreement in Launchpad, we need to verify the link between your
-  `Launchpad`_ account and your `GitHub`_ account.  To enable us to do this, we
-  ask that you create a branch with both your Launchpad and GitHub usernames
-  against both the Launchpad and GitHub cloud-init repositories.  We've added a
-  tool (``tools/migrate-lp-user-to-github``) to the cloud-init repository to
-  handle this migration as automatically as possible.
+  * When signing it:
 
-  The cloud-init team will review the two merge proposals and verify
-  that the CLA has been signed for the Launchpad user and record the
-  associated GitHub account.  We will reply to the email address
-  associated with your Launchpad account that you've been clear to
-  contribute to cloud-init on GitHub.
+    * ensure that you fill in the GitHub username field.
+    * when prompted for 'Project contact' or 'Canonical Project
+      Manager', enter 'Josh Powers'.
 
-  If your company has signed the CLA for you, please contact us to help
-  in verifying which launchad/GitHub accounts are associated with the
-  company.  For any questions or help with the process, please email:
+  * If your company has signed the CLA for you, please contact us to
+    help in verifying which Launchpad/GitHub accounts are associated
+    with the company.
 
-  `Josh Powers <mailto:josh.powers@canonical.com>`_ with the subject: Cloud-Init CLA
+  * For any questions or help with the process, please email `Josh
+    Powers <mailto:josh.powers@canonical.com>`_ with the subject,
+    "Cloud-Init CLA"
 
-   You also may contanct user ``powersj`` in ``#cloud-init`` channel via IRC freenode.
+  * You also may contact user ``powersj`` in the ``#cloud-init``
+    channel on the Freenode IRC network.
 
 * Configure git with your email and name for commit messages.
 
@@ -68,6 +62,22 @@ Do these things once
 .. _repository: https://github.com/canonical/cloud-init
 .. _contributor license agreement: https://ubuntu.com/legal/contributors
 .. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
+
+Transferring CLA Signatures from Launchpad to Github
+----------------------------------------------------
+
+For existing contributors who have signed the agreement in Launchpad
+before the Github username field was included, we need to verify the
+link between your `Launchpad`_ account and your `GitHub`_ account.  To
+enable us to do this, we ask that you create a branch with both your
+Launchpad and GitHub usernames against both the Launchpad and GitHub
+cloud-init repositories.  We've added a tool
+(``tools/migrate-lp-user-to-github``) to the cloud-init repository to
+handle this migration as automatically as possible.
+
+The cloud-init team will review the two merge proposals and verify that
+the CLA has been signed for the Launchpad user and record the
+associated GitHub account.
 
 Do these things for each feature or bug
 =======================================
