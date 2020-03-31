@@ -182,3 +182,20 @@ The following guidelines should be following:
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
 .. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/master/cloudinit/tests/test_subp.py#L9
 .. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
+
+Type Annotations
+----------------
+
+The cloud-init codebase uses Python's annotation support for storing
+type annotations in the style specified by `PEP-484`_.  Their use in
+the codebase is encouraged but with one important caveat: types from
+the ``typing`` module cannot be used.
+
+cloud-init still supports Python 3.4, which doesn't have the ``typing``
+module in the stdlib.  This means that the use of any types from the
+``typing`` module in the codebase would require installation of an
+additional Python module on platforms using Python 3.4.  As such
+platforms are generally in maintenance mode, the introduction of a new
+dependency may act as a break in compatibility in practical terms.
+
+.. _PEP-484: https://www.python.org/dev/peps/pep-0484/
