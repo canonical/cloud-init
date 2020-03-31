@@ -109,15 +109,14 @@ class TestGetPackageMirrorInfo:
          ['http://%(region)s.in.hostname/should/be/filtered',
           'http://but.not.in.the.path/%(region)s'],
          ['http://but.not.in.the.path/inv[lid']),
-    ) + (
+    ) + tuple(
         # Dynamically generate a test case for each non-LDH
         # (Letters/Digits/Hyphen) ASCII character, testing that it is
         # substituted with a hyphen
-        tuple(
-            (None, 'fk{0}fake{0}1'.format(invalid_char),
-             ['http://%(region)s/ubuntu'], ['http://fk-fake-1/ubuntu'])
-            for invalid_char in INVALID_URL_CHARS))
-    )
+        (None, 'fk{0}fake{0}1'.format(invalid_char),
+         ['http://%(region)s/ubuntu'], ['http://fk-fake-1/ubuntu'])
+        for invalid_char in INVALID_URL_CHARS
+    ))
     def test_substitution(self, availability_zone, region, patterns, expected):
         """Test substitution works as expected."""
         m_data_source = mock.Mock(
