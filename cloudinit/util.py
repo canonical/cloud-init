@@ -528,20 +528,6 @@ def multi_log(text, console=True, stderr=True,
             log.log(log_level, text)
 
 
-def is_ipv4(instr):
-    """determine if input string is a ipv4 address. return boolean."""
-    toks = instr.split('.')
-    if len(toks) != 4:
-        return False
-
-    try:
-        toks = [x for x in toks if 0 <= int(x) < 256]
-    except Exception:
-        return False
-
-    return len(toks) == 4
-
-
 @lru_cache()
 def is_BSD():
     return 'BSD' in platform.system()

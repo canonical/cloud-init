@@ -978,6 +978,22 @@ def is_ip_address(s: str) -> bool:
     return True
 
 
+def is_ipv4_address(s: str) -> bool:
+    """Returns a bool indicating if ``s`` is an IPv4 address.
+
+    :param s:
+        The string to test.
+
+    :return:
+        A bool indicating if the string contains an IPv4 address or not.
+    """
+    try:
+        ipaddress.IPv4Address(s)
+    except ValueError:
+        return False
+    return True
+
+
 class EphemeralIPv4Network(object):
     """Context manager which sets up temporary static network configuration.
 
