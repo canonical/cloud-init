@@ -33,6 +33,7 @@ import sys
 import time
 from base64 import b64decode, b64encode
 from errno import ENOENT, ENOEXEC
+from functools import lru_cache
 from urllib import parse
 
 from cloudinit import importer
@@ -46,16 +47,6 @@ from cloudinit import (
     version,
 )
 from cloudinit.settings import CFG_BUILTIN
-
-try:
-    from functools import lru_cache
-except ImportError:
-    def lru_cache():
-        """pass-thru replace for Python3's lru_cache()"""
-        def wrapper(f):
-            return f
-        return wrapper
-
 
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
