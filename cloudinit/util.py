@@ -31,32 +31,22 @@ import string
 import subprocess
 import sys
 import time
-from urllib import parse
-
-from errno import ENOENT, ENOEXEC
-
 from base64 import b64decode, b64encode
+from errno import ENOENT, ENOEXEC
+from functools import lru_cache
+from urllib import parse
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import mergers
-from cloudinit import safeyaml
-from cloudinit import temp_utils
-from cloudinit import type_utils
-from cloudinit import url_helper
-from cloudinit import version
-
-from cloudinit.settings import (CFG_BUILTIN)
-
-try:
-    from functools import lru_cache
-except ImportError:
-    def lru_cache():
-        """pass-thru replace for Python3's lru_cache()"""
-        def wrapper(f):
-            return f
-        return wrapper
-
+from cloudinit import (
+    mergers,
+    safeyaml,
+    temp_utils,
+    type_utils,
+    url_helper,
+    version,
+)
+from cloudinit.settings import CFG_BUILTIN
 
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
