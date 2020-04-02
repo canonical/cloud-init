@@ -1,4 +1,4 @@
-cloud-init (20.1-10-g71af48df-0ubuntu9) UNRELEASED; urgency=medium
+cloud-init (20.1-10-g71af48df-0ubuntu9) focal; urgency=medium
 
   * cherry-pick 4fb6fd8a: net: ubuntu focal prioritize netplan over eni
     even if both (LP: #1867029)
@@ -13,7 +13,7 @@ cloud-init (20.1-10-g71af48df-0ubuntu9) UNRELEASED; urgency=medium
   * cherry-pick 1bbc4908: distros: drop leading/trailing hyphens from
     mirror URL labels
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 02 Apr 2020 13:19:49 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 02 Apr 2020 14:00:20 -0600
 
 cloud-init (20.1-10-g71af48df-0ubuntu2) focal; urgency=medium
 
