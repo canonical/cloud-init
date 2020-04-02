@@ -1,11 +1,12 @@
-cloud-init (20.1-10-g71af48df-0ubuntu4) UNRELEASED; urgency=medium
+cloud-init (20.1-10-g71af48df-0ubuntu5) UNRELEASED; urgency=medium
 
   * cherry-pick 4fb6fd8a: net: ubuntu focal prioritize netplan over eni
     even if both (LP: #1867029)
   * cherry-pick 04771d75: cc_disk_setup: fix RuntimeError (#270) (LP:
     #1868327)
+  * cherry-pick c5e949c0: distros/tests/test_init: add tests for
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 02 Apr 2020 13:19:20 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 02 Apr 2020 13:19:26 -0600
 
 cloud-init (20.1-10-g71af48df-0ubuntu2) focal; urgency=medium
 
