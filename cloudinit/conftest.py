@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def disable_subp_usage():
+def disable_subp_usage(request):
     """
     Across all (pytest) tests, ensure that util.subp is not invoked.
 
@@ -13,13 +13,23 @@ def disable_subp_usage():
     imports happen before the patching here (or the CiTestCase monkey-patching)
     happens, so are left untouched.
 
-    This mirrors the functionality of CiTestCase.allowed_subp.
+    To allow a particular test method or class to you can set the parameter
+    passed to this fixture to False using pytest.mark.parametrize::
+
+        @pytest.mark.parametrize("disable_subp_usage", [False], indirect=True)
+        def test_whoami(self):
+            util.subp(["whoami"])
+
+    This fixture (roughly) mirrors the functionality of
+    CiTestCase.allowed_subp.
 
     TODO:
-        * Re-enable subp usage (i.e. allowed_subp=True)
         * Enable select subp usage (i.e. allowed_subp=[...])
     """
-
-    with mock.patch('cloudinit.util.subp', autospec=True) as m_subp:
-        m_subp.side_effect = AssertionError("Unexpectedly used util.subp")
+    should_disable = getattr(request, "param", True)
+    if should_disable:
+        with mock.patch('cloudinit.util.subp', autospec=True) as m_subp:
+            m_subp.side_effect = AssertionError("Unexpectedly used util.subp")
+            yield
+    else:
         yield
