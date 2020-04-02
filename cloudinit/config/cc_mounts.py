@@ -94,11 +94,13 @@ def is_meta_device_name(name):
             return True
     return False
 
+
 def is_network_device(name):
     # return true if this is a network device
     if NETWORK_NAME_RE.match(name):
         return True
     return False
+
 
 def _get_nth_partition_for_device(device_path, partition_number):
     potential_suffixes = [str(partition_number), 'p%s' % (partition_number,),

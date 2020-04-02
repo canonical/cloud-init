@@ -133,6 +133,7 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
             disk_path,
             cc_mounts.sanitize_devname(disk_path, None, mock.Mock()))
 
+
 class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
     swap_path = '/dev/sdb1'
