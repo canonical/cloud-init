@@ -32,6 +32,9 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
             util.logexc(LOG, "Failed to lock user %s", name)
             raise
 
+    def unlock_passwd(self, name):
+        pass
+
     def _get_pkg_cmd_environ(self):
         """Return env vars used in OpenBSD package_command operations"""
         os_release = platform.release()

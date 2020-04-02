@@ -95,10 +95,11 @@ class NetBSD(cloudinit.distros.bsd.BSD):
                     crypt.mksalt(method))
 
         try:
-            util.subp(['usermod', '-C', 'no', '-p', hashed_pw, user])
+            util.subp(['usermod', '-p', hashed_pw, user])
         except Exception:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise
+        self.unlock_passwd(user)
 
     def force_passwd_change(self, user):
         try:
@@ -112,6 +113,13 @@ class NetBSD(cloudinit.distros.bsd.BSD):
             util.subp(['usermod', '-C', 'yes', name])
         except Exception:
             util.logexc(LOG, "Failed to lock user %s", name)
+            raise
+
+    def unlock_passwd(self, name):
+        try:
+            util.subp(['usermod', '-C', 'no', name])
+        except Exception:
+            util.logexc(LOG, "Failed to unlock user %s", name)
             raise
 
     def apply_locale(self, locale, out_fn=None):
