@@ -1,3 +1,10 @@
+cloud-init (20.1-10-g71af48df-0ubuntu3) UNRELEASED; urgency=medium
+
+  * cherry-pick 4fb6fd8a: net: ubuntu focal prioritize netplan over eni
+    even if both (LP: #1867029)
+
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 02 Apr 2020 13:19:14 -0600
+
 cloud-init (20.1-10-g71af48df-0ubuntu2) focal; urgency=medium
 
   * d/control: add python3-pytest to Build-Depends
