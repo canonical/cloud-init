@@ -1,4 +1,4 @@
-cloud-init (20.1-10-g71af48df-0ubuntu13) UNRELEASED; urgency=medium
+cloud-init (20.1-10-g71af48df-0ubuntu3) focal; urgency=medium
 
   * d/patches: redact openbsd netbsd from tests until new-upstream-snapshot
     - fix-cpick-4fb6fd8a-net-ubuntu-focal-prioritize-netplan-over-eni
@@ -21,7 +21,7 @@ cloud-init (20.1-10-g71af48df-0ubuntu13) UNRELEASED; urgency=medium
   * cherry-pick 09fea85f: net: ignore 'renderer' key in netplan config
     (#306) (LP: #1870421)
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 03 Apr 2020 13:55:43 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 03 Apr 2020 13:57:52 -0600
 
 cloud-init (20.1-10-g71af48df-0ubuntu2) focal; urgency=medium
 
