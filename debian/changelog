@@ -1,4 +1,4 @@
-cloud-init (20.1-10-g71af48df-0ubuntu10) UNRELEASED; urgency=medium
+cloud-init (20.1-10-g71af48df-0ubuntu11) UNRELEASED; urgency=medium
 
   * cherry-pick 6600c642: ec2: render network on all NICs and add
     secondary IPs as (LP: #1866930)
@@ -12,8 +12,10 @@ cloud-init (20.1-10-g71af48df-0ubuntu10) UNRELEASED; urgency=medium
   * cherry-pick 2566fdbe: net: introduce is_ip_address function (#288)
   * cherry-pick 4f825b3e: cloudinit: refactor util.is_ipv4 to
     net.is_ipv4_address
+  * cherry-pick c478d0bf: distros: replace invalid characters in mirror
+    URLs with (LP: #1868232)
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 03 Apr 2020 13:55:34 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 03 Apr 2020 13:55:37 -0600
 
 cloud-init (20.1-10-g71af48df-0ubuntu2) focal; urgency=medium
 
