@@ -312,7 +312,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
 
     def parse_config_v2(self, skip_broken=True):
         for command_type, command in self._config.items():
-            if command_type == 'version':
+            if command_type in ['version', 'renderer']:
                 continue
             try:
                 handler = self.command_handlers[command_type]
