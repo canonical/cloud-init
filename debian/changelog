@@ -1,9 +1,9 @@
-cloud-init (20.1-10-g71af48df-0ubuntu3) UNRELEASED; urgency=medium
+cloud-init (20.1-10-g71af48df-0ubuntu4) UNRELEASED; urgency=medium
 
-  * drop cherry pick included in master commit c4be3c60eb
-    - ec2-render-network-on-all-NICs-and-add-secondary-IPs-as
+  * cherry-pick 6600c642: ec2: render network on all NICs and add
+    secondary IPs as (LP: #1866930)
 
- -- Chad Smith <chad.smith@canonical.com>  Mon, 23 Mar 2020 14:35:12 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 03 Apr 2020 13:55:01 -0600
 
 cloud-init (20.1-10-g71af48df-0ubuntu2) focal; urgency=medium
 
