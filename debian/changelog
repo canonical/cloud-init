@@ -1,4 +1,4 @@
-cloud-init (20.1-10-g71af48df-0ubuntu8) UNRELEASED; urgency=medium
+cloud-init (20.1-10-g71af48df-0ubuntu9) UNRELEASED; urgency=medium
 
   * cherry-pick 6600c642: ec2: render network on all NICs and add
     secondary IPs as (LP: #1866930)
@@ -9,8 +9,9 @@ cloud-init (20.1-10-g71af48df-0ubuntu8) UNRELEASED; urgency=medium
   * cherry-pick 04771d75: cc_disk_setup: fix RuntimeError (#270) (LP:
     #1868327)
   * cherry-pick c5e949c0: distros/tests/test_init: add tests for
+  * cherry-pick 2566fdbe: net: introduce is_ip_address function (#288)
 
- -- Chad Smith <chad.smith@canonical.com>  Fri, 03 Apr 2020 13:55:28 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 03 Apr 2020 13:55:32 -0600
 
 cloud-init (20.1-10-g71af48df-0ubuntu2) focal; urgency=medium
 
