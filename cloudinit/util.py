@@ -520,12 +520,21 @@ def multi_log(text, console=True, stderr=True,
 
 @lru_cache()
 def is_BSD():
-    return 'BSD' in platform.system()
+    if 'BSD' in platform.system():
+        return True
+    if platform.system() == 'DragonFly':
+        return True
+    return False
 
 
 @lru_cache()
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
+
+
+@lru_cache()
+def is_DragonFlyBSD():
+    return system_info()['variant'] == "dragonfly"
 
 
 @lru_cache()
@@ -660,7 +669,9 @@ def system_info():
             var = 'suse'
         else:
             var = 'linux'
-    elif system in ('windows', 'darwin', "freebsd", "netbsd", "openbsd"):
+    elif system in (
+            'windows', 'darwin', "freebsd", "netbsd",
+            "openbsd", "dragonfly"):
         var = system
 
     info['variant'] = var
@@ -1324,6 +1335,8 @@ def find_devs_with(criteria=None, oformat='device',
     elif is_OpenBSD():
         return find_devs_with_openbsd(criteria, oformat,
                                       tag, no_cache, path)
+    elif is_DragonFlyBSD():
+        return ['/dev/cd0']
 
     blk_id_cmd = ['blkid']
     options = []
