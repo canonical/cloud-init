@@ -1,7 +1,5 @@
 cloud-init (20.1-10-g71af48df-0ubuntu3) focal; urgency=medium
 
-  * d/patches: redact openbsd netbsd from tests until new-upstream-snapshot
-    - fix-cpick-4fb6fd8a-net-ubuntu-focal-prioritize-netplan-over-eni
   * cherry-pick 6600c642: ec2: render network on all NICs and add
     secondary IPs as (LP: #1866930)
   * cherry-pick 986f37b0: cloudinit: move to pytest for running tests
