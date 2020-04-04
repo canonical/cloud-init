@@ -17,7 +17,13 @@ from cloudinit.settings import PER_INSTANCE
 LOG = logging.getLogger(__name__)
 
 
-class Distro(cloudinit.distros.bsd.BSD):
+class FreeBSD(cloudinit.distros.bsd.BSD):
+    """
+    Distro subclass for FreeBSD.
+
+    (N.B. DragonFlyBSD inherits from this class.)
+    """
+
     usr_lib_exec = '/usr/local/lib'
     login_conf_fn = '/etc/login.conf'
     login_conf_fn_bak = '/etc/login.conf.orig'
@@ -28,6 +34,13 @@ class Distro(cloudinit.distros.bsd.BSD):
     pkg_cmd_update_prefix = ["pkg", "update"]
     pkg_cmd_upgrade_prefix = ["pkg", "upgrade"]
     prefer_fqdn = True  # See rc.conf(5) in FreeBSD
+    home_dir = '/usr/home'
+
+    def _select_hostname(self, hostname, fqdn):
+        # Should be FQDN if available. See rc.conf(5) in FreeBSD
+        if fqdn:
+            return fqdn
+        return hostname
 
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ['pw', 'usermod', '-n', member_name, '-G', group_name]
@@ -66,9 +79,12 @@ class Distro(cloudinit.distros.bsd.BSD):
             pw_useradd_cmd.append('-d/nonexistent')
             log_pw_useradd_cmd.append('-d/nonexistent')
         else:
-            pw_useradd_cmd.append('-d/usr/home/%s' % name)
+            pw_useradd_cmd.append('-d{home_dir}/{name}'.format(
+                home_dir=self.home_dir, name=name))
             pw_useradd_cmd.append('-m')
-            log_pw_useradd_cmd.append('-d/usr/home/%s' % name)
+            log_pw_useradd_cmd.append('-d{home_dir}/{name}'.format(
+                home_dir=self.home_dir, name=name))
+
             log_pw_useradd_cmd.append('-m')
 
         # Run the command
@@ -154,5 +170,10 @@ class Distro(cloudinit.distros.bsd.BSD):
         self._runner.run(
             "update-sources", self.package_command,
             ["update"], freq=PER_INSTANCE)
+
+
+class Distro(FreeBSD):
+    pass
+
 
 # vi: ts=4 expandtab

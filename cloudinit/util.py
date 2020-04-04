@@ -392,12 +392,21 @@ def is_Linux():
 
 @lru_cache()
 def is_BSD():
-    return 'BSD' in platform.system()
+    if 'BSD' in platform.system():
+        return True
+    if platform.system() == 'DragonFly':
+        return True
+    return False
 
 
 @lru_cache()
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
+
+
+@lru_cache()
+def is_DragonFlyBSD():
+    return system_info()['variant'] == "dragonfly"
 
 
 @lru_cache()
@@ -534,7 +543,9 @@ def system_info():
             var = 'suse'
         else:
             var = 'linux'
-    elif system in ('windows', 'darwin', "freebsd", "netbsd", "openbsd"):
+    elif system in (
+            'windows', 'darwin', "freebsd", "netbsd",
+            "openbsd", "dragonfly"):
         var = system
 
     info['variant'] = var
@@ -1195,6 +1206,12 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
     return ['/dev/' + i for i in devlist]
 
 
+def find_devs_with_dragonflybsd(criteria=None, oformat='device',
+                                tag=None, no_cache=False, path=None):
+    out, _err = subp.subp(['sysctl', '-n', 'kern.disks'], rcs=[0])
+    return ['/dev/' + dev for dev in sorted(out.split(), reverse=True)]
+
+
 def find_devs_with(criteria=None, oformat='device',
                    tag=None, no_cache=False, path=None):
     """
@@ -1213,6 +1230,9 @@ def find_devs_with(criteria=None, oformat='device',
     elif is_OpenBSD():
         return find_devs_with_openbsd(criteria, oformat,
                                       tag, no_cache, path)
+    elif is_DragonFlyBSD():
+        return find_devs_with_dragonflybsd(criteria, oformat,
+                                           tag, no_cache, path)
 
     blk_id_cmd = ['blkid']
     options = []

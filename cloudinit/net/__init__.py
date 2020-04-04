@@ -351,7 +351,7 @@ def device_devid(devname):
 
 
 def get_devicelist():
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return list(get_interfaces_by_mac().values())
 
     try:
@@ -376,7 +376,7 @@ def is_disabled_cfg(cfg):
 
 def find_fallback_nic(blacklist_drivers=None):
     """Return the name of the 'fallback' network device."""
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return find_fallback_nic_on_freebsd(blacklist_drivers)
     elif util.is_NetBSD() or util.is_OpenBSD():
         return find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers)
@@ -816,7 +816,7 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
 
 
 def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return get_interfaces_by_mac_on_freebsd(
             blacklist_drivers=blacklist_drivers)
     elif util.is_NetBSD():

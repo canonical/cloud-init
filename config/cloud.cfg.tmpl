@@ -61,11 +61,11 @@ cloud_init_modules:
 {% endif %}
  - bootcmd
  - write-files
-{% if variant not in ["netbsd"] %}
+{% if variant not in ["netbsd", "openbsd", "dragonfly"] %}
  - growpart
  - resizefs
 {% endif %}
-{% if variant not in ["freebsd", "netbsd"] %}
+{% if variant not in ["freebsd", "netbsd", "openbsd", "dragonfly"] %}
  - disk_setup
  - mounts
 {% endif %}
@@ -158,6 +158,8 @@ system_info:
                   "fedora", "freebsd", "netbsd", "openbsd", "rhel", "rocky",
                   "suse", "ubuntu"] %}
    distro: {{ variant }}
+{% elif variant in ["dragonfly"] %}
+   distro: dragonflybsd
 {% else %}
    # Unknown/fallback distro.
    distro: ubuntu
@@ -249,6 +251,15 @@ system_info:
      groups: [wheel]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/tcsh
+{% elif variant in ["dragonfly"] %}
+   # Default user name + that default users groups (if added/used)
+   default_user:
+     name: dragonfly
+     lock_passwd: True
+     gecos: DragonFly
+     groups: [wheel]
+     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+     shell: /bin/sh
 {% elif variant in ["netbsd"] %}
    default_user:
      name: netbsd
@@ -269,4 +280,8 @@ system_info:
 {% if variant in ["freebsd", "netbsd", "openbsd"] %}
    network:
       renderers: ['{{ variant }}']
+{% endif %}
+{% if variant in ["dragonfly"] %}
+   network:
+      renderers: ['freebsd']
 {% endif %}
