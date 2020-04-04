@@ -56,4 +56,4 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
 
 
 def available(target=None):
-    return util.is_FreeBSD()
+    return util.is_FreeBSD() or util.is_DragonFlyBSD()
