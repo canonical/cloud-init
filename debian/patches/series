@@ -6,4 +6,3 @@ cpick-c5e949c0-distros-tests-test_init-add-tests-for
 cpick-2566fdbe-net-introduce-is_ip_address-function-288
 cpick-4f825b3e-cloudinit-refactor-util.is_ipv4-to-net.is_ipv4_address
 cpick-c478d0bf-distros-replace-invalid-characters-in-mirror-URLs-with
-cpick-1bbc4908-distros-drop-leading-trailing-hyphens-from-mirror-URL
