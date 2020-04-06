@@ -159,7 +159,7 @@ Unit Testing
 
 cloud-init uses `pytest`_ to run its tests, and has tests written both
 as ``unittest.TestCase`` sub-classes and as un-subclassed pytest tests.
-The following guidelines should be following:
+The following guidelines should be followed:
 
 * For ease of organisation and greater accessibility for developers not
   familiar with pytest, all cloud-init unit tests must be contained
