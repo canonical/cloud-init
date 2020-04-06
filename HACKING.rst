@@ -208,6 +208,12 @@ The following guidelines should be followed:
     * ``tmpdir_factory``
     * ``tmpdir``
 
+* Variables/parameter names for ``Mock`` or ``MagicMock`` instances
+  should start with ``m_`` to clearly distinguish them from non-mock
+  variables
+
+  * For example, ``m_readurl`` (which would be a mock for ``readurl``)
+
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
