@@ -13,8 +13,8 @@ def disable_subp_usage(request):
     imports happen before the patching here (or the CiTestCase monkey-patching)
     happens, so are left untouched.
 
-    To allow a particular test method or class to you can set the parameter
-    passed to this fixture to False using pytest.mark.parametrize::
+    To allow a particular test method or class to use util.subp you can set the
+    parameter passed to this fixture to False using pytest.mark.parametrize::
 
         @pytest.mark.parametrize("disable_subp_usage", [False], indirect=True)
         def test_whoami(self):
