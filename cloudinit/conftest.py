@@ -3,7 +3,7 @@ from unittest import mock
 import pytest
 
 
-@pytest.fixture(autouse=True)
+@pytest.yield_fixture(autouse=True)
 def disable_subp_usage(request):
     """
     Across all (pytest) tests, ensure that util.subp is not invoked.
