@@ -179,7 +179,6 @@ The following guidelines should be following:
     subclass (indirectly) from ``TestCase`` (e.g.
     `TestPrependBaseCommands`_)
 
-
 * pytest tests should use bare ``assert`` statements, to take advantage
   of pytest's `assertion introspection`_
 
