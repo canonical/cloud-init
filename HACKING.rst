@@ -169,6 +169,7 @@ The following guidelines should be followed:
 
 * pytest test classes should use `pytest fixtures`_ to share
   functionality instead of inheritance
+
 * As all tests are contained within classes, it is acceptable to mix
   ``TestCase`` test classes and pytest test classes within the same
   test file
