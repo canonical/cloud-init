@@ -194,6 +194,18 @@ The following guidelines should be following:
     only introduced in `pytest 3.0`_.  Such functions must instead use
     the ``pytest.yield_fixture`` decorator.
 
+  * Only the following built-in fixtures are available
+    [#fixture-list]_:
+
+    * ``cache``
+    * ``capsys``
+    * ``capfd``
+    * ``record_xml_property``
+    * ``monkeypatch``
+    * ``pytestconfig``
+    * ``recwarn``
+    * ``tmpdir_factory``
+    * ``tmpdir``
 
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
@@ -223,3 +235,10 @@ variable annotations specified in `PEP-526`_ were introduced in Python
 
 .. _PEP-484: https://www.python.org/dev/peps/pep-0484/
 .. _PEP-526: https://www.python.org/dev/peps/pep-0526/
+
+.. [#fixture-list] This list of fixtures (with markup) can be
+   reproduced by running::
+
+     py.test-3 --fixtures -q | grep "^[^ ]" | grep -v no | sed 's/.*/* ``\0``/'``
+
+   in a xenial lxd container with python3-pytest installed.
