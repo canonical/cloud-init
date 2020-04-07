@@ -29,8 +29,6 @@ LOG = logging.getLogger(__name__)
 
 class TestLocale(t_help.FilesystemMockingTestCase):
 
-    with_logs = True
-
     def setUp(self):
         super(TestLocale, self).setUp()
         self.new_root = tempfile.mkdtemp()

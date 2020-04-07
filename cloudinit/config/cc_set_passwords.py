@@ -241,7 +241,7 @@ def rand_user_password(pwlen=20):
 
 
 def chpasswd(distro, plist_in, hashed=False):
-    if util.is_FreeBSD():
+    if util.is_BSD():
         for pentry in plist_in.splitlines():
             u, p = pentry.split(":")
             distro.set_passwd(u, p, hashed=hashed)

@@ -24,6 +24,7 @@ import re
 import textwrap
 from yaml.serializer import Serializer
 
+import pytest
 
 DHCP_CONTENT_1 = """
 DEVICE='eth0'
@@ -4671,6 +4672,51 @@ class TestEniRoundTrip(CiTestCase):
             files['/etc/network/interfaces'].splitlines())
 
 
+class TestRenderersSelect:
+
+    @pytest.mark.parametrize(
+        'renderer_selected,netplan,eni,nm,scfg,sys', (
+            # -netplan -ifupdown -nm -scfg -sys raises error
+            (net.RendererNotFoundError, False, False, False, False, False),
+            # -netplan +ifupdown -nm -scfg -sys selects eni
+            ('eni', False, True, False, False, False),
+            # +netplan +ifupdown -nm -scfg -sys selects eni
+            ('eni', True, True, False, False, False),
+            # +netplan -ifupdown -nm -scfg -sys selects netplan
+            ('netplan', True, False, False, False, False),
+            # Ubuntu with Network-Manager installed
+            # +netplan -ifupdown +nm -scfg -sys selects netplan
+            ('netplan', True, False, True, False, False),
+            # Centos/OpenSuse with Network-Manager installed selects sysconfig
+            # -netplan -ifupdown +nm -scfg +sys selects netplan
+            ('sysconfig', False, False, True, False, True),
+        ),
+    )
+    @mock.patch("cloudinit.net.renderers.netplan.available")
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.sysconfig.available_sysconfig")
+    @mock.patch("cloudinit.net.renderers.sysconfig.available_nm")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_valid_renderer_from_defaults_depending_on_availability(
+        self, m_eni_avail, m_nm_avail, m_scfg_avail, m_sys_avail,
+        m_netplan_avail, renderer_selected, netplan, eni, nm, scfg, sys
+    ):
+        """Assert proper renderer per DEFAULT_PRIORITY given availability."""
+        m_eni_avail.return_value = eni          # ifupdown pkg presence
+        m_nm_avail.return_value = nm            # network-manager presence
+        m_scfg_avail.return_value = scfg        # sysconfig presence
+        m_sys_avail.return_value = sys          # sysconfig/ifup/down presence
+        m_netplan_avail.return_value = netplan  # netplan presence
+        if isinstance(renderer_selected, str):
+            (renderer_name, _rnd_class) = renderers.select(
+                priority=renderers.DEFAULT_PRIORITY
+            )
+            assert renderer_selected == renderer_name
+        else:
+            with pytest.raises(renderer_selected):
+                renderers.select(priority=renderers.DEFAULT_PRIORITY)
+
+
 class TestNetRenderers(CiTestCase):
     @mock.patch("cloudinit.net.renderers.sysconfig.available")
     @mock.patch("cloudinit.net.renderers.eni.available")
@@ -4713,46 +4759,6 @@ class TestNetRenderers(CiTestCase):
 
         self.assertRaises(net.RendererNotFoundError, renderers.select,
                           priority=['sysconfig', 'eni'])
-
-    @mock.patch("cloudinit.net.renderers.netplan.available")
-    @mock.patch("cloudinit.net.renderers.sysconfig.available")
-    @mock.patch("cloudinit.net.renderers.sysconfig.available_sysconfig")
-    @mock.patch("cloudinit.net.renderers.sysconfig.available_nm")
-    @mock.patch("cloudinit.net.renderers.eni.available")
-    @mock.patch("cloudinit.net.renderers.sysconfig.util.get_linux_distro")
-    def test_sysconfig_selected_on_sysconfig_enabled_distros(self, m_distro,
-                                                             m_eni, m_sys_nm,
-                                                             m_sys_scfg,
-                                                             m_sys_avail,
-                                                             m_netplan):
-        """sysconfig only selected on specific distros (rhel/sles)."""
-
-        # Ubuntu with Network-Manager installed
-        m_eni.return_value = False        # no ifupdown (ifquery)
-        m_sys_scfg.return_value = False   # no sysconfig/ifup/ifdown
-        m_sys_nm.return_value = True      # network-manager is installed
-        m_netplan.return_value = True     # netplan is installed
-        m_sys_avail.return_value = False  # no sysconfig on Ubuntu
-        m_distro.return_value = ('ubuntu', None, None)
-        self.assertEqual('netplan', renderers.select(priority=None)[0])
-
-        # Centos with Network-Manager installed
-        m_eni.return_value = False       # no ifupdown (ifquery)
-        m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
-        m_sys_nm.return_value = True     # network-manager is installed
-        m_netplan.return_value = False   # netplan is not installed
-        m_sys_avail.return_value = True  # sysconfig is available on centos
-        m_distro.return_value = ('centos', None, None)
-        self.assertEqual('sysconfig', renderers.select(priority=None)[0])
-
-        # OpenSuse with Network-Manager installed
-        m_eni.return_value = False       # no ifupdown (ifquery)
-        m_sys_scfg.return_value = False  # no sysconfig/ifup/ifdown
-        m_sys_nm.return_value = True     # network-manager is installed
-        m_netplan.return_value = False   # netplan is not installed
-        m_sys_avail.return_value = True  # sysconfig is available on opensuse
-        m_distro.return_value = ('opensuse', None, None)
-        self.assertEqual('sysconfig', renderers.select(priority=None)[0])
 
     @mock.patch("cloudinit.net.sysconfig.available_sysconfig")
     @mock.patch("cloudinit.util.get_linux_distro")

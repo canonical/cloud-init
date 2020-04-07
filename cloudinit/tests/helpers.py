@@ -23,11 +23,6 @@ try:
 except ImportError:
     from contextlib2 import ExitStack, contextmanager
 
-try:
-    from configparser import ConfigParser
-except ImportError:
-    from ConfigParser import ConfigParser
-
 from cloudinit.config.schema import (
     SchemaValidationError, validate_cloudconfig_schema)
 from cloudinit import cloud
@@ -113,16 +108,6 @@ class TestCase(unittest2.TestCase):
         p = m.start()
         self.addCleanup(m.stop)
         setattr(self, attr, p)
-
-    # prefer python3 read_file over readfp but allow fallback
-    def parse_and_read(self, contents):
-        parser = ConfigParser()
-        if hasattr(parser, 'read_file'):
-            parser.read_file(contents)
-        elif hasattr(parser, 'readfp'):
-            # pylint: disable=W1505
-            parser.readfp(contents)
-        return parser
 
 
 class CiTestCase(TestCase):
@@ -211,16 +196,6 @@ class CiTestCase(TestCase):
         if dir is None:
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
-
-    def sys_exit(self, code):
-        """Provide a wrapper around sys.exit for python 2.6
-
-        In 2.6, this code would produce 'cm.exception' with value int(2)
-        rather than the SystemExit that was raised by sys.exit(2).
-            with assertRaises(SystemExit) as cm:
-                sys.exit(2)
-        """
-        raise SystemExit(code)
 
     def tmp_cloud(self, distro, sys_cfg=None, metadata=None):
         """Create a cloud with tmp working directory paths.
@@ -363,6 +338,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             root = self.tmp_dir()
         self.patchUtils(root)
         self.patchOS(root)
+        self.patchOpen(root)
         return root
 
     @contextmanager

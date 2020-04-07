@@ -74,6 +74,9 @@ from cloudinit import util
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
 DEVICE_NAME_RE = re.compile(DEVICE_NAME_FILTER)
+# Name matches 'server:/path'
+NETWORK_NAME_FILTER = r"^.+:.*"
+NETWORK_NAME_RE = re.compile(NETWORK_NAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
 FSTAB_PATH = "/etc/fstab"
 MNT_COMMENT = "comment=cloudconfig"
@@ -90,6 +93,13 @@ def is_meta_device_name(name):
     for enumname in ("ephemeral", "ebs"):
         if name.startswith(enumname) and name.find(":") == -1:
             return True
+    return False
+
+
+def is_network_device(name):
+    # return true if this is a network device
+    if NETWORK_NAME_RE.match(name):
+        return True
     return False
 
 
@@ -121,6 +131,9 @@ def sanitize_devname(startname, transformer, log):
     if devname == "ephemeral":
         devname = "ephemeral0"
         log.debug("Adjusted mount option from ephemeral to ephemeral0")
+
+    if is_network_device(startname):
+        return startname
 
     device_path, partition_number = util.expand_dotted_devname(devname)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """List pip dependencies or system package dependencies for cloud-init."""
 
 # You might be tempted to rewrite this as a shell script, but you

@@ -2,7 +2,7 @@
 # The top level settings are used as module
 # and system configuration.
 
-{% if variant in ["freebsd"] %}
+{% if variant.endswith("bsd") %}
 syslog_fix_perms: root:wheel
 {% elif variant in ["suse"] %}
 syslog_fix_perms: root:root
@@ -33,7 +33,7 @@ ssh_pwauth:   0
 # This will cause the set+update hostname module to not operate (if true)
 preserve_hostname: false
 
-{% if variant in ["freebsd"] %}
+{% if variant.endswith("bsd") %}
 # This should not be required, but leave it in place until the real cause of
 # not finding -any- datasources is resolved.
 datasource_list: ['NoCloud', 'ConfigDrive', 'Azure', 'OpenStack', 'Ec2']
@@ -55,18 +55,22 @@ network:
 # The modules that run in the 'init' stage
 cloud_init_modules:
  - migrator
+{% if variant not in ["netbsd"] %}
  - seed_random
+{% endif %}
  - bootcmd
  - write-files
+{% if variant not in ["netbsd"] %}
  - growpart
  - resizefs
-{% if variant not in ["freebsd"] %}
+{% endif %}
+{% if variant not in ["freebsd", "netbsd"] %}
  - disk_setup
  - mounts
 {% endif %}
  - set_hostname
  - update_hostname
-{% if variant not in ["freebsd"] %}
+{% if variant not in ["freebsd", "netbsd"] %}
  - update_etc_hosts
  - ca-certs
  - rsyslog
@@ -100,7 +104,7 @@ cloud_config_modules:
 {% if variant in ["suse"] %}
  - zypper-add-repo
 {% endif %}
-{% if variant not in ["freebsd"] %}
+{% if variant not in ["freebsd", "netbsd"] %}
  - ntp
 {% endif %}
  - timezone
@@ -121,7 +125,7 @@ cloud_final_modules:
 {% if variant in ["ubuntu", "unknown"] %}
  - ubuntu-drivers
 {% endif %}
-{% if variant not in ["freebsd"] %}
+{% if variant not in ["freebsd", "netbsd"] %}
  - puppet
  - chef
  - mcollective
@@ -143,7 +147,7 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["amazon", "arch", "centos", "debian", "fedora", "freebsd", "rhel", "suse", "ubuntu"] %}
+{% if variant in ["amazon", "arch", "centos", "debian", "fedora", "freebsd", "netbsd", "openbsd", "rhel", "suse", "ubuntu"] %}
    distro: {{ variant }}
 {% else %}
    # Unknown/fallback distro.
@@ -158,6 +162,9 @@ system_info:
      groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/bash
+{# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
+   network:
+     renderers: ['netplan', 'eni', 'sysconfig']
    # Automatically discover the best ntp_client
    ntp_client: auto
    # Other config here will be given to the distro class and/or path classes
@@ -226,4 +233,24 @@ system_info:
      groups: [wheel]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/tcsh
+{% elif variant in ["netbsd"] %}
+   default_user:
+     name: netbsd
+     lock_passwd: True
+     gecos: NetBSD
+     groups: [wheel]
+     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+     shell: /bin/sh
+{% elif variant in ["openbsd"] %}
+   default_user:
+     name: openbsd
+     lock_passwd: True
+     gecos: OpenBSD
+     groups: [wheel]
+     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+     shell: /bin/ksh
+{% endif %}
+{% if variant in ["freebsd", "netbsd", "openbsd"] %}
+   network:
+      renderers: ['{{ variant }}']
 {% endif %}

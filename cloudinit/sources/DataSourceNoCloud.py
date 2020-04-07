@@ -40,6 +40,14 @@ class DataSourceNoCloud(sources.DataSource):
             devlist = [
                 p for p in ['/dev/msdosfs/' + label, '/dev/iso9660/' + label]
                 if os.path.exists(p)]
+        elif util.is_NetBSD():
+            out, _err = util.subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
+            devlist = []
+            for dev in out.split():
+                mscdlabel_out, _ = util.subp(['mscdlabel', dev], rcs=[0, 1])
+                if ('label "%s"' % label) in mscdlabel_out:
+                    devlist.append('/dev/' + dev)
+                    devlist.append('/dev/' + dev + 'a')  # NetBSD 7
         else:
             # Query optical drive to get it in blkid cache for 2.6 kernels
             util.find_devs_with(path="/dev/sr0")
