@@ -1,8 +1,9 @@
-cloud-init (20.1-10-g71af48df-0ubuntu4) UNRELEASED; urgency=medium
+cloud-init (20.1-10-g71af48df-0ubuntu5) UNRELEASED; urgency=medium
 
-  * drop all active cherry picks to fix daily build
+  * cherry-pick b698b349: CiTestCase: stop using and remove sys_exit
+    helper (#283)
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 07 Apr 2020 16:02:59 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 07 Apr 2020 16:03:07 -0600
 
 cloud-init (20.1-10-g71af48df-0ubuntu3) focal; urgency=medium
 
