@@ -1,3 +1,9 @@
+cloud-init (20.1-10-g71af48df-0ubuntu4) UNRELEASED; urgency=medium
+
+  * drop all active cherry picks to fix daily build
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 07 Apr 2020 16:02:59 -0600
+
 cloud-init (20.1-10-g71af48df-0ubuntu3) focal; urgency=medium
 
   * cherry-pick 6600c642: ec2: render network on all NICs and add
