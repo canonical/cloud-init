@@ -116,10 +116,10 @@ cloud-init:
 
 .. code-block:: shell-session
 
-  $ DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force
-  $ cloud-init clean --logs
-  $ cloud-init init --local
-  $ cloud-init init
+  $ sudo DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force
+  $ sudo cloud-init clean --logs
+  $ sudo cloud-init init --local
+  $ sudo cloud-init init
 
 How can I debug my user data?
 =============================
