@@ -104,6 +104,23 @@ The force parameter allows the command to be run again since the instance has
 already launched. The other options increase the verbosity of logging and
 put the logs to STDERR.
 
+How can I re-run datasource detection and cloud-init?
+=====================================================
+
+If a user is developing a new datasource or working on debugging an issue it
+may be useful to re-run datasource detection and the initial setup of
+cloud-init.
+
+To do this, force ds-identify to re-run, clean up any logs, and re-run
+cloud-init:
+
+.. code-block:: shell-session
+
+  $ DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force
+  $ cloud-init clean --logs
+  $ cloud-init init --local
+  $ cloud-init init
+
 How can I debug my user data?
 =============================
 
