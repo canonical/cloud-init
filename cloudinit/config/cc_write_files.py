@@ -45,7 +45,7 @@ schema = {
         Write out arbitrary content to files, optionally setting permissions.
         Content can be specified in plain text or binary. Data encoded with
         either base64 or binary gzip data can be specified and will be decoded
-        before being written.
+        before being written. For empty file creation, content can be omitted.
 
     .. note::
         if multiline data is provided, care should be taken to ensure that it
@@ -84,6 +84,11 @@ schema = {
               H4sIAIDb/U8C/1NW1E/KzNMvzuBKTc7IV8hIzcnJVyjPL8pJ4QIA6N+MVxsAAAA=
           path: /usr/bin/hello
           permissions: '0755'
+        """),
+        dedent("""\
+        # Create an empty file on the system
+        write_files:
+        - path: /root/CLOUD_INIT_WAS_HERE
         """)],
     'frequency': frequency,
     'type': 'object',
@@ -104,9 +109,11 @@ schema = {
                         'type': 'string',
                         'default': '',
                         'description': dedent("""\
-                            Optional content to write or decode into the
-                             provided ``path`` . Default: **''**
-                            """),
+                            Optional content to write to the provided ``path``.
+                              When content is present and encoding is not '%s',
+                              decode the content prior to writing. Default:
+                              **''**
+                        """ % UNKNOWN_ENC),
                     },
                     'owner': {
                         'type': 'string',

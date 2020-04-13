@@ -94,7 +94,9 @@ def validate_cloudconfig_schema(config, schema, strict=False):
             'Ignoring schema validation. python-jsonschema is not present')
         return
 
-    # Add binary type checker for cloud-init schema
+    # Allow for bytes to be presented as an acceptable valid value for string
+    # type jsonschema attributes in cloud-init's schema.
+    # This allows #cloud-config to provide valid yaml "content: !!binary | ..."
     if hasattr(Draft4Validator, 'TYPE_CHECKER'):  # jsonschema 3.0+
         type_checker = Draft4Validator.TYPE_CHECKER.redefine(
             'string', is_schema_byte_string)
@@ -241,6 +243,7 @@ def _schemapath_for_cloudconfig(config, original_content):
             previous_depth = -1
             path_prefix = ''
         if line.startswith('- '):
+            # Process list items adding a list_index to the path prefix
             previous_list_idx = '.%d' % (list_index - 1)
             if path_prefix and path_prefix.endswith(previous_list_idx):
                 path_prefix = path_prefix[:-len(previous_list_idx)]
@@ -253,9 +256,11 @@ def _schemapath_for_cloudconfig(config, original_content):
             line = line[item_indent:]  # Strip leading list item + whitespace
             list_index += 1
         else:
+            # Process non-list lines setting value if present
             list_index = 0
             key, value = line.split(':', 1)
         if path_prefix:
+            # Append any existing path_prefix for a fully-pathed key
             key = path_prefix + '.' + key
         while indent_depth <= previous_depth:
             if scopes:
@@ -397,10 +402,9 @@ def get_parser(parser=None):
             description='Validate cloud-config files or document schema')
     parser.add_argument('-c', '--config-file',
                         help='Path of the cloud-config yaml file to validate')
-    parser.add_argument('-d', '--doc', action='store_true',
-                        help='Print specified schema module docs.')
-    parser.add_argument('-m', '--module', action='store',
-                        help='Limit documentation to specified schema module.')
+    parser.add_argument('-d', '--docs', nargs='+',
+                        help=('Print schema module docs. Choices: all or'
+                              ' space-delimited cc_names.'))
     parser.add_argument('--annotate', action="store_true", default=False,
                         help='Annotate existing cloud-config file with errors')
     return parser
@@ -408,9 +412,9 @@ def get_parser(parser=None):
 
 def handle_schema_args(name, args):
     """Handle provided schema args and perform the appropriate actions."""
-    exclusive_args = [args.config_file, args.doc]
+    exclusive_args = [args.config_file, args.docs]
     if not any(exclusive_args) or all(exclusive_args):
-        error('Expected either --config-file argument or --doc')
+        error('Expected either --config-file argument or --docs')
     full_schema = get_schema()
     if args.config_file:
         try:
@@ -423,17 +427,16 @@ def handle_schema_args(name, args):
             error(str(e))
         else:
             print("Valid cloud-config file {0}".format(args.config_file))
-    if args.doc:
+    elif args.docs:
         schema_ids = [subschema['id'] for subschema in full_schema['allOf']]
         schema_ids += ['all']
-        if args.module and args.module not in ['all'] + schema_ids:
-            error(
-                'Invalid value for --module {0}. Must be one of: {1}'.format(
-                    args.module, ', '.join(schema_ids)))
+        invalid_docs = set(args.docs).difference(set(schema_ids))
+        if invalid_docs:
+            error('Invalid --docs value {0}. Must be one of: {1}'.format(
+                  list(invalid_docs), ', '.join(schema_ids)))
         for subschema in full_schema['allOf']:
-            if args.module and args.module != subschema['id']:
-                continue
-            print(get_schema_doc(subschema))
+            if 'all' in args.docs or subschema['id'] in args.docs:
+                print(get_schema_doc(subschema))
 
 
 def main():

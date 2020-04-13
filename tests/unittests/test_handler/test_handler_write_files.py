@@ -47,6 +47,13 @@ VALID_SCHEMA = {
     ]
 }
 
+INVALID_SCHEMA = {  # Dropped required path key
+    'write_files': [
+        {'append': False, 'content': 'a', 'encoding': 'gzip', 'owner': 'jeff',
+         'permissions': '0777'}
+    ]
+}
+
 
 @skipUnlessJsonSchema()
 @mock.patch('cloudinit.config.cc_write_files.write_files')
@@ -60,9 +67,7 @@ class TestWriteFilesSchema(CiTestCase):
         valid_config = {'write_files': [{'path': '/some/path'}]}
         handle('cc_write_file', valid_config, cc, LOG, [])
         self.assertNotIn('Invalid config:', self.logs.getvalue())
-        invalid_config = copy.deepcopy(VALID_SCHEMA)
-        invalid_config['write_files'][0].pop('path')
-        handle('cc_write_file', invalid_config, cc, LOG, [])
+        handle('cc_write_file', INVALID_SCHEMA, cc, LOG, [])
         self.assertIn('Invalid config:', self.logs.getvalue())
         self.assertIn("'path' is a required property", self.logs.getvalue())
 
