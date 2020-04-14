@@ -152,15 +152,15 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
             msg = 'Line {line} column {col}: {msg}'.format(
                 line=line, col=col, msg=msg)
     lines = original_content.decode().split('\n')
-    error_count = 1
+    error_index = 1
     for line_number, line in enumerate(lines, 1):
         errors = errors_by_line[line_number]
         if errors:
             error_label = []
             for error in errors:
-                error_label.append('E{0}'.format(error_count))
-                error_footer.append('# E{0}: {1}'.format(error_count, error))
-                error_count += 1
+                error_label.append('E{0}'.format(error_index))
+                error_footer.append('# E{0}: {1}'.format(error_index, error))
+                error_index += 1
             annotated_content.append(line + '\t\t# ' + ','.join(error_label))
         else:
             annotated_content.append(line)
