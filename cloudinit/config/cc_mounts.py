@@ -287,7 +287,6 @@ def setup_swapfile(fname, size=None, maxsize=None):
     maxsize: the maximum size
     """
     swap_dir = os.path.dirname(fname)
-    mibsize = str(int(size / (2 ** 20)))
     if str(size).lower() == "auto":
         try:
             memsize = util.read_meminfo()['total']
@@ -299,6 +298,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
         size = suggested_swapsize(fsys=swap_dir, maxsize=maxsize,
                                   memsize=memsize)
 
+    mibsize = str(int(size / (2 ** 20)))
     if not size:
         LOG.debug("Not creating swap: suggested size was 0")
         return
