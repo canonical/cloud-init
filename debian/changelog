@@ -1,3 +1,10 @@
+cloud-init (20.1-10-g71af48df-0ubuntu4) UNRELEASED; urgency=medium
+
+  * cherry-pick 9d7b35ce: cc_mounts: fix incorrect format specifiers
+    (#316) (LP: #1872836)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 15 Apr 2020 15:07:49 -0600
+
 cloud-init (20.1-10-g71af48df-0ubuntu3) focal; urgency=medium
 
   * d/patches: redact openbsd netbsd from tests until new-upstream-snapshot
