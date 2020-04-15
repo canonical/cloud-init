@@ -236,20 +236,20 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     return size
 
 
-def create_swapfile(fname, size):
+def create_swapfile(fname: str, size: str) -> None:
     """Size is in MiB."""
 
-    errmsg = "Failed to create swapfile '%s' of size %dMB via %s: %s"
+    errmsg = "Failed to create swapfile '%s' of size %sMB via %s: %s"
 
     def create_swap(fname, size, method):
         LOG.debug("Creating swapfile in '%s' on fstype '%s' using '%s'",
                   fname, fstype, method)
 
         if method == "fallocate":
-            cmd = ['fallocate', '-l', '%dM' % size, fname]
+            cmd = ['fallocate', '-l', '%sM' % size, fname]
         elif method == "dd":
             cmd = ['dd', 'if=/dev/zero', 'of=%s' % fname, 'bs=1M',
-                   'count=%d' % size]
+                   'count=%s' % size]
 
         try:
             util.subp(cmd, capture=True)
