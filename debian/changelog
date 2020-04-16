@@ -1,3 +1,10 @@
+cloud-init (20.1-10-g71af48df-0ubuntu5) UNRELEASED; urgency=medium
+
+  * cherry-pick 0c5c7367: test_mounts: expand happy path test for both
+    happy paths
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Thu, 16 Apr 2020 11:22:49 -0400
+
 cloud-init (20.1-10-g71af48df-0ubuntu4) focal; urgency=medium
 
   * cherry-pick 9d7b35ce: cc_mounts: fix incorrect format specifiers
