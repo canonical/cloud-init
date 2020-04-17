@@ -504,13 +504,4 @@ if not hasattr(mock.Mock, 'assert_not_called'):
             raise AssertionError(msg)
     mock.Mock.assert_not_called = __mock_assert_not_called
 
-
-# older unittest2.TestCase (centos6) have only the now-deprecated
-# assertRaisesRegexp. Simple assignment makes pylint complain, about
-# users of assertRaisesRegex so we use getattr to trick it.
-# https://github.com/PyCQA/pylint/issues/1946
-if not hasattr(unittest2.TestCase, 'assertRaisesRegex'):
-    unittest2.TestCase.assertRaisesRegex = (
-        getattr(unittest2.TestCase, 'assertRaisesRegexp'))
-
 # vi: ts=4 expandtab
