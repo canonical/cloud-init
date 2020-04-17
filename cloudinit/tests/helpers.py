@@ -14,13 +14,9 @@ import sys
 import tempfile
 import time
 import unittest
+from contextlib import ExitStack, contextmanager
 from unittest import mock
 from unittest.util import strclass
-
-try:
-    from contextlib import ExitStack, contextmanager
-except ImportError:
-    from contextlib2 import ExitStack, contextmanager
 
 from cloudinit.config.schema import (
     SchemaValidationError, validate_cloudconfig_schema)
