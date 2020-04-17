@@ -350,7 +350,7 @@ class TestDataSource(CiTestCase):
                 'region': 'myregion',
                 'some': {'security-credentials': {
                     'cred1': 'sekret', 'cred2': 'othersekret'}}})
-        self.assertItemsEqual(
+        self.assertCountEqual(
             ('merged_cfg', 'security-credentials',),
             datasource.sensitive_metadata_keys)
         sys_info = {
@@ -401,7 +401,7 @@ class TestDataSource(CiTestCase):
                     'region': 'myregion',
                     'some': {'security-credentials': REDACT_SENSITIVE_VALUE}}}
         }
-        self.assertItemsEqual(expected, redacted)
+        self.assertCountEqual(expected, redacted)
         file_stat = os.stat(json_file)
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
 
@@ -426,7 +426,7 @@ class TestDataSource(CiTestCase):
                       "x86_64"],
             "variant": "ubuntu", "dist": ["ubuntu", "20.04", "focal"]}
 
-        self.assertItemsEqual(
+        self.assertCountEqual(
             ('merged_cfg', 'security-credentials',),
             datasource.sensitive_metadata_keys)
         with mock.patch("cloudinit.util.system_info", return_value=sys_info):
@@ -476,7 +476,7 @@ class TestDataSource(CiTestCase):
                         'security-credentials':
                             {'cred1': 'sekret', 'cred2': 'othersekret'}}}}
         }
-        self.assertItemsEqual(expected, util.load_json(content))
+        self.assertCountEqual(expected, util.load_json(content))
         file_stat = os.stat(sensitive_json_file)
         self.assertEqual(0o600, stat.S_IMODE(file_stat.st_mode))
         self.assertEqual(expected, util.load_json(content))
@@ -542,7 +542,7 @@ class TestDataSource(CiTestCase):
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         content = util.load_file(json_file)
         instance_json = util.load_json(content)
-        self.assertItemsEqual(
+        self.assertCountEqual(
             ['ds/meta_data/key2/key2.1'],
             instance_json['base64_encoded_keys'])
         self.assertEqual(

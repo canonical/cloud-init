@@ -649,7 +649,7 @@ scbus-1 on xpt0 bus 0
 
         crawled_metadata = dsrc.crawl_metadata()
 
-        self.assertItemsEqual(
+        self.assertCountEqual(
             crawled_metadata.keys(),
             ['cfg', 'files', 'metadata', 'userdata_raw'])
         self.assertEqual(crawled_metadata['cfg'], expected_cfg)
