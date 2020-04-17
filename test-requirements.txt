@@ -1,7 +1,6 @@
 # Needed generally in tests
 httpretty>=0.7.1
 pytest
-unittest2
 pytest-cov
 
 # Only really needed on older versions of python
