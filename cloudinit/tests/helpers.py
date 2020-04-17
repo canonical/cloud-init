@@ -13,10 +13,9 @@ import string
 import sys
 import tempfile
 import time
+import unittest
 from unittest import mock
-
-import unittest2
-from unittest2.util import strclass
+from unittest.util import strclass
 
 try:
     from contextlib import ExitStack, contextmanager
@@ -35,8 +34,8 @@ from cloudinit import util
 _real_subp = util.subp
 
 # Used for skipping tests
-SkipTest = unittest2.SkipTest
-skipIf = unittest2.skipIf
+SkipTest = unittest.SkipTest
+skipIf = unittest.skipIf
 
 
 # Makes the old path start
@@ -73,7 +72,7 @@ def retarget_many_wrapper(new_base, am, old_func):
     return wrapper
 
 
-class TestCase(unittest2.TestCase):
+class TestCase(unittest.TestCase):
 
     def reset_global_state(self):
         """Reset any global state to its original settings.
@@ -372,7 +371,7 @@ class HttprettyTestCase(CiTestCase):
         super(HttprettyTestCase, self).tearDown()
 
 
-class SchemaTestCaseMixin(unittest2.TestCase):
+class SchemaTestCaseMixin(unittest.TestCase):
 
     def assertSchemaValid(self, cfg, msg="Valid Schema failed validation."):
         """Assert the config is valid per self.schema.

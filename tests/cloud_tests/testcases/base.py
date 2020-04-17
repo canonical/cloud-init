@@ -5,15 +5,15 @@
 import crypt
 import json
 import re
-import unittest2
+import unittest
 
 
 from cloudinit import util as c_util
 
-SkipTest = unittest2.SkipTest
+SkipTest = unittest.SkipTest
 
 
-class CloudTestCase(unittest2.TestCase):
+class CloudTestCase(unittest.TestCase):
     """Base test class for verifiers."""
 
     # data gets populated in get_suite.setUpClass
