@@ -10,9 +10,6 @@
             "2" : "python-yaml",
             "3" : "python3-yaml"
          },
-         "contextlib2" : {
-            "2" : "python-contextlib2"
-         },
          "pyserial" : {
             "2" : "python-serial",
             "3" : "python3-serial"
