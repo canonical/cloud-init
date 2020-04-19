@@ -294,9 +294,7 @@ class TestNoCloudDataSource(CiTestCase):
             if not criteria:
                 return ["/dev/msdosfs/foo", "/dev/iso9660/foo"]
             if criteria.startswith("LABEL="):
-                label = criteria.split("=")[1]
-                if label == "foo":
-                    return ["/dev/msdosfs/foo", "/dev/iso9660/foo"]
+                return ["/dev/msdosfs/foo", "/dev/iso9660/foo"]
             elif criteria == "TYPE=vfat":
                 return ["/dev/msdosfs/foo"]
             elif criteria == "TYPE=iso9660":

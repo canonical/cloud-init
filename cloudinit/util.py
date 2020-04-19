@@ -1250,7 +1250,7 @@ def find_devs_with_freebsd(criteria=None, oformat='device',
     if not criteria:
         return glob.glob("/dev/msdosfs/*") + glob.glob("/dev/iso9660/*")
     if criteria.startswith("LABEL="):
-        label = criteria.split("=")[1]
+        label = criteria.split("LABEL=")[1]
         devlist = [
             p for p in ['/dev/msdosfs/' + label, '/dev/iso9660/' + label]
             if os.path.exists(p)]
@@ -1268,9 +1268,9 @@ def find_devs_with_netbsd(criteria=None, oformat='device',
     _type = None
     if criteria:
         if criteria.startswith("LABEL="):
-            label = criteria.split("=")[1]
+            label = criteria.split("LABEL=")[1]
         if criteria.startswith("TYPE="):
-            _type = criteria.split("=")[1]
+            _type = criteria.split("TYPE=")[1]
     out, _err = subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
     for dev in out.split():
         if label or _type:
