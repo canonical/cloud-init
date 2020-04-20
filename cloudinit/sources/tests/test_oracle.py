@@ -186,6 +186,7 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertEqual(self.my_md['uuid'], ds.get_instance_id())
         self.assertEqual(my_userdata, ds.userdata_raw)
 
+    @mock.patch(DS_PATH + ".get_interfaces_by_mac", mock.Mock(return_value={}))
     @mock.patch(DS_PATH + "._add_network_config_from_opc_imds",
                 side_effect=lambda network_config: network_config)
     @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
@@ -207,6 +208,7 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertEqual([mock.call()], m_initramfs_config.call_args_list)
         self.assertFalse(distro.generate_fallback_config.called)
 
+    @mock.patch(DS_PATH + ".get_interfaces_by_mac", mock.Mock(return_value={}))
     @mock.patch(DS_PATH + "._add_network_config_from_opc_imds",
                 side_effect=lambda network_config: network_config)
     @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
