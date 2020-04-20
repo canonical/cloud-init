@@ -1,0 +1,55 @@
+#cloud-config
+
+# configure lxd
+# default: none
+# all options default to none if not specified
+# lxd: config sections for lxd
+#   init: dict of options for lxd init, see 'man lxd'
+#     network_address: address for lxd to listen on
+#     network_port: port for lxd to listen on
+#     storage_backend: either 'zfs' or 'dir'
+#     storage_create_device: device based storage using specified device
+#     storage_create_loop: set up loop based storage with size in GB
+#     storage_pool: name of storage pool to use or create
+#     trust_password: password required to add new clients
+#   bridge: dict of options for the lxd bridge
+#     mode: one of "new", "existing" or "none". Defaults to "new"
+#     name: the name of the bridge. Defaults to "lxdbr0"
+#     ipv4_address: an IPv4 address (e.g. 10.0.8.1)
+#     ipv4_netmask: a CIDR mask value (e.g. 24)
+#     ipv4_dhcp_first: the first IP of the DHCP range (e.g. 10.0.8.2)
+#     ipv4_dhcp_last: the last IP of the DHCP range (e.g. 10.0.8.254)
+#     ipv4_dhcp_leases: the size of the DHCP pool (e.g. 250)
+#     ipv4_nat: either "true" or "false"
+#     ipv6_address: an IPv6 address (e.g. fd98:9e0:3744::1)
+#     ipv6_netmask: a CIDR mask value (e.g. 64)
+#     ipv6_nat: either "true" or "false"
+#     domain: domain name to use for the bridge
+
+
+lxd:
+  init:
+    network_address: 0.0.0.0
+    network_port: 8443
+    storage_backend: zfs
+    storage_pool: datapool
+    storage_create_loop: 10
+  bridge:
+    mode: new
+    name: lxdbr0
+    ipv4_address: 10.0.8.1
+    ipv4_netmask: 24
+    ipv4_dhcp_first: 10.0.8.2
+    ipv4_dhcp_last: 10.0.8.3
+    ipv4_dhcp_leases: 250
+    ipv4_nat: true
+    ipv6_address: fd98:9e0:3744::1
+    ipv6_netmask: 64
+    ipv6_nat: true
+    domain: lxd
+
+
+# The simplist working configuration is
+# lxd:
+#  init:
+#   storage_backend: dir

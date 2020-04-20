@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+depend() {
+  after cloud-config
+  provide cloud-final
+}
+
+start() {
+  cloud-init modules --mode final
+  eend 0
+}

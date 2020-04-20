@@ -1,0 +1,6 @@
+## template:basic
+cloud-init (${version_long}-1~bddeb${release_suffix}) ${debian_release}; urgency=low
+
+  * build
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 16 Dec 2011 11:50:25 -0500

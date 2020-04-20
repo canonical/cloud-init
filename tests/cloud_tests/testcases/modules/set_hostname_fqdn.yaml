@@ -1,0 +1,23 @@
+#
+# Set the hostname and update /etc/hosts
+#
+required_features:
+  - hostname
+cloud_config: |
+  #cloud-config
+  manage_etc_hosts: true
+  hostname: cloudinit1
+  # this needs changing if CI_DOMAIN were updated.
+  fqdn: cloudinit2.i9n.cloud-init.io
+collect_scripts:
+  hosts: |
+    #!/bin/bash
+    grep ^127 /etc/hosts
+  hostname: |
+    #!/bin/bash
+    hostname
+  fqdn: |
+    #!/bin/bash
+    hostname --fqdn
+
+# vi: ts=4 expandtab

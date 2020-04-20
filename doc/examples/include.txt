@@ -1,0 +1,5 @@
+#include
+# entries are one url per line. comment lines beginning with '#' are allowed
+# urls are passed to urllib.urlopen, so the format must be supported there
+http://www.ubuntu.com/robots.txt
+http://www.w3schools.com/html/lastpage.htm

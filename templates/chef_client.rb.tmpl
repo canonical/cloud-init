@@ -1,0 +1,61 @@
+## template:jinja
+{#
+This file is only utilized if the module 'cc_chef' is enabled in
+cloud-config. Specifically, in order to enable it
+you need to add the following to config:
+  chef:
+    validation_key: XYZ
+    validation_cert: XYZ
+    validation_name: XYZ
+    server_url: XYZ
+-#}
+{{generated_by}}
+{#
+The reason these are not in quotes is because they are ruby
+symbols that will be placed inside here, and not actual strings...
+#}
+{% if log_level %}
+log_level              {{log_level}}
+{% endif %}
+{% if ssl_verify_mode %}
+ssl_verify_mode        {{ssl_verify_mode}}
+{% endif %}
+{% if log_location %}
+log_location           "{{log_location}}"
+{% endif %}
+{% if validation_name %}
+validation_client_name "{{validation_name}}"
+{% endif %}
+{% if validation_cert %}
+validation_key         "{{validation_key}}"
+{% endif %}
+{% if client_key %}
+client_key             "{{client_key}}"
+{% endif %}
+{% if server_url %}
+chef_server_url        "{{server_url}}"
+{% endif %}
+{% if environment %}
+environment            "{{environment}}"
+{% endif %}
+{% if node_name %}
+node_name              "{{node_name}}"
+{% endif %}
+{% if json_attribs %}
+json_attribs           "{{json_attribs}}"
+{% endif %}
+{% if file_cache_path %}
+file_cache_path        "{{file_cache_path}}"
+{% endif %}
+{% if file_backup_path %}
+file_backup_path       "{{file_backup_path}}"
+{% endif %}
+{% if pid_file %}
+pid_file               "{{pid_file}}"
+{% endif %}
+{% if show_time %}
+Chef::Log::Formatter.show_time = true
+{% endif %}
+{% if encrypted_data_bag_secret %}
+encrypted_data_bag_secret "{{encrypted_data_bag_secret}}"
+{% endif %}

@@ -1,0 +1,32 @@
+#cloud-config
+#
+# random_seed is a dictionary.
+#
+# The config module will write seed data from the datasource
+# to 'file' described below.
+#
+# Entries in this dictionary are:
+#   file:     the file to write random data to (default is /dev/urandom)
+#   data:     this data will be written to 'file' before data from
+#             the datasource
+#   encoding: this will be used to decode 'data' provided.
+#             allowed values are 'encoding', 'raw', 'base64', 'b64'
+#             'gzip', or 'gz'.  Default is 'raw'
+#
+#   command:  execute this command to seed random.
+#             the command will have RANDOM_SEED_FILE in its environment
+#             set to the value of 'file' above.
+#   command_required: default False
+#             if true, and 'command' is not available to be run
+#             then exception is raised and cloud-init will record failure.
+#             Otherwise, only debug error is mentioned.
+#
+# Note: command could be ['pollinate',
+#                         '--server=http://local.pollinate.server']
+# which would have pollinate populate /dev/urandom from provided server
+random_seed:
+  file: '/dev/urandom'
+  data: 'my random string'
+  encoding: 'raw'
+  command: ['sh', '-c', 'dd if=/dev/urandom of=$RANDOM_SEED_FILE']
+  command_required: True

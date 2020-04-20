@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+"""Link your Launchpad user to github, proposing branches to LP and Github"""
+
+from argparse import ArgumentParser
+from subprocess import Popen, PIPE
+import os
+import sys
+
+try:
+    from launchpadlib.launchpad import Launchpad
+except ImportError:
+    print("Missing python launchpadlib dependency to create branches for you."
+          "Install with: sudo apt-get install python3-launchpadlib" )
+    sys.exit(1)
+
+if "avoid-pep8-E402-import-not-top-of-file":
+    _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.insert(0, _tdir)
+    from cloudinit import util
+
+
+DRYRUN = False
+LP_TO_GIT_USER_FILE='.lp-to-git-user'
+MIGRATE_BRANCH_NAME='migrate-lp-to-github'
+GITHUB_PULL_URL='https://github.com/canonical/cloud-init/compare/master...{github_user}:{branch}'
+GH_UPSTREAM_URL='https://github.com/canonical/cloud-init'
+
+
+def error(message):
+    if isinstance(message, bytes):
+        message = message.decode('utf-8')
+    log('ERROR: {error}'.format(error=message))
+    sys.exit(1)
+
+
+def log(message):
+    print(message)
+
+
+def subp(cmd, skip=False):
+    prefix = 'SKIPPED: ' if skip else '$ '
+    log('{prefix}{command}'.format(prefix=prefix, command=' '.join(cmd)))
+    if skip:
+        return
+    proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
+    out, err = proc.communicate()
+    if proc.returncode:
+        error(err if err else out)
+    return out.decode('utf-8')
+
+
+LP_GIT_PATH_TMPL = 'git+ssh://{launchpad_user}@git.launchpad.net/'
+LP_UPSTREAM_PATH_TMPL = LP_GIT_PATH_TMPL + 'cloud-init'
+LP_REMOTE_PATH_TMPL = LP_GIT_PATH_TMPL + '~{launchpad_user}/cloud-init'
+GITHUB_REMOTE_PATH_TMPL = 'git@github.com:{github_user}/cloud-init.git'
+
+
+# Comment templates
+COMMIT_MSG_TMPL = '''\
+lp-to-git-users: adding {gh_username}
+
+Mapped from {lp_username}
+'''
+PUBLISH_DIR='/tmp/cloud-init-lp-to-github-migration'
+
+def get_parser():
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--dryrun', required=False, default=False, action='store_true',
+        help=('Run commands and review operation in dryrun mode, '
+              'making not changes.'))
+    parser.add_argument('launchpad_user', help='Your launchpad username.')
+    parser.add_argument('github_user', help='Your github username.')
+    parser.add_argument(
+        '--local-repo-dir', required=False, dest='repo_dir',
+        help=('The name of the local directory into which we clone.'
+              ' Default: {}'.format(PUBLISH_DIR)))
+    parser.add_argument(
+        '--upstream-branch', required=False, dest='upstream',
+        default='origin/master',
+        help=('The name of remote branch target into which we will merge.'
+              ' Default: origin/master'))
+    parser.add_argument(
+        '-v', '--verbose', required=False, default=False, action='store_true',
+        help=('Print all actions.'))
+    return parser
+
+
+def create_publish_branch(upstream, publish_branch):
+    '''Create clean publish branch target in the current git repo.'''
+    branches = subp(['git', 'branch'])
+    upstream_remote, upstream_branch = upstream.split('/', 1)
+    subp(['git', 'checkout', upstream_branch])
+    subp(['git', 'pull'])
+    if publish_branch in branches:
+        subp(['git', 'branch', '-D', publish_branch])
+    subp(['git', 'checkout', upstream, '-b', publish_branch])
+
+
+def add_lp_and_github_remotes(lp_user, gh_user):
+    """Add lp and github remotes if not present.
+
+    @return Tuple with (lp_remote_name, gh_remote_name)
+    """
+    lp_remote = LP_REMOTE_PATH_TMPL.format(launchpad_user=lp_user)
+    gh_remote = GITHUB_REMOTE_PATH_TMPL.format(github_user=gh_user)
+    remotes = subp(['git', 'remote', '-v'])
+    lp_remote_name = gh_remote_name = None
+    for remote in remotes.splitlines():
+        if not remote:
+            continue
+        remote_name, remote_url, _operation = remote.split()
+        if lp_remote == remote_url:
+            lp_remote_name = remote_name
+        elif gh_remote == remote_url:
+            gh_remote_name = remote_name
+    if not lp_remote_name:
+        log("launchpad: Creating git remote launchpad-{} to point at your"
+            " LP repo".format(lp_user))
+        lp_remote_name = 'launchpad-{}'.format(lp_user)
+        subp(['git', 'remote', 'add', lp_remote_name, lp_remote])
+    try:
+        subp(['git', 'fetch', lp_remote_name])
+    except:
+        log("launchpad: Pushing to ensure LP repo exists")
+        subp(['git', 'push', lp_remote_name, 'master:master'])
+        subp(['git', 'fetch', lp_remote_name])
+    if not gh_remote_name:
+        log("github: Creating git remote github-{} to point at your"
+            " GH repo".format(gh_user))
+        gh_remote_name = 'github-{}'.format(gh_user)
+        subp(['git', 'remote', 'add', gh_remote_name, gh_remote])
+    try:
+        subp(['git', 'fetch', gh_remote_name])
+    except:
+        log("ERROR: [github] Could not fetch remote '{remote}'."
+            "Please create a fork for your github user by clicking 'Fork'"
+            " from {gh_upstream}".format(
+                remote=gh_remote, gh_upstream=GH_UPSTREAM_URL))
+        sys.exit(1)
+    return (lp_remote_name, gh_remote_name)
+
+
+def create_migration_branch(
+        branch_name, upstream, lp_user, gh_user, commit_msg):
+    """Create an LP to Github migration branch and add lp_user->gh_user."""
+    log("Creating a migration branch: {} adding your users".format(
+            MIGRATE_BRANCH_NAME))
+    create_publish_branch(upstream, MIGRATE_BRANCH_NAME)
+    lp_to_git_map = {}
+    lp_to_git_file = os.path.join(os.getcwd(), 'tools', LP_TO_GIT_USER_FILE)
+    if os.path.exists(lp_to_git_file):
+        with open(lp_to_git_file) as stream:
+            lp_to_git_map = util.load_json(stream.read())
+    if gh_user in lp_to_git_map.values():
+        raise RuntimeError(
+            "github user '{}' already in {}".format(gh_user, lp_to_git_file))
+    if lp_user in lp_to_git_map:
+        raise RuntimeError(
+            "launchpad user '{}' already in {}".format(
+                lp_user, lp_to_git_file))
+    lp_to_git_map[lp_user] = gh_user
+    with open(lp_to_git_file, 'w') as stream:
+        stream.write(util.json_dumps(lp_to_git_map))
+    subp(['git', 'add', lp_to_git_file])
+    commit_file = os.path.join(os.path.dirname(os.getcwd()), 'commit.msg')
+    with open(commit_file, 'wb') as stream:
+        stream.write(commit_msg.encode('utf-8'))
+    subp(['git', 'commit', '--all', '-F', commit_file])
+
+
+def main():
+    global DRYRUN
+    global VERBOSITY
+    parser = get_parser()
+    args = parser.parse_args()
+    DRYRUN = args.dryrun
+    VERBOSITY = 1 if args.verbose else 0
+    repo_dir = args.repo_dir or PUBLISH_DIR
+    if not os.path.exists(repo_dir):
+        cleanup_repo_dir = True
+        subp(['git', 'clone',
+              LP_UPSTREAM_PATH_TMPL.format(launchpad_user=args.launchpad_user),
+              repo_dir])
+    else:
+        cleanup_repo_dir = False
+    cwd = os.getcwd()
+    os.chdir(repo_dir)
+    log("Syncing master branch with upstream")
+    subp(['git', 'checkout', 'master'])
+    subp(['git', 'pull'])
+    try:
+        lp_remote_name, gh_remote_name = add_lp_and_github_remotes(
+            args.launchpad_user, args.github_user)
+        commit_msg = COMMIT_MSG_TMPL.format(
+            gh_username=args.github_user, lp_username=args.launchpad_user)
+        create_migration_branch(
+            MIGRATE_BRANCH_NAME, args.upstream, args.launchpad_user,
+            args.github_user, commit_msg)
+
+        for push_remote in (lp_remote_name, gh_remote_name):
+            subp(['git', 'push', push_remote, MIGRATE_BRANCH_NAME, '--force'])
+    except Exception as e:
+        error('Failed setting up migration branches: {0}'.format(e))
+    finally:
+        os.chdir(cwd)
+        if cleanup_repo_dir and os.path.exists(repo_dir):
+            util.del_dir(repo_dir)
+    # Make merge request on LP
+    log("[launchpad] Automatically creating merge proposal using launchpadlib")
+    lp = Launchpad.login_with(
+        "server-team github-migration tool", 'production', version='devel')
+    master = lp.git_repositories.getByPath(
+        path='cloud-init').getRefByPath(path='master')
+    LP_BRANCH_PATH='~{launchpad_user}/cloud-init/+git/cloud-init'
+    lp_git_repo = lp.git_repositories.getByPath(
+        path=LP_BRANCH_PATH.format(launchpad_user=args.launchpad_user))
+    lp_user_migrate_branch = lp_git_repo.getRefByPath(
+        path='refs/heads/migrate-lp-to-github')
+    lp_merge_url = (
+            'https://code.launchpad.net/' +
+            LP_BRANCH_PATH.format(launchpad_user=args.launchpad_user) +
+            '/+ref/' + MIGRATE_BRANCH_NAME)
+    try:
+        lp_user_migrate_branch.createMergeProposal(
+            commit_message=commit_msg, merge_target=master, needs_review=True)
+    except Exception:
+        log('[launchpad] active merge proposal already exists at:\n'
+            '{url}\n'.format(url=lp_merge_url))
+    else:
+        log("[launchpad] Merge proposal created at:\n{url}.\n".format(
+            url=lp_merge_url))
+    log("To link your account to github open your browser and"
+        " click 'Create pull request' at the following URL:\n"
+        "{url}".format(url=GITHUB_PULL_URL.format(
+            github_user=args.github_user, branch=MIGRATE_BRANCH_NAME)))
+    if os.path.exists(repo_dir):
+        util.del_dir(repo_dir)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

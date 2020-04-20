@@ -1,0 +1,67 @@
+#!/bin/sh
+# This file is part of cloud-init. See LICENSE file for license information.
+
+DATA_PRE="/var/lib/cloud/sem/bootper"
+INST_PRE="/var/lib/cloud/instance/sem/bootper"
+
+Usage() {
+   cat <<EOF
+Usage: ${0##*/} frequency name cmd [ arg1 [ arg2 [ ... ] ]
+   run cmd with arguments provided.
+
+   This utility can make it easier to use boothooks or bootcmd
+   on a per "once" or "always" basis.
+
+   If frequency is:
+      * once: run only once (do not re-run for new instance-id)
+      * instance: run only the first boot for a given instance-id
+      * always: run every boot
+
+EOF
+}
+error() { echo "$@" 1>&2; }
+fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+
+# support the old 'cloud-init-run-module freq name "execute" cmd arg1'
+# if < 3 arguments, it will fail below on usage.
+if [ "${0##*/}" = "cloud-init-run-module" ]; then
+   if [ $# -le 2 -o "$3" = "execute" ]; then
+      error "Warning: ${0##*/} is deprecated. Please use cloud-init-per."
+      freq=$1; name=$2; 
+      [ $# -le 2 ] || shift 3;
+      set -- "$freq" "$name" "$@"
+   else
+      fail "legacy cloud-init-run-module only supported with module 'execute'"
+   fi
+fi
+
+[ "$1" = "-h" -o "$1" = "--help" ] && { Usage ; exit 0; }
+[ $# -ge 3 ] || { Usage 1>&2; exit 1; }
+freq=$1
+name=$(echo $2 | sed 's/-/_/g')
+shift 2;
+
+[ "${name#*/}" = "${name}" ] || fail "name cannot contain a /"
+[ "$(id -u)" = "0" ] || fail "must be root"
+
+case "$freq" in
+   once|always) sem="${DATA_PRE}.$name.$freq";;
+   instance) sem="${INST_PRE}.$name.$freq";;
+   *) Usage 1>&2; fail "invalid frequency: $freq";;
+esac
+
+[ -d "${sem%/*}" ] || mkdir -p "${sem%/*}" ||
+   fail "failed to make directory for ${sem}"
+
+# Rename legacy sem files with dashes in their names. Do not overwrite existing
+# sem files to prevent clobbering those which may have been created from calls
+# outside of cloud-init.
+sem_legacy=$(echo $sem | sed 's/_/-/g')
+[ "$sem" != "$sem_legacy" -a -e "$sem_legacy" ] && mv -n "$sem_legacy" "$sem"
+
+[ "$freq" != "always" -a -e "$sem" ] && exit 0
+"$@"
+ret=$?
+printf "%s\t%s\n" "$ret" "$(date +%s)" > "$sem" ||
+   fail "failed to write to $sem"
+exit $ret

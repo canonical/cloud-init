@@ -1,0 +1,7 @@
+# cloud-init target is enabled by cloud-init-generator
+# To disable it you can either:
+#  a.) boot with kernel cmdline of 'cloud-init=disabled'
+#  b.) touch a file /etc/cloud/cloud-init.disabled
+[Unit]
+Description=Cloud-init target
+After=multi-user.target

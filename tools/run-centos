@@ -1,0 +1,72 @@
+#!/bin/bash
+# This file is part of cloud-init. See LICENSE file for license information.
+
+deprecated() {
+cat <<EOF
+             ================ DEPRECATED ================
+             | run-centos is deprecated. Please replace |
+             | your usage with tools/run-container .    |
+             ================ DEPRECATED ================
+EOF
+}
+
+Usage() {
+    deprecated
+    cat <<EOF
+Usage: ${0##*/} [ options ] version
+
+    This utility can makes it easier to run tests, build rpm and source rpm
+        generation inside a LXC of the specified version of CentOS.
+
+    version is major release number (6 or 7)
+
+    options:
+      -a | --artifact keep .rpm artifacts
+           --dirty    apply local changes before running tests.
+                      If not provided, a clean checkout of branch is tested.
+                      Inside container, changes are in local-changes.diff.
+      -k | --keep     keep container after tests
+      -r | --rpm      build .rpm
+      -s | --srpm     build .src.rpm
+      -u | --unittest run unit tests
+
+    Example:
+      * ${0##*/} --rpm --srpm --unittest 6
+EOF
+    deprecated
+EOF
+}
+
+bad_Usage() { Usage 1>&2; [ $# -eq 0 ] || error "$@"; return 1; }
+
+main() {
+    if [ "$1" = "-h" -o "$1" == "--help" ]; then
+        Usage 1>&2;
+        exit 0;
+    fi
+    local pt="" mydir=$(dirname "$0")
+    local run_container="$mydir/run-container"
+    if [ ! -x "$run_container" ]; then
+        bad_Usage "Could not find run-container."
+        return
+    fi
+    
+    pt=( "$run_container" )
+    while [ $# -ne 0 ]; do
+        cur="${1:-}"; next="${2:-}";
+        case "$cur" in
+            -r|--rpm) cur="--package";;
+            -s|--srpm) cur="--source-package";;
+            -a|--artifact) cur="--artifacts=.";;
+            6|7) cur="centos/$cur";;
+        esac
+        pt[${#pt[@]}]="$cur"
+        shift;
+    done
+    deprecated
+    exec "${pt[@]}"
+}
+
+main "$@"
+
+# vi: ts=4 expandtab

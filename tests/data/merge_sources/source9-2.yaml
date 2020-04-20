@@ -1,0 +1,6 @@
+#cloud-config
+
+phone_home:
+ url: $BLAH_BLAH
+
+merge_how: 'dict(recurse_str)+str(append)'

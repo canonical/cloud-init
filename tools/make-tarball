@@ -1,0 +1,80 @@
+#!/bin/sh
+set -e
+
+TEMP_D=""
+cleanup() {
+    [ -z "$TEMP_D" ] || rm -Rf "${TEMP_D}"
+}
+trap cleanup EXIT
+
+Usage() {
+    cat <<EOF
+Usage: ${0##*/} [revision]
+    create a tarball of revision (default HEAD)
+
+    options:
+      -h | --help		print usage
+      -o | --output FILE	write to file
+           --version VERSION	Set the version used in the tarball. Default value is determined with 'git describe'.
+           --orig-tarball	Write file cloud-init_<version>.orig.tar.gz
+           --long		Use git describe --long for versioning
+EOF
+}
+
+short_opts="ho:v"
+long_opts="help,output:,version:,orig-tarball,long"
+getopt_out=$(getopt --name "${0##*/}" \
+    --options "${short_opts}" --long "${long_opts}" -- "$@") &&
+    eval set -- "${getopt_out}" || { Usage 1>&2; exit 1; }
+
+long_opt=""
+orig_opt=""
+version=""
+while [ $# -ne 0 ]; do
+    cur=$1; next=$2
+    case "$cur" in
+        -h|--help) Usage; exit 0;;
+        -o|--output) output=$next; shift;;
+           --version) version=$next; shift;;
+           --long) long_opt="--long";;
+           --orig-tarball) orig_opt=".orig";;
+        --) shift; break;;
+    esac
+    shift;
+done
+
+rev=${1:-HEAD}
+if [ -z "$version" ]; then
+    version=$(git describe --abbrev=8 "--match=[0-9]*" ${long_opt} $rev)
+elif [ ! -z "$long_opt" ]; then
+    echo "WARNING: --long has no effect when --version is passed" >&2
+    exit 1
+fi
+
+archive_base="cloud-init-$version"
+if [ -z "$output" ]; then
+    if [ ! -z "$orig_opt" ]; then
+        archive_base="cloud-init_$version"
+    fi
+    output="$archive_base$orig_opt.tar.gz"
+fi
+
+# when building an archiving from HEAD, ensure that there aren't any
+# uncomitted changes in the working directory (because these would not
+# end up in the archive).
+if [ "$rev" = HEAD ] && ! git diff-index --quiet HEAD --; then
+    if [ -z "$SKIP_UNCOMITTED_CHANGES_CHECK" ]; then
+        echo "ERROR: There are uncommitted changes in your working directory." >&2
+        exit 1
+    else
+        echo "WARNING: There are uncommitted changes in your working directory." >&2
+        echo "         This changes will not be included in the archive." >&2
+    fi
+fi
+
+TEMP_D=$(mktemp -d)
+tar=${output##*/}
+tar="$TEMP_D/${tar%.gz}"
+git archive --format=tar --prefix="$archive_base/" "$rev" > "$tar"
+gzip -9 -c "$tar" > "$output"
+echo "$output"

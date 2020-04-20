@@ -1,0 +1,28 @@
+#!/bin/sh
+
+# PROVIDE: cloudinit
+# REQUIRE: FILESYSTEMS NETWORKING cloudinitlocal ldconfig devd
+# BEFORE:  cloudconfig cloudfinal
+
+. /etc/rc.subr
+
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+name="cloudinit"
+command="/usr/local/bin/cloud-init"
+start_cmd="cloudinit_start"
+stop_cmd=":"
+rcvar="cloudinit_enable"
+start_cmd="cloudinit_start"
+
+cloudinit_start()
+{
+	echo -n "${command} starting"
+	${command} init
+}
+
+load_rc_config $name
+
+: ${cloudinit_enable="NO"}
+
+run_rc_command "$1"

@@ -1,0 +1,23 @@
+#
+# LP Bug 1628337: cloud-init tries to install NTP before even configuring the archives
+#
+required_features:
+  - apt
+  - lsb_release
+cloud_config: |
+  #cloud-config
+  ntp:
+    servers: ['ntp.ubuntu.com']
+  apt:
+    primary:
+      - arches: [default]
+        uri: http://us.archive.ubuntu.com/ubuntu/
+collect_sciprts:
+  ntp.conf: |
+    #!/bin/bash
+    cat /etc/ntp.conf
+  sources.list: |
+    #!/bin/bash
+    cat /etc/apt/sources.list
+
+# vi: ts=4 expandtab

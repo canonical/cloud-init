@@ -1,0 +1,3 @@
+#cloud-config
+Blah:
+  b: 1

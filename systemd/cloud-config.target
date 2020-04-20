@@ -1,0 +1,11 @@
+# cloud-init normally emits a "cloud-config" upstart event to inform third
+# parties that cloud-config is available, which does us no good when we're
+# using systemd.  cloud-config.target serves as this synchronization point
+# instead.  Services that would "start on cloud-config" with upstart can
+# instead use "After=cloud-config.target" and "Wants=cloud-config.target"
+# as appropriate.
+
+[Unit]
+Description=Cloud-config availability
+Wants=cloud-init-local.service cloud-init.service
+After=cloud-init-local.service cloud-init.service

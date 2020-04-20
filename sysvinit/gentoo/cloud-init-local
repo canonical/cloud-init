@@ -1,0 +1,13 @@
+#!/sbin/openrc-run
+
+depend() {
+  after localmount
+  before net
+  before cloud-init
+  provide cloud-init-local
+}
+
+start() {
+  cloud-init init --local
+  eend 0
+}

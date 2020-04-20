@@ -1,0 +1,10 @@
+  pool: vmzroot
+ state: ONLINE
+  scan: none requested
+config:
+
+	NAME          STATE     READ WRITE CKSUM
+	vmzroot       ONLINE       0     0     0
+	  gpt/system  ONLINE       0     0     0
+
+errors: No known data errors

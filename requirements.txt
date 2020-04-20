@@ -1,0 +1,34 @@
+# Pypi requirements for cloud-init to work
+
+# Used for untemplating any files or strings with parameters.
+jinja2
+
+# This one is currently only used by the MAAS datasource. If that
+# datasource is removed, this is no longer needed
+oauthlib
+
+# This one is currently used only by the CloudSigma and SmartOS datasources.
+# If these datasources are removed, this is no longer needed.
+#
+# This will not work in py2.6 so it is only optionally installed on
+# python 2.7 and later.
+#
+# pyserial
+
+# This is only needed for places where we need to support configs in a manner
+# that the built-in config parser is not sufficent (ie
+# when we need to preserve comments, or do not have a top-level
+# section)...
+configobj>=5.0.2
+
+# All new style configurations are in the yaml format
+pyyaml
+
+# Requests handles ssl correctly!
+requests
+
+# For patching pieces of cloud-config together
+jsonpatch
+
+# For validating cloud-config sections per schema definitions
+jsonschema

@@ -1,0 +1,4 @@
+#cloud-config
+Blah: ['blah2']
+
+merge_how: 'dict(recurse_array,no_replace)+list(prepend)'

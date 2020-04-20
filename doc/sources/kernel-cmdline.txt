@@ -1,0 +1,48 @@
+In order to allow an ephemeral, or otherwise pristine image to
+receive some configuration, cloud-init will read a url directed by
+the kernel command line and proceed as if its data had previously existed.
+
+This allows for configuring a meta-data service, or some other data.
+
+Note, that usage of the kernel command line is somewhat of a last resort,
+as it requires knowing in advance the correct command line or modifying
+the boot loader to append data.
+
+For example, when 'cloud-init start' runs, it will check to
+see if if one of 'cloud-config-url' or 'url' appear in key/value fashion
+in the kernel command line as in:
+   root=/dev/sda ro url=http://foo.bar.zee/abcde
+
+Cloud-init will then read the contents of the given url. 
+If the content starts with '#cloud-config', it will store
+that data to the local filesystem in a static filename 
+'/etc/cloud/cloud.cfg.d/91_kernel_cmdline_url.cfg', and consider it as
+part of the config from that point forward.
+
+If that file exists already, it will not be overwritten, and the url parameters
+completely ignored.
+
+Then, when the DataSource runs, it will find that config already available.
+
+So, in able to configure the MAAS DataSource by controlling the kernel
+command line from outside the image, you can append:
+   url=http://your.url.here/abcdefg
+or
+   cloud-config-url=http://your.url.here/abcdefg
+
+Then, have the following content at that url:
+   #cloud-config
+   datasource:
+    MAAS:
+      metadata_url: http://mass-host.localdomain/source
+      consumer_key: Xh234sdkljf
+      token_key: kjfhgb3n
+      token_secret: 24uysdfx1w4
+
+Notes:
+ * Because 'url=' is so very generic, in order to avoid false positives,
+   cloud-init requires the content to start with '#cloud-config' in order
+   for it to be considered.
+ * The url= is un-authed http GET, and contains credentials
+   It could be set up to be randomly generated and also check source 
+   address in order to be more secure

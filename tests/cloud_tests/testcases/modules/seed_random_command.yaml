@@ -1,0 +1,18 @@
+#
+# Use uuid to create a random string
+#
+# 2016-11-15 Disabled as this is not working currently
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+  random_seed:
+    command: ["cat", "/proc/sys/kernel/random/uuid"]
+    command_required: true
+    file: /root/seed
+collect_scripts:
+  seed_data: |
+    #!/bin/bash
+    cat /root/seed
+
+# vi: ts=4 expandtab

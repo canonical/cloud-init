@@ -1,0 +1,18 @@
+#
+# Add security to sources.list
+#
+required_features:
+  - apt
+  - ubuntu_repos
+cloud_config: |
+  #cloud-config
+  apt:
+    security:
+      - arches:
+        - default
+collect_scripts:
+  sources.list: |
+    #!/bin/bash
+    grep -c security.ubuntu.com /etc/apt/sources.list
+
+# vi: ts=4 expandtab

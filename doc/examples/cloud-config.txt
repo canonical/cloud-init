@@ -1,0 +1,526 @@
+#cloud-config
+# Update apt database on first boot
+# (ie run apt-get update)
+#
+# Default: true
+# Aliases: apt_update
+package_update: false
+
+# Upgrade the instance on first boot
+# (ie run apt-get upgrade)
+#
+# Default: false
+# Aliases: apt_upgrade
+package_upgrade: true
+
+# Reboot after package install/update if necessary
+# Default: false
+# Aliases: apt_reboot_if_required
+package_reboot_if_required: true
+
+# For 'apt' specific config, see cloud-config-apt.txt
+packages:
+ - pwgen
+ - pastebinit
+
+# set up mount points
+# 'mounts' contains a list of lists
+#  the inner list are entries for an /etc/fstab line
+#  ie : [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]
+#
+# default:
+# mounts:
+#  - [ ephemeral0, /mnt ]
+#  - [ swap, none, swap, sw, 0, 0 ]
+#
+# in order to remove a previously listed mount (ie, one from defaults)
+# list only the fs_spec.  For example, to override the default, of
+# mounting swap:
+# - [ swap ]
+# or
+# - [ swap, null ]
+#
+# - if a device does not exist at the time, an entry will still be
+#   written to /etc/fstab.
+# - '/dev' can be ommitted for device names that begin with: xvd, sd, hd, vd
+# - if an entry does not have all 6 fields, they will be filled in
+#   with values from 'mount_default_fields' below.
+#
+# Note, that you should set 'nofail' (see man fstab) for volumes that may
+# not be attached at instance boot (or reboot)
+#
+mounts:
+ - [ ephemeral0, /mnt, auto, "defaults,noexec" ]
+ - [ sdc, /opt/data ]
+ - [ xvdh, /opt/data, "auto", "defaults,nofail", "0", "0" ]
+ - [ dd, /dev/zero ]
+
+# mount_default_fields
+# These values are used to fill in any entries in 'mounts' that are not
+# complete.  This must be an array, and must have 7 fields.
+mount_default_fields: [ None, None, "auto", "defaults,nofail", "0", "2" ]
+
+# add each entry to ~/.ssh/authorized_keys for the configured user or the
+# first user defined in the user definition directive.
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUUk8EEAnnkhXlukKoUPND/RRClWz2s5TCzIkd3Ou5+Cyz71X0XmazM3l5WgeErvtIwQMyT1KjNoMhoJMrJnWqQPOt5Q8zWd9qG7PBl9+eiH5qV7NZ mykey@host
+  - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw== smoser@brickies
+
+# Send pre-generated ssh private keys to the server
+# If these are present, they will be written to /etc/ssh and
+# new random keys will not be generated
+#  in addition to 'rsa' and 'dsa' as shown below, 'ecdsa' is also supported
+ssh_keys:
+  rsa_private: |
+    -----BEGIN RSA PRIVATE KEY-----
+    MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qcon2LZS/x
+    1cydPZ4pQpfjEha6WxZ6o8ci/Ea/w0n+0HGPwaxlEG2Z9inNtj3pgFrYcRztfECb
+    1j6HCibZbAzYtwIBIwJgO8h72WjcmvcpZ8OvHSvTwAguO2TkR6mPgHsgSaKy6GJo
+    PUJnaZRWuba/HX0KGyhz19nPzLpzG5f0fYahlMJAyc13FV7K6kMBPXTRR6FxgHEg
+    L0MPC7cdqAwOVNcPY6A7AjEA1bNaIjOzFN2sfZX0j7OMhQuc4zP7r80zaGc5oy6W
+    p58hRAncFKEvnEq2CeL3vtuZAjEAwNBHpbNsBYTRPCHM7rZuG/iBtwp8Rxhc9I5w
+    ixvzMgi+HpGLWzUIBS+P/XhekIjPAjA285rVmEP+DR255Ls65QbgYhJmTzIXQ2T9
+    luLvcmFBC6l35Uc4gTgg4ALsmXLn71MCMGMpSWspEvuGInayTCL+vEjmNBT+FAdO
+    W7D4zCpI43jRS9U06JVOeSc9CDk2lwiA3wIwCTB/6uc8Cq85D9YqpM10FuHjKpnP
+    REPPOyrAspdeOAV+6VKRavstea7+2DZmSUgE
+    -----END RSA PRIVATE KEY-----
+
+  rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7XdewmZ3h8eIXJD7TRHtVW7aJX1ByifYtlL/HVzJ09nilCl+MSFrpbFnqjxyL8Rr/DSf7QcY/BrGUQbZn2Kc22PemAWthxHO18QJvWPocKJtlsDNi3 smoser@localhost
+
+  dsa_private: |
+    -----BEGIN DSA PRIVATE KEY-----
+    MIIBuwIBAAKBgQDP2HLu7pTExL89USyM0264RCyWX/CMLmukxX0Jdbm29ax8FBJT
+    pLrO8TIXVY5rPAJm1dTHnpuyJhOvU9G7M8tPUABtzSJh4GVSHlwaCfycwcpLv9TX
+    DgWIpSj+6EiHCyaRlB1/CBp9RiaB+10QcFbm+lapuET+/Au6vSDp9IRtlQIVAIMR
+    8KucvUYbOEI+yv+5LW9u3z/BAoGBAI0q6JP+JvJmwZFaeCMMVxXUbqiSko/P1lsa
+    LNNBHZ5/8MOUIm8rB2FC6ziidfueJpqTMqeQmSAlEBCwnwreUnGfRrKoJpyPNENY
+    d15MG6N5J+z81sEcHFeprryZ+D3Ge9VjPq3Tf3NhKKwCDQ0240aPezbnjPeFm4mH
+    bYxxcZ9GAoGAXmLIFSQgiAPu459rCKxT46tHJtM0QfnNiEnQLbFluefZ/yiI4DI3
+    8UzTCOXLhUA7ybmZha+D/csj15Y9/BNFuO7unzVhikCQV9DTeXX46pG4s1o23JKC
+    /QaYWNMZ7kTRv+wWow9MhGiVdML4ZN4XnifuO5krqAybngIy66PMEoQCFEIsKKWv
+    99iziAH0KBMVbxy03Trz
+    -----END DSA PRIVATE KEY-----
+
+  dsa_public: ssh-dss AAAAB3NzaC1kc3MAAACBAM/Ycu7ulMTEvz1RLIzTbrhELJZf8Iwua6TFfQl1ubb1rHwUElOkus7xMhdVjms8AmbV1Meem7ImE69T0bszy09QAG3NImHgZVIeXBoJ/JzByku/1NcOBYilKP7oSIcLJpGUHX8IGn1GJoH7XRBwVub6Vqm4RP78C7q9IOn0hG2VAAAAFQCDEfCrnL1GGzhCPsr/uS1vbt8/wQAAAIEAjSrok/4m8mbBkVp4IwxXFdRuqJKSj8/WWxos00Ednn/ww5QibysHYULrOKJ1+54mmpMyp5CZICUQELCfCt5ScZ9GsqgmnI80Q1h3Xkwbo3kn7PzWwRwcV6muvJn4PcZ71WM+rdN/c2EorAINDTbjRo97NueM94WbiYdtjHFxn0YAAACAXmLIFSQgiAPu459rCKxT46tHJtM0QfnNiEnQLbFluefZ/yiI4DI38UzTCOXLhUA7ybmZha+D/csj15Y9/BNFuO7unzVhikCQV9DTeXX46pG4s1o23JKC/QaYWNMZ7kTRv+wWow9MhGiVdML4ZN4XnifuO5krqAybngIy66PMEoQ= smoser@localhost
+
+
+# remove access to the ec2 metadata service early in boot via null route
+#  the null route can be removed (by root) with:
+#    route del -host 169.254.169.254 reject
+# default: false (service available)
+disable_ec2_metadata: true
+
+# run commands
+# default: none
+# runcmd contains a list of either lists or a string
+# each item will be executed in order at rc.local like level with
+# output to the console
+# - if the item is a list, the items will be properly executed as if
+#   passed to execve(3) (with the first arg as the command).
+# - if the item is a string, it will be simply written to the file and
+#   will be interpreted by 'sh'
+#
+# Note, that the list has to be proper yaml, so you have to escape
+# any characters yaml would eat (':' can be problematic)
+runcmd:
+ - [ ls, -l, / ]
+ - [ sh, -xc, "echo $(date) ': hello world!'" ]
+ - [ sh, -c, echo "=========hello world'=========" ]
+ - ls -l /root
+ # Note: Don't write files to /tmp from cloud-init use /run/somedir instead.
+ # Early boot environments can race systemd-tmpfiles-clean LP: #1707222.
+ - mkdir /run/mydir
+ - [ wget, "http://slashdot.org", -O, /run/mydir/index.html ]
+
+
+# boot commands
+# default: none
+# this is very similar to runcmd above, but commands run very early
+# in the boot process, only slightly after a 'boothook' would run.
+# bootcmd should really only be used for things that could not be
+# done later in the boot process.  bootcmd is very much like
+# boothook, but possibly with more friendly.
+#  * bootcmd will run on every boot
+#  * the INSTANCE_ID variable will be set to the current instance id.
+#  * you can use 'cloud-init-per' command to help only run once
+bootcmd:
+ - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
+ - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
+
+# cloud_config_modules:
+# default:
+# cloud_config_modules:
+# - mounts
+# - ssh
+# - apt-update-upgrade
+# - puppet
+# - updates-check
+# - disable-ec2-metadata
+# - runcmd
+#
+# This is an array of arrays or strings.
+# if item is a string, then it is read as a module name
+# if the item is an array it is of the form:
+#   name, frequency, arguments
+# where 'frequency' is one of:
+#   once-per-instance
+#   always
+# a python file in the CloudConfig/ module directory named 
+# cc_<name>.py
+# example:
+cloud_config_modules:
+ - mounts
+ - ssh-import-id
+ - ssh
+ - grub-dpkg
+ - [ apt-update-upgrade, always ]
+ - puppet
+ - updates-check
+ - disable-ec2-metadata
+ - runcmd
+ - byobu
+
+# unverified_modules: []
+# if a config module declares a set of distros as supported then it will be
+# skipped if running on a different distro.  to override this sanity check,
+# provide a list of modules that should be run anyway in 'unverified_modules'.
+# The default is an empty list (ie, trust modules).
+#
+# Example:
+#   unverified_modules: ['apt-update-upgrade']
+#   default: []
+
+# ssh_import_id: [ user1, user2 ]
+# ssh_import_id will feed the list in that variable to
+#  ssh-import-id, so that public keys stored in launchpad
+#  can easily be imported into the configured user
+# This can be a single string ('smoser') or a list ([smoser, kirkland])
+ssh_import_id: [smoser]
+
+# Provide debconf answers / debian preseed values
+#
+# See debconf-set-selections man page.
+#
+# Default: none
+# 
+debconf_selections: |     # Need to preserve newlines
+        # Force debconf priority to critical.
+        debconf debconf/priority select critical
+
+        # Override default frontend to readline, but allow user to select.
+        debconf debconf/frontend select readline
+        debconf debconf/frontend seen false
+
+# manage byobu defaults
+# byobu_by_default:
+#   'user' or 'enable-user': set byobu 'launch-by-default' for the default user
+#   'system' or 'enable-system' or 'enable':
+#      enable 'launch-by-default' for all users, do not modify default user
+#   'disable': disable both default user and system
+#   'disable-system': disable system
+#   'disable-user': disable for default user
+#   not-set: no changes made
+byobu_by_default: system
+
+# disable ssh access as root.
+# if you want to be able to ssh in to the system as the root user
+# rather than as the 'ubuntu' user, then you must set this to false
+# default: true
+disable_root: false
+
+# disable_root_opts: the value of this variable will prefix the
+# respective key in /root/.ssh/authorized_keys if disable_root is true
+# see 'man authorized_keys' for more information on what you can do here
+#
+# The string '$USER' will be replaced with the username of the default user.
+# The string '$DISABLE_USER' will be replaced with the username to disable.
+#
+# disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"$USER\" rather than the user \"$DISABLE_USER\".';echo;sleep 10"
+
+# disable ssh access for non-root-users
+# To disable ssh access for non-root users, ssh_redirect_user: true can be
+# provided for any use in the 'users' list. This will prompt any ssh login
+# attempts as that user with a message like that in disable_root_opts which
+# redirects the person to login as <default_username>
+# This option can not be combined with either ssh_authorized_keys or
+# ssh_import_id.
+users:
+ - default
+ - name: blockeduser
+   ssh_redirect_user: true
+
+
+# set the locale to a given locale
+# default: en_US.UTF-8
+locale: en_US.UTF-8
+# render template default-locale.tmpl to locale_configfile
+locale_configfile: /etc/default/locale
+
+# add entries to rsyslog configuration
+# The first occurance of a given filename will truncate. 
+# subsequent entries will append.
+# if value is a scalar, its content is assumed to be 'content', and the
+# default filename is used.
+# if filename is not provided, it will default to 'rsylog_filename'
+# if filename does not start with a '/', it will be put in 'rsyslog_dir'
+# rsyslog_dir default: /etc/rsyslog.d
+# rsyslog_filename default: 20-cloud-config.conf
+rsyslog:
+ - ':syslogtag, isequal, "[CLOUDINIT]" /var/log/cloud-foo.log'
+ - content: "*.*   @@192.0.2.1:10514"
+ - filename: 01-examplecom.conf
+   content: "*.*   @@syslogd.example.com"
+
+# resize_rootfs should the / filesytem be resized on first boot
+# this allows you to launch an instance with a larger disk / partition
+# and have the instance automatically grow / to accomoddate it
+# set to 'False' to disable
+# by default, the resizefs is done early in boot, and blocks
+# if resize_rootfs is set to 'noblock', then it will be run in parallel
+resize_rootfs: True
+
+## hostname and /etc/hosts management
+# cloud-init can handle updating some entries in /etc/hosts,
+# and can set your hostname for you.
+#
+# if you do nothing you'll end up with:
+#  * /etc/hostname (and `hostname`) managed via: 'preserve_hostame: false'
+#    if you do not change /etc/hostname, it will be updated with the cloud
+#    provided hostname on each boot.  If you make a change, then manual
+#    maintenance takes over, and cloud-init will not modify it.
+#
+#  * /etc/hosts managed via: 'manage_etc_hosts: false'
+#    cloud-init will not manage /etc/hosts at all.  It is in full manual
+#    maintenance mode.
+#
+# You can change the above behavior with the following config variables:
+#  Remember that these can be set in cloud-config via user-data,
+#  /etc/cloud/cloud.cfg or any file in /etc/cloud/cloud.cfg.d/
+#
+# == Hostname management (via /etc/hostname) ==
+#  * preserve_hostname:
+#      default: False
+#      If this option is set to True, then /etc/hostname will never updated
+#      The default behavior is to update it if it has not been modified by
+#      the user.
+#
+#  * hostname:
+#      this option will be used wherever the 'hostname' is needed
+#      simply substitute it in the description above.
+#      ** If you wish to set your hostname, set it here **
+#      default: 'hostname' as returned by the metadata service
+#               on EC2, the hostname portion of 'local-hostname' is used
+#               which is something like 'ip-10-244-170-199'
+#
+#  * fqdn:
+#      this option will be used wherever 'fqdn' is needed.
+#      simply substitue it in the description above.
+#      default: fqdn as returned by the metadata service.  on EC2 'hostname'
+#               is used, so this is like: ip-10-244-170-199.ec2.internal
+#
+# == /etc/hosts management ==
+#
+# The cloud-config variable that covers management of /etc/hosts is 
+# 'manage_etc_hosts'
+#
+# By default, its value is 'false' (boolean False)
+#
+#  * manage_etc_hosts:
+#      default: false
+#
+#    false:
+#      cloud-init will not modify /etc/hosts at all.  
+#      * Whatever is present at instance boot time will be present after boot.
+#      * User changes will not be overwritten
+#
+#    true or 'template':
+#      on every boot, /etc/hosts will be re-written from 
+#      /etc/cloud/templates/hosts.tmpl.
+#      The strings '$hostname' and '$fqdn' are replaced in the template
+#      with the appropriate values.
+#      To make modifications persistant across a reboot, you must make 
+#      modificatoins to /etc/cloud/templates/hosts.tmpl
+#
+#    localhost:
+#      This option ensures that an entry is present for fqdn as described in
+#      section 5.1.2 of the debian manual 
+#      http://www.debian.org/doc/manuals/debian-reference/ch05.en.html
+#
+#      cloud-init will generally own the 127.0.1.1 entry, and will update 
+#      it to the hostname and fqdn on every boot.  All other entries will
+#      be left as is.  'ping `hostname`' will ping 127.0.1.1
+#
+#      If you want a fqdn entry with aliases other than 'hostname' to resolve
+#      to a localhost interface, you'll need to use something other than 
+#      127.0.1.1.  For example:
+#        127.0.1.2 myhost.fqdn.example.com myhost whatup.example.com
+
+# final_message
+# default: cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds
+# this message is written by cloud-final when the system is finished
+# its first boot.
+# This message is rendered as if it were a template.  If you
+# want jinja, you have to start the line with '## template:jinja\n'
+final_message: "The system is finally up, after $UPTIME seconds"
+
+# configure where output will go
+# 'output' entry is a dict with 'init', 'config', 'final' or 'all'
+# entries.  Each one defines where 
+#  cloud-init, cloud-config, cloud-config-final or all output will go
+# each entry in the dict can be a string, list or dict.
+#  if it is a string, it refers to stdout and stderr
+#  if it is a list, entry 0 is stdout, entry 1 is stderr
+#  if it is a dict, it is expected to have 'output' and 'error' fields
+# default is to write to console only
+# the special entry "&1" for an error means "same location as stdout"
+#  (Note, that '&1' has meaning in yaml, so it must be quoted)
+output:
+ init: "> /var/log/my-cloud-init.log"
+ config: [ ">> /tmp/foo.out", "> /tmp/foo.err" ]
+ final:
+   output: "| tee /tmp/final.stdout | tee /tmp/bar.stdout"
+   error: "&1"
+
+
+# phone_home: if this dictionary is present, then the phone_home
+# cloud-config module will post specified data back to the given
+# url
+# default: none
+# phone_home:
+#  url: http://my.foo.bar/$INSTANCE/
+#  post: all
+#  tries: 10
+#
+phone_home:
+ url: http://my.example.com/$INSTANCE_ID/
+ post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id ]
+
+# timezone: set the timezone for this instance
+# the value of 'timezone' must exist in /usr/share/zoneinfo
+timezone: US/Eastern
+
+# def_log_file and syslog_fix_perms work together
+# if 
+# - logging is set to go to a log file 'L' both with and without syslog
+# - and 'L' does not exist
+# - and syslog is configured to write to 'L'
+# then 'L' will be initially created with root:root ownership (during
+# cloud-init), and then at cloud-config time (when syslog is available)
+# the syslog daemon will be unable to write to the file.
+# 
+# to remedy this situation, 'def_log_file' can be set to a filename
+# and syslog_fix_perms to a string containing "<user>:<group>"
+# if syslog_fix_perms is a list, it will iterate through and use the
+# first pair that does not raise error.
+#
+# the default values are '/var/log/cloud-init.log' and 'syslog:adm'
+# the value of 'def_log_file' should match what is configured in logging
+# if either is empty, then no change of ownership will be done
+def_log_file: /var/log/my-logging-file.log
+syslog_fix_perms: syslog:root
+
+# you can set passwords for a user or multiple users
+# this is off by default.
+# to set the default user's password, use the 'password' option.
+# if set, to 'R' or 'RANDOM', then a random password will be
+# generated and written to stdout (the console)
+# password: passw0rd
+#
+# also note, that this will expire the password, forcing a change
+# on first login. If you do not want to expire, see 'chpasswd' below.
+#
+# By default in the UEC images password authentication is disabled
+# Thus, simply setting 'password' as above will only allow you to login
+# via the console.
+#
+# in order to enable password login via ssh you must set
+# 'ssh_pwauth'.
+# If it is set, to 'True' or 'False', then sshd_config will be updated
+# to ensure the desired function.  If not set, or set to '' or 'unchanged'
+# then sshd_config will not be updated.
+# ssh_pwauth: True
+#
+# there is also an option to set multiple users passwords, using 'chpasswd'
+# That looks like the following, with 'expire' set to 'True' by default.
+# to not expire users passwords, set 'expire' to 'False'. Also possible
+# to set hashed password, here account 'user3' has a password it set to
+# 'cloud-init', hashed with SHA-256:
+# chpasswd:
+#  list: |
+#    user1:password1
+#    user2:RANDOM
+#    user3:$5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
+#  expire: True
+# ssh_pwauth: [ True, False, "" or "unchanged" ]
+#
+# Hashed passwords can be generated in multiple ways, example with python3:
+# python3 -c 'import crypt,getpass; print(crypt.crypt(getpass.getpass(), crypt.mksalt(crypt.METHOD_SHA512)))'
+# Newer versions of 'mkpasswd' will also work: mkpasswd -m sha-512 password
+#
+# So, a simple working example to allow login via ssh, and not expire
+# for the default user would look like:
+password: passw0rd
+chpasswd: { expire: False }
+ssh_pwauth: True
+
+# manual cache clean.
+#  By default, the link from /var/lib/cloud/instance to
+#  the specific instance in /var/lib/cloud/instances/ is removed on every
+#  boot.  The cloud-init code then searches for a DataSource on every boot
+#  if your DataSource will not be present on every boot, then you can set
+#  this option to 'True', and maintain (remove) that link before the image
+#  will be booted as a new instance.
+# default is False
+manual_cache_clean: False
+
+# When cloud-init is finished running including having run 
+# cloud_init_modules, then it will run this command.  The default
+# is to emit an upstart signal as shown below.  If the value is a
+# list, it will be passed to Popen.  If it is a string, it will be
+# invoked through 'sh -c'.
+# 
+# default value:
+# cc_ready_cmd: [ initctl, emit, cloud-config, CLOUD_CFG=/var/lib/instance//cloud-config.txt ]
+# example:
+# cc_ready_cmd: [ sh, -c, 'echo HI MOM > /tmp/file' ]
+
+## configure interaction with ssh server
+# ssh_svcname: ssh
+#    set the name of the option to 'service restart'
+#    in order to restart the ssh daemon. For fedora, use 'sshd'
+#    default: ssh
+# ssh_deletekeys: True
+#    boolean indicating if existing ssh keys should be deleted on a
+#    per-instance basis.  On a public image, this should absolutely be set
+#    to 'True'
+# ssh_genkeytypes: ['rsa', 'dsa', 'ecdsa']
+#    a list of the ssh key types that should be generated
+#    These are passed to 'ssh-keygen -t'
+
+## configuration of ssh keys output to console
+# ssh_fp_console_blacklist: []
+# ssh_key_console_blacklist: [ssh-dss]
+#   A list of key types (first token of a /etc/ssh/ssh_key_*.pub file)
+#   that should be skipped when outputting key fingerprints and keys
+#   to the console respectively.
+
+## poweroff or reboot system after finished
+# default: none
+#
+# power_state can be used to make the system shutdown, reboot or
+# halt after boot is finished.  This same thing can be acheived by
+# user-data scripts or by runcmd by simply invoking 'shutdown'.
+# 
+# Doing it this way ensures that cloud-init is entirely finished with
+# modules that would be executed, and avoids any error/log messages
+# that may go to the console as a result of system services like
+# syslog being taken down while cloud-init is running.
+#
+# delay: form accepted by shutdown.  default is 'now'. other format
+#        accepted is +m (m in minutes)
+# mode: required. must be one of 'poweroff', 'halt', 'reboot'
+# message: provided as the message argument to 'shutdown'. default is none.
+power_state:
+ delay: 30
+ mode: poweroff
+ message: Bye Bye

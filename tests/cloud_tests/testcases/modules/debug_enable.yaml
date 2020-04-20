@@ -1,0 +1,9 @@
+#
+# Run in debug mode
+#
+cloud_config: |
+  #cloud-config
+  debug:
+    verbose: True
+
+# vi: ts=4 expandtab

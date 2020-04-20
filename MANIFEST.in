@@ -1,0 +1,20 @@
+include *.py MANIFEST.in LICENSE* ChangeLog
+global-include *.txt *.rst *.ini *.in *.conf *.cfg *.sh
+graft bash_completion
+graft config
+graft doc
+graft packages
+graft systemd
+graft sysvinit
+graft templates
+graft tests
+graft tools
+graft udev
+graft upstart
+prune build
+prune dist
+prune .tox
+prune .git
+prune .bzr
+exclude .gitignore
+exclude .bzrignore

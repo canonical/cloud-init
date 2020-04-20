@@ -1,0 +1,7 @@
+#cloud-config
+password: passw0rd
+chpasswd: { expire: False }
+ssh_pwauth: True
+
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDVmr/XVGTL+4d1sol7CYS0MAEahKMgXKOhjThPl0VhQ3CLQHoqbtvzliWqaL/UqZHhm+L752PXRee6yhav9mu6/zmEeKUxn0ajMvZEPqNT8Joj6sFCQpJpH8J2YQcFtGKarpPYT1yEyEljSM3N57ElIpVHdB4t1tFnrgftAZMentSWh269L1XABZylhsaBwznjV9ugUCIk4sgIzVQ8fjHlYOROr/rJ4SVKZ6ITaUe0RIeHIwk5IMHdhnmHDX7htjexH7S9ndVBbOmfUvCDVfcBkDzJ/5myYxkeFMV4KCWx3yOUseRa52HmYkGQK7A+9FCTWATmBKdMa2LRNSosis1H ubuntu@ovfdemo

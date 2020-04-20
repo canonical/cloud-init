@@ -1,0 +1,20 @@
+#!/bin/sh
+# vi: ts=4 expandtab
+
+cleanup_lp1552999() {
+    local oldver="$1" last_bad_ver="0.7.7~bzr1178"
+    dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
+    local hdir="/var/lib/systemd/deb-systemd-helper-enabled"
+    hdir="$hdir/multi-user.target.wants" 
+    local edir="/etc/systemd/system/multi-user.target.wants"
+    rm -f "$hdir/cloud-config.service" "$hdir/cloud-final.service" \
+        "$hdir/cloud-init-local.service" "$hdir/cloud-init.service"
+}
+
+
+if [ "$1" = "upgrade" ]; then
+   oldver="$2"
+   cleanup_lp1552999 "$oldver"
+fi
+
+#DEBHELPER#

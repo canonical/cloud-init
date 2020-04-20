@@ -1,0 +1,5 @@
+var/lib/cloud
+usr/bin
+usr/share/doc/cloud
+etc/cloud
+lib/udev/rules.d

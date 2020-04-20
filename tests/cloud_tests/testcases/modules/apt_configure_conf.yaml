@@ -1,0 +1,21 @@
+#
+# Provide a configuration for APT
+#
+required_features:
+  - apt
+cloud_config: |
+  #cloud-config
+  apt:
+    conf: |
+      APT {
+          Get {
+              Assume-Yes "true";
+              Fix-Broken "true";
+          }
+      }
+collect_scripts:
+  94cloud-init-config: |
+    #!/bin/bash
+    cat /etc/apt/apt.conf.d/94cloud-init-config
+
+# vi: ts=4 expandtab

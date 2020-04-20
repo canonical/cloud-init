@@ -1,0 +1,13 @@
+#
+# Test functionality of simple output redirection
+#
+cloud_config: |
+    #cloud-config
+    output: { all: "| tee -a /var/log/cloud-init-test-output" }
+    final_message: "should be last line in cloud-init-test-output file"
+collect_scripts:
+    cloud-init-test-output: |
+        #!/bin/bash
+        cat /var/log/cloud-init-test-output
+
+# vi: ts=4 expandtab

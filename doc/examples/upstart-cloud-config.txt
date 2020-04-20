@@ -1,0 +1,12 @@
+#upstart-job
+description "My test job"
+
+start on cloud-config
+console output
+task
+
+script
+echo "====BEGIN======="
+echo "HELLO WORLD: $UPSTART_JOB"
+echo "=====END========"
+end script

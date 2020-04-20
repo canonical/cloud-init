@@ -1,0 +1,49 @@
+#cloud-config
+#apt_update: false
+#apt_upgrade: true
+packages: [ bzr, pastebinit, ubuntu-dev-tools, ccache, bzr-builddeb, vim-nox, git-core, lftp ]
+
+#disable_root: False
+
+# mounts:
+#  - [ ephemeral0, /mnt ]
+#  - [ swap, none, swap, sw, 0, 0 ]
+
+ssh_import_id: [smoser ]
+
+#!/bin/sh
+
+output: {all: '| tee -a /var/log/cloud-init-output.log'}
+
+sm_misc:
+ - &user_setup |
+   set -x; exec > ~/user_setup.log 2>&1
+   echo "starting at $(date -R)"
+   echo "set -o vi" >> ~/.bashrc
+   cat >> ~/.profile <<"EOF"
+   export EDITOR=vi
+   export DEB_BUILD_OPTIONS=parallel=4
+   export PATH=/usr/lib/ccache:$PATH
+   EOF
+
+   mkdir ~/bin
+   chmod 755 ~/bin
+   cat > ~/bin/mdebuild <<"EOF"
+   #!/bin/sh
+   exec debuild --prepend-path /usr/lib/ccache "$@"
+   EOF
+   chmod 755 ~/bin/*
+
+   #byobu-launcher-install
+   byobu-ctrl-a screen 2>&1 || :
+
+   echo "pinging 8.8.8.8"
+   ping -c 4 8.8.8.8
+
+runcmd:
+ - [ sudo, -Hu, ubuntu, sh, -c, '[ -e /var/log/cloud-init.log ] || exit 0; grep "cloud-init.*running" /var/log/cloud-init.log > ~/runcmd.log' ]
+ - [ sudo, -Hu, ubuntu, sh, -c, 'read up sleep < /proc/uptime; echo $(date): runcmd up at $up | tee -a ~/runcmd.log' ]
+ - [ sudo, -Hu, ubuntu, sh, -c, *user_setup ]
+ 
+
+byobu_by_default: user

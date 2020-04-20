@@ -1,0 +1,13 @@
+Kernel IPv6 routing table
+Destination                     Next Hop                   Flag Met Re  Use If
+2a00:abcd:82ae:cd33::657/128    ::                         Ue   256 1     0 enp0s25
+2a00:abcd:82ae:cd33::/64        ::                         U    100 1     0 enp0s25
+2a00:abcd:82ae:cd33::/56        fe80::32ee:54de:cd43:b4e1  UG   100 1     0 enp0s25
+fd81:123f:654::657/128          ::                         U    256 1     0 enp0s25
+fd81:123f:654::/64              ::                         U    100 1     0 enp0s25
+fd81:123f:654::/48              fe80::32ee:54de:cd43:b4e1  UG   100 1     0 enp0s25
+fe80::abcd:ef12:bc34:da21/128   ::                         U    100 1     2 enp0s25
+fe80::/64                       ::                         U    256 1 16880 enp0s25
+::/0                            fe80::32ee:54de:cd43:b4e1  UG   100 1     0 enp0s25
+::/0                            ::                         !n   -1  1424956 lo
+::1/128                         ::                         Un   0   4 26289 lo

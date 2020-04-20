@@ -1,0 +1,29 @@
+#
+# Add a PPA to source.list
+#
+# NOTE: on older ubuntu releases the sources file added is named
+#       'cloud-init-dev-test-archive-trusty', without 'ubuntu' in the middle
+required_features:
+  - apt
+  - ppa
+  - ppa_file_name
+cloud_config: |
+  #cloud-config
+  apt:
+    sources:
+      source1:
+        keyid: 0165013E
+        keyserver: keyserver.ubuntu.com
+        source: "ppa:cloud-init-dev/test-archive"
+collect_scripts:
+  sources.list: |
+    #!/bin/bash
+    cat /etc/apt/sources.list.d/cloud-init-dev-ubuntu-test-archive-*.list
+  apt-key: |
+    #!/bin/bash
+    apt-key finger
+  sources_full: |
+    #!/bin/bash
+    cat /etc/apt/sources.list
+
+# vi: ts=4 expandtab

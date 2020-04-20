@@ -1,0 +1,30 @@
+## template:jinja
+## Note, this file is written by cloud-init on first boot of an instance
+## modifications made here will not survive a re-bundle.
+## if you wish to make changes you can:
+## a.) add 'apt_preserve_sources_list: true' to /etc/cloud/cloud.cfg
+##     or do the same in user-data
+## b.) add sources in /etc/apt/sources.list.d
+## c.) make changes to template file /etc/cloud/templates/sources.list.debian.tmpl
+###
+
+# See http://www.debian.org/releases/stable/i386/release-notes/ch-upgrading.html
+# for how to upgrade to newer versions of the distribution.
+deb {{mirror}} {{codename}} main
+deb-src {{mirror}} {{codename}} main
+
+## Major bug fix updates produced after the final release of the
+## distribution.
+deb {{security}} {{codename}}/updates main
+deb-src {{security}} {{codename}}/updates main
+deb {{mirror}} {{codename}}-updates main
+deb-src {{mirror}} {{codename}}-updates main
+
+## Uncomment the following two lines to add software from the 'backports'
+## repository.
+## 
+## N.B. software from this repository may not have been tested as
+## extensively as that contained in the main release, although it includes
+## newer versions of some applications which may provide useful features.
+deb {{mirror}} {{codename}}-backports main
+deb-src {{mirror}} {{codename}}-backports main

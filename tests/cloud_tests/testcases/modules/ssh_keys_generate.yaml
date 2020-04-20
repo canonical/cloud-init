@@ -1,0 +1,38 @@
+#
+# SSH keys generated using cloud-init
+#
+required_features:
+  - ubuntu_user
+cloud_config: |
+  #cloud-config
+  ssh_genkeytypes:
+  - ecdsa
+  - ed25519
+  authkey_hash: sha512
+collect_scripts:
+  dsa_public: |
+    #!/bin/bash
+    cat /etc/ssh/ssh_host_dsa_key.pub
+  dsa_private: |
+    #!/bin/bash
+    cat /etc/ssh/ssh_host_dsa_key
+  rsa_public: |
+    #!/bin/bash
+    cat /etc/ssh/ssh_host_rsa_key.pub
+  rsa_private: |
+    #!/bin/bash
+    cat /etc/ssh/ssh_host_rsa_key
+  ecdsa_public: |
+    #!/bin/bash
+    cat /etc/ssh/ssh_host_ecdsa_key.pub
+  ecdsa_private: |
+    #!/bin/bash
+    cat /etc/ssh/ssh_host_ecdsa_key
+  ed25519_public: |
+    #!/bin/bash
+    cat /etc/ssh/ssh_host_ed25519_key.pub
+  ed25519_private: |
+    #!/bin/bash
+    cat /etc/ssh/ssh_host_ed25519_key
+
+# vi: ts=4 expandtab

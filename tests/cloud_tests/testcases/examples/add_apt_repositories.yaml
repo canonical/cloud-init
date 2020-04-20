@@ -1,0 +1,23 @@
+#
+# From cloud config examples on cloudinit.readthedocs.io
+#
+# 2016-11-17: Disabled as covered by module based tests
+#
+enabled: False
+required_features:
+  - apt
+cloud_config: |
+  #cloud-config
+  apt:
+    primary:
+      - arches: [default]
+        uri: "http://www.gtlib.gatech.edu/pub/ubuntu-releases/"
+collect_scripts:
+  ubuntu.sources.list: |
+    #!/bin/bash
+    cat /etc/apt/sources.list | grep -v '^#' | sed '/^\s*$/d' | grep archive.ubuntu.com | wc -l
+  gatech.sources.list: |
+    #!/bin/bash
+    cat /etc/apt/sources.list | grep -v '^#' | sed '/^\s*$/d' | grep gtlib.gatech.edu | wc -l
+
+# vi: ts=4 expandtab

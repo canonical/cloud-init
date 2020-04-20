@@ -1,0 +1,38 @@
+## template:jinja
+# Your system has been configured with 'manage-resolv-conf' set to true.
+# As a result, cloud-init has written this file with configuration data
+# that it has been provided. Cloud-init, by default, will write this file
+# a single time (PER_ONCE).
+#
+{% if nameservers is defined %}
+{% for server in nameservers %}
+nameserver {{server}}
+{% endfor %}
+
+{% endif -%}
+{% if searchdomains is defined %}
+search {% for search in searchdomains %}{{search}} {% endfor %}
+
+{% endif %}
+{% if domain is defined %}
+domain {{domain}}
+{% endif %}
+{% if sortlist is defined %}
+
+sortlist {% for sort in sortlist %}{{sort}} {% endfor %}
+{% endif %}
+{#
+    Flags and options are required to be on the 
+    same line preceded by "options" keyword
+#}
+{% if options or flags %}
+
+options
+{%- for flag in flags %}
+ {{flag-}}
+{% endfor %}
+
+{%- for key, value in options.items()|sort %}
+ {{key}}:{{value-}}
+{% endfor %}
+{% endif %}

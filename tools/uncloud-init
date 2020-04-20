@@ -1,0 +1,142 @@
+#!/bin/sh
+# This file is part of cloud-init. See LICENSE file for license information.
+
+# This script is meant to "kvmify" an image.  Its not meant to be
+# terribly robust, or a good idea to ever run in a "real image".
+# its' only intended method of invocation is from the kernel as 'init'
+# in which case it will then invoke /sbin/init after it is done
+#  init=/path/to/kvmify-init
+
+KEY="xupdate"
+UMOUNT=""
+RMDIR=""
+MARK=/var/lib/cloud/sem/uncloud-init.once
+ROOT_RW=""
+
+doexec() {
+	if [ -n "$ROOT_RW" ]; then
+		mkdir -p "${MARK%/*}";
+		date > "${MARK}";
+	fi
+	cleanup;
+	log "invoking /sbin/init $*"
+	exec /sbin/init "$@";
+}
+log() { echo "::${0##*/}:" "$@"; }
+cleanup() {
+	[ -z "${UMOUNT}" ] || { umount "${UMOUNT}" && unset UMOUNT; }
+	[ -z "${RMDIR}" ] || { rm -Rf "${RMDIR}" && unset RMDIR; }
+	[ -z "${ROOT_RW}" ] || { mount -o remount,ro / ; unset ROOT_RW; }
+}
+
+updateFrom() {
+	local dev=$1 fmt=$2
+	local mp="";
+
+	[ "${fmt}" = "tar" -o "${fmt}" = "mnt" ] ||
+		{ log FAIL "unknown format ${fmt}"; return 1; }
+
+	log INFO "updating from ${dev} format ${fmt}"
+		[ ! -e "${dev}" -a -e "/dev/${dev}" ] && dev="/dev/${dev}"
+	[ -e "${dev}" ] || { echo "no file $dev"; return 2; }
+
+	mp=$(mktemp -d "${TEMPDIR:-/tmp}/update.XXXXXX") && 
+		RMDIR="${mp}" ||
+		{ log FAIL "failed to mktemp"; return 1; }
+
+	if [ "$fmt" = "tar" ]; then
+		dd "if=${dev}" | ( tar -C "${mp}" -xf - ) ||
+			{ log FAIL "failed to extract ${dev}"; return 1; }
+	elif [ "$fmt" = "mnt" ]; then
+		mount -o ro "${dev}" "${mp}" && UMOUNT=${mp} ||
+			{ log FAIL "failed mount ${mp}"; return 1; }
+	else
+		log FAIL "unknown format ${fmt}"; return 1;
+	fi
+
+	if [ -d "${mp}/updates" ]; then
+		rsync -av "${mp}/updates/" "/" ||
+			{ log FAIL "failed rsync updates/ /"; return 1; }
+	fi
+	if [ -f "${mp}/updates.tar" ]; then
+		tar -C / -xvf "${mp}/updates.tar" ||
+			{ log FAIL "failed tar -C / -xvf ${mp}/updates.tar"; return 1; }
+	fi
+	script="${mp}/updates.script"
+	if [ -f "${script}" -a -x "${script}" ]; then
+		MP_DIR=${mp} "${mp}/updates.script" ||
+			{ log FAIL "failed to run updates.script"; return 1; }
+	fi
+}
+
+fail() { { [ $# -eq 0 ] && log "FAILING" ; } || log "$@"; exit 1; }
+
+[ -s "$MARK" ] && { log "already updated" ; doexec "$@"; }
+
+mount -o remount,rw / || fail "failed to mount rw"
+ROOT_RW=1
+
+if [ ! -e /proc/cmdline ]; then
+	mount -t proc /proc /proc
+	read cmdline < /proc/cmdline
+	umount /proc
+else
+	read cmdline < /proc/cmdline
+fi
+
+ubuntu_pass=""
+
+for x in ${cmdline}; do
+	case "$x" in
+		${KEY}=*)
+			val=${x#${KEY}=}
+			dev=${val%:*}
+			[ "${dev}" = "${val}" ] && fmt="" || fmt=${val#${dev}:}
+			log "update from ${dev},${fmt}"
+			updateFrom "${dev}" "${fmt}" || fail "update failed"
+			log "end update  ${dev},${fmt}"
+			;;
+		ubuntu-pass=*|ubuntu_pass=*) ubuntu_pass=${x#*=};;
+		helpmount) helpmount=1;;
+		root=*) rootspec=${x#root=};;
+	esac
+done
+
+if [ "${ubuntu_pass}" = "R" -o "${ubuntu_pass}" = "random" ]; then
+	ubuntu_pass=$(python -c 'import string, random;
+random.seed(); print "".join(random.sample(string.letters+string.digits, 8))')
+	log "settting ubuntu pass = ${ubuntu_pass}" 
+	printf "\n===\nubuntu_pass = %s\n===\n" "${ubuntu_pass}" >/dev/ttyS0
+fi
+
+[ -z "${ubuntu_pass}" ] ||
+	printf "ubuntu:%s\n" "${ubuntu_pass}" > /root/ubuntu-user-pass
+
+if [ -e /root/ubuntu-user-pass ]; then
+	log "changing ubuntu user's password!"
+	chpasswd < /root/ubuntu-user-pass ||
+	log "FAIL: failed changing pass"
+fi
+
+cp /etc/init/tty2.conf /etc/init/ttyS0.conf &&
+	sed -i s,tty2,ttyS0,g /etc/init/ttyS0.conf 2>/dev/null &&
+	log "enabled console on ttyS0"
+
+pa=PasswordAuthentication
+sed -i "s,${pa} no,${pa} yes," /etc/ssh/sshd_config 2>/dev/null &&
+	log "enabled passwd auth in ssh" ||
+	log "failed to enable passwd ssh"
+
+grep -q vga16fb /etc/modprobe.d/blacklist.conf || {
+	echo "blacklist vga16fb" >> /etc/modprobe.d/blacklist.conf &&
+	log "blacklisted vga16fb"
+}
+
+#lstr="${rootspec}"
+#if ! grep -q "^${lstr}[[:space:]]" /etc/fstab; then
+#	log "changing / in /etc/ftab to agree with cmdline (${lstr}) (bug 509841)"
+#	sed -i "s,^\([^[[:space:]#]\+\)\([[:space:]]\+\)/\([[:space:]]\+\),${lstr}\2/\3," /etc/fstab
+#fi
+
+doexec "$@"
+# vi: ts=4 noexpandtab

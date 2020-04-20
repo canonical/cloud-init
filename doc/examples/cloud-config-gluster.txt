@@ -1,0 +1,18 @@
+#cloud-config
+# vim: syntax=yaml
+# Mounts volfile exported by glusterfsd running on
+# "volfile-server-hostname" onto the local mount point '/mnt/data'
+#
+# In reality, replace 'volfile-server-hostname' with one of your nodes
+# running glusterfsd.
+#
+packages:
+ - glusterfs-client
+
+mounts:
+ - [ 'volfile-server-hostname:6996', /mnt/data, glusterfs, "defaults,nofail", "0", "2" ]
+
+runcmd:
+ - [ modprobe, fuse ]
+ - [ mkdir, '-p', /mnt/data ]
+ - [ mount, '-a' ]

@@ -1,0 +1,39 @@
+From nobody Fri Aug 31 17:43:04 2012
+Content-Type: multipart/mixed; boundary="===============1668325974=="
+MIME-Version: 1.0
+
+--===============1668325974==
+Content-Type: text/cloud-config; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+
+
+#cloud-config
+b: c
+launch-index: 2
+
+
+--===============1668325974==
+Content-Type: text/plain; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+
+
+#cloud-config-archive
+-   content: The quick brown fox jumps over the lazy dog
+    filename: b3.txt
+    launch-index: 3
+    type: plain/text
+
+--===============1668325974==
+Content-Type: text/plain; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+
+
+#cloud-config
+b: c
+launch-index: 2
+
+
+--===============1668325974==--

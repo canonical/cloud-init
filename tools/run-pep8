@@ -1,0 +1,21 @@
+#!/bin/bash
+
+pycheck_dirs=( "cloudinit/" "tests/" "tools/" )
+
+CR="
+"
+[ "$1" = "-v" ] && { verbose="$1"; shift; } || verbose=""
+
+set -f
+if [ $# -eq 0 ]; then unset IFS
+   IFS="$CR"
+   files=( "${bin_files[@]}" "${pycheck_dirs[@]}" )
+   unset IFS
+else
+   files=( "$@" )
+fi
+
+myname=${0##*/}
+cmd=( "${myname#run-}" $verbose "${files[@]}" )
+echo "Running: " "${cmd[@]}" 1>&2
+exec "${cmd[@]}"

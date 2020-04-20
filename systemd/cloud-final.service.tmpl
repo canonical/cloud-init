@@ -1,0 +1,24 @@
+## template:jinja
+[Unit]
+Description=Execute cloud user/final scripts
+After=network-online.target cloud-config.service rc-local.service
+{% if variant in ["ubuntu", "unknown", "debian"] %}
+After=multi-user.target
+Before=apt-daily.service
+{% endif %}
+Wants=network-online.target cloud-config.service
+
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cloud-init modules --mode=final
+RemainAfterExit=yes
+TimeoutSec=0
+KillMode=process
+TasksMax=infinity
+
+# Output needs to appear in instance console output
+StandardOutput=journal+console
+
+[Install]
+WantedBy=cloud-init.target

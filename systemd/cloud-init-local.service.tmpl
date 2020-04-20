@@ -1,0 +1,29 @@
+## template:jinja
+[Unit]
+Description=Initial cloud-init job (pre-networking)
+{% if variant in ["ubuntu", "unknown", "debian"] %}
+DefaultDependencies=no
+{% endif %}
+Wants=network-pre.target
+After=systemd-remount-fs.service
+Before=NetworkManager.service
+Before=network-pre.target
+Before=shutdown.target
+{% if variant in ["ubuntu", "unknown", "debian"] %}
+Before=sysinit.target
+Conflicts=shutdown.target
+{% endif %}
+RequiresMountsFor=/var/lib/cloud
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cloud-init init --local
+ExecStart=/bin/touch /run/cloud-init/network-config-ready
+RemainAfterExit=yes
+TimeoutSec=0
+
+# Output needs to appear in instance console output
+StandardOutput=journal+console
+
+[Install]
+WantedBy=cloud-init.target

@@ -1,0 +1,16 @@
+#
+# From cloud config examples on cloudinit.readthedocs.io
+#
+# 2016-11-17: Disabled as covered by module based tests
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+  bootcmd:
+   - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
+collect_scripts:
+  hosts: |
+    #!/bin/bash
+    cat /etc/hosts
+
+# vi: ts=4 expandtab

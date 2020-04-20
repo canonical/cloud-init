@@ -1,0 +1,108 @@
+#!/bin/sh
+# Copyright (C) 2012 Yahoo! Inc.
+#
+# Author: Joshua Harlow <harlowja@yahoo-inc.com>
+#
+# This file is part of cloud-init. See LICENSE file for license information.
+
+# See: http://wiki.debian.org/LSBInitScripts
+# See: http://tiny.cc/czvbgw
+# See: http://www.novell.com/coolsolutions/feature/15380.html
+# Also based on dhcpd in RHEL (for comparison)
+
+### BEGIN INIT INFO
+# Provides:          cloud-final
+# Required-Start:    $all cloud-config
+# Should-Start:      $time
+# Required-Stop:
+# Should-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: The final cloud-init job
+# Description:       Start cloud-init and runs the final phase
+#	and any associated final modules as desired.
+### END INIT INFO
+
+# Return values acc. to LSB for all commands but status:
+# 0	  - success
+# 1       - generic or unspecified error
+# 2       - invalid or excess argument(s)
+# 3       - unimplemented feature (e.g. "reload")
+# 4       - user had insufficient privileges
+# 5       - program is not installed
+# 6       - program is not configured
+# 7       - program is not running
+# 8--199  - reserved (8--99 LSB, 100--149 distrib, 150--199 appl)
+# 
+# Note that starting an already running service, stopping
+# or restarting a not-running service as well as the restart
+# with force-reload (in case signaling is not supported) are
+# considered a success.
+
+RETVAL=0
+
+prog="cloud-init"
+cloud_init="/usr/bin/cloud-init"
+conf="/etc/cloud/cloud.cfg"
+
+# If there exist sysconfig/default variable override files use it...
+[ -f /etc/sysconfig/cloud-init ] && . /etc/sysconfig/cloud-init
+[ -f /etc/default/cloud-init ] && . /etc/default/cloud-init
+
+start() {
+    [ -x $cloud_init ] || return 5
+    [ -f $conf ] || return 6
+
+    echo -n $"Starting $prog: "
+    $cloud_init $CLOUDINITARGS modules --mode final
+    RETVAL=$?
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Shutting down $prog: "
+    # No-op
+    RETVAL=7
+    return $RETVAL
+}
+
+case "$1" in
+    start)
+        start
+        RETVAL=$?
+	;;
+    stop)
+        stop
+        RETVAL=$?
+	;;
+    restart|try-restart|condrestart)
+        ## Stop the service and regardless of whether it was
+        ## running or not, start it again.
+        # 
+        ## Note: try-restart is now part of LSB (as of 1.9).
+        ## RH has a similar command named condrestart.
+        start
+        RETVAL=$?
+	;;
+    reload|force-reload)
+        # It does not support reload
+        RETVAL=3
+	;;
+    status)
+        echo -n $"Checking for service $prog:"
+        # Return value is slightly different for the status command:
+        # 0 - service up and running
+        # 1 - service dead, but /var/run/  pid  file exists
+        # 2 - service dead, but /var/lock/ lock file exists
+        # 3 - service not running (unused)
+        # 4 - service status unknown :-(
+        # 5--199 reserved (5--99 LSB, 100--149 distro, 150--199 appl.)
+        RETVAL=3
+	;;
+    *)
+        echo "Usage: $0 {start|stop|status|try-restart|condrestart|restart|force-reload|reload}"
+        RETVAL=3
+	;;
+esac
+
+exit $RETVAL

@@ -1,0 +1,11 @@
+2a00:abcd:82ae:cd33::657 dev enp0s25 proto kernel metric 256 expires 2334sec pref medium
+2a00:abcd:82ae:cd33::/64 dev enp0s25 proto ra metric 100 pref medium
+2a00:abcd:82ae:cd33::/56 via fe80::32ee:54de:cd43:b4e1 dev enp0s25 proto ra metric 100 pref medium
+fd81:123f:654::657 dev enp0s25 proto kernel metric 256 pref medium
+fd81:123f:654::/64 dev enp0s25 proto ra metric 100 pref medium
+fd81:123f:654::/48 via fe80::32ee:54de:cd43:b4e1 dev enp0s25 proto ra metric 100 pref medium
+fe80::abcd:ef12:bc34:da21 dev enp0s25 proto static metric 100 pref medium
+fe80::/64 dev enp0s25 proto kernel metric 256 pref medium
+default via fe80::32ee:54de:cd43:b4e1 dev enp0s25 proto static metric 100 pref medium
+local ::1 dev lo  table local  proto none  metric 0  pref medium
+local 2600:1f16:b80:ad00:90a:c915:bca6:5ff2 dev lo  table local  proto none  metric 0  pref medium

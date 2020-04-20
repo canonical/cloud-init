@@ -1,0 +1,20 @@
+#
+# From cloud config examples on cloudinit.readthedocs.io
+#
+# 2016-11-17: Disabled as covered by module based tests
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+  packages:
+   - htop
+   - tree
+collect_scripts:
+  htop: |
+    #!/bin/bash
+    dpkg -l | grep htop | wc -l
+  tree: |
+    #!/bin/bash
+    dpkg -l | grep tree | wc -l
+
+# vi: ts=4 expandtab

@@ -1,0 +1,7 @@
+#cloud-config
+
+mounts:
+ - [ ephemeral0, /mnt, auto, "defaults,noexec" ]
+ - [ sdc, /opt/data ]
+ - [ xvdh, /opt/data, "auto", "defaults,nofail", "0", "0" ]
+ - [ dd, /dev/zero ]

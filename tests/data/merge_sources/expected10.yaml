@@ -1,0 +1,7 @@
+#cloud-config
+
+power_state:
+  delay: 30
+  mode: poweroff
+  message: [Bye, Bye, Pew, Pew]
+  

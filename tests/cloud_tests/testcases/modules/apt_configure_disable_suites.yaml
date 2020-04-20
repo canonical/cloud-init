@@ -1,0 +1,20 @@
+#
+# Disables everything in sources.list
+#
+required_features:
+  - apt
+  - lsb_release
+cloud_config: |
+  #cloud-config
+  apt:
+    disable_suites:
+      - $RELEASE
+      - $RELEASE-updates
+      - $RELEASE-backports
+      - $RELEASE-security
+collect_scripts:
+  sources.list: |
+    #!/bin/bash
+    grep -v '^#' /etc/apt/sources.list | sed '/^\s*$/d'
+
+# vi: ts=4 expandtab

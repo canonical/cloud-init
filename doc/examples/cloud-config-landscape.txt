@@ -1,0 +1,22 @@
+# Landscape-client configuration
+#
+# Anything under the top 'landscape: client' entry
+# will be basically rendered into a ConfigObj formated file
+# under the '[client]' section of /etc/landscape/client.conf
+# 
+# Note: 'tags' should be specified as a comma delimited string
+# rather than a list.
+#
+# You can get example key/values by running 'landscape-config',
+# answer question, then look at /etc/landscape/client.config
+landscape:
+  client:
+    url: "https://landscape.canonical.com/message-system"
+    ping_url: "http://landscape.canonical.com/ping"
+    data_path: "/var/lib/landscape/client"
+    http_proxy: "http://my.proxy.com/foobar"
+    tags: "server,cloud"
+    computer_title: footitle
+    https_proxy: fooproxy
+    registration_key: fookey
+    account_name: fooaccount

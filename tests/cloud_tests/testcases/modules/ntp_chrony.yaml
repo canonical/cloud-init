@@ -1,0 +1,17 @@
+#
+# ntp enabled, chrony selected, check conf file
+# as chrony won't start in a container
+#
+cloud_config: |
+  #cloud-config
+  ntp:
+    enabled: true
+    ntp_client: chrony
+collect_scripts:
+  chrony_conf: |
+    #!/bin/sh
+    set -- /etc/chrony.conf /etc/chrony/chrony.conf
+    for p in "$@"; do
+        [ -e "$p" ] && { cat "$p"; exit; }
+    done
+# vi: ts=4 expandtab

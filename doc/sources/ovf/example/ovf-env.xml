@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:oe="http://schemas.dmtf.org/ovf/environment/1"
+    xsi:schemaLocation="http://schemas.dmtf.org/ovf/environment/1 ../dsp8027.xsd"
+    oe:id="WebTier">
+    
+    <!-- This example reference a local schema file, to validate against online schema use:
+    xsi:schemaLocation="http://schemas.dmtf.org/ovf/envelope/1 http://schemas.dmtf.org/ovf/envelope/1/dsp8027_1.0.0.xsd"
+    -->
+    
+    <!-- Information about hypervisor platform -->
+    <oe:PlatformSection>
+        <Kind>ESX Server</Kind>
+        <Version>3.0.1</Version>
+        <Vendor>VMware, Inc.</Vendor>
+        <Locale>en_US</Locale>
+    </oe:PlatformSection>
+
+    <!--- Properties defined for this virtual machine -->
+    <PropertySection>
+        <!-- instance-id is required, a unique instance-id -->
+        <Property oe:key="instance-id" oe:value="i-abcdefg"/>
+        <!-- 
+        seedfrom is optional, but indicates to 'seed' user-data
+        and meta-data the given url.  In this example, pull
+        http://tinyurl.com/sm-meta-data and http://tinyurl.com/sm-user-data
+        -->
+        <Property oe:key="seedfrom" oe:value="http://tinyurl.com/sm-"/>
+        <!--
+        public-keys is a public key to add to users authorized keys
+        -->
+        <Property oe:key="public-keys" oe:value="ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw== smoser@brickies"/>
+        <!-- hostname: the hostname to set -->
+        <Property oe:key="hostname" oe:value="ubuntuhost"/>
+        <!--
+        The value for user-data is to be base64 encoded.
+        it will be decoded, and then processed normally as user-data.
+        The following represents '#!/bin/sh\necho "hi world"'
+
+        -->
+        <Property oe:key="user-data" oe:value="IyEvYmluL3NoCmVjaG8gImhpIHdvcmxkIgo="/>
+        <Property oe:key="password" oe:value="passw0rd"/>
+    </PropertySection>
+
+</Environment>

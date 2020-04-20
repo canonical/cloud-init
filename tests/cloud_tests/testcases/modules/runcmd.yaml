@@ -1,0 +1,13 @@
+#
+# Run a simple command
+#
+cloud_config: |
+  #cloud-config
+  runcmd:
+   - echo cloud-init run cmd test > /var/tmp/run_cmd
+collect_scripts:
+  run_cmd: |
+    #!/bin/bash
+    cat /var/tmp/run_cmd
+
+# vi: ts=4 expandtab

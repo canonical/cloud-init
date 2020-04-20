@@ -1,0 +1,63 @@
+/var/lib/cloud has the following structure:
+  - scripts/
+      per-instance/
+      per-boot/
+      per-once/
+
+    files in these directories will be run by 'run-parts' once per
+    instance, once per boot, and once per *ever*.
+
+  - seed/
+     <datasource>/
+        sys-user-data
+        user-data
+        meta-data
+
+     The 'seed/' directory allows you to seed a specific datasource
+     For example, to seed the 'nocloud' datasource you would need to
+     populate 
+       seed/nocloud/user-data
+       seed/nocloud/meta-data
+
+  - instance -> instances/i-abcde
+    This is a symlink to the current instance/<instance-id> directory
+    created/updated on boot
+  - instances/
+      i-abcdefgh/
+         scripts/ # all scripts in scripts are per-instance
+         sem/
+            config-puppet
+            config-ssh
+            set-hostname
+         cloud-config.txt
+         user-data.txt
+         user-data.txt.i
+         obj.pkl
+         handlers/
+         data/  # just a per-instance data location to be used
+         boot-finished
+            # this file indicates when "boot" is finished
+            # it is created by the 'final_message' cloud-config
+         datasource # a file containing the class and string of datasource
+
+  - sem/
+      scripts.once
+    These are the cloud-specific semaphores.  The only thing that
+    would go here are files to mark that a "per-once" script
+    has run.
+
+  - handlers/
+      "persistent" handlers (not per-instance).  Same as handlers
+      from user-data, just will be cross-instance id
+
+  - data/
+      this is a persistent data location.  cloud-init won't really
+      use it, but something else (a handler or script could)
+      previous-datasource
+      previous-instance-id
+      previous-hostname
+
+to clear out the current instance's data as if to force a "new run" on reboot
+do:
+  ( cd /var/lib/cloud/instance && sudo rm -Rf * )
+

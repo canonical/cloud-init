@@ -1,0 +1,328 @@
+# apt_pipelining (configure Acquire::http::Pipeline-Depth)
+# Default: disables HTTP pipelining. Certain web servers, such
+# as S3 do not pipeline properly (LP: #948461).
+# Valid options:
+#   False/default: Disables pipelining for APT
+#   None/Unchanged: Use OS default
+#   Number: Set pipelining to some number (not recommended)
+apt_pipelining: False
+
+## apt config via system_info:
+# under the 'system_info', you can customize cloud-init's interaction
+# with apt.
+#  system_info:
+#    apt_get_command: [command, argument, argument]
+#    apt_get_upgrade_subcommand: dist-upgrade
+#
+# apt_get_command:
+#  To specify a different 'apt-get' command, set 'apt_get_command'.
+#  This must be a list, and the subcommand (update, upgrade) is appended to it.
+#  default is:
+#    ['apt-get', '--option=Dpkg::Options::=--force-confold',
+#     '--option=Dpkg::options::=--force-unsafe-io', '--assume-yes', '--quiet']
+#
+# apt_get_upgrade_subcommand: "dist-upgrade"
+#  Specify a different subcommand for 'upgrade. The default is 'dist-upgrade'.
+#  This is the subcommand that is invoked for package_upgrade.
+#
+# apt_get_wrapper:
+#   command: eatmydata
+#   enabled: [True, False, "auto"]
+#
+
+# Install additional packages on first boot
+#
+# Default: none
+#
+# if packages are specified, this apt_update will be set to true
+
+packages: ['pastebinit']
+
+apt:
+  # The apt config consists of two major "areas".
+  #
+  # On one hand there is the global configuration for the apt feature.
+  #
+  # On one hand (down in this file) there is the source dictionary which allows
+  # to define various entries to be considered by apt.
+
+  ##############################################################################
+  # Section 1: global apt configuration
+  #
+  # The following examples number the top keys to ease identification in
+  # discussions.
+
+  # 1.1 preserve_sources_list
+  #
+  # Preserves the existing /etc/apt/sources.list
+  # Default: false - do overwrite sources_list. If set to true then any
+  # "mirrors" configuration will have no effect.
+  # Set to true to avoid affecting sources.list. In that case only
+  # "extra" source specifications will be written into
+  # /etc/apt/sources.list.d/*
+  preserve_sources_list: true
+
+  # 1.2 disable_suites
+  #
+  # This is an empty list by default, so nothing is disabled.
+  #
+  # If given, those suites are removed from sources.list after all other
+  # modifications have been made.
+  # Suites are even disabled if no other modification was made,
+  # but not if is preserve_sources_list is active.
+  # There is a special alias "$RELEASE" as in the sources that will be replace
+  # by the matching release.
+  #
+  # To ease configuration and improve readability the following common ubuntu
+  # suites will be automatically mapped to their full definition.
+  # updates   => $RELEASE-updates
+  # backports => $RELEASE-backports
+  # security  => $RELEASE-security
+  # proposed  => $RELEASE-proposed
+  # release   => $RELEASE
+  #
+  # There is no harm in specifying a suite to be disabled that is not found in
+  # the source.list file (just a no-op then)
+  #
+  # Note: Lines don't get deleted, but disabled by being converted to a comment.
+  # The following example disables all usual defaults except $RELEASE-security.
+  # On top it disables a custom suite called "mysuite"
+  disable_suites: [$RELEASE-updates, backports, $RELEASE, mysuite]
+
+  # 1.3 primary/security archives
+  #
+  # Default: none - instead it is auto select based on cloud metadata
+  # so if neither "uri" nor "search", nor "search_dns" is set (the default)
+  # then use the mirror provided by the DataSource found.
+  # In EC2, that means using <region>.ec2.archive.ubuntu.com
+  #
+  # define a custom (e.g. localized) mirror that will be used in sources.list
+  # and any custom sources entries for deb / deb-src lines.
+  #
+  # One can set primary and security mirror to different uri's
+  # the child elements to the keys primary and secondary are equivalent
+  primary:
+    # arches is list of architectures the following config applies to
+    # the special keyword "default" applies to any architecture not explicitly
+    # listed.
+    - arches: [amd64, i386, default]
+      # uri is just defining the target as-is
+      uri: http://us.archive.ubuntu.com/ubuntu
+      #
+      # via search one can define lists that are tried one by one.
+      # The first with a working DNS resolution (or if it is an IP) will be
+      # picked. That way one can keep one configuration for multiple
+      # subenvironments that select the working one.
+      search:
+        - http://cool.but-sometimes-unreachable.com/ubuntu
+        - http://us.archive.ubuntu.com/ubuntu
+      # if no mirror is provided by uri or search but 'search_dns' is
+      # true, then search for dns names '<distro>-mirror' in each of
+      # - fqdn of this host per cloud metadata
+      # - localdomain
+      # - no domain (which would search domains listed in /etc/resolv.conf)
+      # If there is a dns entry for <distro>-mirror, then it is assumed that
+      # there is a distro mirror at http://<distro>-mirror.<domain>/<distro>
+      #
+      # That gives the cloud provider the opportunity to set mirrors of a distro
+      # up and expose them only by creating dns entries.
+      #
+      # if none of that is found, then the default distro mirror is used
+      search_dns: true
+      #
+      # If multiple of a category are given
+      #   1. uri
+      #   2. search
+      #   3. search_dns
+      # the first defining a valid mirror wins (in the order as defined here,
+      # not the order as listed in the config).
+      #
+    - arches: [s390x, arm64]
+      # as above, allowing to have one config for different per arch mirrors
+  # security is optional, if not defined it is set to the same value as primary
+  security:
+      uri: http://security.ubuntu.com/ubuntu
+  # If search_dns is set for security the searched pattern is:
+  #   <distro>-security-mirror
+
+  # if no mirrors are specified at all, or all lookups fail it will try
+  # to get them from the cloud datasource and if those neither provide one fall
+  # back to:
+  #   primary: http://archive.ubuntu.com/ubuntu
+  #   security: http://security.ubuntu.com/ubuntu
+
+  # 1.4 sources_list
+  #
+  # Provide a custom template for rendering sources.list
+  # without one provided cloud-init uses builtin templates for
+  # ubuntu and debian.
+  # Within these sources.list templates you can use the following replacement
+  # variables (all have sane Ubuntu defaults, but mirrors can be overwritten
+  # as needed (see above)):
+  # => $RELEASE, $MIRROR, $PRIMARY, $SECURITY
+  sources_list: | # written by cloud-init custom template
+    deb $MIRROR $RELEASE main restricted
+    deb-src $MIRROR $RELEASE main restricted
+    deb $PRIMARY $RELEASE universe restricted
+    deb $SECURITY $RELEASE-security multiverse
+
+  # 1.5 conf
+  #
+  # Any apt config string that will be made available to apt
+  # see the APT.CONF(5) man page for details what can be specified
+  conf: | # APT config
+    APT {
+      Get {
+        Assume-Yes "true";
+        Fix-Broken "true";
+      };
+    };
+
+  # 1.6 (http_|ftp_|https_)proxy
+  #
+  # Proxies are the most common apt.conf option, so that for simplified use
+  # there is a shortcut for those. Those get automatically translated into the
+  # correct Acquire::*::Proxy statements.
+  #
+  # note: proxy actually being a short synonym to http_proxy
+  proxy: http://[[user][:pass]@]host[:port]/
+  http_proxy: http://[[user][:pass]@]host[:port]/
+  ftp_proxy: ftp://[[user][:pass]@]host[:port]/
+  https_proxy: https://[[user][:pass]@]host[:port]/
+
+  # 1.7 add_apt_repo_match
+  #
+  # 'source' entries in apt-sources that match this python regex
+  # expression will be passed to add-apt-repository
+  # The following example is also the builtin default if nothing is specified
+  add_apt_repo_match: '^[\w-]+:\w'
+
+
+  ##############################################################################
+  # Section 2: source list entries
+  #
+  # This is a dictionary (unlike most block/net which are lists)
+  #
+  # The key of each source entry is the filename and will be prepended by
+  # /etc/apt/sources.list.d/ if it doesn't start with a '/'.
+  # If it doesn't end with .list it will be appended so that apt picks up it's
+  # configuration.
+  #
+  # Whenever there is no content to be written into such a file, the key is
+  # not used as filename - yet it can still be used as index for merging
+  # configuration.
+  #
+  # The values inside the entries consost of the following optional entries:
+  #   'source': a sources.list entry (some variable replacements apply)
+  #   'keyid': providing a key to import via shortid or fingerprint
+  #   'key': providing a raw PGP key
+  #   'keyserver': specify an alternate keyserver to pull keys from that
+  #                were specified by keyid
+
+  # This allows merging between multiple input files than a list like:
+  # cloud-config1
+  # sources:
+  #    s1: {'key': 'key1', 'source': 'source1'}
+  # cloud-config2
+  # sources:
+  #    s2: {'key': 'key2'}
+  #    s1: {'keyserver': 'foo'}
+  # This would be merged to
+  # sources:
+  #    s1:
+  #        keyserver: foo
+  #        key: key1
+  #        source: source1
+  #    s2:
+  #        key: key2
+  #
+  # The following examples number the subfeatures per sources entry to ease
+  # identification in discussions.
+
+
+  sources:
+    curtin-dev-ppa.list:
+      # 2.1 source
+      #
+      # Creates a file in /etc/apt/sources.list.d/ for the sources list entry
+      # based on the key: "/etc/apt/sources.list.d/curtin-dev-ppa.list"
+      source: "deb http://ppa.launchpad.net/curtin-dev/test-archive/ubuntu xenial main"
+
+      # 2.2 keyid
+      #
+      # Importing a gpg key for a given key id. Used keyserver defaults to
+      # keyserver.ubuntu.com
+      keyid: F430BBA5 # GPG key ID published on a key server
+
+    ignored1:
+      # 2.3 PPA shortcut
+      #
+      # Setup correct apt sources.list line and Auto-Import the signing key
+      # from LP
+      #
+      # See https://help.launchpad.net/Packaging/PPA for more information
+      # this requires 'add-apt-repository'. This will create a file in
+      # /etc/apt/sources.list.d automatically, therefore the key here is
+      # ignored as filename in those cases.
+      source: "ppa:curtin-dev/test-archive"    # Quote the string
+
+    my-repo2.list:
+      # 2.4 replacement variables
+      #
+      # sources can use $MIRROR, $PRIMARY, $SECURITY and $RELEASE replacement
+      # variables.
+      # They will be replaced with the default or specified mirrors and the
+      # running release.
+      # The entry below would be possibly turned into:
+      #   source: deb http://archive.ubuntu.com/ubuntu xenial multiverse
+      source: deb $MIRROR $RELEASE multiverse
+
+    my-repo3.list:
+      # this would have the same end effect as 'ppa:curtin-dev/test-archive'
+      source: "deb http://ppa.launchpad.net/curtin-dev/test-archive/ubuntu xenial main"
+      keyid: F430BBA5 # GPG key ID published on the key server
+      filename: curtin-dev-ppa.list
+
+    ignored2:
+      # 2.5 key only
+      #
+      # this would only import the key without adding a ppa or other source spec
+      # since this doesn't generate a source.list file the filename key is ignored
+      keyid: F430BBA5 # GPG key ID published on a key server
+
+    ignored3:
+      # 2.6 key id alternatives
+      #
+      # Keyid's can also be specified via their long fingerprints
+      keyid: B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77
+
+    ignored4:
+      # 2.7 alternative keyservers
+      #
+      # One can also specify alternative keyservers to fetch keys from.
+      keyid: B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77
+      keyserver: pgp.mit.edu
+
+
+    my-repo4.list:
+      # 2.8 raw key
+      #
+      # The apt signing key can also be specified by providing a pgp public key
+      # block. Providing the PGP key this way is the most robust method for
+      # specifying a key, as it removes dependency on a remote key server.
+      #
+      # As with keyid's this can be specified with or without some actual source
+      # content.
+      key: | # The value needs to start with -----BEGIN PGP PUBLIC KEY BLOCK-----
+         -----BEGIN PGP PUBLIC KEY BLOCK-----
+         Version: SKS 1.0.10
+
+         mI0ESpA3UQEEALdZKVIMq0j6qWAXAyxSlF63SvPVIgxHPb9Nk0DZUixn+akqytxG4zKCONz6
+         qLjoBBfHnynyVLfT4ihg9an1PqxRnTO+JKQxl8NgKGz6Pon569GtAOdWNKw15XKinJTDLjnj
+         9y96ljJqRcpV9t/WsIcdJPcKFR5voHTEoABE2aEXABEBAAG0GUxhdW5jaHBhZCBQUEEgZm9y
+         IEFsZXN0aWOItgQTAQIAIAUCSpA3UQIbAwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEA7H
+         5Qi+CcVxWZ8D/1MyYvfj3FJPZUm2Yo1zZsQ657vHI9+pPouqflWOayRR9jbiyUFIn0VdQBrP
+         t0FwvnOFArUovUWoKAEdqR8hPy3M3APUZjl5K4cMZR/xaMQeQRZ5CHpS4DBKURKAHC0ltS5o
+         uBJKQOZm5iltJp15cgyIkBkGe8Mx18VFyVglAZey
+         =Y2oI
+         -----END PGP PUBLIC KEY BLOCK-----

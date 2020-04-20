@@ -1,0 +1,8 @@
+## template:jinja
+# cloud-init generated file
+# See timesyncd.conf(5) for details.
+
+[Time]
+{% if servers or pools -%}
+NTP={% for host in servers|list + pools|list %}{{ host }} {% endfor -%}
+{% endif -%}

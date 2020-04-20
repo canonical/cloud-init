@@ -1,0 +1,30 @@
+#
+# Update/upgrade via apt and then install a pair of packages
+#
+# NOTE: this should not require apt feature, use 'which' rather than 'dpkg -l'
+# NOTE: the testcase for this looks for the command in history.log as
+#       /usr/bin/apt-get..., which is not how it always appears. it should
+#       instead look for just apt-get...
+# NOTE: this testcase should not require 'apt_up_out', and should look for a
+#       call to 'apt-get upgrade' or 'apt-get dist-upgrade' in cloud-init.log
+#       rather than 'Calculating upgrade...' in output
+required_features:
+  - apt
+  - apt_hist_fmt
+  - apt_up_out
+cloud_config: |
+  #cloud-config
+  packages:
+    - sl
+    - tree
+  package_update: true
+  package_upgrade: true
+collect_scripts:
+  apt_history_cmdline: |
+    #!/bin/bash
+    grep ^Commandline: /var/log/apt/history.log
+  dpkg_show: |
+    #!/bin/bash
+    dpkg-query --show
+
+# vi: ts=4 expandtab

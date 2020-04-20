@@ -1,0 +1,7 @@
+#cloud-config
+
+Blah: 3
+Blah2: 2
+Blah3: [1]
+
+

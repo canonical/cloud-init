@@ -1,0 +1,18 @@
+## template:jinja
+[Unit]
+Description=Apply the settings specified in cloud-config
+After=network-online.target cloud-config.target
+After=snapd.seeded.service
+Wants=network-online.target cloud-config.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cloud-init modules --mode=config
+RemainAfterExit=yes
+TimeoutSec=0
+
+# Output needs to appear in instance console output
+StandardOutput=journal+console
+
+[Install]
+WantedBy=cloud-init.target

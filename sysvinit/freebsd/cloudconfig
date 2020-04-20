@@ -1,0 +1,28 @@
+#!/bin/sh
+
+# PROVIDE: cloudconfig
+# REQUIRE: cloudinit cloudinitlocal
+# BEFORE:  cloudfinal
+
+. /etc/rc.subr
+
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+name="cloudconfig"
+command="/usr/local/bin/cloud-init"
+start_cmd="cloudconfig_start"
+stop_cmd=":"
+rcvar="cloudinit_enable"
+start_cmd="cloudconfig_start"
+
+cloudconfig_start()
+{
+	echo "${command} starting"
+	${command} modules --mode config
+}
+
+load_rc_config $name
+
+: ${cloudconfig_enable="NO"}
+
+run_rc_command "$1"

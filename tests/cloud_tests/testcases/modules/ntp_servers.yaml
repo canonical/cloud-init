@@ -1,0 +1,28 @@
+#
+# NTP config using specific servers
+#
+required_features:
+  - lsb_release
+cloud_config: |
+  #cloud-config
+  ntp:
+    ntp_client: ntp
+    servers:
+        - 172.16.15.14
+        - 172.16.17.18
+collect_scripts:
+  ntp_installed_servers: |
+    #!/bin/sh
+    ntpd --version > /dev/null 2>&1
+    echo $?
+  ntp_conf_dist_servers: |
+    #!/bin/sh
+    cat /etc/ntp.conf.dist | wc -l
+  ntp_conf_servers: |
+    #!/bin/sh
+    grep '^server' /etc/ntp.conf
+  ntpq_servers: |
+    #!/bin/sh
+    ntpq -p -w -n
+
+# vi: ts=4 expandtab

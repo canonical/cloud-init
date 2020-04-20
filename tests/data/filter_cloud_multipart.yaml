@@ -1,0 +1,30 @@
+#cloud-config-archive
+---
+-   content: "\n        blah: true\n        launch-index: 3\n"
+    type: text/cloud-config
+-   content: "\n        blah: true\n        launch-index: 4\n"
+    type: text/cloud-config
+-   content: The quick brown fox jumps over the lazy dog
+    filename: b0.txt
+    launch-index: 0
+    type: plain/text
+-   content: The quick brown fox jumps over the lazy dog
+    filename: b3.txt
+    launch-index: 3
+    type: plain/text
+-   content: The quick brown fox jumps over the lazy dog
+    filename: b2.txt
+    launch-index: 2
+    type: plain/text
+-   content: '#!/bin/bash \n echo "stuff"'
+    filename: b2.txt
+    launch-index: 2
+-   content: '#!/bin/bash \n echo "stuff"'
+    filename: b2.txt
+    launch-index: 1
+-   content: '#!/bin/bash \n echo "stuff"'
+    filename: b2.txt
+    # Use a string to see if conversion works
+    launch-index: "1"
+...
+

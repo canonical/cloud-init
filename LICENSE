@@ -1,0 +1,22 @@
+Copyright 2015 Canonical Ltd.
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License version 3, as published by the
+Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranties of MERCHANTABILITY,
+SATISFACTORY QUALITY, or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <http://www.gnu.org/licenses/>
+
+Alternatively, this program may be used under the terms of the Apache License,
+Version 2.0, in which case the provisions of that license are applicable
+instead of those above.  If you wish to allow use of your version of this
+program under the terms of the Apache License, Version 2.0 only, indicate
+your decision by deleting the provisions above and replace them with the notice
+and other provisions required by the Apache License, Version 2.0. If you do not
+delete the provisions above, a recipient may use your version of this file
+under the terms of either the GPLv3 or the Apache License, Version 2.0.

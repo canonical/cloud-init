@@ -1,0 +1,45 @@
+#
+# From cloud config examples on cloudinit.readthedocs.io
+#
+# 2016-11-17: Disabled as covered by module based tests
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+  write_files:
+  -   encoding: b64
+      content: CiMgVGhpcyBmaWxlIGNvbnRyb2xzIHRoZSBzdGF0ZSBvZiBTRUxpbnV4
+      owner: root:root
+      path: /root/file_b64
+      permissions: '0644'
+  -   content: |
+          # My new /root/file_text
+
+          SMBDOPTIONS="-D"
+      path: /root/file_text
+  -   content: !!binary |
+          f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAwARAAAAAAABAAAAAAAAAAJAVAAAAAAAAAAAAAEAAOAAI
+          AEAAHgAdAAYAAAAFAAAAQAAAAAAAAABAAEAAAAAAAEAAQAAAAAAAwAEAAAAAAADAAQAAAAAAAAgA
+          AAAAAAAAAwAAAAQAAAAAAgAAAAAAAAACQAAAAAAAAAJAAAAAAAAcAAAAAAAAABwAAAAAAAAAAQAA
+      path: /root/file_binary
+      permissions: '0555'
+  -   encoding: gzip
+      content: !!binary |
+          H4sIAIDb/U8C/1NW1E/KzNMvzuBKTc7IV8hIzcnJVyjPL8pJ4QIA6N+MVxsAAAA=
+      path: /root/file_gzip
+      permissions: '0755'
+collect_scripts:
+  file_b64: |
+    #!/bin/bash
+    file /root/file_b64
+  file_text: |
+    #!/bin/bash
+    file /root/file_text
+  file_binary: |
+    #!/bin/bash
+    file /root/file_binary
+  file_gzip: |
+    #!/bin/bash
+    file /root/file_gzip
+
+# vi: ts=4 expandtab

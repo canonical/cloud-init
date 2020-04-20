@@ -1,0 +1,8 @@
+#cloud-config
+
+run_cmds:
+  - ps
+  - vi
+  - emacs
+
+merge_type: 'list(append)+dict(recurse_array)+str()'

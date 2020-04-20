@@ -1,0 +1,23 @@
+#!/bin/sh
+# Copyright (C) 2010 Canonical Ltd.
+#
+# Authors: Scott Moser <smoser@ubuntu.com>
+#
+# This file is part of cloud-init. See LICENSE file for license information.
+
+# 92-ec2-upgrade-available - update-motd script
+
+# Determining if updates are available is possibly slow.
+# a cronjob runs occasioinally and updates a file with information
+# on the latest available release (if newer than current)
+
+BUILD_FILE=/var/lib/cloud/data/available.build
+
+[ -s "${BUILD_FILE}" ] || exit 0
+
+read suite build_name name serial other < "${BUILD_FILE}"
+
+cat <<EOF
+A newer build of the Ubuntu ${suite} ${build_name} image is available.
+It is named '${name}' and has build serial '${serial}'.
+EOF

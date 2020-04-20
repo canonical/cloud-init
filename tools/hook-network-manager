@@ -1,0 +1,26 @@
+#!/bin/sh
+# This file is part of cloud-init. See LICENSE file for license information.
+
+# This script hooks into NetworkManager(8) via its scripts
+# arguments are 'interface-name' and 'action'
+#
+is_azure() {
+    local dmi_path="/sys/class/dmi/id/board_vendor" vendor=""
+    if [ -e "$dmi_path" ] && read vendor < "$dmi_path"; then
+        [ "$vendor" = "Microsoft Corporation" ] && return 0
+    fi
+    return 1
+}
+
+is_enabled() {
+    # only execute hooks if cloud-init is enabled and on azure
+    [ -e /run/cloud-init/enabled ] || return 1
+    is_azure
+}
+
+if is_enabled; then
+    case "$1:$2" in
+        *:up) exec cloud-init dhclient-hook up "$1";;
+        *:down) exec cloud-init dhclient-hook down "$1";;
+    esac
+fi

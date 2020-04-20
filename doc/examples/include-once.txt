@@ -1,0 +1,7 @@
+#include-once
+# entries are one url per line. comment lines beginning with '#' are allowed
+# urls are passed to urllib.urlopen, so the format must be supported there
+# This entries will just be processed ONE TIME by cloud-init, any further
+# iterations won't process this file
+http://www.ubuntu.com/robots.txt
+http://www.w3schools.com/html/lastpage.htm

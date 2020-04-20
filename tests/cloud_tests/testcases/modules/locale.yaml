@@ -1,0 +1,22 @@
+#
+# Set locale to non-default option and verify
+#
+required_features:
+  - engb_locale
+  - locale_gen
+cloud_config: |
+  #cloud-config
+  locale: en_GB.UTF-8
+  locale_configfile: /etc/default/locale
+collect_scripts:
+  locale_default: |
+    #!/bin/bash
+    cat /etc/default/locale
+  locale_a: |
+    #!/bin/bash
+    locale -a
+  locale_gen: |
+    #!/bin/bash
+    cat /etc/locale.gen | grep -v '^#' | uniq
+
+# vi: ts=4 expandtab

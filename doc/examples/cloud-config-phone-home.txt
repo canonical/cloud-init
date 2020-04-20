@@ -1,0 +1,14 @@
+#cloud-config
+
+# phone_home: if this dictionary is present, then the phone_home
+# cloud-config module will post specified data back to the given
+# url
+# default: none
+# phone_home:
+#  url: http://my.foo.bar/$INSTANCE/
+#  post: all
+#  tries: 10
+#
+phone_home:
+ url: http://my.example.com/$INSTANCE_ID/
+ post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id ]

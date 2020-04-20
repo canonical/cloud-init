@@ -1,0 +1,21 @@
+#
+# Set the hostname and update /etc/hosts
+#
+required_features:
+  - hostname
+cloud_config: |
+  #cloud-config
+  hostname: cloudinit2
+
+collect_scripts:
+  hosts: |
+    #!/bin/bash
+    grep ^127 /etc/hosts
+  hostname: |
+    #!/bin/bash
+    hostname
+  fqdn: |
+    #!/bin/bash
+    hostname --fqdn
+
+# vi: ts=4 expandtab
