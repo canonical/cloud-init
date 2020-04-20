@@ -696,7 +696,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
 
     def handle_wifis(self, command):
         LOG.warning('Wifi configuration is only available to distros with'
-                    'netplan rendering support.')
+                    ' netplan rendering support.')
 
     def _v2_common(self, cfg):
         LOG.debug('v2_common: handling config:\n%s', cfg)
