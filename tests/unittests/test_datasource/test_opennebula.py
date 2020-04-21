@@ -355,6 +355,7 @@ class TestOpenNebulaDataSource(CiTestCase):
             util.find_devs_with = orig_find_devs_with
 
 
+@mock.patch(DS_PATH + '.net.get_interfaces_by_mac', mock.Mock(return_value={}))
 class TestOpenNebulaNetwork(unittest.TestCase):
 
     system_nics = ('eth0', 'ens3')
