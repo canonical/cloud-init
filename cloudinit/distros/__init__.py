@@ -750,6 +750,10 @@ def _apply_hostname_transformations_to_url(url: str, transformations: list):
         # If we can't even parse the URL, we shouldn't use it for anything
         return None
     new_hostname = parts.hostname
+    if new_hostname is None:
+        # The URL given doesn't have a hostname component, so (a) we can't
+        # transform it, and (b) it won't work as a mirror; return None.
+        return None
 
     for transformation in transformations:
         new_hostname = transformation(new_hostname)
