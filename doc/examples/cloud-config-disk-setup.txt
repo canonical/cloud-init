@@ -130,12 +130,12 @@ disk_setup:
 #               The following setups two partitions, with the first
 #               partition having a swap label, taking 1/3 of the disk space
 #               and the remainder being used as the second partition.
-#                   /dev/xvdh':
-#                       table_type: 'mbr'
-#                       layout:
-#                           - [33,82]
-#                           - 66
-#                       overwrite: True
+#                 /dev/xvdh':
+#                   table_type: 'mbr'
+#                   layout:
+#                     - [33,82]
+#                     - 66
+#                   overwrite: True
 #
 #               When layout is "true" it means single partition the entire
 #               device.

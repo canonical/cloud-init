@@ -547,8 +547,8 @@ The following demonstrates merge behavior:
 
     defaults:
       list_item:
-       - list_entry_1
-       - list_entry_2
+        - list_entry_1
+        - list_entry_2
       int_item_1: 123
       int_item_2: 234
       dict_item:
@@ -560,7 +560,7 @@ The following demonstrates merge behavior:
 
     overrides:
       list_item:
-       - overridden_list_entry
+        - overridden_list_entry
       int_item_1: 0
       dict_item:
         subkey_2: false
@@ -569,7 +569,7 @@ The following demonstrates merge behavior:
 
     result:
       list_item:
-       - overridden_list_entry
+        - overridden_list_entry
       int_item_1: 0
       int_item_2: 234
       dict_item:
