@@ -48,38 +48,38 @@ apt:
 
 chef:
 
- # 11.10 will fail if install_type is "gems" (LP: #960576)
- install_type: "packages"
+  # 11.10 will fail if install_type is "gems" (LP: #960576)
+  install_type: "packages"
 
- # Chef settings
- server_url: "https://chef.yourorg.com:4000"
+  # Chef settings
+  server_url: "https://chef.yourorg.com:4000"
 
- # Node Name
- # Defaults to the instance-id if not present
- node_name: "your-node-name"
+  # Node Name
+  # Defaults to the instance-id if not present
+  node_name: "your-node-name"
 
- # Environment
- # Defaults to '_default' if not present
- environment: "production"
+  # Environment
+  # Defaults to '_default' if not present
+  environment: "production"
 
- # Default validation name is chef-validator
- validation_name: "yourorg-validator"
+  # Default validation name is chef-validator
+  validation_name: "yourorg-validator"
 
- # value of validation_cert is not used if validation_key defined,
- # but variable needs to be defined (LP: #960547)
- validation_cert: "unused"
- validation_key: |
-     -----BEGIN RSA PRIVATE KEY-----
-     YOUR-ORGS-VALIDATION-KEY-HERE
-     -----END RSA PRIVATE KEY-----
- 
- # A run list for a first boot json
- run_list:
-  - "recipe[apache2]"
-  - "role[db]"
+  # value of validation_cert is not used if validation_key defined,
+  # but variable needs to be defined (LP: #960547)
+  validation_cert: "unused"
+  validation_key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    YOUR-ORGS-VALIDATION-KEY-HERE
+    -----END RSA PRIVATE KEY-----
 
- # Specify a list of initial attributes used by the cookbooks
- initial_attributes:
+  # A run list for a first boot json
+  run_list:
+   - "recipe[apache2]"
+   - "role[db]"
+
+  # Specify a list of initial attributes used by the cookbooks
+  initial_attributes:
     apache:
       prefork:
         maxclients: 100
