@@ -17,7 +17,8 @@ matrix:
           env:
               TOXENV=py3
               PYTEST_ADDOPTS=-v  # List all tests run by pytest
-        - install:
+        - if: NOT branch =~ /^ubuntu\//
+          install:
             - git fetch --unshallow
             - sudo apt-get build-dep -y cloud-init
             - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox
