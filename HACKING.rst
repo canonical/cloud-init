@@ -159,7 +159,7 @@ Unit Testing
 
 cloud-init uses `pytest`_ to run its tests, and has tests written both
 as ``unittest.TestCase`` sub-classes and as un-subclassed pytest tests.
-The following guidelines should be following:
+The following guidelines should be followed:
 
 * For ease of organisation and greater accessibility for developers not
   familiar with pytest, all cloud-init unit tests must be contained
@@ -169,6 +169,7 @@ The following guidelines should be following:
 
 * pytest test classes should use `pytest fixtures`_ to share
   functionality instead of inheritance
+
 * As all tests are contained within classes, it is acceptable to mix
   ``TestCase`` test classes and pytest test classes within the same
   test file
@@ -194,6 +195,24 @@ The following guidelines should be following:
     only introduced in `pytest 3.0`_.  Such functions must instead use
     the ``pytest.yield_fixture`` decorator.
 
+  * Only the following built-in fixtures are available
+    [#fixture-list]_:
+
+    * ``cache``
+    * ``capsys``
+    * ``capfd``
+    * ``record_xml_property``
+    * ``monkeypatch``
+    * ``pytestconfig``
+    * ``recwarn``
+    * ``tmpdir_factory``
+    * ``tmpdir``
+
+* Variables/parameter names for ``Mock`` or ``MagicMock`` instances
+  should start with ``m_`` to clearly distinguish them from non-mock
+  variables
+
+  * For example, ``m_readurl`` (which would be a mock for ``readurl``)
 
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
@@ -223,3 +242,10 @@ variable annotations specified in `PEP-526`_ were introduced in Python
 
 .. _PEP-484: https://www.python.org/dev/peps/pep-0484/
 .. _PEP-526: https://www.python.org/dev/peps/pep-0526/
+
+.. [#fixture-list] This list of fixtures (with markup) can be
+   reproduced by running::
+
+     py.test-3 --fixtures -q | grep "^[^ ]" | grep -v no | sed 's/.*/* ``\0``/'
+
+   in a xenial lxd container with python3-pytest installed.
