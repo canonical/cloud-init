@@ -7,8 +7,8 @@
 # vendordata. Users of the end system are given ultimate control.
 #
 vendor_data:
-    enabled: True
-    prefix: /usr/bin/ltrace
+  enabled: True
+  prefix: /usr/bin/ltrace
 
 # enabled: whether it is enabled or not
 # prefix: the command to run before any vendor scripts.
