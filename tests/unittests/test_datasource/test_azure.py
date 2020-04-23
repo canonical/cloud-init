@@ -528,14 +528,14 @@ scbus-1 on xpt0 bus 0
 
         def tags_exists(x, y):
             for tag in x.keys():
-                self.assertIn(tag, y)
+                assert tag in y
             for tag in y.keys():
-                self.assertIn(tag, x)
+                assert tag in x
 
         def tags_equal(x, y):
             for x_val in x.values():
                 y_val = y.get(x_val.tag)
-                self.assertEqual(x_val.text, y_val.text)
+                assert x_val.text == y_val.text
 
         old_cnt = create_tag_index(oxml)
         new_cnt = create_tag_index(nxml)
