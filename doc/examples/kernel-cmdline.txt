@@ -15,7 +15,7 @@ on the command line two backslashes followed by a letter 'n'.
 The yaml content may also be URL encoded (urllib.parse.quote()).
 
 Here are some examples:
- root=/dev/sda1 cc: ssh_import_id: [smoser, kirkland]\\n
- root=LABEL=uec-rootfs cc: ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ] end_cc
- cc:ssh_import_id: [smoser] end_cc cc:runcmd: [ [ ls, -l ] ] end_cc root=/dev/sda1
- cc:ssh_import_id: %5Bsmoser%5D end_cc cc:runcmd: %5B %5B ls, -l %5D %5D end_cc root=/dev/sda1
+  root=/dev/sda1 cc: ssh_import_id: [smoser, kirkland]\\n
+  root=LABEL=uec-rootfs cc: ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ] end_cc
+  cc:ssh_import_id: [smoser] end_cc cc:runcmd: [ [ ls, -l ] ] end_cc root=/dev/sda1
+  cc:ssh_import_id: %5Bsmoser%5D end_cc cc:runcmd: %5B %5B ls, -l %5D %5D end_cc root=/dev/sda1
