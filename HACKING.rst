@@ -179,7 +179,6 @@ The following guidelines should be following:
     subclass (indirectly) from ``TestCase`` (e.g.
     `TestPrependBaseCommands`_)
 
-
 * pytest tests should use bare ``assert`` statements, to take advantage
   of pytest's `assertion introspection`_
 
@@ -187,11 +186,21 @@ The following guidelines should be following:
     should be placed before the value under test:
     ``assert expected_value == function_under_test()``
 
+* As we still support Ubuntu 16.04 (Xenial Xerus), we can only use
+  pytest features that are available in v2.8.7.  This is an
+  inexhaustive list of ways in which this may catch you out:
+
+  * Support for using ``yield`` in ``pytest.fixture`` functions was
+    only introduced in `pytest 3.0`_.  Such functions must instead use
+    the ``pytest.yield_fixture`` decorator.
+
+
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
 .. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/master/cloudinit/tests/test_subp.py#L9
 .. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
+.. _pytest 3.0: https://docs.pytest.org/en/latest/changelog.html#id1093
 
 Type Annotations
 ----------------

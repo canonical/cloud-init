@@ -51,12 +51,12 @@ An example configuration with the default values is provided below:
 .. sourcecode:: yaml
 
   datasource:
-   OpenStack:
-    metadata_urls: ["http://169.254.169.254"]
-    max_wait: -1
-    timeout: 10
-    retries: 5
-    apply_network_config: True
+    OpenStack:
+      metadata_urls: ["http://169.254.169.254"]
+      max_wait: -1
+      timeout: 10
+      retries: 5
+      apply_network_config: True
 
 
 Vendor Data
