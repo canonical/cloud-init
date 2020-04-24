@@ -1245,19 +1245,44 @@ def close_stdin():
         os.dup2(fp.fileno(), sys.stdin.fileno())
 
 
+def find_devs_with_freebsd(criteria=None, oformat='device',
+                           tag=None, no_cache=False, path=None):
+    if not criteria:
+        return glob.glob("/dev/msdosfs/*") + glob.glob("/dev/iso9660/*")
+    if criteria.startswith("LABEL="):
+        label = criteria.lstrip("LABEL=")
+        devlist = [
+            p for p in ['/dev/msdosfs/' + label, '/dev/iso9660/' + label]
+            if os.path.exists(p)]
+    elif criteria == "TYPE=vfat":
+        devlist = glob.glob("/dev/msdosfs/*")
+    elif criteria == "TYPE=iso9660":
+        devlist = glob.glob("/dev/iso9660/*")
+    return devlist
+
+
 def find_devs_with_netbsd(criteria=None, oformat='device',
                           tag=None, no_cache=False, path=None):
-    if not path:
-        path = "/dev/cd0"
-    cmd = ["mscdlabel", path]
-    out, _ = subp(cmd, capture=True, decode="replace", rcs=[0, 1])
-    result = out.split()
-    if result and len(result) > 2:
-        if criteria == "TYPE=iso9660" and "ISO" in result:
-            return [path]
-        if criteria == "LABEL=CONFIG-2" and '"config-2"' in result:
-            return [path]
-    return []
+    devlist = []
+    label = None
+    _type = None
+    if criteria:
+        if criteria.startswith("LABEL="):
+            label = criteria.lstrip("LABEL=")
+        if criteria.startswith("TYPE="):
+            _type = criteria.lstrip("TYPE=")
+    out, _err = subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
+    for dev in out.split():
+        if label or _type:
+            mscdlabel_out, _ = subp(['mscdlabel', dev], rcs=[0, 1])
+        if label and not ('label "%s"' % label) in mscdlabel_out:
+            continue
+        if _type == "iso9660" and "ISO filesystem" not in mscdlabel_out:
+            continue
+        if _type == "vfat" and "ISO filesystem" in mscdlabel_out:
+            continue
+        devlist.append('/dev/' + dev)
+    return devlist
 
 
 def find_devs_with_openbsd(criteria=None, oformat='device',
@@ -1290,7 +1315,10 @@ def find_devs_with(criteria=None, oformat='device',
       LABEL=<label>
       UUID=<uuid>
     """
-    if is_NetBSD():
+    if is_FreeBSD():
+        return find_devs_with_freebsd(criteria, oformat,
+                                      tag, no_cache, path)
+    elif is_NetBSD():
         return find_devs_with_netbsd(criteria, oformat,
                                      tag, no_cache, path)
     elif is_OpenBSD():
