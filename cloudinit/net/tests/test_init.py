@@ -397,7 +397,7 @@ class TestGetDeviceList(CiTestCase):
         """get_devicelist returns a directory listing for SYS_CLASS_NET."""
         write_file(os.path.join(self.sysdir, 'eth0', 'operstate'), 'up')
         write_file(os.path.join(self.sysdir, 'eth1', 'operstate'), 'up')
-        self.assertItemsEqual(['eth0', 'eth1'], net.get_devicelist())
+        self.assertCountEqual(['eth0', 'eth1'], net.get_devicelist())
 
 
 class TestGetInterfaceMAC(CiTestCase):

@@ -20,7 +20,7 @@ class GetSchemaTest(CiTestCase):
     def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
-        self.assertItemsEqual(
+        self.assertCountEqual(
             [
                 'cc_bootcmd',
                 'cc_ntp',
@@ -38,7 +38,7 @@ class GetSchemaTest(CiTestCase):
             schema['$schema'])
         # FULL_SCHEMA is updated by the get_schema call
         from cloudinit.config.schema import FULL_SCHEMA
-        self.assertItemsEqual(['id', '$schema', 'allOf'], FULL_SCHEMA.keys())
+        self.assertCountEqual(['id', '$schema', 'allOf'], FULL_SCHEMA.keys())
 
     def test_get_schema_returns_global_when_set(self):
         """When FULL_SCHEMA global is already set, get_schema returns it."""
