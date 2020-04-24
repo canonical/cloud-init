@@ -29,6 +29,7 @@ class GetSchemaTest(CiTestCase):
                 'cc_snap',
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
+                'cc_write_files',
                 'cc_zypper_add_repo'
             ],
             [subschema['id'] for subschema in schema['allOf']])
@@ -351,7 +352,7 @@ class MainTest(CiTestCase):
                     main()
         self.assertEqual(1, context_manager.exception.code)
         self.assertEqual(
-            'Expected either --config-file argument or --doc\n',
+            'Expected either --config-file argument or --docs\n',
             m_stderr.getvalue())
 
     def test_main_absent_config_file(self):
@@ -367,8 +368,8 @@ class MainTest(CiTestCase):
             m_stderr.getvalue())
 
     def test_main_prints_docs(self):
-        """When --doc parameter is provided, main generates documentation."""
-        myargs = ['mycmd', '--doc']
+        """When --docs parameter is provided, main generates documentation."""
+        myargs = ['mycmd', '--docs', 'all']
         with mock.patch('sys.argv', myargs):
             with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
                 self.assertEqual(0, main(), 'Expected 0 exit code')
