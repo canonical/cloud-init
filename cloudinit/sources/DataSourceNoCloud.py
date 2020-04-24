@@ -49,10 +49,6 @@ class DataSourceNoCloud(sources.DataSource):
                     devlist.append('/dev/' + dev)
                     devlist.append('/dev/' + dev + 'a')  # NetBSD 7
         else:
-            # Query optical drive to get it in blkid cache for 2.6 kernels
-            util.find_devs_with(path="/dev/sr0")
-            util.find_devs_with(path="/dev/sr1")
-
             fslist = util.find_devs_with("TYPE=vfat")
             fslist.extend(util.find_devs_with("TYPE=iso9660"))
 
