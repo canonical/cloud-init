@@ -114,19 +114,19 @@ An example configuration with the default values is provided below:
 .. sourcecode:: yaml
 
   datasource:
-   Azure:
-    agent_command: __builtin__
-    apply_network_config: true
-    data_dir: /var/lib/waagent
-    dhclient_lease_file: /var/lib/dhcp/dhclient.eth0.leases
-    disk_aliases:
+    Azure:
+      agent_command: __builtin__
+      apply_network_config: true
+      data_dir: /var/lib/waagent
+      dhclient_lease_file: /var/lib/dhcp/dhclient.eth0.leases
+      disk_aliases:
         ephemeral0: /dev/disk/cloud/azure_resource
-    hostname_bounce:
+      hostname_bounce:
         interface: eth0
         command: builtin
         policy: true
         hostname_command: hostname
-    set_hostname: true
+      set_hostname: true
 
 
 Userdata

@@ -96,11 +96,11 @@ An example configuration with the default values is provided below:
 .. sourcecode:: yaml
 
   datasource:
-   Ec2:
-    metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
-    max_wait: 120
-    timeout: 50
-    apply_full_imds_network_config: true
+    Ec2:
+      metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
+      max_wait: 120
+      timeout: 50
+      apply_full_imds_network_config: true
 
 Notes
 -----

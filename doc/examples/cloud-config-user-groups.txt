@@ -84,7 +84,7 @@ users:
 #       use <default_username> instead. This option only disables cloud
 #       provided public-keys. An error will be raised if ssh_authorized_keys
 #       or ssh_import_id is provided for the same user.
-# 
+#
 #       ssh_authorized_keys.
 #   sudo: Defaults to none. Accepts a sudo rule string, a list of sudo rule
 #         strings or False to explicitly deny sudo usage. Examples:
@@ -120,10 +120,10 @@ users:
 # to have the 'ubuntu' user in addition to other users, you need to instruct
 # cloud-init that you also want the default user. To do this use the following
 # syntax:
-#    users:
-#      - default
-#      - bob
-#      - ....
+#   users:
+#     - default
+#     - bob
+#     - ....
 #  foobar: ...
 #
 # users[0] (the first user in users) overrides the user directive.
@@ -131,10 +131,10 @@ users:
 # The 'default' user above references the distro's config:
 # system_info:
 #   default_user:
-#    name: Ubuntu
-#    plain_text_passwd: 'ubuntu'
-#    home: /home/ubuntu
-#    shell: /bin/bash
-#    lock_passwd: True
-#    gecos: Ubuntu
-#    groups: [adm, audio, cdrom, dialout, floppy, video, plugdev, dip, netdev]
+#     name: Ubuntu
+#     plain_text_passwd: 'ubuntu'
+#     home: /home/ubuntu
+#     shell: /bin/bash
+#     lock_passwd: True
+#     gecos: Ubuntu
+#     groups: [adm, audio, cdrom, dialout, floppy, video, plugdev, dip, netdev]
