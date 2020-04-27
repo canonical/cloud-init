@@ -103,7 +103,10 @@ def validate_cloudconfig_schema(config, schema, strict=False):
         cloudinitValidator = extend(Draft4Validator, type_checker=type_checker)
     else:  # jsonschema 2.6 workaround
         types = Draft4Validator.DEFAULT_TYPES
-        types['string'] = (str, bytes)  # Allow bytes as well as string
+        # Allow bytes as well as string (and disable a spurious
+        # unsupported-assignment-operation pylint warning which appears because
+        # this code path isn't written against the latest jsonschema).
+        types['string'] = (str, bytes)  # pylint: disable=E1137
         cloudinitValidator = create(
             meta_schema=Draft4Validator.META_SCHEMA,
             validators=Draft4Validator.VALIDATORS,
