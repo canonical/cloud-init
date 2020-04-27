@@ -43,6 +43,7 @@ schema = {
     'title': 'write arbitrary files',
     'description': dedent("""\
         Write out arbitrary content to files, optionally setting permissions.
+        Parent folders in the path are created if absent.
         Content can be specified in plain text or binary. Data encoded with
         either base64 or binary gzip data can be specified and will be decoded
         before being written. For empty file creation, content can be omitted.
