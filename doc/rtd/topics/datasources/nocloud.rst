@@ -32,7 +32,7 @@ The permitted keys are:
 
 With ``ds=nocloud``, the ``seedfrom`` value must start with ``/`` or
 ``file://``.  With ``ds=nocloud-net``, the ``seedfrom`` value must start
-with ``http://``, ``https://`` or ``ftp://``
+with ``http://`` or ``https://``.
 
 e.g. you can pass this option to QEMU:
 
