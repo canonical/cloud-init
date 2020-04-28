@@ -337,7 +337,7 @@ class DataSourceOVFNet(DataSourceOVF):
     def __init__(self, sys_cfg, distro, paths):
         DataSourceOVF.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'ovf-net')
-        self.supported_seed_starts = ("http://", "https://", "ftp://")
+        self.supported_seed_starts = ("http://", "https://")
         self.vmware_customization_supported = False
 
 
