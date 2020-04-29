@@ -126,6 +126,9 @@ def get_package_deps_from_json(topdir, distro):
         deps = json.loads(stream.read())
     if distro is None:
         return {}
+    if deps.get(distro):  # If we have a specific distro defined, use it.
+        return deps[distro]
+    # Use generic distro dependency map via DISTRO_PKG_TYPE_MAP
     return deps[DISTRO_PKG_TYPE_MAP[distro]]
 
 
@@ -162,7 +165,9 @@ def translate_pip_to_system_pkg(pip_requires, renames):
     for pip_name in pip_requires:
         pip_name = pip_name.lower()
         # Find a rename if present for the distro package and python version
-        rename = renames.get(pip_name, {})
+        rename = renames.get(pip_name, "")
+        if rename.startswith("OMIT:"):
+            continue
         if rename:
             translated_names.append(rename)
         else:

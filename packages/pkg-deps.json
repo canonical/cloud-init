@@ -13,15 +13,28 @@
          "procps"
       ]
    },
-   "redhat" : {
+   "centos" : {
       "build-requires" : [
          "python3-devel"
       ],
       "renames" : {
-         "httpretty" : "",
-         "unittest2" : "",
-         "contextlib2" : ""
+         "unittest2" : "OMIT: LP: #1867151 Missing CentOS pkg deps",
+         "contextlib2" : "OMIT: LP: #1867151 Missing CentOS pkg deps"
       },
+      "requires" : [
+         "e2fsprogs",
+         "iproute",
+         "net-tools",
+         "procps",
+         "rsyslog",
+         "shadow-utils",
+         "sudo"
+      ]
+   },
+   "redhat" : {
+      "build-requires" : [
+         "python3-devel"
+      ],
       "requires" : [
          "e2fsprogs",
          "iproute",
