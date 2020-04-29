@@ -6,10 +6,8 @@ Forwarded: not-needed
 Last-Update: 2020-04-03
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: cloud-init/tests/unittests/test_render_cloudcfg.py
-===================================================================
---- cloud-init.orig/tests/unittests/test_render_cloudcfg.py
-+++ cloud-init/tests/unittests/test_render_cloudcfg.py
+--- a/tests/unittests/test_render_cloudcfg.py
++++ b/tests/unittests/test_render_cloudcfg.py
 @@ -9,7 +9,7 @@ from cloudinit import util
  
  # TODO(Look to align with tools.render-cloudcfg or cloudinit.distos.OSFAMILIES)
