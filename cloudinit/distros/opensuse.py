@@ -144,6 +144,9 @@ class Distro(distros.Distro):
                 return default
             return hostname
 
+    def _get_localhost_ip(self):
+        return "127.0.1.1"
+
     def _read_hostname_conf(self, filename):
         conf = HostnameConf(util.load_file(filename))
         conf.parse()
