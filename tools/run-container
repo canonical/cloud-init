@@ -287,8 +287,8 @@ prep() {
     install_packages "$@"
 }
 
-nose() {
-    python3 -m nose "$@"
+pytest() {
+    python3 -m pytest "$@"
 }
 
 is_done_cloudinit() {
@@ -478,10 +478,10 @@ main() {
 
     if [ -n "$unittest" ]; then
         debug 1 "running unit tests."
-        run_self_inside_as_cd "$name" "$user" "$cdir" nose \
+        run_self_inside_as_cd "$name" "$user" "$cdir" pytest \
             tests/unittests cloudinit/ || {
-                errorrc "nosetests failed.";
-                errors[${#errors[@]}]="nosetests"
+                errorrc "pytest failed.";
+                errors[${#errors[@]}]="pytest"
             }
     fi
 
@@ -557,7 +557,7 @@ main() {
 }
 
 case "${1:-}" in
-    prep|os_info|wait_inside|nose) _n=$1; shift; "$_n" "$@";;
+    prep|os_info|wait_inside|pytest) _n=$1; shift; "$_n" "$@";;
     *) main "$@";;
 esac
 

@@ -1,19 +1,20 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.sources import DataSourceOracle as oracle
-from cloudinit.sources import BrokenMetadata, NetworkConfigSource
-from cloudinit import helpers
-
-from cloudinit.tests import helpers as test_helpers
-
-from textwrap import dedent
 import argparse
 import copy
-import httpretty
 import json
 import os
 import uuid
+from textwrap import dedent
 from unittest import mock
+
+import httpretty
+
+from cloudinit import helpers
+from cloudinit.sources import BrokenMetadata
+from cloudinit.sources import DataSourceOracle as oracle
+from cloudinit.sources import NetworkConfigSource
+from cloudinit.tests import helpers as test_helpers
 
 DS_PATH = "cloudinit.sources.DataSourceOracle"
 MD_VER = "2013-10-17"
@@ -185,6 +186,7 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertEqual(self.my_md['uuid'], ds.get_instance_id())
         self.assertEqual(my_userdata, ds.userdata_raw)
 
+    @mock.patch(DS_PATH + ".get_interfaces_by_mac", mock.Mock(return_value={}))
     @mock.patch(DS_PATH + "._add_network_config_from_opc_imds",
                 side_effect=lambda network_config: network_config)
     @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
@@ -206,6 +208,7 @@ class TestDataSourceOracle(test_helpers.CiTestCase):
         self.assertEqual([mock.call()], m_initramfs_config.call_args_list)
         self.assertFalse(distro.generate_fallback_config.called)
 
+    @mock.patch(DS_PATH + ".get_interfaces_by_mac", mock.Mock(return_value={}))
     @mock.patch(DS_PATH + "._add_network_config_from_opc_imds",
                 side_effect=lambda network_config: network_config)
     @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
@@ -587,8 +590,6 @@ class TestNetworkConfigFromOpcImds(test_helpers.CiTestCase):
 
 
 class TestNetworkConfigFiltersNetFailover(test_helpers.CiTestCase):
-
-    with_logs = True
 
     def setUp(self):
         super(TestNetworkConfigFiltersNetFailover, self).setUp()

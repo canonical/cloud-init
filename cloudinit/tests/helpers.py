@@ -13,20 +13,10 @@ import string
 import sys
 import tempfile
 import time
+import unittest
+from contextlib import ExitStack, contextmanager
 from unittest import mock
-
-import unittest2
-from unittest2.util import strclass
-
-try:
-    from contextlib import ExitStack, contextmanager
-except ImportError:
-    from contextlib2 import ExitStack, contextmanager
-
-try:
-    from configparser import ConfigParser
-except ImportError:
-    from ConfigParser import ConfigParser
+from unittest.util import strclass
 
 from cloudinit.config.schema import (
     SchemaValidationError, validate_cloudconfig_schema)
@@ -40,8 +30,8 @@ from cloudinit import util
 _real_subp = util.subp
 
 # Used for skipping tests
-SkipTest = unittest2.SkipTest
-skipIf = unittest2.skipIf
+SkipTest = unittest.SkipTest
+skipIf = unittest.skipIf
 
 
 # Makes the old path start
@@ -78,7 +68,7 @@ def retarget_many_wrapper(new_base, am, old_func):
     return wrapper
 
 
-class TestCase(unittest2.TestCase):
+class TestCase(unittest.TestCase):
 
     def reset_global_state(self):
         """Reset any global state to its original settings.
@@ -113,16 +103,6 @@ class TestCase(unittest2.TestCase):
         p = m.start()
         self.addCleanup(m.stop)
         setattr(self, attr, p)
-
-    # prefer python3 read_file over readfp but allow fallback
-    def parse_and_read(self, contents):
-        parser = ConfigParser()
-        if hasattr(parser, 'read_file'):
-            parser.read_file(contents)
-        elif hasattr(parser, 'readfp'):
-            # pylint: disable=W1505
-            parser.readfp(contents)
-        return parser
 
 
 class CiTestCase(TestCase):
@@ -211,16 +191,6 @@ class CiTestCase(TestCase):
         if dir is None:
             dir = self.tmp_dir()
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
-
-    def sys_exit(self, code):
-        """Provide a wrapper around sys.exit for python 2.6
-
-        In 2.6, this code would produce 'cm.exception' with value int(2)
-        rather than the SystemExit that was raised by sys.exit(2).
-            with assertRaises(SystemExit) as cm:
-                sys.exit(2)
-        """
-        raise SystemExit(code)
 
     def tmp_cloud(self, distro, sys_cfg=None, metadata=None):
         """Create a cloud with tmp working directory paths.
@@ -363,6 +333,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             root = self.tmp_dir()
         self.patchUtils(root)
         self.patchOS(root)
+        self.patchOpen(root)
         return root
 
     @contextmanager
@@ -396,7 +367,7 @@ class HttprettyTestCase(CiTestCase):
         super(HttprettyTestCase, self).tearDown()
 
 
-class SchemaTestCaseMixin(unittest2.TestCase):
+class SchemaTestCaseMixin(unittest.TestCase):
 
     def assertSchemaValid(self, cfg, msg="Valid Schema failed validation."):
         """Assert the config is valid per self.schema.
@@ -527,14 +498,5 @@ if not hasattr(mock.Mock, 'assert_not_called'):
                    (mmock._mock_name or 'mock', mmock.call_count))
             raise AssertionError(msg)
     mock.Mock.assert_not_called = __mock_assert_not_called
-
-
-# older unittest2.TestCase (centos6) have only the now-deprecated
-# assertRaisesRegexp. Simple assignment makes pylint complain, about
-# users of assertRaisesRegex so we use getattr to trick it.
-# https://github.com/PyCQA/pylint/issues/1946
-if not hasattr(unittest2.TestCase, 'assertRaisesRegex'):
-    unittest2.TestCase.assertRaisesRegex = (
-        getattr(unittest2.TestCase, 'assertRaisesRegexp'))
 
 # vi: ts=4 expandtab

@@ -350,7 +350,7 @@ class TestDataSource(CiTestCase):
                 'region': 'myregion',
                 'some': {'security-credentials': {
                     'cred1': 'sekret', 'cred2': 'othersekret'}}})
-        self.assertItemsEqual(
+        self.assertCountEqual(
             ('merged_cfg', 'security-credentials',),
             datasource.sensitive_metadata_keys)
         sys_info = {
@@ -401,7 +401,7 @@ class TestDataSource(CiTestCase):
                     'region': 'myregion',
                     'some': {'security-credentials': REDACT_SENSITIVE_VALUE}}}
         }
-        self.assertItemsEqual(expected, redacted)
+        self.assertCountEqual(expected, redacted)
         file_stat = os.stat(json_file)
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
 
@@ -426,7 +426,7 @@ class TestDataSource(CiTestCase):
                       "x86_64"],
             "variant": "ubuntu", "dist": ["ubuntu", "20.04", "focal"]}
 
-        self.assertItemsEqual(
+        self.assertCountEqual(
             ('merged_cfg', 'security-credentials',),
             datasource.sensitive_metadata_keys)
         with mock.patch("cloudinit.util.system_info", return_value=sys_info):
@@ -476,7 +476,7 @@ class TestDataSource(CiTestCase):
                         'security-credentials':
                             {'cred1': 'sekret', 'cred2': 'othersekret'}}}}
         }
-        self.assertItemsEqual(expected, util.load_json(content))
+        self.assertCountEqual(expected, util.load_json(content))
         file_stat = os.stat(sensitive_json_file)
         self.assertEqual(0o600, stat.S_IMODE(file_stat.st_mode))
         self.assertEqual(expected, util.load_json(content))
@@ -542,7 +542,7 @@ class TestDataSource(CiTestCase):
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         content = util.load_file(json_file)
         instance_json = util.load_json(content)
-        self.assertItemsEqual(
+        self.assertCountEqual(
             ['ds/meta_data/key2/key2.1'],
             instance_json['base64_encoded_keys'])
         self.assertEqual(
@@ -551,9 +551,7 @@ class TestDataSource(CiTestCase):
 
     def test_get_hostname_subclass_support(self):
         """Validate get_hostname signature on all subclasses of DataSource."""
-        # Use inspect.getfullargspec when we drop py2.6 and py2.7
-        get_args = inspect.getargspec  # pylint: disable=W1505
-        base_args = get_args(DataSource.get_hostname)  # pylint: disable=W1505
+        base_args = inspect.getfullargspec(DataSource.get_hostname)
         # Import all DataSource subclasses so we can inspect them.
         modules = util.find_modules(os.path.dirname(os.path.dirname(__file__)))
         for _loc, name in modules.items():
@@ -565,13 +563,13 @@ class TestDataSource(CiTestCase):
                 continue
             self.assertEqual(
                 base_args,
-                get_args(child.get_hostname),  # pylint: disable=W1505
+                inspect.getfullargspec(child.get_hostname),
                 '%s does not implement DataSource.get_hostname params'
                 % child)
             for grandchild in child.__subclasses__():
                 self.assertEqual(
                     base_args,
-                    get_args(grandchild.get_hostname),  # pylint: disable=W1505
+                    inspect.getfullargspec(grandchild.get_hostname),
                     '%s does not implement DataSource.get_hostname params'
                     % grandchild)
 

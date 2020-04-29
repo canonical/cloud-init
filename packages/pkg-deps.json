@@ -10,9 +10,6 @@
             "2" : "python-yaml",
             "3" : "python3-yaml"
          },
-         "contextlib2" : {
-            "2" : "python-contextlib2"
-         },
          "pyserial" : {
             "2" : "python-serial",
             "3" : "python3-serial"
@@ -45,11 +42,11 @@
          "pyserial" : {
             "2" : "pyserial"
          },
+         "pytest": {
+             "3": "python36-pytest"
+         },
          "requests" : {
             "3" : "python36-requests"
-         },
-         "six" : {
-            "3" : "python36-six"
          }
       },
       "requires" : [

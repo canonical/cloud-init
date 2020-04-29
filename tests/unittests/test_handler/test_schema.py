@@ -20,7 +20,7 @@ class GetSchemaTest(CiTestCase):
     def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
-        self.assertItemsEqual(
+        self.assertCountEqual(
             [
                 'cc_bootcmd',
                 'cc_ntp',
@@ -29,6 +29,7 @@ class GetSchemaTest(CiTestCase):
                 'cc_snap',
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
+                'cc_write_files',
                 'cc_zypper_add_repo'
             ],
             [subschema['id'] for subschema in schema['allOf']])
@@ -38,7 +39,7 @@ class GetSchemaTest(CiTestCase):
             schema['$schema'])
         # FULL_SCHEMA is updated by the get_schema call
         from cloudinit.config.schema import FULL_SCHEMA
-        self.assertItemsEqual(['id', '$schema', 'allOf'], FULL_SCHEMA.keys())
+        self.assertCountEqual(['id', '$schema', 'allOf'], FULL_SCHEMA.keys())
 
     def test_get_schema_returns_global_when_set(self):
         """When FULL_SCHEMA global is already set, get_schema returns it."""
@@ -345,34 +346,30 @@ class MainTest(CiTestCase):
 
     def test_main_missing_args(self):
         """Main exits non-zero and reports an error on missing parameters."""
-        with mock.patch('sys.exit', side_effect=self.sys_exit):
-            with mock.patch('sys.argv', ['mycmd']):
-                with mock.patch('sys.stderr', new_callable=StringIO) as \
-                        m_stderr:
-                    with self.assertRaises(SystemExit) as context_manager:
-                        main()
+        with mock.patch('sys.argv', ['mycmd']):
+            with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
+                with self.assertRaises(SystemExit) as context_manager:
+                    main()
         self.assertEqual(1, context_manager.exception.code)
         self.assertEqual(
-            'Expected either --config-file argument or --doc\n',
+            'Expected either --config-file argument or --docs\n',
             m_stderr.getvalue())
 
     def test_main_absent_config_file(self):
         """Main exits non-zero when config file is absent."""
         myargs = ['mycmd', '--annotate', '--config-file', 'NOT_A_FILE']
-        with mock.patch('sys.exit', side_effect=self.sys_exit):
-            with mock.patch('sys.argv', myargs):
-                with mock.patch('sys.stderr', new_callable=StringIO) as \
-                        m_stderr:
-                    with self.assertRaises(SystemExit) as context_manager:
-                        main()
+        with mock.patch('sys.argv', myargs):
+            with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
+                with self.assertRaises(SystemExit) as context_manager:
+                    main()
         self.assertEqual(1, context_manager.exception.code)
         self.assertEqual(
             'Configfile NOT_A_FILE does not exist\n',
             m_stderr.getvalue())
 
     def test_main_prints_docs(self):
-        """When --doc parameter is provided, main generates documentation."""
-        myargs = ['mycmd', '--doc']
+        """When --docs parameter is provided, main generates documentation."""
+        myargs = ['mycmd', '--docs', 'all']
         with mock.patch('sys.argv', myargs):
             with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
                 self.assertEqual(0, main(), 'Expected 0 exit code')

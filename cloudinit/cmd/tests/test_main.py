@@ -18,8 +18,6 @@ myargs = namedtuple('MyArgs', 'debug files force local reporter subcommand')
 
 class TestMain(FilesystemMockingTestCase):
 
-    with_logs = True
-
     def setUp(self):
         super(TestMain, self).setUp()
         self.new_root = self.tmp_dir()

@@ -1,0 +1,27 @@
+#!/bin/sh
+
+fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
+
+# Check dependencies:
+depschecked=/tmp/c-i.dependencieschecked
+pkgs="
+   bash
+   dmidecode
+   py3-configobj
+   py3-jinja2
+   py3-jsonschema
+   py3-oauthlib
+   py3-requests
+   py3-setuptools
+   py3-six
+   py3-yaml
+   sudo--
+"
+[ -f "$depschecked" ] || pkg_add ${pkgs} || fail "install packages"
+
+touch $depschecked
+
+python3 setup.py build
+python3 setup.py install -O1 --distro openbsd --skip-build
+
+echo "Installation completed."

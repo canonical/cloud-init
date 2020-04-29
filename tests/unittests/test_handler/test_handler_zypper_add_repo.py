@@ -1,16 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import configparser
 import glob
+import logging
 import os
-from io import StringIO
 
-from cloudinit.config import cc_zypper_add_repo
 from cloudinit import util
-
+from cloudinit.config import cc_zypper_add_repo
 from cloudinit.tests import helpers
 from cloudinit.tests.helpers import mock
-
-import logging
 
 LOG = logging.getLogger(__name__)
 
@@ -66,7 +64,8 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         root_d = self.tmp_dir()
         cc_zypper_add_repo._write_repos(cfg['repos'], root_d)
         contents = util.load_file("%s/testing-foo.repo" % root_d)
-        parser = self.parse_and_read(StringIO(contents))
+        parser = configparser.ConfigParser()
+        parser.read_string(contents)
         expected = {
             'testing-foo': {
                 'name': 'test-foo',

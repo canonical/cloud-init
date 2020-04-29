@@ -37,7 +37,8 @@ from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
     enable_nics,
     get_nics_to_enable,
     set_customization_status,
-    get_tools_config
+    get_tools_config,
+    set_gc_status
 )
 
 LOG = logging.getLogger(__name__)
@@ -140,6 +141,8 @@ class DataSourceOVF(sources.DataSource):
             try:
                 cf = ConfigFile(vmwareImcConfigFilePath)
                 self._vmware_cust_conf = Config(cf)
+                set_gc_status(self._vmware_cust_conf, "Started")
+
                 (md, ud, cfg) = read_vmware_imc(self._vmware_cust_conf)
                 self._vmware_nics_to_enable = get_nics_to_enable(nicspath)
                 imcdirpath = os.path.dirname(vmwareImcConfigFilePath)
@@ -171,7 +174,8 @@ class DataSourceOVF(sources.DataSource):
                     "Error parsing the customization Config File",
                     e,
                     GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                    vmwareImcConfigFilePath)
+                    vmwareImcConfigFilePath,
+                    self._vmware_cust_conf)
 
             if special_customization:
                 if customscript:
@@ -183,7 +187,8 @@ class DataSourceOVF(sources.DataSource):
                             "Error executing pre-customization script",
                             e,
                             GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                            vmwareImcConfigFilePath)
+                            vmwareImcConfigFilePath,
+                            self._vmware_cust_conf)
 
             try:
                 LOG.debug("Preparing the Network configuration")
@@ -197,7 +202,8 @@ class DataSourceOVF(sources.DataSource):
                     "Error preparing Network Configuration",
                     e,
                     GuestCustEvent.GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
-                    vmwareImcConfigFilePath)
+                    vmwareImcConfigFilePath,
+                    self._vmware_cust_conf)
 
             if special_customization:
                 LOG.debug("Applying password customization")
@@ -215,7 +221,8 @@ class DataSourceOVF(sources.DataSource):
                         "Error applying Password Configuration",
                         e,
                         GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                        vmwareImcConfigFilePath)
+                        vmwareImcConfigFilePath,
+                        self._vmware_cust_conf)
 
                 if customscript:
                     try:
@@ -228,7 +235,8 @@ class DataSourceOVF(sources.DataSource):
                             "Error executing post-customization script",
                             e,
                             GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                            vmwareImcConfigFilePath)
+                            vmwareImcConfigFilePath,
+                            self._vmware_cust_conf)
 
             if product_marker:
                 try:
@@ -240,7 +248,8 @@ class DataSourceOVF(sources.DataSource):
                         "Error creating marker files",
                         e,
                         GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
-                        vmwareImcConfigFilePath)
+                        vmwareImcConfigFilePath,
+                        self._vmware_cust_conf)
 
             self._vmware_cust_found = True
             found.append('vmware-tools')
@@ -252,6 +261,7 @@ class DataSourceOVF(sources.DataSource):
             set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
+            set_gc_status(self._vmware_cust_conf, "Successful")
 
         else:
             np = [('com.vmware.guestInfo', transport_vmware_guestinfo),
@@ -327,7 +337,7 @@ class DataSourceOVFNet(DataSourceOVF):
     def __init__(self, sys_cfg, distro, paths):
         DataSourceOVF.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'ovf-net')
-        self.supported_seed_starts = ("http://", "https://", "ftp://")
+        self.supported_seed_starts = ("http://", "https://")
         self.vmware_customization_supported = False
 
 
@@ -646,7 +656,7 @@ def setup_marker_files(markerid, marker_dir):
     open(markerfile, 'w').close()
 
 
-def _raise_error_status(prefix, error, event, config_file):
+def _raise_error_status(prefix, error, event, config_file, conf):
     """
     Raise error and send customization status to the underlying VMware
     Virtualization Platform. Also, cleanup the imc directory.
@@ -655,6 +665,7 @@ def _raise_error_status(prefix, error, event, config_file):
     set_customization_status(
         GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
         event)
+    set_gc_status(conf, prefix)
     util.del_dir(os.path.dirname(config_file))
     raise error
 
