@@ -13,6 +13,8 @@ cloud-init (20.1-10-g71af48df-0ubuntu6) UNRELEASED; urgency=medium
     + cpick-09fea85f-net-ignore-renderer-key-in-netplan-config-306
     + cpick-9d7b35ce-cc_mounts-fix-incorrect-format-specifiers-316
     + cpick-0c5c7367-test_mounts-expand-happy-path-test-for-both-happy-paths
+  * refresh patches:
+   + debian/patches/fix-cpick-4fb6fd8a-net-ubuntu-focal-prioritize-netplan-over-eni.patch
 
  -- Chad Smith <chad.smith@canonical.com>  Wed, 29 Apr 2020 16:26:25 -0600
 
