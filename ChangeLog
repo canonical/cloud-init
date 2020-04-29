@@ -1,3 +1,112 @@
+20.2
+ - doc/format: reference make-mime.py instead of an inline script (#334)
+ - Add docs about  creating parent folders (#330) [Adrian Wilkins]
+ - DataSourceNoCloud/OVF: drop claim to support FTP (#333) (LP: #1875470)
+ - schema: ignore spurious pylint error (#332)
+ - schema: add json schema for write_files module (#152)
+ - BSD: find_devs_with_ refactoring (#298) [Gonéri Le Bouder]
+ - nocloud: drop work around for Linux 2.6 (#324) [Gonéri Le Bouder]
+ - cloudinit: drop dependencies on unittest2 and contextlib2 (#322)
+ - distros: handle a potential mirror filtering error case (#328)
+ - log: remove unnecessary import fallback logic (#327)
+ - .travis.yml: don't run integration test on ubuntu/* branches (#321)
+ - More unit test documentation (#314)
+ - conftest: introduce disable_subp_usage autouse fixture (#304)
+ - YAML align indent sizes for docs readability  (#323) [Tak Nishigori]
+ - network_state: add missing space to log message (#325)
+ - tests: add missing mocks for get_interfaces_by_mac (#326) (LP: #1873910)
+ - test_mounts: expand happy path test for both happy paths (#319)
+ - cc_mounts: fix incorrect format specifiers (#316) (LP: #1872836)
+ - swap file "size" being used before checked if str (#315) [Eduardo Otubo]
+ - HACKING.rst: add pytest version gotchas section (#311)
+ - docs: Add steps to re-run cloud-id and cloud-init (#313) [Joshua Powers]
+ - readme: OpenBSD is now supported (#309) [Gonéri Le Bouder]
+ - net: ignore 'renderer' key in netplan config (#306) (LP: #1870421)
+ - Add support for NFS/EFS mounts (#300) [Andrew Beresford] (LP: #1870370)
+ - openbsd: set_passwd should not unlock user (#289) [Gonéri Le Bouder]
+ - tools/.github-cla-signers: add beezly as CLA signer (#301)
+ - util: remove unnecessary lru_cache import fallback (#299)
+ - HACKING.rst: reorganise/update CLA signature info (#297)
+ - distros: drop leading/trailing hyphens from mirror URL labels (#296)
+ - HACKING.rst: add note about variable annotations (#295)
+ - CiTestCase: stop using and remove sys_exit helper (#283)
+ - distros: replace invalid characters in mirror URLs with hyphens (#291)
+   (LP: #1868232)
+ - rbxcloud: gracefully handle arping errors (#262) [Adam Dobrawy]
+ - Fix cloud-init ignoring some misdeclared mimetypes in user-data.
+   [Kurt Garloff]
+ - net: ubuntu focal prioritize netplan over eni even if both present
+   (#267) (LP: #1867029)
+ - cloudinit: refactor util.is_ipv4 to net.is_ipv4_address (#292)
+ - net/cmdline: replace type comments with annotations (#294)
+ - HACKING.rst: add Type Annotations design section (#293)
+ - net: introduce is_ip_address function (#288)
+ - CiTestCase: remove now-unneeded parse_and_read helper method (#286)
+ - .travis.yml: allow 30 minutes of inactivity in cloud tests (#287)
+ - sources/tests/test_init: drop use of deprecated inspect.getargspec (#285)
+ - setup.py: drop NIH check_output implementation (#282)
+ - Identify SAP Converged Cloud as OpenStack [Silvio Knizek]
+ - add Openbsd support (#147) [Gonéri Le Bouder]
+ - HACKING.rst: add examples of the two test class types (#278)
+ - VMWware: support to update guest info gc status if enabled (#261)
+   [xiaofengw-vmware]
+ - Add lp-to-git mapping for kgarloff (#279)
+ - set_passwords: avoid chpasswd on BSD (#268) [Gonéri Le Bouder]
+ - HACKING.rst: add Unit Testing design section (#277)
+ - util: read_cc_from_cmdline handle urlencoded yaml content (#275)
+ - distros/tests/test_init: add tests for _get_package_mirror_info (#272)
+ - HACKING.rst: add links to new Code Review Process doc (#276)
+ - freebsd: ensure package update works (#273) [Gonéri Le Bouder]
+ - doc: introduce Code Review Process documentation (#160)
+ - tools: use python3 (#274)
+ - cc_disk_setup: fix RuntimeError (#270) (LP: #1868327)
+ - cc_apt_configure/util: combine search_for_mirror implementations (#271)
+ - bsd: boottime does not depend on the libc soname (#269)
+   [Gonéri Le Bouder]
+ - test_oracle,DataSourceOracle: sort imports (#266)
+ - DataSourceOracle: update .network_config docstring (#257)
+ - cloudinit/tests: remove unneeded with_logs configuration (#263)
+ - .travis.yml: drop stale comment (#255)
+ - .gitignore: add more common directories (#258)
+ - ec2: render network on all NICs and add secondary IPs as static (#114)
+   (LP: #1866930)
+ - ec2 json validation: fix the reference to the 'merged_cfg' key (#256)
+   [Paride Legovini]
+ - releases.yaml: quote the Ubuntu version numbers (#254) [Paride Legovini]
+ - cloudinit: remove six from packaging/tooling (#253)
+ - util/netbsd: drop six usage (#252)
+ - workflows: introduce stale pull request workflow (#125)
+ - cc_resolv_conf: introduce tests and stabilise output across Python
+   versions (#251)
+ - fix minor issue with resolv_conf template (#144) [andreaf74]
+ - doc: CloudInit also support NetBSD (#250) [Gonéri Le Bouder]
+ - Add Netbsd support (#62) [Gonéri Le Bouder]
+ - tox.ini: avoid substition syntax that causes a traceback on xenial (#245)
+ - Add pub_key_ed25519 to cc_phone_home (#237) [Daniel Hensby]
+ - Introduce and use of a list of GitHub usernames that have signed CLA
+   (#244)
+ - workflows/cla.yml: use correct username for CLA check (#243)
+ - tox.ini: use xenial version of jsonpatch in CI (#242)
+ - workflows: CLA validation altered to fail status on pull_request (#164)
+ - tox.ini: bump pyflakes version to 2.1.1 (#239)
+ - cloudinit: move to pytest for running tests (#211)
+ - instance-data: add cloud-init merged_cfg and sys_info keys to json
+   (#214) (LP: #1865969)
+ - ec2: Do not fallback to IMDSv1 on EC2 (#216)
+ - instance-data: write redacted cfg to instance-data.json (#233)
+   (LP: #1865947)
+ - net: support network-config:disabled on the kernel commandline (#232)
+   (LP: #1862702)
+ - ec2: only redact token request headers in logs, avoid altering request
+   (#230) (LP: #1865882)
+ - docs: typo fixed: dta → data [Alexey Vazhnov]
+ - Fixes typo on Amazon Web Services (#217) [Nick Wales]
+ - Fix docs for OpenStack DMI Asset Tag (#228)
+   [Mark T. Voelker] (LP: #1669875)
+ - Add physical network type: cascading to openstack helpers (#200)
+   [sab-systems]
+ - tests: add focal integration tests for ubuntu (#225)
+
 20.1
  - ec2: Do not log IMDSv2 token values, instead use REDACTED (#219)
    (LP: #1863943)
