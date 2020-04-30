@@ -6,13 +6,15 @@ dist: bionic
 # For the integration tests, we instead want to cache the lxd images.  The
 # directory in which the images are stored (/var/snap/lxd/common/lxd/images/)
 # is not readable/writeable by the default user (which is a requirement for
-# caching), so we instead cache the `lxd_images/` directory and move out of
-# that before we run tests and back in once tests are complete.  To avoid our
-# cache growing without bound, we move all images out of the cached directory
-# (so it is empty) and only copy the most recent lxd image back into the cache.
-# (We cache the lxd images because this saves a few seconds in the general
+# caching), so we instead cache the `lxd_images/` directory.  We move lxd
+# images out of there before we run tests and back in once tests are complete.
+# We _move_ the images out and only copy the most recent lxd image back into
+# the cache, to avoid our cache growing without bound.  (We only need the most
+# recent lxd image because the integration tests only use a single image.)
+#
+# We cache the lxd images because this saves a few seconds in the general
 # case, but provides substantial speed-ups when cloud-images.ubuntu.com, the
-# source of the images, is under heavy load.)
+# source of the images, is under heavy load.
 cache: pip
 
 install:
