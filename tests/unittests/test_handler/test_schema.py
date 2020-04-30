@@ -23,6 +23,7 @@ class GetSchemaTest(CiTestCase):
         self.assertCountEqual(
             [
                 'cc_bootcmd',
+                'cc_locale',
                 'cc_ntp',
                 'cc_resizefs',
                 'cc_runcmd',
