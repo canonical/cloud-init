@@ -792,9 +792,12 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
     def setUp(self):
         super(TestConvertEc2MetadataNetworkConfig, self).setUp()
         self.mac1 = '06:17:04:d7:26:09'
+        interface_dict = copy.deepcopy(
+            DEFAULT_METADATA['network']['interfaces']['macs'][self.mac1])
+        # These tests are written assuming the base interface doesn't have IPv6
+        interface_dict.pop('ipv6s')
         self.network_metadata = {
-            'interfaces': {'macs': {
-                self.mac1: {'mac': self.mac1, 'public-ipv4s': '172.31.2.16'}}}}
+            'interfaces': {'macs': {self.mac1: interface_dict}}}
 
     def test_convert_ec2_metadata_network_config_skips_absent_macs(self):
         """Any mac absent from metadata is skipped by network config."""
