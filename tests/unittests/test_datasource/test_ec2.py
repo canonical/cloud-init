@@ -38,6 +38,8 @@ DYNAMIC_METADATA = {
 # python3 -c 'import json
 # from cloudinit.ec2_utils import get_instance_metadata as gm
 # print(json.dumps(gm("2016-09-02"), indent=1, sort_keys=True))'
+# Note that the MAC addresses have been modified to sort in the opposite order
+# to the device-number attribute, to test LP: #1876312
 DEFAULT_METADATA = {
     "ami-id": "ami-8b92b4ee",
     "ami-launch-index": "0",
@@ -77,7 +79,7 @@ DEFAULT_METADATA = {
                     "vpc-ipv4-cidr-blocks": "172.31.0.0/16",
                     "vpc-ipv6-cidr-blocks": "2600:1f16:aeb:b200::/56"
                 },
-                "06:17:04:d7:26:0A": {
+                "06:17:04:d7:26:08": {
                     "device-number": "1",   # Only IPv4 local config
                     "interface-id": "eni-e44ef49f",
                     "ipv4-associations": {"": "172.3.3.16"},
@@ -85,7 +87,7 @@ DEFAULT_METADATA = {
                     "local-hostname": ("ip-172-3-3-16.us-east-2."
                                        "compute.internal"),
                     "local-ipv4s": "172.3.3.16",
-                    "mac": "06:17:04:d7:26:0A",
+                    "mac": "06:17:04:d7:26:08",
                     "owner-id": "950047163771",
                     "public-hostname": ("ec2-172-3-3-16.us-east-2."
                                         "compute.amazonaws.com"),
@@ -423,7 +425,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
             m_find_fallback.return_value = 'eth9'
             ds.get_data()
 
-        mac1 = '06:17:04:d7:26:0A'  # IPv4 only in DEFAULT_METADATA
+        mac1 = '06:17:04:d7:26:08'  # IPv4 only in DEFAULT_METADATA
         expected = {'version': 2, 'ethernets': {'eth9': {
             'match': {'macaddress': mac1.lower()}, 'set-name': 'eth9',
             'dhcp4': True, 'dhcp6': False}}}
@@ -875,7 +877,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
 
     def test_convert_ec2_metadata_network_config_handles_multiple_nics(self):
         """DHCP route-metric increases on secondary NICs for IPv4 and IPv6."""
-        mac2 = '06:17:04:d7:26:0a'
+        mac2 = '06:17:04:d7:26:08'
         macs_to_nics = {self.mac1: 'eth9', mac2: 'eth10'}
         network_metadata_both = copy.deepcopy(self.network_metadata)
         # Add 2nd nic info
