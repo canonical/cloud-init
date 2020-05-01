@@ -166,8 +166,6 @@ def translate_pip_to_system_pkg(pip_requires, renames):
         pip_name = pip_name.lower()
         # Find a rename if present for the distro package and python version
         rename = renames.get(pip_name, "")
-        if rename.startswith("OMIT:"):
-            continue
         if rename:
             translated_names.append(rename)
         else:
