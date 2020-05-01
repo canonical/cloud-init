@@ -17,10 +17,6 @@
       "build-requires" : [
          "python3-devel"
       ],
-      "renames" : {
-         "unittest2" : "OMIT: LP: #1867151 Missing CentOS pkg deps",
-         "contextlib2" : "OMIT: LP: #1867151 Missing CentOS pkg deps"
-      },
       "requires" : [
          "e2fsprogs",
          "iproute",
