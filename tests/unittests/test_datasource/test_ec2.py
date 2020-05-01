@@ -154,19 +154,19 @@ NIC1_MD_IPV4_IPV6_MULTI_IP = {
 }
 
 NIC2_MD = {
-    "device_number": "1",
-    "interface_id": "eni-043cdce36ded5e79f",
-    "local_hostname": "ip-172-31-47-221.us-east-2.compute.internal",
-    "local_ipv4s": "172.31.47.221",
+    "device-number": "1",
+    "interface-id": "eni-043cdce36ded5e79f",
+    "local-hostname": "ip-172-31-47-221.us-east-2.compute.internal",
+    "local-ipv4s": "172.31.47.221",
     "mac": "0a:75:69:92:e2:16",
-    "owner_id": "329910648901",
-    "security_group_ids": "sg-0d68fef37d8cc9b77",
-    "security_groups": "launch-wizard-17",
-    "subnet_id": "subnet-9d7ba0d1",
-    "subnet_ipv4_cidr_block": "172.31.32.0/20",
-    "vpc_id": "vpc-a07f62c8",
-    "vpc_ipv4_cidr_block": "172.31.0.0/16",
-    "vpc_ipv4_cidr_blocks": "172.31.0.0/16"
+    "owner-id": "329910648901",
+    "security-group-ids": "sg-0d68fef37d8cc9b77",
+    "security-groups": "launch-wizard-17",
+    "subnet-id": "subnet-9d7ba0d1",
+    "subnet-ipv4-cidr-block": "172.31.32.0/20",
+    "vpc-id": "vpc-a07f62c8",
+    "vpc-ipv4-cidr-block": "172.31.0.0/16",
+    "vpc-ipv4-cidr-blocks": "172.31.0.0/16"
 }
 
 SECONDARY_IP_METADATA_2018_09_24 = {
