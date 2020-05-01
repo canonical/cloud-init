@@ -464,10 +464,6 @@ main() {
     }
 
     local rdcmd=(python3 tools/read-dependencies "--distro=${OS_NAME}" --install --test-distro)
-    if [[ ${OS_NAME} == centos ]]; then
-        error "WARNING: Unable to install all CentOS for test dependencies (missing deps, LP: #1867151)."
-        unittest=""
-    fi
     inside_as_cd "$name" root "$cdir" "${rdcmd[@]}" || {
         errorrc "FAIL: failed to install dependencies with read-dependencies"
         return
