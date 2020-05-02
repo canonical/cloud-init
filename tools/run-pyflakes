@@ -1,6 +1,5 @@
 #!/bin/bash
 
-PYTHON_VERSION=${PYTHON_VERSION:-2}
 CR="
 "
 pycheck_dirs=( "cloudinit/" "tests/" "tools/" )
@@ -12,7 +11,7 @@ else
    files=( "$@" )
 fi
 
-cmd=( "python${PYTHON_VERSION}" -m "pyflakes" "${files[@]}" )
+cmd=( "python3" -m "pyflakes" "${files[@]}" )
 
 echo "Running: " "${cmd[@]}" 1>&2
 exec "${cmd[@]}"
