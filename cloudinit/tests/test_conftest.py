@@ -28,7 +28,7 @@ class TestDisableSubpUsageInTestSubclass(CiTestCase):
             util.subp(["some", "args"])
 
     def test_typeerrors_on_incorrect_usage(self):
-        with pytest.raises(IndexError):
+        with pytest.raises(TypeError):
             util.subp()
 
     def test_subp_usage_can_be_reenabled(self):

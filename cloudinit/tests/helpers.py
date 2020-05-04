@@ -144,6 +144,9 @@ class CiTestCase(TestCase):
         if 'args' in kwargs:
             cmd = kwargs['args']
         else:
+            if not args:
+                raise TypeError(
+                    "subp() missing 1 required positional argument: 'args'")
             cmd = args[0]
 
         if not isinstance(cmd, str):
