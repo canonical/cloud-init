@@ -12,6 +12,7 @@ from copy import copy
 import os
 import pytest
 from io import StringIO
+from pathlib import Path
 from textwrap import dedent
 from yaml import safe_load
 
@@ -446,5 +447,28 @@ class CloudTestsIntegrationTest(CiTestCase):
                             filename, e))
         if errors:
             raise AssertionError(', '.join(errors))
+
+
+class TestSchemaDocExamples:
+    @skipUnlessJsonSchema()
+    def test_schema_doc_examples(self):
+        ignored_files = [
+            'cloud-config-archive-launch-index.txt',
+            'cloud-config-archive.txt',
+        ]
+
+        examples_dir = Path(
+            __file__).parent.parent.parent.parent / 'doc' / 'examples'
+        # Make sure our path shenanigans found an actual directory
+        assert examples_dir.is_dir()
+
+        all_text_files = [f for f in examples_dir.glob('cloud-config*.txt')
+                          if f.name not in ignored_files]
+        for text_file_path in all_text_files:
+            try:
+                validate_cloudconfig_file(str(text_file_path), get_schema())
+            except:  # noqa
+                print('Failed on {}'.format(text_file_path))
+                raise
 
 # vi: ts=4 expandtab syntax=python
