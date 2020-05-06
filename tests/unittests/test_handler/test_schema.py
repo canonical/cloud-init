@@ -10,6 +10,7 @@ from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 from copy import copy
 import os
+import pytest
 from io import StringIO
 from textwrap import dedent
 from yaml import safe_load
@@ -110,6 +111,24 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
         self.assertEqual(
             "Cloud config schema errors: p1: '-1' is not a 'hostname'",
             str(context_mgr.exception))
+
+
+class TestCloudConfigExamples:
+
+    SCHEMA = get_schema()
+    PARAMS = [
+        (schema["id"], example)
+        for schema in SCHEMA["allOf"] for example in schema["examples"]]
+
+    @pytest.mark.parametrize("schema_id,example", PARAMS)
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_of_example(self, schema_id, example):
+        """ For a given example in a config module we test if it is valid
+        according to the unified schema of all config modules
+        """
+        config_load = safe_load(example)
+        validate_cloudconfig_schema(
+            config_load, TestCloudConfigExamples.SCHEMA, strict=True)
 
 
 class ValidateCloudConfigFileTest(CiTestCase):
