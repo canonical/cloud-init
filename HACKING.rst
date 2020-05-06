@@ -6,10 +6,13 @@ This document describes how to contribute changes to cloud-init.
 It assumes you have a `GitHub`_ account, and refers to your GitHub user
 as ``GH_USER`` throughout.
 
-Do these things once
-====================
+Submitting your first pull request
+==================================
 
-* To contribute, you must sign the Canonical `contributor license agreement`_
+Follow these steps to submit your first pull request to cloud-init:
+
+* To contribute to cloud-init, you must sign the Canonical `contributor
+  license agreement`_
 
   * If you have already signed it as an individual, your Launchpad user
     will be listed in the `contributor-agreement-canonical`_ group.
@@ -57,11 +60,24 @@ Do these things once
 * Read through the cloud-init `Code Review Process`_, so you understand
   how your changes will end up in cloud-init's codebase.
 
+* Submit your first cloud-init pull request, adding yourself to the
+  in-repository list that we use to track CLA signatures:
+  ``tools/.github-cla-signers``
+
+  * See `PR #344`_ and `PR #345`_ for examples of what this pull
+    request should look like.
+
+  * (If you already have a change that you want to submit, you can
+    also include the change to ``tools/.github-cla-signers`` in that
+    pull request, there is no need for two separate PRs.)
+
 .. _GitHub: https://github.com
 .. _Launchpad: https://launchpad.net
 .. _repository: https://github.com/canonical/cloud-init
 .. _contributor license agreement: https://ubuntu.com/legal/contributors
 .. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
+.. _PR #344: https://github.com/canonical/cloud-init/pull/344
+.. _PR #345: https://github.com/canonical/cloud-init/pull/345
 
 Transferring CLA Signatures from Launchpad to Github
 ----------------------------------------------------
