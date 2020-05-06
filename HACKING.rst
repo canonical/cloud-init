@@ -214,6 +214,29 @@ The following guidelines should be followed:
 
   * For example, ``m_readurl`` (which would be a mock for ``readurl``)
 
+* The ``assert_*`` methods that are available on ``Mock`` and
+  ``MagicMock`` objects should be avoided, as typos in these method
+  names may not raise ``AttributeError`` (and so can cause tests to
+  silently pass).  These substitutions can be used (``m`` is assumed to
+  be a ``Mock``):
+
+  * ``m.assert_any_call(*args, **kwargs)`` => ``assert
+    mock.call(*args, **kwargs) in m.call_args_list``
+  * ``m.assert_called()`` => ``assert 0 != m.call_count``
+  * ``m.assert_called_once()`` => ``assert 1 == m.call_count``
+  * ``m.assert_called_once_with(*args, **kwargs)`` => ``assert
+    [mock.call(*args, **kwargs)] == m.call_args_list``
+  * ``m.assert_called_with(*args, **kwargs)`` => ``assert
+    mock.call(*args, **kwargs) == m.call_args_list[-1]``
+  * ``m.assert_has_calls(call_list, any_order=True)`` => ``for call in
+    call_list: assert call in m.call_args_list``
+
+    * ``m.assert_has_calls(...)`` and ``m.assert_has_calls(...,
+      any_order=False)`` are not easily replicated in a single
+      statement, so their use when appropriate is acceptable.
+
+  * ``m.assert_not_called()`` => ``assert 0 == m.call_count``
+
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
