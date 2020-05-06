@@ -121,6 +121,7 @@ class TestCloudConfigExamples:
         for schema in SCHEMA["allOf"] for example in schema["examples"]]
 
     @pytest.mark.parametrize("schema_id,example", PARAMS)
+    @skipUnlessJsonSchema()
     def test_validateconfig_schema_of_example(self, schema_id, example):
         """ For a given example in a config module we test if it is valid
         according to the unified schema of all config modules
