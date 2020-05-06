@@ -257,6 +257,12 @@ The following guidelines should be followed:
   * ``pytest.mark.parametrize``
   * ``mock.patch``
 
+* When there are multiple patch calls in a test file for the module it
+  is testing, it may be desirable to capture the shared string prefix
+  for these patch calls in a module-level variable.  If used, such
+  variables should be named ``M_PATH`` or, for datasource tests,
+  ``DS_PATH``.
+
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
