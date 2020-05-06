@@ -237,6 +237,26 @@ The following guidelines should be followed:
 
   * ``m.assert_not_called()`` => ``assert 0 == m.call_count``
 
+* Test arguments should be ordered as follows:
+
+  * ``mock.patch`` arguments.  When used as a decorator, ``mock.patch``
+    partially applies its generated ``Mock`` object as the first
+    argument, so these arguments must go first.
+  * ``pytest.mark.parametrize`` arguments, in the order specified to
+    the ``parametrize`` decorator.  These arguments are also provided
+    by a decorator, so it's natural that they sit next to the
+    ``mock.patch`` arguments.
+  * Fixture arguments, alphabetically.  These are not provided by a
+    decorator, so they are last, and their order has no defined
+    meaning, so we default to alphabetical.
+
+* It follows from this ordering of test arguments (so that we retain
+  the property that arguments left-to-right correspond to decorators
+  bottom-to-top) that test decorators should be ordered as follows:
+
+  * ``pytest.mark.parametrize``
+  * ``mock.patch``
+
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
