@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
+import cloudinit
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER, SchemaValidationError, annotated_cloudconfig_file,
     get_schema_doc, get_schema, validate_cloudconfig_file,
@@ -115,7 +115,6 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
 
 
 class TestCloudConfigExamples:
-
     SCHEMA = get_schema()
     PARAMS = [
         (schema["id"], example)
@@ -452,18 +451,13 @@ class CloudTestsIntegrationTest(CiTestCase):
 class TestSchemaDocExamples:
     @skipUnlessJsonSchema()
     def test_schema_doc_examples(self):
-        ignored_files = [
-            'cloud-config-archive-launch-index.txt',
-            'cloud-config-archive.txt',
-        ]
-
         examples_dir = Path(
-            __file__).parent.parent.parent.parent / 'doc' / 'examples'
+            cloudinit.__file__).parent.parent / 'doc' / 'examples'
         # Make sure our path shenanigans found an actual directory
         assert examples_dir.is_dir()
 
         all_text_files = [f for f in examples_dir.glob('cloud-config*.txt')
-                          if f.name not in ignored_files]
+                          if not f.name.startswith('cloud-config-archive')]
         for text_file_path in all_text_files:
             try:
                 validate_cloudconfig_file(str(text_file_path), get_schema())
