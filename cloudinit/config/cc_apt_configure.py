@@ -28,7 +28,7 @@ distros = ["ubuntu", "debian"]
 schema = {
     'id': 'cc_apt_configure',
     'name': 'Apt Configure',
-    'title': 'Configure apt for the user',  # IMPROVE
+    'title': 'Configure apt for the user',
     'description': dedent("""\
         This module handles both configuration of apt options and adding
         source lists.  There are configuration options such as
