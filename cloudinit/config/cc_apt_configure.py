@@ -13,7 +13,8 @@ import os
 import re
 from textwrap import dedent
 
-from cloudinit.config.schema import get_schema_doc
+from cloudinit.config.schema import (
+    get_schema_doc, validate_cloudconfig_schema)
 from cloudinit import gpg
 from cloudinit import log as logging
 from cloudinit import templater
@@ -444,6 +445,7 @@ def handle(name, ocfg, cloud, log, _):
             "Expected dictionary for 'apt' config, found {config_type}".format(
                 config_type=type(cfg)))
 
+    validate_cloudconfig_schema(cfg, schema)
     apply_debconf_selections(cfg, target)
     apply_apt(cfg, cloud, target)
 
