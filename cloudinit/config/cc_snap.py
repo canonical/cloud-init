@@ -61,9 +61,9 @@ schema = {
         snap:
             assertions:
               00: |
-              signed_assertion_blob_here
+                signed_assertion_blob_here
               02: |
-              signed_assertion_blob_here
+                signed_assertion_blob_here
             commands:
               00: snap create-user --sudoer --known <snap-user>@mydomain.com
               01: snap install canonical-livepatch

@@ -1,12 +1,10 @@
-## template:basic
 #!/usr/bin/make -f
 INIT_SYSTEM ?= systemd
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
-PYVER ?= python${pyver}
 DEB_VERSION := $(shell dpkg-parsechangelog --show-field=Version)
 
 %:
-	dh $@ --with $(PYVER),systemd --buildsystem pybuild
+	dh $@ --with python3,systemd --buildsystem pybuild
 
 override_dh_install:
 	dh_install
@@ -19,7 +17,7 @@ override_dh_install:
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
-	http_proxy= make PYVER=python${pyver} check
+	http_proxy= make check
 else
 	@echo check disabled by DEB_BUILD_OPTIONS=$(DEB_BUILD_OPTIONS)
 endif

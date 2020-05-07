@@ -18,9 +18,9 @@ class BSD(distros.Distro):
     group_add_cmd_prefix = []
     pkg_cmd_install_prefix = []
     pkg_cmd_remove_prefix = []
-    # There is no need to update the package cache on NetBSD and OpenBSD
-    # TODO neither freebsd nor netbsd handles a command 'upgrade'
+    # There is no update/upgrade on OpenBSD
     pkg_cmd_update_prefix = None
+    pkg_cmd_upgrade_prefix = None
 
     def __init__(self, name, cfg, paths):
         super().__init__(name, cfg, paths)
@@ -97,6 +97,10 @@ class BSD(distros.Distro):
             if not self.pkg_cmd_update_prefix:
                 return
             cmd = self.pkg_cmd_update_prefix
+        elif command == 'upgrade':
+            if not self.pkg_cmd_upgrade_prefix:
+                return
+            cmd = self.pkg_cmd_upgrade_prefix
 
         if args and isinstance(args, str):
             cmd.append(args)

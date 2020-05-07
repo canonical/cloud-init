@@ -25,6 +25,7 @@ class Distro(cloudinit.distros.bsd.BSD):
     pkg_cmd_install_prefix = ["pkg", "install"]
     pkg_cmd_remove_prefix = ["pkg", "remove"]
     pkg_cmd_update_prefix = ["pkg", "update"]
+    pkg_cmd_upgrade_prefix = ["pkg", "upgrade"]
 
     def _select_hostname(self, hostname, fqdn):
         # Should be FQDN if available. See rc.conf(5) in FreeBSD
