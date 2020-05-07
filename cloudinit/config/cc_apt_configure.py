@@ -25,6 +25,38 @@ LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
+mirror_property = {
+    'type': 'array',
+    'item': {
+        'type': 'object',
+        'additionalProperties': False,
+        'required': ['arches'],
+        'properties': {
+            'arches': {
+                'type': 'array',
+                'item': {
+                    'type': 'string'
+                },
+                'minItems': 1
+            },
+            'uri': {
+                'type': 'string',
+                'format': 'uri'
+            },
+            'search': {
+                'type': 'array',
+                'item': {
+                    'type': 'string',
+                    'format': 'uri'
+                },
+                'minItems': 1
+            },
+            'search_dns': {
+                'type': 'boolean',
+            }
+        }
+    }
+}
 schema = {
     'id': 'cc_apt_configure',
     'name': 'Apt Configure',
@@ -154,115 +186,56 @@ schema = {
                         is just commented out.""")
                 },
                 'primary': {
-                    'type': 'array',
-                    'item': {
-                        'type': 'object',
-                        'additionalProperties': False,
-                        'required': ['arches'],
-                        'properties': {
-                            'arches': {
-                                'type': 'array',
-                                'item': {
-                                    'type': 'string'
-                                },
-                                'minItems': 1
-                            },
-                            'uri': {
-                                'type': 'string',
-                                'format': 'uri'
-                            },
-                            'search': {
-                                'type': 'array',
-                                'item': {
-                                    'type': 'string',
-                                    'format': 'uri'
-                                },
-                                'minItems': 1
-                            },
-                            'search_dns': {
-                                'type': 'boolean',
-                            }
-                        }
-                    },
+                    **mirror_property,
                     'description': dedent("""\
-                        The primary and security archive mirrors can be
-                         specified using the ``primary`` and ``security`
-                         keys, respectively Both the ``primary`` and
-                         ``security`` keys take a list of configs,
-                         allowing mirrors to be specified on a
-                         per-architecture basis. Each config is a
-                         dictionary which must have an entry for
+                        The primary and security archive mirrors can
+                        be specified using the ``primary`` and
+                         ``security`` keys, respectively Both the
+                         ``primary`` and ``security`` keys take a list
+                        of configs, allowing mirrors to be specified
+                        on a per-architecture basis. Each config is a
+                        dictionary which must have an entry for
                          ``arches``, specifying which architectures
-                         that config entry is for. The keyword
+                        that config entry is for. The keyword
                          ``default`` applies to any architecture not
-                         explicitly listed. The mirror url can be specified
-                         with the ``uri`` key, or a list of mirrors to
-                         check can be provided in order, with the first
-                         mirror that can be resolved being selected. This
-                         allows the same configuration to be used in
-                         different environment, with different hosts used
-                         for a local apt mirror. If no mirror is provided
-                         by ``uri`` or ``search``, ``search_dns`` may be
-                         used to search for dns names in the format
+                        explicitly listed. The mirror url can be specified
+                        with the ``uri`` key, or a list of mirrors to
+                        check can be provided in order, with the first
+                        mirror that can be resolved being selected. This
+                        allows the same configuration to be used in
+                        different environment, with different hosts used
+                        for a local apt mirror. If no mirror is provided
+                        by ``uri`` or ``search``, ``search_dns`` may be
+                        used to search for dns names in the format
                          ``<distro>-mirror`` in each of the following:
 
-                             fqdn of this host per cloud metadata,
-                             localdomain,
-                             domains listed in ``/etc/resolv.conf``.
+                            fqdn of this host per cloud metadata,
+                            localdomain,
+                            domains listed in ``/etc/resolv.conf``.
 
-                         If there is a dns entry for ``<distro>-mirror``,
-                         then it is assumed that there is a distro mirror
-                         at ``http://<distro>-mirror.<domain>/<distro>``.
-                         If the ``primary`` key is defined, but not the
+                        If there is a dns entry for ``<distro>-mirror``,
+                        then it is assumed that there is a distro mirror
+                        at ``http://<distro>-mirror.<domain>/<distro>``.
+                        If the ``primary`` key is defined, but not the
                          ``security`` key, then then configuration for
                          ``primary`` is also used for ``security``.
-                         If ``search_dns`` is used for the ``security``
+                        If ``search_dns`` is used for the ``security``
                          key, the search pattern will be
                          ``<distro>-security-mirror``.
 
-                         If no mirrors are specified, or all lookups fail,
-                         then default mirrors defined in the datasource
-                         are used. If none are present in the datasource
-                         either the following defaults are used:
+                        If no mirrors are specified, or all lookups fail,
+                        then default mirrors defined in the datasource
+                        are used. If none are present in the datasource
+                        either the following defaults are used:
 
-                          ``primary`` => ``http://archive.ubuntu.com/ubuntu``,
-                          ``security`` =>
-                          ``http://security.ubuntu.com/ubuntu``
-                        """)
-                },
+                        ``primary`` => ``http://archive.ubuntu.com/ubuntu``,
+                         ``security`` =>
+                         ``http://security.ubuntu.com/ubuntu``
+                        """)},
                 'security': {
-                    'type': 'array',
-                    'item': {
-                        'type': 'object',
-                        'additionalProperties': False,
-                        'required': ['arches'],
-                        'properties': {
-                            'arches': {
-                                'type': 'array',
-                                'uniqueItems': True,
-                                'item': {
-                                    'type': 'string'
-                                },
-                                'minItems': 1
-                            },
-                            'uri': {
-                                'type': 'string',
-                                'format': 'uri'
-                            },
-                            'search': {
-                                'type': 'array',
-                                'uniqueItems': True,
-                                'item': {
-                                    'type': 'string',
-                                    'format': 'uri'
-                                },
-                                'minItems': 1
-                            },
-                            'search_dns': {
-                                'type': 'boolean',
-                            }
-                        }
-                    }
+                    **mirror_property,
+                    'description': dedent("""\
+                        Please refer to the primary config documentation""")
                 },
                 'add_apt_repo_match': {
                     'type': 'string',
@@ -270,7 +243,7 @@ schema = {
                         All source entries in ``apt-sources`` that match
                          regex in ``add_apt_repo_match`` will be added to
                          the system using ``add-apt-repository``. If
-                         ``add_apt_repo_match`` is not specified, it
+                          ``add_apt_repo_match`` is not specified, it
                          defaults to ``^[\\w-]+:\\w``""")
                 },
                 'debconf_selections': {
@@ -328,14 +301,14 @@ schema = {
                     'description': dedent("""\
                         More convinient way to specify https apt proxy.
                         https proxy url is specified in the format
-                        ``https://[[user][:pass]@]host[:port]/``.""")
+                         ``https://[[user][:pass]@]host[:port]/``.""")
                 },
                 'http_proxy': {
                     'type': 'string',
                     'description': dedent("""\
                         More convinient way to specify http apt proxy.
                         http proxy url is specified in the format
-                        ``http://[[user][:pass]@]host[:port]/``.""")
+                         ``http://[[user][:pass]@]host[:port]/``.""")
                 },
                 'proxy': {
                     'type': 'string',
@@ -347,7 +320,7 @@ schema = {
                     'description': dedent("""\
                         More convinient way to specify ftp apt proxy.
                         ftp proxy url is specified in the format
-                        ``ftp://[[user][:pass]@]host[:port]/``.""")
+                         ``ftp://[[user][:pass]@]host[:port]/``.""")
                 },
                 'sources': {
                     'type': 'object',
@@ -364,7 +337,7 @@ schema = {
                          be appended. If there is no configuration for a
                          key in ``sources``, no file will be written, but
                          the key may still be referred to as an id in other
-                         ``sources`` entries.
+                          ``sources`` entries.
 
                          Each entry under ``sources`` is a dictionary which
                          may contain any of the following optional keys:
