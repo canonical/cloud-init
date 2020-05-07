@@ -448,21 +448,20 @@ class CloudTestsIntegrationTest(CiTestCase):
             raise AssertionError(', '.join(errors))
 
 
-class TestSchemaDocExamples:
-    @skipUnlessJsonSchema()
-    def test_schema_doc_examples(self):
-        examples_dir = Path(
-            cloudinit.__file__).parent.parent / 'doc' / 'examples'
-        # Make sure our path shenanigans found an actual directory
-        assert examples_dir.is_dir()
+def _get_schema_doc_examples():
+    examples_dir = Path(
+        cloudinit.__file__).parent.parent / 'doc' / 'examples'
+    assert examples_dir.is_dir()
 
-        all_text_files = [f for f in examples_dir.glob('cloud-config*.txt')
-                          if not f.name.startswith('cloud-config-archive')]
-        for text_file_path in all_text_files:
-            try:
-                validate_cloudconfig_file(str(text_file_path), get_schema())
-            except:  # noqa
-                print('Failed on {}'.format(text_file_path))
-                raise
+    all_text_files = (f for f in examples_dir.glob('cloud-config*.txt')
+                      if not f.name.startswith('cloud-config-archive'))
+    return all_text_files
+
+
+class TestSchemaDocExamples:
+    @pytest.mark.parametrize("example_path", _get_schema_doc_examples())
+    @skipUnlessJsonSchema()
+    def test_schema_doc_examples(self, example_path):
+        validate_cloudconfig_file(str(example_path), get_schema())
 
 # vi: ts=4 expandtab syntax=python
