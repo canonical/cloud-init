@@ -44,8 +44,8 @@ class TestHostsFile(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_update_etc_hosts.handle('test', cfg, cc, LOG, [])
         contents = util.load_file('%s/etc/hosts' % self.tmp)
-        if '127.0.0.1\tcloud-init.test.us\tcloud-init' not in contents:
-            self.assertIsNone('No entry for 127.0.0.1 in etc/hosts')
+        if '127.0.1.1\tcloud-init.test.us\tcloud-init' not in contents:
+            self.assertIsNone('No entry for 127.0.1.1 in etc/hosts')
         if '192.168.1.1\tblah.blah.us\tblah' not in contents:
             self.assertIsNone('Default etc/hosts content modified')
 
@@ -64,7 +64,7 @@ class TestHostsFile(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_update_etc_hosts.handle('test', cfg, cc, LOG, [])
         contents = util.load_file('%s/etc/hosts' % self.tmp)
-        if '127.0.0.1 cloud-init.test.us cloud-init' not in contents:
-            self.assertIsNone('No entry for 127.0.0.1 in etc/hosts')
+        if '127.0.1.1 cloud-init.test.us cloud-init' not in contents:
+            self.assertIsNone('No entry for 127.0.1.1 in etc/hosts')
         if '::1 cloud-init.test.us cloud-init' not in contents:
             self.assertIsNone('No entry for 127.0.0.1 in etc/hosts')
