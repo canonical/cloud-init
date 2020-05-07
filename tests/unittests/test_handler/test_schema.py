@@ -459,9 +459,11 @@ def _get_schema_doc_examples():
 
 
 class TestSchemaDocExamples:
+    schema = get_schema()
+
     @pytest.mark.parametrize("example_path", _get_schema_doc_examples())
     @skipUnlessJsonSchema()
     def test_schema_doc_examples(self, example_path):
-        validate_cloudconfig_file(str(example_path), get_schema())
+        validate_cloudconfig_file(str(example_path), self.schema)
 
 # vi: ts=4 expandtab syntax=python
