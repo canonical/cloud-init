@@ -1,3 +1,4 @@
+#cloud-config
 # Cloud-init supports the creation of simple partition tables and file systems
 # on devices.
 
