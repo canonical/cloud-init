@@ -115,12 +115,12 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
 
 
 class TestCloudConfigExamples:
-    SCHEMA = get_schema()
-    PARAMS = [
+    schema = get_schema()
+    params = [
         (schema["id"], example)
-        for schema in SCHEMA["allOf"] for example in schema["examples"]]
+        for schema in schema["allOf"] for example in schema["examples"]]
 
-    @pytest.mark.parametrize("schema_id,example", PARAMS)
+    @pytest.mark.parametrize("schema_id,example", params)
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_of_example(self, schema_id, example):
         """ For a given example in a config module we test if it is valid
@@ -128,7 +128,7 @@ class TestCloudConfigExamples:
         """
         config_load = safe_load(example)
         validate_cloudconfig_schema(
-            config_load, TestCloudConfigExamples.SCHEMA, strict=True)
+            config_load, self.schema, strict=True)
 
 
 class ValidateCloudConfigFileTest(CiTestCase):
