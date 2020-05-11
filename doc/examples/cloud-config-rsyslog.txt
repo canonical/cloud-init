@@ -1,3 +1,4 @@
+#cloud-config
 ## the rsyslog module allows you to configure the systems syslog.
 ## configuration of syslog is under the top level cloud-config
 ## entry 'rsyslog'.

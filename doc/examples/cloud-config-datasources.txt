@@ -1,3 +1,5 @@
+#cloud-config
+
 # Documentation on data sources configuration options
 datasource:
   # Ec2 

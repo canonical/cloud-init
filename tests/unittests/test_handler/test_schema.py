@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
+import cloudinit
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER, SchemaValidationError, annotated_cloudconfig_file,
     get_schema_doc, get_schema, validate_cloudconfig_file,
@@ -10,7 +10,9 @@ from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 from copy import copy
 import os
+import pytest
 from io import StringIO
+from pathlib import Path
 from textwrap import dedent
 from yaml import safe_load
 
@@ -110,6 +112,23 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
         self.assertEqual(
             "Cloud config schema errors: p1: '-1' is not a 'hostname'",
             str(context_mgr.exception))
+
+
+class TestCloudConfigExamples:
+    schema = get_schema()
+    params = [
+        (schema["id"], example)
+        for schema in schema["allOf"] for example in schema["examples"]]
+
+    @pytest.mark.parametrize("schema_id,example", params)
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_of_example(self, schema_id, example):
+        """ For a given example in a config module we test if it is valid
+        according to the unified schema of all config modules
+        """
+        config_load = safe_load(example)
+        validate_cloudconfig_schema(
+            config_load, self.schema, strict=True)
 
 
 class ValidateCloudConfigFileTest(CiTestCase):
@@ -427,5 +446,24 @@ class CloudTestsIntegrationTest(CiTestCase):
                             filename, e))
         if errors:
             raise AssertionError(', '.join(errors))
+
+
+def _get_schema_doc_examples():
+    examples_dir = Path(
+        cloudinit.__file__).parent.parent / 'doc' / 'examples'
+    assert examples_dir.is_dir()
+
+    all_text_files = (f for f in examples_dir.glob('cloud-config*.txt')
+                      if not f.name.startswith('cloud-config-archive'))
+    return all_text_files
+
+
+class TestSchemaDocExamples:
+    schema = get_schema()
+
+    @pytest.mark.parametrize("example_path", _get_schema_doc_examples())
+    @skipUnlessJsonSchema()
+    def test_schema_doc_examples(self, example_path):
+        validate_cloudconfig_file(str(example_path), self.schema)
 
 # vi: ts=4 expandtab syntax=python

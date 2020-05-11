@@ -70,7 +70,7 @@ matrix:
             - ./packages/bddeb -S
             # Use this to get a new shell where we're in the sbuild group
             - sudo -E su $USER -c 'mk-sbuild xenial'
-            - sudo -E su $USER -c 'sbuild --nolog --verbose --dist=xenial cloud-init_*.dsc'
+            - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
             # Ubuntu LTS: Integration
             - travis_wait 30 sg lxd -c 'tox -e citest -- run --verbose --preserve-data --data-dir results --os-name xenial --test modules/apt_configure_sources_list.yaml --test modules/ntp_servers --test modules/set_password_list --test modules/user_groups --deb cloud-init_*_all.deb'
         - python: 3.5
