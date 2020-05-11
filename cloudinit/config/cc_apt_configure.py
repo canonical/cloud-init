@@ -144,6 +144,7 @@ schema = {
             'properties': {
                 'preserve_sources_list': {
                     'type': 'boolean',
+                    'default': False,
                     'description': dedent("""\
                         By default, cloud-init will generate a new sources
                          list in ``/etc/apt/sources.list.d`` based on any
@@ -239,6 +240,7 @@ schema = {
                 },
                 'add_apt_repo_match': {
                     'type': 'string',
+                    'default': '^[\\w-]+:\\w',
                     'description': dedent("""\
                         All source entries in ``apt-sources`` that match
                          regex in ``add_apt_repo_match`` will be added to
@@ -250,7 +252,7 @@ schema = {
                     'type': 'object',
                     'items': {'type': 'string'},
                     'description': dedent("""\
-                        Debconf additioanl configurations can be specified as a
+                        Debconf additional configurations can be specified as a
                          dictionary under the ``debconf_selections`` config
                          key, with each key in the dict representing a
                          different set of configurations. The value of each key
