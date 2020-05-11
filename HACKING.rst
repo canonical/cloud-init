@@ -231,12 +231,67 @@ The following guidelines should be followed:
 
   * For example, ``m_readurl`` (which would be a mock for ``readurl``)
 
+* The ``assert_*`` methods that are available on ``Mock`` and
+  ``MagicMock`` objects should be avoided, as typos in these method
+  names may not raise ``AttributeError`` (and so can cause tests to
+  silently pass).  An important exception: if a ``Mock`` is
+  `autospecced`_ then misspelled assertion methods *will* raise an
+  ``AttributeError``, so these assertion methods may be used on
+  autospecced ``Mock`` objects.
+
+  For non-autospecced ``Mock`` s, these substitutions can be used
+  (``m`` is assumed to be a ``Mock``):
+
+  * ``m.assert_any_call(*args, **kwargs)`` => ``assert
+    mock.call(*args, **kwargs) in m.call_args_list``
+  * ``m.assert_called()`` => ``assert 0 != m.call_count``
+  * ``m.assert_called_once()`` => ``assert 1 == m.call_count``
+  * ``m.assert_called_once_with(*args, **kwargs)`` => ``assert
+    [mock.call(*args, **kwargs)] == m.call_args_list``
+  * ``m.assert_called_with(*args, **kwargs)`` => ``assert
+    mock.call(*args, **kwargs) == m.call_args_list[-1]``
+  * ``m.assert_has_calls(call_list, any_order=True)`` => ``for call in
+    call_list: assert call in m.call_args_list``
+
+    * ``m.assert_has_calls(...)`` and ``m.assert_has_calls(...,
+      any_order=False)`` are not easily replicated in a single
+      statement, so their use when appropriate is acceptable.
+
+  * ``m.assert_not_called()`` => ``assert 0 == m.call_count``
+
+* Test arguments should be ordered as follows:
+
+  * ``mock.patch`` arguments.  When used as a decorator, ``mock.patch``
+    partially applies its generated ``Mock`` object as the first
+    argument, so these arguments must go first.
+  * ``pytest.mark.parametrize`` arguments, in the order specified to
+    the ``parametrize`` decorator.  These arguments are also provided
+    by a decorator, so it's natural that they sit next to the
+    ``mock.patch`` arguments.
+  * Fixture arguments, alphabetically.  These are not provided by a
+    decorator, so they are last, and their order has no defined
+    meaning, so we default to alphabetical.
+
+* It follows from this ordering of test arguments (so that we retain
+  the property that arguments left-to-right correspond to decorators
+  bottom-to-top) that test decorators should be ordered as follows:
+
+  * ``pytest.mark.parametrize``
+  * ``mock.patch``
+
+* When there are multiple patch calls in a test file for the module it
+  is testing, it may be desirable to capture the shared string prefix
+  for these patch calls in a module-level variable.  If used, such
+  variables should be named ``M_PATH`` or, for datasource tests,
+  ``DS_PATH``.
+
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
 .. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/master/cloudinit/tests/test_subp.py#L9
 .. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
 .. _pytest 3.0: https://docs.pytest.org/en/latest/changelog.html#id1093
+.. _autospecced: https://docs.python.org/3.8/library/unittest.mock.html#autospeccing
 
 Type Annotations
 ----------------
