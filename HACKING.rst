@@ -217,8 +217,13 @@ The following guidelines should be followed:
 * The ``assert_*`` methods that are available on ``Mock`` and
   ``MagicMock`` objects should be avoided, as typos in these method
   names may not raise ``AttributeError`` (and so can cause tests to
-  silently pass).  These substitutions can be used (``m`` is assumed to
-  be a ``Mock``):
+  silently pass).  An important exception: if a ``Mock`` is
+  `autospecced`_ then misspelled assertion methods *will* raise an
+  ``AttributeError``, so these assertion methods may be used on
+  autospecced ``Mock`` objects.
+
+  For non-autospecced ``Mock`` s, these substitutions can be used
+  (``m`` is assumed to be a ``Mock``):
 
   * ``m.assert_any_call(*args, **kwargs)`` => ``assert
     mock.call(*args, **kwargs) in m.call_args_list``
@@ -269,6 +274,7 @@ The following guidelines should be followed:
 .. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/master/cloudinit/tests/test_subp.py#L9
 .. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
 .. _pytest 3.0: https://docs.pytest.org/en/latest/changelog.html#id1093
+.. _autospecced: https://docs.python.org/3.8/library/unittest.mock.html#autospeccing
 
 Type Annotations
 ----------------
