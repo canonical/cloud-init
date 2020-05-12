@@ -50,7 +50,6 @@ ignored-modules=
  http.client,
  httplib,
  pkg_resources,
- six.moves,
  # cloud_tests requirements.
  boto3,
  botocore,

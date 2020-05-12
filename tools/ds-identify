@@ -1062,6 +1062,10 @@ dscheck_OpenStack() {
         return ${DS_FOUND}
     fi
 
+    if dmi_chassis_asset_tag_matches "SAP CCloud VM"; then
+        return ${DS_FOUND}
+    fi
+
     # LP: #1669875 : allow identification of OpenStack by asset tag
     if dmi_chassis_asset_tag_matches "$nova"; then
         return ${DS_FOUND}

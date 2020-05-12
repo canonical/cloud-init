@@ -8,22 +8,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - run: |
-        echo "::set-env name=CLA_SIGNED::$(grep -q ': \"${{ github.actor }}\"' ./tools/.lp-to-git-user && echo CLA signed || echo CLA not signed)"
-    - name: Add CLA label
+    - name: Check CLA signing status for ${{ github.event.pull_request.user.login }}
       run: |
-        # POST a new label to this issue
-        curl --request POST \
-        --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/labels \
-        --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
-        --header 'content-type: application/json' \
-        --data '{"labels": ["${{env.CLA_SIGNED}}"]}'
-    - name: Comment about CLA signing
-      if: env.CLA_SIGNED == 'CLA not signed'
-      run: |
-        # POST a comment directing submitter to sign the CLA
-        curl --request POST \
-        --url https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.number }}/comments \
-        --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
-        --header 'content-type: application/json' \
-        --data '{"body": "Hello ${{ github.actor }},\n\nThank you for your contribution to cloud-init.\n\nIn order for us to merge this pull request, you need\nto have signed the Contributor License Agreement (CLA).\nPlease ensure that you have signed the CLA by following our\nhacking guide at:\n\nhttps://cloudinit.readthedocs.io/en/latest/topics/hacking.html\n\nThanks,\nYour friendly cloud-init upstream\n"}'
+        cat > unsigned-cla.txt <<EOF
+          Hello ${{ github.event.pull_request.user.login }},
+
+          Thank you for your contribution to cloud-init.
+
+          In order for us to merge this pull request, you need
+          to have signed the Contributor License Agreement (CLA).
+          Please sign the CLA by following our
+          hacking guide at:
+            https://cloudinit.readthedocs.io/en/latest/topics/hacking.html
+
+          Thanks,
+          Your friendly cloud-init upstream
+        EOF
+
+        has_signed() {
+            username="$1"
+            grep -q ": \"$username\"" ./tools/.lp-to-git-user && return 0
+            grep -q "^$username$" ./tools/.github-cla-signers && return 0
+            return 1
+        }
+
+        if has_signed "${{ github.event.pull_request.user.login }}"; then
+            echo "Thanks ${{ github.event.pull_request.user.login }} for signing cloud-init's CLA"
+        else
+           cat unsigned-cla.txt
+           exit 1
+        fi

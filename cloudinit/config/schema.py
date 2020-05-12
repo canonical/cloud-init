@@ -36,6 +36,8 @@ SCHEMA_DOC_TMPL = """
 {examples}
 """
 SCHEMA_PROPERTY_TMPL = '{prefix}**{prop_name}:** ({type}) {description}'
+SCHEMA_LIST_ITEM_TMPL = (
+    '{prefix}Each item in **{prop_name}** list supports the following keys:')
 SCHEMA_EXAMPLES_HEADER = '\n**Examples**::\n\n'
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = '\n    # --- Example{0} ---'
 
@@ -58,6 +60,19 @@ class SchemaValidationError(ValueError):
         super(SchemaValidationError, self).__init__(message)
 
 
+def is_schema_byte_string(checker, instance):
+    """TYPE_CHECKER override allowing bytes for string type
+
+    For jsonschema v. 3.0.0+
+    """
+    try:
+        from jsonschema import Draft4Validator
+    except ImportError:
+        return False
+    return (Draft4Validator.TYPE_CHECKER.is_type(instance, "string") or
+            isinstance(instance, (bytes,)))
+
+
 def validate_cloudconfig_schema(config, schema, strict=False):
     """Validate provided config meets the schema definition.
 
@@ -73,11 +88,31 @@ def validate_cloudconfig_schema(config, schema, strict=False):
     """
     try:
         from jsonschema import Draft4Validator, FormatChecker
+        from jsonschema.validators import create, extend
     except ImportError:
         logging.debug(
             'Ignoring schema validation. python-jsonschema is not present')
         return
-    validator = Draft4Validator(schema, format_checker=FormatChecker())
+
+    # Allow for bytes to be presented as an acceptable valid value for string
+    # type jsonschema attributes in cloud-init's schema.
+    # This allows #cloud-config to provide valid yaml "content: !!binary | ..."
+    if hasattr(Draft4Validator, 'TYPE_CHECKER'):  # jsonschema 3.0+
+        type_checker = Draft4Validator.TYPE_CHECKER.redefine(
+            'string', is_schema_byte_string)
+        cloudinitValidator = extend(Draft4Validator, type_checker=type_checker)
+    else:  # jsonschema 2.6 workaround
+        types = Draft4Validator.DEFAULT_TYPES
+        # Allow bytes as well as string (and disable a spurious
+        # unsupported-assignment-operation pylint warning which appears because
+        # this code path isn't written against the latest jsonschema).
+        types['string'] = (str, bytes)  # pylint: disable=E1137
+        cloudinitValidator = create(
+            meta_schema=Draft4Validator.META_SCHEMA,
+            validators=Draft4Validator.VALIDATORS,
+            version="draft4",
+            default_types=types)
+    validator = cloudinitValidator(schema, format_checker=FormatChecker())
     errors = ()
     for error in sorted(validator.iter_errors(config), key=lambda e: e.path):
         path = '.'.join([str(p) for p in error.path])
@@ -106,7 +141,6 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
         schemapaths = _schemapath_for_cloudconfig(
             cloudconfig, original_content)
     errors_by_line = defaultdict(list)
-    error_count = 1
     error_footer = []
     annotated_content = []
     for path, msg in schema_errors:
@@ -120,18 +154,17 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
         if col is not None:
             msg = 'Line {line} column {col}: {msg}'.format(
                 line=line, col=col, msg=msg)
-        error_footer.append('# E{0}: {1}'.format(error_count, msg))
-        error_count += 1
     lines = original_content.decode().split('\n')
-    error_count = 1
-    for line_number, line in enumerate(lines):
-        errors = errors_by_line[line_number + 1]
+    error_index = 1
+    for line_number, line in enumerate(lines, 1):
+        errors = errors_by_line[line_number]
         if errors:
-            error_label = ','.join(
-                ['E{0}'.format(count + error_count)
-                 for count in range(0, len(errors))])
-            error_count += len(errors)
-            annotated_content.append(line + '\t\t# ' + error_label)
+            error_label = []
+            for error in errors:
+                error_label.append('E{0}'.format(error_index))
+                error_footer.append('# E{0}: {1}'.format(error_index, error))
+                error_index += 1
+            annotated_content.append(line + '\t\t# ' + ','.join(error_label))
         else:
             annotated_content.append(line)
     annotated_content.append(
@@ -213,20 +246,34 @@ def _schemapath_for_cloudconfig(config, original_content):
             previous_depth = -1
             path_prefix = ''
         if line.startswith('- '):
+            # Process list items adding a list_index to the path prefix
+            previous_list_idx = '.%d' % (list_index - 1)
+            if path_prefix and path_prefix.endswith(previous_list_idx):
+                path_prefix = path_prefix[:-len(previous_list_idx)]
             key = str(list_index)
-            value = line[1:]
+            schema_line_numbers[key] = line_number
+            item_indent = len(re.match(RE_YAML_INDENT, line[1:]).groups()[0])
+            item_indent += 1  # For the leading '-' character
+            previous_depth = indent_depth
+            indent_depth += item_indent
+            line = line[item_indent:]  # Strip leading list item + whitespace
             list_index += 1
         else:
+            # Process non-list lines setting value if present
             list_index = 0
             key, value = line.split(':', 1)
+        if path_prefix:
+            # Append any existing path_prefix for a fully-pathed key
+            key = path_prefix + '.' + key
         while indent_depth <= previous_depth:
             if scopes:
                 previous_depth, path_prefix = scopes.pop()
+                if list_index > 0 and indent_depth == previous_depth:
+                    path_prefix = '.'.join(path_prefix.split('.')[:-1])
+                    break
             else:
                 previous_depth = -1
                 path_prefix = ''
-        if path_prefix:
-            key = path_prefix + '.' + key
         scopes.append((indent_depth, key))
         if value:
             value = value.strip()
@@ -266,11 +313,23 @@ def _get_property_doc(schema, prefix='    '):
     for prop_key, prop_config in schema.get('properties', {}).items():
         # Define prop_name and dscription for SCHEMA_PROPERTY_TMPL
         description = prop_config.get('description', '')
+
         properties.append(SCHEMA_PROPERTY_TMPL.format(
             prefix=prefix,
             prop_name=prop_key,
             type=_get_property_type(prop_config),
             description=description.replace('\n', '')))
+        items = prop_config.get('items')
+        if items:
+            if isinstance(items, list):
+                for item in items:
+                    properties.append(
+                        _get_property_doc(item, prefix=new_prefix))
+            elif isinstance(items, dict) and items.get('properties'):
+                properties.append(SCHEMA_LIST_ITEM_TMPL.format(
+                    prefix=new_prefix, prop_name=prop_key))
+                new_prefix += '    '
+                properties.append(_get_property_doc(items, prefix=new_prefix))
         if 'properties' in prop_config:
             properties.append(
                 _get_property_doc(prop_config, prefix=new_prefix))
@@ -346,8 +405,9 @@ def get_parser(parser=None):
             description='Validate cloud-config files or document schema')
     parser.add_argument('-c', '--config-file',
                         help='Path of the cloud-config yaml file to validate')
-    parser.add_argument('-d', '--doc', action="store_true", default=False,
-                        help='Print schema documentation')
+    parser.add_argument('-d', '--docs', nargs='+',
+                        help=('Print schema module docs. Choices: all or'
+                              ' space-delimited cc_names.'))
     parser.add_argument('--annotate', action="store_true", default=False,
                         help='Annotate existing cloud-config file with errors')
     return parser
@@ -355,9 +415,9 @@ def get_parser(parser=None):
 
 def handle_schema_args(name, args):
     """Handle provided schema args and perform the appropriate actions."""
-    exclusive_args = [args.config_file, args.doc]
+    exclusive_args = [args.config_file, args.docs]
     if not any(exclusive_args) or all(exclusive_args):
-        error('Expected either --config-file argument or --doc')
+        error('Expected either --config-file argument or --docs')
     full_schema = get_schema()
     if args.config_file:
         try:
@@ -370,9 +430,16 @@ def handle_schema_args(name, args):
             error(str(e))
         else:
             print("Valid cloud-config file {0}".format(args.config_file))
-    if args.doc:
+    elif args.docs:
+        schema_ids = [subschema['id'] for subschema in full_schema['allOf']]
+        schema_ids += ['all']
+        invalid_docs = set(args.docs).difference(set(schema_ids))
+        if invalid_docs:
+            error('Invalid --docs value {0}. Must be one of: {1}'.format(
+                  list(invalid_docs), ', '.join(schema_ids)))
         for subschema in full_schema['allOf']:
-            print(get_schema_doc(subschema))
+            if 'all' in args.docs or subschema['id'] in args.docs:
+                print(get_schema_doc(subschema))
 
 
 def main():

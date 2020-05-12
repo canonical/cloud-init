@@ -167,7 +167,6 @@ class TestClean(CiTestCase):
             wrap_and_call(
                 'cloudinit.cmd.clean',
                 {'Init': {'side_effect': self.init_class},
-                 'sys.exit': {'side_effect': self.sys_exit},
                  'sys.argv': {'new': ['clean', '--logs']}},
                 clean.main)
 

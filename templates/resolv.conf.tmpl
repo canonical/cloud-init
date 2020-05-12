@@ -21,10 +21,18 @@ domain {{domain}}
 
 sortlist {% for sort in sortlist %}{{sort}} {% endfor %}
 {% endif %}
+{#
+    Flags and options are required to be on the 
+    same line preceded by "options" keyword
+#}
 {% if options or flags %}
 
-options {% for flag in flags %}{{flag}} {% endfor %}
-{% for key, value in options.items() -%}
- {{key}}:{{value}}
+options
+{%- for flag in flags %}
+ {{flag-}}
+{% endfor %}
+
+{%- for key, value in options.items()|sort %}
+ {{key}}:{{value-}}
 {% endfor %}
 {% endif %}

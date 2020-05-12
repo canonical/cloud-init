@@ -25,6 +25,7 @@ class Config(object):
     SUFFIX = 'DNS|SUFFIX|'
     TIMEZONE = 'DATETIME|TIMEZONE'
     UTC = 'DATETIME|UTC'
+    POST_GC_STATUS = 'MISC|POST-GC-STATUS'
 
     def __init__(self, configFile):
         self._configFile = configFile
@@ -104,4 +105,14 @@ class Config(object):
     def custom_script_name(self):
         """Return the name of custom (pre/post) script."""
         return self._configFile.get(Config.CUSTOM_SCRIPT, None)
+
+    @property
+    def post_gc_status(self):
+        """Return whether to post guestinfo.gc.status VMX property."""
+        postGcStatus = self._configFile.get(Config.POST_GC_STATUS, 'no')
+        postGcStatus = postGcStatus.lower()
+        if postGcStatus not in ('yes', 'no'):
+            raise ValueError('PostGcStatus value should be yes/no')
+        return postGcStatus == 'yes'
+
 # vi: ts=4 expandtab

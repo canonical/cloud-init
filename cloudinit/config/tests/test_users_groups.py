@@ -39,7 +39,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro='ubuntu', sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle('modulename', cfg, cloud, None, None)
-        self.assertItemsEqual(
+        self.assertCountEqual(
             m_user.call_args_list,
             [mock.call('ubuntu', groups='lxd,sudo', lock_passwd=True,
                        shell='/bin/bash'),
@@ -65,7 +65,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro='freebsd', sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle('modulename', cfg, cloud, None, None)
-        self.assertItemsEqual(
+        self.assertCountEqual(
             m_fbsd_user.call_args_list,
             [mock.call('freebsd', groups='wheel', lock_passwd=True,
                        shell='/bin/tcsh'),
@@ -86,7 +86,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro='ubuntu', sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle('modulename', cfg, cloud, None, None)
-        self.assertItemsEqual(
+        self.assertCountEqual(
             m_user.call_args_list,
             [mock.call('ubuntu', groups='lxd,sudo', lock_passwd=True,
                        shell='/bin/bash'),
@@ -107,7 +107,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro='ubuntu', sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle('modulename', cfg, cloud, None, None)
-        self.assertItemsEqual(
+        self.assertCountEqual(
             m_user.call_args_list,
             [mock.call('ubuntu', groups='lxd,sudo', lock_passwd=True,
                        shell='/bin/bash'),
@@ -146,7 +146,7 @@ class TestHandleUsersGroups(CiTestCase):
         cloud = self.tmp_cloud(
             distro='ubuntu', sys_cfg=sys_cfg, metadata=metadata)
         cc_users_groups.handle('modulename', cfg, cloud, None, None)
-        self.assertItemsEqual(
+        self.assertCountEqual(
             m_user.call_args_list,
             [mock.call('ubuntu', groups='lxd,sudo', lock_passwd=True,
                        shell='/bin/bash'),
