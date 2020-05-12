@@ -23,7 +23,7 @@ class TestDisableSubpUsage:
 class TestDisableSubpUsageInTestSubclass(CiTestCase):
     """Test that disable_subp_usage doesn't impact CiTestCase's subp logic."""
 
-    def test_using_subp_raises_assertion_error(self):
+    def test_using_subp_raises_exception(self):
         with pytest.raises(Exception):
             util.subp(["some", "args"])
 
@@ -35,6 +35,6 @@ class TestDisableSubpUsageInTestSubclass(CiTestCase):
         _old_allowed_subp = self.allow_subp
         self.allowed_subp = True
         try:
-            util.subp(['whoami'])
+            util.subp(['bash', '-c', 'true'])
         finally:
             self.allowed_subp = _old_allowed_subp
