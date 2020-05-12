@@ -23,6 +23,9 @@ from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
+# this will match 'XXX:YYY' (ie, 'cloud-archive:foo' or 'ppa:bar')
+ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
+
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
 mirror_property = {
@@ -63,20 +66,20 @@ schema = {
     'title': 'Configure apt for the user',
     'description': dedent("""\
         This module handles both configuration of apt options and adding
-        source lists.  There are configuration options such as
-        ``apt_get_wrapper`` and ``apt_get_command`` that control how
-        cloud-init invokes apt-get. These configuration options are
-        handled on a per-distro basis, so consult documentation for
-        cloud-init's distro support for instructions on using
-        these config options.
+         source lists.  There are configuration options such as
+         ``apt_get_wrapper`` and ``apt_get_command`` that control how
+         cloud-init invokes apt-get. These configuration options are
+         handled on a per-distro basis, so consult documentation for
+         cloud-init's distro support for instructions on using
+         these config options.
 
-        .. note::
-            To ensure that apt configuration is valid yaml, any strings
-            containing special characters, especially ``:`` should be quoted.
+         .. note::
+             To ensure that apt configuration is valid yaml, any strings
+             containing special characters, especially ``:`` should be quoted.
 
-        .. note::
-            For more information about apt configuration, see the
-            ``Additional apt configuration`` example."""),
+         .. note::
+             For more information about apt configuration, see the
+             ``Additional apt configuration`` example."""),
     'distros': distros,
     'examples': [dedent("""\
         apt:
@@ -190,48 +193,48 @@ schema = {
                     **mirror_property,
                     'description': dedent("""\
                         The primary and security archive mirrors can
-                        be specified using the ``primary`` and
-                         ``security`` keys, respectively Both the
-                         ``primary`` and ``security`` keys take a list
-                        of configs, allowing mirrors to be specified
-                        on a per-architecture basis. Each config is a
-                        dictionary which must have an entry for
-                         ``arches``, specifying which architectures
-                        that config entry is for. The keyword
-                         ``default`` applies to any architecture not
-                        explicitly listed. The mirror url can be specified
-                        with the ``uri`` key, or a list of mirrors to
-                        check can be provided in order, with the first
-                        mirror that can be resolved being selected. This
-                        allows the same configuration to be used in
-                        different environment, with different hosts used
-                        for a local apt mirror. If no mirror is provided
-                        by ``uri`` or ``search``, ``search_dns`` may be
-                        used to search for dns names in the format
-                         ``<distro>-mirror`` in each of the following:
+                         be specified using the ``primary`` and
+                          ``security`` keys, respectively. Both the
+                          ``primary`` and ``security`` keys take a list
+                         of configs, allowing mirrors to be specified
+                         on a per-architecture basis. Each config is a
+                         dictionary which must have an entry for
+                          ``arches``, specifying which architectures
+                         that config entry is for. The keyword
+                          ``default`` applies to any architecture not
+                         explicitly listed. The mirror url can be specified
+                         with the ``uri`` key, or a list of mirrors to
+                         check can be provided in order, with the first
+                         mirror that can be resolved being selected. This
+                         allows the same configuration to be used in
+                         different environment, with different hosts used
+                         for a local apt mirror. If no mirror is provided
+                         by ``uri`` or ``search``, ``search_dns`` may be
+                         used to search for dns names in the format
+                          ``<distro>-mirror`` in each of the following:
 
-                            fqdn of this host per cloud metadata,
-                            localdomain,
-                            domains listed in ``/etc/resolv.conf``.
+                             fqdn of this host per cloud metadata,
+                             localdomain,
+                             domains listed in ``/etc/resolv.conf``.
 
-                        If there is a dns entry for ``<distro>-mirror``,
-                        then it is assumed that there is a distro mirror
-                        at ``http://<distro>-mirror.<domain>/<distro>``.
-                        If the ``primary`` key is defined, but not the
-                         ``security`` key, then then configuration for
-                         ``primary`` is also used for ``security``.
-                        If ``search_dns`` is used for the ``security``
-                         key, the search pattern will be
-                         ``<distro>-security-mirror``.
+                         If there is a dns entry for ``<distro>-mirror``,
+                         then it is assumed that there is a distro mirror
+                         at ``http://<distro>-mirror.<domain>/<distro>``.
+                         If the ``primary`` key is defined, but not the
+                          ``security`` key, then then configuration for
+                          ``primary`` is also used for ``security``.
+                         If ``search_dns`` is used for the ``security``
+                          key, the search pattern will be
+                          ``<distro>-security-mirror``.
 
-                        If no mirrors are specified, or all lookups fail,
-                        then default mirrors defined in the datasource
-                        are used. If none are present in the datasource
-                        either the following defaults are used:
+                         If no mirrors are specified, or all lookups fail,
+                         then default mirrors defined in the datasource
+                         are used. If none are present in the datasource
+                         either the following defaults are used:
 
-                        ``primary`` => ``http://archive.ubuntu.com/ubuntu``,
-                         ``security`` =>
-                         ``http://security.ubuntu.com/ubuntu``
+                         ``primary`` => ``http://archive.ubuntu.com/ubuntu``,
+                          ``security`` =>
+                          ``http://security.ubuntu.com/ubuntu``
                         """)},
                 'security': {
                     **mirror_property,
@@ -240,13 +243,13 @@ schema = {
                 },
                 'add_apt_repo_match': {
                     'type': 'string',
-                    'default': '^[\\w-]+:\\w',
+                    'default': ADD_APT_REPO_MATCH,
                     'description': dedent("""\
                         All source entries in ``apt-sources`` that match
                          regex in ``add_apt_repo_match`` will be added to
                          the system using ``add-apt-repository``. If
                           ``add_apt_repo_match`` is not specified, it
-                         defaults to ``^[\\w-]+:\\w``""")
+                         defaults to ``{}``""".format(ADD_APT_REPO_MATCH))
                 },
                 'debconf_selections': {
                     'type': 'object',
@@ -294,23 +297,23 @@ schema = {
                     'type': 'string',
                     'description':  dedent("""\
                         Specify configuration for apt, such as proxy
-                        configuratiun. This configuration is specified as a
-                        string. For multiline apt configuration, make sure
-                        to follow yaml syntax.""")
+                         configuratiun. This configuration is specified as a
+                         string. For multiline apt configuration, make sure
+                         to follow yaml syntax.""")
                 },
                 'https_proxy': {
                     'type': 'string',
                     'description': dedent("""\
                         More convinient way to specify https apt proxy.
-                        https proxy url is specified in the format
-                         ``https://[[user][:pass]@]host[:port]/``.""")
+                         https proxy url is specified in the format
+                          ``https://[[user][:pass]@]host[:port]/``.""")
                 },
                 'http_proxy': {
                     'type': 'string',
                     'description': dedent("""\
                         More convinient way to specify http apt proxy.
-                        http proxy url is specified in the format
-                         ``http://[[user][:pass]@]host[:port]/``.""")
+                         http proxy url is specified in the format
+                          ``http://[[user][:pass]@]host[:port]/``.""")
                 },
                 'proxy': {
                     'type': 'string',
@@ -321,8 +324,8 @@ schema = {
                     'type': 'string',
                     'description': dedent("""\
                         More convinient way to specify ftp apt proxy.
-                        ftp proxy url is specified in the format
-                         ``ftp://[[user][:pass]@]host[:port]/``.""")
+                         ftp proxy url is specified in the format
+                          ``ftp://[[user][:pass]@]host[:port]/``.""")
                 },
                 'sources': {
                     'type': 'object',
@@ -330,7 +333,7 @@ schema = {
                     'description': dedent("""\
                         Source list entries can be specified as a
                          dictionary under the ``sources`` config key, with
-                         key in the dict representing a different source
+                         each key in the dict representing a different source
                          file. The key of each source entry will be used
                          as an id that can be referenced in other config
                          entries, as well as the filename for the source's
@@ -367,8 +370,6 @@ schema = {
 
 __doc__ = get_schema_doc(schema)
 
-# this will match 'XXX:YYY' (ie, 'cloud-archive:foo' or 'ppa:bar')
-ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 
 # place where apt stores cached repository data
 APT_LISTS = "/var/lib/apt/lists"
