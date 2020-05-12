@@ -21,7 +21,9 @@ def disable_subp_usage(request):
             util.subp(["whoami"])
 
     This fixture (roughly) mirrors the functionality of
-    CiTestCase.allowed_subp.
+    CiTestCase.allowed_subp.  N.B. While autouse fixtures do affect non-pytest
+    tests, CiTestCase's allowed_subp does take precedence (and we have
+    TestDisableSubpUsageInTestSubclass to confirm that).
 
     TODO:
         * Enable select subp usage (i.e. allowed_subp=[...])
