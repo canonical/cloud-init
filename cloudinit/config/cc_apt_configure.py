@@ -213,9 +213,9 @@ schema = {
                          used to search for dns names in the format
                           ``<distro>-mirror`` in each of the following:
 
-                             fqdn of this host per cloud metadata,
-                             localdomain,
-                             domains listed in ``/etc/resolv.conf``.
+                             - fqdn of this host per cloud metadata,
+                             - localdomain,
+                             - domains listed in ``/etc/resolv.conf``.
 
                          If there is a dns entry for ``<distro>-mirror``,
                          then it is assumed that there is a distro mirror
@@ -232,8 +232,8 @@ schema = {
                          are used. If none are present in the datasource
                          either the following defaults are used:
 
-                         ``primary`` => ``http://archive.ubuntu.com/ubuntu``,
-                          ``security`` =>
+                         - ``primary`` => ``http://archive.ubuntu.com/ubuntu``,
+                         - ``security`` =>
                           ``http://security.ubuntu.com/ubuntu``
                         """)},
                 'security': {
@@ -270,10 +270,10 @@ schema = {
 
                          Where:
 
-                            ``pkgname`` is the name of the package,
-                            ``question`` the name of the questions,
-                            ``type`` is the type of question,
-                            ``answer`` is the value used to ansert the
+                            - ``pkgname`` is the name of the package,
+                            - ``question`` the name of the questions,
+                            - ``type`` is the type of question,
+                            - ``answer`` is the value used to ansert the
                             question.
 
                         For example: ippackage ippackage/ip string 127.0.01
@@ -288,10 +288,10 @@ schema = {
                         this template, the following strings will be
                         replaced with the appropriate values:
 
-                             ``$MIRROR``,
-                             ``$RELEASE``,
-                             ``$PRIMARY``,
-                             ``$SECURITY``""")
+                             - ``$MIRROR``,
+                             - ``$RELEASE``,
+                             - ``$PRIMARY``,
+                             - ``$SECURITY``""")
                 },
                 'conf': {
                     'type': 'string',
@@ -317,8 +317,7 @@ schema = {
                 },
                 'proxy': {
                     'type': 'string',
-                    'description': dedent("""\
-                        Alias for defining a http apt proxy.""")
+                    'description': 'Alias for defining a http apt proxy.'
                 },
                 'ftp_proxy': {
                     'type': 'string',
@@ -347,21 +346,21 @@ schema = {
                          Each entry under ``sources`` is a dictionary which
                          may contain any of the following optional keys:
 
-                             ``source``: a sources.list entry \
+                             - ``source``: a sources.list entry \
                                    (some variable replacements apply).
-                             ``keyid``: a key to import via shortid or \
+                             - ``keyid``: a key to import via shortid or \
                                    fingerprin.
-                             ``key``: a raw PGP key.
-                             ``keyserver``: alternate keyserver to pull \
+                             - ``key``: a raw PGP key.
+                             - ``keyserver``: alternate keyserver to pull \
                                      ``keyid`` key from.
 
                          The ``source`` key supports variable
                          replacements for the following strings:
 
-                             ``$MIRROR``,
-                             ``$PRIMARY``,
-                             ``$SECURITY``,
-                             ``$RELEASE``""")
+                             - ``$MIRROR``,
+                             - ``$PRIMARY``,
+                             - ``$SECURITY``,
+                             - ``$RELEASE``""")
                 }
             }
         }
