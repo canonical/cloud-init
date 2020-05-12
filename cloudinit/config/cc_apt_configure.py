@@ -179,10 +179,10 @@ schema = {
                          For convenience, several aliases are provided for
                          ``disable_suites``:
 
-                             ``updates`` => ``$RELEASE-updates``,
+                             ``updates`` => ``$RELEASE-updates``.
                              ``backports`` => ``$RELEASE-backports``.
-                             ``security`` => ``$RELEASE-security``,
-                             ``proposed`` => ``$RELEASE-proposed``,
+                             ``security`` => ``$RELEASE-security``.
+                             ``proposed`` => ``$RELEASE-proposed``.
                              ``release`` => ``$RELEASE``.
 
                         When a suite is disabled using ``disable_suites``,
@@ -232,7 +232,8 @@ schema = {
                          are used. If none are present in the datasource
                          either the following defaults are used:
 
-                         - ``primary`` => ``http://archive.ubuntu.com/ubuntu``,
+                         - ``primary`` =>
+                          ``http://archive.ubuntu.com/ubuntu``.
                          - ``security`` =>
                           ``http://security.ubuntu.com/ubuntu``
                         """)},
@@ -270,11 +271,11 @@ schema = {
 
                          Where:
 
-                            - ``pkgname`` is the name of the package,
-                            - ``question`` the name of the questions,
-                            - ``type`` is the type of question,
+                            - ``pkgname`` is the name of the package.
+                            - ``question`` the name of the questions.
+                            - ``type`` is the type of question.
                             - ``answer`` is the value used to ansert the
-                            question.
+                             question.
 
                         For example: ippackage ippackage/ip string 127.0.01
                     """)
@@ -288,9 +289,9 @@ schema = {
                         this template, the following strings will be
                         replaced with the appropriate values:
 
-                             - ``$MIRROR``,
-                             - ``$RELEASE``,
-                             - ``$PRIMARY``,
+                             - ``$MIRROR``
+                             - ``$RELEASE``
+                             - ``$PRIMARY``
                              - ``$SECURITY``""")
                 },
                 'conf': {
@@ -349,7 +350,7 @@ schema = {
                              - ``source``: a sources.list entry \
                                    (some variable replacements apply).
                              - ``keyid``: a key to import via shortid or \
-                                   fingerprin.
+                                   fingerprint.
                              - ``key``: a raw PGP key.
                              - ``keyserver``: alternate keyserver to pull \
                                      ``keyid`` key from.
@@ -357,9 +358,9 @@ schema = {
                          The ``source`` key supports variable
                          replacements for the following strings:
 
-                             - ``$MIRROR``,
-                             - ``$PRIMARY``,
-                             - ``$SECURITY``,
+                             - ``$MIRROR``
+                             - ``$PRIMARY``
+                             - ``$SECURITY``
                              - ``$RELEASE``""")
                 }
             }
