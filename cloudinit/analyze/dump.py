@@ -78,7 +78,8 @@ def parse_ci_logline(line):
     # Apr 30 19:39:11 cloud-init[2673]: handlers.py[DEBUG]: start: \
     #          init-local/check-cache: attempting to read from cache [check]
 
-    separators = [' - ', ' [CLOUDINIT] ', ' cloud-init[']
+    amazon_linux_2_sep = ' cloud-init['
+    separators = [' - ', ' [CLOUDINIT] ', amazon_linux_2_sep]
     found = False
     for sep in separators:
         if sep in line:
@@ -101,7 +102,7 @@ def parse_ci_logline(line):
             hostname = extra.split()[-1]
     else:
         hostname = timehost.split()[-1]
-        if sep == ' cloud-init[':
+        if sep == amazon_linux_2_sep:
             # This is an Amazon Linux style line, with no hostname and a PID.
             # Use the whole of timehost as timestampstr, and strip off the PID
             # from the start of eventstr.
