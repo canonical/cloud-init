@@ -119,6 +119,23 @@ class TestParseCILogLine(CiTestCase):
         m_parse_from_date.assert_has_calls(
             [mock.call("2016-08-30 21:53:25.972325+00:00")])
 
+    def test_parse_logline_returns_event_for_amazon_linux_2_line(self):
+        line = (
+            "Apr 30 19:39:11 cloud-init[2673]: handlers.py[DEBUG]: start:"
+            " init-local/check-cache: attempting to read from cache [check]")
+        # Generate the expected value using `datetime`, so that TZ
+        # determination is consistent with the code under test.
+        timestamp_dt = datetime.strptime(
+            "Apr 30 19:39:11", "%b %d %H:%M:%S"
+        ).replace(year=datetime.now().year)
+        expected = {
+            'description': 'attempting to read from cache [check]',
+            'event_type': 'start',
+            'name': 'init-local/check-cache',
+            'origin': 'cloudinit',
+            'timestamp': timestamp_dt.timestamp()}
+        self.assertEqual(expected, parse_ci_logline(line))
+
 
 SAMPLE_LOGS = dedent("""\
 Nov 03 06:51:06.074410 x2 cloud-init[106]: [CLOUDINIT] util.py[DEBUG]:\

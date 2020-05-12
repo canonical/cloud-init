@@ -1,6 +1,22 @@
 language: python
 dist: bionic
 
+# We use two different caching strategies.  The default is to cache pip
+# packages (as most of our jobs use pip packages), which is configured here.
+# For the integration tests, we instead want to cache the lxd images.  The
+# directory in which the images are stored (/var/snap/lxd/common/lxd/images/)
+# is not readable/writeable by the default user (which is a requirement for
+# caching), so we instead cache the `lxd_images/` directory.  We move lxd
+# images out of there before we run tests and back in once tests are complete.
+# We _move_ the images out and only copy the most recent lxd image back into
+# the cache, to avoid our cache growing without bound.  (We only need the most
+# recent lxd image because the integration tests only use a single image.)
+#
+# We cache the lxd images because this saves a few seconds in the general
+# case, but provides substantial speed-ups when cloud-images.ubuntu.com, the
+# source of the images, is under heavy load.
+cache: pip
+
 install:
     # Required so `git describe` will definitely find a tag; see
     # https://github.com/travis-ci/travis-ci/issues/7422
@@ -16,13 +32,25 @@ matrix:
         - python: 3.6
           env:
               TOXENV=py3
-              NOSE_VERBOSE=2  # List all tests run by nose
-        - install:
+              PYTEST_ADDOPTS=-v  # List all tests run by pytest
+        - if: NOT branch =~ /^ubuntu\//
+          cache:
+              - directories:
+                  - lxd_images
+          before_cache:
+              - |
+                  # Find the most recent image file
+                  latest_file="$(sudo ls -Art /var/snap/lxd/common/lxd/images/ | tail -n 1)"
+                  # This might be <hash>.rootfs or <hash>, normalise
+                  latest_file="$(basename $latest_file .rootfs)"
+                  # Find all files with that prefix and copy them to our cache dir
+                  sudo find /var/snap/lxd/common/lxd/images/ -name $latest_file* -print -exec cp {} lxd_images/ \;
+          install:
             - git fetch --unshallow
             - sudo apt-get build-dep -y cloud-init
             - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox
             # These are build deps but not pulled in by the build-dep call above
-            - sudo apt-get install -y --install-recommends dh-systemd python3-coverage python3-contextlib2
+            - sudo apt-get install -y --install-recommends dh-systemd python3-coverage python3-contextlib2 python3-pytest python3-pytest-cov
             - pip install .
             - pip install tox
             # bionic has lxd from deb installed, remove it first to ensure
@@ -32,6 +60,8 @@ matrix:
             - sudo snap install lxd
             - sudo lxd init --auto
             - sudo mkdir --mode=1777 -p /var/snap/lxd/common/consoles
+            # Move any cached lxd images into lxd's image dir
+            - sudo find lxd_images/ -type f -print -exec mv {} /var/snap/lxd/common/lxd/images/ \;
             - sudo usermod -a -G lxd $USER
             - sudo sbuild-adduser $USER
             - cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
@@ -40,14 +70,13 @@ matrix:
             - ./packages/bddeb -S
             # Use this to get a new shell where we're in the sbuild group
             - sudo -E su $USER -c 'mk-sbuild xenial'
-            - sudo -E su $USER -c 'sbuild --nolog --verbose --dist=xenial cloud-init_*.dsc'
+            - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
             # Ubuntu LTS: Integration
-            - sg lxd -c 'tox -e citest -- run --verbose --preserve-data --data-dir results --os-name xenial --test modules/apt_configure_sources_list.yaml --test modules/ntp_servers --test modules/set_password_list --test modules/user_groups --deb cloud-init_*_all.deb'
+            - travis_wait 30 sg lxd -c 'tox -e citest -- run --verbose --preserve-data --data-dir results --os-name xenial --test modules/apt_configure_sources_list.yaml --test modules/ntp_servers --test modules/set_password_list --test modules/user_groups --deb cloud-init_*_all.deb'
         - python: 3.5
           env:
               TOXENV=xenial
-              NOSE_VERBOSE=2  # List all tests run by nose
-          # Travis doesn't support Python 3.4 on bionic, so use xenial
+              PYTEST_ADDOPTS=-v  # List all tests run by pytest
           dist: xenial
         - python: 3.6
           env: TOXENV=pycodestyle

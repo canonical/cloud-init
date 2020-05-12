@@ -15,6 +15,7 @@ import os
 import shutil
 import sys
 import tempfile
+import platform
 
 import setuptools
 from setuptools.command.install import install
@@ -33,23 +34,6 @@ def is_f(p):
 def is_generator(p):
     return '-generator' in p
 
-def tiny_p(cmd, capture=True):
-    # Darn python 2.6 doesn't have check_output (argggg)
-    stdout = subprocess.PIPE
-    stderr = subprocess.PIPE
-    if not capture:
-        stdout = None
-        stderr = None
-    sp = subprocess.Popen(cmd, stdout=stdout,
-                          stderr=stderr, stdin=None,
-                          universal_newlines=True)
-    (out, err) = sp.communicate()
-    ret = sp.returncode
-    if ret not in [0]:
-        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" %
-                           (cmd, ret, out, err))
-    return (out, err)
-
 
 def pkg_config_read(library, var):
     fallbacks = {
@@ -60,7 +44,7 @@ def pkg_config_read(library, var):
     }
     cmd = ['pkg-config', '--variable=%s' % var, library]
     try:
-        (path, err) = tiny_p(cmd)
+        path = subprocess.check_output(cmd).decode('utf-8')
         path = path.strip()
     except Exception:
         path = fallbacks[library][var]
@@ -82,14 +66,14 @@ def in_virtualenv():
 
 def get_version():
     cmd = [sys.executable, 'tools/read-version']
-    (ver, _e) = tiny_p(cmd)
-    return str(ver).strip()
+    ver = subprocess.check_output(cmd)
+    return ver.decode('utf-8').strip()
 
 
 def read_requires():
     cmd = [sys.executable, 'tools/read-dependencies']
-    (deps, _e) = tiny_p(cmd)
-    return str(deps).splitlines()
+    deps = subprocess.check_output(cmd)
+    return deps.decode('utf-8').splitlines()
 
 
 def render_tmpl(template, mode=None):
@@ -117,10 +101,11 @@ def render_tmpl(template, mode=None):
     bname = os.path.basename(template).rstrip(tmpl_ext)
     fpath = os.path.join(tmpd, bname)
     if VARIANT:
-        tiny_p([sys.executable, './tools/render-cloudcfg', '--variant',
-            VARIANT, template, fpath])
+        subprocess.run([sys.executable, './tools/render-cloudcfg', '--variant',
+                        VARIANT, template, fpath])
     else:
-        tiny_p([sys.executable, './tools/render-cloudcfg', template, fpath])
+        subprocess.run(
+            [sys.executable, './tools/render-cloudcfg', template, fpath])
     if mode:
         os.chmod(fpath, mode)
     # return path relative to setup.py
@@ -136,6 +121,7 @@ if '--distro' in sys.argv:
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
     'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
+    'sysvinit_netbsd': [f for f in glob('sysvinit/netbsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
     'sysvinit_openrc': [f for f in glob('sysvinit/gentoo/*') if is_f(f)],
     'sysvinit_suse': [f for f in glob('sysvinit/suse/*') if is_f(f)],
@@ -152,6 +138,7 @@ INITSYS_FILES = {
 INITSYS_ROOTS = {
     'sysvinit': 'etc/rc.d/init.d',
     'sysvinit_freebsd': 'usr/local/etc/rc.d',
+    'sysvinit_netbsd': 'usr/local/etc/rc.d',
     'sysvinit_deb': 'etc/init.d',
     'sysvinit_openrc': 'etc/init.d',
     'sysvinit_suse': 'etc/init.d',
@@ -228,7 +215,7 @@ class InitsysInstallData(install):
         if self.init_system and isinstance(self.init_system, str):
             self.init_system = self.init_system.split(",")
 
-        if len(self.init_system) == 0:
+        if len(self.init_system) == 0 and not platform.system().endswith('BSD'):
             self.init_system = ['systemd']
 
         bad = [f for f in self.init_system if f not in INITSYS_TYPES]
@@ -272,7 +259,7 @@ data_files = [
     (USR + '/share/doc/cloud-init/examples/seed',
         [f for f in glob('doc/examples/seed/*') if is_f(f)]),
 ]
-if os.uname()[0] != 'FreeBSD':
+if not platform.system().endswith('BSD'):
     data_files.extend([
         (ETC + '/NetworkManager/dispatcher.d/',
          ['tools/hook-network-manager']),

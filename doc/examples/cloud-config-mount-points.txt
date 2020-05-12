@@ -41,6 +41,6 @@ mount_default_fields: [ None, None, "auto", "defaults,nofail", "0", "2" ]
 # swap can also be set up by the 'mounts' module
 # default is to not create any swap files, because 'size' is set to 0
 swap:
-   filename: /swap.img
-   size: "auto" # or size in bytes
-   maxsize: size in bytes
+  filename: /swap.img
+  size: "auto" # or size in bytes
+  maxsize: size in bytes

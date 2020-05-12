@@ -1,3 +1,4 @@
+#cloud-config
 # Cloud-init supports the creation of simple partition tables and file systems
 # on devices.
 
@@ -6,47 +7,47 @@
 # (Not implemented yet, but provided for future documentation)
 
 disk_setup:
-   ephmeral0:
-       table_type: 'mbr'
-       layout: True
-       overwrite: False
+  ephmeral0:
+    table_type: 'mbr'
+    layout: True
+    overwrite: False
 
 fs_setup:
-   - label: None,
-     filesystem: ext3
-     device: ephemeral0
-     partition: auto
+  - label: None,
+    filesystem: ext3
+    device: ephemeral0
+    partition: auto
 
 # Default disk definitions for Microsoft Azure
 # ------------------------------------------
 
 device_aliases: {'ephemeral0': '/dev/sdb'}
 disk_setup:
-    ephemeral0:
-         table_type: mbr
-         layout: True
-         overwrite: False
+  ephemeral0:
+    table_type: mbr
+    layout: True
+    overwrite: False
 
 fs_setup:
-    - label: ephemeral0
-      filesystem: ext4
-      device: ephemeral0.1
-      replace_fs: ntfs
+  - label: ephemeral0
+    filesystem: ext4
+    device: ephemeral0.1
+    replace_fs: ntfs
 
 
 # Data disks definitions for Microsoft Azure
 # ------------------------------------------
 
 disk_setup:
-    /dev/disk/azure/scsi1/lun0:
-        table_type: gpt
-        layout: True
-        overwrite: True
+  /dev/disk/azure/scsi1/lun0:
+    table_type: gpt
+    layout: True
+    overwrite: True
 
 fs_setup:
-    - device: /dev/disk/azure/scsi1/lun0
-      partition: 1
-      filesystem: ext4
+  - device: /dev/disk/azure/scsi1/lun0
+    partition: 1
+    filesystem: ext4
 
 
 # Default disk definitions for SmartOS
@@ -54,15 +55,15 @@ fs_setup:
 
 device_aliases: {'ephemeral0': '/dev/vdb'}
 disk_setup:
-    ephemeral0:
-         table_type: mbr
-         layout: False
-         overwrite: False
+  ephemeral0:
+    table_type: mbr
+    layout: False
+    overwrite: False
 
 fs_setup:
-    - label: ephemeral0
-      filesystem: ext4
-      device: ephemeral0.0
+  - label: ephemeral0
+    filesystem: ext4
+    device: ephemeral0.0
 
 # Caveat for SmartOS: if ephemeral disk is not defined, then the disk will
 #    not be automatically added to the mounts.
@@ -77,87 +78,87 @@ fs_setup:
 # The disk_setup directive instructs Cloud-init to partition a disk. The format is:
 
 disk_setup:
-   ephmeral0:
-       table_type: 'mbr'
-       layout: 'auto'
-   /dev/xvdh:
-       table_type: 'mbr'
-       layout:
-           - 33
-           - [33, 82]
-           - 33
-       overwrite: True
+  ephmeral0:
+    table_type: 'mbr'
+    layout: 'auto'
+  /dev/xvdh:
+    table_type: 'mbr'
+    layout:
+      - 33
+      - [33, 82]
+      - 33
+    overwrite: True
 
 # The format is a list of dicts of dicts. The first value is the name of the
 # device and the subsequent values define how to create and layout the
 # partition.
 # The general format is:
-#    disk_setup:
-#        <DEVICE>:
-#            table_type: 'mbr'
-#            layout: <LAYOUT|BOOL>
-#            overwrite: <BOOL>
+#   disk_setup:
+#     <DEVICE>:
+#       table_type: 'mbr'
+#       layout: <LAYOUT|BOOL>
+#       overwrite: <BOOL>
 #
 # Where:
-#    <DEVICE>: The name of the device. 'ephemeralX' and 'swap' are special
-#                values which are specific to the cloud. For these devices
-#                Cloud-init will look up what the real devices is and then
-#                use it.
+#   <DEVICE>: The name of the device. 'ephemeralX' and 'swap' are special
+#               values which are specific to the cloud. For these devices
+#               Cloud-init will look up what the real devices is and then
+#               use it.
 #
-#                For other devices, the kernel device name is used. At this
-#                time only simply kernel devices are supported, meaning
-#                that device mapper and other targets may not work.
+#               For other devices, the kernel device name is used. At this
+#               time only simply kernel devices are supported, meaning
+#               that device mapper and other targets may not work.
 #
-#                Note: At this time, there is no handling or setup of
-#                device mapper targets.
+#               Note: At this time, there is no handling or setup of
+#               device mapper targets.
 #
-#    table_type=<TYPE>: Currently the following are supported:
-#                    'mbr': default and setups a MS-DOS partition table
-#                    'gpt': setups a GPT partition table
+#   table_type=<TYPE>: Currently the following are supported:
+#                   'mbr': default and setups a MS-DOS partition table
+#                   'gpt': setups a GPT partition table
 #
-#                Note: At this time only 'mbr' and 'gpt' partition tables
-#                    are allowed. It is anticipated in the future that
-#                    we'll also have "RAID" to create a mdadm RAID.
+#               Note: At this time only 'mbr' and 'gpt' partition tables
+#                   are allowed. It is anticipated in the future that
+#                   we'll also have "RAID" to create a mdadm RAID.
 #
-#    layout={...}: The device layout. This is a list of values, with the
-#                percentage of disk that partition will take.
-#                Valid options are:
-#                    [<SIZE>, [<SIZE>, <PART_TYPE]]
+#   layout={...}: The device layout. This is a list of values, with the
+#               percentage of disk that partition will take.
+#               Valid options are:
+#                   [<SIZE>, [<SIZE>, <PART_TYPE]]
 #
-#                Where <SIZE> is the _percentage_ of the disk to use, while
-#                <PART_TYPE> is the numerical value of the partition type.
+#               Where <SIZE> is the _percentage_ of the disk to use, while
+#               <PART_TYPE> is the numerical value of the partition type.
 #
-#                The following setups two partitions, with the first
-#                partition having a swap label, taking 1/3 of the disk space
-#                and the remainder being used as the second partition.
-#                    /dev/xvdh':
-#                        table_type: 'mbr'
-#                        layout:
-#                            - [33,82]
-#                            - 66
-#                        overwrite: True
+#               The following setups two partitions, with the first
+#               partition having a swap label, taking 1/3 of the disk space
+#               and the remainder being used as the second partition.
+#                 /dev/xvdh':
+#                   table_type: 'mbr'
+#                   layout:
+#                     - [33,82]
+#                     - 66
+#                   overwrite: True
 #
-#                When layout is "true" it means single partition the entire
-#                device.
+#               When layout is "true" it means single partition the entire
+#               device.
 #
-#                When layout is "false" it means don't partition or ignore
-#                existing partitioning.
+#               When layout is "false" it means don't partition or ignore
+#               existing partitioning.
 #
-#                If layout is set to "true" and overwrite is set to "false",
-#                it will skip partitioning the device without a failure.
+#               If layout is set to "true" and overwrite is set to "false",
+#               it will skip partitioning the device without a failure.
 #
-#    overwrite=<BOOL>: This describes whether to ride with saftey's on and
-#                everything holstered.
+#   overwrite=<BOOL>: This describes whether to ride with saftey's on and
+#               everything holstered.
 #
-#                'false' is the default, which means that:
-#                    1. The device will be checked for a partition table
-#                    2. The device will be checked for a file system
-#                    3. If either a partition of file system is found, then
-#                        the operation will be _skipped_.
+#               'false' is the default, which means that:
+#                   1. The device will be checked for a partition table
+#                   2. The device will be checked for a file system
+#                   3. If either a partition of file system is found, then
+#                       the operation will be _skipped_.
 #
-#                'true' is cowboy mode. There are no checks and things are
-#                    done blindly. USE with caution, you can do things you
-#                    really, really don't want to do.
+#               'true' is cowboy mode. There are no checks and things are
+#                   done blindly. USE with caution, you can do things you
+#                   really, really don't want to do.
 #
 #
 # fs_setup: Setup the file system
@@ -166,101 +167,101 @@ disk_setup:
 # fs_setup describes the how the file systems are supposed to look.
 
 fs_setup:
-   - label: ephemeral0
-     filesystem: 'ext3'
-     device: 'ephemeral0'
-     partition: 'auto'
-   - label: mylabl2
-     filesystem: 'ext4'
-     device: '/dev/xvda1'
-   - cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
-     label: mylabl3
-     filesystem: 'btrfs'
-     device: '/dev/xvdh'
+  - label: ephemeral0
+    filesystem: 'ext3'
+    device: 'ephemeral0'
+    partition: 'auto'
+  - label: mylabl2
+    filesystem: 'ext4'
+    device: '/dev/xvda1'
+  - cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
+    label: mylabl3
+    filesystem: 'btrfs'
+    device: '/dev/xvdh'
 
 # The general format is:
-#    fs_setup:
-#        - label: <LABEL>
-#          filesystem: <FS_TYPE>
-#          device: <DEVICE>
-#          partition: <PART_VALUE>
-#          overwrite: <OVERWRITE>
-#          replace_fs: <FS_TYPE>
+#   fs_setup:
+#     - label: <LABEL>
+#       filesystem: <FS_TYPE>
+#       device: <DEVICE>
+#       partition: <PART_VALUE>
+#       overwrite: <OVERWRITE>
+#       replace_fs: <FS_TYPE>
 #
 # Where:
-#     <LABEL>: The file system label to be used. If set to None, no label is
-#        used.
+#   <LABEL>: The file system label to be used. If set to None, no label is
+#     used.
 #
-#    <FS_TYPE>: The file system type. It is assumed that the there
-#        will be a "mkfs.<FS_TYPE>" that behaves likes "mkfs". On a standard
-#        Ubuntu Cloud Image, this means that you have the option of ext{2,3,4},
-#        and vfat by default.
+#   <FS_TYPE>: The file system type. It is assumed that the there
+#     will be a "mkfs.<FS_TYPE>" that behaves likes "mkfs". On a standard
+#     Ubuntu Cloud Image, this means that you have the option of ext{2,3,4},
+#     and vfat by default.
 #
-#    <DEVICE>: The device name. Special names of 'ephemeralX' or 'swap'
-#        are allowed and the actual device is acquired from the cloud datasource.
-#        When using 'ephemeralX' (i.e. ephemeral0), make sure to leave the
-#        label as 'ephemeralX' otherwise there may be issues with the mounting
-#        of the ephemeral storage layer.
+#   <DEVICE>: The device name. Special names of 'ephemeralX' or 'swap'
+#     are allowed and the actual device is acquired from the cloud datasource.
+#     When using 'ephemeralX' (i.e. ephemeral0), make sure to leave the
+#     label as 'ephemeralX' otherwise there may be issues with the mounting
+#     of the ephemeral storage layer.
 #
-#        If you define the device as 'ephemeralX.Y' then Y will be interpetted
-#        as a partition value. However, ephermalX.0 is the _same_ as ephemeralX.
+#     If you define the device as 'ephemeralX.Y' then Y will be interpetted
+#     as a partition value. However, ephermalX.0 is the _same_ as ephemeralX.
 #
-#    <PART_VALUE>:
-#        Partition definitions are overwriten if you use the '<DEVICE>.Y' notation.
+#   <PART_VALUE>:
+#     Partition definitions are overwriten if you use the '<DEVICE>.Y' notation.
 #
-#        The valid options are:
-#        "auto|any": tell cloud-init not to care whether there is a partition
-#            or not. Auto will use the first partition that does not contain a
-#            file system already. In the absence of a partition table, it will
-#            put it directly on the disk.
+#     The valid options are:
+#     "auto|any": tell cloud-init not to care whether there is a partition
+#       or not. Auto will use the first partition that does not contain a
+#       file system already. In the absence of a partition table, it will
+#       put it directly on the disk.
 #
-#            "auto": If a file system that matches the specification in terms of
-#            label, type and device, then cloud-init will skip the creation of
-#            the file system.
+#       "auto": If a file system that matches the specification in terms of
+#       label, type and device, then cloud-init will skip the creation of
+#       the file system.
 #
-#            "any": If a file system that matches the file system type and device,
-#            then cloud-init will skip the creation of the file system.
+#       "any": If a file system that matches the file system type and device,
+#       then cloud-init will skip the creation of the file system.
 #
-#            Devices are selected based on first-detected, starting with partitions
-#            and then the raw disk. Consider the following:
-#                NAME     FSTYPE LABEL
-#                xvdb
-#                |-xvdb1  ext4
-#                |-xvdb2
-#                |-xvdb3  btrfs  test
-#                \-xvdb4  ext4   test
+#       Devices are selected based on first-detected, starting with partitions
+#       and then the raw disk. Consider the following:
+#           NAME     FSTYPE LABEL
+#           xvdb
+#           |-xvdb1  ext4
+#           |-xvdb2
+#           |-xvdb3  btrfs  test
+#           \-xvdb4  ext4   test
 #
-#            If you ask for 'auto', label of 'test, and file system of 'ext4'
-#            then cloud-init will select the 2nd partition, even though there
-#            is a partition match at the 4th partition.
+#         If you ask for 'auto', label of 'test, and file system of 'ext4'
+#         then cloud-init will select the 2nd partition, even though there
+#         is a partition match at the 4th partition.
 #
-#            If you ask for 'any' and a label of 'test', then cloud-init will
-#            select the 1st partition.
+#         If you ask for 'any' and a label of 'test', then cloud-init will
+#         select the 1st partition.
 #
-#            If you ask for 'auto' and don't define label, then cloud-init will
-#            select the 1st partition.
+#         If you ask for 'auto' and don't define label, then cloud-init will
+#         select the 1st partition.
 #
-#            In general, if you have a specific partition configuration in mind,
-#            you should define either the device or the partition number. 'auto'
-#            and 'any' are specifically intended for formating ephemeral storage or
-#            for simple schemes.
+#         In general, if you have a specific partition configuration in mind,
+#         you should define either the device or the partition number. 'auto'
+#         and 'any' are specifically intended for formating ephemeral storage or
+#         for simple schemes.
 #
-#        "none": Put the file system directly on the device.
+#       "none": Put the file system directly on the device.
 #
-#        <NUM>: where NUM is the actual partition number.
+#       <NUM>: where NUM is the actual partition number.
 #
-#    <OVERWRITE>: Defines whether or not to overwrite any existing
-#        filesystem.
+#   <OVERWRITE>: Defines whether or not to overwrite any existing
+#     filesystem.
 #
-#        "true": Indiscriminately destroy any pre-existing file system. Use at
-#            your own peril.
+#     "true": Indiscriminately destroy any pre-existing file system. Use at
+#         your own peril.
 #
-#        "false": If an existing file system exists, skip the creation.
+#     "false": If an existing file system exists, skip the creation.
 #
-#    <REPLACE_FS>: This is a special directive, used for Microsoft Azure that
-#        instructs cloud-init to replace a file system of <FS_TYPE>. NOTE:
-#        unless you define a label, this requires the use of the 'any' partition
-#        directive.
+#   <REPLACE_FS>: This is a special directive, used for Microsoft Azure that
+#     instructs cloud-init to replace a file system of <FS_TYPE>. NOTE:
+#     unless you define a label, this requires the use of the 'any' partition
+#     directive.
 #
 # Behavior Caveat: The default behavior is to _check_ if the file system exists.
-#    If a file system matches the specification, then the operation is a no-op.
+#   If a file system matches the specification, then the operation is a no-op.
