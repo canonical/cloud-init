@@ -299,21 +299,21 @@ schema = {
                     'type': 'string',
                     'description':  dedent("""\
                         Specify configuration for apt, such as proxy
-                        configuratiun. This configuration is specified as a
+                        configuration. This configuration is specified as a
                         string. For multiline apt configuration, make sure
                         to follow yaml syntax.""")
                 },
                 'https_proxy': {
                     'type': 'string',
                     'description': dedent("""\
-                        More convinient way to specify https apt proxy.
+                        More convenient way to specify https apt proxy.
                         https proxy url is specified in the format
                         ``https://[[user][:pass]@]host[:port]/``.""")
                 },
                 'http_proxy': {
                     'type': 'string',
                     'description': dedent("""\
-                        More convinient way to specify http apt proxy.
+                        More convenient way to specify http apt proxy.
                         http proxy url is specified in the format
                         ``http://[[user][:pass]@]host[:port]/``.""")
                 },
@@ -324,7 +324,7 @@ schema = {
                 'ftp_proxy': {
                     'type': 'string',
                     'description': dedent("""\
-                        More convinient way to specify ftp apt proxy.
+                        More convenient way to specify ftp apt proxy.
                         ftp proxy url is specified in the format
                         ``ftp://[[user][:pass]@]host[:port]/``.""")
                 },
