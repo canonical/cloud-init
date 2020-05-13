@@ -203,13 +203,14 @@ ssh_import_id: [smoser]
 #
 # Default: none
 #
-debconf_selections: |     # Need to preserve newlines
+debconf_selections:
   # Force debconf priority to critical.
-  debconf debconf/priority select critical
+  set1: debconf debconf/priority select critical
 
   # Override default frontend to readline, but allow user to select.
-  debconf debconf/frontend select readline
-  debconf debconf/frontend seen false
+  set2: |
+    debconf debconf/frontend select readline
+    debconf debconf/frontend seen false
 
 # manage byobu defaults
 # byobu_by_default:
