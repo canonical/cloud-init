@@ -594,6 +594,7 @@ class DataSourceAzure(sources.DataSource):
         dhcp_attempts = 0
         vnet_switched = False
         return_val = None
+
         def exc_cb(msg, exception):
             if isinstance(exception, UrlError):
                 if exception.code == 404:
