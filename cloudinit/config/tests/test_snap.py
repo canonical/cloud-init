@@ -326,6 +326,22 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
             " schemas\n",
             self.logs.getvalue())
 
+    @mock.patch('cloudinit.config.cc_snap.run_commands')
+    def test_schema_when_commands_list_values_are_invalid_type(self, _):
+        """Warnings when snap:commands list values are wrong type (e.g. int)"""
+        validate_cloudconfig_schema(
+            {'snap': {'commands': [["snap", "install", 123]]}}, schema)
+        validate_cloudconfig_schema(
+            {'snap': {'commands': {'01': ["snap", "install", 123]}}}, schema)
+        self.assertEqual(
+            "WARNING: Invalid config:\n"
+            "snap.commands.0: ['snap', 'install', 123] is not valid under any"
+            " of the given schemas\n",
+            "WARNING: Invalid config:\n"
+            "snap.commands.0: ['snap', 'install', 123] is not valid under any"
+            " of the given schemas\n",
+            self.logs.getvalue())
+
     @mock.patch('cloudinit.config.cc_snap.add_assertions')
     def test_warn_schema_assertions_is_not_list_or_dict(self, _):
         """Warn when snap:assertions config is not a list or dict."""

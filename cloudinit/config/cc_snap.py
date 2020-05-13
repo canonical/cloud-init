@@ -121,7 +121,7 @@ schema = {
                     'additionalProperties': {
                         'oneOf': [
                             {'type': 'string'},
-                            {'type': 'array'},
+                            {'type': 'array', 'items': {'type': 'string'}},
                         ],
                     },
                 },
