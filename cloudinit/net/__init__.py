@@ -1069,15 +1069,52 @@ class EphemeralIPv4Network(object):
         for cmd in self.cleanup_cmds:
             util.subp(cmd, capture=True)
 
-    def _delete_address(self, address, prefix):
+    def __delete_address_on_linux(self, cidr):
         """Perform the ip command to remove the specified address."""
-        util.subp(
-            ['ip', '-family', 'inet', 'addr', 'del',
-             '%s/%s' % (address, prefix), 'dev', self.interface],
-            capture=True)
+        util.subp( ['ip', '-family', 'inet', 'addr', 'del', cidr, 'dev',
+            self.interface], capture=True)
 
-    def _bringup_device(self):
-        """Perform the ip comands to fully setup the device."""
+    def __delete_address_on_freebsd(self, cidr):
+        """Perform the ifconfig command to remove the specified address."""
+        util.subp(['ifconfig', self.interface, 'inet', cidr, 'broadcast',
+                self.broadcast, 'delete'], capture=True)
+
+    def _delete_address(self, address, prefix):
+        """Perform the command to remove the specified address."""
+        cidr = '{0}/{1}'.format(address, prefix)
+        if util.is_FreeBSD():
+            self.__delete_address_freebsd(cidr)
+        else:
+            self.__delete_address_on_linux(cidr)
+
+    def __bringup_device_on_freebsd(self):
+        """Perform the ifconfig commands to fully setup the device"""
+        cidr = '{0}/{1}'.format(self.ip, self.prefix)
+        LOG.debug(
+            'Attempting setup of ephemeral network on %s with %s brd %s',
+            self.interface, cidr, self.broadcast)
+        try:
+            util.subp(
+                ['ifconfig', self.interface, 'inet', cidr, 'broadcast',
+                 self.broadcast],
+                capture=True, update_env={'LANG': 'C'})
+        except util.ProcessExecutionError as e:
+            if "File exists" not in e.stderr:
+                raise
+            LOG.debug(
+                'Skip ephemeral network setup, %s already has address %s',
+                self.interface, self.ip)
+        else:
+            # Address creation success, setup queue cleanup
+            self.cleanup_cmds.append(
+                ['ifconfig', self.interface, 'inet', cidr, 'broadcast',
+                 self.broadcast, 'delete'])
+            self.cleanup_cmds.append(
+                ['ifconfig', self.interface, 'inet', cidr, 'broadcast',
+                 self.broadcast, 'down'])
+
+    def __bringup_device_on_linux(self):
+        """Perform the ip commands to fully setup the device."""
         cidr = '{0}/{1}'.format(self.ip, self.prefix)
         LOG.debug(
             'Attempting setup of ephemeral network on %s with %s brd %s',
@@ -1105,21 +1142,54 @@ class EphemeralIPv4Network(object):
                 ['ip', '-family', 'inet', 'addr', 'del', cidr, 'dev',
                  self.interface])
 
+    def _bringup_device(self):
+        """Perform the commands to fully setup the device."""
+        if util.is_FreeBSD():
+            self.__bringup_device_on_freebsd()
+        else:
+            self.__bringup_device_on_linux()
+
+    def __bringup_static_routes_on_freebsd(self, net_address, gateway):
+        util.subp(
+            ['route', '-4', 'add', '-net', net_address, gateway], capture=True)
+        self.cleanup_cmds.insert(
+            0, ['route', '-4', 'delete', '-net', net_address, gateway], capture=True)
+
+    def __bringup_static_routes_on_linux(self, net_address, gateway):
+        via_arg = ['via', gateway]
+        util.subp(
+            ['ip', '-4', 'route', 'add', net_address] + via_arg +
+            ['dev', self.interface], capture=True)
+        self.cleanup_cmds.insert(
+            0, ['ip', '-4', 'route', 'del', net_address] + via_arg +
+            ['dev', self.interface])
+
     def _bringup_static_routes(self):
         # static_routes = [("169.254.169.254/32", "130.56.248.255"),
         #                  ("0.0.0.0/0", "130.56.240.1")]
         for net_address, gateway in self.static_routes:
-            via_arg = []
             if gateway != "0.0.0.0/0":
-                via_arg = ['via', gateway]
-            util.subp(
-                ['ip', '-4', 'route', 'add', net_address] + via_arg +
-                ['dev', self.interface], capture=True)
-            self.cleanup_cmds.insert(
-                0, ['ip', '-4', 'route', 'del', net_address] + via_arg +
-                   ['dev', self.interface])
+                if util.is_FreeBSD():
+                    self.__bringup_static_routes_on_freebsd()
+                else:
+                    self.__bringup_static_routes_on_linux()
 
-    def _bringup_router(self):
+    def __bringup_router_on_freebsd(self):
+        """Perform the commands to fully setup the router if needed."""
+        # Check if a default route exists and exit if it does
+        out, _ = util.subp(['route', 'show', 'default'], capture=True)
+        if 'default' in out:
+            LOG.debug(
+                'Skip ephemeral route setup. %s already has default route: %s',
+                self.interface, out.strip())
+            return
+        util.subp(
+            ['route', '-4', 'add', 'default', self.router], capture=True)
+        self.cleanup_cmds.insert(
+            0,
+            ['route', '-4', 'delete', 'default', self.router])
+
+    def __bringup_router_on_linux(self):
         """Perform the ip commands to fully setup the router if needed."""
         # Check if a default route exists and exit if it does
         out, _ = util.subp(['ip', 'route', 'show', '0.0.0.0/0'], capture=True)
@@ -1140,6 +1210,13 @@ class EphemeralIPv4Network(object):
              'dev', self.interface], capture=True)
         self.cleanup_cmds.insert(
             0, ['ip', '-4', 'route', 'del', 'default', 'dev', self.interface])
+
+    def _bringup_router(self):
+        """Perform the commands to fully setup the router if needed."""
+        if util.is_FreeBSD():
+            self.__bringup_router_on_freebsd()
+        else:
+            self.__bringup_router_on_linux()
 
 
 class RendererNotFoundError(RuntimeError):
