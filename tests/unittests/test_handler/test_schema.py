@@ -290,6 +290,41 @@ class GetSchemaDocTest(CiTestCase):
             """),
             get_schema_doc(full_schema))
 
+    def test_get_schema_doc_properly_parse_description(self):
+        """get_schema_doc description properly formatted"""
+        full_schema = copy(self.required_schema)
+        full_schema.update(
+            {'properties': {
+                'p1': {
+                    'type': 'string',
+                    'description': dedent("""\
+                        This item
+                        has the
+                        following options:
+
+                          - option1
+                          - option2
+                          - option3
+
+                        The default value is
+                        option1""")
+                }
+            }}
+        )
+
+        self.assertIn(
+            dedent("""
+                **Config schema**:
+                    **p1:** (string) This item has the following options:
+
+                            - option1
+                            - option2
+                            - option3
+
+                    The default value is option1
+            """),
+            get_schema_doc(full_schema))
+
     def test_get_schema_doc_raises_key_errors(self):
         """get_schema_doc raises KeyErrors on missing keys."""
         for key in self.required_schema:
