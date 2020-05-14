@@ -103,7 +103,7 @@ schema = {
                         'type': 'string',
                         'description': dedent("""\
                             Path of the file to which ``content`` is decoded
-                             and written
+                            and written
                         """),
                     },
                     'content': {
@@ -111,9 +111,9 @@ schema = {
                         'default': '',
                         'description': dedent("""\
                             Optional content to write to the provided ``path``.
-                              When content is present and encoding is not '%s',
-                              decode the content prior to writing. Default:
-                              **''**
+                            When content is present and encoding is not '%s',
+                            decode the content prior to writing. Default:
+                            **''**
                         """ % UNKNOWN_ENC),
                     },
                     'owner': {
@@ -121,7 +121,7 @@ schema = {
                         'default': DEFAULT_OWNER,
                         'description': dedent("""\
                             Optional owner:group to chown on the file. Default:
-                             **{owner}**
+                            **{owner}**
                         """.format(owner=DEFAULT_OWNER)),
                     },
                     'permissions': {
@@ -129,8 +129,8 @@ schema = {
                         'default': oct(DEFAULT_PERMS).replace('o', ''),
                         'description': dedent("""\
                             Optional file permissions to set on ``path``
-                             represented as an octal string '0###'. Default:
-                             **'{perms}'**
+                            represented as an octal string '0###'. Default:
+                            **'{perms}'**
                         """.format(perms=oct(DEFAULT_PERMS).replace('o', ''))),
                     },
                     'encoding': {
@@ -139,16 +139,16 @@ schema = {
                         'enum': supported_encoding_types,
                         'description': dedent("""\
                             Optional encoding type of the content. Default is
-                             **text/plain** and no content decoding is
-                             performed. Supported encoding types are:
-                             %s.""" % ", ".join(supported_encoding_types)),
+                            **text/plain** and no content decoding is
+                            performed. Supported encoding types are:
+                            %s.""" % ", ".join(supported_encoding_types)),
                     },
                     'append': {
                         'type': 'boolean',
                         'default': False,
                         'description': dedent("""\
                             Whether to append ``content`` to existing file if
-                             ``path`` exists. Default: **false**.
+                            ``path`` exists. Default: **false**.
                         """),
                     },
                 },
