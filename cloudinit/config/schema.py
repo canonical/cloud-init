@@ -1,8 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """schema.py: Set of module functions for processing cloud-config schema."""
 
-from __future__ import print_function
-
 from cloudinit import importer
 from cloudinit.util import find_modules, load_file
 
