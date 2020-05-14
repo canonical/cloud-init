@@ -304,6 +304,28 @@ def _get_property_type(property_dict):
     return property_type
 
 
+def _parse_description(description, prefix):
+    """Parse description from the schema in a format that we can better
+    display in our docs. This parser does three things:
+
+    - Guarantee that a paragraph will be in a single line
+    - Guarantee that each new paragraph will be aligned with
+      the first paragraph
+    - Proper align lists of items
+
+    @param description: The original description in the schema.
+    @param prefix: The number of spaces used to align the current description
+    """
+    list_paragraph = prefix * 3
+    description = re.sub(r"(\S)\n(\S)", r"\1 \2", description)
+    description = re.sub(
+        r"\n\n", r"\n\n{}".format(prefix), description)
+    description = re.sub(
+        r"\n( +)-", r"\n{}-".format(list_paragraph), description)
+
+    return description
+
+
 def _get_property_doc(schema, prefix='    '):
     """Return restructured text describing the supported schema properties."""
     new_prefix = prefix + '    '
@@ -316,7 +338,7 @@ def _get_property_doc(schema, prefix='    '):
             prefix=prefix,
             prop_name=prop_key,
             type=_get_property_type(prop_config),
-            description=description.replace('\n', '')))
+            description=_parse_description(description, prefix)))
         items = prop_config.get('items')
         if items:
             if isinstance(items, list):
