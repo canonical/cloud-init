@@ -308,7 +308,7 @@ def device_devid(devname):
 
 
 def get_devicelist():
-    if util.is_FreeBSD():
+    if util.is_BSD():
         return list(get_interfaces_by_mac().values())
 
     try:
@@ -1071,23 +1071,23 @@ class EphemeralIPv4Network(object):
 
     def __delete_address_on_linux(self, cidr):
         """Perform the ip command to remove the specified address."""
-        util.subp( ['ip', '-family', 'inet', 'addr', 'del', cidr, 'dev',
-            self.interface], capture=True)
+        util.subp(['ip', '-family', 'inet', 'addr', 'del', cidr, 'dev',
+                  self.interface], capture=True)
 
-    def __delete_address_on_freebsd(self, cidr):
+    def __delete_address_on_bsd(self, cidr):
         """Perform the ifconfig command to remove the specified address."""
         util.subp(['ifconfig', self.interface, 'inet', cidr, 'broadcast',
-                self.broadcast, 'delete'], capture=True)
+                  self.broadcast, 'delete'], capture=True)
 
     def _delete_address(self, address, prefix):
         """Perform the command to remove the specified address."""
         cidr = '{0}/{1}'.format(address, prefix)
-        if util.is_FreeBSD():
-            self.__delete_address_freebsd(cidr)
+        if util.is_BSD():
+            self.__delete_address_on_bsd(cidr)
         else:
             self.__delete_address_on_linux(cidr)
 
-    def __bringup_device_on_freebsd(self):
+    def __bringup_device_on_bsd(self):
         """Perform the ifconfig commands to fully setup the device"""
         cidr = '{0}/{1}'.format(self.ip, self.prefix)
         LOG.debug(
@@ -1144,16 +1144,17 @@ class EphemeralIPv4Network(object):
 
     def _bringup_device(self):
         """Perform the commands to fully setup the device."""
-        if util.is_FreeBSD():
-            self.__bringup_device_on_freebsd()
+        if util.is_BSD():
+            self.__bringup_device_on_bsd()
         else:
             self.__bringup_device_on_linux()
 
-    def __bringup_static_routes_on_freebsd(self, net_address, gateway):
+    def __bringup_static_routes_on_bsd(self, net_address, gateway):
         util.subp(
             ['route', '-4', 'add', '-net', net_address, gateway], capture=True)
         self.cleanup_cmds.insert(
-            0, ['route', '-4', 'delete', '-net', net_address, gateway], capture=True)
+            0, ['route', '-4', 'delete', '-net', net_address, gateway],
+            capture=True)
 
     def __bringup_static_routes_on_linux(self, net_address, gateway):
         via_arg = ['via', gateway]
@@ -1169,12 +1170,12 @@ class EphemeralIPv4Network(object):
         #                  ("0.0.0.0/0", "130.56.240.1")]
         for net_address, gateway in self.static_routes:
             if gateway != "0.0.0.0/0":
-                if util.is_FreeBSD():
-                    self.__bringup_static_routes_on_freebsd()
+                if util.is_BSD():
+                    self.__bringup_static_routes_on_bsd(net_address, gateway)
                 else:
-                    self.__bringup_static_routes_on_linux()
+                    self.__bringup_static_routes_on_linux(net_address, gateway)
 
-    def __bringup_router_on_freebsd(self):
+    def __bringup_router_on_bsd(self):
         """Perform the commands to fully setup the router if needed."""
         # Check if a default route exists and exit if it does
         out, _ = util.subp(['route', 'show', 'default'], capture=True)
@@ -1213,8 +1214,8 @@ class EphemeralIPv4Network(object):
 
     def _bringup_router(self):
         """Perform the commands to fully setup the router if needed."""
-        if util.is_FreeBSD():
-            self.__bringup_router_on_freebsd()
+        if util.is_BSD():
+            self.__bringup_router_on_bsd()
         else:
             self.__bringup_router_on_linux()
 
