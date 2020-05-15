@@ -597,7 +597,7 @@ class DataSourceAzure(sources.DataSource):
 
         def exc_cb(msg, exception):
             if isinstance(exception, UrlError):
-                if exception.code == 404:
+                if exception.code in (404, 410):
                     if self.imds_poll_counter == self.imds_logging_threshold:
                         # Reducing the logging frequency as we are polling IMDS
                         self.imds_logging_threshold *= 2
