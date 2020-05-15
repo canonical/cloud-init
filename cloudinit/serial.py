@@ -1,7 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from __future__ import absolute_import
-
 try:
     from serial import Serial
 except ImportError:

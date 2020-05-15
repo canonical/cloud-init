@@ -87,7 +87,7 @@ class TestParseNetlinkMessage(CiTestCase):
         data = None
         with self.assertRaises(AssertionError) as context:
             read_rta_oper_state(data)
-        self.assertTrue('data is none', str(context.exception))
+        self.assertEqual('data is none', str(context.exception))
 
     def test_read_invalid_rta_operstate_none(self):
         '''read_rta_oper_state returns none if operstate is none'''
