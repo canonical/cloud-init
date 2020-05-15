@@ -1,3 +1,4 @@
+#cloud-config
 # apt_pipelining (configure Acquire::http::Pipeline-Depth)
 # Default: disables HTTP pipelining. Certain web servers, such
 # as S3 do not pipeline properly (LP: #948461).
@@ -141,7 +142,7 @@ apt:
       # as above, allowing to have one config for different per arch mirrors
   # security is optional, if not defined it is set to the same value as primary
   security:
-    uri: http://security.ubuntu.com/ubuntu
+    - uri: http://security.ubuntu.com/ubuntu
   # If search_dns is set for security the searched pattern is:
   #   <distro>-security-mirror
 
