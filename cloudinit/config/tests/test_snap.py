@@ -345,7 +345,7 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
     def test_duplicates_are_fine_array_array(self):
         """Duplicated commands array/array entries are allowed."""
         self.assertSchemaValid(
-            {'commands': [["echo", "bye"], ["echo" "bye"]]},
+            {'commands': [["echo", "bye"], ["echo", "bye"]]},
             "command entries can be duplicate.")
 
     def test_duplicates_are_fine_array_string(self):
