@@ -222,7 +222,7 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
     util.subp(['ip', 'link', 'set', 'dev', interface, 'up'], capture=True)
     cmd = [sandbox_dhclient_cmd, '-1', '-v', '-lf', lease_file,
            '-pf', pid_file, interface, '-sf', '/bin/true']
-    pout, perr = util.subp(cmd, capture=True)
+    pout = util.subp(cmd, capture=True)
 
     # Wait for pid file and lease file to appear, and for the process
     # named by the pid file to daemonize (have pid 1 as its parent). If we
@@ -248,7 +248,8 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
         else:
             ppid = util.get_proc_ppid(pid)
             if ppid == 1:
-                LOG.debug('dhclient error stream: %s', perr)
+                if len(pout) == 2:
+                    LOG.debug('dhclient error stream: %s', pout[1])
                 LOG.debug('killing dhclient with pid=%s', pid)
                 os.kill(pid, signal.SIGKILL)
                 return parse_dhcp_lease_file(lease_file)
