@@ -13,6 +13,8 @@ class TestDisableSubpUsage:
 
     def test_typeerrors_on_incorrect_usage(self):
         with pytest.raises(TypeError):
+            # We are intentionally passing no value for a parameter, so:
+            #  pylint: disable=no-value-for-parameter
             util.subp()
 
     @pytest.mark.parametrize('disable_subp_usage', [False], indirect=True)
