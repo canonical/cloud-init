@@ -24,6 +24,7 @@ class GetSchemaTest(CiTestCase):
         schema = get_schema()
         self.assertCountEqual(
             [
+                'cc_apt_configure',
                 'cc_bootcmd',
                 'cc_locale',
                 'cc_ntp',
@@ -286,6 +287,41 @@ class GetSchemaDocTest(CiTestCase):
                         [don't, expand, "this"]
                     # --- Example2 ---
                     ex2: true
+            """),
+            get_schema_doc(full_schema))
+
+    def test_get_schema_doc_properly_parse_description(self):
+        """get_schema_doc description properly formatted"""
+        full_schema = copy(self.required_schema)
+        full_schema.update(
+            {'properties': {
+                'p1': {
+                    'type': 'string',
+                    'description': dedent("""\
+                        This item
+                        has the
+                        following options:
+
+                          - option1
+                          - option2
+                          - option3
+
+                        The default value is
+                        option1""")
+                }
+            }}
+        )
+
+        self.assertIn(
+            dedent("""
+                **Config schema**:
+                    **p1:** (string) This item has the following options:
+
+                            - option1
+                            - option2
+                            - option3
+
+                    The default value is option1
             """),
             get_schema_doc(full_schema))
 

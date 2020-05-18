@@ -5,6 +5,7 @@
 import base64
 import copy
 import glob
+import multiprocessing
 import os
 import random
 import shlex
@@ -12,7 +13,9 @@ import shutil
 import string
 import subprocess
 import tempfile
+import time
 import yaml
+from contextlib import contextmanager
 
 from cloudinit import util as c_util
 from tests.cloud_tests import LOG
@@ -116,6 +119,36 @@ def current_verbosity():
     @return_value: verbosity, 0-2, 2=verbose, 0=quiet
     """
     return max(min(3 - int(LOG.level / 10), 2), 0)
+
+
+@contextmanager
+def emit_dots_on_travis():
+    """
+    A context manager that emits a dot every 10 seconds if running on Travis.
+
+    Travis will kill jobs that don't emit output for a certain amount of time.
+    This context manager spins up a background process which will emit a dot to
+    stdout every 10 seconds to avoid being killed.
+
+    It should be wrapped selectively around operations that are known to take a
+    long time.
+    """
+    if os.environ.get('TRAVIS') != "true":
+        # If we aren't on Travis, don't do anything.
+        yield
+        return
+
+    def emit_dots():
+        while True:
+            print(".")
+            time.sleep(10)
+
+    dot_process = multiprocessing.Process(target=emit_dots)
+    dot_process.start()
+    try:
+        yield
+    finally:
+        dot_process.terminate()
 
 
 def is_writable_dir(path):

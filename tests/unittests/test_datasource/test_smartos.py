@@ -12,8 +12,6 @@ order to validate return responses.
 
 '''
 
-from __future__ import print_function
-
 from binascii import crc32
 import json
 import multiprocessing

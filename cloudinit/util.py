@@ -1866,6 +1866,7 @@ def time_rfc2822():
     return ts
 
 
+@lru_cache()
 def boottime():
     """Use sysctlbyname(3) via ctypes to find kern.boottime
 
@@ -1875,6 +1876,7 @@ def boottime():
     @return boottime: float to be compatible with linux
     """
     import ctypes
+    import ctypes.util
 
     NULL_BYTES = b"\x00"
 
@@ -1883,7 +1885,7 @@ def boottime():
             ("tv_sec", ctypes.c_int64),
             ("tv_usec", ctypes.c_int64)
         ]
-    libc = ctypes.CDLL('libc.so')
+    libc = ctypes.CDLL(ctypes.util.find_library('c'))
     size = ctypes.c_size_t()
     size.value = ctypes.sizeof(timeval)
     buf = timeval()

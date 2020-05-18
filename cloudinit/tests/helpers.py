@@ -1,7 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from __future__ import print_function
-
 import functools
 import httpretty
 import io
@@ -144,6 +142,9 @@ class CiTestCase(TestCase):
         if 'args' in kwargs:
             cmd = kwargs['args']
         else:
+            if not args:
+                raise TypeError(
+                    "subp() missing 1 required positional argument: 'args'")
             cmd = args[0]
 
         if not isinstance(cmd, str):
