@@ -113,7 +113,8 @@ schema = {
                     'additionalItems': False,  # Reject items non-string
                     'minItems': 1,
                     'minProperties': 1,
-                    'uniqueItems': True
+                    'uniqueItems': True,
+                    'additionalProperties': {'type': 'string'},
                 },
                 'commands': {
                     'type': ['object', 'array'],  # Array of strings or dict
