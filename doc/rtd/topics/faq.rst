@@ -223,8 +223,8 @@ values or the LXD `Custom Network Configuration`_ document for more about
 custom network config.
 
 .. _LXD: https://linuxcontainers.org/
-.. _Instance Configuration: https://lxd.readthedocs.io/en/latest/instances/
-.. _Custom Network Configuration: https://lxd.readthedocs.io/en/latest/cloud-init/
+.. _Instance Configuration: https://linuxcontainers.org/lxd/docs/master/instances
+.. _Custom Network Configuration: https://linuxcontainers.org/lxd/docs/master/cloud-init
 
 Where can I learn more?
 ========================================

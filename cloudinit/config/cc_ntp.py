@@ -169,8 +169,8 @@ schema = {
                     'uniqueItems': True,
                     'description': dedent("""\
                         List of ntp pools. If both pools and servers are
-                         empty, 4 default pool servers will be provided of
-                         the format ``{0-3}.{distro}.pool.ntp.org``.""")
+                        empty, 4 default pool servers will be provided of
+                        the format ``{0-3}.{distro}.pool.ntp.org``.""")
                 },
                 'servers': {
                     'type': 'array',
@@ -181,46 +181,46 @@ schema = {
                     'uniqueItems': True,
                     'description': dedent("""\
                         List of ntp servers. If both pools and servers are
-                         empty, 4 default pool servers will be provided with
-                         the format ``{0-3}.{distro}.pool.ntp.org``.""")
+                        empty, 4 default pool servers will be provided with
+                        the format ``{0-3}.{distro}.pool.ntp.org``.""")
                 },
                 'ntp_client': {
                     'type': 'string',
                     'default': 'auto',
                     'description': dedent("""\
                         Name of an NTP client to use to configure system NTP.
-                         When unprovided or 'auto' the default client preferred
-                         by the distribution will be used. The following
-                         built-in client names can be used to override existing
-                         configuration defaults: chrony, ntp, ntpdate,
-                         systemd-timesyncd."""),
+                        When unprovided or 'auto' the default client preferred
+                        by the distribution will be used. The following
+                        built-in client names can be used to override existing
+                        configuration defaults: chrony, ntp, ntpdate,
+                        systemd-timesyncd."""),
                 },
                 'enabled': {
                     'type': 'boolean',
                     'default': True,
                     'description': dedent("""\
                         Attempt to enable ntp clients if set to True.  If set
-                         to False, ntp client will not be configured or
-                         installed"""),
+                        to False, ntp client will not be configured or
+                        installed"""),
                 },
                 'config': {
                     'description': dedent("""\
                         Configuration settings or overrides for the
-                         ``ntp_client`` specified."""),
+                        ``ntp_client`` specified."""),
                     'type': ['object'],
                     'properties': {
                         'confpath': {
                             'type': 'string',
                             'description': dedent("""\
                                 The path to where the ``ntp_client``
-                                 configuration is written."""),
+                                configuration is written."""),
                         },
                         'check_exe': {
                             'type': 'string',
                             'description': dedent("""\
                                 The executable name for the ``ntp_client``.
-                                 For example, ntp service ``check_exe`` is
-                                 'ntpd' because it runs the ntpd binary."""),
+                                For example, ntp service ``check_exe`` is
+                                'ntpd' because it runs the ntpd binary."""),
                         },
                         'packages': {
                             'type': 'array',
@@ -230,22 +230,22 @@ schema = {
                             'uniqueItems': True,
                             'description': dedent("""\
                                 List of packages needed to be installed for the
-                                 selected ``ntp_client``."""),
+                                selected ``ntp_client``."""),
                         },
                         'service_name': {
                             'type': 'string',
                             'description': dedent("""\
                                 The systemd or sysvinit service name used to
-                                 start and stop the ``ntp_client``
-                                 service."""),
+                                start and stop the ``ntp_client``
+                                service."""),
                         },
                         'template': {
                             'type': 'string',
                             'description': dedent("""\
                                 Inline template allowing users to define their
-                                 own ``ntp_client`` configuration template.
-                                 The value must start with '## template:jinja'
-                                 to enable use of templating support.
+                                own ``ntp_client`` configuration template.
+                                The value must start with '## template:jinja'
+                                to enable use of templating support.
                                 """),
                         },
                     },
