@@ -21,6 +21,25 @@ class TestDisableSubpUsage:
     def test_subp_usage_can_be_reenabled(self):
         util.subp(['whoami'])
 
+    @pytest.mark.parametrize(
+        'disable_subp_usage', [['whoami'], 'whoami'], indirect=True)
+    def test_subp_usage_can_be_conditionally_reenabled(self):
+        # The two parameters test each potential invocation with a single
+        # argument
+        with pytest.raises(AssertionError) as excinfo:
+            util.subp(["some", "args"])
+        assert "allowed: whoami" in str(excinfo.value)
+        util.subp(['whoami'])
+
+    @pytest.mark.parametrize(
+        'disable_subp_usage', [['whoami', 'bash']], indirect=True)
+    def test_subp_usage_can_be_conditionally_reenabled_for_multiple_cmds(self):
+        with pytest.raises(AssertionError) as excinfo:
+            util.subp(["some", "args"])
+        assert "allowed: whoami,bash" in str(excinfo.value)
+        util.subp(['bash'])
+        util.subp(['whoami'])
+
 
 class TestDisableSubpUsageInTestSubclass(CiTestCase):
     """Test that disable_subp_usage doesn't impact CiTestCase's subp logic."""
