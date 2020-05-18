@@ -93,6 +93,13 @@ schema = {
                 - ['snap', 'install', 'vlc']
                 - snap install vlc
                 - 'snap install vlc'
+    """), dedent("""\
+        # You can use a list of assertions
+        snap:
+            assertions:
+                - signed_assertion_blob_here
+                - |
+                    signed_assertion_blob_here
     """)],
     'frequency': PER_INSTANCE,
     'type': 'object',
