@@ -85,6 +85,14 @@ schema = {
                 01: ['snap', 'install', 'vlc']
                 02: snap install vlc
                 03: 'snap install vlc'
+    """), dedent("""\
+        # You can use a list of commands
+        snap:
+            commands:
+                - ['install', 'vlc']
+                - ['snap', 'install', 'vlc']
+                - snap install vlc
+                - 'snap install vlc'
     """)],
     'frequency': PER_INSTANCE,
     'type': 'object',
@@ -110,6 +118,12 @@ schema = {
                     'additionalItems': False,  # Reject non-string & non-list
                     'minItems': 1,
                     'minProperties': 1,
+                    'additionalProperties': {
+                        'oneOf': [
+                            {'type': 'string'},
+                            {'type': 'array', 'items': {'type': 'string'}},
+                        ],
+                    },
                 },
                 'squashfuse_in_container': {
                     'type': 'boolean'
