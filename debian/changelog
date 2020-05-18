@@ -1,3 +1,22 @@
+cloud-init (20.2-30-g8bcf1c06-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - cc_snap: apply validation to snap.commands properties (#364)
+    - make finding libc platform independent (#366)
+      [Mina Galić (deprecated: Igor Galić)]
+    - doc/rtd/topics/faq: Updates LXD docs links to current site (#368) [TomP]
+    - templater: drop Jinja Python 2 compatibility shim (#353)
+    - cloudinit: minor pylint fixes (#360)
+    - cloudinit: remove unneeded __future__ imports (#362)
+    - migrating momousta lp user to Moustafa-Moustafa GitHub user (#361)
+      [Moustafa Moustafa]
+    - cloud_tests: emit dots on Travis while fetching images (#347)
+    - Add schema to apt configure config (#357) [lucasmoura] (LP: #1858884)
+    - conftest: add docs and tests regarding CiTestCase's subp functionality
+      (#343)
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 18 May 2020 16:24:16 -0600
+
 cloud-init (20.2-20-gd10ce3ec-0ubuntu1) groovy; urgency=medium
 
   * drop the following cherry-picks now included:
