@@ -15,8 +15,31 @@ from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
+class FreeBSDNetworking(distros.Networking):
+
+    def find_fallback_nic(self, blacklist_drivers=None):
+        """Return the name of the 'fallback' network device on FreeBSD.
+
+        @param blacklist_drivers: currently ignored
+        @return default interface, or None
+
+
+        we'll use the first interface from ``ifconfig -l -u ether``
+        """
+        stdout, _stderr = util.subp(['ifconfig', '-l', '-u', 'ether'])
+        values = stdout.split()
+        if values:
+            return values[0]
+        # On FreeBSD <= 10, 'ifconfig -l' ignores the interfaces with DOWN
+        # status
+        values = list(self.get_interfaces_by_mac().values())
+        values.sort()
+        if values:
+            return values[0]
+
 
 class Distro(cloudinit.distros.bsd.BSD):
+    networking_cls = FreeBSDNetworking
     usr_lib_exec = '/usr/local/lib'
     login_conf_fn = '/etc/login.conf'
     login_conf_fn_bak = '/etc/login.conf.orig'

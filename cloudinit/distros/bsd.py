@@ -9,8 +9,18 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
+class BSDNetworking(distros.Networking):
+
+    def find_fallback_nic(self, blacklist_drivers=None):
+        values = list(sorted(
+            self.get_interfaces_by_mac().values(),
+            key=self.natural_sort_key))
+        if values:
+            return values[0]
+
 
 class BSD(distros.Distro):
+    networking_cls = BSDNetworking
     hostname_conf_fn = '/etc/rc.conf'
     rc_conf_fn = "/etc/rc.conf"
 

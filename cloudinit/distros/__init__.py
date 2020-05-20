@@ -10,6 +10,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
+import errno
 import os
 import re
 import stat
@@ -56,6 +57,581 @@ PREFERRED_NTP_CLIENTS = ['chrony', 'systemd-timesyncd', 'ntp', 'ntpdate']
 LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
 
+class Networking(metaclass=abc.ABCMeta):
+
+    def natural_sort_key(self, s, _nsre=re.compile('([0-9]+)')):
+        """Sorting for Humans: natural sort order. Can be use as the key to sort
+        functions.
+        This will sort ['eth0', 'ens3', 'ens10', 'ens12', 'ens8', 'ens0'] as
+        ['ens0', 'ens3', 'ens8', 'ens10', 'ens12', 'eth0'] instead of the simple
+        python way which will produce ['ens0', 'ens10', 'ens12', 'ens3', 'ens8',
+        'eth0']."""
+        return [int(text) if text.isdigit() else text.lower()
+                for text in re.split(_nsre, s)]
+    @abc.abstractmethod
+    def is_wireless(self, device, ip, prefix, broadcast):
+        pass
+
+    @abc.abstractmethod
+    def is_up(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def is_wireless(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def is_bridge(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def is_bond(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def get_master(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def master_is_bridge_or_bond(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def is_netfailover(self, devname, driver=None):
+        pass
+
+    @abc.abstractmethod
+    def get_dev_features(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def has_netfail_standby_feature(self, devname):
+        pass
+
+
+    def is_netfail_master(self, devname, driver=None):
+        """ A device is a "netfail master" device if:
+
+            - The device does NOT have the 'master' sysfs attribute
+            - The device driver is 'virtio_net'
+            - The device has the standby feature bit set
+
+            Return True if all of the above is True.
+        """
+        if get_master(devname) is not None:
+            return False
+
+        if driver is None:
+            driver = device_driver(devname)
+
+        if driver != "virtio_net":
+            return False
+
+        if not has_netfail_standby_feature(devname):
+            return False
+
+        return True
+
+
+    @abc.abstractmethod
+    def is_netfail_primary(self, devname, driver=None):
+        pass
+
+
+    def is_netfail_standby(self, devname, driver=None):
+        """ A device is a "netfail standby" device if:
+
+            - The device has a 'master' sysfs attribute
+            - The device driver is 'virtio_net'
+            - The device has the standby feature bit set
+
+            Return True if all of the above is True.
+        """
+        if get_master(devname) is None:
+            return False
+
+        if driver is None:
+            driver = device_driver(devname)
+
+        if driver != "virtio_net":
+            return False
+
+        if not has_netfail_standby_feature(devname):
+            return False
+
+        return True
+
+
+    @abc.abstractmethod
+    def is_renamed(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def is_vlan(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def is_connected(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def is_physical(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def is_present(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def device_driver(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def device_devid(self, devname):
+        pass
+
+    @abc.abstractmethod
+    def get_devicelist(self):
+        pass
+
+    @abc.abstractmethod
+    def find_fallback_nic(self, blacklist_drivers=None):
+        pass
+
+    def extract_physdevs(self, netcfg):
+
+        def _version_1(netcfg):
+            physdevs = []
+            for ent in netcfg.get('config', {}):
+                if ent.get('type') != 'physical':
+                    continue
+                mac = ent.get('mac_address')
+                if not mac:
+                    continue
+                name = ent.get('name')
+                driver = ent.get('params', {}).get('driver')
+                device_id = ent.get('params', {}).get('device_id')
+                if not driver:
+                    driver = self.device_driver(name)
+                if not device_id:
+                    device_id = self.device_devid(name)
+                physdevs.append([mac, name, driver, device_id])
+            return physdevs
+
+        def _version_2(netcfg):
+            physdevs = []
+            for ent in netcfg.get('ethernets', {}).values():
+                # only rename if configured to do so
+                name = ent.get('set-name')
+                if not name:
+                    continue
+                # cloud-init requires macaddress for renaming
+                mac = ent.get('match', {}).get('macaddress')
+                if not mac:
+                    continue
+                driver = ent.get('match', {}).get('driver')
+                device_id = ent.get('match', {}).get('device_id')
+                if not driver:
+                    driver = self.device_driver(name)
+                if not device_id:
+                    device_id = self.device_devid(name)
+                physdevs.append([mac, name, driver, device_id])
+            return physdevs
+
+        version = netcfg.get('version')
+        if version == 1:
+            return _version_1(netcfg)
+        elif version == 2:
+            return _version_2(netcfg)
+
+        raise RuntimeError('Unknown network config version: %s' % version)
+
+
+class LinuxNetworking(Networking):
+    SYS_CLASS_NET = "/sys/class/net/"
+    DEFAULT_PRIMARY_INTERFACE = 'eth0'
+
+    def get_sys_class_path(self):
+        """Simple function to return the global SYS_CLASS_NET."""
+        return SYS_CLASS_NET
+
+    def sys_dev_path(self, devname, path=""):
+        return get_sys_class_path() + devname + "/" + path
+
+
+    def read_sys_net(self, devname, path, translate=None,
+                    on_enoent=None, on_keyerror=None,
+                    on_einval=None):
+        dev_path = sys_dev_path(devname, path)
+        try:
+            contents = util.load_file(dev_path)
+        except (OSError, IOError) as e:
+            e_errno = getattr(e, 'errno', None)
+            if e_errno in (errno.ENOENT, errno.ENOTDIR):
+                if on_enoent is not None:
+                    return on_enoent(e)
+            if e_errno in (errno.EINVAL,):
+                if on_einval is not None:
+                    return on_einval(e)
+            raise
+        contents = contents.strip()
+        if translate is None:
+            return contents
+        try:
+            return translate[contents]
+        except KeyError as e:
+            if on_keyerror is not None:
+                return on_keyerror(e)
+            else:
+                LOG.debug("Found unexpected (not translatable) value"
+                        " '%s' in '%s", contents, dev_path)
+                raise
+
+
+    def read_sys_net_safe(self, iface, field, translate=None):
+        def on_excp_false(e):
+            return False
+        return read_sys_net(iface, field,
+                            on_keyerror=on_excp_false,
+                            on_enoent=on_excp_false,
+                            on_einval=on_excp_false,
+                            translate=translate)
+
+
+    def read_sys_net_int(self, iface, field):
+        val = read_sys_net_safe(iface, field)
+        if val is False:
+            return None
+        try:
+            return int(val)
+        except ValueError:
+            return None
+
+    def is_up(self, devname):
+        # The linux kernel says to consider devices in 'unknown'
+        # operstate as up for the purposes of network configuration. See
+        # Documentation/networking/operstates.txt in the kernel source.
+        translate = {'up': True, 'unknown': True, 'down': False}
+        return read_sys_net_safe(devname, "operstate", translate=translate)
+
+
+    def is_wireless(self, devname):
+        return os.path.exists(sys_dev_path(devname, "wireless"))
+
+
+    def is_bridge(self, devname):
+        return os.path.exists(sys_dev_path(devname, "bridge"))
+
+
+    def is_bond(self, devname):
+        return os.path.exists(sys_dev_path(devname, "bonding"))
+
+
+    def get_master(self, devname):
+        """Return the master path for devname, or None if no master"""
+        path = sys_dev_path(devname, path="master")
+        if os.path.exists(path):
+            return path
+        return None
+
+
+    def master_is_bridge_or_bond(self, devname):
+        """Return a bool indicating if devname's master is a bridge or bond"""
+        master_path = get_master(devname)
+        if master_path is None:
+            return False
+        bonding_path = os.path.join(master_path, "bonding")
+        bridge_path = os.path.join(master_path, "bridge")
+        return (os.path.exists(bonding_path) or os.path.exists(bridge_path))
+
+
+    def is_netfailover(self, devname, driver=None):
+        """ netfailover driver uses 3 nics, master, primary and standby.
+            this returns True if the device is either the primary or standby
+            as these devices are to be ignored.
+        """
+        if driver is None:
+            driver = device_driver(devname)
+        if is_netfail_primary(devname, driver) or is_netfail_standby(devname,
+                                                                    driver):
+            return True
+        return False
+
+
+    def get_dev_features(self, devname):
+        """ Returns a str from reading /sys/class/net/<devname>/device/features."""
+        features = ''
+        try:
+            features = read_sys_net(devname, 'device/features')
+        except Exception:
+            pass
+        return features
+
+
+    def has_netfail_standby_feature(self, devname):
+        """ Return True if VIRTIO_NET_F_STANDBY bit (62) is set.
+
+        https://github.com/torvalds/linux/blob/ \
+            089cf7f6ecb266b6a4164919a2e69bd2f938374a/ \
+            include/uapi/linux/virtio_net.h#L60
+        """
+        features = get_dev_features(devname)
+        if not features or len(features) < 64:
+            return False
+        return features[62] == "1"
+
+
+    def is_netfail_master(self, devname, driver=None):
+        """ A device is a "netfail master" device if:
+
+            - The device does NOT have the 'master' sysfs attribute
+            - The device driver is 'virtio_net'
+            - The device has the standby feature bit set
+
+            Return True if all of the above is True.
+        """
+        if get_master(devname) is not None:
+            return False
+
+        if driver is None:
+            driver = device_driver(devname)
+
+        if driver != "virtio_net":
+            return False
+
+        if not has_netfail_standby_feature(devname):
+            return False
+
+        return True
+
+
+    def is_netfail_primary(self, devname, driver=None):
+        """ A device is a "netfail primary" device if:
+
+            - the device has a 'master' sysfs file
+            - the device driver is not 'virtio_net'
+            - the 'master' sysfs file points to device with virtio_net driver
+            - the 'master' device has the 'standby' feature bit set
+
+            Return True if all of the above is True.
+        """
+        # /sys/class/net/<devname>/master -> ../../<master devname>
+        master_sysfs_path = sys_dev_path(devname, path='master')
+        if not os.path.exists(master_sysfs_path):
+            return False
+
+        if driver is None:
+            driver = device_driver(devname)
+
+        if driver == "virtio_net":
+            return False
+
+        master_devname = os.path.basename(os.path.realpath(master_sysfs_path))
+        master_driver = device_driver(master_devname)
+        if master_driver != "virtio_net":
+            return False
+
+        master_has_standby = has_netfail_standby_feature(master_devname)
+        if not master_has_standby:
+            return False
+
+        return True
+
+
+    def is_netfail_standby(self, devname, driver=None):
+        """ A device is a "netfail standby" device if:
+
+            - The device has a 'master' sysfs attribute
+            - The device driver is 'virtio_net'
+            - The device has the standby feature bit set
+
+            Return True if all of the above is True.
+        """
+        if get_master(devname) is None:
+            return False
+
+        if driver is None:
+            driver = device_driver(devname)
+
+        if driver != "virtio_net":
+            return False
+
+        if not has_netfail_standby_feature(devname):
+            return False
+
+        return True
+
+
+    def is_renamed(self, devname):
+        """
+        /* interface name assignment types (sysfs name_assign_type attribute) */
+        #define NET_NAME_UNKNOWN	0	/* unknown origin (not exposed to user) */
+        #define NET_NAME_ENUM		1	/* enumerated by kernel */
+        #define NET_NAME_PREDICTABLE	2	/* predictably named by the kernel */
+        #define NET_NAME_USER		3	/* provided by user-space */
+        #define NET_NAME_RENAMED	4	/* renamed by user-space */
+        """
+        name_assign_type = read_sys_net_safe(devname, 'name_assign_type')
+        if name_assign_type and name_assign_type in ['3', '4']:
+            return True
+        return False
+
+
+    def is_vlan(self, devname):
+        uevent = str(read_sys_net_safe(devname, "uevent"))
+        return 'DEVTYPE=vlan' in uevent.splitlines()
+
+
+    def is_connected(self, devname):
+        # is_connected isn't really as simple as that.  2 is
+        # 'physically connected'. 3 is 'not connected'. but a wlan interface will
+        # always show 3.
+        iflink = read_sys_net_safe(devname, "iflink")
+        if iflink == "2":
+            return True
+        if not is_wireless(devname):
+            return False
+        LOG.debug("'%s' is wireless, basing 'connected' on carrier", devname)
+        return read_sys_net_safe(devname, "carrier",
+                                translate={'0': False, '1': True})
+
+
+    def is_physical(self, devname):
+        return os.path.exists(sys_dev_path(devname, "device"))
+
+
+    def is_present(self, devname):
+        return os.path.exists(sys_dev_path(devname))
+
+
+    def device_driver(self, devname):
+        """Return the device driver for net device named 'devname'."""
+        driver = None
+        driver_path = sys_dev_path(devname, "device/driver")
+        # driver is a symlink to the driver *dir*
+        if os.path.islink(driver_path):
+            driver = os.path.basename(os.readlink(driver_path))
+
+        return driver
+
+
+    def device_devid(self, devname):
+        """Return the device id string for net device named 'devname'."""
+        dev_id = read_sys_net_safe(devname, "device/device")
+        if dev_id is False:
+            return None
+
+        return dev_id
+
+
+    def get_devicelist(self):
+        try:
+            devs = os.listdir(get_sys_class_path())
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                devs = []
+            else:
+                raise
+        return devs
+
+    def find_fallback_nic(self, blacklist_drivers=None):
+        """Return the name of the 'fallback' network device."""
+        if not blacklist_drivers:
+            blacklist_drivers = []
+
+        if 'net.ifnames=0' in util.get_cmdline():
+            LOG.debug('Stable ifnames disabled by net.ifnames=0 in /proc/cmdline')
+        else:
+            unstable = [device for device in get_devicelist()
+                        if device != 'lo' and not is_renamed(device)]
+            if len(unstable):
+                LOG.debug('Found unstable nic names: %s; calling udevadm settle',
+                        unstable)
+                msg = 'Waiting for udev events to settle'
+                util.log_time(LOG.debug, msg, func=util.udevadm_settle)
+
+        # get list of interfaces that could have connections
+        invalid_interfaces = set(['lo'])
+        potential_interfaces = set([device for device in get_devicelist()
+                                    if device_driver(device) not in
+                                    blacklist_drivers])
+        potential_interfaces = potential_interfaces.difference(invalid_interfaces)
+        # sort into interfaces with carrier, interfaces which could have carrier,
+        # and ignore interfaces that are definitely disconnected
+        connected = []
+        possibly_connected = []
+        for interface in potential_interfaces:
+            if interface.startswith("veth"):
+                continue
+            if is_bridge(interface):
+                # skip any bridges
+                continue
+            if is_bond(interface):
+                # skip any bonds
+                continue
+            if is_netfailover(interface):
+                # ignore netfailover primary/standby interfaces
+                continue
+            carrier = read_sys_net_int(interface, 'carrier')
+            if carrier:
+                connected.append(interface)
+                continue
+            # check if nic is dormant or down, as this may make a nick appear to
+            # not have a carrier even though it could acquire one when brought
+            # online by dhclient
+            dormant = read_sys_net_int(interface, 'dormant')
+            if dormant:
+                possibly_connected.append(interface)
+                continue
+            operstate = read_sys_net_safe(interface, 'operstate')
+            if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
+                possibly_connected.append(interface)
+                continue
+
+        # don't bother with interfaces that might not be connected if there are
+        # some that definitely are
+        if connected:
+            potential_interfaces = connected
+        else:
+            potential_interfaces = possibly_connected
+
+        # if eth0 exists use it above anything else, otherwise get the interface
+        # that we can read 'first' (using the sorted definition of first).
+        names = list(sorted(potential_interfaces, key=natural_sort_key))
+        if DEFAULT_PRIMARY_INTERFACE in names:
+            names.remove(DEFAULT_PRIMARY_INTERFACE)
+            names.insert(0, DEFAULT_PRIMARY_INTERFACE)
+
+        # pick the first that has a mac-address
+        for name in names:
+            if read_sys_net_safe(name, 'address'):
+                return name
+        return None
+
+    def generate_fallback_config(self, blacklist_drivers=None, config_driver=None):
+        """Generate network cfg v2 for dhcp on the NIC most likely connected."""
+        if not config_driver:
+            config_driver = False
+
+        target_name = find_fallback_nic(blacklist_drivers=blacklist_drivers)
+        if not target_name:
+            # can't read any interfaces addresses (or there are none); give up
+            return None
+
+        # netfail cannot use mac for matching, they have duplicate macs
+        if is_netfail_master(target_name):
+            match = {'name': target_name}
+        else:
+            match = {
+                'macaddress': read_sys_net_safe(target_name, 'address').lower()}
+        cfg = {'dhcp4': True, 'set-name': target_name, 'match': match}
+        if config_driver:
+            driver = device_driver(target_name)
+            if driver:
+                cfg['match']['driver'] = driver
+        nconf = {'ethernets': {target_name: cfg}, 'version': 2}
+        return nconf
+
 class Distro(metaclass=abc.ABCMeta):
 
     usr_lib_exec = "/usr/lib"
@@ -66,11 +642,13 @@ class Distro(metaclass=abc.ABCMeta):
     init_cmd = ['service']  # systemctl, service etc
     renderer_configs = {}
     _preferred_ntp_clients = None
+    networking_cls = LinuxNetworking
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
+        self.networking_cls = self.networking_cls()
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
