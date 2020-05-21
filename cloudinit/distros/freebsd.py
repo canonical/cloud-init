@@ -15,6 +15,7 @@ from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
+
 class FreeBSDNetworking(distros.Networking):
 
     def find_fallback_nic(self, blacklist_drivers=None):

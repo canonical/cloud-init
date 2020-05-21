@@ -16,6 +16,7 @@ import re
 import stat
 import string
 import urllib.parse
+from functools import partial
 from io import StringIO
 
 from cloudinit import importer
@@ -60,14 +61,15 @@ LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 class Networking(metaclass=abc.ABCMeta):
 
     def natural_sort_key(self, s, _nsre=re.compile('([0-9]+)')):
-        """Sorting for Humans: natural sort order. Can be use as the key to sort
-        functions.
+        """Sorting for Humans: natural sort order. Can be use as the key to
+        sort functions.
         This will sort ['eth0', 'ens3', 'ens10', 'ens12', 'ens8', 'ens0'] as
-        ['ens0', 'ens3', 'ens8', 'ens10', 'ens12', 'eth0'] instead of the simple
-        python way which will produce ['ens0', 'ens10', 'ens12', 'ens3', 'ens8',
-        'eth0']."""
+        ['ens0', 'ens3', 'ens8', 'ens10', 'ens12', 'eth0'] instead of the
+        simple python way which will produce ['ens0', 'ens10', 'ens12', 'ens3',
+        'ens8', 'eth0']."""
         return [int(text) if text.isdigit() else text.lower()
                 for text in re.split(_nsre, s)]
+
     @abc.abstractmethod
     def is_wireless(self, device, ip, prefix, broadcast):
         pass
@@ -108,7 +110,6 @@ class Networking(metaclass=abc.ABCMeta):
     def has_netfail_standby_feature(self, devname):
         pass
 
-
     def is_netfail_master(self, devname, driver=None):
         """ A device is a "netfail master" device if:
 
@@ -132,11 +133,9 @@ class Networking(metaclass=abc.ABCMeta):
 
         return True
 
-
     @abc.abstractmethod
     def is_netfail_primary(self, devname, driver=None):
         pass
-
 
     def is_netfail_standby(self, devname, driver=None):
         """ A device is a "netfail standby" device if:
@@ -160,7 +159,6 @@ class Networking(metaclass=abc.ABCMeta):
             return False
 
         return True
-
 
     @abc.abstractmethod
     def is_renamed(self, devname):
@@ -258,10 +256,9 @@ class LinuxNetworking(Networking):
     def sys_dev_path(self, devname, path=""):
         return get_sys_class_path() + devname + "/" + path
 
-
     def read_sys_net(self, devname, path, translate=None,
-                    on_enoent=None, on_keyerror=None,
-                    on_einval=None):
+                     on_enoent=None, on_keyerror=None,
+                     on_einval=None):
         dev_path = sys_dev_path(devname, path)
         try:
             contents = util.load_file(dev_path)
@@ -284,9 +281,8 @@ class LinuxNetworking(Networking):
                 return on_keyerror(e)
             else:
                 LOG.debug("Found unexpected (not translatable) value"
-                        " '%s' in '%s", contents, dev_path)
+                          " '%s' in '%s", contents, dev_path)
                 raise
-
 
     def read_sys_net_safe(self, iface, field, translate=None):
         def on_excp_false(e):
@@ -296,7 +292,6 @@ class LinuxNetworking(Networking):
                             on_enoent=on_excp_false,
                             on_einval=on_excp_false,
                             translate=translate)
-
 
     def read_sys_net_int(self, iface, field):
         val = read_sys_net_safe(iface, field)
@@ -314,18 +309,14 @@ class LinuxNetworking(Networking):
         translate = {'up': True, 'unknown': True, 'down': False}
         return read_sys_net_safe(devname, "operstate", translate=translate)
 
-
     def is_wireless(self, devname):
         return os.path.exists(sys_dev_path(devname, "wireless"))
-
 
     def is_bridge(self, devname):
         return os.path.exists(sys_dev_path(devname, "bridge"))
 
-
     def is_bond(self, devname):
         return os.path.exists(sys_dev_path(devname, "bonding"))
-
 
     def get_master(self, devname):
         """Return the master path for devname, or None if no master"""
@@ -333,7 +324,6 @@ class LinuxNetworking(Networking):
         if os.path.exists(path):
             return path
         return None
-
 
     def master_is_bridge_or_bond(self, devname):
         """Return a bool indicating if devname's master is a bridge or bond"""
@@ -344,29 +334,28 @@ class LinuxNetworking(Networking):
         bridge_path = os.path.join(master_path, "bridge")
         return (os.path.exists(bonding_path) or os.path.exists(bridge_path))
 
-
     def is_netfailover(self, devname, driver=None):
-        """ netfailover driver uses 3 nics, master, primary and standby.
-            this returns True if the device is either the primary or standby
-            as these devices are to be ignored.
+        """netfailover driver uses 3 nics, master, primary and standby. this
+           returns True if the device is either the primary or standby as
+           these devices are to be ignored.
         """
         if driver is None:
             driver = device_driver(devname)
         if is_netfail_primary(devname, driver) or is_netfail_standby(devname,
-                                                                    driver):
+                                                                     driver):
             return True
         return False
 
-
     def get_dev_features(self, devname):
-        """ Returns a str from reading /sys/class/net/<devname>/device/features."""
+        """
+        Returns a str from reading /sys/class/net/<devname>/device/features.
+        """
         features = ''
         try:
             features = read_sys_net(devname, 'device/features')
         except Exception:
             pass
         return features
-
 
     def has_netfail_standby_feature(self, devname):
         """ Return True if VIRTIO_NET_F_STANDBY bit (62) is set.
@@ -379,7 +368,6 @@ class LinuxNetworking(Networking):
         if not features or len(features) < 64:
             return False
         return features[62] == "1"
-
 
     def is_netfail_master(self, devname, driver=None):
         """ A device is a "netfail master" device if:
@@ -403,7 +391,6 @@ class LinuxNetworking(Networking):
             return False
 
         return True
-
 
     def is_netfail_primary(self, devname, driver=None):
         """ A device is a "netfail primary" device if:
@@ -437,7 +424,6 @@ class LinuxNetworking(Networking):
 
         return True
 
-
     def is_netfail_standby(self, devname, driver=None):
         """ A device is a "netfail standby" device if:
 
@@ -461,7 +447,6 @@ class LinuxNetworking(Networking):
 
         return True
 
-
     def is_renamed(self, devname):
         """
         /* interface name assignment types (sysfs name_assign_type attribute) */
@@ -476,16 +461,14 @@ class LinuxNetworking(Networking):
             return True
         return False
 
-
     def is_vlan(self, devname):
         uevent = str(read_sys_net_safe(devname, "uevent"))
         return 'DEVTYPE=vlan' in uevent.splitlines()
 
-
     def is_connected(self, devname):
-        # is_connected isn't really as simple as that.  2 is
-        # 'physically connected'. 3 is 'not connected'. but a wlan interface will
-        # always show 3.
+        # is_connected isn't really as simple as that.
+        # 2 is 'physically connected'. 3 is 'not connected'.
+        # but a wlan interface will always show 3.
         iflink = read_sys_net_safe(devname, "iflink")
         if iflink == "2":
             return True
@@ -493,16 +476,13 @@ class LinuxNetworking(Networking):
             return False
         LOG.debug("'%s' is wireless, basing 'connected' on carrier", devname)
         return read_sys_net_safe(devname, "carrier",
-                                translate={'0': False, '1': True})
-
+                                 translate={'0': False, '1': True})
 
     def is_physical(self, devname):
         return os.path.exists(sys_dev_path(devname, "device"))
 
-
     def is_present(self, devname):
         return os.path.exists(sys_dev_path(devname))
-
 
     def device_driver(self, devname):
         """Return the device driver for net device named 'devname'."""
@@ -514,7 +494,6 @@ class LinuxNetworking(Networking):
 
         return driver
 
-
     def device_devid(self, devname):
         """Return the device id string for net device named 'devname'."""
         dev_id = read_sys_net_safe(devname, "device/device")
@@ -522,7 +501,6 @@ class LinuxNetworking(Networking):
             return None
 
         return dev_id
-
 
     def get_devicelist(self):
         try:
@@ -540,13 +518,15 @@ class LinuxNetworking(Networking):
             blacklist_drivers = []
 
         if 'net.ifnames=0' in util.get_cmdline():
-            LOG.debug('Stable ifnames disabled by net.ifnames=0 in /proc/cmdline')
+            LOG.debug(
+                'Stable ifnames disabled by net.ifnames=0 in /proc/cmdline')
         else:
             unstable = [device for device in get_devicelist()
                         if device != 'lo' and not is_renamed(device)]
             if len(unstable):
-                LOG.debug('Found unstable nic names: %s; calling udevadm settle',
-                        unstable)
+                LOG.debug(
+                    'Found unstable nic names: %s; calling udevadm settle',
+                    unstable)
                 msg = 'Waiting for udev events to settle'
                 util.log_time(LOG.debug, msg, func=util.udevadm_settle)
 
@@ -555,9 +535,10 @@ class LinuxNetworking(Networking):
         potential_interfaces = set([device for device in get_devicelist()
                                     if device_driver(device) not in
                                     blacklist_drivers])
-        potential_interfaces = potential_interfaces.difference(invalid_interfaces)
-        # sort into interfaces with carrier, interfaces which could have carrier,
-        # and ignore interfaces that are definitely disconnected
+        potential_interfaces = potential_interfaces.difference(
+            invalid_interfaces)
+        # sort into interfaces with carrier, interfaces which could have
+        # carrier, and ignore interfaces that are definitely disconnected
         connected = []
         possibly_connected = []
         for interface in potential_interfaces:
@@ -576,9 +557,9 @@ class LinuxNetworking(Networking):
             if carrier:
                 connected.append(interface)
                 continue
-            # check if nic is dormant or down, as this may make a nick appear to
-            # not have a carrier even though it could acquire one when brought
-            # online by dhclient
+            # check if nic is dormant or down, as this may make a nick appear
+            # to not have a carrier even though it could acquire one when
+            # brought online by dhclient
             dormant = read_sys_net_int(interface, 'dormant')
             if dormant:
                 possibly_connected.append(interface)
@@ -595,9 +576,10 @@ class LinuxNetworking(Networking):
         else:
             potential_interfaces = possibly_connected
 
-        # if eth0 exists use it above anything else, otherwise get the interface
-        # that we can read 'first' (using the sorted definition of first).
-        names = list(sorted(potential_interfaces, key=natural_sort_key))
+        # if eth0 exists use it above anything else, otherwise get the
+        # interface that we can read 'first'
+        # (using the sorted definition of first).
+        names = list(sorted(potential_interfaces, key=self.natural_sort_key))
         if DEFAULT_PRIMARY_INTERFACE in names:
             names.remove(DEFAULT_PRIMARY_INTERFACE)
             names.insert(0, DEFAULT_PRIMARY_INTERFACE)
@@ -608,8 +590,13 @@ class LinuxNetworking(Networking):
                 return name
         return None
 
-    def generate_fallback_config(self, blacklist_drivers=None, config_driver=None):
-        """Generate network cfg v2 for dhcp on the NIC most likely connected."""
+    def generate_fallback_config(
+            self,
+            blacklist_drivers=None,
+            config_driver=None):
+        """
+        Generate network cfg v2 for dhcp on the NIC most likely connected.
+        """
         if not config_driver:
             config_driver = False
 
@@ -623,7 +610,8 @@ class LinuxNetworking(Networking):
             match = {'name': target_name}
         else:
             match = {
-                'macaddress': read_sys_net_safe(target_name, 'address').lower()}
+                'macaddress': read_sys_net_safe(target_name, 'address').lower()
+            }
         cfg = {'dhcp4': True, 'set-name': target_name, 'match': match}
         if config_driver:
             driver = device_driver(target_name)

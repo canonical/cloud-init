@@ -9,6 +9,7 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
+
 class BSDNetworking(distros.Networking):
 
     def find_fallback_nic(self, blacklist_drivers=None):
