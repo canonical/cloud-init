@@ -37,7 +37,7 @@ class TestDisableSubpUsage:
         with pytest.raises(AssertionError) as excinfo:
             util.subp(["some", "args"])
         assert "allowed: whoami,bash" in str(excinfo.value)
-        util.subp(['bash'])
+        util.subp(['bash', '-c', 'true'])
         util.subp(['whoami'])
 
 
