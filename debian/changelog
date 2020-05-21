@@ -1,5 +1,8 @@
 cloud-init (20.1-50-g7f9f33db-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
+  * d/control: drop pyflakes from Build-Depends
+    - This python2 pyflakes package is an unneeded dependency now that tests
+      use python3-pyflakes.
   * refresh patches:
    + debian/patches/ubuntu-advantage-revert-tip.patch
   * refresh patches:
