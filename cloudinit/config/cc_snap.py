@@ -144,10 +144,6 @@ schema = {
     }
 }
 
-# TODO schema for 'assertions' and 'commands' are too permissive at the moment.
-# Once python-jsonschema supports schema draft 6 add support for arbitrary
-# object keys with 'patternProperties' constraint to validate string values.
-
 __doc__ = get_schema_doc(schema)  # Supplement python help()
 
 SNAP_CMD = "snap"
