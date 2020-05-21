@@ -1,5 +1,7 @@
 cloud-init (20.2-30-g8bcf1c06-0ubuntu1) UNRELEASED; urgency=medium
 
+  * d/control: drop pyflakes as Build-Depends
+    - upstream uses python3-pyflakes now
   * New upstream snapshot.
     - cc_snap: apply validation to snap.commands properties (#364)
     - make finding libc platform independent (#366)
