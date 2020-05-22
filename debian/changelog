@@ -1,3 +1,11 @@
+cloud-init (20.1-10-g71af48df-0ubuntu6) UNRELEASED; urgency=medium
+
+  * d/control: drop pyflakes from Build-Depends
+    - This python2 pyflakes package is an unneeded dependency now that tests
+      use python3-pyflakes.
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 22 May 2020 13:29:41 -0600
+
 cloud-init (20.1-10-g71af48df-0ubuntu5) focal; urgency=medium
 
   * cherry-pick 0c5c7367: test_mounts: expand happy path test for both
