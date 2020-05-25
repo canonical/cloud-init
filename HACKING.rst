@@ -430,6 +430,143 @@ This can be done incrementally, one function at a time:
 * finally, remove it (and any other now-unused functions) from
   cloudinit.net (to avoid having two parallel implementations)
 
+``cloudinit.net`` Functions/Classes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The functions/classes that need refactoring break down into some broad
+categories:
+
+* helpers for accessing ``/sys`` (that should not be on the top-level
+  ``Networking`` class as they are Linux-specific):
+
+  * ``get_sys_class_path``
+  * ``sys_dev_path``
+  * ``read_sys_net``
+  * ``read_sys_net_safe``
+  * ``read_sys_net_int``
+
+* those that directly access ``/sys`` (via helpers) and should (IMO) be
+  included in the API of the ``Networking`` class:
+
+  * ``generate_fallback_config``
+  * ``get_ib_interface_hwaddr``
+  * ``get_interface_mac``
+  * ``interface_has_own_mac``
+  * ``is_bond``
+  * ``is_bridge``
+  * ``is_connected``
+  * ``is_physical``
+  * ``is_present``
+  * ``is_renamed``
+  * ``is_up``
+  * ``is_vlan``
+  * ``is_wireless``
+  * ``wait_for_physdevs``
+
+* those that directly access ``/sys`` (via helpers) but may be
+  Linux-specific concepts or names:
+
+  * ``get_master``
+  * ``device_devid``
+  * ``device_driver``
+
+* those that directly use ``ip``:
+
+  * ``_get_current_rename_info``
+
+    * this has non-distro-specific logic so should potentially be
+      refactored to use helpers on ``self`` instead of ``ip`` directly
+      (rather than being wholesale reimplemented in each of
+      ``BSDNetworking`` or ``LinuxNetworking``)
+    * we could also remove the ``check_downable`` argument, it's never
+      specified so is always ``True``
+
+  * ``_rename_interfaces``
+
+    * this has several internal helper functions which use ``ip``
+      directly, and it calls ``_get_current_rename_info``.  That said,
+      there appears to be a lot of non-distro-specific logic that could
+      live in a function on ``Networking``, so this will require some
+      careful refactoring to avoid duplicating that logic in each of
+      ``BSDNetworking`` and ``LinuxNetworking``.
+
+  * ``EphemeralIPv4Network``
+
+    * this is another case where it mixes distro-specific and
+      non-specific functionality.  Specifically, ``__init__``,
+      ``__enter__`` and ``__exit__`` are non-specific, and the
+      remaining methods are distro-specific.
+    * when refactoring this, the need to track ``cleanup_cmds`` likely
+      means that the distro-specific behaviour cannot be captured only
+      in the ``Networking`` class.  See `this comment in PR #363`_ for
+      more thoughts.
+
+* those that implicitly use ``/sys`` via their call dependencies:
+
+  * ``master_is_bridge_or_bond``
+
+    * appends to ``get_master`` return value, which is a ``/sys`` path
+
+  * ``extract_physdevs``
+
+    * calls ``device_driver`` and ``device_devid`` in both
+      ``_version_*`` impls
+
+  * ``apply_network_config_names``
+
+    * calls ``extract_physdevs``
+    * there is already a ``Distro.apply_network_config_names`` which in
+      the default implementation calls this function; this and its BSD
+      subclass implementations should be refactored at the same time
+
+  * ``get_interfaces``
+
+    * calls ``device_driver``, ``device_devid`` amongst others
+
+  * ``get_ib_hwaddrs_by_interface``
+
+    * calls ``get_interfaces``
+
+* those that may fall into the above categories, but whose use is only
+  related to netfailover (which relies on a Linux-specific network
+  driver, so is unlikely to be relevant elsewhere without a substantial
+  refactor; these probably only need implementing in
+  ``LinuxNetworking``):
+
+  * ``get_dev_features``
+
+  * ``has_netfail_standby_feature``
+
+    * calls ``get_dev_features``
+
+  * ``is_netfailover``
+  * ``is_netfail_master``
+
+    * this is called from ``generate_fallback_config``
+
+  * ``is_netfail_primary``
+  * ``is_netfail_standby``
+
+* those that use ``/sys`` (via helpers) and have non-exhaustive BSD
+  logic:
+
+  * ``get_devicelist``
+
+* those that already have separate Linux/BSD implementations:
+
+  * ``find_fallback_nic``
+  * ``get_interfaces_by_mac``
+
+* those that have no OS-specific functionality (so do not need to be
+  refactored):
+
+  * ``ParserError``
+  * ``RendererNotFoundError``
+  * ``has_url_connectivity``
+  * ``is_ip_address``
+  * ``is_ipv4_address``
+  * ``natural_sort_key``
+
 References
 ~~~~~~~~~~
 
@@ -442,3 +579,4 @@ References
 .. _Mina Galić's email the the cloud-init ML in 2018: https://lists.launchpad.net/cloud-init/msg00185.html
 .. _Mina Galić's email to the cloud-init ML in 2019: https://lists.launchpad.net/cloud-init/msg00237.html
 .. _PR #363: https://github.com/canonical/cloud-init/pull/363
+.. _this comment in PR #363: https://github.com/canonical/cloud-init/pull/363#issuecomment-628829489
