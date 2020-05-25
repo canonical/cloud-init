@@ -677,6 +677,8 @@ dscheck_MAAS() {
 
 dscheck_NoCloud() {
     local fslabel="cidata CIDATA" d=""
+    local _RET='' _RET_fname=''
+    check_config fs_label && fslabel="$_RET"
     case " ${DI_KERNEL_CMDLINE} " in
         *\ ds=nocloud*) return ${DS_FOUND};;
     esac
