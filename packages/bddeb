@@ -81,15 +81,20 @@ def write_debian_folder(root, templ_data, is_python2, cloud_util_deps):
                              util.abs_join(deb_dir, 'changelog'),
                              params=templ_data)
 
+    util.subp(['dpkg-source', '--before-build', root])
+
     # Write out the control file template
     reqs_output = run_helper(
         'read-dependencies',
-        args=['--distro', 'debian', '--python-version', pyver])
+        ['--requirements-file', root + '/requirements.txt',
+         '--distro', 'debian', '--python-version', pyver])
     reqs = reqs_output.splitlines()
     test_reqs = run_helper(
         'read-dependencies',
-        ['--requirements-file', 'test-requirements.txt',
+        ['--requirements-file', root + '/test-requirements.txt',
          '--system-pkg-names', '--python-version', pyver]).splitlines()
+
+    util.subp(['dpkg-source', '--after-build', root])
 
     requires = ['cloud-utils | cloud-guest-utils'] if cloud_util_deps else []
     # We consolidate all deps as Build-Depends as our package build runs all
