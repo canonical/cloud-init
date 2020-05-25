@@ -1002,7 +1002,14 @@ def get_mirror(cfg, mirrortype, arch, cloud):
     # fallback to search if specified
     if mirror is None:
         # list of mirrors to try to resolve
-        mirror = util.search_for_mirror(mcfg.get("search", None))
+        search_mirrors = None
+        params = {'REGION': cloud.datasource.region}
+        if 'search' in mcfg:
+            search_mirrors = [
+                templater.render_string(mirror, params)
+                for mirror in mcfg.get("search")
+            ]
+        mirror = util.search_for_mirror(search_mirrors)
 
     # fallback to search_dns if specified
     if mirror is None:
