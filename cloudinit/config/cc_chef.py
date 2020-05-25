@@ -50,6 +50,7 @@ file).
                            written to /etc/chef/client.rb)
 
     chef:
+      chef_license:
       client_key:
       encrypted_data_bag_secret:
       environment:
@@ -125,6 +126,7 @@ CHEF_RB_TPL_PATH_KEYS = frozenset([
     'file_cache_path',
     'pid_file',
     'encrypted_data_bag_secret',
+    'chef_license',
 ])
 CHEF_RB_TPL_KEYS = list(CHEF_RB_TPL_DEFAULTS.keys())
 CHEF_RB_TPL_KEYS.extend(CHEF_RB_TPL_BOOL_KEYS)
