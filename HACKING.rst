@@ -323,3 +323,115 @@ variable annotations specified in `PEP-526`_ were introduced in Python
      py.test-3 --fixtures -q | grep "^[^ ]" | grep -v no | sed 's/.*/* ``\0``/'
 
    in a xenial lxd container with python3-pytest installed.
+
+Ongoing Refactors
+=================
+
+This captures ongoing refactoring projects in the codebase.  This is
+intended as documentation for developers involved in the refactoring,
+but also for other developers who may interact with the code being
+refactored in the meantime.
+
+``cloudinit.net`` -> ``cloudinit.distros.Networking`` Hierarchy
+---------------------------------------------------------------
+
+``cloudinit.net`` was imported from the curtin codebase as a chunk, and
+then modified enough that it integrated with the rest of the cloud-init
+codebase.  Over the ~4 years since, the fact that it is not fully
+integrated into the ``Distro`` hierarchy has caused several issues.
+
+The common pattern of these problems is that the commands used for
+networking are different across distributions and operating systems.
+This has lead to ``cloudinit.net`` developing its own "distro
+determination" logic: `get_interfaces_by_mac`_ is probably the clearest
+example of this.  Currently, these differences are primarily split
+along Linux/BSD lines.  However, it would be short-sighted to only
+refactor in a way that captures this difference: we can anticipate that
+differences will develop between Linux-based distros in future, or
+there may already be differences in tooling that we currently
+work around in less obvious ways.
+
+The high-level plan is to introduce a hierarchy of networking classes
+in ``cloudinit.distros``, which each ``Distro`` subclass will
+reference.  These will capture the differences between networking on
+our various distros, while still allowing easy reuse of code between
+distros that share functionality (e.g. most of the Linux networking
+behaviour).  Callers will call ``distro.net.func`` instead of
+``cloudinit.net.func``, which will necessitate access to an
+instantiated ``Distro`` object.
+
+An implementation note: there may be external consumers of the
+``cloudinit.net`` module.  We don't consider this a public API, so we
+will be removing it as part of this refactor.  However, we will ensure
+that the new API is complete from its introduction, so that any such
+consumers can move over to it wholesale.  (Note, however, that this new
+API is still not considered public or stable, and may not replicate the
+existing API exactly.)
+
+In more detail:
+
+* The root of this hierarchy will be the
+  ``cloudinit.distros.Networking`` class.  This class will have
+  a corresponding method for every ``cloudinit.net`` function that we
+  identify to be involved in refactoring.  Initially, these methods'
+  implementations will simply call the corresponding ``cloudinit.net``
+  function.  (This gives us the complete API from day one, for existing
+  consumers.)
+* As the biggest differentiator in behaviour, the next layer of the
+  hierarchy will be two subclasses: ``LinuxNetworking`` and
+  ``BSDNetworking``.  These will be introduced in the initial PR.
+* When a difference in behaviour for a particular distro is identified,
+  a new ``Networking`` subclass will be created.  This new class should
+  generally subclass either ``LinuxNetworking`` or ``BSDNetworking``.
+* To be clear: ``Networking`` subclasses will only be created when
+  needed, we will not create a full hierarchy of per-``Distro``
+  subclasses up-front.
+* Each ``Distro`` class will have a class variable
+  (``cls.networking_cls``) which points at the appropriate
+  networking class (initially this will be either ``LinuxNetworking``
+  or ``BSDNetworking``).
+* When ``Distro`` classes are instantiated, they will instantiate
+  ``cls.networking_cls`` and store the instance at ``self.net``.  (This
+  will be implemented in ``cloudinit.distros.Distro.__init__``.)
+* A helper function will be added which will determine the appropriate
+  ``Distro`` subclass for the current system, instantiate it and return
+  its ``net`` attribute.  (This is the entry point for existing
+  consumers to migrate to.)
+* Callers of refactored functions will change from calling
+  ``cloudinit.net.some_func`` to ``distro.net.some_func``, where
+  ``distro`` is an instance of the appropriate ``Distro`` class for
+  this system.  (This will require making such an instance available to
+  callers, which will constitute a large part of the work in this
+  project.)
+
+After the initial structure is in place, the work in this refactor will
+consist of replacing the ``cloudinit.net.some_func`` call in each
+``cloudinit.distros.Networking`` method with the actual implementation.
+This can be done incrementally, one function at a time:
+
+* pick an unmigrated ``cloudinit.distros.Networking`` method
+* refactor all of its callers to call the ``distro.net`` method on
+  ``Distro`` instead of the ``cloudinit.net`` function. (This is likely
+  to be the most time-consuming step, as it may require plumbing
+  ``Distro`` objects through to places that previously have not
+  consumed them.)
+* refactor its implementation from ``cloudinit.net`` into the
+  ``Networking`` hierarchy (e.g. if it has an if/else on BSD, this is
+  the time to put the implementations in their respective subclasses)
+* ensure that the new implementation has unit tests (either by moving
+  existing tests, or by writing new ones)
+* finally, remove it (and any other now-unused functions) from
+  cloudinit.net (to avoid having two parallel implementations)
+
+References
+~~~~~~~~~~
+
+* `Mina Galić's email the the cloud-init ML in 2018`_ (plus its thread)
+* `Mina Galić's email to the cloud-init ML in 2019`_ (plus its thread)
+* `PR #363`_, the discussion which prompted finally starting this
+  refactor (and where a lot of the above details were hashed out)
+
+.. _get_interfaces_by_mac: https://github.com/canonical/cloud-init/blob/961239749106daead88da483e7319e9268c67cde/cloudinit/net/__init__.py#L810-L818
+.. _Mina Galić's email the the cloud-init ML in 2018: https://lists.launchpad.net/cloud-init/msg00185.html
+.. _Mina Galić's email to the cloud-init ML in 2019: https://lists.launchpad.net/cloud-init/msg00237.html
+.. _PR #363: https://github.com/canonical/cloud-init/pull/363
