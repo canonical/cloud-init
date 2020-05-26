@@ -610,12 +610,11 @@ class DataSourceAzure(sources.DataSource):
                     self.imds_poll_counter += 1
                     return True
                 else:
-                    url_error = UrlError(exception)
                     # If we get an exception while trying to call IMDS, we call
                     # DHCP and setup the ephemeral network to acquire a new IP.
                     report_diagnostic_event("poll IMDS with %s failed. "
                                             "Exception: %s and code: %s" %
-                                            (msg, url_error.cause,
+                                            (msg, exception.cause,
                                              exception.code))
                     return False
 
