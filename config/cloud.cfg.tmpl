@@ -125,11 +125,9 @@ cloud_final_modules:
 {% if variant in ["ubuntu", "unknown"] %}
  - ubuntu-drivers
 {% endif %}
-{% if variant not in ["freebsd", "netbsd"] %}
  - puppet
  - chef
  - mcollective
-{% endif %}
  - salt-minion
  - rightscale_userdata
  - scripts-vendor
