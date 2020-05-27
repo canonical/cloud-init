@@ -50,7 +50,7 @@ matrix:
             - sudo apt-get build-dep -y cloud-init
             - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox
             # These are build deps but not pulled in by the build-dep call above
-            - sudo apt-get install -y --install-recommends dh-systemd python3-coverage python3-contextlib2 python3-pytest python3-pytest-cov
+            - sudo apt-get install -y --install-recommends dh-systemd python3-coverage python3-pytest python3-pytest-cov
             - pip install .
             - pip install tox
             # bionic has lxd from deb installed, remove it first to ensure
