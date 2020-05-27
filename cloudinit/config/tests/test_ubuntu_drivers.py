@@ -16,6 +16,13 @@ OLD_UBUNTU_DRIVERS_ERROR_STDERR = (
     "(choose from 'list', 'autoinstall', 'devices', 'debug')\n")
 
 
+# The tests in this module call helper methods which are decorated with
+# mock.patch.  pylint doesn't understand that mock.patch passes parameters to
+# the decorated function, so it incorrectly reports that we aren't passing
+# values for all parameters.  Instead of annotating every single call, we
+# disable it for the entire module:
+#  pylint: disable=no-value-for-parameter
+
 class AnyTempScriptAndDebconfFile(object):
 
     def __init__(self, tmp_dir, debconf_file):

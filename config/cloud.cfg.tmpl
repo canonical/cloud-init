@@ -125,11 +125,9 @@ cloud_final_modules:
 {% if variant in ["ubuntu", "unknown"] %}
  - ubuntu-drivers
 {% endif %}
-{% if variant not in ["freebsd", "netbsd"] %}
  - puppet
  - chef
  - mcollective
-{% endif %}
  - salt-minion
  - rightscale_userdata
  - scripts-vendor
@@ -162,6 +160,9 @@ system_info:
      groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/bash
+{# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
+   network:
+     renderers: ['netplan', 'eni', 'sysconfig']
    # Automatically discover the best ntp_client
    ntp_client: auto
    # Other config here will be given to the distro class and/or path classes

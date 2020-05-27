@@ -74,8 +74,12 @@ def parse_ci_logline(line):
     #
     # 2017-05-22 18:02:01,088 - util.py[DEBUG]: Cloud-init v. 0.7.9 running \
     #         'init-local' at Mon, 22 May 2017 18:02:01 +0000. Up 2.0 seconds.
+    #
+    # Apr 30 19:39:11 cloud-init[2673]: handlers.py[DEBUG]: start: \
+    #          init-local/check-cache: attempting to read from cache [check]
 
-    separators = [' - ', ' [CLOUDINIT] ']
+    amazon_linux_2_sep = ' cloud-init['
+    separators = [' - ', ' [CLOUDINIT] ', amazon_linux_2_sep]
     found = False
     for sep in separators:
         if sep in line:
@@ -98,7 +102,14 @@ def parse_ci_logline(line):
             hostname = extra.split()[-1]
     else:
         hostname = timehost.split()[-1]
-        timestampstr = timehost.split(hostname)[0].strip()
+        if sep == amazon_linux_2_sep:
+            # This is an Amazon Linux style line, with no hostname and a PID.
+            # Use the whole of timehost as timestampstr, and strip off the PID
+            # from the start of eventstr.
+            timestampstr = timehost.strip()
+            eventstr = eventstr.split(maxsplit=1)[1]
+        else:
+            timestampstr = timehost.split(hostname)[0].strip()
     if 'Cloud-init v.' in eventstr:
         event_type = 'start'
         if 'running' in eventstr:

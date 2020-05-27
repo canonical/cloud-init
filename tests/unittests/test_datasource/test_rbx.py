@@ -4,6 +4,7 @@ from cloudinit import helpers
 from cloudinit import distros
 from cloudinit.sources import DataSourceRbxCloud as ds
 from cloudinit.tests.helpers import mock, CiTestCase, populate_dir
+from cloudinit import util
 
 DS_PATH = "cloudinit.sources.DataSourceRbxCloud"
 
@@ -197,6 +198,35 @@ class TestRbxDataSource(CiTestCase):
                 ['arping', '-c', '2', '-s', '172.16.6.104', '172.17.0.2']
             )],
             m_subp.call_args_list
+        )
+
+    @mock.patch(
+        DS_PATH + '.util.subp',
+        side_effect=util.ProcessExecutionError()
+    )
+    def test_continue_on_arping_error(self, m_subp):
+        """Continue when command error"""
+        items = [
+            {
+                'destination': '172.17.0.2',
+                'source': '172.16.6.104'
+            },
+            {
+                'destination': '172.17.0.2',
+                'source': '172.16.6.104',
+            },
+        ]
+        ds.gratuitous_arp(items, self._fetch_distro('ubuntu'))
+        self.assertEqual([
+            mock.call([
+                'arping', '-c', '2', '-S',
+                '172.16.6.104', '172.17.0.2'
+            ]),
+            mock.call([
+                'arping', '-c', '2', '-S',
+                '172.16.6.104', '172.17.0.2'
+            ])
+        ], m_subp.call_args_list
         )
 
 

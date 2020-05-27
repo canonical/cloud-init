@@ -467,11 +467,11 @@ Set region in platforms.yaml
 .. code-block:: yaml
 
     azurecloud:
-        enabled: true
-        region: West US 2
-        vm_size: Standard_DS1_v2
-        storage_sku: standard_lrs
-        tag: ci
+      enabled: true
+      region: West US 2
+      vm_size: Standard_DS1_v2
+      storage_sku: standard_lrs
+      tag: ci
 
 
 Architecture
@@ -546,38 +546,38 @@ The following demonstrates merge behavior:
 .. code-block:: yaml
 
     defaults:
-        list_item:
-         - list_entry_1
-         - list_entry_2
-        int_item_1: 123
-        int_item_2: 234
-        dict_item:
-            subkey_1: 1
-            subkey_2: 2
-            subkey_dict:
-                subsubkey_1: a
-                subsubkey_2: b
+      list_item:
+        - list_entry_1
+        - list_entry_2
+      int_item_1: 123
+      int_item_2: 234
+      dict_item:
+        subkey_1: 1
+        subkey_2: 2
+        subkey_dict:
+          subsubkey_1: a
+          subsubkey_2: b
 
     overrides:
-        list_item:
-         - overridden_list_entry
-        int_item_1: 0
-        dict_item:
-            subkey_2: false
-            subkey_dict:
-                subsubkey_2: 'new value'
+      list_item:
+        - overridden_list_entry
+      int_item_1: 0
+      dict_item:
+        subkey_2: false
+        subkey_dict:
+          subsubkey_2: 'new value'
 
     result:
-        list_item:
-         - overridden_list_entry
-        int_item_1: 0
-        int_item_2: 234
-        dict_item:
-            subkey_1: 1
-            subkey_2: false
-            subkey_dict:
-                subsubkey_1: a
-                subsubkey_2: 'new value'
+      list_item:
+        - overridden_list_entry
+      int_item_1: 0
+      int_item_2: 234
+      dict_item:
+        subkey_1: 1
+        subkey_2: false
+        subkey_dict:
+          subsubkey_1: a
+          subsubkey_2: 'new value'
 
 
 Image Config

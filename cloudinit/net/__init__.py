@@ -6,13 +6,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import errno
+import ipaddress
 import logging
 import os
 import re
 from functools import partial
 
-from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit import util
+from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
@@ -957,6 +958,38 @@ def has_url_connectivity(url):
     try:
         readurl(url, timeout=5)
     except UrlError:
+        return False
+    return True
+
+
+def is_ip_address(s: str) -> bool:
+    """Returns a bool indicating if ``s`` is an IP address.
+
+    :param s:
+        The string to test.
+
+    :return:
+        A bool indicating if the string contains an IP address or not.
+    """
+    try:
+        ipaddress.ip_address(s)
+    except ValueError:
+        return False
+    return True
+
+
+def is_ipv4_address(s: str) -> bool:
+    """Returns a bool indicating if ``s`` is an IPv4 address.
+
+    :param s:
+        The string to test.
+
+    :return:
+        A bool indicating if the string contains an IPv4 address or not.
+    """
+    try:
+        ipaddress.IPv4Address(s)
+    except ValueError:
         return False
     return True
 
