@@ -1,4 +1,4 @@
-cloud-init (20.2-38-g8377897b-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.2-38-g8377897b-0ubuntu1) groovy; urgency=medium
 
   * New upstream snapshot.
     - enable Puppet, Chef mcollective in default config (#385)
