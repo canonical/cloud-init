@@ -48,7 +48,7 @@ def fill_properties(props, template=OVF_ENV_CONTENT):
     for key, val in props.items():
         lines.append(prop_tmpl.format(key=key, val=val))
     indent = "        "
-    properties = ''.join([indent + l + "\n" for l in lines])
+    properties = ''.join([indent + line + "\n" for line in lines])
     return template.format(properties=properties)
 
 
