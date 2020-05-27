@@ -4,60 +4,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Write Files
------------
-**Summary:** write arbitrary files
-
-Write out arbitrary content to files, optionally setting permissions. Content
-can be specified in plain text or binary. Data encoded with either base64 or
-binary gzip data can be specified and will be decoded before being written.
-
-.. note::
-    if multiline data is provided, care should be taken to ensure that it
-    follows yaml formatting standards. to specify binary data, use the yaml
-    option ``!!binary``
-
-.. note::
-    Do not write files under /tmp during boot because of a race with
-    systemd-tmpfiles-clean that can cause temp files to get cleaned during
-    the early boot process. Use /run/somedir instead to avoid race LP:1707222.
-
-**Internal name:** ``cc_write_files``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    write_files:
-        - encoding: b64
-          content: CiMgVGhpcyBmaWxlIGNvbnRyb2xzIHRoZSBzdGF0ZSBvZiBTRUxpbnV4...
-          owner: root:root
-          path: /etc/sysconfig/selinux
-          permissions: '0644'
-        - content: |
-            # My new /etc/sysconfig/samba file
-
-            SMDBOPTIONS="-D"
-          path: /etc/sysconfig/samba
-        - content: !!binary |
-            f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAwARAAAAAAABAAAAAAAAAAJAVAAAAAA
-            AEAAHgAdAAYAAAAFAAAAQAAAAAAAAABAAEAAAAAAAEAAQAAAAAAAwAEAAAAAAA
-            AAAAAAAAAwAAAAQAAAAAAgAAAAAAAAACQAAAAAAAAAJAAAAAAAAcAAAAAAAAAB
-            ...
-          path: /bin/arch
-          permissions: '0555'
-        - content: |
-            15 * * * * root ship_logs
-          path: /etc/crontab
-          append: true
-"""
+"""Write Files: write arbitrary files"""
 
 import base64
 import os
+from textwrap import dedent
 
+from cloudinit.config.schema import (
+    get_schema_doc, validate_cloudconfig_schema)
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
@@ -71,6 +25,142 @@ UNKNOWN_ENC = 'text/plain'
 
 LOG = logging.getLogger(__name__)
 
+distros = ['all']
+
+# The schema definition for each cloud-config module is a strict contract for
+# describing supported configuration parameters for each cloud-config section.
+# It allows cloud-config to validate and alert users to invalid or ignored
+# configuration options before actually attempting to deploy with said
+# configuration.
+
+supported_encoding_types = [
+    'gz', 'gzip', 'gz+base64', 'gzip+base64', 'gz+b64', 'gzip+b64', 'b64',
+    'base64']
+
+schema = {
+    'id': 'cc_write_files',
+    'name': 'Write Files',
+    'title': 'write arbitrary files',
+    'description': dedent("""\
+        Write out arbitrary content to files, optionally setting permissions.
+        Parent folders in the path are created if absent.
+        Content can be specified in plain text or binary. Data encoded with
+        either base64 or binary gzip data can be specified and will be decoded
+        before being written. For empty file creation, content can be omitted.
+
+    .. note::
+        if multiline data is provided, care should be taken to ensure that it
+        follows yaml formatting standards. to specify binary data, use the yaml
+        option ``!!binary``
+
+    .. note::
+        Do not write files under /tmp during boot because of a race with
+        systemd-tmpfiles-clean that can cause temp files to get cleaned during
+        the early boot process. Use /run/somedir instead to avoid race
+        LP:1707222."""),
+    'distros': distros,
+    'examples': [
+        dedent("""\
+        # Write out base64 encoded content to /etc/sysconfig/selinux
+        write_files:
+        - encoding: b64
+          content: CiMgVGhpcyBmaWxlIGNvbnRyb2xzIHRoZSBzdGF0ZSBvZiBTRUxpbnV4...
+          owner: root:root
+          path: /etc/sysconfig/selinux
+          permissions: '0644'
+        """),
+        dedent("""\
+        # Appending content to an existing file
+        write_files:
+        - content: |
+            15 * * * * root ship_logs
+          path: /etc/crontab
+          append: true
+        """),
+        dedent("""\
+        # Provide gziped binary content
+        write_files:
+        - encoding: gzip
+          content: !!binary |
+              H4sIAIDb/U8C/1NW1E/KzNMvzuBKTc7IV8hIzcnJVyjPL8pJ4QIA6N+MVxsAAAA=
+          path: /usr/bin/hello
+          permissions: '0755'
+        """),
+        dedent("""\
+        # Create an empty file on the system
+        write_files:
+        - path: /root/CLOUD_INIT_WAS_HERE
+        """)],
+    'frequency': frequency,
+    'type': 'object',
+    'properties': {
+        'write_files': {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'path': {
+                        'type': 'string',
+                        'description': dedent("""\
+                            Path of the file to which ``content`` is decoded
+                            and written
+                        """),
+                    },
+                    'content': {
+                        'type': 'string',
+                        'default': '',
+                        'description': dedent("""\
+                            Optional content to write to the provided ``path``.
+                            When content is present and encoding is not '%s',
+                            decode the content prior to writing. Default:
+                            **''**
+                        """ % UNKNOWN_ENC),
+                    },
+                    'owner': {
+                        'type': 'string',
+                        'default': DEFAULT_OWNER,
+                        'description': dedent("""\
+                            Optional owner:group to chown on the file. Default:
+                            **{owner}**
+                        """.format(owner=DEFAULT_OWNER)),
+                    },
+                    'permissions': {
+                        'type': 'string',
+                        'default': oct(DEFAULT_PERMS).replace('o', ''),
+                        'description': dedent("""\
+                            Optional file permissions to set on ``path``
+                            represented as an octal string '0###'. Default:
+                            **'{perms}'**
+                        """.format(perms=oct(DEFAULT_PERMS).replace('o', ''))),
+                    },
+                    'encoding': {
+                        'type': 'string',
+                        'default': UNKNOWN_ENC,
+                        'enum': supported_encoding_types,
+                        'description': dedent("""\
+                            Optional encoding type of the content. Default is
+                            **text/plain** and no content decoding is
+                            performed. Supported encoding types are:
+                            %s.""" % ", ".join(supported_encoding_types)),
+                    },
+                    'append': {
+                        'type': 'boolean',
+                        'default': False,
+                        'description': dedent("""\
+                            Whether to append ``content`` to existing file if
+                            ``path`` exists. Default: **false**.
+                        """),
+                    },
+                },
+                'required': ['path'],
+                'additionalProperties': False
+            },
+        }
+    }
+}
+
+__doc__ = get_schema_doc(schema)  # Supplement python help()
+
 
 def handle(name, cfg, _cloud, log, _args):
     files = cfg.get('write_files')
@@ -78,6 +168,7 @@ def handle(name, cfg, _cloud, log, _args):
         log.debug(("Skipping module named %s,"
                    " no/empty 'write_files' key in configuration"), name)
         return
+    validate_cloudconfig_schema(cfg, schema)
     write_files(name, files)
 
 

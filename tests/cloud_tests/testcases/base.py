@@ -5,15 +5,15 @@
 import crypt
 import json
 import re
-import unittest2
+import unittest
 
 
 from cloudinit import util as c_util
 
-SkipTest = unittest2.SkipTest
+SkipTest = unittest.SkipTest
 
 
-class CloudTestCase(unittest2.TestCase):
+class CloudTestCase(unittest.TestCase):
     """Base test class for verifiers."""
 
     # data gets populated in get_suite.setUpClass
@@ -172,9 +172,7 @@ class CloudTestCase(unittest2.TestCase):
                 'Skipping instance-data.json test.'
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
-        self.assertItemsEqual(
-            [],
-            instance_data['base64_encoded_keys'])
+        self.assertCountEqual(['merged_cfg'], instance_data['sensitive_keys'])
         ds = instance_data.get('ds', {})
         v1_data = instance_data.get('v1', {})
         metadata = ds.get('meta-data', {})
@@ -201,6 +199,23 @@ class CloudTestCase(unittest2.TestCase):
         self.assertIn('i-', v1_data['instance_id'])
         self.assertIn('ip-', v1_data['local_hostname'])
         self.assertIsNotNone(v1_data['region'], 'expected ec2 region')
+        self.assertIsNotNone(
+            re.match(r'\d\.\d+\.\d+-\d+-aws', v1_data['kernel_release']))
+        self.assertEqual(
+            'redacted for non-root user', instance_data['merged_cfg'])
+        self.assertEqual(self.os_cfg['os'], v1_data['variant'])
+        self.assertEqual(self.os_cfg['os'], v1_data['distro'])
+        self.assertEqual(
+            self.os_cfg['os'], instance_data["sys_info"]['dist'][0],
+            "Unexpected sys_info dist value")
+        self.assertEqual(self.os_name, v1_data['distro_release'])
+        self.assertEqual(
+            str(self.os_cfg['version']), v1_data['distro_version'])
+        self.assertEqual('x86_64', v1_data['machine'])
+        self.assertIsNotNone(
+            re.match(r'3.\d\.\d', v1_data['python_version']),
+            "unexpected python version: {ver}".format(
+                ver=v1_data["python_version"]))
 
     def test_instance_data_json_lxd(self):
         """Validate instance-data.json content by lxd platform.
@@ -222,7 +237,7 @@ class CloudTestCase(unittest2.TestCase):
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
-        self.assertItemsEqual([], sorted(instance_data['base64_encoded_keys']))
+        self.assertCountEqual([], sorted(instance_data['base64_encoded_keys']))
         self.assertEqual('unknown', v1_data['cloud_name'])
         self.assertEqual('lxd', v1_data['platform'])
         self.assertEqual(
@@ -237,6 +252,23 @@ class CloudTestCase(unittest2.TestCase):
         self.assertIsNone(
             v1_data['region'],
             'found unexpected lxd region %s' % v1_data['region'])
+        self.assertIsNotNone(
+            re.match(r'\d\.\d+\.\d+-\d+', v1_data['kernel_release']))
+        self.assertEqual(
+            'redacted for non-root user', instance_data['merged_cfg'])
+        self.assertEqual(self.os_cfg['os'], v1_data['variant'])
+        self.assertEqual(self.os_cfg['os'], v1_data['distro'])
+        self.assertEqual(
+            self.os_cfg['os'], instance_data["sys_info"]['dist'][0],
+            "Unexpected sys_info dist value")
+        self.assertEqual(self.os_name, v1_data['distro_release'])
+        self.assertEqual(
+            str(self.os_cfg['version']), v1_data['distro_version'])
+        self.assertEqual('x86_64', v1_data['machine'])
+        self.assertIsNotNone(
+            re.match(r'3.\d\.\d', v1_data['python_version']),
+            "unexpected python version: {ver}".format(
+                ver=v1_data["python_version"]))
 
     def test_instance_data_json_kvm(self):
         """Validate instance-data.json content by nocloud-kvm platform.
@@ -259,7 +291,7 @@ class CloudTestCase(unittest2.TestCase):
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
-        self.assertItemsEqual([], instance_data['base64_encoded_keys'])
+        self.assertCountEqual([], instance_data['base64_encoded_keys'])
         self.assertEqual('unknown', v1_data['cloud_name'])
         self.assertEqual('nocloud', v1_data['platform'])
         subplatform = v1_data['subplatform']
@@ -278,6 +310,23 @@ class CloudTestCase(unittest2.TestCase):
         self.assertIsNone(
             v1_data['region'],
             'found unexpected lxd region %s' % v1_data['region'])
+        self.assertIsNotNone(
+            re.match(r'\d\.\d+\.\d+-\d+', v1_data['kernel_release']))
+        self.assertEqual(
+            'redacted for non-root user', instance_data['merged_cfg'])
+        self.assertEqual(self.os_cfg['os'], v1_data['variant'])
+        self.assertEqual(self.os_cfg['os'], v1_data['distro'])
+        self.assertEqual(
+            self.os_cfg['os'], instance_data["sys_info"]['dist'][0],
+            "Unexpected sys_info dist value")
+        self.assertEqual(self.os_name, v1_data['distro_release'])
+        self.assertEqual(
+                str(self.os_cfg['version']), v1_data['distro_version'])
+        self.assertEqual('x86_64', v1_data['machine'])
+        self.assertIsNotNone(
+            re.match(r'3.\d\.\d', v1_data['python_version']),
+            "unexpected python version: {ver}".format(
+                ver=v1_data["python_version"]))
 
 
 class PasswordListTest(CloudTestCase):

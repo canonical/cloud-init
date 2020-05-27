@@ -1,10 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+from itertools import filterfalse
 
 from cloudinit.tests import helpers
-
-from six.moves import filterfalse
 
 from cloudinit.filters import launch_index
 from cloudinit import user_data as ud

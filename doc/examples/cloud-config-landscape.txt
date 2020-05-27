@@ -1,3 +1,4 @@
+#cloud-config
 # Landscape-client configuration
 #
 # Anything under the top 'landscape: client' entry

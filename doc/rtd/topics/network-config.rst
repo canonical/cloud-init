@@ -25,16 +25,22 @@ For example, OpenStack may provide network config in the MetaData Service.
 
 **System Config**
 
-A ``network:`` entry in /etc/cloud/cloud.cfg.d/* configuration files.
+A ``network:`` entry in ``/etc/cloud/cloud.cfg.d/*`` configuration files.
 
 **Kernel Command Line**
 
-``ip=`` or ``network-config=<YAML config string>``
+``ip=`` or ``network-config=<Base64 encoded YAML config string>``
 
 User-data cannot change an instance's network configuration.  In the absence
 of network configuration in any of the above sources , `Cloud-init`_ will
 write out a network configuration that will issue a DHCP request on a "first"
 network interface.
+
+.. note::
+
+  The network-config value is expected to be a Base64 encoded YAML string in
+  :ref:`network_config_v1` or :ref:`network_config_v2` format. Optionally it
+  can be compressed with ``gzip`` prior to Base64 encoding.
 
 
 Disabling Network Configuration
@@ -48,19 +54,19 @@ on other methods, such as embedded configuration or other customizations.
 
 **Kernel Command Line**
 
-`Cloud-init`_ will check for a parameter ``network-config`` and the
-value is expected to be YAML string in the :ref:`network_config_v1` format.
-The YAML string may optionally be ``Base64`` encoded, and optionally
-compressed with ``gzip``.
+`Cloud-init`_ will check additionally check for the parameter
+``network-config=disabled`` which will automatically disable any network
+configuration.
 
 Example disabling kernel command line entry: ::
 
-  network-config={config: disabled}
+  network-config=disabled
 
 
 **cloud config**
 
-In the combined cloud-init configuration dictionary. ::
+In the combined cloud-init configuration dictionary, merged from
+``/etc/cloud/cloud.cfg`` and ``/etc/cloud/cloud.cfg.d/*``::
 
   network:
     config: disabled
@@ -191,7 +197,7 @@ supplying an updated configuration in cloud-config. ::
 
   system_info:
     network:
-      renderers: ['netplan', 'eni', 'sysconfig', 'freebsd']
+      renderers: ['netplan', 'eni', 'sysconfig', 'freebsd', 'netbsd', 'openbsd']
 
 
 Network Configuration Tools

@@ -9,8 +9,7 @@
 import inspect
 import signal
 import sys
-
-from six import StringIO
+from io import StringIO
 
 from cloudinit import log as logging
 from cloudinit import util

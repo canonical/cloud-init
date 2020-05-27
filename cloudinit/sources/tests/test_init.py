@@ -55,6 +55,7 @@ class InvalidDataSourceTestSubclassNet(DataSource):
 class TestDataSource(CiTestCase):
 
     with_logs = True
+    maxDiff = None
 
     def setUp(self):
         super(TestDataSource, self).setUp()
@@ -288,27 +289,47 @@ class TestDataSource(CiTestCase):
         tmp = self.tmp_dir()
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg, self.distro, Paths({'run_dir': tmp}))
-        datasource.get_data()
+        sys_info = {
+            "python": "3.7",
+            "platform":
+                "Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal",
+            "uname": ["Linux", "myhost", "5.4.0-24-generic", "SMP blah",
+                      "x86_64"],
+            "variant": "ubuntu", "dist": ["ubuntu", "20.04", "focal"]}
+        with mock.patch("cloudinit.util.system_info", return_value=sys_info):
+            datasource.get_data()
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         content = util.load_file(json_file)
         expected = {
             'base64_encoded_keys': [],
-            'sensitive_keys': [],
+            'merged_cfg': REDACT_SENSITIVE_VALUE,
+            'sensitive_keys': ['merged_cfg'],
+            'sys_info': sys_info,
             'v1': {
                 '_beta_keys': ['subplatform'],
                 'availability-zone': 'myaz',
                 'availability_zone': 'myaz',
                 'cloud-name': 'subclasscloudname',
                 'cloud_name': 'subclasscloudname',
+                'distro': 'ubuntu',
+                'distro_release': 'focal',
+                'distro_version': '20.04',
                 'instance-id': 'iid-datasource',
                 'instance_id': 'iid-datasource',
                 'local-hostname': 'test-subclass-hostname',
                 'local_hostname': 'test-subclass-hostname',
+                'kernel_release': '5.4.0-24-generic',
+                'machine': 'x86_64',
                 'platform': 'mytestsubclass',
                 'public_ssh_keys': [],
+                'python_version': '3.7',
                 'region': 'myregion',
-                'subplatform': 'unknown'},
+                'system_platform':
+                    'Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal',
+                'subplatform': 'unknown',
+                'variant': 'ubuntu'},
             'ds': {
+
                 '_doc': EXPERIMENTAL_TEXT,
                 'meta_data': {'availability_zone': 'myaz',
                               'local-hostname': 'test-subclass-hostname',
@@ -318,8 +339,8 @@ class TestDataSource(CiTestCase):
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
         self.assertEqual(expected, util.load_json(content))
 
-    def test_get_data_writes_json_instance_data_sensitive(self):
-        """get_data writes INSTANCE_JSON_SENSITIVE_FILE as readonly root."""
+    def test_get_data_writes_redacted_public_json_instance_data(self):
+        """get_data writes redacted content to public INSTANCE_JSON_FILE."""
         tmp = self.tmp_dir()
         datasource = DataSourceTestSubclassNet(
             self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
@@ -329,33 +350,49 @@ class TestDataSource(CiTestCase):
                 'region': 'myregion',
                 'some': {'security-credentials': {
                     'cred1': 'sekret', 'cred2': 'othersekret'}}})
-        self.assertEqual(
-            ('security-credentials',), datasource.sensitive_metadata_keys)
-        datasource.get_data()
+        self.assertCountEqual(
+            ('merged_cfg', 'security-credentials',),
+            datasource.sensitive_metadata_keys)
+        sys_info = {
+            "python": "3.7",
+            "platform":
+                "Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal",
+            "uname": ["Linux", "myhost", "5.4.0-24-generic", "SMP blah",
+                      "x86_64"],
+            "variant": "ubuntu", "dist": ["ubuntu", "20.04", "focal"]}
+        with mock.patch("cloudinit.util.system_info", return_value=sys_info):
+            datasource.get_data()
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
-        sensitive_json_file = self.tmp_path(INSTANCE_JSON_SENSITIVE_FILE, tmp)
         redacted = util.load_json(util.load_file(json_file))
-        self.assertEqual(
-            {'cred1': 'sekret', 'cred2': 'othersekret'},
-            redacted['ds']['meta_data']['some']['security-credentials'])
-        content = util.load_file(sensitive_json_file)
         expected = {
             'base64_encoded_keys': [],
-            'sensitive_keys': ['ds/meta_data/some/security-credentials'],
+            'merged_cfg': REDACT_SENSITIVE_VALUE,
+            'sensitive_keys': [
+                'ds/meta_data/some/security-credentials', 'merged_cfg'],
+            'sys_info': sys_info,
             'v1': {
                 '_beta_keys': ['subplatform'],
                 'availability-zone': 'myaz',
                 'availability_zone': 'myaz',
                 'cloud-name': 'subclasscloudname',
                 'cloud_name': 'subclasscloudname',
+                'distro': 'ubuntu',
+                'distro_release': 'focal',
+                'distro_version': '20.04',
                 'instance-id': 'iid-datasource',
                 'instance_id': 'iid-datasource',
                 'local-hostname': 'test-subclass-hostname',
                 'local_hostname': 'test-subclass-hostname',
+                'kernel_release': '5.4.0-24-generic',
+                'machine': 'x86_64',
                 'platform': 'mytestsubclass',
                 'public_ssh_keys': [],
+                'python_version': '3.7',
                 'region': 'myregion',
-                'subplatform': 'unknown'},
+                'system_platform':
+                    'Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal',
+                'subplatform': 'unknown',
+                'variant': 'ubuntu'},
             'ds': {
                 '_doc': EXPERIMENTAL_TEXT,
                 'meta_data': {
@@ -364,8 +401,82 @@ class TestDataSource(CiTestCase):
                     'region': 'myregion',
                     'some': {'security-credentials': REDACT_SENSITIVE_VALUE}}}
         }
-        self.maxDiff = None
-        self.assertEqual(expected, util.load_json(content))
+        self.assertCountEqual(expected, redacted)
+        file_stat = os.stat(json_file)
+        self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
+
+    def test_get_data_writes_json_instance_data_sensitive(self):
+        """
+        get_data writes unmodified data to sensitive file as root-readonly.
+        """
+        tmp = self.tmp_dir()
+        datasource = DataSourceTestSubclassNet(
+            self.sys_cfg, self.distro, Paths({'run_dir': tmp}),
+            custom_metadata={
+                'availability_zone': 'myaz',
+                'local-hostname': 'test-subclass-hostname',
+                'region': 'myregion',
+                'some': {'security-credentials': {
+                    'cred1': 'sekret', 'cred2': 'othersekret'}}})
+        sys_info = {
+            "python": "3.7",
+            "platform":
+                "Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal",
+            "uname": ["Linux", "myhost", "5.4.0-24-generic", "SMP blah",
+                      "x86_64"],
+            "variant": "ubuntu", "dist": ["ubuntu", "20.04", "focal"]}
+
+        self.assertCountEqual(
+            ('merged_cfg', 'security-credentials',),
+            datasource.sensitive_metadata_keys)
+        with mock.patch("cloudinit.util.system_info", return_value=sys_info):
+            datasource.get_data()
+        sensitive_json_file = self.tmp_path(INSTANCE_JSON_SENSITIVE_FILE, tmp)
+        content = util.load_file(sensitive_json_file)
+        expected = {
+            'base64_encoded_keys': [],
+            'merged_cfg': {
+                 '_doc': (
+                     'Merged cloud-init system config from '
+                     '/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/'),
+                 'datasource': {'_undef': {'key1': False}}},
+            'sensitive_keys': [
+                'ds/meta_data/some/security-credentials', 'merged_cfg'],
+            'sys_info': sys_info,
+            'v1': {
+                '_beta_keys': ['subplatform'],
+                'availability-zone': 'myaz',
+                'availability_zone': 'myaz',
+                'cloud-name': 'subclasscloudname',
+                'cloud_name': 'subclasscloudname',
+                'distro': 'ubuntu',
+                'distro_release': 'focal',
+                'distro_version': '20.04',
+                'instance-id': 'iid-datasource',
+                'instance_id': 'iid-datasource',
+                'kernel_release': '5.4.0-24-generic',
+                'local-hostname': 'test-subclass-hostname',
+                'local_hostname': 'test-subclass-hostname',
+                'machine': 'x86_64',
+                'platform': 'mytestsubclass',
+                'public_ssh_keys': [],
+                'python_version': '3.7',
+                'region': 'myregion',
+                'subplatform': 'unknown',
+                'system_platform':
+                    'Linux-5.4.0-24-generic-x86_64-with-Ubuntu-20.04-focal',
+                'variant': 'ubuntu'},
+            'ds': {
+                '_doc': EXPERIMENTAL_TEXT,
+                'meta_data': {
+                    'availability_zone': 'myaz',
+                    'local-hostname': 'test-subclass-hostname',
+                    'region': 'myregion',
+                    'some': {
+                        'security-credentials':
+                            {'cred1': 'sekret', 'cred2': 'othersekret'}}}}
+        }
+        self.assertCountEqual(expected, util.load_json(content))
         file_stat = os.stat(sensitive_json_file)
         self.assertEqual(0o600, stat.S_IMODE(file_stat.st_mode))
         self.assertEqual(expected, util.load_json(content))
@@ -431,7 +542,7 @@ class TestDataSource(CiTestCase):
         json_file = self.tmp_path(INSTANCE_JSON_FILE, tmp)
         content = util.load_file(json_file)
         instance_json = util.load_json(content)
-        self.assertItemsEqual(
+        self.assertCountEqual(
             ['ds/meta_data/key2/key2.1'],
             instance_json['base64_encoded_keys'])
         self.assertEqual(
@@ -440,9 +551,7 @@ class TestDataSource(CiTestCase):
 
     def test_get_hostname_subclass_support(self):
         """Validate get_hostname signature on all subclasses of DataSource."""
-        # Use inspect.getfullargspec when we drop py2.6 and py2.7
-        get_args = inspect.getargspec  # pylint: disable=W1505
-        base_args = get_args(DataSource.get_hostname)  # pylint: disable=W1505
+        base_args = inspect.getfullargspec(DataSource.get_hostname)
         # Import all DataSource subclasses so we can inspect them.
         modules = util.find_modules(os.path.dirname(os.path.dirname(__file__)))
         for _loc, name in modules.items():
@@ -454,13 +563,13 @@ class TestDataSource(CiTestCase):
                 continue
             self.assertEqual(
                 base_args,
-                get_args(child.get_hostname),  # pylint: disable=W1505
+                inspect.getfullargspec(child.get_hostname),
                 '%s does not implement DataSource.get_hostname params'
                 % child)
             for grandchild in child.__subclasses__():
                 self.assertEqual(
                     base_args,
-                    get_args(grandchild.get_hostname),  # pylint: disable=W1505
+                    inspect.getfullargspec(grandchild.get_hostname),
                     '%s does not implement DataSource.get_hostname params'
                     % grandchild)
 

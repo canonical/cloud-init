@@ -7,7 +7,6 @@
 
 import configobj
 import os
-from six import string_types
 from textwrap import dedent
 
 from cloudinit.config.schema import get_schema_doc
@@ -110,7 +109,7 @@ def _format_repo_value(val):
         return 1 if val else 0
     if isinstance(val, (list, tuple)):
         return "\n    ".join([_format_repo_value(v) for v in val])
-    if not isinstance(val, string_types):
+    if not isinstance(val, str):
         return str(val)
     return val
 

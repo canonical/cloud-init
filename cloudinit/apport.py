@@ -36,6 +36,7 @@ KNOWN_CLOUD_NAMES = [
     'OVF',
     'RbxCloud - (HyperOne, Rootbox, Rubikon)',
     'OpenTelekomCloud',
+    'SAP Converged Cloud',
     'Scaleway',
     'SmartOS',
     'VMware',
