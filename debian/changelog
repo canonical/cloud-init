@@ -1,3 +1,19 @@
+cloud-init (20.2-38-g8377897b-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - enable Puppet, Chef mcollective in default config (#385)
+      [Mina Galić (deprecated: Igor Galić)] (LP: #1880279)
+    - HACKING.rst: introduce .net -> Networking refactor section (#384)
+    - Travis: do not install python3-contextlib2 (dropped dependency) (#388)
+      [Paride Legovini]
+    - HACKING: mention that .github-cla-signers is alpha-sorted (#380)
+    - Add bipinbachhao as contributor (#379) [Bipin Bachhao]
+    - cc_snap: validate that assertions property values are strings (#370)
+    - conftest: implement partial disable_subp_usage (#371)
+    - test_resolv_conf: refresh stale comment (#374)
+
+ -- Chad Smith <chad.smith@canonical.com>  Wed, 27 May 2020 14:36:46 -0600
+
 cloud-init (20.2-30-g8bcf1c06-0ubuntu1) groovy; urgency=medium
 
   * d/control: drop pyflakes as Build-Depends
