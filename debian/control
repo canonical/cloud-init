@@ -15,7 +15,6 @@ Build-Depends: debhelper (>= 9.20160709),
                python3-jsonpatch,
                python3-jsonschema,
                python3-mock,
-               python3-nose,
                python3-oauthlib,
                python3-pep8,
                python3-pyflakes,
@@ -24,7 +23,6 @@ Build-Depends: debhelper (>= 9.20160709),
                python3-serial,
                python3-setuptools,
                python3-six,
-               python3-unittest2,
                python3-yaml
 XS-Python-Version: all
 Vcs-Browser: https://github.com/canonical/cloud-init/tree/ubuntu/devel
