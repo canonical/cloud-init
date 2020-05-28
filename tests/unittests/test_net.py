@@ -3332,7 +3332,7 @@ USERCTL=no
                 USERCTL=no
                 VLAN=yes
                 """)
-            }
+        }
         self._compare_files_to_expected(
             expected, self._render_and_read(network_config=v2data))
 
@@ -3406,7 +3406,7 @@ USERCTL=no
                 TYPE=Ethernet
                 USERCTL=no
                 """),
-            }
+        }
         for dhcp_ver in ('dhcp4', 'dhcp6'):
             v2data = copy.deepcopy(v2base)
             if dhcp_ver == 'dhcp6':
@@ -4765,13 +4765,13 @@ class TestNetRenderers(CiTestCase):
     def test_sysconfig_available_uses_variant_mapping(self, m_distro, m_avail):
         m_avail.return_value = True
         distro_values = [
-           ('opensuse', '', ''),
-           ('opensuse-leap', '', ''),
-           ('opensuse-tumbleweed', '', ''),
-           ('sles', '', ''),
-           ('centos', '', ''),
-           ('fedora', '', ''),
-           ('redhat', '', ''),
+            ('opensuse', '', ''),
+            ('opensuse-leap', '', ''),
+            ('opensuse-tumbleweed', '', ''),
+            ('sles', '', ''),
+            ('centos', '', ''),
+            ('fedora', '', ''),
+            ('redhat', '', ''),
         ]
         for (distro_name, distro_version, flavor) in distro_values:
             m_distro.return_value = (distro_name, distro_version, flavor)
