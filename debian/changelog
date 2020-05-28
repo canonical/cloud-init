@@ -1,8 +1,10 @@
-cloud-init (20.1-10-g71af48df-0ubuntu6) UNRELEASED; urgency=medium
+cloud-init (20.1-10-g71af48df-0ubuntu6~20.04.1) UNRELEASED; urgency=medium
 
   * d/control: drop pyflakes from Build-Depends
     - This python2 pyflakes package is an unneeded dependency now that tests
       use python3-pyflakes.
+  * d/control: drop python3-nose and python3-unittest2 from Build-Depends
+    - Upstream now uses pytest
 
  -- Chad Smith <chad.smith@canonical.com>  Fri, 22 May 2020 13:29:41 -0600
 
