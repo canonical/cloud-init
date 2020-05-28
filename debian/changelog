@@ -1,4 +1,4 @@
-cloud-init (20.2-38-g8377897b-0ubuntu1~19.10.1) UNRELEASED; urgency=medium
+cloud-init (20.2-38-g8377897b-0ubuntu1~19.10.1) eoan; urgency=medium
 
   * d/control: drop pyflakes from Build-Depends
   * d/control: drop python3-nose and python3-unittest2 from Build-Depends
