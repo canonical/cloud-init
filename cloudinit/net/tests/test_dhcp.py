@@ -62,7 +62,7 @@ class TestParseDHCPLeasesFile(CiTestCase):
             {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
              'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1'}]
         write_file(lease_file, content)
-        self.assertItemsEqual(expected, parse_dhcp_lease_file(lease_file))
+        self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))
 
 
 class TestDHCPRFC3442(CiTestCase):
@@ -88,7 +88,7 @@ class TestDHCPRFC3442(CiTestCase):
              'renew': '4 2017/07/27 18:02:30',
              'expire': '5 2017/07/28 07:08:15'}]
         write_file(lease_file, content)
-        self.assertItemsEqual(expected, parse_dhcp_lease_file(lease_file))
+        self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))
 
     def test_parse_lease_finds_classless_static_routes(self):
         """
@@ -114,7 +114,7 @@ class TestDHCPRFC3442(CiTestCase):
              'renew': '4 2017/07/27 18:02:30',
              'expire': '5 2017/07/28 07:08:15'}]
         write_file(lease_file, content)
-        self.assertItemsEqual(expected, parse_dhcp_lease_file(lease_file))
+        self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))
 
     @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
@@ -324,7 +324,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         """)
         write_file(self.tmp_path('dhcp.leases', tmpdir), lease_content)
 
-        self.assertItemsEqual(
+        self.assertCountEqual(
             [{'interface': 'eth9', 'fixed-address': '192.168.2.74',
               'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1'}],
             dhcp_discovery(dhclient_script, 'eth9', tmpdir))
@@ -389,7 +389,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
         write_file(pid_file, "%d\n" % my_pid)
         m_getppid.return_value = 1  # Indicate that dhclient has daemonized
 
-        self.assertItemsEqual(
+        self.assertCountEqual(
             [{'interface': 'eth9', 'fixed-address': '192.168.2.74',
               'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1'}],
             dhcp_discovery(dhclient_script, 'eth9', tmpdir))

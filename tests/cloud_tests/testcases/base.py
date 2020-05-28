@@ -5,15 +5,15 @@
 import crypt
 import json
 import re
-import unittest2
+import unittest
 
 
 from cloudinit import util as c_util
 
-SkipTest = unittest2.SkipTest
+SkipTest = unittest.SkipTest
 
 
-class CloudTestCase(unittest2.TestCase):
+class CloudTestCase(unittest.TestCase):
     """Base test class for verifiers."""
 
     # data gets populated in get_suite.setUpClass
@@ -172,7 +172,7 @@ class CloudTestCase(unittest2.TestCase):
                 'Skipping instance-data.json test.'
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
-        self.assertItemsEqual(['ci_cfg'], instance_data['sensitive_keys'])
+        self.assertCountEqual(['merged_cfg'], instance_data['sensitive_keys'])
         ds = instance_data.get('ds', {})
         v1_data = instance_data.get('v1', {})
         metadata = ds.get('meta-data', {})
@@ -237,7 +237,7 @@ class CloudTestCase(unittest2.TestCase):
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
-        self.assertItemsEqual([], sorted(instance_data['base64_encoded_keys']))
+        self.assertCountEqual([], sorted(instance_data['base64_encoded_keys']))
         self.assertEqual('unknown', v1_data['cloud_name'])
         self.assertEqual('lxd', v1_data['platform'])
         self.assertEqual(
@@ -291,7 +291,7 @@ class CloudTestCase(unittest2.TestCase):
                 ' OS: %s not bionic or newer' % self.os_name)
         instance_data = json.loads(out)
         v1_data = instance_data.get('v1', {})
-        self.assertItemsEqual([], instance_data['base64_encoded_keys'])
+        self.assertCountEqual([], instance_data['base64_encoded_keys'])
         self.assertEqual('unknown', v1_data['cloud_name'])
         self.assertEqual('nocloud', v1_data['platform'])
         subplatform = v1_data['subplatform']

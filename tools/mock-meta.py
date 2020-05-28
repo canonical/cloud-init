@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # Provides a somewhat random, somewhat compat, somewhat useful mock version of
 # http://docs.amazonwebservices.com

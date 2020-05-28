@@ -116,7 +116,7 @@ Usage: ${0##*/} [--no-create] tox-environment [command [args]]
    be read from tox.ini.  This allows you to do:
       tox-venv py27 - tests/some/sub/dir
    and have the 'command' read correctly and have that execute:
-      python -m nose tests/some/sub/dir
+      python -m pytest tests/some/sub/dir
 EOF
 
     if [ -f "$tox_ini" ]; then

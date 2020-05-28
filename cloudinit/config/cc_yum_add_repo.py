@@ -18,7 +18,7 @@ entry, the config entry will be skipped.
 
 **Module frequency:** per always
 
-**Supported distros:** fedora, rhel
+**Supported distros:** centos, fedora, rhel
 
 **Config keys**::
 
@@ -36,7 +36,7 @@ from configparser import ConfigParser
 
 from cloudinit import util
 
-distros = ['fedora', 'rhel']
+distros = ['centos', 'fedora', 'rhel']
 
 
 def _canonicalize_id(repo_id):

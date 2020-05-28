@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """List pip dependencies or system package dependencies for cloud-init."""
 
 # You might be tempted to rewrite this as a shell script, but you
@@ -9,7 +9,7 @@ try:
     from argparse import ArgumentParser
 except ImportError:
     raise RuntimeError(
-        'Could not import python-argparse. Please install python-argparse '
+        'Could not import argparse. Please install python3-argparse '
         'package to continue')
 
 import json
@@ -73,8 +73,8 @@ DISTRO_INSTALL_PKG_CMD = {
 # List of base system packages required to enable ci automation
 CI_SYSTEM_BASE_PKGS = {
     'common': ['make', 'sudo', 'tar'],
-    'redhat': ['python-tox'],
-    'centos': ['python-tox'],
+    'redhat': ['python3-tox'],
+    'centos': ['python3-tox'],
     'ubuntu': ['devscripts', 'python3-dev', 'libssl-dev', 'tox', 'sbuild'],
     'debian': ['devscripts', 'python3-dev', 'libssl-dev', 'tox', 'sbuild']}
 
@@ -99,7 +99,7 @@ def get_parser():
     parser.add_argument(
         '-s', '--system-pkg-names', action='store_true', default=False,
         dest='system_pkg_names',
-        help='The name of the distro to generate package deps for.')
+        help='Generate distribution package names (python3-pkgname).')
     parser.add_argument(
         '-i', '--install', action='store_true', default=False,
         dest='install',
@@ -109,12 +109,6 @@ def get_parser():
         dest='test_distro',
         help='Additionally install continuous integration system packages '
              'required for build and test automation.')
-    parser.add_argument(
-        '-v', '--python-version', type=str, dest='python_version',
-        default=None, choices=["2", "3"],
-        help='Override the version of python we want to generate system '
-             'package dependencies for. Defaults to the version of python '
-             'this script is called with')
     return parser
 
 
@@ -132,6 +126,9 @@ def get_package_deps_from_json(topdir, distro):
         deps = json.loads(stream.read())
     if distro is None:
         return {}
+    if deps.get(distro):  # If we have a specific distro defined, use it.
+        return deps[distro]
+    # Use generic distro dependency map via DISTRO_PKG_TYPE_MAP
     return deps[DISTRO_PKG_TYPE_MAP[distro]]
 
 
@@ -155,27 +152,20 @@ def parse_pip_requirements(requirements_path):
     return dep_names
 
 
-def translate_pip_to_system_pkg(pip_requires, renames, python_ver):
+def translate_pip_to_system_pkg(pip_requires, renames):
     """Translate pip package names to distro-specific package names.
 
     @param pip_requires: List of versionless pip package names to translate.
     @param renames: Dict containg special case renames from pip name to system
         package name for the distro.
-    @param python_ver: Optional python version string "2" or "3". When None,
-     use the python version that is calling this script via sys.version_info.
     """
-    if python_ver is None:
-        python_ver = str(sys.version_info[0])
-    if python_ver == "2":
-        prefix = "python-"
-    else:
-        prefix = "python3-"
+    prefix = "python3-"
     standard_pkg_name = "{0}{1}"
     translated_names = []
     for pip_name in pip_requires:
         pip_name = pip_name.lower()
         # Find a rename if present for the distro package and python version
-        rename = renames.get(pip_name, {}).get(python_ver, None)
+        rename = renames.get(pip_name, "")
         if rename:
             translated_names.append(rename)
         else:
@@ -222,7 +212,7 @@ def main(distro):
     deps_from_json = get_package_deps_from_json(topd, args.distro)
     renames = deps_from_json.get('renames', {})
     translated_pip_names = translate_pip_to_system_pkg(
-        pip_pkg_names, renames, args.python_version)
+        pip_pkg_names, renames)
     all_deps = []
     if args.distro:
         all_deps.extend(

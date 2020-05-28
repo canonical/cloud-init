@@ -670,7 +670,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                "security": [{'arches': ["default"],
                              "search": ["sfailme", smir]}]}
 
-        with mock.patch.object(cc_apt_configure, 'search_for_mirror',
+        with mock.patch.object(cc_apt_configure.util, 'search_for_mirror',
                                side_effect=[pmir, smir]) as mocksearch:
             mirrors = cc_apt_configure.find_apt_mirror_info(cfg, None,
                                                             'amd64')
@@ -709,7 +709,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         mockgm.assert_has_calls(calls)
 
         # should not be called, since primary is specified
-        with mock.patch.object(cc_apt_configure,
+        with mock.patch.object(cc_apt_configure.util,
                                'search_for_mirror') as mockse:
             mirrors = cc_apt_configure.find_apt_mirror_info(cfg, None, arch)
         mockse.assert_not_called()
@@ -974,7 +974,7 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main""")
         mocksdns.assert_has_calls(calls)
 
         # first return is for the non-dns call before
-        with mock.patch.object(cc_apt_configure, 'search_for_mirror',
+        with mock.patch.object(cc_apt_configure.util, 'search_for_mirror',
                                side_effect=[None, pmir, None, smir]) as mockse:
             mirrors = cc_apt_configure.find_apt_mirror_info(cfg, mycloud, arch)
 

@@ -42,6 +42,7 @@ Note that there are multiple versions of this data provided, cloud-init
 by default uses **2009-04-04** but newer versions can be supported with
 relative ease (newer versions have more data exposed, while maintaining
 backward compatibility with the previous versions).
+Version **2016-09-02** is required for secondary IP address support.
 
 To see which versions are supported from your cloud provider use the following
 URL:
@@ -80,16 +81,26 @@ The settings that may be configured are:
  * **timeout**: the timeout value provided to urlopen for each individual http
    request.  This is used both when selecting a metadata_url and when crawling
    the metadata service. (default: 50)
+ * **apply_full_imds_network_config**: Boolean (default: True) to allow
+   cloud-init to configure any secondary NICs and secondary IPs described by
+   the metadata service. All network interfaces are configured with DHCP (v4)
+   to obtain an primary IPv4 address and route. Interfaces which have a
+   non-empty 'ipv6s' list will also enable DHCPv6 to obtain a primary IPv6
+   address and route. The DHCP response (v4 and v6) return an IP that matches
+   the first element of local-ipv4s and ipv6s lists respectively. All
+   additional values (secondary addresses) in the static ip lists will be
+   added to interface.
 
 An example configuration with the default values is provided below:
 
 .. sourcecode:: yaml
 
   datasource:
-   Ec2:
-    metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
-    max_wait: 120
-    timeout: 50
+    Ec2:
+      metadata_urls: ["http://169.254.169.254:80", "http://instance-data:8773"]
+      max_wait: 120
+      timeout: 50
+      apply_full_imds_network_config: true
 
 Notes
 -----
@@ -101,5 +112,13 @@ Notes
    generated only in the first boot of the instance.
    The check for the instance type is performed by is_classic_instance()
    method.
+
+ * For EC2 instances with multiple network interfaces (NICs) attached, dhcp4
+   will be enabled to obtain the primary private IPv4 address of those NICs.
+   Wherever dhcp4 or dhcp6 is enabled for a NIC, a dhcp route-metric will be
+   added with the value of ``<device-number + 1> * 100`` to ensure dhcp
+   routes on the primary NIC are preferred to any secondary NICs.
+   For example: the primary NIC will have a DHCP route-metric of 100,
+   the next NIC will be 200.
 
 .. vi: textwidth=78

@@ -71,11 +71,11 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         if not found:
             dslist = self.sys_cfg.get('datasource_list')
             for dev in find_candidate_devs(dslist=dslist):
-                try:
-                    if util.is_FreeBSD() and dev.startswith("/dev/cd"):
+                mtype = None
+                if util.is_BSD():
+                    if dev.startswith("/dev/cd"):
                         mtype = "cd9660"
-                    else:
-                        mtype = None
+                try:
                     results = util.mount_cb(dev, read_config_drive,
                                             mtype=mtype)
                     found = dev

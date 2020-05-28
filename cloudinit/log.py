@@ -122,17 +122,12 @@ def getLogger(name='cloudinit'):
     return logging.getLogger(name)
 
 
-# Fixes this annoyance...
-# No handlers could be found for logger XXX annoying output...
-try:
-    from logging import NullHandler
-except ImportError:
-    class NullHandler(logging.Handler):
-        def emit(self, record):
-            pass
-
-
 def _resetLogger(log):
+    """Remove all current handlers, unset log level and add a NullHandler.
+
+    (Adding the NullHandler avoids "No handlers could be found for logger XXX"
+    messages.)
+    """
     if not log:
         return
     handlers = list(log.handlers)
@@ -141,7 +136,7 @@ def _resetLogger(log):
         h.close()
         log.removeHandler(h)
     log.setLevel(NOTSET)
-    log.addHandler(NullHandler())
+    log.addHandler(logging.NullHandler())
 
 
 def resetLogging():

@@ -127,6 +127,12 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
             cc_mounts.sanitize_devname(
                 'ephemeral0.1', lambda x: disk_path, mock.Mock()))
 
+    def test_network_device_returns_network_device(self):
+        disk_path = 'netdevice:/path'
+        self.assertEqual(
+            disk_path,
+            cc_mounts.sanitize_devname(disk_path, None, mock.Mock()))
+
 
 class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 

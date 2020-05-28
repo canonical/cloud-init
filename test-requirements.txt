@@ -1,12 +1,7 @@
 # Needed generally in tests
 httpretty>=0.7.1
-nose
-unittest2
-coverage
-
-# Only needed if you want to know the test times
-# nose-timer
+pytest
+pytest-cov
 
 # Only really needed on older versions of python
-contextlib2
 setuptools

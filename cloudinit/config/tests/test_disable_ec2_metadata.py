@@ -15,8 +15,6 @@ DISABLE_CFG = {'disable_ec2_metadata': 'true'}
 
 class TestEC2MetadataRoute(CiTestCase):
 
-    with_logs = True
-
     @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.which')
     @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.subp')
     def test_disable_ifconfig(self, m_subp, m_which):

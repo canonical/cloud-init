@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-import unittest2
+import unittest
 from textwrap import dedent
 
 from cloudinit.sources.helpers import azure as azure_helper
@@ -332,7 +332,7 @@ class TestOpenSSLManagerActions(CiTestCase):
         path = 'tests/data/azure'
         return os.path.join(path, name)
 
-    @unittest2.skip("todo move to cloud_test")
+    @unittest.skip("todo move to cloud_test")
     def test_pubkey_extract(self):
         cert = load_file(self._data_file('pubkey_extract_cert'))
         good_key = load_file(self._data_file('pubkey_extract_ssh_key'))
@@ -344,7 +344,7 @@ class TestOpenSSLManagerActions(CiTestCase):
         fingerprint = sslmgr._get_fingerprint_from_cert(cert)
         self.assertEqual(good_fingerprint, fingerprint)
 
-    @unittest2.skip("todo move to cloud_test")
+    @unittest.skip("todo move to cloud_test")
     @mock.patch.object(azure_helper.OpenSSLManager, '_decrypt_certs_from_xml')
     def test_parse_certificates(self, mock_decrypt_certs):
         """Azure control plane puts private keys as well as certificates

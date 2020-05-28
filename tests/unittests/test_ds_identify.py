@@ -447,6 +447,10 @@ class TestDsIdentify(DsIdentifyBase):
         """Open Telecom identification."""
         self._test_ds_found('OpenStack-OpenTelekom')
 
+    def test_openstack_sap_ccloud(self):
+        """SAP Converged Cloud identification"""
+        self._test_ds_found('OpenStack-SAPCCloud')
+
     def test_openstack_asset_tag_nova(self):
         """OpenStack identification via asset tag OpenStack Nova."""
         self._test_ds_found('OpenStack-AssetTag-Nova')
@@ -833,6 +837,12 @@ VALID_CFG = {
         'ds': 'OpenStack',
         'files': {P_CHASSIS_ASSET_TAG: 'OpenTelekomCloud\n'},
         'mocks': [MOCK_VIRT_IS_XEN],
+    },
+    'OpenStack-SAPCCloud': {
+        # SAP CCloud hosts use OpenStack on VMware
+        'ds': 'OpenStack',
+        'files': {P_CHASSIS_ASSET_TAG: 'SAP CCloud VM\n'},
+        'mocks': [MOCK_VIRT_IS_VMWARE],
     },
     'OpenStack-AssetTag-Nova': {
         # VMware vSphere can't modify product-name, LP: #1669875

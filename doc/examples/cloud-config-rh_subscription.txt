@@ -14,36 +14,36 @@
 #     /etc/rhsm/rhs.conf file
 
 rh_subscription:
-    username: joe@foo.bar
+  username: joe@foo.bar
 
-    ## Quote your password if it has symbols to be safe
-    password: '1234abcd'
+  ## Quote your password if it has symbols to be safe
+  password: '1234abcd'
 
-    ## If you prefer, you can use the activation key and 
-    ## org instead of username and password. Be sure to
-    ## comment out username and password
+  ## If you prefer, you can use the activation key and 
+  ## org instead of username and password. Be sure to
+  ## comment out username and password
 
-    #activation-key: foobar
-    #org: 12345
+  #activation-key: foobar
+  #org: 12345
 
-    ## Uncomment to auto-attach subscriptions to your system 
-    #auto-attach: True
+  ## Uncomment to auto-attach subscriptions to your system 
+  #auto-attach: True
 
-    ## Uncomment to set the service level for your 
-    ##   subscriptions
-    #service-level: self-support
+  ## Uncomment to set the service level for your 
+  ##   subscriptions
+  #service-level: self-support
 
-    ## Uncomment to add pools (needs to be a list of IDs)
-    #add-pool: []
+  ## Uncomment to add pools (needs to be a list of IDs)
+  #add-pool: []
 
-    ## Uncomment to add or remove yum repos
-    ##   (needs to be a list of repo IDs)
-    #enable-repo: []
-    #disable-repo: []
+  ## Uncomment to add or remove yum repos
+  ##   (needs to be a list of repo IDs)
+  #enable-repo: []
+  #disable-repo: []
 
-    ## Uncomment to alter the baseurl in /etc/rhsm/rhsm.conf
-    #rhsm-baseurl: http://url
+  ## Uncomment to alter the baseurl in /etc/rhsm/rhsm.conf
+  #rhsm-baseurl: http://url
 
-    ## Uncomment to alter the server hostname in 
-    ##  /etc/rhsm/rhsm.conf
-    #server-hostname: foo.bar.com
+  ## Uncomment to alter the server hostname in 
+  ##  /etc/rhsm/rhsm.conf
+  #server-hostname: foo.bar.com

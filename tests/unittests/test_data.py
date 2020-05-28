@@ -213,6 +213,40 @@ c: d
         self.assertEqual(1, len(cc))
         self.assertEqual('c', cc['a'])
 
+    def test_cloud_config_as_x_shell_script(self):
+        blob_cc = '''
+#cloud-config
+a: b
+c: d
+'''
+        message_cc = MIMEBase("text", "x-shellscript")
+        message_cc.set_payload(blob_cc)
+
+        blob_jp = '''
+#cloud-config-jsonp
+[
+     { "op": "replace", "path": "/a", "value": "c" },
+     { "op": "remove", "path": "/c" }
+]
+'''
+
+        message_jp = MIMEBase('text', "cloud-config-jsonp")
+        message_jp.set_payload(blob_jp)
+
+        message = MIMEMultipart()
+        message.attach(message_cc)
+        message.attach(message_jp)
+
+        self.reRoot()
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(str(message))
+        ci.fetch()
+        ci.consume_data()
+        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        cc = util.load_yaml(cc_contents)
+        self.assertEqual(1, len(cc))
+        self.assertEqual('c', cc['a'])
+
     def test_vendor_user_yaml_cloud_config(self):
         vendor_blob = '''
 #cloud-config

@@ -5,7 +5,6 @@
 # the packages/pkg-deps.json file as well.
 #
 
-unittest2
 # ec2 backend
 boto3==1.5.9
 
