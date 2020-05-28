@@ -1,4 +1,4 @@
-cloud-init (20.2-38-g8377897b-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
+cloud-init (20.2-38-g8377897b-0ubuntu1~20.04.1) focal; urgency=medium
 
   * d/control: drop pyflakes from Build-Depends
     - This python2 pyflakes package is an unneeded dependency now that tests
