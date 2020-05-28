@@ -2,7 +2,7 @@
 
 from collections import namedtuple
 import os
-from six import StringIO
+from io import StringIO
 from textwrap import dedent
 
 from cloudinit.atomic_helper import write_json
@@ -382,7 +382,6 @@ class TestStatus(CiTestCase):
                 wrap_and_call(
                     'cloudinit.cmd.status',
                     {'sys.argv': {'new': ['status']},
-                     'sys.exit': {'side_effect': self.sys_exit},
                      '_is_cloudinit_disabled': (False, ''),
                      'Init': {'side_effect': self.init_class}},
                     status.main)

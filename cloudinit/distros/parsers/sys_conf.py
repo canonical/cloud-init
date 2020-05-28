@@ -4,11 +4,9 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import six
-from six import StringIO
-
 import pipes
 import re
+from io import StringIO
 
 # This library is used to parse/write
 # out the various sysconfig files edited (best attempt effort)
@@ -65,7 +63,7 @@ class SysConf(configobj.ConfigObj):
         return out_contents.getvalue()
 
     def _quote(self, value, multiline=False):
-        if not isinstance(value, six.string_types):
+        if not isinstance(value, str):
             raise ValueError('Value "%s" is not a string' % (value))
         if len(value) == 0:
             return ''

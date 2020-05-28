@@ -1,15 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os.path
+from unittest import mock
 
 from cloudinit.config import cc_mounts
 
 from cloudinit.tests import helpers as test_helpers
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 
 class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
@@ -131,6 +127,12 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
             cc_mounts.sanitize_devname(
                 'ephemeral0.1', lambda x: disk_path, mock.Mock()))
 
+    def test_network_device_returns_network_device(self):
+        disk_path = 'netdevice:/path'
+        self.assertEqual(
+            disk_path,
+            cc_mounts.sanitize_devname(disk_path, None, mock.Mock()))
+
 
 class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
@@ -180,6 +182,18 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
             dev = None
 
         return dev
+
+    def test_swap_integrity(self):
+        '''Ensure that the swap file is correctly created and can
+        swapon successfully. Fixing the corner case of:
+        kernel: swapon: swapfile has holes'''
+
+        fstab = '/swap.img swap swap defaults 0 0\n'
+
+        with open(cc_mounts.FSTAB_PATH, 'w') as fd:
+            fd.write(fstab)
+        cc = {'swap': ['filename: /swap.img', 'size: 512', 'maxsize: 512']}
+        cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
 
     def test_fstab_no_swap_device(self):
         '''Ensure that cloud-init adds a discovered swap partition

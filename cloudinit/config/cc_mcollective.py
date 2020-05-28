@@ -49,9 +49,7 @@ private certificates for mcollective. Their values will be written to
 """
 
 import errno
-
-import six
-from six import BytesIO
+import io
 
 # Used since this can maintain comments
 # and doesn't need a top level section
@@ -73,7 +71,7 @@ def configure(config, server_cfg=SERVER_CFG,
     # original file in order to be able to mix the rest up.
     try:
         old_contents = util.load_file(server_cfg, quiet=False, decode=False)
-        mcollective_config = ConfigObj(BytesIO(old_contents))
+        mcollective_config = ConfigObj(io.BytesIO(old_contents))
     except IOError as e:
         if e.errno != errno.ENOENT:
             raise
@@ -93,7 +91,7 @@ def configure(config, server_cfg=SERVER_CFG,
                 'plugin.ssl_server_private'] = pricert_file
             mcollective_config['securityprovider'] = 'ssl'
         else:
-            if isinstance(cfg, six.string_types):
+            if isinstance(cfg, str):
                 # Just set it in the 'main' section
                 mcollective_config[cfg_name] = cfg
             elif isinstance(cfg, (dict)):
@@ -119,7 +117,7 @@ def configure(config, server_cfg=SERVER_CFG,
             raise
 
     # Now we got the whole (new) file, write to disk...
-    contents = BytesIO()
+    contents = io.BytesIO()
     mcollective_config.write(contents)
     util.write_file(server_cfg, contents.getvalue(), mode=0o644)
 

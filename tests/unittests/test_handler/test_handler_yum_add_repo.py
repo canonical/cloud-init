@@ -1,14 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config import cc_yum_add_repo
-from cloudinit import util
-
-from cloudinit.tests import helpers
-
+import configparser
 import logging
 import shutil
-from six import StringIO
 import tempfile
+
+from cloudinit import util
+from cloudinit.config import cc_yum_add_repo
+from cloudinit.tests import helpers
 
 LOG = logging.getLogger(__name__)
 
@@ -54,7 +53,8 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
         contents = util.load_file("/etc/yum.repos.d/epel_testing.repo")
-        parser = self.parse_and_read(StringIO(contents))
+        parser = configparser.ConfigParser()
+        parser.read_string(contents)
         expected = {
             'epel_testing': {
                 'name': 'Extra Packages for Enterprise Linux 5 - Testing',
@@ -90,7 +90,8 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
         contents = util.load_file("/etc/yum.repos.d/puppetlabs_products.repo")
-        parser = self.parse_and_read(StringIO(contents))
+        parser = configparser.ConfigParser()
+        parser.read_string(contents)
         expected = {
             'puppetlabs_products': {
                 'name': 'Puppet Labs Products El 6 - $basearch',

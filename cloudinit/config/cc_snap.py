@@ -61,9 +61,9 @@ schema = {
         snap:
             assertions:
               00: |
-              signed_assertion_blob_here
+                signed_assertion_blob_here
               02: |
-              signed_assertion_blob_here
+                signed_assertion_blob_here
             commands:
               00: snap create-user --sudoer --known <snap-user>@mydomain.com
               01: snap install canonical-livepatch
@@ -85,6 +85,21 @@ schema = {
                 01: ['snap', 'install', 'vlc']
                 02: snap install vlc
                 03: 'snap install vlc'
+    """), dedent("""\
+        # You can use a list of commands
+        snap:
+            commands:
+                - ['install', 'vlc']
+                - ['snap', 'install', 'vlc']
+                - snap install vlc
+                - 'snap install vlc'
+    """), dedent("""\
+        # You can use a list of assertions
+        snap:
+            assertions:
+                - signed_assertion_blob_here
+                - |
+                    signed_assertion_blob_here
     """)],
     'frequency': PER_INSTANCE,
     'type': 'object',
@@ -98,7 +113,8 @@ schema = {
                     'additionalItems': False,  # Reject items non-string
                     'minItems': 1,
                     'minProperties': 1,
-                    'uniqueItems': True
+                    'uniqueItems': True,
+                    'additionalProperties': {'type': 'string'},
                 },
                 'commands': {
                     'type': ['object', 'array'],  # Array of strings or dict
@@ -110,6 +126,12 @@ schema = {
                     'additionalItems': False,  # Reject non-string & non-list
                     'minItems': 1,
                     'minProperties': 1,
+                    'additionalProperties': {
+                        'oneOf': [
+                            {'type': 'string'},
+                            {'type': 'array', 'items': {'type': 'string'}},
+                        ],
+                    },
                 },
                 'squashfuse_in_container': {
                     'type': 'boolean'
@@ -121,10 +143,6 @@ schema = {
         }
     }
 }
-
-# TODO schema for 'assertions' and 'commands' are too permissive at the moment.
-# Once python-jsonschema supports schema draft 6 add support for arbitrary
-# object keys with 'patternProperties' constraint to validate string values.
 
 __doc__ = get_schema_doc(schema)  # Supplement python help()
 

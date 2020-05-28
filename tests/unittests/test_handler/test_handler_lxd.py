@@ -5,10 +5,7 @@ from cloudinit.sources import DataSourceNoCloud
 from cloudinit import (distros, helpers, cloud)
 from cloudinit.tests import helpers as t_help
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 
 class TestLxd(t_help.CiTestCase):

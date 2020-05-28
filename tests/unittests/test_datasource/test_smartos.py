@@ -12,8 +12,6 @@ order to validate return responses.
 
 '''
 
-from __future__ import print_function
-
 from binascii import crc32
 import json
 import multiprocessing
@@ -22,7 +20,7 @@ import os.path
 import re
 import signal
 import stat
-import unittest2
+import unittest
 import uuid
 
 from cloudinit import serial
@@ -32,8 +30,6 @@ from cloudinit.sources.DataSourceSmartOS import (
     SMARTOS_ENV_KVM, SERIAL_DEVICE, get_smartos_environ,
     identify_file)
 from cloudinit.event import EventType
-
-import six
 
 from cloudinit import helpers as c_helpers
 from cloudinit.util import (
@@ -798,7 +794,7 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
         return self.serial.write.call_args[0][0]
 
     def test_get_metadata_writes_bytes(self):
-        self.assertIsInstance(self._get_written_line(), six.binary_type)
+        self.assertIsInstance(self._get_written_line(), bytes)
 
     def test_get_metadata_line_starts_with_v2(self):
         foo = self._get_written_line()
@@ -1097,11 +1093,11 @@ class TestNetworkConversion(CiTestCase):
         self.assertEqual(expected, found)
 
 
-@unittest2.skipUnless(get_smartos_environ() == SMARTOS_ENV_KVM,
-                      "Only supported on KVM and bhyve guests under SmartOS")
-@unittest2.skipUnless(os.access(SERIAL_DEVICE, os.W_OK),
-                      "Requires write access to " + SERIAL_DEVICE)
-@unittest2.skipUnless(HAS_PYSERIAL is True, "pyserial not available")
+@unittest.skipUnless(get_smartos_environ() == SMARTOS_ENV_KVM,
+                     "Only supported on KVM and bhyve guests under SmartOS")
+@unittest.skipUnless(os.access(SERIAL_DEVICE, os.W_OK),
+                     "Requires write access to " + SERIAL_DEVICE)
+@unittest.skipUnless(HAS_PYSERIAL is True, "pyserial not available")
 class TestSerialConcurrency(CiTestCase):
     """
        This class tests locking on an actual serial port, and as such can only

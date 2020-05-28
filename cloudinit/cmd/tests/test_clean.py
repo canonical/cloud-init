@@ -5,7 +5,7 @@ from cloudinit.util import ensure_dir, sym_link, write_file
 from cloudinit.tests.helpers import CiTestCase, wrap_and_call, mock
 from collections import namedtuple
 import os
-from six import StringIO
+from io import StringIO
 
 mypaths = namedtuple('MyPaths', 'cloud_dir')
 
@@ -167,7 +167,6 @@ class TestClean(CiTestCase):
             wrap_and_call(
                 'cloudinit.cmd.clean',
                 {'Init': {'side_effect': self.init_class},
-                 'sys.exit': {'side_effect': self.sys_exit},
                  'sys.argv': {'new': ['clean', '--logs']}},
                 clean.main)
 

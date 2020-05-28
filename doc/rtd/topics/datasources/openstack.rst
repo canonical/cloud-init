@@ -19,7 +19,8 @@ checks the following environment attributes as a potential OpenStack platform:
 
    * **/proc/1/environ**: Nova-lxd contains *product_name=OpenStack Nova*
    * **DMI product_name**: Either *Openstack Nova* or *OpenStack Compute*
-   * **DMI chassis_asset_tag** is *OpenTelekomCloud*
+   * **DMI chassis_asset_tag** is *OpenTelekomCloud*, *SAP CCloud VM*,
+     *OpenStack Nova* (since 19.2) or *OpenStack Compute* (since 19.2)
 
 
 Configuration
@@ -50,12 +51,12 @@ An example configuration with the default values is provided below:
 .. sourcecode:: yaml
 
   datasource:
-   OpenStack:
-    metadata_urls: ["http://169.254.169.254"]
-    max_wait: -1
-    timeout: 10
-    retries: 5
-    apply_network_config: True
+    OpenStack:
+      metadata_urls: ["http://169.254.169.254"]
+      max_wait: -1
+      timeout: 10
+      retries: 5
+      apply_network_config: True
 
 
 Vendor Data

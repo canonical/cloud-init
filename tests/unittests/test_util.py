@@ -1,26 +1,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from __future__ import print_function
-
+import io
+import json
 import logging
 import os
 import re
 import shutil
 import stat
-import tempfile
-
-import json
-import six
 import sys
+import tempfile
 import yaml
+from unittest import mock
 
 from cloudinit import importer, util
 from cloudinit.tests import helpers
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 
 BASH = util.which('bash')
@@ -320,7 +313,7 @@ class TestLoadYaml(helpers.CiTestCase):
 
     def test_python_unicode(self):
         # complex type of python/unicode is explicitly allowed
-        myobj = {'1': six.text_type("FOOBAR")}
+        myobj = {'1': "FOOBAR"}
         safe_yaml = yaml.dump(myobj)
         self.assertEqual(util.load_yaml(blob=safe_yaml,
                                         default=self.mydefault),
@@ -663,8 +656,8 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         self.patchOS(self.root)
         self.patchUtils(self.root)
         self.patchOpen(self.root)
-        self.stdout = six.StringIO()
-        self.stderr = six.StringIO()
+        self.stdout = io.StringIO()
+        self.stderr = io.StringIO()
         self.patchStdoutAndStderr(self.stdout, self.stderr)
 
     def test_stderr_used_by_default(self):
@@ -742,7 +735,6 @@ class TestReadSeeded(helpers.TestCase):
 
 
 class TestSubp(helpers.CiTestCase):
-    with_logs = True
     allowed_subp = [BASH, 'cat', helpers.CiTestCase.SUBP_SHELL_TRUE,
                     BOGUS_COMMAND, sys.executable]
 
@@ -879,8 +871,8 @@ class TestSubp(helpers.CiTestCase):
         """Raised exc should have stderr, stdout as string if no decode."""
         with self.assertRaises(util.ProcessExecutionError) as cm:
             util.subp([BOGUS_COMMAND], decode=True)
-        self.assertTrue(isinstance(cm.exception.stdout, six.string_types))
-        self.assertTrue(isinstance(cm.exception.stderr, six.string_types))
+        self.assertTrue(isinstance(cm.exception.stdout, str))
+        self.assertTrue(isinstance(cm.exception.stderr, str))
 
     def test_bunch_of_slashes_in_path(self):
         self.assertEqual("/target/my/path/",
@@ -1176,5 +1168,98 @@ class TestGetProcEnv(helpers.TestCase):
         my_pid = os.getpid()
         my_ppid = os.getppid()
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
+
+
+@mock.patch('cloudinit.util.subp')
+def test_find_devs_with_openbsd(m_subp):
+    m_subp.return_value = (
+        'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+    )
+    devlist = util.find_devs_with_openbsd()
+    assert devlist == ['/dev/cd0a', '/dev/sd1i']
+
+
+@mock.patch('cloudinit.util.subp')
+def test_find_devs_with_openbsd_with_criteria(m_subp):
+    m_subp.return_value = (
+        'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+    )
+    devlist = util.find_devs_with_openbsd(criteria="TYPE=iso9660")
+    assert devlist == ['/dev/cd0a']
+
+
+@mock.patch('glob.glob')
+def test_find_devs_with_freebsd(m_glob):
+    def fake_glob(pattern):
+        msdos = ["/dev/msdosfs/EFISYS"]
+        iso9660 = ["/dev/iso9660/config-2"]
+        if pattern == "/dev/msdosfs/*":
+            return msdos
+        elif pattern == "/dev/iso9660/*":
+            return iso9660
+        raise Exception
+    m_glob.side_effect = fake_glob
+
+    devlist = util.find_devs_with_freebsd()
+    assert set(devlist) == set([
+        '/dev/iso9660/config-2', '/dev/msdosfs/EFISYS'])
+    devlist = util.find_devs_with_freebsd(criteria="TYPE=iso9660")
+    assert devlist == ['/dev/iso9660/config-2']
+    devlist = util.find_devs_with_freebsd(criteria="TYPE=vfat")
+    assert devlist == ['/dev/msdosfs/EFISYS']
+
+
+@mock.patch("cloudinit.util.subp")
+def test_find_devs_with_netbsd(m_subp):
+    side_effect_values = [
+        ("ld0 dk0 dk1 cd0", ""),
+        (
+            (
+                "mscdlabel: CDIOREADTOCHEADER: "
+                "Inappropriate ioctl for device\n"
+                "track (ctl=4) at sector 0\n"
+                "disklabel not written\n"
+            ),
+            "",
+        ),
+        (
+            (
+                "mscdlabel: CDIOREADTOCHEADER: "
+                "Inappropriate ioctl for device\n"
+                "track (ctl=4) at sector 0\n"
+                "disklabel not written\n"
+            ),
+            "",
+        ),
+        (
+            (
+                "mscdlabel: CDIOREADTOCHEADER: "
+                "Inappropriate ioctl for device\n"
+                "track (ctl=4) at sector 0\n"
+                "disklabel not written\n"
+            ),
+            "",
+        ),
+        (
+            (
+                "track (ctl=4) at sector 0\n"
+                'ISO filesystem, label "config-2", '
+                "creation time: 2020/03/31 17:29\n"
+                "adding as 'a'\n"
+            ),
+            "",
+        ),
+    ]
+    m_subp.side_effect = side_effect_values
+    devlist = util.find_devs_with_netbsd()
+    assert set(devlist) == set(
+        ["/dev/ld0", "/dev/dk0", "/dev/dk1", "/dev/cd0"]
+    )
+    m_subp.side_effect = side_effect_values
+    devlist = util.find_devs_with_netbsd(criteria="TYPE=iso9660")
+    assert devlist == ["/dev/cd0"]
+    m_subp.side_effect = side_effect_values
+    devlist = util.find_devs_with_netbsd(criteria="TYPE=vfat")
+    assert devlist == ["/dev/ld0", "/dev/dk0", "/dev/dk1"]
 
 # vi: ts=4 expandtab

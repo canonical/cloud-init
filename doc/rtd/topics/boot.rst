@@ -129,7 +129,7 @@ Config
 +---------+--------+----------------------------------------------------------+
 
 This stage runs config modules only.  Modules that do not really have an
-effect on other stages of boot are run here.
+effect on other stages of boot are run here, including ``runcmd``.
 
 Final
 =====
@@ -150,7 +150,7 @@ Things that run here include
 
  * package installations
  * configuration management plugins (puppet, chef, salt-minion)
- * user-scripts (including ``runcmd``).
+ * user-scripts (i.e. shell scripts passed as user-data)
 
 For scripts external to cloud-init looking to wait until cloud-init is
 finished, the ``cloud-init status`` subcommand can help block external

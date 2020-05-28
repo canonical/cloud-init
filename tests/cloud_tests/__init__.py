@@ -22,7 +22,8 @@ def _initialize_logging():
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        '%(asctime)s - %(pathname)s:%(funcName)s:%(lineno)s '
+        '[%(levelname)s]: %(message)s')
 
     console = logging.StreamHandler()
     console.setLevel(logging.DEBUG)

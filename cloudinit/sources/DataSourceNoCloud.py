@@ -36,23 +36,14 @@ class DataSourceNoCloud(sources.DataSource):
         return "%s [seed=%s][dsmode=%s]" % (root, self.seed, self.dsmode)
 
     def _get_devices(self, label):
-        if util.is_FreeBSD():
-            devlist = [
-                p for p in ['/dev/msdosfs/' + label, '/dev/iso9660/' + label]
-                if os.path.exists(p)]
-        else:
-            # Query optical drive to get it in blkid cache for 2.6 kernels
-            util.find_devs_with(path="/dev/sr0")
-            util.find_devs_with(path="/dev/sr1")
+        fslist = util.find_devs_with("TYPE=vfat")
+        fslist.extend(util.find_devs_with("TYPE=iso9660"))
 
-            fslist = util.find_devs_with("TYPE=vfat")
-            fslist.extend(util.find_devs_with("TYPE=iso9660"))
+        label_list = util.find_devs_with("LABEL=%s" % label.upper())
+        label_list.extend(util.find_devs_with("LABEL=%s" % label.lower()))
 
-            label_list = util.find_devs_with("LABEL=%s" % label.upper())
-            label_list.extend(util.find_devs_with("LABEL=%s" % label.lower()))
-
-            devlist = list(set(fslist) & set(label_list))
-            devlist.sort(reverse=True)
+        devlist = list(set(fslist) & set(label_list))
+        devlist.sort(reverse=True)
         return devlist
 
     def _get_data(self):
@@ -370,7 +361,7 @@ def _merge_new_seed(cur, seeded):
 class DataSourceNoCloudNet(DataSourceNoCloud):
     def __init__(self, sys_cfg, distro, paths):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
-        self.supported_seed_starts = ("http://", "https://", "ftp://")
+        self.supported_seed_starts = ("http://", "https://")
 
 
 # Used to match classes to dependencies

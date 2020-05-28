@@ -1,0 +1,24 @@
+name: Mark and close stale pull requests
+
+on:
+  schedule:
+  - cron: "0 0 * * *"  # Daily @ 00:00
+
+jobs:
+  stale:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/stale@v1
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        days-before-stale: 14
+        days-before-close: 7
+        stale-pr-message: |
+          Hello! Thank you for this proposed change to cloud-init. This pull request is now marked as stale as it has not seen any activity in 14 days. If no activity occurs within the next 7 days, this pull request will automatically close.
+
+          If you are waiting for code review and you are seeing this message, apologies!  Please reply, tagging powersj, and he will ensure that someone takes a look soon.
+
+          (If the pull request is closed, please do feel free to reopen it if you wish to continue working on it.)
+        stale-pr-label: 'stale-pr'

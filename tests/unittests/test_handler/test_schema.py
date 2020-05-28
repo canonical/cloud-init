@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
+import cloudinit
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER, SchemaValidationError, annotated_cloudconfig_file,
     get_schema_doc, get_schema, validate_cloudconfig_file,
@@ -10,7 +10,9 @@ from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 from copy import copy
 import os
-from six import StringIO
+import pytest
+from io import StringIO
+from pathlib import Path
 from textwrap import dedent
 from yaml import safe_load
 
@@ -20,15 +22,18 @@ class GetSchemaTest(CiTestCase):
     def test_get_schema_coalesces_known_schema(self):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
-        self.assertItemsEqual(
+        self.assertCountEqual(
             [
+                'cc_apt_configure',
                 'cc_bootcmd',
+                'cc_locale',
                 'cc_ntp',
                 'cc_resizefs',
                 'cc_runcmd',
                 'cc_snap',
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
+                'cc_write_files',
                 'cc_zypper_add_repo'
             ],
             [subschema['id'] for subschema in schema['allOf']])
@@ -38,7 +43,7 @@ class GetSchemaTest(CiTestCase):
             schema['$schema'])
         # FULL_SCHEMA is updated by the get_schema call
         from cloudinit.config.schema import FULL_SCHEMA
-        self.assertItemsEqual(['id', '$schema', 'allOf'], FULL_SCHEMA.keys())
+        self.assertCountEqual(['id', '$schema', 'allOf'], FULL_SCHEMA.keys())
 
     def test_get_schema_returns_global_when_set(self):
         """When FULL_SCHEMA global is already set, get_schema returns it."""
@@ -108,6 +113,23 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
         self.assertEqual(
             "Cloud config schema errors: p1: '-1' is not a 'hostname'",
             str(context_mgr.exception))
+
+
+class TestCloudConfigExamples:
+    schema = get_schema()
+    params = [
+        (schema["id"], example)
+        for schema in schema["allOf"] for example in schema["examples"]]
+
+    @pytest.mark.parametrize("schema_id,example", params)
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_of_example(self, schema_id, example):
+        """ For a given example in a config module we test if it is valid
+        according to the unified schema of all config modules
+        """
+        config_load = safe_load(example)
+        validate_cloudconfig_schema(
+            config_load, self.schema, strict=True)
 
 
 class ValidateCloudConfigFileTest(CiTestCase):
@@ -268,6 +290,41 @@ class GetSchemaDocTest(CiTestCase):
             """),
             get_schema_doc(full_schema))
 
+    def test_get_schema_doc_properly_parse_description(self):
+        """get_schema_doc description properly formatted"""
+        full_schema = copy(self.required_schema)
+        full_schema.update(
+            {'properties': {
+                'p1': {
+                    'type': 'string',
+                    'description': dedent("""\
+                        This item
+                        has the
+                        following options:
+
+                          - option1
+                          - option2
+                          - option3
+
+                        The default value is
+                        option1""")
+                }
+            }}
+        )
+
+        self.assertIn(
+            dedent("""
+                **Config schema**:
+                    **p1:** (string) This item has the following options:
+
+                            - option1
+                            - option2
+                            - option3
+
+                    The default value is option1
+            """),
+            get_schema_doc(full_schema))
+
     def test_get_schema_doc_raises_key_errors(self):
         """get_schema_doc raises KeyErrors on missing keys."""
         for key in self.required_schema:
@@ -345,34 +402,30 @@ class MainTest(CiTestCase):
 
     def test_main_missing_args(self):
         """Main exits non-zero and reports an error on missing parameters."""
-        with mock.patch('sys.exit', side_effect=self.sys_exit):
-            with mock.patch('sys.argv', ['mycmd']):
-                with mock.patch('sys.stderr', new_callable=StringIO) as \
-                        m_stderr:
-                    with self.assertRaises(SystemExit) as context_manager:
-                        main()
+        with mock.patch('sys.argv', ['mycmd']):
+            with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
+                with self.assertRaises(SystemExit) as context_manager:
+                    main()
         self.assertEqual(1, context_manager.exception.code)
         self.assertEqual(
-            'Expected either --config-file argument or --doc\n',
+            'Expected either --config-file argument or --docs\n',
             m_stderr.getvalue())
 
     def test_main_absent_config_file(self):
         """Main exits non-zero when config file is absent."""
         myargs = ['mycmd', '--annotate', '--config-file', 'NOT_A_FILE']
-        with mock.patch('sys.exit', side_effect=self.sys_exit):
-            with mock.patch('sys.argv', myargs):
-                with mock.patch('sys.stderr', new_callable=StringIO) as \
-                        m_stderr:
-                    with self.assertRaises(SystemExit) as context_manager:
-                        main()
+        with mock.patch('sys.argv', myargs):
+            with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
+                with self.assertRaises(SystemExit) as context_manager:
+                    main()
         self.assertEqual(1, context_manager.exception.code)
         self.assertEqual(
             'Configfile NOT_A_FILE does not exist\n',
             m_stderr.getvalue())
 
     def test_main_prints_docs(self):
-        """When --doc parameter is provided, main generates documentation."""
-        myargs = ['mycmd', '--doc']
+        """When --docs parameter is provided, main generates documentation."""
+        myargs = ['mycmd', '--docs', 'all']
         with mock.patch('sys.argv', myargs):
             with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
                 self.assertEqual(0, main(), 'Expected 0 exit code')
@@ -429,5 +482,24 @@ class CloudTestsIntegrationTest(CiTestCase):
                             filename, e))
         if errors:
             raise AssertionError(', '.join(errors))
+
+
+def _get_schema_doc_examples():
+    examples_dir = Path(
+        cloudinit.__file__).parent.parent / 'doc' / 'examples'
+    assert examples_dir.is_dir()
+
+    all_text_files = (f for f in examples_dir.glob('cloud-config*.txt')
+                      if not f.name.startswith('cloud-config-archive'))
+    return all_text_files
+
+
+class TestSchemaDocExamples:
+    schema = get_schema()
+
+    @pytest.mark.parametrize("example_path", _get_schema_doc_examples())
+    @skipUnlessJsonSchema()
+    def test_schema_doc_examples(self, example_path):
+        validate_cloudconfig_file(str(example_path), self.schema)
 
 # vi: ts=4 expandtab syntax=python

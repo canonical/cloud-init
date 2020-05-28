@@ -9,8 +9,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import six
-
 from cloudinit import log as logging
 from cloudinit import type_utils
 from cloudinit import util
@@ -29,7 +27,7 @@ LOG = logging.getLogger(__name__)
 # is the standard form used in the rest
 # of cloud-init
 def _normalize_groups(grp_cfg):
-    if isinstance(grp_cfg, six.string_types):
+    if isinstance(grp_cfg, str):
         grp_cfg = grp_cfg.strip().split(",")
     if isinstance(grp_cfg, list):
         c_grp_cfg = {}
@@ -39,7 +37,7 @@ def _normalize_groups(grp_cfg):
                     if k not in c_grp_cfg:
                         if isinstance(v, list):
                             c_grp_cfg[k] = list(v)
-                        elif isinstance(v, six.string_types):
+                        elif isinstance(v, str):
                             c_grp_cfg[k] = [v]
                         else:
                             raise TypeError("Bad group member type %s" %
@@ -47,12 +45,12 @@ def _normalize_groups(grp_cfg):
                     else:
                         if isinstance(v, list):
                             c_grp_cfg[k].extend(v)
-                        elif isinstance(v, six.string_types):
+                        elif isinstance(v, str):
                             c_grp_cfg[k].append(v)
                         else:
                             raise TypeError("Bad group member type %s" %
                                             type_utils.obj_name(v))
-            elif isinstance(i, six.string_types):
+            elif isinstance(i, str):
                 if i not in c_grp_cfg:
                     c_grp_cfg[i] = []
             else:
@@ -89,7 +87,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
     if isinstance(u_cfg, dict):
         ad_ucfg = []
         for (k, v) in u_cfg.items():
-            if isinstance(v, (bool, int, float) + six.string_types):
+            if isinstance(v, (bool, int, float, str)):
                 if util.is_true(v):
                     ad_ucfg.append(str(k))
             elif isinstance(v, dict):
@@ -99,12 +97,12 @@ def _normalize_users(u_cfg, def_user_cfg=None):
                 raise TypeError(("Unmappable user value type %s"
                                  " for key %s") % (type_utils.obj_name(v), k))
         u_cfg = ad_ucfg
-    elif isinstance(u_cfg, six.string_types):
+    elif isinstance(u_cfg, str):
         u_cfg = util.uniq_merge_sorted(u_cfg)
 
     users = {}
     for user_config in u_cfg:
-        if isinstance(user_config, (list,) + six.string_types):
+        if isinstance(user_config, (list, str)):
             for u in util.uniq_merge(user_config):
                 if u and u not in users:
                     users[u] = {}
@@ -209,7 +207,7 @@ def normalize_users_groups(cfg, distro):
         old_user = cfg['user']
         # Translate it into the format that is more useful
         # going forward
-        if isinstance(old_user, six.string_types):
+        if isinstance(old_user, str):
             old_user = {
                 'name': old_user,
             }
@@ -238,7 +236,7 @@ def normalize_users_groups(cfg, distro):
     default_user_config = util.mergemanydict([old_user, distro_user_config])
 
     base_users = cfg.get('users', [])
-    if not isinstance(base_users, (list, dict) + six.string_types):
+    if not isinstance(base_users, (list, dict, str)):
         LOG.warning(("Format for 'users' key must be a comma separated string"
                      " or a dictionary or a list and not %s"),
                     type_utils.obj_name(base_users))
@@ -252,7 +250,7 @@ def normalize_users_groups(cfg, distro):
             base_users.append({'name': 'default'})
         elif isinstance(base_users, dict):
             base_users['default'] = dict(base_users).get('default', True)
-        elif isinstance(base_users, six.string_types):
+        elif isinstance(base_users, str):
             # Just append it on to be re-parsed later
             base_users += ",default"
 

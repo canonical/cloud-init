@@ -4,7 +4,7 @@
 
 from cloudinit import util
 from collections import namedtuple
-from six import StringIO
+from io import StringIO
 
 from cloudinit.cmd import cloud_id
 

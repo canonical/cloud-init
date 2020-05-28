@@ -8,39 +8,31 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import json
 import os
-import requests
-import six
 import time
-
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
+from http.client import NOT_FOUND
 from itertools import count
-from requests import exceptions
+from urllib.parse import urlparse, urlunparse, quote
 
-from six.moves.urllib.parse import (
-    urlparse, urlunparse,
-    quote as urlquote)
+import requests
+from requests import exceptions
 
 from cloudinit import log as logging
 from cloudinit import version
 
 LOG = logging.getLogger(__name__)
 
-if six.PY2:
-    import httplib
-    NOT_FOUND = httplib.NOT_FOUND
-else:
-    import http.client
-    NOT_FOUND = http.client.NOT_FOUND
-
 
 # Check if requests has ssl support (added in requests >= 0.8.8)
 SSL_ENABLED = False
 CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
 _REQ_VER = None
+REDACTED = 'REDACTED'
 try:
     from distutils.version import LooseVersion
     import pkg_resources
@@ -71,7 +63,7 @@ def combine_url(base, *add_ons):
         path = url_parsed[2]
         if path and not path.endswith("/"):
             path += "/"
-        path += urlquote(str(add_on), safe="/:")
+        path += quote(str(add_on), safe="/:")
         url_parsed[2] = path
         return urlunparse(url_parsed)
 
@@ -199,9 +191,9 @@ def _get_ssl_args(url, ssl_details):
 
 
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
-            headers=None, headers_cb=None, ssl_details=None,
-            check_status=True, allow_redirects=True, exception_cb=None,
-            session=None, infinite=False, log_req_resp=True,
+            headers=None, headers_cb=None, headers_redact=None,
+            ssl_details=None, check_status=True, allow_redirects=True,
+            exception_cb=None, session=None, infinite=False, log_req_resp=True,
             request_method=None):
     """Wrapper around requests.Session to read the url and retry if necessary
 
@@ -217,6 +209,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     :param headers: Optional dict of headers to send during request
     :param headers_cb: Optional callable returning a dict of values to send as
         headers during request
+    :param headers_redact: Optional list of header names to redact from the log
     :param ssl_details: Optional dict providing key_file, ca_certs, and
         cert_file keys for use on in ssl connections.
     :param check_status: Optional boolean set True to raise when HTTPError
@@ -243,6 +236,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     req_args['method'] = request_method
     if timeout is not None:
         req_args['timeout'] = max(float(timeout), 0)
+    if headers_redact is None:
+        headers_redact = []
     # It doesn't seem like config
     # was added in older library versions (or newer ones either), thus we
     # need to manually do the retries if it wasn't...
@@ -286,7 +281,14 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
         for (k, v) in req_args.items():
             if k == 'data':
                 continue
-            filtered_req_args[k] = v
+            if k == 'headers' and headers_redact:
+                matched_headers = [k for k in headers_redact if v.get(k)]
+                if matched_headers:
+                    filtered_req_args[k] = copy.deepcopy(v)
+                    for key in matched_headers:
+                        filtered_req_args[k][key] = REDACTED
+            else:
+                filtered_req_args[k] = v
         try:
 
             if log_req_resp:
@@ -339,8 +341,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     return None  # Should throw before this...
 
 
-def wait_for_url(urls, max_wait=None, timeout=None,
-                 status_cb=None, headers_cb=None, sleep_time=1,
+def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
+                 headers_cb=None, headers_redact=None, sleep_time=1,
                  exception_cb=None, sleep_time_cb=None, request_method=None):
     """
     urls:      a list of urls to try
@@ -352,6 +354,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     status_cb: call method with string message when a url is not available
     headers_cb: call method with single argument of url to get headers
                 for request.
+    headers_redact: a list of header names to redact from the log
     exception_cb: call method with 2 arguments 'msg' (per status_cb) and
                   'exception', the exception that occurred.
     sleep_time_cb: call method with 2 arguments (response, loop_n) that
@@ -415,8 +418,9 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     headers = {}
 
                 response = readurl(
-                    url, headers=headers, timeout=timeout,
-                    check_status=False, request_method=request_method)
+                    url, headers=headers, headers_redact=headers_redact,
+                    timeout=timeout, check_status=False,
+                    request_method=request_method)
                 if not response.contents:
                     reason = "empty response [%s]" % (response.code)
                     url_exc = UrlError(ValueError(reason), code=response.code,

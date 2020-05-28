@@ -37,6 +37,7 @@ class Distro(distros.Distro):
     renderer_configs = {
         'sysconfig': {
             'control': 'etc/sysconfig/network/config',
+            'flavor': 'suse',
             'iface_templates': '%(base)s/network/ifcfg-%(name)s',
             'netrules_path': (
                 'etc/udev/rules.d/85-persistent-net-cloud-init.rules'),
@@ -142,6 +143,9 @@ class Distro(distros.Distro):
             if not hostname:
                 return default
             return hostname
+
+    def _get_localhost_ip(self):
+        return "127.0.1.1"
 
     def _read_hostname_conf(self, filename):
         conf = HostnameConf(util.load_file(filename))

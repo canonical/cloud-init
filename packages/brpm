@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import glob
@@ -42,7 +42,7 @@ def run_helper(helper, args=None, strip=True):
     return stdout
 
 
-def read_dependencies(distro, requirements_file='requirements.txt'):
+def read_dependencies(distro):
     """Returns the Python package depedencies from requirements.txt files.
 
     @returns a tuple of (requirements, test_requirements)

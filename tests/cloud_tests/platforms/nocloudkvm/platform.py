@@ -29,9 +29,13 @@ class NoCloudKVMPlatform(Platform):
         """
         (url, path) = s_util.path_from_mirror_url(img_conf['mirror_url'], None)
 
-        filter = filters.get_filters(['arch=%s' % c_util.get_architecture(),
-                                      'release=%s' % img_conf['release'],
-                                      'ftype=disk1.img'])
+        filter = filters.get_filters(
+            [
+                'arch=%s' % c_util.get_dpkg_architecture(),
+                'release=%s' % img_conf['release'],
+                'ftype=disk1.img',
+            ]
+        )
         mirror_config = {'filters': filter,
                          'keep_items': False,
                          'max_items': 1,

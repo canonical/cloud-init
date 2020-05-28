@@ -9,13 +9,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
-
-import six
 
 from cloudinit import handlers
 from cloudinit import log as logging
@@ -28,6 +25,7 @@ LOG = logging.getLogger(__name__)
 NOT_MULTIPART_TYPE = handlers.NOT_MULTIPART_TYPE
 PART_FN_TPL = handlers.PART_FN_TPL
 OCTET_TYPE = handlers.OCTET_TYPE
+INCLUDE_MAP = handlers.INCLUSION_TYPES_MAP
 
 # Saves typing errors
 CONTENT_TYPE = 'Content-Type'
@@ -118,7 +116,8 @@ class UserDataProcessor(object):
             # Attempt to figure out the payloads content-type
             if not ctype_orig:
                 ctype_orig = UNDEF_TYPE
-            if ctype_orig in TYPE_NEEDED:
+            if ctype_orig in TYPE_NEEDED or (ctype_orig in
+                                             INCLUDE_MAP.values()):
                 ctype = find_ctype(payload)
             if ctype is None:
                 ctype = ctype_orig
@@ -259,7 +258,7 @@ class UserDataProcessor(object):
             #    filename and type not be present
             # or
             #  scalar(payload)
-            if isinstance(ent, six.string_types):
+            if isinstance(ent, str):
                 ent = {'content': ent}
             if not isinstance(ent, (dict)):
                 # TODO(harlowja) raise?
@@ -269,13 +268,13 @@ class UserDataProcessor(object):
             mtype = ent.get('type')
             if not mtype:
                 default = ARCHIVE_UNDEF_TYPE
-                if isinstance(content, six.binary_type):
+                if isinstance(content, bytes):
                     default = ARCHIVE_UNDEF_BINARY_TYPE
                 mtype = handlers.type_from_starts_with(content, default)
 
             maintype, subtype = mtype.split('/', 1)
             if maintype == "text":
-                if isinstance(content, six.binary_type):
+                if isinstance(content, bytes):
                     content = content.decode()
                 msg = MIMEText(content, _subtype=subtype)
             else:
@@ -348,7 +347,7 @@ def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
         msg.set_payload(data)
         return msg
 
-    if isinstance(raw_data, six.text_type):
+    if isinstance(raw_data, str):
         bdata = raw_data.encode('utf-8')
     else:
         bdata = raw_data

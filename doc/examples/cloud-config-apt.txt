@@ -1,3 +1,4 @@
+#cloud-config
 # apt_pipelining (configure Acquire::http::Pipeline-Depth)
 # Default: disables HTTP pipelining. Certain web servers, such
 # as S3 do not pipeline properly (LP: #948461).
@@ -141,7 +142,7 @@ apt:
       # as above, allowing to have one config for different per arch mirrors
   # security is optional, if not defined it is set to the same value as primary
   security:
-      uri: http://security.ubuntu.com/ubuntu
+    - uri: http://security.ubuntu.com/ubuntu
   # If search_dns is set for security the searched pattern is:
   #   <distro>-security-mirror
 
@@ -222,19 +223,19 @@ apt:
   # This allows merging between multiple input files than a list like:
   # cloud-config1
   # sources:
-  #    s1: {'key': 'key1', 'source': 'source1'}
+  #   s1: {'key': 'key1', 'source': 'source1'}
   # cloud-config2
   # sources:
-  #    s2: {'key': 'key2'}
-  #    s1: {'keyserver': 'foo'}
+  #   s2: {'key': 'key2'}
+  #   s1: {'keyserver': 'foo'}
   # This would be merged to
   # sources:
-  #    s1:
-  #        keyserver: foo
-  #        key: key1
-  #        source: source1
-  #    s2:
-  #        key: key2
+  #   s1:
+  #     keyserver: foo
+  #     key: key1
+  #     source: source1
+  #   s2:
+  #     key: key2
   #
   # The following examples number the subfeatures per sources entry to ease
   # identification in discussions.
@@ -314,15 +315,15 @@ apt:
       # As with keyid's this can be specified with or without some actual source
       # content.
       key: | # The value needs to start with -----BEGIN PGP PUBLIC KEY BLOCK-----
-         -----BEGIN PGP PUBLIC KEY BLOCK-----
-         Version: SKS 1.0.10
+        -----BEGIN PGP PUBLIC KEY BLOCK-----
+        Version: SKS 1.0.10
 
-         mI0ESpA3UQEEALdZKVIMq0j6qWAXAyxSlF63SvPVIgxHPb9Nk0DZUixn+akqytxG4zKCONz6
-         qLjoBBfHnynyVLfT4ihg9an1PqxRnTO+JKQxl8NgKGz6Pon569GtAOdWNKw15XKinJTDLjnj
-         9y96ljJqRcpV9t/WsIcdJPcKFR5voHTEoABE2aEXABEBAAG0GUxhdW5jaHBhZCBQUEEgZm9y
-         IEFsZXN0aWOItgQTAQIAIAUCSpA3UQIbAwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEA7H
-         5Qi+CcVxWZ8D/1MyYvfj3FJPZUm2Yo1zZsQ657vHI9+pPouqflWOayRR9jbiyUFIn0VdQBrP
-         t0FwvnOFArUovUWoKAEdqR8hPy3M3APUZjl5K4cMZR/xaMQeQRZ5CHpS4DBKURKAHC0ltS5o
-         uBJKQOZm5iltJp15cgyIkBkGe8Mx18VFyVglAZey
-         =Y2oI
-         -----END PGP PUBLIC KEY BLOCK-----
+        mI0ESpA3UQEEALdZKVIMq0j6qWAXAyxSlF63SvPVIgxHPb9Nk0DZUixn+akqytxG4zKCONz6
+        qLjoBBfHnynyVLfT4ihg9an1PqxRnTO+JKQxl8NgKGz6Pon569GtAOdWNKw15XKinJTDLjnj
+        9y96ljJqRcpV9t/WsIcdJPcKFR5voHTEoABE2aEXABEBAAG0GUxhdW5jaHBhZCBQUEEgZm9y
+        IEFsZXN0aWOItgQTAQIAIAUCSpA3UQIbAwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEA7H
+        5Qi+CcVxWZ8D/1MyYvfj3FJPZUm2Yo1zZsQ657vHI9+pPouqflWOayRR9jbiyUFIn0VdQBrP
+        t0FwvnOFArUovUWoKAEdqR8hPy3M3APUZjl5K4cMZR/xaMQeQRZ5CHpS4DBKURKAHC0ltS5o
+        uBJKQOZm5iltJp15cgyIkBkGe8Mx18VFyVglAZey
+        =Y2oI
+        -----END PGP PUBLIC KEY BLOCK-----

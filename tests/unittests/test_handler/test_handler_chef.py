@@ -4,7 +4,6 @@ import httpretty
 import json
 import logging
 import os
-import six
 
 from cloudinit import cloud
 from cloudinit.config import cc_chef
@@ -66,18 +65,18 @@ class TestInstallChefOmnibus(HttprettyTestCase):
         cc_chef.install_chef_from_omnibus()
         expected_kwargs = {'retries': cc_chef.OMNIBUS_URL_RETRIES,
                            'url': cc_chef.OMNIBUS_URL}
-        self.assertItemsEqual(expected_kwargs, m_rdurl.call_args_list[0][1])
+        self.assertCountEqual(expected_kwargs, m_rdurl.call_args_list[0][1])
         cc_chef.install_chef_from_omnibus(retries=10)
         expected_kwargs = {'retries': 10,
                            'url': cc_chef.OMNIBUS_URL}
-        self.assertItemsEqual(expected_kwargs, m_rdurl.call_args_list[1][1])
+        self.assertCountEqual(expected_kwargs, m_rdurl.call_args_list[1][1])
         expected_subp_kwargs = {
             'args': ['-v', '2.0'],
             'basename': 'chef-omnibus-install',
             'blob': m_rdurl.return_value.contents,
             'capture': False
         }
-        self.assertItemsEqual(
+        self.assertCountEqual(
             expected_subp_kwargs,
             m_subp_blob.call_args_list[0][1])
 
@@ -98,7 +97,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             'blob': response,
             'capture': False
         }
-        self.assertItemsEqual(expected_kwargs, called_kwargs)
+        self.assertCountEqual(expected_kwargs, called_kwargs)
 
 
 class TestChef(FilesystemMockingTestCase):
@@ -178,7 +177,7 @@ class TestChef(FilesystemMockingTestCase):
                 continue
             # the value from the cfg overrides that in the default
             val = cfg['chef'].get(k, v)
-            if isinstance(val, six.string_types):
+            if isinstance(val, str):
                 self.assertIn(val, c)
         c = util.load_file(cc_chef.CHEF_FB_PATH)
         self.assertEqual({}, json.loads(c))

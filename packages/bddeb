@@ -59,15 +59,9 @@ def run_helper(helper, args=None, strip=True):
     return stdout
 
 
-def write_debian_folder(root, templ_data, is_python2, cloud_util_deps):
+def write_debian_folder(root, templ_data, cloud_util_deps):
     """Create a debian package directory with all rendered template files."""
     print("Creating a debian/ folder in %r" % (root))
-    if is_python2:
-        pyver = "2"
-        python = "python"
-    else:
-        pyver = "3"
-        python = "python3"
 
     deb_dir = util.abs_join(root, 'debian')
 
@@ -83,30 +77,23 @@ def write_debian_folder(root, templ_data, is_python2, cloud_util_deps):
 
     # Write out the control file template
     reqs_output = run_helper(
-        'read-dependencies',
-        args=['--distro', 'debian', '--python-version', pyver])
+        'read-dependencies', args=['--distro', 'debian'])
     reqs = reqs_output.splitlines()
     test_reqs = run_helper(
         'read-dependencies',
         ['--requirements-file', 'test-requirements.txt',
-         '--system-pkg-names', '--python-version', pyver]).splitlines()
+         '--system-pkg-names']).splitlines()
 
     requires = ['cloud-utils | cloud-guest-utils'] if cloud_util_deps else []
     # We consolidate all deps as Build-Depends as our package build runs all
     # tests so we need all runtime dependencies anyway.
     # NOTE: python package was moved to the front after debuild -S would fail with
     # 'Please add apropriate interpreter' errors (as in debian bug 861132)
-    requires.extend([python] + reqs + test_reqs)
+    requires.extend(['python3'] + reqs + test_reqs)
     templater.render_to_file(util.abs_join(find_root(),
                                            'packages', 'debian', 'control.in'),
                              util.abs_join(deb_dir, 'control'),
-                             params={'build_depends': ','.join(requires),
-                                     'python': python})
-
-    templater.render_to_file(util.abs_join(find_root(),
-                                           'packages', 'debian', 'rules.in'),
-                             util.abs_join(deb_dir, 'rules'),
-                             params={'python': python, 'pyver': pyver})
+                             params={'build_depends': ','.join(requires)})
 
 
 def read_version():
@@ -177,6 +164,11 @@ def main():
 
         # output like 0.7.6-1022-g36e92d3
         ver_data = read_version()
+        if ver_data['is_release_branch_ci']:
+            # If we're performing CI for a new release branch, we don't yet
+            # have the tag required to generate version_long; use version
+            # instead.
+            ver_data['version_long'] = ver_data['version']
 
         # This is really only a temporary archive
         # since we will extract it then add in the debian
@@ -192,7 +184,9 @@ def main():
                 break
         if path is None:
             print("Creating a temp tarball using the 'make-tarball' helper")
-            run_helper('make-tarball', ['--long', '--output=' + tarball_fp])
+            run_helper('make-tarball',
+                       ['--version', ver_data['version_long'],
+                        '--output=' + tarball_fp])
 
         print("Extracting temporary tarball %r" % (tarball))
         cmd = ['tar', '-xvzf', tarball_fp, '-C', tdir]
@@ -201,8 +195,7 @@ def main():
         xdir = util.abs_join(tdir, "cloud-init-%s" % ver_data['version_long'])
         templ_data.update(ver_data)
 
-        write_debian_folder(xdir, templ_data, is_python2=args.python2,
-                            cloud_util_deps=args.cloud_utils)
+        write_debian_folder(xdir, templ_data, cloud_util_deps=args.cloud_utils)
 
         print("Running 'debuild %s' in %r" % (' '.join(args.debuild_args),
                                               xdir))

@@ -2,16 +2,19 @@
 
 import copy
 import errno
-import httpretty
-import mock
+import ipaddress
 import os
-import requests
 import textwrap
+from unittest import mock
+
+import httpretty
+import pytest
+import requests
 
 import cloudinit.net as net
-from cloudinit.util import ensure_file, write_file, ProcessExecutionError
-from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase
 from cloudinit import safeyaml as yaml
+from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase
+from cloudinit.util import ProcessExecutionError, ensure_file, write_file
 
 
 class TestSysDevPath(CiTestCase):
@@ -341,8 +344,6 @@ class TestGenerateFallbackConfig(CiTestCase):
 
 class TestNetFindFallBackNic(CiTestCase):
 
-    with_logs = True
-
     def setUp(self):
         super(TestNetFindFallBackNic, self).setUp()
         sys_mock = mock.patch('cloudinit.net.get_sys_class_path')
@@ -396,7 +397,7 @@ class TestGetDeviceList(CiTestCase):
         """get_devicelist returns a directory listing for SYS_CLASS_NET."""
         write_file(os.path.join(self.sysdir, 'eth0', 'operstate'), 'up')
         write_file(os.path.join(self.sysdir, 'eth1', 'operstate'), 'up')
-        self.assertItemsEqual(['eth0', 'eth1'], net.get_devicelist())
+        self.assertCountEqual(['eth0', 'eth1'], net.get_devicelist())
 
 
 class TestGetInterfaceMAC(CiTestCase):
@@ -995,8 +996,6 @@ class TestExtractPhysdevs(CiTestCase):
 
 class TestWaitForPhysdevs(CiTestCase):
 
-    with_logs = True
-
     def setUp(self):
         super(TestWaitForPhysdevs, self).setUp()
         self.add_patch('cloudinit.net.get_interfaces_by_mac',
@@ -1070,8 +1069,6 @@ class TestWaitForPhysdevs(CiTestCase):
 
 
 class TestNetFailOver(CiTestCase):
-
-    with_logs = True
 
     def setUp(self):
         super(TestNetFailOver, self).setUp()
@@ -1296,5 +1293,49 @@ class TestNetFailOver(CiTestCase):
         m_primary.return_value = False
         m_standby.return_value = False
         self.assertFalse(net.is_netfailover(devname, driver))
+
+
+class TestIsIpAddress:
+    """Tests for net.is_ip_address.
+
+    Instead of testing with values we rely on the ipaddress stdlib module to
+    handle all values correctly, so simply test that is_ip_address defers to
+    the ipaddress module correctly.
+    """
+
+    @pytest.mark.parametrize('ip_address_side_effect,expected_return', (
+        (ValueError, False),
+        (lambda _: ipaddress.IPv4Address('192.168.0.1'), True),
+        (lambda _: ipaddress.IPv6Address('2001:db8::'), True),
+    ))
+    def test_is_ip_address(self, ip_address_side_effect, expected_return):
+        with mock.patch('cloudinit.net.ipaddress.ip_address',
+                        side_effect=ip_address_side_effect) as m_ip_address:
+            ret = net.is_ip_address(mock.sentinel.ip_address_in)
+        assert expected_return == ret
+        expected_call = mock.call(mock.sentinel.ip_address_in)
+        assert [expected_call] == m_ip_address.call_args_list
+
+
+class TestIsIpv4Address:
+    """Tests for net.is_ipv4_address.
+
+    Instead of testing with values we rely on the ipaddress stdlib module to
+    handle all values correctly, so simply test that is_ipv4_address defers to
+    the ipaddress module correctly.
+    """
+
+    @pytest.mark.parametrize('ipv4address_mock,expected_return', (
+        (mock.Mock(side_effect=ValueError), False),
+        (mock.Mock(return_value=ipaddress.IPv4Address('192.168.0.1')), True),
+    ))
+    def test_is_ip_address(self, ipv4address_mock, expected_return):
+        with mock.patch('cloudinit.net.ipaddress.IPv4Address',
+                        ipv4address_mock) as m_ipv4address:
+            ret = net.is_ipv4_address(mock.sentinel.ip_address_in)
+        assert expected_return == ret
+        expected_call = mock.call(mock.sentinel.ip_address_in)
+        assert [expected_call] == m_ipv4address.call_args_list
+
 
 # vi: ts=4 expandtab

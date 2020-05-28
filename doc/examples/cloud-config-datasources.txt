@@ -1,3 +1,5 @@
+#cloud-config
+
 # Documentation on data sources configuration options
 datasource:
   # Ec2 
@@ -38,10 +40,10 @@ datasource:
     # these are optional, but allow you to basically provide a datasource
     # right here
     user-data: |
-       # This is the user-data verbatim
+      # This is the user-data verbatim
     meta-data:
-       instance-id: i-87018aed
-       local-hostname: myhost.internal
+      instance-id: i-87018aed
+      local-hostname: myhost.internal
 
   Azure:
     agent_command: [service, walinuxagent, start]

@@ -11,15 +11,8 @@ import logging
 import os
 import re
 import unittest
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
+from contextlib import ExitStack
+from unittest import mock
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'

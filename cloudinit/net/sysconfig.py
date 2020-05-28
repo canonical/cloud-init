@@ -1,16 +1,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
+import io
 import os
 import re
 
-import six
+from configobj import ConfigObj
 
-from cloudinit.distros.parsers import networkmanager_conf
-from cloudinit.distros.parsers import resolv_conf
 from cloudinit import log as logging
 from cloudinit import util
-
-from configobj import ConfigObj
+from cloudinit.distros.parsers import networkmanager_conf
+from cloudinit.distros.parsers import resolv_conf
 
 from . import renderer
 from .network_state import (
@@ -86,6 +86,9 @@ class ConfigMap(object):
     def __getitem__(self, key):
         return self._conf[key]
 
+    def get(self, key):
+        return self._conf.get(key)
+
     def __contains__(self, key):
         return key in self._conf
 
@@ -96,7 +99,7 @@ class ConfigMap(object):
         return len(self._conf)
 
     def to_string(self):
-        buf = six.StringIO()
+        buf = io.StringIO()
         buf.write(_make_header())
         if self._conf:
             buf.write("\n")
@@ -104,10 +107,13 @@ class ConfigMap(object):
             value = self._conf[key]
             if isinstance(value, bool):
                 value = self._bool_map[value]
-            if not isinstance(value, six.string_types):
+            if not isinstance(value, str):
                 value = str(value)
             buf.write("%s=%s\n" % (key, _quote_value(value)))
         return buf.getvalue()
+
+    def update(self, updates):
+        self._conf.update(updates)
 
 
 class Route(ConfigMap):
@@ -150,7 +156,7 @@ class Route(ConfigMap):
         # only accept ipv4 and ipv6
         if proto not in ['ipv4', 'ipv6']:
             raise ValueError("Unknown protocol '%s'" % (str(proto)))
-        buf = six.StringIO()
+        buf = io.StringIO()
         buf.write(_make_header())
         if self._conf:
             buf.write("\n")
@@ -269,13 +275,29 @@ class Renderer(renderer.Renderer):
     #      s1-networkscripts-interfaces.html (or other docs for
     #                                         details about this)
 
-    iface_defaults = tuple([
-        ('ONBOOT', True),
-        ('USERCTL', False),
-        ('NM_CONTROLLED', False),
-        ('BOOTPROTO', 'none'),
-        ('STARTMODE', 'auto'),
-    ])
+    iface_defaults = {
+        'rhel': {'ONBOOT': True, 'USERCTL': False, 'NM_CONTROLLED': False,
+                 'BOOTPROTO': 'none'},
+        'suse': {'BOOTPROTO': 'static', 'STARTMODE': 'auto'},
+    }
+
+    cfg_key_maps = {
+        'rhel': {
+            'accept-ra': 'IPV6_FORCE_ACCEPT_RA',
+            'bridge_stp': 'STP',
+            'bridge_ageing': 'AGEING',
+            'bridge_bridgeprio': 'PRIO',
+            'mac_address': 'HWADDR',
+            'mtu': 'MTU',
+        },
+        'suse': {
+            'bridge_stp': 'BRIDGE_STP',
+            'bridge_ageing': 'BRIDGE_AGEINGTIME',
+            'bridge_bridgeprio': 'BRIDGE_PRIORITY',
+            'mac_address': 'LLADDR',
+            'mtu': 'MTU',
+        },
+    }
 
     # If these keys exist, then their values will be used to form
     # a BONDING_OPTS grouping; otherwise no grouping will be set.
@@ -297,12 +319,6 @@ class Renderer(renderer.Renderer):
         ('bond_primary_reselect', "primary_reselect=%s"),
     ])
 
-    bridge_opts_keys = tuple([
-        ('bridge_stp', 'STP'),
-        ('bridge_ageing', 'AGEING'),
-        ('bridge_bridgeprio', 'PRIO'),
-    ])
-
     templates = {}
 
     def __init__(self, config=None):
@@ -320,65 +336,101 @@ class Renderer(renderer.Renderer):
             'iface_templates': config.get('iface_templates'),
             'route_templates': config.get('route_templates'),
         }
+        self.flavor = config.get('flavor', 'rhel')
 
     @classmethod
-    def _render_iface_shared(cls, iface, iface_cfg):
-        for k, v in cls.iface_defaults:
-            iface_cfg[k] = v
+    def _render_iface_shared(cls, iface, iface_cfg, flavor):
+        flavor_defaults = copy.deepcopy(cls.iface_defaults.get(flavor, {}))
+        iface_cfg.update(flavor_defaults)
 
-        for (old_key, new_key) in [('mac_address', 'HWADDR'), ('mtu', 'MTU')]:
+        for old_key in ('mac_address', 'mtu', 'accept-ra'):
             old_value = iface.get(old_key)
             if old_value is not None:
                 # only set HWADDR on physical interfaces
                 if (old_key == 'mac_address' and
                    iface['type'] not in ['physical', 'infiniband']):
                     continue
-                iface_cfg[new_key] = old_value
-
-        if iface['accept-ra'] is not None:
-            iface_cfg['IPV6_FORCE_ACCEPT_RA'] = iface['accept-ra']
+                new_key = cls.cfg_key_maps[flavor].get(old_key)
+                if new_key:
+                    iface_cfg[new_key] = old_value
 
     @classmethod
-    def _render_subnets(cls, iface_cfg, subnets, has_default_route):
+    def _render_subnets(cls, iface_cfg, subnets, has_default_route, flavor):
         # setting base values
-        iface_cfg['BOOTPROTO'] = 'none'
+        if flavor == 'suse':
+            iface_cfg['BOOTPROTO'] = 'static'
+            if 'BRIDGE' in iface_cfg:
+                iface_cfg['BOOTPROTO'] = 'dhcp'
+                iface_cfg.drop('BRIDGE')
+        else:
+            iface_cfg['BOOTPROTO'] = 'none'
 
         # modifying base values according to subnets
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             mtu_key = 'MTU'
             subnet_type = subnet.get('type')
             if subnet_type == 'dhcp6' or subnet_type == 'ipv6_dhcpv6-stateful':
-                # TODO need to set BOOTPROTO to dhcp6 on SUSE
-                iface_cfg['IPV6INIT'] = True
-                # Configure network settings using DHCPv6
-                iface_cfg['DHCPV6C'] = True
+                if flavor == 'suse':
+                    # User wants dhcp for both protocols
+                    if iface_cfg['BOOTPROTO'] == 'dhcp4':
+                        iface_cfg['BOOTPROTO'] = 'dhcp'
+                    else:
+                        # Only IPv6 is DHCP, IPv4 may be static
+                        iface_cfg['BOOTPROTO'] = 'dhcp6'
+                    iface_cfg['DHCLIENT6_MODE'] = 'managed'
+                else:
+                    iface_cfg['IPV6INIT'] = True
+                    # Configure network settings using DHCPv6
+                    iface_cfg['DHCPV6C'] = True
             elif subnet_type == 'ipv6_dhcpv6-stateless':
-                iface_cfg['IPV6INIT'] = True
-                # Configure network settings using SLAAC from RAs and optional
-                # info from dhcp server using DHCPv6
-                iface_cfg['IPV6_AUTOCONF'] = True
-                iface_cfg['DHCPV6C'] = True
-                # Use Information-request to get only stateless configuration
-                # parameters (i.e., without address).
-                iface_cfg['DHCPV6C_OPTIONS'] = '-S'
+                if flavor == 'suse':
+                    # User wants dhcp for both protocols
+                    if iface_cfg['BOOTPROTO'] == 'dhcp4':
+                        iface_cfg['BOOTPROTO'] = 'dhcp'
+                    else:
+                        # Only IPv6 is DHCP, IPv4 may be static
+                        iface_cfg['BOOTPROTO'] = 'dhcp6'
+                    iface_cfg['DHCLIENT6_MODE'] = 'info'
+                else:
+                    iface_cfg['IPV6INIT'] = True
+                    # Configure network settings using SLAAC from RAs and
+                    # optional info from dhcp server using DHCPv6
+                    iface_cfg['IPV6_AUTOCONF'] = True
+                    iface_cfg['DHCPV6C'] = True
+                    # Use Information-request to get only stateless
+                    # configuration parameters (i.e., without address).
+                    iface_cfg['DHCPV6C_OPTIONS'] = '-S'
             elif subnet_type == 'ipv6_slaac':
-                iface_cfg['IPV6INIT'] = True
-                # Configure network settings using SLAAC from RAs
-                iface_cfg['IPV6_AUTOCONF'] = True
+                if flavor == 'suse':
+                    # User wants dhcp for both protocols
+                    if iface_cfg['BOOTPROTO'] == 'dhcp4':
+                        iface_cfg['BOOTPROTO'] = 'dhcp'
+                    else:
+                        # Only IPv6 is DHCP, IPv4 may be static
+                        iface_cfg['BOOTPROTO'] = 'dhcp6'
+                    iface_cfg['DHCLIENT6_MODE'] = 'info'
+                else:
+                    iface_cfg['IPV6INIT'] = True
+                    # Configure network settings using SLAAC from RAs
+                    iface_cfg['IPV6_AUTOCONF'] = True
             elif subnet_type in ['dhcp4', 'dhcp']:
+                bootproto_in = iface_cfg['BOOTPROTO']
                 iface_cfg['BOOTPROTO'] = 'dhcp'
+                if flavor == 'suse' and subnet_type == 'dhcp4':
+                    # If dhcp6 is already specified the user wants dhcp
+                    # for both protocols
+                    if bootproto_in != 'dhcp6':
+                        # Only IPv4 is DHCP, IPv6 may be static
+                        iface_cfg['BOOTPROTO'] = 'dhcp4'
             elif subnet_type in ['static', 'static6']:
+                # RH info
                 # grep BOOTPROTO sysconfig.txt -A2 | head -3
                 # BOOTPROTO=none|bootp|dhcp
                 # 'bootp' or 'dhcp' cause a DHCP client
                 # to run on the device. Any other
                 # value causes any static configuration
                 # in the file to be applied.
-                # ==> the following should not be set to 'static'
-                # but should remain 'none'
-                # if iface_cfg['BOOTPROTO'] == 'none':
-                #    iface_cfg['BOOTPROTO'] = 'static'
-                if subnet_is_ipv6(subnet):
+                if subnet_is_ipv6(subnet) and flavor != 'suse':
                     mtu_key = 'IPV6_MTU'
                     iface_cfg['IPV6INIT'] = True
                 if 'mtu' in subnet:
@@ -389,18 +441,31 @@ class Renderer(renderer.Renderer):
                             'Network config: ignoring %s device-level mtu:%s'
                             ' because ipv4 subnet-level mtu:%s provided.',
                             iface_cfg.name, iface_cfg[mtu_key], subnet['mtu'])
-                    iface_cfg[mtu_key] = subnet['mtu']
+                    if subnet_is_ipv6(subnet):
+                        if flavor == 'suse':
+                            # TODO(rjschwei) write mtu setting to
+                            # /etc/sysctl.d/
+                            pass
+                        else:
+                            iface_cfg[mtu_key] = subnet['mtu']
+                    else:
+                        iface_cfg[mtu_key] = subnet['mtu']
             elif subnet_type == 'manual':
-                # If the subnet has an MTU setting, then ONBOOT=True
-                # to apply the setting
-                iface_cfg['ONBOOT'] = mtu_key in iface_cfg
+                if flavor == 'suse':
+                    LOG.debug('Unknown subnet type setting "%s"', subnet_type)
+                else:
+                    # If the subnet has an MTU setting, then ONBOOT=True
+                    # to apply the setting
+                    iface_cfg['ONBOOT'] = mtu_key in iface_cfg
             else:
                 raise ValueError("Unknown subnet type '%s' found"
                                  " for interface '%s'" % (subnet_type,
                                                           iface_cfg.name))
             if subnet.get('control') == 'manual':
-                iface_cfg['ONBOOT'] = False
-                iface_cfg['STARTMODE'] = 'manual'
+                if flavor == 'suse':
+                    iface_cfg['STARTMODE'] = 'manual'
+                else:
+                    iface_cfg['ONBOOT'] = False
 
         # set IPv4 and IPv6 static addresses
         ipv4_index = -1
@@ -409,13 +474,14 @@ class Renderer(renderer.Renderer):
             subnet_type = subnet.get('type')
             # metric may apply to both dhcp and static config
             if 'metric' in subnet:
-                iface_cfg['METRIC'] = subnet['metric']
-            # TODO(hjensas): Including dhcp6 here is likely incorrect. DHCPv6
-            # does not ever provide a default gateway, the default gateway
-            # come from RA's. (https://github.com/openSUSE/wicked/issues/570)
-            if subnet_type in ['dhcp', 'dhcp4', 'dhcp6']:
-                if has_default_route and iface_cfg['BOOTPROTO'] != 'none':
-                    iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = False
+                if flavor != 'suse':
+                    iface_cfg['METRIC'] = subnet['metric']
+            if subnet_type in ['dhcp', 'dhcp4']:
+                # On SUSE distros 'DHCLIENT_SET_DEFAULT_ROUTE' is a global
+                # setting in /etc/sysconfig/network/dhcp
+                if flavor != 'suse':
+                    if has_default_route and iface_cfg['BOOTPROTO'] != 'none':
+                        iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = False
                 continue
             elif subnet_type in IPV6_DYNAMIC_TYPES:
                 continue
@@ -424,14 +490,21 @@ class Renderer(renderer.Renderer):
                     ipv6_index = ipv6_index + 1
                     ipv6_cidr = "%s/%s" % (subnet['address'], subnet['prefix'])
                     if ipv6_index == 0:
-                        iface_cfg['IPV6ADDR'] = ipv6_cidr
-                        iface_cfg['IPADDR6'] = ipv6_cidr
+                        if flavor == 'suse':
+                            iface_cfg['IPADDR6'] = ipv6_cidr
+                        else:
+                            iface_cfg['IPV6ADDR'] = ipv6_cidr
                     elif ipv6_index == 1:
-                        iface_cfg['IPV6ADDR_SECONDARIES'] = ipv6_cidr
-                        iface_cfg['IPADDR6_0'] = ipv6_cidr
+                        if flavor == 'suse':
+                            iface_cfg['IPADDR6_1'] = ipv6_cidr
+                        else:
+                            iface_cfg['IPV6ADDR_SECONDARIES'] = ipv6_cidr
                     else:
-                        iface_cfg['IPV6ADDR_SECONDARIES'] += " " + ipv6_cidr
-                        iface_cfg['IPADDR6_%d' % ipv6_index] = ipv6_cidr
+                        if flavor == 'suse':
+                            iface_cfg['IPADDR6_%d' % ipv6_index] = ipv6_cidr
+                        else:
+                            iface_cfg['IPV6ADDR_SECONDARIES'] += \
+                                                        " " + ipv6_cidr
                 else:
                     ipv4_index = ipv4_index + 1
                     suff = "" if ipv4_index == 0 else str(ipv4_index)
@@ -439,17 +512,17 @@ class Renderer(renderer.Renderer):
                     iface_cfg['NETMASK' + suff] = \
                         net_prefix_to_ipv4_mask(subnet['prefix'])
 
-                if 'gateway' in subnet:
+                if 'gateway' in subnet and flavor != 'suse':
                     iface_cfg['DEFROUTE'] = True
                     if is_ipv6_addr(subnet['gateway']):
                         iface_cfg['IPV6_DEFAULTGW'] = subnet['gateway']
                     else:
                         iface_cfg['GATEWAY'] = subnet['gateway']
 
-                if 'dns_search' in subnet:
+                if 'dns_search' in subnet and flavor != 'suse':
                     iface_cfg['DOMAIN'] = ' '.join(subnet['dns_search'])
 
-                if 'dns_nameservers' in subnet:
+                if 'dns_nameservers' in subnet and flavor != 'suse':
                     if len(subnet['dns_nameservers']) > 3:
                         # per resolv.conf(5) MAXNS sets this to 3.
                         LOG.debug("%s has %d entries in dns_nameservers. "
@@ -459,7 +532,12 @@ class Renderer(renderer.Renderer):
                         iface_cfg['DNS' + str(i)] = k
 
     @classmethod
-    def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
+    def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets, flavor):
+        # TODO(rjschwei): route configuration on SUSE distro happens via
+        # ifroute-* files, see lp#1812117. SUSE currently carries a local
+        # patch in their package.
+        if flavor == 'suse':
+            return
         for _, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             subnet_type = subnet.get('type')
             for route in subnet.get('routes', []):
@@ -487,14 +565,7 @@ class Renderer(renderer.Renderer):
                     # TODO(harlowja): add validation that no other iface has
                     # also provided the default route?
                     iface_cfg['DEFROUTE'] = True
-                    # TODO(hjensas): Including dhcp6 here is likely incorrect.
-                    # DHCPv6 does not ever provide a default gateway, the
-                    # default gateway come from RA's.
-                    # (https://github.com/openSUSE/wicked/issues/570)
-                    if iface_cfg['BOOTPROTO'] in ('dhcp', 'dhcp4', 'dhcp6'):
-                        # NOTE(hjensas): DHCLIENT_SET_DEFAULT_ROUTE is SuSE
-                        # only. RHEL, CentOS, Fedora does not implement this
-                        # option.
+                    if iface_cfg['BOOTPROTO'] in ('dhcp', 'dhcp4'):
                         iface_cfg['DHCLIENT_SET_DEFAULT_ROUTE'] = True
                     if 'gateway' in route:
                         if is_ipv6:
@@ -538,7 +609,9 @@ class Renderer(renderer.Renderer):
             iface_cfg['BONDING_OPTS'] = " ".join(bond_opts)
 
     @classmethod
-    def _render_physical_interfaces(cls, network_state, iface_contents):
+    def _render_physical_interfaces(
+            cls, network_state, iface_contents, flavor
+    ):
         physical_filter = renderer.filter_by_physical
         for iface in network_state.iter_interfaces(physical_filter):
             iface_name = iface['name']
@@ -547,12 +620,15 @@ class Renderer(renderer.Renderer):
             route_cfg = iface_cfg.routes
 
             cls._render_subnets(
-                iface_cfg, iface_subnets, network_state.has_default_route
+                iface_cfg, iface_subnets, network_state.has_default_route,
+                flavor
             )
-            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
+            cls._render_subnet_routes(
+                iface_cfg, route_cfg, iface_subnets, flavor
+            )
 
     @classmethod
-    def _render_bond_interfaces(cls, network_state, iface_contents):
+    def _render_bond_interfaces(cls, network_state, iface_contents, flavor):
         bond_filter = renderer.filter_by_type('bond')
         slave_filter = renderer.filter_by_attr('bond-master')
         for iface in network_state.iter_interfaces(bond_filter):
@@ -566,17 +642,24 @@ class Renderer(renderer.Renderer):
             master_cfgs.extend(iface_cfg.children)
             for master_cfg in master_cfgs:
                 master_cfg['BONDING_MASTER'] = True
-                master_cfg.kind = 'bond'
+                if flavor != 'suse':
+                    master_cfg.kind = 'bond'
 
             if iface.get('mac_address'):
-                iface_cfg['MACADDR'] = iface.get('mac_address')
+                if flavor == 'suse':
+                    iface_cfg['LLADDR'] = iface.get('mac_address')
+                else:
+                    iface_cfg['MACADDR'] = iface.get('mac_address')
 
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
             cls._render_subnets(
-                iface_cfg, iface_subnets, network_state.has_default_route
+                iface_cfg, iface_subnets, network_state.has_default_route,
+                flavor
             )
-            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
+            cls._render_subnet_routes(
+                iface_cfg, route_cfg, iface_subnets, flavor
+            )
 
             # iter_interfaces on network-state is not sorted to produce
             # consistent numbers we need to sort.
@@ -586,28 +669,44 @@ class Renderer(renderer.Renderer):
                  if slave_iface['bond-master'] == iface_name])
 
             for index, bond_slave in enumerate(bond_slaves):
-                slavestr = 'BONDING_SLAVE%s' % index
+                if flavor == 'suse':
+                    slavestr = 'BONDING_SLAVE_%s' % index
+                else:
+                    slavestr = 'BONDING_SLAVE%s' % index
                 iface_cfg[slavestr] = bond_slave
 
                 slave_cfg = iface_contents[bond_slave]
-                slave_cfg['MASTER'] = iface_name
-                slave_cfg['SLAVE'] = True
+                if flavor == 'suse':
+                    slave_cfg['BOOTPROTO'] = 'none'
+                    slave_cfg['STARTMODE'] = 'hotplug'
+                else:
+                    slave_cfg['MASTER'] = iface_name
+                    slave_cfg['SLAVE'] = True
 
     @classmethod
-    def _render_vlan_interfaces(cls, network_state, iface_contents):
+    def _render_vlan_interfaces(cls, network_state, iface_contents, flavor):
         vlan_filter = renderer.filter_by_type('vlan')
         for iface in network_state.iter_interfaces(vlan_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
-            iface_cfg['VLAN'] = True
-            iface_cfg['PHYSDEV'] = iface_name[:iface_name.rfind('.')]
+            if flavor == 'suse':
+                vlan_id = iface.get('vlan_id')
+                if vlan_id:
+                    iface_cfg['VLAN_ID'] = vlan_id
+                iface_cfg['ETHERDEVICE'] = iface_name[:iface_name.rfind('.')]
+            else:
+                iface_cfg['VLAN'] = True
+                iface_cfg['PHYSDEV'] = iface_name[:iface_name.rfind('.')]
 
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
             cls._render_subnets(
-                iface_cfg, iface_subnets, network_state.has_default_route
+                iface_cfg, iface_subnets, network_state.has_default_route,
+                flavor
             )
-            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
+            cls._render_subnet_routes(
+                iface_cfg, route_cfg, iface_subnets, flavor
+            )
 
     @staticmethod
     def _render_dns(network_state, existing_dns_path=None):
@@ -644,19 +743,39 @@ class Renderer(renderer.Renderer):
         return out
 
     @classmethod
-    def _render_bridge_interfaces(cls, network_state, iface_contents):
+    def _render_bridge_interfaces(cls, network_state, iface_contents, flavor):
+        bridge_key_map = {
+            old_k: new_k for old_k, new_k in cls.cfg_key_maps[flavor].items()
+            if old_k.startswith('bridge')}
         bridge_filter = renderer.filter_by_type('bridge')
+
         for iface in network_state.iter_interfaces(bridge_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
-            iface_cfg.kind = 'bridge'
-            for old_key, new_key in cls.bridge_opts_keys:
+            if flavor != 'suse':
+                iface_cfg.kind = 'bridge'
+            for old_key, new_key in bridge_key_map.items():
                 if old_key in iface:
                     iface_cfg[new_key] = iface[old_key]
 
-            if iface.get('mac_address'):
-                iface_cfg['MACADDR'] = iface.get('mac_address')
+            if flavor == 'suse':
+                if 'BRIDGE_STP' in iface_cfg:
+                    if iface_cfg.get('BRIDGE_STP'):
+                        iface_cfg['BRIDGE_STP'] = 'on'
+                    else:
+                        iface_cfg['BRIDGE_STP'] = 'off'
 
+            if iface.get('mac_address'):
+                key = 'MACADDR'
+                if flavor == 'suse':
+                    key = 'LLADDRESS'
+                iface_cfg[key] = iface.get('mac_address')
+
+            if flavor == 'suse':
+                if iface.get('bridge_ports', []):
+                    iface_cfg['BRIDGE_PORTS'] = '%s' % " ".join(
+                        iface.get('bridge_ports')
+                    )
             # Is this the right key to get all the connected interfaces?
             for bridged_iface_name in iface.get('bridge_ports', []):
                 # Ensure all bridged interfaces are correctly tagged
@@ -665,17 +784,23 @@ class Renderer(renderer.Renderer):
                 bridged_cfgs = [bridged_cfg]
                 bridged_cfgs.extend(bridged_cfg.children)
                 for bridge_cfg in bridged_cfgs:
-                    bridge_cfg['BRIDGE'] = iface_name
+                    bridge_value = iface_name
+                    if flavor == 'suse':
+                        bridge_value = 'yes'
+                    bridge_cfg['BRIDGE'] = bridge_value
 
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
             cls._render_subnets(
-                iface_cfg, iface_subnets, network_state.has_default_route
+                iface_cfg, iface_subnets, network_state.has_default_route,
+                flavor
             )
-            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
+            cls._render_subnet_routes(
+                iface_cfg, route_cfg, iface_subnets, flavor
+            )
 
     @classmethod
-    def _render_ib_interfaces(cls, network_state, iface_contents):
+    def _render_ib_interfaces(cls, network_state, iface_contents, flavor):
         ib_filter = renderer.filter_by_type('infiniband')
         for iface in network_state.iter_interfaces(ib_filter):
             iface_name = iface['name']
@@ -684,12 +809,15 @@ class Renderer(renderer.Renderer):
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
             cls._render_subnets(
-                iface_cfg, iface_subnets, network_state.has_default_route
+                iface_cfg, iface_subnets, network_state.has_default_route,
+                flavor
             )
-            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
+            cls._render_subnet_routes(
+                iface_cfg, route_cfg, iface_subnets, flavor
+            )
 
     @classmethod
-    def _render_sysconfig(cls, base_sysconf_dir, network_state,
+    def _render_sysconfig(cls, base_sysconf_dir, network_state, flavor,
                           templates=None):
         '''Given state, return /etc/sysconfig files + contents'''
         if not templates:
@@ -700,13 +828,17 @@ class Renderer(renderer.Renderer):
                 continue
             iface_name = iface['name']
             iface_cfg = NetInterface(iface_name, base_sysconf_dir, templates)
-            cls._render_iface_shared(iface, iface_cfg)
+            if flavor == 'suse':
+                iface_cfg.drop('DEVICE')
+                # If type detection fails it is considered a bug in SUSE
+                iface_cfg.drop('TYPE')
+            cls._render_iface_shared(iface, iface_cfg, flavor)
             iface_contents[iface_name] = iface_cfg
-        cls._render_physical_interfaces(network_state, iface_contents)
-        cls._render_bond_interfaces(network_state, iface_contents)
-        cls._render_vlan_interfaces(network_state, iface_contents)
-        cls._render_bridge_interfaces(network_state, iface_contents)
-        cls._render_ib_interfaces(network_state, iface_contents)
+        cls._render_physical_interfaces(network_state, iface_contents, flavor)
+        cls._render_bond_interfaces(network_state, iface_contents, flavor)
+        cls._render_vlan_interfaces(network_state, iface_contents, flavor)
+        cls._render_bridge_interfaces(network_state, iface_contents, flavor)
+        cls._render_ib_interfaces(network_state, iface_contents, flavor)
         contents = {}
         for iface_name, iface_cfg in iface_contents.items():
             if iface_cfg or iface_cfg.children:
@@ -728,7 +860,7 @@ class Renderer(renderer.Renderer):
         file_mode = 0o644
         base_sysconf_dir = util.target_path(target, self.sysconf_dir)
         for path, data in self._render_sysconfig(base_sysconf_dir,
-                                                 network_state,
+                                                 network_state, self.flavor,
                                                  templates=templates).items():
             util.write_file(path, data, file_mode)
         if self.dns_path:

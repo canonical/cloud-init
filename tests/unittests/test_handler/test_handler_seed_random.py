@@ -12,8 +12,7 @@ from cloudinit.config import cc_seed_random
 
 import gzip
 import tempfile
-
-from six import BytesIO
+from io import BytesIO
 
 from cloudinit import cloud
 from cloudinit import distros

@@ -9,21 +9,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
-from collections import namedtuple
 import copy
 import json
 import os
-import six
+from collections import namedtuple
 
-from cloudinit.atomic_helper import write_json
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.event import EventType
 from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
-
+from cloudinit.atomic_helper import write_json
+from cloudinit.event import EventType
 from cloudinit.filters import launch_index
 from cloudinit.reporting import events
 
@@ -91,26 +89,26 @@ def process_instance_metadata(metadata, key_path='', sensitive_keys=()):
     @return Dict copy of processed metadata.
     """
     md_copy = copy.deepcopy(metadata)
-    md_copy['base64_encoded_keys'] = []
-    md_copy['sensitive_keys'] = []
+    base64_encoded_keys = []
+    sens_keys = []
     for key, val in metadata.items():
         if key_path:
             sub_key_path = key_path + '/' + key
         else:
             sub_key_path = key
         if key in sensitive_keys or sub_key_path in sensitive_keys:
-            md_copy['sensitive_keys'].append(sub_key_path)
+            sens_keys.append(sub_key_path)
         if isinstance(val, str) and val.startswith('ci-b64:'):
-            md_copy['base64_encoded_keys'].append(sub_key_path)
+            base64_encoded_keys.append(sub_key_path)
             md_copy[key] = val.replace('ci-b64:', '')
         if isinstance(val, dict):
             return_val = process_instance_metadata(
                 val, sub_key_path, sensitive_keys)
-            md_copy['base64_encoded_keys'].extend(
-                return_val.pop('base64_encoded_keys'))
-            md_copy['sensitive_keys'].extend(
-                return_val.pop('sensitive_keys'))
+            base64_encoded_keys.extend(return_val.pop('base64_encoded_keys'))
+            sens_keys.extend(return_val.pop('sensitive_keys'))
             md_copy[key] = return_val
+    md_copy['base64_encoded_keys'] = sorted(base64_encoded_keys)
+    md_copy['sensitive_keys'] = sorted(sens_keys)
     return md_copy
 
 
@@ -136,8 +134,7 @@ URLParams = namedtuple(
     'URLParms', ['max_wait_seconds', 'timeout_seconds', 'num_retries'])
 
 
-@six.add_metaclass(abc.ABCMeta)
-class DataSource(object):
+class DataSource(metaclass=abc.ABCMeta):
 
     dsmode = DSMODE_NETWORK
     default_locale = 'en_US.UTF-8'
@@ -196,7 +193,7 @@ class DataSource(object):
 
     # N-tuple of keypaths or keynames redact from instance-data.json for
     # non-root users
-    sensitive_metadata_keys = ('security-credentials',)
+    sensitive_metadata_keys = ('merged_cfg', 'security-credentials',)
 
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
@@ -221,14 +218,15 @@ class DataSource(object):
     def __str__(self):
         return type_utils.obj_name(self)
 
-    def _get_standardized_metadata(self):
+    def _get_standardized_metadata(self, instance_data):
         """Return a dictionary of standardized metadata keys."""
         local_hostname = self.get_hostname()
         instance_id = self.get_instance_id()
         availability_zone = self.availability_zone
         # In the event of upgrade from existing cloudinit, pickled datasource
         # will not contain these new class attributes. So we need to recrawl
-        # metadata to discover that content.
+        # metadata to discover that content
+        sysinfo = instance_data["sys_info"]
         return {
             'v1': {
                 '_beta_keys': ['subplatform'],
@@ -236,14 +234,22 @@ class DataSource(object):
                 'availability_zone': availability_zone,
                 'cloud-name': self.cloud_name,
                 'cloud_name': self.cloud_name,
+                'distro': sysinfo["dist"][0],
+                'distro_version': sysinfo["dist"][1],
+                'distro_release': sysinfo["dist"][2],
                 'platform': self.platform_type,
                 'public_ssh_keys': self.get_public_ssh_keys(),
+                'python_version': sysinfo["python"],
                 'instance-id': instance_id,
                 'instance_id': instance_id,
+                'kernel_release': sysinfo["uname"][2],
                 'local-hostname': local_hostname,
                 'local_hostname': local_hostname,
+                'machine': sysinfo["uname"][4],
                 'region': self.region,
-                'subplatform': self.subplatform}}
+                'subplatform': self.subplatform,
+                'system_platform': sysinfo["platform"],
+                'variant': sysinfo["variant"]}}
 
     def clear_cached_attrs(self, attr_defaults=()):
         """Reset any cached metadata attributes to datasource defaults.
@@ -302,9 +308,15 @@ class DataSource(object):
                 ec2_metadata = getattr(self, 'ec2_metadata')
                 if ec2_metadata != UNSET:
                     instance_data['ds']['ec2_metadata'] = ec2_metadata
-        instance_data.update(
-            self._get_standardized_metadata())
         instance_data['ds']['_doc'] = EXPERIMENTAL_TEXT
+        # Add merged cloud.cfg and sys info for jinja templates and cli query
+        instance_data['merged_cfg'] = copy.deepcopy(self.sys_cfg)
+        instance_data['merged_cfg']['_doc'] = (
+            'Merged cloud-init system config from /etc/cloud/cloud.cfg and'
+            ' /etc/cloud/cloud.cfg.d/')
+        instance_data['sys_info'] = util.system_info()
+        instance_data.update(
+            self._get_standardized_metadata(instance_data))
         try:
             # Process content base64encoding unserializable values
             content = util.json_dumps(instance_data)
@@ -318,12 +330,12 @@ class DataSource(object):
         except UnicodeDecodeError as e:
             LOG.warning('Error persisting instance-data.json: %s', str(e))
             return False
-        json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
-        write_json(json_file, processed_data)  # World readable
         json_sensitive_file = os.path.join(self.paths.run_dir,
                                            INSTANCE_JSON_SENSITIVE_FILE)
-        write_json(json_sensitive_file,
-                   redact_sensitive_keys(processed_data), mode=0o600)
+        write_json(json_sensitive_file, processed_data, mode=0o600)
+        json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
+        # World readable
+        write_json(json_file, redact_sensitive_keys(processed_data))
         return True
 
     def _get_data(self):
@@ -436,7 +448,7 @@ class DataSource(object):
             return self._cloud_name
         if self.metadata and self.metadata.get(METADATA_CLOUD_NAME_KEY):
             cloud_name = self.metadata.get(METADATA_CLOUD_NAME_KEY)
-            if isinstance(cloud_name, six.string_types):
+            if isinstance(cloud_name, str):
                 self._cloud_name = cloud_name.lower()
             else:
                 self._cloud_name = self._get_cloud_name().lower()
@@ -590,7 +602,7 @@ class DataSource(object):
             # if there is an ipv4 address in 'local-hostname', then
             # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
             lhost = self.metadata['local-hostname']
-            if util.is_ipv4(lhost):
+            if net.is_ipv4_address(lhost):
                 toks = []
                 if resolve_ip:
                     toks = util.gethostbyaddr(lhost)
@@ -718,8 +730,8 @@ def normalize_pubkey_data(pubkey_data):
     if not pubkey_data:
         return keys
 
-    if isinstance(pubkey_data, six.string_types):
-        return str(pubkey_data).splitlines()
+    if isinstance(pubkey_data, str):
+        return pubkey_data.splitlines()
 
     if isinstance(pubkey_data, (list, set)):
         return list(pubkey_data)
@@ -729,7 +741,7 @@ def normalize_pubkey_data(pubkey_data):
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
-            if isinstance(klist, six.string_types):
+            if isinstance(klist, str):
                 klist = [klist]
             if isinstance(klist, (list, set)):
                 for pkey in klist:
@@ -837,7 +849,7 @@ def convert_vendordata(data, recurse=True):
     """
     if not data:
         return None
-    if isinstance(data, six.string_types):
+    if isinstance(data, str):
         return data
     if isinstance(data, list):
         return copy.deepcopy(data)

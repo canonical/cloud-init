@@ -12,15 +12,12 @@ import copy
 import functools
 import os
 
-import six
-
 from cloudinit import ec2_utils
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
-
 from cloudinit.sources import BrokenMetadata
 
 # See https://docs.openstack.org/user-guide/cli-config-drive.html
@@ -71,6 +68,7 @@ KNOWN_PHYSICAL_TYPES = (
     None,
     'bgpovs',  # not present in OpenStack upstream but used on OVH cloud.
     'bridge',
+    'cascading',  # not present in OpenStack upstream, used on OpenTelekomCloud
     'dvs',
     'ethernet',
     'hw_veb',
@@ -163,8 +161,7 @@ class SourceMixin(object):
             return device
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseReader(object):
+class BaseReader(metaclass=abc.ABCMeta):
 
     def __init__(self, base_path):
         self.base_path = base_path
@@ -227,7 +224,7 @@ class BaseReader(object):
         """
 
         load_json_anytype = functools.partial(
-            util.load_json, root_types=(dict, list) + six.string_types)
+            util.load_json, root_types=(dict, list, str))
 
         def datafiles(version):
             files = {}

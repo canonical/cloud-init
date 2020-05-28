@@ -1,8 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from collections import namedtuple
 import os
-import six
+import io
+from collections import namedtuple
 
 from cloudinit.cmd import main as cli
 from cloudinit.tests import helpers as test_helpers
@@ -18,7 +18,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
 
     def setUp(self):
         super(TestCLI, self).setUp()
-        self.stderr = six.StringIO()
+        self.stderr = io.StringIO()
         self.patchStdoutAndStderr(stderr=self.stderr)
 
     def _call_main(self, sysv_args=None):
@@ -147,7 +147,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
 
     def test_conditional_subcommands_from_entry_point_sys_argv(self):
         """Subcommands from entry-point are properly parsed from sys.argv."""
-        stdout = six.StringIO()
+        stdout = io.StringIO()
         self.patchStdoutAndStderr(stdout=stdout)
 
         expected_errors = [
@@ -178,7 +178,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
     def test_collect_logs_subcommand_parser(self):
         """The subcommand cloud-init collect-logs calls the subparser."""
         # Provide -h param to collect-logs to avoid having to mock behavior.
-        stdout = six.StringIO()
+        stdout = io.StringIO()
         self.patchStdoutAndStderr(stdout=stdout)
         self._call_main(['cloud-init', 'collect-logs', '-h'])
         self.assertIn('usage: cloud-init collect-log', stdout.getvalue())
@@ -186,7 +186,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
     def test_clean_subcommand_parser(self):
         """The subcommand cloud-init clean calls the subparser."""
         # Provide -h param to clean to avoid having to mock behavior.
-        stdout = six.StringIO()
+        stdout = io.StringIO()
         self.patchStdoutAndStderr(stdout=stdout)
         self._call_main(['cloud-init', 'clean', '-h'])
         self.assertIn('usage: cloud-init clean', stdout.getvalue())
@@ -194,7 +194,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
     def test_status_subcommand_parser(self):
         """The subcommand cloud-init status calls the subparser."""
         # Provide -h param to clean to avoid having to mock behavior.
-        stdout = six.StringIO()
+        stdout = io.StringIO()
         self.patchStdoutAndStderr(stdout=stdout)
         self._call_main(['cloud-init', 'status', '-h'])
         self.assertIn('usage: cloud-init status', stdout.getvalue())
@@ -214,14 +214,14 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self.assertEqual(1, exit_code)
         # Known whitebox output from schema subcommand
         self.assertEqual(
-            'Expected either --config-file argument or --doc\n',
+            'Expected either --config-file argument or --docs\n',
             self.stderr.getvalue())
 
     def test_wb_devel_schema_subcommand_doc_content(self):
         """Validate that doc content is sane from known examples."""
-        stdout = six.StringIO()
+        stdout = io.StringIO()
         self.patchStdoutAndStderr(stdout=stdout)
-        self._call_main(['cloud-init', 'devel', 'schema', '--doc'])
+        self._call_main(['cloud-init', 'devel', 'schema', '--docs', 'all'])
         expected_doc_sections = [
             '**Supported distros:** all',
             '**Supported distros:** centos, debian, fedora',

@@ -163,3 +163,104 @@ commandline:
 
 Inspect cloud-init.log for output of what operations were performed as a
 result.
+
+.. _proposed_sru_testing:
+
+Stable Release Updates (SRU) testing for cloud-init
+===================================================
+Once an Ubuntu release is stable (i.e. after it is released), updates for it
+must follow a special procedure called a "stable release update" (or `SRU`_).
+
+The cloud-init project has a specific process it follows when validating
+a cloud-init SRU, documented in the `CloudinitUpdates`_ wiki page.
+
+Generally an SRU test of cloud-init performs the following:
+
+ * Install a pre-release version of cloud-init from the
+   **-proposed** APT pocket (e.g. **bionic-proposed**)
+ * Upgrade cloud-init and attempt a clean run of cloud-init to assert the new
+   version of cloud-init works properly the specific platform and Ubuntu series
+ * Check for tracebacks or errors in behavior
+
+
+Manual SRU verification procedure
+---------------------------------
+Below are steps to manually test a pre-release version of cloud-init
+from **-proposed**
+
+.. note::
+    For each Ubuntu SRU, the Ubuntu Server team manually validates the new version of cloud-init
+    on these platforms: **Amazon EC2, Azure, GCE, OpenStack, Oracle,
+    Softlayer (IBM), LXD, KVM**
+
+1. Launch a VM on your favorite platform, providing this cloud-config
+   user-data and replacing `<YOUR_LAUNCHPAD_USERNAME>` with your username:
+
+.. code-block:: yaml
+
+    ## template: jinja
+    #cloud-config
+    ssh_import_id: [<YOUR_LAUNCHPAD_USERNAME>]
+    hostname: SRU-worked-{{v1.cloud_name}}
+
+2. Wait for current cloud-init to complete, replace `<YOUR_VM_IP>` with the IP
+   address of the VM that you launched in step 1:
+
+.. code-block:: bash
+
+    CI_VM_IP=<YOUR_VM_IP>
+    # Make note of the datasource cloud-init detected in --long output.
+    # In step 5, you will use this to confirm the same datasource is detected after upgrade.
+    ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
+
+3. Set up the **-proposed** pocket on your VM and upgrade to the **-proposed**
+   cloud-init:
+
+.. code-block:: bash
+
+    # Create a script that will add the -proposed pocket to APT's sources
+    # and install cloud-init from that pocket
+    cat > setup_proposed.sh <<EOF
+    #/bin/bash
+    mirror=http://archive.ubuntu.com/ubuntu
+    echo deb \$mirror \$(lsb_release -sc)-proposed main | tee \
+        /etc/apt/sources.list.d/proposed.list
+    apt-get update -q
+    apt-get install -qy cloud-init
+    EOF
+
+    scp setup_proposed.sh ubuntu@$CI_VM_IP:.
+    ssh ubuntu@$CI_VM_IP -- sudo bash setup_proposed.sh
+
+4. Change hostname, clean cloud-init's state, and reboot to run cloud-init
+   from scratch:
+
+.. code-block:: bash
+
+    ssh ubuntu@$CI_VM_IP -- sudo hostname something-else
+    ssh ubuntu@$CI_VM_IP -- sudo cloud-init clean --logs --reboot
+
+5. Validate **-proposed** cloud-init came up without error
+
+.. code-block:: bash
+
+    # Block until cloud-init completes and verify from --long the datasource
+    # from step 1. Errors would show up in --long
+
+    ssh ubuntu@$CI_VM_IP -- cloud-init status --wait --long
+    # Make sure hostname was set properly to SRU-worked-<cloud name>
+    ssh ubuntu@$CI_VM_IP -- hostname
+    # Check for any errors or warnings in cloud-init logs.
+    # (This should produce no output if successful.)
+    ssh ubuntu@$CI_VM_IP -- grep Trace "/var/log/cloud-init*"
+
+6. If you encounter an error during SRU testing:
+
+   * Create a `new cloud-init bug`_ reporting the version of cloud-init
+     affected
+   * Ping upstream cloud-init on Freenode's `#cloud-init IRC channel`_
+
+.. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
+.. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
+.. _new cloud-init bug: https://bugs.launchpad.net/cloud-init/+filebug
+.. _#cloud-init IRC channel: https://webchat.freenode.net/?channel=#cloud-init

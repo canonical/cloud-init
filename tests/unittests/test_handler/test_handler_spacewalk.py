@@ -6,11 +6,7 @@ from cloudinit import util
 from cloudinit.tests import helpers
 
 import logging
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 LOG = logging.getLogger(__name__)
 

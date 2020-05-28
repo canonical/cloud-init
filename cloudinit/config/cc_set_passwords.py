@@ -236,12 +236,12 @@ def handle(_name, cfg, cloud, log, args):
         raise errors[-1]
 
 
-def rand_user_password(pwlen=9):
+def rand_user_password(pwlen=20):
     return util.rand_str(pwlen, select_from=PW_SET)
 
 
 def chpasswd(distro, plist_in, hashed=False):
-    if util.is_FreeBSD():
+    if util.is_BSD():
         for pentry in plist_in.splitlines():
             u, p = pentry.split(":")
             distro.set_passwd(u, p, hashed=hashed)

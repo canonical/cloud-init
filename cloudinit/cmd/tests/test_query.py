@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import errno
-from six import StringIO
+from io import StringIO
 from textwrap import dedent
 import os
 

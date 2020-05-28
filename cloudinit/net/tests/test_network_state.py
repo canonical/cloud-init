@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import mock
+from unittest import mock
+
 from cloudinit.net import network_state
 from cloudinit.tests.helpers import CiTestCase
 
@@ -42,6 +43,16 @@ class TestNetworkStateParseConfig(CiTestCase):
         ncfg = {'version': 2}
         result = network_state.parse_net_config_data(ncfg)
         self.assertNotEqual(None, result)
+
+
+class TestNetworkStateParseConfigV2(CiTestCase):
+
+    def test_version_2_ignores_renderer_key(self):
+        ncfg = {'version': 2, 'renderer': 'networkd', 'ethernets': {}}
+        nsi = network_state.NetworkStateInterpreter(version=ncfg['version'],
+                                                    config=ncfg)
+        nsi.parse_config(skip_broken=False)
+        self.assertEqual(ncfg, nsi.as_dict()['config'])
 
 
 # vi: ts=4 expandtab

@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import re
-from six import StringIO
+from io import StringIO
 
 from cloudinit.config.cc_snap import (
     ASSERTIONS_FILE, add_assertions, handle, maybe_install_squashfuse,
@@ -310,6 +310,52 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
             {'snap': {'commands': {'01': 'also valid'}}}, schema)
         self.assertEqual('', self.logs.getvalue())
 
+    @mock.patch('cloudinit.config.cc_snap.run_commands')
+    def test_schema_when_commands_values_are_invalid_type(self, _):
+        """Warnings when snap:commands values are invalid type (e.g. int)"""
+        validate_cloudconfig_schema(
+            {'snap': {'commands': [123]}}, schema)
+        validate_cloudconfig_schema(
+            {'snap': {'commands': {'01': 123}}}, schema)
+        self.assertEqual(
+            "WARNING: Invalid config:\n"
+            "snap.commands.0: 123 is not valid under any of the given"
+            " schemas\n"
+            "WARNING: Invalid config:\n"
+            "snap.commands.01: 123 is not valid under any of the given"
+            " schemas\n",
+            self.logs.getvalue())
+
+    @mock.patch('cloudinit.config.cc_snap.run_commands')
+    def test_schema_when_commands_list_values_are_invalid_type(self, _):
+        """Warnings when snap:commands list values are wrong type (e.g. int)"""
+        validate_cloudconfig_schema(
+            {'snap': {'commands': [["snap", "install", 123]]}}, schema)
+        validate_cloudconfig_schema(
+            {'snap': {'commands': {'01': ["snap", "install", 123]}}}, schema)
+        self.assertEqual(
+            "WARNING: Invalid config:\n"
+            "snap.commands.0: ['snap', 'install', 123] is not valid under any"
+            " of the given schemas\n",
+            "WARNING: Invalid config:\n"
+            "snap.commands.0: ['snap', 'install', 123] is not valid under any"
+            " of the given schemas\n",
+            self.logs.getvalue())
+
+    @mock.patch('cloudinit.config.cc_snap.run_commands')
+    def test_schema_when_assertions_values_are_invalid_type(self, _):
+        """Warnings when snap:assertions values are invalid type (e.g. int)"""
+        validate_cloudconfig_schema(
+            {'snap': {'assertions': [123]}}, schema)
+        validate_cloudconfig_schema(
+            {'snap': {'assertions': {'01': 123}}}, schema)
+        self.assertEqual(
+            "WARNING: Invalid config:\n"
+            "snap.assertions.0: 123 is not of type 'string'\n"
+            "WARNING: Invalid config:\n"
+            "snap.assertions.01: 123 is not of type 'string'\n",
+            self.logs.getvalue())
+
     @mock.patch('cloudinit.config.cc_snap.add_assertions')
     def test_warn_schema_assertions_is_not_list_or_dict(self, _):
         """Warn when snap:assertions config is not a list or dict."""
@@ -345,7 +391,7 @@ class TestSchema(CiTestCase, SchemaTestCaseMixin):
     def test_duplicates_are_fine_array_array(self):
         """Duplicated commands array/array entries are allowed."""
         self.assertSchemaValid(
-            {'commands': [["echo", "bye"], ["echo" "bye"]]},
+            {'commands': [["echo", "bye"], ["echo", "bye"]]},
             "command entries can be duplicate.")
 
     def test_duplicates_are_fine_array_string(self):

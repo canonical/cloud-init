@@ -10,8 +10,6 @@ import logging
 import socket
 import struct
 
-import six
-
 from cloudinit import safeyaml
 from cloudinit import util
 
@@ -186,7 +184,7 @@ class NetworkState(object):
 
     def iter_interfaces(self, filter_func=None):
         ifaces = self._network_state.get('interfaces', {})
-        for iface in six.itervalues(ifaces):
+        for iface in ifaces.values():
             if filter_func is None:
                 yield iface
             else:
@@ -220,8 +218,7 @@ class NetworkState(object):
             )
 
 
-@six.add_metaclass(CommandHandlerMeta)
-class NetworkStateInterpreter(object):
+class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
 
     initial_network_state = {
         'interfaces': {},
@@ -315,7 +312,7 @@ class NetworkStateInterpreter(object):
 
     def parse_config_v2(self, skip_broken=True):
         for command_type, command in self._config.items():
-            if command_type == 'version':
+            if command_type in ['version', 'renderer']:
                 continue
             try:
                 handler = self.command_handlers[command_type]
@@ -699,7 +696,7 @@ class NetworkStateInterpreter(object):
 
     def handle_wifis(self, command):
         LOG.warning('Wifi configuration is only available to distros with'
-                    'netplan rendering support.')
+                    ' netplan rendering support.')
 
     def _v2_common(self, cfg):
         LOG.debug('v2_common: handling config:\n%s', cfg)
@@ -970,7 +967,7 @@ def ipv4_mask_to_net_prefix(mask):
     """
     if isinstance(mask, int):
         return mask
-    if isinstance(mask, six.string_types):
+    if isinstance(mask, str):
         try:
             return int(mask)
         except ValueError:
@@ -997,7 +994,7 @@ def ipv6_mask_to_net_prefix(mask):
 
     if isinstance(mask, int):
         return mask
-    if isinstance(mask, six.string_types):
+    if isinstance(mask, str):
         try:
             return int(mask)
         except ValueError:

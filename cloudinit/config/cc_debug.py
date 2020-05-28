@@ -28,8 +28,7 @@ location that this cloud-init has been configured with when running.
 """
 
 import copy
-
-from six import StringIO
+from io import StringIO
 
 from cloudinit import type_utils
 from cloudinit import util

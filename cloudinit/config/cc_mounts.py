@@ -25,7 +25,7 @@ mountpoint (i.e. ``[ sda1 ]`` or ``[ sda1, null ]``).
 
 The ``mount_default_fields`` config key allows default options to be specified
 for the values in a ``mounts`` entry that are not specified, aside from the
-``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 7
+``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 6
 values. It defaults to::
 
     mount_default_fields: [none, none, "auto", "defaults,nobootwait", "0", "2"]
@@ -74,6 +74,9 @@ from cloudinit import util
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
 DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
 DEVICE_NAME_RE = re.compile(DEVICE_NAME_FILTER)
+# Name matches 'server:/path'
+NETWORK_NAME_FILTER = r"^.+:.*"
+NETWORK_NAME_RE = re.compile(NETWORK_NAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
 FSTAB_PATH = "/etc/fstab"
 MNT_COMMENT = "comment=cloudconfig"
@@ -90,6 +93,13 @@ def is_meta_device_name(name):
     for enumname in ("ephemeral", "ebs"):
         if name.startswith(enumname) and name.find(":") == -1:
             return True
+    return False
+
+
+def is_network_device(name):
+    # return true if this is a network device
+    if NETWORK_NAME_RE.match(name):
+        return True
     return False
 
 
@@ -121,6 +131,9 @@ def sanitize_devname(startname, transformer, log):
     if devname == "ephemeral":
         devname = "ephemeral0"
         log.debug("Adjusted mount option from ephemeral to ephemeral0")
+
+    if is_network_device(startname):
+        return startname
 
     device_path, partition_number = util.expand_dotted_devname(devname)
 
@@ -223,13 +236,57 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     return size
 
 
+def create_swapfile(fname: str, size: str) -> None:
+    """Size is in MiB."""
+
+    errmsg = "Failed to create swapfile '%s' of size %sMB via %s: %s"
+
+    def create_swap(fname, size, method):
+        LOG.debug("Creating swapfile in '%s' on fstype '%s' using '%s'",
+                  fname, fstype, method)
+
+        if method == "fallocate":
+            cmd = ['fallocate', '-l', '%sM' % size, fname]
+        elif method == "dd":
+            cmd = ['dd', 'if=/dev/zero', 'of=%s' % fname, 'bs=1M',
+                   'count=%s' % size]
+
+        try:
+            util.subp(cmd, capture=True)
+        except util.ProcessExecutionError as e:
+            LOG.warning(errmsg, fname, size, method, e)
+            util.del_file(fname)
+
+    swap_dir = os.path.dirname(fname)
+    util.ensure_dir(swap_dir)
+
+    fstype = util.get_mount_info(swap_dir)[1]
+
+    if fstype in ("xfs", "btrfs"):
+        create_swap(fname, size, "dd")
+    else:
+        try:
+            create_swap(fname, size, "fallocate")
+        except util.ProcessExecutionError as e:
+            LOG.warning(errmsg, fname, size, "dd", e)
+            LOG.warning("Will attempt with dd.")
+            create_swap(fname, size, "dd")
+
+    util.chmod(fname, 0o600)
+    try:
+        util.subp(['mkswap', fname])
+    except util.ProcessExecutionError:
+        util.del_file(fname)
+        raise
+
+
 def setup_swapfile(fname, size=None, maxsize=None):
     """
     fname: full path string of filename to setup
     size: the size to create. set to "auto" for recommended
     maxsize: the maximum size
     """
-    tdir = os.path.dirname(fname)
+    swap_dir = os.path.dirname(fname)
     if str(size).lower() == "auto":
         try:
             memsize = util.read_meminfo()['total']
@@ -237,28 +294,17 @@ def setup_swapfile(fname, size=None, maxsize=None):
             LOG.debug("Not creating swap: failed to read meminfo")
             return
 
-        util.ensure_dir(tdir)
-        size = suggested_swapsize(fsys=tdir, maxsize=maxsize,
+        util.ensure_dir(swap_dir)
+        size = suggested_swapsize(fsys=swap_dir, maxsize=maxsize,
                                   memsize=memsize)
 
+    mibsize = str(int(size / (2 ** 20)))
     if not size:
         LOG.debug("Not creating swap: suggested size was 0")
         return
 
-    mbsize = str(int(size / (2 ** 20)))
-    msg = "creating swap file '%s' of %sMB" % (fname, mbsize)
-    try:
-        util.ensure_dir(tdir)
-        util.log_time(LOG.debug, msg, func=util.subp,
-                      args=[['sh', '-c',
-                             ('rm -f "$1" && umask 0066 && '
-                              '{ fallocate -l "${2}M" "$1" || '
-                              'dd if=/dev/zero "of=$1" bs=1M "count=$2"; } && '
-                              'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
-                             'setup_swap', fname, mbsize]])
-
-    except Exception as e:
-        raise IOError("Failed %s: %s" % (msg, e))
+    util.log_time(LOG.debug, msg="Setting up swap file", func=create_swapfile,
+                  args=[fname, mibsize])
 
     return fname
 
