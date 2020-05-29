@@ -1,0 +1,21 @@
+Description: do not prioritize netplan over eni for network renderers
+ Retain original Xenial behavior and avoid forcing netplan renderer as primary.
+ This is a focal and later behavior that we don't want in xenial.
+Author: Chad Smith <chad.smith@canonical.com>
+Origin: backport
+Forwarded: not-needed
+Last-Update: 2020-05-29
+Index: cloud-init/config/cloud.cfg.tmpl
+===================================================================
+--- cloud-init.orig/config/cloud.cfg.tmpl
++++ cloud-init/config/cloud.cfg.tmpl
+@@ -160,9 +160,6 @@ system_info:
+      groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
+      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+      shell: /bin/bash
+-{# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
+-   network:
+-     renderers: ['netplan', 'eni', 'sysconfig']
+    # Automatically discover the best ntp_client
+    ntp_client: auto
+    # Other config here will be given to the distro class and/or path classes
