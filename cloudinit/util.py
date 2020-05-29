@@ -31,32 +31,22 @@ import string
 import subprocess
 import sys
 import time
-from urllib import parse
-
-from errno import ENOENT, ENOEXEC
-
 from base64 import b64decode, b64encode
+from errno import ENOENT, ENOEXEC
+from functools import lru_cache
+from urllib import parse
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import mergers
-from cloudinit import safeyaml
-from cloudinit import temp_utils
-from cloudinit import type_utils
-from cloudinit import url_helper
-from cloudinit import version
-
-from cloudinit.settings import (CFG_BUILTIN)
-
-try:
-    from functools import lru_cache
-except ImportError:
-    def lru_cache():
-        """pass-thru replace for Python3's lru_cache()"""
-        def wrapper(f):
-            return f
-        return wrapper
-
+from cloudinit import (
+    mergers,
+    safeyaml,
+    temp_utils,
+    type_utils,
+    url_helper,
+    version,
+)
+from cloudinit.settings import CFG_BUILTIN
 
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
@@ -526,20 +516,6 @@ def multi_log(text, console=True, stderr=True,
             log.log(log_level, text[:-1])
         else:
             log.log(log_level, text)
-
-
-def is_ipv4(instr):
-    """determine if input string is a ipv4 address. return boolean."""
-    toks = instr.split('.')
-    if len(toks) != 4:
-        return False
-
-    try:
-        toks = [x for x in toks if 0 <= int(x) < 256]
-    except Exception:
-        return False
-
-    return len(toks) == 4
 
 
 @lru_cache()
@@ -1269,19 +1245,44 @@ def close_stdin():
         os.dup2(fp.fileno(), sys.stdin.fileno())
 
 
+def find_devs_with_freebsd(criteria=None, oformat='device',
+                           tag=None, no_cache=False, path=None):
+    if not criteria:
+        return glob.glob("/dev/msdosfs/*") + glob.glob("/dev/iso9660/*")
+    if criteria.startswith("LABEL="):
+        label = criteria.lstrip("LABEL=")
+        devlist = [
+            p for p in ['/dev/msdosfs/' + label, '/dev/iso9660/' + label]
+            if os.path.exists(p)]
+    elif criteria == "TYPE=vfat":
+        devlist = glob.glob("/dev/msdosfs/*")
+    elif criteria == "TYPE=iso9660":
+        devlist = glob.glob("/dev/iso9660/*")
+    return devlist
+
+
 def find_devs_with_netbsd(criteria=None, oformat='device',
                           tag=None, no_cache=False, path=None):
-    if not path:
-        path = "/dev/cd0"
-    cmd = ["mscdlabel", path]
-    out, _ = subp(cmd, capture=True, decode="replace", rcs=[0, 1])
-    result = out.split()
-    if result and len(result) > 2:
-        if criteria == "TYPE=iso9660" and "ISO" in result:
-            return [path]
-        if criteria == "LABEL=CONFIG-2" and '"config-2"' in result:
-            return [path]
-    return []
+    devlist = []
+    label = None
+    _type = None
+    if criteria:
+        if criteria.startswith("LABEL="):
+            label = criteria.lstrip("LABEL=")
+        if criteria.startswith("TYPE="):
+            _type = criteria.lstrip("TYPE=")
+    out, _err = subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
+    for dev in out.split():
+        if label or _type:
+            mscdlabel_out, _ = subp(['mscdlabel', dev], rcs=[0, 1])
+        if label and not ('label "%s"' % label) in mscdlabel_out:
+            continue
+        if _type == "iso9660" and "ISO filesystem" not in mscdlabel_out:
+            continue
+        if _type == "vfat" and "ISO filesystem" in mscdlabel_out:
+            continue
+        devlist.append('/dev/' + dev)
+    return devlist
 
 
 def find_devs_with_openbsd(criteria=None, oformat='device',
@@ -1314,7 +1315,10 @@ def find_devs_with(criteria=None, oformat='device',
       LABEL=<label>
       UUID=<uuid>
     """
-    if is_NetBSD():
+    if is_FreeBSD():
+        return find_devs_with_freebsd(criteria, oformat,
+                                      tag, no_cache, path)
+    elif is_NetBSD():
         return find_devs_with_netbsd(criteria, oformat,
                                      tag, no_cache, path)
     elif is_OpenBSD():
@@ -1862,6 +1866,7 @@ def time_rfc2822():
     return ts
 
 
+@lru_cache()
 def boottime():
     """Use sysctlbyname(3) via ctypes to find kern.boottime
 
@@ -1871,6 +1876,7 @@ def boottime():
     @return boottime: float to be compatible with linux
     """
     import ctypes
+    import ctypes.util
 
     NULL_BYTES = b"\x00"
 
@@ -1879,7 +1885,7 @@ def boottime():
             ("tv_sec", ctypes.c_int64),
             ("tv_usec", ctypes.c_int64)
         ]
-    libc = ctypes.CDLL('libc.so')
+    libc = ctypes.CDLL(ctypes.util.find_library('c'))
     size = ctypes.c_size_t()
     size.value = ctypes.sizeof(timeval)
     buf = timeval()

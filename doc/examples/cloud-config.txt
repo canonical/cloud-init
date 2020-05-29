@@ -192,8 +192,8 @@ cloud_config_modules:
 
 # ssh_import_id: [ user1, user2 ]
 # ssh_import_id will feed the list in that variable to
-#  ssh-import-id, so that public keys stored in launchpad
-#  can easily be imported into the configured user
+# ssh-import-id, so that public keys stored in launchpad
+# can easily be imported into the configured user
 # This can be a single string ('smoser') or a list ([smoser, kirkland])
 ssh_import_id: [smoser]
 
@@ -202,14 +202,15 @@ ssh_import_id: [smoser]
 # See debconf-set-selections man page.
 #
 # Default: none
-# 
-debconf_selections: |     # Need to preserve newlines
-        # Force debconf priority to critical.
-        debconf debconf/priority select critical
+#
+debconf_selections:
+  # Force debconf priority to critical.
+  set1: debconf debconf/priority select critical
 
-        # Override default frontend to readline, but allow user to select.
-        debconf debconf/frontend select readline
-        debconf debconf/frontend seen false
+  # Override default frontend to readline, but allow user to select.
+  set2: |
+    debconf debconf/frontend select readline
+    debconf debconf/frontend seen false
 
 # manage byobu defaults
 # byobu_by_default:
@@ -375,11 +376,11 @@ final_message: "The system is finally up, after $UPTIME seconds"
 # the special entry "&1" for an error means "same location as stdout"
 #  (Note, that '&1' has meaning in yaml, so it must be quoted)
 output:
- init: "> /var/log/my-cloud-init.log"
- config: [ ">> /tmp/foo.out", "> /tmp/foo.err" ]
- final:
-   output: "| tee /tmp/final.stdout | tee /tmp/bar.stdout"
-   error: "&1"
+  init: "> /var/log/my-cloud-init.log"
+  config: [ ">> /tmp/foo.out", "> /tmp/foo.err" ]
+  final:
+    output: "| tee /tmp/final.stdout | tee /tmp/bar.stdout"
+    error: "&1"
 
 
 # phone_home: if this dictionary is present, then the phone_home
@@ -392,8 +393,8 @@ output:
 #  tries: 10
 #
 phone_home:
- url: http://my.example.com/$INSTANCE_ID/
- post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id ]
+  url: http://my.example.com/$INSTANCE_ID/
+  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id ]
 
 # timezone: set the timezone for this instance
 # the value of 'timezone' must exist in /usr/share/zoneinfo
@@ -407,7 +408,7 @@ timezone: US/Eastern
 # then 'L' will be initially created with root:root ownership (during
 # cloud-init), and then at cloud-config time (when syslog is available)
 # the syslog daemon will be unable to write to the file.
-# 
+#
 # to remedy this situation, 'def_log_file' can be set to a filename
 # and syslog_fix_perms to a string containing "<user>:<group>"
 # if syslog_fix_perms is a list, it will iterate through and use the
@@ -446,11 +447,11 @@ syslog_fix_perms: syslog:root
 # to set hashed password, here account 'user3' has a password it set to
 # 'cloud-init', hashed with SHA-256:
 # chpasswd:
-#  list: |
-#    user1:password1
-#    user2:RANDOM
-#    user3:$5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
-#  expire: True
+#   list: |
+#     user1:password1
+#     user2:RANDOM
+#     user3:$5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
+#   expire: True
 # ssh_pwauth: [ True, False, "" or "unchanged" ]
 #
 # Hashed passwords can be generated in multiple ways, example with python3:
@@ -510,7 +511,7 @@ manual_cache_clean: False
 # power_state can be used to make the system shutdown, reboot or
 # halt after boot is finished.  This same thing can be acheived by
 # user-data scripts or by runcmd by simply invoking 'shutdown'.
-# 
+#
 # Doing it this way ensures that cloud-init is entirely finished with
 # modules that would be executed, and avoids any error/log messages
 # that may go to the console as a result of system services like
@@ -521,6 +522,6 @@ manual_cache_clean: False
 # mode: required. must be one of 'poweroff', 'halt', 'reboot'
 # message: provided as the message argument to 'shutdown'. default is none.
 power_state:
- delay: 30
- mode: poweroff
- message: Bye Bye
+  delay: 30
+  mode: poweroff
+  message: Bye Bye

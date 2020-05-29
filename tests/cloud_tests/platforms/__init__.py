@@ -6,6 +6,7 @@ from .ec2 import platform as ec2
 from .lxd import platform as lxd
 from .nocloudkvm import platform as nocloudkvm
 from .azurecloud import platform as azurecloud
+from ..util import emit_dots_on_travis
 
 PLATFORMS = {
     'ec2': ec2.EC2Platform,
@@ -17,7 +18,8 @@ PLATFORMS = {
 
 def get_image(platform, config):
     """Get image from platform object using os_name."""
-    return platform.get_image(config)
+    with emit_dots_on_travis():
+        return platform.get_image(config)
 
 
 def get_instance(snapshot, *args, **kwargs):

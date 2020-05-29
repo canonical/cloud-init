@@ -11,12 +11,8 @@ import logging
 import shutil
 import tempfile
 import unittest
+from contextlib import ExitStack
 from unittest import mock
-
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
 
 
 class TestNoConfig(unittest.TestCase):

@@ -18,7 +18,7 @@ from cloudinit.config.schema import get_schema_doc
 
 # General information about the project.
 project = 'cloud-init'
-copyright = '2019, Canonical Ltd.'
+copyright = '2020, Canonical Ltd.'
 
 # -- General configuration ----------------------------------------------------
 

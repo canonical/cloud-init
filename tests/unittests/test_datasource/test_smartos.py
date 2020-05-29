@@ -12,8 +12,6 @@ order to validate return responses.
 
 '''
 
-from __future__ import print_function
-
 from binascii import crc32
 import json
 import multiprocessing
@@ -22,7 +20,7 @@ import os.path
 import re
 import signal
 import stat
-import unittest2
+import unittest
 import uuid
 
 from cloudinit import serial
@@ -1095,11 +1093,11 @@ class TestNetworkConversion(CiTestCase):
         self.assertEqual(expected, found)
 
 
-@unittest2.skipUnless(get_smartos_environ() == SMARTOS_ENV_KVM,
-                      "Only supported on KVM and bhyve guests under SmartOS")
-@unittest2.skipUnless(os.access(SERIAL_DEVICE, os.W_OK),
-                      "Requires write access to " + SERIAL_DEVICE)
-@unittest2.skipUnless(HAS_PYSERIAL is True, "pyserial not available")
+@unittest.skipUnless(get_smartos_environ() == SMARTOS_ENV_KVM,
+                     "Only supported on KVM and bhyve guests under SmartOS")
+@unittest.skipUnless(os.access(SERIAL_DEVICE, os.W_OK),
+                     "Requires write access to " + SERIAL_DEVICE)
+@unittest.skipUnless(HAS_PYSERIAL is True, "pyserial not available")
 class TestSerialConcurrency(CiTestCase):
     """
        This class tests locking on an actual serial port, and as such can only

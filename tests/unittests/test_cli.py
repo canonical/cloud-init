@@ -214,14 +214,14 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self.assertEqual(1, exit_code)
         # Known whitebox output from schema subcommand
         self.assertEqual(
-            'Expected either --config-file argument or --doc\n',
+            'Expected either --config-file argument or --docs\n',
             self.stderr.getvalue())
 
     def test_wb_devel_schema_subcommand_doc_content(self):
         """Validate that doc content is sane from known examples."""
         stdout = io.StringIO()
         self.patchStdoutAndStderr(stdout=stdout)
-        self._call_main(['cloud-init', 'devel', 'schema', '--doc'])
+        self._call_main(['cloud-init', 'devel', 'schema', '--docs', 'all'])
         expected_doc_sections = [
             '**Supported distros:** all',
             '**Supported distros:** centos, debian, fedora',

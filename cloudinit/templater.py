@@ -21,13 +21,10 @@ except (ImportError, AttributeError):
     CHEETAH_AVAILABLE = False
 
 try:
-    from jinja2.runtime import implements_to_string
     from jinja2 import Template as JTemplate
     from jinja2 import DebugUndefined as JUndefined
     JINJA_AVAILABLE = True
 except (ImportError, AttributeError):
-    from cloudinit.helpers import identity
-    implements_to_string = identity
     JINJA_AVAILABLE = False
     JUndefined = object
 
@@ -42,7 +39,6 @@ BASIC_MATCHER = re.compile(r'\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)')
 MISSING_JINJA_PREFIX = u'CI_MISSING_JINJA_VAR/'
 
 
-@implements_to_string   # Needed for python2.7. Otherwise cached super.__str__
 class UndefinedJinjaVariable(JUndefined):
     """Class used to represent any undefined jinja template variable."""
 
