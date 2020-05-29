@@ -14,7 +14,6 @@ Build-Depends: debhelper (>= 9),
                python3-jinja2,
                python3-jsonpatch,
                python3-mock,
-               python3-nose,
                python3-oauthlib,
                python3-pep8,
                python3-pyflakes,
@@ -23,7 +22,6 @@ Build-Depends: debhelper (>= 9),
                python3-serial,
                python3-setuptools,
                python3-six,
-               python3-unittest2,
                python3-yaml
 XS-Python-Version: all
 Vcs-Browser: https://git.launchpad.net/cloud-init/?h=ubuntu/devel
