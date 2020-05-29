@@ -1,4 +1,4 @@
-cloud-init (20.1-50-g7f9f33db-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (20.2-38-g8377897b-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * d/control: drop pyflakes from Build-Depends
     - This python2 pyflakes package is an unneeded dependency now that tests
@@ -35,7 +35,98 @@ cloud-init (20.1-50-g7f9f33db-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - This fixes upstream daily builds.  python3-nose is not removed from
       Build-Depends because, currently, the Ubuntu package builds will still
       use it for testing.
-  * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
+  * New upstream snapshot. (LP: #1881018)
+    - enable Puppet, Chef mcollective in default config (#385)
+      [Mina Galić (deprecated: Igor Galić)]
+    - HACKING.rst: introduce .net -> Networking refactor section (#384)
+    - Travis: do not install python3-contextlib2 (dropped dependency) (#388)
+      [Paride Legovini]
+    - HACKING: mention that .github-cla-signers is alpha-sorted (#380)
+    - Add bipinbachhao as contributor (#379) [Bipin Bachhao]
+    - cc_snap: validate that assertions property values are strings (#370)
+    - conftest: implement partial disable_subp_usage (#371)
+    - test_resolv_conf: refresh stale comment (#374)
+    - cc_snap: apply validation to snap.commands properties (#364)
+    - make finding libc platform independent (#366)
+      [Mina Galić (deprecated: Igor Galić)]
+    - doc/rtd/topics/faq: Updates LXD docs links to current site (#368) [TomP]
+    - templater: drop Jinja Python 2 compatibility shim (#353)
+    - cloudinit: minor pylint fixes (#360)
+    - cloudinit: remove unneeded __future__ imports (#362)
+    - migrating momousta lp user to Moustafa-Moustafa GitHub user (#361)
+      [Moustafa Moustafa]
+    - cloud_tests: emit dots on Travis while fetching images (#347)
+    - Add schema to apt configure config (#357) [lucasmoura]
+    - conftest: add docs and tests regarding CiTestCase's subp functionality
+      (#343)
+    - analyze/dump: refactor shared string into variable (#350)
+    - doc: update boot.rst with correct timing of runcmd (#351)
+    - HACKING.rst: change contact info to Rick Harding (#359) [lucasmoura]
+    - HACKING.rst: guide people to add themselves to the CLA file (#349)
+    - HACKING.rst: more unit testing documentation (#354)
+    - .travis.yml: don't run lintian during integration test package builds
+      (#352)
+    - Add test to ensure docs examples are valid cloud-init configs (#355)
+      [James Falcon]
+    - make suse and sles support 127.0.1.1 (#336) [chengcheng-chcheng]
+    - Create tests to validate schema examples (#348) [lucasmoura]
+    - analyze/dump: add support for Amazon Linux 2 log lines (#346)
+    - bsd: upgrade support (#305) [Gonéri Le Bouder]
+    - Add lucasmoura as contributor (#345) [lucasmoura]
+    - Add "therealfalcon" as contributor (#344) [James Falcon]
+    - Adapt the package building scripts to use Python 3 (#231)
+      [Paride Legovini]
+    - DataSourceEc2: use metadata's NIC ordering to determine route-metrics
+      (#342)
+    - .travis.yml: introduce caching (#329)
+    - cc_locale: introduce schema (#335)
+    - doc/rtd/conf.py: bump copyright year to 2020 (#341)
+    - yum_add_repo: Add Centos to the supported distro list (#340)
+    - Release 20.2 (#337)
+    - doc/format: reference make-mime.py instead of an inline script (#334)
+    - Add docs about  creating parent folders (#330) [Adrian Wilkins]
+    - DataSourceNoCloud/OVF: drop claim to support FTP (#333)
+    - schema: ignore spurious pylint error (#332)
+    - schema: add json schema for write_files module (#152)
+    - BSD: find_devs_with_ refactoring (#298) [Gonéri Le Bouder]
+    - nocloud: drop work around for Linux 2.6 (#324) [Gonéri Le Bouder]
+    - cloudinit: drop dependencies on unittest2 and contextlib2 (#322)
+    - distros: handle a potential mirror filtering error case (#328)
+    - log: remove unnecessary import fallback logic (#327)
+    - .travis.yml: don't run integration test on ubuntu/* branches (#321)
+    - More unit test documentation (#314)
+    - conftest: introduce disable_subp_usage autouse fixture (#304)
+    - YAML align indent sizes for docs readability  (#323) [Tak Nishigori]
+    - network_state: add missing space to log message (#325)
+    - tests: add missing mocks for get_interfaces_by_mac (#326)
+    - test_mounts: expand happy path test for both happy paths (#319)
+    - cc_mounts: fix incorrect format specifiers (#316)
+    - swap file "size" being used before checked if str (#315) [Eduardo Otubo]
+    - HACKING.rst: add pytest version gotchas section (#311)
+    - docs: Add steps to re-run cloud-id and cloud-init (#313) [Joshua Powers]
+    - readme: OpenBSD is now supported (#309) [Gonéri Le Bouder]
+    - net: ignore 'renderer' key in netplan config (#306)
+    - Add support for NFS/EFS mounts (#300) [Andrew Beresford]
+    - openbsd: set_passwd should not unlock user (#289) [Gonéri Le Bouder]
+    - tools/.github-cla-signers: add beezly as CLA signer (#301)
+    - util: remove unnecessary lru_cache import fallback (#299)
+    - HACKING.rst: reorganise/update CLA signature info (#297)
+    - distros: drop leading/trailing hyphens from mirror URL labels (#296)
+    - HACKING.rst: add note about variable annotations (#295)
+    - CiTestCase: stop using and remove sys_exit helper (#283)
+    - distros: replace invalid characters in mirror URLs with hyphens (#291)
+    - rbxcloud: gracefully handle arping errors (#262) [Adam Dobrawy]
+    - Fix cloud-init ignoring some misdeclared mimetypes in user-data.
+      [Kurt Garloff]
+    - net: ubuntu focal prioritize netplan over eni even if both present (#267)
+    - cloudinit: refactor util.is_ipv4 to net.is_ipv4_address (#292)
+    - net/cmdline: replace type comments with annotations (#294)
+    - HACKING.rst: add Type Annotations design section (#293)
+    - net: introduce is_ip_address function (#288)
+    - CiTestCase: remove now-unneeded parse_and_read helper method (#286)
+    - .travis.yml: allow 30 minutes of inactivity in cloud tests (#287)
+    - sources/tests/test_init: drop use of deprecated inspect.getargspec (#285)
+    - setup.py: drop NIH check_output implementation (#282)
     - Identify SAP Converged Cloud as OpenStack [Silvio Knizek]
     - add Openbsd support (#147) [Gonéri Le Bouder]
     - HACKING.rst: add examples of the two test class types (#278)
@@ -113,7 +204,7 @@ cloud-init (20.1-50-g7f9f33db-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
       [Dimitri John Ledkov]
     - Replace mock library with unittest.mock (#186)
 
- -- Chad Smith <chad.smith@canonical.com>  Thu, 26 Mar 2020 16:12:57 -0600
+ -- Chad Smith <chad.smith@canonical.com>  Thu, 28 May 2020 20:56:53 -0600
 
 cloud-init (19.4-33-gbb4131a2-0ubuntu1~16.04.1) xenial; urgency=medium
 
