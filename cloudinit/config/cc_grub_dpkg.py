@@ -78,12 +78,16 @@ def fetch_idevs(log):
     except Exception:
         util.logexc(log, "grub-probe failed to execute for grub-dpkg")
 
+    if not disk or not os.path.exists(disk):
+        # If we failed to detect a disk, we can return early
+        return ''
+
     try:
         # check if disk exists and use udevadm to fetch symlinks
-        if disk and os.path.exists(disk):
-            devices = util.subp(['udevadm', 'info', '--root',
-                                '--query=symlink', disk],
-                                capture=True)[0].strip().split()
+        devices = util.subp(
+            ['udevadm', 'info', '--root', '--query=symlink', disk],
+            capture=True
+        )[0].strip().split()
     except Exception:
         util.logexc(
             log, "udevadm DEVLINKS symlink query failed for disk='%s'", disk
