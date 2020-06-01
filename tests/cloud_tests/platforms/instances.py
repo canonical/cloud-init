@@ -132,8 +132,8 @@ class Instance(TargetBase):
         """
         def clean_test(test):
             """Clean formatting for system ready test testcase."""
-            return ' '.join(l for l in test.strip().splitlines()
-                            if not l.lstrip().startswith('#'))
+            return ' '.join(line for line in test.strip().splitlines()
+                            if not line.lstrip().startswith('#'))
 
         boot_timeout = self.config['boot_timeout']
         tests = [self.config['system_ready_script']]

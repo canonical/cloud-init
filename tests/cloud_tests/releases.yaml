@@ -133,6 +133,22 @@ features:
 
 releases:
     # UBUNTU =================================================================
+    groovy:
+        # EOL: Jul 2021
+        default:
+            enabled: true
+            release: groovy
+            version: "20.10"
+            os: ubuntu
+            feature_groups:
+                - base
+                - debian_base
+                - ubuntu_specific
+        lxd:
+            sstreams_server: https://cloud-images.ubuntu.com/daily
+            alias: groovy
+            setup_overrides: null
+            override_templates: false
     focal:
         # EOL: Apr 2025
         default:

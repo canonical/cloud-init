@@ -1033,7 +1033,9 @@ class TestDebconfSelections(TestCase):
         # assumes called with *args value.
         selections = m_set_sel.call_args_list[0][0][0].decode()
 
-        missing = [l for l in lines if l not in selections.splitlines()]
+        missing = [
+            line for line in lines if line not in selections.splitlines()
+        ]
         self.assertEqual([], missing)
 
     @mock.patch("cloudinit.config.cc_apt_configure.dpkg_reconfigure")
