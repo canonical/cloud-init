@@ -89,10 +89,13 @@ def fetch_idevs(log):
             log, "udevadm DEVLINKS symlink query failed for disk='%s'", disk
         )
 
+    log.debug('considering these device symlinks: %s', ','.join(devices))
     # filter symlinks for /dev/disk/by-id entries
     devices = [dev for dev in devices if 'disk/by-id' in dev]
+    log.debug('filtered to these disk/by-id symlinks: %s', ','.join(devices))
     # select first device if there is one, else fall back to plain name
     idevs = sorted(devices)[0] if devices else disk
+    log.debug('selected %s', idevs)
 
     return idevs
 
