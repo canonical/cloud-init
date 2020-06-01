@@ -27,10 +27,7 @@ class TestFetchIdevs:
             (
                 ProcessExecutionError(stderr="failed to get canonical path"),
                 False,
-                (
-                    'Device mapping between /proc/self/mountinfo does not ',
-                    'match /dev, e.g. inside a container'
-                ),
+                ("grub-probe 'failed to get canonical path'",),
                 '',
                 '',
             ),

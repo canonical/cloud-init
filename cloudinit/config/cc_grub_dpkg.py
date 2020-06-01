@@ -71,8 +71,7 @@ def fetch_idevs(log):
         # it then checks for existence in /dev, which fails as host disks
         # are not exposed to the container.
         elif "failed to get canonical path" in e.stderr:
-            log.debug("Device mapping between /proc/self/mountinfo does not "
-                      "match /dev, e.g. inside a container")
+            log.debug("grub-probe 'failed to get canonical path'")
         else:
             # something bad has happened, continue to log the error
             raise
