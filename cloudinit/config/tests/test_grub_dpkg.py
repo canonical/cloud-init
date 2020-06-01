@@ -19,7 +19,7 @@ class TestFetchIdevs:
             (
                 ProcessExecutionError(reason=FileNotFoundError()),
                 False,
-                'grub-common is not installed, e.g. inside a container',
+                "'grub-probe' not found in $PATH",
                 '',
                 '',
             ),
