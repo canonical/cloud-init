@@ -13,13 +13,14 @@ class TestFetchIdevs:
 
     # Note: udevadm info returns devices in a large single line string
     @pytest.mark.parametrize(
-        "grub_output,path_exists,log_output,udevadm_output,expected_idevs",
+        "grub_output,path_exists,expected_log_call,udevadm_output"
+        ",expected_idevs",
         [
             # Inside a container, grub not installed
             (
                 ProcessExecutionError(reason=FileNotFoundError()),
                 False,
-                "'grub-probe' not found in $PATH",
+                mock.call("'grub-probe' not found in $PATH"),
                 '',
                 '',
             ),
@@ -27,7 +28,7 @@ class TestFetchIdevs:
             (
                 ProcessExecutionError(stderr="failed to get canonical path"),
                 False,
-                ("grub-probe 'failed to get canonical path'",),
+                mock.call("grub-probe 'failed to get canonical path'"),
                 '',
                 '',
             ),
@@ -35,7 +36,7 @@ class TestFetchIdevs:
             (
                 ['/dev/vda'],
                 True,
-                '',
+                None,
                 (
                     '/dev/disk/by-path/pci-0000:00:00.0 ',
                     '/dev/disk/by-path/virtio-pci-0000:00:00.0 '
@@ -46,7 +47,7 @@ class TestFetchIdevs:
             (
                 ['/dev/xvda'],
                 True,
-                '',
+                None,
                 '',
                 '/dev/xvda',
             ),
@@ -54,7 +55,7 @@ class TestFetchIdevs:
             (
                 ['/dev/nvme1n1'],
                 True,
-                '',
+                None,
                 (
                     '/dev/disk/by-id/nvme-Company_hash000 ',
                     '/dev/disk/by-id/nvme-nvme.000-000-000-000-000 ',
@@ -66,7 +67,7 @@ class TestFetchIdevs:
             (
                 ['/dev/sda'],
                 True,
-                '',
+                None,
                 (
                     '/dev/disk/by-id/company-user-1 ',
                     '/dev/disk/by-id/scsi-0Company_user-1 ',
@@ -80,7 +81,7 @@ class TestFetchIdevs:
     @mock.patch("cloudinit.config.cc_grub_dpkg.os.path.exists")
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.subp")
     def test_fetch_idevs(self, m_subp, m_exists, m_logexc, grub_output,
-                         path_exists, log_output, udevadm_output,
+                         path_exists, expected_log_call, udevadm_output,
                          expected_idevs):
         """Tests outputs from grub-probe and udevadm info against grub-dpkg"""
         m_subp.side_effect = [
@@ -91,8 +92,8 @@ class TestFetchIdevs:
         log = mock.Mock(spec=Logger)
         idevs = fetch_idevs(log)
         assert expected_idevs == idevs
-        if not path_exists:
-            log.debug.assert_called_with("".join(log_output))
+        if expected_log_call is not None:
+            assert expected_log_call in log.debug.call_args_list
 
 
 class TestHandle:
