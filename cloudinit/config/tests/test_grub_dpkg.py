@@ -170,12 +170,8 @@ class TestHandle:
             cfg_idevs_empty
         ]
         m_fetch_idevs.return_value = fetch_idevs_output
-        name = mock.Mock()
-        cfg = mock.Mock()
-        _cloud = mock.Mock()
         log = mock.Mock(spec=Logger)
-        _args = mock.Mock()
-        handle(name, cfg, _cloud, log, _args)
+        handle(mock.Mock(), mock.Mock(), mock.Mock(), log, mock.Mock())
         log.debug.assert_called_with("".join(expected_log_output))
 
 

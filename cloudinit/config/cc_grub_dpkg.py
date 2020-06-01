@@ -65,7 +65,7 @@ def fetch_idevs(log):
         # grub-common may not be installed, especially on containers
         # FileNotFoundError is a nested exception of ProcessExecutionError
         if isinstance(e.reason, FileNotFoundError):
-            log.debug("grub-common is not installed, e.g. inside a container")
+            log.debug("'grub-probe' not found in $PATH")
         # disks from the container host are present in /proc and /sys
         # which is where grub-probe determines where /boot is.
         # it then checks for existence in /dev, which fails as host disks
@@ -81,12 +81,12 @@ def fetch_idevs(log):
 
     try:
         # check if disk exists and use udevadm to fetch symlinks
-        if os.path.exists(disk):
-            devices = util.subp(['udevadm', 'info', '-r',
+        if disk and os.path.exists(disk):
+            devices = util.subp(['udevadm', 'info', '--root',
                                 '--query=symlink', disk],
                                 capture=True)[0].strip().split()
     except Exception:
-        util.logexc(log, "udevadm failed to gather devices for grub-dpkg")
+        util.logexc(log, "udevadm DEVLINKS symlink query failed for disk='%s'", disk)
 
     # filter symlinks for /dev/disk/by-id entries
     devices = [dev for dev in devices if 'disk/by-id' in dev]
