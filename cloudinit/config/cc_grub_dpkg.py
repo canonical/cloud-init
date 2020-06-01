@@ -86,7 +86,9 @@ def fetch_idevs(log):
                                 '--query=symlink', disk],
                                 capture=True)[0].strip().split()
     except Exception:
-        util.logexc(log, "udevadm DEVLINKS symlink query failed for disk='%s'", disk)
+        util.logexc(
+            log, "udevadm DEVLINKS symlink query failed for disk='%s'", disk
+        )
 
     # filter symlinks for /dev/disk/by-id entries
     devices = [dev for dev in devices if 'disk/by-id' in dev]
