@@ -1,5 +1,7 @@
 cloud-init (20.2-45-g5f7825e2-0ubuntu1) groovy; urgency=medium
 
+  * d/control: drop python3-six, python3-unittest2, python3-pep8,
+    python3-pyflakes and python3-nose from Build-Depends.
   * New upstream snapshot.
     - test: fix all flake8 E241 (#403) [Joshua Powers]
     - test: ignore flake8 E402 errors in main.py (#402) [Joshua Powers]
