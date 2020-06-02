@@ -1,4 +1,4 @@
-cloud-init (20.2-45-g5f7825e2-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.2-45-g5f7825e2-0ubuntu1) groovy; urgency=medium
 
   * New upstream snapshot.
     - test: fix all flake8 E241 (#403) [Joshua Powers]
