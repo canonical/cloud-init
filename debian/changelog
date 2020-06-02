@@ -1,5 +1,6 @@
 cloud-init (20.2-45-g5f7825e2-0ubuntu1~20.04.1) focal; urgency=medium
 
+  * d/cloud-init.templates: correct lintian missing RbxCloud from Choices-C
   * d/control: drop python3-six, python3-pep8 and python3-pyflakes
     from Build-Depends
   * New upstream snapshot. (LP: #1881018)
