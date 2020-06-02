@@ -14,6 +14,9 @@ you need to add the following to config:
 The reason these are not in quotes is because they are ruby
 symbols that will be placed inside here, and not actual strings...
 #}
+{% if chef_license %}
+chef_license          "{{chef_license}}"
+{% endif%}
 {% if log_level %}
 log_level              {{log_level}}
 {% endif %}

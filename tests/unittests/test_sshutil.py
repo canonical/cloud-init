@@ -299,7 +299,7 @@ class TestUpdateSshConfigLines(test_helpers.CiTestCase):
         lines = ssh_util.parse_ssh_config_lines(list(self.exlines))
         result = ssh_util.update_ssh_config_lines(lines, updates)
         self.assertEqual([], result)
-        self.assertEqual(self.exlines, [str(l) for l in lines])
+        self.assertEqual(self.exlines, [str(line) for line in lines])
 
     def test_keycase_not_modified(self):
         """Original case of key should not be changed on update.
