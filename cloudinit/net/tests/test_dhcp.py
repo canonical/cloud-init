@@ -211,7 +211,7 @@ class TestDHCPParseStaticRoutes(CiTestCase):
             "class_b": "16,172,16,10",
             "class_a": "8,10,10",
             "gateway": "0,0",
-            "netlen":  "33,0",
+            "netlen": "33,0",
         }
         for rfc3442 in bad_rfc3442.values():
             self.assertEqual([], parse_static_routes(rfc3442))

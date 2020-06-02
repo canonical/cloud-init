@@ -344,7 +344,9 @@ def update_ssh_config(updates, fname=DEF_SSHD_CFG):
     changed = update_ssh_config_lines(lines=lines, updates=updates)
     if changed:
         util.write_file(
-            fname, "\n".join([str(l) for l in lines]) + "\n", copy_mode=True)
+            fname, "\n".join(
+                [str(line) for line in lines]
+            ) + "\n", copy_mode=True)
     return len(changed) != 0
 
 
