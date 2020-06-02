@@ -611,8 +611,10 @@ class TestDsIdentify(DsIdentifyBase):
         ret = self._check_via_dict(
             cust, RC_FOUND,
             func=".", args=[os.path.join(rootd, mpp)], rootd=rootd)
-        line = [l for l in ret.stdout.splitlines() if l.startswith(pre)][0]
-        toks = line.replace(pre, "").split(":")
+        match = [
+            line for line in ret.stdout.splitlines() if line.startswith(pre)
+        ][0]
+        toks = match.replace(pre, "").split(":")
         expected = ["/sbin", "/bin", "/usr/sbin", "/usr/bin", "/mycust/path"]
         self.assertEqual(expected, [p for p in expected if p in toks],
                          "path did not have expected tokens")

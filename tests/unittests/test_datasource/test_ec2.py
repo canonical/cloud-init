@@ -613,7 +613,9 @@ class TestEc2(test_helpers.HttprettyTestCase):
         for log in expected_logs:
             self.assertIn(log, logs)
         self.assertEqual(
-            1, len([l for l in logs.splitlines() if failed_put_log in l]))
+            1,
+            len([line for line in logs.splitlines() if failed_put_log in line])
+        )
 
     def test_aws_token_redacted(self):
         """Verify that aws tokens are redacted when logged."""

@@ -411,8 +411,11 @@ class ConfigDriveReader(BaseReader):
         keydata = meta_js.get('public-keys', keydata)
         if keydata:
             lines = keydata.splitlines()
-            md['public-keys'] = [l for l in lines
-                                 if len(l) and not l.startswith("#")]
+            md['public-keys'] = [
+                line
+                for line in lines
+                if len(line) and not line.startswith("#")
+            ]
 
         # config-drive-v1 has no way for openstack to provide the instance-id
         # so we copy that into metadata from the user input
@@ -674,11 +677,13 @@ def convert_net_json(network_json=None, known_macs=None):
                 raise ValueError("Unable to find a system nic for %s" % d)
             d['name'] = known_macs[mac]
 
-        for cfg, key, fmt, target in link_updates:
-            if isinstance(target, (list, tuple)):
-                cfg[key] = [fmt % link_id_info[l]['name'] for l in target]
+        for cfg, key, fmt, targets in link_updates:
+            if isinstance(targets, (list, tuple)):
+                cfg[key] = [
+                    fmt % link_id_info[target]['name'] for target in targets
+                ]
             else:
-                cfg[key] = fmt % link_id_info[target]['name']
+                cfg[key] = fmt % link_id_info[targets]['name']
 
     # Infiniband interfaces may be referenced in network_data.json by a 6 byte
     # Ethernet MAC-style address, and we use that address to look up the

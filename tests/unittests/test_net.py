@@ -944,7 +944,7 @@ NETWORK_CONFIGS = {
                         dhcp6: true
         """).rstrip(' '),
         'expected_sysconfig_opensuse': {
-            'ifcfg-iface0':  textwrap.dedent("""\
+            'ifcfg-iface0': textwrap.dedent("""\
                 BOOTPROTO=dhcp
                 DHCLIENT6_MODE=managed
                 STARTMODE=auto""")
@@ -1028,7 +1028,7 @@ NETWORK_CONFIGS = {
     },
     'v6_and_v4': {
         'expected_sysconfig_opensuse': {
-            'ifcfg-iface0':  textwrap.dedent("""\
+            'ifcfg-iface0': textwrap.dedent("""\
                 BOOTPROTO=dhcp
                 DHCLIENT6_MODE=managed
                 STARTMODE=auto""")
