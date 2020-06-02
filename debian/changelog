@@ -1,3 +1,17 @@
+cloud-init (20.2-45-g5f7825e2-0ubuntu1~19.10.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot. (LP: #1881018)
+    - test: fix all flake8 E241 (#403) [Joshua Powers]
+    - test: ignore flake8 E402 errors in main.py (#402) [Joshua Powers]
+    - cc_grub_dpkg: determine idevs in more robust manner with grub-probe
+      (#358) [Matthew Ruffell]
+    - test: fix all flake8 E741 errors (#401) [Joshua Powers]
+    - tests: add groovy integration tests for ubuntu (#400)
+    - Enable chef_license support for chef infra client (#389) [Bipin Bachhao]
+    - testing: use flake8 again (#392) [Joshua Powers]
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 02 Jun 2020 16:08:40 -0600
+
 cloud-init (20.2-38-g8377897b-0ubuntu1~19.10.1) eoan; urgency=medium
 
   * d/control: drop pyflakes from Build-Depends
