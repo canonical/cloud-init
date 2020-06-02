@@ -1,4 +1,4 @@
-cloud-init (20.2-45-g5f7825e2-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
+cloud-init (20.2-45-g5f7825e2-0ubuntu1~20.04.1) focal; urgency=medium
 
   * New upstream snapshot. (LP: #1881018)
     - test: fix all flake8 E241 (#403) [Joshua Powers]
