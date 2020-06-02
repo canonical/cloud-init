@@ -85,7 +85,7 @@ class TestReadFileOrUrl(CiTestCase):
         read_file_or_url(url, headers=headers, headers_redact=['sensitive'])
         logs = self.logs.getvalue()
         for k in headers.keys():
-            self.assertEqual(headers[k],  httpretty.last_request().headers[k])
+            self.assertEqual(headers[k], httpretty.last_request().headers[k])
         self.assertIn(REDACTED, logs)
         self.assertNotIn('sekret', logs)
 

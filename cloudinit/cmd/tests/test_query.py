@@ -261,7 +261,7 @@ class TestQuery(CiTestCase):
         args = self.args(
             debug=False, dump_all=False, format=None,
             instance_data=self.instance_data, list_keys=True, user_data='ud',
-            vendor_data='vd',  varname='top')
+            vendor_data='vd', varname='top')
         with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
             with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
                 with mock.patch('os.getuid') as m_getuid:

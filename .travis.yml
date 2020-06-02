@@ -79,8 +79,6 @@ matrix:
               PYTEST_ADDOPTS=-v  # List all tests run by pytest
           dist: xenial
         - python: 3.6
-          env: TOXENV=pycodestyle
-        - python: 3.6
-          env: TOXENV=pyflakes
+          env: TOXENV=flake8
         - python: 3.6
           env: TOXENV=pylint

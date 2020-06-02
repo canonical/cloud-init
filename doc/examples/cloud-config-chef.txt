@@ -52,6 +52,9 @@ apt:
 
 chef:
 
+  # Valid values are 'accept' and 'accept-no-persist'
+  chef_license: "accept"
+  
   # Valid values are 'gems' and 'packages' and 'omnibus'
   install_type: "packages"
 
