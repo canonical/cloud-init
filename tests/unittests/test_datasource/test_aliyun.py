@@ -143,7 +143,7 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
         self.assertEqual('aliyun', self.ds.cloud_name)
         self.assertEqual('ec2', self.ds.platform)
         self.assertEqual(
-           'metadata (http://100.100.100.200)', self.ds.subplatform)
+            'metadata (http://100.100.100.200)', self.ds.subplatform)
 
     @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
     def test_returns_false_when_not_on_aliyun(self, m_is_aliyun):
