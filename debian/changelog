@@ -1,4 +1,4 @@
-cloud-init (20.2-45-g5f7825e2-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (20.2-45-g5f7825e2-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * New upstream snapshot. (LP: #1881018)
     - test: fix all flake8 E241 (#403) [Joshua Powers]
@@ -14,6 +14,11 @@ cloud-init (20.2-45-g5f7825e2-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
 cloud-init (20.2-38-g8377897b-0ubuntu1~18.04.1) bionic; urgency=medium
 
+  * d/cloud-init.templates: Add RbxCloud datasource support
+  * d/patches/ec2-dont-apply-full-imds-network-config.patch: by default only
+    configure DHCP on eth0 to retain current network config behavior
+  * d/patches/renderer-do-not-prefer-netplan.patch: leave default renderer
+    order as ENI before netplan.
   * d/control: drop pyflakes from Build-Depends
     - This python2 pyflakes package is an unneeded dependency now that tests
       use python3-pyflakes.
@@ -21,8 +26,8 @@ cloud-init (20.2-38-g8377897b-0ubuntu1~18.04.1) bionic; urgency=medium
     - This fixes upstream daily builds.  python3-nose is not removed from
       Build-Depends because, currently, the Ubuntu package builds will still
       use it for testing.
-  * d/control: drop python3-nose and python3-unittest2 from Build-Depends
-    - Upstream uses pytest now
+  * d/control: drop python3-pep8, python3-pyflakes, python3-six, python3-nose
+    and python3-unittest2 from Build-Depends
   * refresh patches:
    + debian/patches/ubuntu-advantage-revert-tip.patch
   * refresh patches:
