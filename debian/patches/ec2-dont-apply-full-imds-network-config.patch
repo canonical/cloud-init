@@ -1,0 +1,50 @@
+Description: Ec2, do not render full network from IMDS by default
+ Retain default network config behavior on Ec2, which is dhcp on eth0.
+ If datasource config option apply_full_imds_network_config is set True,
+ full network config for all interfaces and secondary addresses described in
+ IMDS.
+Author: Chad Smith <chad.smith@canonical.com>
+Origin: backport
+Forwarded: not-needed
+Last-Update: 2020-06-01
+Index: cloud-init/cloudinit/sources/DataSourceEc2.py
+===================================================================
+--- cloud-init.orig/cloudinit/sources/DataSourceEc2.py
++++ cloud-init/cloudinit/sources/DataSourceEc2.py
+@@ -408,13 +408,13 @@ class DataSourceEc2(sources.DataSource):
+         iface = self.fallback_interface
+         net_md = self.metadata.get('network')
+         if isinstance(net_md, dict):
+-            # SRU_BLOCKER: xenial, bionic and eoan should default
++            # xenial, bionic and eoan now default
+             # apply_full_imds_network_config to False to retain original
+-            # behavior on those releases.
++            # behavior on those releases.  SRU_UPSTREAM_COMMIT: 6600c6
+             result = convert_ec2_metadata_network_config(
+                 net_md, fallback_nic=iface,
+                 full_network_config=util.get_cfg_option_bool(
+-                    self.ds_cfg, 'apply_full_imds_network_config', True))
++                    self.ds_cfg, 'apply_full_imds_network_config', False))
+         else:
+             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
+         self._network_config = result
+Index: cloud-init/tests/unittests/test_datasource/test_ec2.py
+===================================================================
+--- cloud-init.orig/tests/unittests/test_datasource/test_ec2.py
++++ cloud-init/tests/unittests/test_datasource/test_ec2.py
+@@ -447,7 +447,14 @@ class TestEc2(test_helpers.HttprettyTest
+         """
+         ds = self._setup_ds(
+             platform_data=self.valid_platform_data,
+-            sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
++            sys_cfg={
++                'datasource': {
++                    'Ec2': {
++                        'strict_id': True,
++                        'apply_full_imds_network_config': True
++                    }
++                }
++            },
+             md={'md': SECONDARY_IP_METADATA_2018_09_24})
+         find_fallback_path = M_PATH_NET + 'find_fallback_nic'
+         with mock.patch(find_fallback_path) as m_find_fallback:
