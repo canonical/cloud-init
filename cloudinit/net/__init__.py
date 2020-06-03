@@ -824,13 +824,13 @@ def get_interfaces_by_mac_on_freebsd():
     # flatten each interface block in a single line
     def flatten(out):
         curr_block = ''
-        for l in out.split('\n'):
-            if l.startswith('\t'):
-                curr_block += l
+        for line in out.split('\n'):
+            if line.startswith('\t'):
+                curr_block += line
             else:
                 if curr_block:
                     yield curr_block
-                curr_block = l
+                curr_block = line
         yield curr_block
 
     # looks for interface and mac in a list of flatten block
