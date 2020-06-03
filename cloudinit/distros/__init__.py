@@ -582,7 +582,7 @@ class Distro(metaclass=abc.ABCMeta):
         # passwd must use short '-l' due to SLES11 lacking long form '--lock'
         lock_tools = (['passwd', '-l', name], ['usermod', '--lock', name])
         try:
-            cmd = next(l for l in lock_tools if util.which(l[0]))
+            cmd = next(tool for tool in lock_tools if util.which(tool[0]))
         except StopIteration:
             raise RuntimeError((
                 "Unable to lock user account '%s'. No tools available. "

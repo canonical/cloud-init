@@ -114,14 +114,14 @@ NETWORK_METADATA = {
                 "ipv4": {
                     "subnet": [
                         {
-                           "prefix": "24",
-                           "address": "10.0.0.0"
+                            "prefix": "24",
+                            "address": "10.0.0.0"
                         }
                     ],
                     "ipAddress": [
                         {
-                           "privateIpAddress": "10.0.0.4",
-                           "publicIpAddress": "104.46.124.81"
+                            "privateIpAddress": "10.0.0.4",
+                            "publicIpAddress": "104.46.124.81"
                         }
                     ]
                 }

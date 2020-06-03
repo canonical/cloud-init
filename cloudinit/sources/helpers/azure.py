@@ -64,13 +64,15 @@ def is_byte_swapped(previous_id, current_id):
         return ''.join(dd)
 
     parts = current_id.split('-')
-    swapped_id = '-'.join([
+    swapped_id = '-'.join(
+        [
             swap_bytestring(parts[0]),
             swap_bytestring(parts[1]),
             swap_bytestring(parts[2]),
             parts[3],
             parts[4]
-        ])
+        ]
+    )
 
     return previous_id == swapped_id
 

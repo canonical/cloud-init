@@ -219,7 +219,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
         v = (
             record_data[
                 self.HV_KVP_EXCHANGE_MAX_KEY_SIZE:self.HV_KVP_RECORD_SIZE
-                ].decode('utf-8').strip('\x00'))
+            ].decode('utf-8').strip('\x00'))
 
         return {'key': k, 'value': v}
 
@@ -265,11 +265,11 @@ class HyperVKvpReportingHandler(ReportingHandler):
         """
         key = self._event_key(event)
         meta_data = {
-                "name": event.name,
-                "type": event.event_type,
-                "ts": (datetime.utcfromtimestamp(event.timestamp)
-                       .isoformat() + 'Z'),
-                }
+            "name": event.name,
+            "type": event.event_type,
+            "ts": (datetime.utcfromtimestamp(event.timestamp)
+                   .isoformat() + 'Z'),
+        }
         if hasattr(event, self.RESULT_KEY):
             meta_data[self.RESULT_KEY] = event.result
         meta_data[self.MSG_KEY] = event.description
