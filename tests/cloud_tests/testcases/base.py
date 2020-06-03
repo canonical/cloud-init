@@ -141,8 +141,8 @@ class CloudTestCase(unittest.TestCase):
     def test_no_warnings_in_log(self):
         """Unexpected warnings should not be found in the log."""
         warnings = [
-            l for l in self.get_data_file('cloud-init.log').splitlines()
-            if 'WARN' in l]
+            line for line in self.get_data_file('cloud-init.log').splitlines()
+            if 'WARN' in line]
         joined_warnings = '\n'.join(warnings)
         for expected_warning in self.expected_warnings:
             self.assertIn(

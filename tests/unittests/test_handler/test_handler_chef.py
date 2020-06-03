@@ -130,6 +130,7 @@ class TestChef(FilesystemMockingTestCase):
 
         # This should create a file of the format...
         # Created by cloud-init v. 0.7.6 on Sat, 11 Oct 2014 23:57:21 +0000
+        chef_license           "accept"
         log_level              :info
         ssl_verify_mode        :verify_none
         log_location           "/var/log/chef/client.log"
@@ -153,6 +154,7 @@ class TestChef(FilesystemMockingTestCase):
         util.write_file('/etc/cloud/templates/chef_client.rb.tmpl', tpl_file)
         cfg = {
             'chef': {
+                'chef_license': "accept",
                 'server_url': 'localhost',
                 'validation_name': 'bob',
                 'validation_key': "/etc/chef/vkey.pem",

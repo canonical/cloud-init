@@ -297,7 +297,7 @@ schema = {
                 },
                 'conf': {
                     'type': 'string',
-                    'description':  dedent("""\
+                    'description': dedent("""\
                         Specify configuration for apt, such as proxy
                         configuration. This configuration is specified as a
                         string. For multiline apt configuration, make sure
