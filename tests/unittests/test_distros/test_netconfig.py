@@ -532,7 +532,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 NETWORKING_IPV6=yes
                 IPV6_AUTOCONF=no
                 """),
-            }
+        }
         # rh_distro.apply_network_config(V1_NET_CFG_IPV6, False)
         self._apply_and_verify(self.distro.apply_network_config,
                                V1_NET_CFG_IPV6,
@@ -656,7 +656,7 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                 IP=dhcp
                 Interface=eth1
                 """),
-            }
+        }
 
         # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify(self.distro.apply_network_config,

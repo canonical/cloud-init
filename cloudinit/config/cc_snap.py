@@ -93,6 +93,13 @@ schema = {
                 - ['snap', 'install', 'vlc']
                 - snap install vlc
                 - 'snap install vlc'
+    """), dedent("""\
+        # You can use a list of assertions
+        snap:
+            assertions:
+                - signed_assertion_blob_here
+                - |
+                    signed_assertion_blob_here
     """)],
     'frequency': PER_INSTANCE,
     'type': 'object',
@@ -106,7 +113,8 @@ schema = {
                     'additionalItems': False,  # Reject items non-string
                     'minItems': 1,
                     'minProperties': 1,
-                    'uniqueItems': True
+                    'uniqueItems': True,
+                    'additionalProperties': {'type': 'string'},
                 },
                 'commands': {
                     'type': ['object', 'array'],  # Array of strings or dict
@@ -135,10 +143,6 @@ schema = {
         }
     }
 }
-
-# TODO schema for 'assertions' and 'commands' are too permissive at the moment.
-# Once python-jsonschema supports schema draft 6 add support for arbitrary
-# object keys with 'patternProperties' constraint to validate string values.
 
 __doc__ = get_schema_doc(schema)  # Supplement python help()
 
