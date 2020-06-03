@@ -607,6 +607,10 @@ class DataSourceAzure(sources.DataSource):
                         LOG.debug("Backing off logging threshold for the same "
                                   "exception to %d",
                                   self.imds_logging_threshold)
+                        report_diagnostic_event("poll IMDS with %s failed. "
+                                                "Exception: %s and code: %s" %
+                                                (msg, exception.cause,
+                                                 exception.code))
                     self.imds_poll_counter += 1
                     return True
                 else:
