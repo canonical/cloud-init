@@ -596,25 +596,35 @@ class DataSourceAzure(sources.DataSource):
         return_val = None
 
         def exc_cb(msg, exception):
-            if isinstance(exception, UrlError) and exception.code == 404:
-                if self.imds_poll_counter == self.imds_logging_threshold:
-                    # Reducing the logging frequency as we are polling IMDS
-                    self.imds_logging_threshold *= 2
-                    LOG.debug("Call to IMDS with arguments %s failed "
-                              "with status code %s after %s retries",
-                              msg, exception.code, self.imds_poll_counter)
-                    LOG.debug("Backing off logging threshold for the same "
-                              "exception to %d", self.imds_logging_threshold)
-                self.imds_poll_counter += 1
-                return True
+            if isinstance(exception, UrlError):
+                if exception.code in (404, 410):
+                    if self.imds_poll_counter == self.imds_logging_threshold:
+                        # Reducing the logging frequency as we are polling IMDS
+                        self.imds_logging_threshold *= 2
+                        LOG.debug("Call to IMDS with arguments %s failed "
+                                  "with status code %s after %s retries",
+                                  msg, exception.code, self.imds_poll_counter)
+                        LOG.debug("Backing off logging threshold for the same "
+                                  "exception to %d",
+                                  self.imds_logging_threshold)
+                        report_diagnostic_event("poll IMDS with %s failed. "
+                                                "Exception: %s and code: %s" %
+                                                (msg, exception.cause,
+                                                 exception.code))
+                    self.imds_poll_counter += 1
+                    return True
+                else:
+                    # If we get an exception while trying to call IMDS, we call
+                    # DHCP and setup the ephemeral network to acquire a new IP.
+                    report_diagnostic_event("poll IMDS with %s failed. "
+                                            "Exception: %s and code: %s" %
+                                            (msg, exception.cause,
+                                             exception.code))
+                    return False
 
-            # If we get an exception while trying to call IMDS, we
-            # call DHCP and setup the ephemeral network to acquire the new IP.
-            LOG.debug("Call to IMDS with arguments %s failed  with "
-                      "status code %s", msg, exception.code)
-            report_diagnostic_event("polling IMDS failed with exception %s"
-                                    % exception.code)
-            return False
+                LOG.debug("poll IMDS failed with an unexpected exception: %s",
+                          exception)
+                return False
 
         LOG.debug("Wait for vnetswitch to happen")
         while True:

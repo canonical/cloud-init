@@ -1951,11 +1951,12 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             self.tries += 1
             if self.tries == 1:
                 raise requests.Timeout('Fake connection timeout')
-            elif self.tries == 2:
+            elif self.tries in (2, 3):
                 response = requests.Response()
-                response.status_code = 404
+                response.status_code = 404 if self.tries == 2 else 410
                 raise requests.exceptions.HTTPError(
-                    "fake 404", response=response)
+                        "fake {}".format(response.status_code),
+                        response=response)
             # Third try should succeed and stop retries or redhcp
             return mock.MagicMock(status_code=200, text="good", content="good")
 
@@ -1967,7 +1968,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(report_ready_func.call_count, 1)
         report_ready_func.assert_called_with(lease=lease)
         self.assertEqual(3, m_dhcpv4.call_count, 'Expected 3 DHCP calls')
-        self.assertEqual(3, self.tries, 'Expected 3 total reads from IMDS')
+        self.assertEqual(4, self.tries, 'Expected 4 total reads from IMDS')
 
     def test_poll_imds_report_ready_false(self,
                                           report_ready_func, fake_resp,
