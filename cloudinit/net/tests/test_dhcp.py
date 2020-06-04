@@ -309,6 +309,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
 
         Lease processing still occurs and no proc kill is attempted.
         """
+        m_subp.return_value = ('', '')
         tmpdir = self.tmp_dir()
         dhclient_script = os.path.join(tmpdir, 'dhclient.orig')
         script_content = '#!/bin/bash\necho fake-dhclient'
@@ -344,6 +345,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
                                                                   m_kill,
                                                                   m_getppid):
         """dhcp_discovery waits for the presence of pidfile and dhcp.leases."""
+        m_subp.return_value = ('', '')
         tmpdir = self.tmp_dir()
         dhclient_script = os.path.join(tmpdir, 'dhclient.orig')
         script_content = '#!/bin/bash\necho fake-dhclient'
@@ -370,6 +372,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
 
         It also returns the parsed dhcp.leases file generated in the sandbox.
         """
+        m_subp.return_value = ('', '')
         tmpdir = self.tmp_dir()
         dhclient_script = os.path.join(tmpdir, 'dhclient.orig')
         script_content = '#!/bin/bash\necho fake-dhclient'
