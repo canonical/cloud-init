@@ -339,7 +339,7 @@ intended as documentation for developers involved in the refactoring,
 but also for other developers who may interact with the code being
 refactored in the meantime.
 
-``cloudinit.net`` -> ``cloudinit.distros.Networking`` Hierarchy
+``cloudinit.net`` -> ``cloudinit.distros.networking`` Hierarchy
 ---------------------------------------------------------------
 
 ``cloudinit.net`` was imported from the curtin codebase as a chunk, and
@@ -359,9 +359,9 @@ there may already be differences in tooling that we currently
 work around in less obvious ways.
 
 The high-level plan is to introduce a hierarchy of networking classes
-in ``cloudinit.distros``, which each ``Distro`` subclass will
-reference.  These will capture the differences between networking on
-our various distros, while still allowing easy reuse of code between
+in ``cloudinit.distros.networking``, which each ``Distro`` subclass
+will reference.  These will capture the differences between networking
+on our various distros, while still allowing easy reuse of code between
 distros that share functionality (e.g. most of the Linux networking
 behaviour).  Callers will call ``distro.net.func`` instead of
 ``cloudinit.net.func``, which will necessitate access to an
@@ -378,9 +378,9 @@ existing API exactly.)
 In more detail:
 
 * The root of this hierarchy will be the
-  ``cloudinit.distros.Networking`` class.  This class will have
-  a corresponding method for every ``cloudinit.net`` function that we
-  identify to be involved in refactoring.  Initially, these methods'
+  ``cloudinit.distros.networking.Networking`` class.  This class will
+  have a corresponding method for every ``cloudinit.net`` function that
+  we identify to be involved in refactoring.  Initially, these methods'
   implementations will simply call the corresponding ``cloudinit.net``
   function.  (This gives us the complete API from day one, for existing
   consumers.)
@@ -413,10 +413,11 @@ In more detail:
 
 After the initial structure is in place, the work in this refactor will
 consist of replacing the ``cloudinit.net.some_func`` call in each
-``cloudinit.distros.Networking`` method with the actual implementation.
-This can be done incrementally, one function at a time:
+``cloudinit.distros.networking.Networking`` method with the actual
+implementation.  This can be done incrementally, one function at a
+time:
 
-* pick an unmigrated ``cloudinit.distros.Networking`` method
+* pick an unmigrated ``cloudinit.distros.networking.Networking`` method
 * refactor all of its callers to call the ``distro.net`` method on
   ``Distro`` instead of the ``cloudinit.net`` function. (This is likely
   to be the most time-consuming step, as it may require plumbing
