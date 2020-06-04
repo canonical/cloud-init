@@ -460,6 +460,11 @@ categories:
   included in the API of the ``Networking`` class:
 
   * ``generate_fallback_config``
+
+    * the ``config_driver`` parameter is used and passed as a boolean,
+      so we can change the default value to ``False`` (instead of
+      ``None``)
+
   * ``get_ib_interface_hwaddr``
   * ``get_interface_mac``
   * ``interface_has_own_mac``
@@ -489,7 +494,7 @@ categories:
       refactored to use helpers on ``self`` instead of ``ip`` directly
       (rather than being wholesale reimplemented in each of
       ``BSDNetworking`` or ``LinuxNetworking``)
-    * we could also remove the ``check_downable`` argument, it's never
+    * we can also remove the ``check_downable`` argument, it's never
       specified so is always ``True``
 
   * ``_rename_interfaces``
@@ -500,6 +505,9 @@ categories:
       live in a function on ``Networking``, so this will require some
       careful refactoring to avoid duplicating that logic in each of
       ``BSDNetworking`` and ``LinuxNetworking``.
+    * only the ``renames`` and ``current_info`` parameters are ever
+      passed in (and ``current_info`` only by tests), so we can remove
+      the others from the definition
 
   * ``EphemeralIPv4Network``
 
@@ -529,6 +537,9 @@ categories:
     * there is already a ``Distro.apply_network_config_names`` which in
       the default implementation calls this function; this and its BSD
       subclass implementations should be refactored at the same time
+    * the ``strict_present`` and ``strict_busy`` parameters are never
+      passed, nor are they used in the function definition, so they can
+      be removed
 
   * ``get_interfaces``
 
@@ -557,6 +568,13 @@ categories:
 
   * ``is_netfail_primary``
   * ``is_netfail_standby``
+
+  * N.B. all of these take an optional ``driver`` argument which is
+    used to pass around a value to avoid having to look it up by
+    calling ``device_driver`` every time.  This is something of a leaky
+    abstraction, and is better served by caching on ``device_driver``
+    or storing the cached value on ``self``, so we can drop the
+    parameter from the new API.
 
 * those that use ``/sys`` (via helpers) and have non-exhaustive BSD
   logic:
