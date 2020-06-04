@@ -15,6 +15,7 @@ class Networking(metaclass=abc.ABCMeta):
     details see "``cloudinit.net`` -> ``cloudinit.distros.networking``
     Hierarchy" in HACKING.rst for full details.
     """
+
     def _get_current_rename_info(self) -> dict:
         return net._get_current_rename_info()
 
@@ -108,11 +109,14 @@ class Networking(metaclass=abc.ABCMeta):
 
 
 class BSDNetworking(Networking):
+    """Implementation of networking functionality shared across BSDs."""
 
     pass
 
 
 class LinuxNetworking(Networking):
+    """Implementation of networking functionality common to Linux distros."""
+
     def get_dev_features(self, devname: DeviceName) -> str:
         return net.get_dev_features(devname)
 
