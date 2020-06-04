@@ -426,8 +426,18 @@ time:
 * refactor its implementation from ``cloudinit.net`` into the
   ``Networking`` hierarchy (e.g. if it has an if/else on BSD, this is
   the time to put the implementations in their respective subclasses)
+
+  * if part of the method contains distro-independent logic, then you
+    may need to create new methods to capture this distro-specific
+    logic; we don't want to replicate common logic in different
+    ``Networking`` subclasses
+  * if after the refactor, the method on the root ``Networking`` class
+    no longer has any implementation, it should be converted to an
+    `abstractmethod`_
+
 * ensure that the new implementation has unit tests (either by moving
   existing tests, or by writing new ones)
+* ensure that the new implementation has a docstring
 * finally, remove it (and any other now-unused functions) from
   cloudinit.net (to avoid having two parallel implementations)
 
@@ -581,3 +591,4 @@ References
 .. _Mina Galić's email to the cloud-init ML in 2019: https://lists.launchpad.net/cloud-init/msg00237.html
 .. _PR #363: https://github.com/canonical/cloud-init/pull/363
 .. _this comment in PR #363: https://github.com/canonical/cloud-init/pull/363#issuecomment-628829489
+.. _abstractmethod: https://docs.python.org/3/library/abc.html#abc.abstractmethod
