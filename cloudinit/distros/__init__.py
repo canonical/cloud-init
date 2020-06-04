@@ -29,6 +29,7 @@ from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.distros.parsers import hosts
+from .networking import LinuxNetworking
 
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
@@ -67,11 +68,13 @@ class Distro(metaclass=abc.ABCMeta):
     init_cmd = ['service']  # systemctl, service etc
     renderer_configs = {}
     _preferred_ntp_clients = None
+    networking_cls = LinuxNetworking
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
+        self.networking = self.networking_cls()
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
