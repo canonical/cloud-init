@@ -50,12 +50,12 @@ class Networking(metaclass=abc.ABCMeta):
         return net.get_ib_hwaddrs_by_interface()
 
     def get_ib_interface_hwaddr(
-        self, ifname: DeviceName, ethernet_format: bool
+        self, devname: DeviceName, ethernet_format: bool
     ):
-        return net.get_ib_interface_hwaddr(ifname, ethernet_format)
+        return net.get_ib_interface_hwaddr(devname, ethernet_format)
 
-    def get_interface_mac(self, ifname: DeviceName):
-        return net.get_interface_mac(ifname)
+    def get_interface_mac(self, devname: DeviceName):
+        return net.get_interface_mac(devname)
 
     def get_interfaces(self) -> list:
         return net.get_interfaces()
@@ -67,9 +67,9 @@ class Networking(metaclass=abc.ABCMeta):
         return net.get_master(devname)
 
     def interface_has_own_mac(
-        self, ifname: DeviceName, *, strict: bool = False
+        self, devname: DeviceName, *, strict: bool = False
     ) -> bool:
-        return net.interface_has_own_mac(ifname, strict=strict)
+        return net.interface_has_own_mac(devname, strict=strict)
 
     def is_bond(self, devname: DeviceName) -> bool:
         return net.is_bond(devname)
