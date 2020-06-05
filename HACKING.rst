@@ -364,9 +364,9 @@ will reference.  These will capture the differences between networking
 on our various distros, while still allowing easy reuse of code between
 distros that share functionality (e.g. most of the Linux networking
 behaviour).  ``Distro`` objects will instantiate the networking classes
-at ``self.net``, so callers will call ``distro.net.func`` instead of
-``cloudinit.net.func``; this will necessitate access to an instantiated
-``Distro`` object.
+at ``self.net``, so callers will call ``distro.net.<func>`` instead of
+``cloudinit.net.<func>``; this will necessitate access to an
+instantiated ``Distro`` object.
 
 An implementation note: there may be external consumers of the
 ``cloudinit.net`` module.  We don't consider this a public API, so we
@@ -406,11 +406,10 @@ In more detail:
   its ``net`` attribute.  (This is the entry point for existing
   consumers to migrate to.)
 * Callers of refactored functions will change from calling
-  ``cloudinit.net.some_func`` to ``distro.net.some_func``, where
-  ``distro`` is an instance of the appropriate ``Distro`` class for
-  this system.  (This will require making such an instance available to
-  callers, which will constitute a large part of the work in this
-  project.)
+  ``cloudinit.net.<func>`` to ``distro.net.<func>``, where ``distro``
+  is an instance of the appropriate ``Distro`` class for this system.
+  (This will require making such an instance available to callers,
+  which will constitute a large part of the work in this project.)
 
 After the initial structure is in place, the work in this refactor will
 consist of replacing the ``cloudinit.net.some_func`` call in each
@@ -419,11 +418,11 @@ implementation.  This can be done incrementally, one function at a
 time:
 
 * pick an unmigrated ``cloudinit.distros.networking.Networking`` method
-* refactor all of its callers to call the ``distro.net`` method on
-  ``Distro`` instead of the ``cloudinit.net`` function. (This is likely
-  to be the most time-consuming step, as it may require plumbing
-  ``Distro`` objects through to places that previously have not
-  consumed them.)
+* refactor all of its callers to call the ``distro.net.<func>`` method
+  on ``Distro`` instead of the ``cloudinit.net.<func>`` function. (This
+  is likely to be the most time-consuming step, as it may require
+  plumbing ``Distro`` objects through to places that previously have
+  not consumed them.)
 * refactor its implementation from ``cloudinit.net`` into the
   ``Networking`` hierarchy (e.g. if it has an if/else on BSD, this is
   the time to put the implementations in their respective subclasses)
