@@ -439,6 +439,14 @@ time:
 * ensure that the new implementation has unit tests (either by moving
   existing tests, or by writing new ones)
 * ensure that the new implementation has a docstring
+* add any appropriate type annotations
+
+  * note that we must follow the constraints described in the "Type
+    Annotations" section above, so you may not be able to write
+    complete annotations
+  * we have `type aliases`_ defined in ``cloudinit.distros.networking``
+    which should be used when applicable
+
 * finally, remove it (and any other now-unused functions) from
   cloudinit.net (to avoid having two parallel implementations)
 
@@ -615,3 +623,4 @@ References
 .. _PR #363: https://github.com/canonical/cloud-init/pull/363
 .. _this comment in PR #363: https://github.com/canonical/cloud-init/pull/363#issuecomment-628829489
 .. _abstractmethod: https://docs.python.org/3/library/abc.html#abc.abstractmethod
+.. _type aliases: https://docs.python.org/3/library/typing.html#type-aliases

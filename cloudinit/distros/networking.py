@@ -3,7 +3,8 @@ import abc
 from cloudinit import net
 
 
-# Type aliases, used to make the signatures of methods a little clearer
+# Type aliases (https://docs.python.org/3/library/typing.html#type-aliases),
+# used to make the signatures of methods a little clearer
 DeviceName = str
 NetworkConfig = dict
 
