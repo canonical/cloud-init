@@ -597,7 +597,7 @@ categories:
   * ``natural_sort_key``
 
 Note that the functions in ``cloudinit.net`` use inconsistent parameter
-names for "string that cohtains a device name"; we can standardise on
+names for "string that contains a device name"; we can standardise on
 ``devname`` (the most common one) in the refactor.
 
 References
