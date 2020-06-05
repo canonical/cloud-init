@@ -363,9 +363,10 @@ in ``cloudinit.distros.networking``, which each ``Distro`` subclass
 will reference.  These will capture the differences between networking
 on our various distros, while still allowing easy reuse of code between
 distros that share functionality (e.g. most of the Linux networking
-behaviour).  Callers will call ``distro.net.func`` instead of
-``cloudinit.net.func``, which will necessitate access to an
-instantiated ``Distro`` object.
+behaviour).  ``Distro`` objects will instantiate the networking classes
+at ``self.net``, so callers will call ``distro.net.func`` instead of
+``cloudinit.net.func``; this will necessitate access to an instantiated
+``Distro`` object.
 
 An implementation note: there may be external consumers of the
 ``cloudinit.net`` module.  We don't consider this a public API, so we
