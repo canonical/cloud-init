@@ -9,6 +9,7 @@ import platform
 import pytest
 
 import cloudinit.util as util
+from cloudinit import subp
 
 from cloudinit.tests.helpers import CiTestCase, mock
 from textwrap import dedent
@@ -332,7 +333,7 @@ class TestBlkid(CiTestCase):
                           "PARTUUID": self.ids["id09"]},
         })
 
-    @mock.patch("cloudinit.util.subp")
+    @mock.patch("cloudinit.subp.subp")
     def test_functional_blkid(self, m_subp):
         m_subp.return_value = (
             self.blkid_out.format(**self.ids), "")
@@ -340,7 +341,7 @@ class TestBlkid(CiTestCase):
         m_subp.assert_called_with(["blkid", "-o", "full"], capture=True,
                                   decode="replace")
 
-    @mock.patch("cloudinit.util.subp")
+    @mock.patch("cloudinit.subp.subp")
     def test_blkid_no_cache_uses_no_cache(self, m_subp):
         """blkid should turn off cache if disable_cache is true."""
         m_subp.return_value = (
@@ -351,7 +352,7 @@ class TestBlkid(CiTestCase):
                                   capture=True, decode="replace")
 
 
-@mock.patch('cloudinit.util.subp')
+@mock.patch('cloudinit.subp.subp')
 class TestUdevadmSettle(CiTestCase):
     def test_with_no_params(self, m_subp):
         """called with no parameters."""
@@ -396,8 +397,8 @@ class TestUdevadmSettle(CiTestCase):
              '--timeout=%s' % timeout])
 
     def test_subp_exception_raises_to_caller(self, m_subp):
-        m_subp.side_effect = util.ProcessExecutionError("BOOM")
-        self.assertRaises(util.ProcessExecutionError, util.udevadm_settle)
+        m_subp.side_effect = subp.ProcessExecutionError("BOOM")
+        self.assertRaises(subp.ProcessExecutionError, util.udevadm_settle)
 
 
 @mock.patch('os.path.exists')

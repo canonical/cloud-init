@@ -6,7 +6,7 @@ from functools import partial
 import os
 import tempfile
 
-from cloudinit import util as c_util
+from cloudinit import subp
 from tests.cloud_tests import (config, LOG)
 from tests.cloud_tests import platforms
 from tests.cloud_tests.stage import (PlatformComponent, run_stage, run_single)
@@ -42,8 +42,8 @@ def build_deb(args, instance):
                'GIT_WORK_TREE': extract_dir}
 
     LOG.debug('creating tarball of cloud-init at: %s', local_tarball)
-    c_util.subp(['tar', 'cf', local_tarball, '--owner', 'root',
-                 '--group', 'root', '-C', args.cloud_init, '.'])
+    subp.subp(['tar', 'cf', local_tarball, '--owner', 'root',
+               '--group', 'root', '-C', args.cloud_init, '.'])
     LOG.debug('copying to remote system at: %s', remote_tarball)
     instance.push_file(local_tarball, remote_tarball)
 

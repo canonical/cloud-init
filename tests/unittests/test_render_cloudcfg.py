@@ -5,6 +5,7 @@ import sys
 
 import pytest
 
+from cloudinit import subp
 from cloudinit import util
 
 # TODO(Look to align with tools.render-cloudcfg or cloudinit.distos.OSFAMILIES)
@@ -20,7 +21,7 @@ class TestRenderCloudCfg:
     @pytest.mark.parametrize('variant', (DISTRO_VARIANTS))
     def test_variant_sets_distro_in_cloud_cfg(self, variant, tmpdir):
         outfile = tmpdir.join('outcfg').strpath
-        util.subp(
+        subp.subp(
             self.cmd + ['--variant', variant, self.tmpl_path, outfile])
         with open(outfile) as stream:
             system_cfg = util.load_yaml(stream.read())
@@ -31,7 +32,7 @@ class TestRenderCloudCfg:
     @pytest.mark.parametrize('variant', (DISTRO_VARIANTS))
     def test_variant_sets_default_user_in_cloud_cfg(self, variant, tmpdir):
         outfile = tmpdir.join('outcfg').strpath
-        util.subp(
+        subp.subp(
             self.cmd + ['--variant', variant, self.tmpl_path, outfile])
         with open(outfile) as stream:
             system_cfg = util.load_yaml(stream.read())
@@ -49,7 +50,7 @@ class TestRenderCloudCfg:
         self, variant, renderers, tmpdir
     ):
         outfile = tmpdir.join('outcfg').strpath
-        util.subp(
+        subp.subp(
             self.cmd + ['--variant', variant, self.tmpl_path, outfile])
         with open(outfile) as stream:
             system_cfg = util.load_yaml(stream.read())

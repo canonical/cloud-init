@@ -12,8 +12,8 @@ import sys
 
 from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
 from cloudinit.temp_utils import tempdir
-from cloudinit.util import (
-    ProcessExecutionError, chdir, copy, ensure_dir, subp, write_file)
+from cloudinit.subp import (ProcessExecutionError, subp)
+from cloudinit.util import (chdir, copy, ensure_dir, write_file)
 
 
 CLOUDINIT_LOGS = ['/var/log/cloud-init.log', '/var/log/cloud-init-output.log']

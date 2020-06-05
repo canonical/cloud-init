@@ -12,6 +12,7 @@ from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.tests.helpers import (
     FilesystemMockingTestCase, dir2dict)
+from cloudinit import subp
 from cloudinit import util
 
 
@@ -688,6 +689,6 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
 
 
 def get_mode(path, target=None):
-    return os.stat(util.target_path(target, path)).st_mode & 0o777
+    return os.stat(subp.target_path(target, path)).st_mode & 0o777
 
 # vi: ts=4 expandtab

@@ -12,6 +12,7 @@ from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import prepend_base_command
+from cloudinit import subp
 from cloudinit import util
 
 
@@ -175,7 +176,7 @@ def add_assertions(assertions):
         LOG.debug('Snap acking: %s', asrt.split('\n')[0:2])
 
     util.write_file(ASSERTIONS_FILE, combined.encode('utf-8'))
-    util.subp(snap_cmd + [ASSERTIONS_FILE], capture=True)
+    subp.subp(snap_cmd + [ASSERTIONS_FILE], capture=True)
 
 
 def run_commands(commands):
@@ -204,8 +205,8 @@ def run_commands(commands):
     for command in fixed_snap_commands:
         shell = isinstance(command, str)
         try:
-            util.subp(command, shell=shell, status_cb=sys.stderr.write)
-        except util.ProcessExecutionError as e:
+            subp.subp(command, shell=shell, status_cb=sys.stderr.write)
+        except subp.ProcessExecutionError as e:
             cmd_failures.append(str(e))
     if cmd_failures:
         msg = 'Failures running snap commands:\n{cmd_failures}'.format(

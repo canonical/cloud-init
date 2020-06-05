@@ -15,6 +15,7 @@ from cloudinit import temp_utils
 from contextlib import contextmanager
 from xml.etree import ElementTree
 
+from cloudinit import subp
 from cloudinit import url_helper
 from cloudinit import util
 from cloudinit import version
@@ -92,7 +93,7 @@ def get_boot_telemetry():
         raise RuntimeError("Failed to determine kernel start timestamp")
 
     try:
-        out, _ = util.subp(['/bin/systemctl',
+        out, _ = subp.subp(['/bin/systemctl',
                             'show', '-p',
                             'UserspaceTimestampMonotonic'],
                            capture=True)
@@ -105,7 +106,7 @@ def get_boot_telemetry():
                                "UserspaceTimestampMonotonic from systemd")
 
         user_start = kernel_start + (float(tsm) / 1000000)
-    except util.ProcessExecutionError as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError("Failed to get UserspaceTimestampMonotonic: %s"
                            % e)
     except ValueError as e:
@@ -114,7 +115,7 @@ def get_boot_telemetry():
                            % e)
 
     try:
-        out, _ = util.subp(['/bin/systemctl', 'show',
+        out, _ = subp.subp(['/bin/systemctl', 'show',
                             'cloud-init-local', '-p',
                             'InactiveExitTimestampMonotonic'],
                            capture=True)
@@ -126,7 +127,7 @@ def get_boot_telemetry():
                                "InactiveExitTimestampMonotonic from systemd")
 
         cloudinit_activation = kernel_start + (float(tsm) / 1000000)
-    except util.ProcessExecutionError as e:
+    except subp.ProcessExecutionError as e:
         raise RuntimeError("Failed to get InactiveExitTimestampMonotonic: %s"
                            % e)
     except ValueError as e:
@@ -284,7 +285,7 @@ class OpenSSLManager(object):
             LOG.debug('Certificate already generated.')
             return
         with cd(self.tmpdir):
-            util.subp([
+            subp.subp([
                 'openssl', 'req', '-x509', '-nodes', '-subj',
                 '/CN=LinuxTransport', '-days', '32768', '-newkey', 'rsa:2048',
                 '-keyout', self.certificate_names['private_key'],
@@ -301,14 +302,14 @@ class OpenSSLManager(object):
     @azure_ds_telemetry_reporter
     def _run_x509_action(action, cert):
         cmd = ['openssl', 'x509', '-noout', action]
-        result, _ = util.subp(cmd, data=cert)
+        result, _ = subp.subp(cmd, data=cert)
         return result
 
     @azure_ds_telemetry_reporter
     def _get_ssh_key_from_cert(self, certificate):
         pub_key = self._run_x509_action('-pubkey', certificate)
         keygen_cmd = ['ssh-keygen', '-i', '-m', 'PKCS8', '-f', '/dev/stdin']
-        ssh_key, _ = util.subp(keygen_cmd, data=pub_key)
+        ssh_key, _ = subp.subp(keygen_cmd, data=pub_key)
         return ssh_key
 
     @azure_ds_telemetry_reporter
@@ -341,7 +342,7 @@ class OpenSSLManager(object):
             certificates_content.encode('utf-8'),
         ]
         with cd(self.tmpdir):
-            out, _ = util.subp(
+            out, _ = subp.subp(
                 'openssl cms -decrypt -in /dev/stdin -inkey'
                 ' {private_key} -recip {certificate} | openssl pkcs12 -nodes'
                 ' -password pass:'.format(**self.certificate_names),

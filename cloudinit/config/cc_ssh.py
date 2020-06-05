@@ -116,6 +116,7 @@ import sys
 
 from cloudinit.distros import ug_util
 from cloudinit import ssh_util
+from cloudinit import subp
 from cloudinit import util
 
 
@@ -164,7 +165,7 @@ def handle(_name, cfg, cloud, log, _args):
             try:
                 # TODO(harlowja): Is this guard needed?
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
-                    util.subp(cmd, capture=False)
+                    subp.subp(cmd, capture=False)
                 log.debug("Generated a key for %s from %s", pair[0], pair[1])
             except Exception:
                 util.logexc(log, "Failed generated a key for %s from %s",
@@ -186,9 +187,9 @@ def handle(_name, cfg, cloud, log, _args):
             # TODO(harlowja): Is this guard needed?
             with util.SeLinuxGuard("/etc/ssh", recursive=True):
                 try:
-                    out, err = util.subp(cmd, capture=True, env=lang_c)
+                    out, err = subp.subp(cmd, capture=True, env=lang_c)
                     sys.stdout.write(util.decode_binary(out))
-                except util.ProcessExecutionError as e:
+                except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
                     if (e.exit_code == 1 and
                             err.lower().startswith("unknown key")):

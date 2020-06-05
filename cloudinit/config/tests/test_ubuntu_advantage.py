@@ -3,7 +3,7 @@
 from cloudinit.config.cc_ubuntu_advantage import (
     configure_ua, handle, maybe_install_ua_tools, schema)
 from cloudinit.config.schema import validate_cloudconfig_schema
-from cloudinit import util
+from cloudinit import subp
 from cloudinit.tests.helpers import (
     CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
 
@@ -26,10 +26,10 @@ class TestConfigureUA(CiTestCase):
         super(TestConfigureUA, self).setUp()
         self.tmp = self.tmp_dir()
 
-    @mock.patch('%s.util.subp' % MPATH)
+    @mock.patch('%s.subp.subp' % MPATH)
     def test_configure_ua_attach_error(self, m_subp):
         """Errors from ua attach command are raised."""
-        m_subp.side_effect = util.ProcessExecutionError(
+        m_subp.side_effect = subp.ProcessExecutionError(
             'Invalid token SomeToken')
         with self.assertRaises(RuntimeError) as context_manager:
             configure_ua(token='SomeToken')
@@ -39,7 +39,7 @@ class TestConfigureUA(CiTestCase):
             'Stdout: Invalid token SomeToken\nStderr: -',
             str(context_manager.exception))
 
-    @mock.patch('%s.util.subp' % MPATH)
+    @mock.patch('%s.subp.subp' % MPATH)
     def test_configure_ua_attach_with_token(self, m_subp):
         """When token is provided, attach the machine to ua using the token."""
         configure_ua(token='SomeToken')
@@ -48,7 +48,7 @@ class TestConfigureUA(CiTestCase):
             'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
             self.logs.getvalue())
 
-    @mock.patch('%s.util.subp' % MPATH)
+    @mock.patch('%s.subp.subp' % MPATH)
     def test_configure_ua_attach_on_service_error(self, m_subp):
         """all services should be enabled and then any failures raised"""
 
@@ -56,7 +56,7 @@ class TestConfigureUA(CiTestCase):
             fail_cmds = [['ua', 'enable', svc] for svc in ['esm', 'cc']]
             if cmd in fail_cmds and capture:
                 svc = cmd[-1]
-                raise util.ProcessExecutionError(
+                raise subp.ProcessExecutionError(
                     'Invalid {} credentials'.format(svc.upper()))
 
         m_subp.side_effect = fake_subp
@@ -83,7 +83,7 @@ class TestConfigureUA(CiTestCase):
             'Failure enabling Ubuntu Advantage service(s): "esm", "cc"',
             str(context_manager.exception))
 
-    @mock.patch('%s.util.subp' % MPATH)
+    @mock.patch('%s.subp.subp' % MPATH)
     def test_configure_ua_attach_with_empty_services(self, m_subp):
         """When services is an empty list, do not auto-enable attach."""
         configure_ua(token='SomeToken', enable=[])
@@ -92,7 +92,7 @@ class TestConfigureUA(CiTestCase):
             'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
             self.logs.getvalue())
 
-    @mock.patch('%s.util.subp' % MPATH)
+    @mock.patch('%s.subp.subp' % MPATH)
     def test_configure_ua_attach_with_specific_services(self, m_subp):
         """When services a list, only enable specific services."""
         configure_ua(token='SomeToken', enable=['fips'])
@@ -105,7 +105,7 @@ class TestConfigureUA(CiTestCase):
             self.logs.getvalue())
 
     @mock.patch('%s.maybe_install_ua_tools' % MPATH, mock.MagicMock())
-    @mock.patch('%s.util.subp' % MPATH)
+    @mock.patch('%s.subp.subp' % MPATH)
     def test_configure_ua_attach_with_string_services(self, m_subp):
         """When services a string, treat as singleton list and warn"""
         configure_ua(token='SomeToken', enable='fips')
@@ -119,7 +119,7 @@ class TestConfigureUA(CiTestCase):
             'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
             self.logs.getvalue())
 
-    @mock.patch('%s.util.subp' % MPATH)
+    @mock.patch('%s.subp.subp' % MPATH)
     def test_configure_ua_attach_with_weird_services(self, m_subp):
         """When services not string or list, warn but still attach"""
         configure_ua(token='SomeToken', enable={'deffo': 'wont work'})
@@ -285,7 +285,7 @@ class TestMaybeInstallUATools(CiTestCase):
         super(TestMaybeInstallUATools, self).setUp()
         self.tmp = self.tmp_dir()
 
-    @mock.patch('%s.util.which' % MPATH)
+    @mock.patch('%s.subp.which' % MPATH)
     def test_maybe_install_ua_tools_noop_when_ua_tools_present(self, m_which):
         """Do nothing if ubuntu-advantage-tools already exists."""
         m_which.return_value = '/usr/bin/ua'  # already installed
@@ -294,7 +294,7 @@ class TestMaybeInstallUATools(CiTestCase):
             'Some apt error')
         maybe_install_ua_tools(cloud=FakeCloud(distro))  # No RuntimeError
 
-    @mock.patch('%s.util.which' % MPATH)
+    @mock.patch('%s.subp.which' % MPATH)
     def test_maybe_install_ua_tools_raises_update_errors(self, m_which):
         """maybe_install_ua_tools logs and raises apt update errors."""
         m_which.return_value = None
@@ -306,7 +306,7 @@ class TestMaybeInstallUATools(CiTestCase):
         self.assertEqual('Some apt error', str(context_manager.exception))
         self.assertIn('Package update failed\nTraceback', self.logs.getvalue())
 
-    @mock.patch('%s.util.which' % MPATH)
+    @mock.patch('%s.subp.which' % MPATH)
     def test_maybe_install_ua_raises_install_errors(self, m_which):
         """maybe_install_ua_tools logs and raises package install errors."""
         m_which.return_value = None
@@ -320,7 +320,7 @@ class TestMaybeInstallUATools(CiTestCase):
         self.assertIn(
             'Failed to install ubuntu-advantage-tools\n', self.logs.getvalue())
 
-    @mock.patch('%s.util.which' % MPATH)
+    @mock.patch('%s.subp.which' % MPATH)
     def test_maybe_install_ua_tools_happy_path(self, m_which):
         """maybe_install_ua_tools installs ubuntu-advantage-tools."""
         m_which.return_value = None
