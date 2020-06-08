@@ -10,7 +10,7 @@ NetworkConfig = dict
 
 
 class Networking(metaclass=abc.ABCMeta):
-    """The root of tne Networking hierarchy in cloud-init.
+    """The root of the Networking hierarchy in cloud-init.
 
     This is part of an ongoing refactor in the cloud-init codebase, for more
     details see "``cloudinit.net`` -> ``cloudinit.distros.networking``
