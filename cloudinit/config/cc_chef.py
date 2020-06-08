@@ -145,14 +145,6 @@ CHEF_EXEC_PATH = '/usr/bin/chef-client'
 CHEF_EXEC_DEF_ARGS = tuple(['-d', '-i', '1800', '-s', '20'])
 
 
-def is_installed():
-    if not os.path.isfile(CHEF_EXEC_PATH):
-        return False
-    if not os.access(CHEF_EXEC_PATH, os.X_OK):
-        return False
-    return True
-
-
 def post_run_chef(chef_cfg, log):
     delete_pem = util.get_cfg_option_bool(chef_cfg,
                                           'delete_validation_post_exec',
@@ -257,9 +249,10 @@ def handle(name, cfg, cloud, log, _args):
     # Try to install chef, if its not already installed...
     force_install = util.get_cfg_option_bool(chef_cfg,
                                              'force_install', default=False)
-    if not is_installed() or force_install:
+    installed = subp.is_exe(CHEF_EXEC_PATH)
+    if not installed or force_install:
         run = install_chef(cloud, chef_cfg, log)
-    elif is_installed():
+    elif installed:
         run = util.get_cfg_option_bool(chef_cfg, 'exec', default=False)
     else:
         run = False
