@@ -46,7 +46,7 @@ class MyBaseDistro(distros.Distro):
 
 
 @mock.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
-@mock.patch("cloudinit.distros.util.subp")
+@mock.patch("cloudinit.distros.subp.subp")
 class TestCreateUser(CiTestCase):
 
     with_logs = True
@@ -240,7 +240,7 @@ class TestCreateUser(CiTestCase):
             [mock.call(set(['auth1']), user),  # not disabled
              mock.call(set(['key1']), 'foouser', options=disable_prefix)])
 
-    @mock.patch("cloudinit.distros.util.which")
+    @mock.patch("cloudinit.distros.subp.which")
     def test_lock_with_usermod_if_no_passwd(self, m_which, m_subp,
                                             m_is_snappy):
         """Lock uses usermod --lock if no 'passwd' cmd available."""
@@ -250,7 +250,7 @@ class TestCreateUser(CiTestCase):
             [mock.call(['usermod', '--lock', 'bob'])],
             m_subp.call_args_list)
 
-    @mock.patch("cloudinit.distros.util.which")
+    @mock.patch("cloudinit.distros.subp.which")
     def test_lock_with_passwd_if_available(self, m_which, m_subp,
                                            m_is_snappy):
         """Lock with only passwd will use passwd."""
@@ -260,7 +260,7 @@ class TestCreateUser(CiTestCase):
             [mock.call(['passwd', '-l', 'bob'])],
             m_subp.call_args_list)
 
-    @mock.patch("cloudinit.distros.util.which")
+    @mock.patch("cloudinit.distros.subp.which")
     def test_lock_raises_runtime_if_no_commands(self, m_which, m_subp,
                                                 m_is_snappy):
         """Lock with no commands available raises RuntimeError."""

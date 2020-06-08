@@ -131,7 +131,7 @@ class TextKvpReporter(CiTestCase):
         self.assertEqual(0, len(kvps))
 
     @mock.patch('cloudinit.distros.uses_systemd')
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_get_boot_telemetry(self, m_subp, m_sysd):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
         datetime_pattern = r"\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]"

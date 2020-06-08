@@ -8,6 +8,7 @@ import tempfile
 
 from ..images import Image
 from .snapshot import LXDSnapshot
+from cloudinit import subp
 from cloudinit import util as c_util
 from tests.cloud_tests import util
 
@@ -81,8 +82,8 @@ class LXDImage(Image):
         @return_value: tuple of path to metadata tarball and rootfs tarball
         """
         # pylxd's image export feature doesn't do split exports, so use cmdline
-        c_util.subp(['lxc', 'image', 'export', self.pylxd_image.fingerprint,
-                     output_dir], capture=True)
+        subp.subp(['lxc', 'image', 'export', self.pylxd_image.fingerprint,
+                  output_dir], capture=True)
         tarballs = [p for p in os.listdir(output_dir) if p.endswith('tar.xz')]
         metadata = os.path.join(
             output_dir, next(p for p in tarballs if p.startswith('meta-')))
@@ -101,8 +102,8 @@ class LXDImage(Image):
         """
         alias = util.gen_instance_name(
             image_desc=str(self), use_desc='update-metadata')
-        c_util.subp(['lxc', 'image', 'import', metadata, rootfs,
-                     '--alias', alias], capture=True)
+        subp.subp(['lxc', 'image', 'import', metadata, rootfs,
+                   '--alias', alias], capture=True)
         self.pylxd_image = self.platform.query_image_by_alias(alias)
         return self.pylxd_image.fingerprint
 

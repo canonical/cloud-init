@@ -10,6 +10,7 @@ import os
 import re
 
 from cloudinit.net.network_state import mask_to_net_prefix
+from cloudinit import subp
 from cloudinit import util
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,7 @@ class NicConfigurator(object):
         The mac address(es) are in the lower case
         """
         cmd = ['ip', 'addr', 'show']
-        output, _err = util.subp(cmd)
+        output, _err = subp.subp(cmd)
         sections = re.split(r'\n\d+: ', '\n' + output)[1:]
 
         macPat = r'link/ether (([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2}))'
@@ -248,8 +249,8 @@ class NicConfigurator(object):
         logger.info('Clearing DHCP leases')
 
         # Ignore the return code 1.
-        util.subp(["pkill", "dhclient"], rcs=[0, 1])
-        util.subp(["rm", "-f", "/var/lib/dhcp/*"])
+        subp.subp(["pkill", "dhclient"], rcs=[0, 1])
+        subp.subp(["rm", "-f", "/var/lib/dhcp/*"])
 
     def configure(self, osfamily=None):
         """

@@ -8,7 +8,7 @@
 """gpg.py - Collection of gpg key related functions"""
 
 from cloudinit import log as logging
-from cloudinit import util
+from cloudinit import subp
 
 import time
 
@@ -18,9 +18,9 @@ LOG = logging.getLogger(__name__)
 def export_armour(key):
     """Export gpg key, armoured key gets returned"""
     try:
-        (armour, _) = util.subp(["gpg", "--export", "--armour", key],
+        (armour, _) = subp.subp(["gpg", "--export", "--armour", key],
                                 capture=True)
-    except util.ProcessExecutionError as error:
+    except subp.ProcessExecutionError as error:
         # debug, since it happens for any key not on the system initially
         LOG.debug('Failed to export armoured key "%s": %s', key, error)
         armour = None
@@ -51,11 +51,11 @@ def recv_key(key, keyserver, retries=(1, 1)):
     while True:
         trynum += 1
         try:
-            util.subp(cmd, capture=True)
+            subp.subp(cmd, capture=True)
             LOG.debug("Imported key '%s' from keyserver '%s' on try %d",
                       key, keyserver, trynum)
             return
-        except util.ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             error = e
         try:
             naplen = next(sleeps)
@@ -72,9 +72,9 @@ def recv_key(key, keyserver, retries=(1, 1)):
 def delete_key(key):
     """Delete the specified key from the local gpg ring"""
     try:
-        util.subp(["gpg", "--batch", "--yes", "--delete-keys", key],
+        subp.subp(["gpg", "--batch", "--yes", "--delete-keys", key],
                   capture=True)
-    except util.ProcessExecutionError as error:
+    except subp.ProcessExecutionError as error:
         LOG.warning('Failed delete key "%s": %s', key, error)
 
 

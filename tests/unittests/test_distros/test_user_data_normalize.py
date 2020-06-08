@@ -307,7 +307,7 @@ class TestUGNormalize(TestCase):
         self.assertEqual({'default': False}, users['joe'])
         self.assertEqual({'default': False}, users['bob'])
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_create_snap_user(self, mock_subp):
         mock_subp.side_effect = [('{"username": "joe", "ssh-key-count": 1}\n',
                                   '')]
@@ -326,7 +326,7 @@ class TestUGNormalize(TestCase):
         mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
         self.assertEqual(username, 'joe')
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_create_snap_user_known(self, mock_subp):
         mock_subp.side_effect = [('{"username": "joe", "ssh-key-count": 1}\n',
                                   '')]
@@ -348,7 +348,7 @@ class TestUGNormalize(TestCase):
 
     @mock.patch('cloudinit.util.system_is_snappy')
     @mock.patch('cloudinit.util.is_group')
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_add_user_on_snappy_system(self, mock_subp, mock_isgrp,
                                        mock_snappy):
         mock_isgrp.return_value = False

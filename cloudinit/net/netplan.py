@@ -8,6 +8,7 @@ from .network_state import subnet_is_ipv6, NET_CONFIG_TO_V2, IPV6_DYNAMIC_TYPES
 
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit import subp
 from cloudinit import safeyaml
 from cloudinit.net import SYS_CLASS_NET, get_devicelist
 
@@ -164,14 +165,14 @@ def _extract_bond_slaves_by_name(interfaces, entry, bond_master):
 def _clean_default(target=None):
     # clean out any known default files and derived files in target
     # LP: #1675576
-    tpath = util.target_path(target, "etc/netplan/00-snapd-config.yaml")
+    tpath = subp.target_path(target, "etc/netplan/00-snapd-config.yaml")
     if not os.path.isfile(tpath):
         return
     content = util.load_file(tpath, decode=False)
     if content != KNOWN_SNAPD_CONFIG:
         return
 
-    derived = [util.target_path(target, f) for f in (
+    derived = [subp.target_path(target, f) for f in (
                'run/systemd/network/10-netplan-all-en.network',
                'run/systemd/network/10-netplan-all-eth.network',
                'run/systemd/generator/netplan.stamp')]
@@ -203,10 +204,10 @@ class Renderer(renderer.Renderer):
     def features(self):
         if self._features is None:
             try:
-                info_blob, _err = util.subp(self.NETPLAN_INFO, capture=True)
+                info_blob, _err = subp.subp(self.NETPLAN_INFO, capture=True)
                 info = util.load_yaml(info_blob)
                 self._features = info['netplan.io']['features']
-            except util.ProcessExecutionError:
+            except subp.ProcessExecutionError:
                 # if the info subcommand is not present then we don't have any
                 # new features
                 pass
@@ -218,7 +219,7 @@ class Renderer(renderer.Renderer):
         # check network state for version
         # if v2, then extract network_state.config
         # else render_v2_from_state
-        fpnplan = os.path.join(util.target_path(target), self.netplan_path)
+        fpnplan = os.path.join(subp.target_path(target), self.netplan_path)
 
         util.ensure_dir(os.path.dirname(fpnplan))
         header = self.netplan_header if self.netplan_header else ""
@@ -239,7 +240,7 @@ class Renderer(renderer.Renderer):
         if not run:
             LOG.debug("netplan generate postcmd disabled")
             return
-        util.subp(self.NETPLAN_GENERATE, capture=True)
+        subp.subp(self.NETPLAN_GENERATE, capture=True)
 
     def _net_setup_link(self, run=False):
         """To ensure device link properties are applied, we poke
@@ -253,7 +254,7 @@ class Renderer(renderer.Renderer):
         for cmd in [setup_lnk + [SYS_CLASS_NET + iface]
                     for iface in get_devicelist() if
                     os.path.islink(SYS_CLASS_NET + iface)]:
-            util.subp(cmd, capture=True)
+            subp.subp(cmd, capture=True)
 
     def _render_content(self, network_state):
 
@@ -406,7 +407,7 @@ def available(target=None):
     expected = ['netplan']
     search = ['/usr/sbin', '/sbin']
     for p in expected:
-        if not util.which(p, search=search, target=target):
+        if not subp.which(p, search=search, target=target):
             return False
     return True
 

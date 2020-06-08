@@ -10,9 +10,8 @@ import os
 import sys
 
 from cloudinit.stages import Init
-from cloudinit.util import (
-    ProcessExecutionError, del_dir, del_file, get_config_logfiles,
-    is_link, subp)
+from cloudinit.subp import (ProcessExecutionError, subp)
+from cloudinit.util import (del_dir, del_file, get_config_logfiles, is_link)
 
 
 def error(msg):

@@ -41,7 +41,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             httpretty.GET, cc_chef.OMNIBUS_URL, body=response, status=200)
         ret = (None, None)  # stdout, stderr but capture=False
 
-        with mock.patch("cloudinit.config.cc_chef.util.subp_blob_in_tempfile",
+        with mock.patch("cloudinit.config.cc_chef.subp_blob_in_tempfile",
                         return_value=ret) as m_subp_blob:
             cc_chef.install_chef_from_omnibus()
         # admittedly whitebox, but assuming subp_blob_in_tempfile works
@@ -52,7 +52,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             m_subp_blob.call_args_list)
 
     @mock.patch('cloudinit.config.cc_chef.url_helper.readurl')
-    @mock.patch('cloudinit.config.cc_chef.util.subp_blob_in_tempfile')
+    @mock.patch('cloudinit.config.cc_chef.subp_blob_in_tempfile')
     def test_install_chef_from_omnibus_retries_url(self, m_subp_blob, m_rdurl):
         """install_chef_from_omnibus retries OMNIBUS_URL upon failure."""
 
@@ -81,7 +81,7 @@ class TestInstallChefOmnibus(HttprettyTestCase):
             m_subp_blob.call_args_list[0][1])
 
     @mock.patch("cloudinit.config.cc_chef.OMNIBUS_URL", OMNIBUS_URL_HTTP)
-    @mock.patch('cloudinit.config.cc_chef.util.subp_blob_in_tempfile')
+    @mock.patch('cloudinit.config.cc_chef.subp_blob_in_tempfile')
     def test_install_chef_from_omnibus_has_omnibus_version(self, m_subp_blob):
         """install_chef_from_omnibus provides version arg to OMNIBUS_URL."""
         chef_outfile = self.tmp_path('chef.out', self.new_root)
