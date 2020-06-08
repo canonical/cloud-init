@@ -27,7 +27,7 @@ This module does not accept any config keys.
 
 import os
 
-from cloudinit import util
+from cloudinit import subp
 
 from cloudinit.settings import PER_INSTANCE
 
@@ -42,7 +42,7 @@ def handle(name, _cfg, cloud, log, _args):
     # go here...
     runparts_path = os.path.join(cloud.get_ipath_cur(), SCRIPT_SUBDIR)
     try:
-        util.runparts(runparts_path)
+        subp.runparts(runparts_path)
     except Exception:
         log.warning("Failed to run module %s (%s in %s)",
                     name, SCRIPT_SUBDIR, runparts_path)
