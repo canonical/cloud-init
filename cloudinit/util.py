@@ -749,37 +749,6 @@ def del_dir(path):
     shutil.rmtree(path)
 
 
-def runparts(dirp, skip_no_exist=True, exe_prefix=None):
-    if skip_no_exist and not os.path.isdir(dirp):
-        return
-
-    failed = []
-    attempted = []
-
-    if exe_prefix is None:
-        prefix = []
-    elif isinstance(exe_prefix, str):
-        prefix = [str(exe_prefix)]
-    elif isinstance(exe_prefix, list):
-        prefix = exe_prefix
-    else:
-        raise TypeError("exe_prefix must be None, str, or list")
-
-    for exe_name in sorted(os.listdir(dirp)):
-        exe_path = os.path.join(dirp, exe_name)
-        if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
-            attempted.append(exe_path)
-            try:
-                subp.subp(prefix + [exe_path], capture=False)
-            except subp.ProcessExecutionError as e:
-                logexc(LOG, "Failed running %s [%s]", exe_path, e.exit_code)
-                failed.append(e)
-
-    if failed and attempted:
-        raise RuntimeError('Runparts: %s failures in %s attempted commands'
-                           % (len(failed), len(attempted)))
-
-
 # read_optional_seed
 # returns boolean indicating success or failure (presense of files)
 # if files are present, populates 'fill' dictionary with 'user-data' and

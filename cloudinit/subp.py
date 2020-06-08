@@ -351,4 +351,36 @@ def is_exe(fpath):
     return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
 
+def runparts(dirp, skip_no_exist=True, exe_prefix=None):
+    if skip_no_exist and not os.path.isdir(dirp):
+        return
+
+    failed = []
+    attempted = []
+
+    if exe_prefix is None:
+        prefix = []
+    elif isinstance(exe_prefix, str):
+        prefix = [str(exe_prefix)]
+    elif isinstance(exe_prefix, list):
+        prefix = exe_prefix
+    else:
+        raise TypeError("exe_prefix must be None, str, or list")
+
+    for exe_name in sorted(os.listdir(dirp)):
+        exe_path = os.path.join(dirp, exe_name)
+        if is_exe(exe_path):
+            attempted.append(exe_path)
+            try:
+                subp(prefix + [exe_path], capture=False)
+            except ProcessExecutionError as e:
+                LOG.debug(e)
+                failed.append(exe_name)
+
+    if failed and attempted:
+        raise RuntimeError(
+            'Runparts: %s failures (%s) in %s attempted commands' %
+            (len(failed), ",".join(failed), len(attempted)))
+
+
 # vi: ts=4 expandtab
