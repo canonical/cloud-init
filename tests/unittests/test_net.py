@@ -426,6 +426,11 @@ network:
             mtu: 9000
             parameters:
                 gratuitous-arp: 2
+        bond2:
+            interfaces:
+            - ens5
+            macaddress: 68:05:ca:64:d3:6e
+            mtu: 9000
     ethernets:
         ens3:
             dhcp4: false
@@ -437,6 +442,11 @@ network:
             dhcp6: false
             match:
                 macaddress: 52:54:00:11:22:ff
+        ens5:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:99:11:99
     version: 2
 """
 
