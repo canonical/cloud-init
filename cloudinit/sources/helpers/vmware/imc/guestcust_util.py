@@ -133,23 +133,30 @@ def get_tools_config(section, key, defaultVal):
             'vmware-toolbox-cmd not installed, returning default value')
         return defaultVal
 
-    retValue = defaultVal
     cmd = ['vmware-toolbox-cmd', 'config', 'get', section, key]
 
     try:
         (outText, _) = subp.subp(cmd)
-        m = re.match(r'([^=]+)=(.*)', outText)
-        if m:
-            retValue = m.group(2).strip()
-            logger.debug("Get tools config: [%s] %s = %s",
-                         section, key, retValue)
-        else:
-            logger.debug(
-                "Tools config: [%s] %s is not found, return default value: %s",
-                section, key, retValue)
     except subp.ProcessExecutionError as e:
-        logger.error("Failed running %s[%s]", cmd, e.exit_code)
-        logger.exception(e)
+        if e.exit_code == 69:
+            logger.debug(
+                "vmware-toolbox-cmd returned 69 (unavailable) for cmd: %s."
+                " Return default value: %s", " ".join(cmd), defaultVal)
+        else:
+            logger.error("Failed running %s[%s]", cmd, e.exit_code)
+            logger.exception(e)
+        return defaultVal
+
+    retValue = defaultVal
+    m = re.match(r'([^=]+)=(.*)', outText)
+    if m:
+        retValue = m.group(2).strip()
+        logger.debug("Get tools config: [%s] %s = %s",
+                     section, key, retValue)
+    else:
+        logger.debug(
+            "Tools config: [%s] %s is not found, return default value: %s",
+            section, key, retValue)
 
     return retValue
 
