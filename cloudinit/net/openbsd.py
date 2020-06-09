@@ -18,8 +18,9 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             elif isinstance(v, dict):
                 try:
                     content = "inet {address} {netmask}\n".format(
-                            address=v['address'],
-                            netmask=v['netmask'])
+                        address=v['address'],
+                        netmask=v['netmask']
+                    )
                 except KeyError:
                     LOG.error(
                         "Invalid static configuration for %s",

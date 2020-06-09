@@ -65,8 +65,9 @@ class BSDRenderer(renderer.Renderer):
                 if subnet.get('type') == 'static':
                     if not subnet.get('netmask'):
                         LOG.debug(
-                                'Skipping IP %s, because there is no netmask',
-                                subnet.get('address'))
+                            'Skipping IP %s, because there is no netmask',
+                            subnet.get('address')
+                        )
                         continue
                     LOG.debug('Configuring dev %s with %s / %s', device_name,
                               subnet.get('address'), subnet.get('netmask'))

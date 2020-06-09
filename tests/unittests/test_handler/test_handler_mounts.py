@@ -260,8 +260,11 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
             '/dev/vdb /mnt auto defaults,noexec,comment=cloudconfig 0 2\n'
         )
         fstab_expected_content = fstab_original_content
-        cc = {'mounts': [
-                 ['/dev/vdb', '/mnt', 'auto', 'defaults,noexec']]}
+        cc = {
+            'mounts': [
+                ['/dev/vdb', '/mnt', 'auto', 'defaults,noexec']
+            ]
+        }
         with open(cc_mounts.FSTAB_PATH, 'w') as fd:
             fd.write(fstab_original_content)
         with open(cc_mounts.FSTAB_PATH, 'r') as fd:

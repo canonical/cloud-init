@@ -683,15 +683,17 @@ scbus-1 on xpt0 bus 0
         'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
     @mock.patch('cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds')
     def test_crawl_metadata_on_reprovision_reports_ready(
-                            self, poll_imds_func,
-                            report_ready_func,
-                            m_write, m_dhcp):
+        self, poll_imds_func, report_ready_func, m_write, m_dhcp
+    ):
         """If reprovisioning, report ready at the end"""
         ovfenv = construct_valid_ovf_env(
-                            platform_settings={"PreprovisionedVm": "True"})
+            platform_settings={"PreprovisionedVm": "True"}
+        )
 
-        data = {'ovfcontent': ovfenv,
-                'sys_cfg': {}}
+        data = {
+            'ovfcontent': ovfenv,
+            'sys_cfg': {}
+        }
         dsrc = self._get_ds(data)
         poll_imds_func.return_value = ovfenv
         dsrc.crawl_metadata()
@@ -706,15 +708,18 @@ scbus-1 on xpt0 bus 0
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     @mock.patch('cloudinit.sources.DataSourceAzure.readurl')
     def test_crawl_metadata_on_reprovision_reports_ready_using_lease(
-                            self, m_readurl, m_dhcp,
-                            m_net, report_ready_func,
-                            m_media_switch, m_write):
+        self, m_readurl, m_dhcp, m_net, report_ready_func,
+        m_media_switch, m_write
+    ):
         """If reprovisioning, report ready using the obtained lease"""
         ovfenv = construct_valid_ovf_env(
-                            platform_settings={"PreprovisionedVm": "True"})
+            platform_settings={"PreprovisionedVm": "True"}
+        )
 
-        data = {'ovfcontent': ovfenv,
-                'sys_cfg': {}}
+        data = {
+            'ovfcontent': ovfenv,
+            'sys_cfg': {}
+        }
         dsrc = self._get_ds(data)
 
         lease = {
@@ -1955,8 +1960,8 @@ class TestPreprovisioningPollIMDS(CiTestCase):
                 response = requests.Response()
                 response.status_code = 404 if self.tries == 2 else 410
                 raise requests.exceptions.HTTPError(
-                        "fake {}".format(response.status_code),
-                        response=response)
+                    "fake {}".format(response.status_code), response=response
+                )
             # Third try should succeed and stop retries or redhcp
             return mock.MagicMock(status_code=200, text="good", content="good")
 

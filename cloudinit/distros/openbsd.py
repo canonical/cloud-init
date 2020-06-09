@@ -41,9 +41,10 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
         os_arch = platform.machine()
         e = os.environ.copy()
         e['PKG_PATH'] = (
-                'ftp://ftp.openbsd.org/pub/OpenBSD/{os_release}/'
-                'packages/{os_arch}/').format(
-                        os_arch=os_arch, os_release=os_release)
+            'ftp://ftp.openbsd.org/pub/OpenBSD/{os_release}/'
+            'packages/{os_arch}/').format(
+            os_arch=os_arch, os_release=os_release
+        )
         return e
 
 

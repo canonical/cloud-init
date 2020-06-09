@@ -16,8 +16,9 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         if self.dhcp_interfaces():
             self.set_rc_config_value('dhcpcd', 'YES')
             self.set_rc_config_value(
-                    'dhcpcd_flags',
-                    ' '.join(self.dhcp_interfaces()))
+                'dhcpcd_flags',
+                ' '.join(self.dhcp_interfaces())
+            )
         for device_name, v in self.interface_configurations.items():
             if isinstance(v, dict):
                 self.set_rc_config_value(
