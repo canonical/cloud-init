@@ -267,12 +267,16 @@ class GoalState(object):
             './Container/RoleInstanceList/RoleInstance'
             '/Configuration/Certificates')
         if url is not None:
-            self._certificates_xml = \
-                self.azure_endpoint_client.get(
-                    url, secure=True).contents
-            if self._certificates_xml is None:
-                raise InvalidGoalStateXMLException(
-                    'Azure endpoint returned empty certificates xml.')
+            with events.ReportEventStack(
+                        name="get-certificates-xml",
+                        description="get certificates xml",
+                        parent=azure_ds_reporter):
+                self._certificates_xml = \
+                    self.azure_endpoint_client.get(
+                        url, secure=True).contents
+                if self._certificates_xml is None:
+                    raise InvalidGoalStateXMLException(
+                        'Azure endpoint returned empty certificates xml.')
 
     def _text_from_xpath(self, xpath):
         element = self.root.find(xpath)
