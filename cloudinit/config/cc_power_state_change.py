@@ -56,6 +56,7 @@ import subprocess
 import time
 
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import subp
 from cloudinit import util
 
 frequency = PER_INSTANCE
@@ -71,7 +72,7 @@ def givecmdline(pid):
         #   PID COMM             ARGS
         #     1 init             /bin/init --
         if util.is_FreeBSD():
-            (output, _err) = util.subp(['procstat', '-c', str(pid)])
+            (output, _err) = subp.subp(['procstat', '-c', str(pid)])
             line = output.splitlines()[1]
             m = re.search(r'\d+ (\w|\.|-)+\s+(/\w.+)', line)
             return m.group(2)

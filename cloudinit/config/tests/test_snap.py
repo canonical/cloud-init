@@ -92,7 +92,7 @@ class TestAddAssertions(CiTestCase):
         super(TestAddAssertions, self).setUp()
         self.tmp = self.tmp_dir()
 
-    @mock.patch('cloudinit.config.cc_snap.util.subp')
+    @mock.patch('cloudinit.config.cc_snap.subp.subp')
     def test_add_assertions_on_empty_list(self, m_subp):
         """When provided with an empty list, add_assertions does nothing."""
         add_assertions([])
@@ -107,7 +107,7 @@ class TestAddAssertions(CiTestCase):
             "assertion parameter was not a list or dict: I'm Not Valid",
             str(context_manager.exception))
 
-    @mock.patch('cloudinit.config.cc_snap.util.subp')
+    @mock.patch('cloudinit.config.cc_snap.subp.subp')
     def test_add_assertions_adds_assertions_as_list(self, m_subp):
         """When provided with a list, add_assertions adds all assertions."""
         self.assertEqual(
@@ -130,7 +130,7 @@ class TestAddAssertions(CiTestCase):
         self.assertEqual(
             util.load_file(compare_file), util.load_file(assert_file))
 
-    @mock.patch('cloudinit.config.cc_snap.util.subp')
+    @mock.patch('cloudinit.config.cc_snap.subp.subp')
     def test_add_assertions_adds_assertions_as_dict(self, m_subp):
         """When provided with a dict, add_assertions adds all assertions."""
         self.assertEqual(
@@ -168,7 +168,7 @@ class TestRunCommands(CiTestCase):
         super(TestRunCommands, self).setUp()
         self.tmp = self.tmp_dir()
 
-    @mock.patch('cloudinit.config.cc_snap.util.subp')
+    @mock.patch('cloudinit.config.cc_snap.subp.subp')
     def test_run_commands_on_empty_list(self, m_subp):
         """When provided with an empty list, run_commands does nothing."""
         run_commands([])
@@ -477,7 +477,7 @@ class TestHandle(CiTestCase):
 
         self.assertEqual('HI\nMOM\n', util.load_file(outfile))
 
-    @mock.patch('cloudinit.config.cc_snap.util.subp')
+    @mock.patch('cloudinit.config.cc_snap.subp.subp')
     def test_handle_adds_assertions(self, m_subp):
         """Any configured snap assertions are provided to add_assertions."""
         assert_file = self.tmp_path('snapd.assertions', dir=self.tmp)
@@ -493,7 +493,7 @@ class TestHandle(CiTestCase):
         self.assertEqual(
             util.load_file(compare_file), util.load_file(assert_file))
 
-    @mock.patch('cloudinit.config.cc_snap.util.subp')
+    @mock.patch('cloudinit.config.cc_snap.subp.subp')
     @skipUnlessJsonSchema()
     def test_handle_validates_schema(self, m_subp):
         """Any provided configuration is runs validate_cloudconfig_schema."""

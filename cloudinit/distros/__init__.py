@@ -25,6 +25,7 @@ from cloudinit.net import network_state
 from cloudinit.net import renderers
 from cloudinit import ssh_util
 from cloudinit import type_utils
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.distros.parsers import hosts
@@ -225,8 +226,8 @@ class Distro(metaclass=abc.ABCMeta):
         LOG.debug("Non-persistently setting the system hostname to %s",
                   hostname)
         try:
-            util.subp(['hostname', hostname])
-        except util.ProcessExecutionError:
+            subp.subp(['hostname', hostname])
+        except subp.ProcessExecutionError:
             util.logexc(LOG, "Failed to non-persistently adjust the system "
                         "hostname to %s", hostname)
 
@@ -361,12 +362,12 @@ class Distro(metaclass=abc.ABCMeta):
         LOG.debug("Attempting to run bring up interface %s using command %s",
                   device_name, cmd)
         try:
-            (_out, err) = util.subp(cmd)
+            (_out, err) = subp.subp(cmd)
             if len(err):
                 LOG.warning("Running %s resulted in stderr output: %s",
                             cmd, err)
             return True
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
 
@@ -480,7 +481,7 @@ class Distro(metaclass=abc.ABCMeta):
         # Run the command
         LOG.debug("Adding user %s", name)
         try:
-            util.subp(useradd_cmd, logstring=log_useradd_cmd)
+            subp.subp(useradd_cmd, logstring=log_useradd_cmd)
         except Exception as e:
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
@@ -500,7 +501,7 @@ class Distro(metaclass=abc.ABCMeta):
         # Run the command
         LOG.debug("Adding snap user %s", name)
         try:
-            (out, err) = util.subp(create_user_cmd, logstring=create_user_cmd,
+            (out, err) = subp.subp(create_user_cmd, logstring=create_user_cmd,
                                    capture=True)
             LOG.debug("snap create-user returned: %s:%s", out, err)
             jobj = util.load_json(out)
@@ -582,20 +583,20 @@ class Distro(metaclass=abc.ABCMeta):
         # passwd must use short '-l' due to SLES11 lacking long form '--lock'
         lock_tools = (['passwd', '-l', name], ['usermod', '--lock', name])
         try:
-            cmd = next(tool for tool in lock_tools if util.which(tool[0]))
+            cmd = next(tool for tool in lock_tools if subp.which(tool[0]))
         except StopIteration:
             raise RuntimeError((
                 "Unable to lock user account '%s'. No tools available. "
                 "  Tried: %s.") % (name, [c[0] for c in lock_tools]))
         try:
-            util.subp(cmd)
+            subp.subp(cmd)
         except Exception as e:
             util.logexc(LOG, 'Failed to disable password for user %s', name)
             raise e
 
     def expire_passwd(self, user):
         try:
-            util.subp(['passwd', '--expire', user])
+            subp.subp(['passwd', '--expire', user])
         except Exception as e:
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
@@ -611,7 +612,7 @@ class Distro(metaclass=abc.ABCMeta):
             cmd.append('-e')
 
         try:
-            util.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
+            subp.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
         except Exception as e:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
@@ -708,7 +709,7 @@ class Distro(metaclass=abc.ABCMeta):
             LOG.warning("Skipping creation of existing group '%s'", name)
         else:
             try:
-                util.subp(group_add_cmd)
+                subp.subp(group_add_cmd)
                 LOG.info("Created new group %s", name)
             except Exception:
                 util.logexc(LOG, "Failed to create group %s", name)
@@ -721,7 +722,7 @@ class Distro(metaclass=abc.ABCMeta):
                                 "; user does not exist.", member, name)
                     continue
 
-                util.subp(['usermod', '-a', '-G', name, member])
+                subp.subp(['usermod', '-a', '-G', name, member])
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
 

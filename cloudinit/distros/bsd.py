@@ -5,6 +5,7 @@ from cloudinit.distros import bsd_utils
 from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import net
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ class BSD(distros.Distro):
         else:
             group_add_cmd = self.group_add_cmd_prefix + [name]
             try:
-                util.subp(group_add_cmd)
+                subp.subp(group_add_cmd)
                 LOG.info("Created new group %s", name)
             except Exception:
                 util.logexc(LOG, "Failed to create group %s", name)
@@ -63,7 +64,7 @@ class BSD(distros.Distro):
                             "; user does not exist.", member, name)
                 continue
             try:
-                util.subp(self._get_add_member_to_group_cmd(member, name))
+                subp.subp(self._get_add_member_to_group_cmd(member, name))
                 LOG.info("Added user '%s' to group '%s'", member, name)
             except Exception:
                 util.logexc(LOG, "Failed to add user '%s' to group '%s'",
@@ -111,7 +112,7 @@ class BSD(distros.Distro):
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
-        util.subp(cmd, env=self._get_pkg_cmd_environ(), capture=False)
+        subp.subp(cmd, env=self._get_pkg_cmd_environ(), capture=False)
 
     def _write_network_config(self, netconfig):
         return self._supported_write_network_config(netconfig)

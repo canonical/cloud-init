@@ -10,7 +10,7 @@ import os
 import re
 import time
 
-from cloudinit import util
+from cloudinit import subp
 
 from .guestcust_event import GuestCustEventEnum
 from .guestcust_state import GuestCustStateEnum
@@ -34,7 +34,7 @@ def send_rpc(rpc):
 
     try:
         logger.debug("Sending RPC command: %s", rpc)
-        (out, err) = util.subp(["vmware-rpctool", rpc], rcs=[0])
+        (out, err) = subp.subp(["vmware-rpctool", rpc], rcs=[0])
         # Remove the trailing newline in the output.
         if out:
             out = out.rstrip()
@@ -128,7 +128,7 @@ def get_tools_config(section, key, defaultVal):
                   not installed.
     """
 
-    if not util.which('vmware-toolbox-cmd'):
+    if not subp.which('vmware-toolbox-cmd'):
         logger.debug(
             'vmware-toolbox-cmd not installed, returning default value')
         return defaultVal
@@ -136,8 +136,8 @@ def get_tools_config(section, key, defaultVal):
     cmd = ['vmware-toolbox-cmd', 'config', 'get', section, key]
 
     try:
-        (outText, _) = util.subp(cmd)
-    except util.ProcessExecutionError as e:
+        (outText, _) = subp.subp(cmd)
+    except subp.ProcessExecutionError as e:
         if e.exit_code == 69:
             logger.debug(
                 "vmware-toolbox-cmd returned 69 (unavailable) for cmd: %s."

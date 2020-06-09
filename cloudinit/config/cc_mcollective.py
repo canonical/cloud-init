@@ -56,6 +56,7 @@ import io
 from configobj import ConfigObj
 
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
@@ -140,6 +141,6 @@ def handle(name, cfg, cloud, log, _args):
         configure(config=mcollective_cfg['conf'])
 
     # restart mcollective to handle updated config
-    util.subp(['service', 'mcollective', 'restart'], capture=False)
+    subp.subp(['service', 'mcollective', 'restart'], capture=False)
 
 # vi: ts=4 expandtab

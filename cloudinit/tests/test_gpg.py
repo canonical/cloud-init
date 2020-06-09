@@ -4,19 +4,19 @@
 from unittest import mock
 
 from cloudinit import gpg
-from cloudinit import util
+from cloudinit import subp
 from cloudinit.tests.helpers import CiTestCase
 
 
 @mock.patch("cloudinit.gpg.time.sleep")
-@mock.patch("cloudinit.gpg.util.subp")
+@mock.patch("cloudinit.gpg.subp.subp")
 class TestReceiveKeys(CiTestCase):
     """Test the recv_key method."""
 
     def test_retries_on_subp_exc(self, m_subp, m_sleep):
         """retry should be done on gpg receive keys failure."""
         retries = (1, 2, 4)
-        my_exc = util.ProcessExecutionError(
+        my_exc = subp.ProcessExecutionError(
             stdout='', stderr='', exit_code=2, cmd=['mycmd'])
         m_subp.side_effect = (my_exc, my_exc, ('', ''))
         gpg.recv_key("ABCD", "keyserver.example.com", retries=retries)
@@ -26,7 +26,7 @@ class TestReceiveKeys(CiTestCase):
         """If the final run fails, error should be raised."""
         naplen = 1
         keyid, keyserver = ("ABCD", "keyserver.example.com")
-        m_subp.side_effect = util.ProcessExecutionError(
+        m_subp.side_effect = subp.ProcessExecutionError(
             stdout='', stderr='', exit_code=2, cmd=['mycmd'])
         with self.assertRaises(ValueError) as rcm:
             gpg.recv_key(keyid, keyserver, retries=(naplen,))
@@ -36,7 +36,7 @@ class TestReceiveKeys(CiTestCase):
 
     def test_no_retries_on_none(self, m_subp, m_sleep):
         """retry should not be done if retries is None."""
-        m_subp.side_effect = util.ProcessExecutionError(
+        m_subp.side_effect = subp.ProcessExecutionError(
             stdout='', stderr='', exit_code=2, cmd=['mycmd'])
         with self.assertRaises(ValueError):
             gpg.recv_key("ABCD", "keyserver.example.com", retries=None)

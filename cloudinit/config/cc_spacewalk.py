@@ -27,7 +27,7 @@ For more information about spacewalk see: https://fedorahosted.org/spacewalk/
        activation_key: <key>
 """
 
-from cloudinit import util
+from cloudinit import subp
 
 
 distros = ['redhat', 'fedora']
@@ -41,9 +41,9 @@ def is_registered():
     # assume we aren't registered; which is sorta ghetto...
     already_registered = False
     try:
-        util.subp(['rhn-profile-sync', '--verbose'], capture=False)
+        subp.subp(['rhn-profile-sync', '--verbose'], capture=False)
         already_registered = True
-    except util.ProcessExecutionError as e:
+    except subp.ProcessExecutionError as e:
         if e.exit_code != 1:
             raise
     return already_registered
@@ -65,7 +65,7 @@ def do_register(server, profile_name,
         cmd.extend(['--sslCACert', str(ca_cert_path)])
     if activation_key:
         cmd.extend(['--activationkey', str(activation_key)])
-    util.subp(cmd, capture=False)
+    subp.subp(cmd, capture=False)
 
 
 def handle(name, cfg, cloud, log, _args):
