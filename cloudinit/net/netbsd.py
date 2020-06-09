@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 import cloudinit.net.bsd
 
@@ -29,9 +30,9 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             LOG.debug("netbsd generate postcmd disabled")
             return
 
-        util.subp(['service', 'network', 'restart'], capture=True)
+        subp.subp(['service', 'network', 'restart'], capture=True)
         if self.dhcp_interfaces():
-            util.subp(['service', 'dhcpcd', 'restart'], capture=True)
+            subp.subp(['service', 'dhcpcd', 'restart'], capture=True)
 
     def set_route(self, network, netmask, gateway):
         if network == '0.0.0.0':

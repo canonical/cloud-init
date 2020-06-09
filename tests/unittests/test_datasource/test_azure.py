@@ -114,14 +114,14 @@ NETWORK_METADATA = {
                 "ipv4": {
                     "subnet": [
                         {
-                           "prefix": "24",
-                           "address": "10.0.0.0"
+                            "prefix": "24",
+                            "address": "10.0.0.0"
                         }
                     ],
                     "ipAddress": [
                         {
-                           "privateIpAddress": "10.0.0.4",
-                           "publicIpAddress": "104.46.124.81"
+                            "privateIpAddress": "10.0.0.4",
+                            "publicIpAddress": "104.46.124.81"
                         }
                     ]
                 }
@@ -491,7 +491,7 @@ scbus-1 on xpt0 bus 0
             (dsaz, 'get_hostname', mock.MagicMock()),
             (dsaz, 'set_hostname', mock.MagicMock()),
             (dsaz, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
-            (dsaz.util, 'which', lambda x: True),
+            (dsaz.subp, 'which', lambda x: True),
             (dsaz.util, 'read_dmi_data', mock.MagicMock(
                 side_effect=_dmi_mocks)),
             (dsaz.util, 'wait_for_files', mock.MagicMock(
@@ -1267,20 +1267,20 @@ scbus-1 on xpt0 bus 0
         expected_config['config'].append(blacklist_config)
         self.assertEqual(netconfig, expected_config)
 
-    @mock.patch(MOCKPATH + 'util.subp')
-    def test_get_hostname_with_no_args(self, subp):
+    @mock.patch(MOCKPATH + 'subp.subp')
+    def test_get_hostname_with_no_args(self, m_subp):
         dsaz.get_hostname()
-        subp.assert_called_once_with(("hostname",), capture=True)
+        m_subp.assert_called_once_with(("hostname",), capture=True)
 
-    @mock.patch(MOCKPATH + 'util.subp')
-    def test_get_hostname_with_string_arg(self, subp):
+    @mock.patch(MOCKPATH + 'subp.subp')
+    def test_get_hostname_with_string_arg(self, m_subp):
         dsaz.get_hostname(hostname_command="hostname")
-        subp.assert_called_once_with(("hostname",), capture=True)
+        m_subp.assert_called_once_with(("hostname",), capture=True)
 
-    @mock.patch(MOCKPATH + 'util.subp')
-    def test_get_hostname_with_iterable_arg(self, subp):
+    @mock.patch(MOCKPATH + 'subp.subp')
+    def test_get_hostname_with_iterable_arg(self, m_subp):
         dsaz.get_hostname(hostname_command=("hostname",))
-        subp.assert_called_once_with(("hostname",), capture=True)
+        m_subp.assert_called_once_with(("hostname",), capture=True)
 
 
 class TestAzureBounce(CiTestCase):
@@ -1302,7 +1302,7 @@ class TestAzureBounce(CiTestCase):
             mock.patch.object(dsaz, 'get_metadata_from_imds',
                               mock.MagicMock(return_value={})))
         self.patches.enter_context(
-            mock.patch.object(dsaz.util, 'which', lambda x: True))
+            mock.patch.object(dsaz.subp, 'which', lambda x: True))
         self.patches.enter_context(mock.patch.object(
             dsaz, '_get_random_seed', return_value='wild'))
 
@@ -1331,7 +1331,7 @@ class TestAzureBounce(CiTestCase):
         self.set_hostname = self.patches.enter_context(
             mock.patch.object(dsaz, 'set_hostname'))
         self.subp = self.patches.enter_context(
-            mock.patch(MOCKPATH + 'util.subp'))
+            mock.patch(MOCKPATH + 'subp.subp'))
         self.find_fallback_nic = self.patches.enter_context(
             mock.patch('cloudinit.net.find_fallback_nic', return_value='eth9'))
 
@@ -1414,7 +1414,7 @@ class TestAzureBounce(CiTestCase):
         cfg = {'hostname_bounce': {'policy': 'force'}}
         dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg),
                             agent_command=['not', '__builtin__'])
-        patch_path = MOCKPATH + 'util.which'
+        patch_path = MOCKPATH + 'subp.which'
         with mock.patch(patch_path) as m_which:
             m_which.return_value = None
             ret = self._get_and_setup(dsrc)
@@ -1951,11 +1951,12 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             self.tries += 1
             if self.tries == 1:
                 raise requests.Timeout('Fake connection timeout')
-            elif self.tries == 2:
+            elif self.tries in (2, 3):
                 response = requests.Response()
-                response.status_code = 404
+                response.status_code = 404 if self.tries == 2 else 410
                 raise requests.exceptions.HTTPError(
-                    "fake 404", response=response)
+                        "fake {}".format(response.status_code),
+                        response=response)
             # Third try should succeed and stop retries or redhcp
             return mock.MagicMock(status_code=200, text="good", content="good")
 
@@ -1967,7 +1968,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(report_ready_func.call_count, 1)
         report_ready_func.assert_called_with(lease=lease)
         self.assertEqual(3, m_dhcpv4.call_count, 'Expected 3 DHCP calls')
-        self.assertEqual(3, self.tries, 'Expected 3 total reads from IMDS')
+        self.assertEqual(4, self.tries, 'Expected 4 total reads from IMDS')
 
     def test_poll_imds_report_ready_false(self,
                                           report_ready_func, fake_resp,
@@ -1987,7 +1988,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(report_ready_func.call_count, 0)
 
 
-@mock.patch(MOCKPATH + 'util.subp')
+@mock.patch(MOCKPATH + 'subp.subp')
 @mock.patch(MOCKPATH + 'util.write_file')
 @mock.patch(MOCKPATH + 'util.is_FreeBSD')
 @mock.patch('cloudinit.sources.helpers.netlink.'
@@ -2158,7 +2159,7 @@ class TestWBIsPlatformViable(CiTestCase):
             {'os.path.exists': False,
              # Non-matching Azure chassis-asset-tag
              'util.read_dmi_data': dsaz.AZURE_CHASSIS_ASSET_TAG + 'X',
-             'util.which': None},
+             'subp.which': None},
             dsaz._is_platform_viable, 'doesnotmatter'))
         self.assertIn(
             "DEBUG: Non-Azure DMI asset tag '{0}' discovered.\n".format(

@@ -10,6 +10,7 @@ import os
 from collections import OrderedDict
 from textwrap import dedent
 
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.tests.helpers import CiTestCase, mock, wrap_and_call
 from cloudinit.helpers import Paths
@@ -48,7 +49,7 @@ def fill_properties(props, template=OVF_ENV_CONTENT):
     for key, val in props.items():
         lines.append(prop_tmpl.format(key=key, val=val))
     indent = "        "
-    properties = ''.join([indent + l + "\n" for l in lines])
+    properties = ''.join([indent + line + "\n" for line in lines])
     return template.format(properties=properties)
 
 
@@ -401,8 +402,8 @@ class TestTransportIso9660(CiTestCase):
         self.assertTrue(dsovf.maybe_cdrom_device('xvdza1'))
 
 
-@mock.patch(MPATH + "util.which")
-@mock.patch(MPATH + "util.subp")
+@mock.patch(MPATH + "subp.which")
+@mock.patch(MPATH + "subp.subp")
 class TestTransportVmwareGuestinfo(CiTestCase):
     """Test the com.vmware.guestInfo transport implemented in
        transport_vmware_guestinfo."""
@@ -420,7 +421,7 @@ class TestTransportVmwareGuestinfo(CiTestCase):
     def test_notfound_on_exit_code_1(self, m_subp, m_which):
         """If vmware-rpctool exits 1, then must return not found."""
         m_which.return_value = self.rpctool_path
-        m_subp.side_effect = util.ProcessExecutionError(
+        m_subp.side_effect = subp.ProcessExecutionError(
             stdout="", stderr="No value found", exit_code=1, cmd=["unused"])
         self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)
@@ -442,7 +443,7 @@ class TestTransportVmwareGuestinfo(CiTestCase):
     def test_notfound_and_warns_on_unexpected_exit_code(self, m_subp, m_which):
         """If vmware-rpctool exits non zero or 1, warnings should be logged."""
         m_which.return_value = self.rpctool_path
-        m_subp.side_effect = util.ProcessExecutionError(
+        m_subp.side_effect = subp.ProcessExecutionError(
             stdout=None, stderr="No value found", exit_code=2, cmd=["unused"])
         self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)

@@ -22,6 +22,7 @@ from cloudinit.event import EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers import netlink
+from cloudinit import subp
 from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
 from cloudinit import util
 from cloudinit.reporting import events
@@ -139,8 +140,8 @@ def find_dev_from_busdev(camcontrol_out, busdev):
 
 def execute_or_debug(cmd, fail_ret=None):
     try:
-        return util.subp(cmd)[0]
-    except util.ProcessExecutionError:
+        return subp.subp(cmd)[0]
+    except subp.ProcessExecutionError:
         LOG.debug("Failed to execute: %s", ' '.join(cmd))
         return fail_ret
 
@@ -252,11 +253,11 @@ DEF_PASSWD_REDACTION = 'REDACTED'
 def get_hostname(hostname_command='hostname'):
     if not isinstance(hostname_command, (list, tuple)):
         hostname_command = (hostname_command,)
-    return util.subp(hostname_command, capture=True)[0].strip()
+    return subp.subp(hostname_command, capture=True)[0].strip()
 
 
 def set_hostname(hostname, hostname_command='hostname'):
-    util.subp([hostname_command, hostname])
+    subp.subp([hostname_command, hostname])
 
 
 @azure_ds_telemetry_reporter
@@ -343,7 +344,7 @@ class DataSourceAzure(sources.DataSource):
 
         try:
             invoke_agent(agent_cmd)
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             # claim the datasource even if the command failed
             util.logexc(LOG, "agent command '%s' failed.",
                         self.ds_cfg['agent_command'])
@@ -596,25 +597,35 @@ class DataSourceAzure(sources.DataSource):
         return_val = None
 
         def exc_cb(msg, exception):
-            if isinstance(exception, UrlError) and exception.code == 404:
-                if self.imds_poll_counter == self.imds_logging_threshold:
-                    # Reducing the logging frequency as we are polling IMDS
-                    self.imds_logging_threshold *= 2
-                    LOG.debug("Call to IMDS with arguments %s failed "
-                              "with status code %s after %s retries",
-                              msg, exception.code, self.imds_poll_counter)
-                    LOG.debug("Backing off logging threshold for the same "
-                              "exception to %d", self.imds_logging_threshold)
-                self.imds_poll_counter += 1
-                return True
+            if isinstance(exception, UrlError):
+                if exception.code in (404, 410):
+                    if self.imds_poll_counter == self.imds_logging_threshold:
+                        # Reducing the logging frequency as we are polling IMDS
+                        self.imds_logging_threshold *= 2
+                        LOG.debug("Call to IMDS with arguments %s failed "
+                                  "with status code %s after %s retries",
+                                  msg, exception.code, self.imds_poll_counter)
+                        LOG.debug("Backing off logging threshold for the same "
+                                  "exception to %d",
+                                  self.imds_logging_threshold)
+                        report_diagnostic_event("poll IMDS with %s failed. "
+                                                "Exception: %s and code: %s" %
+                                                (msg, exception.cause,
+                                                 exception.code))
+                    self.imds_poll_counter += 1
+                    return True
+                else:
+                    # If we get an exception while trying to call IMDS, we call
+                    # DHCP and setup the ephemeral network to acquire a new IP.
+                    report_diagnostic_event("poll IMDS with %s failed. "
+                                            "Exception: %s and code: %s" %
+                                            (msg, exception.cause,
+                                             exception.code))
+                    return False
 
-            # If we get an exception while trying to call IMDS, we
-            # call DHCP and setup the ephemeral network to acquire the new IP.
-            LOG.debug("Call to IMDS with arguments %s failed  with "
-                      "status code %s", msg, exception.code)
-            report_diagnostic_event("polling IMDS failed with exception %s"
-                                    % exception.code)
-            return False
+                LOG.debug("poll IMDS failed with an unexpected exception: %s",
+                          exception)
+                return False
 
         LOG.debug("Wait for vnetswitch to happen")
         while True:
@@ -972,7 +983,7 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
     if command == "builtin":
         if util.is_FreeBSD():
             command = BOUNCE_COMMAND_FREEBSD
-        elif util.which('ifup'):
+        elif subp.which('ifup'):
             command = BOUNCE_COMMAND_IFUP
         else:
             LOG.debug(
@@ -983,7 +994,7 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
     shell = not isinstance(command, (list, tuple))
     # capture=False, see comments in bug 1202758 and bug 1206164.
     util.log_time(logfunc=LOG.debug, msg="publishing hostname",
-                  get_uptime=True, func=util.subp,
+                  get_uptime=True, func=subp.subp,
                   kwargs={'args': command, 'shell': shell, 'capture': False,
                           'env': env})
     return True
@@ -993,7 +1004,7 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
 def crtfile_to_pubkey(fname, data=None):
     pipeline = ('openssl x509 -noout -pubkey < "$0" |'
                 'ssh-keygen -i -m PKCS8 -f /dev/stdin')
-    (out, _err) = util.subp(['sh', '-c', pipeline, fname],
+    (out, _err) = subp.subp(['sh', '-c', pipeline, fname],
                             capture=True, data=data)
     return out.rstrip()
 
@@ -1005,7 +1016,7 @@ def pubkeys_from_crt_files(flist):
     for fname in flist:
         try:
             pubkeys.append(crtfile_to_pubkey(fname))
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             errors.append(fname)
 
     if errors:
@@ -1047,7 +1058,7 @@ def invoke_agent(cmd):
     # this is a function itself to simplify patching it for test
     if cmd:
         LOG.debug("invoking agent: %s", cmd)
-        util.subp(cmd, shell=(not isinstance(cmd, list)))
+        subp.subp(cmd, shell=(not isinstance(cmd, list)))
     else:
         LOG.debug("not invoking agent")
 

@@ -6,6 +6,7 @@ import os
 from uuid import uuid4
 
 from cloudinit import safeyaml
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.tests.helpers import (
     CiTestCase, dir2dict, populate_dir, populate_dir_with_ts)
@@ -160,8 +161,8 @@ class DsIdentifyBase(CiTestCase):
 
         rc = 0
         try:
-            out, err = util.subp(['sh', '-c', '. %s' % wrap], capture=True)
-        except util.ProcessExecutionError as e:
+            out, err = subp.subp(['sh', '-c', '. %s' % wrap], capture=True)
+        except subp.ProcessExecutionError as e:
             rc = e.exit_code
             out = e.stdout
             err = e.stderr
@@ -611,8 +612,10 @@ class TestDsIdentify(DsIdentifyBase):
         ret = self._check_via_dict(
             cust, RC_FOUND,
             func=".", args=[os.path.join(rootd, mpp)], rootd=rootd)
-        line = [l for l in ret.stdout.splitlines() if l.startswith(pre)][0]
-        toks = line.replace(pre, "").split(":")
+        match = [
+            line for line in ret.stdout.splitlines() if line.startswith(pre)
+        ][0]
+        toks = match.replace(pre, "").split(":")
         expected = ["/sbin", "/bin", "/usr/sbin", "/usr/bin", "/mycust/path"]
         self.assertEqual(expected, [p for p in expected if p in toks],
                          "path did not have expected tokens")
@@ -1038,11 +1041,11 @@ VALID_CFG = {
     'Ec2-E24Cloud': {
         'ds': 'Ec2',
         'files': {P_SYS_VENDOR: 'e24cloud\n'},
-     },
+    },
     'Ec2-E24Cloud-negative': {
         'ds': 'Ec2',
         'files': {P_SYS_VENDOR: 'e24cloudyday\n'},
-     }
+    }
 }
 
 # vi: ts=4 expandtab

@@ -211,7 +211,7 @@ class TestDHCPParseStaticRoutes(CiTestCase):
             "class_b": "16,172,16,10",
             "class_a": "8,10,10",
             "gateway": "0,0",
-            "netlen":  "33,0",
+            "netlen": "33,0",
         }
         for rfc3442 in bad_rfc3442.values():
             self.assertEqual([], parse_static_routes(rfc3442))
@@ -266,7 +266,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
             'Skip dhcp_discovery: nic idontexist not found in get_devicelist.',
             self.logs.getvalue())
 
-    @mock.patch('cloudinit.net.dhcp.util.which')
+    @mock.patch('cloudinit.net.dhcp.subp.which')
     @mock.patch('cloudinit.net.dhcp.find_fallback_nic')
     def test_absent_dhclient_command(self, m_fallback, m_which):
         """When dhclient doesn't exist in the OS, log the issue and no-op."""
@@ -279,7 +279,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
 
     @mock.patch('cloudinit.temp_utils.os.getuid')
     @mock.patch('cloudinit.net.dhcp.dhcp_discovery')
-    @mock.patch('cloudinit.net.dhcp.util.which')
+    @mock.patch('cloudinit.net.dhcp.subp.which')
     @mock.patch('cloudinit.net.dhcp.find_fallback_nic')
     def test_dhclient_run_with_tmpdir(self, m_fback, m_which, m_dhcp, m_uid):
         """maybe_perform_dhcp_discovery passes tmpdir to dhcp_discovery."""
@@ -302,7 +302,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
 
     @mock.patch('time.sleep', mock.MagicMock())
     @mock.patch('cloudinit.net.dhcp.os.kill')
-    @mock.patch('cloudinit.net.dhcp.util.subp')
+    @mock.patch('cloudinit.net.dhcp.subp.subp')
     def test_dhcp_discovery_run_in_sandbox_warns_invalid_pid(self, m_subp,
                                                              m_kill):
         """dhcp_discovery logs a warning when pidfile contains invalid content.
@@ -337,7 +337,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
     @mock.patch('cloudinit.net.dhcp.util.get_proc_ppid')
     @mock.patch('cloudinit.net.dhcp.os.kill')
     @mock.patch('cloudinit.net.dhcp.util.wait_for_files')
-    @mock.patch('cloudinit.net.dhcp.util.subp')
+    @mock.patch('cloudinit.net.dhcp.subp.subp')
     def test_dhcp_discovery_run_in_sandbox_waits_on_lease_and_pid(self,
                                                                   m_subp,
                                                                   m_wait,
@@ -364,7 +364,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
 
     @mock.patch('cloudinit.net.dhcp.util.get_proc_ppid')
     @mock.patch('cloudinit.net.dhcp.os.kill')
-    @mock.patch('cloudinit.net.dhcp.util.subp')
+    @mock.patch('cloudinit.net.dhcp.subp.subp')
     def test_dhcp_discovery_run_in_sandbox(self, m_subp, m_kill, m_getppid):
         """dhcp_discovery brings up the interface and runs dhclient.
 
@@ -529,7 +529,7 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
         # Ensure that no teardown happens:
         m_dhcp.assert_not_called()
 
-    @mock.patch('cloudinit.net.dhcp.util.subp')
+    @mock.patch('cloudinit.net.dhcp.subp.subp')
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_ephemeral_dhcp_setup_network_if_url_connectivity(
             self, m_dhcp, m_subp):

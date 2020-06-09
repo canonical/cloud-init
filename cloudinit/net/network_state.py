@@ -215,7 +215,7 @@ class NetworkState(object):
         return (
             route.get('prefix') == 0
             and route.get('network') in default_nets
-            )
+        )
 
 
 class NetworkStateInterpreter(metaclass=CommandHandlerMeta):

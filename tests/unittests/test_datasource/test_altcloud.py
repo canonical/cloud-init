@@ -15,6 +15,7 @@ import shutil
 import tempfile
 
 from cloudinit import helpers
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.tests.helpers import CiTestCase, mock
@@ -286,7 +287,7 @@ class TestUserDataRhevm(CiTestCase):
     def test_modprobe_fails(self):
         '''Test user_data_rhevm() where modprobe fails.'''
 
-        self.m_modprobe_floppy.side_effect = util.ProcessExecutionError(
+        self.m_modprobe_floppy.side_effect = subp.ProcessExecutionError(
             "Failed modprobe")
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
@@ -294,7 +295,7 @@ class TestUserDataRhevm(CiTestCase):
     def test_no_modprobe_cmd(self):
         '''Test user_data_rhevm() with no modprobe command.'''
 
-        self.m_modprobe_floppy.side_effect = util.ProcessExecutionError(
+        self.m_modprobe_floppy.side_effect = subp.ProcessExecutionError(
             "No such file or dir")
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
@@ -302,7 +303,7 @@ class TestUserDataRhevm(CiTestCase):
     def test_udevadm_fails(self):
         '''Test user_data_rhevm() where udevadm fails.'''
 
-        self.m_udevadm_settle.side_effect = util.ProcessExecutionError(
+        self.m_udevadm_settle.side_effect = subp.ProcessExecutionError(
             "Failed settle.")
         dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())

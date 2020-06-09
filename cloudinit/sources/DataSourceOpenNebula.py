@@ -21,6 +21,7 @@ import string
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit import sources
+from cloudinit import subp
 from cloudinit import util
 
 
@@ -334,7 +335,7 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None,
 
     cmd.extend(bash)
 
-    (output, _error) = util.subp(cmd, data=bcmd)
+    (output, _error) = subp.subp(cmd, data=bcmd)
 
     # exclude vars in bash that change on their own or that we used
     excluded = (
@@ -396,7 +397,7 @@ def read_context_disk_dir(source_dir, asuser=None):
             path = os.path.join(source_dir, 'context.sh')
             content = util.load_file(path)
             context = parse_shell_config(content, asuser=asuser)
-        except util.ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             raise BrokenContextDiskDir("Error processing context.sh: %s" % (e))
         except IOError as e:
             raise NonContextDiskDir("Error reading context.sh: %s" % (e))
@@ -417,9 +418,9 @@ def read_context_disk_dir(source_dir, asuser=None):
 
     if ssh_key_var:
         lines = context.get(ssh_key_var).splitlines()
-        results['metadata']['public-keys'] = [l for l in lines
-                                              if len(l) and not
-                                              l.startswith("#")]
+        results['metadata']['public-keys'] = [
+            line for line in lines if len(line) and not line.startswith("#")
+        ]
 
     # custom hostname -- try hostname or leave cloud-init
     # itself create hostname from IP address later

@@ -116,7 +116,7 @@ def _write_host_key_to_guest_attributes(key_type, key_value):
     resp = url_helper.readurl(url=url, data=key_value, headers=HEADERS,
                               request_method='PUT', check_status=False)
     if resp.ok():
-        LOG.debug('Wrote %s host key to guest attributes.',  key_type)
+        LOG.debug('Wrote %s host key to guest attributes.', key_type)
     else:
         LOG.debug('Unable to write %s host key to guest attributes.', key_type)
 

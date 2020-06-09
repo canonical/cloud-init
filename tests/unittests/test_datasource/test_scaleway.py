@@ -371,25 +371,32 @@ class TestDataSourceScaleway(HttprettyTestCase):
         m_get_cmdline.return_value = 'scaleway'
         fallback_nic.return_value = 'ens2'
         self.datasource.metadata['ipv6'] = {
-                'address': '2000:abc:4444:9876::42:999',
-                'gateway': '2000:abc:4444:9876::42:000',
-                'netmask': '127',
-                }
+            'address': '2000:abc:4444:9876::42:999',
+            'gateway': '2000:abc:4444:9876::42:000',
+            'netmask': '127',
+        }
 
         netcfg = self.datasource.network_config
-        resp = {'version': 1,
-                'config': [{
-                     'type': 'physical',
-                     'name': 'ens2',
-                     'subnets': [{'type': 'dhcp4'},
-                                 {'type': 'static',
-                                  'address': '2000:abc:4444:9876::42:999',
-                                  'gateway': '2000:abc:4444:9876::42:000',
-                                  'netmask': '127', }
-                                 ]
-
-                     }]
+        resp = {
+            'version': 1,
+            'config': [
+                {
+                    'type': 'physical',
+                    'name': 'ens2',
+                    'subnets': [
+                        {
+                            'type': 'dhcp4'
+                        },
+                        {
+                            'type': 'static',
+                            'address': '2000:abc:4444:9876::42:999',
+                            'gateway': '2000:abc:4444:9876::42:000',
+                            'netmask': '127',
+                        }
+                    ]
                 }
+            ]
+        }
         self.assertEqual(netcfg, resp)
 
     @mock.patch('cloudinit.sources.DataSourceScaleway.net.find_fallback_nic')
