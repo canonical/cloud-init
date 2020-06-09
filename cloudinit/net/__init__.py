@@ -12,6 +12,7 @@ import os
 import re
 from functools import partial
 
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit.url_helper import UrlError, readurl
@@ -358,7 +359,7 @@ def find_fallback_nic_on_freebsd(blacklist_drivers=None):
 
     we'll use the first interface from ``ifconfig -l -u ether``
     """
-    stdout, _stderr = util.subp(['ifconfig', '-l', '-u', 'ether'])
+    stdout, _stderr = subp.subp(['ifconfig', '-l', '-u', 'ether'])
     values = stdout.split()
     if values:
         return values[0]
@@ -620,9 +621,9 @@ def _get_current_rename_info(check_downable=True):
 
     if check_downable:
         nmatch = re.compile(r"[0-9]+:\s+(\w+)[@:]")
-        ipv6, _err = util.subp(['ip', '-6', 'addr', 'show', 'permanent',
+        ipv6, _err = subp.subp(['ip', '-6', 'addr', 'show', 'permanent',
                                 'scope', 'global'], capture=True)
-        ipv4, _err = util.subp(['ip', '-4', 'addr', 'show'], capture=True)
+        ipv4, _err = subp.subp(['ip', '-4', 'addr', 'show'], capture=True)
 
         nics_with_addresses = set()
         for bytes_out in (ipv6, ipv4):
@@ -658,13 +659,13 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
                     for data in cur_info.values())
 
     def rename(cur, new):
-        util.subp(["ip", "link", "set", cur, "name", new], capture=True)
+        subp.subp(["ip", "link", "set", cur, "name", new], capture=True)
 
     def down(name):
-        util.subp(["ip", "link", "set", name, "down"], capture=True)
+        subp.subp(["ip", "link", "set", name, "down"], capture=True)
 
     def up(name):
-        util.subp(["ip", "link", "set", name, "up"], capture=True)
+        subp.subp(["ip", "link", "set", name, "up"], capture=True)
 
     ops = []
     errors = []
@@ -819,7 +820,7 @@ def get_interfaces_by_mac():
 
 
 def get_interfaces_by_mac_on_freebsd():
-    (out, _) = util.subp(['ifconfig', '-a', 'ether'])
+    (out, _) = subp.subp(['ifconfig', '-a', 'ether'])
 
     # flatten each interface block in a single line
     def flatten(out):
@@ -851,7 +852,7 @@ def get_interfaces_by_mac_on_netbsd():
         r"(?P<ifname>\w+).*address:\s"
         r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*"
     )
-    (out, _) = util.subp(['ifconfig', '-a'])
+    (out, _) = subp.subp(['ifconfig', '-a'])
     if_lines = re.sub(r'\n\s+', ' ', out).splitlines()
     for line in if_lines:
         m = re.match(re_field_match, line)
@@ -866,7 +867,7 @@ def get_interfaces_by_mac_on_openbsd():
     re_field_match = (
         r"(?P<ifname>\w+).*lladdr\s"
         r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*")
-    (out, _) = util.subp(['ifconfig', '-a'])
+    (out, _) = subp.subp(['ifconfig', '-a'])
     if_lines = re.sub(r'\n\s+', ' ', out).splitlines()
     for line in if_lines:
         m = re.match(re_field_match, line)
@@ -1068,11 +1069,11 @@ class EphemeralIPv4Network(object):
     def __exit__(self, excp_type, excp_value, excp_traceback):
         """Teardown anything we set up."""
         for cmd in self.cleanup_cmds:
-            util.subp(cmd, capture=True)
+            subp.subp(cmd, capture=True)
 
     def _delete_address(self, address, prefix):
         """Perform the ip command to remove the specified address."""
-        util.subp(
+        subp.subp(
             ['ip', '-family', 'inet', 'addr', 'del',
              '%s/%s' % (address, prefix), 'dev', self.interface],
             capture=True)
@@ -1084,11 +1085,11 @@ class EphemeralIPv4Network(object):
             'Attempting setup of ephemeral network on %s with %s brd %s',
             self.interface, cidr, self.broadcast)
         try:
-            util.subp(
+            subp.subp(
                 ['ip', '-family', 'inet', 'addr', 'add', cidr, 'broadcast',
                  self.broadcast, 'dev', self.interface],
                 capture=True, update_env={'LANG': 'C'})
-        except util.ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             if "File exists" not in e.stderr:
                 raise
             LOG.debug(
@@ -1096,7 +1097,7 @@ class EphemeralIPv4Network(object):
                 self.interface, self.ip)
         else:
             # Address creation success, bring up device and queue cleanup
-            util.subp(
+            subp.subp(
                 ['ip', '-family', 'inet', 'link', 'set', 'dev', self.interface,
                  'up'], capture=True)
             self.cleanup_cmds.append(
@@ -1113,7 +1114,7 @@ class EphemeralIPv4Network(object):
             via_arg = []
             if gateway != "0.0.0.0/0":
                 via_arg = ['via', gateway]
-            util.subp(
+            subp.subp(
                 ['ip', '-4', 'route', 'add', net_address] + via_arg +
                 ['dev', self.interface], capture=True)
             self.cleanup_cmds.insert(
@@ -1123,20 +1124,20 @@ class EphemeralIPv4Network(object):
     def _bringup_router(self):
         """Perform the ip commands to fully setup the router if needed."""
         # Check if a default route exists and exit if it does
-        out, _ = util.subp(['ip', 'route', 'show', '0.0.0.0/0'], capture=True)
+        out, _ = subp.subp(['ip', 'route', 'show', '0.0.0.0/0'], capture=True)
         if 'default' in out:
             LOG.debug(
                 'Skip ephemeral route setup. %s already has default route: %s',
                 self.interface, out.strip())
             return
-        util.subp(
+        subp.subp(
             ['ip', '-4', 'route', 'add', self.router, 'dev', self.interface,
              'src', self.ip], capture=True)
         self.cleanup_cmds.insert(
             0,
             ['ip', '-4', 'route', 'del', self.router, 'dev', self.interface,
              'src', self.ip])
-        util.subp(
+        subp.subp(
             ['ip', '-4', 'route', 'add', 'default', 'via', self.router,
              'dev', self.interface], capture=True)
         self.cleanup_cmds.insert(

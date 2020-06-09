@@ -8,6 +8,7 @@ import platform
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         # Run the command
         LOG.info("Adding user %s", name)
         try:
-            util.subp(adduser_cmd, logstring=log_adduser_cmd)
+            subp.subp(adduser_cmd, logstring=log_adduser_cmd)
         except Exception:
             util.logexc(LOG, "Failed to create user %s", name)
             raise
@@ -104,7 +105,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
             )
 
         try:
-            util.subp(['usermod', '-p', hashed_pw, user])
+            subp.subp(['usermod', '-p', hashed_pw, user])
         except Exception:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise
@@ -112,21 +113,21 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
     def force_passwd_change(self, user):
         try:
-            util.subp(['usermod', '-F', user])
+            subp.subp(['usermod', '-F', user])
         except Exception:
             util.logexc(LOG, "Failed to set pw expiration for %s", user)
             raise
 
     def lock_passwd(self, name):
         try:
-            util.subp(['usermod', '-C', 'yes', name])
+            subp.subp(['usermod', '-C', 'yes', name])
         except Exception:
             util.logexc(LOG, "Failed to lock user %s", name)
             raise
 
     def unlock_passwd(self, name):
         try:
-            util.subp(['usermod', '-C', 'no', name])
+            subp.subp(['usermod', '-C', 'no', name])
         except Exception:
             util.logexc(LOG, "Failed to unlock user %s", name)
             raise

@@ -14,6 +14,7 @@ from cloudinit import log as logging
 from cloudinit import temp_utils
 from cloudinit import templater
 from cloudinit import type_utils
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.config.schema import get_schema_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
@@ -307,7 +308,7 @@ def select_ntp_client(ntp_client, distro):
     if distro_ntp_client == "auto":
         for client in distro.preferred_ntp_clients:
             cfg = distro_cfg.get(client)
-            if util.which(cfg.get('check_exe')):
+            if subp.which(cfg.get('check_exe')):
                 LOG.debug('Selected NTP client "%s", already installed',
                           client)
                 clientcfg = cfg
@@ -336,7 +337,7 @@ def install_ntp_client(install_func, packages=None, check_exe="ntpd"):
     @param check_exe: string.  The name of a binary that indicates the package
     the specified package is already installed.
     """
-    if util.which(check_exe):
+    if subp.which(check_exe):
         return
     if packages is None:
         packages = ['ntp']
@@ -431,7 +432,7 @@ def reload_ntp(service, systemd=False):
         cmd = ['systemctl', 'reload-or-restart', service]
     else:
         cmd = ['service', service, 'restart']
-    util.subp(cmd, capture=True)
+    subp.subp(cmd, capture=True)
 
 
 def supplemental_schema_validation(ntp_config):
@@ -543,7 +544,7 @@ def handle(name, cfg, cloud, log, _args):
     try:
         reload_ntp(ntp_client_config['service_name'],
                    systemd=cloud.distro.uses_systemd())
-    except util.ProcessExecutionError as e:
+    except subp.ProcessExecutionError as e:
         LOG.exception("Failed to reload/start ntp service: %s", e)
         raise
 

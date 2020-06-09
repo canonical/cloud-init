@@ -2,7 +2,7 @@
 
 from cloudinit.config.cc_bootcmd import handle, schema
 from cloudinit.sources import DataSourceNone
-from cloudinit import (distros, helpers, cloud, util)
+from cloudinit import (distros, helpers, cloud, subp, util)
 from cloudinit.tests.helpers import (
     CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
 
@@ -36,7 +36,7 @@ class TestBootcmd(CiTestCase):
 
     def setUp(self):
         super(TestBootcmd, self).setUp()
-        self.subp = util.subp
+        self.subp = subp.subp
         self.new_root = self.tmp_dir()
 
     def _get_cloud(self, distro):
@@ -130,7 +130,7 @@ class TestBootcmd(CiTestCase):
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):
             with self.allow_subp(['/bin/sh']):
-                with self.assertRaises(util.ProcessExecutionError) as ctxt:
+                with self.assertRaises(subp.ProcessExecutionError) as ctxt:
                     handle('does-not-matter', valid_config, cc, LOG, [])
         self.assertIn(
             'Unexpected error while running command.\n'

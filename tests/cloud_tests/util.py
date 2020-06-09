@@ -17,6 +17,7 @@ import time
 import yaml
 from contextlib import contextmanager
 
+from cloudinit import subp
 from cloudinit import util as c_util
 from tests.cloud_tests import LOG
 
@@ -232,8 +233,8 @@ def flat_tar(output, basedir, owner='root', group='root'):
     @param group: group archive files belong to
     @return_value: none
     """
-    c_util.subp(['tar', 'cf', output, '--owner', owner, '--group', group,
-                 '-C', basedir] + rel_files(basedir), capture=True)
+    subp.subp(['tar', 'cf', output, '--owner', owner, '--group', group,
+               '-C', basedir] + rel_files(basedir), capture=True)
 
 
 def parse_conf_list(entries, valid=None, boolean=False):
@@ -465,7 +466,7 @@ class TargetBase(object):
         return path
 
 
-class InTargetExecuteError(c_util.ProcessExecutionError):
+class InTargetExecuteError(subp.ProcessExecutionError):
     """Error type for in target commands that fail."""
 
     default_desc = 'Unexpected error while running command.'

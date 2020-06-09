@@ -7,6 +7,7 @@ import platform
 
 import cloudinit.distros.netbsd
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
 
     def lock_passwd(self, name):
         try:
-            util.subp(['usermod', '-p', '*', name])
+            subp.subp(['usermod', '-p', '*', name])
         except Exception:
             util.logexc(LOG, "Failed to lock user %s", name)
             raise

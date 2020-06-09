@@ -10,6 +10,7 @@ import os
 
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.net import eni
@@ -245,7 +246,7 @@ def find_candidate_devs(probe_optical=True, dslist=None):
         for device in OPTICAL_DEVICES:
             try:
                 util.find_devs_with(path=device)
-            except util.ProcessExecutionError:
+            except subp.ProcessExecutionError:
                 pass
 
     by_fstype = []

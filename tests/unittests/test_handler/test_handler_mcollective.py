@@ -136,8 +136,9 @@ class TestHandler(t_help.TestCase):
         cc = cloud.Cloud(ds, paths, {}, d, None)
         return cc
 
+    @t_help.mock.patch("cloudinit.config.cc_mcollective.subp")
     @t_help.mock.patch("cloudinit.config.cc_mcollective.util")
-    def test_mcollective_install(self, mock_util):
+    def test_mcollective_install(self, mock_util, mock_subp):
         cc = self._get_cloud('ubuntu')
         cc.distro = t_help.mock.MagicMock()
         mock_util.load_file.return_value = b""
@@ -147,8 +148,8 @@ class TestHandler(t_help.TestCase):
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
         self.assertEqual(install_pkg, ('mcollective',))
 
-        self.assertTrue(mock_util.subp.called)
-        self.assertEqual(mock_util.subp.call_args_list[0][0][0],
+        self.assertTrue(mock_subp.subp.called)
+        self.assertEqual(mock_subp.subp.call_args_list[0][0][0],
                          ['service', 'mcollective', 'restart'])
 
 # vi: ts=4 expandtab
