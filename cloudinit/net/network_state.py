@@ -722,10 +722,10 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             item_params = dict((key, value) for (key, value) in
                                item_cfg.items() if key not in
                                NETWORK_V2_KEY_FILTER)
-            # we accept the fixed spelling, but write the old for compatability
+            # we accept the fixed spelling, but write the old for compatibility
             # Xenial does not have an updated netplan which supports the
             # correct spelling.  LP: #1756701
-            params = item_params['parameters']
+            params = item_params.get('parameters', {})
             grat_value = params.pop('gratuitous-arp', None)
             if grat_value:
                 params['gratuitious-arp'] = grat_value
@@ -734,8 +734,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 'type': cmd_type,
                 'name': item_name,
                 cmd_type + '_interfaces': item_cfg.get('interfaces'),
-                'params': dict((v2key_to_v1[k], v) for k, v in
-                               item_params.get('parameters', {}).items())
+                'params': dict((v2key_to_v1[k], v) for k, v in params.items())
             }
             if 'mtu' in item_cfg:
                 v1_cmd['mtu'] = item_cfg['mtu']
