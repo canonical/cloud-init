@@ -406,6 +406,10 @@ class DataSourceAzure(sources.DataSource):
         candidates = [self.seed_dir]
         if os.path.isfile(REPROVISION_MARKER_FILE):
             candidates.insert(0, "IMDS")
+            msg = ('Reprovision marker file already exists '
+                   'before crawl of Azure metadata')
+            LOG.warning(msg)
+            report_diagnostic_event(msg)
         candidates.extend(list_possible_azure_ds_devs())
         if ddir:
             candidates.append(ddir)
@@ -462,7 +466,12 @@ class DataSourceAzure(sources.DataSource):
                 'userdata_raw': userdata_raw})
             found = cdev
 
-            LOG.debug("found datasource in %s", cdev)
+            if perform_reprovision:
+                msg = "found datasource in IMDS"
+            else:
+                msg = "found datasource in %s" % cdev
+            LOG.debug(msg)
+            report_diagnostic_event(msg)
             break
 
         if not found:
@@ -472,7 +481,9 @@ class DataSourceAzure(sources.DataSource):
             raise sources.InvalidMetaDataException(msg)
 
         if found == ddir:
-            LOG.debug("using files cached in %s", ddir)
+            msg = "using files cached in %s" % ddir
+            LOG.debug(msg)
+            report_diagnostic_event(msg)
 
         seed = _get_random_seed()
         if seed:
