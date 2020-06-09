@@ -21,7 +21,8 @@ the virtual router).
     http://data-server./latest/meta-data/{metadata type}
 
 If `data-server.` cannot be resolved, cloud-init will try to obtain the
-virtual router's address from the system's DHCP leases.
+virtual router's address from the system's DHCP leases. If that fails,
+it will use the system's default gateway.
 
 Configuration
 -------------
