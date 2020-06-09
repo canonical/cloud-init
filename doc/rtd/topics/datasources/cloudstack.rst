@@ -9,14 +9,20 @@ dhcp lease information given to the instance.
 For more details on meta-data and user-data,
 refer the `CloudStack Administrator Guide`_.
 
-URLs to access user-data and meta-data from the Virtual Machine. Here 10.1.1.1
-is the Virtual Router IP:
+URLs to access user-data and meta-data from the Virtual Machine.
+`data-server.` is a well-known hostname provided by the CloudStack virtual
+router that points to the next UserData server (which is usually also
+the virtual router).
 
 .. code:: bash
 
-    http://10.1.1.1/latest/user-data
-    http://10.1.1.1/latest/meta-data
-    http://10.1.1.1/latest/meta-data/{metadata type}
+    http://data-server./latest/user-data
+    http://data-server./latest/meta-data
+    http://data-server./latest/meta-data/{metadata type}
+
+If `data-server.` cannot be resolved, cloud-init will try to obtain the
+virtual router's address from the system's DHCP leases. If that fails,
+it will use the system's default gateway.
 
 Configuration
 -------------
