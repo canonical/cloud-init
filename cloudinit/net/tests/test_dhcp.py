@@ -418,7 +418,7 @@ class TestDHCPDiscoveryClean(CiTestCase):
                  'eth9', '-sf', '/bin/true'], capture=True)])
         m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
 
-    @mock.patch('cloudinit.net.dhcp.util.subp')
+    @mock.patch('cloudinit.net.dhcp.subp.subp')
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_dhcp_discovery_error_stream(
             self, m_dhcp, m_subp):
