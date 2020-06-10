@@ -636,6 +636,8 @@ class DataSourceAzure(sources.DataSource):
                         parent=azure_ds_reporter):
                     self._ephemeral_dhcp_ctx = EphemeralDHCPv4()
                     lease = self._ephemeral_dhcp_ctx.obtain_lease()
+                    err = self._ephemeral_dhcp_ctx.dhcp_error
+                    report_diagnostic_event(err)
 
                 if vnet_switched:
                     dhcp_attempts += 1

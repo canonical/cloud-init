@@ -126,7 +126,7 @@ class TestDHCPRFC3442(CiTestCase):
              'rfc3442-classless-static-routes': '0,130,56,240,1',
              'renew': '4 2017/07/27 18:02:30',
              'expire': '5 2017/07/28 07:08:15'}]
-        m_maybe.return_value = lease
+        m_maybe.return_value = lease, ''
         eph = net.dhcp.EphemeralDHCPv4()
         eph.obtain_lease()
         expected_kwargs = {
@@ -151,7 +151,7 @@ class TestDHCPRFC3442(CiTestCase):
              'classless-static-routes': '0 130.56.240.1',
              'renew': '4 2017/07/27 18:02:30',
              'expire': '5 2017/07/28 07:08:15'}]
-        m_maybe.return_value = lease
+        m_maybe.return_value = lease, ''
         eph = net.dhcp.EphemeralDHCPv4()
         eph.obtain_lease()
         expected_kwargs = {
@@ -262,6 +262,15 @@ class TestDHCPDiscoveryClean(CiTestCase):
     def test_provided_nic_does_not_exist(self):
         """When the provided nic doesn't exist, log a message and no-op."""
         self.assertEqual([], maybe_perform_dhcp_discovery('idontexist'))
+        self.assertIn(
+            'Skip dhcp_discovery: nic idontexist not found in get_devicelist.',
+            self.logs.getvalue())
+
+    def test_provided_nic_does_not_exist_capturing(self):
+        """When the provided nic doesn't exist, log a message and no-op."""
+        lease, err = maybe_perform_dhcp_discovery('idontexist', capture=True)
+        self.assertEqual([], lease)
+        self.assertEqual('', err)
         self.assertIn(
             'Skip dhcp_discovery: nic idontexist not found in get_devicelist.',
             self.logs.getvalue())
@@ -409,6 +418,21 @@ class TestDHCPDiscoveryClean(CiTestCase):
                  'eth9', '-sf', '/bin/true'], capture=True)])
         m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
 
+    @mock.patch('cloudinit.net.dhcp.util.subp')
+    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
+    def test_dhcp_discovery_error_stream(
+            self, m_dhcp, m_subp):
+        """dhclient error stream is returned when dhcbv4 obtains lease."""
+        dhclient_err = 'FAKE DHCLIENT ERROR'
+        fake_lease = {
+            'interface': 'eth9', 'fixed-address': '192.168.2.2',
+            'subnet-mask': '255.255.0.0'}
+        m_dhcp.return_value = [fake_lease], dhclient_err
+        m_subp.return_value = ('', '')
+        dhcpv4 = net.dhcp.EphemeralDHCPv4()
+        with dhcpv4:
+            self.assertEqual(dhcpv4.dhcp_error, dhclient_err)
+
 
 class TestSystemdParseLeases(CiTestCase):
 
@@ -541,7 +565,7 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
         fake_lease = {
             'interface': 'eth9', 'fixed-address': '192.168.2.2',
             'subnet-mask': '255.255.0.0'}
-        m_dhcp.return_value = [fake_lease]
+        m_dhcp.return_value = [fake_lease], ''
         m_subp.return_value = ('', '')
 
         httpretty.register_uri(httpretty.GET, url, body={}, status=404)

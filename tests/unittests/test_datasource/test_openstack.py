@@ -261,7 +261,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
-            'broadcast-address': '192.168.2.255'}]
+            'broadcast-address': '192.168.2.255'}], ''
 
         self.assertIsNone(ds_os_local.version)
         mock_path = MOCK_PATH + 'detect_openstack'
@@ -279,7 +279,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(2, len(ds_os_local.files))
         self.assertEqual(VENDOR_DATA, ds_os_local.vendordata_pure)
         self.assertIsNone(ds_os_local.vendordata_raw)
-        m_dhcp.assert_called_with('eth9')
+        m_dhcp.assert_called_with('eth9', capture=True)
 
     def test_bad_datasource_meta(self):
         os_files = copy.deepcopy(OS_FILES)

@@ -721,7 +721,7 @@ scbus-1 on xpt0 bus 0
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
             'unknown-245': '624c3620'}
-        m_dhcp.return_value = [lease]
+        m_dhcp.return_value = [lease], ''
         m_media_switch.return_value = None
 
         reprovision_ovfenv = construct_valid_ovf_env()
@@ -1980,7 +1980,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
-            'unknown-245': '624c3620'}]
+            'unknown-245': '624c3620'}], ''
         m_media_switch.return_value = None
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
@@ -2014,7 +2014,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         m_media_switch.return_value = None
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
-            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0'}]
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0'}], ''
         url = 'http://{0}/metadata/reprovisiondata?api-version=2017-04-02'
         host = "169.254.169.254"
         full_url = url.format(host)
@@ -2047,7 +2047,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
-            'unknown-245': '624c3620'}]
+            'unknown-245': '624c3620'}], ''
         url = 'http://{0}/metadata/reprovisiondata?api-version=2017-04-02'
         host = "169.254.169.254"
         full_url = url.format(host)
