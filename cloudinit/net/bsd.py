@@ -5,6 +5,7 @@ import re
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit import util
+from cloudinit import subp
 from cloudinit.distros.parsers.resolv_conf import ResolvConf
 from cloudinit.distros import bsd_utils
 
@@ -18,11 +19,11 @@ class BSDRenderer(renderer.Renderer):
     rc_conf_fn = 'etc/rc.conf'
 
     def get_rc_config_value(self, key):
-        fn = util.target_path(self.target, self.rc_conf_fn)
+        fn = subp.target_path(self.target, self.rc_conf_fn)
         bsd_utils.get_rc_config_value(key, fn=fn)
 
     def set_rc_config_value(self, key, value):
-        fn = util.target_path(self.target, self.rc_conf_fn)
+        fn = subp.target_path(self.target, self.rc_conf_fn)
         bsd_utils.set_rc_config_value(key, value, fn=fn)
 
     def __init__(self, config=None):
@@ -65,8 +66,9 @@ class BSDRenderer(renderer.Renderer):
                 if subnet.get('type') == 'static':
                     if not subnet.get('netmask'):
                         LOG.debug(
-                                'Skipping IP %s, because there is no netmask',
-                                subnet.get('address'))
+                            'Skipping IP %s, because there is no netmask',
+                            subnet.get('address')
+                        )
                         continue
                     LOG.debug('Configuring dev %s with %s / %s', device_name,
                               subnet.get('address'), subnet.get('netmask'))
@@ -111,12 +113,12 @@ class BSDRenderer(renderer.Renderer):
         # Try to read the /etc/resolv.conf or just start from scratch if that
         # fails.
         try:
-            resolvconf = ResolvConf(util.load_file(util.target_path(
+            resolvconf = ResolvConf(util.load_file(subp.target_path(
                 target, self.resolv_conf_fn)))
             resolvconf.parse()
         except IOError:
             util.logexc(LOG, "Failed to parse %s, use new empty file",
-                        util.target_path(target, self.resolv_conf_fn))
+                        subp.target_path(target, self.resolv_conf_fn))
             resolvconf = ResolvConf('')
             resolvconf.parse()
 
@@ -134,7 +136,7 @@ class BSDRenderer(renderer.Renderer):
             except ValueError:
                 util.logexc(LOG, "Failed to add search domain %s", domain)
         util.write_file(
-            util.target_path(target, self.resolv_conf_fn),
+            subp.target_path(target, self.resolv_conf_fn),
             str(resolvconf), 0o644)
 
     def render_network_state(self, network_state, templates=None, target=None):

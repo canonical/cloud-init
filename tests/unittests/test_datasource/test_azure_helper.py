@@ -287,7 +287,7 @@ class TestOpenSSLManager(CiTestCase):
         self.addCleanup(patches.close)
 
         self.subp = patches.enter_context(
-            mock.patch.object(azure_helper.util, 'subp'))
+            mock.patch.object(azure_helper.subp, 'subp'))
         try:
             self.open = patches.enter_context(
                 mock.patch('__builtin__.open'))

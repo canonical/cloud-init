@@ -43,8 +43,9 @@ seeded with empty values, and install_devices_empty is set to true.
 
 import os
 
+from cloudinit import subp
 from cloudinit import util
-from cloudinit.util import ProcessExecutionError
+from cloudinit.subp import ProcessExecutionError
 
 distros = ['ubuntu', 'debian']
 
@@ -59,7 +60,7 @@ def fetch_idevs(log):
 
     try:
         # get the root disk where the /boot directory resides.
-        disk = util.subp(['grub-probe', '-t', 'disk', '/boot'],
+        disk = subp.subp(['grub-probe', '-t', 'disk', '/boot'],
                          capture=True)[0].strip()
     except ProcessExecutionError as e:
         # grub-common may not be installed, especially on containers
@@ -84,7 +85,7 @@ def fetch_idevs(log):
 
     try:
         # check if disk exists and use udevadm to fetch symlinks
-        devices = util.subp(
+        devices = subp.subp(
             ['udevadm', 'info', '--root', '--query=symlink', disk],
             capture=True
         )[0].strip().split()
@@ -135,7 +136,7 @@ def handle(name, cfg, _cloud, log, _args):
               (idevs, idevs_empty))
 
     try:
-        util.subp(['debconf-set-selections'], dconf_sel)
+        subp.subp(['debconf-set-selections'], dconf_sel)
     except Exception:
         util.logexc(log, "Failed to run debconf-set-selections for grub-dpkg")
 

@@ -83,6 +83,7 @@ import sys
 from cloudinit.distros import ug_util
 from cloudinit import log as logging
 from cloudinit.ssh_util import update_ssh_config
+from cloudinit import subp
 from cloudinit import util
 
 from string import ascii_letters, digits
@@ -128,7 +129,7 @@ def handle_ssh_pwauth(pw_auth, service_cmd=None, service_name="ssh"):
         cmd = list(service_cmd) + ["restart", service_name]
     else:
         cmd = list(service_cmd) + [service_name, "restart"]
-    util.subp(cmd)
+    subp.subp(cmd)
     LOG.debug("Restarted the SSH daemon.")
 
 
@@ -247,6 +248,6 @@ def chpasswd(distro, plist_in, hashed=False):
             distro.set_passwd(u, p, hashed=hashed)
     else:
         cmd = ['chpasswd'] + (['-e'] if hashed else [])
-        util.subp(cmd, plist_in)
+        subp.subp(cmd, plist_in)
 
 # vi: ts=4 expandtab

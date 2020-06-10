@@ -31,13 +31,13 @@ class TestLxd(t_help.CiTestCase):
         return cc
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
-    @mock.patch("cloudinit.config.cc_lxd.util")
-    def test_lxd_init(self, mock_util, m_maybe_clean):
+    @mock.patch("cloudinit.config.cc_lxd.subp")
+    def test_lxd_init(self, mock_subp, m_maybe_clean):
         cc = self._get_cloud('ubuntu')
-        mock_util.which.return_value = True
+        mock_subp.which.return_value = True
         m_maybe_clean.return_value = None
         cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, self.logger, [])
-        self.assertTrue(mock_util.which.called)
+        self.assertTrue(mock_subp.which.called)
         # no bridge config, so maybe_cleanup should not be called.
         self.assertFalse(m_maybe_clean.called)
         self.assertEqual(
@@ -45,14 +45,14 @@ class TestLxd(t_help.CiTestCase):
              mock.call(
                  ['lxd', 'init', '--auto', '--network-address=0.0.0.0',
                   '--storage-backend=zfs', '--storage-pool=poolname'])],
-            mock_util.subp.call_args_list)
+            mock_subp.subp.call_args_list)
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
-    @mock.patch("cloudinit.config.cc_lxd.util")
-    def test_lxd_install(self, mock_util, m_maybe_clean):
+    @mock.patch("cloudinit.config.cc_lxd.subp")
+    def test_lxd_install(self, mock_subp, m_maybe_clean):
         cc = self._get_cloud('ubuntu')
         cc.distro = mock.MagicMock()
-        mock_util.which.return_value = None
+        mock_subp.which.return_value = None
         cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, self.logger, [])
         self.assertNotIn('WARN', self.logs.getvalue())
         self.assertTrue(cc.distro.install_packages.called)
@@ -62,23 +62,23 @@ class TestLxd(t_help.CiTestCase):
         self.assertEqual(sorted(install_pkg), ['lxd', 'zfsutils-linux'])
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
-    @mock.patch("cloudinit.config.cc_lxd.util")
-    def test_no_init_does_nothing(self, mock_util, m_maybe_clean):
+    @mock.patch("cloudinit.config.cc_lxd.subp")
+    def test_no_init_does_nothing(self, mock_subp, m_maybe_clean):
         cc = self._get_cloud('ubuntu')
         cc.distro = mock.MagicMock()
         cc_lxd.handle('cc_lxd', {'lxd': {}}, cc, self.logger, [])
         self.assertFalse(cc.distro.install_packages.called)
-        self.assertFalse(mock_util.subp.called)
+        self.assertFalse(mock_subp.subp.called)
         self.assertFalse(m_maybe_clean.called)
 
     @mock.patch("cloudinit.config.cc_lxd.maybe_cleanup_default")
-    @mock.patch("cloudinit.config.cc_lxd.util")
-    def test_no_lxd_does_nothing(self, mock_util, m_maybe_clean):
+    @mock.patch("cloudinit.config.cc_lxd.subp")
+    def test_no_lxd_does_nothing(self, mock_subp, m_maybe_clean):
         cc = self._get_cloud('ubuntu')
         cc.distro = mock.MagicMock()
         cc_lxd.handle('cc_lxd', {'package_update': True}, cc, self.logger, [])
         self.assertFalse(cc.distro.install_packages.called)
-        self.assertFalse(mock_util.subp.called)
+        self.assertFalse(mock_subp.subp.called)
         self.assertFalse(m_maybe_clean.called)
 
     def test_lxd_debconf_new_full(self):

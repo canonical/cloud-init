@@ -11,7 +11,7 @@ import uuid
 
 from ..instances import Instance
 from cloudinit.atomic_helper import write_json
-from cloudinit import util as c_util
+from cloudinit import subp
 from tests.cloud_tests import LOG, util
 
 # This domain contains reverse lookups for hostnames that are used.
@@ -110,8 +110,8 @@ class NoCloudKVMInstance(Instance):
         """Clean up instance."""
         if self.pid:
             try:
-                c_util.subp(['kill', '-9', self.pid])
-            except c_util.ProcessExecutionError:
+                subp.subp(['kill', '-9', self.pid])
+            except subp.ProcessExecutionError:
                 pass
 
         if self.pid_file:
@@ -143,8 +143,8 @@ class NoCloudKVMInstance(Instance):
 
         # meta-data can be yaml, but more easily pretty printed with json
         write_json(meta_data_file, self.meta_data)
-        c_util.subp(['cloud-localds', seed_file, user_data_file,
-                     meta_data_file])
+        subp.subp(['cloud-localds', seed_file, user_data_file,
+                   meta_data_file])
 
         return seed_file
 

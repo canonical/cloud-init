@@ -17,6 +17,7 @@ from cloudinit.net import (
     has_url_connectivity)
 from cloudinit.net.network_state import mask_and_ipv4_to_bcast_addr as bcip
 from cloudinit import temp_utils
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -158,7 +159,7 @@ def maybe_perform_dhcp_discovery(nic=None, capture=False):
         LOG.debug(
             'Skip dhcp_discovery: nic %s not found in get_devicelist.', nic)
         return ([], '') if capture else []
-    dhclient_path = util.which('dhclient')
+    dhclient_path = subp.which('dhclient')
     if not dhclient_path:
         LOG.debug('Skip dhclient configuration: No dhclient command found.')
         return ([], '') if capture else []
@@ -230,10 +231,10 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir, capture=False):
     # Generally dhclient relies on dhclient-script PREINIT action to bring the
     # link up before attempting discovery. Since we are using -sf /bin/true,
     # we need to do that "link up" ourselves first.
-    util.subp(['ip', 'link', 'set', 'dev', interface, 'up'], capture=True)
+    subp.subp(['ip', 'link', 'set', 'dev', interface, 'up'], capture=True)
     cmd = [sandbox_dhclient_cmd, '-1', '-v', '-lf', lease_file,
            '-pf', pid_file, interface, '-sf', '/bin/true']
-    _out, err = util.subp(cmd, capture=True)
+    _out, err = subp.subp(cmd, capture=True)
 
     # Wait for pid file and lease file to appear, and for the process
     # named by the pid file to daemonize (have pid 1 as its parent). If we

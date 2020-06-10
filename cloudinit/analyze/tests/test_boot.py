@@ -25,7 +25,7 @@ class TestDistroChecker(CiTestCase):
                                       m_get_linux_distro, m_is_FreeBSD):
         self.assertEqual(err_code, dist_check_timestamp())
 
-    @mock.patch('cloudinit.util.subp', return_value=(0, 1))
+    @mock.patch('cloudinit.subp.subp', return_value=(0, 1))
     def test_subp_fails(self, m_subp):
         self.assertEqual(err_code, dist_check_timestamp())
 
@@ -42,7 +42,7 @@ class TestSystemCtlReader(CiTestCase):
         with self.assertRaises(RuntimeError):
             reader.parse_epoch_as_float()
 
-    @mock.patch('cloudinit.util.subp', return_value=('U=1000000', None))
+    @mock.patch('cloudinit.subp.subp', return_value=('U=1000000', None))
     def test_systemctl_works_correctly_threshold(self, m_subp):
         reader = SystemctlReader('dummyProperty', 'dummyParameter')
         self.assertEqual(1.0, reader.parse_epoch_as_float())
@@ -50,12 +50,12 @@ class TestSystemCtlReader(CiTestCase):
         self.assertTrue(thresh < 1e-6)
         self.assertTrue(thresh > (-1 * 1e-6))
 
-    @mock.patch('cloudinit.util.subp', return_value=('U=0', None))
+    @mock.patch('cloudinit.subp.subp', return_value=('U=0', None))
     def test_systemctl_succeed_zero(self, m_subp):
         reader = SystemctlReader('dummyProperty', 'dummyParameter')
         self.assertEqual(0.0, reader.parse_epoch_as_float())
 
-    @mock.patch('cloudinit.util.subp', return_value=('U=1', None))
+    @mock.patch('cloudinit.subp.subp', return_value=('U=1', None))
     def test_systemctl_succeed_distinct(self, m_subp):
         reader = SystemctlReader('dummyProperty', 'dummyParameter')
         val1 = reader.parse_epoch_as_float()
@@ -64,13 +64,13 @@ class TestSystemCtlReader(CiTestCase):
         val2 = reader2.parse_epoch_as_float()
         self.assertNotEqual(val1, val2)
 
-    @mock.patch('cloudinit.util.subp', return_value=('100', None))
+    @mock.patch('cloudinit.subp.subp', return_value=('100', None))
     def test_systemctl_epoch_not_splittable(self, m_subp):
         reader = SystemctlReader('dummyProperty', 'dummyParameter')
         with self.assertRaises(IndexError):
             reader.parse_epoch_as_float()
 
-    @mock.patch('cloudinit.util.subp', return_value=('U=foobar', None))
+    @mock.patch('cloudinit.subp.subp', return_value=('U=foobar', None))
     def test_systemctl_cannot_convert_epoch_to_float(self, m_subp):
         reader = SystemctlReader('dummyProperty', 'dummyParameter')
         with self.assertRaises(ValueError):
@@ -130,7 +130,7 @@ class TestAnalyzeBoot(CiTestCase):
         self.assertEqual(err_string, data)
 
     @mock.patch("cloudinit.util.is_container", return_value=True)
-    @mock.patch('cloudinit.util.subp', return_value=('U=1000000', None))
+    @mock.patch('cloudinit.subp.subp', return_value=('U=1000000', None))
     def test_container_no_ci_log_line(self, m_is_container, m_subp):
         path = os.path.dirname(os.path.abspath(__file__))
         log_path = path + '/boot-test.log'
@@ -148,7 +148,7 @@ class TestAnalyzeBoot(CiTestCase):
         self.assertEqual(FAIL_CODE, finish_code)
 
     @mock.patch("cloudinit.util.is_container", return_value=True)
-    @mock.patch('cloudinit.util.subp', return_value=('U=1000000', None))
+    @mock.patch('cloudinit.subp.subp', return_value=('U=1000000', None))
     @mock.patch('cloudinit.analyze.__main__._get_events', return_value=[{
         'name': 'init-local', 'description': 'starting search', 'timestamp':
         100000}])

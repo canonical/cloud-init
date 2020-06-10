@@ -16,6 +16,7 @@ from xml.dom import minidom
 
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.sources.helpers.vmware.imc.config \
     import Config
@@ -536,15 +537,15 @@ def transport_iso9660(require_iso=True):
 def transport_vmware_guestinfo():
     rpctool = "vmware-rpctool"
     not_found = None
-    if not util.which(rpctool):
+    if not subp.which(rpctool):
         return not_found
     cmd = [rpctool, "info-get guestinfo.ovfEnv"]
     try:
-        out, _err = util.subp(cmd)
+        out, _err = subp.subp(cmd)
         if out:
             return out
         LOG.debug("cmd %s exited 0 with empty stdout: %s", cmd, out)
-    except util.ProcessExecutionError as e:
+    except subp.ProcessExecutionError as e:
         if e.exit_code != 1:
             LOG.warning("%s exited with code %d", rpctool, e.exit_code)
             LOG.debug(e)

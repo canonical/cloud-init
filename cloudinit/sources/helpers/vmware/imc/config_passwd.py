@@ -9,6 +9,7 @@
 import logging
 import os
 
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -56,10 +57,10 @@ class PasswordConfigurator(object):
         LOG.info('Expiring password.')
         for user in uidUserList:
             try:
-                util.subp(['passwd', '--expire', user])
-            except util.ProcessExecutionError as e:
+                subp.subp(['passwd', '--expire', user])
+            except subp.ProcessExecutionError as e:
                 if os.path.exists('/usr/bin/chage'):
-                    util.subp(['chage', '-d', '0', user])
+                    subp.subp(['chage', '-d', '0', user])
                 else:
                     LOG.warning('Failed to expire password for %s with error: '
                                 '%s', user, e)
