@@ -26,6 +26,7 @@ class Config(object):
     TIMEZONE = 'DATETIME|TIMEZONE'
     UTC = 'DATETIME|UTC'
     POST_GC_STATUS = 'MISC|POST-GC-STATUS'
+    FORCE_RUN_POST_SCRIPT = 'MISC|FORCE-RUN-POST-CUST-SCRIPT'
 
     def __init__(self, configFile):
         self._configFile = configFile
@@ -114,5 +115,18 @@ class Config(object):
         if postGcStatus not in ('yes', 'no'):
             raise ValueError('PostGcStatus value should be yes/no')
         return postGcStatus == 'yes'
+
+    @property
+    def force_run_post_script(self):
+        """
+        Return whether to run post custom script
+        despite of VMware Tools configuration
+        """
+        forceRunPostScript = self._configFile.get(Config.FORCE_RUN_POST_SCRIPT,
+                                                  'no')
+        forceRunPostScript = forceRunPostScript.lower()
+        if forceRunPostScript not in ('yes', 'no'):
+            raise ValueError('forceRunPostScript value should be yes/no')
+        return forceRunPostScript == 'yes'
 
 # vi: ts=4 expandtab

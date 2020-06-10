@@ -356,6 +356,20 @@ class TestVmwareConfigFile(CiTestCase):
         conf = Config(cf)
         self.assertTrue(conf.post_gc_status)
 
+    def test_no_force_run_post_script(self):
+        cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
+        conf = Config(cf)
+        self.assertFalse(conf.force_run_post_script)
+        cf._insertKey("MISC|FORCE-RUN-POST-CUST-SCRIPT", "NO")
+        conf = Config(cf)
+        self.assertFalse(conf.force_run_post_script)
+
+    def test_yes_force_run_post_script(self):
+        cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
+        cf._insertKey("MISC|FORCE-RUN-POST-CUST-SCRIPT", "yes")
+        conf = Config(cf)
+        self.assertTrue(conf.force_run_post_script)
+
 
 class TestVmwareNetConfig(CiTestCase):
     """Test conversion of vmware config to cloud-init config."""
