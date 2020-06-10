@@ -90,8 +90,9 @@ def handle_args(name, args):
                 instance_data_fn = sensitive_data_fn
             else:
                 LOG.warning(
-                     'Missing root-readable %s. Using redacted %s instead.',
-                     sensitive_data_fn, redacted_data_fn)
+                    'Missing root-readable %s. Using redacted %s instead.',
+                    sensitive_data_fn, redacted_data_fn
+                )
                 instance_data_fn = redacted_data_fn
         else:
             instance_data_fn = redacted_data_fn

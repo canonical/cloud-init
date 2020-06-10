@@ -849,8 +849,9 @@ def get_interfaces_by_mac_on_freebsd():
 def get_interfaces_by_mac_on_netbsd():
     ret = {}
     re_field_match = (
-            r"(?P<ifname>\w+).*address:\s"
-            r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*")
+        r"(?P<ifname>\w+).*address:\s"
+        r"(?P<mac>([\da-f]{2}[:-]){5}([\da-f]{2})).*"
+    )
     (out, _) = subp.subp(['ifconfig', '-a'])
     if_lines = re.sub(r'\n\s+', ' ', out).splitlines()
     for line in if_lines:

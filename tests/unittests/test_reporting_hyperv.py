@@ -93,10 +93,15 @@ class TextKvpReporter(CiTestCase):
     def test_not_truncate_kvp_file_modified_after_boot(self):
         with open(self.tmp_file_path, "wb+") as f:
             kvp = {'key': 'key1', 'value': 'value1'}
-            data = (struct.pack("%ds%ds" % (
+            data = struct.pack(
+                "%ds%ds"
+                % (
                     HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_KEY_SIZE,
-                    HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_VALUE_SIZE),
-                    kvp['key'].encode('utf-8'), kvp['value'].encode('utf-8')))
+                    HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_VALUE_SIZE,
+                ),
+                kvp["key"].encode("utf-8"),
+                kvp["value"].encode("utf-8"),
+            )
             f.write(data)
         cur_time = time.time()
         os.utime(self.tmp_file_path, (cur_time, cur_time))

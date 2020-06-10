@@ -523,8 +523,9 @@ class DataSourceAzure(sources.DataSource):
 
         try:
             crawled_data = util.log_time(
-                        logfunc=LOG.debug, msg='Crawl of metadata service',
-                        func=self.crawl_metadata)
+                logfunc=LOG.debug, msg='Crawl of metadata service',
+                func=self.crawl_metadata
+            )
         except sources.InvalidMetaDataException as e:
             LOG.warning('Could not crawl Azure metadata: %s', e)
             return False
@@ -893,9 +894,10 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
             (cand_part, cand_path, devpath))
 
     with events.ReportEventStack(
-                name="mount-ntfs-and-count",
-                description="mount-ntfs-and-count",
-                parent=azure_ds_reporter) as evt:
+        name="mount-ntfs-and-count",
+        description="mount-ntfs-and-count",
+        parent=azure_ds_reporter
+    ) as evt:
         try:
             file_count = util.mount_cb(cand_path, count_files, mtype="ntfs",
                                        update_env_for_mount={'LANG': 'C'})
@@ -924,9 +926,10 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
     # wait for ephemeral disk to come up
     naplen = .2
     with events.ReportEventStack(
-                name="wait-for-ephemeral-disk",
-                description="wait for ephemeral disk",
-                parent=azure_ds_reporter):
+        name="wait-for-ephemeral-disk",
+        description="wait for ephemeral disk",
+        parent=azure_ds_reporter
+    ):
         missing = util.wait_for_files([devpath],
                                       maxwait=maxwait,
                                       naplen=naplen,
@@ -1334,9 +1337,10 @@ def parse_network_config(imds_metadata):
     @return: Dictionary containing network version 2 standard configuration.
     """
     with events.ReportEventStack(
-                name="parse_network_config",
-                description="",
-                parent=azure_ds_reporter) as evt:
+        name="parse_network_config",
+        description="",
+        parent=azure_ds_reporter
+    ) as evt:
         if imds_metadata != sources.UNSET and imds_metadata:
             netconfig = {'version': 2, 'ethernets': {}}
             LOG.debug('Azure: generating network configuration from IMDS')
@@ -1480,9 +1484,10 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
 
 def _is_platform_viable(seed_dir):
     with events.ReportEventStack(
-                name="check-platform-viability",
-                description="found azure asset tag",
-                parent=azure_ds_reporter) as evt:
+        name="check-platform-viability",
+        description="found azure asset tag",
+        parent=azure_ds_reporter
+    ) as evt:
 
         """Check platform environment to report if this datasource may run."""
         asset_tag = util.read_dmi_data('chassis-asset-tag')

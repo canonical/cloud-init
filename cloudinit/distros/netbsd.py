@@ -100,8 +100,9 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         else:
             method = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
             hashed_pw = crypt.crypt(
-                    passwd,
-                    crypt.mksalt(method))
+                passwd,
+                crypt.mksalt(method)
+            )
 
         try:
             subp.subp(['usermod', '-p', hashed_pw, user])
@@ -143,8 +144,9 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         os_arch = platform.machine()
         e = os.environ.copy()
         e['PKG_PATH'] = (
-                'http://cdn.netbsd.org/pub/pkgsrc/'
-                'packages/NetBSD/%s/%s/All') % (os_arch, os_release)
+            'http://cdn.netbsd.org/pub/pkgsrc/'
+            'packages/NetBSD/%s/%s/All'
+        ) % (os_arch, os_release)
         return e
 
     def update_package_sources(self):

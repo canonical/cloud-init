@@ -353,12 +353,16 @@ class TestDataSourceScaleway(HttprettyTestCase):
         self.datasource.metadata['ipv6'] = None
 
         netcfg = self.datasource.network_config
-        resp = {'version': 1,
-                'config': [{
-                     'type': 'physical',
-                     'name': 'ens2',
-                     'subnets': [{'type': 'dhcp4'}]}]
+        resp = {
+            'version': 1,
+            'config': [
+                {
+                    'type': 'physical',
+                    'name': 'ens2',
+                    'subnets': [{'type': 'dhcp4'}]
                 }
+            ]
+        }
         self.assertEqual(netcfg, resp)
 
     @mock.patch('cloudinit.sources.DataSourceScaleway.net.find_fallback_nic')
@@ -424,12 +428,16 @@ class TestDataSourceScaleway(HttprettyTestCase):
         self.datasource.metadata['ipv6'] = None
         self.datasource._network_config = sources.UNSET
 
-        resp = {'version': 1,
-                'config': [{
-                     'type': 'physical',
-                     'name': 'ens2',
-                     'subnets': [{'type': 'dhcp4'}]}]
+        resp = {
+            'version': 1,
+            'config': [
+                {
+                    'type': 'physical',
+                    'name': 'ens2',
+                    'subnets': [{'type': 'dhcp4'}]
                 }
+            ]
+        }
 
         netcfg = self.datasource.network_config
         self.assertEqual(netcfg, resp)
@@ -448,12 +456,16 @@ class TestDataSourceScaleway(HttprettyTestCase):
         self.datasource.metadata['ipv6'] = None
         self.datasource._network_config = None
 
-        resp = {'version': 1,
-                'config': [{
-                     'type': 'physical',
-                     'name': 'ens2',
-                     'subnets': [{'type': 'dhcp4'}]}]
+        resp = {
+            'version': 1,
+            'config': [
+                {
+                    'type': 'physical',
+                    'name': 'ens2',
+                    'subnets': [{'type': 'dhcp4'}]
                 }
+            ]
+        }
 
         netcfg = self.datasource.network_config
         self.assertEqual(netcfg, resp)

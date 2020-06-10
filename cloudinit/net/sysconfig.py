@@ -505,7 +505,7 @@ class Renderer(renderer.Renderer):
                             iface_cfg['IPADDR6_%d' % ipv6_index] = ipv6_cidr
                         else:
                             iface_cfg['IPV6ADDR_SECONDARIES'] += \
-                                                        " " + ipv6_cidr
+                                " " + ipv6_cidr
                 else:
                     ipv4_index = ipv4_index + 1
                     suff = "" if ipv4_index == 0 else str(ipv4_index)
