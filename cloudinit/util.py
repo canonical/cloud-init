@@ -67,6 +67,7 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['running-in-container'],
                    ['lxc-is-container'])
 
+
 def kernel_version():
     return tuple(map(int, os.uname().release.split('.')[:2]))
 
