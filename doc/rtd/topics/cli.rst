@@ -106,6 +106,9 @@ Do **NOT** rely on the output of these commands as they can and will change.
 
 Current subcommands:
 
+ * ``net-convert``: manually use cloud-init's network format conversion, useful
+   for testing configuration or testing changes to the network conversion logic
+   itself.
  * ``render``: use cloud-init's jinja template render to
    process  **#cloud-config** or **custom-scripts**, injecting any variables
    from ``/run/cloud-init/instance-data.json``. It accepts a user-data file
