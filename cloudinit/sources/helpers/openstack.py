@@ -16,6 +16,7 @@ from cloudinit import ec2_utils
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit import sources
+from cloudinit import subp
 from cloudinit import url_helper
 from cloudinit import util
 from cloudinit.sources import BrokenMetadata
@@ -110,7 +111,7 @@ class SourceMixin(object):
             dev_entries = util.find_devs_with(criteria)
             if dev_entries:
                 device = dev_entries[0]
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             pass
         return device
 

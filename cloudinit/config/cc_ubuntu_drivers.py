@@ -9,6 +9,7 @@ from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import subp
 from cloudinit import temp_utils
 from cloudinit import type_utils
 from cloudinit import util
@@ -108,7 +109,7 @@ def install_drivers(cfg, pkg_install_func):
         LOG.debug("Not installing NVIDIA drivers. %s=%s", cfgpath, nv_acc)
         return
 
-    if not util.which('ubuntu-drivers'):
+    if not subp.which('ubuntu-drivers'):
         LOG.debug("'ubuntu-drivers' command not available.  "
                   "Installing ubuntu-drivers-common")
         pkg_install_func(['ubuntu-drivers-common'])
@@ -131,7 +132,7 @@ def install_drivers(cfg, pkg_install_func):
             debconf_script,
             util.encode_text(NVIDIA_DRIVER_LATELINK_DEBCONF_SCRIPT),
             mode=0o755)
-        util.subp([debconf_script, debconf_file])
+        subp.subp([debconf_script, debconf_file])
     except Exception as e:
         util.logexc(
             LOG, "Failed to register NVIDIA debconf template: %s", str(e))
@@ -141,8 +142,8 @@ def install_drivers(cfg, pkg_install_func):
             util.del_dir(tdir)
 
     try:
-        util.subp(['ubuntu-drivers', 'install', '--gpgpu', driver_arg])
-    except util.ProcessExecutionError as exc:
+        subp.subp(['ubuntu-drivers', 'install', '--gpgpu', driver_arg])
+    except subp.ProcessExecutionError as exc:
         if OLD_UBUNTU_DRIVERS_STDERR_NEEDLE in exc.stderr:
             LOG.warning('the available version of ubuntu-drivers is'
                         ' too old to perform requested driver installation')

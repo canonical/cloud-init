@@ -9,6 +9,8 @@ import os
 import pwd
 import unittest
 
+import pytest
+
 
 TEST_VARS = {
     'VAR1': 'single',
@@ -914,12 +916,14 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         self.assertEqual(expected, net.gen_conf())
 
 
-class TestParseShellConfig(unittest.TestCase):
+class TestParseShellConfig:
+
+    @pytest.mark.parametrize('disable_subp_usage', ['bash'], indirect=True)
     def test_no_seconds(self):
         cfg = '\n'.join(["foo=bar", "SECONDS=2", "xx=foo"])
         # we could test 'sleep 2', but that would make the test run slower.
         ret = ds.parse_shell_config(cfg)
-        self.assertEqual(ret, {"foo": "bar", "xx": "foo"})
+        assert ret == {"foo": "bar", "xx": "foo"}
 
 
 def populate_context_dir(path, variables):

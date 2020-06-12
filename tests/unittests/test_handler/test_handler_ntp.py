@@ -83,50 +83,50 @@ class TestNtp(FilesystemMockingTestCase):
         ntpconfig['template_name'] = os.path.basename(confpath)
         return ntpconfig
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_ntp_install(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_ntp_install(self, mock_subp):
         """ntp_install_client runs install_func when check_exe is absent."""
-        mock_util.which.return_value = None  # check_exe not found.
+        mock_subp.which.return_value = None  # check_exe not found.
         install_func = mock.MagicMock()
         cc_ntp.install_ntp_client(install_func,
                                   packages=['ntpx'], check_exe='ntpdx')
-        mock_util.which.assert_called_with('ntpdx')
+        mock_subp.which.assert_called_with('ntpdx')
         install_func.assert_called_once_with(['ntpx'])
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_ntp_install_not_needed(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_ntp_install_not_needed(self, mock_subp):
         """ntp_install_client doesn't install when check_exe is found."""
         client = 'chrony'
-        mock_util.which.return_value = [client]  # check_exe found.
+        mock_subp.which.return_value = [client]  # check_exe found.
         install_func = mock.MagicMock()
         cc_ntp.install_ntp_client(install_func, packages=[client],
                                   check_exe=client)
         install_func.assert_not_called()
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_ntp_install_no_op_with_empty_pkg_list(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_ntp_install_no_op_with_empty_pkg_list(self, mock_subp):
         """ntp_install_client runs install_func with empty list"""
-        mock_util.which.return_value = None  # check_exe not found
+        mock_subp.which.return_value = None  # check_exe not found
         install_func = mock.MagicMock()
         cc_ntp.install_ntp_client(install_func, packages=[],
                                   check_exe='timesyncd')
         install_func.assert_called_once_with([])
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_reload_ntp_defaults(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_reload_ntp_defaults(self, mock_subp):
         """Test service is restarted/reloaded (defaults)"""
         service = 'ntp_service_name'
         cmd = ['service', service, 'restart']
         cc_ntp.reload_ntp(service)
-        mock_util.subp.assert_called_with(cmd, capture=True)
+        mock_subp.subp.assert_called_with(cmd, capture=True)
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_reload_ntp_systemd(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_reload_ntp_systemd(self, mock_subp):
         """Test service is restarted/reloaded (systemd)"""
         service = 'ntp_service_name'
         cc_ntp.reload_ntp(service, systemd=True)
         cmd = ['systemctl', 'reload-or-restart', service]
-        mock_util.subp.assert_called_with(cmd, capture=True)
+        mock_subp.subp.assert_called_with(cmd, capture=True)
 
     def test_ntp_rename_ntp_conf(self):
         """When NTP_CONF exists, rename_ntp moves it."""
@@ -440,9 +440,10 @@ class TestNtp(FilesystemMockingTestCase):
             cc_ntp.handle('notimportant', cfg, mycloud, None, None)
             self.assertEqual(0, m_select.call_count)
 
+    @mock.patch("cloudinit.config.cc_ntp.subp")
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
     @mock.patch("cloudinit.distros.Distro.uses_systemd")
-    def test_ntp_the_whole_package(self, m_sysd, m_select):
+    def test_ntp_the_whole_package(self, m_sysd, m_select, m_subp):
         """Test enabled config renders template, and restarts service """
         cfg = {'ntp': {'enabled': True}}
         for distro in cc_ntp.distros:
@@ -458,12 +459,12 @@ class TestNtp(FilesystemMockingTestCase):
                 # allow use of util.mergemanydict
                 m_util.mergemanydict.side_effect = util.mergemanydict
                 # default client is present
-                m_util.which.return_value = True
+                m_subp.which.return_value = True
                 # use the config 'enabled' value
                 m_util.is_false.return_value = util.is_false(
                     cfg['ntp']['enabled'])
                 cc_ntp.handle('notimportant', cfg, mycloud, None, None)
-                m_util.subp.assert_called_with(
+                m_subp.subp.assert_called_with(
                     ['systemctl', 'reload-or-restart',
                      service_name], capture=True)
             self.assertEqual(
@@ -503,7 +504,7 @@ class TestNtp(FilesystemMockingTestCase):
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual('ntp', expected_client)
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_snappy_system_picks_timesyncd(self, m_which):
         """Test snappy systems prefer installed clients"""
 
@@ -528,7 +529,7 @@ class TestNtp(FilesystemMockingTestCase):
         self.assertEqual(sorted(expected_cfg), sorted(cfg))
         self.assertEqual(sorted(expected_cfg), sorted(result))
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_ntp_distro_searches_all_preferred_clients(self, m_which):
         """Test select_ntp_client search all distro perferred clients """
         # nothing is installed
@@ -546,7 +547,7 @@ class TestNtp(FilesystemMockingTestCase):
             m_which.assert_has_calls(expected_calls)
             self.assertEqual(sorted(expected_cfg), sorted(cfg))
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_user_cfg_ntp_client_auto_uses_distro_clients(self, m_which):
         """Test user_cfg.ntp_client='auto' defaults to distro search"""
         # nothing is installed
@@ -566,7 +567,7 @@ class TestNtp(FilesystemMockingTestCase):
 
     @mock.patch('cloudinit.config.cc_ntp.write_ntp_config_template')
     @mock.patch('cloudinit.cloud.Cloud.get_template_filename')
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_ntp_custom_client_overrides_installed_clients(self, m_which,
                                                            m_tmpfn, m_write):
         """Test user client is installed despite other clients present """
@@ -582,7 +583,7 @@ class TestNtp(FilesystemMockingTestCase):
             m_install.assert_called_with([client])
             m_which.assert_called_with(client)
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_ntp_system_config_overrides_distro_builtin_clients(self, m_which):
         """Test distro system_config overrides builtin preferred ntp clients"""
         system_client = 'chrony'
@@ -597,7 +598,7 @@ class TestNtp(FilesystemMockingTestCase):
             self.assertEqual(sorted(expected_cfg), sorted(result))
             m_which.assert_has_calls([])
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_ntp_user_config_overrides_system_cfg(self, m_which):
         """Test user-data overrides system_config ntp_client"""
         system_client = 'chrony'

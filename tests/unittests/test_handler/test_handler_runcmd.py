@@ -2,7 +2,7 @@
 
 from cloudinit.config.cc_runcmd import handle, schema
 from cloudinit.sources import DataSourceNone
-from cloudinit import (distros, helpers, cloud, util)
+from cloudinit import (distros, helpers, cloud, subp, util)
 from cloudinit.tests.helpers import (
     CiTestCase, FilesystemMockingTestCase, SchemaTestCaseMixin,
     skipUnlessJsonSchema)
@@ -20,7 +20,7 @@ class TestRuncmd(FilesystemMockingTestCase):
 
     def setUp(self):
         super(TestRuncmd, self).setUp()
-        self.subp = util.subp
+        self.subp = subp.subp
         self.new_root = self.tmp_dir()
 
     def _get_cloud(self, distro):

@@ -4,6 +4,7 @@ import calendar
 from datetime import datetime
 import sys
 
+from cloudinit import subp
 from cloudinit import util
 
 stage_to_description = {
@@ -51,7 +52,7 @@ def parse_timestamp(timestampstr):
 
 
 def parse_timestamp_from_date(timestampstr):
-    out, _ = util.subp(['date', '+%s.%3N', '-d', timestampstr])
+    out, _ = subp.subp(['date', '+%s.%3N', '-d', timestampstr])
     timestamp = out.strip()
     return float(timestamp)
 

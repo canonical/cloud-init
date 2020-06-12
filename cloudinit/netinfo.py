@@ -13,6 +13,7 @@ import re
 
 from cloudinit import log as logging
 from cloudinit.net.network_state import net_prefix_to_ipv4_mask
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.simpletable import SimpleTable
@@ -197,15 +198,15 @@ def _netdev_info_ifconfig(ifconfig_data):
 def netdev_info(empty=""):
     devs = {}
     if util.is_NetBSD():
-        (ifcfg_out, _err) = util.subp(["ifconfig", "-a"], rcs=[0, 1])
+        (ifcfg_out, _err) = subp.subp(["ifconfig", "-a"], rcs=[0, 1])
         devs = _netdev_info_ifconfig_netbsd(ifcfg_out)
-    elif util.which('ip'):
+    elif subp.which('ip'):
         # Try iproute first of all
-        (ipaddr_out, _err) = util.subp(["ip", "addr", "show"])
+        (ipaddr_out, _err) = subp.subp(["ip", "addr", "show"])
         devs = _netdev_info_iproute(ipaddr_out)
-    elif util.which('ifconfig'):
+    elif subp.which('ifconfig'):
         # Fall back to net-tools if iproute2 is not present
-        (ifcfg_out, _err) = util.subp(["ifconfig", "-a"], rcs=[0, 1])
+        (ifcfg_out, _err) = subp.subp(["ifconfig", "-a"], rcs=[0, 1])
         devs = _netdev_info_ifconfig(ifcfg_out)
     else:
         LOG.warning(
@@ -285,10 +286,10 @@ def _netdev_route_info_iproute(iproute_data):
         entry['flags'] = ''.join(flags)
         routes['ipv4'].append(entry)
     try:
-        (iproute_data6, _err6) = util.subp(
+        (iproute_data6, _err6) = subp.subp(
             ["ip", "--oneline", "-6", "route", "list", "table", "all"],
             rcs=[0, 1])
-    except util.ProcessExecutionError:
+    except subp.ProcessExecutionError:
         pass
     else:
         entries6 = iproute_data6.splitlines()
@@ -357,9 +358,9 @@ def _netdev_route_info_netstat(route_data):
         routes['ipv4'].append(entry)
 
     try:
-        (route_data6, _err6) = util.subp(
+        (route_data6, _err6) = subp.subp(
             ["netstat", "-A", "inet6", "--route", "--numeric"], rcs=[0, 1])
-    except util.ProcessExecutionError:
+    except subp.ProcessExecutionError:
         pass
     else:
         entries6 = route_data6.splitlines()
@@ -393,13 +394,13 @@ def _netdev_route_info_netstat(route_data):
 
 def route_info():
     routes = {}
-    if util.which('ip'):
+    if subp.which('ip'):
         # Try iproute first of all
-        (iproute_out, _err) = util.subp(["ip", "-o", "route", "list"])
+        (iproute_out, _err) = subp.subp(["ip", "-o", "route", "list"])
         routes = _netdev_route_info_iproute(iproute_out)
-    elif util.which('netstat'):
+    elif subp.which('netstat'):
         # Fall back to net-tools if iproute2 is not present
-        (route_out, _err) = util.subp(
+        (route_out, _err) = subp.subp(
             ["netstat", "--route", "--numeric", "--extend"], rcs=[0, 1])
         routes = _netdev_route_info_netstat(route_out)
     else:
