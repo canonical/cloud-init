@@ -59,7 +59,7 @@ matrix:
                   # and move it into the cached dir; no need to compress it
                   # because Travis will do that anyway
                   if [ -e /var/lib/schroot/chroots/xenial-amd64 ]; then
-                    sudo tar --sparse --xattrs --xattrs-include=* cf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64 .
+                    sudo tar --sparse --xattrs --xattrs-include=* -cf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64 .
                   fi
           install:
             - git fetch --unshallow
@@ -88,7 +88,7 @@ matrix:
                 if [ -e "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" ]; then
                     # If we have a cached chroot, move it into place
                     sudo mkdir -p /var/lib/schroot/chroots/xenial-amd64
-                    sudo tar --sparse --xattrs --preserve-permissions --numeric-owner xf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64
+                    sudo tar --sparse --xattrs --preserve-permissions --numeric-owner -xf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64
                     # Write its configuration
                     cat > sbuild-xenial-amd64 << EOM
                 [xenial-amd64]
