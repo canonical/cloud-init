@@ -16,6 +16,7 @@ from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import temp_utils
+from cloudinit import subp
 from cloudinit import util
 
 frequency = PER_ALWAYS
@@ -99,7 +100,7 @@ def handle(name, cfg, cloud, log, _args):
             if iid:
                 env['INSTANCE_ID'] = str(iid)
             cmd = ['/bin/sh', tmpf.name]
-            util.subp(cmd, env=env, capture=False)
+            subp.subp(cmd, env=env, capture=False)
         except Exception:
             util.logexc(log, "Failed to run bootcmd module %s", name)
             raise

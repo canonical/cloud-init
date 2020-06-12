@@ -36,6 +36,7 @@ can be removed from the system with the configuration option
 
 import os
 
+from cloudinit import subp
 from cloudinit import util
 
 CA_CERT_PATH = "/usr/share/ca-certificates/"
@@ -51,7 +52,7 @@ def update_ca_certs():
     """
     Updates the CA certificate cache on the current machine.
     """
-    util.subp(["update-ca-certificates"], capture=False)
+    subp.subp(["update-ca-certificates"], capture=False)
 
 
 def add_ca_certs(certs):
@@ -85,7 +86,7 @@ def remove_default_ca_certs():
     util.delete_dir_contents(CA_CERT_SYSTEM_PATH)
     util.write_file(CA_CERT_CONFIG, "", mode=0o644)
     debconf_sel = "ca-certificates ca-certificates/trust_new_crts select no"
-    util.subp(('debconf-set-selections', '-'), debconf_sel)
+    subp.subp(('debconf-set-selections', '-'), debconf_sel)
 
 
 def handle(name, cfg, _cloud, log, _args):

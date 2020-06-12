@@ -31,6 +31,7 @@ either ``lp:`` for launchpad or ``gh:`` for github to the username.
 """
 
 from cloudinit.distros import ug_util
+from cloudinit import subp
 from cloudinit import util
 import pwd
 
@@ -101,8 +102,8 @@ def import_ssh_ids(ids, user, log):
     log.debug("Importing SSH ids for user %s.", user)
 
     try:
-        util.subp(cmd, capture=False)
-    except util.ProcessExecutionError as exc:
+        subp.subp(cmd, capture=False)
+    except subp.ProcessExecutionError as exc:
         util.logexc(log, "Failed to run command to import %s SSH ids", user)
         raise exc
 

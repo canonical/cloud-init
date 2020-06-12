@@ -27,8 +27,8 @@ class TestNetInfo(CiTestCase):
     maxDiff = None
     with_logs = True
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_netdev_old_nettools_pformat(self, m_subp, m_which):
         """netdev_pformat properly rendering old nettools info."""
         m_subp.return_value = (SAMPLE_OLD_IFCONFIG_OUT, '')
@@ -36,8 +36,8 @@ class TestNetInfo(CiTestCase):
         content = netdev_pformat()
         self.assertEqual(NETDEV_FORMATTED_OUT, content)
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_netdev_new_nettools_pformat(self, m_subp, m_which):
         """netdev_pformat properly rendering netdev new nettools info."""
         m_subp.return_value = (SAMPLE_NEW_IFCONFIG_OUT, '')
@@ -45,8 +45,8 @@ class TestNetInfo(CiTestCase):
         content = netdev_pformat()
         self.assertEqual(NETDEV_FORMATTED_OUT, content)
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_netdev_freebsd_nettools_pformat(self, m_subp, m_which):
         """netdev_pformat properly rendering netdev new nettools info."""
         m_subp.return_value = (SAMPLE_FREEBSD_IFCONFIG_OUT, '')
@@ -57,8 +57,8 @@ class TestNetInfo(CiTestCase):
         print()
         self.assertEqual(FREEBSD_NETDEV_OUT, content)
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_netdev_iproute_pformat(self, m_subp, m_which):
         """netdev_pformat properly rendering ip route info."""
         m_subp.return_value = (SAMPLE_IPADDRSHOW_OUT, '')
@@ -72,8 +72,8 @@ class TestNetInfo(CiTestCase):
             '255.0.0.0   |   .    |', '255.0.0.0   |  host  |')
         self.assertEqual(new_output, content)
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_netdev_warn_on_missing_commands(self, m_subp, m_which):
         """netdev_pformat warns when missing both ip and 'netstat'."""
         m_which.return_value = None  # Niether ip nor netstat found
@@ -85,8 +85,8 @@ class TestNetInfo(CiTestCase):
             self.logs.getvalue())
         m_subp.assert_not_called()
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_netdev_info_nettools_down(self, m_subp, m_which):
         """test netdev_info using nettools and down interfaces."""
         m_subp.return_value = (
@@ -100,8 +100,8 @@ class TestNetInfo(CiTestCase):
                     'hwaddr': '.', 'up': True}},
             netdev_info("."))
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_netdev_info_iproute_down(self, m_subp, m_which):
         """Test netdev_info with ip and down interfaces."""
         m_subp.return_value = (
@@ -130,8 +130,8 @@ class TestNetInfo(CiTestCase):
             readResource("netinfo/netdev-formatted-output-down"),
             netdev_pformat())
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_route_nettools_pformat(self, m_subp, m_which):
         """route_pformat properly rendering nettools route info."""
 
@@ -147,8 +147,8 @@ class TestNetInfo(CiTestCase):
         content = route_pformat()
         self.assertEqual(ROUTE_FORMATTED_OUT, content)
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_route_iproute_pformat(self, m_subp, m_which):
         """route_pformat properly rendering ip route info."""
 
@@ -165,8 +165,8 @@ class TestNetInfo(CiTestCase):
         content = route_pformat()
         self.assertEqual(ROUTE_FORMATTED_OUT, content)
 
-    @mock.patch('cloudinit.netinfo.util.which')
-    @mock.patch('cloudinit.netinfo.util.subp')
+    @mock.patch('cloudinit.netinfo.subp.which')
+    @mock.patch('cloudinit.netinfo.subp.subp')
     def test_route_warn_on_missing_commands(self, m_subp, m_which):
         """route_pformat warns when missing both ip and 'netstat'."""
         m_which.return_value = None  # Niether ip nor netstat found

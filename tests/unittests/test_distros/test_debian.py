@@ -5,7 +5,7 @@ from cloudinit import util
 from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock)
 
 
-@mock.patch("cloudinit.distros.debian.util.subp")
+@mock.patch("cloudinit.distros.debian.subp.subp")
 class TestDebianApplyLocale(FilesystemMockingTestCase):
 
     def setUp(self):

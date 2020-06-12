@@ -14,7 +14,8 @@ import requests
 import cloudinit.net as net
 from cloudinit import safeyaml as yaml
 from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase
-from cloudinit.util import ProcessExecutionError, ensure_file, write_file
+from cloudinit.subp import ProcessExecutionError
+from cloudinit.util import ensure_file, write_file
 
 
 class TestSysDevPath(CiTestCase):
@@ -541,7 +542,7 @@ class TestInterfaceHasOwnMAC(CiTestCase):
             net.interface_has_own_mac('eth1', strict=True)
 
 
-@mock.patch('cloudinit.net.util.subp')
+@mock.patch('cloudinit.net.subp.subp')
 class TestEphemeralIPV4Network(CiTestCase):
 
     with_logs = True

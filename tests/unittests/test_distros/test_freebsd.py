@@ -8,7 +8,7 @@ import os
 
 class TestDeviceLookUp(CiTestCase):
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_find_freebsd_part_label(self, mock_subp):
         glabel_out = '''
 gptid/fa52d426-c337-11e6-8911-00155d4c5e47  N/A  da0p1
@@ -19,7 +19,7 @@ gptid/fa52d426-c337-11e6-8911-00155d4c5e47  N/A  da0p1
         res = find_freebsd_part("/dev/label/rootfs")
         self.assertEqual("da0p2", res)
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_find_freebsd_part_gpt(self, mock_subp):
         glabel_out = '''
                                 gpt/bootfs  N/A  vtbd0p1
