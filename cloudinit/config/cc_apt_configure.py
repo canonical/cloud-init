@@ -17,6 +17,7 @@ from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit import gpg
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import templater
 from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
@@ -431,7 +432,7 @@ def _should_configure_on_empty_apt():
     # if no config was provided, should apt configuration be done?
     if util.system_is_snappy():
         return False, "system is snappy."
-    if not (util.which('apt-get') or util.which('apt')):
+    if not (subp.which('apt-get') or subp.which('apt')):
         return False, "no apt commands."
     return True, "Apt is available."
 
@@ -478,7 +479,7 @@ def apply_apt(cfg, cloud, target):
 def debconf_set_selections(selections, target=None):
     if not selections.endswith(b'\n'):
         selections += b'\n'
-    util.subp(['debconf-set-selections'], data=selections, target=target,
+    subp.subp(['debconf-set-selections'], data=selections, target=target,
               capture=True)
 
 
@@ -503,7 +504,7 @@ def dpkg_reconfigure(packages, target=None):
                     "but cannot be unconfigured: %s", unhandled)
 
     if len(to_config):
-        util.subp(['dpkg-reconfigure', '--frontend=noninteractive'] +
+        subp.subp(['dpkg-reconfigure', '--frontend=noninteractive'] +
                   list(to_config), data=None, target=target, capture=True)
 
 
@@ -546,7 +547,7 @@ def apply_debconf_selections(cfg, target=None):
 def clean_cloud_init(target):
     """clean out any local cloud-init config"""
     flist = glob.glob(
-        util.target_path(target, "/etc/cloud/cloud.cfg.d/*dpkg*"))
+        subp.target_path(target, "/etc/cloud/cloud.cfg.d/*dpkg*"))
 
     LOG.debug("cleaning cloud-init config from: %s", flist)
     for dpkg_cfg in flist:
@@ -575,7 +576,7 @@ def rename_apt_lists(new_mirrors, target, arch):
     """rename_apt_lists - rename apt lists to preserve old cache data"""
     default_mirrors = get_default_mirrors(arch)
 
-    pre = util.target_path(target, APT_LISTS)
+    pre = subp.target_path(target, APT_LISTS)
     for (name, omirror) in default_mirrors.items():
         nmirror = new_mirrors.get(name)
         if not nmirror:
@@ -694,8 +695,8 @@ def add_apt_key_raw(key, target=None):
     """
     LOG.debug("Adding key:\n'%s'", key)
     try:
-        util.subp(['apt-key', 'add', '-'], data=key.encode(), target=target)
-    except util.ProcessExecutionError:
+        subp.subp(['apt-key', 'add', '-'], data=key.encode(), target=target)
+    except subp.ProcessExecutionError:
         LOG.exception("failed to add apt GPG Key to apt keyring")
         raise
 
@@ -758,13 +759,13 @@ def add_apt_sources(srcdict, cloud, target=None, template_params=None,
 
         if aa_repo_match(source):
             try:
-                util.subp(["add-apt-repository", source], target=target)
-            except util.ProcessExecutionError:
+                subp.subp(["add-apt-repository", source], target=target)
+            except subp.ProcessExecutionError:
                 LOG.exception("add-apt-repository failed.")
                 raise
             continue
 
-        sourcefn = util.target_path(target, ent['filename'])
+        sourcefn = subp.target_path(target, ent['filename'])
         try:
             contents = "%s\n" % (source)
             util.write_file(sourcefn, contents, omode="a")

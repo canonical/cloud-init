@@ -39,6 +39,7 @@ If cloud-init sees a ``fan`` entry in cloud-config it will:
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -62,8 +63,8 @@ def stop_update_start(service, config_file, content, systemd=False):
 
     def run(cmd, msg):
         try:
-            return util.subp(cmd, capture=True)
-        except util.ProcessExecutionError as e:
+            return subp.subp(cmd, capture=True)
+        except subp.ProcessExecutionError as e:
             LOG.warning("failed: %s (%s): %s", service, cmd, e)
             return False
 
@@ -94,7 +95,7 @@ def handle(name, cfg, cloud, log, args):
 
     util.write_file(mycfg.get('config_path'), mycfg.get('config'), omode="w")
     distro = cloud.distro
-    if not util.which('fanctl'):
+    if not subp.which('fanctl'):
         distro.install_packages(['ubuntu-fan'])
 
     stop_update_start(

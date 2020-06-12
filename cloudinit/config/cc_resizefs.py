@@ -19,6 +19,7 @@ from textwrap import dedent
 from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit.settings import PER_ALWAYS
+from cloudinit import subp
 from cloudinit import util
 
 NOBLOCK = "noblock"
@@ -88,11 +89,11 @@ def _resize_zfs(mount_point, devpth):
 
 
 def _get_dumpfs_output(mount_point):
-    return util.subp(['dumpfs', '-m', mount_point])[0]
+    return subp.subp(['dumpfs', '-m', mount_point])[0]
 
 
 def _get_gpart_output(part):
-    return util.subp(['gpart', 'show', part])[0]
+    return subp.subp(['gpart', 'show', part])[0]
 
 
 def _can_skip_resize_ufs(mount_point, devpth):
@@ -306,8 +307,8 @@ def handle(name, cfg, _cloud, log, args):
 
 def do_resize(resize_cmd, log):
     try:
-        util.subp(resize_cmd)
-    except util.ProcessExecutionError:
+        subp.subp(resize_cmd)
+    except subp.ProcessExecutionError:
         util.logexc(log, "Failed to resize filesystem (cmd=%s)", resize_cmd)
         raise
     # TODO(harlowja): Should we add a fsck check after this to make

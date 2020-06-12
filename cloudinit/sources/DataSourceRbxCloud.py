@@ -15,6 +15,7 @@ import os.path
 
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.event import EventType
 
@@ -43,11 +44,11 @@ def int2ip(addr):
 
 def _sub_arp(cmd):
     """
-    Uses the prefered cloud-init subprocess def of util.subp
+    Uses the prefered cloud-init subprocess def of subp.subp
     and runs arping.  Breaking this to a separate function
     for later use in mocking and unittests
     """
-    return util.subp(['arping'] + cmd)
+    return subp.subp(['arping'] + cmd)
 
 
 def gratuitous_arp(items, distro):
@@ -61,7 +62,7 @@ def gratuitous_arp(items, distro):
                 source_param, item['source'],
                 item['destination']
             ])
-        except util.ProcessExecutionError as error:
+        except subp.ProcessExecutionError as error:
             # warning, because the system is able to function properly
             # despite no success - some ARP table may be waiting for
             # expiration, but the system may continue

@@ -76,7 +76,9 @@ import itertools
 import json
 import os
 
+from cloudinit import subp
 from cloudinit import templater
+from cloudinit import temp_utils
 from cloudinit import url_helper
 from cloudinit import util
 
@@ -141,14 +143,6 @@ CHEF_RB_TPL_KEYS = frozenset(CHEF_RB_TPL_KEYS)
 CHEF_RB_PATH = '/etc/chef/client.rb'
 CHEF_EXEC_PATH = '/usr/bin/chef-client'
 CHEF_EXEC_DEF_ARGS = tuple(['-d', '-i', '1800', '-s', '20'])
-
-
-def is_installed():
-    if not os.path.isfile(CHEF_EXEC_PATH):
-        return False
-    if not os.access(CHEF_EXEC_PATH, os.X_OK):
-        return False
-    return True
 
 
 def post_run_chef(chef_cfg, log):
@@ -255,9 +249,10 @@ def handle(name, cfg, cloud, log, _args):
     # Try to install chef, if its not already installed...
     force_install = util.get_cfg_option_bool(chef_cfg,
                                              'force_install', default=False)
-    if not is_installed() or force_install:
+    installed = subp.is_exe(CHEF_EXEC_PATH)
+    if not installed or force_install:
         run = install_chef(cloud, chef_cfg, log)
-    elif is_installed():
+    elif installed:
         run = util.get_cfg_option_bool(chef_cfg, 'exec', default=False)
     else:
         run = False
@@ -282,7 +277,32 @@ def run_chef(chef_cfg, log):
             cmd.extend(CHEF_EXEC_DEF_ARGS)
     else:
         cmd.extend(CHEF_EXEC_DEF_ARGS)
-    util.subp(cmd, capture=False)
+    subp.subp(cmd, capture=False)
+
+
+def subp_blob_in_tempfile(blob, *args, **kwargs):
+    """Write blob to a tempfile, and call subp with args, kwargs. Then cleanup.
+
+    'basename' as a kwarg allows providing the basename for the file.
+    The 'args' argument to subp will be updated with the full path to the
+    filename as the first argument.
+    """
+    basename = kwargs.pop('basename', "subp_blob")
+
+    if len(args) == 0 and 'args' not in kwargs:
+        args = [tuple()]
+
+    # Use tmpdir over tmpfile to avoid 'text file busy' on execute
+    with temp_utils.tempdir(needs_exe=True) as tmpd:
+        tmpf = os.path.join(tmpd, basename)
+        if 'args' in kwargs:
+            kwargs['args'] = [tmpf] + list(kwargs['args'])
+        else:
+            args = list(args)
+            args[0] = [tmpf] + args[0]
+
+        util.write_file(tmpf, blob, mode=0o700)
+        return subp.subp(*args, **kwargs)
 
 
 def install_chef_from_omnibus(url=None, retries=None, omnibus_version=None):
@@ -305,7 +325,7 @@ def install_chef_from_omnibus(url=None, retries=None, omnibus_version=None):
     else:
         args = ['-v', omnibus_version]
     content = url_helper.readurl(url=url, retries=retries).contents
-    return util.subp_blob_in_tempfile(
+    return subp_blob_in_tempfile(
         blob=content, args=args,
         basename='chef-omnibus-install', capture=False)
 
@@ -354,11 +374,11 @@ def install_chef_from_gems(ruby_version, chef_version, distro):
     if not os.path.exists('/usr/bin/ruby'):
         util.sym_link('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
     if chef_version:
-        util.subp(['/usr/bin/gem', 'install', 'chef',
+        subp.subp(['/usr/bin/gem', 'install', 'chef',
                    '-v %s' % chef_version, '--no-ri',
                    '--no-rdoc', '--bindir', '/usr/bin', '-q'], capture=False)
     else:
-        util.subp(['/usr/bin/gem', 'install', 'chef',
+        subp.subp(['/usr/bin/gem', 'install', 'chef',
                    '--no-ri', '--no-rdoc', '--bindir',
                    '/usr/bin', '-q'], capture=False)
 

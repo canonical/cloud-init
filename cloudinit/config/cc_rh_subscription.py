@@ -39,6 +39,7 @@ Subscription`` example config.
 """
 
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -173,7 +174,7 @@ class SubscriptionManager(object):
 
         try:
             _sub_man_cli(cmd)
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             return False
 
         return True
@@ -200,7 +201,7 @@ class SubscriptionManager(object):
 
             try:
                 return_out = _sub_man_cli(cmd, logstring_val=True)[0]
-            except util.ProcessExecutionError as e:
+            except subp.ProcessExecutionError as e:
                 if e.stdout == "":
                     self.log_warn("Registration failed due "
                                   "to: {0}".format(e.stderr))
@@ -223,7 +224,7 @@ class SubscriptionManager(object):
             # Attempting to register the system only
             try:
                 return_out = _sub_man_cli(cmd, logstring_val=True)[0]
-            except util.ProcessExecutionError as e:
+            except subp.ProcessExecutionError as e:
                 if e.stdout == "":
                     self.log_warn("Registration failed due "
                                   "to: {0}".format(e.stderr))
@@ -246,7 +247,7 @@ class SubscriptionManager(object):
 
         try:
             return_out = _sub_man_cli(cmd)[0]
-        except util.ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             if e.stdout.rstrip() != '':
                 for line in e.stdout.split("\n"):
                     if line != '':
@@ -264,7 +265,7 @@ class SubscriptionManager(object):
         cmd = ['attach', '--auto']
         try:
             return_out = _sub_man_cli(cmd)[0]
-        except util.ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             self.log_warn("Auto-attach failed with: {0}".format(e))
             return False
         for line in return_out.split("\n"):
@@ -341,7 +342,7 @@ class SubscriptionManager(object):
                                "system: %s", (", ".join(pool_list))
                                .replace('--pool=', ''))
                 return True
-            except util.ProcessExecutionError as e:
+            except subp.ProcessExecutionError as e:
                 self.log_warn("Unable to attach pool {0} "
                               "due to {1}".format(pool, e))
                 return False
@@ -414,7 +415,7 @@ class SubscriptionManager(object):
 
         try:
             _sub_man_cli(cmd)
-        except util.ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             self.log_warn("Unable to alter repos due to {0}".format(e))
             return False
 
@@ -432,11 +433,11 @@ class SubscriptionManager(object):
 
 def _sub_man_cli(cmd, logstring_val=False):
     '''
-    Uses the prefered cloud-init subprocess def of util.subp
+    Uses the prefered cloud-init subprocess def of subp.subp
     and runs subscription-manager.  Breaking this to a
     separate function for later use in mocking and unittests
     '''
-    return util.subp(['subscription-manager'] + cmd,
+    return subp.subp(['subscription-manager'] + cmd,
                      logstring=logstring_val)
 
 

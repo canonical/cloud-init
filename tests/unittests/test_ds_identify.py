@@ -6,6 +6,7 @@ import os
 from uuid import uuid4
 
 from cloudinit import safeyaml
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.tests.helpers import (
     CiTestCase, dir2dict, populate_dir, populate_dir_with_ts)
@@ -160,8 +161,8 @@ class DsIdentifyBase(CiTestCase):
 
         rc = 0
         try:
-            out, err = util.subp(['sh', '-c', '. %s' % wrap], capture=True)
-        except util.ProcessExecutionError as e:
+            out, err = subp.subp(['sh', '-c', '. %s' % wrap], capture=True)
+        except subp.ProcessExecutionError as e:
             rc = e.exit_code
             out = e.stdout
             err = e.stderr
@@ -1040,11 +1041,11 @@ VALID_CFG = {
     'Ec2-E24Cloud': {
         'ds': 'Ec2',
         'files': {P_SYS_VENDOR: 'e24cloud\n'},
-     },
+    },
     'Ec2-E24Cloud-negative': {
         'ds': 'Ec2',
         'files': {P_SYS_VENDOR: 'e24cloudyday\n'},
-     }
+    }
 }
 
 # vi: ts=4 expandtab

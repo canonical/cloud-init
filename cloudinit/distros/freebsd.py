@@ -10,6 +10,7 @@ from io import StringIO
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
 
@@ -78,7 +79,7 @@ class Distro(cloudinit.distros.bsd.BSD):
         # Run the command
         LOG.info("Adding user %s", name)
         try:
-            util.subp(pw_useradd_cmd, logstring=log_pw_useradd_cmd)
+            subp.subp(pw_useradd_cmd, logstring=log_pw_useradd_cmd)
         except Exception:
             util.logexc(LOG, "Failed to create user %s", name)
             raise
@@ -90,7 +91,7 @@ class Distro(cloudinit.distros.bsd.BSD):
 
     def expire_passwd(self, user):
         try:
-            util.subp(['pw', 'usermod', user, '-p', '01-Jan-1970'])
+            subp.subp(['pw', 'usermod', user, '-p', '01-Jan-1970'])
         except Exception:
             util.logexc(LOG, "Failed to set pw expiration for %s", user)
             raise
@@ -102,7 +103,7 @@ class Distro(cloudinit.distros.bsd.BSD):
             hash_opt = "-h"
 
         try:
-            util.subp(['pw', 'usermod', user, hash_opt, '0'],
+            subp.subp(['pw', 'usermod', user, hash_opt, '0'],
                       data=passwd, logstring="chpasswd for %s" % user)
         except Exception:
             util.logexc(LOG, "Failed to set password for %s", user)
@@ -110,7 +111,7 @@ class Distro(cloudinit.distros.bsd.BSD):
 
     def lock_passwd(self, name):
         try:
-            util.subp(['pw', 'usermod', name, '-h', '-'])
+            subp.subp(['pw', 'usermod', name, '-h', '-'])
         except Exception:
             util.logexc(LOG, "Failed to lock user %s", name)
             raise
@@ -131,8 +132,8 @@ class Distro(cloudinit.distros.bsd.BSD):
 
         try:
             LOG.debug("Running cap_mkdb for %s", locale)
-            util.subp(['cap_mkdb', self.login_conf_fn])
-        except util.ProcessExecutionError:
+            subp.subp(['cap_mkdb', self.login_conf_fn])
+        except subp.ProcessExecutionError:
             # cap_mkdb failed, so restore the backup.
             util.logexc(LOG, "Failed to apply locale %s", locale)
             try:
