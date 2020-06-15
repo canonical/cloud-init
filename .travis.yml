@@ -105,10 +105,10 @@ matrix:
                     # recompresses/stores the cache every build.  If we only
                     # replaced the cached tarball if upgrades occurred, we
                     # could save an extra ~30s on most builds.)
-                    before_pkgs=$(sudo schroot -c source:xenial-amd64 -d / dpkg -l | sha256sum)
+                    before_pkgs="$(sudo schroot -c source:xenial-amd64 -d / dpkg -l | sha256sum)"
                     sudo schroot -c source:xenial-amd64 -d / -- sh -c "apt-get update && apt-get -qqy upgrade"
                     after_pkgs=$(sudo schroot -c source:xenial-amd64 -d / dpkg -l | sha256sum)
-                    if [ $before_pkgs != $after_pkgs ]; then
+                    if [ "$before_pkgs" != "$after_pkgs" ]; then
                         needs_caching=true
                     fi
                 else
@@ -119,7 +119,7 @@ matrix:
                 # Tar up the schroot (to preserve ownership/permissions) and
                 # move it into the cached dir; no need to compress it because
                 # Travis will do that anyway
-                if [ $needs_caching = "true" ]; then
+                if [ "$needs_caching" = "true" ]; then
                     sudo tar --sparse --xattrs --xattrs-include=* -cf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64 .
                 fi
             # Use sudo to get a new shell where we're in the sbuild group
