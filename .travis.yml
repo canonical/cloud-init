@@ -53,14 +53,6 @@ matrix:
                   latest_file="$(basename $latest_file .rootfs)"
                   # Find all files with that prefix and copy them to our cache dir
                   sudo find /var/snap/lxd/common/lxd/images/ -name $latest_file* -print -exec cp {} "$TRAVIS_BUILD_DIR/lxd_images/" \;
-              - |
-                  # If a schroot exists (i.e. we didn't fail before its
-                  # creation), tar it up (to preserve ownership/permissions)
-                  # and move it into the cached dir; no need to compress it
-                  # because Travis will do that anyway
-                  if [ -e /var/lib/schroot/chroots/xenial-amd64 ]; then
-                    sudo tar --sparse --xattrs --xattrs-include=* -cf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64 .
-                  fi
           install:
             - git fetch --unshallow
             - sudo apt-get build-dep -y cloud-init
@@ -117,6 +109,10 @@ matrix:
                     # Otherwise, create the chroot
                     sudo -E su $USER -c 'mk-sbuild xenial'
                 fi
+                # Tar up the schroot (to preserve ownership/permissions) and
+                # move it into the cached dir; no need to compress it because
+                # Travis will do that anyway
+                sudo tar --sparse --xattrs --xattrs-include=* -cf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64 .
             # Use sudo to get a new shell where we're in the sbuild group
             - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
             # Ubuntu LTS: Integration
