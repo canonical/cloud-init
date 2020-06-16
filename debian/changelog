@@ -1,4 +1,4 @@
-cloud-init (20.2-45-g5f7825e2-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+cloud-init (20.2-61-ge01e3ed5-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * refresh patches:
    + debian/patches/azure-apply-network-config-false.patch
@@ -6,6 +6,29 @@ cloud-init (20.2-45-g5f7825e2-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
    + debian/patches/renderer-do-not-prefer-netplan.patch
    + debian/patches/ubuntu-advantage-revert-tip.patch
+  * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
+    - .travis.yml: use $TRAVIS_BUILD_DIR for lxd_image caching (#438)
+    - cli.rst: alphabetise devel subcommands and add net-convert to list (#430)
+    - Default to UTF-8 in /var/log/cloud-init.log (#427) [James Falcon]
+    - travis: cache the chroot we use for package builds (#429)
+    - test: fix all flake8 E126 errors (#425) [Joshua Powers]
+    - Fixes KeyError for bridge with no "parameters:" setting (#423)
+      [Brian Candler]
+    - When tools.conf does not exist, running cmd "vmware-toolbox-cmd
+      config get deployPkg enable-custom-scripts", the return code will
+      be EX_UNAVAILABLE(69), on this condition, it should not take it as
+      error. (#413) [chengcheng-chcheng]
+    - Document CloudStack data-server well-known hostname (#399) [Gregor Riepl]
+    - test: move conftest.py to top-level, to cover tests/ also (#414)
+    - Replace cc_chef is_installed with use of subp.is_exe. (#421)
+      [Scott Moser]
+    - Move runparts to subp. (#420) [Scott Moser]
+    - Move subp into its own module. (#416) [Scott Moser]
+    - readme: point at travis-ci.com (#417) [Joshua Powers]
+    - New feature flag functionality and fix includes failing silently (#367)
+      [James Falcon]
+    - Enhance poll imds logging (#365) [Moustafa Moustafa]
+    - test: fix all flake8 E121 and E123 errors (#404) [Joshua Powers]
 
  -- Chad Smith <chad.smith@canonical.com>  Tue, 16 Jun 2020 16:20:43 -0600
 
