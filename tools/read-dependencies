@@ -34,6 +34,13 @@ MAYBE_RELIABLE_YUM_INSTALL = [
     'sh', '-c',
     """
     error() { echo "$@" 1>&2; }
+    configure_repos_for_proxy_use() {
+        grep -q "^proxy=" /etc/yum.conf || return 0
+        error ":: http proxy in use => forcing the use of fixed URLs in /etc/yum.repos.d/*.repo"
+        sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo
+        sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
+    }
+    configure_repos_for_proxy_use
     n=0; max=10;
     bcmd="yum install --downloadonly --assumeyes --setopt=keepcache=1"
     while n=$(($n+1)); do
@@ -48,11 +55,7 @@ MAYBE_RELIABLE_YUM_INSTALL = [
     done
     error ":: running yum install --cacheonly --assumeyes $*"
     yum install --cacheonly --assumeyes "$@"
-    if grep -q "^proxy=" /etc/yum.conf; then
-        error ":: http proxy in use => forcing the use of fixed URLs in /etc/yum.repos.d/*.repo"
-        sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo
-        sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
-    fi
+    configure_repos_for_proxy_use
     """,
     'reliable-yum-install']
 
