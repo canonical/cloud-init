@@ -24,6 +24,7 @@ def find_root():
 if "avoid-pep8-E402-import-not-top-of-file":
     # Use the util functions from cloudinit
     sys.path.insert(0, find_root())
+    from cloudinit import subp
     from cloudinit import templater
     from cloudinit import util
 
@@ -36,7 +37,7 @@ def run_helper(helper, args=None, strip=True):
     if args is None:
         args = []
     cmd = [util.abs_join(find_root(), 'tools', helper)] + args
-    (stdout, _stderr) = util.subp(cmd)
+    (stdout, _stderr) = subp.subp(cmd)
     if strip:
         stdout = stdout.strip()
     return stdout
@@ -174,7 +175,7 @@ def main():
         else:
             cmd = ['rpmbuild', '-ba', spec_fn]
 
-        util.subp(cmd, capture=capture)
+        subp.subp(cmd, capture=capture)
 
         # Copy the items built to our local dir
         globs = []

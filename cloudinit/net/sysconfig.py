@@ -9,6 +9,7 @@ from configobj import ConfigObj
 
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit import subp
 from cloudinit.distros.parsers import networkmanager_conf
 from cloudinit.distros.parsers import resolv_conf
 
@@ -504,7 +505,7 @@ class Renderer(renderer.Renderer):
                             iface_cfg['IPADDR6_%d' % ipv6_index] = ipv6_cidr
                         else:
                             iface_cfg['IPV6ADDR_SECONDARIES'] += \
-                                                        " " + ipv6_cidr
+                                " " + ipv6_cidr
                 else:
                     ipv4_index = ipv4_index + 1
                     suff = "" if ipv4_index == 0 else str(ipv4_index)
@@ -858,19 +859,19 @@ class Renderer(renderer.Renderer):
         if not templates:
             templates = self.templates
         file_mode = 0o644
-        base_sysconf_dir = util.target_path(target, self.sysconf_dir)
+        base_sysconf_dir = subp.target_path(target, self.sysconf_dir)
         for path, data in self._render_sysconfig(base_sysconf_dir,
                                                  network_state, self.flavor,
                                                  templates=templates).items():
             util.write_file(path, data, file_mode)
         if self.dns_path:
-            dns_path = util.target_path(target, self.dns_path)
+            dns_path = subp.target_path(target, self.dns_path)
             resolv_content = self._render_dns(network_state,
                                               existing_dns_path=dns_path)
             if resolv_content:
                 util.write_file(dns_path, resolv_content, file_mode)
         if self.networkmanager_conf_path:
-            nm_conf_path = util.target_path(target,
+            nm_conf_path = subp.target_path(target,
                                             self.networkmanager_conf_path)
             nm_conf_content = self._render_networkmanager_conf(network_state,
                                                                templates)
@@ -878,12 +879,12 @@ class Renderer(renderer.Renderer):
                 util.write_file(nm_conf_path, nm_conf_content, file_mode)
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
-            netrules_path = util.target_path(target, self.netrules_path)
+            netrules_path = subp.target_path(target, self.netrules_path)
             util.write_file(netrules_path, netrules_content, file_mode)
         if available_nm(target=target):
-            enable_ifcfg_rh(util.target_path(target, path=NM_CFG_FILE))
+            enable_ifcfg_rh(subp.target_path(target, path=NM_CFG_FILE))
 
-        sysconfig_path = util.target_path(target, templates.get('control'))
+        sysconfig_path = subp.target_path(target, templates.get('control'))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos
         if sysconfig_path.endswith('network'):
             util.ensure_dir(os.path.dirname(sysconfig_path))
@@ -906,20 +907,20 @@ def available_sysconfig(target=None):
     expected = ['ifup', 'ifdown']
     search = ['/sbin', '/usr/sbin']
     for p in expected:
-        if not util.which(p, search=search, target=target):
+        if not subp.which(p, search=search, target=target):
             return False
 
     expected_paths = [
         'etc/sysconfig/network-scripts/network-functions',
         'etc/sysconfig/config']
     for p in expected_paths:
-        if os.path.isfile(util.target_path(target, p)):
+        if os.path.isfile(subp.target_path(target, p)):
             return True
     return False
 
 
 def available_nm(target=None):
-    if not os.path.isfile(util.target_path(target, path=NM_CFG_FILE)):
+    if not os.path.isfile(subp.target_path(target, path=NM_CFG_FILE)):
         return False
     return True
 

@@ -8,6 +8,7 @@ import platform
 
 import cloudinit.distros.bsd
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         # Run the command
         LOG.info("Adding user %s", name)
         try:
-            util.subp(adduser_cmd, logstring=log_adduser_cmd)
+            subp.subp(adduser_cmd, logstring=log_adduser_cmd)
         except Exception:
             util.logexc(LOG, "Failed to create user %s", name)
             raise
@@ -99,11 +100,12 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         else:
             method = crypt.METHOD_BLOWFISH  # pylint: disable=E1101
             hashed_pw = crypt.crypt(
-                    passwd,
-                    crypt.mksalt(method))
+                passwd,
+                crypt.mksalt(method)
+            )
 
         try:
-            util.subp(['usermod', '-p', hashed_pw, user])
+            subp.subp(['usermod', '-p', hashed_pw, user])
         except Exception:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise
@@ -111,21 +113,21 @@ class NetBSD(cloudinit.distros.bsd.BSD):
 
     def force_passwd_change(self, user):
         try:
-            util.subp(['usermod', '-F', user])
+            subp.subp(['usermod', '-F', user])
         except Exception:
             util.logexc(LOG, "Failed to set pw expiration for %s", user)
             raise
 
     def lock_passwd(self, name):
         try:
-            util.subp(['usermod', '-C', 'yes', name])
+            subp.subp(['usermod', '-C', 'yes', name])
         except Exception:
             util.logexc(LOG, "Failed to lock user %s", name)
             raise
 
     def unlock_passwd(self, name):
         try:
-            util.subp(['usermod', '-C', 'no', name])
+            subp.subp(['usermod', '-C', 'no', name])
         except Exception:
             util.logexc(LOG, "Failed to unlock user %s", name)
             raise
@@ -142,8 +144,9 @@ class NetBSD(cloudinit.distros.bsd.BSD):
         os_arch = platform.machine()
         e = os.environ.copy()
         e['PKG_PATH'] = (
-                'http://cdn.netbsd.org/pub/pkgsrc/'
-                'packages/NetBSD/%s/%s/All') % (os_arch, os_release)
+            'http://cdn.netbsd.org/pub/pkgsrc/'
+            'packages/NetBSD/%s/%s/All'
+        ) % (os_arch, os_release)
         return e
 
     def update_package_sources(self):

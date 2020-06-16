@@ -83,6 +83,7 @@ import yaml
 from io import StringIO
 
 from cloudinit import helpers
+from cloudinit import subp
 from cloudinit import util
 
 PUPPET_CONF_PATH = '/etc/puppet/puppet.conf'
@@ -105,14 +106,14 @@ class PuppetConstants(object):
 def _autostart_puppet(log):
     # Set puppet to automatically start
     if os.path.exists('/etc/default/puppet'):
-        util.subp(['sed', '-i',
+        subp.subp(['sed', '-i',
                    '-e', 's/^START=.*/START=yes/',
                    '/etc/default/puppet'], capture=False)
     elif os.path.exists('/bin/systemctl'):
-        util.subp(['/bin/systemctl', 'enable', 'puppet.service'],
+        subp.subp(['/bin/systemctl', 'enable', 'puppet.service'],
                   capture=False)
     elif os.path.exists('/sbin/chkconfig'):
-        util.subp(['/sbin/chkconfig', 'puppet', 'on'], capture=False)
+        subp.subp(['/sbin/chkconfig', 'puppet', 'on'], capture=False)
     else:
         log.warning(("Sorry we do not know how to enable"
                      " puppet services on this system"))
@@ -203,6 +204,6 @@ def handle(name, cfg, cloud, log, _args):
     _autostart_puppet(log)
 
     # Start puppetd
-    util.subp(['service', 'puppet', 'start'], capture=False)
+    subp.subp(['service', 'puppet', 'start'], capture=False)
 
 # vi: ts=4 expandtab

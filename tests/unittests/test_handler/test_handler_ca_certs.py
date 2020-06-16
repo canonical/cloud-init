@@ -3,6 +3,7 @@
 from cloudinit import cloud
 from cloudinit.config import cc_ca_certs
 from cloudinit import helpers
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.tests.helpers import TestCase
@@ -228,7 +229,7 @@ class TestAddCaCerts(TestCase):
 
 class TestUpdateCaCerts(unittest.TestCase):
     def test_commands(self):
-        with mock.patch.object(util, 'subp') as mockobj:
+        with mock.patch.object(subp, 'subp') as mockobj:
             cc_ca_certs.update_ca_certs()
             mockobj.assert_called_once_with(
                 ["update-ca-certificates"], capture=False)
@@ -250,7 +251,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 mock.patch.object(util, 'delete_dir_contents'))
             mock_write = mocks.enter_context(
                 mock.patch.object(util, 'write_file'))
-            mock_subp = mocks.enter_context(mock.patch.object(util, 'subp'))
+            mock_subp = mocks.enter_context(mock.patch.object(subp, 'subp'))
 
             cc_ca_certs.remove_default_ca_certs()
 

@@ -12,6 +12,7 @@ from simplestreams import util as s_util
 from ..platforms import Platform
 from .image import NoCloudKVMImage
 from .instance import NoCloudKVMInstance
+from cloudinit import subp
 from cloudinit import util as c_util
 from tests.cloud_tests import util
 
@@ -84,8 +85,8 @@ class NoCloudKVMPlatform(Platform):
         """
         name = util.gen_instance_name(image_desc=image_desc, use_desc=use_desc)
         img_path = os.path.join(self.config['data_dir'], name + '.qcow2')
-        c_util.subp(['qemu-img', 'create', '-f', 'qcow2',
-                    '-b', src_img_path, img_path])
+        subp.subp(['qemu-img', 'create', '-f', 'qcow2',
+                   '-b', src_img_path, img_path])
 
         return NoCloudKVMInstance(self, name, img_path, properties, config,
                                   features, user_data, meta_data)

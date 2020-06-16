@@ -14,7 +14,7 @@ class TestHandleSshPwauth(CiTestCase):
 
     with_logs = True
 
-    @mock.patch(MODPATH + "util.subp")
+    @mock.patch(MODPATH + "subp.subp")
     def test_unknown_value_logs_warning(self, m_subp):
         setpass.handle_ssh_pwauth("floo")
         self.assertIn("Unrecognized value: ssh_pwauth=floo",
@@ -22,7 +22,7 @@ class TestHandleSshPwauth(CiTestCase):
         m_subp.assert_not_called()
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
-    @mock.patch(MODPATH + "util.subp")
+    @mock.patch(MODPATH + "subp.subp")
     def test_systemctl_as_service_cmd(self, m_subp, m_update_ssh_config):
         """If systemctl in service cmd: systemctl restart name."""
         setpass.handle_ssh_pwauth(
@@ -31,7 +31,7 @@ class TestHandleSshPwauth(CiTestCase):
                          m_subp.call_args)
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
-    @mock.patch(MODPATH + "util.subp")
+    @mock.patch(MODPATH + "subp.subp")
     def test_service_as_service_cmd(self, m_subp, m_update_ssh_config):
         """If systemctl in service cmd: systemctl restart name."""
         setpass.handle_ssh_pwauth(
@@ -40,7 +40,7 @@ class TestHandleSshPwauth(CiTestCase):
                          m_subp.call_args)
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=False)
-    @mock.patch(MODPATH + "util.subp")
+    @mock.patch(MODPATH + "subp.subp")
     def test_not_restarted_if_not_updated(self, m_subp, m_update_ssh_config):
         """If config is not updated, then no system restart should be done."""
         setpass.handle_ssh_pwauth(True)
@@ -48,7 +48,7 @@ class TestHandleSshPwauth(CiTestCase):
         self.assertIn("No need to restart SSH", self.logs.getvalue())
 
     @mock.patch(MODPATH + "update_ssh_config", return_value=True)
-    @mock.patch(MODPATH + "util.subp")
+    @mock.patch(MODPATH + "subp.subp")
     def test_unchanged_does_nothing(self, m_subp, m_update_ssh_config):
         """If 'unchanged', then no updates to config and no restart."""
         setpass.handle_ssh_pwauth(
@@ -56,7 +56,7 @@ class TestHandleSshPwauth(CiTestCase):
         m_update_ssh_config.assert_not_called()
         m_subp.assert_not_called()
 
-    @mock.patch(MODPATH + "util.subp")
+    @mock.patch(MODPATH + "subp.subp")
     def test_valid_change_values(self, m_subp):
         """If value is a valid changen value, then update should be called."""
         upname = MODPATH + "update_ssh_config"
@@ -88,7 +88,7 @@ class TestSetPasswordsHandle(CiTestCase):
             'ssh_pwauth=None\n',
             self.logs.getvalue())
 
-    @mock.patch(MODPATH + "util.subp")
+    @mock.patch(MODPATH + "subp.subp")
     def test_handle_on_chpasswd_list_parses_common_hashes(self, m_subp):
         """handle parses command password hashes."""
         cloud = self.tmp_cloud(distro='ubuntu')
@@ -98,7 +98,7 @@ class TestSetPasswordsHandle(CiTestCase):
             'ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR52q'
             'SDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1']
         cfg = {'chpasswd': {'list': valid_hashed_pwds}}
-        with mock.patch(MODPATH + 'util.subp') as m_subp:
+        with mock.patch(MODPATH + 'subp.subp') as m_subp:
             setpass.handle(
                 'IGNORED', cfg=cfg, cloud=cloud, log=self.logger, args=[])
         self.assertIn(
@@ -113,7 +113,7 @@ class TestSetPasswordsHandle(CiTestCase):
             m_subp.call_args_list)
 
     @mock.patch(MODPATH + "util.is_BSD")
-    @mock.patch(MODPATH + "util.subp")
+    @mock.patch(MODPATH + "subp.subp")
     def test_bsd_calls_custom_pw_cmds_to_set_and_expire_passwords(
             self, m_subp, m_is_bsd):
         """BSD don't use chpasswd"""
@@ -130,7 +130,7 @@ class TestSetPasswordsHandle(CiTestCase):
             m_subp.call_args_list)
 
     @mock.patch(MODPATH + "util.is_BSD")
-    @mock.patch(MODPATH + "util.subp")
+    @mock.patch(MODPATH + "subp.subp")
     def test_handle_on_chpasswd_list_creates_random_passwords(self, m_subp,
                                                               m_is_bsd):
         """handle parses command set random passwords."""
@@ -140,7 +140,7 @@ class TestSetPasswordsHandle(CiTestCase):
             'root:R',
             'ubuntu:RANDOM']
         cfg = {'chpasswd': {'expire': 'false', 'list': valid_random_pwds}}
-        with mock.patch(MODPATH + 'util.subp') as m_subp:
+        with mock.patch(MODPATH + 'subp.subp') as m_subp:
             setpass.handle(
                 'IGNORED', cfg=cfg, cloud=cloud, log=self.logger, args=[])
         self.assertIn(

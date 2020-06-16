@@ -9,6 +9,7 @@ import logging
 import os
 import stat
 
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ class PreCustomScript(RunCustomScript):
         """Executing custom script with precustomization argument."""
         LOG.debug("Executing pre-customization script")
         self.prepare_script()
-        util.subp([CustomScriptConstant.CUSTOM_SCRIPT, "precustomization"])
+        subp.subp([CustomScriptConstant.CUSTOM_SCRIPT, "precustomization"])
 
 
 class PostCustomScript(RunCustomScript):

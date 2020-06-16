@@ -18,6 +18,7 @@ from cloudinit import cloud
 from cloudinit import distros
 from cloudinit import gpg
 from cloudinit import helpers
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.config import cc_apt_configure
@@ -221,7 +222,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         """
         params = self._get_default_params()
 
-        with mock.patch("cloudinit.util.subp",
+        with mock.patch("cloudinit.subp.subp",
                         return_value=('fakekey 1234', '')) as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
@@ -296,7 +297,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                                              ' xenial main'),
                                   'key': "fakekey 4321"}}
 
-        with mock.patch.object(util, 'subp') as mockobj:
+        with mock.patch.object(subp, 'subp') as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
 
@@ -318,7 +319,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         params = self._get_default_params()
         cfg = {self.aptlistfile: {'key': "fakekey 4242"}}
 
-        with mock.patch.object(util, 'subp') as mockobj:
+        with mock.patch.object(subp, 'subp') as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
 
@@ -333,7 +334,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         params = self._get_default_params()
         cfg = {self.aptlistfile: {'keyid': "03683F77"}}
 
-        with mock.patch.object(util, 'subp',
+        with mock.patch.object(subp, 'subp',
                                return_value=('fakekey 1212', '')) as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
@@ -416,7 +417,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         params = self._get_default_params()
         cfg = {self.aptlistfile: {'source': 'ppa:smoser/cloud-init-test'}}
 
-        with mock.patch("cloudinit.util.subp") as mockobj:
+        with mock.patch("cloudinit.subp.subp") as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
         mockobj.assert_any_call(['add-apt-repository',
@@ -432,7 +433,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                self.aptlistfile2: {'source': 'ppa:smoser/cloud-init-test2'},
                self.aptlistfile3: {'source': 'ppa:smoser/cloud-init-test3'}}
 
-        with mock.patch("cloudinit.util.subp") as mockobj:
+        with mock.patch("cloudinit.subp.subp") as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
         calls = [call(['add-apt-repository', 'ppa:smoser/cloud-init-test'],
@@ -996,7 +997,7 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main""")
 
 class TestDebconfSelections(TestCase):
 
-    @mock.patch("cloudinit.config.cc_apt_configure.util.subp")
+    @mock.patch("cloudinit.config.cc_apt_configure.subp.subp")
     def test_set_sel_appends_newline_if_absent(self, m_subp):
         """Automatically append a newline to debconf-set-selections config."""
         selections = b'some/setting boolean true'
@@ -1081,7 +1082,7 @@ class TestDebconfSelections(TestCase):
         self.assertTrue(m_get_inst.called)
         self.assertEqual(m_dpkg_r.call_count, 0)
 
-    @mock.patch("cloudinit.config.cc_apt_configure.util.subp")
+    @mock.patch("cloudinit.config.cc_apt_configure.subp.subp")
     def test_dpkg_reconfigure_does_reconfigure(self, m_subp):
         target = "/foo-target"
 
@@ -1104,12 +1105,12 @@ class TestDebconfSelections(TestCase):
                     'cloud-init']
         self.assertEqual(expected, found)
 
-    @mock.patch("cloudinit.config.cc_apt_configure.util.subp")
+    @mock.patch("cloudinit.config.cc_apt_configure.subp.subp")
     def test_dpkg_reconfigure_not_done_on_no_data(self, m_subp):
         cc_apt_configure.dpkg_reconfigure([])
         m_subp.assert_not_called()
 
-    @mock.patch("cloudinit.config.cc_apt_configure.util.subp")
+    @mock.patch("cloudinit.config.cc_apt_configure.subp.subp")
     def test_dpkg_reconfigure_not_done_if_no_cleaners(self, m_subp):
         cc_apt_configure.dpkg_reconfigure(['pkgfoo', 'pkgbar'])
         m_subp.assert_not_called()
