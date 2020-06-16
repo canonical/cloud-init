@@ -13,6 +13,7 @@ from cloudinit import cloud
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import templater
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.config import cc_apt_configure
@@ -66,7 +67,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     """
     def setUp(self):
         super(TestAptSourceConfigSourceList, self).setUp()
-        self.subp = util.subp
+        self.subp = subp.subp
         self.new_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.new_root)
 
@@ -176,7 +177,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
 
         # the second mock restores the original subp
         with mock.patch.object(util, 'write_file') as mockwrite:
-            with mock.patch.object(util, 'subp', self.subp):
+            with mock.patch.object(subp, 'subp', self.subp):
                 with mock.patch.object(Distro, 'get_primary_arch',
                                        return_value='amd64'):
                     cc_apt_configure.handle("notimportant", cfg, mycloud,

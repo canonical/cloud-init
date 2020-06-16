@@ -324,6 +324,13 @@ variable annotations specified in `PEP-526`_ were introduced in Python
 
    in a xenial lxd container with python3-pytest installed.
 
+Feature Flags
+-------------
+
+.. automodule:: cloudinit.features
+   :members:
+
+
 Ongoing Refactors
 =================
 

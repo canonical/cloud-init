@@ -2,7 +2,7 @@
 
 from cloudinit import cloud
 from cloudinit.config import cc_growpart
-from cloudinit import util
+from cloudinit import subp
 
 from cloudinit.tests.helpers import TestCase
 
@@ -95,7 +95,7 @@ class TestConfig(TestCase):
     @mock.patch.dict("os.environ", clear=True)
     def test_no_resizers_auto_is_fine(self):
         with mock.patch.object(
-                util, 'subp',
+                subp, 'subp',
                 return_value=(HELP_GROWPART_NO_RESIZE, "")) as mockobj:
 
             config = {'growpart': {'mode': 'auto'}}
@@ -109,7 +109,7 @@ class TestConfig(TestCase):
     @mock.patch.dict("os.environ", clear=True)
     def test_no_resizers_mode_growpart_is_exception(self):
         with mock.patch.object(
-                util, 'subp',
+                subp, 'subp',
                 return_value=(HELP_GROWPART_NO_RESIZE, "")) as mockobj:
             config = {'growpart': {'mode': "growpart"}}
             self.assertRaises(
@@ -122,7 +122,7 @@ class TestConfig(TestCase):
     @mock.patch.dict("os.environ", clear=True)
     def test_mode_auto_prefers_growpart(self):
         with mock.patch.object(
-                util, 'subp',
+                subp, 'subp',
                 return_value=(HELP_GROWPART_RESIZE, "")) as mockobj:
             ret = cc_growpart.resizer_factory(mode="auto")
             self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
@@ -133,7 +133,7 @@ class TestConfig(TestCase):
     @mock.patch.dict("os.environ", clear=True)
     def test_mode_auto_falls_back_to_gpart(self):
         with mock.patch.object(
-                util, 'subp',
+                subp, 'subp',
                 return_value=("", HELP_GPART)) as mockobj:
             ret = cc_growpart.resizer_factory(mode="auto")
             self.assertIsInstance(ret, cc_growpart.ResizeGpart)

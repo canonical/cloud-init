@@ -57,8 +57,9 @@ def handle_args(name, args):
                 paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE)
             if not os.path.exists(instance_data_fn):
                 LOG.warning(
-                     'Missing root-readable %s. Using redacted %s instead.',
-                     instance_data_fn, redacted_data_fn)
+                    'Missing root-readable %s. Using redacted %s instead.',
+                    instance_data_fn, redacted_data_fn
+                )
                 instance_data_fn = redacted_data_fn
         else:
             instance_data_fn = redacted_data_fn

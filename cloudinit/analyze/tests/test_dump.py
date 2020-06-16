@@ -5,7 +5,8 @@ from textwrap import dedent
 
 from cloudinit.analyze.dump import (
     dump_events, parse_ci_logline, parse_timestamp)
-from cloudinit.util import which, write_file
+from cloudinit.util import write_file
+from cloudinit.subp import which
 from cloudinit.tests.helpers import CiTestCase, mock, skipIf
 
 

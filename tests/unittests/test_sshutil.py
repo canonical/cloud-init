@@ -374,13 +374,13 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
 
         sshd_config = self.tmp_path('sshd_config')
         util.write_file(
-                sshd_config,
-                "AuthorizedKeysFile %s %s" % (authorized_keys, user_keys))
+            sshd_config,
+            "AuthorizedKeysFile %s %s" % (authorized_keys, user_keys)
+        )
 
         (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
-                fpw.pw_name, sshd_config)
-        content = ssh_util.update_authorized_keys(
-                auth_key_entries, [])
+            fpw.pw_name, sshd_config)
+        content = ssh_util.update_authorized_keys(auth_key_entries, [])
 
         self.assertEqual("%s/.ssh/authorized_keys" % fpw.pw_dir, auth_key_fn)
         self.assertTrue(VALID_CONTENT['rsa'] in content)
@@ -398,11 +398,13 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
 
         sshd_config = self.tmp_path('sshd_config')
         util.write_file(
-                sshd_config,
-                "AuthorizedKeysFile %s %s" % (authorized_keys, user_keys))
+            sshd_config,
+            "AuthorizedKeysFile %s %s" % (authorized_keys, user_keys)
+        )
 
         (auth_key_fn, auth_key_entries) = ssh_util.extract_authorized_keys(
-                fpw.pw_name, sshd_config)
+            fpw.pw_name, sshd_config
+        )
         content = ssh_util.update_authorized_keys(auth_key_entries, [])
 
         self.assertEqual("%s/.ssh/authorized_keys" % fpw.pw_dir, auth_key_fn)

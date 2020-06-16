@@ -17,6 +17,7 @@ from io import BytesIO
 from cloudinit import cloud
 from cloudinit import distros
 from cloudinit import helpers
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.sources import DataSourceNone
@@ -35,8 +36,8 @@ class TestRandomSeed(t_help.TestCase):
         self.unapply = []
 
         # by default 'which' has nothing in its path
-        self.apply_patches([(util, 'which', self._which)])
-        self.apply_patches([(util, 'subp', self._subp)])
+        self.apply_patches([(subp, 'which', self._which)])
+        self.apply_patches([(subp, 'subp', self._subp)])
         self.subp_called = []
         self.whichdata = {}
 

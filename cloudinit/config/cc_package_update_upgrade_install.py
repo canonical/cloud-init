@@ -43,6 +43,7 @@ import os
 import time
 
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 REBOOT_FILE = "/var/run/reboot-required"
@@ -57,7 +58,7 @@ def _multi_cfg_bool_get(cfg, *keys):
 
 
 def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
-    util.subp(REBOOT_CMD)
+    subp.subp(REBOOT_CMD)
     start = time.time()
     wait_time = initial_sleep
     for _i in range(0, wait_attempts):

@@ -245,7 +245,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         for d_name in ("ubuntu", "rhel"):
             cls = distros.fetch(d_name)
             d = cls(d_name, {}, None)
-            with mock.patch("cloudinit.util.subp") as m_subp:
+            with mock.patch("cloudinit.subp.subp") as m_subp:
                 d.expire_passwd("myuser")
             m_subp.assert_called_once_with(["passwd", "--expire", "myuser"])
 
@@ -253,7 +253,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         """Test FreeBSD.expire_passwd uses the pw command."""
         cls = distros.fetch("freebsd")
         d = cls("freebsd", {}, None)
-        with mock.patch("cloudinit.util.subp") as m_subp:
+        with mock.patch("cloudinit.subp.subp") as m_subp:
             d.expire_passwd("myuser")
         m_subp.assert_called_once_with(
             ["pw", "usermod", "myuser", "-p", "01-Jan-1970"])
