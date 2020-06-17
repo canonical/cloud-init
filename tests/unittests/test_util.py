@@ -110,29 +110,29 @@ class TestWriteFile(helpers.TestCase):
         file_stat = os.stat(path)
         self.assertEqual(0o666, stat.S_IMODE(file_stat.st_mode))
 
-    def test_copy_mode_no_existing(self):
-        """Verify that file is created with mode 0o644 if copy_mode
+    def test_preserve_mode_no_existing(self):
+        """Verify that file is created with mode 0o644 if preserve_mode
         is true and there is no prior existing file."""
         path = os.path.join(self.tmp, "NewFile.txt")
         contents = "Hey there"
 
-        util.write_file(path, contents, copy_mode=True)
+        util.write_file(path, contents, preserve_mode=True)
 
         self.assertTrue(os.path.exists(path))
         self.assertTrue(os.path.isfile(path))
         file_stat = os.stat(path)
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
 
-    def test_copy_mode_with_existing(self):
+    def test_preserve_mode_with_existing(self):
         """Verify that file is created using mode of existing file
-        if copy_mode is true."""
+        if preserve_mode is true."""
         path = os.path.join(self.tmp, "NewFile.txt")
         contents = "Hey there"
 
         open(path, 'w').close()
         os.chmod(path, 0o666)
 
-        util.write_file(path, contents, copy_mode=True)
+        util.write_file(path, contents, preserve_mode=True)
 
         self.assertTrue(os.path.exists(path))
         self.assertTrue(os.path.isfile(path))
