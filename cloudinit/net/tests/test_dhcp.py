@@ -126,7 +126,7 @@ class TestDHCPRFC3442(CiTestCase):
              'rfc3442-classless-static-routes': '0,130,56,240,1',
              'renew': '4 2017/07/27 18:02:30',
              'expire': '5 2017/07/28 07:08:15'}]
-        m_maybe.return_value = lease, ''
+        m_maybe.return_value = lease
         eph = net.dhcp.EphemeralDHCPv4()
         eph.obtain_lease()
         expected_kwargs = {
@@ -151,7 +151,7 @@ class TestDHCPRFC3442(CiTestCase):
              'classless-static-routes': '0 130.56.240.1',
              'renew': '4 2017/07/27 18:02:30',
              'expire': '5 2017/07/28 07:08:15'}]
-        m_maybe.return_value = lease, ''
+        m_maybe.return_value = lease
         eph = net.dhcp.EphemeralDHCPv4()
         eph.obtain_lease()
         expected_kwargs = {
@@ -262,15 +262,6 @@ class TestDHCPDiscoveryClean(CiTestCase):
     def test_provided_nic_does_not_exist(self):
         """When the provided nic doesn't exist, log a message and no-op."""
         self.assertEqual([], maybe_perform_dhcp_discovery('idontexist'))
-        self.assertIn(
-            'Skip dhcp_discovery: nic idontexist not found in get_devicelist.',
-            self.logs.getvalue())
-
-    def test_provided_nic_does_not_exist_capturing(self):
-        """When the provided nic doesn't exist, log a message and no-op."""
-        lease, err = maybe_perform_dhcp_discovery('idontexist', capture=True)
-        self.assertEqual([], lease)
-        self.assertEqual('', err)
         self.assertIn(
             'Skip dhcp_discovery: nic idontexist not found in get_devicelist.',
             self.logs.getvalue())
@@ -418,20 +409,40 @@ class TestDHCPDiscoveryClean(CiTestCase):
                  'eth9', '-sf', '/bin/true'], capture=True)])
         m_kill.assert_has_calls([mock.call(my_pid, signal.SIGKILL)])
 
+    @mock.patch('cloudinit.net.dhcp.util.get_proc_ppid')
+    @mock.patch('cloudinit.net.dhcp.os.kill')
     @mock.patch('cloudinit.net.dhcp.subp.subp')
-    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
-    def test_dhcp_discovery_error_stream(
-            self, m_dhcp, m_subp):
-        """dhclient error stream is returned when dhcbv4 obtains lease."""
+    def test_dhcp_output_error_stream(self, m_subp, m_kill, m_getppid):
+        """"dhcp_log_func is called with the output and error streams of
+        dhclinet when the callable is passed."""
         dhclient_err = 'FAKE DHCLIENT ERROR'
-        fake_lease = {
-            'interface': 'eth9', 'fixed-address': '192.168.2.2',
-            'subnet-mask': '255.255.0.0'}
-        m_dhcp.return_value = [fake_lease], dhclient_err
-        m_subp.return_value = ('', '')
-        dhcpv4 = net.dhcp.EphemeralDHCPv4()
-        with dhcpv4:
-            self.assertEqual(dhcpv4.dhcp_error, dhclient_err)
+        dhclient_out = 'FAKE DHCLIENT OUT'
+        m_subp.return_value = (dhclient_out, dhclient_err)
+        tmpdir = self.tmp_dir()
+        dhclient_script = os.path.join(tmpdir, 'dhclient.orig')
+        script_content = '#!/bin/bash\necho fake-dhclient'
+        write_file(dhclient_script, script_content, mode=0o755)
+        lease_content = dedent("""
+                lease {
+                  interface "eth9";
+                  fixed-address 192.168.2.74;
+                  option subnet-mask 255.255.255.0;
+                  option routers 192.168.2.1;
+                }
+            """)
+        lease_file = os.path.join(tmpdir, 'dhcp.leases')
+        write_file(lease_file, lease_content)
+        pid_file = os.path.join(tmpdir, 'dhclient.pid')
+        my_pid = 1
+        write_file(pid_file, "%d\n" % my_pid)
+        m_getppid.return_value = 1  # Indicate that dhclient has daemonized
+
+        def dhcp_log_func(out, err):
+            self.assertEqual(out, dhclient_out)
+            self.assertEqual(err, dhclient_err)
+
+        dhcp_discovery(
+            dhclient_script, 'eth9', tmpdir, dhcp_log_func=dhcp_log_func)
 
 
 class TestSystemdParseLeases(CiTestCase):
@@ -565,7 +576,7 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
         fake_lease = {
             'interface': 'eth9', 'fixed-address': '192.168.2.2',
             'subnet-mask': '255.255.0.0'}
-        m_dhcp.return_value = [fake_lease], ''
+        m_dhcp.return_value = [fake_lease]
         m_subp.return_value = ('', '')
 
         httpretty.register_uri(httpretty.GET, url, body={}, status=404)

@@ -628,6 +628,10 @@ class DataSourceAzure(sources.DataSource):
                           exception)
                 return False
 
+        def dhcp_log_cb(out, err):
+            report_diagnostic_event("dhclient output stream: %s" % out)
+            report_diagnostic_event("dhclient error stream: %s" % err)
+
         LOG.debug("Wait for vnetswitch to happen")
         while True:
             try:
@@ -636,10 +640,9 @@ class DataSourceAzure(sources.DataSource):
                         name="obtain-dhcp-lease",
                         description="obtain dhcp lease",
                         parent=azure_ds_reporter):
-                    self._ephemeral_dhcp_ctx = EphemeralDHCPv4()
+                    self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
+                        dhcp_log_func=dhcp_log_cb)
                     lease = self._ephemeral_dhcp_ctx.obtain_lease()
-                    err = self._ephemeral_dhcp_ctx.dhcp_error
-                    report_diagnostic_event(err)
 
                 if vnet_switched:
                     dhcp_attempts += 1

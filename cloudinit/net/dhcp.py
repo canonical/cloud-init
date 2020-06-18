@@ -40,11 +40,11 @@ class NoDHCPLeaseError(Exception):
 
 
 class EphemeralDHCPv4(object):
-    def __init__(self, iface=None, connectivity_url=None):
+    def __init__(self, iface=None, connectivity_url=None, dhcp_log_func=None):
         self.iface = iface
         self._ephipv4 = None
         self.lease = None
-        self.dhcp_error = None
+        self.dhcp_log_func = dhcp_log_func
         self.connectivity_url = connectivity_url
 
     def __enter__(self):
@@ -66,8 +66,6 @@ class EphemeralDHCPv4(object):
         """Exit _ephipv4 context to teardown of ip configuration performed."""
         if self.lease:
             self.lease = None
-        if self.dhcp_error:
-            self.dhcp_error = None
         if not self._ephipv4:
             return
         self._ephipv4.__exit__(None, None, None)
@@ -84,9 +82,8 @@ class EphemeralDHCPv4(object):
         if self.lease:
             return self.lease
         try:
-            leases, dhcp_error = maybe_perform_dhcp_discovery(
-                self.iface, capture=True)
-            self.dhcp_error = dhcp_error
+            leases = maybe_perform_dhcp_discovery(
+                self.iface, self.dhcp_log_func)
         except InvalidDHCPLeaseFileError:
             raise NoDHCPLeaseError()
         if not leases:
@@ -136,38 +133,37 @@ class EphemeralDHCPv4(object):
                 result[internal_mapping] = self.lease.get(different_names)
 
 
-def maybe_perform_dhcp_discovery(nic=None, capture=False):
+def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
     """Perform dhcp discovery if nic valid and dhclient command exists.
 
     If the nic is invalid or undiscoverable or dhclient command is not found,
     skip dhcp_discovery and return an empty dict.
 
     @param nic: Name of the network interface we want to run dhclient on.
-    @param capture: boolean indicating if dhclient error stream should be
-        captured.
+    @param dhcp_log_func: A callable accepting the dhclient output and error
+        streams.
     @return: A list of dicts representing dhcp options for each lease obtained
         from the dhclient discovery if run, otherwise an empty list is
         returned.
-        if capturing, the dhclient error stream will also be returned.
     """
     if nic is None:
         nic = find_fallback_nic()
         if nic is None:
             LOG.debug('Skip dhcp_discovery: Unable to find fallback nic.')
-            return ([], '') if capture else []
+            return []
     elif nic not in get_devicelist():
         LOG.debug(
             'Skip dhcp_discovery: nic %s not found in get_devicelist.', nic)
-        return ([], '') if capture else []
+        return []
     dhclient_path = subp.which('dhclient')
     if not dhclient_path:
         LOG.debug('Skip dhclient configuration: No dhclient command found.')
-        return ([], '') if capture else []
+        return []
     with temp_utils.tempdir(rmtree_ignore_errors=True,
                             prefix='cloud-init-dhcp-',
                             needs_exe=True) as tdir:
         # Use /var/tmp because /run/cloud-init/tmp is mounted noexec
-        return dhcp_discovery(dhclient_path, nic, tdir, capture)
+        return dhcp_discovery(dhclient_path, nic, tdir, dhcp_log_func)
 
 
 def parse_dhcp_lease_file(lease_file):
@@ -201,19 +197,18 @@ def parse_dhcp_lease_file(lease_file):
     return dhcp_leases
 
 
-def dhcp_discovery(dhclient_cmd_path, interface, cleandir, capture=False):
+def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
     """Run dhclient on the interface without scripts or filesystem artifacts.
 
     @param dhclient_cmd_path: Full path to the dhclient used.
     @param interface: Name of the network inteface on which to dhclient.
     @param cleandir: The directory from which to run dhclient as well as store
         dhcp leases.
-    @param capture: boolean indicating if dhclient error stream should be
-    captured.
+    @param dhcp_log_func: A callable accepting the dhclient output and error
+        streams.
 
     @return: A list of dicts of representing the dhcp leases parsed from the
         dhcp.leases file or empty list.
-        if capturing, the dhclient error stream will also be returned.
     """
     LOG.debug('Performing a dhcp discovery on %s', interface)
 
@@ -234,7 +229,7 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir, capture=False):
     subp.subp(['ip', 'link', 'set', 'dev', interface, 'up'], capture=True)
     cmd = [sandbox_dhclient_cmd, '-1', '-v', '-lf', lease_file,
            '-pf', pid_file, interface, '-sf', '/bin/true']
-    _out, err = subp.subp(cmd, capture=True)
+    out, err = subp.subp(cmd, capture=True)
 
     # Wait for pid file and lease file to appear, and for the process
     # named by the pid file to daemonize (have pid 1 as its parent). If we
@@ -272,8 +267,8 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir, capture=False):
             'dhclient(pid=%s, parentpid=%s) failed to daemonize after %s '
             'seconds', pid_content, ppid, 0.01 * 1000
         )
-    if capture:
-        return parse_dhcp_lease_file(lease_file), err
+    if dhcp_log_func is not None:
+        dhcp_log_func(out, err)
     return parse_dhcp_lease_file(lease_file)
 
 
