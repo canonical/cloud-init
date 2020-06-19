@@ -35,7 +35,8 @@ from cloudinit.sources.helpers.azure import (
     get_system_info,
     report_diagnostic_event,
     EphemeralDHCPv4WithReporting,
-    is_byte_swapped)
+    is_byte_swapped,
+    dhcp_log_cb)
 
 LOG = logging.getLogger(__name__)
 
@@ -627,10 +628,6 @@ class DataSourceAzure(sources.DataSource):
                 LOG.debug("poll IMDS failed with an unexpected exception: %s",
                           exception)
                 return False
-
-        def dhcp_log_cb(out, err):
-            report_diagnostic_event("dhclient output stream: %s" % out)
-            report_diagnostic_event("dhclient error stream: %s" % err)
 
         LOG.debug("Wait for vnetswitch to happen")
         while True:
