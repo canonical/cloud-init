@@ -26,6 +26,7 @@ class Config(object):
     TIMEZONE = 'DATETIME|TIMEZONE'
     UTC = 'DATETIME|UTC'
     POST_GC_STATUS = 'MISC|POST-GC-STATUS'
+    DEFAULT_RUN_POST_SCRIPT = 'MISC|DEFAULT-RUN-POST-CUST-SCRIPT'
 
     def __init__(self, configFile):
         self._configFile = configFile
@@ -114,5 +115,19 @@ class Config(object):
         if postGcStatus not in ('yes', 'no'):
             raise ValueError('PostGcStatus value should be yes/no')
         return postGcStatus == 'yes'
+
+    @property
+    def default_run_post_script(self):
+        """
+        Return enable-custom-scripts default value if enable-custom-scripts
+        is absent in VM Tools configuration
+        """
+        defaultRunPostScript = self._configFile.get(
+            Config.DEFAULT_RUN_POST_SCRIPT,
+            'no')
+        defaultRunPostScript = defaultRunPostScript.lower()
+        if defaultRunPostScript not in ('yes', 'no'):
+            raise ValueError('defaultRunPostScript value should be yes/no')
+        return defaultRunPostScript == 'yes'
 
 # vi: ts=4 expandtab
