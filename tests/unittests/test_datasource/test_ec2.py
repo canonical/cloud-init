@@ -744,7 +744,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
         ret = ds.get_data()
         self.assertTrue(ret)
-        m_dhcp.assert_called_once_with('eth9')
+        m_dhcp.assert_called_once_with('eth9', None)
         m_net.assert_called_once_with(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
             prefix_or_mask='255.255.255.0', router='192.168.2.1',

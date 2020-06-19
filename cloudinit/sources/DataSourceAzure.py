@@ -35,7 +35,8 @@ from cloudinit.sources.helpers.azure import (
     get_system_info,
     report_diagnostic_event,
     EphemeralDHCPv4WithReporting,
-    is_byte_swapped)
+    is_byte_swapped,
+    dhcp_log_cb)
 
 LOG = logging.getLogger(__name__)
 
@@ -636,7 +637,8 @@ class DataSourceAzure(sources.DataSource):
                         name="obtain-dhcp-lease",
                         description="obtain dhcp lease",
                         parent=azure_ds_reporter):
-                    self._ephemeral_dhcp_ctx = EphemeralDHCPv4()
+                    self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
+                        dhcp_log_func=dhcp_log_cb)
                     lease = self._ephemeral_dhcp_ctx.obtain_lease()
 
                 if vnet_switched:
