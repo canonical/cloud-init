@@ -72,7 +72,7 @@ matrix:
             - cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
           script:
             # Ubuntu LTS: Build
-            - ./packages/bddeb -S -d
+            - ./packages/bddeb -S -d --release xenial
             - |
                 needs_caching=false
                 if [ -e "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" ]; then
