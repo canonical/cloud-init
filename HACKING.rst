@@ -227,6 +227,14 @@ The following guidelines should be followed:
     * ``tmpdir_factory``
     * ``tmpdir``
 
+  * On xenial, the objects returned by the ``tmpdir`` fixture cannot be
+    used where paths are required; they are rejected as invalid paths.
+    You must instead use their ``.strpath`` attribute.
+
+    * For example, instead of
+      ``util.write_file(tmpdir.join("some_file"), ...)``, you should
+      write ``util.write_file(tmpdir.join("some_file").strpath, ...)``.
+
 * Variables/parameter names for ``Mock`` or ``MagicMock`` instances
   should start with ``m_`` to clearly distinguish them from non-mock
   variables
