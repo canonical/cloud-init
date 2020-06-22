@@ -98,6 +98,17 @@ class TestWriteFile(helpers.TestCase):
         self.assertTrue(os.path.isdir(dirname))
         self.assertTrue(os.path.isfile(path))
 
+    def test_dir_is_not_created_if_ensure_dir_false(self):
+        """Verify directories are not created if ensure_dir_exists is False."""
+        dirname = os.path.join(self.tmp, "subdir")
+        path = os.path.join(dirname, "NewFile.txt")
+        contents = "Hey there"
+
+        with self.assertRaises(FileNotFoundError):
+            util.write_file(path, contents, ensure_dir_exists=False)
+
+        self.assertFalse(os.path.isdir(dirname))
+
     def test_explicit_mode(self):
         """Verify explicit file mode works properly."""
         path = os.path.join(self.tmp, "NewFile.txt")
