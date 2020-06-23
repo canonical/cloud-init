@@ -83,7 +83,7 @@ default() {
 
 check_for_datasource() {
     local ds_rc=""
-{% if variant in ["redhat", "fedora", "centos"] %}
+{% if variant in ["rhel", "fedora", "centos"] %}
     local dsidentify="/usr/libexec/cloud-init/ds-identify"
 {% else %}
     local dsidentify="/usr/lib/cloud-init/ds-identify"
