@@ -79,14 +79,8 @@ class Networking(metaclass=abc.ABCMeta):
     def is_bridge(self, devname: DeviceName) -> bool:
         return net.is_bridge(devname)
 
-    def is_connected(self, devname: DeviceName) -> bool:
-        return net.is_connected(devname)
-
     def is_physical(self, devname: DeviceName) -> bool:
         return net.is_physical(devname)
-
-    def is_present(self, devname: DeviceName) -> bool:
-        return net.is_present(devname)
 
     def is_renamed(self, devname: DeviceName) -> bool:
         return net.is_renamed(devname)
@@ -96,9 +90,6 @@ class Networking(metaclass=abc.ABCMeta):
 
     def is_vlan(self, devname: DeviceName) -> bool:
         return net.is_vlan(devname)
-
-    def is_wireless(self, devname: DeviceName) -> bool:
-        return net.is_wireless(devname)
 
     def master_is_bridge_or_bond(self, devname: DeviceName) -> bool:
         return net.master_is_bridge_or_bond(devname)

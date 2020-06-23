@@ -143,12 +143,6 @@ class TestReadSysNet(CiTestCase):
             write_file(os.path.join(self.sysdir, 'eth0', 'operstate'), state)
             self.assertFalse(net.is_up('eth0'))
 
-    def test_is_wireless(self):
-        """is_wireless is True when /sys/net/devname/wireless exists."""
-        self.assertFalse(net.is_wireless('eth0'))
-        ensure_file(os.path.join(self.sysdir, 'eth0', 'wireless'))
-        self.assertTrue(net.is_wireless('eth0'))
-
     def test_is_bridge(self):
         """is_bridge is True when /sys/net/devname/bridge exists."""
         self.assertFalse(net.is_bridge('eth0'))
@@ -204,31 +198,11 @@ class TestReadSysNet(CiTestCase):
         write_file(os.path.join(self.sysdir, 'eth0', 'uevent'), content)
         self.assertTrue(net.is_vlan('eth0'))
 
-    def test_is_connected_when_physically_connected(self):
-        """is_connected is True when /sys/net/devname/iflink reports 2."""
-        self.assertFalse(net.is_connected('eth0'))
-        write_file(os.path.join(self.sysdir, 'eth0', 'iflink'), "2")
-        self.assertTrue(net.is_connected('eth0'))
-
-    def test_is_connected_when_wireless_and_carrier_active(self):
-        """is_connected is True if wireless /sys/net/devname/carrier is 1."""
-        self.assertFalse(net.is_connected('eth0'))
-        ensure_file(os.path.join(self.sysdir, 'eth0', 'wireless'))
-        self.assertFalse(net.is_connected('eth0'))
-        write_file(os.path.join(self.sysdir, 'eth0', 'carrier'), "1")
-        self.assertTrue(net.is_connected('eth0'))
-
     def test_is_physical(self):
         """is_physical is True when /sys/net/devname/device exists."""
         self.assertFalse(net.is_physical('eth0'))
         ensure_file(os.path.join(self.sysdir, 'eth0', 'device'))
         self.assertTrue(net.is_physical('eth0'))
-
-    def test_is_present(self):
-        """is_present is True when /sys/net/devname exists."""
-        self.assertFalse(net.is_present('eth0'))
-        ensure_file(os.path.join(self.sysdir, 'eth0', 'device'))
-        self.assertTrue(net.is_present('eth0'))
 
 
 class TestGenerateFallbackConfig(CiTestCase):
