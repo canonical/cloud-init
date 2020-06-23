@@ -956,6 +956,12 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
 
+@mock.patch('cloudinit.util.kernel_version')
+def test_kernel_version(m_kernel_version):
+    m_kernel_version.return_value = (4, 18)
+    assert util.kernel_version() == (4, 18)
+
+
 @mock.patch('cloudinit.subp.subp')
 def test_find_devs_with_openbsd(m_subp):
     m_subp.return_value = (
