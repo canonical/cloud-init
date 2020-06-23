@@ -59,7 +59,14 @@ class DataSourceHetzner(sources.DataSource):
                 self.userdata_address, timeout=self.timeout,
                 sec_between=self.wait_retry, retries=self.retries)
 
-        self.userdata_raw = ud
+        # Hetzner cloud does not support binary user-data. So here, do a
+        # base64 decode of the data if we can. The end result being that a
+        # user can provide base64 encoded (possibly gzipped) data as user-data.
+        #
+        # The fallout is that in the event of b64 encoded user-data,
+        # /var/lib/cloud-init/cloud-config.txt will not be identical to the
+        # user-data provided.  It will be decoded.
+        self.userdata_raw = hc_helper.maybe_b64decode(ud)
         self.metadata_full = md
 
         """hostname is name provided by user at launch.  The API enforces
