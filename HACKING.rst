@@ -426,6 +426,9 @@ implementation.  This can be done incrementally, one function at a
 time:
 
 * pick an unmigrated ``cloudinit.distros.networking.Networking`` method
+* find it in the `the list of bugs tagged net-refactor`_ and assign
+  yourself to it (see :ref:`Managing Work/Tracking Progress` below for
+  more details)
 * refactor all of its callers to call the ``distro.net.<func>`` method
   on ``Distro`` instead of the ``cloudinit.net.<func>`` function. (This
   is likely to be the most time-consuming step, as it may require
@@ -616,6 +619,24 @@ Note that the functions in ``cloudinit.net`` use inconsistent parameter
 names for "string that contains a device name"; we can standardise on
 ``devname`` (the most common one) in the refactor.
 
+Managing Work/Tracking Progress
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To ensure that we won't have multiple people working on the same part
+of the refactor at the same time, there is a bug for each function.
+You can see the current status by looking at `the list of bugs tagged
+net-refactor`_.
+
+When you're working on refactoring a particular method, ensure that you
+have assigned yourself to the corresponding bug, to avoid duplicate
+work.
+
+Generally, when considering what to pick up to refactor, it is best to
+start with functions in ``cloudinit.net`` which are not called by
+anything else in ``cloudinit.net``.  This allows you to focus only on
+refactoring that function and its callsites, rather than having to
+update the other ``cloudinit.net`` function also.
+
 References
 ~~~~~~~~~~
 
@@ -631,3 +652,4 @@ References
 .. _this comment in PR #363: https://github.com/canonical/cloud-init/pull/363#issuecomment-628829489
 .. _abstractmethod: https://docs.python.org/3/library/abc.html#abc.abstractmethod
 .. _type aliases: https://docs.python.org/3/library/typing.html#type-aliases
+.. _the list of bugs tagged net-refactor: https://bugs.launchpad.net/cloud-init/+bugs?field.tag=net-refactor
