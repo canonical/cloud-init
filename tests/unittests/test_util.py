@@ -958,7 +958,7 @@ class TestGetProcEnv(helpers.TestCase):
 
 @mock.patch('os.uname')
 def test_kernel_version(m_uname):
-    m_uname.release.return_value = '5.6.19-300.fc32.x86_64'
+    m_uname().release = '5.6.19-300.fc32.x86_64'
     assert util.kernel_version() == (5, 6)
 
 
