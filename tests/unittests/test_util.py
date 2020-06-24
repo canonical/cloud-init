@@ -956,10 +956,10 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
 
-@mock.patch('cloudinit.util.kernel_version')
-def test_kernel_version(m_kernel_version):
-    m_kernel_version.return_value = (4, 18)
-    assert util.kernel_version() == (4, 18)
+@mock.patch('os.uname')
+def test_kernel_version(m_uname):
+    m_uname.release.return_value = '5.6.19-300.fc32.x86_64'
+    assert util.kernel_version() == (5, 6)
 
 
 @mock.patch('cloudinit.subp.subp')
