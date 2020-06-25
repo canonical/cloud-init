@@ -2,7 +2,6 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import net
 from cloudinit.distros.networking import (
     BSDNetworking,
     LinuxNetworking,
@@ -14,19 +13,27 @@ from cloudinit.distros.networking import (
 from contextlib import ExitStack as does_not_raise
 
 
-@pytest.fixture
+@pytest.yield_fixture
 def generic_networking_cls():
-    """Returns a direct Networking subclass with abstract methods implemented.
+    """Returns a direct Networking subclass which errors on /sys usage.
 
     This enables the direct testing of functionality only present on the
-    ``Networking`` super-class.
+    ``Networking`` super-class, and provides a check on accidentally using /sys
+    in that context.
     """
 
     class TestNetworking(Networking):
         def is_physical(self, *args, **kwargs):
             raise NotImplementedError
 
-    return TestNetworking
+        def settle(self, *args, **kwargs):
+            raise NotImplementedError
+
+    error = AssertionError("Unexpectedly used /sys in generic networking code")
+    with mock.patch(
+        "cloudinit.net.get_sys_class_path", side_effect=error,
+    ):
+        yield TestNetworking
 
 
 @pytest.yield_fixture
@@ -66,7 +73,6 @@ class TestLinuxNetworkingIsPhysical:
         assert LinuxNetworking().is_physical(devname)
 
 
-@mock.patch("cloudinit.util.udevadm_settle", autospec=True)
 class TestNetworkingWaitForPhysDevs:
     @pytest.fixture
     def wait_for_physdevs_netcfg(self):
@@ -92,10 +98,7 @@ class TestNetworkingWaitForPhysDevs:
         return netcfg
 
     def test_skips_settle_if_all_present(
-        self,
-        m_udevadm_settle,
-        generic_networking_cls,
-        wait_for_physdevs_netcfg,
+        self, generic_networking_cls, wait_for_physdevs_netcfg,
     ):
         networking = generic_networking_cls()
         with mock.patch.object(
@@ -104,14 +107,14 @@ class TestNetworkingWaitForPhysDevs:
             m_get_interfaces_by_mac.side_effect = iter(
                 [{"aa:bb:cc:dd:ee:ff": "eth0", "00:11:22:33:44:55": "ens3"}]
             )
-            networking.wait_for_physdevs(wait_for_physdevs_netcfg)
-            assert 0 == m_udevadm_settle.call_count
+            with mock.patch.object(
+                networking, "settle", autospec=True
+            ) as m_settle:
+                networking.wait_for_physdevs(wait_for_physdevs_netcfg)
+            assert 0 == m_settle.call_count
 
     def test_calls_udev_settle_on_missing(
-        self,
-        m_udevadm_settle,
-        generic_networking_cls,
-        wait_for_physdevs_netcfg,
+        self, generic_networking_cls, wait_for_physdevs_netcfg,
     ):
         networking = generic_networking_cls()
         with mock.patch.object(
@@ -128,10 +131,11 @@ class TestNetworkingWaitForPhysDevs:
                     },  # second call has both
                 ]
             )
-            networking.wait_for_physdevs(wait_for_physdevs_netcfg)
-            m_udevadm_settle.assert_called_with(
-                exists=net.sys_dev_path("ens3")
-            )
+            with mock.patch.object(
+                networking, "settle", autospec=True
+            ) as m_settle:
+                networking.wait_for_physdevs(wait_for_physdevs_netcfg)
+            m_settle.assert_called_with(exists="ens3")
 
     @pytest.mark.parametrize(
         "strict,expectation",
@@ -139,7 +143,6 @@ class TestNetworkingWaitForPhysDevs:
     )
     def test_retrying_and_strict_behaviour(
         self,
-        m_udevadm_settle,
         strict,
         expectation,
         generic_networking_cls,
@@ -151,12 +154,15 @@ class TestNetworkingWaitForPhysDevs:
         ) as m_get_interfaces_by_mac:
             m_get_interfaces_by_mac.return_value = {}
 
-            with expectation:
-                networking.wait_for_physdevs(
-                    wait_for_physdevs_netcfg, strict=strict
-                )
+            with mock.patch.object(
+                networking, "settle", autospec=True
+            ) as m_settle:
+                with expectation:
+                    networking.wait_for_physdevs(
+                        wait_for_physdevs_netcfg, strict=strict
+                    )
 
         assert (
             5 * len(wait_for_physdevs_netcfg["ethernets"])
-            == m_udevadm_settle.call_count
+            == m_settle.call_count
         )

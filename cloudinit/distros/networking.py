@@ -1,7 +1,6 @@
 import abc
 import logging
 import os
-from functools import partial
 
 from cloudinit import net, util
 
@@ -107,6 +106,10 @@ class Networking(metaclass=abc.ABCMeta):
     def master_is_bridge_or_bond(self, devname: DeviceName) -> bool:
         return net.master_is_bridge_or_bond(devname)
 
+    @abc.abstractmethod
+    def settle(self, *, exists=None) -> None:
+        pass
+
     def wait_for_physdevs(
         self, netcfg: NetworkConfig, *, strict: bool = True
     ) -> None:
@@ -132,12 +135,14 @@ class Networking(metaclass=abc.ABCMeta):
             LOG.debug("net: waiting for expected net devices: %s", missing)
             for mac in missing:
                 # trigger a settle, unless this interface exists
-                syspath = net.sys_dev_path(expected_ifaces[mac])
-                settle = partial(util.udevadm_settle, exists=syspath)
-                msg = (
-                    "Waiting for udev events to settle or %s exists" % syspath
+                devname = expected_ifaces[mac]
+                msg = "Waiting for settle or {} exists".format(devname)
+                util.log_time(
+                    LOG.debug,
+                    msg,
+                    func=self.settle,
+                    kwargs={"exists": devname},
                 )
-                util.log_time(LOG.debug, msg, func=settle)
 
             # update present_macs after settles
             present_macs = self.get_interfaces_by_mac().keys()
@@ -152,6 +157,9 @@ class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 
     def is_physical(self, devname: DeviceName) -> bool:
+        raise NotImplementedError()
+
+    def settle(self, *, exists=None) -> None:
         raise NotImplementedError()
 
 
@@ -178,3 +186,6 @@ class LinuxNetworking(Networking):
 
     def is_physical(self, devname: DeviceName) -> bool:
         return os.path.exists(net.sys_dev_path(devname, "device"))
+
+    def settle(self, *, exists=None) -> None:
+        raise NotImplementedError()
