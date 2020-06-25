@@ -74,6 +74,12 @@ class TestLinuxNetworkingIsPhysical:
         assert LinuxNetworking().is_physical(devname)
 
 
+class TestBSDNetworkingSettle:
+    def test_settle_raises_notimplementederror(self):
+        with pytest.raises(NotImplementedError):
+            BSDNetworking().settle()
+
+
 @pytest.mark.usefixtures("sys_class_net")
 @mock.patch("cloudinit.distros.networking.util.udevadm_settle", autospec=True)
 class TestLinuxNetworkingSettle:
