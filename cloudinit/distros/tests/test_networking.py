@@ -2,6 +2,7 @@ from unittest import mock
 
 import pytest
 
+from cloudinit import net
 from cloudinit.distros.networking import (
     BSDNetworking,
     LinuxNetworking,
@@ -71,6 +72,23 @@ class TestLinuxNetworkingIsPhysical:
         device_dir.join("device").write("")
 
         assert LinuxNetworking().is_physical(devname)
+
+
+@pytest.mark.usefixtures("sys_class_net")
+@mock.patch("cloudinit.distros.networking.util.udevadm_settle", autospec=True)
+class TestLinuxNetworkingSettle:
+    def test_no_arguments(self, m_udevadm_settle):
+        LinuxNetworking().settle()
+
+        assert [mock.call(exists=None)] == m_udevadm_settle.call_args_list
+
+    def test_exists_argument(self, m_udevadm_settle):
+        LinuxNetworking().settle(exists="ens3")
+
+        expected_path = net.sys_dev_path("ens3")
+        assert [
+            mock.call(exists=expected_path)
+        ] == m_udevadm_settle.call_args_list
 
 
 class TestNetworkingWaitForPhysDevs:

@@ -188,4 +188,6 @@ class LinuxNetworking(Networking):
         return os.path.exists(net.sys_dev_path(devname, "device"))
 
     def settle(self, *, exists=None) -> None:
-        raise NotImplementedError()
+        if exists is not None:
+            exists = net.sys_dev_path(exists)
+        util.udevadm_settle(exists=exists)
