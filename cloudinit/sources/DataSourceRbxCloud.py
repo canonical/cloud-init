@@ -44,7 +44,7 @@ def int2ip(addr):
 
 def _sub_arp(cmd):
     """
-    Uses the prefered cloud-init subprocess def of subp.subp
+    Uses the preferred cloud-init subprocess def of subp.subp
     and runs arping.  Breaking this to a separate function
     for later use in mocking and unittests
     """
@@ -72,17 +72,13 @@ def gratuitous_arp(items, distro):
 
 def get_md():
     rbx_data = None
-    devices = [
-        dev
-        for dev, bdata in util.blkid().items()
-        if bdata.get('LABEL', '').upper() == 'CLOUDMD'
-    ]
+    devices = util.find_devs_with('LABEL=CLOUDMD')
     for device in devices:
         try:
             rbx_data = util.mount_cb(
                 device=device,
                 callback=read_user_data_callback,
-                mtype=['vfat', 'fat']
+                mtype=['vfat', 'fat', 'msdosfs']
             )
             if rbx_data:
                 break
@@ -190,7 +186,6 @@ def read_user_data_callback(mount_dir):
                     'passwd': hash,
                     'lock_passwd': False,
                     'ssh_authorized_keys': ssh_keys,
-                    'shell': '/bin/bash'
                 }
             },
             'network_config': network,
