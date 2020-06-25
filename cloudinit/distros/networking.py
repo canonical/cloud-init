@@ -108,11 +108,29 @@ class Networking(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def settle(self, *, exists=None) -> None:
+        """Wait for device population in the system to complete.
+
+        :param exists:
+            if given, skip the settle process if the given DeviceName is
+            already present in the system
+        """
         pass
 
     def wait_for_physdevs(
         self, netcfg: NetworkConfig, *, strict: bool = True
     ) -> None:
+        """Wait for all the physical devices in `netcfg` to exist on the system
+
+        Specifically, this will call `self.settle` 5 times, and check after
+        each one if the physical devices are now present in the system.
+
+        :param netcfg:
+            The NetworkConfig from which to extract physical devices to wait
+            for.
+        :param strict:
+            Raise a `RuntimeError` if any physical devices are not present
+            after waiting.
+        """
         physdevs = self.extract_physdevs(netcfg)
 
         # set of expected iface names and mac addrs
