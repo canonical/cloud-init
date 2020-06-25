@@ -1,7 +1,12 @@
 import abc
+import logging
 import os
+from functools import partial
 
-from cloudinit import net
+from cloudinit import net, util
+
+
+LOG = logging.getLogger(__name__)
 
 
 # Type aliases (https://docs.python.org/3/library/typing.html#type-aliases),
@@ -105,7 +110,42 @@ class Networking(metaclass=abc.ABCMeta):
     def wait_for_physdevs(
         self, netcfg: NetworkConfig, *, strict: bool = True
     ) -> None:
-        return net.wait_for_physdevs(netcfg, strict=strict)
+        physdevs = self.extract_physdevs(netcfg)
+
+        # set of expected iface names and mac addrs
+        expected_ifaces = dict([(iface[0], iface[1]) for iface in physdevs])
+        expected_macs = set(expected_ifaces.keys())
+
+        # set of current macs
+        present_macs = self.get_interfaces_by_mac().keys()
+
+        # compare the set of expected mac address values to
+        # the current macs present; we only check MAC as cloud-init
+        # has not yet renamed interfaces and the netcfg may include
+        # such renames.
+        for _ in range(0, 5):
+            if expected_macs.issubset(present_macs):
+                LOG.debug("net: all expected physical devices present")
+                return
+
+            missing = expected_macs.difference(present_macs)
+            LOG.debug("net: waiting for expected net devices: %s", missing)
+            for mac in missing:
+                # trigger a settle, unless this interface exists
+                syspath = net.sys_dev_path(expected_ifaces[mac])
+                settle = partial(util.udevadm_settle, exists=syspath)
+                msg = (
+                    "Waiting for udev events to settle or %s exists" % syspath
+                )
+                util.log_time(LOG.debug, msg, func=settle)
+
+            # update present_macs after settles
+            present_macs = self.get_interfaces_by_mac().keys()
+
+        msg = "Not all expected physical devices present: %s" % missing
+        LOG.warning(msg)
+        if strict:
+            raise RuntimeError(msg)
 
 
 class BSDNetworking(Networking):
