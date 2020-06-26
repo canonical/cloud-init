@@ -99,13 +99,10 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
 
         if isinstance(mirror, list):
             cfg = {'apt_mirror_search': mirror}
-            mock_mirrors = mirror
         else:
             cfg = {'apt_mirror': mirror}
-            mock_mirrors = []
 
         mycloud = self._get_cloud(distro)
-        all_mock_returns = mock_mirrors + ['fake']
 
         with mock.patch.object(util, 'write_file') as mockwf:
             with mock.patch.object(util, 'load_file',
@@ -114,7 +111,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                                        return_value=True) as mockisfile:
                     with mock.patch.object(
                         templater, 'render_string',
-                            side_effect=all_mock_returns) as mockrnd:
+                            return_value='fake') as mockrnd:
                         with mock.patch.object(util, 'rename'):
                             cc_apt_configure.handle("test", cfg, mycloud,
                                                     LOG, None)
@@ -123,24 +120,15 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             ('/etc/cloud/templates/sources.list.%s.tmpl' % distro))
         mocklf.assert_any_call(
             ('/etc/cloud/templates/sources.list.%s.tmpl' % distro))
-
-        params = {"REGION": mycloud.datasource.region}
-        mock_calls = [
-            mock.call(mirror, params) for mirror in mock_mirrors
-        ]
-        mock_calls += [
-            mock.call(
-                'faketmpl',
-                {'RELEASE': 'fakerelease',
-                    'PRIMARY': mirrorcheck,
-                    'MIRROR': mirrorcheck,
-                    'SECURITY': mirrorcheck,
-                    'codename': 'fakerelease',
-                    'primary': mirrorcheck,
-                    'mirror': mirrorcheck,
-                    'security': mirrorcheck})
-        ]
-        assert mock_calls == mockrnd.call_args_list
+        mockrnd.assert_called_once_with('faketmpl',
+                                        {'RELEASE': 'fakerelease',
+                                         'PRIMARY': mirrorcheck,
+                                         'MIRROR': mirrorcheck,
+                                         'SECURITY': mirrorcheck,
+                                         'codename': 'fakerelease',
+                                         'primary': mirrorcheck,
+                                         'mirror': mirrorcheck,
+                                         'security': mirrorcheck})
         mockwf.assert_called_once_with('/etc/apt/sources.list', 'fake',
                                        mode=0o644)
 

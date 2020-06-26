@@ -28,7 +28,7 @@ from cloudinit import type_utils
 from cloudinit import subp
 from cloudinit import util
 
-from cloudinit.feature_flags import \
+from cloudinit.features import \
     ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
 
 from cloudinit.distros.parsers import hosts
@@ -854,10 +854,9 @@ def _get_package_mirror_info(mirror_info, data_source=None,
         if _EC2_AZ_RE.match(data_source.availability_zone):
             ec2_region = data_source.availability_zone[0:-1]
 
-            if (ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
-                    and data_source.platform_type == "ec2"):
+            if ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES:
                 subst['ec2_region'] = "%s" % ec2_region
-            elif not ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES:
+            elif data_source.platform_type == "ec2":
                 subst['ec2_region'] = "%s" % ec2_region
 
     if data_source and data_source.region:

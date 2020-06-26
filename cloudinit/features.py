@@ -26,6 +26,16 @@ After the 20.2 release, we instead raise an exception.
 This flag can be removed after Focal is no longer supported
 """
 
+
+ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES = False
+"""
+When configuring apt mirrors, old behavior is to allow
+the use of ec2 mirrors if the user region matches one
+of the possible aws regions. We are now updating that to only
+the use of ec2 mirror for aws instances, unless the user specifically
+sets that on the userdata config.
+"""
+
 try:
     # pylint: disable=wildcard-import
     from cloudinit.feature_overrides import *  # noqa

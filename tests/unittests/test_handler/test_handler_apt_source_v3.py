@@ -737,36 +737,6 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         self.assertEqual(mirrors['SECURITY'],
                          smir)
 
-    def test_apt_v3_mirror_search_ec2_template(self):
-        """test_apt_v3_mirror_search_ec2_template - Test search mirror
-        is rendered correctly"""
-
-        pmir = "http://region.ec2.archive.ubuntu.com/ubuntu/"
-        smir = "http://security.ubuntu.com/ubuntu/"
-
-        cfg = {
-            "primary": [
-                {'arches': ["default"],
-                 "search": [
-                     "http://${REGION}.ec2.archive.ubuntu.com/ubuntu/",
-                     "foo"
-                 ]}],
-            "security": [
-                {'arches': ["default"],
-                 'search': [smir]}
-            ]
-        }
-        arch = 'default'
-
-        with mock.patch('cloudinit.util.search_for_mirror',
-                        side_effect=lambda x: x[0]):
-                mirrors = cc_apt_configure.find_apt_mirror_info(
-                    cfg, FakeCloud(), arch)
-
-        self.assertEqual(mirrors['MIRROR'], pmir)
-        self.assertEqual(mirrors['PRIMARY'], pmir)
-        self.assertEqual(mirrors['SECURITY'], smir)
-
     def test_apt_v3_url_resolvable(self):
         """test_apt_v3_url_resolvable - Test resolving urls"""
 

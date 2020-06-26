@@ -218,9 +218,9 @@ class TestGetPackageMirrors:
                  'security': 'http://security-mirror2-intel'}
             ]),
             (True, "other", [
-                {'primary': 'http://us-east-1a.clouds/',
+                {'primary': 'http://us-east-1.ec2/',
                  'security': 'http://security-mirror1-intel'},
-                {'primary':  'http://fs-primary-intel',
+                {'primary': 'http://us-east-1a.clouds/',
                  'security': 'http://security-mirror2-intel'}
             ]),
             (False, "ec2", [
@@ -230,9 +230,9 @@ class TestGetPackageMirrors:
                  'security': 'http://security-mirror2-intel'}
             ]),
             (False, "other", [
-                {'primary': 'http://us-east-1.ec2/',
-                 'security': 'http://security-mirror1-intel'},
                 {'primary': 'http://us-east-1a.clouds/',
+                 'security': 'http://security-mirror1-intel'},
+                {'primary': 'http://fs-primary-intel',
                  'security': 'http://security-mirror2-intel'}
             ])
         ])

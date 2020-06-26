@@ -68,8 +68,7 @@ class TestGetPackageMirrorInfo:
             mirror_info, mirror_filter=lambda x: False)
 
     @pytest.mark.parametrize('allow_ec2_mirror, platform_type', [
-        (True, 'ec2'),
-        (False, 'other')
+        (True, 'ec2')
     ])
     @pytest.mark.parametrize('availability_zone,region,patterns,expected', (
         # Test ec2_region alone
@@ -148,5 +147,10 @@ class TestGetPackageMirrorInfo:
                 data_source=m_data_source,
                 mirror_filter=lambda x: x
             )
-
+        print(allow_ec2_mirror)
+        print(platform_type)
+        print(availability_zone)
+        print(region)
+        print(patterns)
+        print(expected)
         assert {'primary': expected} == ret
