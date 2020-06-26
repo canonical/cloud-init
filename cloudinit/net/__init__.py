@@ -99,10 +99,6 @@ def is_up(devname):
     return read_sys_net_safe(devname, "operstate", translate=translate)
 
 
-def is_wireless(devname):
-    return os.path.exists(sys_dev_path(devname, "wireless"))
-
-
 def is_bridge(devname):
     return os.path.exists(sys_dev_path(devname, "bridge"))
 
@@ -266,26 +262,8 @@ def is_vlan(devname):
     return 'DEVTYPE=vlan' in uevent.splitlines()
 
 
-def is_connected(devname):
-    # is_connected isn't really as simple as that.  2 is
-    # 'physically connected'. 3 is 'not connected'. but a wlan interface will
-    # always show 3.
-    iflink = read_sys_net_safe(devname, "iflink")
-    if iflink == "2":
-        return True
-    if not is_wireless(devname):
-        return False
-    LOG.debug("'%s' is wireless, basing 'connected' on carrier", devname)
-    return read_sys_net_safe(devname, "carrier",
-                             translate={'0': False, '1': True})
-
-
 def is_physical(devname):
     return os.path.exists(sys_dev_path(devname, "device"))
-
-
-def is_present(devname):
-    return os.path.exists(sys_dev_path(devname))
 
 
 def device_driver(devname):

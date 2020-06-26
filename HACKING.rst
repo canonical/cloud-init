@@ -489,13 +489,10 @@ categories:
   * ``interface_has_own_mac``
   * ``is_bond``
   * ``is_bridge``
-  * ``is_connected``
   * ``is_physical``
-  * ``is_present``
   * ``is_renamed``
   * ``is_up``
   * ``is_vlan``
-  * ``is_wireless``
   * ``wait_for_physdevs``
 
 * those that directly access ``/sys`` (via helpers) but may be
