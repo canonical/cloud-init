@@ -55,10 +55,7 @@ matrix:
                   sudo find /var/snap/lxd/common/lxd/images/ -name $latest_file* -print -exec cp {} "$TRAVIS_BUILD_DIR/lxd_images/" \;
           install:
             - git fetch --unshallow
-            - sudo apt-get build-dep -y cloud-init
-            - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox
-            # These are build deps but not pulled in by the build-dep call above
-            - sudo apt-get install -y --install-recommends dh-systemd python3-coverage python3-pytest python3-pytest-cov
+            - sudo apt-get install -y --install-recommends sbuild devscripts fakeroot tox debhelper
             - pip install .
             - pip install tox
             # bionic has lxd from deb installed, remove it first to ensure
@@ -75,7 +72,7 @@ matrix:
             - cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
           script:
             # Ubuntu LTS: Build
-            - ./packages/bddeb -S
+            - ./packages/bddeb -S -d
             - |
                 needs_caching=false
                 if [ -e "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" ]; then
