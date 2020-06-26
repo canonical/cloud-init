@@ -695,6 +695,12 @@ class Init(object):
                     # refresh netcfg after update
                     netcfg, src = self._find_networking_config()
 
+            if self.datasource is NULL_DATA_SOURCE and not self.is_new_instance():
+                # Nothing to do to keep customized network configuration
+                LOG.info("Keep the customized network configuration during apply_netwok_config stage,"
+                         "while the datasource is None and not the first time to exec.")
+                return
+
         # ensure all physical devices in config are present
         net.wait_for_physdevs(netcfg)
 
