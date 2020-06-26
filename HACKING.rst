@@ -218,11 +218,12 @@ The following guidelines should be followed:
     [#fixture-list]_:
 
     * ``cache``
-    * ``capsys``
     * ``capfd``
-    * ``record_xml_property``
+    * ``caplog`` (provided by ``python3-pytest-catchlog`` on xenial)
+    * ``capsys``
     * ``monkeypatch``
     * ``pytestconfig``
+    * ``record_xml_property``
     * ``recwarn``
     * ``tmpdir_factory``
     * ``tmpdir``
@@ -328,9 +329,9 @@ variable annotations specified in `PEP-526`_ were introduced in Python
 .. [#fixture-list] This list of fixtures (with markup) can be
    reproduced by running::
 
-     py.test-3 --fixtures -q | grep "^[^ ]" | grep -v no | sed 's/.*/* ``\0``/'
+     py.test-3 --fixtures -q | grep "^[^ -]" | grep -v '\(no\|capturelog\)' | sort | sed 's/.*/* ``\0``/'
 
-   in a xenial lxd container with python3-pytest installed.
+   in a xenial lxd container with python3-pytest-catchlog installed.
 
 Feature Flags
 -------------
