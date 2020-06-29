@@ -710,9 +710,8 @@ class TestMountCb:
     These tests consider the "unit" under test to be ``util.mount_cb`` and
     ``util.unmounter``, which is only used by ``mount_cb``.
 
-    TODO:
-        * Test default mtype determination
-        * Test the if/else branch that actually performs the mounting operation
+    TODO: Test default mtype determination
+    TODO: Test the if/else branch that actually performs the mounting operation
     """
 
     @pytest.yield_fixture
