@@ -273,6 +273,10 @@ class TestDsIdentify(DsIdentifyBase):
         """Rbx datasource has a disk with LABEL=CLOUDMD."""
         self._test_ds_found('RbxCloud')
 
+    def test_rbx_cloud_lower(self):
+        """Rbx datasource has a disk with LABEL=cloudmd."""
+        self._test_ds_found('RbxCloudLower')
+
     def test_config_drive_upper(self):
         """ConfigDrive datasource has a disk with LABEL=CONFIG-2."""
         self._test_ds_found('ConfigDriveUpper')
@@ -945,6 +949,18 @@ VALID_CFG = {
                   {'DEVNAME': 'vda2', 'TYPE': 'ext4',
                    'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()},
                   {'DEVNAME': 'vdb', 'TYPE': 'vfat', 'LABEL': 'CLOUDMD'}]
+             )},
+        ],
+    },
+    'RbxCloudLower': {
+        'ds': 'RbxCloud',
+        'mocks': [
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'vda2', 'TYPE': 'ext4',
+                   'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'vdb', 'TYPE': 'vfat', 'LABEL': 'cloudmd'}]
              )},
         ],
     },

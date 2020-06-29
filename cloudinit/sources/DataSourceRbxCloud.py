@@ -72,7 +72,10 @@ def gratuitous_arp(items, distro):
 
 def get_md():
     rbx_data = None
-    devices = util.find_devs_with('LABEL=CLOUDMD')
+    devices = set(
+        util.find_devs_with('LABEL=CLOUDMD') +
+        util.find_devs_with('LABEL=cloudmd')
+    )
     for device in devices:
         try:
             rbx_data = util.mount_cb(
