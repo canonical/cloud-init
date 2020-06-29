@@ -745,7 +745,7 @@ class TestMountCb:
 
     @pytest.mark.parametrize("trailing_slash_in_mounts", ["/", ""])
     def test_already_mounted_calls_callback(
-        self, already_mounted_device_and_mountdict, trailing_slash_in_mounts
+        self, trailing_slash_in_mounts, already_mounted_device_and_mountdict
     ):
         device, mount_dict = already_mounted_device_and_mountdict
         mountpoint = mount_dict["mountpoint"]
