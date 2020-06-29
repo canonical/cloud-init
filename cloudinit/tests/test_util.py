@@ -704,4 +704,71 @@ class TestReadCcFromCmdline:
         assert expected_cfg == util.read_conf_from_cmdline(cmdline=cmdline)
 
 
+class TestMountCb:
+    """Tests for ``util.mount_cb``.
+
+    These tests consider the "unit" under test to be ``util.mount_cb`` and
+    ``util.unmounter``, which is only used by ``mount_cb``.
+
+    TODO: Test default mtype determination
+    TODO: Test the if/else branch that actually performs the mounting operation
+    """
+
+    @pytest.yield_fixture
+    def already_mounted_device_and_mountdict(self):
+        """Mock an already-mounted device, and yield (device, mount dict)"""
+        device = "/dev/fake0"
+        mountpoint = "/mnt/fake"
+        with mock.patch("cloudinit.util.subp.subp"):
+            with mock.patch("cloudinit.util.mounts") as m_mounts:
+                mounts = {device: {"mountpoint": mountpoint}}
+                m_mounts.return_value = mounts
+                yield device, mounts[device]
+
+    @pytest.fixture
+    def already_mounted_device(self, already_mounted_device_and_mountdict):
+        """already_mounted_device_and_mountdict, but return only the device"""
+        return already_mounted_device_and_mountdict[0]
+
+    @pytest.mark.parametrize("invalid_mtype", [int(0), float(0.0), dict()])
+    def test_typeerror_raised_for_invalid_mtype(self, invalid_mtype):
+        with pytest.raises(TypeError):
+            util.mount_cb(mock.Mock(), mock.Mock(), mtype=invalid_mtype)
+
+    @mock.patch("cloudinit.util.subp.subp")
+    def test_already_mounted_does_not_mount_or_umount_anything(
+        self, m_subp, already_mounted_device
+    ):
+        util.mount_cb(already_mounted_device, mock.Mock())
+
+        assert 0 == m_subp.call_count
+
+    @pytest.mark.parametrize("trailing_slash_in_mounts", ["/", ""])
+    def test_already_mounted_calls_callback(
+        self, trailing_slash_in_mounts, already_mounted_device_and_mountdict
+    ):
+        device, mount_dict = already_mounted_device_and_mountdict
+        mountpoint = mount_dict["mountpoint"]
+        mount_dict["mountpoint"] += trailing_slash_in_mounts
+
+        callback = mock.Mock()
+        util.mount_cb(device, callback)
+
+        # The mountpoint passed to callback should always have a trailing
+        # slash, regardless of the input
+        assert [mock.call(mountpoint + "/")] == callback.call_args_list
+
+    def test_already_mounted_calls_callback_with_data(
+        self, already_mounted_device
+    ):
+        callback = mock.Mock()
+        util.mount_cb(
+            already_mounted_device, callback, data=mock.sentinel.data
+        )
+
+        assert [
+            mock.call(mock.ANY, mock.sentinel.data)
+        ] == callback.call_args_list
+
+
 # vi: ts=4 expandtab
