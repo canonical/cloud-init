@@ -406,10 +406,6 @@ class DataSourceAzure(sources.DataSource):
         candidates = [self.seed_dir]
         if os.path.isfile(REPROVISION_MARKER_FILE):
             candidates.insert(0, "IMDS")
-            msg = ('Reprovision marker file already exists '
-                   'before crawl of Azure metadata')
-            LOG.warning(msg)
-            report_diagnostic_event(msg)
         candidates.extend(list_possible_azure_ds_devs())
         if ddir:
             candidates.append(ddir)
@@ -431,19 +427,17 @@ class DataSourceAzure(sources.DataSource):
                     ret = load_azure_ds_dir(cdev)
 
             except NonAzureDataSource:
-                msg = "Did not find Azure data source in %s" % cdev
-                LOG.debug(msg)
-                report_diagnostic_event(msg)
+                report_diagnostic_event(
+                    "Did not find Azure data source in %s" % cdev)
                 continue
             except BrokenAzureDataSource as exc:
                 msg = 'BrokenAzureDataSource: %s' % exc
-                LOG.error(msg)
                 report_diagnostic_event(msg)
                 raise sources.InvalidMetaDataException(msg)
             except util.MountFailedError:
                 msg = '%s was not mountable' % cdev
-                LOG.warning(msg)
                 report_diagnostic_event(msg)
+                LOG.warning(msg)
                 continue
 
             perform_reprovision = reprovision or self._should_reprovision(ret)
@@ -466,24 +460,16 @@ class DataSourceAzure(sources.DataSource):
                 'userdata_raw': userdata_raw})
             found = cdev
 
-            if perform_reprovision:
-                msg = "found datasource in IMDS"
-            else:
-                msg = "found datasource in %s" % cdev
-            LOG.debug(msg)
-            report_diagnostic_event(msg)
+            LOG.debug("found datasource in %s", cdev)
             break
 
         if not found:
             msg = 'No Azure metadata found'
-            LOG.error(msg)
             report_diagnostic_event(msg)
             raise sources.InvalidMetaDataException(msg)
 
         if found == ddir:
-            msg = "using files cached in %s" % ddir
-            LOG.debug(msg)
-            report_diagnostic_event(msg)
+            LOG.debug("using files cached in %s", ddir)
 
         seed = _get_random_seed()
         if seed:
@@ -503,9 +489,8 @@ class DataSourceAzure(sources.DataSource):
                             azure_ds_reporter) as lease:
                         self._report_ready(lease=lease)
                 except Exception as e:
-                    msg = "exception while reporting ready: %s" % e
-                    LOG.error(msg)
-                    report_diagnostic_event(msg)
+                    report_diagnostic_event(
+                        "exception while reporting ready: %s" % e)
                     raise
         return crawled_data
 
@@ -634,11 +619,10 @@ class DataSourceAzure(sources.DataSource):
                 else:
                     # If we get an exception while trying to call IMDS, we call
                     # DHCP and setup the ephemeral network to acquire a new IP.
-                    evt_msg = ("poll IMDS with %s failed. "
-                               "Exception: %s and code: %s" %
-                               (msg, exception.cause, exception.code))
-                    LOG.warning(evt_msg)
-                    report_diagnostic_event(evt_msg)
+                    report_diagnostic_event("poll IMDS with %s failed. "
+                                            "Exception: %s and code: %s" %
+                                            (msg, exception.cause,
+                                             exception.code))
                     return False
 
                 LOG.debug("poll IMDS failed with an unexpected exception: %s",
@@ -663,8 +647,8 @@ class DataSourceAzure(sources.DataSource):
                     try:
                         nl_sock = netlink.create_bound_netlink_socket()
                     except netlink.NetlinkCreateSocketError as e:
-                        LOG.warning(e)
                         report_diagnostic_event(e)
+                        LOG.warning(e)
                         self._ephemeral_dhcp_ctx.clean_network()
                         break
 
@@ -684,8 +668,8 @@ class DataSourceAzure(sources.DataSource):
                             netlink.wait_for_media_disconnect_connect(
                                 nl_sock, lease['interface'])
                         except AssertionError as error:
-                            LOG.error(error)
                             report_diagnostic_event(error)
+                            LOG.error(error)
                             break
 
                     vnet_switched = True
@@ -711,12 +695,10 @@ class DataSourceAzure(sources.DataSource):
                     nl_sock.close()
 
         if vnet_switched:
-            msg = "attempted dhcp %d times after reuse" % dhcp_attempts
-            LOG.debug(msg)
-            report_diagnostic_event(msg)
-            msg = "polled imds %d times after reuse" % self.imds_poll_counter
-            LOG.debug(msg)
-            report_diagnostic_event(msg)
+            report_diagnostic_event("attempted dhcp %d times after reuse" %
+                                    dhcp_attempts)
+            report_diagnostic_event("polled imds %d times after reuse" %
+                                    self.imds_poll_counter)
 
         return return_val
 
@@ -789,12 +771,12 @@ class DataSourceAzure(sources.DataSource):
         try:
             fabric_data = metadata_func()
         except Exception as e:
-            LOG.error(
-                "Error communicating with Azure fabric; You may experience "
-                "connectivity issues.", exc_info=True)
             report_diagnostic_event(
                 "Error communicating with Azure fabric; You may experience "
                 "connectivity issues: %s" % e)
+            LOG.warning(
+                "Error communicating with Azure fabric; You may experience "
+                "connectivity issues.", exc_info=True)
             return False
 
         util.del_file(REPORTED_READY_MARKER_FILE)
@@ -1155,7 +1137,6 @@ def read_azure_ovf(contents):
         dom = minidom.parseString(contents)
     except Exception as e:
         error_str = "Invalid ovf-env.xml: %s" % e
-        LOG.error(error_str)
         report_diagnostic_event(error_str)
         raise BrokenAzureDataSource(error_str)
 
@@ -1439,9 +1420,7 @@ def get_metadata_from_imds(fallback_nic, retries):
                     azure_ds_reporter, fallback_nic):
                 return util.log_time(**kwargs)
         except Exception as e:
-            msg = "exception while getting metadata: %s" % e
-            LOG.error(msg)
-            report_diagnostic_event(msg)
+            report_diagnostic_event("exception while getting metadata: %s" % e)
             raise
 
 
@@ -1456,15 +1435,15 @@ def _get_metadata_from_imds(retries):
             retries=retries, exception_cb=retry_on_url_exc)
     except Exception as e:
         msg = 'Ignoring IMDS instance metadata: %s' % e
-        LOG.error(msg)
         report_diagnostic_event(msg)
+        LOG.debug(msg)
         return {}
     try:
         return util.load_json(str(response))
     except json.decoder.JSONDecodeError as e:
-        LOG.error(
-            'Ignoring non-json IMDS instance metadata: %s', str(response))
         report_diagnostic_event('non-json imds response' % e)
+        LOG.warning(
+            'Ignoring non-json IMDS instance metadata: %s', str(response))
     return {}
 
 

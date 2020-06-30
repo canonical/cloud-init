@@ -268,9 +268,9 @@ class GoalState(object):
             '/Configuration/Certificates')
         if url is not None:
             with events.ReportEventStack(
-                        name="get-certificates-xml",
-                        description="get certificates xml",
-                        parent=azure_ds_reporter):
+                    name="get-certificates-xml",
+                    description="get certificates xml",
+                    parent=azure_ds_reporter):
                 self._certificates_xml = \
                     self.azure_endpoint_client.get(
                         url, secure=True).contents
@@ -630,54 +630,41 @@ class WALinuxAgentShim(object):
 
         if dhcp245 is not None:
             value = dhcp245
-            LOG.debug("Using Azure Endpoint from dhcp options.")
-
+            LOG.debug("Using Azure Endpoint from dhcp options")
         if value is None:
-            msg = ("No Azure endpoint from dhcp options. "
-                   "Finding Azure endpoint from networkd...")
-            LOG.debug(msg)
-            report_diagnostic_event(msg)
+            report_diagnostic_event("No Azure endpoint from dhcp options")
+            LOG.debug('Finding Azure endpoint from networkd...')
             value = WALinuxAgentShim._networkd_get_value_from_leases()
-
         if value is None:
             # Option-245 stored in /run/cloud-init/dhclient.hooks/<ifc>.json
             # a dhclient exit hook that calls cloud-init-dhclient-hook
-            msg = ("No Azure endpoint from networkd. "
-                   "Finding Azure endpoint from hook json...")
-            LOG.debug(msg)
-            report_diagnostic_event(msg)
+            report_diagnostic_event("No Azure endpoint from networkd")
+            LOG.debug('Finding Azure endpoint from hook json...')
             dhcp_options = WALinuxAgentShim._load_dhclient_json()
             value = WALinuxAgentShim._get_value_from_dhcpoptions(dhcp_options)
-
         if value is None:
             # Fallback and check the leases file if unsuccessful
-            msg = ("No Azure endpoint from dhclient logs. "
-                   "Unable to find endpoint in dhclient logs. "
-                   "Falling back to check lease files.")
-            LOG.debug(msg)
-            report_diagnostic_event(msg)
-
+            report_diagnostic_event("No Azure endpoint from dhclient logs")
+            LOG.debug("Unable to find endpoint in dhclient logs. "
+                      " Falling back to check lease files")
             if fallback_lease_file is None:
-                msg = "No fallback lease file was specified."
-                LOG.warning(msg)
-                report_diagnostic_event(msg)
+                LOG.warning("No fallback lease file was specified.")
                 value = None
             else:
                 LOG.debug("Looking for endpoint in lease file %s",
                           fallback_lease_file)
                 value = WALinuxAgentShim._get_value_from_leases_file(
                     fallback_lease_file)
-
         if value is None:
             msg = "No lease found; using default endpoint"
-            LOG.warning(msg)
             report_diagnostic_event(msg)
+            LOG.warning(msg)
             value = DEFAULT_WIRESERVER_ENDPOINT
 
         endpoint_ip_address = WALinuxAgentShim.get_ip_from_lease_value(value)
         msg = 'Azure endpoint found at %s' % endpoint_ip_address
-        LOG.debug(msg)
         report_diagnostic_event(msg)
+        LOG.debug(msg)
         return endpoint_ip_address
 
     @azure_ds_telemetry_reporter
