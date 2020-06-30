@@ -55,7 +55,7 @@ def build_deb(args, instance):
     LOG.debug('installing deps')
     deps_path = os.path.join(extract_dir, 'tools', 'read-dependencies')
     instance.execute([deps_path, '--install', '--test-distro',
-                      '--distro', 'ubuntu', '--python-version', '3'])
+                      '--distro', 'ubuntu'])
 
     LOG.debug('building deb in remote system at: %s', output_link)
     bddeb_args = args.bddeb_args.split() if args.bddeb_args else []

@@ -198,12 +198,6 @@ class TestReadSysNet(CiTestCase):
         write_file(os.path.join(self.sysdir, 'eth0', 'uevent'), content)
         self.assertTrue(net.is_vlan('eth0'))
 
-    def test_is_physical(self):
-        """is_physical is True when /sys/net/devname/device exists."""
-        self.assertFalse(net.is_physical('eth0'))
-        ensure_file(os.path.join(self.sysdir, 'eth0', 'device'))
-        self.assertTrue(net.is_physical('eth0'))
-
 
 class TestGenerateFallbackConfig(CiTestCase):
 

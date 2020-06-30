@@ -262,10 +262,6 @@ def is_vlan(devname):
     return 'DEVTYPE=vlan' in uevent.splitlines()
 
 
-def is_physical(devname):
-    return os.path.exists(sys_dev_path(devname, "device"))
-
-
 def device_driver(devname):
     """Return the device driver for net device named 'devname'."""
     driver = None
