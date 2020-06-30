@@ -782,6 +782,14 @@ class TestOpenNebulaNetwork(unittest.TestCase):
 
             self.assertEqual(net.gen_conf(), expected)
 
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_distro_passed_through(self, m_get_physical_nics_by_mac):
+        ds.OpenNebulaNetwork({}, mock.sentinel.distro)
+        self.assertEqual(
+            [mock.call(mock.sentinel.distro)],
+            m_get_physical_nics_by_mac.call_args_list,
+        )
+
     def test_eth0_override(self):
         self.maxDiff = None
         context = {
