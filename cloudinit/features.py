@@ -30,10 +30,11 @@ This flag can be removed after Focal is no longer supported
 ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES = False
 """
 When configuring apt mirrors, old behavior is to allow
-the use of ec2 mirrors if the user region matches one
-of the possible aws regions. We are now updating that to only
-the use of ec2 mirror for aws instances, unless the user specifically
-sets that on the userdata config.
+the use of ec2 mirrors if the datasource availability_zone format
+matches one of the possible aws ec2 regions. After the 20.2 release, we
+no longer publish ec2 region mirror urls on non-AWS cloud platforms.
+Besides feature_overrides.py, users can override this by providing
+#cloud-config apt directives.
 """
 
 try:
