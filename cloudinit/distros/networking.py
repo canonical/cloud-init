@@ -1,4 +1,5 @@
 import abc
+import os
 
 from cloudinit import net
 
@@ -79,8 +80,15 @@ class Networking(metaclass=abc.ABCMeta):
     def is_bridge(self, devname: DeviceName) -> bool:
         return net.is_bridge(devname)
 
+    @abc.abstractmethod
     def is_physical(self, devname: DeviceName) -> bool:
-        return net.is_physical(devname)
+        """
+        Is ``devname`` a physical network device?
+
+        Examples of non-physical network devices: bonds, bridges, tunnels,
+        loopback devices.
+        """
+        pass
 
     def is_renamed(self, devname: DeviceName) -> bool:
         return net.is_renamed(devname)
@@ -103,7 +111,8 @@ class Networking(metaclass=abc.ABCMeta):
 class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 
-    pass
+    def is_physical(self, devname: DeviceName) -> bool:
+        raise NotImplementedError()
 
 
 class LinuxNetworking(Networking):
@@ -126,3 +135,6 @@ class LinuxNetworking(Networking):
 
     def is_netfail_standby(self, devname: DeviceName) -> bool:
         return net.is_netfail_standby(devname)
+
+    def is_physical(self, devname: DeviceName) -> bool:
+        return os.path.exists(net.sys_dev_path(devname, "device"))
