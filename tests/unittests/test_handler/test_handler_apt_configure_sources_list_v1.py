@@ -101,6 +101,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             cfg = {'apt_mirror_search': mirror}
         else:
             cfg = {'apt_mirror': mirror}
+
         mycloud = self._get_cloud(distro)
 
         with mock.patch.object(util, 'write_file') as mockwf:
@@ -108,8 +109,9 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                                    return_value="faketmpl") as mocklf:
                 with mock.patch.object(os.path, 'isfile',
                                        return_value=True) as mockisfile:
-                    with mock.patch.object(templater, 'render_string',
-                                           return_value="fake") as mockrnd:
+                    with mock.patch.object(
+                        templater, 'render_string',
+                            return_value='fake') as mockrnd:
                         with mock.patch.object(util, 'rename'):
                             cc_apt_configure.handle("test", cfg, mycloud,
                                                     LOG, None)
