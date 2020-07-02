@@ -178,7 +178,8 @@ class BSDNetworking(Networking):
         raise NotImplementedError()
 
     def settle(self, *, exists=None) -> None:
-        raise NotImplementedError()
+        """BSD has no equivalent to `udevadm settle`; noop."""
+        pass
 
 
 class LinuxNetworking(Networking):

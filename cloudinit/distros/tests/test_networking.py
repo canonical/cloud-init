@@ -75,9 +75,9 @@ class TestLinuxNetworkingIsPhysical:
 
 
 class TestBSDNetworkingSettle:
-    def test_settle_raises_notimplementederror(self):
-        with pytest.raises(NotImplementedError):
-            BSDNetworking().settle()
+    def test_settle_doesnt_error(self):
+        # This also implicitly tests that it doesn't use subp.subp
+        BSDNetworking().settle()
 
 
 @pytest.mark.usefixtures("sys_class_net")
