@@ -13,7 +13,7 @@ DISTRO_VARIANTS = ["amazon", "arch", "centos", "debian", "fedora", "freebsd",
                    "netbsd", "openbsd", "rhel", "suse", "ubuntu", "unknown"]
 
 
-@pytest.mark.parametrize('disable_subp_usage', [sys.executable], indirect=True)
+@pytest.mark.allow_subp_for(sys.executable)
 class TestRenderCloudCfg:
 
     cmd = [sys.executable, os.path.realpath('tools/render-cloudcfg')]

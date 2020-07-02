@@ -928,8 +928,7 @@ class TestOpenNebulaNetwork(unittest.TestCase):
 
 
 class TestParseShellConfig:
-
-    @pytest.mark.parametrize('disable_subp_usage', ['bash'], indirect=True)
+    @pytest.mark.allow_subp_for("bash")
     def test_no_seconds(self):
         cfg = '\n'.join(["foo=bar", "SECONDS=2", "xx=foo"])
         # we could test 'sleep 2', but that would make the test run slower.
