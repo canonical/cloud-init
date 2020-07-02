@@ -111,8 +111,10 @@ class Networking(metaclass=abc.ABCMeta):
         """Wait for device population in the system to complete.
 
         :param exists:
-            if given, skip the settle process if the given DeviceName is
-            already present in the system
+            An optional optimisation.  If given, only perform as much of the
+            settle process as is required for the given DeviceName to be
+            present in the system.  (This may include skipping the settle
+            process entirely, if the device already exists.)
         """
         pass
 
