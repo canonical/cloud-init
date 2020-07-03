@@ -483,10 +483,8 @@ class Renderer(renderer.Renderer):
         if searchdomains:
             lo['subnets'][0]["dns_search"] = (" ".join(searchdomains))
 
-        ''' Apply a sort order to ensure that we write out
-            the physical interfaces first; this is critical for
-            bonding
-        '''
+        # Apply a sort order to ensure that we write out the physical
+        # interfaces first; this is critical for bonding
         order = {
             'loopback': 0,
             'physical': 1,
