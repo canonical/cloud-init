@@ -18,7 +18,6 @@ jobs=4
 # W0602(global-variable-not-assigned)
 # W0603(global-statement)
 # W0611(unused-import)
-# W0612(unused-variable)
 # W0613(unused-argument)
 # W0621(redefined-outer-name)
 # W0622(redefined-builtin)
