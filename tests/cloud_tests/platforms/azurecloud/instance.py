@@ -80,7 +80,6 @@ class AzureCloudInstance(Instance):
         except CloudError:
             LOG.debug(('image not found, launching instance with base image, '
                        'image_id=%s'), self.image_id)
-            pass
 
         vm_params = {
             'name': self.vm_name,
@@ -169,7 +168,6 @@ class AzureCloudInstance(Instance):
                     sleep(15)
                 else:
                     LOG.warning('Could not find console log: %s', e)
-                    pass
 
         LOG.debug('stopping instance %s', self.image_id)
         vm_deallocate = \

@@ -92,7 +92,6 @@ class Networking(metaclass=abc.ABCMeta):
         Examples of non-physical network devices: bonds, bridges, tunnels,
         loopback devices.
         """
-        pass
 
     def is_renamed(self, devname: DeviceName) -> bool:
         return net.is_renamed(devname)
@@ -117,7 +116,6 @@ class Networking(metaclass=abc.ABCMeta):
             process entirely, if the device already exists.)
         :type exists: Optional[DeviceName]
         """
-        pass
 
     def wait_for_physdevs(
         self, netcfg: NetworkConfig, *, strict: bool = True
@@ -182,7 +180,6 @@ class BSDNetworking(Networking):
 
     def settle(self, *, exists=None) -> None:
         """BSD has no equivalent to `udevadm settle`; noop."""
-        pass
 
 
 class LinuxNetworking(Networking):

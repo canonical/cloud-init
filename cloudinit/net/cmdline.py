@@ -29,12 +29,10 @@ class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def is_applicable(self) -> bool:
         """Is this initramfs config source applicable to the current system?"""
-        pass
 
     @abc.abstractmethod
     def render_config(self) -> dict:
         """Render a v1 network config from the initramfs configuration"""
-        pass
 
 
 class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):

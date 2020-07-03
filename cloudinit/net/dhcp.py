@@ -31,12 +31,10 @@ class InvalidDHCPLeaseFileError(Exception):
     Current uses are DataSourceAzure and DataSourceEc2 during ephemeral
     boot to scrape metadata.
     """
-    pass
 
 
 class NoDHCPLeaseError(Exception):
     """Raised when unable to get a DHCP lease."""
-    pass
 
 
 class EphemeralDHCPv4(object):
