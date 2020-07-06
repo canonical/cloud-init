@@ -7,8 +7,6 @@ from cloudinit.config import cc_mounts
 
 from cloudinit.tests import helpers as test_helpers
 
-from cloudinit import util
-
 
 class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
 
@@ -187,8 +185,8 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
     @mock.patch('cloudinit.util.kernel_version')
     @mock.patch('cloudinit.util.get_mount_info')
-    def test_swap_creation_method(self, m_kernel_version, m_get_mount_info):
-        log = mock.MagicMock()
+    def test_swap_creation_method_xfs(
+            self, m_kernel_version, m_get_mount_info):
         m_kernel_version.return_value = (3, 18)
         m_get_mount_info.return_value = ["", "xfs"]
         fstab = '/swap.img swap swap defaults 0 0\n'
@@ -198,42 +196,31 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
         cc = {'swap': ['filename: /swap.img', 'size: 512', 'maxsize: 512']}
         cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
 
-        swap_log = 'Creating swapfile in /swap.img on fstype xfs using dd'
-        util.multi_log('{0}\n'.format(swap_log), log=log)
-        self.assertEqual((mock.ANY, swap_log), log.log.call_args[0])
-
-        m_kernel_version.reset_mock()
-        m_get_mount_info.reset_mock()
-
+    @mock.patch('cloudinit.util.kernel_version')
+    @mock.patch('cloudinit.util.get_mount_info')
+    def test_swap_creation_method_btrfs(
+            self, m_kernel_version, m_get_mount_info):
         m_kernel_version.return_value = (4, 20)
         m_get_mount_info.return_value = ["", "btrfs"]
-        fstab = '/swap2.img swap swap defaults 0 0\n'
+        fstab = '/swap.img swap swap defaults 0 0\n'
 
         with open(cc_mounts.FSTAB_PATH, 'w') as fd:
             fd.write(fstab)
-        cc = {'swap': ['filename: /swap2.img', 'size: 512', 'maxsize: 512']}
+        cc = {'swap': ['filename: /swap.img', 'size: 512', 'maxsize: 512']}
         cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
 
-        swap_log = 'Creating swapfile in /swap.img on fstype btrfs using dd'
-        util.multi_log('{0}\n'.format(swap_log), log=log)
-        self.assertEqual((mock.ANY, swap_log), log.log.call_args[0])
-
-        m_kernel_version.reset_mock()
-        m_get_mount_info.reset_mock()
-
+    @mock.patch('cloudinit.util.kernel_version')
+    @mock.patch('cloudinit.util.get_mount_info')
+    def test_swap_creation_method_ext4(
+            self, m_kernel_version, m_get_mount_info):
         m_kernel_version.return_value = (4, 20)
         m_get_mount_info.return_value = ["", "ext4"]
-        fstab = '/swap3.img swap swap defaults 0 0\n'
+        fstab = '/swap.img swap swap defaults 0 0\n'
 
         with open(cc_mounts.FSTAB_PATH, 'w') as fd:
             fd.write(fstab)
-        cc = {'swap': ['filename: /swap3.img', 'size: 512', 'maxsize: 512']}
+        cc = {'swap': ['filename: /swap.img', 'size: 512', 'maxsize: 512']}
         cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
-
-        swap_log = 'Creating swapfile in /swap.img on fstype btrfs using' \
-                   ' fallocate'
-        util.multi_log('{0}\n'.format(swap_log), log=log)
-        self.assertEqual((mock.ANY, swap_log), log.log.call_args[0])
 
     def test_swap_integrity(self):
         '''Ensure that the swap file is correctly created and can
