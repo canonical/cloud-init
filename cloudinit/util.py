@@ -1874,8 +1874,8 @@ def make_header(comment_char="#", base='created'):
     return header
 
 
-def abs_join(*paths):
-    return os.path.abspath(os.path.join(*paths))
+def abs_join(base, *paths):
+    return os.path.abspath(os.path.join(base, *paths))
 
 
 # shellify, takes a list of commands
