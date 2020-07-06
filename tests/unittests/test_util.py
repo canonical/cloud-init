@@ -8,6 +8,7 @@ import shutil
 import stat
 import tempfile
 import yaml
+import pytest
 from unittest import mock
 
 from cloudinit import subp
@@ -956,10 +957,20 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
 
-@mock.patch('os.uname')
-def test_kernel_version(m_uname):
-    m_uname().release = '5.6.19-300.fc32.x86_64'
-    assert util.kernel_version() == (5, 6)
+class TestKernelVersion():
+    """test kernel version function"""
+
+    params = [
+        ('5.6.19-300.fc32.x86_64', (5, 6)),
+        ('4.15.0-101-generic', (4, 15)),
+        ('3.10.0-1062.12.1.vz7.131.10', (3, 10)),
+        ('4.18.0-144.el8.x86_64', (4, 18))]
+
+    @mock.patch('os.uname')
+    @pytest.mark.parametrize("uname_release,expected", params)
+    def test_kernel_version(self, m_uname, uname_release, expected):
+        m_uname.return_value.release = uname_release
+        assert expected == util.kernel_version()
 
 
 @mock.patch('cloudinit.subp.subp')
