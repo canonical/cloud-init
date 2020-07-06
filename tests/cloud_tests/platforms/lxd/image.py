@@ -76,19 +76,22 @@ class LXDImage(Image):
         }
 
     def export_image(self, output_dir):
-        """Export image from lxd image store to (split) tarball on disk.
+        """Export image from lxd image store to disk
 
-        @param output_dir: dir to store tarballs in
-        @return_value: tuple of path to metadata tarball and rootfs tarball
+        @param output_dir: dir to store the exported image in
+        @return_value: tuple of path to metadata tarball and rootfs
         """
         # pylxd's image export feature doesn't do split exports, so use cmdline
         subp.subp(['lxc', 'image', 'export', self.pylxd_image.fingerprint,
                   output_dir], capture=True)
-        tarballs = [p for p in os.listdir(output_dir) if p.endswith('tar.xz')]
+        image_files = [p for p in os.listdir(output_dir)
+                       if self.pylxd_image.fingerprint in p]
         metadata = os.path.join(
-            output_dir, next(p for p in tarballs if p.startswith('meta-')))
+            output_dir,
+            next(p for p in image_files if p.startswith('meta-')))
         rootfs = os.path.join(
-            output_dir, next(p for p in tarballs if not p.startswith('meta-')))
+            output_dir,
+            next(p for p in image_files if not p.startswith('meta-')))
         return (metadata, rootfs)
 
     def import_image(self, metadata, rootfs):
