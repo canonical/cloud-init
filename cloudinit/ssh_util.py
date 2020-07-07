@@ -44,7 +44,7 @@ VALID_KEY_TYPES = (
 DISABLE_USER_OPTS = (
     "no-port-forwarding,no-agent-forwarding,"
     "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\""
-    " rather than the user \\\"$DISABLE_USER\\\".\';echo;sleep 10;exit 1\"")
+    " rather than the user \\\"$DISABLE_USER\\\".\';echo;sleep 10;exit 142\"")
 
 
 class AuthKeyLine(object):
