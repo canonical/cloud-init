@@ -82,10 +82,13 @@ class LXDImage(Image):
         @return_value: tuple of path to metadata tarball and rootfs
         """
         # pylxd's image export feature doesn't do split exports, so use cmdline
-        subp.subp(['lxc', 'image', 'export', self.pylxd_image.fingerprint,
-                  output_dir], capture=True)
-        image_files = [p for p in os.listdir(output_dir)
-                       if self.pylxd_image.fingerprint in p]
+        fp = self.pylxd_image.fingerprint
+        subp.subp(['lxc', 'image', 'export', fp, output_dir], capture=True)
+        image_files = [p for p in os.listdir(output_dir) if fp in p]
+
+        if len(image_files) != 2:
+            raise NotImplementedError("Unsupported image format")
+
         metadata = os.path.join(
             output_dir,
             next(p for p in image_files if p.startswith('meta-')))
