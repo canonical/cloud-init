@@ -239,9 +239,10 @@ The following guidelines should be followed:
   * The `pytest.param`_ function cannot be used. It was introduced in
     pytest 3.1, which means it is not available on xenial.  The more
     limited mechanism it replaced was removed in pytest 4.0, so is not
-    available in focal or later.  The only available alternative is to
-    write mark-requiring test instances as completely separate tests,
-    without utilising parameterisation.
+    available in focal or later.  The only available alternatives are
+    to write mark-requiring test instances as completely separate
+    tests, without utilising parameterisation, or to apply the mark to
+    the entire parameterized test (and therefore every test instance).
 
 * Variables/parameter names for ``Mock`` or ``MagicMock`` instances
   should start with ``m_`` to clearly distinguish them from non-mock
