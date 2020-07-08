@@ -236,9 +236,9 @@ The following guidelines should be followed:
       ``util.write_file(tmpdir.join("some_file"), ...)``, you should
       write ``util.write_file(tmpdir.join("some_file").strpath, ...)``.
 
-  * `pytest.param`_ cannot be used. It was introduced in pytest 3.1,
-    which means it is not available on xenial.  The more limited
-    mechanism it replaced was removed in pytest 4.0, so is not
+  * The `pytest.param`_ function cannot be used. It was introduced in
+    pytest 3.1, which means it is not available on xenial.  The more
+    limited mechanism it replaced was removed in pytest 4.0, so is not
     available in focal or later.  The only available alternative is to
     write mark-requiring test instances as completely separate tests,
     without utilising parameterisation.
@@ -309,7 +309,7 @@ The following guidelines should be followed:
 .. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/master/cloudinit/tests/test_subp.py#L9
 .. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
 .. _pytest 3.0: https://docs.pytest.org/en/latest/changelog.html#id1093
-.. _pytest.param: https://docs.pytest.org/en/latest/parametrize.html#pytest-mark-parametrize-parametrizing-test-functions
+.. _pytest.param: https://docs.pytest.org/en/latest/reference.html#pytest-param
 .. _autospecced: https://docs.python.org/3.8/library/unittest.mock.html#autospeccing
 
 Type Annotations
