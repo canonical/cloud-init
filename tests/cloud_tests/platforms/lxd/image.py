@@ -80,6 +80,14 @@ class LXDImage(Image):
 
         @param output_dir: dir to store the exported image in
         @return_value: tuple of path to metadata tarball and rootfs
+
+        Only the "split" image format with separate rootfs and metadata
+        files is supported, e.g:
+
+            71f171df[...]cd31.squashfs (could also be: .tar.xz or .tar.gz)
+            meta-71f171df[...]cd31.tar.xz
+
+        Combined images made by a single tarball are not supported.
         """
         # pylxd's image export feature doesn't do split exports, so use cmdline
         fp = self.pylxd_image.fingerprint
