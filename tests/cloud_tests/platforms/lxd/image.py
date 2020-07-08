@@ -76,7 +76,7 @@ class LXDImage(Image):
         }
 
     def export_image(self, output_dir):
-        """Export image from lxd image store to disk
+        """Export image from lxd image store to disk.
 
         @param output_dir: dir to store the exported image in
         @return_value: tuple of path to metadata tarball and rootfs
@@ -95,7 +95,10 @@ class LXDImage(Image):
         image_files = [p for p in os.listdir(output_dir) if fp in p]
 
         if len(image_files) != 2:
-            raise NotImplementedError("Unsupported image format")
+            raise NotImplementedError(
+                "Image %s has unsupported format. "
+                "Expected 2 files, found %d: %s."
+                % (fp, len(image_files), ', '.join(image_files)))
 
         metadata = os.path.join(
             output_dir,
