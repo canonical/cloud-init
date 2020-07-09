@@ -179,11 +179,11 @@ class TestGoalStateParsing(CiTestCase):
             xml = '\n'.join(new_xml_lines)
         return xml
 
-    def _get_goal_state(self, azure_endpoint_client=None, **kwargs):
-        if azure_endpoint_client is None:
-            azure_endpoint_client = mock.MagicMock()
+    def _get_goal_state(self, m_azure_endpoint_client=None, **kwargs):
+        if m_azure_endpoint_client is None:
+            m_azure_endpoint_client = mock.MagicMock()
         xml = self._get_formatted_goal_state_xml_string(**kwargs)
-        return azure_helper.GoalState(xml, azure_endpoint_client)
+        return azure_helper.GoalState(xml, m_azure_endpoint_client)
 
     def test_incarnation_parsed_correctly(self):
         incarnation = '123'
@@ -220,29 +220,30 @@ class TestGoalStateParsing(CiTestCase):
             azure_helper.is_byte_swapped(previous_iid, current_iid))
 
     def test_certificates_xml_parsed_and_fetched_correctly(self):
-        azure_endpoint_client = mock.MagicMock()
+        m_azure_endpoint_client = mock.MagicMock()
         certificates_url = 'TestCertificatesUrl'
         goal_state = self._get_goal_state(
-            azure_endpoint_client=azure_endpoint_client,
+            m_azure_endpoint_client=m_azure_endpoint_client,
             certificates_url=certificates_url)
         certificates_xml = goal_state.certificates_xml
-        self.assertEqual(1, azure_endpoint_client.get.call_count)
+        self.assertEqual(1, m_azure_endpoint_client.get.call_count)
         self.assertEqual(
             certificates_url,
-            azure_endpoint_client.get.call_args[0][0])
+            m_azure_endpoint_client.get.call_args[0][0])
         self.assertTrue(
-            azure_endpoint_client.get.call_args[1].get(
+            m_azure_endpoint_client.get.call_args[1].get(
                 'secure', False))
         self.assertEqual(
-            azure_endpoint_client.get.return_value.contents,
+            m_azure_endpoint_client.get.return_value.contents,
             certificates_xml)
 
     def test_missing_certificates_skips_http_get(self):
-        azure_endpoint_client = mock.MagicMock()
+        m_azure_endpoint_client = mock.MagicMock()
         goal_state = self._get_goal_state(
-            azure_endpoint_client=azure_endpoint_client, certificates_url=None)
+            m_azure_endpoint_client=m_azure_endpoint_client,
+            certificates_url=None)
         certificates_xml = goal_state.certificates_xml
-        self.assertEqual(0, azure_endpoint_client.get.call_count)
+        self.assertEqual(0, m_azure_endpoint_client.get.call_count)
         self.assertIsNone(certificates_xml)
 
     def test_invalid_goal_state_xml_raises_parse_error(self):
@@ -306,13 +307,13 @@ class TestAzureEndpointHttpClient(CiTestCase):
 
     def test_secure_get(self):
         url = 'MyTestUrl'
-        certificate = mock.MagicMock()
+        m_certificate = mock.MagicMock()
         expected_headers = self.regular_headers.copy()
         expected_headers.update({
             "x-ms-cipher-name": "DES_EDE3_CBC",
-            "x-ms-guest-agent-public-x509-cert": certificate,
+            "x-ms-guest-agent-public-x509-cert": m_certificate,
         })
-        client = azure_helper.AzureEndpointHttpClient(certificate)
+        client = azure_helper.AzureEndpointHttpClient(m_certificate)
         response = client.get(url, secure=True)
         self.assertEqual(1, self.readurl.call_count)
         self.assertEqual(self.readurl.return_value, response)
@@ -329,24 +330,24 @@ class TestAzureEndpointHttpClient(CiTestCase):
             client.get(url, secure=True)
 
     def test_post(self):
-        data = mock.MagicMock()
+        m_data = mock.MagicMock()
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        response = client.post(url, data=data)
+        response = client.post(url, data=m_data)
         self.assertEqual(1, self.readurl.call_count)
         self.assertEqual(self.readurl.return_value, response)
         self.assertEqual(
-            mock.call(url, data=data, headers=self.regular_headers,
+            mock.call(url, data=m_data, headers=self.regular_headers,
                       timeout=5, retries=10, sec_between=5),
             self.readurl.call_args)
 
     def test_post_raises_exception(self):
-        data = mock.MagicMock()
+        m_data = mock.MagicMock()
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         self.readurl.side_effect = SentinelException
         with self.assertRaises(SentinelException):
-            client.post(url, data=data)
+            client.post(url, data=m_data)
 
     def test_post_with_extra_headers(self):
         url = 'MyTestUrl'
@@ -362,14 +363,14 @@ class TestAzureEndpointHttpClient(CiTestCase):
             self.readurl.call_args)
 
     def test_post_with_sleep_with_extra_headers_raises_exception(self):
-        data = mock.MagicMock()
+        m_data = mock.MagicMock()
         url = 'MyTestUrl'
         extra_headers = {'test': 'header'}
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         self.readurl.side_effect = SentinelException
         with self.assertRaises(SentinelException):
             client.post(
-                url, data=data, extra_headers=extra_headers)
+                url, data=m_data, extra_headers=extra_headers)
 
 
 class TestOpenSSLManager(CiTestCase):
@@ -730,29 +731,29 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
 
     @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_calls_shim_register_with_azure_and_fetch_data(self, shim):
-        pubkey_info = mock.MagicMock()
-        azure_helper.get_metadata_from_fabric(pubkey_info=pubkey_info)
+        m_pubkey_info = mock.MagicMock()
+        azure_helper.get_metadata_from_fabric(pubkey_info=m_pubkey_info)
         self.assertEqual(
             1,
             shim.return_value
                 .register_with_azure_and_fetch_data.call_count)
         self.assertEqual(
-            mock.call(pubkey_info=pubkey_info),
+            mock.call(pubkey_info=m_pubkey_info),
             shim.return_value
                 .register_with_azure_and_fetch_data.call_args)
 
     @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_instantiates_shim_with_kwargs(self, shim):
-        fallback_lease_file = mock.MagicMock()
-        dhcp_options = mock.MagicMock()
+        m_fallback_lease_file = mock.MagicMock()
+        m_dhcp_options = mock.MagicMock()
         azure_helper.get_metadata_from_fabric(
-            fallback_lease_file=fallback_lease_file,
-            dhcp_opts=dhcp_options)
+            fallback_lease_file=m_fallback_lease_file,
+            dhcp_opts=m_dhcp_options)
         self.assertEqual(1, shim.call_count)
         self.assertEqual(
             mock.call(
-                fallback_lease_file=fallback_lease_file,
-                dhcp_options=dhcp_options),
+                fallback_lease_file=m_fallback_lease_file,
+                dhcp_options=m_dhcp_options),
             shim.call_args)
 
 
