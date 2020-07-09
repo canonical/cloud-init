@@ -423,7 +423,10 @@ class GoalStateHealthReporter:
 
     PROVISIONING_SUCCESS_STATUS = 'Ready'
 
-    def __init__(self, goal_state, azure_endpoint_client, endpoint):
+    def __init__(
+            self, goal_state: GoalState,
+            azure_endpoint_client: AzureEndpointHttpClient,
+            endpoint: str) -> None:
         """Creates instance that will report provisioning status to an endpoint
 
         @param goal_state: An instance of class GoalState that contains
@@ -440,7 +443,7 @@ class GoalStateHealthReporter:
         self._endpoint = endpoint
 
     @azure_ds_telemetry_reporter
-    def send_ready_signal(self):
+    def send_ready_signal(self) -> None:
         document = self.build_report(
             incarnation=self._goal_state.incarnation,
             container_id=self._goal_state.container_id,
@@ -457,8 +460,9 @@ class GoalStateHealthReporter:
 
         LOG.info('Reported ready to Azure fabric.')
 
-    def build_report(self, incarnation, container_id, instance_id,
-                     status, substatus=None, description=None):
+    def build_report(
+            self, incarnation: str, container_id: str, instance_id: str,
+            status: str, substatus=None, description=None) -> str:
         health_detail = ''
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
@@ -474,7 +478,7 @@ class GoalStateHealthReporter:
         return health_report
 
     @azure_ds_telemetry_reporter
-    def _post_health_report(self, document):
+    def _post_health_report(self, document: str) -> None:
         """Host will collect kvps when cloud-init reports to fabric.
         Some kvps might still be in the queue. We yield the scheduler
         to make sure we process all kvps up till this point.
@@ -482,7 +486,7 @@ class GoalStateHealthReporter:
         time.sleep(0)
 
         LOG.debug('Sending health report to Azure fabric.')
-        url = "http://{0}/machine?comp=health".format(self._endpoint)
+        url = "http://{}/machine?comp=health".format(self._endpoint)
         self._azure_endpoint_client.post(
             url,
             data=document,
