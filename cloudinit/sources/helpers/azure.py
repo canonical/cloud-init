@@ -748,12 +748,15 @@ class WALinuxAgentShim:
     @azure_ds_telemetry_reporter
     def _get_user_pubkeys(
             self, goal_state: GoalState, pubkey_info: list) -> list:
-        """Gets and filters the VM user's authorized pubkeys.
+        """Gets and filters the VM admin user's authorized pubkeys.
 
+        The admin user in this case is the username specified as "admin"
+        when deploying VMs on Azure.
+        See https://docs.microsoft.com/en-us/cli/azure/vm#az-vm-create.
         cloud-init expects a straightforward array of keys to be dropped
-        into the user's authorized_keys file. Azure control plane exposes
+        into the admin user's authorized_keys file. Azure control plane exposes
         multiple public keys to the VM via wireserver. Select just the
-        user's key(s) and return them, ignoring any other certs.
+        admin user's key(s) and return them, ignoring any other certs.
 
         @param goal_state: GoalState object. The GoalState object contains
             a certificate XML, which contains both the VM user's authorized
