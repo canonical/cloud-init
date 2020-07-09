@@ -17,12 +17,11 @@ class TestDisableSubpUsage:
             #  pylint: disable=no-value-for-parameter
             subp.subp()
 
-    @pytest.mark.parametrize('disable_subp_usage', [False], indirect=True)
+    @pytest.mark.allow_all_subp
     def test_subp_usage_can_be_reenabled(self):
         subp.subp(['whoami'])
 
-    @pytest.mark.parametrize(
-        'disable_subp_usage', [['whoami'], 'whoami'], indirect=True)
+    @pytest.mark.allow_subp_for("whoami")
     def test_subp_usage_can_be_conditionally_reenabled(self):
         # The two parameters test each potential invocation with a single
         # argument
@@ -31,14 +30,19 @@ class TestDisableSubpUsage:
         assert "allowed: whoami" in str(excinfo.value)
         subp.subp(['whoami'])
 
-    @pytest.mark.parametrize(
-        'disable_subp_usage', [['whoami', 'bash']], indirect=True)
+    @pytest.mark.allow_subp_for("whoami", "bash")
     def test_subp_usage_can_be_conditionally_reenabled_for_multiple_cmds(self):
         with pytest.raises(AssertionError) as excinfo:
             subp.subp(["some", "args"])
         assert "allowed: whoami,bash" in str(excinfo.value)
         subp.subp(['bash', '-c', 'true'])
         subp.subp(['whoami'])
+
+    @pytest.mark.allow_all_subp
+    @pytest.mark.allow_subp_for("bash")
+    def test_both_marks_raise_an_error(self):
+        with pytest.raises(AssertionError, match="marked both"):
+            subp.subp(["bash"])
 
 
 class TestDisableSubpUsageInTestSubclass(CiTestCase):

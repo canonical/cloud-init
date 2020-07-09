@@ -164,7 +164,7 @@ declared to run in various boot stages in the file
 
 * *cloud_init_modules*
 * *cloud_config_modules*
-* *cloud_init_modules*
+* *cloud_final_modules*
 
 Can be run on the command line, but each module is gated to run only once due
 to semaphores in ``/var/lib/cloud/``.

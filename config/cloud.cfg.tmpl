@@ -70,8 +70,8 @@ cloud_init_modules:
 {% endif %}
  - set_hostname
  - update_hostname
-{% if variant not in ["freebsd", "netbsd"] %}
  - update_etc_hosts
+{% if not variant.endswith("bsd") %}
  - ca-certs
  - rsyslog
 {% endif %}

@@ -398,7 +398,10 @@ class ConfigDriveReader(BaseReader):
                 except IOError:
                     raise BrokenMetadata("Failed to read: %s" % path)
                 try:
-                    md[key] = translator(contents)
+                    # Disable not-callable pylint check; pylint isn't able to
+                    # determine that every member of FILES_V1 has a callable in
+                    # the appropriate position
+                    md[key] = translator(contents)  # pylint: disable=E1102
                 except Exception as e:
                     raise BrokenMetadata("Failed to process "
                                          "path %s: %s" % (path, e))
