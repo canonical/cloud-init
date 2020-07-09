@@ -682,13 +682,13 @@ class WALinuxAgentShim:
         @param azure_endpoint_client: instance of AzureEndpointHttpClient
         @return: GoalState object representing the GoalState XML
         """
-        unparsed_goal_state_xml = self._get_goal_state_from_azure(
+        unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure(
             azure_endpoint_client)
         return self._parse_goal_state(
             unparsed_goal_state_xml, azure_endpoint_client)
 
     @azure_ds_telemetry_reporter
-    def _get_goal_state_from_azure(self, azure_endpoint_client):
+    def _get_raw_goal_state_xml_from_azure(self, azure_endpoint_client):
         """Fetches the GoalState XML from the Azure endpoint and returns
         the XML as a string.
 
