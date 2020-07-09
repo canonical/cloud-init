@@ -502,6 +502,7 @@ class WALinuxAgentShim:
         self.dhcpoptions = dhcp_options
         self._endpoint = None
         self.openssl_manager = None
+        self.azure_endpoint_client = None
         self.lease_file = fallback_lease_file
 
     def clean_up(self):
@@ -669,43 +670,38 @@ class WALinuxAgentShim:
         """
         if self.openssl_manager is None:
             self.openssl_manager = OpenSSLManager()
-        azure_endpoint_client = AzureEndpointHttpClient(
-            self.openssl_manager.certificate)
-        goal_state = self._fetch_goal_state_from_azure(azure_endpoint_client)
+        if self.azure_endpoint_client is None:
+            self.azure_endpoint_client = AzureEndpointHttpClient(
+                self.openssl_manager.certificate)
+        goal_state = self._fetch_goal_state_from_azure()
         ssh_keys = self._get_user_pubkeys(goal_state, pubkey_info)
         health_reporter = GoalStateHealthReporter(
-            goal_state, azure_endpoint_client, self.endpoint)
+            goal_state, self.azure_endpoint_client, self.endpoint)
         health_reporter.send_ready_signal()
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
-    def _fetch_goal_state_from_azure(
-            self, azure_endpoint_client: AzureEndpointHttpClient) -> GoalState:
+    def _fetch_goal_state_from_azure(self) -> GoalState:
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
-        @param azure_endpoint_client: instance of AzureEndpointHttpClient
         @return: GoalState object representing the GoalState XML
         """
-        unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure(
-            azure_endpoint_client)
-        return self._parse_goal_state(
-            unparsed_goal_state_xml, azure_endpoint_client)
+        unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure()
+        return self._parse_goal_state(unparsed_goal_state_xml)
 
     @azure_ds_telemetry_reporter
-    def _get_raw_goal_state_xml_from_azure(
-            self, azure_endpoint_client: AzureEndpointHttpClient) -> str:
+    def _get_raw_goal_state_xml_from_azure(self) -> str:
         """Fetches the GoalState XML from the Azure endpoint and returns
         the XML as a string.
 
-        @param azure_endpoint_client: instance of AzureEndpointHttpClient
         @return: GoalState XML string
         """
 
         LOG.info('Registering with Azure...')
-        url = 'http://{0}/machine/?comp=goalstate'.format(self.endpoint)
+        url = 'http://{}/machine/?comp=goalstate'.format(self.endpoint)
         try:
-            response = azure_endpoint_client.get(url)
+            response = self.azure_endpoint_client.get(url)
         except Exception as e:
             msg = 'failed to register with Azure: %s' % e
             LOG.warning(msg)
@@ -715,19 +711,15 @@ class WALinuxAgentShim:
         return response.contents
 
     @azure_ds_telemetry_reporter
-    def _parse_goal_state(
-            self,
-            unparsed_goal_state_xml: str,
-            azure_endpoint_client: AzureEndpointHttpClient) -> GoalState:
+    def _parse_goal_state(self, unparsed_goal_state_xml: str) -> GoalState:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
-        @param azure_endpoint_client: instance of AzureEndpointHttpClient
         @return: GoalState object representing the GoalState XML
         """
         try:
             goal_state = GoalState(
-                unparsed_goal_state_xml, azure_endpoint_client)
+                unparsed_goal_state_xml, self.azure_endpoint_client)
         except Exception as e:
             msg = 'Error processing GoalState XML: %s' % e
             LOG.warning(msg)
