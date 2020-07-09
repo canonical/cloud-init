@@ -195,7 +195,7 @@ def _get_dhcp_endpoint_option_name():
     return azure_endpoint
 
 
-class AzureEndpointHttpClient(object):
+class AzureEndpointHttpClient:
 
     headers = {
         'x-ms-agent-name': 'WALinuxAgent',
@@ -229,7 +229,7 @@ class InvalidGoalStateXMLException(Exception):
     """Raised when GoalState XML is invalid or has missing data."""
 
 
-class GoalState(object):
+class GoalState:
 
     def __init__(self, unparsed_xml: str,
                  azure_endpoint_client: AzureEndpointHttpClient) -> None:
@@ -285,7 +285,7 @@ class GoalState(object):
         return None
 
 
-class OpenSSLManager(object):
+class OpenSSLManager:
 
     certificate_names = {
         'private_key': 'TransportPrivate.pem',
@@ -392,7 +392,7 @@ class OpenSSLManager(object):
         return keys
 
 
-class GoalStateHealthReporter(object):
+class GoalStateHealthReporter:
 
     HEALTH_REPORT_XML_TEMPLATE = textwrap.dedent('''\
         <?xml version="1.0" encoding="utf-8"?>
@@ -490,7 +490,7 @@ class GoalStateHealthReporter(object):
         LOG.debug('Successfully sent health report to Azure fabric')
 
 
-class WALinuxAgentShim(object):
+class WALinuxAgentShim:
 
     def __init__(self, fallback_lease_file=None, dhcp_options=None):
         LOG.debug('WALinuxAgentShim instantiated, fallback_lease_file=%s',
@@ -813,7 +813,7 @@ def dhcp_log_cb(out, err):
     report_diagnostic_event("dhclient error stream: %s" % err)
 
 
-class EphemeralDHCPv4WithReporting(object):
+class EphemeralDHCPv4WithReporting:
     def __init__(self, reporter, nic=None):
         self.reporter = reporter
         self.ephemeralDHCPv4 = EphemeralDHCPv4(
