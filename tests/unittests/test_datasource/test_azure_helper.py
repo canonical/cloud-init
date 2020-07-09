@@ -246,34 +246,27 @@ class TestGoalStateParsing(CiTestCase):
         self.assertIsNone(certificates_xml)
 
     def test_invalid_goal_state_xml_raises_parse_error(self):
-        azure_endpoint_client = mock.MagicMock()
         xml = 'random non-xml data'
         with self.assertRaises(ElementTree.ParseError):
-            azure_helper.GoalState(xml, azure_endpoint_client)
+            azure_helper.GoalState(xml, mock.MagicMock())
 
     def test_missing_container_id_in_goal_state_xml_raises_exc(self):
-        azure_endpoint_client = mock.MagicMock()
-        xml = self._get_formatted_goal_state_xml_string(
-            azure_endpoint_client=azure_endpoint_client)
+        xml = self._get_formatted_goal_state_xml_string()
         xml = re.sub('<ContainerId>.*</ContainerId>', '', xml)
         with self.assertRaises(azure_helper.InvalidGoalStateXMLException):
-            azure_helper.GoalState(xml, azure_endpoint_client)
+            azure_helper.GoalState(xml, mock.MagicMock())
 
     def test_missing_instance_id_in_goal_state_xml_raises_exc(self):
-        azure_endpoint_client = mock.MagicMock()
-        xml = self._get_formatted_goal_state_xml_string(
-            azure_endpoint_client=azure_endpoint_client)
+        xml = self._get_formatted_goal_state_xml_string()
         xml = re.sub('<InstanceId>.*</InstanceId>', '', xml)
         with self.assertRaises(azure_helper.InvalidGoalStateXMLException):
-            azure_helper.GoalState(xml, azure_endpoint_client)
+            azure_helper.GoalState(xml, mock.MagicMock())
 
     def test_missing_incarnation_in_goal_state_xml_raises_exc(self):
-        azure_endpoint_client = mock.MagicMock()
-        xml = self._get_formatted_goal_state_xml_string(
-            azure_endpoint_client=azure_endpoint_client)
+        xml = self._get_formatted_goal_state_xml_string()
         xml = re.sub('<Incarnation>.*</Incarnation>', '', xml)
         with self.assertRaises(azure_helper.InvalidGoalStateXMLException):
-            azure_helper.GoalState(xml, azure_endpoint_client)
+            azure_helper.GoalState(xml, mock.MagicMock())
 
 
 class TestAzureEndpointHttpClient(CiTestCase):
@@ -553,26 +546,23 @@ class TestGoalStateHealthReporter(CiTestCase):
         self.assertNotIn('<Description>', generated_health_document)
 
     def test_send_ready_signal_calls_build_report(self):
-        patches = ExitStack()
-        self.addCleanup(patches.close)
-        build_report = patches.enter_context(
-            mock.patch.object(
-                azure_helper.GoalStateHealthReporter, 'build_report'))
+        with mock.patch.object(
+            azure_helper.GoalStateHealthReporter, 'build_report'
+        ) as m_build_report:
+            reporter = azure_helper.GoalStateHealthReporter(
+                azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+                azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+                self.test_endpoint)
+            reporter.send_ready_signal()
 
-        reporter = azure_helper.GoalStateHealthReporter(
-            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
-            azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
-            self.test_endpoint)
-        reporter.send_ready_signal()
-
-        self.assertEqual(1, build_report.call_count)
-        self.assertEqual(
-            mock.call(
-                incarnation=self.default_parameters['incarnation'],
-                container_id=self.default_parameters['container_id'],
-                instance_id=self.default_parameters['instance_id'],
-                status=self.provisioning_success_status),
-            build_report.call_args)
+            self.assertEqual(1, m_build_report.call_count)
+            self.assertEqual(
+                mock.call(
+                    incarnation=self.default_parameters['incarnation'],
+                    container_id=self.default_parameters['container_id'],
+                    instance_id=self.default_parameters['instance_id'],
+                    status=self.provisioning_success_status),
+                m_build_report.call_args)
 
 
 class TestWALinuxAgentShim(CiTestCase):
