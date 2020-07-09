@@ -231,7 +231,8 @@ class InvalidGoalStateXMLException(Exception):
 
 class GoalState(object):
 
-    def __init__(self, unparsed_xml, azure_endpoint_client):
+    def __init__(self, unparsed_xml: str,
+                 azure_endpoint_client: AzureEndpointHttpClient) -> None:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_xml: string representing a GoalState XML.
@@ -243,26 +244,25 @@ class GoalState(object):
         try:
             self.root = ElementTree.fromstring(unparsed_xml)
         except ElementTree.ParseError as e:
-            msg = 'Failed to parse GoalState XML: %s' % e
-            LOG.warning(msg)
-            report_diagnostic_event(msg)
+            msg = 'Failed to parse GoalState XML: %s'
+            LOG.warning(msg, e)
+            report_diagnostic_event(msg % (e,))
             raise
 
-        self._certificates_xml = None
-        self._container_id = self._text_from_xpath('./Container/ContainerId')
-        self._instance_id = self._text_from_xpath(
+        self.certificates_xml = None
+        self.container_id = self._text_from_xpath('./Container/ContainerId')
+        self.instance_id = self._text_from_xpath(
             './Container/RoleInstanceList/RoleInstance/InstanceId')
-        self._incarnation = self._text_from_xpath('./Incarnation')
+        self.incarnation = self._text_from_xpath('./Incarnation')
 
-        if any(x is None for x in (self.container_id,
-                                   self.instance_id, self.incarnation)):
-            msg = ('Missing container id/instance id/incarnation in '
-                   'GoalState XML.')
-            LOG.warning(msg)
-            report_diagnostic_event(msg)
-            raise InvalidGoalStateXMLException(msg)
+        for attr in ("container_id", "instance_id", "incarnation"):
+            if getattr(self, attr) is None:
+                msg = 'Missing %s in GoalState XML'
+                LOG.warning(msg, attr)
+                report_diagnostic_event(msg % (attr,))
+                raise InvalidGoalStateXMLException(msg)
 
-        self._certificates_xml = None
+        self.certificates_xml = None
         url = self._text_from_xpath(
             './Container/RoleInstanceList/RoleInstance'
             '/Configuration/Certificates')
@@ -271,10 +271,10 @@ class GoalState(object):
                     name="get-certificates-xml",
                     description="get certificates xml",
                     parent=azure_ds_reporter):
-                self._certificates_xml = \
+                self.certificates_xml = \
                     self.azure_endpoint_client.get(
                         url, secure=True).contents
-                if self._certificates_xml is None:
+                if self.certificates_xml is None:
                     raise InvalidGoalStateXMLException(
                         'Azure endpoint returned empty certificates xml.')
 
@@ -283,22 +283,6 @@ class GoalState(object):
         if element is not None:
             return element.text
         return None
-
-    @property
-    def container_id(self):
-        return self._container_id
-
-    @property
-    def instance_id(self):
-        return self._instance_id
-
-    @property
-    def incarnation(self):
-        return self._incarnation
-
-    @property
-    def certificates_xml(self):
-        return self._certificates_xml
 
 
 class OpenSSLManager(object):
