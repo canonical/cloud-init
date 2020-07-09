@@ -274,7 +274,9 @@ def create_swapfile(fname: str, size: str) -> None:
             LOG.warning("Will attempt with dd.")
             create_swap(fname, size, "dd")
 
-    util.chmod(fname, 0o600)
+    if os.path.exists(fname):
+        util.chmod(fname, 0o600)
+
     try:
         subp.subp(['mkswap', fname])
     except subp.ProcessExecutionError:
@@ -307,6 +309,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
 
     util.log_time(LOG.debug, msg="Setting up swap file", func=create_swapfile,
                   args=[fname, mibsize])
+
 
     return fname
 
