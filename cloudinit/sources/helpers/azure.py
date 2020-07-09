@@ -652,7 +652,7 @@ class WALinuxAgentShim:
         return endpoint_ip_address
 
     @azure_ds_telemetry_reporter
-    def register_with_azure_and_fetch_data(self, pubkey_info=None):
+    def register_with_azure_and_fetch_data(self, pubkey_info=None) -> dict:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
         Azure, and then uses pubkey_info to filter and obtain the user's
@@ -675,7 +675,8 @@ class WALinuxAgentShim:
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
-    def _fetch_goal_state_from_azure(self, azure_endpoint_client):
+    def _fetch_goal_state_from_azure(
+            self, azure_endpoint_client: AzureEndpointHttpClient) -> GoalState:
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
@@ -688,7 +689,8 @@ class WALinuxAgentShim:
             unparsed_goal_state_xml, azure_endpoint_client)
 
     @azure_ds_telemetry_reporter
-    def _get_raw_goal_state_xml_from_azure(self, azure_endpoint_client):
+    def _get_raw_goal_state_xml_from_azure(
+            self, azure_endpoint_client: AzureEndpointHttpClient) -> str:
         """Fetches the GoalState XML from the Azure endpoint and returns
         the XML as a string.
 
@@ -709,9 +711,10 @@ class WALinuxAgentShim:
         return response.contents
 
     @azure_ds_telemetry_reporter
-    def _parse_goal_state(self,
-                          unparsed_goal_state_xml,
-                          azure_endpoint_client):
+    def _parse_goal_state(
+            self,
+            unparsed_goal_state_xml: str,
+            azure_endpoint_client: AzureEndpointHttpClient) -> GoalState:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
@@ -735,7 +738,8 @@ class WALinuxAgentShim:
         return goal_state
 
     @azure_ds_telemetry_reporter
-    def _get_user_pubkeys(self, goal_state, pubkey_info):
+    def _get_user_pubkeys(
+            self, goal_state: GoalState, pubkey_info: list) -> list:
         """Gets and filters the VM user's authorized pubkeys.
 
         cloud-init expects a straightforward array of keys to be dropped
@@ -767,7 +771,7 @@ class WALinuxAgentShim:
         return ssh_keys
 
     @staticmethod
-    def _filter_pubkeys(keys_by_fingerprint, pubkey_info):
+    def _filter_pubkeys(keys_by_fingerprint: dict, pubkey_info: list) -> list:
         """ Filter and return only the user's actual pubkeys.
 
         @param keys_by_fingerprint: pubkey fingerprint -> pubkey value dict
