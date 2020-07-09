@@ -22,6 +22,7 @@ from cloudinit import version
 from cloudinit import distros
 from cloudinit.reporting import events
 from cloudinit.net.dhcp import EphemeralDHCPv4
+from cloudinit import reporting
 from datetime import datetime
 
 LOG = logging.getLogger(__name__)
@@ -479,10 +480,21 @@ class GoalStateHealthReporter:
 
     @azure_ds_telemetry_reporter
     def _post_health_report(self, document: str) -> None:
-        """Host will collect kvps when cloud-init reports to fabric.
-        Some kvps might still be in the queue. We yield the scheduler
-        to make sure we process all kvps up till this point.
-        """
+        # The Azure Host will collect the VM's Hyper-V KVP diagnostic messages
+        # when cloud-init reports to fabric.
+        # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
+        # the diagnostic messages are written to special files
+        # (/var/opt/hyperv/.kvp_pool_*) as Hyper-V KVP messages.
+        # Hyper-V KVP message communication is done through these files,
+        # and KVP functionality is used to communicate and share diagnostic
+        # info with the Azure Host.
+        # Some KVPs might still be in the write queue, so we yield
+        # the scheduler to make sure that queued diagnostic events
+        # are flushed and actually written to the special files before
+        # reporting to fabric.
+        # See HyperVKvpReportingHandler class, which is a multi-threaded
+        # reporting handler that writes to the special KVP files.
+        reporting.flush_events()
         time.sleep(0)
 
         LOG.debug('Sending health report to Azure fabric.')
