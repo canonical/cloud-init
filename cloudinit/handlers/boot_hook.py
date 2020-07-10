@@ -12,6 +12,7 @@ import os
 
 from cloudinit import handlers
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.settings import (PER_ALWAYS)
@@ -48,8 +49,8 @@ class BootHookPartHandler(handlers.Handler):
             env = os.environ.copy()
             if self.instance_id is not None:
                 env['INSTANCE_ID'] = str(self.instance_id)
-            util.subp([filepath], env=env)
-        except util.ProcessExecutionError:
+            subp.subp([filepath], env=env)
+        except subp.ProcessExecutionError:
             util.logexc(LOG, "Boothooks script %s execution error", filepath)
         except Exception:
             util.logexc(LOG, "Boothooks unknown error when running %s",

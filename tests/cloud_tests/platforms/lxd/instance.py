@@ -7,7 +7,8 @@ import shutil
 import time
 from tempfile import mkdtemp
 
-from cloudinit.util import load_yaml, subp, ProcessExecutionError, which
+from cloudinit.subp import subp, ProcessExecutionError, which
+from cloudinit.util import load_yaml
 from tests.cloud_tests import LOG
 from tests.cloud_tests.util import PlatformError
 

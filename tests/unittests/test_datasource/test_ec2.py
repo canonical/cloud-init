@@ -576,7 +576,8 @@ class TestEc2(test_helpers.HttprettyTestCase):
             md=None)
 
         conn_error = requests.exceptions.ConnectionError(
-           '[Errno 113] no route to host')
+            '[Errno 113] no route to host'
+        )
 
         mock_success = mock.MagicMock(contents=b'fakesuccess')
         mock_success.ok.return_value = True
@@ -743,7 +744,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
 
         ret = ds.get_data()
         self.assertTrue(ret)
-        m_dhcp.assert_called_once_with('eth9')
+        m_dhcp.assert_called_once_with('eth9', None)
         m_net.assert_called_once_with(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
             prefix_or_mask='255.255.255.0', router='192.168.2.1',
@@ -777,12 +778,12 @@ class TestGetSecondaryAddresses(test_helpers.CiTestCase):
              '2600:1f16:292:100:f153:12a3:c37c:11f9/128'],
             ec2.get_secondary_addresses(invalid_cidr_md, self.mac))
         expected_logs = [
-           "WARNING: Could not parse subnet-ipv4-cidr-block"
-           " something-unexpected for mac 06:17:04:d7:26:ff."
-           " ipv4 network config prefix defaults to /24",
-           "WARNING: Could not parse subnet-ipv6-cidr-block"
-           " not/sure/what/this/is for mac 06:17:04:d7:26:ff."
-           " ipv6 network config prefix defaults to /128"
+            "WARNING: Could not parse subnet-ipv4-cidr-block"
+            " something-unexpected for mac 06:17:04:d7:26:ff."
+            " ipv4 network config prefix defaults to /24",
+            "WARNING: Could not parse subnet-ipv6-cidr-block"
+            " not/sure/what/this/is for mac 06:17:04:d7:26:ff."
+            " ipv6 network config prefix defaults to /128"
         ]
         logs = self.logs.getvalue()
         for log in expected_logs:

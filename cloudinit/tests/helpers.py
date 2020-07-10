@@ -23,9 +23,10 @@ from cloudinit import distros
 from cloudinit import helpers as ch
 from cloudinit.sources import DataSourceNone
 from cloudinit.templater import JINJA_AVAILABLE
+from cloudinit import subp
 from cloudinit import util
 
-_real_subp = util.subp
+_real_subp = subp.subp
 
 # Used for skipping tests
 SkipTest = unittest.SkipTest
@@ -134,9 +135,9 @@ class CiTestCase(TestCase):
             self.old_handlers = self.logger.handlers
             self.logger.handlers = [handler]
         if self.allowed_subp is True:
-            util.subp = _real_subp
+            subp.subp = _real_subp
         else:
-            util.subp = self._fake_subp
+            subp.subp = self._fake_subp
 
     def _fake_subp(self, *args, **kwargs):
         if 'args' in kwargs:
@@ -171,7 +172,7 @@ class CiTestCase(TestCase):
             # Remove the handler we setup
             logging.getLogger().handlers = self.old_handlers
             logging.getLogger().level = None
-        util.subp = _real_subp
+        subp.subp = _real_subp
         super(CiTestCase, self).tearDown()
 
     def tmp_dir(self, dir=None, cleanup=True):
@@ -280,13 +281,13 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                     mock.patch.object(mod, f, trap_func))
 
         # Handle subprocess calls
-        func = getattr(util, 'subp')
+        func = getattr(subp, 'subp')
 
         def nsubp(*_args, **_kwargs):
             return ('', '')
 
         self.patched_funcs.enter_context(
-            mock.patch.object(util, 'subp', nsubp))
+            mock.patch.object(subp, 'subp', nsubp))
 
         def null_func(*_args, **_kwargs):
             return None

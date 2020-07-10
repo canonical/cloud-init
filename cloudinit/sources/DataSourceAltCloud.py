@@ -18,9 +18,9 @@ import os.path
 
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import subp
 from cloudinit import util
 
-from cloudinit.util import ProcessExecutionError
 
 LOG = logging.getLogger(__name__)
 
@@ -192,7 +192,7 @@ class DataSourceAltCloud(sources.DataSource):
         # modprobe floppy
         try:
             modprobe_floppy()
-        except ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             util.logexc(LOG, 'Failed modprobe: %s', e)
             return False
 
@@ -201,7 +201,7 @@ class DataSourceAltCloud(sources.DataSource):
         # udevadm settle for floppy device
         try:
             util.udevadm_settle(exists=floppy_dev, timeout=5)
-        except (ProcessExecutionError, OSError) as e:
+        except (subp.ProcessExecutionError, OSError) as e:
             util.logexc(LOG, 'Failed udevadm_settle: %s\n', e)
             return False
 
@@ -261,7 +261,7 @@ class DataSourceAltCloud(sources.DataSource):
 
 
 def modprobe_floppy():
-    out, _err = util.subp(CMD_PROBE_FLOPPY)
+    out, _err = subp.subp(CMD_PROBE_FLOPPY)
     LOG.debug('Command: %s\nOutput%s', ' '.join(CMD_PROBE_FLOPPY), out)
 
 

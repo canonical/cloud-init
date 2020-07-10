@@ -155,8 +155,8 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
                        'mock_is_block_device',
                        return_value=True)
 
-        self.add_patch('cloudinit.config.cc_mounts.util.subp',
-                       'm_util_subp')
+        self.add_patch('cloudinit.config.cc_mounts.subp.subp',
+                       'm_subp_subp')
 
         self.add_patch('cloudinit.config.cc_mounts.util.mounts',
                        'mock_util_mounts',
@@ -182,6 +182,18 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
             dev = None
 
         return dev
+
+    def test_no_fstab(self):
+        """ Handle images which do not include an fstab. """
+        self.assertFalse(os.path.exists(cc_mounts.FSTAB_PATH))
+        fstab_expected_content = (
+            '%s\tnone\tswap\tsw,comment=cloudconfig\t'
+            '0\t0\n' % (self.swap_path,)
+        )
+        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+        with open(cc_mounts.FSTAB_PATH, 'r') as fd:
+            fstab_new_content = fd.read()
+            self.assertEqual(fstab_expected_content, fstab_new_content)
 
     def test_swap_integrity(self):
         '''Ensure that the swap file is correctly created and can
@@ -260,15 +272,18 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
             '/dev/vdb /mnt auto defaults,noexec,comment=cloudconfig 0 2\n'
         )
         fstab_expected_content = fstab_original_content
-        cc = {'mounts': [
-                 ['/dev/vdb', '/mnt', 'auto', 'defaults,noexec']]}
+        cc = {
+            'mounts': [
+                ['/dev/vdb', '/mnt', 'auto', 'defaults,noexec']
+            ]
+        }
         with open(cc_mounts.FSTAB_PATH, 'w') as fd:
             fd.write(fstab_original_content)
         with open(cc_mounts.FSTAB_PATH, 'r') as fd:
             fstab_new_content = fd.read()
             self.assertEqual(fstab_expected_content, fstab_new_content)
         cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
-        self.m_util_subp.assert_has_calls([
+        self.m_subp_subp.assert_has_calls([
             mock.call(['mount', '-a']),
             mock.call(['systemctl', 'daemon-reload'])])
 

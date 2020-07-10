@@ -58,7 +58,7 @@ class DataSourceDigitalOcean(sources.DataSource):
 
         ipv4LL_nic = None
         if self.use_ip4LL:
-            ipv4LL_nic = do_helper.assign_ipv4_link_local()
+            ipv4LL_nic = do_helper.assign_ipv4_link_local(self.distro)
 
         md = do_helper.read_metadata(
             self.metadata_address, timeout=self.timeout,

@@ -45,7 +45,7 @@ specify them with ``pkg_name``, ``service_name`` and ``config_dir``.
 
 import os
 
-from cloudinit import safeyaml, util
+from cloudinit import safeyaml, subp, util
 from cloudinit.distros import rhel_util
 
 
@@ -130,6 +130,6 @@ def handle(name, cfg, cloud, log, _args):
 
     # restart salt-minion. 'service' will start even if not started. if it
     # was started, it needs to be restarted for config change.
-    util.subp(['service', const.srv_name, 'restart'], capture=False)
+    subp.subp(['service', const.srv_name, 'restart'], capture=False)
 
 # vi: ts=4 expandtab

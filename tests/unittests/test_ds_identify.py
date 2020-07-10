@@ -6,6 +6,7 @@ import os
 from uuid import uuid4
 
 from cloudinit import safeyaml
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.tests.helpers import (
     CiTestCase, dir2dict, populate_dir, populate_dir_with_ts)
@@ -160,8 +161,8 @@ class DsIdentifyBase(CiTestCase):
 
         rc = 0
         try:
-            out, err = util.subp(['sh', '-c', '. %s' % wrap], capture=True)
-        except util.ProcessExecutionError as e:
+            out, err = subp.subp(['sh', '-c', '. %s' % wrap], capture=True)
+        except subp.ProcessExecutionError as e:
             rc = e.exit_code
             out = e.stdout
             err = e.stderr
@@ -271,6 +272,10 @@ class TestDsIdentify(DsIdentifyBase):
     def test_rbx_cloud(self):
         """Rbx datasource has a disk with LABEL=CLOUDMD."""
         self._test_ds_found('RbxCloud')
+
+    def test_rbx_cloud_lower(self):
+        """Rbx datasource has a disk with LABEL=cloudmd."""
+        self._test_ds_found('RbxCloudLower')
 
     def test_config_drive_upper(self):
         """ConfigDrive datasource has a disk with LABEL=CONFIG-2."""
@@ -947,6 +952,18 @@ VALID_CFG = {
              )},
         ],
     },
+    'RbxCloudLower': {
+        'ds': 'RbxCloud',
+        'mocks': [
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 [{'DEVNAME': 'vda1', 'TYPE': 'vfat', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'vda2', 'TYPE': 'ext4',
+                   'LABEL': 'cloudimg-rootfs', 'PARTUUID': uuid4()},
+                  {'DEVNAME': 'vdb', 'TYPE': 'vfat', 'LABEL': 'cloudmd'}]
+             )},
+        ],
+    },
     'Hetzner': {
         'ds': 'Hetzner',
         'files': {P_SYS_VENDOR: 'Hetzner\n'},
@@ -1040,11 +1057,11 @@ VALID_CFG = {
     'Ec2-E24Cloud': {
         'ds': 'Ec2',
         'files': {P_SYS_VENDOR: 'e24cloud\n'},
-     },
+    },
     'Ec2-E24Cloud-negative': {
         'ds': 'Ec2',
         'files': {P_SYS_VENDOR: 'e24cloudyday\n'},
-     }
+    }
 }
 
 # vi: ts=4 expandtab

@@ -49,8 +49,8 @@ class TestLandscape(FilesystemMockingTestCase):
             "'landscape' key existed in config, but not a dict",
             str(context_manager.exception))
 
-    @mock.patch('cloudinit.config.cc_landscape.util')
-    def test_handler_restarts_landscape_client(self, m_util):
+    @mock.patch('cloudinit.config.cc_landscape.subp')
+    def test_handler_restarts_landscape_client(self, m_subp):
         """handler restarts lansdscape-client after install."""
         mycloud = self._get_cloud('ubuntu')
         cfg = {'landscape': {'client': {}}}
@@ -60,7 +60,7 @@ class TestLandscape(FilesystemMockingTestCase):
             cc_landscape.handle, 'notimportant', cfg, mycloud, LOG, None)
         self.assertEqual(
             [mock.call(['service', 'landscape-client', 'restart'])],
-            m_util.subp.call_args_list)
+            m_subp.subp.call_args_list)
 
     def test_handler_installs_client_and_creates_config_file(self):
         """Write landscape client.conf and install landscape-client."""

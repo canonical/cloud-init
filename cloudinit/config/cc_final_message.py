@@ -78,7 +78,7 @@ def handle(_name, cfg, cloud, log, args):
     boot_fin_fn = cloud.paths.boot_finished
     try:
         contents = "%s - %s - v. %s\n" % (uptime, ts, cver)
-        util.write_file(boot_fin_fn, contents)
+        util.write_file(boot_fin_fn, contents, ensure_dir_exists=False)
     except Exception:
         util.logexc(log, "Failed to write boot finished file %s", boot_fin_fn)
 

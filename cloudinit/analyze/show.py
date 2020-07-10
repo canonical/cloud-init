@@ -11,6 +11,7 @@ import os
 import time
 import sys
 
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.distros import uses_systemd
 
@@ -155,7 +156,7 @@ class SystemctlReader(object):
         :return: whether the subp call failed or not
         '''
         try:
-            value, err = util.subp(self.args, capture=True)
+            value, err = subp.subp(self.args, capture=True)
             if err:
                 return err
             self.epoch = value
@@ -215,7 +216,7 @@ def gather_timestamps_using_dmesg():
     with gather_timestamps_using_systemd
     '''
     try:
-        data, _ = util.subp(['dmesg'], capture=True)
+        data, _ = subp.subp(['dmesg'], capture=True)
         split_entries = data[0].splitlines()
         for i in split_entries:
             if i.decode('UTF-8').find('user') != -1:

@@ -33,6 +33,7 @@ import socket
 from cloudinit import log as logging
 from cloudinit import serial
 from cloudinit import sources
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.event import EventType
 
@@ -696,9 +697,9 @@ def identify_file(content_f):
     cmd = ["file", "--brief", "--mime-type", content_f]
     f_type = None
     try:
-        (f_type, _err) = util.subp(cmd)
+        (f_type, _err) = subp.subp(cmd)
         LOG.debug("script %s mime type is %s", content_f, f_type)
-    except util.ProcessExecutionError as e:
+    except subp.ProcessExecutionError as e:
         util.logexc(
             LOG, ("Failed to identify script type for %s" % content_f, e))
     return None if f_type is None else f_type.strip()
