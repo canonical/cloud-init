@@ -1,3 +1,75 @@
+cloud-init (20.2-94-g3d06abc2-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - cc_mounts: handle missing fstab (#484) (LP: #1886531)
+    - LXD cloud_tests: support more lxd image formats (#482) [Paride Legovini]
+    - Add update_etc_hosts as default module on *BSD (#479) [Adam Dobrawy]
+    - cloudinit: fix tip-pylint failures and bump pinned pylint version (#478)
+    - Added BirknerAlex as contributor and sorted the file (#477)
+      [Alexander Birkner]
+    - Update list of types of modules in cli.rst [saurabhvartak1982]
+    - tests: use markers to configure disable_subp_usage (#473)
+    - Add mention of vendor-data to no-cloud format documentation (#470)
+      [Landon Kirk]
+    - Fix broken link to OpenStack metadata service docs (#467)
+      [Matt Riedemann]
+    - Disable ec2 mirror for non aws instances (#390)
+      [lucasmoura] (LP: #1456277)
+    - cloud_tests: don't pass --python-version to read-dependencies (#465)
+    - networking: refactor is_physical from cloudinit.net (#457) (LP: #1884619)
+    - Enable use of the caplog fixture in pytest tests, and add a
+      cc_final_message test using it (#461)
+    - RbxCloud: Add support for FreeBSD (#464) [Adam Dobrawy]
+    - Add schema for cc_chef module (#375) [lucasmoura] (LP: #1858888)
+    - test_util: add (partial) testing for util.mount_cb (#463)
+    - .travis.yml: revert to installing ubuntu-dev-tools (#460)
+    - HACKING.rst: add details of net refactor tracking (#456)
+    - .travis.yml: rationalise installation of dependencies in host (#449)
+    - Add dermotbradley as contributor. (#458) [dermotbradley]
+    - net/networking: remove unused functions/methods (#453)
+    - distros.networking: initial implementation of layout (#391)
+    - cloud-init.service.tmpl: use "rhel" instead of "redhat" (#452)
+    - Change from redhat to rhel in systemd generator tmpl (#450)
+      [Eduardo Otubo]
+    - Hetzner: support reading user-data that is base64 encoded. (#448)
+      [Scott Moser] (LP: #1884071)
+    - HACKING.rst: add strpath gotcha to testing gotchas section (#446)
+    - cc_final_message: don't create directories when writing boot-finished
+      (#445) (LP: #1883903)
+    - .travis.yml: only store new schroot if something has changed (#440)
+    - util: add ensure_dir_exists parameter to write_file (#443)
+    - printing the error stream of the dhclient process before killing it
+      (#369) [Moustafa Moustafa]
+    - Fix link to the MAAS documentation (#442)
+      [Paride Legovini] (LP: #1883666)
+    - RPM build: disable the dynamic mirror URLs when using a proxy (#437)
+      [Paride Legovini]
+    - util: rename write_file's copy_mode parameter to preserve_mode (#439)
+    - .travis.yml: use $TRAVIS_BUILD_DIR for lxd_image caching (#438)
+    - cli.rst: alphabetise devel subcommands and add net-convert to list (#430)
+    - Default to UTF-8 in /var/log/cloud-init.log (#427) [James Falcon]
+    - travis: cache the chroot we use for package builds (#429)
+    - test: fix all flake8 E126 errors (#425) [Joshua Powers]
+    - Fixes KeyError for bridge with no "parameters:" setting (#423)
+      [Brian Candler] (LP: #1879673)
+    - When tools.conf does not exist, running cmd "vmware-toolbox-cmd
+      config get deployPkg enable-custom-scripts", the return code will
+      be EX_UNAVAILABLE(69), on this condition, it should not take it as
+      error. (#413) [chengcheng-chcheng]
+    - Document CloudStack data-server well-known hostname (#399) [Gregor Riepl]
+    - test: move conftest.py to top-level, to cover tests/ also (#414)
+    - Replace cc_chef is_installed with use of subp.is_exe. (#421)
+      [Scott Moser]
+    - Move runparts to subp. (#420) [Scott Moser]
+    - Move subp into its own module. (#416) [Scott Moser]
+    - readme: point at travis-ci.com (#417) [Joshua Powers]
+    - New feature flag functionality and fix includes failing silently (#367)
+      [James Falcon] (LP: #1734939)
+    - Enhance poll imds logging (#365) [Moustafa Moustafa]
+    - test: fix all flake8 E121 and E123 errors (#404) [Joshua Powers]
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Fri, 10 Jul 2020 09:11:25 -0400
+
 cloud-init (20.2-45-g5f7825e2-0ubuntu1) groovy; urgency=medium
 
   * d/control: drop python3-six, python3-unittest2, python3-pep8,
