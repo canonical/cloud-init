@@ -15,6 +15,7 @@ from cloudinit.tests.helpers import (
 
 from cloudinit import handlers
 from cloudinit import helpers
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
@@ -66,7 +67,7 @@ class TestUpstartJobPartHandler(FilesystemMockingTestCase):
         util.ensure_dir("/etc/upstart")
 
         with mock.patch(self.mpath + 'SUITABLE_UPSTART', return_value=True):
-            with mock.patch.object(util, 'subp') as m_subp:
+            with mock.patch.object(subp, 'subp') as m_subp:
                 h = UpstartJobPartHandler(paths)
                 h.handle_part('', handlers.CONTENT_START,
                               None, None, None)

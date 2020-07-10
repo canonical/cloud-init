@@ -25,7 +25,7 @@ import os
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
-from cloudinit import util
+from cloudinit import subp
 
 frequency = PER_ALWAYS
 
@@ -43,9 +43,9 @@ def is_upstart_system():
         del myenv['UPSTART_SESSION']
     check_cmd = ['initctl', 'version']
     try:
-        (out, _err) = util.subp(check_cmd, env=myenv)
+        (out, _err) = subp.subp(check_cmd, env=myenv)
         return 'upstart' in out
-    except util.ProcessExecutionError as e:
+    except subp.ProcessExecutionError as e:
         LOG.debug("'%s' returned '%s', not using upstart",
                   ' '.join(check_cmd), e.exit_code)
     return False
@@ -66,7 +66,7 @@ def handle(name, _cfg, cloud, log, args):
     for n in event_names:
         cmd = ['initctl', 'emit', str(n), 'CLOUD_CFG=%s' % cfgpath]
         try:
-            util.subp(cmd)
+            subp.subp(cmd)
         except Exception as e:
             # TODO(harlowja), use log exception from utils??
             log.warning("Emission of upstart event %s failed due to: %s", n, e)

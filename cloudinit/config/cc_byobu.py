@@ -39,6 +39,7 @@ Valid configuration options for this module are:
 """
 
 from cloudinit.distros import ug_util
+from cloudinit import subp
 from cloudinit import util
 
 distros = ['ubuntu', 'debian']
@@ -93,6 +94,6 @@ def handle(name, cfg, cloud, log, args):
     if len(shcmd):
         cmd = ["/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X")]
         log.debug("Setting byobu to %s", value)
-        util.subp(cmd, capture=False)
+        subp.subp(cmd, capture=False)
 
 # vi: ts=4 expandtab

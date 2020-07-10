@@ -41,7 +41,7 @@ class TestCloudStackPasswordFetching(CiTestCase):
     def _set_password_server_response(self, response_string):
         subp = mock.MagicMock(return_value=(response_string, ''))
         self.patches.enter_context(
-            mock.patch('cloudinit.sources.DataSourceCloudStack.util.subp',
+            mock.patch('cloudinit.sources.DataSourceCloudStack.subp.subp',
                        subp))
         return subp
 

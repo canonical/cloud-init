@@ -106,17 +106,19 @@ Do **NOT** rely on the output of these commands as they can and will change.
 
 Current subcommands:
 
- * ``schema``: a **#cloud-config** format and schema
-   validator. It accepts a cloud-config yaml file and annotates potential
-   schema errors locally without the need for deployment. Schema
-   validation is work in progress and supports a subset of cloud-config
-   modules.
-
+ * ``net-convert``: manually use cloud-init's network format conversion, useful
+   for testing configuration or testing changes to the network conversion logic
+   itself.
  * ``render``: use cloud-init's jinja template render to
    process  **#cloud-config** or **custom-scripts**, injecting any variables
    from ``/run/cloud-init/instance-data.json``. It accepts a user-data file
    containing  the jinja template header ``## template: jinja`` and renders
    that content with any instance-data.json variables present.
+ * ``schema``: a **#cloud-config** format and schema
+   validator. It accepts a cloud-config yaml file and annotates potential
+   schema errors locally without the need for deployment. Schema
+   validation is work in progress and supports a subset of cloud-config
+   modules.
 
 
 .. _cli_features:
@@ -162,7 +164,7 @@ declared to run in various boot stages in the file
 
 * *cloud_init_modules*
 * *cloud_config_modules*
-* *cloud_init_modules*
+* *cloud_final_modules*
 
 Can be run on the command line, but each module is gated to run only once due
 to semaphores in ``/var/lib/cloud/``.

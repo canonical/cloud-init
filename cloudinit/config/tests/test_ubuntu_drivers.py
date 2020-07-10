@@ -7,7 +7,7 @@ from cloudinit.tests.helpers import CiTestCase, skipUnlessJsonSchema, mock
 from cloudinit.config.schema import (
     SchemaValidationError, validate_cloudconfig_schema)
 from cloudinit.config import cc_ubuntu_drivers as drivers
-from cloudinit.util import ProcessExecutionError
+from cloudinit.subp import ProcessExecutionError
 
 MPATH = "cloudinit.config.cc_ubuntu_drivers."
 M_TMP_PATH = MPATH + "temp_utils.mkdtemp"
@@ -53,8 +53,8 @@ class TestUbuntuDrivers(CiTestCase):
                 schema=drivers.schema, strict=True)
 
     @mock.patch(M_TMP_PATH)
-    @mock.patch(MPATH + "util.subp", return_value=('', ''))
-    @mock.patch(MPATH + "util.which", return_value=False)
+    @mock.patch(MPATH + "subp.subp", return_value=('', ''))
+    @mock.patch(MPATH + "subp.which", return_value=False)
     def _assert_happy_path_taken(
             self, config, m_which, m_subp, m_tmp):
         """Positive path test through handle. Package should be installed."""
@@ -80,8 +80,8 @@ class TestUbuntuDrivers(CiTestCase):
             self._assert_happy_path_taken(new_config)
 
     @mock.patch(M_TMP_PATH)
-    @mock.patch(MPATH + "util.subp")
-    @mock.patch(MPATH + "util.which", return_value=False)
+    @mock.patch(MPATH + "subp.subp")
+    @mock.patch(MPATH + "subp.which", return_value=False)
     def test_handle_raises_error_if_no_drivers_found(
             self, m_which, m_subp, m_tmp):
         """If ubuntu-drivers doesn't install any drivers, raise an error."""
@@ -109,8 +109,8 @@ class TestUbuntuDrivers(CiTestCase):
         self.assertIn('ubuntu-drivers found no drivers for installation',
                       self.logs.getvalue())
 
-    @mock.patch(MPATH + "util.subp", return_value=('', ''))
-    @mock.patch(MPATH + "util.which", return_value=False)
+    @mock.patch(MPATH + "subp.subp", return_value=('', ''))
+    @mock.patch(MPATH + "subp.which", return_value=False)
     def _assert_inert_with_config(self, config, m_which, m_subp):
         """Helper to reduce repetition when testing negative cases"""
         myCloud = mock.MagicMock()
@@ -154,8 +154,8 @@ class TestUbuntuDrivers(CiTestCase):
         self.assertEqual(0, m_install_drivers.call_count)
 
     @mock.patch(M_TMP_PATH)
-    @mock.patch(MPATH + "util.subp", return_value=('', ''))
-    @mock.patch(MPATH + "util.which", return_value=True)
+    @mock.patch(MPATH + "subp.subp", return_value=('', ''))
+    @mock.patch(MPATH + "subp.which", return_value=True)
     def test_install_drivers_no_install_if_present(
             self, m_which, m_subp, m_tmp):
         """If 'ubuntu-drivers' is present, no package install should occur."""
@@ -181,8 +181,8 @@ class TestUbuntuDrivers(CiTestCase):
         self.assertEqual(0, pkg_install.call_count)
 
     @mock.patch(M_TMP_PATH)
-    @mock.patch(MPATH + "util.subp")
-    @mock.patch(MPATH + "util.which", return_value=False)
+    @mock.patch(MPATH + "subp.subp")
+    @mock.patch(MPATH + "subp.which", return_value=False)
     def test_install_drivers_handles_old_ubuntu_drivers_gracefully(
             self, m_which, m_subp, m_tmp):
         """Older ubuntu-drivers versions should emit message and raise error"""
@@ -219,8 +219,8 @@ class TestUbuntuDriversWithVersion(TestUbuntuDrivers):
     install_gpgpu = ['ubuntu-drivers', 'install', '--gpgpu', 'nvidia:123']
 
     @mock.patch(M_TMP_PATH)
-    @mock.patch(MPATH + "util.subp", return_value=('', ''))
-    @mock.patch(MPATH + "util.which", return_value=False)
+    @mock.patch(MPATH + "subp.subp", return_value=('', ''))
+    @mock.patch(MPATH + "subp.which", return_value=False)
     def test_version_none_uses_latest(self, m_which, m_subp, m_tmp):
         tdir = self.tmp_dir()
         debconf_file = os.path.join(tdir, 'nvidia.template')

@@ -24,6 +24,7 @@ def find_root():
 if "avoid-pep8-E402-import-not-top-of-file":
     # Use the util functions from cloudinit
     sys.path.insert(0, find_root())
+    from cloudinit import subp
     from cloudinit import util
     from cloudinit import temp_utils
     from cloudinit import templater
@@ -53,7 +54,7 @@ def run_helper(helper, args=None, strip=True):
     if args is None:
         args = []
     cmd = [util.abs_join(find_root(), 'tools', helper)] + args
-    (stdout, _stderr) = util.subp(cmd)
+    (stdout, _stderr) = subp.subp(cmd)
     if strip:
         stdout = stdout.strip()
     return stdout
@@ -67,7 +68,7 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
 
     # Just copy debian/ dir and then update files
     pdeb_d = util.abs_join(find_root(), 'packages', 'debian')
-    util.subp(['cp', '-a', pdeb_d, deb_dir])
+    subp.subp(['cp', '-a', pdeb_d, deb_dir])
 
     # Fill in the change log template
     templater.render_to_file(util.abs_join(find_root(),
@@ -90,6 +91,8 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     # NOTE: python package was moved to the front after debuild -S would fail with
     # 'Please add apropriate interpreter' errors (as in debian bug 861132)
     requires.extend(['python3'] + reqs + test_reqs)
+    if templ_data['debian_release'] == 'xenial':
+        requires.append('python3-pytest-catchlog')
     templater.render_to_file(util.abs_join(find_root(),
                                            'packages', 'debian', 'control.in'),
                              util.abs_join(deb_dir, 'control'),
@@ -190,7 +193,7 @@ def main():
 
         print("Extracting temporary tarball %r" % (tarball))
         cmd = ['tar', '-xvzf', tarball_fp, '-C', tdir]
-        util.subp(cmd, capture=capture)
+        subp.subp(cmd, capture=capture)
 
         xdir = util.abs_join(tdir, "cloud-init-%s" % ver_data['version_long'])
         templ_data.update(ver_data)
@@ -203,7 +206,7 @@ def main():
             cmd = ['debuild', '--preserve-envvar', 'INIT_SYSTEM']
             if args.debuild_args:
                 cmd.extend(args.debuild_args)
-            util.subp(cmd, capture=capture)
+            subp.subp(cmd, capture=capture)
 
         link_fn = os.path.join(os.getcwd(), 'cloud-init_all.deb')
         link_dsc = os.path.join(os.getcwd(), 'cloud-init.dsc')

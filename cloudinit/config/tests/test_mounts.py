@@ -13,12 +13,12 @@ class TestCreateSwapfile:
 
     @pytest.mark.parametrize('fstype', ('xfs', 'btrfs', 'ext4', 'other'))
     @mock.patch(M_PATH + 'util.get_mount_info')
-    @mock.patch(M_PATH + 'util.subp')
+    @mock.patch(M_PATH + 'subp.subp')
     def test_happy_path(self, m_subp, m_get_mount_info, fstype, tmpdir):
         swap_file = tmpdir.join("swap-file")
         fname = str(swap_file)
 
-        # Some of the calls to util.subp should create the swap file; this
+        # Some of the calls to subp.subp should create the swap file; this
         # roughly approximates that
         m_subp.side_effect = lambda *args, **kwargs: swap_file.write('')
 

@@ -69,6 +69,7 @@ import os.path
 import re
 
 from cloudinit import type_utils
+from cloudinit import subp
 from cloudinit import util
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
@@ -252,8 +253,8 @@ def create_swapfile(fname: str, size: str) -> None:
                    'count=%s' % size]
 
         try:
-            util.subp(cmd, capture=True)
-        except util.ProcessExecutionError as e:
+            subp.subp(cmd, capture=True)
+        except subp.ProcessExecutionError as e:
             LOG.warning(errmsg, fname, size, method, e)
             util.del_file(fname)
 
@@ -267,15 +268,15 @@ def create_swapfile(fname: str, size: str) -> None:
     else:
         try:
             create_swap(fname, size, "fallocate")
-        except util.ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             LOG.warning(errmsg, fname, size, "dd", e)
             LOG.warning("Will attempt with dd.")
             create_swap(fname, size, "dd")
 
     util.chmod(fname, 0o600)
     try:
-        util.subp(['mkswap', fname])
-    except util.ProcessExecutionError:
+        subp.subp(['mkswap', fname])
+    except subp.ProcessExecutionError:
         util.del_file(fname)
         raise
 
@@ -378,17 +379,18 @@ def handle(_name, cfg, cloud, log, _args):
     fstab_devs = {}
     fstab_removed = []
 
-    for line in util.load_file(FSTAB_PATH).splitlines():
-        if MNT_COMMENT in line:
-            fstab_removed.append(line)
-            continue
+    if os.path.exists(FSTAB_PATH):
+        for line in util.load_file(FSTAB_PATH).splitlines():
+            if MNT_COMMENT in line:
+                fstab_removed.append(line)
+                continue
 
-        try:
-            toks = WS.split(line)
-        except Exception:
-            pass
-        fstab_devs[toks[0]] = line
-        fstab_lines.append(line)
+            try:
+                toks = WS.split(line)
+            except Exception:
+                pass
+            fstab_devs[toks[0]] = line
+            fstab_lines.append(line)
 
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
@@ -538,9 +540,9 @@ def handle(_name, cfg, cloud, log, _args):
     for cmd in activate_cmds:
         fmt = "Activate mounts: %s:" + ' '.join(cmd)
         try:
-            util.subp(cmd)
+            subp.subp(cmd)
             log.debug(fmt, "PASS")
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             log.warning(fmt, "FAIL")
             util.logexc(log, fmt, "FAIL")
 

@@ -139,7 +139,8 @@ class HyperVKvpReportingHandler(ReportingHandler):
         self.event_key_prefix = u"{0}|{1}".format(self.EVENT_PREFIX,
                                                   self.incarnation_no)
         self.publish_thread = threading.Thread(
-                target=self._publish_event_routine)
+            target=self._publish_event_routine
+        )
         self.publish_thread.daemon = True
         self.publish_thread.start()
 
@@ -202,10 +203,15 @@ class HyperVKvpReportingHandler(ReportingHandler):
                                          uuid.uuid4())
 
     def _encode_kvp_item(self, key, value):
-        data = (struct.pack("%ds%ds" % (
+        data = struct.pack(
+            "%ds%ds"
+            % (
                 self.HV_KVP_EXCHANGE_MAX_KEY_SIZE,
-                self.HV_KVP_EXCHANGE_MAX_VALUE_SIZE),
-                key.encode('utf-8'), value.encode('utf-8')))
+                self.HV_KVP_EXCHANGE_MAX_VALUE_SIZE,
+            ),
+            key.encode("utf-8"),
+            value.encode("utf-8"),
+        )
         return data
 
     def _decode_kvp_item(self, record_data):
@@ -219,7 +225,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
         v = (
             record_data[
                 self.HV_KVP_EXCHANGE_MAX_KEY_SIZE:self.HV_KVP_RECORD_SIZE
-                ].decode('utf-8').strip('\x00'))
+            ].decode('utf-8').strip('\x00'))
 
         return {'key': k, 'value': v}
 
@@ -265,11 +271,11 @@ class HyperVKvpReportingHandler(ReportingHandler):
         """
         key = self._event_key(event)
         meta_data = {
-                "name": event.name,
-                "type": event.event_type,
-                "ts": (datetime.utcfromtimestamp(event.timestamp)
-                       .isoformat() + 'Z'),
-                }
+            "name": event.name,
+            "type": event.event_type,
+            "ts": (datetime.utcfromtimestamp(event.timestamp)
+                   .isoformat() + 'Z'),
+        }
         if hasattr(event, self.RESULT_KEY):
             meta_data[self.RESULT_KEY] = event.result
         meta_data[self.MSG_KEY] = event.description
