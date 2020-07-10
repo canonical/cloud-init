@@ -1,4 +1,4 @@
-cloud-init (20.2-94-g3d06abc2-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.2-94-g3d06abc2-0ubuntu1) groovy; urgency=medium
 
   * New upstream snapshot.
     - cc_mounts: handle missing fstab (#484) (LP: #1886531)
