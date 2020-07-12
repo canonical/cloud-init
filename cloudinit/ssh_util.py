@@ -17,27 +17,36 @@ LOG = logging.getLogger(__name__)
 # See: man sshd_config
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
-# taken from OpenSSH source openssh-7.3p1/sshkey.c:
+# taken from OpenSSH source openssh-8.3p1/sshkey.c:
 # static const struct keytype keytypes[] = { ... }
 VALID_KEY_TYPES = (
     "dsa",
-    "ecdsa",
-    "ecdsa-sha2-nistp256",
     "ecdsa-sha2-nistp256-cert-v01@openssh.com",
-    "ecdsa-sha2-nistp384",
+    "ecdsa-sha2-nistp256",
     "ecdsa-sha2-nistp384-cert-v01@openssh.com",
-    "ecdsa-sha2-nistp521",
+    "ecdsa-sha2-nistp384",
     "ecdsa-sha2-nistp521-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp521",
+    "ecdsa",
     "ed25519",
-    "rsa",
+    "rsa-sha2-256-cert-v01@openssh.com",
     "rsa-sha2-256",
+    "rsa-sha2-512-cert-v01@openssh.com",
     "rsa-sha2-512",
-    "ssh-dss",
+    "rsa",
+    "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com",
+    "sk-ecdsa-sha2-nistp256@openssh.com",
+    "sk-ssh-ed25519-cert-v01@openssh.com",
+    "sk-ssh-ed25519@openssh.com",
     "ssh-dss-cert-v01@openssh.com",
-    "ssh-ed25519",
+    "ssh-dss",
     "ssh-ed25519-cert-v01@openssh.com",
-    "ssh-rsa",
+    "ssh-ed25519",
     "ssh-rsa-cert-v01@openssh.com",
+    "ssh-rsa",
+    "ssh-xmss-cert-v01@openssh.com",
+    "ssh-xmss@openssh.com",
+    "webauthn-sk-ecdsa-sha2-nistp256@openssh.com",
 )
 
 _DISABLE_USER_SSH_EXIT = 142
