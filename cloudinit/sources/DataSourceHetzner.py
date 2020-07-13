@@ -69,9 +69,9 @@ class DataSourceHetzner(sources.DataSource):
         self.userdata_raw = hc_helper.maybe_b64decode(ud)
         self.metadata_full = md
 
-        """hostname is name provided by user at launch.  The API enforces
-        it is a valid hostname, but it is not guaranteed to be resolvable
-        in dns or fully qualified."""
+        # hostname is name provided by user at launch.  The API enforces it is
+        # a valid hostname, but it is not guaranteed to be resolvable in dns or
+        # fully qualified.
         self.metadata['instance-id'] = md['instance-id']
         self.metadata['local-hostname'] = md['hostname']
         self.metadata['network-config'] = md.get('network-config', None)
