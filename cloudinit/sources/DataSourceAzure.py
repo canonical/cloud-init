@@ -166,12 +166,11 @@ def get_resource_disk_on_freebsd(port_id):
         port_id = port_id - 2
     g1 = "000" + str(port_id)
     g0g1 = "{0}-{1}".format(g0, g1)
-    """
-    search 'X' from
-       'dev.storvsc.X.%pnpinfo:
-           classid=32412632-86cb-44a2-9b5c-50d1417354f5
-           deviceid=00000000-0001-8899-0000-000000000000'
-    """
+
+    # search 'X' from
+    #  'dev.storvsc.X.%pnpinfo:
+    #      classid=32412632-86cb-44a2-9b5c-50d1417354f5
+    #      deviceid=00000000-0001-8899-0000-000000000000'
     sysctl_out = get_dev_storvsc_sysctl()
 
     storvscid = find_storvscid_from_sysctl_pnpinfo(sysctl_out, g0g1)
@@ -1485,13 +1484,12 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
 
 
 def _is_platform_viable(seed_dir):
+    """Check platform environment to report if this datasource may run."""
     with events.ReportEventStack(
         name="check-platform-viability",
         description="found azure asset tag",
         parent=azure_ds_reporter
     ) as evt:
-
-        """Check platform environment to report if this datasource may run."""
         asset_tag = util.read_dmi_data('chassis-asset-tag')
         if asset_tag == AZURE_CHASSIS_ASSET_TAG:
             return True
