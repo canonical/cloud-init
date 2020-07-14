@@ -215,6 +215,10 @@ class TestAddCaCerts(TestCase):
             mock_load = mocks.enter_context(
                 mock.patch.object(util, 'load_file',
                                   return_value=ca_certs_content))
+            mock_stat = mocks.enter_context(
+                mock.patch("cloudinit.config.cc_ca_certs.os.stat")
+            )
+            mock_stat.return_value.st_size = 0
 
             cc_ca_certs.add_ca_certs([cert])
 
