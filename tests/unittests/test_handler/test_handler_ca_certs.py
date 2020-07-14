@@ -212,9 +212,6 @@ class TestAddCaCerts(TestCase):
         with ExitStack() as mocks:
             mock_write = mocks.enter_context(
                 mock.patch.object(util, 'write_file'))
-            mock_load = mocks.enter_context(
-                mock.patch.object(util, 'load_file',
-                                  return_value=ca_certs_content))
             mock_stat = mocks.enter_context(
                 mock.patch("cloudinit.config.cc_ca_certs.os.stat")
             )
@@ -226,7 +223,6 @@ class TestAddCaCerts(TestCase):
                 mock.call("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
                           cert, mode=0o644),
                 mock.call("/etc/ca-certificates.conf", expected, omode="wb")])
-            mock_load.assert_called_once_with("/etc/ca-certificates.conf")
 
     def test_multiple_certs(self):
         """Test adding multiple certificates to the trusted CAs."""
