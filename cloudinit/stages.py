@@ -696,7 +696,7 @@ class Init(object):
                     netcfg, src = self._find_networking_config()
 
         # ensure all physical devices in config are present
-        net.wait_for_physdevs(netcfg)
+        self.distro.networking.wait_for_physdevs(netcfg)
 
         # apply renames from config
         self._apply_netcfg_names(netcfg)
