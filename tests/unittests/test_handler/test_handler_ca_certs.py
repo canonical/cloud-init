@@ -206,7 +206,6 @@ class TestAddCaCerts(TestCase):
         when existing ca-certificates.conf is empty"""
         cert = "CERT1\nLINE2\nLINE3"
 
-        ca_certs_content = ""
         expected = "cloud-init-ca-certs.crt\n"
 
         with ExitStack() as mocks:
