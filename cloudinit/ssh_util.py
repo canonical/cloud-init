@@ -29,10 +29,6 @@ VALID_KEY_TYPES = (
     "ecdsa-sha2-nistp521",
     "ecdsa",
     "ed25519",
-    "rsa-sha2-256-cert-v01@openssh.com",
-    "rsa-sha2-256",
-    "rsa-sha2-512-cert-v01@openssh.com",
-    "rsa-sha2-512",
     "rsa",
     "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com",
     "sk-ecdsa-sha2-nistp256@openssh.com",
@@ -46,7 +42,6 @@ VALID_KEY_TYPES = (
     "ssh-rsa",
     "ssh-xmss-cert-v01@openssh.com",
     "ssh-xmss@openssh.com",
-    "webauthn-sk-ecdsa-sha2-nistp256@openssh.com",
 )
 
 _DISABLE_USER_SSH_EXIT = 142
