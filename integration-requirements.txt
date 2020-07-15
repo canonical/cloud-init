@@ -15,7 +15,7 @@ paramiko==2.4.2
 cryptography==2.4.2
 
 # lxd backend
-pylxd
+pylxd==2.2.11
 
 # finds latest image information
 git+https://git.launchpad.net/simplestreams
