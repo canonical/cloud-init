@@ -1436,7 +1436,6 @@ def _get_metadata_from_imds(retries):
         report_diagnostic_event(msg)
         LOG.debug(msg)
         return {}
-    if
     try:
         return util.load_json(str(response))
     except ValueError as e:
