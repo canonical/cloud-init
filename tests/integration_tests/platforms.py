@@ -117,7 +117,7 @@ class OracleClient(IntegrationClient):
 
     def __init__(self, user_data=None, instance_type=None, wait=True,
                  settings=integration_settings, launch_kwargs=None):
-        super(OracleClient, self).__init__(
+        super().__init__(
             user_data,
             instance_type,
             wait,
@@ -130,7 +130,7 @@ class OracleClient(IntegrationClient):
         )
 
     def generate_proposed_image(self, sudo=True):
-        super(OracleClient, self).generate_proposed_image(sudo)
+        super().generate_proposed_image(sudo)
 
 
 class LxdContainerClient(IntegrationClient):
@@ -138,7 +138,7 @@ class LxdContainerClient(IntegrationClient):
 
     def __init__(self, user_data=None, instance_type=None, wait=True,
                  settings=integration_settings, launch_kwargs=None):
-        super(LxdContainerClient, self).__init__(
+        super().__init__(
             user_data,
             instance_type,
             wait,
