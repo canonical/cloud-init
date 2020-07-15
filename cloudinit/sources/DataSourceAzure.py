@@ -1436,9 +1436,9 @@ def _get_metadata_from_imds(retries):
         LOG.debug(msg)
         return {}
     try:
-        import json
-        json_decode_error = json.decoder.JSONDecodeError
-    except (ImportError, AttributeError):
+        from json.decoder import JSONDecodeError
+        json_decode_error = JSONDecodeError
+    except ImportError:
         json_decode_error = ValueError
 
     try:
