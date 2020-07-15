@@ -183,6 +183,18 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
         return dev
 
+    def test_no_fstab(self):
+        """ Handle images which do not include an fstab. """
+        self.assertFalse(os.path.exists(cc_mounts.FSTAB_PATH))
+        fstab_expected_content = (
+            '%s\tnone\tswap\tsw,comment=cloudconfig\t'
+            '0\t0\n' % (self.swap_path,)
+        )
+        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+        with open(cc_mounts.FSTAB_PATH, 'r') as fd:
+            fstab_new_content = fd.read()
+            self.assertEqual(fstab_expected_content, fstab_new_content)
+
     def test_swap_integrity(self):
         '''Ensure that the swap file is correctly created and can
         swapon successfully. Fixing the corner case of:

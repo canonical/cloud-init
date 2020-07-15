@@ -28,7 +28,11 @@ from cloudinit import type_utils
 from cloudinit import subp
 from cloudinit import util
 
+from cloudinit.features import \
+    ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
+
 from cloudinit.distros.parsers import hosts
+from .networking import LinuxNetworking
 
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
@@ -67,11 +71,13 @@ class Distro(metaclass=abc.ABCMeta):
     init_cmd = ['service']  # systemctl, service etc
     renderer_configs = {}
     _preferred_ntp_clients = None
+    networking_cls = LinuxNetworking
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
+        self.networking = self.networking_cls()
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
@@ -846,7 +852,12 @@ def _get_package_mirror_info(mirror_info, data_source=None,
         # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
         # the region is us-east-1. so region = az[0:-1]
         if _EC2_AZ_RE.match(data_source.availability_zone):
-            subst['ec2_region'] = "%s" % data_source.availability_zone[0:-1]
+            ec2_region = data_source.availability_zone[0:-1]
+
+            if ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES:
+                subst['ec2_region'] = "%s" % ec2_region
+            elif data_source.platform_type == "ec2":
+                subst['ec2_region'] = "%s" % ec2_region
 
     if data_source and data_source.region:
         subst['region'] = data_source.region

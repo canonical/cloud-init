@@ -404,11 +404,10 @@ class TestWALinuxAgentShim(CiTestCase):
             self.GoalState.call_args_list)
 
     def test_certificates_used_to_determine_public_keys(self):
+        # if register_with_azure_and_fetch_data() isn't passed some info about
+        # the user's public keys, there's no point in even trying to parse the
+        # certificates
         shim = wa_shim()
-        """if register_with_azure_and_fetch_data() isn't passed some info about
-           the user's public keys, there's no point in even trying to parse
-           the certificates
-        """
         mypk = [{'fingerprint': 'fp1', 'path': 'path1'},
                 {'fingerprint': 'fp3', 'path': 'path3', 'value': ''}]
         certs = {'fp1': 'expected-key',

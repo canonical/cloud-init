@@ -10,7 +10,6 @@ import ipaddress
 import logging
 import os
 import re
-from functools import partial
 
 from cloudinit import subp
 from cloudinit import util
@@ -97,10 +96,6 @@ def is_up(devname):
     # Documentation/networking/operstates.txt in the kernel source.
     translate = {'up': True, 'unknown': True, 'down': False}
     return read_sys_net_safe(devname, "operstate", translate=translate)
-
-
-def is_wireless(devname):
-    return os.path.exists(sys_dev_path(devname, "wireless"))
 
 
 def is_bridge(devname):
@@ -264,28 +259,6 @@ def is_renamed(devname):
 def is_vlan(devname):
     uevent = str(read_sys_net_safe(devname, "uevent"))
     return 'DEVTYPE=vlan' in uevent.splitlines()
-
-
-def is_connected(devname):
-    # is_connected isn't really as simple as that.  2 is
-    # 'physically connected'. 3 is 'not connected'. but a wlan interface will
-    # always show 3.
-    iflink = read_sys_net_safe(devname, "iflink")
-    if iflink == "2":
-        return True
-    if not is_wireless(devname):
-        return False
-    LOG.debug("'%s' is wireless, basing 'connected' on carrier", devname)
-    return read_sys_net_safe(devname, "carrier",
-                             translate={'0': False, '1': True})
-
-
-def is_physical(devname):
-    return os.path.exists(sys_dev_path(devname, "device"))
-
-
-def is_present(devname):
-    return os.path.exists(sys_dev_path(devname))
 
 
 def device_driver(devname):
@@ -518,43 +491,6 @@ def extract_physdevs(netcfg):
         return _version_2(netcfg)
 
     raise RuntimeError('Unknown network config version: %s' % version)
-
-
-def wait_for_physdevs(netcfg, strict=True):
-    physdevs = extract_physdevs(netcfg)
-
-    # set of expected iface names and mac addrs
-    expected_ifaces = dict([(iface[0], iface[1]) for iface in physdevs])
-    expected_macs = set(expected_ifaces.keys())
-
-    # set of current macs
-    present_macs = get_interfaces_by_mac().keys()
-
-    # compare the set of expected mac address values to
-    # the current macs present; we only check MAC as cloud-init
-    # has not yet renamed interfaces and the netcfg may include
-    # such renames.
-    for _ in range(0, 5):
-        if expected_macs.issubset(present_macs):
-            LOG.debug('net: all expected physical devices present')
-            return
-
-        missing = expected_macs.difference(present_macs)
-        LOG.debug('net: waiting for expected net devices: %s', missing)
-        for mac in missing:
-            # trigger a settle, unless this interface exists
-            syspath = sys_dev_path(expected_ifaces[mac])
-            settle = partial(util.udevadm_settle, exists=syspath)
-            msg = 'Waiting for udev events to settle or %s exists' % syspath
-            util.log_time(LOG.debug, msg, func=settle)
-
-        # update present_macs after settles
-        present_macs = get_interfaces_by_mac().keys()
-
-    msg = 'Not all expected physical devices present: %s' % missing
-    LOG.warning(msg)
-    if strict:
-        raise RuntimeError(msg)
 
 
 def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):

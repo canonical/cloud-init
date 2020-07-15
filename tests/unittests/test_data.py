@@ -648,7 +648,9 @@ class TestConsumeUserDataHttp(TestConsumeUserData, helpers.HttprettyTestCase):
             util.load_file(ci.paths.get_ipath("cloud_config"))
 
     @mock.patch('cloudinit.url_helper.time.sleep')
-    @mock.patch('cloudinit.features.ERROR_ON_USER_DATA_FAILURE', False)
+    @mock.patch(
+        "cloudinit.user_data.features.ERROR_ON_USER_DATA_FAILURE", False
+    )
     def test_include_bad_url_no_fail(self, mock_sleep):
         """Test #include with a bad URL and failure disabled"""
         bad_url = 'http://bad/forbidden'

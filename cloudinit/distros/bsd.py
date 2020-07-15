@@ -7,11 +7,13 @@ from cloudinit import log as logging
 from cloudinit import net
 from cloudinit import subp
 from cloudinit import util
+from .networking import BSDNetworking
 
 LOG = logging.getLogger(__name__)
 
 
 class BSD(distros.Distro):
+    networking_cls = BSDNetworking
     hostname_conf_fn = '/etc/rc.conf'
     rc_conf_fn = "/etc/rc.conf"
 

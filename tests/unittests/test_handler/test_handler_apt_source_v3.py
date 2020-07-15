@@ -49,6 +49,18 @@ MOCK_LSB_RELEASE_DATA = {
     'release': '18.04', 'codename': 'bionic'}
 
 
+class FakeDatasource:
+    """Fake Datasource helper object"""
+    def __init__(self):
+        self.region = 'region'
+
+
+class FakeCloud:
+    """Fake Cloud helper object"""
+    def __init__(self):
+        self.datasource = FakeDatasource()
+
+
 class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
     """TestAptSourceConfig
     Main Class to test apt configs
@@ -471,7 +483,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         fromfn = ("%s/%s_%s" % (pre, archive, post))
         tofn = ("%s/test.ubuntu.com_%s" % (pre, post))
 
-        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, None, arch)
+        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, FakeCloud(), arch)
 
         self.assertEqual(mirrors['MIRROR'],
                          "http://test.ubuntu.com/%s/" % component)
@@ -559,7 +571,8 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                "security": [{'arches': ["default"],
                              "uri": smir}]}
 
-        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, None, 'amd64')
+        mirrors = cc_apt_configure.find_apt_mirror_info(
+            cfg, FakeCloud(), 'amd64')
 
         self.assertEqual(mirrors['MIRROR'],
                          pmir)
@@ -594,7 +607,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                "security": [{'arches': ["default"], "uri": "nothis-security"},
                             {'arches': [arch], "uri": smir}]}
 
-        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, None, arch)
+        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, FakeCloud(), arch)
 
         self.assertEqual(mirrors['PRIMARY'], pmir)
         self.assertEqual(mirrors['MIRROR'], pmir)
@@ -613,7 +626,8 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                             {'arches': ["default"],
                              "uri": smir}]}
 
-        mirrors = cc_apt_configure.find_apt_mirror_info(cfg, None, 'amd64')
+        mirrors = cc_apt_configure.find_apt_mirror_info(
+            cfg, FakeCloud(), 'amd64')
 
         self.assertEqual(mirrors['MIRROR'],
                          pmir)
@@ -673,7 +687,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
 
         with mock.patch.object(cc_apt_configure.util, 'search_for_mirror',
                                side_effect=[pmir, smir]) as mocksearch:
-            mirrors = cc_apt_configure.find_apt_mirror_info(cfg, None,
+            mirrors = cc_apt_configure.find_apt_mirror_info(cfg, FakeCloud(),
                                                             'amd64')
 
         calls = [call(["pfailme", pmir]),
@@ -712,7 +726,8 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         # should not be called, since primary is specified
         with mock.patch.object(cc_apt_configure.util,
                                'search_for_mirror') as mockse:
-            mirrors = cc_apt_configure.find_apt_mirror_info(cfg, None, arch)
+            mirrors = cc_apt_configure.find_apt_mirror_info(
+                cfg, FakeCloud(), arch)
         mockse.assert_not_called()
 
         self.assertEqual(mirrors['MIRROR'],

@@ -67,6 +67,9 @@ class TestGetPackageMirrorInfo:
         assert {'primary': 'http://other'} == _get_package_mirror_info(
             mirror_info, mirror_filter=lambda x: False)
 
+    @pytest.mark.parametrize('allow_ec2_mirror, platform_type', [
+        (True, 'ec2')
+    ])
     @pytest.mark.parametrize('availability_zone,region,patterns,expected', (
         # Test ec2_region alone
         ('fk-fake-1f', None, ['http://EC2-%(ec2_region)s/ubuntu'],
@@ -120,16 +123,34 @@ class TestGetPackageMirrorInfo:
          ['http://%(region)s/ubuntu'], ['http://fk-fake-1/ubuntu'])
         for invalid_char in INVALID_URL_CHARS
     ))
-    def test_substitution(self, availability_zone, region, patterns, expected):
+    def test_valid_substitution(self,
+                                allow_ec2_mirror,
+                                platform_type,
+                                availability_zone,
+                                region,
+                                patterns,
+                                expected):
         """Test substitution works as expected."""
+        flag_path = "cloudinit.distros." \
+                    "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES"
+
         m_data_source = mock.Mock(
-            availability_zone=availability_zone, region=region
+            availability_zone=availability_zone,
+            region=region,
+            platform_type=platform_type
         )
         mirror_info = {'search': {'primary': patterns}}
 
-        ret = _get_package_mirror_info(
-            mirror_info,
-            data_source=m_data_source,
-            mirror_filter=lambda x: x
-        )
+        with mock.patch(flag_path, allow_ec2_mirror):
+            ret = _get_package_mirror_info(
+                mirror_info,
+                data_source=m_data_source,
+                mirror_filter=lambda x: x
+            )
+        print(allow_ec2_mirror)
+        print(platform_type)
+        print(availability_zone)
+        print(region)
+        print(patterns)
+        print(expected)
         assert {'primary': expected} == ret
