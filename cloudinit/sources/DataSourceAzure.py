@@ -8,7 +8,6 @@ import base64
 import contextlib
 import crypt
 from functools import partial
-import json
 import os
 import os.path
 import re
@@ -1437,8 +1436,14 @@ def _get_metadata_from_imds(retries):
         LOG.debug(msg)
         return {}
     try:
+        from json.decoder import JSONDecodeError
+        json_decode_error = JSONDecodeError
+    except ImportError:
+        json_decode_error = ValueError
+
+    try:
         return util.load_json(str(response))
-    except json.decoder.JSONDecodeError as e:
+    except json_decode_error as e:
         report_diagnostic_event('non-json imds response' % e)
         LOG.warning(
             'Ignoring non-json IMDS instance metadata: %s', str(response))
