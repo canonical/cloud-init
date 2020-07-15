@@ -35,6 +35,27 @@ root login is disabled, and root login opts are set to::
 
     no-port-forwarding,no-agent-forwarding,no-X11-forwarding
 
+Supported public key types for the ``ssh_authorized_keys`` are:
+
+    - ecdsa-sha2-nistp256-cert-v01@openssh.com
+    - ecdsa-sha2-nistp256
+    - ecdsa-sha2-nistp384-cert-v01@openssh.com
+    - ecdsa-sha2-nistp384
+    - ecdsa-sha2-nistp521-cert-v01@openssh.com
+    - ecdsa-sha2-nistp521
+    - sk-ecdsa-sha2-nistp256-cert-v01@openssh.com
+    - sk-ecdsa-sha2-nistp256@openssh.com
+    - sk-ssh-ed25519-cert-v01@openssh.com
+    - sk-ssh-ed25519@openssh.com
+    - ssh-dss-cert-v01@openssh.com
+    - ssh-dss
+    - ssh-ed25519-cert-v01@openssh.com
+    - ssh-ed25519
+    - ssh-rsa-cert-v01@openssh.com
+    - ssh-rsa
+    - ssh-xmss-cert-v01@openssh.com
+    - ssh-xmss@openssh.com
+
 Host Keys
 ^^^^^^^^^
 
