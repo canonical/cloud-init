@@ -344,11 +344,11 @@ class TestUpdateAuthorizedKeys(test_helpers.CiTestCase):
     def test_new_keys_replace(self):
         """new entries with the same base64 should replace old."""
         orig_entries = [
-            ' '.join(('rsa', VALID_CONTENT['ssh-rsa'], 'orig_comment1')),
-            ' '.join(('dsa', VALID_CONTENT['ssh-dss'], 'orig_comment2'))]
+            ' '.join(('ssh-rsa', VALID_CONTENT['ssh-rsa'], 'orig_comment1')),
+            ' '.join(('ssh-dss', VALID_CONTENT['ssh-dss'], 'orig_comment2'))]
 
         new_entries = [
-            ' '.join(('rsa', VALID_CONTENT['ssh-rsa'], 'new_comment1')), ]
+            ' '.join(('ssh-rsa', VALID_CONTENT['ssh-rsa'], 'new_comment1')), ]
 
         expected = '\n'.join([new_entries[0], orig_entries[1]]) + '\n'
 
@@ -362,11 +362,11 @@ class TestUpdateAuthorizedKeys(test_helpers.CiTestCase):
     def test_new_invalid_keys_are_ignored(self):
         """new entries that are invalid should be skipped."""
         orig_entries = [
-            ' '.join(('rsa', VALID_CONTENT['ssh-rsa'], 'orig_comment1')),
-            ' '.join(('dsa', VALID_CONTENT['ssh-dss'], 'orig_comment2'))]
+            ' '.join(('ssh-rsa', VALID_CONTENT['ssh-rsa'], 'orig_comment1')),
+            ' '.join(('ssh-dss', VALID_CONTENT['ssh-dss'], 'orig_comment2'))]
 
         new_entries = [
-            ' '.join(('rsa', VALID_CONTENT['ssh-rsa'], 'new_comment1')),
+            ' '.join(('ssh-rsa', VALID_CONTENT['ssh-rsa'], 'new_comment1')),
             'xxx-invalid-thing1',
             'xxx-invalid-blob2'
         ]
