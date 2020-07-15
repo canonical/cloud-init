@@ -31,19 +31,18 @@ class InvalidDHCPLeaseFileError(Exception):
     Current uses are DataSourceAzure and DataSourceEc2 during ephemeral
     boot to scrape metadata.
     """
-    pass
 
 
 class NoDHCPLeaseError(Exception):
     """Raised when unable to get a DHCP lease."""
-    pass
 
 
 class EphemeralDHCPv4(object):
-    def __init__(self, iface=None, connectivity_url=None):
+    def __init__(self, iface=None, connectivity_url=None, dhcp_log_func=None):
         self.iface = iface
         self._ephipv4 = None
         self.lease = None
+        self.dhcp_log_func = dhcp_log_func
         self.connectivity_url = connectivity_url
 
     def __enter__(self):
@@ -81,7 +80,8 @@ class EphemeralDHCPv4(object):
         if self.lease:
             return self.lease
         try:
-            leases = maybe_perform_dhcp_discovery(self.iface)
+            leases = maybe_perform_dhcp_discovery(
+                self.iface, self.dhcp_log_func)
         except InvalidDHCPLeaseFileError:
             raise NoDHCPLeaseError()
         if not leases:
@@ -131,13 +131,15 @@ class EphemeralDHCPv4(object):
                 result[internal_mapping] = self.lease.get(different_names)
 
 
-def maybe_perform_dhcp_discovery(nic=None):
+def maybe_perform_dhcp_discovery(nic=None, dhcp_log_func=None):
     """Perform dhcp discovery if nic valid and dhclient command exists.
 
     If the nic is invalid or undiscoverable or dhclient command is not found,
     skip dhcp_discovery and return an empty dict.
 
     @param nic: Name of the network interface we want to run dhclient on.
+    @param dhcp_log_func: A callable accepting the dhclient output and error
+        streams.
     @return: A list of dicts representing dhcp options for each lease obtained
         from the dhclient discovery if run, otherwise an empty list is
         returned.
@@ -159,7 +161,7 @@ def maybe_perform_dhcp_discovery(nic=None):
                             prefix='cloud-init-dhcp-',
                             needs_exe=True) as tdir:
         # Use /var/tmp because /run/cloud-init/tmp is mounted noexec
-        return dhcp_discovery(dhclient_path, nic, tdir)
+        return dhcp_discovery(dhclient_path, nic, tdir, dhcp_log_func)
 
 
 def parse_dhcp_lease_file(lease_file):
@@ -193,13 +195,15 @@ def parse_dhcp_lease_file(lease_file):
     return dhcp_leases
 
 
-def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
+def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
     """Run dhclient on the interface without scripts or filesystem artifacts.
 
     @param dhclient_cmd_path: Full path to the dhclient used.
     @param interface: Name of the network inteface on which to dhclient.
     @param cleandir: The directory from which to run dhclient as well as store
         dhcp leases.
+    @param dhcp_log_func: A callable accepting the dhclient output and error
+        streams.
 
     @return: A list of dicts of representing the dhcp leases parsed from the
         dhcp.leases file or empty list.
@@ -223,7 +227,7 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
     subp.subp(['ip', 'link', 'set', 'dev', interface, 'up'], capture=True)
     cmd = [sandbox_dhclient_cmd, '-1', '-v', '-lf', lease_file,
            '-pf', pid_file, interface, '-sf', '/bin/true']
-    subp.subp(cmd, capture=True)
+    out, err = subp.subp(cmd, capture=True)
 
     # Wait for pid file and lease file to appear, and for the process
     # named by the pid file to daemonize (have pid 1 as its parent). If we
@@ -240,6 +244,7 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
         return []
 
     ppid = 'unknown'
+    daemonized = False
     for _ in range(0, 1000):
         pid_content = util.load_file(pid_file).strip()
         try:
@@ -251,13 +256,17 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir):
             if ppid == 1:
                 LOG.debug('killing dhclient with pid=%s', pid)
                 os.kill(pid, signal.SIGKILL)
-                return parse_dhcp_lease_file(lease_file)
+                daemonized = True
+                break
         time.sleep(0.01)
 
-    LOG.error(
-        'dhclient(pid=%s, parentpid=%s) failed to daemonize after %s seconds',
-        pid_content, ppid, 0.01 * 1000
-    )
+    if not daemonized:
+        LOG.error(
+            'dhclient(pid=%s, parentpid=%s) failed to daemonize after %s '
+            'seconds', pid_content, ppid, 0.01 * 1000
+        )
+    if dhcp_log_func is not None:
+        dhcp_log_func(out, err)
     return parse_dhcp_lease_file(lease_file)
 
 

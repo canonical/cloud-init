@@ -78,7 +78,6 @@ class DataSourceNotFoundException(Exception):
 
 class InvalidMetaDataException(Exception):
     """Raised when metadata is broken, unavailable or disabled."""
-    pass
 
 
 def process_instance_metadata(metadata, key_path='', sensitive_keys=()):
@@ -511,7 +510,6 @@ class DataSource(metaclass=abc.ABCMeta):
             (e.g. 'ssh-rsa') and key_value is the key itself
             (e.g. 'AAAAB3NzaC1y...').
         """
-        pass
 
     def _remap_device(self, short_name):
         # LP: #611137

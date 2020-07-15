@@ -13,6 +13,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import collections
+import functools
 import os
 import pwd
 import re
@@ -60,10 +61,19 @@ class DataSourceOpenNebula(sources.DataSource):
         for cdev in candidates:
             try:
                 if os.path.isdir(self.seed_dir):
-                    results = read_context_disk_dir(cdev, asuser=parseuser)
+                    results = read_context_disk_dir(
+                        cdev, self.distro, asuser=parseuser
+                    )
                 elif cdev.startswith("/dev"):
-                    results = util.mount_cb(cdev, read_context_disk_dir,
-                                            data=parseuser)
+                    # util.mount_cb only handles passing a single argument
+                    # through to the wrapped function, so we have to partially
+                    # apply the function to pass in `distro`.  See LP: #1884979
+                    partially_applied_func = functools.partial(
+                        read_context_disk_dir,
+                        asuser=parseuser,
+                        distro=self.distro,
+                    )
+                    results = util.mount_cb(cdev, partially_applied_func)
             except NonContextDiskDir:
                 continue
             except BrokenContextDiskDir as exc:
@@ -129,10 +139,10 @@ class BrokenContextDiskDir(Exception):
 
 
 class OpenNebulaNetwork(object):
-    def __init__(self, context, system_nics_by_mac=None):
+    def __init__(self, context, distro, system_nics_by_mac=None):
         self.context = context
         if system_nics_by_mac is None:
-            system_nics_by_mac = get_physical_nics_by_mac()
+            system_nics_by_mac = get_physical_nics_by_mac(distro)
         self.ifaces = collections.OrderedDict(
             [k for k in sorted(system_nics_by_mac.items(),
                                key=lambda k: net.natural_sort_key(k[1]))])
@@ -367,7 +377,7 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None,
     return ret
 
 
-def read_context_disk_dir(source_dir, asuser=None):
+def read_context_disk_dir(source_dir, distro, asuser=None):
     """
     read_context_disk_dir(source_dir):
     read source_dir and return a tuple with metadata dict and user-data
@@ -450,15 +460,17 @@ def read_context_disk_dir(source_dir, asuser=None):
     # http://docs.opennebula.org/5.4/operation/references/template.html#context-section
     ipaddr_keys = [k for k in context if re.match(r'^ETH\d+_IP.*$', k)]
     if ipaddr_keys:
-        onet = OpenNebulaNetwork(context)
+        onet = OpenNebulaNetwork(context, distro)
         results['network-interfaces'] = onet.gen_conf()
 
     return results
 
 
-def get_physical_nics_by_mac():
+def get_physical_nics_by_mac(distro):
     devs = net.get_interfaces_by_mac()
-    return dict([(m, n) for m, n in devs.items() if net.is_physical(n)])
+    return dict(
+        [(m, n) for m, n in devs.items() if distro.networking.is_physical(n)]
+    )
 
 
 # Legacy: Must be present in case we load an old pkl object

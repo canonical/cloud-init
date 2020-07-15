@@ -185,7 +185,7 @@ class Distro(distros.Distro):
     def preferred_ntp_clients(self):
         """The preferred ntp client is dependent on the version."""
 
-        """Allow distro to determine the preferred ntp client list"""
+        # Allow distro to determine the preferred ntp client list
         if not self._preferred_ntp_clients:
             distro_info = util.system_info()['dist']
             name = distro_info[0]

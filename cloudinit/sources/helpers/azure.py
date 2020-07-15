@@ -626,10 +626,16 @@ def get_metadata_from_fabric(fallback_lease_file=None, dhcp_opts=None,
         shim.clean_up()
 
 
+def dhcp_log_cb(out, err):
+    report_diagnostic_event("dhclient output stream: %s" % out)
+    report_diagnostic_event("dhclient error stream: %s" % err)
+
+
 class EphemeralDHCPv4WithReporting(object):
     def __init__(self, reporter, nic=None):
         self.reporter = reporter
-        self.ephemeralDHCPv4 = EphemeralDHCPv4(iface=nic)
+        self.ephemeralDHCPv4 = EphemeralDHCPv4(
+            iface=nic, dhcp_log_func=dhcp_log_cb)
 
     def __enter__(self):
         with events.ReportEventStack(

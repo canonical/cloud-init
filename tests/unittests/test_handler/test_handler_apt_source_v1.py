@@ -43,10 +43,17 @@ class FakeDistro(object):
         return
 
 
+class FakeDatasource:
+    """Fake Datasource helper object"""
+    def __init__(self):
+        self.region = 'region'
+
+
 class FakeCloud(object):
     """Fake Cloud helper object"""
     def __init__(self):
         self.distro = FakeDistro()
+        self.datasource = FakeDatasource()
 
 
 class TestAptSourceConfig(TestCase):

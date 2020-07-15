@@ -1804,7 +1804,15 @@ def chmod(path, mode):
             os.chmod(path, real_mode)
 
 
-def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
+def write_file(
+    filename,
+    content,
+    mode=0o644,
+    omode="wb",
+    preserve_mode=False,
+    *,
+    ensure_dir_exists=True
+):
     """
     Writes a file with the given content and sets the file mode as specified.
     Restores the SELinux context if possible.
@@ -1813,16 +1821,22 @@ def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
     @param content: The content to write to the file.
     @param mode: The filesystem mode to set on the file.
     @param omode: The open mode used when opening the file (w, wb, a, etc.)
+    @param preserve_mode: If True and `filename` exists, preserve `filename`s
+                          current mode instead of applying `mode`.
+    @param ensure_dir_exists: If True (the default), ensure that the directory
+                              containing `filename` exists before writing to
+                              the file.
     """
 
-    if copy_mode:
+    if preserve_mode:
         try:
             file_stat = os.stat(filename)
             mode = stat.S_IMODE(file_stat.st_mode)
         except OSError:
             pass
 
-    ensure_dir(os.path.dirname(filename))
+    if ensure_dir_exists:
+        ensure_dir(os.path.dirname(filename))
     if 'b' in omode.lower():
         content = encode_text(content)
         write_type = 'bytes'
@@ -1864,8 +1878,8 @@ def make_header(comment_char="#", base='created'):
     return header
 
 
-def abs_join(*paths):
-    return os.path.abspath(os.path.join(*paths))
+def abs_join(base, *paths):
+    return os.path.abspath(os.path.join(base, *paths))
 
 
 # shellify, takes a list of commands

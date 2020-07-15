@@ -139,8 +139,10 @@ class TextKvpReporter(CiTestCase):
     @mock.patch('cloudinit.subp.subp')
     def test_get_boot_telemetry(self, m_subp, m_sysd):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
-        datetime_pattern = r"\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]"
-        r"\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)"
+        datetime_pattern = (
+            r"\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]"
+            r"\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)"
+        )
 
         # get_boot_telemetry makes two subp calls to systemctl. We provide
         # a list of values that the subp calls should return

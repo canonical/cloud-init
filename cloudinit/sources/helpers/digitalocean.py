@@ -16,7 +16,7 @@ NIC_MAP = {'public': 'eth0', 'private': 'eth1'}
 LOG = logging.getLogger(__name__)
 
 
-def assign_ipv4_link_local(nic=None):
+def assign_ipv4_link_local(distro, nic=None):
     """Bring up NIC using an address using link-local (ip4LL) IPs. On
        DigitalOcean, the link-local domain is per-droplet routed, so there
        is no risk of collisions. However, to be more safe, the ip4LL
@@ -24,7 +24,7 @@ def assign_ipv4_link_local(nic=None):
     """
 
     if not nic:
-        nic = get_link_local_nic()
+        nic = get_link_local_nic(distro)
         LOG.debug("selected interface '%s' for reading metadata", nic)
 
     if not nic:
@@ -54,8 +54,12 @@ def assign_ipv4_link_local(nic=None):
     return nic
 
 
-def get_link_local_nic():
-    nics = [f for f in cloudnet.get_devicelist() if cloudnet.is_physical(f)]
+def get_link_local_nic(distro):
+    nics = [
+        f
+        for f in cloudnet.get_devicelist()
+        if distro.networking.is_physical(f)
+    ]
     if not nics:
         return None
     return min(nics, key=lambda d: cloudnet.read_sys_net_int(d, 'ifindex'))
