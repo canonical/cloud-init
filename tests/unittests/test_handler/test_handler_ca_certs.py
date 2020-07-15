@@ -210,7 +210,7 @@ class TestAddCaCerts(TestCase):
 
         with ExitStack() as mocks:
             mock_write = mocks.enter_context(
-                mock.patch.object(util, 'write_file'))
+                mock.patch.object(util, 'write_file', autospec=True))
             mock_stat = mocks.enter_context(
                 mock.patch("cloudinit.config.cc_ca_certs.os.stat")
             )
