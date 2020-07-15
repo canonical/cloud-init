@@ -277,6 +277,31 @@ VALID_CONTENT = {
     ),
 }
 
+KEY_TYPES = [
+    'dsa',
+    'ecdsa',
+    'rsa',
+    'ed25519',
+    'ecdsa-sha2-nistp256-cert-v01@openssh.com',
+    'ecdsa-sha2-nistp256',
+    'ecdsa-sha2-nistp384-cert-v01@openssh.com',
+    'ecdsa-sha2-nistp384',
+    'ecdsa-sha2-nistp521-cert-v01@openssh.com',
+    'ecdsa-sha2-nistp521',
+    'sk-ecdsa-sha2-nistp256-cert-v01@openssh.com',
+    'sk-ecdsa-sha2-nistp256@openssh.com',
+    'sk-ssh-ed25519-cert-v01@openssh.com',
+    'sk-ssh-ed25519@openssh.com',
+    'ssh-dss-cert-v01@openssh.com',
+    'ssh-dss',
+    'ssh-ed25519-cert-v01@openssh.com',
+    'ssh-ed25519',
+    'ssh-rsa-cert-v01@openssh.com',
+    'ssh-rsa',
+    'ssh-xmss-cert-v01@openssh.com',
+    'ssh-xmss@openssh.com',
+]
+
 TEST_OPTIONS = (
     "no-port-forwarding,no-agent-forwarding,no-X11-forwarding,"
     'command="echo \'Please login as the user \"ubuntu\" rather than the'
@@ -288,21 +313,7 @@ class TestAuthKeyLineParser(test_helpers.CiTestCase):
     def test_simple_parse(self):
         # test key line with common 3 fields (keytype, base64, comment)
         parser = ssh_util.AuthKeyLineParser()
-
-        ktypes = [
-            'rsa',
-            'ecdsa',
-            'dsa',
-            'ecdsa-sha2-nistp256',
-            'ecdsa-sha2-nistp384',
-            'ecdsa-sha2-nistp521',
-            'sk-ecdsa-sha2-nistp256@openssh.com',
-            'sk-ssh-ed25519@openssh.com',
-            'ssh-xmss@openssh.com',
-            'webauthn-sk-ecdsa-sha2-nistp256@openssh.com'
-        ]
-
-        for ktype in ktypes:
+        for ktype in KEY_TYPES:
             content = VALID_CONTENT[ktype]
             comment = 'user-%s@host' % ktype
             line = ' '.join((ktype, content, comment,))
@@ -316,7 +327,7 @@ class TestAuthKeyLineParser(test_helpers.CiTestCase):
     def test_parse_no_comment(self):
         # test key line with key type and base64 only
         parser = ssh_util.AuthKeyLineParser()
-        for ktype in ['rsa', 'ecdsa', 'dsa']:
+        for ktype in KEY_TYPES:
             content = VALID_CONTENT[ktype]
             line = ' '.join((ktype, content,))
             key = parser.parse(line)
@@ -330,7 +341,7 @@ class TestAuthKeyLineParser(test_helpers.CiTestCase):
         # test key line with options in it
         parser = ssh_util.AuthKeyLineParser()
         options = TEST_OPTIONS
-        for ktype in ['rsa', 'ecdsa', 'dsa']:
+        for ktype in KEY_TYPES:
             content = VALID_CONTENT[ktype]
             comment = 'user-%s@host' % ktype
             line = ' '.join((options, ktype, content, comment,))
