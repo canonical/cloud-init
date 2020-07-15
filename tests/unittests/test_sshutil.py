@@ -278,10 +278,6 @@ VALID_CONTENT = {
 }
 
 KEY_TYPES = [
-    'dsa',
-    'ecdsa',
-    'rsa',
-    'ed25519',
     'ecdsa-sha2-nistp256-cert-v01@openssh.com',
     'ecdsa-sha2-nistp256',
     'ecdsa-sha2-nistp384-cert-v01@openssh.com',
