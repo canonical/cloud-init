@@ -1436,8 +1436,14 @@ def _get_metadata_from_imds(retries):
         LOG.debug(msg)
         return {}
     try:
+        import json
+        json_decode_error = json.decoder.JSONDecodeError
+    except ImportError, AttributeError:
+        json_decode_error = ValueError
+
+    try:
         return util.load_json(str(response))
-    except ValueError as e:
+    except json_decode_error as e:
         report_diagnostic_event('non-json imds response' % e)
         LOG.warning(
             'Ignoring non-json IMDS instance metadata: %s', str(response))
