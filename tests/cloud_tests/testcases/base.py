@@ -34,7 +34,6 @@ class CloudTestCase(unittest.TestCase):
     @classmethod
     def maybeSkipTest(cls):
         """Present to allow subclasses to override and raise a skipTest."""
-        pass
 
     def assertPackageInstalled(self, name, version=None):
         """Check dpkg-query --show output for matching package name.

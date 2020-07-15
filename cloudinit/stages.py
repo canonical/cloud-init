@@ -947,7 +947,6 @@ def _pkl_load(fname):
     except Exception as e:
         if os.path.isfile(fname):
             LOG.warning("failed loading pickle in %s: %s", fname, e)
-        pass
 
     # This is allowed so just return nothing successfully loaded...
     if not pickle_contents:
