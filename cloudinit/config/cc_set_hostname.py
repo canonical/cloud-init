@@ -55,7 +55,6 @@ class SetHostnameError(Exception):
     This may happen if we attempt to set the hostname early in cloud-init's
     init-local timeframe as certain services may not be running yet.
     """
-    pass
 
 
 def handle(name, cfg, cloud, log, _args):
