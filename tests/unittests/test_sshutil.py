@@ -16,6 +16,35 @@ FakePwEnt.__new__.__defaults__ = tuple(
 
 
 VALID_CONTENT = {
+    'dsa': (
+        "AAAAB3NzaC1kc3MAAACBAIrjOQSlSea19bExXBMBKBvcLhBoVvNBjCppNzllipF"
+        "W4jgIOMcNanULRrZGjkOKat6MWJNetSbV1E6IOFDQ16rQgsh/OvYU9XhzM8seLa"
+        "A21VszZuhIV7/2DE3vxu7B54zVzueG1O1Deq6goQCRGWBUnqO2yluJiG4HzrnDa"
+        "jzRAAAAFQDMPO96qXd4F5A+5b2f2MO7SpVomQAAAIBpC3K2zIbDLqBBs1fn7rsv"
+        "KcJvwihdlVjG7UXsDB76P2GNqVG+IlYPpJZ8TO/B/fzTMtrdXp9pSm9OY1+BgN4"
+        "REsZ2WNcvfgY33aWaEM+ieCcQigvxrNAF2FTVcbUIIxAn6SmHuQSWrLSfdHc8H7"
+        "hsrgeUPPdzjBD/cv2ZmqwZ1AAAAIAplIsScrJut5wJMgyK1JG0Kbw9JYQpLe95P"
+        "obB069g8+mYR8U0fysmTEdR44mMu0VNU5E5OhTYoTGfXrVrkR134LqFM2zpVVbE"
+        "JNDnIqDHxTkc6LY2vu8Y2pQ3/bVnllZZOda2oD5HQ7ovygQa6CH+fbaZHbdDUX/"
+        "5z7u2rVAlDw=="
+    ),
+    'ecdsa': (
+        "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBITrGBB3cgJ"
+        "J7fPxvtMW9H3oRisNpJ3OAslxZeyP7I0A9BPAW0RQIwHVtVnM7zrp4nI+JLZov/"
+        "Ql7lc2leWL7CY="
+    ),
+    'rsa': (
+        "AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5oz"
+        "emNSj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbD"
+        "c1pvxzxtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q"
+        "7NDwfIrJJtO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhT"
+        "YWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07"
+        "/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw=="
+    ),
+    'ed25519': (
+        "AAAAC3NzaC1lZDI1NTE5AAAAIA1J77+CrJ8p6/vWCEzuylqJNMHUP/XmeYyGVWb"
+        "8lnDd"
+    ),
     'ecdsa-sha2-nistp256-cert-v01@openssh.com': (
         "AAAAKGVjZHNhLXNoYTItbmlzdHAyNTYtY2VydC12MDFAb3BlbnNzaC5jb20AAAA"
         "gQIfwT/+UX68/hlKsdKuaOuAVB6ftTg03SlP/uH4OBEwAAAAIbmlzdHAyNTYAAA"
@@ -249,6 +278,10 @@ VALID_CONTENT = {
 }
 
 KEY_TYPES = [
+    'dsa',
+    'ecdsa',
+    'rsa',
+    'ed25519',
     'ecdsa-sha2-nistp256-cert-v01@openssh.com',
     'ecdsa-sha2-nistp256',
     'ecdsa-sha2-nistp384-cert-v01@openssh.com',
@@ -323,7 +356,7 @@ class TestAuthKeyLineParser(test_helpers.CiTestCase):
         # test key line with key type and base64 only
         parser = ssh_util.AuthKeyLineParser()
 
-        baseline = ' '.join(("ssh-rsa", VALID_CONTENT['ssh-rsa'], "user@host"))
+        baseline = ' '.join(("rsa", VALID_CONTENT['rsa'], "user@host"))
         myopts = "no-port-forwarding,no-agent-forwarding"
 
         key = parser.parse("allowedopt" + " " + baseline)
@@ -334,7 +367,7 @@ class TestAuthKeyLineParser(test_helpers.CiTestCase):
 
     def test_parse_invalid_keytype(self):
         parser = ssh_util.AuthKeyLineParser()
-        key = parser.parse(' '.join(["badkeytype", VALID_CONTENT['ssh-rsa']]))
+        key = parser.parse(' '.join(["badkeytype", VALID_CONTENT['rsa']]))
 
         self.assertFalse(key.valid())
 
@@ -344,11 +377,11 @@ class TestUpdateAuthorizedKeys(test_helpers.CiTestCase):
     def test_new_keys_replace(self):
         """new entries with the same base64 should replace old."""
         orig_entries = [
-            ' '.join(('ssh-rsa', VALID_CONTENT['ssh-rsa'], 'orig_comment1')),
-            ' '.join(('ssh-dss', VALID_CONTENT['ssh-dss'], 'orig_comment2'))]
+            ' '.join(('rsa', VALID_CONTENT['rsa'], 'orig_comment1')),
+            ' '.join(('dsa', VALID_CONTENT['dsa'], 'orig_comment2'))]
 
         new_entries = [
-            ' '.join(('ssh-rsa', VALID_CONTENT['ssh-rsa'], 'new_comment1')), ]
+            ' '.join(('rsa', VALID_CONTENT['rsa'], 'new_comment1')), ]
 
         expected = '\n'.join([new_entries[0], orig_entries[1]]) + '\n'
 
@@ -362,11 +395,11 @@ class TestUpdateAuthorizedKeys(test_helpers.CiTestCase):
     def test_new_invalid_keys_are_ignored(self):
         """new entries that are invalid should be skipped."""
         orig_entries = [
-            ' '.join(('ssh-rsa', VALID_CONTENT['ssh-rsa'], 'orig_comment1')),
-            ' '.join(('ssh-dss', VALID_CONTENT['ssh-dss'], 'orig_comment2'))]
+            ' '.join(('rsa', VALID_CONTENT['rsa'], 'orig_comment1')),
+            ' '.join(('dsa', VALID_CONTENT['dsa'], 'orig_comment2'))]
 
         new_entries = [
-            ' '.join(('ssh-rsa', VALID_CONTENT['ssh-rsa'], 'new_comment1')),
+            ' '.join(('rsa', VALID_CONTENT['rsa'], 'new_comment1')),
             'xxx-invalid-thing1',
             'xxx-invalid-blob2'
         ]
@@ -571,10 +604,10 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         fpw = FakePwEnt(pw_name='bobby', pw_dir='/home2/bobby')
         m_getpwnam.return_value = fpw
         authorized_keys = self.tmp_path('authorized_keys')
-        util.write_file(authorized_keys, VALID_CONTENT['ssh-rsa'])
+        util.write_file(authorized_keys, VALID_CONTENT['rsa'])
 
         user_keys = self.tmp_path('user_keys')
-        util.write_file(user_keys, VALID_CONTENT['ssh-dss'])
+        util.write_file(user_keys, VALID_CONTENT['dsa'])
 
         sshd_config = self.tmp_path('sshd_config')
         util.write_file(
@@ -587,18 +620,18 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         content = ssh_util.update_authorized_keys(auth_key_entries, [])
 
         self.assertEqual("%s/.ssh/authorized_keys" % fpw.pw_dir, auth_key_fn)
-        self.assertTrue(VALID_CONTENT['ssh-rsa'] in content)
-        self.assertTrue(VALID_CONTENT['ssh-dss'] in content)
+        self.assertTrue(VALID_CONTENT['rsa'] in content)
+        self.assertTrue(VALID_CONTENT['dsa'] in content)
 
     @patch("cloudinit.ssh_util.pwd.getpwnam")
     def test_multiple_authorizedkeys_file_order2(self, m_getpwnam):
         fpw = FakePwEnt(pw_name='suzie', pw_dir='/home/suzie')
         m_getpwnam.return_value = fpw
         authorized_keys = self.tmp_path('authorized_keys')
-        util.write_file(authorized_keys, VALID_CONTENT['ssh-rsa'])
+        util.write_file(authorized_keys, VALID_CONTENT['rsa'])
 
         user_keys = self.tmp_path('user_keys')
-        util.write_file(user_keys, VALID_CONTENT['ssh-dss'])
+        util.write_file(user_keys, VALID_CONTENT['dsa'])
 
         sshd_config = self.tmp_path('sshd_config')
         util.write_file(
@@ -612,7 +645,7 @@ class TestMultipleSshAuthorizedKeysFile(test_helpers.CiTestCase):
         content = ssh_util.update_authorized_keys(auth_key_entries, [])
 
         self.assertEqual("%s/.ssh/authorized_keys" % fpw.pw_dir, auth_key_fn)
-        self.assertTrue(VALID_CONTENT['ssh-rsa'] in content)
-        self.assertTrue(VALID_CONTENT['ssh-dss'] in content)
+        self.assertTrue(VALID_CONTENT['rsa'] in content)
+        self.assertTrue(VALID_CONTENT['dsa'] in content)
 
 # vi: ts=4 expandtab
