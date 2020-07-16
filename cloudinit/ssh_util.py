@@ -17,10 +17,17 @@ LOG = logging.getLogger(__name__)
 # See: man sshd_config
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
-# taken from OpenSSH source openssh-8.3p1/sshkey.c:
-# static const struct keytype keytypes[] = { ... }
+# this list has been filtered out from keytypes of OpenSSH source
+# openssh-8.3p1/sshkey.c:
+# static const struct keytype keytypes[] = {
+# filter out the keytypes with the sigonly flag, eg:
+# { "rsa-sha2-256", "RSA", NULL, KEY_RSA, 0, 0, 1 },
+# refer to the keytype struct of OpenSSH in the same file, to see
+# if the position of the sigonly flag has been moved.
+#
 # dsa, rsa, ecdsa and ed25519 are added for legacy, as they are valid
-# public keys in some old distros
+# public keys in some old distros. They can possibly be removed
+# in the future when support for the older distros is dropped
 VALID_KEY_TYPES = (
     "dsa",
     "rsa",
