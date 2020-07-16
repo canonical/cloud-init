@@ -65,7 +65,6 @@ VALID_CONTENT = {
         "6La3sXyfNlnjilvvGY6I2M8SvJj4o3X/46wcUbPWTaj4RF3EXwHvNxplYBwdPlk"
         "2zEecvf9Cs2BM="
     ),
-
     'ecdsa-sha2-nistp384-cert-v01@openssh.com': (
         "AAAAKGVjZHNhLXNoYTItbmlzdHAzODQtY2VydC12MDFAb3BlbnNzaC5jb20AAAA"
         "grnSvDsK1EnCZndO1IyGWcGkVgVSkPWi/XO2ybPFyLVUAAAAIbmlzdHAzODQAAA"
@@ -112,11 +111,6 @@ VALID_CONTENT = {
         "ZkerbKYQ72S6uit1u77PCj/OalZtXgsxv0TTAZB273puG2X94CQ8yyNHcby87zF"
         "ZHdv5BSKyZ/cyREAAeiAcSakop9VS3+bUfZpEIqwBZXarwUjnRnxprkcQ0rfCCd"
         "agkGZr/OA7DemK2D8tKLTHsKoEEWNImo6/pXDkFxA=="
-    ),
-    'ecdsa': (
-        "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAVj+efQl0Q"
-        "r5Y/VB1Rl8stU3HSmtjqE4tfJssTQaazESk82NPSxlkvYku+DDkjQuzDfmY1+AN"
-        "7Y314SrJTw+K0="
     ),
     'sk-ecdsa-sha2-nistp256-cert-v01@openssh.com': (
         "AAAAIHNzaC1lZDI1NTE5LWNlcnQtdjAxQG9wZW5zc2guY29tAAAAIIxzuxl4z3u"
