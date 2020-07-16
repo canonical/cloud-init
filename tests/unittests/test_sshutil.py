@@ -15,6 +15,9 @@ FakePwEnt.__new__.__defaults__ = tuple(
     "UNSET_%s" % n for n in FakePwEnt._fields)
 
 
+# Do not use these public keys, most of them are fetched from
+# the testdata for OpenSSH, and their private keys are available
+# https://github.com/openssh/openssh-portable/tree/master/regress/unittests/sshkey/testdata
 VALID_CONTENT = {
     'dsa': (
         "AAAAB3NzaC1kc3MAAACBAIrjOQSlSea19bExXBMBKBvcLhBoVvNBjCppNzllipF"
