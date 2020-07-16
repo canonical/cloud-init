@@ -19,17 +19,19 @@ DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
 # taken from OpenSSH source openssh-8.3p1/sshkey.c:
 # static const struct keytype keytypes[] = { ... }
+# dsa, rsa, ecdsa and ed25519 are added for legacy, as they are valid
+# public keys in some old distros
 VALID_KEY_TYPES = (
     "dsa",
+    "rsa",
+    "ecdsa",
+    "ed25519",
     "ecdsa-sha2-nistp256-cert-v01@openssh.com",
     "ecdsa-sha2-nistp256",
     "ecdsa-sha2-nistp384-cert-v01@openssh.com",
     "ecdsa-sha2-nistp384",
     "ecdsa-sha2-nistp521-cert-v01@openssh.com",
     "ecdsa-sha2-nistp521",
-    "ecdsa",
-    "ed25519",
-    "rsa",
     "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com",
     "sk-ecdsa-sha2-nistp256@openssh.com",
     "sk-ssh-ed25519-cert-v01@openssh.com",
