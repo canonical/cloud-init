@@ -159,7 +159,7 @@ class DataSourceOVF(sources.DataSource):
                     defVal = "false"
                     if self._vmware_cust_conf.default_run_post_script:
                         LOG.debug(
-                            "Set dfault value to true due to"
+                            "Set default value to true due to"
                             " customization configuration."
                         )
                         defVal = "true"
