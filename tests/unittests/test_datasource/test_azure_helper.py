@@ -462,7 +462,7 @@ class TestOpenSSLManagerActions(CiTestCase):
 class TestGoalStateHealthReporter(CiTestCase):
 
     default_parameters = {
-        'incarnation': 1,
+        'incarnation': 1634,
         'container_id': 'MyContainerId',
         'instance_id': 'MyInstanceId'
     }
@@ -508,21 +508,24 @@ class TestGoalStateHealthReporter(CiTestCase):
             health_detail_subsection='')
 
     def test_send_ready_signal_sends_post_request(self):
-        health_document = self._get_report_ready_health_document()
-        client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        reporter = azure_helper.GoalStateHealthReporter(
-            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
-            client, self.test_endpoint)
-        reporter.send_ready_signal()
-        self.assertEqual(1, self.post.call_count)
-        self.assertEqual(
-            mock.call(
-                self.test_url,
-                data=health_document,
-                extra_headers=self.test_default_headers),
-            self.post.call_args)
+        with mock.patch.object(
+                azure_helper.GoalStateHealthReporter,
+                'build_report') as m_build_report:
+            client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
+            reporter = azure_helper.GoalStateHealthReporter(
+                azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+                client, self.test_endpoint)
+            reporter.send_ready_signal()
 
-    def test_send_ready_signal_health_document(self):
+            self.assertEqual(1, self.post.call_count)
+            self.assertEqual(
+                mock.call(
+                    self.test_url,
+                    data=m_build_report.return_value,
+                    extra_headers=self.test_default_headers),
+                self.post.call_args)
+
+    def test_build_report_for_health_document(self):
         health_document = self._get_report_ready_health_document()
         reporter = azure_helper.GoalStateHealthReporter(
             azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
@@ -534,14 +537,31 @@ class TestGoalStateHealthReporter(CiTestCase):
             instance_id=self.default_parameters['instance_id'],
             status=self.provisioning_success_status)
         self.assertEqual(health_document, generated_health_document)
-        self.assertIn(str(self.default_parameters['incarnation']),
-                      generated_health_document)
-        self.assertIn(self.default_parameters['container_id'],
-                      generated_health_document)
-        self.assertIn(self.default_parameters['instance_id'],
-                      generated_health_document)
-        self.assertIn(self.provisioning_success_status,
-                      generated_health_document)
+        self.assertIn(
+            ''.join([
+                '<GoalStateIncarnation>',
+                str(self.default_parameters['incarnation']),
+                '</GoalStateIncarnation>']),
+            generated_health_document)
+        self.assertIn(
+            ''.join([
+                '<ContainerId>',
+                self.default_parameters['container_id'],
+                '</ContainerId>']),
+            generated_health_document)
+        self.assertIn(
+            ''.join([
+                '<InstanceId>',
+                self.default_parameters['instance_id'],
+                '</InstanceId>']),
+            generated_health_document)
+        self.assertIn(
+            ''.join([
+                '<State>',
+                self.provisioning_success_status,
+                '</State>']),
+            generated_health_document
+        )
         self.assertNotIn('<Details>', generated_health_document)
         self.assertNotIn('<SubStatus>', generated_health_document)
         self.assertNotIn('<Description>', generated_health_document)

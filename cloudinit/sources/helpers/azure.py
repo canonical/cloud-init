@@ -700,7 +700,7 @@ class WALinuxAgentShim:
         @return: GoalState object representing the GoalState XML
         """
         unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure()
-        return self._parse_goal_state(unparsed_goal_state_xml)
+        return self._parse_raw_goal_state_xml(unparsed_goal_state_xml)
 
     @azure_ds_telemetry_reporter
     def _get_raw_goal_state_xml_from_azure(self) -> str:
@@ -723,7 +723,8 @@ class WALinuxAgentShim:
         return response.contents
 
     @azure_ds_telemetry_reporter
-    def _parse_goal_state(self, unparsed_goal_state_xml: str) -> GoalState:
+    def _parse_raw_goal_state_xml(
+            self, unparsed_goal_state_xml: str) -> GoalState:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
