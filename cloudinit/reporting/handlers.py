@@ -35,7 +35,6 @@ class ReportingHandler(metaclass=abc.ABCMeta):
 
     def flush(self):
         """Ensure ReportingHandler has published all events"""
-        pass
 
 
 class LogHandler(ReportingHandler):

@@ -52,6 +52,5 @@ class Image(TargetBase):
 
     def destroy(self):
         """Clean up data associated with image."""
-        pass
 
 # vi: ts=4 expandtab

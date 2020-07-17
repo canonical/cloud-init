@@ -8,7 +8,6 @@ import base64
 import contextlib
 import crypt
 from functools import partial
-import json
 import os
 import os.path
 import re
@@ -166,12 +165,11 @@ def get_resource_disk_on_freebsd(port_id):
         port_id = port_id - 2
     g1 = "000" + str(port_id)
     g0g1 = "{0}-{1}".format(g0, g1)
-    """
-    search 'X' from
-       'dev.storvsc.X.%pnpinfo:
-           classid=32412632-86cb-44a2-9b5c-50d1417354f5
-           deviceid=00000000-0001-8899-0000-000000000000'
-    """
+
+    # search 'X' from
+    #  'dev.storvsc.X.%pnpinfo:
+    #      classid=32412632-86cb-44a2-9b5c-50d1417354f5
+    #      deviceid=00000000-0001-8899-0000-000000000000'
     sysctl_out = get_dev_storvsc_sysctl()
 
     storvscid = find_storvscid_from_sysctl_pnpinfo(sysctl_out, g0g1)
@@ -689,7 +687,6 @@ class DataSourceAzure(sources.DataSource):
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry
                 self._ephemeral_dhcp_ctx.clean_network()
-                pass
             finally:
                 if nl_sock:
                     nl_sock.close()
@@ -1439,8 +1436,14 @@ def _get_metadata_from_imds(retries):
         LOG.debug(msg)
         return {}
     try:
+        from json.decoder import JSONDecodeError
+        json_decode_error = JSONDecodeError
+    except ImportError:
+        json_decode_error = ValueError
+
+    try:
         return util.load_json(str(response))
-    except json.decoder.JSONDecodeError as e:
+    except json_decode_error as e:
         report_diagnostic_event('non-json imds response' % e)
         LOG.warning(
             'Ignoring non-json IMDS instance metadata: %s', str(response))
@@ -1485,13 +1488,12 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
 
 
 def _is_platform_viable(seed_dir):
+    """Check platform environment to report if this datasource may run."""
     with events.ReportEventStack(
         name="check-platform-viability",
         description="found azure asset tag",
         parent=azure_ds_reporter
     ) as evt:
-
-        """Check platform environment to report if this datasource may run."""
         asset_tag = util.read_dmi_data('chassis-asset-tag')
         if asset_tag == AZURE_CHASSIS_ASSET_TAG:
             return True

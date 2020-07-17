@@ -49,7 +49,5 @@ class Distro(debian.Distro):
                     copy.deepcopy(PREFERRED_NTP_CLIENTS))
         return self._preferred_ntp_clients
 
-    pass
-
 
 # vi: ts=4 expandtab

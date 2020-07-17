@@ -67,13 +67,19 @@ def add_ca_certs(certs):
         cert_file_contents = "\n".join([str(c) for c in certs])
         util.write_file(CA_CERT_FULL_PATH, cert_file_contents, mode=0o644)
 
-        # Append cert filename to CA_CERT_CONFIG file.
-        # We have to strip the content because blank lines in the file
-        # causes subsequent entries to be ignored. (LP: #1077020)
-        orig = util.load_file(CA_CERT_CONFIG)
-        cur_cont = '\n'.join([line for line in orig.splitlines()
-                              if line != CA_CERT_FILENAME])
-        out = "%s\n%s\n" % (cur_cont.rstrip(), CA_CERT_FILENAME)
+        if os.stat(CA_CERT_CONFIG).st_size == 0:
+            # If the CA_CERT_CONFIG file is empty (i.e. all existing
+            # CA certs have been deleted) then simply output a single
+            # line with the cloud-init cert filename.
+            out = "%s\n" % CA_CERT_FILENAME
+        else:
+            # Append cert filename to CA_CERT_CONFIG file.
+            # We have to strip the content because blank lines in the file
+            # causes subsequent entries to be ignored. (LP: #1077020)
+            orig = util.load_file(CA_CERT_CONFIG)
+            cur_cont = '\n'.join([line for line in orig.splitlines()
+                                  if line != CA_CERT_FILENAME])
+            out = "%s\n%s\n" % (cur_cont.rstrip(), CA_CERT_FILENAME)
         util.write_file(CA_CERT_CONFIG, out, omode="wb")
 
 

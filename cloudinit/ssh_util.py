@@ -40,11 +40,13 @@ VALID_KEY_TYPES = (
     "ssh-rsa-cert-v01@openssh.com",
 )
 
+_DISABLE_USER_SSH_EXIT = 142
 
 DISABLE_USER_OPTS = (
     "no-port-forwarding,no-agent-forwarding,"
     "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\""
-    " rather than the user \\\"$DISABLE_USER\\\".\';echo;sleep 10\"")
+    " rather than the user \\\"$DISABLE_USER\\\".\';echo;sleep 10;"
+    "exit " + str(_DISABLE_USER_SSH_EXIT) + "\"")
 
 
 class AuthKeyLine(object):

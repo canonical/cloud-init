@@ -201,6 +201,28 @@ class TestAddCaCerts(TestCase):
 
             mock_load.assert_called_once_with("/etc/ca-certificates.conf")
 
+    def test_single_cert_to_empty_existing_ca_file(self):
+        """Test adding a single certificate to the trusted CAs
+        when existing ca-certificates.conf is empty"""
+        cert = "CERT1\nLINE2\nLINE3"
+
+        expected = "cloud-init-ca-certs.crt\n"
+
+        with ExitStack() as mocks:
+            mock_write = mocks.enter_context(
+                mock.patch.object(util, 'write_file', autospec=True))
+            mock_stat = mocks.enter_context(
+                mock.patch("cloudinit.config.cc_ca_certs.os.stat")
+            )
+            mock_stat.return_value.st_size = 0
+
+            cc_ca_certs.add_ca_certs([cert])
+
+            mock_write.assert_has_calls([
+                mock.call("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
+                          cert, mode=0o644),
+                mock.call("/etc/ca-certificates.conf", expected, omode="wb")])
+
     def test_multiple_certs(self):
         """Test adding multiple certificates to the trusted CAs."""
         certs = ["CERT1\nLINE2\nLINE3", "CERT2\nLINE2\nLINE3"]
