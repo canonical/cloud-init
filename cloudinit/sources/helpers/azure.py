@@ -480,22 +480,23 @@ class GoalStateHealthReporter:
 
     @azure_ds_telemetry_reporter
     def _post_health_report(self, document: str) -> None:
-        # The Azure Host will collect the VM's Hyper-V KVP diagnostic messages
-        # when cloud-init reports to fabric.
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
         # the diagnostic messages are written to special files
         # (/var/opt/hyperv/.kvp_pool_*) as Hyper-V KVP messages.
         # Hyper-V KVP message communication is done through these files,
         # and KVP functionality is used to communicate and share diagnostic
         # info with the Azure Host.
-        # Some KVPs might still be in the write queue, so we yield
-        # the scheduler to make sure that queued diagnostic events
-        # are flushed and actually written to the special files before
-        # reporting to fabric.
+        # The Azure Host will collect the VM's Hyper-V KVP diagnostic messages
+        # when cloud-init reports to fabric.
+        # When the Azure Host receives the health report signal, it will only
+        # collect and process whatever KVP diagnostic messages have been
+        # written to the KVP files.
+        # KVP messages that are published after the Azure Host receives the
+        # signal are ignored and unprocessed, so flush the various logging
+        # and telemetry reporters (including the Hyper-V KVP reporter).
         # See HyperVKvpReportingHandler class, which is a multi-threaded
         # reporting handler that writes to the special KVP files.
         reporting.flush_events()
-        time.sleep(0)
 
         LOG.debug('Sending health report to Azure fabric.')
         url = "http://{}/machine?comp=health".format(self._endpoint)
