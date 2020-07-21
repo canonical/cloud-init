@@ -269,7 +269,7 @@ read_fs_info() {
             LABEL=*) label="${line#LABEL=}";
                      labels="${labels}${line#LABEL=}${delim}";;
             LABEL_FATBOOT=*) label="${line#LABEL_FATBOOT=}";
-		             labels="${labels}${line#LABEL_FATBOOT=}${delim}";;
+                     labels="${labels}${line#LABEL_FATBOOT=}${delim}";;
             TYPE=*) ftype=${line#TYPE=};;
             UUID=*) uuids="${uuids}${line#UUID=}$delim";;
         esac
