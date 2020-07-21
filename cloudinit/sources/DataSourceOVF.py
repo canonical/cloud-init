@@ -152,14 +152,25 @@ class DataSourceOVF(sources.DataSource):
                     product_marker, os.path.join(self.paths.cloud_dir, 'data'))
                 special_customization = product_marker and not hasmarkerfile
                 customscript = self._vmware_cust_conf.custom_script_name
-                custScriptConfig = get_tools_config(
-                    CONFGROUPNAME_GUESTCUSTOMIZATION,
-                    GUESTCUSTOMIZATION_ENABLE_CUST_SCRIPTS,
-                    "false")
-                if custScriptConfig.lower() != "true":
-                    # Update the customization status if there is a
-                    # custom script is disabled
-                    if special_customization and customscript:
+
+                # In case there is a custom script, check whether VMware
+                # Tools configuration allow the custom script to run.
+                if special_customization and customscript:
+                    defVal = "false"
+                    if self._vmware_cust_conf.default_run_post_script:
+                        LOG.debug(
+                            "Set default value to true due to"
+                            " customization configuration."
+                        )
+                        defVal = "true"
+
+                    custScriptConfig = get_tools_config(
+                        CONFGROUPNAME_GUESTCUSTOMIZATION,
+                        GUESTCUSTOMIZATION_ENABLE_CUST_SCRIPTS,
+                        defVal)
+                    if custScriptConfig.lower() != "true":
+                        # Update the customization status if custom script
+                        # is disabled
                         msg = "Custom script is disabled by VM Administrator"
                         LOG.debug(msg)
                         set_customization_status(
