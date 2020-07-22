@@ -127,7 +127,6 @@ OS_RELEASE_EUROLINUX = dedent("""\
 """)
 
 
-
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
@@ -477,21 +476,12 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('freebsd', '12.0-RELEASE-p10', ''), dist)
 
     @mock.patch('cloudinit.util.load_file')
-    def test_get_linux_centos6(self, m_os_release, m_path_exists):
-        """Verify we get the correct name and release name on CentOS 6."""
-        m_os_release.return_value = REDHAT_RELEASE_CENTOS_6
-        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
-        dist = util.get_linux_distro()
-        self.assertEqual(('centos', '6.10', 'Final'), dist)
-
-    @mock.patch('cloudinit.util.load_file')
-    def test_get_linux_centos7_redhat_release(self, m_os_release, m_exists):
+    def test_get_linux_eurolinux7_redhat_release(self, m_os_release, m_exists):
         """Verify the correct release info on CentOS 7 without os-release."""
-        m_os_release.return_value = REDHAT_RELEASE_CENTOS_7
+        m_os_release.return_value = REDHAT_RELEASE_EUROLINUX_7
         m_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
         dist = util.get_linux_distro()
-        self.assertEqual(('centos', '7.5.1804', 'Core'), dist)
-
+        self.assertEqual(('eurolinux', '7.8', 'Tallinn'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_centos6(self, m_os_release, m_path_exists):

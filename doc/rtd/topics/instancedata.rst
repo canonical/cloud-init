@@ -140,6 +140,7 @@ Example output:
 - redhat, 7.5, 'maipo'
 - sles, 12.3, x86_64
 - ubuntu, 20.04, focal
+- eurolinux, 7.8, tallinn
 
 v1.instance_id
 --------------

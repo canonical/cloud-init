@@ -24,6 +24,7 @@ DEFAULT_REQUIREMENTS = 'requirements.txt'
 DISTRO_PKG_TYPE_MAP = {
     'centos': 'redhat',
     'redhat': 'redhat',
+    'eurolinux': 'redhat',
     'debian': 'debian',
     'ubuntu': 'debian',
     'opensuse': 'suse',
@@ -66,11 +67,13 @@ ZYPPER_INSTALL = [
 DRY_DISTRO_INSTALL_PKG_CMD = {
     'centos': ['yum', 'install', '--assumeyes'],
     'redhat': ['yum', 'install', '--assumeyes'],
+    'eurolinux': ['yum', 'install', '--assumeyes'],
 }
 
 DISTRO_INSTALL_PKG_CMD = {
     'centos': MAYBE_RELIABLE_YUM_INSTALL,
     'redhat': MAYBE_RELIABLE_YUM_INSTALL,
+    'eurolinux': MAYBE_RELIABLE_YUM_INSTALL,
     'debian': ['apt', 'install', '-y'],
     'ubuntu': ['apt', 'install', '-y'],
     'opensuse': ZYPPER_INSTALL,
@@ -83,6 +86,7 @@ CI_SYSTEM_BASE_PKGS = {
     'common': ['make', 'sudo', 'tar'],
     'redhat': ['python3-tox'],
     'centos': ['python3-tox'],
+    'eurolinux': ['python3-tox'],
     'ubuntu': ['devscripts', 'python3-dev', 'libssl-dev', 'tox', 'sbuild'],
     'debian': ['devscripts', 'python3-dev', 'libssl-dev', 'tox', 'sbuild']}
 
@@ -256,10 +260,10 @@ def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
         cmd = DRY_DISTRO_INSTALL_PKG_CMD[distro]
     install_cmd.extend(cmd)
 
-    if distro in ['centos', 'redhat']:
+    if distro in ['centos', 'redhat', 'eurolinux']:
         # CentOS and Redhat need epel-release to access oauthlib and jsonschema
         subprocess.check_call(install_cmd + ['epel-release'])
-    if distro in ['suse', 'opensuse', 'redhat', 'centos']:
+    if distro in ['suse', 'opensuse', 'redhat', 'centos', 'eurolinux']:
         pkg_list.append('rpm-build')
     subprocess.check_call(install_cmd + pkg_list)
 

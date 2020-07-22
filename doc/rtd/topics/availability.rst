@@ -27,6 +27,7 @@ and OpenBSD:
 - FreeBSD
 - NetBSD
 - OpenBSD
+- EuroLinux
 
 Clouds
 ======
