@@ -1524,6 +1524,17 @@ class TestAzureBounce(CiTestCase):
 
         self.assertEqual(0, self.set_hostname.call_count)
 
+    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
+    def test_set_hostname_failed_disable_bounce(
+            self, perform_hostname_bounce):
+        cfg = {'set_hostname': True, 'hostname_bounce': {'policy': 'force'}}
+        self.get_hostname.return_value = "old-hostname"
+        self.set_hostname.side_effect = Exception
+        data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
+        self._get_ds(data).get_data()
+
+        self.assertEqual(0, perform_hostname_bounce.call_count)
+
 
 class TestLoadAzureDsDir(CiTestCase):
     """Tests for load_azure_ds_dir."""
