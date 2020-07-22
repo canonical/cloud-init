@@ -180,7 +180,7 @@ def enable_repo(args, image):
     if os_family == 'debian':
         cmd = ('echo "{}" >> "/etc/apt/sources.list" '.format(args.repo) +
                '&& apt-get update')
-    elif os_family == 'centos':
+    elif os_family == 'centos' or os_family == 'eurolinux':
         cmd = 'yum-config-manager --add-repo="{}"'.format(args.repo)
     else:
         raise NotImplementedError('enable repo command not configured for '

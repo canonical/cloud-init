@@ -4781,6 +4781,7 @@ class TestNetRenderers(CiTestCase):
             ('opensuse-tumbleweed', '', ''),
             ('sles', '', ''),
             ('centos', '', ''),
+            ('eurolinux', '', ''),
             ('fedora', '', ''),
             ('redhat', '', ''),
         ]

@@ -19,7 +19,7 @@ from .network_state import (
 
 LOG = logging.getLogger(__name__)
 NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
-KNOWN_DISTROS = ['centos', 'fedora', 'rhel', 'suse']
+KNOWN_DISTROS = ['centos', 'eurolinux', 'fedora', 'rhel', 'suse']
 
 
 def _make_header(sep='#'):

@@ -41,7 +41,7 @@ ALL_DISTROS = 'all'
 
 OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
-    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
+    'redhat': ['amazon', 'centos', 'eurolinux', 'fedora', 'rhel'],
     'gentoo': ['gentoo'],
     'freebsd': ['freebsd'],
     'suse': ['opensuse', 'sles'],

@@ -107,12 +107,34 @@ OS_RELEASE_REDHAT_7 = dedent("""\
     REDHAT_SUPPORT_PRODUCT_VERSION="7.5"
 """)
 
+
+OS_RELEASE_EUROLINUX = dedent("""\
+    NAME="EuroLinux"
+    VERSION="7.8 (Tallinn)"
+    ID="eurolinux"
+    ID_LIKE="rhel scientific centos fedora"
+    VERSION_ID="7.8"
+    PRETTY_NAME="EuroLinux 7.8 (Tallinn)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:eurolinux:eurolinux:7.8:GA"
+    HOME_URL="http://www.euro-linux.com/"
+    BUG_REPORT_URL="mailto:euro@euro-linux.com"
+
+    REDHAT_BUGZILLA_PRODUCT="EuroLinux 7"
+    REDHAT_BUGZILLA_PRODUCT_VERSION=7.8
+    REDHAT_SUPPORT_PRODUCT="EuroLinux"
+    REDHAT_SUPPORT_PRODUCT_VERSION="7.8"
+""")
+
+
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
     "Red Hat Enterprise Linux Server release 6.10 (Santiago)")
 REDHAT_RELEASE_REDHAT_7 = (
     "Red Hat Enterprise Linux Server release 7.5 (Maipo)")
+REDHAT_RELEASE_EUROLINUX_7 = "EuroLinux release 7.8 (Tallinn)"
 
 
 OS_RELEASE_DEBIAN = dedent("""\
@@ -453,6 +475,23 @@ class TestGetLinuxDistro(CiTestCase):
         util.is_BSD.cache_clear()
         dist = util.get_linux_distro()
         self.assertEqual(('freebsd', '12.0-RELEASE-p10', ''), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_centos6(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and release name on CentOS 6."""
+        m_os_release.return_value = REDHAT_RELEASE_CENTOS_6
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('centos', '6.10', 'Final'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_centos7_redhat_release(self, m_os_release, m_exists):
+        """Verify the correct release info on CentOS 7 without os-release."""
+        m_os_release.return_value = REDHAT_RELEASE_CENTOS_7
+        m_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('centos', '7.5.1804', 'Core'), dist)
+
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_centos6(self, m_os_release, m_path_exists):

@@ -4,7 +4,7 @@ dist
 *.pyc
 __pycache__
 .tox
-.coverage
+.coverage*
 doc/rtd_html
 parts
 prime
