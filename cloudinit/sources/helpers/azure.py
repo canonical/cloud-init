@@ -492,11 +492,13 @@ class GoalStateHealthReporter:
         # collect and process whatever KVP diagnostic messages have been
         # written to the KVP files.
         # KVP messages that are published after the Azure Host receives the
-        # signal are ignored and unprocessed, so flush the various logging
-        # and telemetry reporters (including the Hyper-V KVP reporter).
+        # signal are ignored and unprocessed, so yield this thread to the
+        # Hyper-V KVP Reporting thread so that they are written.
+        # time.sleep(0) is a low-cost and proven method to yield the scheduler
+        # and ensure that events are flushed.
         # See HyperVKvpReportingHandler class, which is a multi-threaded
         # reporting handler that writes to the special KVP files.
-        reporting.flush_events()
+        time.sleep(0)
 
         LOG.debug('Sending health report to Azure fabric.')
         url = "http://{}/machine?comp=health".format(self._endpoint)
