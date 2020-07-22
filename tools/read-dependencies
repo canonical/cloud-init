@@ -101,13 +101,14 @@ def get_parser():
     parser.add_argument(
         '-d', '--distro', type=str, choices=DISTRO_PKG_TYPE_MAP.keys(),
         help='The name of the distro to generate package deps for.')
-    parser.add_argument(
-        '-b', '--build-requires', action='store_true', default=False,
-        dest='build_requires', help='Print only buildtime required packages')
-    parser.add_argument(
+    deptype = parser.add_mutually_exclusive_group()
+    deptype.add_argument(
         '-R', '--runtime-requires', action='store_true', default=False,
         dest='runtime_requires',
         help='Print only runtime required packages')
+    deptype.add_argument(
+        '-b', '--build-requires', action='store_true', default=False,
+        dest='build_requires', help='Print only buildtime required packages')
     parser.add_argument(
         '--dry-run', action='store_true', default=False, dest='dry_run',
         help='Dry run the install, making no package changes.')
@@ -231,7 +232,7 @@ def main(distro):
     all_deps = []
     select_requires = [args.build_requires, args.runtime_requires]
     if args.distro:
-        if all(select_requires) or not any(select_requires):
+        if not any(select_requires):
             all_deps.extend(
                 translated_pip_names + deps_from_json['requires'] +
                 deps_from_json['build-requires'])
@@ -239,7 +240,8 @@ def main(distro):
             if args.build_requires:
                 all_deps.extend(deps_from_json['build-requires'])
             else:
-                all_deps.extend(deps_from_json['requires'])
+                all_deps.extend(
+                    translated_pip_names + deps_from_json['requires'])
     else:
         if args.system_pkg_names:
             all_deps = translated_pip_names
