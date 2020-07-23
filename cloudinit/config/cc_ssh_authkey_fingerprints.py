@@ -60,7 +60,9 @@ def _gen_fingerprint(b64_text, hash_meth='sha256'):
 def _is_printable_key(entry):
     if any([entry.keytype, entry.base64, entry.comment, entry.options]):
         if (entry.keytype and
-                entry.keytype.lower().strip() in ['ssh-dss', 'ssh-rsa']):
+                entry.keytype.lower().strip() in ['ssh-dss',
+                                                  'ssh-rsa',
+                                                  'ssh-ed25519']):
             return True
     return False
 
