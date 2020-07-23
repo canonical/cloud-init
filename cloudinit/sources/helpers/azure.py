@@ -22,7 +22,6 @@ from cloudinit import version
 from cloudinit import distros
 from cloudinit.reporting import events
 from cloudinit.net.dhcp import EphemeralDHCPv4
-from cloudinit import reporting
 from datetime import datetime
 
 LOG = logging.getLogger(__name__)
