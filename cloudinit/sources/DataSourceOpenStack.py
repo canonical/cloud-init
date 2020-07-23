@@ -41,6 +41,10 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
     _network_config = sources.UNSET  # Used to cache calculated network cfg v1
 
+    # Setup read_url parameters per get_url_params.
+    url_max_wait = 120
+    url_timeout = 50
+
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
 
