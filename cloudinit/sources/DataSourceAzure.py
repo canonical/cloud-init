@@ -275,7 +275,14 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
        (previous_hostname == temp_hostname and policy != 'force')):
         yield None
         return
-    set_hostname(temp_hostname, hostname_command)
+    try:
+        set_hostname(temp_hostname, hostname_command)
+    except Exception as e:
+        msg = 'Failed setting temporary hostname: %s' % e
+        report_diagnostic_event(msg)
+        LOG.warning(msg)
+        yield None
+        return
     try:
         yield previous_hostname
     finally:
