@@ -2,7 +2,6 @@
 
 from cloudinit import sources
 from cloudinit.sources import DataSourceEc2 as EC2
-from cloudinit import util
 
 HUAWEI_PRODUCT = "Huawei"
 
@@ -23,7 +22,7 @@ class DataSourceHuawei(EC2.DataSourceEc2):
         return parse_public_keys(self.metadata.get('public-keys', {}))
 
     def _get_cloud_name(self):
-            return HUAWEI_PRODUCT
+        return HUAWEI_PRODUCT
 
 
 def parse_public_keys(public_keys):
@@ -53,4 +52,3 @@ def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
 
 # vi: ts=4 expandtab
-
