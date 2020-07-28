@@ -57,6 +57,8 @@ def _gen_fingerprint(b64_text, hash_meth='sha256'):
         return '?'
 
 
+# When updating the list, also update the VALID_KEY_TYPES list in
+# cloudinit/ssh_util.py
 def _is_printable_key(entry):
     if any([entry.keytype, entry.base64, entry.comment, entry.options]):
         if (entry.keytype and entry.keytype.lower().strip()
