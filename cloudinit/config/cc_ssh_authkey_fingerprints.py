@@ -13,7 +13,7 @@ Write fingerprints of authorized keys for each user to log. This is enabled by
 default, but can be disabled using ``no_ssh_fingerprints``. The hash type for
 the keys can be specified, but defaults to ``sha256``.
 
-**Internal name:** `` cc_ssh_authkey_fingerprints``
+**Internal name:** ``cc_ssh_authkey_fingerprints``
 
 **Module frequency:** per instance
 
