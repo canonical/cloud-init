@@ -60,14 +60,28 @@ def _gen_fingerprint(b64_text, hash_meth='sha256'):
 def _is_printable_key(entry):
     if any([entry.keytype, entry.base64, entry.comment, entry.options]):
         if (entry.keytype and entry.keytype.lower().strip()
-                in ['ssh-dss',
-                    'ssh-rsa',
-                    'ssh-ed25519',
-                    'ecdsa-sha2-nistp521',
-                    'ecdsa-sha2-nistp384',
+                in ['dsa',
+                    'rsa',
+                    'ecdsa',
+                    'ed25519',
+                    'ecdsa-sha2-nistp256-cert-v01@openssh.com',
                     'ecdsa-sha2-nistp256',
+                    'ecdsa-sha2-nistp384-cert-v01@openssh.com',
+                    'ecdsa-sha2-nistp384',
+                    'ecdsa-sha2-nistp521-cert-v01@openssh.com',
+                    'ecdsa-sha2-nistp521',
+                    'sk-ecdsa-sha2-nistp256-cert-v01@openssh.com',
+                    'sk-ecdsa-sha2-nistp256@openssh.com',
+                    'sk-ssh-ed25519-cert-v01@openssh.com',
                     'sk-ssh-ed25519@openssh.com',
-                    'sk-ecdsa-sha2-nistp256@openssh.com']):
+                    'ssh-dss-cert-v01@openssh.com',
+                    'ssh-dss',
+                    'ssh-ed25519-cert-v01@openssh.com',
+                    'ssh-ed25519',
+                    'ssh-rsa-cert-v01@openssh.com',
+                    'ssh-rsa',
+                    'ssh-xmss-cert-v01@openssh.com',
+                    'ssh-xmss@openssh.com']):
             # key types from
             # https://man.openbsd.org/sshd#AUTHORIZED_KEYS_FILE_FORMAT
             return True
