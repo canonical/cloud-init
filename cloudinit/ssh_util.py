@@ -28,6 +28,9 @@ DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 # dsa, rsa, ecdsa and ed25519 are added for legacy, as they are valid
 # public keys in some old distros. They can possibly be removed
 # in the future when support for the older distros is dropped
+#
+# When updating the list, also update the _is_printable_key list in
+# cloudinit/config/cc_ssh_authkey_fingerprints.py
 VALID_KEY_TYPES = (
     "dsa",
     "rsa",
