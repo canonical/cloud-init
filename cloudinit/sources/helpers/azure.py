@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
+import base64
 import json
 import logging
 import os
@@ -8,7 +8,9 @@ import socket
 import struct
 import time
 import textwrap
+import zlib
 
+from cloudinit.settings import CFG_BUILTIN
 from cloudinit.net import dhcp
 from cloudinit import stages
 from cloudinit import temp_utils
@@ -33,7 +35,13 @@ DEFAULT_WIRESERVER_ENDPOINT = "a8:3f:81:10"
 BOOT_EVENT_TYPE = 'boot-telemetry'
 SYSTEMINFO_EVENT_TYPE = 'system-info'
 DIAGNOSTIC_EVENT_TYPE = 'diagnostic'
+COMPRESSED_EVENT_TYPE = 'compressed'
+# Maximum number of bytes of the cloud-init.log file that
+# can be dumped to KVP at once
+MAX_LOG_TO_KVP_LENGTH = 512000
 
+# Index of the last byte of the log file that was dumped to KVP
+last_log_byte_pushed_to_kvp_index = 0
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
@@ -175,6 +183,46 @@ def report_diagnostic_event(str):
 
     # return the event for unit testing purpose
     return evt
+
+
+def report_compressed_event(event_name, event_content):
+    """Report a compressed event"""
+    compressed_data = base64.encodebytes(zlib.compress(event_content))
+    event_data = {"encoding": "gz+b64",
+                  "data": compressed_data.decode('ascii')}
+    evt = events.ReportingEvent(
+        COMPRESSED_EVENT_TYPE, event_name,
+        json.dumps(event_data),
+        events.DEFAULT_EVENT_ORIGIN)
+    events.report_event(evt, excluded_handlers={"logging"})
+
+    # return the event for unit testing purpose
+    return evt
+
+
+@azure_ds_telemetry_reporter
+def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
+    """Push a portion of cloud-init.log file or the whole file to KVP
+    based on the file size.
+    When called more than once, the function continues pushing the log file
+    from where it left off last time it was called."""
+    global last_log_byte_pushed_to_kvp_index
+    LOG.debug("Dumping cloud-init.log file to KVP")
+
+    try:
+        with open(file_name, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH,
+                             last_log_byte_pushed_to_kvp_index)
+            report_diagnostic_event(
+                "Dumping {} bytes of cloud-init.log file to KVP".format(
+                    f.tell() - seek_index))
+            f.seek(seek_index, os.SEEK_SET)
+            report_compressed_event("cloud-init.log", f.read())
+            last_log_byte_pushed_to_kvp_index = f.tell()
+    except Exception as ex:
+        report_diagnostic_event("Exception when dumping log file: %s" %
+                                repr(ex))
 
 
 @contextmanager
@@ -601,6 +649,7 @@ class WALinuxAgentShim(object):
         # Host will collect kvps when cloud-init reports ready.
         # some kvps might still be in the queue. We yield the scheduler
         # to make sure we process all kvps up till this point.
+        push_log_to_kvp()
         time.sleep(0)
         try:
             http_client.post(

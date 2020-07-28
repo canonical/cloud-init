@@ -35,7 +35,8 @@ from cloudinit.sources.helpers.azure import (
     report_diagnostic_event,
     EphemeralDHCPv4WithReporting,
     is_byte_swapped,
-    dhcp_log_cb)
+    dhcp_log_cb,
+    push_log_to_kvp)
 
 LOG = logging.getLogger(__name__)
 
@@ -792,6 +793,7 @@ class DataSourceAzure(sources.DataSource):
         address_ephemeral_resize(is_new_instance=is_new_instance,
                                  preserve_ntfs=self.ds_cfg.get(
                                      DS_CFG_KEY_PRESERVE_NTFS, False))
+        push_log_to_kvp()
         return
 
     @property

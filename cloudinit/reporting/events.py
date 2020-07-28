@@ -81,18 +81,23 @@ class FinishReportingEvent(ReportingEvent):
         return data
 
 
-def report_event(event):
-    """Report an event to all registered event handlers.
+def report_event(event, excluded_handlers={}):
+    """Report an event to all registered event handlers
+    except the excluded_handlers.
 
     This should generally be called via one of the other functions in
     the reporting module.
 
+    :param excluded_handlers:
+         List of handlers to exclude from reporting the event to.
     :param event_type:
         The type of the event; this should be a constant from the
         reporting module.
     """
-    for _, handler in instantiated_handler_registry.registered_items.items():
-        handler.publish_event(event)
+    handlers = instantiated_handler_registry.registered_items.items()
+    for handler_key, handler in handlers:
+        if handler_key not in excluded_handlers:
+            handler.publish_event(event)
 
 
 def report_finish_event(event_name, event_description,
