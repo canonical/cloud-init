@@ -1,5 +1,6 @@
 # Needed generally in tests
 httpretty>=0.7.1
+# Temporarily pin pytest until https://github.com/pytest-dev/pytest/pull/7566 is released
 pytest<6
 pytest-cov
 
