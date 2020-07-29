@@ -14,7 +14,8 @@ Notes:
 """
 
 import base64
-import json
+from collections import namedtuple
+from contextlib import suppress
 
 from cloudinit import log as logging
 from cloudinit import net, sources, util
@@ -24,7 +25,7 @@ from cloudinit.net import (
     get_interfaces_by_mac,
     is_netfail_master,
 )
-from cloudinit.url_helper import readurl
+from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
 
@@ -33,80 +34,13 @@ BUILTIN_DS_CONFIG = {
     'configure_secondary_nics': False,
 }
 CHASSIS_ASSET_TAG = "OracleCloud.com"
-METADATA_ROOT = "http://169.254.169.254/opc/v1/"
-METADATA_ENDPOINT = METADATA_ROOT + "instance/"
-VNIC_METADATA_URL = METADATA_ROOT + "vnics/"
+METADATA_ROOT = "http://169.254.169.254/opc/v{version}/"
+METADATA_PATTERN = METADATA_ROOT + "{path}/"
 # https://docs.cloud.oracle.com/iaas/Content/Network/Troubleshoot/connectionhang.htm#Overview,
 # indicates that an MTU of 9000 is used within OCI
 MTU = 9000
 
-
-def _add_network_config_from_opc_imds(network_config):
-    """
-    Fetch data from Oracle's IMDS, generate secondary NIC config, merge it.
-
-    The primary NIC configuration should not be modified based on the IMDS
-    values, as it should continue to be configured for DHCP.  As such, this
-    takes an existing network_config dict which is expected to have the primary
-    NIC configuration already present.  It will mutate the given dict to
-    include the secondary VNICs.
-
-    :param network_config:
-        A v1 or v2 network config dict with the primary NIC already configured.
-        This dict will be mutated.
-
-    :raises:
-        Exceptions are not handled within this function.  Likely exceptions are
-        those raised by url_helper.readurl (if communicating with the IMDS
-        fails), ValueError/JSONDecodeError (if the IMDS returns invalid JSON),
-        and KeyError/IndexError (if the IMDS returns valid JSON with unexpected
-        contents).
-    """
-    resp = readurl(VNIC_METADATA_URL)
-    vnics = json.loads(str(resp))
-
-    if 'nicIndex' in vnics[0]:
-        # TODO: Once configure_secondary_nics defaults to True, lower the level
-        # of this log message.  (Currently, if we're running this code at all,
-        # someone has explicitly opted-in to secondary VNIC configuration, so
-        # we should warn them that it didn't happen.  Once it's default, this
-        # would be emitted on every Bare Metal Machine launch, which means INFO
-        # or DEBUG would be more appropriate.)
-        LOG.warning(
-            'VNIC metadata indicates this is a bare metal machine; skipping'
-            ' secondary VNIC configuration.'
-        )
-        return
-
-    interfaces_by_mac = get_interfaces_by_mac()
-
-    for vnic_dict in vnics[1:]:
-        # We skip the first entry in the response because the primary interface
-        # is already configured by iSCSI boot; applying configuration from the
-        # IMDS is not required.
-        mac_address = vnic_dict['macAddr'].lower()
-        if mac_address not in interfaces_by_mac:
-            LOG.debug('Interface with MAC %s not found; skipping', mac_address)
-            continue
-        name = interfaces_by_mac[mac_address]
-
-        if network_config['version'] == 1:
-            subnet = {
-                'type': 'static',
-                'address': vnic_dict['privateIp'],
-            }
-            network_config['config'].append({
-                'name': name,
-                'type': 'physical',
-                'mac_address': mac_address,
-                'mtu': MTU,
-                'subnets': [subnet],
-            })
-        elif network_config['version'] == 2:
-            network_config['ethernets'][name] = {
-                'addresses': [vnic_dict['privateIp']],
-                'mtu': MTU, 'dhcp4': False, 'dhcp6': False,
-                'match': {'macaddress': mac_address}}
+OpcMetadata = namedtuple("OpcMetadata", "version instance_data vnics_data")
 
 
 def _ensure_netfailover_safe(network_config):
@@ -171,10 +105,11 @@ class DataSourceOracle(sources.DataSource):
         sources.NetworkConfigSource.system_cfg,
     )
 
-    _network_config = sources.UNSET
+    _network_config = sources.UNSET  # type: dict
 
     def __init__(self, sys_cfg, *args, **kwargs):
         super(DataSourceOracle, self).__init__(sys_cfg, *args, **kwargs)
+        self._vnics_data = sources.UNSET  # type: dict
 
         self.ds_cfg = util.mergemanydict([
             util.get_cfg_by_path(sys_cfg, ['datasource', self.dsname], {}),
@@ -192,13 +127,20 @@ class DataSourceOracle(sources.DataSource):
 
         # network may be configured if iscsi root.  If that is the case
         # then read_initramfs_config will return non-None.
-        if _is_iscsi_root():
-            data = read_opc_metadata()
-        else:
-            with dhcp.EphemeralDHCPv4(net.find_fallback_nic()):
-                data = read_opc_metadata()
+        fetch_vnics_data = self.ds_cfg.get('configure_secondary_nics', False)
+        # suppress() in this context is just a no-op context manager
+        network_context = suppress() if _is_iscsi_root(
+        ) else dhcp.EphemeralDHCPv4(net.find_fallback_nic())
+        with network_context:
+            fetched_metadata = read_opc_metadata(
+                fetch_vnics_data=fetch_vnics_data
+            )
 
-        self._crawled_metadata = data
+        data = self._crawled_metadata = fetched_metadata.instance_data
+        self.metadata_address = METADATA_ROOT.format(
+            version=fetched_metadata.version
+        )
+        self._vnics_data = fetched_metadata.vnics_data
 
         self.metadata = {
             "availability-zone": data["ociAdName"],
@@ -217,10 +159,6 @@ class DataSourceOracle(sources.DataSource):
             )
 
         return True
-
-    def _get_subplatform(self):
-        """Return the subplatform metadata source details."""
-        return "metadata ({})".format(METADATA_ROOT)
 
     def check_instance_id(self, sys_cfg):
         """quickly check (local only) if self.instance_id is still valid
@@ -247,13 +185,16 @@ class DataSourceOracle(sources.DataSource):
                 self._network_config = self.distro.generate_fallback_config()
 
             if self.ds_cfg.get('configure_secondary_nics'):
+                if self._vnics_data == sources.UNSET:
+                    LOG.warning("Network config is UNSET but should not be")
+                    return None
                 try:
                     # Mutate self._network_config to include secondary VNICs
-                    _add_network_config_from_opc_imds(self._network_config)
+                    self._add_network_config_from_opc_imds()
                 except Exception:
                     util.logexc(
                         LOG,
-                        "Failed to fetch secondary network configuration!")
+                        "Failed to parse secondary network configuration!")
 
             # we need to verify that the nic selected is not a netfail over
             # device and, if it is a netfail master, then we need to avoid
@@ -261,6 +202,65 @@ class DataSourceOracle(sources.DataSource):
             _ensure_netfailover_safe(self._network_config)
 
         return self._network_config
+
+    def _add_network_config_from_opc_imds(self):
+        """Generate secondary NIC config from IMDS and merge it
+
+        The primary NIC configuration should not be modified based on the IMDS
+        values, as it should continue to be configured for DHCP.  As such, this
+        takes an existing network_config dict which is expected to have the
+        primary NIC configuration already present.
+        It will mutate the given dict to include the secondary VNICs.
+
+        :raises:
+            Exceptions are not handled within this function.  Likely
+            exceptions are KeyError/IndexError
+            (if the IMDS returns valid JSON with unexpected contents).
+        """
+        if 'nicIndex' in self._vnics_data[0]:
+            # TODO: Once configure_secondary_nics defaults to True, lower the
+            # level of this log message.  (Currently, if we're running this
+            # code at all, someone has explicitly opted-in to secondary
+            # VNIC configuration, so we should warn them that it didn't
+            # happen.  Once it's default, this would be emitted on every Bare
+            # Metal Machine launch, which means INFO or DEBUG would be more
+            # appropriate.)
+            LOG.warning(
+                'VNIC metadata indicates this is a bare metal machine; '
+                'skipping secondary VNIC configuration.'
+            )
+            return
+
+        interfaces_by_mac = get_interfaces_by_mac()
+
+        for vnic_dict in self._vnics_data[1:]:
+            # We skip the first entry in the response because the primary
+            # interface is already configured by iSCSI boot; applying
+            # configuration from the IMDS is not required.
+            mac_address = vnic_dict['macAddr'].lower()
+            if mac_address not in interfaces_by_mac:
+                LOG.debug('Interface with MAC %s not found; skipping',
+                          mac_address)
+                continue
+            name = interfaces_by_mac[mac_address]
+
+            if self._network_config['version'] == 1:
+                subnet = {
+                    'type': 'static',
+                    'address': vnic_dict['privateIp'],
+                }
+                self._network_config['config'].append({
+                    'name': name,
+                    'type': 'physical',
+                    'mac_address': mac_address,
+                    'mtu': MTU,
+                    'subnets': [subnet],
+                })
+            elif self._network_config['version'] == 2:
+                self._network_config['ethernets'][name] = {
+                    'addresses': [vnic_dict['privateIp']],
+                    'mtu': MTU, 'dhcp4': False, 'dhcp6': False,
+                    'match': {'macaddress': mac_address}}
 
 
 def _read_system_uuid():
@@ -277,15 +277,44 @@ def _is_iscsi_root():
     return bool(cmdline.read_initramfs_config())
 
 
-def read_opc_metadata():
-    """
-    Fetch metadata from the /opc/ routes.
+def read_opc_metadata(*, fetch_vnics_data: bool = False):
+    """Fetch metadata from the /opc/ routes.
 
     :return:
-        The JSON-decoded value of the /opc/v1/instance/ endpoint on the IMDS.
+        A namedtuple containing:
+          The metadata version as an integer
+          The JSON-decoded value of the instance data endpoint on the IMDS
+          The JSON-decoded value of the vnics data endpoint if
+            `fetch_vnics_data` is True, else None
+
     """
-    # retries=1 as requested by Oracle to address a potential race condition
-    return json.loads(readurl(METADATA_ENDPOINT, retries=1)._response.text)
+    metadata_version = 2
+    retries = 1
+    try:
+        instance_data = readurl(
+            METADATA_PATTERN.format(
+                version=metadata_version, path="instance"),
+            retries=retries,
+        )._response.json()
+    except UrlError:
+        metadata_version = 1
+        instance_data = readurl(
+            METADATA_PATTERN.format(
+                version=metadata_version, path="instance"),
+            retries=retries,
+        )._response.json()
+    vnics_data = None
+    if fetch_vnics_data:
+        try:
+            vnics_data = readurl(
+                METADATA_PATTERN.format(
+                    version=metadata_version, path="vnics"),
+                retries=retries
+            )._response.json()
+        except UrlError:
+            util.logexc(LOG,
+                        "Failed to fetch secondary network configuration!")
+    return OpcMetadata(metadata_version, instance_data, vnics_data)
 
 
 # Used to match classes to dependencies
