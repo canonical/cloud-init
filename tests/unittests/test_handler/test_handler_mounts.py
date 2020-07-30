@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os.path
-import tempfile
 from unittest import mock
 
 from cloudinit.config import cc_mounts
@@ -192,11 +191,6 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
         m_kernel_version.return_value = (3, 18)
         m_get_mount_info.return_value = ["", "xfs"]
 
-        fstab = self.swap_path + ' swap swap defaults 0 0\n'
-        fd = tempfile.NamedTemporaryFile(mode="w")
-        fd.write(fstab)
-        os.rename(fd.name, cc_mounts.FSTAB_PATH)
-
         cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
         self.m_subp_subp.assert_has_calls([
             mock.call(['dd', 'if=/dev/zero',
@@ -212,11 +206,6 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
         m_kernel_version.return_value = (4, 20)
         m_get_mount_info.return_value = ["", "btrfs"]
 
-        fstab = self.swap_path + ' swap swap defaults 0 0\n'
-        fd = tempfile.NamedTemporaryFile(mode="w")
-        fd.write(fstab)
-        os.rename(fd.name, cc_mounts.FSTAB_PATH)
-
         cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
         self.m_subp_subp.assert_has_calls([
             mock.call(['dd', 'if=/dev/zero',
@@ -231,11 +220,6 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
                                        m_get_mount_info):
         m_kernel_version.return_value = (5, 14)
         m_get_mount_info.return_value = ["", "ext4"]
-
-        fstab = self.swap_path + ' swap swap defaults 0 0\n'
-        fd = tempfile.NamedTemporaryFile(mode="w")
-        fd.write(fstab)
-        os.rename(fd.name, cc_mounts.FSTAB_PATH)
 
         cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
         self.m_subp_subp.assert_has_calls([
