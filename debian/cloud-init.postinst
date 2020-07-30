@@ -276,6 +276,48 @@ fix_azure_upgrade_1611074() {
     rm "$tmpf" || :
 }
 
+fix_lp1889555() {
+    local oldver="$1" last_bad_ver="20.2-45-g5f7825e2-0ubuntu1~16.04.1"
+    dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
+
+    # if cloud-init's grub module did not run, then it did not break anything.
+    [ -f /var/lib/cloud/instance/sem/config_grub_dpkg ] || return 0
+
+    # Don't do anything unless we have grub
+    [ -x /usr/sbin/grub-install ] || return 0
+
+    # Make sure that we are not chrooted.
+    [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] && return 0
+
+    # Check if we are in a container, i.e. LXC
+    if systemd-detect-virt --quiet --container || lxc-is-container 2>/dev/null; then
+        return 0
+    fi
+
+    # This bug only applies to NVMe devices
+    [ -e /dev/nvme0 ] || return 0
+
+    db_get grub-pc/install_devices && grub_cfg_dev=${RET} || return 0
+
+    # If the current setting is not the (potentially-incorrect) default we
+    # expect, this implies user intervention so leave things alone
+    [ "$grub_cfg_dev" = "/dev/sda" ] || return 0
+
+    correct_idev="$(python3 -c "import logging; from cloudinit.config.cc_grub_dpkg import fetch_idevs; print(fetch_idevs(logging.getLogger()))")" || return 0
+
+    # If correct_idev is the empty string, we failed to determine the correct
+    # install device; do nothing
+    [ -z "$correct_idev" ] && return 0
+
+    # If the correct_idev is already configured, do nothing
+    [ "$grub_cfg_dev" = "$correct_idev" ] && return 0
+
+    echo "Reconfiguring grub install device due to mismatch (LP: #1889555)"
+    echo "   grub should use $correct_idev but is configured for $grub_cfg_dev"
+    db_set grub-pc/install_devices "$correct_idev"
+    db_set grub-pc/install_devices_empty "false"
+}
+
 
 if [ "$1" = "configure" ]; then
    # disable ureadahead (LP: #499520)
@@ -307,6 +349,8 @@ EOF
    disable_network_config_on_upgrade "$2"
 
    fix_azure_upgrade_1611074 "$2"
+
+   fix_lp1889555 "$2"
 fi
 
 #DEBHELPER#
