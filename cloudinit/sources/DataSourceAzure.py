@@ -571,14 +571,16 @@ class DataSourceAzure(sources.DataSource):
             ]
             LOG.debug('Retrieved SSH keys from IMDS')
         except KeyError:
-            LOG.debug('Unable to get keys from IMDS, falling back to OVF')
-            report_diagnostic_event('unable to get ssh keys from IMDS')
+            log_msg = 'Unable to get keys from IMDS, falling back to OVF'
+            LOG.debug(log_msg)
+            report_diagnostic_event(log_msg)
             try:
                 ssh_keys = self.metadata['public-keys']
                 LOG.debug('Retrieved keys from OVF')
             except KeyError:
-                LOG.debug('No keys available from OVF')
-                report_diagnostic_event('no keys available from OVF')
+                log_msg = 'No keys available from OVF'
+                LOG.debug(log_msg)
+                report_diagnostic_event(log_msg)
 
         return ssh_keys
 
