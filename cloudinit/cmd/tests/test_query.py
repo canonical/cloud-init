@@ -118,7 +118,7 @@ class TestQuery(CiTestCase):
             m_stderr.getvalue())
 
     def test_handle_args_root_uses_instance_sensitive_data(self):
-        """When no instance_data argument, root uses semsitive json."""
+        """When no instance_data argument, root uses sensitive json."""
         user_data = self.tmp_path('user-data', dir=self.tmp)
         vendor_data = self.tmp_path('vendor-data', dir=self.tmp)
         write_file(user_data, 'ud')
@@ -132,14 +132,14 @@ class TestQuery(CiTestCase):
         self.m_paths.return_value = paths
         args = self.args(
             debug=False, dump_all=True, format=None, instance_data=None,
-            list_keys=False, user_data=vendor_data, vendor_data=vendor_data,
+            list_keys=False, user_data=user_data, vendor_data=vendor_data,
             varname=None)
         with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
             with mock.patch('os.getuid') as m_getuid:
                 m_getuid.return_value = 0
                 self.assertEqual(0, query.handle_args('anyname', args))
         self.assertEqual(
-            '{\n "my_var": "it worked",\n "userdata": "vd",\n '
+            '{\n "my_var": "it worked",\n "userdata": "ud",\n '
             '"vendordata": "vd"\n}\n', m_stdout.getvalue())
 
     def test_handle_args_dumps_all_instance_data(self):
