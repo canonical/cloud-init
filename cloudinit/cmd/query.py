@@ -65,6 +65,21 @@ def get_parser(parser=None):
     return parser
 
 
+def maybe_decode_decompress_userdata(ud_file_path):
+    """Return a string of user-data from ud_file_path
+
+    Attempt to decode or decompress if needed
+    """
+    try:
+        return util.load_file(ud_file_path)
+    except UnicodeDecodeError:
+        encoded_data = util.load_file(ud_file_path, decode=False)
+        try:
+            return util.decomp_gzip(encoded_data)
+        except util.DecompressionError:
+            return encoded_data
+
+
 def handle_args(name, args):
     """Handle calls to 'cloud-init query' as a subcommand."""
     paths = None
@@ -121,8 +136,12 @@ def handle_args(name, args):
         instance_data['vendordata'] = (
             '<%s> file:%s' % (REDACT_SENSITIVE_VALUE, vendor_data_fn))
     else:
-        instance_data['userdata'] = util.load_file(user_data_fn)
-        instance_data['vendordata'] = util.load_file(vendor_data_fn)
+        instance_data['userdata'] = maybe_decode_decompress_userdata(
+            user_data_fn
+        )
+        instance_data['vendordata'] = maybe_decode_decompress_userdata(
+            vendor_data_fn
+        )
     if args.format:
         payload = '## template: jinja\n{fmt}'.format(fmt=args.format)
         rendered_payload = render_jinja_payload(
