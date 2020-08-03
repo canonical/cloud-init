@@ -3,8 +3,8 @@
 import errno
 import gzip
 from io import BytesIO
-from textwrap import dedent
 import json
+from textwrap import dedent
 
 import pytest
 
@@ -25,6 +25,7 @@ def _gzip_data(data):
         return iobuf.getvalue()
 
 
+@mock.patch("cloudinit.cmd.query.addLogHandlerCLI", return_value="")
 class TestQuery:
 
     args = namedtuple(
@@ -32,7 +33,9 @@ class TestQuery:
         ('debug dump_all format instance_data list_keys user_data vendor_data'
          ' varname'))
 
-    def test_handle_args_error_on_missing_param(self, caplog, capsys):
+    def test_handle_args_error_on_missing_param(
+        self, m_cli_log, caplog, capsys
+    ):
         """Error when missing required parameters and print usage."""
         args = self.args(
             debug=False, dump_all=False, format=None, instance_data=None,
@@ -43,12 +46,12 @@ class TestQuery:
             ' or varname\n')
         logs = caplog.text
         assert expected_error in logs
-        out, err = capsys.readouterr()
+        out, _err = capsys.readouterr()
         assert 'usage: query' in out
-        assert expected_error in err
+        assert 1 == m_cli_log.call_count
 
     def test_handle_args_error_on_missing_instance_data(
-        self, caplog, capsys, tmpdir
+        self, _m_cli_log, caplog, tmpdir
     ):
         """When instance_data file path does not exist, log an error."""
         absent_fn = tmpdir.join('absent')
@@ -60,11 +63,9 @@ class TestQuery:
 
         msg = 'Missing instance-data file: %s' % absent_fn
         assert msg in caplog.text
-        _out, err = capsys.readouterr()
-        assert msg in err
 
     def test_handle_args_error_when_no_read_permission_instance_data(
-        self, caplog, capsys, tmpdir
+        self, _m_log_cli, caplog, tmpdir
     ):
         """When instance_data file is unreadable, log an error."""
         noread_fn = tmpdir.join('unreadable')
@@ -78,34 +79,34 @@ class TestQuery:
             assert 1 == query.handle_args('anyname', args)
         msg = "No read permission on '%s'. Try sudo" % noread_fn
         assert msg in caplog.text
-        _out, err = capsys.readouterr()
-        assert msg in err
 
-    def test_handle_args_defaults_instance_data(self, caplog, capsys, tmpdir):
+    def test_handle_args_defaults_instance_data(
+        self, _m_log_cli, caplog, tmpdir
+    ):
         """When no instance_data argument, default to configured run_dir."""
         args = self.args(
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=None, vendor_data=None, varname=None)
         run_dir = tmpdir.join('run_dir')
         ensure_dir(run_dir.strpath)
-        paths = Paths({'run_dir': run_dir})
+        paths = Paths({'run_dir': run_dir.strpath})
         with mock.patch('cloudinit.cmd.query.read_cfg_paths') as m_paths:
             m_paths.return_value = paths
             assert 1 == query.handle_args('anyname', args)
         json_file = run_dir.join(INSTANCE_JSON_FILE)
         msg = 'Missing instance-data file: %s' % json_file.strpath
         assert msg in caplog.text
-        _out, err = capsys.readouterr()
-        assert msg in err
 
-    def test_handle_args_root_fallsback_to_instance_data(self, capsys, tmpdir):
+    def test_handle_args_root_fallsback_to_instance_data(
+        self, _m_log_cli, caplog, tmpdir
+    ):
         """When no instance_data argument, root falls back to redacted json."""
         args = self.args(
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=None, vendor_data=None, varname=None)
         run_dir = tmpdir.join('run_dir')
         ensure_dir(run_dir.strpath)
-        paths = Paths({'run_dir': run_dir})
+        paths = Paths({'run_dir': run_dir.strpath})
         with mock.patch('cloudinit.cmd.query.read_cfg_paths') as m_paths:
             m_paths.return_value = paths
             with mock.patch('os.getuid') as m_getuid:
@@ -114,12 +115,13 @@ class TestQuery:
         json_file = run_dir.join(INSTANCE_JSON_FILE)
         sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
         msg = (
-            'WARNING: Missing root-readable %s. Using redacted %s instead.' % (
+            'Missing root-readable %s. Using redacted %s instead.' %
+            (
                 sensitive_file.strpath, json_file.strpath
             )
         )
-        _our, err = capsys.readouterr()
-        assert msg in err
+        logs = caplog.text
+        assert msg in logs
 
     @pytest.mark.parametrize(
         'ud_src,ud_expected,vd_src,vd_expected',
@@ -136,7 +138,8 @@ class TestQuery:
         )
     )
     def test_handle_args_root_processes_user_data(
-        self, ud_src, ud_expected, vd_src, vd_expected, capsys, tmpdir
+        self, _m_log_cli, ud_src, ud_expected, vd_src, vd_expected, capsys,
+        tmpdir
     ):
         """Support reading multiple user-data file content types"""
         user_data = tmpdir.join('user-data')
@@ -147,7 +150,7 @@ class TestQuery:
         sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
         ensure_dir(run_dir.strpath)
         sensitive_file.write('{"my-var": "it worked"}')
-        paths = Paths({'run_dir': run_dir})
+        paths = Paths({'run_dir': run_dir.strpath})
         args = self.args(
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=user_data.strpath,
@@ -170,7 +173,7 @@ class TestQuery:
             assert cmd_output['vendordata'] == vd_expected
 
     def test_handle_args_root_uses_instance_sensitive_data(
-        self, capsys, tmpdir
+        self, _m_cli_log, capsys, tmpdir
     ):
         """When no instance_data argument, root uses sensitive json."""
         user_data = tmpdir.join('user-data')
@@ -181,7 +184,7 @@ class TestQuery:
         sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
         ensure_dir(run_dir.strpath)
         sensitive_file.write('{"my-var": "it worked"}')
-        paths = Paths({'run_dir': run_dir})
+        paths = Paths({'run_dir': run_dir.strpath})
         args = self.args(
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=user_data.strpath,
@@ -198,7 +201,9 @@ class TestQuery:
         out, _err = capsys.readouterr()
         assert expected == out
 
-    def test_handle_args_dumps_all_instance_data(self, capsys, tmpdir):
+    def test_handle_args_dumps_all_instance_data(
+        self, _m_cli_log, capsys, tmpdir
+    ):
         """When --all is specified query will dump all instance data vars."""
         instance_data = tmpdir.join('instance-data')
         instance_data.write('{"my-var": "it worked"}')
@@ -218,7 +223,9 @@ class TestQuery:
         out, _err = capsys.readouterr()
         assert expected == out
 
-    def test_handle_args_returns_top_level_varname(self, capsys, tmpdir):
+    def test_handle_args_returns_top_level_varname(
+        self, _m_cli_log, capsys, tmpdir
+    ):
         """When the argument varname is passed, report its value."""
         instance_data = tmpdir.join('instance-data')
         instance_data.write('{"my-var": "it worked"}')
@@ -232,7 +239,9 @@ class TestQuery:
         out, _err = capsys.readouterr()
         assert 'it worked\n' == out
 
-    def test_handle_args_returns_nested_varname(self, capsys, tmpdir):
+    def test_handle_args_returns_nested_varname(
+        self, _m_cli_log, capsys, tmpdir
+    ):
         """If user_data file is a jinja template render instance-data vars."""
         instance_data = tmpdir.join('instance-data')
         instance_data.write(
@@ -249,7 +258,7 @@ class TestQuery:
         assert 'value-2\n' == out
 
     def test_handle_args_returns_standardized_vars_to_top_level_aliases(
-        self, capsys, tmpdir
+        self, _m_cli_log, capsys, tmpdir
     ):
         """Any standardized vars under v# are promoted as top-level aliases."""
         instance_data = tmpdir.join('instance-data')
@@ -282,7 +291,7 @@ class TestQuery:
         assert expected == out
 
     def test_handle_args_list_keys_sorts_top_level_keys_when_no_varname(
-        self, capsys, tmpdir
+        self, _m_cli_log, capsys, tmpdir
     ):
         """Sort all top-level keys when only --list-keys provided."""
         instance_data = tmpdir.join('instance-data')
@@ -301,7 +310,7 @@ class TestQuery:
         assert expected == out
 
     def test_handle_args_list_keys_sorts_nested_keys_when_varname(
-        self, capsys, tmpdir
+        self, _m_cli_log, capsys, tmpdir
     ):
         """Sort all nested keys of varname object when --list-keys provided."""
         instance_data = tmpdir.join('instance-data')
@@ -320,7 +329,7 @@ class TestQuery:
         assert expected == out
 
     def test_handle_args_list_keys_errors_when_varname_is_not_a_dict(
-        self, capsys, tmpdir
+        self, _m_cli_log, caplog, tmpdir
     ):
         """Raise an error when --list-keys and varname specify a non-list."""
         instance_data = tmpdir.join('instance-data')
@@ -335,8 +344,6 @@ class TestQuery:
         with mock.patch('os.getuid') as m_getuid:
             m_getuid.return_value = 100
             assert 1 == query.handle_args('anyname', args)
-        out, err = capsys.readouterr()
-        assert '' == out
-        assert expected_error in err
+        assert expected_error in caplog.text
 
 # vi: ts=4 expandtab
