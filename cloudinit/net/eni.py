@@ -54,7 +54,7 @@ def _iface_add_subnet(iface, subnet):
             continue
         if key == 'address':
             value = "%s/%s" % (subnet['address'], subnet['prefix'])
-        if value and key in valid_map + NET_CONFIG_COMMANDS:
+        if value and key in valid_map + NET_CONFIG_COMMANDS :
             if type(value) == list:
                 value = " ".join(value)
             if '_' in key:
