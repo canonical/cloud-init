@@ -65,7 +65,7 @@ def get_parser(parser=None):
     return parser
 
 
-def maybe_decode_decompress_userdata(ud_file_path):
+def load_userdata(ud_file_path):
     """Return a string of user-data from ud_file_path
 
     Attempt to decode or decompress if needed
@@ -136,12 +136,8 @@ def handle_args(name, args):
         instance_data['vendordata'] = (
             '<%s> file:%s' % (REDACT_SENSITIVE_VALUE, vendor_data_fn))
     else:
-        instance_data['userdata'] = maybe_decode_decompress_userdata(
-            user_data_fn
-        )
-        instance_data['vendordata'] = maybe_decode_decompress_userdata(
-            vendor_data_fn
-        )
+        instance_data['userdata'] = load_userdata(user_data_fn)
+        instance_data['vendordata'] = load_userdata(vendor_data_fn)
     if args.format:
         payload = '## template: jinja\n{fmt}'.format(fmt=args.format)
         rendered_payload = render_jinja_payload(
