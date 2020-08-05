@@ -78,6 +78,9 @@ config keys for an entry in ``users`` are as follows:
     If specifying a sudo rule for a user, ensure that the syntax for the rule
     is valid, as it is not checked by cloud-init.
 
+.. note::
+    None of the above configurations are applied on already existing user.
+
 **Internal name:** ``cc_users_groups``
 
 **Module frequency:** per instance
