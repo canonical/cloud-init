@@ -536,15 +536,22 @@ class WALinuxAgentShim(object):
 
     @azure_ds_telemetry_reporter
     def register_with_azure_and_fetch_data(self, pubkey_info=None):
-        if self.openssl_manager is None:
+        http_client_certificate = None
+        if self.openssl_manager is None and pubkey_info is not None:
             self.openssl_manager = OpenSSLManager()
-        http_client = AzureEndpointHttpClient(self.openssl_manager.certificate)
+            http_client_certificate = self.openssl_manager.certificate
+        http_client = AzureEndpointHttpClient(http_client_certificate)
         LOG.info('Registering with Azure...')
         attempts = 0
         while True:
             try:
-                response = http_client.get(
-                    'http://{0}/machine/?comp=goalstate'.format(self.endpoint))
+                endpoint = self.endpoint
+                with events.ReportEventStack(
+                        name="goalstate-retrieval",
+                        description="retrieve goalstate",
+                        parent=azure_ds_reporter):
+                    response = http_client.get(
+                        'http://{0}/machine/?comp=goalstate'.format(endpoint))
             except Exception as e:
                 if attempts < 10:
                     time.sleep(attempts + 1)
