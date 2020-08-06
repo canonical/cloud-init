@@ -551,7 +551,8 @@ def system_info():
         elif linux_dist == 'redhat':
             var = 'rhel'
         elif linux_dist in (
-                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap', 'sles'):
+                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap',
+                'sles', 'sle_hpc'):
             var = 'suse'
         else:
             var = 'linux'
