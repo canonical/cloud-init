@@ -14,6 +14,7 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import (
     REDACT_SENSITIVE_VALUE, INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE)
 from cloudinit.tests.helpers import mock
+
 from cloudinit.util import write_file
 
 
@@ -31,6 +32,31 @@ class TestQuery:
         'queryargs',
         ('debug dump_all format instance_data list_keys user_data vendor_data'
          ' varname'))
+
+    def _setup_paths(self, tmpdir, ud_val=None, vd_val=None):
+        """Write userdata and vendordata into a tmpdir.
+
+        Return:
+            4-tuple : (paths, run_dir_path, userdata_path, vendordata_path)
+        """
+        if ud_val:
+            user_data = tmpdir.join('user-data')
+            write_file(user_data.strpath, ud_val)
+        else:
+            user_data = None
+        if vd_val:
+            vendor_data = tmpdir.join('vendor-data')
+            write_file(vendor_data.strpath, vd_val)
+        else:
+            vendor_data = None
+        run_dir = tmpdir.join('run_dir')
+        run_dir.ensure_dir()
+        return (
+            Paths({'run_dir': run_dir.strpath}),
+            run_dir,
+            user_data,
+            vendor_data
+        )
 
     def test_handle_args_error_on_missing_param(self, caplog, capsys):
         """Error when missing required parameters and print usage."""
@@ -82,9 +108,7 @@ class TestQuery:
         args = self.args(
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=None, vendor_data=None, varname=None)
-        run_dir = tmpdir.join('run_dir')
-        run_dir.ensure_dir()
-        paths = Paths({'run_dir': run_dir.strpath})
+        paths, run_dir, _, _ = self._setup_paths(tmpdir)
         with mock.patch('cloudinit.cmd.query.read_cfg_paths') as m_paths:
             m_paths.return_value = paths
             assert 1 == query.handle_args('anyname', args)
@@ -97,9 +121,7 @@ class TestQuery:
         args = self.args(
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=None, vendor_data=None, varname=None)
-        run_dir = tmpdir.join('run_dir')
-        run_dir.ensure_dir()
-        paths = Paths({'run_dir': run_dir.strpath})
+        paths, run_dir, _, _ = self._setup_paths(tmpdir)
         with mock.patch('cloudinit.cmd.query.read_cfg_paths') as m_paths:
             m_paths.return_value = paths
             with mock.patch('os.getuid') as m_getuid:
@@ -133,15 +155,11 @@ class TestQuery:
         self, ud_src, ud_expected, vd_src, vd_expected, capsys, tmpdir
     ):
         """Support reading multiple user-data file content types"""
-        user_data = tmpdir.join('user-data')
-        vendor_data = tmpdir.join('vendor-data')
-        write_file(user_data.strpath, ud_src)
-        write_file(vendor_data.strpath, vd_src)
-        run_dir = tmpdir.join('run_dir')
+        paths, run_dir, user_data, vendor_data = self._setup_paths(
+            tmpdir, ud_val=ud_src, vd_val=vd_src
+        )
         sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        run_dir.ensure_dir()
         sensitive_file.write('{"my-var": "it worked"}')
-        paths = Paths({'run_dir': run_dir.strpath})
         args = self.args(
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=user_data.strpath,
@@ -167,15 +185,11 @@ class TestQuery:
         self, capsys, tmpdir
     ):
         """When no instance_data argument, root uses sensitive json."""
-        user_data = tmpdir.join('user-data')
-        vendor_data = tmpdir.join('vendor-data')
-        user_data.write('ud')
-        vendor_data.write('vd')
-        run_dir = tmpdir.join('run_dir')
+        paths, run_dir, user_data, vendor_data = self._setup_paths(
+            tmpdir, ud_val='ud', vd_val='vd'
+        )
         sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        run_dir.ensure_dir()
         sensitive_file.write('{"my-var": "it worked"}')
-        paths = Paths({'run_dir': run_dir.strpath})
         args = self.args(
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=user_data.strpath,
