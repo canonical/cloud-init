@@ -1,6 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Query standardized instance metadata from the command line."""
+"""Query standardized instance metadata provided to machine, returning a JSON
+structure.
+
+Some instance-data values may be binary on some platforms, such as userdata and
+vendordata. Attempt to decompress and decode UTF-8 any binary values.
+
+Binary instance-data values which cannot be decompressed or decoded,
+will be base64-encoded and will have the prefix "ci-b64:" on the value.
+"""
 
 import argparse
 from errno import EACCES
@@ -30,7 +38,7 @@ def get_parser(parser=None):
     """
     if not parser:
         parser = argparse.ArgumentParser(
-            prog=NAME, description='Query cloud-init instance data')
+            prog=NAME, description=__doc__)
     parser.add_argument(
         '-d', '--debug', action='store_true', default=False,
         help='Add verbose messages during template render')
@@ -52,8 +60,10 @@ def get_parser(parser=None):
               ' /var/lib/cloud/instance/vendor-data.txt'))
     parser.add_argument(
         'varname', type=str, nargs='?',
-        help=('A dot-delimited instance data variable to query from'
-              ' instance-data query. For example: v2.local_hostname'))
+        help=('A dot-delimited specific instance data variable to query from'
+              ' instance-data query. For example: v1.local_hostname. If the'
+              ' value is not JSON serializable, it will be base64-encoded and'
+              ' will contain the prefix "ci-b64:". '))
     parser.add_argument(
         '-a', '--all', action='store_true', default=False, dest='dump_all',
         help='Dump all available instance-data')
