@@ -41,6 +41,7 @@ KNOWN_CLOUD_NAMES = [
     'SmartOS',
     'VMware',
     'ZStack',
+    'GPortal',
     'Other'
 ]
 
