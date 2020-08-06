@@ -14,14 +14,13 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import (
     REDACT_SENSITIVE_VALUE, INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE)
 from cloudinit.tests.helpers import mock
-from cloudinit.util import ensure_dir, write_file
+from cloudinit.util import write_file
 
 
 def _gzip_data(data):
     with BytesIO() as iobuf:
-        gzfp = gzip.GzipFile(mode="wb", fileobj=iobuf)
-        gzfp.write(data)
-        gzfp.close()
+        with gzip.GzipFile(mode="wb", fileobj=iobuf) as gzfp:
+            gzfp.write(data)
         return iobuf.getvalue()
 
 
@@ -44,8 +43,7 @@ class TestQuery:
         expected_error = (
             'Expected one of the options: --all, --format, --list-keys'
             ' or varname\n')
-        logs = caplog.text
-        assert expected_error in logs
+        assert expected_error in caplog.text
         out, _err = capsys.readouterr()
         assert 'usage: query' in out
         assert 1 == m_cli_log.call_count
@@ -88,7 +86,7 @@ class TestQuery:
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=None, vendor_data=None, varname=None)
         run_dir = tmpdir.join('run_dir')
-        ensure_dir(run_dir.strpath)
+        run_dir.ensure_dir()
         paths = Paths({'run_dir': run_dir.strpath})
         with mock.patch('cloudinit.cmd.query.read_cfg_paths') as m_paths:
             m_paths.return_value = paths
@@ -105,7 +103,7 @@ class TestQuery:
             debug=False, dump_all=True, format=None, instance_data=None,
             list_keys=False, user_data=None, vendor_data=None, varname=None)
         run_dir = tmpdir.join('run_dir')
-        ensure_dir(run_dir.strpath)
+        run_dir.ensure_dir()
         paths = Paths({'run_dir': run_dir.strpath})
         with mock.patch('cloudinit.cmd.query.read_cfg_paths') as m_paths:
             m_paths.return_value = paths
@@ -120,8 +118,7 @@ class TestQuery:
                 sensitive_file.strpath, json_file.strpath
             )
         )
-        logs = caplog.text
-        assert msg in logs
+        assert msg in caplog.text
 
     @pytest.mark.parametrize(
         'ud_src,ud_expected,vd_src,vd_expected',
@@ -148,7 +145,7 @@ class TestQuery:
         write_file(vendor_data.strpath, vd_src)
         run_dir = tmpdir.join('run_dir')
         sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        ensure_dir(run_dir.strpath)
+        run_dir.ensure_dir()
         sensitive_file.write('{"my-var": "it worked"}')
         paths = Paths({'run_dir': run_dir.strpath})
         args = self.args(
@@ -162,15 +159,15 @@ class TestQuery:
                 assert 0 == query.handle_args('anyname', args)
         out, _err = capsys.readouterr()
         cmd_output = json.loads(out)
-        assert cmd_output['my_var'] == "it worked"
+        assert "it worked" == cmd_output['my_var']
         if ud_expected == 'ci-b64:':
             assert cmd_output['userdata'].startswith(ud_expected)
         else:
-            assert cmd_output['userdata'] == ud_expected
+            assert ud_expected == cmd_output['userdata']
         if vd_expected == 'ci-b64:':
             assert cmd_output['vendordata'].startswith(vd_expected)
         else:
-            assert cmd_output['vendordata'] == vd_expected
+            assert vd_expected == cmd_output['vendordata']
 
     def test_handle_args_root_uses_instance_sensitive_data(
         self, _m_cli_log, capsys, tmpdir
@@ -182,7 +179,7 @@ class TestQuery:
         vendor_data.write('vd')
         run_dir = tmpdir.join('run_dir')
         sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
-        ensure_dir(run_dir.strpath)
+        run_dir.ensure_dir()
         sensitive_file.write('{"my-var": "it worked"}')
         paths = Paths({'run_dir': run_dir.strpath})
         args = self.args(

@@ -66,9 +66,14 @@ def get_parser(parser=None):
 
 
 def load_userdata(ud_file_path):
-    """Return a string of user-data from ud_file_path
+    """Attempt to return a string of user-data from ud_file_path
 
-    Attempt to decode or decompress if needed
+    Attempt to decode or decompress if needed.
+    If unable to decode the content, raw bytes will be returned,
+    which load_json base64-encodes, adding a ci-b64: prefix to the value when
+    emitting the JSON output.
+
+    @returns: String of uncompressed userdata if possible, otherwise bytes.
     """
     try:
         return util.load_file(ud_file_path)
