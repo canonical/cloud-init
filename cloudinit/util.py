@@ -1112,6 +1112,7 @@ def close_stdin():
 
 def find_devs_with_freebsd(criteria=None, oformat='device',
                            tag=None, no_cache=False, path=None):
+    devlist = []
     if not criteria:
         return glob.glob("/dev/msdosfs/*") + glob.glob("/dev/iso9660/*")
     if criteria.startswith("LABEL="):
