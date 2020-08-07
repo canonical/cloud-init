@@ -7,7 +7,10 @@ groups:
   - cloud-users
 
 # Add users to the system. Users are added after groups are added.
-# Note: None of these configurations are applied on already existing user.
+#
+# Note: Following configurations in the below examples are not applicable on already existing user(s).
+#       'plain_text_passwd', 'hashed_passwd', 'lock_passwd', 'sudo', 'ssh_authorized_keys',
+#       'ssh_redirect_user', 'cloud_public_ssh_keys'.
 users:
   - default
   - name: foobar

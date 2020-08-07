@@ -79,7 +79,9 @@ config keys for an entry in ``users`` are as follows:
     is valid, as it is not checked by cloud-init.
 
 .. note::
-    None of the above configurations are applied on already existing user.
+    Following configurations from the above list are applicable on already existing user(s).
+    - 'plain_text_passwd', 'hashed_passwd', 'lock_passwd', 'sudo', 'ssh_authorized_keys'
+      'ssh_redirect_user', 'cloud_public_ssh_keys'.
 
 **Internal name:** ``cc_users_groups``
 
