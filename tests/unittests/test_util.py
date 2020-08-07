@@ -7,6 +7,7 @@ import re
 import shutil
 import stat
 import tempfile
+import pytest
 import yaml
 from unittest import mock
 
@@ -1002,8 +1003,16 @@ class TestFindDevs:
         devlist = util.find_devs_with_openbsd(criteria="LABEL_FATBOOT=A_LABEL")
         assert devlist == ['/dev/cd0a', '/dev/sd1i']
 
+    @pytest.mark.parametrize(
+        'criteria,expected_devlist', (
+            (None, ['/dev/msdosfs/EFISYS', '/dev/iso9660/config-2']),
+            ('TYPE=iso9660', ['/dev/iso9660/config-2']),
+            ('TYPE=vfat', ['/dev/msdosfs/EFISYS']),
+            ('LABEL_FATBOOT=A_LABEL', []),  # lp: #1841466
+        ),
+    )
     @mock.patch('glob.glob')
-    def test_find_devs_with_freebsd(self, m_glob):
+    def test_find_devs_with_freebsd(self, m_glob, criteria, expected_devlist):
         def fake_glob(pattern):
             msdos = ["/dev/msdosfs/EFISYS"]
             iso9660 = ["/dev/iso9660/config-2"]
@@ -1014,22 +1023,20 @@ class TestFindDevs:
             raise Exception
         m_glob.side_effect = fake_glob
 
-        devlist = util.find_devs_with_freebsd()
-        assert set(devlist) == set([
-            '/dev/iso9660/config-2', '/dev/msdosfs/EFISYS'])
+        devlist = util.find_devs_with_freebsd(criteria=criteria)
+        assert devlist == expected_devlist
 
-        devlist = util.find_devs_with_freebsd(criteria="TYPE=iso9660")
-        assert devlist == ['/dev/iso9660/config-2']
-
-        devlist = util.find_devs_with_freebsd(criteria="TYPE=vfat")
-        assert devlist == ['/dev/msdosfs/EFISYS']
-
-        # lp: #1841466
-        devlist = util.find_devs_with_freebsd(criteria="LABEL_FATBOOT=A_LABEL")
-        assert devlist == []
-
+    @pytest.mark.parametrize(
+        'criteria,expected_devlist', (
+            (None, ['/dev/ld0', '/dev/dk0', '/dev/dk1', '/dev/cd0']),
+            ('TYPE=iso9660', ['/dev/cd0']),
+            ('TYPE=vfat', ["/dev/ld0", "/dev/dk0", "/dev/dk1"]),
+            ('LABEL_FATBOOT=A_LABEL',  # lp: #1841466
+             ['/dev/ld0', '/dev/dk0', '/dev/dk1', '/dev/cd0']),
+        )
+    )
     @mock.patch("cloudinit.subp.subp")
-    def test_find_devs_with_netbsd(self, m_subp):
+    def test_find_devs_with_netbsd(self, m_subp, criteria, expected_devlist):
         side_effect_values = [
             ("ld0 dk0 dk1 cd0", ""),
             (
@@ -1070,22 +1077,7 @@ class TestFindDevs:
             ),
         ]
         m_subp.side_effect = side_effect_values
-        devlist = util.find_devs_with_netbsd()
-        assert set(devlist) == set(
-            ["/dev/ld0", "/dev/dk0", "/dev/dk1", "/dev/cd0"]
-        )
-
-        m_subp.side_effect = side_effect_values
-        devlist = util.find_devs_with_netbsd(criteria="TYPE=iso9660")
-        assert devlist == ["/dev/cd0"]
-
-        m_subp.side_effect = side_effect_values
-        devlist = util.find_devs_with_netbsd(criteria="TYPE=vfat")
-        assert devlist == ["/dev/ld0", "/dev/dk0", "/dev/dk1"]
-
-        # lp: #1841466
-        m_subp.side_effect = side_effect_values
-        devlist = util.find_devs_with_netbsd(criteria="LABEL_FATBOOT=A_LABEL")
-        assert devlist == ['/dev/ld0', '/dev/dk0', '/dev/dk1', '/dev/cd0']
+        devlist = util.find_devs_with_netbsd(criteria=criteria)
+        assert devlist == expected_devlist
 
 # vi: ts=4 expandtab
