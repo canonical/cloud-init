@@ -9,7 +9,7 @@ Apt Pipelining
 --------------
 **Summary:** configure apt pipelining
 
-This module configures apt's ``Acquite::http::Pipeline-Depth`` option, whcih
+This module configures apt's ``Acquite::http::Pipeline-Depth`` option, which
 controls how apt handles HTTP pipelining. It may be useful for pipelining to be
 disabled, because some web servers, such as S3 do not pipeline properly (LP:
 #948461). The ``apt_pipelining`` config key may be set to ``false`` to disable
