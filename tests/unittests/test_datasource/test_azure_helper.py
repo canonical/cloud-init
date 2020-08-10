@@ -383,11 +383,11 @@ class TestWALinuxAgentShim(CiTestCase):
         patches.enter_context(
             mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
 
-    def test_http_client_uses_certificate(self):
+    def test_http_client_does_not_use_certificate(self):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
         self.assertEqual(
-            [mock.call(self.OpenSSLManager.return_value.certificate)],
+            [mock.call(None)],
             self.AzureEndpointHttpClient.call_args_list)
 
     def test_correct_url_used_for_goalstate(self):
@@ -462,7 +462,7 @@ class TestWALinuxAgentShim(CiTestCase):
         shim.register_with_azure_and_fetch_data()
         shim.clean_up()
         self.assertEqual(
-            1, self.OpenSSLManager.return_value.clean_up.call_count)
+            0, self.OpenSSLManager.return_value.clean_up.call_count)
 
     def test_failure_to_fetch_goalstate_bubbles_up(self):
         class SentinelException(Exception):
