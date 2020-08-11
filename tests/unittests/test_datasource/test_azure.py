@@ -2117,14 +2117,18 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md['local-hostname'], hostname)
         self.assertEqual(cfg['system_info']['default_user']['name'], username)
-        self.assertIn(mock.call(allow_redirects=True,
-                                    headers={'Metadata': 'true',
-                                             'User-Agent':
-                                             'Cloud-Init/%s' % vs()},
-                                    method='GET',
-                                    timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
-                                    url=full_url),
-                     fake_resp.call_args_list)
+        self.assertIn(
+            mock.call(
+                allow_redirects=True,
+                headers={
+                    'Metadata': 'true',
+                    'User-Agent': 'Cloud-Init/%s' % vs()
+                },
+                method='GET',
+                timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
+                url=full_url
+            ),
+            fake_resp.call_args_list)
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
