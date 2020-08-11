@@ -81,7 +81,7 @@ class FinishReportingEvent(ReportingEvent):
         return data
 
 
-def report_event(event, excluded_handlers={}):
+def report_event(event, excluded_handlers=None):
     """Report an event to all registered event handlers
     except the excluded_handlers.
 
@@ -96,7 +96,7 @@ def report_event(event, excluded_handlers={}):
     """
     handlers = instantiated_handler_registry.registered_items.items()
     for handler_key, handler in handlers:
-        if handler_key not in excluded_handlers:
+        if not excluded_handlers or handler_key not in excluded_handlers:
             handler.publish_event(event)
 
 
