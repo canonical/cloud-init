@@ -266,8 +266,9 @@ read_fs_info() {
                     isodevs="${isodevs},${dev}=$label"
                 ftype=""; dev=""; label="";
                 dev=${line#DEVNAME=};;
-            LABEL=*) label="${line#LABEL=}";
-                     labels="${labels}${line#LABEL=}${delim}";;
+            LABEL=*|LABEL_FATBOOT=*)
+                label="${line#*=}";
+                labels="${labels}${label}${delim}";;
             TYPE=*) ftype=${line#TYPE=};;
             UUID=*) uuids="${uuids}${line#UUID=}$delim";;
         esac
