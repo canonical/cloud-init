@@ -13,7 +13,8 @@ from . import addLogHandlerCLI
 
 NAME = 'make-mime'
 LOG = log.getLogger(NAME)
-EPILOG = "Example: make-mime --append my-script:x-shellscript > user-data"
+EPILOG = ("Example: make-mime -a config.yaml:cloud-config "
+          "-a script.sh:x-shellscript > user-data")
 
 
 def file_content_type(text):
