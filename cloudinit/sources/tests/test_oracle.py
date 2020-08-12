@@ -410,12 +410,13 @@ class TestNetworkConfigFiltersNetFailover(test_helpers.CiTestCase):
 
 def _mock_v2_urls(httpretty):
     def instance_callback(request, uri, response_headers):
+        print(response_headers)
         assert request.headers.get("Authorization") == "Bearer Oracle"
-        return [200, {}, OPC_V2_METADATA]
+        return [200, response_headers, OPC_V2_METADATA]
 
     def vnics_callback(request, uri, response_headers):
         assert request.headers.get("Authorization") == "Bearer Oracle"
-        return [200, {}, OPC_BM_SECONDARY_VNIC_RESPONSE]
+        return [200, response_headers, OPC_BM_SECONDARY_VNIC_RESPONSE]
 
     httpretty.register_uri(
         httpretty.GET,
