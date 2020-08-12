@@ -90,7 +90,8 @@ def handle_args(name, args):
             errors.append(msg)
         sub_messages.append(sub_message)
     if len(errors) and not args.force:
-        raise RuntimeError("Invalid content-types, override with --force")
+        sys.stderr.write("Invalid content-types, override with --force\n")
+        return 1
     combined_message = MIMEMultipart()
     for msg in sub_messages:
         combined_message.attach(msg)
