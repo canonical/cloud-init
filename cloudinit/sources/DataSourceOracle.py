@@ -15,7 +15,7 @@ Notes:
 
 import base64
 from collections import namedtuple
-from contextlib import suppress
+from contextlib import suppress as noop
 
 from cloudinit import log as logging
 from cloudinit import net, sources, util
@@ -105,11 +105,11 @@ class DataSourceOracle(sources.DataSource):
         sources.NetworkConfigSource.system_cfg,
     )
 
-    _network_config = sources.UNSET  # type: dict
+    _network_config = sources.UNSET
 
     def __init__(self, sys_cfg, *args, **kwargs):
         super(DataSourceOracle, self).__init__(sys_cfg, *args, **kwargs)
-        self._vnics_data = sources.UNSET  # type: dict
+        self._vnics_data = sources.UNSET
 
         self.ds_cfg = util.mergemanydict([
             util.get_cfg_by_path(sys_cfg, ['datasource', self.dsname], {}),
@@ -127,9 +127,11 @@ class DataSourceOracle(sources.DataSource):
 
         # network may be configured if iscsi root.  If that is the case
         # then read_initramfs_config will return non-None.
-        fetch_vnics_data = self.ds_cfg.get('configure_secondary_nics', False)
-        # suppress() in this context is just a no-op context manager
-        network_context = suppress() if _is_iscsi_root(
+        fetch_vnics_data = self.ds_cfg.get(
+            'configure_secondary_nics',
+            BUILTIN_DS_CONFIG["configure_secondary_nics"]
+        )
+        network_context = noop() if _is_iscsi_root(
         ) else dhcp.EphemeralDHCPv4(net.find_fallback_nic())
         with network_context:
             fetched_metadata = read_opc_metadata(
@@ -184,17 +186,22 @@ class DataSourceOracle(sources.DataSource):
                 # this is now v2
                 self._network_config = self.distro.generate_fallback_config()
 
-            if self.ds_cfg.get('configure_secondary_nics'):
+            if self.ds_cfg.get(
+                'configure_secondary_nics',
+                BUILTIN_DS_CONFIG["configure_secondary_nics"]
+            ):
                 if self._vnics_data == sources.UNSET:
-                    LOG.warning("Network config is UNSET but should not be")
-                    return None
-                try:
-                    # Mutate self._network_config to include secondary VNICs
-                    self._add_network_config_from_opc_imds()
-                except Exception:
-                    util.logexc(
-                        LOG,
-                        "Failed to parse secondary network configuration!")
+                    LOG.warning(
+                        "Secondary NIC data is UNSET but should not be")
+                else:
+                    try:
+                        # Mutate self._network_config to include secondary
+                        # VNICs
+                        self._add_network_config_from_opc_imds()
+                    except Exception:
+                        util.logexc(
+                            LOG,
+                            "Failed to parse secondary network configuration!")
 
             # we need to verify that the nic selected is not a netfail over
             # device and, if it is a netfail master, then we need to avoid
@@ -204,13 +211,13 @@ class DataSourceOracle(sources.DataSource):
         return self._network_config
 
     def _add_network_config_from_opc_imds(self):
-        """Generate secondary NIC config from IMDS and merge it
+        """Generate secondary NIC config from IMDS and merge it.
 
         The primary NIC configuration should not be modified based on the IMDS
         values, as it should continue to be configured for DHCP.  As such, this
-        takes an existing network_config dict which is expected to have the
+        uses the instance's network config dict which is expected to have the
         primary NIC configuration already present.
-        It will mutate the given dict to include the secondary VNICs.
+        It will mutate the network config to include the secondary VNICs.
 
         :raises:
             Exceptions are not handled within this function.  Likely
@@ -288,29 +295,28 @@ def read_opc_metadata(*, fetch_vnics_data: bool = False):
             `fetch_vnics_data` is True, else None
 
     """
-    metadata_version = 2
     retries = 1
-    try:
-        instance_data = readurl(
-            METADATA_PATTERN.format(
-                version=metadata_version, path="instance"),
+
+    def _fetch(metadata_version: int, path: str) -> dict:
+        headers = {
+            "Authorization": "Bearer Oracle"} if metadata_version > 1 else None
+        return readurl(
+            url=METADATA_PATTERN.format(version=metadata_version, path=path),
+            headers=headers,
             retries=retries,
         )._response.json()
+
+    metadata_version = 2
+    try:
+        instance_data = _fetch(metadata_version, path="instance")
     except UrlError:
         metadata_version = 1
-        instance_data = readurl(
-            METADATA_PATTERN.format(
-                version=metadata_version, path="instance"),
-            retries=retries,
-        )._response.json()
+        instance_data = _fetch(metadata_version, path="instance")
+
     vnics_data = None
     if fetch_vnics_data:
         try:
-            vnics_data = readurl(
-                METADATA_PATTERN.format(
-                    version=metadata_version, path="vnics"),
-                retries=retries
-            )._response.json()
+            vnics_data = _fetch(metadata_version, path="vnics")
         except UrlError:
             util.logexc(LOG,
                         "Failed to fetch secondary network configuration!")

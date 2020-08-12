@@ -3,7 +3,6 @@
 import base64
 import copy
 import json
-import logging
 from contextlib import ExitStack
 from unittest import mock
 
@@ -89,8 +88,13 @@ OPC_V2_METADATA = """\
 OPC_V1_METADATA = OPC_V2_METADATA.replace("ocid1.instance", "ocid2.instance")
 
 
+@pytest.fixture
+def metadata_version():
+    return 2
+
+
 @pytest.yield_fixture
-def oracle_ds(request, fixture_utils, paths):
+def oracle_ds(request, fixture_utils, paths, metadata_version):
     """
     Return an instantiated DataSourceOracle.
 
@@ -106,7 +110,7 @@ def oracle_ds(request, fixture_utils, paths):
     sys_cfg = fixture_utils.closest_marker_first_arg_or(
         request, "ds_sys_cfg", mock.MagicMock()
     )
-    metadata = OpcMetadata(2, json.loads(OPC_V2_METADATA), None)
+    metadata = OpcMetadata(metadata_version, json.loads(OPC_V2_METADATA), None)
     with mock.patch(DS_PATH + "._read_system_uuid", return_value="someuuid"):
         with mock.patch(DS_PATH + "._is_platform_viable", return_value=True):
             with mock.patch(DS_PATH + "._is_iscsi_root", return_value=True):
@@ -130,6 +134,12 @@ class TestDataSourceOracle:
     def test_platform_info_after_fetch(self, oracle_ds):
         oracle_ds._get_data()
         assert 'metadata (http://169.254.169.254/opc/v2/)' == \
+            oracle_ds.subplatform
+
+    @pytest.mark.parametrize('metadata_version', [1])
+    def test_v1_platform_info_after_fetch(self, oracle_ds):
+        oracle_ds._get_data()
+        assert 'metadata (http://169.254.169.254/opc/v1/)' == \
             oracle_ds.subplatform
 
     def test_secondary_nics_disabled_by_default(self, oracle_ds):
@@ -398,82 +408,102 @@ class TestNetworkConfigFiltersNetFailover(test_helpers.CiTestCase):
         self.assertEqual(expected_cfg, netcfg)
 
 
+def _mock_v2_urls(httpretty):
+    def instance_callback(request, uri, response_headers):
+        assert request.headers.get("Authorization") == "Bearer Oracle"
+        return [200, {}, OPC_V2_METADATA]
+
+    def vnics_callback(request, uri, response_headers):
+        assert request.headers.get("Authorization") == "Bearer Oracle"
+        return [200, {}, OPC_BM_SECONDARY_VNIC_RESPONSE]
+
+    httpretty.register_uri(
+        httpretty.GET,
+        "http://169.254.169.254/opc/v2/instance/",
+        body=instance_callback
+    )
+    httpretty.register_uri(
+        httpretty.GET,
+        "http://169.254.169.254/opc/v2/vnics/",
+        body=vnics_callback
+    )
+
+
+def _mock_no_v2_urls(httpretty):
+    httpretty.register_uri(
+        httpretty.GET,
+        "http://169.254.169.254/opc/v2/instance/",
+        status=404,
+    )
+    httpretty.register_uri(
+        httpretty.GET,
+        "http://169.254.169.254/opc/v1/instance/",
+        body=OPC_V1_METADATA
+    )
+    httpretty.register_uri(
+        httpretty.GET,
+        "http://169.254.169.254/opc/v1/vnics/",
+        body=OPC_BM_SECONDARY_VNIC_RESPONSE
+    )
+
+
 class TestReadOpcMetadata:
     # See https://docs.pytest.org/en/stable/example
     # /parametrize.html#parametrizing-conditional-raising
     does_not_raise = ExitStack
 
-    @pytest.fixture(autouse=True)
-    def configure_v1_metadata_in_httpretty(self, httpretty):
-        """Configure HTTPretty with the various OPC metadata endpoints."""
-        httpretty.register_uri(
-            httpretty.GET,
-            "http://169.254.169.254/opc/v1/instance/",
-            OPC_V1_METADATA,
-        )
-
-    @pytest.fixture()
-    def with_v2(self, httpretty):
-        httpretty.register_uri(
-            httpretty.GET,
-            "http://169.254.169.254/opc/v2/instance/",
-            OPC_V2_METADATA,
-        )
-
-    @pytest.fixture()
-    def no_v2(self, httpretty):
-        httpretty.register_uri(
-            httpretty.GET,
-            "http://169.254.169.254/opc/v2/instance/",
-            status=404,
-        )
-
-    def test_json_decoded_value_returned(self, with_v2):
-        # read_opc_metadata should JSON decode the response and return it
-        expected = json.loads(OPC_V2_METADATA)
-        assert expected == oracle.read_opc_metadata().instance_data
-
     @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
-    def test_v1_fallback(self, no_v2, httpretty):
-        expected = json.loads(OPC_V1_METADATA)
-        oracle.read_opc_metadata()
+    @pytest.mark.parametrize(
+        'version,setup_urls,instance_data,fetch_vnics,vnics_data', [
+            (2, _mock_v2_urls, json.loads(OPC_V2_METADATA), True,
+             json.loads(OPC_BM_SECONDARY_VNIC_RESPONSE)),
+            (2, _mock_v2_urls, json.loads(OPC_V2_METADATA), False, None),
+            (1, _mock_no_v2_urls, json.loads(OPC_V1_METADATA), True,
+             json.loads(OPC_BM_SECONDARY_VNIC_RESPONSE)),
+            (1, _mock_no_v2_urls, json.loads(OPC_V1_METADATA), False, None),
+        ]
+    )
+    def test_metadata_returned(
+        self, version, setup_urls, instance_data,
+        fetch_vnics, vnics_data, httpretty
+    ):
+        setup_urls(httpretty)
+        metadata = oracle.read_opc_metadata(fetch_vnics_data=fetch_vnics)
 
-        assert expected == oracle.read_opc_metadata().instance_data
+        assert version == metadata.version
+        assert instance_data == metadata.instance_data
+        assert vnics_data == metadata.vnics_data
 
     # No need to actually wait between retries in the tests
     @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
     @pytest.mark.parametrize(
-        "failure_count,expectation",
+        "v2_failure_count,v1_failure_count,expected_body,expectation",
         [
-            (1, does_not_raise()),
-            (2, does_not_raise()),
-            (3, does_not_raise()),
-            (4, pytest.raises(UrlError)),
-        ],
+            (1, 0, json.loads(OPC_V2_METADATA), does_not_raise()),
+            (2, 0, json.loads(OPC_V1_METADATA), does_not_raise()),
+            (2, 1, json.loads(OPC_V1_METADATA), does_not_raise()),
+            (2, 2, None, pytest.raises(UrlError)),
+        ]
     )
-    def test_retries(self, expectation, failure_count, httpretty):
-        if failure_count < 2:
-            v2_responses = [httpretty.Response("", status=404)] * failure_count
-            v2_responses.append(httpretty.Response(OPC_V2_METADATA))
-            expected = json.loads(OPC_V2_METADATA)
-        else:
-            v2_responses = [httpretty.Response("", status=404)] * 2
-            v1_responses = [httpretty.Response(
-                "", status=404)] * (failure_count - 2)
-            v1_responses.append(httpretty.Response(OPC_V1_METADATA))
-            httpretty.register_uri(
-                httpretty.GET,
-                "http://169.254.169.254/opc/v1/instance/",
-                responses=v1_responses,
-            )
-            expected = json.loads(OPC_V1_METADATA)
+    def test_retries(self, v2_failure_count, v1_failure_count,
+                     expected_body, expectation, httpretty):
+        v2_responses = [httpretty.Response("", status=404)] * v2_failure_count
+        v2_responses.append(httpretty.Response(OPC_V2_METADATA))
+        v1_responses = [httpretty.Response("", status=404)] * v1_failure_count
+        v1_responses.append(httpretty.Response(OPC_V1_METADATA))
+
+        httpretty.register_uri(
+            httpretty.GET,
+            "http://169.254.169.254/opc/v1/instance/",
+            responses=v1_responses,
+        )
         httpretty.register_uri(
             httpretty.GET,
             "http://169.254.169.254/opc/v2/instance/",
             responses=v2_responses,
         )
         with expectation:
-            assert expected == oracle.read_opc_metadata().instance_data
+            assert expected_body == oracle.read_opc_metadata().instance_data
 
 
 class TestCommon_GetDataBehaviour:
