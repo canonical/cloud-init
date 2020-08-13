@@ -790,10 +790,12 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
-        address_ephemeral_resize(is_new_instance=is_new_instance,
-                                 preserve_ntfs=self.ds_cfg.get(
-                                     DS_CFG_KEY_PRESERVE_NTFS, False))
-        push_log_to_kvp()
+        try:
+            address_ephemeral_resize(is_new_instance=is_new_instance,
+                                     preserve_ntfs=self.ds_cfg.get(
+                                         DS_CFG_KEY_PRESERVE_NTFS, False))
+        finally:
+            push_log_to_kvp()
         return
 
     @property
