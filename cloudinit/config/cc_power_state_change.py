@@ -33,6 +33,10 @@ the system should shut down. The command to be run should be specified in the
 ``condition`` key is omitted or the command specified by the ``condition``
 key returns 0.
 
+.. note::
+    With Alpine Linux any message value specified is ignored as Alpine's halt,
+    poweroff, and reboot commands do not support broadcasting a message.
+
 **Internal name:** ``cc_power_state_change``
 
 **Module frequency:** per instance
@@ -114,7 +118,7 @@ def check_condition(cond, log=None):
 
 def handle(_name, cfg, _cloud, log, _args):
     try:
-        (args, timeout, condition) = load_power_state(cfg)
+        (args, timeout, condition) = load_power_state(cfg, _cloud.distro.name)
         if args is None:
             log.debug("no power_state provided. doing nothing")
             return
@@ -141,7 +145,7 @@ def handle(_name, cfg, _cloud, log, _args):
                  condition, execmd, [args, devnull_fp])
 
 
-def load_power_state(cfg):
+def load_power_state(cfg, distro_name):
     # returns a tuple of shutdown_command, timeout
     # shutdown_command is None if no config found
     pstate = cfg.get('power_state')
@@ -152,7 +156,10 @@ def load_power_state(cfg):
     if not isinstance(pstate, dict):
         raise TypeError("power_state is not a dict.")
 
-    opt_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
+    if distro_name == 'alpine':
+        opt_map = {'halt': '', 'poweroff': '', 'reboot': ''}
+    else:
+        opt_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
 
     mode = pstate.get("mode")
     if mode not in opt_map:
@@ -161,20 +168,39 @@ def load_power_state(cfg):
             (','.join(opt_map.keys()), mode))
 
     delay = pstate.get("delay", "now")
-    # convert integer 30 or string '30' to '+30'
-    try:
-        delay = "+%s" % int(delay)
-    except ValueError:
-        pass
+    if distro_name == 'alpine':
+        # Convert integer 30 or string '30' to '1800' (seconds) as Alpine's
+        # halt/poweroff/reboot commands take seconds as param with no "+"
+        try:
+            delay = "%s" % int( int(delay) * 60)
+        except ValueError:
+            pass
 
-    if delay != "now" and not re.match(r"\+[0-9]+", delay):
-        raise TypeError(
-            "power_state[delay] must be 'now' or '+m' (minutes)."
-            " found '%s'." % delay)
+        if delay != "now" and not re.match(r"[0-9]", delay):
+            raise TypeError(
+                "power_state[delay] must be 'now' or '+m' (minutes)."
+                " found '%s'." % delay)
 
-    args = ["shutdown", opt_map[mode], delay]
-    if pstate.get("message"):
-        args.append(pstate.get("message"))
+        if delay == "now":
+            # Alpine's halt/poweroff/reboot don't understand "now"
+            delay = "0"
+
+        args = [mode, "-d", delay]
+    else:
+        # convert integer 30 or string '30' to '+30'
+        try:
+            delay = "+%s" % int(delay)
+        except ValueError:
+            pass
+
+        if delay != "now" and not re.match(r"\+[0-9]+", delay):
+            raise TypeError(
+                "power_state[delay] must be 'now' or '+m' (minutes)."
+                " found '%s'." % delay)
+
+        args = ["shutdown", opt_map[mode], delay]
+        if pstate.get("message"):
+            args.append(pstate.get("message"))
 
     try:
         timeout = float(pstate.get('timeout', 30.0))
