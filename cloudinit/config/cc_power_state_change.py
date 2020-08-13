@@ -145,7 +145,7 @@ def handle(_name, cfg, _cloud, log, _args):
                  condition, execmd, [args, devnull_fp])
 
 
-def load_power_state(cfg, distro_name):
+def load_power_state(cfg, distro_name=None):
     # returns a tuple of shutdown_command, timeout
     # shutdown_command is None if no config found
     pstate = cfg.get('power_state')

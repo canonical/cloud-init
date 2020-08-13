@@ -206,7 +206,8 @@ class TestConfig(TestCase):
         main_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/main\n'
         community_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
                           '/community\n')
-        testing_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/testing\n'
+        testing_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
+                        '/testing\n')
         expected = (EXPECTED_COMMENT_HEADER + main_repo + community_repo +
                     testing_repo + '\n')
         self.assertEqual(util.load_file(REPO_FILE), expected)
@@ -236,7 +237,8 @@ class TestConfig(TestCase):
         main_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/main\n'
         community_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
                           '/community\n')
-        testing_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/testing\n'
+        testing_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
+                        '/testing\n')
         local_repo = local_repo_url + '/' + alpine_version + '\n'
         expected = (EXPECTED_COMMENT_HEADER + main_repo + community_repo +
                     EXPECTED_ALPINE_312_TESTING_COMMENT + testing_repo +
@@ -268,7 +270,8 @@ class TestConfig(TestCase):
         main_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/main\n'
         community_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
                           '/community\n')
-        testing_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/testing\n'
+        testing_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
+                        '/testing\n')
         local_repo = local_repo_url + '/' + alpine_version + '\n'
         expected = (EXPECTED_COMMENT_HEADER + main_repo + community_repo +
                     testing_repo + EXPECTED_LOCAL_REPO_COMMENT_HEADER +

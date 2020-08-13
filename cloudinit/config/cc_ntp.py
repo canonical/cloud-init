@@ -393,7 +393,7 @@ def generate_server_names(distro):
     return names
 
 
-def write_ntp_config_template(distro_name, service_name, servers=None,
+def write_ntp_config_template(distro_name, service_name=None, servers=None,
                               pools=None, path=None, template_fn=None,
                               template=None):
     """Render a ntp client configuration for the specified client.

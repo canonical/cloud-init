@@ -88,7 +88,7 @@ def add_ca_certs(certs):
         util.write_file(CA_CERT_CONFIG, out, omode="wb")
 
 
-def remove_default_ca_certs(distro_name):
+def remove_default_ca_certs(distro_name=None):
     """
     Removes all default trusted CA certificates from the system. To actually
     apply the change you must also call L{update_ca_certs}.
