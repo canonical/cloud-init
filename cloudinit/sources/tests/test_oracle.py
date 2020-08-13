@@ -481,9 +481,11 @@ class TestReadOpcMetadata:
         "v2_failure_count,v1_failure_count,expected_body,expectation",
         [
             (1, 0, json.loads(OPC_V2_METADATA), does_not_raise()),
-            (2, 0, json.loads(OPC_V1_METADATA), does_not_raise()),
-            (2, 1, json.loads(OPC_V1_METADATA), does_not_raise()),
-            (2, 2, None, pytest.raises(UrlError)),
+            (2, 0, json.loads(OPC_V2_METADATA), does_not_raise()),
+            (3, 0, json.loads(OPC_V1_METADATA), does_not_raise()),
+            (3, 1, json.loads(OPC_V1_METADATA), does_not_raise()),
+            (3, 2, json.loads(OPC_V1_METADATA), does_not_raise()),
+            (3, 3, None, pytest.raises(UrlError)),
         ]
     )
     def test_retries(self, v2_failure_count, v1_failure_count,
