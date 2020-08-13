@@ -1,23 +1,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import argparse
+import base64
 import copy
 import json
-import os
-import uuid
-from textwrap import dedent
+from contextlib import ExitStack
 from unittest import mock
 
-import httpretty
+import pytest
 
-from cloudinit import helpers
-from cloudinit.sources import BrokenMetadata
 from cloudinit.sources import DataSourceOracle as oracle
 from cloudinit.sources import NetworkConfigSource
 from cloudinit.tests import helpers as test_helpers
+from cloudinit.url_helper import UrlError
 
 DS_PATH = "cloudinit.sources.DataSourceOracle"
-MD_VER = "2013-10-17"
 
 # `curl -L http://169.254.169.254/opc/v1/vnics/` on a Oracle Bare Metal Machine
 # with a secondary VNIC attached (vnicId truncated for Python line length)
@@ -60,330 +56,80 @@ OPC_VM_SECONDARY_VNIC_RESPONSE = """\
 } ]"""
 
 
-class TestDataSourceOracle(test_helpers.CiTestCase):
-    """Test datasource DataSourceOracle."""
+# Fetched with `curl http://169.254.169.254/opc/v1/instance/` (and then
+# truncated for line length)
+OPC_V1_METADATA = """\
+{
+  "availabilityDomain" : "qIZq:PHX-AD-1",
+  "faultDomain" : "FAULT-DOMAIN-2",
+  "compartmentId" : "ocid1.tenancy.oc1..aaaaaaaao7f7cccogqrg5emjxkxmTRUNCATED",
+  "displayName" : "instance-20200320-1400",
+  "hostname" : "instance-20200320-1400",
+  "id" : "ocid1.instance.oc1.phx.anyhqljtniwq6syc3nex55sep5w34qbwmw6TRUNCATED",
+  "image" : "ocid1.image.oc1.phx.aaaaaaaagmkn4gdhvvx24kiahh2b2qchsicTRUNCATED",
+  "metadata" : {
+    "ssh_authorized_keys" : "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ truncated",
+    "user_data" : "IyEvYmluL3NoCnRvdWNoIC90bXAvZm9v"
+  },
+  "region" : "phx",
+  "canonicalRegionName" : "us-phoenix-1",
+  "ociAdName" : "phx-ad-3",
+  "shape" : "VM.Standard2.1",
+  "state" : "Running",
+  "timeCreated" : 1584727285318,
+  "agentConfig" : {
+    "monitoringDisabled" : true,
+    "managementDisabled" : true
+  }
+}"""
 
-    with_logs = True
 
-    ds_class = oracle.DataSourceOracle
+@pytest.yield_fixture
+def oracle_ds(request, fixture_utils, paths):
+    """
+    Return an instantiated DataSourceOracle.
 
-    my_uuid = str(uuid.uuid4())
-    my_md = {"uuid": "ocid1.instance.oc1.phx.abyhqlj",
-             "name": "ci-vm1", "availability_zone": "phx-ad-3",
-             "hostname": "ci-vm1hostname",
-             "launch_index": 0, "files": [],
-             "public_keys": {"0": "ssh-rsa AAAAB3N...== user@host"},
-             "meta": {}}
+    This also performs the mocking required for the default test case:
+        * ``_read_system_uuid`` returns something,
+        * ``_is_platform_viable`` returns True,
+        * ``_is_iscsi_root`` returns True (the simpler code path),
+        * ``read_opc_metadata`` returns ``OPC_V1_METADATA``
 
-    def _patch_instance(self, inst, patches):
-        """Patch an instance of a class 'inst'.
-        for each name, kwargs in patches:
-             inst.name = mock.Mock(**kwargs)
-        returns a namespace object that has
-             namespace.name = mock.Mock(**kwargs)
-        Do not bother with cleanup as instance is assumed transient."""
-        mocks = argparse.Namespace()
-        for name, kwargs in patches.items():
-            imock = mock.Mock(name=name, spec=getattr(inst, name), **kwargs)
-            setattr(mocks, name, imock)
-            setattr(inst, name, imock)
-        return mocks
+    (This uses the paths fixture for the required helpers.Paths object, and the
+    fixture_utils fixture for fetching markers.)
+    """
+    sys_cfg = fixture_utils.closest_marker_first_arg_or(
+        request, "ds_sys_cfg", mock.MagicMock()
+    )
+    with mock.patch(DS_PATH + "._read_system_uuid", return_value="someuuid"):
+        with mock.patch(DS_PATH + "._is_platform_viable", return_value=True):
+            with mock.patch(DS_PATH + "._is_iscsi_root", return_value=True):
+                with mock.patch(
+                    DS_PATH + ".read_opc_metadata",
+                    return_value=json.loads(OPC_V1_METADATA),
+                ):
+                    yield oracle.DataSourceOracle(
+                        sys_cfg=sys_cfg, distro=mock.Mock(), paths=paths,
+                    )
 
-    def _get_ds(self, sys_cfg=None, distro=None, paths=None, ud_proc=None,
-                patches=None):
-        if sys_cfg is None:
-            sys_cfg = {}
-        if patches is None:
-            patches = {}
-        if paths is None:
-            tmpd = self.tmp_dir()
-            dirs = {'cloud_dir': self.tmp_path('cloud_dir', tmpd),
-                    'run_dir': self.tmp_path('run_dir')}
-            for d in dirs.values():
-                os.mkdir(d)
-            paths = helpers.Paths(dirs)
 
-        ds = self.ds_class(sys_cfg=sys_cfg, distro=distro,
-                           paths=paths, ud_proc=ud_proc)
-
-        return ds, self._patch_instance(ds, patches)
-
-    def test_platform_not_viable_returns_false(self):
-        ds, mocks = self._get_ds(
-            patches={'_is_platform_viable': {'return_value': False}})
-        self.assertFalse(ds._get_data())
-        mocks._is_platform_viable.assert_called_once_with()
-
-    def test_platform_info(self):
-        """Return platform-related information for Oracle Datasource."""
-        ds, _mocks = self._get_ds()
-        self.assertEqual('oracle', ds.cloud_name)
-        self.assertEqual('oracle', ds.platform_type)
-        self.assertEqual(
-            'metadata (http://169.254.169.254/openstack/)', ds.subplatform)
-
-    def test_sys_cfg_can_enable_configure_secondary_nics(self):
-        # Confirm that behaviour is toggled by sys_cfg
-        ds, _mocks = self._get_ds()
-        self.assertFalse(ds.ds_cfg['configure_secondary_nics'])
-
-        sys_cfg = {
-            'datasource': {'Oracle': {'configure_secondary_nics': True}}}
-        ds, _mocks = self._get_ds(sys_cfg=sys_cfg)
-        self.assertTrue(ds.ds_cfg['configure_secondary_nics'])
-
-    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_without_userdata(self, m_is_iscsi_root):
-        """If no user-data is provided, it should not be in return dict."""
-        ds, mocks = self._get_ds(patches={
-            '_is_platform_viable': {'return_value': True},
-            'crawl_metadata': {
-                'return_value': {
-                    MD_VER: {'system_uuid': self.my_uuid,
-                             'meta_data': self.my_md}}}})
-        self.assertTrue(ds._get_data())
-        mocks._is_platform_viable.assert_called_once_with()
-        mocks.crawl_metadata.assert_called_once_with()
-        self.assertEqual(self.my_uuid, ds.system_uuid)
-        self.assertEqual(self.my_md['availability_zone'], ds.availability_zone)
-        self.assertIn(self.my_md["public_keys"]["0"], ds.get_public_ssh_keys())
-        self.assertEqual(self.my_md['uuid'], ds.get_instance_id())
-        self.assertIsNone(ds.userdata_raw)
-
-    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_with_vendordata(self, m_is_iscsi_root):
-        """Test with vendor data."""
-        vd = {'cloud-init': '#cloud-config\nkey: value'}
-        ds, mocks = self._get_ds(patches={
-            '_is_platform_viable': {'return_value': True},
-            'crawl_metadata': {
-                'return_value': {
-                    MD_VER: {'system_uuid': self.my_uuid,
-                             'meta_data': self.my_md,
-                             'vendor_data': vd}}}})
-        self.assertTrue(ds._get_data())
-        mocks._is_platform_viable.assert_called_once_with()
-        mocks.crawl_metadata.assert_called_once_with()
-        self.assertEqual(vd, ds.vendordata_pure)
-        self.assertEqual(vd['cloud-init'], ds.vendordata_raw)
-
-    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_with_userdata(self, m_is_iscsi_root):
-        """Ensure user-data is populated if present and is binary."""
-        my_userdata = b'abcdefg'
-        ds, mocks = self._get_ds(patches={
-            '_is_platform_viable': {'return_value': True},
-            'crawl_metadata': {
-                'return_value': {
-                    MD_VER: {'system_uuid': self.my_uuid,
-                             'meta_data': self.my_md,
-                             'user_data': my_userdata}}}})
-        self.assertTrue(ds._get_data())
-        mocks._is_platform_viable.assert_called_once_with()
-        mocks.crawl_metadata.assert_called_once_with()
-        self.assertEqual(self.my_uuid, ds.system_uuid)
-        self.assertIn(self.my_md["public_keys"]["0"], ds.get_public_ssh_keys())
-        self.assertEqual(self.my_md['uuid'], ds.get_instance_id())
-        self.assertEqual(my_userdata, ds.userdata_raw)
-
-    @mock.patch(DS_PATH + ".get_interfaces_by_mac", mock.Mock(return_value={}))
-    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds",
-                side_effect=lambda network_config: network_config)
-    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
-    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_network_cmdline(self, m_is_iscsi_root, m_initramfs_config,
-                             _m_add_network_config_from_opc_imds):
-        """network_config should read kernel cmdline."""
-        distro = mock.MagicMock()
-        ds, _ = self._get_ds(distro=distro, patches={
-            '_is_platform_viable': {'return_value': True},
-            'crawl_metadata': {
-                'return_value': {
-                    MD_VER: {'system_uuid': self.my_uuid,
-                             'meta_data': self.my_md}}}})
-        ncfg = {'version': 1, 'config': [{'a': 'b'}]}
-        m_initramfs_config.return_value = ncfg
-        self.assertTrue(ds._get_data())
-        self.assertEqual(ncfg, ds.network_config)
-        self.assertEqual([mock.call()], m_initramfs_config.call_args_list)
-        self.assertFalse(distro.generate_fallback_config.called)
-
-    @mock.patch(DS_PATH + ".get_interfaces_by_mac", mock.Mock(return_value={}))
-    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds",
-                side_effect=lambda network_config: network_config)
-    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
-    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_network_fallback(self, m_is_iscsi_root, m_initramfs_config,
-                              _m_add_network_config_from_opc_imds):
-        """test that fallback network is generated if no kernel cmdline."""
-        distro = mock.MagicMock()
-        ds, _ = self._get_ds(distro=distro, patches={
-            '_is_platform_viable': {'return_value': True},
-            'crawl_metadata': {
-                'return_value': {
-                    MD_VER: {'system_uuid': self.my_uuid,
-                             'meta_data': self.my_md}}}})
-        ncfg = {'version': 1, 'config': [{'a': 'b'}]}
-        m_initramfs_config.return_value = None
-        self.assertTrue(ds._get_data())
-        ncfg = {'version': 1, 'config': [{'distro1': 'value'}]}
-        distro.generate_fallback_config.return_value = ncfg
-        self.assertEqual(ncfg, ds.network_config)
-        self.assertEqual([mock.call()], m_initramfs_config.call_args_list)
-        distro.generate_fallback_config.assert_called_once_with()
-
-        # test that the result got cached, and the methods not re-called.
-        self.assertEqual(ncfg, ds.network_config)
-        self.assertEqual(1, m_initramfs_config.call_count)
-
-    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds")
-    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config",
-                return_value={'some': 'config'})
-    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_secondary_nics_added_to_network_config_if_enabled(
-            self, _m_is_iscsi_root, _m_initramfs_config,
-            m_add_network_config_from_opc_imds):
-
-        needle = object()
-
-        def network_config_side_effect(network_config):
-            network_config['secondary_added'] = needle
-
-        m_add_network_config_from_opc_imds.side_effect = (
-            network_config_side_effect)
-
-        distro = mock.MagicMock()
-        ds, _ = self._get_ds(distro=distro, patches={
-            '_is_platform_viable': {'return_value': True},
-            'crawl_metadata': {
-                'return_value': {
-                    MD_VER: {'system_uuid': self.my_uuid,
-                             'meta_data': self.my_md}}}})
-        ds.ds_cfg['configure_secondary_nics'] = True
-        self.assertEqual(needle, ds.network_config['secondary_added'])
-
-    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds")
-    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config",
-                return_value={'some': 'config'})
-    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_secondary_nics_not_added_to_network_config_by_default(
-            self, _m_is_iscsi_root, _m_initramfs_config,
-            m_add_network_config_from_opc_imds):
-
-        def network_config_side_effect(network_config):
-            network_config['secondary_added'] = True
-
-        m_add_network_config_from_opc_imds.side_effect = (
-            network_config_side_effect)
-
-        distro = mock.MagicMock()
-        ds, _ = self._get_ds(distro=distro, patches={
-            '_is_platform_viable': {'return_value': True},
-            'crawl_metadata': {
-                'return_value': {
-                    MD_VER: {'system_uuid': self.my_uuid,
-                             'meta_data': self.my_md}}}})
-        self.assertNotIn('secondary_added', ds.network_config)
-
-    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds")
-    @mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
-    @mock.patch(DS_PATH + "._is_iscsi_root", return_value=True)
-    def test_secondary_nic_failure_isnt_blocking(
-            self, _m_is_iscsi_root, m_initramfs_config,
-            m_add_network_config_from_opc_imds):
-
-        m_add_network_config_from_opc_imds.side_effect = Exception()
-
-        distro = mock.MagicMock()
-        ds, _ = self._get_ds(distro=distro, patches={
-            '_is_platform_viable': {'return_value': True},
-            'crawl_metadata': {
-                'return_value': {
-                    MD_VER: {'system_uuid': self.my_uuid,
-                             'meta_data': self.my_md}}}})
-        ds.ds_cfg['configure_secondary_nics'] = True
-        self.assertEqual(ds.network_config, m_initramfs_config.return_value)
-        self.assertIn('Failed to fetch secondary network configuration',
-                      self.logs.getvalue())
-
-    def test_ds_network_cfg_preferred_over_initramfs(self):
-        """Ensure that DS net config is preferred over initramfs config"""
-        network_config_sources = oracle.DataSourceOracle.network_config_sources
-        self.assertLess(
-            network_config_sources.index(NetworkConfigSource.ds),
-            network_config_sources.index(NetworkConfigSource.initramfs)
+class TestDataSourceOracle:
+    def test_platform_info(self, oracle_ds):
+        assert "oracle" == oracle_ds.cloud_name
+        assert "oracle" == oracle_ds.platform_type
+        assert (
+            "metadata (http://169.254.169.254/opc/v1/)"
+            == oracle_ds.subplatform
         )
 
+    def test_secondary_nics_disabled_by_default(self, oracle_ds):
+        assert not oracle_ds.ds_cfg["configure_secondary_nics"]
 
-@mock.patch(DS_PATH + "._read_system_uuid", return_value=str(uuid.uuid4()))
-class TestReadMetaData(test_helpers.HttprettyTestCase):
-    """Test the read_metadata which interacts with http metadata service."""
-
-    mdurl = oracle.METADATA_ENDPOINT
-    my_md = {"uuid": "ocid1.instance.oc1.phx.abyhqlj",
-             "name": "ci-vm1", "availability_zone": "phx-ad-3",
-             "hostname": "ci-vm1hostname",
-             "launch_index": 0, "files": [],
-             "public_keys": {"0": "ssh-rsa AAAAB3N...== user@host"},
-             "meta": {}}
-
-    def populate_md(self, data):
-        """call httppretty.register_url for each item dict 'data',
-           including valid indexes. Text values converted to bytes."""
-        httpretty.register_uri(
-            httpretty.GET, self.mdurl + MD_VER + "/",
-            '\n'.join(data.keys()).encode('utf-8'))
-        for k, v in data.items():
-            httpretty.register_uri(
-                httpretty.GET, self.mdurl + MD_VER + "/" + k,
-                v if not isinstance(v, str) else v.encode('utf-8'))
-
-    def test_broken_no_sys_uuid(self, m_read_system_uuid):
-        """Datasource requires ability to read system_uuid and true return."""
-        m_read_system_uuid.return_value = None
-        self.assertRaises(BrokenMetadata, oracle.read_metadata)
-
-    def test_broken_no_metadata_json(self, m_read_system_uuid):
-        """Datasource requires meta_data.json."""
-        httpretty.register_uri(
-            httpretty.GET, self.mdurl + MD_VER + "/",
-            '\n'.join(['user_data']).encode('utf-8'))
-        with self.assertRaises(BrokenMetadata) as cm:
-            oracle.read_metadata()
-        self.assertIn("Required field 'meta_data.json' missing",
-                      str(cm.exception))
-
-    def test_with_userdata(self, m_read_system_uuid):
-        data = {'user_data': b'#!/bin/sh\necho hi world\n',
-                'meta_data.json': json.dumps(self.my_md)}
-        self.populate_md(data)
-        result = oracle.read_metadata()[MD_VER]
-        self.assertEqual(data['user_data'], result['user_data'])
-        self.assertEqual(self.my_md, result['meta_data'])
-
-    def test_without_userdata(self, m_read_system_uuid):
-        data = {'meta_data.json': json.dumps(self.my_md)}
-        self.populate_md(data)
-        result = oracle.read_metadata()[MD_VER]
-        self.assertNotIn('user_data', result)
-        self.assertEqual(self.my_md, result['meta_data'])
-
-    def test_unknown_fields_included(self, m_read_system_uuid):
-        """Unknown fields listed in index should be included.
-        And those ending in .json should be decoded."""
-        some_data = {'key1': 'data1', 'subk1': {'subd1': 'subv'}}
-        some_vendor_data = {'cloud-init': 'foo'}
-        data = {'meta_data.json': json.dumps(self.my_md),
-                'some_data.json': json.dumps(some_data),
-                'vendor_data.json': json.dumps(some_vendor_data),
-                'other_blob': b'this is blob'}
-        self.populate_md(data)
-        result = oracle.read_metadata()[MD_VER]
-        self.assertNotIn('user_data', result)
-        self.assertEqual(self.my_md, result['meta_data'])
-        self.assertEqual(some_data, result['some_data'])
-        self.assertEqual(some_vendor_data, result['vendor_data'])
-        self.assertEqual(data['other_blob'], result['other_blob'])
+    @pytest.mark.ds_sys_cfg(
+        {"datasource": {"Oracle": {"configure_secondary_nics": True}}}
+    )
+    def test_sys_cfg_can_enable_configure_secondary_nics(self, oracle_ds):
+        assert oracle_ds.ds_cfg["configure_secondary_nics"]
 
 
 class TestIsPlatformViable(test_helpers.CiTestCase):
@@ -405,73 +151,6 @@ class TestIsPlatformViable(test_helpers.CiTestCase):
         """System with unnown chassis tag is not viable."""
         self.assertFalse(oracle._is_platform_viable())
         m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
-
-
-class TestLoadIndex(test_helpers.CiTestCase):
-    """_load_index handles parsing of an index into a proper list.
-    The tests here guarantee correct parsing of html version or
-    a fixed version.  See the function docstring for more doc."""
-
-    _known_html_api_versions = dedent("""\
-        <html>
-        <head><title>Index of /openstack/</title></head>
-        <body bgcolor="white">
-        <h1>Index of /openstack/</h1><hr><pre><a href="../">../</a>
-        <a href="2013-10-17/">2013-10-17/</a>   27-Jun-2018 12:22  -
-        <a href="latest/">latest/</a>           27-Jun-2018 12:22  -
-        </pre><hr></body>
-        </html>""")
-
-    _known_html_contents = dedent("""\
-        <html>
-        <head><title>Index of /openstack/2013-10-17/</title></head>
-        <body bgcolor="white">
-        <h1>Index of /openstack/2013-10-17/</h1><hr><pre><a href="../">../</a>
-        <a href="meta_data.json">meta_data.json</a>  27-Jun-2018 12:22  679
-        <a href="user_data">user_data</a>            27-Jun-2018 12:22  146
-        </pre><hr></body>
-        </html>""")
-
-    def test_parse_html(self):
-        """Test parsing of lower case html."""
-        self.assertEqual(
-            ['2013-10-17/', 'latest/'],
-            oracle._load_index(self._known_html_api_versions))
-        self.assertEqual(
-            ['meta_data.json', 'user_data'],
-            oracle._load_index(self._known_html_contents))
-
-    def test_parse_html_upper(self):
-        """Test parsing of upper case html, although known content is lower."""
-        def _toupper(data):
-            return data.replace("<a", "<A").replace("html>", "HTML>")
-
-        self.assertEqual(
-            ['2013-10-17/', 'latest/'],
-            oracle._load_index(_toupper(self._known_html_api_versions)))
-        self.assertEqual(
-            ['meta_data.json', 'user_data'],
-            oracle._load_index(_toupper(self._known_html_contents)))
-
-    def test_parse_newline_list_with_endl(self):
-        """Test parsing of newline separated list with ending newline."""
-        self.assertEqual(
-            ['2013-10-17/', 'latest/'],
-            oracle._load_index("\n".join(["2013-10-17/", "latest/", ""])))
-        self.assertEqual(
-            ['meta_data.json', 'user_data'],
-            oracle._load_index("\n".join(["meta_data.json", "user_data", ""])))
-
-    def test_parse_newline_list_without_endl(self):
-        """Test parsing of newline separated list with no ending newline.
-
-        Actual openstack implementation does not include trailing newline."""
-        self.assertEqual(
-            ['2013-10-17/', 'latest/'],
-            oracle._load_index("\n".join(["2013-10-17/", "latest/"])))
-        self.assertEqual(
-            ['meta_data.json', 'user_data'],
-            oracle._load_index("\n".join(["meta_data.json", "user_data"])))
 
 
 class TestNetworkConfigFromOpcImds(test_helpers.CiTestCase):
@@ -731,6 +410,311 @@ class TestNetworkConfigFiltersNetFailover(test_helpers.CiTestCase):
         print('---- ^^ modified ^^ ---- vv original vv ----')
         pprint.pprint(expected_cfg)
         self.assertEqual(expected_cfg, netcfg)
+
+
+class TestReadOpcMetadata:
+    # See https://docs.pytest.org/en/stable/example
+    # /parametrize.html#parametrizing-conditional-raising
+    does_not_raise = ExitStack
+
+    @pytest.fixture(autouse=True)
+    def configure_opc_metadata_in_httpretty(self, httpretty):
+        """Configure HTTPretty with the various OPC metadata endpoints."""
+        httpretty.register_uri(
+            httpretty.GET,
+            "http://169.254.169.254/opc/v1/instance/",
+            OPC_V1_METADATA,
+        )
+
+    def test_json_decoded_value_returned(self):
+        # read_opc_metadata should JSON decode the response and return it
+        expected = json.loads(OPC_V1_METADATA)
+        assert expected == oracle.read_opc_metadata()
+
+    # No need to actually wait between retries in the tests
+    @mock.patch("cloudinit.url_helper.time.sleep", lambda _: None)
+    @pytest.mark.parametrize(
+        "failure_count,expectation",
+        [(1, does_not_raise()), (2, pytest.raises(UrlError))],
+    )
+    def test_retries(self, expectation, failure_count, httpretty):
+        responses = [httpretty.Response("", status=404)] * failure_count
+        responses.append(httpretty.Response(OPC_V1_METADATA))
+        httpretty.register_uri(
+            httpretty.GET,
+            "http://169.254.169.254/opc/v1/instance/",
+            responses=responses,
+        )
+        expected = json.loads(OPC_V1_METADATA)
+        with expectation:
+            assert expected == oracle.read_opc_metadata()
+
+
+class TestCommon_GetDataBehaviour:
+    """This test class tests behaviour common to iSCSI and non-iSCSI root.
+
+    It defines a fixture, parameterized_oracle_ds, which is used in all the
+    tests herein to test that the commonly expected behaviour is the same with
+    iSCSI root and without.
+
+    (As non-iSCSI root behaviour is a superset of iSCSI root behaviour this
+    class is implicitly also testing all iSCSI root behaviour so there is no
+    separate class for that case.)
+    """
+
+    @pytest.yield_fixture(params=[True, False])
+    def parameterized_oracle_ds(self, request, oracle_ds):
+        """oracle_ds parameterized for iSCSI and non-iSCSI root respectively"""
+        is_iscsi_root = request.param
+        with ExitStack() as stack:
+            stack.enter_context(
+                mock.patch(
+                    DS_PATH + "._is_iscsi_root", return_value=is_iscsi_root
+                )
+            )
+            if not is_iscsi_root:
+                stack.enter_context(
+                    mock.patch(DS_PATH + ".net.find_fallback_nic")
+                )
+                stack.enter_context(
+                    mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+                )
+            yield oracle_ds
+
+    @mock.patch(
+        DS_PATH + "._is_platform_viable", mock.Mock(return_value=False)
+    )
+    def test_false_if_platform_not_viable(
+        self, parameterized_oracle_ds,
+    ):
+        assert not parameterized_oracle_ds._get_data()
+
+    @pytest.mark.parametrize(
+        "keyname,expected_value",
+        (
+            ("availability-zone", "phx-ad-3"),
+            ("launch-index", 0),
+            ("local-hostname", "instance-20200320-1400"),
+            (
+                "instance-id",
+                "ocid1.instance.oc1.phx"
+                ".anyhqljtniwq6syc3nex55sep5w34qbwmw6TRUNCATED",
+            ),
+            ("name", "instance-20200320-1400"),
+            (
+                "public_keys",
+                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ truncated",
+            ),
+        ),
+    )
+    def test_metadata_keys_set_correctly(
+        self, keyname, expected_value, parameterized_oracle_ds,
+    ):
+        assert parameterized_oracle_ds._get_data()
+        assert expected_value == parameterized_oracle_ds.metadata[keyname]
+
+    @pytest.mark.parametrize(
+        "attribute_name,expected_value",
+        [
+            ("_crawled_metadata", json.loads(OPC_V1_METADATA)),
+            (
+                "userdata_raw",
+                base64.b64decode(b"IyEvYmluL3NoCnRvdWNoIC90bXAvZm9v"),
+            ),
+            ("system_uuid", "my-test-uuid"),
+        ],
+    )
+    @mock.patch(
+        DS_PATH + "._read_system_uuid", mock.Mock(return_value="my-test-uuid")
+    )
+    def test_attributes_set_correctly(
+        self, attribute_name, expected_value, parameterized_oracle_ds,
+    ):
+        assert parameterized_oracle_ds._get_data()
+        assert expected_value == getattr(
+            parameterized_oracle_ds, attribute_name
+        )
+
+    @pytest.mark.parametrize(
+        "ssh_keys,expected_value",
+        [
+            # No SSH keys in metadata => no keys detected
+            (None, []),
+            # Empty SSH keys in metadata => no keys detected
+            ("", []),
+            # Single SSH key in metadata => single key detected
+            ("ssh-rsa ... test@test", ["ssh-rsa ... test@test"]),
+            # Multiple SSH keys in metadata => multiple keys detected
+            (
+                "ssh-rsa ... test@test\nssh-rsa ... test2@test2",
+                ["ssh-rsa ... test@test", "ssh-rsa ... test2@test2"],
+            ),
+        ],
+    )
+    def test_public_keys_handled_correctly(
+        self, ssh_keys, expected_value, parameterized_oracle_ds
+    ):
+        metadata = json.loads(OPC_V1_METADATA)
+        if ssh_keys is None:
+            del metadata["metadata"]["ssh_authorized_keys"]
+        else:
+            metadata["metadata"]["ssh_authorized_keys"] = ssh_keys
+        with mock.patch(
+            DS_PATH + ".read_opc_metadata", mock.Mock(return_value=metadata),
+        ):
+            assert parameterized_oracle_ds._get_data()
+            assert (
+                expected_value == parameterized_oracle_ds.get_public_ssh_keys()
+            )
+
+    def test_missing_user_data_handled_gracefully(
+        self, parameterized_oracle_ds
+    ):
+        metadata = json.loads(OPC_V1_METADATA)
+        del metadata["metadata"]["user_data"]
+        with mock.patch(
+            DS_PATH + ".read_opc_metadata", mock.Mock(return_value=metadata),
+        ):
+            assert parameterized_oracle_ds._get_data()
+
+        assert parameterized_oracle_ds.userdata_raw is None
+
+    def test_missing_metadata_handled_gracefully(
+        self, parameterized_oracle_ds
+    ):
+        metadata = json.loads(OPC_V1_METADATA)
+        del metadata["metadata"]
+        with mock.patch(
+            DS_PATH + ".read_opc_metadata", mock.Mock(return_value=metadata),
+        ):
+            assert parameterized_oracle_ds._get_data()
+
+        assert parameterized_oracle_ds.userdata_raw is None
+        assert [] == parameterized_oracle_ds.get_public_ssh_keys()
+
+
+@mock.patch(DS_PATH + "._is_iscsi_root", lambda: False)
+class TestNonIscsiRoot_GetDataBehaviour:
+    @mock.patch(DS_PATH + ".dhcp.EphemeralDHCPv4")
+    @mock.patch(DS_PATH + ".net.find_fallback_nic")
+    def test_read_opc_metadata_called_with_ephemeral_dhcp(
+        self, m_find_fallback_nic, m_EphemeralDHCPv4, oracle_ds
+    ):
+        in_context_manager = False
+
+        def enter_context_manager():
+            nonlocal in_context_manager
+            in_context_manager = True
+
+        def exit_context_manager(*args):
+            nonlocal in_context_manager
+            in_context_manager = False
+
+        m_EphemeralDHCPv4.return_value.__enter__.side_effect = (
+            enter_context_manager
+        )
+        m_EphemeralDHCPv4.return_value.__exit__.side_effect = (
+            exit_context_manager
+        )
+
+        def assert_in_context_manager():
+            assert in_context_manager
+            return mock.MagicMock()
+
+        with mock.patch(
+            DS_PATH + ".read_opc_metadata",
+            mock.Mock(side_effect=assert_in_context_manager),
+        ):
+            assert oracle_ds._get_data()
+
+        assert [
+            mock.call(m_find_fallback_nic.return_value)
+        ] == m_EphemeralDHCPv4.call_args_list
+
+
+@mock.patch(DS_PATH + ".get_interfaces_by_mac", lambda: {})
+@mock.patch(DS_PATH + ".cmdline.read_initramfs_config")
+class TestNetworkConfig:
+    def test_network_config_cached(self, m_read_initramfs_config, oracle_ds):
+        """.network_config should be cached"""
+        assert 0 == m_read_initramfs_config.call_count
+        oracle_ds.network_config  # pylint: disable=pointless-statement
+        assert 1 == m_read_initramfs_config.call_count
+        oracle_ds.network_config  # pylint: disable=pointless-statement
+        assert 1 == m_read_initramfs_config.call_count
+
+    def test_network_cmdline(self, m_read_initramfs_config, oracle_ds):
+        """network_config should prefer initramfs config over fallback"""
+        ncfg = {"version": 1, "config": [{"a": "b"}]}
+        m_read_initramfs_config.return_value = copy.deepcopy(ncfg)
+
+        assert ncfg == oracle_ds.network_config
+        assert 0 == oracle_ds.distro.generate_fallback_config.call_count
+
+    def test_network_fallback(self, m_read_initramfs_config, oracle_ds):
+        """network_config should prefer initramfs config over fallback"""
+        ncfg = {"version": 1, "config": [{"a": "b"}]}
+
+        m_read_initramfs_config.return_value = None
+        oracle_ds.distro.generate_fallback_config.return_value = copy.deepcopy(
+            ncfg
+        )
+
+        assert ncfg == oracle_ds.network_config
+
+    @pytest.mark.parametrize(
+        "configure_secondary_nics,expect_secondary_nics",
+        [(True, True), (False, False), (None, False)],
+    )
+    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds")
+    def test_secondary_nic_addition(
+        self,
+        m_add_network_config_from_opc_imds,
+        m_read_initramfs_config,
+        configure_secondary_nics,
+        expect_secondary_nics,
+        oracle_ds,
+    ):
+        """Test that _add_network_config_from_opc_imds is called as expected
+
+        (configure_secondary_nics=None is used to test the default behaviour.)
+        """
+        m_read_initramfs_config.return_value = {"version": 1, "config": []}
+
+        def side_effect(network_config):
+            network_config["secondary_added"] = mock.sentinel.needle
+
+        m_add_network_config_from_opc_imds.side_effect = side_effect
+
+        if configure_secondary_nics is not None:
+            oracle_ds.ds_cfg[
+                "configure_secondary_nics"
+            ] = configure_secondary_nics
+
+        was_secondary_added = "secondary_added" in oracle_ds.network_config
+        assert expect_secondary_nics == was_secondary_added
+
+    @mock.patch(DS_PATH + "._add_network_config_from_opc_imds")
+    def test_secondary_nic_failure_isnt_blocking(
+        self,
+        m_add_network_config_from_opc_imds,
+        m_read_initramfs_config,
+        caplog,
+        oracle_ds,
+    ):
+        m_add_network_config_from_opc_imds.side_effect = Exception()
+
+        oracle_ds.ds_cfg["configure_secondary_nics"] = True
+
+        assert m_read_initramfs_config.return_value == oracle_ds.network_config
+        assert "Failed to fetch secondary network configuration" in caplog.text
+
+    def test_ds_network_cfg_preferred_over_initramfs(self, _m):
+        """Ensure that DS net config is preferred over initramfs config"""
+        config_sources = oracle.DataSourceOracle.network_config_sources
+        ds_idx = config_sources.index(NetworkConfigSource.ds)
+        initramfs_idx = config_sources.index(NetworkConfigSource.initramfs)
+        assert ds_idx < initramfs_idx
 
 
 # vi: ts=4 expandtab
