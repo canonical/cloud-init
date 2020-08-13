@@ -231,8 +231,7 @@ class InvalidGoalStateXMLException(Exception):
 
 class GoalState:
 
-    def __init__(self, unparsed_xml: str,
-                 azure_endpoint_client: AzureEndpointHttpClient) -> None:
+    def __init__(self, unparsed_xml, azure_endpoint_client):
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_xml: string representing a GoalState XML.
@@ -422,10 +421,7 @@ class GoalStateHealthReporter:
 
     PROVISIONING_SUCCESS_STATUS = 'Ready'
 
-    def __init__(
-            self, goal_state: GoalState,
-            azure_endpoint_client: AzureEndpointHttpClient,
-            endpoint: str) -> None:
+    def __init__(self, goal_state, azure_endpoint_client, endpoint):
         """Creates instance that will report provisioning status to an endpoint
 
         @param goal_state: An instance of class GoalState that contains
@@ -442,7 +438,7 @@ class GoalStateHealthReporter:
         self._endpoint = endpoint
 
     @azure_ds_telemetry_reporter
-    def send_ready_signal(self) -> None:
+    def send_ready_signal(self):
         document = self.build_report(
             incarnation=self._goal_state.incarnation,
             container_id=self._goal_state.container_id,
@@ -460,8 +456,8 @@ class GoalStateHealthReporter:
         LOG.info('Reported ready to Azure fabric.')
 
     def build_report(
-            self, incarnation: str, container_id: str, instance_id: str,
-            status: str, substatus=None, description=None) -> str:
+            self, incarnation, container_id, instance_id,
+            status, substatus=None, description=None):
         health_detail = ''
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
@@ -477,7 +473,7 @@ class GoalStateHealthReporter:
         return health_report
 
     @azure_ds_telemetry_reporter
-    def _post_health_report(self, document: str) -> None:
+    def _post_health_report(self, document):
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
         # the diagnostic messages are written to special files
         # (/var/opt/hyperv/.kvp_pool_*) as Hyper-V KVP messages.
@@ -670,7 +666,7 @@ class WALinuxAgentShim:
         return endpoint_ip_address
 
     @azure_ds_telemetry_reporter
-    def register_with_azure_and_fetch_data(self, pubkey_info=None) -> dict:
+    def register_with_azure_and_fetch_data(self, pubkey_info=None):
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
         Azure, and then uses pubkey_info to filter and obtain the user's
@@ -694,7 +690,7 @@ class WALinuxAgentShim:
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
-    def _fetch_goal_state_from_azure(self) -> GoalState:
+    def _fetch_goal_state_from_azure(self):
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
@@ -704,7 +700,7 @@ class WALinuxAgentShim:
         return self._parse_raw_goal_state_xml(unparsed_goal_state_xml)
 
     @azure_ds_telemetry_reporter
-    def _get_raw_goal_state_xml_from_azure(self) -> str:
+    def _get_raw_goal_state_xml_from_azure(self):
         """Fetches the GoalState XML from the Azure endpoint and returns
         the XML as a string.
 
@@ -724,8 +720,7 @@ class WALinuxAgentShim:
         return response.contents
 
     @azure_ds_telemetry_reporter
-    def _parse_raw_goal_state_xml(
-            self, unparsed_goal_state_xml: str) -> GoalState:
+    def _parse_raw_goal_state_xml(self, unparsed_goal_state_xml):
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
@@ -748,8 +743,7 @@ class WALinuxAgentShim:
         return goal_state
 
     @azure_ds_telemetry_reporter
-    def _get_user_pubkeys(
-            self, goal_state: GoalState, pubkey_info: list) -> list:
+    def _get_user_pubkeys(self, goal_state, pubkey_info):
         """Gets and filters the VM admin user's authorized pubkeys.
 
         The admin user in this case is the username specified as "admin"
@@ -784,7 +778,7 @@ class WALinuxAgentShim:
         return ssh_keys
 
     @staticmethod
-    def _filter_pubkeys(keys_by_fingerprint: dict, pubkey_info: list) -> list:
+    def _filter_pubkeys(keys_by_fingerprint, pubkey_info):
         """ Filter and return only the user's actual pubkeys.
 
         @param keys_by_fingerprint: pubkey fingerprint -> pubkey value dict
