@@ -249,7 +249,6 @@ class GoalState:
             report_diagnostic_event(msg % (e,))
             raise
 
-        self.certificates_xml = None
         self.container_id = self._text_from_xpath('./Container/ContainerId')
         self.instance_id = self._text_from_xpath(
             './Container/RoleInstanceList/RoleInstance/InstanceId')

@@ -538,10 +538,8 @@ class TestGoalStateHealthReporter(CiTestCase):
             status=self.provisioning_success_status)
         self.assertEqual(health_document, generated_health_document)
         self.assertIn(
-            ''.join([
-                '<GoalStateIncarnation>',
-                str(self.default_parameters['incarnation']),
-                '</GoalStateIncarnation>']),
+            '<GoalStateIncarnation>{}</GoalStateIncarnation>'.format(
+                str(self.default_parameters['incarnation'])),
             generated_health_document)
         self.assertIn(
             ''.join([
