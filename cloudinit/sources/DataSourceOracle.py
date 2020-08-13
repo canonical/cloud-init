@@ -109,7 +109,7 @@ class DataSourceOracle(sources.DataSource):
 
     def __init__(self, sys_cfg, *args, **kwargs):
         super(DataSourceOracle, self).__init__(sys_cfg, *args, **kwargs)
-        self._vnics_data = sources.UNSET
+        self._vnics_data = None
 
         self.ds_cfg = util.mergemanydict([
             util.get_cfg_by_path(sys_cfg, ['datasource', self.dsname], {}),
@@ -131,8 +131,9 @@ class DataSourceOracle(sources.DataSource):
             'configure_secondary_nics',
             BUILTIN_DS_CONFIG["configure_secondary_nics"]
         )
-        network_context = noop() if _is_iscsi_root(
-        ) else dhcp.EphemeralDHCPv4(net.find_fallback_nic())
+        network_context = noop()
+        if not _is_iscsi_root():
+            network_context = dhcp.EphemeralDHCPv4(net.find_fallback_nic())
         with network_context:
             fetched_metadata = read_opc_metadata(
                 fetch_vnics_data=fetch_vnics_data
@@ -190,18 +191,14 @@ class DataSourceOracle(sources.DataSource):
                 'configure_secondary_nics',
                 BUILTIN_DS_CONFIG["configure_secondary_nics"]
             ):
-                if self._vnics_data == sources.UNSET:
-                    LOG.warning(
-                        "Secondary NIC data is UNSET but should not be")
-                else:
-                    try:
-                        # Mutate self._network_config to include secondary
-                        # VNICs
-                        self._add_network_config_from_opc_imds()
-                    except Exception:
-                        util.logexc(
-                            LOG,
-                            "Failed to parse secondary network configuration!")
+                try:
+                    # Mutate self._network_config to include secondary
+                    # VNICs
+                    self._add_network_config_from_opc_imds()
+                except Exception:
+                    util.logexc(
+                        LOG,
+                        "Failed to parse secondary network configuration!")
 
             # we need to verify that the nic selected is not a netfail over
             # device and, if it is a netfail master, then we need to avoid
@@ -224,6 +221,11 @@ class DataSourceOracle(sources.DataSource):
             exceptions are KeyError/IndexError
             (if the IMDS returns valid JSON with unexpected contents).
         """
+        if self._vnics_data is None:
+            LOG.warning(
+                "Secondary NIC data is UNSET but should not be")
+            return
+
         if 'nicIndex' in self._vnics_data[0]:
             # TODO: Once configure_secondary_nics defaults to True, lower the
             # level of this log message.  (Currently, if we're running this
