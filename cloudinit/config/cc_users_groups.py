@@ -78,6 +78,13 @@ config keys for an entry in ``users`` are as follows:
     If specifying a sudo rule for a user, ensure that the syntax for the rule
     is valid, as it is not checked by cloud-init.
 
+.. note::
+    Most of these configuration options will not be honored if the user
+    already exists. Following options are the exceptions and they are
+    applicable on already-existing users:
+    - 'plain_text_passwd', 'hashed_passwd', 'lock_passwd', 'sudo',
+      'ssh_authorized_keys', 'ssh_redirect_user'.
+
 **Internal name:** ``cc_users_groups``
 
 **Module frequency:** per instance
