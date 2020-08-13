@@ -147,10 +147,10 @@ class TestConfig(TestCase):
 
         self.assertEqual(self.mock_writefile.call_count, 1)
         main_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/main\n'
-        community_repo = DEFAULT_MIRROR_URL + '/' + alpine_version +
-                         '/community\n'
-        expected = EXPECTED_COMMENT_HEADER + main_repo + 
-                   community_repo + '\n'
+        community_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
+                          '/community\n')
+        expected = (EXPECTED_COMMENT_HEADER + main_repo +
+                    community_repo + '\n')
         self.assertEqual(util.load_file('/etc/apk/repositories'), expected)
 
     def test_main_community_testing_repos(self):
@@ -174,13 +174,13 @@ class TestConfig(TestCase):
 
         self.assertEqual(self.mock_writefile.call_count, 1)
         main_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/main\n'
-        community_repo = DEFAULT_MIRROR_URL + '/' + alpine_version +
-                         '/community\n'
-        testing_repo = DEFAULT_MIRROR_URL + '/' + alpine_version +
-                       '/testing\n'
-        expected = EXPECTED_COMMENT_HEADER + main_repo +
-                   community_repo + EXPECTED_ALPINE_312_TESTING_COMMENT +
-                   testing_repo + '\n'
+        community_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
+                          '/community\n')
+        testing_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
+                        '/testing\n')
+        expected = (EXPECTED_COMMENT_HEADER + main_repo +
+                    community_repo + EXPECTED_ALPINE_312_TESTING_COMMENT +
+                    testing_repo + '\n')
         self.assertEqual(util.load_file('/etc/apk/repositories'), expected)
 
     def test_edge_main_community_testing_repos(self):
@@ -204,11 +204,11 @@ class TestConfig(TestCase):
 
         self.assertEqual(self.mock_writefile.call_count, 1)
         main_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/main\n'
-        community_repo = DEFAULT_MIRROR_URL + '/' + alpine_version +
-                         '/community\n'
+        community_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
+                          '/community\n')
         testing_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/testing\n'
-        expected = EXPECTED_COMMENT_HEADER + main_repo + community_repo +
-                   testing_repo + '\n'
+        expected = (EXPECTED_COMMENT_HEADER + main_repo + community_repo +
+                    testing_repo + '\n')
         self.assertEqual(util.load_file('/etc/apk/repositories'), expected)
 
     def test_main_community_testing_local_repos(self):
@@ -234,13 +234,13 @@ class TestConfig(TestCase):
 
         self.assertEqual(self.mock_writefile.call_count, 1)
         main_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/main\n'
-        community_repo = DEFAULT_MIRROR_URL + '/' + alpine_version +
-                         '/community\n'
+        community_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
+                          '/community\n')
         testing_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/testing\n'
         local_repo = local_repo_url + '/' + alpine_version\n'
-        expected = EXPECTED_COMMENT_HEADER + main_repo + community_repo +
-                   EXPECTED_ALPINE_312_TESTING_COMMENT + testing_repo +
-                   EXPECTED_LOCAL_REPO_COMMENT_HEADER + local_repo + '\n'
+        expected = (EXPECTED_COMMENT_HEADER + main_repo + community_repo +
+                    EXPECTED_ALPINE_312_TESTING_COMMENT + testing_repo +
+                    EXPECTED_LOCAL_REPO_COMMENT_HEADER + local_repo + '\n')
         self.assertEqual(util.load_file('/etc/apk/repositories'), expected)
 
     def test_edge_main_community_testing_local_repos(self):
@@ -266,13 +266,13 @@ class TestConfig(TestCase):
 
         self.assertEqual(self.mock_writefile.call_count, 1)
         main_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/main\n'
-        community_repo = DEFAULT_MIRROR_URL + '/' + alpine_version +
-                         '/community\n'
+        community_repo = (DEFAULT_MIRROR_URL + '/' + alpine_version +
+                          '/community\n')
         testing_repo = DEFAULT_MIRROR_URL + '/' + alpine_version + '/testing\n'
         local_repo = local_repo_url + '/' + alpine_version\n'
-        expected = EXPECTED_COMMENT_HEADER + main_repo + community_repo +
-                   testing_repo + EXPECTED_LOCAL_REPO_COMMENT_HEADER +
-                   local_repo + '\n'
+        expected = (EXPECTED_COMMENT_HEADER + main_repo + community_repo +
+                    testing_repo + EXPECTED_LOCAL_REPO_COMMENT_HEADER +
+                    local_repo + '\n')
         self.assertEqual(util.load_file('/etc/apk/repositories'), expected)
 
 
