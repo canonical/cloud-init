@@ -560,12 +560,13 @@ def handle(name, cfg, cloud, log, _args):
             raise RuntimeError(msg)
 
     write_ntp_config_template(cloud.distro.name,
-                        service_name=ntp_client_config.get('service_name'),
-                        servers=ntp_cfg.get('servers', []),
-                        pools=ntp_cfg.get('pools', []),
-                        path=ntp_client_config.get('confpath'),
-                        template_fn=template_fn,
-                        template=ntp_client_config.get('template'))
+                              service_name=ntp_client_config.get(
+                                  'service_name'),
+                              servers=ntp_cfg.get('servers', []),
+                              pools=ntp_cfg.get('pools', []),
+                              path=ntp_client_config.get('confpath'),
+                              template_fn=template_fn,
+                              template=ntp_client_config.get('template'))
 
     install_ntp_client(cloud.distro.install_packages,
                        packages=ntp_client_config['packages'],

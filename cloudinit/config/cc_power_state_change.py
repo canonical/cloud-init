@@ -172,7 +172,7 @@ def load_power_state(cfg, distro_name=None):
         # Convert integer 30 or string '30' to '1800' (seconds) as Alpine's
         # halt/poweroff/reboot commands take seconds as param with no "+"
         try:
-            delay = "%s" % int( int(delay) * 60)
+            delay = "%s" % int(int(delay) * 60)
         except ValueError:
             pass
 
