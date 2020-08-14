@@ -1,22 +1,21 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Datasource for Oracle (OCI/Oracle Cloud Infrastructure)
 
-OCI provides a OpenStack like metadata service which provides only
-'2013-10-17' and 'latest' versions..
-
 Notes:
- * This datasource does not support the OCI-Classic. OCI-Classic
-   provides an EC2 lookalike metadata service.
- * The uuid provided in DMI data is not the same as the meta-data provided
+ * This datasource does not support OCI Classic. OCI Classic provides an EC2
+   lookalike metadata service.
+ * The UUID provided in DMI data is not the same as the meta-data provided
    instance-id, but has an equivalent lifespan.
  * We do need to support upgrade from an instance that cloud-init
    identified as OpenStack.
- * Both bare-metal and vms use iscsi root
- * Both bare-metal and vms provide chassis-asset-tag of OracleCloud.com
+ * Bare metal instances use iSCSI root, virtual machine instances do not.
+ * Both bare metal and virtual machine instances provide a chassis-asset-tag of
+   OracleCloud.com.
 """
 
-import json
-import re
+import base64
+from collections import namedtuple
+from contextlib import suppress as noop
 
 from cloudinit import log as logging
 from cloudinit import net, sources, util
@@ -26,7 +25,7 @@ from cloudinit.net import (
     get_interfaces_by_mac,
     is_netfail_master,
 )
-from cloudinit.url_helper import UrlError, combine_url, readurl
+from cloudinit.url_helper import UrlError, readurl
 
 LOG = logging.getLogger(__name__)
 
@@ -35,79 +34,13 @@ BUILTIN_DS_CONFIG = {
     'configure_secondary_nics': False,
 }
 CHASSIS_ASSET_TAG = "OracleCloud.com"
-METADATA_ENDPOINT = "http://169.254.169.254/openstack/"
-VNIC_METADATA_URL = 'http://169.254.169.254/opc/v1/vnics/'
+METADATA_ROOT = "http://169.254.169.254/opc/v{version}/"
+METADATA_PATTERN = METADATA_ROOT + "{path}/"
 # https://docs.cloud.oracle.com/iaas/Content/Network/Troubleshoot/connectionhang.htm#Overview,
 # indicates that an MTU of 9000 is used within OCI
 MTU = 9000
 
-
-def _add_network_config_from_opc_imds(network_config):
-    """
-    Fetch data from Oracle's IMDS, generate secondary NIC config, merge it.
-
-    The primary NIC configuration should not be modified based on the IMDS
-    values, as it should continue to be configured for DHCP.  As such, this
-    takes an existing network_config dict which is expected to have the primary
-    NIC configuration already present.  It will mutate the given dict to
-    include the secondary VNICs.
-
-    :param network_config:
-        A v1 or v2 network config dict with the primary NIC already configured.
-        This dict will be mutated.
-
-    :raises:
-        Exceptions are not handled within this function.  Likely exceptions are
-        those raised by url_helper.readurl (if communicating with the IMDS
-        fails), ValueError/JSONDecodeError (if the IMDS returns invalid JSON),
-        and KeyError/IndexError (if the IMDS returns valid JSON with unexpected
-        contents).
-    """
-    resp = readurl(VNIC_METADATA_URL)
-    vnics = json.loads(str(resp))
-
-    if 'nicIndex' in vnics[0]:
-        # TODO: Once configure_secondary_nics defaults to True, lower the level
-        # of this log message.  (Currently, if we're running this code at all,
-        # someone has explicitly opted-in to secondary VNIC configuration, so
-        # we should warn them that it didn't happen.  Once it's default, this
-        # would be emitted on every Bare Metal Machine launch, which means INFO
-        # or DEBUG would be more appropriate.)
-        LOG.warning(
-            'VNIC metadata indicates this is a bare metal machine; skipping'
-            ' secondary VNIC configuration.'
-        )
-        return
-
-    interfaces_by_mac = get_interfaces_by_mac()
-
-    for vnic_dict in vnics[1:]:
-        # We skip the first entry in the response because the primary interface
-        # is already configured by iSCSI boot; applying configuration from the
-        # IMDS is not required.
-        mac_address = vnic_dict['macAddr'].lower()
-        if mac_address not in interfaces_by_mac:
-            LOG.debug('Interface with MAC %s not found; skipping', mac_address)
-            continue
-        name = interfaces_by_mac[mac_address]
-
-        if network_config['version'] == 1:
-            subnet = {
-                'type': 'static',
-                'address': vnic_dict['privateIp'],
-            }
-            network_config['config'].append({
-                'name': name,
-                'type': 'physical',
-                'mac_address': mac_address,
-                'mtu': MTU,
-                'subnets': [subnet],
-            })
-        elif network_config['version'] == 2:
-            network_config['ethernets'][name] = {
-                'addresses': [vnic_dict['privateIp']],
-                'mtu': MTU, 'dhcp4': False, 'dhcp6': False,
-                'match': {'macaddress': mac_address}}
+OpcMetadata = namedtuple("OpcMetadata", "version instance_data vnics_data")
 
 
 def _ensure_netfailover_safe(network_config):
@@ -176,6 +109,7 @@ class DataSourceOracle(sources.DataSource):
 
     def __init__(self, sys_cfg, *args, **kwargs):
         super(DataSourceOracle, self).__init__(sys_cfg, *args, **kwargs)
+        self._vnics_data = None
 
         self.ds_cfg = util.mergemanydict([
             util.get_cfg_by_path(sys_cfg, ['datasource', self.dsname], {}),
@@ -189,53 +123,45 @@ class DataSourceOracle(sources.DataSource):
         if not self._is_platform_viable():
             return False
 
+        self.system_uuid = _read_system_uuid()
+
         # network may be configured if iscsi root.  If that is the case
         # then read_initramfs_config will return non-None.
-        if _is_iscsi_root():
-            data = self.crawl_metadata()
-        else:
-            with dhcp.EphemeralDHCPv4(net.find_fallback_nic()):
-                data = self.crawl_metadata()
-
-        self._crawled_metadata = data
-        vdata = data['2013-10-17']
-
-        self.userdata_raw = vdata.get('user_data')
-        self.system_uuid = vdata['system_uuid']
-
-        vd = vdata.get('vendor_data')
-        if vd:
-            self.vendordata_pure = vd
-            try:
-                self.vendordata_raw = sources.convert_vendordata(vd)
-            except ValueError as e:
-                LOG.warning("Invalid content in vendor-data: %s", e)
-                self.vendordata_raw = None
-
-        mdcopies = ('public_keys',)
-        md = dict([(k, vdata['meta_data'].get(k))
-                   for k in mdcopies if k in vdata['meta_data']])
-
-        mdtrans = (
-            # oracle meta_data.json name, cloudinit.datasource.metadata name
-            ('availability_zone', 'availability-zone'),
-            ('hostname', 'local-hostname'),
-            ('launch_index', 'launch-index'),
-            ('uuid', 'instance-id'),
+        fetch_vnics_data = self.ds_cfg.get(
+            'configure_secondary_nics',
+            BUILTIN_DS_CONFIG["configure_secondary_nics"]
         )
-        for dsname, ciname in mdtrans:
-            if dsname in vdata['meta_data']:
-                md[ciname] = vdata['meta_data'][dsname]
+        network_context = noop()
+        if not _is_iscsi_root():
+            network_context = dhcp.EphemeralDHCPv4(net.find_fallback_nic())
+        with network_context:
+            fetched_metadata = read_opc_metadata(
+                fetch_vnics_data=fetch_vnics_data
+            )
 
-        self.metadata = md
+        data = self._crawled_metadata = fetched_metadata.instance_data
+        self.metadata_address = METADATA_ROOT.format(
+            version=fetched_metadata.version
+        )
+        self._vnics_data = fetched_metadata.vnics_data
+
+        self.metadata = {
+            "availability-zone": data["ociAdName"],
+            "instance-id": data["id"],
+            "launch-index": 0,
+            "local-hostname": data["hostname"],
+            "name": data["displayName"],
+        }
+
+        if "metadata" in data:
+            user_data = data["metadata"].get("user_data")
+            if user_data:
+                self.userdata_raw = base64.b64decode(user_data)
+            self.metadata["public_keys"] = data["metadata"].get(
+                "ssh_authorized_keys"
+            )
+
         return True
-
-    def crawl_metadata(self):
-        return read_metadata()
-
-    def _get_subplatform(self):
-        """Return the subplatform metadata source details."""
-        return 'metadata (%s)' % METADATA_ENDPOINT
 
     def check_instance_id(self, sys_cfg):
         """quickly check (local only) if self.instance_id is still valid
@@ -261,14 +187,18 @@ class DataSourceOracle(sources.DataSource):
                 # this is now v2
                 self._network_config = self.distro.generate_fallback_config()
 
-            if self.ds_cfg.get('configure_secondary_nics'):
+            if self.ds_cfg.get(
+                'configure_secondary_nics',
+                BUILTIN_DS_CONFIG["configure_secondary_nics"]
+            ):
                 try:
-                    # Mutate self._network_config to include secondary VNICs
-                    _add_network_config_from_opc_imds(self._network_config)
+                    # Mutate self._network_config to include secondary
+                    # VNICs
+                    self._add_network_config_from_opc_imds()
                 except Exception:
                     util.logexc(
                         LOG,
-                        "Failed to fetch secondary network configuration!")
+                        "Failed to parse secondary network configuration!")
 
             # we need to verify that the nic selected is not a netfail over
             # device and, if it is a netfail master, then we need to avoid
@@ -276,6 +206,70 @@ class DataSourceOracle(sources.DataSource):
             _ensure_netfailover_safe(self._network_config)
 
         return self._network_config
+
+    def _add_network_config_from_opc_imds(self):
+        """Generate secondary NIC config from IMDS and merge it.
+
+        The primary NIC configuration should not be modified based on the IMDS
+        values, as it should continue to be configured for DHCP.  As such, this
+        uses the instance's network config dict which is expected to have the
+        primary NIC configuration already present.
+        It will mutate the network config to include the secondary VNICs.
+
+        :raises:
+            Exceptions are not handled within this function.  Likely
+            exceptions are KeyError/IndexError
+            (if the IMDS returns valid JSON with unexpected contents).
+        """
+        if self._vnics_data is None:
+            LOG.warning(
+                "Secondary NIC data is UNSET but should not be")
+            return
+
+        if 'nicIndex' in self._vnics_data[0]:
+            # TODO: Once configure_secondary_nics defaults to True, lower the
+            # level of this log message.  (Currently, if we're running this
+            # code at all, someone has explicitly opted-in to secondary
+            # VNIC configuration, so we should warn them that it didn't
+            # happen.  Once it's default, this would be emitted on every Bare
+            # Metal Machine launch, which means INFO or DEBUG would be more
+            # appropriate.)
+            LOG.warning(
+                'VNIC metadata indicates this is a bare metal machine; '
+                'skipping secondary VNIC configuration.'
+            )
+            return
+
+        interfaces_by_mac = get_interfaces_by_mac()
+
+        for vnic_dict in self._vnics_data[1:]:
+            # We skip the first entry in the response because the primary
+            # interface is already configured by iSCSI boot; applying
+            # configuration from the IMDS is not required.
+            mac_address = vnic_dict['macAddr'].lower()
+            if mac_address not in interfaces_by_mac:
+                LOG.debug('Interface with MAC %s not found; skipping',
+                          mac_address)
+                continue
+            name = interfaces_by_mac[mac_address]
+
+            if self._network_config['version'] == 1:
+                subnet = {
+                    'type': 'static',
+                    'address': vnic_dict['privateIp'],
+                }
+                self._network_config['config'].append({
+                    'name': name,
+                    'type': 'physical',
+                    'mac_address': mac_address,
+                    'mtu': MTU,
+                    'subnets': [subnet],
+                })
+            elif self._network_config['version'] == 2:
+                self._network_config['ethernets'][name] = {
+                    'addresses': [vnic_dict['privateIp']],
+                    'mtu': MTU, 'dhcp4': False, 'dhcp6': False,
+                    'match': {'macaddress': mac_address}}
 
 
 def _read_system_uuid():
@@ -292,72 +286,46 @@ def _is_iscsi_root():
     return bool(cmdline.read_initramfs_config())
 
 
-def _load_index(content):
-    """Return a list entries parsed from content.
+def read_opc_metadata(*, fetch_vnics_data: bool = False):
+    """Fetch metadata from the /opc/ routes.
 
-    OpenStack's metadata service returns a newline delimited list
-    of items.  Oracle's implementation has html formatted list of links.
-    The parser here just grabs targets from <a href="target">
-    and throws away "../".
+    :return:
+        A namedtuple containing:
+          The metadata version as an integer
+          The JSON-decoded value of the instance data endpoint on the IMDS
+          The JSON-decoded value of the vnics data endpoint if
+            `fetch_vnics_data` is True, else None
 
-    Oracle has accepted that to be buggy and may fix in the future
-    to instead return a '\n' delimited plain text list.  This function
-    will continue to work if that change is made."""
-    if not content.lower().startswith("<html>"):
-        return content.splitlines()
-    items = re.findall(
-        r'href="(?P<target>[^"]*)"', content, re.MULTILINE | re.IGNORECASE)
-    return [i for i in items if not i.startswith(".")]
-
-
-def read_metadata(endpoint_base=METADATA_ENDPOINT, sys_uuid=None,
-                  version='2013-10-17'):
-    """Read metadata, return a dictionary.
-
-    Each path listed in the index will be represented in the dictionary.
-    If the path ends in .json, then the content will be decoded and
-    populated into the dictionary.
-
-    The system uuid (/sys/class/dmi/id/product_uuid) is also populated.
-    Example: given paths = ('user_data', 'meta_data.json')
-    This would return:
-      {version: {'user_data': b'blob', 'meta_data': json.loads(blob.decode())
-                 'system_uuid': '3b54f2e0-3ab2-458d-b770-af9926eee3b2'}}
     """
-    endpoint = combine_url(endpoint_base, version) + "/"
-    if sys_uuid is None:
-        sys_uuid = _read_system_uuid()
-    if not sys_uuid:
-        raise sources.BrokenMetadata("Failed to read system uuid.")
+    # Per Oracle, there are short windows (measured in milliseconds) throughout
+    # an instance's lifetime where the IMDS is being updated and may 404 as a
+    # result.  To work around these windows, we retry a couple of times.
+    retries = 2
 
+    def _fetch(metadata_version: int, path: str) -> dict:
+        headers = {
+            "Authorization": "Bearer Oracle"} if metadata_version > 1 else None
+        return readurl(
+            url=METADATA_PATTERN.format(version=metadata_version, path=path),
+            headers=headers,
+            retries=retries,
+        )._response.json()
+
+    metadata_version = 2
     try:
-        resp = readurl(endpoint)
-        if not resp.ok():
-            raise sources.BrokenMetadata(
-                "Bad response from %s: %s" % (endpoint, resp.code))
-    except UrlError as e:
-        raise sources.BrokenMetadata(
-            "Failed to read index at %s: %s" % (endpoint, e))
+        instance_data = _fetch(metadata_version, path="instance")
+    except UrlError:
+        metadata_version = 1
+        instance_data = _fetch(metadata_version, path="instance")
 
-    entries = _load_index(resp.contents.decode('utf-8'))
-    LOG.debug("index url %s contained: %s", endpoint, entries)
-
-    # meta_data.json is required.
-    mdj = 'meta_data.json'
-    if mdj not in entries:
-        raise sources.BrokenMetadata(
-            "Required field '%s' missing in index at %s" % (mdj, endpoint))
-
-    ret = {'system_uuid': sys_uuid}
-    for path in entries:
-        response = readurl(combine_url(endpoint, path))
-        if path.endswith(".json"):
-            ret[path.rpartition(".")[0]] = (
-                json.loads(response.contents.decode('utf-8')))
-        else:
-            ret[path] = response.contents
-
-    return {version: ret}
+    vnics_data = None
+    if fetch_vnics_data:
+        try:
+            vnics_data = _fetch(metadata_version, path="vnics")
+        except UrlError:
+            util.logexc(LOG,
+                        "Failed to fetch secondary network configuration!")
+    return OpcMetadata(metadata_version, instance_data, vnics_data)
 
 
 # Used to match classes to dependencies
@@ -373,17 +341,21 @@ def get_datasource_list(depends):
 
 if __name__ == "__main__":
     import argparse
-    import os
 
-    parser = argparse.ArgumentParser(description='Query Oracle Cloud Metadata')
-    parser.add_argument("--endpoint", metavar="URL",
-                        help="The url of the metadata service.",
-                        default=METADATA_ENDPOINT)
-    args = parser.parse_args()
-    sys_uuid = "uuid-not-available-not-root" if os.geteuid() != 0 else None
-
-    data = read_metadata(endpoint_base=args.endpoint, sys_uuid=sys_uuid)
-    data['is_platform_viable'] = _is_platform_viable()
-    print(util.json_dumps(data))
+    description = """
+        Query Oracle Cloud metadata and emit a JSON object with two keys:
+        `read_opc_metadata` and `_is_platform_viable`.  The values of each are
+        the return values of the corresponding functions defined in
+        DataSourceOracle.py."""
+    parser = argparse.ArgumentParser(description=description)
+    parser.parse_args()
+    print(
+        util.json_dumps(
+            {
+                "read_opc_metadata": read_opc_metadata(),
+                "_is_platform_viable": _is_platform_viable(),
+            }
+        )
+    )
 
 # vi: ts=4 expandtab
