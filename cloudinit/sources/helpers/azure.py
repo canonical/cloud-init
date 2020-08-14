@@ -685,6 +685,7 @@ class WALinuxAgentShim:
             self.azure_endpoint_client = AzureEndpointHttpClient(
                 http_client_certificate)
         goal_state = self._fetch_goal_state_from_azure()
+        ssh_keys = None
         if pubkey_info is not None:
             ssh_keys = self._get_user_pubkeys(goal_state, pubkey_info)
         health_reporter = GoalStateHealthReporter(
