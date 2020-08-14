@@ -203,6 +203,7 @@ class AzureEndpointHttpClient:
     }
 
     def __init__(self, certificate):
+        self.security_enabled = certificate is not None
         self.extra_secure_headers = {
             "x-ms-cipher-name": "DES_EDE3_CBC",
             "x-ms-guest-agent-public-x509-cert": certificate,
@@ -264,7 +265,7 @@ class GoalState:
         url = self._text_from_xpath(
             './Container/RoleInstanceList/RoleInstance'
             '/Configuration/Certificates')
-        if url is not None:
+        if url is not None and self.azure_endpoint_client.security_enabled:
             with events.ReportEventStack(
                     name="get-certificates-xml",
                     description="get certificates xml",
