@@ -66,7 +66,7 @@ class TestConfig(TestCase):
 
     def _fetch_distro(self, kind):
         cls = distros.fetch(kind)
-        paths = helpers.Paths({'cloud_dir': self.tmp})
+        paths = helpers.Paths({})
         return cls(kind, {}, paths)
 
     def test_no_trusted_list(self):

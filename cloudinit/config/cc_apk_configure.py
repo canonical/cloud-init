@@ -139,7 +139,7 @@ schema = {
                 }
             },
             'required': [],
-            'minProperties': 1, # Either preserve_repositories or alpine_repo
+            'minProperties': 1,  # Either preserve_repositories or alpine_repo
             'additionalProperties': False,
         }
     }

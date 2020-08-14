@@ -98,7 +98,8 @@ def remove_default_ca_certs(distro_name=None):
     util.write_file(CA_CERT_CONFIG, "", mode=0o644)
 
     if distro_name != 'alpine':
-        debconf_sel = "ca-certificates ca-certificates/trust_new_crts select no"
+        debconf_sel = ("ca-certificates ca-certificates/trust_new_crts " +
+                       "select no")
         subp.subp(('debconf-set-selections', '-'), debconf_sel)
 
 
