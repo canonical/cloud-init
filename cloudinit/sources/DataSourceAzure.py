@@ -561,6 +561,15 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def get_public_ssh_keys(self):
+        """
+        Try to get the ssh keys from IMDS first, and if that fails
+        (i.e. IMDS is unavailable) then fallback to getting the ssh
+        keys from OVF.
+
+        The benefit to getting keys from IMDS is a large performance
+        advantage, so this is a strong preference. But we must keep
+        OVF as a second option for environments that don't have IMDS.
+        """
         LOG.debug('Retrieving public SSH keys')
         ssh_keys = []
         try:
