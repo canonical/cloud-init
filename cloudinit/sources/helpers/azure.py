@@ -231,12 +231,16 @@ class InvalidGoalStateXMLException(Exception):
 
 class GoalState:
 
-    def __init__(self, unparsed_xml, azure_endpoint_client, need_certificate=True):
+    def __init__(
+            self,
+            unparsed_xml,
+            azure_endpoint_client,
+            need_certificate=True):
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_xml: string representing a GoalState XML.
         @param azure_endpoint_client: instance of AzureEndpointHttpClient.
-        @param need_certificate: switch to know if certificates should be obtained.
+        @param need_certificate: switch to know if certificates is needed.
         @return: GoalState object representing the GoalState XML string.
         """
         self.azure_endpoint_client = azure_endpoint_client
@@ -704,7 +708,10 @@ class WALinuxAgentShim:
         @return: GoalState object representing the GoalState XML
         """
         unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure()
-        return self._parse_raw_goal_state_xml(unparsed_goal_state_xml, need_certificate)
+        return self._parse_raw_goal_state_xml(
+            unparsed_goal_state_xml,
+            need_certificate
+        )
 
     @azure_ds_telemetry_reporter
     def _get_raw_goal_state_xml_from_azure(self):
@@ -731,7 +738,10 @@ class WALinuxAgentShim:
         return response.contents
 
     @azure_ds_telemetry_reporter
-    def _parse_raw_goal_state_xml(self, unparsed_goal_state_xml, need_certificate):
+    def _parse_raw_goal_state_xml(
+            self,
+            unparsed_goal_state_xml,
+            need_certificate):
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
