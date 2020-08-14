@@ -203,7 +203,6 @@ class AzureEndpointHttpClient:
     }
 
     def __init__(self, certificate):
-        self.security_enabled = certificate is not None
         self.extra_secure_headers = {
             "x-ms-cipher-name": "DES_EDE3_CBC",
             "x-ms-guest-agent-public-x509-cert": certificate,
@@ -232,11 +231,12 @@ class InvalidGoalStateXMLException(Exception):
 
 class GoalState:
 
-    def __init__(self, unparsed_xml, azure_endpoint_client):
+    def __init__(self, unparsed_xml, azure_endpoint_client, need_certificate=True):
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_xml: string representing a GoalState XML.
-        @param azure_endpoint_client: instance of AzureEndpointHttpClient
+        @param azure_endpoint_client: instance of AzureEndpointHttpClient.
+        @param need_certificate: switch to know if certificates should be obtained.
         @return: GoalState object representing the GoalState XML string.
         """
         self.azure_endpoint_client = azure_endpoint_client
@@ -265,7 +265,7 @@ class GoalState:
         url = self._text_from_xpath(
             './Container/RoleInstanceList/RoleInstance'
             '/Configuration/Certificates')
-        if url is not None and self.azure_endpoint_client.security_enabled:
+        if url is not None and need_certificate:
             with events.ReportEventStack(
                     name="get-certificates-xml",
                     description="get certificates xml",
@@ -685,7 +685,9 @@ class WALinuxAgentShim:
         if self.azure_endpoint_client is None:
             self.azure_endpoint_client = AzureEndpointHttpClient(
                 http_client_certificate)
-        goal_state = self._fetch_goal_state_from_azure()
+        goal_state = self._fetch_goal_state_from_azure(
+            need_certificate=http_client_certificate is not None
+        )
         ssh_keys = None
         if pubkey_info is not None:
             ssh_keys = self._get_user_pubkeys(goal_state, pubkey_info)
@@ -695,14 +697,14 @@ class WALinuxAgentShim:
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
-    def _fetch_goal_state_from_azure(self):
+    def _fetch_goal_state_from_azure(self, need_certificate):
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
         @return: GoalState object representing the GoalState XML
         """
         unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure()
-        return self._parse_raw_goal_state_xml(unparsed_goal_state_xml)
+        return self._parse_raw_goal_state_xml(unparsed_goal_state_xml, need_certificate)
 
     @azure_ds_telemetry_reporter
     def _get_raw_goal_state_xml_from_azure(self):
@@ -729,7 +731,7 @@ class WALinuxAgentShim:
         return response.contents
 
     @azure_ds_telemetry_reporter
-    def _parse_raw_goal_state_xml(self, unparsed_goal_state_xml):
+    def _parse_raw_goal_state_xml(self, unparsed_goal_state_xml, need_certificate):
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
@@ -737,7 +739,10 @@ class WALinuxAgentShim:
         """
         try:
             goal_state = GoalState(
-                unparsed_goal_state_xml, self.azure_endpoint_client)
+                unparsed_goal_state_xml,
+                self.azure_endpoint_client,
+                need_certificate
+            )
         except Exception as e:
             msg = 'Error processing GoalState XML: %s' % e
             LOG.warning(msg)

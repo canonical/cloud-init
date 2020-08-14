@@ -625,8 +625,11 @@ class TestWALinuxAgentShim(CiTestCase):
             [mock.call('http://test_endpoint/machine/?comp=goalstate')],
             get.call_args_list)
         self.assertEqual(
-            [mock.call(get.return_value.contents,
-                       self.AzureEndpointHttpClient.return_value)],
+            [mock.call(
+                get.return_value.contents,
+                self.AzureEndpointHttpClient.return_value,
+                False
+            )],
             self.GoalState.call_args_list)
 
     def test_certificates_used_to_determine_public_keys(self):
