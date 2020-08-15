@@ -551,7 +551,8 @@ def system_info():
         elif linux_dist == 'redhat':
             var = 'rhel'
         elif linux_dist in (
-                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap', 'sles'):
+                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap',
+                'sles', 'sle_hpc'):
             var = 'suse'
         else:
             var = 'linux'
@@ -1111,6 +1112,7 @@ def close_stdin():
 
 def find_devs_with_freebsd(criteria=None, oformat='device',
                            tag=None, no_cache=False, path=None):
+    devlist = []
     if not criteria:
         return glob.glob("/dev/msdosfs/*") + glob.glob("/dev/iso9660/*")
     if criteria.startswith("LABEL="):

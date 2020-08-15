@@ -41,6 +41,7 @@ class DataSourceNoCloud(sources.DataSource):
 
         label_list = util.find_devs_with("LABEL=%s" % label.upper())
         label_list.extend(util.find_devs_with("LABEL=%s" % label.lower()))
+        label_list.extend(util.find_devs_with("LABEL_FATBOOT=%s" % label))
 
         devlist = list(set(fslist) & set(label_list))
         devlist.sort(reverse=True)

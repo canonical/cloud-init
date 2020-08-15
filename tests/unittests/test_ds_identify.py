@@ -577,6 +577,10 @@ class TestDsIdentify(DsIdentifyBase):
         """NoCloud is found with uppercase filesystem label."""
         self._test_ds_found('NoCloudUpper')
 
+    def test_nocloud_fatboot(self):
+        """NoCloud fatboot label - LP: #184166."""
+        self._test_ds_found('NoCloud-fatboot')
+
     def test_nocloud_seed(self):
         """Nocloud seed directory."""
         self._test_ds_found('NoCloud-seed')
@@ -811,6 +815,20 @@ VALID_CFG = {
              'out': blkid_out(
                  BLKID_UEFI_UBUNTU +
                  [{'DEVNAME': 'vdb', 'TYPE': 'iso9660', 'LABEL': 'CIDATA'}])},
+        ],
+        'files': {
+            'dev/vdb': 'pretend iso content for cidata\n',
+        }
+    },
+    'NoCloud-fatboot': {
+        'ds': 'NoCloud',
+        'mocks': [
+            MOCK_VIRT_IS_XEN,
+            {'name': 'blkid', 'ret': 0,
+             'out': blkid_out(
+                 BLKID_UEFI_UBUNTU +
+                 [{'DEVNAME': 'xvdb', 'TYPE': 'vfat', 'SEC_TYPE': 'msdos',
+                   'UUID': '355a-4FC2', 'LABEL_FATBOOT': 'cidata'}])},
         ],
         'files': {
             'dev/vdb': 'pretend iso content for cidata\n',
