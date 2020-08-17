@@ -158,7 +158,7 @@ def convert_delay(delay, fmt=None, scale=None):
     return delay
 
 
-def load_power_state(cfg, distro_name=None):
+def load_power_state(cfg, distro_name):
     # returns a tuple of shutdown_command, timeout
     # shutdown_command is None if no config found
     pstate = cfg.get('power_state')
