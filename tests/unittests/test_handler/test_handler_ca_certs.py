@@ -282,7 +282,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 mock.patch.object(util, 'write_file'))
             mock_subp = mocks.enter_context(mock.patch.object(subp, 'subp'))
 
-            cc_ca_certs.remove_default_ca_certs()
+            cc_ca_certs.remove_default_ca_certs('ubuntu')
 
             mock_delete.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/"),
