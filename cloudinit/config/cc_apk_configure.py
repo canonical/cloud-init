@@ -9,6 +9,8 @@
 from textwrap import dedent
 
 from cloudinit import log as logging
+from cloudinit import temp_utils
+from cloudinit import templater
 from cloudinit import util
 from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
@@ -19,6 +21,37 @@ LOG = logging.getLogger(__name__)
 
 # If no mirror is specified then use this one
 DEFAULT_MIRROR = "https://alpine.global.ssl.fastly.net/alpine"
+
+
+REPOSITORIES_TEMPLATE = """\
+## template:jinja
+#
+# Created by cloud-init
+#
+# This file is written on first boot of an instance
+#
+
+{{ alpine_baseurl }}/{{ alpine_version }}/main
+{% if community_enabled -%}
+{{ alpine_baseurl }}/{{ alpine_version }}/community
+{% endif -%}
+{% if testing_enabled -%}
+{% if alpine_version != 'edge' %}
+#
+# Testing - using this with a non-Edge installation will likely cause problems!
+#
+{% endif %}
+{{ alpine_baseurl }}/edge/testing
+{% endif %}
+{% if local_repo != '' %}
+
+#
+# Local repo
+#
+{{ local_repo }}/{{ alpine_version }}
+{% endif %}
+
+"""
 
 
 frequency = PER_INSTANCE
@@ -171,7 +204,7 @@ def handle(name, cfg, cloud, log, _args):
 
     # If "preserve_repositories" is explicitly set to True in
     # the configuration do nothing.
-    if util.is_true(apk_section.get('preserve_repositories'), False):
+    if util.get_cfg_option_bool(apk_section, 'preserve_repositories', False):
         LOG.debug(("Skipping module named %s,"
                    " 'preserve_repositories' is set"), name)
         return
@@ -210,27 +243,22 @@ def _write_repositories_file(alpine_repo, alpine_version, local_repo):
 
     alpine_baseurl = alpine_repo.get('base_url', DEFAULT_MIRROR)
 
-    repo_config = '#\n# Created by cloud-init\n#\n'
-    repo_config += '# This file is written on first boot of an instance\n#\n'
+    params = {'alpine_baseurl': alpine_baseurl,
+              'alpine_version': alpine_version,
+              'community_enabled': alpine_repo.get('community_enabled'),
+              'testing_enabled': alpine_repo.get('testing_enabled'),
+              'local_repo': local_repo}
 
-    repo_config += "\n%s/%s/main\n" % (alpine_baseurl, alpine_version)
-    LOG.debug('Placing main section in the generated configuration')
-    if alpine_repo.get('community_enabled'):
-        LOG.debug('Adding community section to the generated configuration')
-        repo_config += "%s/%s/community\n" % (alpine_baseurl, alpine_version)
-    if alpine_repo.get('testing_enabled'):
-        if alpine_version != 'edge':
-            repo_config += "\n#\n# Testing - using this with a non-Edge "
-            repo_config += "installation will likely cause problems!\n#\n"
-        LOG.debug('Adding testing section to the generated configuration')
-        repo_config += "%s/edge/testing\n" % alpine_baseurl
+    LOG.debug('Generating template file')
+    tfile = temp_utils.mkstemp(prefix='template_name-', suffix=".tmpl")
+    template_fn = tfile[1]  # Filepath is second item in tuple
+    util.write_file(template_fn, content=REPOSITORIES_TEMPLATE)
 
-    if local_repo != '':
-        LOG.debug('Adding local repo section to the generated configuration')
-        repo_config += "\n#\n# Local repo\n#"
-        repo_config += "\n%s/%s\n" % (local_repo, alpine_version)
+    LOG.debug('Generating /etc/apk/respositories configuration file')
+    templater.render_to_file(template_fn, repo_file, params)
+    # Clean up temporary template
+    LOG.debug('Deleting template file')
+    util.del_file(template_fn)
 
-    repo_config += '\n'
-    util.write_file(repo_file, repo_config)
 
 # vi: ts=4 expandtab

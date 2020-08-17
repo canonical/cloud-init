@@ -399,18 +399,19 @@ class TestNtp(FilesystemMockingTestCase):
         invalid_config = {
             'ntp': {'invalidkey': 1, 'pools': ['0.mycompany.pool.ntp.org']}}
         for distro in cc_ntp.distros:
-            mycloud = self._get_cloud(distro)
-            ntpconfig = self._mock_ntp_client_config(distro=distro)
-            confpath = ntpconfig['confpath']
-            m_select.return_value = ntpconfig
-            cc_ntp.handle('cc_ntp', invalid_config, mycloud, None, [])
-            self.assertIn(
-                "Invalid config:\nntp: Additional properties are not allowed "
-                "('invalidkey' was unexpected)",
-                self.logs.getvalue())
-            self.assertEqual(
-                "servers []\npools ['0.mycompany.pool.ntp.org']\n",
-                util.load_file(confpath))
+            if distro != 'alpine':
+                mycloud = self._get_cloud(distro)
+                ntpconfig = self._mock_ntp_client_config(distro=distro)
+                confpath = ntpconfig['confpath']
+                m_select.return_value = ntpconfig
+                cc_ntp.handle('cc_ntp', invalid_config, mycloud, None, [])
+                self.assertIn(
+                    "Invalid config:\nntp: Additional properties are not "
+                    "allowed ('invalidkey' was unexpected)",
+                    self.logs.getvalue())
+                self.assertEqual(
+                    "servers []\npools ['0.mycompany.pool.ntp.org']\n",
+                    util.load_file(confpath))
 
     @skipUnlessJsonSchema()
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')

@@ -126,11 +126,11 @@ schema = {
         Handle ntp configuration. If ntp is not installed on the system and
         ntp configuration is specified, ntp will be installed. If there is a
         default ntp config file in the image or one is present in the
-        distro's ntp package, it will be copied to ``/etc/ntp.conf.dist``
-        before any changes are made. A list of ntp pools and ntp servers can
-        be provided under the ``ntp`` config key. If no ntp ``servers`` or
-        ``pools`` are provided, 4 pools will be used in the format
-        ``{0-3}.{distro}.pool.ntp.org``."""),
+        distro's ntp package, it will be copied to a file with ``.dist``
+        appended to the filename before any changes are made. A list of ntp
+        pools and ntp servers can be provided under the ``ntp`` config key.
+        If no ntp ``servers`` or ``pools`` are provided, 4 pools will be used
+        in the format ``{0-3}.{distro}.pool.ntp.org``."""),
     'distros': distros,
     'examples': [
         dedent("""\
@@ -183,7 +183,10 @@ schema = {
                     'description': dedent("""\
                         List of ntp pools. If both pools and servers are
                         empty, 4 default pool servers will be provided of
-                        the format ``{0-3}.{distro}.pool.ntp.org``.""")
+                        the format ``{0-3}.{distro}.pool.ntp.org``. NOTE:
+                        for Alpine Linux when using the Busybox NTP client
+                        this setting will be ignored due to the limited
+                        functionality of Busybox's ntpd.""")
                 },
                 'servers': {
                     'type': 'array',
@@ -418,17 +421,17 @@ def write_ntp_config_template(distro_name, service_name=None, servers=None,
     if not pools:
         pools = []
 
-    if len(servers) == 0 and len(pools) == 0:
-        if distro_name == 'alpine' and service_name == 'ntpd':
-            # Alpine's Busybox ntpd only understands "servers" configuration
-            # and not "pool" configuration.
-            servers = generate_server_names(distro_name)
-            LOG.debug(
-                'Adding distro default ntp servers: %s', ','.join(servers))
-        else:
-            pools = generate_server_names(distro_name)
-            LOG.debug(
-                'Adding distro default ntp pool servers: %s', ','.join(pools))
+    if (len(servers) == 0 and distro_name == 'alpine' and
+            service_name == 'ntpd'):
+        # Alpine's Busybox ntpd only understands "servers" configuration
+        # and not "pool" configuration.
+        servers = generate_server_names(distro_name)
+        LOG.debug(
+            'Adding distro default ntp servers: %s', ','.join(servers))
+    elif len(servers) == 0 and len(pools) == 0:
+        pools = generate_server_names(distro_name)
+        LOG.debug(
+            'Adding distro default ntp pool servers: %s', ','.join(pools))
 
     if not path:
         raise ValueError('Invalid value for path parameter')

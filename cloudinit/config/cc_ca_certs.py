@@ -103,7 +103,7 @@ def remove_default_ca_certs(distro_name=None):
         subp.subp(('debconf-set-selections', '-'), debconf_sel)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name, cfg, cloud, log, _args):
     """
     Call to handle ca-cert sections in cloud-config file.
 
@@ -125,7 +125,7 @@ def handle(name, cfg, _cloud, log, _args):
     # default trusted CA certs first.
     if ca_cert_cfg.get("remove-defaults", False):
         log.debug("Removing default certificates")
-        remove_default_ca_certs(_cloud.distro.name)
+        remove_default_ca_certs(cloud.distro.name)
 
     # If we are given any new trusted CA certs to add, add them.
     if "trusted" in ca_cert_cfg:
