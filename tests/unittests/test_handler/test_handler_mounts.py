@@ -186,6 +186,19 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
 
     @mock.patch('cloudinit.util.get_mount_info')
     @mock.patch('cloudinit.util.kernel_version')
+    def test_swap_creation_method_fallocate_on_xfs(self, m_kernel_version,
+                                                   m_get_mount_info):
+        m_kernel_version.return_value = (4, 20)
+        m_get_mount_info.return_value = ["", "xfs"]
+
+        cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
+        self.m_subp_subp.assert_has_calls([
+            mock.call(['fallocate', '-l', '0M', self.swap_path], capture=True),
+            mock.call(['mkswap', self.swap_path]),
+            mock.call(['swapon', '-a'])])
+
+    @mock.patch('cloudinit.util.get_mount_info')
+    @mock.patch('cloudinit.util.kernel_version')
     def test_swap_creation_method_xfs(self, m_kernel_version,
                                       m_get_mount_info):
         m_kernel_version.return_value = (3, 18)
