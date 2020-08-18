@@ -38,7 +38,7 @@ REPOSITORIES_TEMPLATE = """\
 {% if testing_enabled -%}
 {% if alpine_version != 'edge' %}
 #
-# Testing - using this with a non-Edge installation will likely cause problems!
+# Testing - using with non-Edge installation may cause problems!
 #
 {% endif %}
 {{ alpine_baseurl }}/edge/testing
@@ -187,7 +187,7 @@ def handle(name, cfg, cloud, log, _args):
 
     @param name: The module name "apk-configure" from cloud.cfg
     @param cfg: A nested dict containing the entire cloud config contents.
-    @param cloud: The L{CloudInit} object in use.
+    @param cloud: The CloudInit object in use.
     @param log: Pre-initialized Python logger object to use for logging.
     @param _args: Any module arguments from cloud.cfg
     """

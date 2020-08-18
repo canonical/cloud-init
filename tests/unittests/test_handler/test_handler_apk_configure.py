@@ -6,56 +6,22 @@ Test creation of repositories file
 
 import logging
 import os
+import textwrap
 
-from cloudinit import cloud
-from cloudinit import temp_utils
-from cloudinit import templater
-from cloudinit import util
+from cloudinit import (cloud, helpers, util)
 
 from cloudinit.config import cc_apk_configure
-from cloudinit.tests.helpers import FilesystemMockingTestCase
-
+from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock)
 
 REPO_FILE = "/etc/apk/repositories"
 DEFAULT_MIRROR_URL = "https://alpine.global.ssl.fastly.net/alpine"
-
-REPOSITORIES_TEMPLATE = """\
-## template:jinja
-#
-# Created by cloud-init
-#
-# This file is written on first boot of an instance
-#
-
-{{ alpine_baseurl }}/{{ alpine_version }}/main
-{% if community_enabled -%}
-{{ alpine_baseurl }}/{{ alpine_version }}/community
-{% endif -%}
-{% if testing_enabled -%}
-{% if alpine_version != 'edge' %}
-#
-# Testing - using this with a non-Edge installation will likely cause problems!
-#
-{% endif %}
-{{ alpine_baseurl }}/edge/testing
-{% endif %}
-{% if local_repo != '' %}
-
-#
-# Local repo
-#
-{{ local_repo }}/{{ alpine_version }}
-{% endif %}
-
-"""
+CC_APK = 'cloudinit.config.cc_apk_configure'
 
 
 class TestNoConfig(FilesystemMockingTestCase):
     def setUp(self):
         super(TestNoConfig, self).setUp()
-        self.new_root = self.tmp_dir()
-        util.ensure_dir(os.path.join(self.new_root, 'etc/apk'))
-        self.new_root = self.reRoot(root=self.new_root)
+        self.add_patch(CC_APK + '._write_repositories_file', 'm_write_repos')
         self.name = "apk-configure"
         self.cloud_init = None
         self.log = logging.getLogger("TestNoConfig")
@@ -71,22 +37,24 @@ class TestNoConfig(FilesystemMockingTestCase):
         cc_apk_configure.handle(self.name, config, self.cloud_init,
                                 self.log, self.args)
 
-        self.assertRaises(IOError, util.load_file, REPO_FILE)
+        self.assertEqual(0, self.m_write_repos.call_count)
 
 
 class TestConfig(FilesystemMockingTestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
         self.new_root = self.tmp_dir()
-        util.ensure_dir(os.path.join(self.new_root, 'etc/apk'))
         self.new_root = self.reRoot(root=self.new_root)
+        for dirname in ['tmp', 'etc/apk']:
+            util.ensure_dir(os.path.join(self.new_root, dirname))
+        self.paths = helpers.Paths({'templates_dir': self.new_root})
         self.name = "apk-configure"
-        self.paths = None
         self.cloud = cloud.Cloud(None, self.paths, None, None, None)
         self.log = logging.getLogger("TestNoConfig")
         self.args = []
 
-    def test_no_repo_settings(self):
+    @mock.patch(CC_APK + '._write_repositories_file')
+    def test_no_repo_settings(self, m_write_repos):
         """
         Test that nothing is written if the 'alpine-repo' key
         is not present.
@@ -96,9 +64,10 @@ class TestConfig(FilesystemMockingTestCase):
         cc_apk_configure.handle(self.name, config, self.cloud, self.log,
                                 self.args)
 
-        self.assertRaises(IOError, util.load_file, REPO_FILE)
+        self.assertEqual(0, m_write_repos.call_count)
 
-    def test_empty_repo_settings(self):
+    @mock.patch(CC_APK + '._write_repositories_file')
+    def test_empty_repo_settings(self, m_write_repos):
         """
         Test that nothing is written if 'alpine_repo' list is empty.
         """
@@ -107,7 +76,7 @@ class TestConfig(FilesystemMockingTestCase):
         cc_apk_configure.handle(self.name, config, self.cloud, self.log,
                                 self.args)
 
-        self.assertRaises(IOError, util.load_file, REPO_FILE)
+        self.assertEqual(0, m_write_repos.call_count)
 
     def test_only_main_repo(self):
         """
@@ -125,23 +94,18 @@ class TestConfig(FilesystemMockingTestCase):
         cc_apk_configure.handle(self.name, config, self.cloud, self.log,
                                 self.args)
 
-        params = {'alpine_baseurl': DEFAULT_MIRROR_URL,
-                  'alpine_version': alpine_version,
-                  'local_repo': ''}
+        expected_content = textwrap.dedent("""\
+            #
+            # Created by cloud-init
+            #
+            # This file is written on first boot of an instance
+            #
 
-        tfile = temp_utils.mkstemp(prefix='template_name-', suffix=".tmpl")
-        template_fn = tfile[1]  # Filepath is second item in tuple
-        util.write_file(template_fn, content=REPOSITORIES_TEMPLATE)
+            {0}/{1}/main
 
-        expected_file = temp_utils.mkstemp(prefix='repositories-')
-        expected_fn = expected_file[1]  # Filepath is second item in tuple
-        templater.render_to_file(template_fn, expected_fn, params)
+            """.format(DEFAULT_MIRROR_URL, alpine_version))
 
-        self.assertEqual(util.load_file(REPO_FILE),
-                         util.load_file(expected_fn))
-
-        util.del_file(template_fn)
-        util.del_file(expected_fn)
+        self.assertEqual(expected_content, util.load_file(REPO_FILE))
 
     def test_main_and_community_repos(self):
         """
@@ -161,24 +125,19 @@ class TestConfig(FilesystemMockingTestCase):
         cc_apk_configure.handle(self.name, config, self.cloud, self.log,
                                 self.args)
 
-        params = {'alpine_baseurl': DEFAULT_MIRROR_URL,
-                  'alpine_version': alpine_version,
-                  'community_enabled': True,
-                  'local_repo': ''}
+        expected_content = textwrap.dedent("""\
+            #
+            # Created by cloud-init
+            #
+            # This file is written on first boot of an instance
+            #
 
-        tfile = temp_utils.mkstemp(prefix='template_name-', suffix=".tmpl")
-        template_fn = tfile[1]  # Filepath is second item in tuple
-        util.write_file(template_fn, content=REPOSITORIES_TEMPLATE)
+            {0}/{1}/main
+            {0}/{1}/community
 
-        expected_file = temp_utils.mkstemp(prefix='repositories-')
-        expected_fn = expected_file[1]  # Filepath is second item in tuple
-        templater.render_to_file(template_fn, expected_fn, params)
+            """.format(DEFAULT_MIRROR_URL, alpine_version))
 
-        self.assertEqual(util.load_file(REPO_FILE),
-                         util.load_file(expected_fn))
-
-        util.del_file(template_fn)
-        util.del_file(expected_fn)
+        self.assertEqual(expected_content, util.load_file(REPO_FILE))
 
     def test_main_community_testing_repos(self):
         """
@@ -199,25 +158,23 @@ class TestConfig(FilesystemMockingTestCase):
         cc_apk_configure.handle(self.name, config, self.cloud, self.log,
                                 self.args)
 
-        params = {'alpine_baseurl': DEFAULT_MIRROR_URL,
-                  'alpine_version': alpine_version,
-                  'community_enabled': True,
-                  'testing_enabled': True,
-                  'local_repo': ''}
+        expected_content = textwrap.dedent("""\
+            #
+            # Created by cloud-init
+            #
+            # This file is written on first boot of an instance
+            #
 
-        tfile = temp_utils.mkstemp(prefix='template_name-', suffix=".tmpl")
-        template_fn = tfile[1]  # Filepath is second item in tuple
-        util.write_file(template_fn, content=REPOSITORIES_TEMPLATE)
+            {0}/{1}/main
+            {0}/{1}/community
+            #
+            # Testing - using with non-Edge installation may cause problems!
+            #
+            {0}/edge/testing
 
-        expected_file = temp_utils.mkstemp(prefix='repositories-')
-        expected_fn = expected_file[1]  # Filepath is second item in tuple
-        templater.render_to_file(template_fn, expected_fn, params)
+            """.format(DEFAULT_MIRROR_URL, alpine_version))
 
-        self.assertEqual(util.load_file(REPO_FILE),
-                         util.load_file(expected_fn))
-
-        util.del_file(template_fn)
-        util.del_file(expected_fn)
+        self.assertEqual(expected_content, util.load_file(REPO_FILE))
 
     def test_edge_main_community_testing_repos(self):
         """
@@ -238,25 +195,20 @@ class TestConfig(FilesystemMockingTestCase):
         cc_apk_configure.handle(self.name, config, self.cloud, self.log,
                                 self.args)
 
-        params = {'alpine_baseurl': DEFAULT_MIRROR_URL,
-                  'alpine_version': alpine_version,
-                  'community_enabled': True,
-                  'testing_enabled': True,
-                  'local_repo': ''}
+        expected_content = textwrap.dedent("""\
+            #
+            # Created by cloud-init
+            #
+            # This file is written on first boot of an instance
+            #
 
-        tfile = temp_utils.mkstemp(prefix='template_name-', suffix=".tmpl")
-        template_fn = tfile[1]  # Filepath is second item in tuple
-        util.write_file(template_fn, content=REPOSITORIES_TEMPLATE)
+            {0}/{1}/main
+            {0}/{1}/community
+            {0}/{1}/testing
 
-        expected_file = temp_utils.mkstemp(prefix='repositories-')
-        expected_fn = expected_file[1]  # Filepath is second item in tuple
-        templater.render_to_file(template_fn, expected_fn, params)
+            """.format(DEFAULT_MIRROR_URL, alpine_version))
 
-        self.assertEqual(util.load_file(REPO_FILE),
-                         util.load_file(expected_fn))
-
-        util.del_file(template_fn)
-        util.del_file(expected_fn)
+        self.assertEqual(expected_content, util.load_file(REPO_FILE))
 
     def test_main_community_testing_local_repos(self):
         """
@@ -279,25 +231,28 @@ class TestConfig(FilesystemMockingTestCase):
         cc_apk_configure.handle(self.name, config, self.cloud, self.log,
                                 self.args)
 
-        params = {'alpine_baseurl': DEFAULT_MIRROR_URL,
-                  'alpine_version': alpine_version,
-                  'community_enabled': True,
-                  'testing_enabled': True,
-                  'local_repo': local_repo_url}
+        expected_content = textwrap.dedent("""\
+            #
+            # Created by cloud-init
+            #
+            # This file is written on first boot of an instance
+            #
 
-        tfile = temp_utils.mkstemp(prefix='template_name-', suffix=".tmpl")
-        template_fn = tfile[1]  # Filepath is second item in tuple
-        util.write_file(template_fn, content=REPOSITORIES_TEMPLATE)
+            {0}/{1}/main
+            {0}/{1}/community
+            #
+            # Testing - using with non-Edge installation may cause problems!
+            #
+            {0}/edge/testing
 
-        expected_file = temp_utils.mkstemp(prefix='repositories-')
-        expected_fn = expected_file[1]  # Filepath is second item in tuple
-        templater.render_to_file(template_fn, expected_fn, params)
+            #
+            # Local repo
+            #
+            {2}/{1}
 
-        self.assertEqual(util.load_file(REPO_FILE),
-                         util.load_file(expected_fn))
+            """.format(DEFAULT_MIRROR_URL, alpine_version, local_repo_url))
 
-        util.del_file(template_fn)
-        util.del_file(expected_fn)
+        self.assertEqual(expected_content, util.load_file(REPO_FILE))
 
     def test_edge_main_community_testing_local_repos(self):
         """
@@ -320,25 +275,25 @@ class TestConfig(FilesystemMockingTestCase):
         cc_apk_configure.handle(self.name, config, self.cloud, self.log,
                                 self.args)
 
-        params = {'alpine_baseurl': DEFAULT_MIRROR_URL,
-                  'alpine_version': alpine_version,
-                  'community_enabled': True,
-                  'testing_enabled': True,
-                  'local_repo': local_repo_url}
+        expected_content = textwrap.dedent("""\
+            #
+            # Created by cloud-init
+            #
+            # This file is written on first boot of an instance
+            #
 
-        tfile = temp_utils.mkstemp(prefix='template_name-', suffix=".tmpl")
-        template_fn = tfile[1]  # Filepath is second item in tuple
-        util.write_file(template_fn, content=REPOSITORIES_TEMPLATE)
+            {0}/{1}/main
+            {0}/{1}/community
+            {0}/edge/testing
 
-        expected_file = temp_utils.mkstemp(prefix='repositories-')
-        expected_fn = expected_file[1]  # Filepath is second item in tuple
-        templater.render_to_file(template_fn, expected_fn, params)
+            #
+            # Local repo
+            #
+            {2}/{1}
 
-        self.assertEqual(util.load_file(REPO_FILE),
-                         util.load_file(expected_fn))
+            """.format(DEFAULT_MIRROR_URL, alpine_version, local_repo_url))
 
-        util.del_file(template_fn)
-        util.del_file(expected_fn)
+        self.assertEqual(expected_content, util.load_file(REPO_FILE))
 
 
 # vi: ts=4 expandtab

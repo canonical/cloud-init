@@ -150,10 +150,7 @@ def convert_delay(delay, fmt=None, scale=None):
     if not scale:
         scale = 1
 
-    try:
-        delay = fmt % int(int(delay) * int(scale))
-    except ValueError:
-        pass
+    delay = fmt % int(int(delay) * int(scale))
 
     return delay
 
@@ -178,11 +175,6 @@ def load_power_state(cfg, distro_name):
             (','.join(opt_map.keys()), mode))
 
     delay = pstate.get("delay", "now")
-    if delay != "now" and not re.match(r"^\+[0-9]+$", delay):
-        raise TypeError(
-            "power_state[delay] must be 'now' or '+m' (minutes)."
-            " found '%s'." % delay)
-
     if distro_name == 'alpine':
         if delay == "now":
             # Alpine's halt/poweroff/reboot commands do not understand "now"
@@ -190,12 +182,23 @@ def load_power_state(cfg, distro_name):
         else:
             # Convert integer 30 or string '30' to '1800' (seconds) as Alpine's
             # halt/poweroff/reboot commands take seconds as param with no "+"
-            delay = convert_delay(delay, fmt="%s", scale=60)
+            try:
+                delay = convert_delay(delay, fmt="%s", scale=60)
+            except ValueError:
+                raise TypeError(
+                    "power_state[delay] must be 'now' or '+m' (minutes)."
+                    " found '%s'." % delay)
 
         args = [mode, "-d", delay]
     else:
-        # convert integer 30 or string '30' to '+30'
-        delay = convert_delay(delay, fmt="+%s", scale=1)
+        if delay != "now":
+            # convert integer 30 or string '30' to '+30'
+            try:
+                delay = convert_delay(delay, fmt="+%s", scale=1)
+            except ValueError:
+                raise TypeError(
+                    "power_state[delay] must be 'now' or '+m' (minutes)."
+                    " found '%s'." % delay)
 
         args = ["shutdown", opt_map[mode], delay]
 

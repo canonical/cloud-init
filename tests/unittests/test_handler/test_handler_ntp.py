@@ -239,6 +239,35 @@ class TestNtp(FilesystemMockingTestCase):
                     self.assertEqual(delta[distro][client][key],
                                      result[client][key])
 
+    def _get_expected_pools(self, pools, distro, client):
+        if client in ['ntp', 'chrony']:
+            if client == 'ntp' and distro == 'alpine':
+                # NTP for Alpine Linux is Busybox's ntp which does not
+                # support 'pool' lines in its configuration file.
+                expected_pools = []
+            else:
+                expected_pools = [
+                    'pool {0} iburst'.format(pool) for pool in pools]
+        elif client == 'systemd-timesyncd':
+            expected_pools = " ".join(pools)
+
+        return expected_pools
+
+    def _get_expected_servers(self, servers, distro, client):
+        if client in ['ntp', 'chrony']:
+            if client == 'ntp' and distro == 'alpine':
+                # NTP for Alpine Linux is Busybox's ntp which only supports
+                # 'server' lines without iburst option.
+                expected_servers = [
+                    'server {0}'.format(srv) for srv in servers]
+            else:
+                expected_servers = [
+                    'server {0} iburst'.format(srv) for srv in servers]
+        elif client == 'systemd-timesyncd':
+            expected_servers = " ".join(servers)
+
+        return expected_servers
+
     def test_ntp_handler_real_distro_ntp_templates(self):
         """Test ntp handler renders the shipped distro ntp client templates."""
         pools = ['0.mycompany.pool.ntp.org', '3.mycompany.pool.ntp.org']
@@ -268,43 +297,36 @@ class TestNtp(FilesystemMockingTestCase):
                                                  template_fn=template_fn)
                 content = util.load_file(confpath)
                 if client in ['ntp', 'chrony']:
-                    if client == 'ntp' and distro == 'alpine':
-                        # NTP for Alpine Linux is Busybox's ntp which
-                        # only supports 'server' lines in its configuration
-                        # file and not with iburst option.
-
-                        content_lines = content.splitlines()
-                        expected_servers = [
-                            'server {0}'.format(srv) for srv in servers]
-                        print('distro=%s client=%s' % (distro, client))
-                        for sline in expected_servers:
-                            self.assertIn(sline, content_lines,
-                                          ('failed to render {0} conf'
-                                           ' for distro:{1}'.format(client,
-                                                                    distro)))
-                    else:
-                        content_lines = content.splitlines()
-                        expected_servers = [
-                            'server {0} iburst'.format(srv) for srv in servers]
-                        print('distro=%s client=%s' % (distro, client))
-                        for sline in expected_servers:
-                            self.assertIn(sline, content_lines,
-                                          ('failed to render {0} conf'
-                                           ' for distro:{1}'.format(client,
-                                                                    distro)))
-                        expected_pools = [
-                            'pool {0} iburst'.format(pool) for pool in pools]
+                    content_lines = content.splitlines()
+                    expected_servers = self._get_expected_servers(servers,
+                                                                  distro,
+                                                                  client)
+                    print('distro=%s client=%s' % (distro, client))
+                    for sline in expected_servers:
+                        self.assertIn(sline, content_lines,
+                                      ('failed to render {0} conf'
+                                       ' for distro:{1}'.format(client,
+                                                                distro)))
+                    expected_pools = self._get_expected_pools(pools, distro,
+                                                              client)
+                    if expected_pools != []:
                         for pline in expected_pools:
                             self.assertIn(pline, content_lines,
                                           ('failed to render {0} conf'
                                            ' for distro:{1}'.format(client,
                                                                     distro)))
                 elif client == 'systemd-timesyncd':
+                    expected_servers = self._get_expected_servers(servers,
+                                                                  distro,
+                                                                  client)
+                    expected_pools = self._get_expected_pools(pools,
+                                                              distro,
+                                                              client)
                     expected_content = (
                         "# cloud-init generated file\n" +
                         "# See timesyncd.conf(5) for details.\n\n" +
-                        "[Time]\nNTP=%s %s \n" % (" ".join(servers),
-                                                  " ".join(pools)))
+                        "[Time]\nNTP=%s %s \n" % (expected_servers,
+                                                  expected_pools))
                     self.assertEqual(expected_content, content)
 
     def test_no_ntpcfg_does_nothing(self):
