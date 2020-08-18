@@ -297,7 +297,10 @@ def read_opc_metadata(*, fetch_vnics_data: bool = False):
             `fetch_vnics_data` is True, else None
 
     """
-    retries = 1
+    # Per Oracle, there are short windows (measured in milliseconds) throughout
+    # an instance's lifetime where the IMDS is being updated and may 404 as a
+    # result.  To work around these windows, we retry a couple of times.
+    retries = 2
 
     def _fetch(metadata_version: int, path: str) -> dict:
         headers = {
