@@ -96,8 +96,9 @@ def report_event(event, excluded_handlers=None):
     """
     handlers = instantiated_handler_registry.registered_items.items()
     for handler_key, handler in handlers:
-        if not excluded_handlers or handler_key not in excluded_handlers:
-            handler.publish_event(event)
+        if excluded_handlers and handler_key in excluded_handlers:
+            continue    # skip this excluded handler
+        handler.publish_event(event)
 
 
 def report_finish_event(event_name, event_description,
