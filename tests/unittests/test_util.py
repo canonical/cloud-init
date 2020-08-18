@@ -9,7 +9,6 @@ import stat
 import tempfile
 import pytest
 import yaml
-import pytest
 from unittest import mock
 
 from cloudinit import subp
@@ -999,7 +998,6 @@ class TestFindDevs:
         devlist = util.find_devs_with("LABEL_FATBOOT=A_LABEL")
         assert devlist == [
             '/dev/sda1: UUID="some-uuid" TYPE="ext4" PARTUUID="some-partid"']
-
 
     @mock.patch('cloudinit.subp.subp')
     def test_find_devs_with_openbsd(self, m_subp):
