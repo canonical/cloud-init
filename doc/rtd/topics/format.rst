@@ -23,33 +23,35 @@ Using a mime-multi part file, the user can specify more than one type of data.
 For example, both a user data script and a cloud-config type could be
 specified.
 
-Supported content-types:
+Supported content-types are listed from the cloud-init subcommand make-mime::
 
-- text/cloud-boothook
-- text/cloud-config
-- text/cloud-config-archive
-- text/jinja2
-- text/part-handler
-- text/upstart-job
-- text/x-include-once-url
-- text/x-include-url
-- text/x-shellscript
+    % cloud-init devel make-mime --list-types
+    cloud-boothook
+    cloud-config
+    cloud-config-archive
+    cloud-config-jsonp
+    jinja2
+    part-handler
+    upstart-job
+    x-include-once-url
+    x-include-url
+    x-shellscript
 
-Helper script to generate mime messages
----------------------------------------
 
-The cloud-init codebase includes a helper script to generate MIME multi-part
-files: `make-mime.py`_.
+Helper subcommand to generate mime messages
+-------------------------------------------
 
-``make-mime.py`` takes pairs of (filename, "text/" mime subtype) separated by
-a colon (e.g. ``config.yaml:cloud-config``) and emits a MIME multipart
-message to stdout.  An example invocation, assuming you have your cloud config
-in ``config.yaml`` and a shell script in ``script.sh`` and want to store the
-multipart message in ``user-data``::
+The cloud-init subcommand can generate MIME multi-part files: `make-mime`_.
 
-    ./tools/make-mime.py -a config.yaml:cloud-config -a script.sh:x-shellscript > user-data
+``make-mime`` subcommand takes pairs of (filename, "text/" mime subtype)
+separated by a colon (e.g. ``config.yaml:cloud-config``) and emits a MIME
+multipart message to stdout.  An example invocation, assuming you have your
+cloud config in ``config.yaml`` and a shell script in ``script.sh`` and want
+to store the multipart message in ``user-data``::
 
-.. _make-mime.py: https://github.com/canonical/cloud-init/blob/master/tools/make-mime.py
+    % cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > user-data
+
+.. _make-mime: https://github.com/canonical/cloud-init/blob/master/cloudinit/cmd/devel/make_mime.py
 
 
 User-Data Script
