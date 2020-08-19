@@ -106,7 +106,7 @@ def report_event(event, excluded_handler_types=None):
     handlers = instantiated_handler_registry.registered_items.items()
     for _, handler in handlers:
         if type(handler) in excluded_handler_classes:
-            continue # skip this excluded handler
+            continue  # skip this excluded handler
         handler.publish_event(event)
 
 

@@ -205,7 +205,7 @@ def report_compressed_event(event_name, event_content):
 def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
     """Push a portion of cloud-init.log file or the whole file to KVP
     based on the file size.
-    If called more than once, it skips pushing the log file to the KVP again."""
+    If called more than once, it skips pushing the log file to KVP again."""
 
     log_pushed_to_kvp = bool(os.path.isfile(LOG_PUSHED_TO_KVP_MARKER_FILE))
     if log_pushed_to_kvp:
