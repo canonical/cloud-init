@@ -524,7 +524,7 @@ class GoalStateHealthReporter:
         return health_report
 
     @azure_ds_telemetry_reporter
-    def _post_health_report(self, is_new_instance, document):
+    def _post_health_report(self, document):
         push_log_to_kvp()
 
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
