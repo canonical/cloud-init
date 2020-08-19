@@ -105,11 +105,11 @@ schema = {
                     'default': False,
                     'description': dedent("""\
                         By default, cloud-init will generate a new repositories
-                        file ``/etc/apk/repositories`` based on any
-                        settings specified in cloud config. To disable this
-                        behavior and preserve the repositories file from the
-                        pristine image, set ``preserve_repositories``
-                        to ``true``.
+                        file ``/etc/apk/repositories`` based on any valid
+                        configuration settings specified within a apk_repos
+                        section of cloud config. To disable this behavior and
+                        preserve the repositories file from the pristine image,
+                        set ``preserve_repositories`` to ``true``.
 
                         The ``preserve_repositories`` option overrides
                         all other config keys that would alter
