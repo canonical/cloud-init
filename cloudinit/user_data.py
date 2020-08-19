@@ -126,8 +126,12 @@ class UserDataProcessor(object):
             # Attempt to figure out the payloads content-type
             if not ctype_orig:
                 ctype_orig = UNDEF_TYPE
-            if ctype_orig in TYPE_NEEDED or (ctype_orig in
-                                             INCLUDE_MAP.values()):
+            # There are known cases where mime-type text/x-shellscript included
+            # non shell-script content that was user-data instead.  It is safe
+            # to check the true MIME type for x-shellscript type since all
+            # shellscript payloads must have a #! header.  The other MIME types
+            # that cloud-init supports do not have the same guarantee.
+            if ctype_orig in TYPE_NEEDED + ['text/x-shellscript']:
                 ctype = find_ctype(payload)
             if ctype is None:
                 ctype = ctype_orig
