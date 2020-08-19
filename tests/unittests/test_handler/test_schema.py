@@ -24,6 +24,7 @@ class GetSchemaTest(CiTestCase):
         schema = get_schema()
         self.assertCountEqual(
             [
+                'cc_apk_configure',
                 'cc_apt_configure',
                 'cc_bootcmd',
                 'cc_locale',
