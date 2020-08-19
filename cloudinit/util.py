@@ -68,6 +68,10 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['lxc-is-container'])
 
 
+def kernel_version():
+    return tuple(map(int, os.uname().release.split('.')[:2]))
+
+
 @lru_cache()
 def get_dpkg_architecture(target=None):
     """Return the sanitized string output by `dpkg --print-architecture`.
