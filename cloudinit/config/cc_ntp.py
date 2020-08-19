@@ -379,6 +379,7 @@ def generate_server_names(distro):
     """
     names = []
     pool_distro = distro
+
     if distro == 'sles':
         # For legal reasons x.pool.sles.ntp.org does not exist,
         # use the opensuse pool
@@ -389,8 +390,8 @@ def generate_server_names(distro):
         pool_distro = ''
 
     for x in range(0, NR_POOL_SERVERS):
-        names.append(".".join([host for host in
-                          [str(x) + [pool_distro] + ['pool.ntp.org'] if host]))
+        names.append(".".join(
+            [n for n in [str(x)] + [pool_distro] + ['pool.ntp.org'] if n]))
 
     return names
 
