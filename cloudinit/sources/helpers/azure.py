@@ -36,8 +36,10 @@ BOOT_EVENT_TYPE = 'boot-telemetry'
 SYSTEMINFO_EVENT_TYPE = 'system-info'
 DIAGNOSTIC_EVENT_TYPE = 'diagnostic'
 COMPRESSED_EVENT_TYPE = 'compressed'
-# Maximum number of bytes of the cloud-init.log file that
-# can be dumped to KVP at once
+# Maximum number of bytes of the cloud-init.log file that can be dumped to KVP
+# at once. This number is based on the analysis done on a large sample of
+# cloud-init.log files where the P95 of the file sizes was 537KB and the time
+# consumed to dump 500KB file was (P95:76, P99:233, P99.9:1170) in ms
 MAX_LOG_TO_KVP_LENGTH = 512000
 
 # Index of the last byte of the log file that was dumped to KVP
@@ -194,7 +196,7 @@ def report_compressed_event(event_name, event_content):
         COMPRESSED_EVENT_TYPE, event_name,
         json.dumps(event_data),
         events.DEFAULT_EVENT_ORIGIN)
-    events.report_event(evt, excluded_handlers={"logging"})
+    events.report_event(evt, excluded_handler_types={"log"})
 
     # return the event for unit testing purpose
     return evt
@@ -486,7 +488,7 @@ class GoalStateHealthReporter:
         self._endpoint = endpoint
 
     @azure_ds_telemetry_reporter
-    def send_ready_signal(self):
+    def send_ready_signal(self, is_new_instance):
         document = self.build_report(
             incarnation=self._goal_state.incarnation,
             container_id=self._goal_state.container_id,
@@ -494,7 +496,7 @@ class GoalStateHealthReporter:
             status=self.PROVISIONING_SUCCESS_STATUS)
         LOG.debug('Reporting ready to Azure fabric.')
         try:
-            self._post_health_report(document=document)
+            self._post_health_report(is_new_instance, document=document)
         except Exception as e:
             msg = "exception while reporting ready: %s" % e
             LOG.error(msg)
@@ -521,8 +523,9 @@ class GoalStateHealthReporter:
         return health_report
 
     @azure_ds_telemetry_reporter
-    def _post_health_report(self, document):
-        push_log_to_kvp()
+    def _post_health_report(self, is_new_instance, document):
+        if is_new_instance:
+            push_log_to_kvp()
 
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
         # the diagnostic messages are written to special files
@@ -555,9 +558,11 @@ class GoalStateHealthReporter:
 
 class WALinuxAgentShim:
 
-    def __init__(self, fallback_lease_file=None, dhcp_options=None):
+    def __init__(self, is_new_instance, fallback_lease_file=None,
+                 dhcp_options=None):
         LOG.debug('WALinuxAgentShim instantiated, fallback_lease_file=%s',
                   fallback_lease_file)
+        self.is_new_instance = is_new_instance
         self.dhcpoptions = dhcp_options
         self._endpoint = None
         self.openssl_manager = None
@@ -736,7 +741,7 @@ class WALinuxAgentShim:
         ssh_keys = self._get_user_pubkeys(goal_state, pubkey_info)
         health_reporter = GoalStateHealthReporter(
             goal_state, self.azure_endpoint_client, self.endpoint)
-        health_reporter.send_ready_signal()
+        health_reporter.send_ready_signal(self.is_new_instance)
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
@@ -859,9 +864,10 @@ class WALinuxAgentShim:
 
 
 @azure_ds_telemetry_reporter
-def get_metadata_from_fabric(fallback_lease_file=None, dhcp_opts=None,
-                             pubkey_info=None):
-    shim = WALinuxAgentShim(fallback_lease_file=fallback_lease_file,
+def get_metadata_from_fabric(is_new_instance, fallback_lease_file=None,
+                             dhcp_opts=None, pubkey_info=None):
+    shim = WALinuxAgentShim(is_new_instance,
+                            fallback_lease_file=fallback_lease_file,
                             dhcp_options=dhcp_opts)
     try:
         return shim.register_with_azure_and_fetch_data(pubkey_info=pubkey_info)

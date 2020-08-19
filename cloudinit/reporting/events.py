@@ -12,7 +12,7 @@ import base64
 import os.path
 import time
 
-from . import instantiated_handler_registry
+from . import instantiated_handler_registry, available_handlers
 
 FINISH_EVENT_TYPE = 'finish'
 START_EVENT_TYPE = 'start'
@@ -81,23 +81,32 @@ class FinishReportingEvent(ReportingEvent):
         return data
 
 
-def report_event(event, excluded_handlers=None):
+def report_event(event, excluded_handler_types=None):
     """Report an event to all registered event handlers
-    except the excluded_handlers.
+    except those whose type is in excluded_handler_types.
 
     This should generally be called via one of the other functions in
     the reporting module.
 
-    :param excluded_handlers:
-         List of handlers to exclude from reporting the event to.
+    :param excluded_handler_types:
+         List of handlers types to exclude from reporting the event to.
     :param event_type:
         The type of the event; this should be a constant from the
         reporting module.
     """
+
+    if not excluded_handler_types:
+        excluded_handler_types = {}
+    excluded_handler_classes = {
+        hndl_cls
+        for hndl_type, hndl_cls in available_handlers.registered_items.items()
+        if hndl_type in excluded_handler_types
+    }
     handlers = instantiated_handler_registry.registered_items.items()
-    for handler_key, handler in handlers:
-        if not excluded_handlers or handler_key not in excluded_handlers:
-            handler.publish_event(event)
+    for _, handler in handlers:
+        if type(handler) in excluded_handler_classes:
+            continue
+        handler.publish_event(event)
 
 
 def report_finish_event(event_name, event_description,

@@ -3,7 +3,7 @@ import base64
 import zlib
 
 from cloudinit.reporting import events, instantiated_handler_registry
-from cloudinit.reporting.handlers import HyperVKvpReportingHandler
+from cloudinit.reporting.handlers import HyperVKvpReportingHandler, LogHandler
 
 import json
 import os
@@ -214,7 +214,8 @@ class TextKvpReporter(CiTestCase):
             instantiated_handler_registry.unregister_item("telemetry",
                                                           force=False)
 
-    def test_push_log_to_kvp(self):
+    @mock.patch.object(LogHandler, 'publish_event')
+    def test_push_log_to_kvp(self, publish_event):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
         try:
             instantiated_handler_registry.register_item("telemetry", reporter)
@@ -230,6 +231,9 @@ class TextKvpReporter(CiTestCase):
                 f.write(extra_content)
             azure.push_log_to_kvp(log_file)
 
+            with self.assertRaises(AssertionError):
+                publish_event.assert_called_with(
+                    event_type=azure.COMPRESSED_EVENT_TYPE)
             self.validate_compressed_kvps(
                 reporter, 2,
                 [log_content[-azure.MAX_LOG_TO_KVP_LENGTH:].encode(),

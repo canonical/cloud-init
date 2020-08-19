@@ -711,7 +711,8 @@ class DataSourceAzure(sources.DataSource):
     def _report_ready(self, lease):
         """Tells the fabric provisioning has completed """
         try:
-            get_metadata_from_fabric(None, lease['unknown-245'])
+            get_metadata_from_fabric(self.check_instance_id(None), None,
+                                     lease['unknown-245'])
         except Exception:
             LOG.warning(
                 "Error communicating with Azure fabric; You may experience."
@@ -765,6 +766,7 @@ class DataSourceAzure(sources.DataSource):
 
             pubkey_info = self.cfg.get('_pubkeys', None)
             metadata_func = partial(get_metadata_from_fabric,
+                                    self.check_instance_id(None),
                                     fallback_lease_file=self.
                                     dhclient_lease_file,
                                     pubkey_info=pubkey_info)
@@ -795,7 +797,8 @@ class DataSourceAzure(sources.DataSource):
                                      preserve_ntfs=self.ds_cfg.get(
                                          DS_CFG_KEY_PRESERVE_NTFS, False))
         finally:
-            push_log_to_kvp()
+            if is_new_instance:
+                push_log_to_kvp(self.sys_cfg['def_log_file'])
         return
 
     @property
