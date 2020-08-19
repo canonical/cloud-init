@@ -378,21 +378,20 @@ def generate_server_names(distro):
     @returns: list: A list of strings representing ntp servers for this distro.
     """
     names = []
-    if distro == 'alpine':
-        # Alpine-specific pool (i.e. x.alpine.pool.ntp.org) does not exist
-        # so use general x.pool.ntp.org instead.
-        for x in range(0, NR_POOL_SERVERS):
-            name = "%d.pool.ntp.org" % x
-            names.append(name)
-    else:
-        pool_distro = distro
+    pool_distro = distro
+    if distro == 'sles':
         # For legal reasons x.pool.sles.ntp.org does not exist,
         # use the opensuse pool
-        if distro == 'sles':
-            pool_distro = 'opensuse'
-        for x in range(0, NR_POOL_SERVERS):
-            name = "%d.%s.pool.ntp.org" % (x, pool_distro)
-            names.append(name)
+        pool_distro = 'opensuse'
+    elif distro == 'alpine':
+        # Alpine-specific pool (i.e. x.alpine.pool.ntp.org) does not exist
+        # so use general x.pool.ntp.org instead.
+        pool_distro = ''
+
+    for x in range(0, NR_POOL_SERVERS):
+        names.append(".".join([host for host in
+                          [str(x) + [pool_distro] + ['pool.ntp.org'] if host]))
+
     return names
 
 

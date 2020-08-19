@@ -500,48 +500,35 @@ class TestNtp(FilesystemMockingTestCase):
             confpath = ntpconfig['confpath']
             service_name = ntpconfig['service_name']
             m_select.return_value = ntpconfig
+
+            hosts = cc_ntp.generate_server_names(mycloud.distro.name)
+            uses_systemd = True
+            expected_service_call = ['systemctl', 'reload-or-restart',
+                                     service_name]
+            expected_content = "servers []\npools {0}\n".format(hosts)
+
             if distro == 'alpine':
+                uses_systemd = False
+                expected_service_call = ['service', service_name, 'restart']
                 # _mock_ntp_client_config call above did not specify a client
                 # value and so it defaults to "ntp" which on Alpine Linux only
                 # supports servers and not pools.
+                expected_content = "servers {0}\npools []\n".format(hosts)
 
-                servers = cc_ntp.generate_server_names(mycloud.distro.name)
-                # Alpine does not use systemd
-                m_sysd.return_value = False
-                with mock.patch('cloudinit.config.cc_ntp.util') as m_util:
-                    # allow use of util.mergemanydict
-                    m_util.mergemanydict.side_effect = util.mergemanydict
-                    # default client is present
-                    m_subp.which.return_value = True
-                    # use the config 'enabled' value
-                    m_util.is_false.return_value = util.is_false(
-                        cfg['ntp']['enabled'])
-                    cc_ntp.handle('notimportant', cfg, mycloud, None, None)
-                    m_subp.subp.assert_called_with(
-                        ['service', service_name,
-                         'restart'], capture=True)
-                self.assertEqual(
-                    "servers {0}\npools []\n".format(servers),
-                    util.load_file(confpath))
-            else:
-                pools = cc_ntp.generate_server_names(mycloud.distro.name)
-                # force uses systemd path
-                m_sysd.return_value = True
-                with mock.patch('cloudinit.config.cc_ntp.util') as m_util:
-                    # allow use of util.mergemanydict
-                    m_util.mergemanydict.side_effect = util.mergemanydict
-                    # default client is present
-                    m_subp.which.return_value = True
-                    # use the config 'enabled' value
-                    m_util.is_false.return_value = util.is_false(
-                        cfg['ntp']['enabled'])
-                    cc_ntp.handle('notimportant', cfg, mycloud, None, None)
-                    m_subp.subp.assert_called_with(
-                        ['systemctl', 'reload-or-restart',
-                         service_name], capture=True)
-                self.assertEqual(
-                    "servers []\npools {0}\n".format(pools),
-                    util.load_file(confpath))
+            m_sysd.return_value = uses_systemd
+            with mock.patch('cloudinit.config.cc_ntp.util') as m_util:
+                # allow use of util.mergemanydict
+                m_util.mergemanydict.side_effect = util.mergemanydict
+                # default client is present
+                m_subp.which.return_value = True
+                # use the config 'enabled' value
+                m_util.is_false.return_value = util.is_false(
+                    cfg['ntp']['enabled'])
+                cc_ntp.handle('notimportant', cfg, mycloud, None, None)
+                m_subp.subp.assert_called_with(
+                    expected_service_call, capture=True)
+
+            self.assertEqual(expected_content, util.load_file(confpath))
 
     def test_opensuse_picks_chrony(self):
         """Test opensuse picks chrony or ntp on certain distro versions"""

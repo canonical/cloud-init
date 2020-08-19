@@ -249,15 +249,14 @@ def _write_repositories_file(alpine_repo, alpine_version, local_repo):
               'testing_enabled': alpine_repo.get('testing_enabled'),
               'local_repo': local_repo}
 
-    LOG.debug('Generating template file')
     tfile = temp_utils.mkstemp(prefix='template_name-', suffix=".tmpl")
     template_fn = tfile[1]  # Filepath is second item in tuple
     util.write_file(template_fn, content=REPOSITORIES_TEMPLATE)
 
-    LOG.debug('Generating /etc/apk/respositories configuration file')
+    LOG.debug('Generating Alpine repository configuration file: %s',
+              repo_file)
     templater.render_to_file(template_fn, repo_file, params)
     # Clean up temporary template
-    LOG.debug('Deleting template file')
     util.del_file(template_fn)
 
 

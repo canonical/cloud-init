@@ -150,7 +150,8 @@ def convert_delay(delay, fmt=None, scale=None):
     if not scale:
         scale = 1
 
-    delay = fmt % int(int(delay) * int(scale))
+    if delay != "now":
+        delay = fmt % int(int(delay) * int(scale))
 
     return delay
 
@@ -175,35 +176,34 @@ def load_power_state(cfg, distro_name):
             (','.join(opt_map.keys()), mode))
 
     delay = pstate.get("delay", "now")
+    message = pstate.get("message")
+    scale = 1
+    fmt = "+%s"
+    command = ["shutdown", opt_map[mode]]
+
     if distro_name == 'alpine':
+        # Convert integer 30 or string '30' to '1800' (seconds) as Alpine's
+        # halt/poweroff/reboot commands take seconds rather than minutes.
+        scale = 60
+        # No "+" in front of delay value as not supported by Alpine's commands.
+        fmt = "%s"
         if delay == "now":
-            # Alpine's halt/poweroff/reboot commands do not understand "now"
+            # Alpine's commands do not understand "now".
             delay = "0"
-        else:
-            # Convert integer 30 or string '30' to '1800' (seconds) as Alpine's
-            # halt/poweroff/reboot commands take seconds as param with no "+"
-            try:
-                delay = convert_delay(delay, fmt="%s", scale=60)
-            except ValueError:
-                raise TypeError(
-                    "power_state[delay] must be 'now' or '+m' (minutes)."
-                    " found '%s'." % delay)
+        command = [mode, "-d"]
+        # Alpine's commands don't support a message.
+        message = None
 
-        args = [mode, "-d", delay]
-    else:
-        if delay != "now":
-            # convert integer 30 or string '30' to '+30'
-            try:
-                delay = convert_delay(delay, fmt="+%s", scale=1)
-            except ValueError:
-                raise TypeError(
-                    "power_state[delay] must be 'now' or '+m' (minutes)."
-                    " found '%s'." % delay)
+    try:
+        delay = convert_delay(delay, fmt=fmt, scale=scale)
+    except ValueError:
+        raise TypeError(
+            "power_state[delay] must be 'now' or '+m' (minutes)."
+            " found '%s'." % delay)
 
-        args = ["shutdown", opt_map[mode], delay]
-
-        if pstate.get("message"):
-            args.append(pstate.get("message"))
+    args = command + [delay]
+    if message:
+        args.append(message)
 
     try:
         timeout = float(pstate.get('timeout', 30.0))
