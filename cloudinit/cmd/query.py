@@ -63,8 +63,8 @@ def get_parser(parser=None):
               ' /var/lib/cloud/instance/vendor-data.txt'))
     parser.add_argument(
         'varname', type=str, nargs='?',
-        help=('A dot-delimited specific instance data variable to query from'
-              ' instance-data query. For example: v1.local_hostname. If the'
+        help=('A dot-delimited specific variable to query from'
+              ' instance-data. For example: v1.local_hostname. If the'
               ' value is not JSON serializable, it will be base64-encoded and'
               ' will contain the prefix "ci-b64:". '))
     parser.add_argument(
@@ -82,9 +82,7 @@ def load_userdata(ud_file_path):
     """Attempt to return a string of user-data from ud_file_path
 
     Attempt to decode or decompress if needed.
-    If unable to decode the content, raw bytes will be returned,
-    which load_json base64-encodes, adding a ci-b64: prefix to the value when
-    emitting the JSON output.
+    If unable to decode the content, raw bytes will be returned.
 
     @returns: String of uncompressed userdata if possible, otherwise bytes.
     """
