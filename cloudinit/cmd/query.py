@@ -6,8 +6,11 @@ structure.
 Some instance-data values may be binary on some platforms, such as userdata and
 vendordata. Attempt to decompress and decode UTF-8 any binary values.
 
-Binary instance-data values which cannot be decompressed or decoded,
-will be base64-encoded and will have the prefix "ci-b64:" on the value.
+Any binary values in the instance metadata will be base64-encoded and prefixed
+with "ci-b64:" in the output. userdata and, where applicable, vendordata may
+be provided to the machine gzip-compressed (and therefore as binary data).
+query will attempt to decompress these to a string before emitting the JSON
+output; if this fails, they are treated as binary.
 """
 
 import argparse
@@ -90,7 +93,7 @@ def load_userdata(ud_file_path):
     except UnicodeDecodeError:
         encoded_data = util.load_file(ud_file_path, decode=False)
         try:
-            return util.decomp_gzip(encoded_data)
+            return util.decomp_gzip(encoded_data, quiet=False)
         except util.DecompressionError:
             return encoded_data
 
