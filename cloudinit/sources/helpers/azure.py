@@ -195,7 +195,8 @@ def report_compressed_event(event_name, event_content):
         COMPRESSED_EVENT_TYPE, event_name,
         json.dumps(event_data),
         events.DEFAULT_EVENT_ORIGIN)
-    events.report_event(evt, excluded_handler_types={"log", "print", "webhook"})
+    events.report_event(evt,
+                        excluded_handler_types={"log", "print", "webhook"})
 
     # return the event for unit testing purpose
     return evt
