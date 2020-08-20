@@ -15,7 +15,7 @@ from cloudinit.sources import (
     REDACT_SENSITIVE_VALUE, INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE)
 from cloudinit.tests.helpers import mock
 
-from cloudinit.util import write_file
+from cloudinit.util import b64e, write_file
 
 
 def _gzip_data(data):
@@ -147,8 +147,8 @@ class TestQuery:
             (_gzip_data(b'ud') + b'invalid', 'ci-b64:',
              _gzip_data(b'vd') + b'invalid', 'ci-b64:'),
             # non-utf-8 encodable content
-            ('hi mom'.encode('utf-16'), 'ci-b64:',
-             'hi pops'.encode('utf-16'), 'ci-b64:'),
+            ('hi mom'.encode('utf-16'), 'ci-b64://5oAGkAIABtAG8AbQA=',
+             'hi pops'.encode('utf-16'), 'ci-b64://5oAGkAIABwAG8AcABzAA=='),
         )
     )
     def test_handle_args_root_processes_user_data(
@@ -172,14 +172,12 @@ class TestQuery:
         out, _err = capsys.readouterr()
         cmd_output = json.loads(out)
         assert "it worked" == cmd_output['my_var']
-        if ud_expected == 'ci-b64:':
-            assert cmd_output['userdata'].startswith(ud_expected)
-        else:
-            assert ud_expected == cmd_output['userdata']
-        if vd_expected == 'ci-b64:':
-            assert cmd_output['vendordata'].startswith(vd_expected)
-        else:
-            assert vd_expected == cmd_output['vendordata']
+        if ud_expected == "ci-b64:":
+            ud_expected = "ci-b64:{}".format(b64e(ud_src))
+        if vd_expected == "ci-b64:":
+            vd_expected = "ci-b64:{}".format(b64e(vd_src))
+        assert ud_expected == cmd_output['userdata']
+        assert vd_expected == cmd_output['vendordata']
 
     def test_handle_args_root_uses_instance_sensitive_data(
         self, capsys, tmpdir
