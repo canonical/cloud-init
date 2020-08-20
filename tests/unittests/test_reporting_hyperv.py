@@ -233,9 +233,10 @@ class TextKvpReporter(CiTestCase):
                 f.write(extra_content)
             azure.push_log_to_kvp(log_file)
 
-            with self.assertRaises(AssertionError):
-                publish_event.assert_called_with(
-                    event_type=azure.COMPRESSED_EVENT_TYPE)
+            for call_arg in publish_event.call_args_list:
+                event = call_arg[0][0]
+                self.assertNotEqual(
+                    event.event_type, azure.COMPRESSED_EVENT_TYPE)
             self.validate_compressed_kvps(
                 reporter, 1,
                 [log_content[-azure.MAX_LOG_TO_KVP_LENGTH:].encode()])
