@@ -968,6 +968,22 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
 
+class TestKernelVersion():
+    """test kernel version function"""
+
+    params = [
+        ('5.6.19-300.fc32.x86_64', (5, 6)),
+        ('4.15.0-101-generic', (4, 15)),
+        ('3.10.0-1062.12.1.vz7.131.10', (3, 10)),
+        ('4.18.0-144.el8.x86_64', (4, 18))]
+
+    @mock.patch('os.uname')
+    @pytest.mark.parametrize("uname_release,expected", params)
+    def test_kernel_version(self, m_uname, uname_release, expected):
+        m_uname.return_value.release = uname_release
+        assert expected == util.kernel_version()
+
+
 class TestFindDevs:
     @mock.patch('cloudinit.subp.subp')
     def test_find_devs_with(self, m_subp):

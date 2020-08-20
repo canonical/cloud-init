@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import cloud
+from cloudinit import distros
 from cloudinit.config import cc_ca_certs
 from cloudinit import helpers
 from cloudinit import subp
@@ -46,8 +47,9 @@ class TestConfig(TestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
         self.name = "ca-certs"
+        distro = self._fetch_distro('ubuntu')
         self.paths = None
-        self.cloud = cloud.Cloud(None, self.paths, None, None, None)
+        self.cloud = cloud.Cloud(None, self.paths, None, distro, None)
         self.log = logging.getLogger("TestNoConfig")
         self.args = []
 
@@ -61,6 +63,11 @@ class TestConfig(TestCase):
             mock.patch.object(cc_ca_certs, 'update_ca_certs'))
         self.mock_remove = self.mocks.enter_context(
             mock.patch.object(cc_ca_certs, 'remove_default_ca_certs'))
+
+    def _fetch_distro(self, kind):
+        cls = distros.fetch(kind)
+        paths = helpers.Paths({})
+        return cls(kind, {}, paths)
 
     def test_no_trusted_list(self):
         """
@@ -275,7 +282,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 mock.patch.object(util, 'write_file'))
             mock_subp = mocks.enter_context(mock.patch.object(subp, 'subp'))
 
-            cc_ca_certs.remove_default_ca_certs()
+            cc_ca_certs.remove_default_ca_certs('ubuntu')
 
             mock_delete.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/"),

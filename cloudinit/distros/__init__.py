@@ -40,12 +40,13 @@ from .networking import LinuxNetworking
 ALL_DISTROS = 'all'
 
 OSFAMILIES = {
-    'debian': ['debian', 'ubuntu'],
-    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
-    'gentoo': ['gentoo'],
-    'freebsd': ['freebsd'],
-    'suse': ['opensuse', 'sles'],
+    'alpine': ['alpine'],
     'arch': ['arch'],
+    'debian': ['debian', 'ubuntu'],
+    'freebsd': ['freebsd'],
+    'gentoo': ['gentoo'],
+    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
+    'suse': ['opensuse', 'sles'],
 }
 
 LOG = logging.getLogger(__name__)
