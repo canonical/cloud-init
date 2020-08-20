@@ -218,7 +218,7 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
             f.seek(0, os.SEEK_END)
             seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, 0)
             report_diagnostic_event(
-                "Dumping {} bytes of cloud-init.log file to KVP".format(
+                "Dumping last {} bytes of cloud-init.log file to KVP".format(
                     f.tell() - seek_index))
             f.seek(seek_index, os.SEEK_SET)
             report_compressed_event("cloud-init.log", f.read())
