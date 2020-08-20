@@ -1,5 +1,7 @@
 cloud-init (20.3-2-g371b392c-0ubuntu2) UNRELEASED; urgency=medium
 
+  * d/cloud-init.postinst: fix the grub install device for NVMe-rooted
+    instances on upgrade.  (LP: #1889555)
   * d/cloud-init.templates: add RbxCloud to Choices-C.
   * Add d/clean to fully clean the build artifacts.
   * d/control:
