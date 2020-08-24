@@ -113,6 +113,8 @@ class HyperVKvpReportingHandler(ReportingHandler):
     https://technet.microsoft.com/en-us/library/dn798287.aspx#Linux%20guests
     """
     HV_KVP_EXCHANGE_MAX_VALUE_SIZE = 2048
+    # The maximum value size expected in Azure
+    HV_KVP_AZURE_MAX_VALUE_SIZE = 1024
     HV_KVP_EXCHANGE_MAX_KEY_SIZE = 512
     HV_KVP_RECORD_SIZE = (HV_KVP_EXCHANGE_MAX_KEY_SIZE +
                           HV_KVP_EXCHANGE_MAX_VALUE_SIZE)
@@ -195,7 +197,8 @@ class HyperVKvpReportingHandler(ReportingHandler):
     def _event_key(self, event):
         """
         the event key format is:
-        CLOUD_INIT|<incarnation number>|<event_type>|<event_name>|<time>
+        CLOUD_INIT|<incarnation number>|<event_type>|<event_name>|<uuid>
+        [|subevent_index]
         """
         return u"{0}|{1}|{2}|{3}".format(self.event_key_prefix,
                                          event.event_type, event.name,
@@ -249,13 +252,14 @@ class HyperVKvpReportingHandler(ReportingHandler):
             data_without_desc = json.dumps(meta_data,
                                            separators=self.JSON_SEPARATORS)
             room_for_desc = (
-                self.HV_KVP_EXCHANGE_MAX_VALUE_SIZE -
+                self.HV_KVP_AZURE_MAX_VALUE_SIZE -
                 len(data_without_desc) - 8)
             value = data_without_desc.replace(
                 message_place_holder,
                 '"{key}":"{desc}"'.format(
                     key=self.MSG_KEY, desc=des_in_json[:room_for_desc]))
-            result_array.append(self._encode_kvp_item(key, value))
+            subkey = "{}|{}".format(key, i)
+            result_array.append(self._encode_kvp_item(subkey, value))
             i += 1
             des_in_json = des_in_json[room_for_desc:]
             if len(des_in_json) == 0:
@@ -282,7 +286,7 @@ class HyperVKvpReportingHandler(ReportingHandler):
         # if it reaches the maximum length of kvp value,
         # break it down to slices.
         # this should be very corner case.
-        if len(value) > self.HV_KVP_EXCHANGE_MAX_VALUE_SIZE:
+        if len(value) > self.HV_KVP_AZURE_MAX_VALUE_SIZE:
             return self._break_down(key, meta_data, event.description)
         else:
             data = self._encode_kvp_item(key, value)
