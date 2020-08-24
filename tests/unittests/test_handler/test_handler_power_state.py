@@ -11,62 +11,63 @@ from cloudinit.tests.helpers import mock
 class TestLoadPowerState(t_help.TestCase):
     def test_no_config(self):
         # completely empty config should mean do nothing
-        (cmd, _timeout, _condition) = psc.load_power_state({})
+        (cmd, _timeout, _condition) = psc.load_power_state({}, 'ubuntu')
         self.assertIsNone(cmd)
 
     def test_irrelevant_config(self):
         # no power_state field in config should return None for cmd
-        (cmd, _timeout, _condition) = psc.load_power_state({'foo': 'bar'})
+        (cmd, _timeout, _condition) = psc.load_power_state({'foo': 'bar'},
+                                                           'ubuntu')
         self.assertIsNone(cmd)
 
     def test_invalid_mode(self):
         cfg = {'power_state': {'mode': 'gibberish'}}
-        self.assertRaises(TypeError, psc.load_power_state, cfg)
+        self.assertRaises(TypeError, psc.load_power_state, cfg, 'ubuntu')
 
         cfg = {'power_state': {'mode': ''}}
-        self.assertRaises(TypeError, psc.load_power_state, cfg)
+        self.assertRaises(TypeError, psc.load_power_state, cfg, 'ubuntu')
 
     def test_empty_mode(self):
         cfg = {'power_state': {'message': 'goodbye'}}
-        self.assertRaises(TypeError, psc.load_power_state, cfg)
+        self.assertRaises(TypeError, psc.load_power_state, cfg, 'ubuntu')
 
     def test_valid_modes(self):
         cfg = {'power_state': {}}
         for mode in ('halt', 'poweroff', 'reboot'):
             cfg['power_state']['mode'] = mode
-            check_lps_ret(psc.load_power_state(cfg), mode=mode)
+            check_lps_ret(psc.load_power_state(cfg, 'ubuntu'), mode=mode)
 
     def test_invalid_delay(self):
         cfg = {'power_state': {'mode': 'poweroff', 'delay': 'goodbye'}}
-        self.assertRaises(TypeError, psc.load_power_state, cfg)
+        self.assertRaises(TypeError, psc.load_power_state, cfg, 'ubuntu')
 
     def test_valid_delay(self):
         cfg = {'power_state': {'mode': 'poweroff', 'delay': ''}}
         for delay in ("now", "+1", "+30"):
             cfg['power_state']['delay'] = delay
-            check_lps_ret(psc.load_power_state(cfg))
+            check_lps_ret(psc.load_power_state(cfg, 'ubuntu'))
 
     def test_message_present(self):
         cfg = {'power_state': {'mode': 'poweroff', 'message': 'GOODBYE'}}
-        ret = psc.load_power_state(cfg)
-        check_lps_ret(psc.load_power_state(cfg))
+        ret = psc.load_power_state(cfg, 'ubuntu')
+        check_lps_ret(psc.load_power_state(cfg, 'ubuntu'))
         self.assertIn(cfg['power_state']['message'], ret[0])
 
     def test_no_message(self):
         # if message is not present, then no argument should be passed for it
         cfg = {'power_state': {'mode': 'poweroff'}}
-        (cmd, _timeout, _condition) = psc.load_power_state(cfg)
+        (cmd, _timeout, _condition) = psc.load_power_state(cfg, 'ubuntu')
         self.assertNotIn("", cmd)
-        check_lps_ret(psc.load_power_state(cfg))
+        check_lps_ret(psc.load_power_state(cfg, 'ubuntu'))
         self.assertTrue(len(cmd) == 3)
 
     def test_condition_null_raises(self):
         cfg = {'power_state': {'mode': 'poweroff', 'condition': None}}
-        self.assertRaises(TypeError, psc.load_power_state, cfg)
+        self.assertRaises(TypeError, psc.load_power_state, cfg, 'ubuntu')
 
     def test_condition_default_is_true(self):
         cfg = {'power_state': {'mode': 'poweroff'}}
-        _cmd, _timeout, cond = psc.load_power_state(cfg)
+        _cmd, _timeout, cond = psc.load_power_state(cfg, 'ubuntu')
         self.assertEqual(cond, True)
 
 

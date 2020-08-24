@@ -68,6 +68,10 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['lxc-is-container'])
 
 
+def kernel_version():
+    return tuple(map(int, os.uname().release.split('.')[:2]))
+
+
 @lru_cache()
 def get_dpkg_architecture(target=None):
     """Return the sanitized string output by `dpkg --print-architecture`.
@@ -544,14 +548,16 @@ def system_info():
     if system == "linux":
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
-                'arch', 'centos', 'debian', 'fedora', 'rhel', 'suse'):
+                'alpine', 'arch', 'centos', 'debian', 'fedora', 'rhel',
+                'suse'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
         elif linux_dist == 'redhat':
             var = 'rhel'
         elif linux_dist in (
-                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap', 'sles'):
+                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap',
+                'sles', 'sle_hpc'):
             var = 'suse'
         else:
             var = 'linux'
@@ -1111,6 +1117,7 @@ def close_stdin():
 
 def find_devs_with_freebsd(criteria=None, oformat='device',
                            tag=None, no_cache=False, path=None):
+    devlist = []
     if not criteria:
         return glob.glob("/dev/msdosfs/*") + glob.glob("/dev/iso9660/*")
     if criteria.startswith("LABEL="):
