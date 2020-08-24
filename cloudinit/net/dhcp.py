@@ -220,6 +220,12 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
     pid_file = os.path.join(cleandir, 'dhclient.pid')
     lease_file = os.path.join(cleandir, 'dhcp.leases')
 
+    # In some cases files in /var/tmp may not be executable, launching dhclient
+    # from there will certainly raise 'Permission denied' error. Try launching
+    # the original dhclient instead.
+    if not os.access(sandbox_dhclient_cmd, os.X_OK):
+        sandbox_dhclient_cmd = dhclient_cmd_path
+
     # ISC dhclient needs the interface up to send initial discovery packets.
     # Generally dhclient relies on dhclient-script PREINIT action to bring the
     # link up before attempting discovery. Since we are using -sf /bin/true,
