@@ -285,6 +285,7 @@ def maybe_cleanup_default(net_name, did_init, create, attach,
     if create:
         msg = "Deletion of lxd network '%s' %s"
         try:
+            _lxc(["network", "detach-profile", net_name, profile])
             _lxc(["network", "delete", net_name])
             LOG.debug(msg, net_name, succeeded)
         except subp.ProcessExecutionError as e:
