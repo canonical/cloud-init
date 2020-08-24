@@ -165,7 +165,7 @@ supported formats.  The following ``renderers`` are supported in cloud-init:
 - **ENI**
 
 /etc/network/interfaces or ``ENI`` is supported by the ``ifupdown`` package
-found in Ubuntu and Debian.
+found in Alpine Linux, Debian and Ubuntu.
 
 - **Netplan**
 
