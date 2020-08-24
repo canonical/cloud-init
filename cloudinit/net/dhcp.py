@@ -223,8 +223,7 @@ def dhcp_discovery(dhclient_cmd_path, interface, cleandir, dhcp_log_func=None):
     # In some cases files in /var/tmp may not be executable, launching dhclient
     # from there will certainly raise 'Permission denied' error. Try launching
     # the original dhclient instead.
-    if not (os.path.isfile(sandbox_dhclient_cmd)
-            and os.access(sandbox_dhclient_cmd, os.X_OK)):
+    if not os.access(sandbox_dhclient_cmd, os.X_OK):
         sandbox_dhclient_cmd = dhclient_cmd_path
 
     # ISC dhclient needs the interface up to send initial discovery packets.
