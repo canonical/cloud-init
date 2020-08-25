@@ -74,8 +74,10 @@ class Platform(object):
 
         try:
             return tmirror.json_entries[0]
-        except IndexError:
-            raise RuntimeError('no images found with filter: %s' % img_filter)
+        except IndexError as e:
+            raise RuntimeError(
+                'no images found with filter: %s' % img_filter
+            ) from e
 
 
 class FilterMirror(mirrors.BasicMirrorWriter):

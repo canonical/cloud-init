@@ -10,7 +10,6 @@ import ipaddress
 import logging
 import os
 import re
-from functools import partial
 
 from cloudinit import subp
 from cloudinit import util
@@ -494,43 +493,6 @@ def extract_physdevs(netcfg):
     raise RuntimeError('Unknown network config version: %s' % version)
 
 
-def wait_for_physdevs(netcfg, strict=True):
-    physdevs = extract_physdevs(netcfg)
-
-    # set of expected iface names and mac addrs
-    expected_ifaces = dict([(iface[0], iface[1]) for iface in physdevs])
-    expected_macs = set(expected_ifaces.keys())
-
-    # set of current macs
-    present_macs = get_interfaces_by_mac().keys()
-
-    # compare the set of expected mac address values to
-    # the current macs present; we only check MAC as cloud-init
-    # has not yet renamed interfaces and the netcfg may include
-    # such renames.
-    for _ in range(0, 5):
-        if expected_macs.issubset(present_macs):
-            LOG.debug('net: all expected physical devices present')
-            return
-
-        missing = expected_macs.difference(present_macs)
-        LOG.debug('net: waiting for expected net devices: %s', missing)
-        for mac in missing:
-            # trigger a settle, unless this interface exists
-            syspath = sys_dev_path(expected_ifaces[mac])
-            settle = partial(util.udevadm_settle, exists=syspath)
-            msg = 'Waiting for udev events to settle or %s exists' % syspath
-            util.log_time(LOG.debug, msg, func=settle)
-
-        # update present_macs after settles
-        present_macs = get_interfaces_by_mac().keys()
-
-    msg = 'Not all expected physical devices present: %s' % missing
-    LOG.warning(msg)
-    if strict:
-        raise RuntimeError(msg)
-
-
 def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
     """read the network config and rename devices accordingly.
     if strict_present is false, then do not raise exception if no devices
@@ -544,7 +506,9 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
     try:
         _rename_interfaces(extract_physdevs(netcfg))
     except RuntimeError as e:
-        raise RuntimeError('Failed to apply network config names: %s' % e)
+        raise RuntimeError(
+            'Failed to apply network config names: %s' % e
+        ) from e
 
 
 def interface_has_own_mac(ifname, strict=False):
@@ -1003,7 +967,8 @@ class EphemeralIPv4Network(object):
             self.prefix = mask_to_net_prefix(prefix_or_mask)
         except ValueError as e:
             raise ValueError(
-                'Cannot setup network: {0}'.format(e))
+                'Cannot setup network: {0}'.format(e)
+            ) from e
 
         self.connectivity_url = connectivity_url
         self.interface = interface

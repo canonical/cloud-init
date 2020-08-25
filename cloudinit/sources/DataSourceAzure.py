@@ -8,7 +8,6 @@ import base64
 import contextlib
 import crypt
 from functools import partial
-import json
 import os
 import os.path
 import re
@@ -19,6 +18,7 @@ import xml.etree.ElementTree as ET
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit.event import EventType
+from cloudinit.net import device_driver
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers import netlink
@@ -36,7 +36,8 @@ from cloudinit.sources.helpers.azure import (
     report_diagnostic_event,
     EphemeralDHCPv4WithReporting,
     is_byte_swapped,
-    dhcp_log_cb)
+    dhcp_log_cb,
+    push_log_to_kvp)
 
 LOG = logging.getLogger(__name__)
 
@@ -166,12 +167,11 @@ def get_resource_disk_on_freebsd(port_id):
         port_id = port_id - 2
     g1 = "000" + str(port_id)
     g0g1 = "{0}-{1}".format(g0, g1)
-    """
-    search 'X' from
-       'dev.storvsc.X.%pnpinfo:
-           classid=32412632-86cb-44a2-9b5c-50d1417354f5
-           deviceid=00000000-0001-8899-0000-000000000000'
-    """
+
+    # search 'X' from
+    #  'dev.storvsc.X.%pnpinfo:
+    #      classid=32412632-86cb-44a2-9b5c-50d1417354f5
+    #      deviceid=00000000-0001-8899-0000-000000000000'
     sysctl_out = get_dev_storvsc_sysctl()
 
     storvscid = find_storvscid_from_sysctl_pnpinfo(sysctl_out, g0g1)
@@ -277,7 +277,14 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
        (previous_hostname == temp_hostname and policy != 'force')):
         yield None
         return
-    set_hostname(temp_hostname, hostname_command)
+    try:
+        set_hostname(temp_hostname, hostname_command)
+    except Exception as e:
+        msg = 'Failed setting temporary hostname: %s' % e
+        report_diagnostic_event(msg)
+        LOG.warning(msg)
+        yield None
+        return
     try:
         yield previous_hostname
     finally:
@@ -689,7 +696,6 @@ class DataSourceAzure(sources.DataSource):
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry
                 self._ephemeral_dhcp_ctx.clean_network()
-                pass
             finally:
                 if nl_sock:
                     nl_sock.close()
@@ -785,9 +791,12 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
-        address_ephemeral_resize(is_new_instance=is_new_instance,
-                                 preserve_ntfs=self.ds_cfg.get(
-                                     DS_CFG_KEY_PRESERVE_NTFS, False))
+        try:
+            address_ephemeral_resize(is_new_instance=is_new_instance,
+                                     preserve_ntfs=self.ds_cfg.get(
+                                         DS_CFG_KEY_PRESERVE_NTFS, False))
+        finally:
+            push_log_to_kvp(self.sys_cfg['def_log_file'])
         return
 
     @property
@@ -1138,7 +1147,7 @@ def read_azure_ovf(contents):
     except Exception as e:
         error_str = "Invalid ovf-env.xml: %s" % e
         report_diagnostic_event(error_str)
-        raise BrokenAzureDataSource(error_str)
+        raise BrokenAzureDataSource(error_str) from e
 
     results = find_child(dom.documentElement,
                          lambda n: n.localName == "ProvisioningSection")
@@ -1379,9 +1388,16 @@ def parse_network_config(imds_metadata):
                                 ip=privateIp, prefix=netPrefix))
                 if dev_config:
                     mac = ':'.join(re.findall(r'..', intf['macAddress']))
-                    dev_config.update(
-                        {'match': {'macaddress': mac.lower()},
-                         'set-name': nicname})
+                    dev_config.update({
+                        'match': {'macaddress': mac.lower()},
+                        'set-name': nicname
+                    })
+                    # With netvsc, we can get two interfaces that
+                    # share the same MAC, so we need to make sure
+                    # our match condition also contains the driver
+                    driver = device_driver(nicname)
+                    if driver and driver == 'hv_netvsc':
+                        dev_config['match']['driver'] = driver
                     netconfig['ethernets'][nicname] = dev_config
             evt.description = "network config from imds"
         else:
@@ -1439,8 +1455,14 @@ def _get_metadata_from_imds(retries):
         LOG.debug(msg)
         return {}
     try:
+        from json.decoder import JSONDecodeError
+        json_decode_error = JSONDecodeError
+    except ImportError:
+        json_decode_error = ValueError
+
+    try:
         return util.load_json(str(response))
-    except json.decoder.JSONDecodeError as e:
+    except json_decode_error as e:
         report_diagnostic_event('non-json imds response' % e)
         LOG.warning(
             'Ignoring non-json IMDS instance metadata: %s', str(response))
@@ -1485,13 +1507,12 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
 
 
 def _is_platform_viable(seed_dir):
+    """Check platform environment to report if this datasource may run."""
     with events.ReportEventStack(
         name="check-platform-viability",
         description="found azure asset tag",
         parent=azure_ds_reporter
     ) as evt:
-
-        """Check platform environment to report if this datasource may run."""
         asset_tag = util.read_dmi_data('chassis-asset-tag')
         if asset_tag == AZURE_CHASSIS_ASSET_TAG:
             return True

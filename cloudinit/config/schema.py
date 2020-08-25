@@ -210,7 +210,7 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
         error = SchemaValidationError(errors)
         if annotate:
             print(annotated_cloudconfig_file({}, content, error.schema_errors))
-        raise error
+        raise error from e
     try:
         validate_cloudconfig_schema(
             cloudconfig, schema, strict=True)

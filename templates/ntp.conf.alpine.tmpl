@@ -1,0 +1,10 @@
+## template:jinja
+# /etc/ntp.conf
+#
+# Configuration for Busybox ntpd - it only supports "server" lines.
+
+{% if servers %}# Servers
+{% endif %}
+{% for server in servers -%}
+server {{server}}
+{% endfor %}

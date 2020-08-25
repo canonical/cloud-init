@@ -40,12 +40,13 @@ from .networking import LinuxNetworking
 ALL_DISTROS = 'all'
 
 OSFAMILIES = {
-    'debian': ['debian', 'ubuntu'],
-    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
-    'gentoo': ['gentoo'],
-    'freebsd': ['freebsd'],
-    'suse': ['opensuse', 'sles'],
+    'alpine': ['alpine'],
     'arch': ['arch'],
+    'debian': ['debian', 'ubuntu'],
+    'freebsd': ['freebsd'],
+    'gentoo': ['gentoo'],
+    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
+    'suse': ['opensuse', 'sles'],
 }
 
 LOG = logging.getLogger(__name__)
@@ -392,6 +393,9 @@ class Distro(metaclass=abc.ABCMeta):
     def add_user(self, name, **kwargs):
         """
         Add a user to the system using standard GNU tools
+
+        This should be overriden on distros where useradd is not desirable or
+        not available.
         """
         # XXX need to make add_user idempotent somehow as we
         # still want to add groups or modify SSH keys on pre-existing
@@ -520,9 +524,22 @@ class Distro(metaclass=abc.ABCMeta):
 
     def create_user(self, name, **kwargs):
         """
-        Creates users for the system using the GNU passwd tools. This
-        will work on an GNU system. This should be overriden on
-        distros where useradd is not desirable or not available.
+        Creates or partially updates the ``name`` user in the system.
+
+        This defers the actual user creation to ``self.add_user`` or
+        ``self.add_snap_user``, and most of the keys in ``kwargs`` will be
+        processed there if and only if the user does not already exist.
+
+        Once the existence of the ``name`` user has been ensured, this method
+        then processes these keys (for both just-created and pre-existing
+        users):
+
+        * ``plain_text_passwd``
+        * ``hashed_passwd``
+        * ``lock_passwd``
+        * ``sudo``
+        * ``ssh_authorized_keys``
+        * ``ssh_redirect_user``
         """
 
         # Add a snap user, if requested
@@ -590,10 +607,11 @@ class Distro(metaclass=abc.ABCMeta):
         lock_tools = (['passwd', '-l', name], ['usermod', '--lock', name])
         try:
             cmd = next(tool for tool in lock_tools if subp.which(tool[0]))
-        except StopIteration:
+        except StopIteration as e:
             raise RuntimeError((
                 "Unable to lock user account '%s'. No tools available. "
-                "  Tried: %s.") % (name, [c[0] for c in lock_tools]))
+                "  Tried: %s.") % (name, [c[0] for c in lock_tools])
+            ) from e
         try:
             subp.subp(cmd)
         except Exception as e:

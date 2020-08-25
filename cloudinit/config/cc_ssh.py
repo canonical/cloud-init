@@ -35,6 +35,42 @@ root login is disabled, and root login opts are set to::
 
     no-port-forwarding,no-agent-forwarding,no-X11-forwarding
 
+Supported public key types for the ``ssh_authorized_keys`` are:
+
+    - dsa
+    - rsa
+    - ecdsa
+    - ed25519
+    - ecdsa-sha2-nistp256-cert-v01@openssh.com
+    - ecdsa-sha2-nistp256
+    - ecdsa-sha2-nistp384-cert-v01@openssh.com
+    - ecdsa-sha2-nistp384
+    - ecdsa-sha2-nistp521-cert-v01@openssh.com
+    - ecdsa-sha2-nistp521
+    - sk-ecdsa-sha2-nistp256-cert-v01@openssh.com
+    - sk-ecdsa-sha2-nistp256@openssh.com
+    - sk-ssh-ed25519-cert-v01@openssh.com
+    - sk-ssh-ed25519@openssh.com
+    - ssh-dss-cert-v01@openssh.com
+    - ssh-dss
+    - ssh-ed25519-cert-v01@openssh.com
+    - ssh-ed25519
+    - ssh-rsa-cert-v01@openssh.com
+    - ssh-rsa
+    - ssh-xmss-cert-v01@openssh.com
+    - ssh-xmss@openssh.com
+
+.. note::
+    this list has been filtered out from the supported keytypes of
+    `OpenSSH`_ source, where the sigonly keys are removed. Please see
+    ``ssh_util`` for more information.
+
+    ``dsa``, ``rsa``, ``ecdsa`` and ``ed25519`` are added for legacy,
+    as they are valid public keys in some old distros. They can possibly
+    be removed in the future when support for the older distros are dropped
+
+.. _OpenSSH: https://github.com/openssh/openssh-portable/blob/master/sshkey.c
+
 Host Keys
 ^^^^^^^^^
 

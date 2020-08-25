@@ -236,6 +236,14 @@ The following guidelines should be followed:
       ``util.write_file(tmpdir.join("some_file"), ...)``, you should
       write ``util.write_file(tmpdir.join("some_file").strpath, ...)``.
 
+  * The `pytest.param`_ function cannot be used. It was introduced in
+    pytest 3.1, which means it is not available on xenial.  The more
+    limited mechanism it replaced was removed in pytest 4.0, so is not
+    available in focal or later.  The only available alternatives are
+    to write mark-requiring test instances as completely separate
+    tests, without utilising parameterisation, or to apply the mark to
+    the entire parameterized test (and therefore every test instance).
+
 * Variables/parameter names for ``Mock`` or ``MagicMock`` instances
   should start with ``m_`` to clearly distinguish them from non-mock
   variables
@@ -302,6 +310,7 @@ The following guidelines should be followed:
 .. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/master/cloudinit/tests/test_subp.py#L9
 .. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
 .. _pytest 3.0: https://docs.pytest.org/en/latest/changelog.html#id1093
+.. _pytest.param: https://docs.pytest.org/en/latest/reference.html#pytest-param
 .. _autospecced: https://docs.python.org/3.8/library/unittest.mock.html#autospeccing
 
 Type Annotations

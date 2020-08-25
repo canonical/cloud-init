@@ -13,7 +13,7 @@ Write fingerprints of authorized keys for each user to log. This is enabled by
 default, but can be disabled using ``no_ssh_fingerprints``. The hash type for
 the keys can be specified, but defaults to ``sha256``.
 
-**Internal name:** `` cc_ssh_authkey_fingerprints``
+**Internal name:** ``cc_ssh_authkey_fingerprints``
 
 **Module frequency:** per instance
 
@@ -59,8 +59,8 @@ def _gen_fingerprint(b64_text, hash_meth='sha256'):
 
 def _is_printable_key(entry):
     if any([entry.keytype, entry.base64, entry.comment, entry.options]):
-        if (entry.keytype and
-                entry.keytype.lower().strip() in ['ssh-dss', 'ssh-rsa']):
+        if (entry.keytype and entry.keytype.lower().strip()
+                in ssh_util.VALID_KEY_TYPES):
             return True
     return False
 

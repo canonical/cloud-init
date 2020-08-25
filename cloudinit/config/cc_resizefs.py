@@ -118,14 +118,12 @@ def _can_skip_resize_ufs(mount_point, devpth):
                 if o == "-f":
                     frag_sz = int(a)
     # check the current partition size
-    """
-    # gpart show /dev/da0
-=>      40  62914480  da0  GPT  (30G)
-        40      1024    1  freebsd-boot  (512K)
-      1064  58719232    2  freebsd-ufs  (28G)
-  58720296   3145728    3  freebsd-swap  (1.5G)
-  61866024   1048496       - free -  (512M)
-    """
+    # Example output from `gpart show /dev/da0`:
+    # =>      40  62914480  da0  GPT  (30G)
+    #         40      1024    1  freebsd-boot  (512K)
+    #       1064  58719232    2  freebsd-ufs  (28G)
+    #   58720296   3145728    3  freebsd-swap  (1.5G)
+    #   61866024   1048496       - free -  (512M)
     expect_sz = None
     m = re.search('^(/dev/.+)p([0-9])$', devpth)
     gpart_res = _get_gpart_output(m.group(1))

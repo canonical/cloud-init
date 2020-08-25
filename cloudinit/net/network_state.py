@@ -297,9 +297,10 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             command_type = command['type']
             try:
                 handler = self.command_handlers[command_type]
-            except KeyError:
-                raise RuntimeError("No handler found for"
-                                   " command '%s'" % command_type)
+            except KeyError as e:
+                raise RuntimeError(
+                    "No handler found for  command '%s'" % command_type
+                ) from e
             try:
                 handler(self, command)
             except InvalidCommand:
@@ -316,9 +317,10 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 continue
             try:
                 handler = self.command_handlers[command_type]
-            except KeyError:
-                raise RuntimeError("No handler found for"
-                                   " command '%s'" % command_type)
+            except KeyError as e:
+                raise RuntimeError(
+                    "No handler found for command '%s'" % command_type
+                ) from e
             try:
                 handler(self, command)
                 self._v2_common(command)
@@ -914,9 +916,10 @@ def _normalize_route(route):
     if metric:
         try:
             normal_route['metric'] = int(metric)
-        except ValueError:
+        except ValueError as e:
             raise TypeError(
-                'Route config metric {} is not an integer'.format(metric))
+                'Route config metric {} is not an integer'.format(metric)
+            ) from e
     return normal_route
 
 

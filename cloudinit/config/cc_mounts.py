@@ -65,7 +65,7 @@ swap file is created.
 from string import whitespace
 
 import logging
-import os.path
+import os
 import re
 
 from cloudinit import type_utils
@@ -263,7 +263,8 @@ def create_swapfile(fname: str, size: str) -> None:
 
     fstype = util.get_mount_info(swap_dir)[1]
 
-    if fstype in ("xfs", "btrfs"):
+    if (fstype == "xfs" and
+            util.kernel_version() < (4, 18)) or fstype == "btrfs":
         create_swap(fname, size, "dd")
     else:
         try:
@@ -273,7 +274,8 @@ def create_swapfile(fname: str, size: str) -> None:
             LOG.warning("Will attempt with dd.")
             create_swap(fname, size, "dd")
 
-    util.chmod(fname, 0o600)
+    if os.path.exists(fname):
+        util.chmod(fname, 0o600)
     try:
         subp.subp(['mkswap', fname])
     except subp.ProcessExecutionError:
