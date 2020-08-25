@@ -86,14 +86,11 @@ def load_userdata(ud_file_path):
 
     @returns: String of uncompressed userdata if possible, otherwise bytes.
     """
+    bdata = util.load_file(ud_file_path, decode=False)
     try:
-        return util.load_file(ud_file_path)
+        return bdata.decode('utf-8')
     except UnicodeDecodeError:
-        encoded_data = util.load_file(ud_file_path, decode=False)
-        try:
-            return util.decomp_gzip(encoded_data, quiet=False)
-        except util.DecompressionError:
-            return encoded_data
+        return util.decomp_gzip(bdata, quiet=False, decode=True)
 
 
 def handle_args(name, args):
