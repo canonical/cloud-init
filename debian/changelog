@@ -1,3 +1,65 @@
+cloud-init (20.3-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+    - Release 20.3 (#547) [James Falcon] (LP: #1892878)
+    - tox: bump the pylint version to 2.6.0 in the default run (#544)
+      [Paride Legovini]
+    - Azure: Add netplan driver filter when using hv_netvsc driver (#539)
+      [James Falcon] (LP: #1830740)
+    - query: do not handle non-decodable non-gzipped content (#543)
+    - DHCP sandboxing failing on noexec mounted /var/tmp (#521) [Eduardo Otubo]
+    - Update the list of valid ssh keys. (#487)
+      [Ole-Martin Bratteng] (LP: #1877869)
+    - cmd: cloud-init query to handle compressed userdata (#516) (LP: #1889938)
+    - Pushing cloud-init log to the KVP (#529) [Moustafa Moustafa]
+    - Add Alpine Linux support. (#535) [dermotbradley]
+    - Detect kernel version before swap file creation (#428) [Eduardo Otubo]
+    - cli: add devel make-mime subcommand (#518)
+    - user-data: only verify mime-types for TYPE_NEEDED and x-shellscript
+      (#511) (LP: #1888822)
+    - DataSourceOracle: retry twice (and document why we retry at all) (#536)
+    - Refactor Azure report ready code (#468) [Johnson Shi]
+    - tox.ini: pin correct version of httpretty in xenial{,-dev} envs (#531)
+    - Support Oracle IMDSv2 API (#528) [James Falcon]
+    - .travis.yml: run a doc build during CI (#534)
+    - doc/rtd/topics/datasources/ovf.rst: fix doc8 errors (#533)
+    - Fix 'Users and Groups' configuration documentation (#530) [sshedi]
+    - cloudinit.distros: update docstrings of add_user and create_user (#527)
+    - Fix headers for device types in network v2 docs (#532)
+      [Caleb Xavier Berger]
+    - Add AlexBaranowski as contributor (#508) [Aleksander Baranowski]
+    - DataSourceOracle: refactor to use only OPC v1 endpoint (#493)
+    - .github/workflows/stale.yml: s/Josh/Rick/ (#526)
+    - Fix a typo in apt pipelining module (#525) [Xiao Liang]
+    - test_util: parametrize devlist tests (#523) [James Falcon]
+    - Recognize LABEL_FATBOOT labels (#513) [James Falcon] (LP: #1841466)
+    - Handle additional identifier for SLES For HPC (#520) [Robert Schweikert]
+    - Revert "test-requirements.txt: pin pytest to <6 (#512)" (#515)
+    - test-requirements.txt: pin pytest to <6 (#512)
+    - Add "tsanghan" as contributor (#504) [tsanghan]
+    - fix brpm building (LP: #1886107)
+    - Adding eandersson as a contributor (#502) [Erik Olof Gunnar Andersson]
+    - azure: disable bouncing hostname when setting hostname fails (#494)
+      [Anh Vo]
+    - VMware: Support parsing DEFAULT-RUN-POST-CUST-SCRIPT (#441)
+      [xiaofengw-vmware]
+    - DataSourceAzure: Use ValueError when JSONDecodeError is not available
+      (#490) [Anh Vo]
+    - cc_ca_certs.py: fix blank line problem when removing CAs and adding
+      new one (#483) [dermotbradley]
+    - freebsd: py37-serial is now py37-pyserial (#492) [Gonéri Le Bouder]
+    - ssh exit with non-zero status on disabled user (#472)
+      [Eduardo Otubo] (LP: #1170059)
+    - cloudinit: remove global disable of pylint W0107 and fix errors (#489)
+    - networking: refactor wait_for_physdevs from cloudinit.net (#466)
+      (LP: #1884626)
+    - HACKING.rst: add pytest.param pytest gotcha (#481)
+    - cloudinit: remove global disable of pylint W0105 and fix errors (#480)
+    - Fix two minor warnings (#475)
+    - test_data: fix faulty patch (#476)
+
+ -- James Falcon <james.falcon@canonical.com>  Tue, 25 Aug 2020 15:27:53 -0500
+
 cloud-init (20.2-94-g3d06abc2-0ubuntu1) groovy; urgency=medium
 
   * New upstream snapshot.
