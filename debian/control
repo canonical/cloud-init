@@ -24,7 +24,7 @@ Build-Depends: debhelper-compat (= 13),
 XS-Python-Version: all
 Vcs-Browser: https://github.com/canonical/cloud-init/tree/ubuntu/devel
 Vcs-Git: https://github.com/canonical/cloud-init -b ubuntu/devel
-Standards-Version: 4.4.1
+Standards-Version: 4.5.0
 Rules-Requires-Root: no
 
 Package: cloud-init
