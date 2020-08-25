@@ -7,8 +7,6 @@ jobs=4
 [MESSAGES CONTROL]
 
 # Errors and warings with some filtered:
-# W0105(pointless-string-statement)
-# W0107(unnecessary-pass)
 # W0201(attribute-defined-outside-init)
 # W0212(protected-access)
 # W0221(arguments-differ)
@@ -20,7 +18,6 @@ jobs=4
 # W0602(global-variable-not-assigned)
 # W0603(global-statement)
 # W0611(unused-import)
-# W0612(unused-variable)
 # W0613(unused-argument)
 # W0621(redefined-outer-name)
 # W0622(redefined-builtin)
@@ -28,7 +25,7 @@ jobs=4
 # W0703(broad-except)
 # W1401(anomalous-backslash-in-string)
 
-disable=C, F, I, R, W0105, W0107, W0201, W0212, W0221, W0222, W0223, W0231, W0311, W0511, W0602, W0603, W0611, W0613, W0621, W0622, W0631, W0703, W1401
+disable=C, F, I, R, W0201, W0212, W0221, W0222, W0223, W0231, W0311, W0511, W0602, W0603, W0611, W0613, W0621, W0622, W0631, W0703, W1401
 
 
 [REPORTS]

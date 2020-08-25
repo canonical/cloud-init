@@ -251,7 +251,9 @@ def enumerate_disk(device, nodeps=False):
     try:
         info, _err = subp.subp(lsblk_cmd)
     except Exception as e:
-        raise Exception("Failed during disk check for %s\n%s" % (device, e))
+        raise Exception(
+            "Failed during disk check for %s\n%s" % (device, e)
+        ) from e
 
     parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
 
@@ -313,7 +315,9 @@ def check_fs(device):
     try:
         out, _err = subp.subp(blkid_cmd, rcs=[0, 2])
     except Exception as e:
-        raise Exception("Failed during disk check for %s\n%s" % (device, e))
+        raise Exception(
+            "Failed during disk check for %s\n%s" % (device, e)
+        ) from e
 
     if out:
         if len(out.splitlines()) == 1:
@@ -428,8 +432,8 @@ def get_dyn_func(*args):
         else:
             return globals()[func_name]
 
-    except KeyError:
-        raise Exception("No such function %s to call!" % func_name)
+    except KeyError as e:
+        raise Exception("No such function %s to call!" % func_name) from e
 
 
 def get_hdd_size(device):
@@ -437,7 +441,7 @@ def get_hdd_size(device):
         size_in_bytes, _ = subp.subp([BLKDEV_CMD, '--getsize64', device])
         sector_size, _ = subp.subp([BLKDEV_CMD, '--getss', device])
     except Exception as e:
-        raise Exception("Failed to get %s size\n%s" % (device, e))
+        raise Exception("Failed to get %s size\n%s" % (device, e)) from e
 
     return int(size_in_bytes) / int(sector_size)
 
@@ -455,8 +459,9 @@ def check_partition_mbr_layout(device, layout):
     try:
         out, _err = subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
-        raise Exception("Error running partition command on %s\n%s" % (
-                        device, e))
+        raise Exception(
+            "Error running partition command on %s\n%s" % (device, e)
+        ) from e
 
     found_layout = []
     for line in out.splitlines():
@@ -485,8 +490,9 @@ def check_partition_gpt_layout(device, layout):
     try:
         out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
     except Exception as e:
-        raise Exception("Error running partition command on %s\n%s" % (
-                        device, e))
+        raise Exception(
+            "Error running partition command on %s\n%s" % (device, e)
+        ) from e
 
     out_lines = iter(out.splitlines())
     # Skip header.  Output looks like:
@@ -657,8 +663,10 @@ def purge_disk(device):
             try:
                 LOG.info("Purging filesystem on /dev/%s", d['name'])
                 subp.subp(wipefs_cmd)
-            except Exception:
-                raise Exception("Failed FS purge of /dev/%s" % d['name'])
+            except Exception as e:
+                raise Exception(
+                    "Failed FS purge of /dev/%s" % d['name']
+                ) from e
 
     purge_disk_ptable(device)
 
@@ -700,7 +708,9 @@ def exec_mkpart_mbr(device, layout):
     try:
         subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
-        raise Exception("Failed to partition device %s\n%s" % (device, e))
+        raise Exception(
+            "Failed to partition device %s\n%s" % (device, e)
+        ) from e
 
     read_parttbl(device)
 
@@ -997,6 +1007,6 @@ def mkfs(fs_cfg):
     try:
         subp.subp(fs_cmd, shell=shell)
     except Exception as e:
-        raise Exception("Failed to exec of '%s':\n%s" % (fs_cmd, e))
+        raise Exception("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e
 
 # vi: ts=4 expandtab

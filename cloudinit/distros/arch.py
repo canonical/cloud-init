@@ -61,9 +61,9 @@ class Distro(distros.Distro):
     def _write_network_config(self, netconfig):
         try:
             return self._supported_write_network_config(netconfig)
-        except RendererNotFoundError:
+        except RendererNotFoundError as e:
             # Fall back to old _write_network
-            raise NotImplementedError
+            raise NotImplementedError from e
 
     def _write_network(self, settings):
         entries = net_util.translate_network(settings)

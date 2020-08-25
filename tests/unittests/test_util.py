@@ -7,6 +7,7 @@ import re
 import shutil
 import stat
 import tempfile
+import pytest
 import yaml
 from unittest import mock
 
@@ -967,96 +968,132 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
 
-@mock.patch('cloudinit.subp.subp')
-def test_find_devs_with_openbsd(m_subp):
-    m_subp.return_value = (
-        'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+class TestKernelVersion():
+    """test kernel version function"""
+
+    params = [
+        ('5.6.19-300.fc32.x86_64', (5, 6)),
+        ('4.15.0-101-generic', (4, 15)),
+        ('3.10.0-1062.12.1.vz7.131.10', (3, 10)),
+        ('4.18.0-144.el8.x86_64', (4, 18))]
+
+    @mock.patch('os.uname')
+    @pytest.mark.parametrize("uname_release,expected", params)
+    def test_kernel_version(self, m_uname, uname_release, expected):
+        m_uname.return_value.release = uname_release
+        assert expected == util.kernel_version()
+
+
+class TestFindDevs:
+    @mock.patch('cloudinit.subp.subp')
+    def test_find_devs_with(self, m_subp):
+        m_subp.return_value = (
+            '/dev/sda1: UUID="some-uuid" TYPE="ext4" PARTUUID="some-partid"',
+            ''
+        )
+        devlist = util.find_devs_with()
+        assert devlist == [
+            '/dev/sda1: UUID="some-uuid" TYPE="ext4" PARTUUID="some-partid"']
+
+        devlist = util.find_devs_with("LABEL_FATBOOT=A_LABEL")
+        assert devlist == [
+            '/dev/sda1: UUID="some-uuid" TYPE="ext4" PARTUUID="some-partid"']
+
+    @mock.patch('cloudinit.subp.subp')
+    def test_find_devs_with_openbsd(self, m_subp):
+        m_subp.return_value = (
+            'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+        )
+        devlist = util.find_devs_with_openbsd()
+        assert devlist == ['/dev/cd0a', '/dev/sd1i']
+
+    @mock.patch('cloudinit.subp.subp')
+    def test_find_devs_with_openbsd_with_criteria(self, m_subp):
+        m_subp.return_value = (
+            'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+        )
+        devlist = util.find_devs_with_openbsd(criteria="TYPE=iso9660")
+        assert devlist == ['/dev/cd0a']
+
+        # lp: #1841466
+        devlist = util.find_devs_with_openbsd(criteria="LABEL_FATBOOT=A_LABEL")
+        assert devlist == ['/dev/cd0a', '/dev/sd1i']
+
+    @pytest.mark.parametrize(
+        'criteria,expected_devlist', (
+            (None, ['/dev/msdosfs/EFISYS', '/dev/iso9660/config-2']),
+            ('TYPE=iso9660', ['/dev/iso9660/config-2']),
+            ('TYPE=vfat', ['/dev/msdosfs/EFISYS']),
+            ('LABEL_FATBOOT=A_LABEL', []),  # lp: #1841466
+        ),
     )
-    devlist = util.find_devs_with_openbsd()
-    assert devlist == ['/dev/cd0a', '/dev/sd1i']
+    @mock.patch('glob.glob')
+    def test_find_devs_with_freebsd(self, m_glob, criteria, expected_devlist):
+        def fake_glob(pattern):
+            msdos = ["/dev/msdosfs/EFISYS"]
+            iso9660 = ["/dev/iso9660/config-2"]
+            if pattern == "/dev/msdosfs/*":
+                return msdos
+            elif pattern == "/dev/iso9660/*":
+                return iso9660
+            raise Exception
+        m_glob.side_effect = fake_glob
 
+        devlist = util.find_devs_with_freebsd(criteria=criteria)
+        assert devlist == expected_devlist
 
-@mock.patch('cloudinit.subp.subp')
-def test_find_devs_with_openbsd_with_criteria(m_subp):
-    m_subp.return_value = (
-        'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+    @pytest.mark.parametrize(
+        'criteria,expected_devlist', (
+            (None, ['/dev/ld0', '/dev/dk0', '/dev/dk1', '/dev/cd0']),
+            ('TYPE=iso9660', ['/dev/cd0']),
+            ('TYPE=vfat', ["/dev/ld0", "/dev/dk0", "/dev/dk1"]),
+            ('LABEL_FATBOOT=A_LABEL',  # lp: #1841466
+             ['/dev/ld0', '/dev/dk0', '/dev/dk1', '/dev/cd0']),
+        )
     )
-    devlist = util.find_devs_with_openbsd(criteria="TYPE=iso9660")
-    assert devlist == ['/dev/cd0a']
-
-
-@mock.patch('glob.glob')
-def test_find_devs_with_freebsd(m_glob):
-    def fake_glob(pattern):
-        msdos = ["/dev/msdosfs/EFISYS"]
-        iso9660 = ["/dev/iso9660/config-2"]
-        if pattern == "/dev/msdosfs/*":
-            return msdos
-        elif pattern == "/dev/iso9660/*":
-            return iso9660
-        raise Exception
-    m_glob.side_effect = fake_glob
-
-    devlist = util.find_devs_with_freebsd()
-    assert set(devlist) == set([
-        '/dev/iso9660/config-2', '/dev/msdosfs/EFISYS'])
-    devlist = util.find_devs_with_freebsd(criteria="TYPE=iso9660")
-    assert devlist == ['/dev/iso9660/config-2']
-    devlist = util.find_devs_with_freebsd(criteria="TYPE=vfat")
-    assert devlist == ['/dev/msdosfs/EFISYS']
-
-
-@mock.patch("cloudinit.subp.subp")
-def test_find_devs_with_netbsd(m_subp):
-    side_effect_values = [
-        ("ld0 dk0 dk1 cd0", ""),
-        (
+    @mock.patch("cloudinit.subp.subp")
+    def test_find_devs_with_netbsd(self, m_subp, criteria, expected_devlist):
+        side_effect_values = [
+            ("ld0 dk0 dk1 cd0", ""),
             (
-                "mscdlabel: CDIOREADTOCHEADER: "
-                "Inappropriate ioctl for device\n"
-                "track (ctl=4) at sector 0\n"
-                "disklabel not written\n"
+                (
+                    "mscdlabel: CDIOREADTOCHEADER: "
+                    "Inappropriate ioctl for device\n"
+                    "track (ctl=4) at sector 0\n"
+                    "disklabel not written\n"
+                ),
+                "",
             ),
-            "",
-        ),
-        (
             (
-                "mscdlabel: CDIOREADTOCHEADER: "
-                "Inappropriate ioctl for device\n"
-                "track (ctl=4) at sector 0\n"
-                "disklabel not written\n"
+                (
+                    "mscdlabel: CDIOREADTOCHEADER: "
+                    "Inappropriate ioctl for device\n"
+                    "track (ctl=4) at sector 0\n"
+                    "disklabel not written\n"
+                ),
+                "",
             ),
-            "",
-        ),
-        (
             (
-                "mscdlabel: CDIOREADTOCHEADER: "
-                "Inappropriate ioctl for device\n"
-                "track (ctl=4) at sector 0\n"
-                "disklabel not written\n"
+                (
+                    "mscdlabel: CDIOREADTOCHEADER: "
+                    "Inappropriate ioctl for device\n"
+                    "track (ctl=4) at sector 0\n"
+                    "disklabel not written\n"
+                ),
+                "",
             ),
-            "",
-        ),
-        (
             (
-                "track (ctl=4) at sector 0\n"
-                'ISO filesystem, label "config-2", '
-                "creation time: 2020/03/31 17:29\n"
-                "adding as 'a'\n"
+                (
+                    "track (ctl=4) at sector 0\n"
+                    'ISO filesystem, label "config-2", '
+                    "creation time: 2020/03/31 17:29\n"
+                    "adding as 'a'\n"
+                ),
+                "",
             ),
-            "",
-        ),
-    ]
-    m_subp.side_effect = side_effect_values
-    devlist = util.find_devs_with_netbsd()
-    assert set(devlist) == set(
-        ["/dev/ld0", "/dev/dk0", "/dev/dk1", "/dev/cd0"]
-    )
-    m_subp.side_effect = side_effect_values
-    devlist = util.find_devs_with_netbsd(criteria="TYPE=iso9660")
-    assert devlist == ["/dev/cd0"]
-    m_subp.side_effect = side_effect_values
-    devlist = util.find_devs_with_netbsd(criteria="TYPE=vfat")
-    assert devlist == ["/dev/ld0", "/dev/dk0", "/dev/dk1"]
+        ]
+        m_subp.side_effect = side_effect_values
+        devlist = util.find_devs_with_netbsd(criteria=criteria)
+        assert devlist == expected_devlist
 
 # vi: ts=4 expandtab

@@ -9,6 +9,7 @@ from cloudinit.config import schema
 
 from . import net_convert
 from . import render
+from . import make_mime
 
 
 def get_parser(parser=None):
@@ -25,7 +26,9 @@ def get_parser(parser=None):
         (net_convert.NAME, net_convert.__doc__,
          net_convert.get_parser, net_convert.handle_args),
         (render.NAME, render.__doc__,
-         render.get_parser, render.handle_args)
+         render.get_parser, render.handle_args),
+        (make_mime.NAME, make_mime.__doc__,
+         make_mime.get_parser, make_mime.handle_args),
     ]
     for (subcmd, helpmsg, get_parser, handler) in subcmds:
         parser = subparsers.add_parser(subcmd, help=helpmsg)

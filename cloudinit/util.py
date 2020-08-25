@@ -68,6 +68,10 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['lxc-is-container'])
 
 
+def kernel_version():
+    return tuple(map(int, os.uname().release.split('.')[:2]))
+
+
 @lru_cache()
 def get_dpkg_architecture(target=None):
     """Return the sanitized string output by `dpkg --print-architecture`.
@@ -355,7 +359,7 @@ def decomp_gzip(data, quiet=True, decode=True):
         if quiet:
             return data
         else:
-            raise DecompressionError(str(e))
+            raise DecompressionError(str(e)) from e
 
 
 def extract_usergroup(ug_pair):
@@ -544,14 +548,16 @@ def system_info():
     if system == "linux":
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
-                'arch', 'centos', 'debian', 'fedora', 'rhel', 'suse'):
+                'alpine', 'arch', 'centos', 'debian', 'fedora', 'rhel',
+                'suse'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
         elif linux_dist == 'redhat':
             var = 'rhel'
         elif linux_dist in (
-                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap', 'sles'):
+                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap',
+                'sles', 'sle_hpc'):
             var = 'suse'
         else:
             var = 'linux'
@@ -1111,6 +1117,7 @@ def close_stdin():
 
 def find_devs_with_freebsd(criteria=None, oformat='device',
                            tag=None, no_cache=False, path=None):
+    devlist = []
     if not criteria:
         return glob.glob("/dev/msdosfs/*") + glob.glob("/dev/iso9660/*")
     if criteria.startswith("LABEL="):
@@ -1356,7 +1363,7 @@ def chownbyname(fname, user=None, group=None):
         if group:
             gid = grp.getgrnam(group).gr_gid
     except KeyError as e:
-        raise OSError("Unknown user or group: %s" % (e))
+        raise OSError("Unknown user or group: %s" % (e)) from e
     chownbyid(fname, uid, gid)
 
 
@@ -2380,8 +2387,8 @@ def human2bytes(size):
 
     try:
         num = float(num)
-    except ValueError:
-        raise ValueError("'%s' is not valid input." % size_in)
+    except ValueError as e:
+        raise ValueError("'%s' is not valid input." % size_in) from e
 
     if num < 0:
         raise ValueError("'%s': cannot be negative" % size_in)

@@ -160,9 +160,9 @@ def handle(name, cfg, cloud, log, _args):
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
         cleaned_contents = '\n'.join(cleaned_lines)
         # Move to puppet_config.read_file when dropping py2.7
-        puppet_config.readfp(  # pylint: disable=W1505
+        puppet_config.read_file(
             StringIO(cleaned_contents),
-            filename=p_constants.conf_path)
+            source=p_constants.conf_path)
         for (cfg_name, cfg) in puppet_cfg['conf'].items():
             # Cert configuration is a special case
             # Dump the puppet master ca certificate in the correct place
