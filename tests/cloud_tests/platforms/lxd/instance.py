@@ -175,7 +175,8 @@ class LXDInstance(Instance):
             raise PlatformError(
                 "console log",
                 "Console log failed [%d]: stdout=%s stderr=%s" % (
-                    e.exit_code, e.stdout, e.stderr))
+                    e.exit_code, e.stdout, e.stderr)
+            ) from e
 
     def reboot(self, wait=True):
         """Reboot instance."""

@@ -413,7 +413,9 @@ class JoyentMetadataClient(object):
                 response.append(byte)
             except OSError as exc:
                 if exc.errno == errno.EAGAIN:
-                    raise JoyentMetadataTimeoutException(msg % as_ascii())
+                    raise JoyentMetadataTimeoutException(
+                        msg % as_ascii()
+                    ) from exc
                 raise
 
     def _write(self, msg):
