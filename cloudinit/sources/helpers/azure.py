@@ -98,8 +98,10 @@ def get_boot_telemetry():
     LOG.debug("Collecting boot telemetry")
     try:
         kernel_start = float(time.time()) - float(util.uptime())
-    except ValueError:
-        raise RuntimeError("Failed to determine kernel start timestamp")
+    except ValueError as e:
+        raise RuntimeError(
+            "Failed to determine kernel start timestamp"
+        ) from e
 
     try:
         out, _ = subp.subp(['/bin/systemctl',
@@ -116,12 +118,13 @@ def get_boot_telemetry():
 
         user_start = kernel_start + (float(tsm) / 1000000)
     except subp.ProcessExecutionError as e:
-        raise RuntimeError("Failed to get UserspaceTimestampMonotonic: %s"
-                           % e)
+        raise RuntimeError(
+            "Failed to get UserspaceTimestampMonotonic: %s" % e
+        ) from e
     except ValueError as e:
-        raise RuntimeError("Failed to parse "
-                           "UserspaceTimestampMonotonic from systemd: %s"
-                           % e)
+        raise RuntimeError(
+            "Failed to parse UserspaceTimestampMonotonic from systemd: %s" % e
+        ) from e
 
     try:
         out, _ = subp.subp(['/bin/systemctl', 'show',
@@ -137,12 +140,14 @@ def get_boot_telemetry():
 
         cloudinit_activation = kernel_start + (float(tsm) / 1000000)
     except subp.ProcessExecutionError as e:
-        raise RuntimeError("Failed to get InactiveExitTimestampMonotonic: %s"
-                           % e)
+        raise RuntimeError(
+            "Failed to get InactiveExitTimestampMonotonic: %s" % e
+        ) from e
     except ValueError as e:
-        raise RuntimeError("Failed to parse "
-                           "InactiveExitTimestampMonotonic from systemd: %s"
-                           % e)
+        raise RuntimeError(
+            "Failed to parse InactiveExitTimestampMonotonic from systemd: %s"
+            % e
+        ) from e
 
     evt = events.ReportingEvent(
         BOOT_EVENT_TYPE, 'boot-telemetry',
@@ -642,9 +647,10 @@ class WALinuxAgentShim:
             try:
                 name = os.path.basename(hook_file).replace('.json', '')
                 dhcp_options[name] = json.loads(util.load_file((hook_file)))
-            except ValueError:
+            except ValueError as e:
                 raise ValueError(
-                    '{_file} is not valid JSON data'.format(_file=hook_file))
+                    '{_file} is not valid JSON data'.format(_file=hook_file)
+                ) from e
         return dhcp_options
 
     @staticmethod

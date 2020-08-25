@@ -196,10 +196,11 @@ def load_power_state(cfg, distro_name):
 
     try:
         delay = convert_delay(delay, fmt=fmt, scale=scale)
-    except ValueError:
+    except ValueError as e:
         raise TypeError(
             "power_state[delay] must be 'now' or '+m' (minutes)."
-            " found '%s'." % delay)
+            " found '%s'." % delay
+        ) from e
 
     args = command + [delay]
     if message:
@@ -207,9 +208,10 @@ def load_power_state(cfg, distro_name):
 
     try:
         timeout = float(pstate.get('timeout', 30.0))
-    except ValueError:
-        raise ValueError("failed to convert timeout '%s' to float." %
-                         pstate['timeout'])
+    except ValueError as e:
+        raise ValueError(
+            "failed to convert timeout '%s' to float." % pstate['timeout']
+        ) from e
 
     condition = pstate.get("condition", True)
     if not isinstance(condition, (str, list, bool)):

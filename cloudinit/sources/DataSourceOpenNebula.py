@@ -399,18 +399,23 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
         if asuser is not None:
             try:
                 pwd.getpwnam(asuser)
-            except KeyError:
+            except KeyError as e:
                 raise BrokenContextDiskDir(
                     "configured user '{user}' does not exist".format(
-                        user=asuser))
+                        user=asuser)
+                ) from e
         try:
             path = os.path.join(source_dir, 'context.sh')
             content = util.load_file(path)
             context = parse_shell_config(content, asuser=asuser)
         except subp.ProcessExecutionError as e:
-            raise BrokenContextDiskDir("Error processing context.sh: %s" % (e))
+            raise BrokenContextDiskDir(
+                "Error processing context.sh: %s" % (e)
+            ) from e
         except IOError as e:
-            raise NonContextDiskDir("Error reading context.sh: %s" % (e))
+            raise NonContextDiskDir(
+                "Error reading context.sh: %s" % (e)
+            ) from e
     else:
         raise NonContextDiskDir("Missing context.sh")
 

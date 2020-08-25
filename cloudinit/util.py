@@ -359,7 +359,7 @@ def decomp_gzip(data, quiet=True, decode=True):
         if quiet:
             return data
         else:
-            raise DecompressionError(str(e))
+            raise DecompressionError(str(e)) from e
 
 
 def extract_usergroup(ug_pair):
@@ -1363,7 +1363,7 @@ def chownbyname(fname, user=None, group=None):
         if group:
             gid = grp.getgrnam(group).gr_gid
     except KeyError as e:
-        raise OSError("Unknown user or group: %s" % (e))
+        raise OSError("Unknown user or group: %s" % (e)) from e
     chownbyid(fname, uid, gid)
 
 
@@ -2387,8 +2387,8 @@ def human2bytes(size):
 
     try:
         num = float(num)
-    except ValueError:
-        raise ValueError("'%s' is not valid input." % size_in)
+    except ValueError as e:
+        raise ValueError("'%s' is not valid input." % size_in) from e
 
     if num < 0:
         raise ValueError("'%s': cannot be negative" % size_in)

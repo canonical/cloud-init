@@ -63,10 +63,11 @@ def recv_key(key, keyserver, retries=(1, 1)):
                 "Import failed with exit code %d, will try again in %ss",
                 error.exit_code, naplen)
             time.sleep(naplen)
-        except StopIteration:
+        except StopIteration as e:
             raise ValueError(
                 ("Failed to import key '%s' from keyserver '%s' "
-                 "after %d tries: %s") % (key, keyserver, trynum, error))
+                 "after %d tries: %s") % (key, keyserver, trynum, error)
+            ) from e
 
 
 def delete_key(key):

@@ -1147,7 +1147,7 @@ def read_azure_ovf(contents):
     except Exception as e:
         error_str = "Invalid ovf-env.xml: %s" % e
         report_diagnostic_event(error_str)
-        raise BrokenAzureDataSource(error_str)
+        raise BrokenAzureDataSource(error_str) from e
 
     results = find_child(dom.documentElement,
                          lambda n: n.localName == "ProvisioningSection")

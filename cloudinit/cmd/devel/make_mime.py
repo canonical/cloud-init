@@ -22,8 +22,10 @@ def file_content_type(text):
     try:
         filename, content_type = text.split(":", 1)
         return (open(filename, 'r'), filename, content_type.strip())
-    except ValueError:
-        raise argparse.ArgumentError(text, "Invalid value for %r" % (text))
+    except ValueError as e:
+        raise argparse.ArgumentError(
+            text, "Invalid value for %r" % (text)
+        ) from e
 
 
 def get_parser(parser=None):

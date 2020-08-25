@@ -262,7 +262,8 @@ def subp(args, data=None, rcs=None, env=None, capture=True,
         raise ProcessExecutionError(
             cmd=args, reason=e, errno=e.errno,
             stdout="-" if decode else b"-",
-            stderr="-" if decode else b"-")
+            stderr="-" if decode else b"-"
+        ) from e
     finally:
         if devnull_fp:
             devnull_fp.close()
