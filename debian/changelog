@@ -1,3 +1,11 @@
+cloud-init (20.3-2-g371b392c-0ubuntu1) groovy; urgency=medium
+
+  * New upstream snapshot.
+    - util: remove debug statement (#556) [Joshua Powers]
+    - Fix cloud config on chef example (#551) [lucasmoura]
+
+ -- James Falcon <james.falcon@canonical.com>  Wed, 26 Aug 2020 12:49:05 -0500
+
 cloud-init (20.3-0ubuntu1) groovy; urgency=medium
 
   * New upstream release.
