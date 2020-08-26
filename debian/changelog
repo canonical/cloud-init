@@ -1,4 +1,4 @@
-cloud-init (20.3-2-g371b392c-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.3-2-g371b392c-0ubuntu1) groovy; urgency=medium
 
   * New upstream snapshot.
     - util: remove debug statement (#556) [Joshua Powers]
