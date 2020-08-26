@@ -157,7 +157,9 @@ class TestParseNetworkConfig(CiTestCase):
 
     maxDiff = None
 
-    def test_single_ipv4_nic_configuration(self):
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_single_ipv4_nic_configuration(self, m_driver):
         """parse_network_config emits dhcp on single nic with ipv4"""
         expected = {'ethernets': {
             'eth0': {'dhcp4': True,
@@ -167,7 +169,9 @@ class TestParseNetworkConfig(CiTestCase):
                      'set-name': 'eth0'}}, 'version': 2}
         self.assertEqual(expected, dsaz.parse_network_config(NETWORK_METADATA))
 
-    def test_increases_route_metric_for_non_primary_nics(self):
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_increases_route_metric_for_non_primary_nics(self, m_driver):
         """parse_network_config increases route-metric for each nic"""
         expected = {'ethernets': {
             'eth0': {'dhcp4': True,
@@ -194,7 +198,9 @@ class TestParseNetworkConfig(CiTestCase):
         imds_data['network']['interface'].append(third_intf)
         self.assertEqual(expected, dsaz.parse_network_config(imds_data))
 
-    def test_ipv4_and_ipv6_route_metrics_match_for_nics(self):
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_ipv4_and_ipv6_route_metrics_match_for_nics(self, m_driver):
         """parse_network_config emits matching ipv4 and ipv6 route-metrics."""
         expected = {'ethernets': {
             'eth0': {'addresses': ['10.0.0.5/24', '2001:dead:beef::2/128'],
@@ -236,7 +242,9 @@ class TestParseNetworkConfig(CiTestCase):
         imds_data['network']['interface'].append(third_intf)
         self.assertEqual(expected, dsaz.parse_network_config(imds_data))
 
-    def test_ipv4_secondary_ips_will_be_static_addrs(self):
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_ipv4_secondary_ips_will_be_static_addrs(self, m_driver):
         """parse_network_config emits primary ipv4 as dhcp others are static"""
         expected = {'ethernets': {
             'eth0': {'addresses': ['10.0.0.5/24'],
@@ -256,7 +264,9 @@ class TestParseNetworkConfig(CiTestCase):
         }
         self.assertEqual(expected, dsaz.parse_network_config(imds_data))
 
-    def test_ipv6_secondary_ips_will_be_static_cidrs(self):
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_ipv6_secondary_ips_will_be_static_cidrs(self, m_driver):
         """parse_network_config emits primary ipv6 as dhcp others are static"""
         expected = {'ethernets': {
             'eth0': {'addresses': ['10.0.0.5/24', '2001:dead:beef::2/10'],
@@ -777,7 +787,9 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(ret)
         self.assertEqual(data['agent_invoked'], cfg['agent_command'])
 
-    def test_network_config_set_from_imds(self):
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_network_config_set_from_imds(self, m_driver):
         """Datasource.network_config returns IMDS network data."""
         sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
         odata = {}
@@ -795,7 +807,10 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
 
-    def test_network_config_set_from_imds_route_metric_for_secondary_nic(self):
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_network_config_set_from_imds_route_metric_for_secondary_nic(
+            self, m_driver):
         """Datasource.network_config adds route-metric to secondary nics."""
         sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
         odata = {}
@@ -1151,8 +1166,10 @@ scbus-1 on xpt0 bus 0
         self.assertEqual(
             [mock.call("/dev/cd0")], m_check_fbsd_cdrom.call_args_list)
 
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
     @mock.patch('cloudinit.net.generate_fallback_config')
-    def test_imds_network_config(self, mock_fallback):
+    def test_imds_network_config(self, mock_fallback, m_driver):
         """Network config is generated from IMDS network data when present."""
         sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
         odata = {'HostName': "myhost", 'UserName': "myuser"}
