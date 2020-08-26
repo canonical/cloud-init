@@ -698,6 +698,7 @@ class Renderer(renderer.Renderer):
             else:
                 iface_cfg['VLAN'] = True
                 iface_cfg['PHYSDEV'] = iface_name[:iface_name.rfind('.')]
+                iface_cfg.drop('TYPE')
 
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
