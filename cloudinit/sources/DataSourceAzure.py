@@ -1351,11 +1351,12 @@ def parse_network_config(imds_metadata) -> dict:
         try:
             return _generate_network_config_from_imds_metadata(imds_metadata)
         except Exception:
-            pass
+            LOG.error(
+                'Failed generating network config from IMDS network metadata')
     try:
         return _generate_network_config_from_fallback_config()
     except Exception:
-        pass
+        LOG.error('Failed generating fallback network config')
     return {}
 
 
