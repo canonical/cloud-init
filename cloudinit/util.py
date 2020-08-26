@@ -2490,7 +2490,6 @@ def read_dmi_data(key):
         LOG.debug("dmidata is not supported on %s", uname_arch)
         return None
 
-    print("hi, now its: %s\n", subp)
     dmidecode_path = subp.which('dmidecode')
     if dmidecode_path:
         return _call_dmidecode(key, dmidecode_path)
