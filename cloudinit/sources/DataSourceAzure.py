@@ -1347,16 +1347,16 @@ def parse_network_config(imds_metadata) -> dict:
     @param: imds_metadata: Dict of content read from IMDS network service.
     @return: Dictionary containing network version 2 standard configuration.
     """
-    try:
-        if imds_metadata != sources.UNSET and imds_metadata:
+    if imds_metadata != sources.UNSET and imds_metadata:
+        try:
             return _generate_network_config_from_imds_metadata(imds_metadata)
-        else:
-            return _generate_network_config_from_fallback_config()
-    except Exception as e:
-        msg = 'Failed generating network config: %s' % e
-        report_diagnostic_event(msg)
-        LOG.warning(msg)
-        return {}
+        except Exception:
+            pass
+    try:
+        return _generate_network_config_from_fallback_config()
+    except Exception:
+        pass
+    return {}
 
 
 @azure_ds_telemetry_reporter
