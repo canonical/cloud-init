@@ -156,6 +156,15 @@ MOCKPATH = 'cloudinit.sources.DataSourceAzure.'
 class TestParseNetworkConfig(CiTestCase):
 
     maxDiff = None
+    fallback_config = {
+        'version': 1,
+        'config': [{
+            'type': 'physical', 'name': 'eth0',
+            'mac_address': '00:11:22:33:44:55',
+            'params': {'driver': 'hv_netsvc'},
+            'subnets': [{'type': 'dhcp'}],
+        }]
+    }
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
@@ -304,6 +313,42 @@ class TestParseNetworkConfig(CiTestCase):
                 'set-name': 'eth0'
             }}, 'version': 2}
         self.assertEqual(expected, dsaz.parse_network_config(NETWORK_METADATA))
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    @mock.patch('cloudinit.net.generate_fallback_config')
+    def test_parse_network_config_uses_fallback_cfg_when_no_network_metadata(
+            self, m_fallback_config, m_driver):
+        """parse_network_config generates fallback network config when the
+        IMDS instance metadata is corrupted/invalid, such as when
+        network metadata is not present.
+        """
+        imds_metadata_missing_network_metadata = copy.deepcopy(
+            NETWORK_METADATA)
+        del imds_metadata_missing_network_metadata['network']
+        m_fallback_config.return_value = self.fallback_config
+        self.assertEqual(
+            self.fallback_config,
+            dsaz.parse_network_config(
+                imds_metadata_missing_network_metadata))
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    @mock.patch('cloudinit.net.generate_fallback_config')
+    def test_parse_network_config_uses_fallback_cfg_when_no_interface_metadata(
+            self, m_fallback_config, m_driver):
+        """parse_network_config generates fallback network config when the
+        IMDS instance metadata is corrupted/invalid, such as when
+        network interface metadata is not present.
+        """
+        imds_metadata_missing_interface_metadata = copy.deepcopy(
+            NETWORK_METADATA)
+        del imds_metadata_missing_interface_metadata['network']['interface']
+        m_fallback_config.return_value = self.fallback_config
+        self.assertEqual(
+            self.fallback_config,
+            dsaz.parse_network_config(
+                imds_metadata_missing_interface_metadata))
 
 
 class TestGetMetadataFromIMDS(HttprettyTestCase):

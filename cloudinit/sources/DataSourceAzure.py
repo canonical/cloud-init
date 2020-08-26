@@ -1347,18 +1347,21 @@ def parse_network_config(imds_metadata) -> dict:
     @param: imds_metadata: Dict of content read from IMDS network service.
     @return: Dictionary containing network version 2 standard configuration.
     """
-    netconfig = {}
-    try:
-        if imds_metadata != sources.UNSET and imds_metadata:
-            netconfig = _generate_network_config_from_imds_metadata(
+    if imds_metadata != sources.UNSET and imds_metadata:
+        try:
+            return _generate_network_config_from_imds_metadata(
                 imds_metadata)
-        else:
-            netconfig = _generate_network_config_from_fallback_config()
+        except Exception as e:
+            msg = 'Failed generating network config from IMDS metadata: %s' % e
+            report_diagnostic_event(msg)
+            LOG.warning(msg)
+    try:
+        return _generate_network_config_from_fallback_config()
     except Exception as e:
-        msg = 'Failed generating network config: %s' % e
+        msg = 'Failed generating fallback network config: %s' % e
         report_diagnostic_event(msg)
         LOG.warning(msg)
-    return netconfig
+    return {}
 
 
 @azure_ds_telemetry_reporter
@@ -1370,7 +1373,8 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
     @return: Dictionary containing network version 2 standard configuration.
     """
     netconfig = {'version': 2, 'ethernets': {}}
-    LOG.debug('Azure: generating network configuration from IMDS')
+    report_diagnostic_event(
+        'Azure: generating network configuration from IMDS')
     network_metadata = imds_metadata['network']
     for idx, intf in enumerate(network_metadata['interface']):
         # First IPv4 and/or IPv6 address will be obtained via DHCP.
