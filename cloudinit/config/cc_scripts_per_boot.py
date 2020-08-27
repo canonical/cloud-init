@@ -24,7 +24,7 @@ module does not accept any config keys.
 
 import os
 
-from cloudinit import util
+from cloudinit import subp
 
 from cloudinit.settings import PER_ALWAYS
 
@@ -38,7 +38,7 @@ def handle(name, _cfg, cloud, log, _args):
     # https://forums.aws.amazon.com/thread.jspa?threadID=96918
     runparts_path = os.path.join(cloud.get_cpath(), 'scripts', SCRIPT_SUBDIR)
     try:
-        util.runparts(runparts_path)
+        subp.runparts(runparts_path)
     except Exception:
         log.warning("Failed to run module %s (%s in %s)",
                     name, SCRIPT_SUBDIR, runparts_path)

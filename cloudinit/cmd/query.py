@@ -1,6 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""Query standardized instance metadata from the command line."""
+"""Query standardized instance metadata provided to machine, returning a JSON
+structure.
+
+Some instance-data values may be binary on some platforms, such as userdata and
+vendordata. Attempt to decompress and decode UTF-8 any binary values.
+
+Any binary values in the instance metadata will be base64-encoded and prefixed
+with "ci-b64:" in the output. userdata and, where applicable, vendordata may
+be provided to the machine gzip-compressed (and therefore as binary data).
+query will attempt to decompress these to a string before emitting the JSON
+output; if this fails, they are treated as binary.
+"""
 
 import argparse
 from errno import EACCES
@@ -30,7 +41,7 @@ def get_parser(parser=None):
     """
     if not parser:
         parser = argparse.ArgumentParser(
-            prog=NAME, description='Query cloud-init instance data')
+            prog=NAME, description=__doc__)
     parser.add_argument(
         '-d', '--debug', action='store_true', default=False,
         help='Add verbose messages during template render')
@@ -52,8 +63,10 @@ def get_parser(parser=None):
               ' /var/lib/cloud/instance/vendor-data.txt'))
     parser.add_argument(
         'varname', type=str, nargs='?',
-        help=('A dot-delimited instance data variable to query from'
-              ' instance-data query. For example: v2.local_hostname'))
+        help=('A dot-delimited specific variable to query from'
+              ' instance-data. For example: v1.local_hostname. If the'
+              ' value is not JSON serializable, it will be base64-encoded and'
+              ' will contain the prefix "ci-b64:". '))
     parser.add_argument(
         '-a', '--all', action='store_true', default=False, dest='dump_all',
         help='Dump all available instance-data')
@@ -63,6 +76,21 @@ def get_parser(parser=None):
               ' instance-data variable can be specified between double-curly'
               ' braces. For example -f "{{ v2.cloud_name }}"'))
     return parser
+
+
+def load_userdata(ud_file_path):
+    """Attempt to return a string of user-data from ud_file_path
+
+    Attempt to decode or decompress if needed.
+    If unable to decode the content, raw bytes will be returned.
+
+    @returns: String of uncompressed userdata if possible, otherwise bytes.
+    """
+    bdata = util.load_file(ud_file_path, decode=False)
+    try:
+        return bdata.decode('utf-8')
+    except UnicodeDecodeError:
+        return util.decomp_gzip(bdata, quiet=False, decode=True)
 
 
 def handle_args(name, args):
@@ -90,8 +118,9 @@ def handle_args(name, args):
                 instance_data_fn = sensitive_data_fn
             else:
                 LOG.warning(
-                     'Missing root-readable %s. Using redacted %s instead.',
-                     sensitive_data_fn, redacted_data_fn)
+                    'Missing root-readable %s. Using redacted %s instead.',
+                    sensitive_data_fn, redacted_data_fn
+                )
                 instance_data_fn = redacted_data_fn
         else:
             instance_data_fn = redacted_data_fn
@@ -120,8 +149,8 @@ def handle_args(name, args):
         instance_data['vendordata'] = (
             '<%s> file:%s' % (REDACT_SENSITIVE_VALUE, vendor_data_fn))
     else:
-        instance_data['userdata'] = util.load_file(user_data_fn)
-        instance_data['vendordata'] = util.load_file(vendor_data_fn)
+        instance_data['userdata'] = load_userdata(user_data_fn)
+        instance_data['vendordata'] = load_userdata(vendor_data_fn)
     if args.format:
         payload = '## template: jinja\n{fmt}'.format(fmt=args.format)
         rendered_payload = render_jinja_payload(

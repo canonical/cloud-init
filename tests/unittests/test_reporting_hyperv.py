@@ -1,7 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import base64
+import zlib
 
-from cloudinit.reporting import events
-from cloudinit.reporting.handlers import HyperVKvpReportingHandler
+from cloudinit.reporting import events, instantiated_handler_registry
+from cloudinit.reporting.handlers import HyperVKvpReportingHandler, LogHandler
 
 import json
 import os
@@ -72,7 +74,7 @@ class TextKvpReporter(CiTestCase):
     def test_event_very_long(self):
         reporter = HyperVKvpReportingHandler(
             kvp_file_path=self.tmp_file_path)
-        description = 'ab' * reporter.HV_KVP_EXCHANGE_MAX_VALUE_SIZE
+        description = 'ab' * reporter.HV_KVP_AZURE_MAX_VALUE_SIZE
         long_event = events.FinishReportingEvent(
             'event_name',
             description,
@@ -93,10 +95,15 @@ class TextKvpReporter(CiTestCase):
     def test_not_truncate_kvp_file_modified_after_boot(self):
         with open(self.tmp_file_path, "wb+") as f:
             kvp = {'key': 'key1', 'value': 'value1'}
-            data = (struct.pack("%ds%ds" % (
+            data = struct.pack(
+                "%ds%ds"
+                % (
                     HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_KEY_SIZE,
-                    HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_VALUE_SIZE),
-                    kvp['key'].encode('utf-8'), kvp['value'].encode('utf-8')))
+                    HyperVKvpReportingHandler.HV_KVP_EXCHANGE_MAX_VALUE_SIZE,
+                ),
+                kvp["key"].encode("utf-8"),
+                kvp["value"].encode("utf-8"),
+            )
             f.write(data)
         cur_time = time.time()
         os.utime(self.tmp_file_path, (cur_time, cur_time))
@@ -131,11 +138,13 @@ class TextKvpReporter(CiTestCase):
         self.assertEqual(0, len(kvps))
 
     @mock.patch('cloudinit.distros.uses_systemd')
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_get_boot_telemetry(self, m_subp, m_sysd):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
-        datetime_pattern = r"\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]"
-        r"\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)"
+        datetime_pattern = (
+            r"\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]"
+            r"\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)"
+        )
 
         # get_boot_telemetry makes two subp calls to systemctl. We provide
         # a list of values that the subp calls should return
@@ -191,6 +200,72 @@ class TextKvpReporter(CiTestCase):
 
         if "test_diagnostic" not in evt_msg:
             raise AssertionError("missing expected diagnostic message")
+
+    def test_report_compressed_event(self):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        try:
+            instantiated_handler_registry.register_item("telemetry", reporter)
+            event_desc = b'test_compressed'
+            azure.report_compressed_event(
+                "compressed event", event_desc)
+
+            self.validate_compressed_kvps(reporter, 1, [event_desc])
+        finally:
+            instantiated_handler_registry.unregister_item("telemetry",
+                                                          force=False)
+
+    @mock.patch.object(LogHandler, 'publish_event')
+    def test_push_log_to_kvp(self, publish_event):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        try:
+            instantiated_handler_registry.register_item("telemetry", reporter)
+            log_file = self.tmp_path("cloud-init.log")
+            azure.MAX_LOG_TO_KVP_LENGTH = 100
+            azure.LOG_PUSHED_TO_KVP_MARKER_FILE = self.tmp_path(
+                'log_pushed_to_kvp')
+            with open(log_file, "w") as f:
+                log_content = "A" * 50 + "B" * 100
+                f.write(log_content)
+            azure.push_log_to_kvp(log_file)
+
+            with open(log_file, "a") as f:
+                extra_content = "C" * 10
+                f.write(extra_content)
+            azure.push_log_to_kvp(log_file)
+
+            for call_arg in publish_event.call_args_list:
+                event = call_arg[0][0]
+                self.assertNotEqual(
+                    event.event_type, azure.COMPRESSED_EVENT_TYPE)
+            self.validate_compressed_kvps(
+                reporter, 1,
+                [log_content[-azure.MAX_LOG_TO_KVP_LENGTH:].encode()])
+        finally:
+            instantiated_handler_registry.unregister_item("telemetry",
+                                                          force=False)
+
+    def validate_compressed_kvps(self, reporter, count, values):
+        reporter.q.join()
+        kvps = list(reporter._iterate_kvps(0))
+        compressed_count = 0
+        for i in range(len(kvps)):
+            kvp = kvps[i]
+            kvp_value = kvp['value']
+            kvp_value_json = json.loads(kvp_value)
+            evt_msg = kvp_value_json["msg"]
+            evt_type = kvp_value_json["type"]
+            if evt_type != azure.COMPRESSED_EVENT_TYPE:
+                continue
+            evt_msg_json = json.loads(evt_msg)
+            evt_encoding = evt_msg_json["encoding"]
+            evt_data = zlib.decompress(
+                base64.decodebytes(evt_msg_json["data"].encode("ascii")))
+
+            self.assertLess(compressed_count, len(values))
+            self.assertEqual(evt_data, values[compressed_count])
+            self.assertEqual(evt_encoding, "gz+b64")
+            compressed_count += 1
+        self.assertEqual(compressed_count, count)
 
     def test_unique_kvp_key(self):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)

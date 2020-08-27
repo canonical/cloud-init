@@ -22,6 +22,7 @@ from cloudinit import log as logging
 from cloudinit.net import dhcp
 from cloudinit import sources
 from cloudinit import url_helper as uhelp
+from cloudinit import subp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ class CloudStackPasswordServerClient(object):
         # The password server was in the past, a broken HTTP server, but is now
         # fixed.  wget handles this seamlessly, so it's easier to shell out to
         # that rather than write our own handling code.
-        output, _ = util.subp([
+        output, _ = subp.subp([
             'wget', '--quiet', '--tries', '3', '--timeout', '20',
             '--output-document', '-', '--header',
             'DomU_Request: {0}'.format(domu_request),

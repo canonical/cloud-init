@@ -22,9 +22,8 @@ The ``delay`` key specifies a duration to be added onto any shutdown command
 used. Therefore, if a 5 minute delay and a 120 second shutdown are specified,
 the maximum amount of time between cloud-init starting and the system shutting
 down is 7 minutes, and the minimum amount of time is 5 minutes. The ``delay``
-key must have an argument in a form that the ``shutdown`` utility recognizes.
-The most common format is the form ``+5`` for 5 minutes. See ``man shutdown``
-for more options.
+key must have an argument in either the form ``+5`` for 5 minutes or ``now``
+for immediate shutdown.
 
 Optionally, a command can be run to determine whether or not
 the system should shut down. The command to be run should be specified in the
@@ -32,6 +31,10 @@ the system should shut down. The command to be run should be specified in the
 ``cc_runcmd``. The specified shutdown behavior will only take place if the
 ``condition`` key is omitted or the command specified by the ``condition``
 key returns 0.
+
+.. note::
+    With Alpine Linux any message value specified is ignored as Alpine's halt,
+    poweroff, and reboot commands do not support broadcasting a message.
 
 **Internal name:** ``cc_power_state_change``
 
@@ -56,6 +59,7 @@ import subprocess
 import time
 
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import subp
 from cloudinit import util
 
 frequency = PER_INSTANCE
@@ -71,7 +75,7 @@ def givecmdline(pid):
         #   PID COMM             ARGS
         #     1 init             /bin/init --
         if util.is_FreeBSD():
-            (output, _err) = util.subp(['procstat', '-c', str(pid)])
+            (output, _err) = subp.subp(['procstat', '-c', str(pid)])
             line = output.splitlines()[1]
             m = re.search(r'\d+ (\w|\.|-)+\s+(/\w.+)', line)
             return m.group(2)
@@ -111,9 +115,9 @@ def check_condition(cond, log=None):
         return False
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(_name, cfg, cloud, log, _args):
     try:
-        (args, timeout, condition) = load_power_state(cfg)
+        (args, timeout, condition) = load_power_state(cfg, cloud.distro.name)
         if args is None:
             log.debug("no power_state provided. doing nothing")
             return
@@ -140,7 +144,19 @@ def handle(_name, cfg, _cloud, log, _args):
                  condition, execmd, [args, devnull_fp])
 
 
-def load_power_state(cfg):
+def convert_delay(delay, fmt=None, scale=None):
+    if not fmt:
+        fmt = "+%s"
+    if not scale:
+        scale = 1
+
+    if delay != "now":
+        delay = fmt % int(int(delay) * int(scale))
+
+    return delay
+
+
+def load_power_state(cfg, distro_name):
     # returns a tuple of shutdown_command, timeout
     # shutdown_command is None if no config found
     pstate = cfg.get('power_state')
@@ -160,26 +176,42 @@ def load_power_state(cfg):
             (','.join(opt_map.keys()), mode))
 
     delay = pstate.get("delay", "now")
-    # convert integer 30 or string '30' to '+30'
-    try:
-        delay = "+%s" % int(delay)
-    except ValueError:
-        pass
+    message = pstate.get("message")
+    scale = 1
+    fmt = "+%s"
+    command = ["shutdown", opt_map[mode]]
 
-    if delay != "now" and not re.match(r"\+[0-9]+", delay):
+    if distro_name == 'alpine':
+        # Convert integer 30 or string '30' to '1800' (seconds) as Alpine's
+        # halt/poweroff/reboot commands take seconds rather than minutes.
+        scale = 60
+        # No "+" in front of delay value as not supported by Alpine's commands.
+        fmt = "%s"
+        if delay == "now":
+            # Alpine's commands do not understand "now".
+            delay = "0"
+        command = [mode, "-d"]
+        # Alpine's commands don't support a message.
+        message = None
+
+    try:
+        delay = convert_delay(delay, fmt=fmt, scale=scale)
+    except ValueError as e:
         raise TypeError(
             "power_state[delay] must be 'now' or '+m' (minutes)."
-            " found '%s'." % delay)
+            " found '%s'." % delay
+        ) from e
 
-    args = ["shutdown", opt_map[mode], delay]
-    if pstate.get("message"):
-        args.append(pstate.get("message"))
+    args = command + [delay]
+    if message:
+        args.append(message)
 
     try:
         timeout = float(pstate.get('timeout', 30.0))
-    except ValueError:
-        raise ValueError("failed to convert timeout '%s' to float." %
-                         pstate['timeout'])
+    except ValueError as e:
+        raise ValueError(
+            "failed to convert timeout '%s' to float." % pstate['timeout']
+        ) from e
 
     condition = pstate.get("condition", True)
     if not isinstance(condition, (str, list, bool)):

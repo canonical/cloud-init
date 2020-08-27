@@ -7,6 +7,7 @@ import shutil
 from simplestreams import filters, mirrors
 from simplestreams import util as s_util
 
+from cloudinit import subp
 from cloudinit import util as c_util
 
 from tests.cloud_tests import util
@@ -48,10 +49,10 @@ class Platform(object):
         if os.path.exists(filename):
             c_util.del_file(filename)
 
-        c_util.subp(['ssh-keygen', '-m', 'PEM', '-t', 'rsa', '-b', '4096',
-                     '-f', filename, '-P', '',
-                     '-C', 'ubuntu@cloud_test'],
-                    capture=True)
+        subp.subp(['ssh-keygen', '-m', 'PEM', '-t', 'rsa', '-b', '4096',
+                   '-f', filename, '-P', '',
+                   '-C', 'ubuntu@cloud_test'],
+                  capture=True)
 
     @staticmethod
     def _query_streams(img_conf, img_filter):
@@ -73,8 +74,10 @@ class Platform(object):
 
         try:
             return tmirror.json_entries[0]
-        except IndexError:
-            raise RuntimeError('no images found with filter: %s' % img_filter)
+        except IndexError as e:
+            raise RuntimeError(
+                'no images found with filter: %s' % img_filter
+            ) from e
 
 
 class FilterMirror(mirrors.BasicMirrorWriter):

@@ -50,9 +50,8 @@ currently being defined.
 There are two physically/structurally different classes of device definitions,
 and the ID field has a different interpretation for each:
 
-Physical devices
-
-:   (Examples: ethernet, wifi) These can dynamically come and go between
+Physical devices (Examples: ethernet, wifi):
+    These can dynamically come and go between
     reboots and even during runtime (hotplugging). In the generic case, they
     can be selected by ``match:`` rules on desired properties, such as
     name/name pattern, MAC address, driver, or device paths. In general these
@@ -69,9 +68,8 @@ Physical devices
     which is only being used  for references from definitions of compound
     devices in the config.
 
-Virtual devices
-
-:  (Examples: veth, bridge, bond) These are fully under the control of the
+Virtual devices (Examples: veth, bridge, bond):
+   These are fully under the control of the
    config file(s) and the network stack. I. e. these devices are being created
    instead of matched. Thus ``match:`` and ``set-name:`` are not applicable for
    these, and the ID field is the name of the created virtual device.

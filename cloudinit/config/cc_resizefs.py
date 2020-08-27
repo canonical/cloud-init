@@ -19,6 +19,7 @@ from textwrap import dedent
 from cloudinit.config.schema import (
     get_schema_doc, validate_cloudconfig_schema)
 from cloudinit.settings import PER_ALWAYS
+from cloudinit import subp
 from cloudinit import util
 
 NOBLOCK = "noblock"
@@ -88,11 +89,11 @@ def _resize_zfs(mount_point, devpth):
 
 
 def _get_dumpfs_output(mount_point):
-    return util.subp(['dumpfs', '-m', mount_point])[0]
+    return subp.subp(['dumpfs', '-m', mount_point])[0]
 
 
 def _get_gpart_output(part):
-    return util.subp(['gpart', 'show', part])[0]
+    return subp.subp(['gpart', 'show', part])[0]
 
 
 def _can_skip_resize_ufs(mount_point, devpth):
@@ -117,14 +118,12 @@ def _can_skip_resize_ufs(mount_point, devpth):
                 if o == "-f":
                     frag_sz = int(a)
     # check the current partition size
-    """
-    # gpart show /dev/da0
-=>      40  62914480  da0  GPT  (30G)
-        40      1024    1  freebsd-boot  (512K)
-      1064  58719232    2  freebsd-ufs  (28G)
-  58720296   3145728    3  freebsd-swap  (1.5G)
-  61866024   1048496       - free -  (512M)
-    """
+    # Example output from `gpart show /dev/da0`:
+    # =>      40  62914480  da0  GPT  (30G)
+    #         40      1024    1  freebsd-boot  (512K)
+    #       1064  58719232    2  freebsd-ufs  (28G)
+    #   58720296   3145728    3  freebsd-swap  (1.5G)
+    #   61866024   1048496       - free -  (512M)
     expect_sz = None
     m = re.search('^(/dev/.+)p([0-9])$', devpth)
     gpart_res = _get_gpart_output(m.group(1))
@@ -306,8 +305,8 @@ def handle(name, cfg, _cloud, log, args):
 
 def do_resize(resize_cmd, log):
     try:
-        util.subp(resize_cmd)
-    except util.ProcessExecutionError:
+        subp.subp(resize_cmd)
+    except subp.ProcessExecutionError:
         util.logexc(log, "Failed to resize filesystem (cmd=%s)", resize_cmd)
         raise
     # TODO(harlowja): Should we add a fsck check after this to make

@@ -134,6 +134,113 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
             cc_mounts.sanitize_devname(disk_path, None, mock.Mock()))
 
 
+class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
+
+    def setUp(self):
+        super(TestSwapFileCreation, self).setUp()
+        self.new_root = self.tmp_dir()
+        self.patchOS(self.new_root)
+
+        self.fstab_path = os.path.join(self.new_root, 'etc/fstab')
+        self.swap_path = os.path.join(self.new_root, 'swap.img')
+        self._makedirs('/etc')
+
+        self.add_patch('cloudinit.config.cc_mounts.FSTAB_PATH',
+                       'mock_fstab_path',
+                       self.fstab_path,
+                       autospec=False)
+
+        self.add_patch('cloudinit.config.cc_mounts.subp.subp',
+                       'm_subp_subp')
+
+        self.add_patch('cloudinit.config.cc_mounts.util.mounts',
+                       'mock_util_mounts',
+                       return_value={
+                           '/dev/sda1': {'fstype': 'ext4',
+                                         'mountpoint': '/',
+                                         'opts': 'rw,relatime,discard'
+                                         }})
+
+        self.mock_cloud = mock.Mock()
+        self.mock_log = mock.Mock()
+        self.mock_cloud.device_name_to_device = self.device_name_to_device
+
+        self.cc = {
+            'swap': {
+                'filename': self.swap_path,
+                'size': '512',
+                'maxsize': '512'}}
+
+    def _makedirs(self, directory):
+        directory = os.path.join(self.new_root, directory.lstrip('/'))
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+    def device_name_to_device(self, path):
+        if path == 'swap':
+            return self.swap_path
+        else:
+            dev = None
+
+        return dev
+
+    @mock.patch('cloudinit.util.get_mount_info')
+    @mock.patch('cloudinit.util.kernel_version')
+    def test_swap_creation_method_fallocate_on_xfs(self, m_kernel_version,
+                                                   m_get_mount_info):
+        m_kernel_version.return_value = (4, 20)
+        m_get_mount_info.return_value = ["", "xfs"]
+
+        cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
+        self.m_subp_subp.assert_has_calls([
+            mock.call(['fallocate', '-l', '0M', self.swap_path], capture=True),
+            mock.call(['mkswap', self.swap_path]),
+            mock.call(['swapon', '-a'])])
+
+    @mock.patch('cloudinit.util.get_mount_info')
+    @mock.patch('cloudinit.util.kernel_version')
+    def test_swap_creation_method_xfs(self, m_kernel_version,
+                                      m_get_mount_info):
+        m_kernel_version.return_value = (3, 18)
+        m_get_mount_info.return_value = ["", "xfs"]
+
+        cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
+        self.m_subp_subp.assert_has_calls([
+            mock.call(['dd', 'if=/dev/zero',
+                       'of=' + self.swap_path,
+                       'bs=1M', 'count=0'], capture=True),
+            mock.call(['mkswap', self.swap_path]),
+            mock.call(['swapon', '-a'])])
+
+    @mock.patch('cloudinit.util.get_mount_info')
+    @mock.patch('cloudinit.util.kernel_version')
+    def test_swap_creation_method_btrfs(self, m_kernel_version,
+                                        m_get_mount_info):
+        m_kernel_version.return_value = (4, 20)
+        m_get_mount_info.return_value = ["", "btrfs"]
+
+        cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
+        self.m_subp_subp.assert_has_calls([
+            mock.call(['dd', 'if=/dev/zero',
+                       'of=' + self.swap_path,
+                       'bs=1M', 'count=0'], capture=True),
+            mock.call(['mkswap', self.swap_path]),
+            mock.call(['swapon', '-a'])])
+
+    @mock.patch('cloudinit.util.get_mount_info')
+    @mock.patch('cloudinit.util.kernel_version')
+    def test_swap_creation_method_ext4(self, m_kernel_version,
+                                       m_get_mount_info):
+        m_kernel_version.return_value = (5, 14)
+        m_get_mount_info.return_value = ["", "ext4"]
+
+        cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
+        self.m_subp_subp.assert_has_calls([
+            mock.call(['fallocate', '-l', '0M', self.swap_path], capture=True),
+            mock.call(['mkswap', self.swap_path]),
+            mock.call(['swapon', '-a'])])
+
+
 class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
 
     swap_path = '/dev/sdb1'
@@ -155,8 +262,8 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
                        'mock_is_block_device',
                        return_value=True)
 
-        self.add_patch('cloudinit.config.cc_mounts.util.subp',
-                       'm_util_subp')
+        self.add_patch('cloudinit.config.cc_mounts.subp.subp',
+                       'm_subp_subp')
 
         self.add_patch('cloudinit.config.cc_mounts.util.mounts',
                        'mock_util_mounts',
@@ -182,6 +289,18 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
             dev = None
 
         return dev
+
+    def test_no_fstab(self):
+        """ Handle images which do not include an fstab. """
+        self.assertFalse(os.path.exists(cc_mounts.FSTAB_PATH))
+        fstab_expected_content = (
+            '%s\tnone\tswap\tsw,comment=cloudconfig\t'
+            '0\t0\n' % (self.swap_path,)
+        )
+        cc_mounts.handle(None, {}, self.mock_cloud, self.mock_log, [])
+        with open(cc_mounts.FSTAB_PATH, 'r') as fd:
+            fstab_new_content = fd.read()
+            self.assertEqual(fstab_expected_content, fstab_new_content)
 
     def test_swap_integrity(self):
         '''Ensure that the swap file is correctly created and can
@@ -260,15 +379,18 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
             '/dev/vdb /mnt auto defaults,noexec,comment=cloudconfig 0 2\n'
         )
         fstab_expected_content = fstab_original_content
-        cc = {'mounts': [
-                 ['/dev/vdb', '/mnt', 'auto', 'defaults,noexec']]}
+        cc = {
+            'mounts': [
+                ['/dev/vdb', '/mnt', 'auto', 'defaults,noexec']
+            ]
+        }
         with open(cc_mounts.FSTAB_PATH, 'w') as fd:
             fd.write(fstab_original_content)
         with open(cc_mounts.FSTAB_PATH, 'r') as fd:
             fstab_new_content = fd.read()
             self.assertEqual(fstab_expected_content, fstab_new_content)
         cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
-        self.m_util_subp.assert_has_calls([
+        self.m_subp_subp.assert_has_calls([
             mock.call(['mount', '-a']),
             mock.call(['systemctl', 'daemon-reload'])])
 

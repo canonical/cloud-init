@@ -9,6 +9,7 @@ import platform
 import pytest
 
 import cloudinit.util as util
+from cloudinit import subp
 
 from cloudinit.tests.helpers import CiTestCase, mock
 from textwrap import dedent
@@ -332,7 +333,7 @@ class TestBlkid(CiTestCase):
                           "PARTUUID": self.ids["id09"]},
         })
 
-    @mock.patch("cloudinit.util.subp")
+    @mock.patch("cloudinit.subp.subp")
     def test_functional_blkid(self, m_subp):
         m_subp.return_value = (
             self.blkid_out.format(**self.ids), "")
@@ -340,7 +341,7 @@ class TestBlkid(CiTestCase):
         m_subp.assert_called_with(["blkid", "-o", "full"], capture=True,
                                   decode="replace")
 
-    @mock.patch("cloudinit.util.subp")
+    @mock.patch("cloudinit.subp.subp")
     def test_blkid_no_cache_uses_no_cache(self, m_subp):
         """blkid should turn off cache if disable_cache is true."""
         m_subp.return_value = (
@@ -351,7 +352,7 @@ class TestBlkid(CiTestCase):
                                   capture=True, decode="replace")
 
 
-@mock.patch('cloudinit.util.subp')
+@mock.patch('cloudinit.subp.subp')
 class TestUdevadmSettle(CiTestCase):
     def test_with_no_params(self, m_subp):
         """called with no parameters."""
@@ -396,8 +397,8 @@ class TestUdevadmSettle(CiTestCase):
              '--timeout=%s' % timeout])
 
     def test_subp_exception_raises_to_caller(self, m_subp):
-        m_subp.side_effect = util.ProcessExecutionError("BOOM")
-        self.assertRaises(util.ProcessExecutionError, util.udevadm_settle)
+        m_subp.side_effect = subp.ProcessExecutionError("BOOM")
+        self.assertRaises(subp.ProcessExecutionError, util.udevadm_settle)
 
 
 @mock.patch('os.path.exists')
@@ -701,6 +702,73 @@ class TestReadCcFromCmdline:
     )
     def test_read_conf_from_cmdline_config(self, expected_cfg, cmdline):
         assert expected_cfg == util.read_conf_from_cmdline(cmdline=cmdline)
+
+
+class TestMountCb:
+    """Tests for ``util.mount_cb``.
+
+    These tests consider the "unit" under test to be ``util.mount_cb`` and
+    ``util.unmounter``, which is only used by ``mount_cb``.
+
+    TODO: Test default mtype determination
+    TODO: Test the if/else branch that actually performs the mounting operation
+    """
+
+    @pytest.yield_fixture
+    def already_mounted_device_and_mountdict(self):
+        """Mock an already-mounted device, and yield (device, mount dict)"""
+        device = "/dev/fake0"
+        mountpoint = "/mnt/fake"
+        with mock.patch("cloudinit.util.subp.subp"):
+            with mock.patch("cloudinit.util.mounts") as m_mounts:
+                mounts = {device: {"mountpoint": mountpoint}}
+                m_mounts.return_value = mounts
+                yield device, mounts[device]
+
+    @pytest.fixture
+    def already_mounted_device(self, already_mounted_device_and_mountdict):
+        """already_mounted_device_and_mountdict, but return only the device"""
+        return already_mounted_device_and_mountdict[0]
+
+    @pytest.mark.parametrize("invalid_mtype", [int(0), float(0.0), dict()])
+    def test_typeerror_raised_for_invalid_mtype(self, invalid_mtype):
+        with pytest.raises(TypeError):
+            util.mount_cb(mock.Mock(), mock.Mock(), mtype=invalid_mtype)
+
+    @mock.patch("cloudinit.util.subp.subp")
+    def test_already_mounted_does_not_mount_or_umount_anything(
+        self, m_subp, already_mounted_device
+    ):
+        util.mount_cb(already_mounted_device, mock.Mock())
+
+        assert 0 == m_subp.call_count
+
+    @pytest.mark.parametrize("trailing_slash_in_mounts", ["/", ""])
+    def test_already_mounted_calls_callback(
+        self, trailing_slash_in_mounts, already_mounted_device_and_mountdict
+    ):
+        device, mount_dict = already_mounted_device_and_mountdict
+        mountpoint = mount_dict["mountpoint"]
+        mount_dict["mountpoint"] += trailing_slash_in_mounts
+
+        callback = mock.Mock()
+        util.mount_cb(device, callback)
+
+        # The mountpoint passed to callback should always have a trailing
+        # slash, regardless of the input
+        assert [mock.call(mountpoint + "/")] == callback.call_args_list
+
+    def test_already_mounted_calls_callback_with_data(
+        self, already_mounted_device
+    ):
+        callback = mock.Mock()
+        util.mount_cb(
+            already_mounted_device, callback, data=mock.sentinel.data
+        )
+
+        assert [
+            mock.call(mock.ANY, mock.sentinel.data)
+        ] == callback.call_args_list
 
 
 # vi: ts=4 expandtab

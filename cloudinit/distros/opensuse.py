@@ -14,6 +14,7 @@ from cloudinit.distros.parsers.hostname import HostnameConf
 
 from cloudinit import helpers
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.distros import rhel_util as rhutil
@@ -97,7 +98,7 @@ class Distro(distros.Distro):
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
-        util.subp(cmd, capture=False)
+        subp.subp(cmd, capture=False)
 
     def set_timezone(self, tz):
         tz_file = self._find_tz_file(tz)
@@ -129,7 +130,7 @@ class Distro(distros.Distro):
         if self.uses_systemd() and filename.endswith('/previous-hostname'):
             return util.load_file(filename).strip()
         elif self.uses_systemd():
-            (out, _err) = util.subp(['hostname'])
+            (out, _err) = subp.subp(['hostname'])
             if len(out):
                 return out
             else:
@@ -163,7 +164,7 @@ class Distro(distros.Distro):
         if self.uses_systemd() and out_fn.endswith('/previous-hostname'):
             util.write_file(out_fn, hostname)
         elif self.uses_systemd():
-            util.subp(['hostnamectl', 'set-hostname', str(hostname)])
+            subp.subp(['hostnamectl', 'set-hostname', str(hostname)])
         else:
             conf = None
             try:
@@ -184,7 +185,7 @@ class Distro(distros.Distro):
     def preferred_ntp_clients(self):
         """The preferred ntp client is dependent on the version."""
 
-        """Allow distro to determine the preferred ntp client list"""
+        # Allow distro to determine the preferred ntp client list
         if not self._preferred_ntp_clients:
             distro_info = util.system_info()['dist']
             name = distro_info[0]

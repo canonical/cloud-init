@@ -25,9 +25,14 @@ from cloudinit.net import network_state
 from cloudinit.net import renderers
 from cloudinit import ssh_util
 from cloudinit import type_utils
+from cloudinit import subp
 from cloudinit import util
 
+from cloudinit.features import \
+    ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
+
 from cloudinit.distros.parsers import hosts
+from .networking import LinuxNetworking
 
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
@@ -35,12 +40,13 @@ from cloudinit.distros.parsers import hosts
 ALL_DISTROS = 'all'
 
 OSFAMILIES = {
-    'debian': ['debian', 'ubuntu'],
-    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
-    'gentoo': ['gentoo'],
-    'freebsd': ['freebsd'],
-    'suse': ['opensuse', 'sles'],
+    'alpine': ['alpine'],
     'arch': ['arch'],
+    'debian': ['debian', 'ubuntu'],
+    'freebsd': ['freebsd'],
+    'gentoo': ['gentoo'],
+    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
+    'suse': ['opensuse', 'sles'],
 }
 
 LOG = logging.getLogger(__name__)
@@ -66,11 +72,13 @@ class Distro(metaclass=abc.ABCMeta):
     init_cmd = ['service']  # systemctl, service etc
     renderer_configs = {}
     _preferred_ntp_clients = None
+    networking_cls = LinuxNetworking
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
+        self.networking = self.networking_cls()
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
@@ -225,8 +233,8 @@ class Distro(metaclass=abc.ABCMeta):
         LOG.debug("Non-persistently setting the system hostname to %s",
                   hostname)
         try:
-            util.subp(['hostname', hostname])
-        except util.ProcessExecutionError:
+            subp.subp(['hostname', hostname])
+        except subp.ProcessExecutionError:
             util.logexc(LOG, "Failed to non-persistently adjust the system "
                         "hostname to %s", hostname)
 
@@ -361,12 +369,12 @@ class Distro(metaclass=abc.ABCMeta):
         LOG.debug("Attempting to run bring up interface %s using command %s",
                   device_name, cmd)
         try:
-            (_out, err) = util.subp(cmd)
+            (_out, err) = subp.subp(cmd)
             if len(err):
                 LOG.warning("Running %s resulted in stderr output: %s",
                             cmd, err)
             return True
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
 
@@ -385,6 +393,9 @@ class Distro(metaclass=abc.ABCMeta):
     def add_user(self, name, **kwargs):
         """
         Add a user to the system using standard GNU tools
+
+        This should be overriden on distros where useradd is not desirable or
+        not available.
         """
         # XXX need to make add_user idempotent somehow as we
         # still want to add groups or modify SSH keys on pre-existing
@@ -480,7 +491,7 @@ class Distro(metaclass=abc.ABCMeta):
         # Run the command
         LOG.debug("Adding user %s", name)
         try:
-            util.subp(useradd_cmd, logstring=log_useradd_cmd)
+            subp.subp(useradd_cmd, logstring=log_useradd_cmd)
         except Exception as e:
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
@@ -500,7 +511,7 @@ class Distro(metaclass=abc.ABCMeta):
         # Run the command
         LOG.debug("Adding snap user %s", name)
         try:
-            (out, err) = util.subp(create_user_cmd, logstring=create_user_cmd,
+            (out, err) = subp.subp(create_user_cmd, logstring=create_user_cmd,
                                    capture=True)
             LOG.debug("snap create-user returned: %s:%s", out, err)
             jobj = util.load_json(out)
@@ -513,9 +524,22 @@ class Distro(metaclass=abc.ABCMeta):
 
     def create_user(self, name, **kwargs):
         """
-        Creates users for the system using the GNU passwd tools. This
-        will work on an GNU system. This should be overriden on
-        distros where useradd is not desirable or not available.
+        Creates or partially updates the ``name`` user in the system.
+
+        This defers the actual user creation to ``self.add_user`` or
+        ``self.add_snap_user``, and most of the keys in ``kwargs`` will be
+        processed there if and only if the user does not already exist.
+
+        Once the existence of the ``name`` user has been ensured, this method
+        then processes these keys (for both just-created and pre-existing
+        users):
+
+        * ``plain_text_passwd``
+        * ``hashed_passwd``
+        * ``lock_passwd``
+        * ``sudo``
+        * ``ssh_authorized_keys``
+        * ``ssh_redirect_user``
         """
 
         # Add a snap user, if requested
@@ -582,20 +606,21 @@ class Distro(metaclass=abc.ABCMeta):
         # passwd must use short '-l' due to SLES11 lacking long form '--lock'
         lock_tools = (['passwd', '-l', name], ['usermod', '--lock', name])
         try:
-            cmd = next(tool for tool in lock_tools if util.which(tool[0]))
-        except StopIteration:
+            cmd = next(tool for tool in lock_tools if subp.which(tool[0]))
+        except StopIteration as e:
             raise RuntimeError((
                 "Unable to lock user account '%s'. No tools available. "
-                "  Tried: %s.") % (name, [c[0] for c in lock_tools]))
+                "  Tried: %s.") % (name, [c[0] for c in lock_tools])
+            ) from e
         try:
-            util.subp(cmd)
+            subp.subp(cmd)
         except Exception as e:
             util.logexc(LOG, 'Failed to disable password for user %s', name)
             raise e
 
     def expire_passwd(self, user):
         try:
-            util.subp(['passwd', '--expire', user])
+            subp.subp(['passwd', '--expire', user])
         except Exception as e:
             util.logexc(LOG, "Failed to set 'expire' for %s", user)
             raise e
@@ -611,7 +636,7 @@ class Distro(metaclass=abc.ABCMeta):
             cmd.append('-e')
 
         try:
-            util.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
+            subp.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
         except Exception as e:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
@@ -708,7 +733,7 @@ class Distro(metaclass=abc.ABCMeta):
             LOG.warning("Skipping creation of existing group '%s'", name)
         else:
             try:
-                util.subp(group_add_cmd)
+                subp.subp(group_add_cmd)
                 LOG.info("Created new group %s", name)
             except Exception:
                 util.logexc(LOG, "Failed to create group %s", name)
@@ -721,7 +746,7 @@ class Distro(metaclass=abc.ABCMeta):
                                 "; user does not exist.", member, name)
                     continue
 
-                util.subp(['usermod', '-a', '-G', name, member])
+                subp.subp(['usermod', '-a', '-G', name, member])
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
 
@@ -845,7 +870,12 @@ def _get_package_mirror_info(mirror_info, data_source=None,
         # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
         # the region is us-east-1. so region = az[0:-1]
         if _EC2_AZ_RE.match(data_source.availability_zone):
-            subst['ec2_region'] = "%s" % data_source.availability_zone[0:-1]
+            ec2_region = data_source.availability_zone[0:-1]
+
+            if ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES:
+                subst['ec2_region'] = "%s" % ec2_region
+            elif data_source.platform_type == "ec2":
+                subst['ec2_region'] = "%s" % ec2_region
 
     if data_source and data_source.region:
         subst['region'] = data_source.region

@@ -7,7 +7,8 @@ import shutil
 import time
 from tempfile import mkdtemp
 
-from cloudinit.util import load_yaml, subp, ProcessExecutionError, which
+from cloudinit.subp import subp, ProcessExecutionError, which
+from cloudinit.util import load_yaml
 from tests.cloud_tests import LOG
 from tests.cloud_tests.util import PlatformError
 
@@ -174,7 +175,8 @@ class LXDInstance(Instance):
             raise PlatformError(
                 "console log",
                 "Console log failed [%d]: stdout=%s stderr=%s" % (
-                    e.exit_code, e.stdout, e.stderr))
+                    e.exit_code, e.stdout, e.stderr)
+            ) from e
 
     def reboot(self, wait=True):
         """Reboot instance."""

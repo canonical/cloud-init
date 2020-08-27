@@ -10,7 +10,7 @@ import os
 import re
 import time
 
-from cloudinit import util
+from cloudinit import subp
 
 from .guestcust_event import GuestCustEventEnum
 from .guestcust_state import GuestCustStateEnum
@@ -34,7 +34,7 @@ def send_rpc(rpc):
 
     try:
         logger.debug("Sending RPC command: %s", rpc)
-        (out, err) = util.subp(["vmware-rpctool", rpc], rcs=[0])
+        (out, err) = subp.subp(["vmware-rpctool", rpc], rcs=[0])
         # Remove the trailing newline in the output.
         if out:
             out = out.rstrip()
@@ -128,28 +128,35 @@ def get_tools_config(section, key, defaultVal):
                   not installed.
     """
 
-    if not util.which('vmware-toolbox-cmd'):
+    if not subp.which('vmware-toolbox-cmd'):
         logger.debug(
             'vmware-toolbox-cmd not installed, returning default value')
         return defaultVal
 
-    retValue = defaultVal
     cmd = ['vmware-toolbox-cmd', 'config', 'get', section, key]
 
     try:
-        (outText, _) = util.subp(cmd)
-        m = re.match(r'([^=]+)=(.*)', outText)
-        if m:
-            retValue = m.group(2).strip()
-            logger.debug("Get tools config: [%s] %s = %s",
-                         section, key, retValue)
-        else:
+        (outText, _) = subp.subp(cmd)
+    except subp.ProcessExecutionError as e:
+        if e.exit_code == 69:
             logger.debug(
-                "Tools config: [%s] %s is not found, return default value: %s",
-                section, key, retValue)
-    except util.ProcessExecutionError as e:
-        logger.error("Failed running %s[%s]", cmd, e.exit_code)
-        logger.exception(e)
+                "vmware-toolbox-cmd returned 69 (unavailable) for cmd: %s."
+                " Return default value: %s", " ".join(cmd), defaultVal)
+        else:
+            logger.error("Failed running %s[%s]", cmd, e.exit_code)
+            logger.exception(e)
+        return defaultVal
+
+    retValue = defaultVal
+    m = re.match(r'([^=]+)=(.*)', outText)
+    if m:
+        retValue = m.group(2).strip()
+        logger.debug("Get tools config: [%s] %s = %s",
+                     section, key, retValue)
+    else:
+        logger.debug(
+            "Tools config: [%s] %s is not found, return default value: %s",
+            section, key, retValue)
 
     return retValue
 

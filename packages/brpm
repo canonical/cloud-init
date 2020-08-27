@@ -24,6 +24,7 @@ def find_root():
 if "avoid-pep8-E402-import-not-top-of-file":
     # Use the util functions from cloudinit
     sys.path.insert(0, find_root())
+    from cloudinit import subp
     from cloudinit import templater
     from cloudinit import util
 
@@ -36,7 +37,7 @@ def run_helper(helper, args=None, strip=True):
     if args is None:
         args = []
     cmd = [util.abs_join(find_root(), 'tools', helper)] + args
-    (stdout, _stderr) = util.subp(cmd)
+    (stdout, _stderr) = subp.subp(cmd)
     if strip:
         stdout = stdout.strip()
     return stdout
@@ -45,15 +46,19 @@ def run_helper(helper, args=None, strip=True):
 def read_dependencies(distro):
     """Returns the Python package depedencies from requirements.txt files.
 
-    @returns a tuple of (requirements, test_requirements)
+    @returns a tuple of (build_deps, run_deps, test_deps)
     """
-    pkg_deps = run_helper(
-        'read-dependencies', args=['--distro', distro]).splitlines()
+    build_deps = run_helper(
+        'read-dependencies',args=[
+            '--distro', distro, '--build-requires']).splitlines()
+    run_deps = run_helper(
+        'read-dependencies', args=[
+            '--distro', distro, '--runtime-requires']).splitlines()
     test_deps = run_helper(
         'read-dependencies', args=[
             '--requirements-file', 'test-requirements.txt',
             '--system-pkg-names']).splitlines()
-    return (pkg_deps, test_deps)
+    return (build_deps, run_deps, test_deps)
 
 
 def read_version():
@@ -83,9 +88,9 @@ def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
         rpm_upstream_version = version_data['version']
     subs['rpm_upstream_version'] = rpm_upstream_version
 
-    deps, test_deps = read_dependencies(distro=args.distro)
-    subs['buildrequires'] = deps + test_deps
-    subs['requires'] = deps
+    build_deps, run_deps, test_deps = read_dependencies(distro=args.distro)
+    subs['buildrequires'] = build_deps + test_deps
+    subs['requires'] = run_deps
 
     if args.boot == 'sysvinit':
         subs['sysvinit'] = True
@@ -174,7 +179,7 @@ def main():
         else:
             cmd = ['rpmbuild', '-ba', spec_fn]
 
-        util.subp(cmd, capture=capture)
+        subp.subp(cmd, capture=capture)
 
         # Copy the items built to our local dir
         globs = []

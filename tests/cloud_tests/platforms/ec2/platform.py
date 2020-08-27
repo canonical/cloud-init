@@ -35,12 +35,14 @@ class EC2Platform(Platform):
             self.ec2_resource = b3session.resource('ec2')
             self.ec2_region = b3session.region_name
             self.key_name = self._upload_public_key(config)
-        except botocore.exceptions.NoRegionError:
+        except botocore.exceptions.NoRegionError as e:
             raise RuntimeError(
-                'Please configure default region in $HOME/.aws/config')
-        except botocore.exceptions.NoCredentialsError:
+                'Please configure default region in $HOME/.aws/config'
+            ) from e
+        except botocore.exceptions.NoCredentialsError as e:
             raise RuntimeError(
-                'Please configure ec2 credentials in $HOME/.aws/credentials')
+                'Please configure ec2 credentials in $HOME/.aws/credentials'
+            ) from e
 
         self.vpc = self._create_vpc()
         self.internet_gateway = self._create_internet_gateway()
@@ -125,8 +127,10 @@ class EC2Platform(Platform):
 
         try:
             image_ami = image['id']
-        except KeyError:
-            raise RuntimeError('No images found for %s!' % img_conf['release'])
+        except KeyError as e:
+            raise RuntimeError(
+                'No images found for %s!' % img_conf['release']
+            ) from e
 
         LOG.debug('found image: %s', image_ami)
         image = EC2Image(self, img_conf, image_ami)
@@ -195,7 +199,7 @@ class EC2Platform(Platform):
                 CidrBlock=self.ipv4_cidr,
                 AmazonProvidedIpv6CidrBlock=True)
         except botocore.exceptions.ClientError as e:
-            raise RuntimeError(e)
+            raise RuntimeError(e) from e
 
         vpc.wait_until_available()
         self._tag_resource(vpc)

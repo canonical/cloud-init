@@ -8,6 +8,7 @@ from cloudinit.net import (
     renderers, sysconfig)
 from cloudinit.sources.helpers import openstack
 from cloudinit import temp_utils
+from cloudinit import subp
 from cloudinit import util
 from cloudinit import safeyaml as yaml
 
@@ -425,6 +426,11 @@ network:
             mtu: 9000
             parameters:
                 gratuitous-arp: 2
+        bond2:
+            interfaces:
+            - ens5
+            macaddress: 68:05:ca:64:d3:6e
+            mtu: 9000
     ethernets:
         ens3:
             dhcp4: false
@@ -436,6 +442,11 @@ network:
             dhcp6: false
             match:
                 macaddress: 52:54:00:11:22:ff
+        ens5:
+            dhcp4: false
+            dhcp6: false
+            match:
+                macaddress: 52:54:00:99:11:99
     version: 2
 """
 
@@ -3192,7 +3203,7 @@ USERCTL=no
     def test_check_ifcfg_rh(self):
         """ifcfg-rh plugin is added NetworkManager.conf if conf present."""
         render_dir = self.tmp_dir()
-        nm_cfg = util.target_path(render_dir, path=self.nm_cfg_file)
+        nm_cfg = subp.target_path(render_dir, path=self.nm_cfg_file)
         util.ensure_dir(os.path.dirname(nm_cfg))
 
         # write a template nm.conf, note plugins is a list here
@@ -3215,7 +3226,7 @@ USERCTL=no
         """ifcfg-rh plugin is append when plugins is a string."""
         render_dir = self.tmp_path("render")
         os.makedirs(render_dir)
-        nm_cfg = util.target_path(render_dir, path=self.nm_cfg_file)
+        nm_cfg = subp.target_path(render_dir, path=self.nm_cfg_file)
         util.ensure_dir(os.path.dirname(nm_cfg))
 
         # write a template nm.conf, note plugins is a value here
@@ -3240,7 +3251,7 @@ USERCTL=no
         """enable_ifcfg_plugin creates plugins value if missing."""
         render_dir = self.tmp_path("render")
         os.makedirs(render_dir)
-        nm_cfg = util.target_path(render_dir, path=self.nm_cfg_file)
+        nm_cfg = subp.target_path(render_dir, path=self.nm_cfg_file)
         util.ensure_dir(os.path.dirname(nm_cfg))
 
         # write a template nm.conf, note plugins is missing
@@ -3332,7 +3343,7 @@ USERCTL=no
                 USERCTL=no
                 VLAN=yes
                 """)
-            }
+        }
         self._compare_files_to_expected(
             expected, self._render_and_read(network_config=v2data))
 
@@ -3406,7 +3417,7 @@ USERCTL=no
                 TYPE=Ethernet
                 USERCTL=no
                 """),
-            }
+        }
         for dhcp_ver in ('dhcp4', 'dhcp6'):
             v2data = copy.deepcopy(v2base)
             if dhcp_ver == 'dhcp6':
@@ -3920,7 +3931,7 @@ class TestNetplanCleanDefault(CiTestCase):
         files = sorted(populate_dir(tmpd, content))
         netplan._clean_default(target=tmpd)
         found = [t for t in files if os.path.exists(t)]
-        expected = [util.target_path(tmpd, f) for f in (astamp, anet, ayaml)]
+        expected = [subp.target_path(tmpd, f) for f in (astamp, anet, ayaml)]
         self.assertEqual(sorted(expected), found)
 
 
@@ -3933,7 +3944,7 @@ class TestNetplanPostcommands(CiTestCase):
 
     @mock.patch.object(netplan.Renderer, '_netplan_generate')
     @mock.patch.object(netplan.Renderer, '_net_setup_link')
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_netplan_render_calls_postcmds(self, mock_subp,
                                            mock_netplan_generate,
                                            mock_net_setup_link):
@@ -3947,7 +3958,7 @@ class TestNetplanPostcommands(CiTestCase):
         render_target = 'netplan.yaml'
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': True})
-        mock_subp.side_effect = iter([util.ProcessExecutionError])
+        mock_subp.side_effect = iter([subp.ProcessExecutionError])
         renderer.render_network_state(ns, target=render_dir)
 
         mock_netplan_generate.assert_called_with(run=True)
@@ -3955,7 +3966,7 @@ class TestNetplanPostcommands(CiTestCase):
 
     @mock.patch('cloudinit.util.SeLinuxGuard')
     @mock.patch.object(netplan, "get_devicelist")
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_netplan_postcmds(self, mock_subp, mock_devlist, mock_sel):
         mock_sel.__enter__ = mock.Mock(return_value=False)
         mock_sel.__exit__ = mock.Mock()
@@ -3971,7 +3982,7 @@ class TestNetplanPostcommands(CiTestCase):
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': True})
         mock_subp.side_effect = iter([
-            util.ProcessExecutionError,
+            subp.ProcessExecutionError,
             ('', ''),
             ('', ''),
         ])
@@ -4260,7 +4271,7 @@ class TestNetplanRoundTrip(CiTestCase):
 
     def setUp(self):
         super(TestNetplanRoundTrip, self).setUp()
-        self.add_patch('cloudinit.net.netplan.util.subp', 'm_subp')
+        self.add_patch('cloudinit.net.netplan.subp.subp', 'm_subp')
         self.m_subp.return_value = (self.NETPLAN_INFO_OUT, '')
 
     def _render_and_read(self, network_config=None, state=None,
@@ -4765,13 +4776,13 @@ class TestNetRenderers(CiTestCase):
     def test_sysconfig_available_uses_variant_mapping(self, m_distro, m_avail):
         m_avail.return_value = True
         distro_values = [
-           ('opensuse', '', ''),
-           ('opensuse-leap', '', ''),
-           ('opensuse-tumbleweed', '', ''),
-           ('sles', '', ''),
-           ('centos', '', ''),
-           ('fedora', '', ''),
-           ('redhat', '', ''),
+            ('opensuse', '', ''),
+            ('opensuse-leap', '', ''),
+            ('opensuse-tumbleweed', '', ''),
+            ('sles', '', ''),
+            ('centos', '', ''),
+            ('fedora', '', ''),
+            ('redhat', '', ''),
         ]
         for (distro_name, distro_version, flavor) in distro_values:
             m_distro.return_value = (distro_name, distro_version, flavor)
@@ -5157,7 +5168,7 @@ def _gzip_data(data):
 
 class TestRenameInterfaces(CiTestCase):
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_rename_all(self, mock_subp):
         renames = [
             ('00:11:22:33:44:55', 'interface0', 'virtio_net', '0x3'),
@@ -5188,7 +5199,7 @@ class TestRenameInterfaces(CiTestCase):
                       capture=True),
         ])
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_rename_no_driver_no_device_id(self, mock_subp):
         renames = [
             ('00:11:22:33:44:55', 'interface0', None, None),
@@ -5219,7 +5230,7 @@ class TestRenameInterfaces(CiTestCase):
                       capture=True),
         ])
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_rename_all_bounce(self, mock_subp):
         renames = [
             ('00:11:22:33:44:55', 'interface0', 'virtio_net', '0x3'),
@@ -5254,7 +5265,7 @@ class TestRenameInterfaces(CiTestCase):
             mock.call(['ip', 'link', 'set', 'interface2', 'up'], capture=True)
         ])
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_rename_duplicate_macs(self, mock_subp):
         renames = [
             ('00:11:22:33:44:55', 'eth0', 'hv_netsvc', '0x3'),
@@ -5283,7 +5294,7 @@ class TestRenameInterfaces(CiTestCase):
                       capture=True),
         ])
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_rename_duplicate_macs_driver_no_devid(self, mock_subp):
         renames = [
             ('00:11:22:33:44:55', 'eth0', 'hv_netsvc', None),
@@ -5312,7 +5323,7 @@ class TestRenameInterfaces(CiTestCase):
                       capture=True),
         ])
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_rename_multi_mac_dups(self, mock_subp):
         renames = [
             ('00:11:22:33:44:55', 'eth0', 'hv_netsvc', '0x3'),
@@ -5351,7 +5362,7 @@ class TestRenameInterfaces(CiTestCase):
                       capture=True),
         ])
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     def test_rename_macs_case_insensitive(self, mock_subp):
         """_rename_interfaces must support upper or lower case macs."""
         renames = [

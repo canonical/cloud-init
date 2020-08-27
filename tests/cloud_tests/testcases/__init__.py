@@ -21,8 +21,10 @@ def discover_test(test_name):
         config.name_sanitize(test_name))
     try:
         testmod = importlib.import_module(testmod_name)
-    except NameError:
-        raise ValueError('no test verifier found at: {}'.format(testmod_name))
+    except NameError as e:
+        raise ValueError(
+            'no test verifier found at: {}'.format(testmod_name)
+        ) from e
 
     found = [mod for name, mod in inspect.getmembers(testmod)
              if (inspect.isclass(mod)

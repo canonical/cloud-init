@@ -14,6 +14,7 @@ from cloudinit import log as logging
 from cloudinit import temp_utils
 from cloudinit import templater
 from cloudinit import type_utils
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.config.schema import get_schema_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
@@ -23,7 +24,8 @@ LOG = logging.getLogger(__name__)
 frequency = PER_INSTANCE
 NTP_CONF = '/etc/ntp.conf'
 NR_POOL_SERVERS = 4
-distros = ['centos', 'debian', 'fedora', 'opensuse', 'rhel', 'sles', 'ubuntu']
+distros = ['alpine', 'centos', 'debian', 'fedora', 'opensuse', 'rhel',
+           'sles', 'ubuntu']
 
 NTP_CLIENT_CONFIG = {
     'chrony': {
@@ -62,6 +64,17 @@ NTP_CLIENT_CONFIG = {
 
 # This is Distro-specific configuration overrides of the base config
 DISTRO_CLIENT_CONFIG = {
+    'alpine': {
+        'chrony': {
+            'confpath': '/etc/chrony/chrony.conf',
+            'service_name': 'chronyd',
+        },
+        'ntp': {
+            'confpath': '/etc/ntp.conf',
+            'packages': [],
+            'service_name': 'ntpd',
+        },
+    },
     'debian': {
         'chrony': {
             'confpath': '/etc/chrony/chrony.conf',
@@ -113,11 +126,11 @@ schema = {
         Handle ntp configuration. If ntp is not installed on the system and
         ntp configuration is specified, ntp will be installed. If there is a
         default ntp config file in the image or one is present in the
-        distro's ntp package, it will be copied to ``/etc/ntp.conf.dist``
-        before any changes are made. A list of ntp pools and ntp servers can
-        be provided under the ``ntp`` config key. If no ntp ``servers`` or
-        ``pools`` are provided, 4 pools will be used in the format
-        ``{0-3}.{distro}.pool.ntp.org``."""),
+        distro's ntp package, it will be copied to a file with ``.dist``
+        appended to the filename before any changes are made. A list of ntp
+        pools and ntp servers can be provided under the ``ntp`` config key.
+        If no ntp ``servers`` or ``pools`` are provided, 4 pools will be used
+        in the format ``{0-3}.{distro}.pool.ntp.org``."""),
     'distros': distros,
     'examples': [
         dedent("""\
@@ -170,7 +183,10 @@ schema = {
                     'description': dedent("""\
                         List of ntp pools. If both pools and servers are
                         empty, 4 default pool servers will be provided of
-                        the format ``{0-3}.{distro}.pool.ntp.org``.""")
+                        the format ``{0-3}.{distro}.pool.ntp.org``. NOTE:
+                        for Alpine Linux when using the Busybox NTP client
+                        this setting will be ignored due to the limited
+                        functionality of Busybox's ntpd.""")
                 },
                 'servers': {
                     'type': 'array',
@@ -307,7 +323,7 @@ def select_ntp_client(ntp_client, distro):
     if distro_ntp_client == "auto":
         for client in distro.preferred_ntp_clients:
             cfg = distro_cfg.get(client)
-            if util.which(cfg.get('check_exe')):
+            if subp.which(cfg.get('check_exe')):
                 LOG.debug('Selected NTP client "%s", already installed',
                           client)
                 clientcfg = cfg
@@ -336,7 +352,7 @@ def install_ntp_client(install_func, packages=None, check_exe="ntpd"):
     @param check_exe: string.  The name of a binary that indicates the package
     the specified package is already installed.
     """
-    if util.which(check_exe):
+    if subp.which(check_exe):
         return
     if packages is None:
         packages = ['ntp']
@@ -363,21 +379,30 @@ def generate_server_names(distro):
     """
     names = []
     pool_distro = distro
-    # For legal reasons x.pool.sles.ntp.org does not exist,
-    # use the opensuse pool
+
     if distro == 'sles':
+        # For legal reasons x.pool.sles.ntp.org does not exist,
+        # use the opensuse pool
         pool_distro = 'opensuse'
+    elif distro == 'alpine':
+        # Alpine-specific pool (i.e. x.alpine.pool.ntp.org) does not exist
+        # so use general x.pool.ntp.org instead.
+        pool_distro = ''
+
     for x in range(0, NR_POOL_SERVERS):
-        name = "%d.%s.pool.ntp.org" % (x, pool_distro)
-        names.append(name)
+        names.append(".".join(
+            [n for n in [str(x)] + [pool_distro] + ['pool.ntp.org'] if n]))
+
     return names
 
 
-def write_ntp_config_template(distro_name, servers=None, pools=None,
-                              path=None, template_fn=None, template=None):
+def write_ntp_config_template(distro_name, service_name=None, servers=None,
+                              pools=None, path=None, template_fn=None,
+                              template=None):
     """Render a ntp client configuration for the specified client.
 
     @param distro_name: string.  The distro class name.
+    @param service_name: string. The name of the NTP client service.
     @param servers: A list of strings specifying ntp servers. Defaults to empty
     list.
     @param pools: A list of strings specifying ntp pools. Defaults to empty
@@ -396,7 +421,14 @@ def write_ntp_config_template(distro_name, servers=None, pools=None,
     if not pools:
         pools = []
 
-    if len(servers) == 0 and len(pools) == 0:
+    if (len(servers) == 0 and distro_name == 'alpine' and
+            service_name == 'ntpd'):
+        # Alpine's Busybox ntpd only understands "servers" configuration
+        # and not "pool" configuration.
+        servers = generate_server_names(distro_name)
+        LOG.debug(
+            'Adding distro default ntp servers: %s', ','.join(servers))
+    elif len(servers) == 0 and len(pools) == 0:
         pools = generate_server_names(distro_name)
         LOG.debug(
             'Adding distro default ntp pool servers: %s', ','.join(pools))
@@ -431,7 +463,7 @@ def reload_ntp(service, systemd=False):
         cmd = ['systemctl', 'reload-or-restart', service]
     else:
         cmd = ['service', service, 'restart']
-    util.subp(cmd, capture=True)
+    subp.subp(cmd, capture=True)
 
 
 def supplemental_schema_validation(ntp_config):
@@ -531,6 +563,8 @@ def handle(name, cfg, cloud, log, _args):
             raise RuntimeError(msg)
 
     write_ntp_config_template(cloud.distro.name,
+                              service_name=ntp_client_config.get(
+                                  'service_name'),
                               servers=ntp_cfg.get('servers', []),
                               pools=ntp_cfg.get('pools', []),
                               path=ntp_client_config.get('confpath'),
@@ -543,7 +577,7 @@ def handle(name, cfg, cloud, log, _args):
     try:
         reload_ntp(ntp_client_config['service_name'],
                    systemd=cloud.distro.uses_systemd())
-    except util.ProcessExecutionError as e:
+    except subp.ProcessExecutionError as e:
         LOG.exception("Failed to reload/start ntp service: %s", e)
         raise
 

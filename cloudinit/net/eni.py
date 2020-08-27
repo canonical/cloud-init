@@ -11,6 +11,7 @@ from . import renderer
 from .network_state import subnet_is_ipv6
 
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 
@@ -482,10 +483,8 @@ class Renderer(renderer.Renderer):
         if searchdomains:
             lo['subnets'][0]["dns_search"] = (" ".join(searchdomains))
 
-        ''' Apply a sort order to ensure that we write out
-            the physical interfaces first; this is critical for
-            bonding
-        '''
+        # Apply a sort order to ensure that we write out the physical
+        # interfaces first; this is critical for bonding
         order = {
             'loopback': 0,
             'physical': 1,
@@ -511,13 +510,13 @@ class Renderer(renderer.Renderer):
         return '\n\n'.join(['\n'.join(s) for s in sections]) + "\n"
 
     def render_network_state(self, network_state, templates=None, target=None):
-        fpeni = util.target_path(target, self.eni_path)
+        fpeni = subp.target_path(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
         header = self.eni_header if self.eni_header else ""
         util.write_file(fpeni, header + self._render_interfaces(network_state))
 
         if self.netrules_path:
-            netrules = util.target_path(target, self.netrules_path)
+            netrules = subp.target_path(target, self.netrules_path)
             util.ensure_dir(os.path.dirname(netrules))
             util.write_file(netrules,
                             self._render_persistent_net(network_state))
@@ -544,9 +543,9 @@ def available(target=None):
     expected = ['ifquery', 'ifup', 'ifdown']
     search = ['/sbin', '/usr/sbin']
     for p in expected:
-        if not util.which(p, search=search, target=target):
+        if not subp.which(p, search=search, target=target):
             return False
-    eni = util.target_path(target, 'etc/network/interfaces')
+    eni = subp.target_path(target, 'etc/network/interfaces')
     if not os.path.isfile(eni):
         return False
 
