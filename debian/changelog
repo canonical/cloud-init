@@ -1,5 +1,6 @@
 cloud-init (20.2-45-g5f7825e2-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
 
+  * d/control: add python3-pytest-catchlog to Build-Depends
   * d/cloud-init.postinst: fix the grub install device for NVMe-rooted
     instances on upgrade.  (LP: #1889555)
 
