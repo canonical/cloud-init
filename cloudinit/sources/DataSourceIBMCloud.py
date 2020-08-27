@@ -303,7 +303,8 @@ def read_md():
     except sources.BrokenMetadata as e:
         raise RuntimeError(
             "Failed reading IBM config disk (platform=%s path=%s): %s" %
-            (platform, path, e))
+            (platform, path, e)
+        ) from e
 
     ret.update(results)
     return ret

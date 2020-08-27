@@ -144,11 +144,6 @@ class TestQuery:
             ('ud'.encode('utf-8'), 'ud', 'vd'.encode('utf-8'), 'vd'),
             (_gzip_data(b'ud'), 'ud', _gzip_data(b'vd'), 'vd'),
             (_gzip_data('ud'.encode('utf-8')), 'ud', _gzip_data(b'vd'), 'vd'),
-            (_gzip_data(b'ud') + b'invalid', 'ci-b64:',
-             _gzip_data(b'vd') + b'invalid', 'ci-b64:'),
-            # non-utf-8 encodable content
-            ('hi mom'.encode('utf-16'), 'ci-b64://5oAGkAIABtAG8AbQA=',
-             'hi pops'.encode('utf-16'), 'ci-b64://5oAGkAIABwAG8AcABzAA=='),
         )
     )
     def test_handle_args_root_processes_user_data(

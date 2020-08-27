@@ -59,9 +59,12 @@ class AzureCloudPlatform(Platform):
             self.vnet = self._create_vnet()
             self.subnet = self._create_subnet()
             self.nic = self._create_nic()
-        except CloudError:
-            raise RuntimeError('failed creating a resource:\n{}'.format(
-                traceback.format_exc()))
+        except CloudError as e:
+            raise RuntimeError(
+                'failed creating a resource:\n{}'.format(
+                    traceback.format_exc()
+                )
+            ) from e
 
     def create_instance(self, properties, config, features,
                         image_id, user_data=None):
@@ -105,8 +108,10 @@ class AzureCloudPlatform(Platform):
             if image_id.find('__') > 0:
                 image_id = image_id.split('__')[1]
                 LOG.debug('image_id shortened to %s', image_id)
-        except KeyError:
-            raise RuntimeError('no images found for %s' % img_conf['release'])
+        except KeyError as e:
+            raise RuntimeError(
+                'no images found for %s' % img_conf['release']
+            ) from e
 
         return AzureCloudImage(self, img_conf, image_id)
 
@@ -140,9 +145,11 @@ class AzureCloudPlatform(Platform):
                 secret=azure_creds['clientSecret'],
                 tenant=azure_creds['tenantId'])
             return credentials, subscription_id
-        except KeyError:
-            raise RuntimeError('Please configure Azure service principal'
-                               ' credentials in %s' % cred_file)
+        except KeyError as e:
+            raise RuntimeError(
+                'Please configure Azure service principal'
+                ' credentials in %s' % cred_file
+            ) from e
 
     def _create_resource_group(self):
         """Create resource group"""

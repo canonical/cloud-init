@@ -607,10 +607,11 @@ class Distro(metaclass=abc.ABCMeta):
         lock_tools = (['passwd', '-l', name], ['usermod', '--lock', name])
         try:
             cmd = next(tool for tool in lock_tools if subp.which(tool[0]))
-        except StopIteration:
+        except StopIteration as e:
             raise RuntimeError((
                 "Unable to lock user account '%s'. No tools available. "
-                "  Tried: %s.") % (name, [c[0] for c in lock_tools]))
+                "  Tried: %s.") % (name, [c[0] for c in lock_tools])
+            ) from e
         try:
             subp.subp(cmd)
         except Exception as e:
