@@ -16,6 +16,7 @@ from email.mime.text import MIMEText
 
 from cloudinit import handlers
 from cloudinit import log as logging
+from cloudinit import features
 from cloudinit.url_helper import read_file_or_url, UrlError
 from cloudinit import util
 
@@ -69,6 +70,13 @@ def _set_filename(msg, filename):
                    'attachment', filename=str(filename))
 
 
+def _handle_error(error_message, source_exception=None):
+    if features.ERROR_ON_USER_DATA_FAILURE:
+        raise Exception(error_message) from source_exception
+    else:
+        LOG.warning(error_message)
+
+
 class UserDataProcessor(object):
     def __init__(self, paths):
         self.paths = paths
@@ -108,16 +116,22 @@ class UserDataProcessor(object):
                     ctype_orig = None
                     was_compressed = True
                 except util.DecompressionError as e:
-                    LOG.warning("Failed decompressing payload from %s of"
-                                " length %s due to: %s",
-                                ctype_orig, len(payload), e)
+                    error_message = (
+                        "Failed decompressing payload from {} of"
+                        " length {} due to: {}".format(
+                            ctype_orig, len(payload), e))
+                    _handle_error(error_message, e)
                     continue
 
             # Attempt to figure out the payloads content-type
             if not ctype_orig:
                 ctype_orig = UNDEF_TYPE
-            if ctype_orig in TYPE_NEEDED or (ctype_orig in
-                                             INCLUDE_MAP.values()):
+            # There are known cases where mime-type text/x-shellscript included
+            # non shell-script content that was user-data instead.  It is safe
+            # to check the true MIME type for x-shellscript type since all
+            # shellscript payloads must have a #! header.  The other MIME types
+            # that cloud-init supports do not have the same guarantee.
+            if ctype_orig in TYPE_NEEDED + ['text/x-shellscript']:
                 ctype = find_ctype(payload)
             if ctype is None:
                 ctype = ctype_orig
@@ -231,19 +245,22 @@ class UserDataProcessor(object):
                     if resp.ok():
                         content = resp.contents
                     else:
-                        LOG.warning(("Fetching from %s resulted in"
-                                     " a invalid http code of %s"),
-                                    include_url, resp.code)
+                        error_message = (
+                            "Fetching from {} resulted in"
+                            " a invalid http code of {}".format(
+                                include_url, resp.code))
+                        _handle_error(error_message)
                 except UrlError as urle:
                     message = str(urle)
                     # Older versions of requests.exceptions.HTTPError may not
                     # include the errant url. Append it for clarity in logs.
                     if include_url not in message:
                         message += ' for url: {0}'.format(include_url)
-                    LOG.warning(message)
+                    _handle_error(message, urle)
                 except IOError as ioe:
-                    LOG.warning("Fetching from %s resulted in %s",
-                                include_url, ioe)
+                    error_message = "Fetching from {} resulted in {}".format(
+                        include_url, ioe)
+                    _handle_error(error_message, ioe)
 
             if content is not None:
                 new_msg = convert_string(content)

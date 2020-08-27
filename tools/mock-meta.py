@@ -258,12 +258,14 @@ class MetaDataHandler(object):
                 try:
                     key_id = int(mybe_key)
                     key_name = key_ids[key_id]
-                except ValueError:
-                    raise WebException(hclient.BAD_REQUEST,
-                                       "%s: not an integer" % mybe_key)
-                except IndexError:
-                    raise WebException(hclient.NOT_FOUND,
-                                       "Unknown key id %r" % mybe_key)
+                except ValueError as e:
+                    raise WebException(
+                        hclient.BAD_REQUEST, "%s: not an integer" % mybe_key
+                    ) from e
+                except IndexError as e:
+                    raise WebException(
+                        hclient.NOT_FOUND, "Unknown key id %r" % mybe_key
+                    ) from e
                 # Extract the possible sub-params
                 result = traverse(nparams[1:], {
                     "openssh-key": "\n".join(avail_keys[key_name]),

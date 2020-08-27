@@ -12,6 +12,7 @@ from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.tests.helpers import (
     FilesystemMockingTestCase, dir2dict)
+from cloudinit import subp
 from cloudinit import util
 
 
@@ -532,7 +533,7 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 NETWORKING_IPV6=yes
                 IPV6_AUTOCONF=no
                 """),
-            }
+        }
         # rh_distro.apply_network_config(V1_NET_CFG_IPV6, False)
         self._apply_and_verify(self.distro.apply_network_config,
                                V1_NET_CFG_IPV6,
@@ -656,7 +657,7 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                 IP=dhcp
                 Interface=eth1
                 """),
-            }
+        }
 
         # ub_distro.apply_network_config(V1_NET_CFG, False)
         self._apply_and_verify(self.distro.apply_network_config,
@@ -688,6 +689,6 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
 
 
 def get_mode(path, target=None):
-    return os.stat(util.target_path(target, path)).st_mode & 0o777
+    return os.stat(subp.target_path(target, path)).st_mode & 0o777
 
 # vi: ts=4 expandtab

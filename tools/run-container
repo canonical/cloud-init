@@ -351,9 +351,8 @@ wait_for_boot() {
         if [ "$OS_NAME" = "centos" ]; then
             debug 1 "configuring proxy ${http_proxy}"
             inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
-            inside "$name" sed -i s/enabled=1/enabled=0/ \
-                /etc/yum/pluginconf.d/fastestmirror.conf
-            inside "$name" sh -c "sed -i '/^#baseurl=/s/#// ; s/^mirrorlist/#mirrorlist/' /etc/yum.repos.d/*.repo"
+            inside "$name" sh -c "sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo"
+            inside "$name" sh -c "sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo"
         else
             debug 1 "do not know how to configure proxy on $OS_NAME"
         fi

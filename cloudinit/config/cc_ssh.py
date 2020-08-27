@@ -35,6 +35,42 @@ root login is disabled, and root login opts are set to::
 
     no-port-forwarding,no-agent-forwarding,no-X11-forwarding
 
+Supported public key types for the ``ssh_authorized_keys`` are:
+
+    - dsa
+    - rsa
+    - ecdsa
+    - ed25519
+    - ecdsa-sha2-nistp256-cert-v01@openssh.com
+    - ecdsa-sha2-nistp256
+    - ecdsa-sha2-nistp384-cert-v01@openssh.com
+    - ecdsa-sha2-nistp384
+    - ecdsa-sha2-nistp521-cert-v01@openssh.com
+    - ecdsa-sha2-nistp521
+    - sk-ecdsa-sha2-nistp256-cert-v01@openssh.com
+    - sk-ecdsa-sha2-nistp256@openssh.com
+    - sk-ssh-ed25519-cert-v01@openssh.com
+    - sk-ssh-ed25519@openssh.com
+    - ssh-dss-cert-v01@openssh.com
+    - ssh-dss
+    - ssh-ed25519-cert-v01@openssh.com
+    - ssh-ed25519
+    - ssh-rsa-cert-v01@openssh.com
+    - ssh-rsa
+    - ssh-xmss-cert-v01@openssh.com
+    - ssh-xmss@openssh.com
+
+.. note::
+    this list has been filtered out from the supported keytypes of
+    `OpenSSH`_ source, where the sigonly keys are removed. Please see
+    ``ssh_util`` for more information.
+
+    ``dsa``, ``rsa``, ``ecdsa`` and ``ed25519`` are added for legacy,
+    as they are valid public keys in some old distros. They can possibly
+    be removed in the future when support for the older distros are dropped
+
+.. _OpenSSH: https://github.com/openssh/openssh-portable/blob/master/sshkey.c
+
 Host Keys
 ^^^^^^^^^
 
@@ -116,6 +152,7 @@ import sys
 
 from cloudinit.distros import ug_util
 from cloudinit import ssh_util
+from cloudinit import subp
 from cloudinit import util
 
 
@@ -164,7 +201,7 @@ def handle(_name, cfg, cloud, log, _args):
             try:
                 # TODO(harlowja): Is this guard needed?
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
-                    util.subp(cmd, capture=False)
+                    subp.subp(cmd, capture=False)
                 log.debug("Generated a key for %s from %s", pair[0], pair[1])
             except Exception:
                 util.logexc(log, "Failed generated a key for %s from %s",
@@ -186,9 +223,9 @@ def handle(_name, cfg, cloud, log, _args):
             # TODO(harlowja): Is this guard needed?
             with util.SeLinuxGuard("/etc/ssh", recursive=True):
                 try:
-                    out, err = util.subp(cmd, capture=True, env=lang_c)
+                    out, err = subp.subp(cmd, capture=True, env=lang_c)
                     sys.stdout.write(util.decode_binary(out))
-                except util.ProcessExecutionError as e:
+                except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
                     if (e.exit_code == 1 and
                             err.lower().startswith("unknown key")):

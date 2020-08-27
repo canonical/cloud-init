@@ -4,7 +4,7 @@ from cloudinit import helpers
 from cloudinit import distros
 from cloudinit.sources import DataSourceRbxCloud as ds
 from cloudinit.tests.helpers import mock, CiTestCase, populate_dir
-from cloudinit import util
+from cloudinit import subp
 
 DS_PATH = "cloudinit.sources.DataSourceRbxCloud"
 
@@ -157,7 +157,7 @@ class TestRbxDataSource(CiTestCase):
             expected
         )
 
-    @mock.patch(DS_PATH + '.util.subp')
+    @mock.patch(DS_PATH + '.subp.subp')
     def test_gratuitous_arp_run_standard_arping(self, m_subp):
         """Test handle run arping & parameters."""
         items = [
@@ -183,7 +183,7 @@ class TestRbxDataSource(CiTestCase):
         ], m_subp.call_args_list
         )
 
-    @mock.patch(DS_PATH + '.util.subp')
+    @mock.patch(DS_PATH + '.subp.subp')
     def test_handle_rhel_like_arping(self, m_subp):
         """Test handle on RHEL-like distros."""
         items = [
@@ -201,8 +201,8 @@ class TestRbxDataSource(CiTestCase):
         )
 
     @mock.patch(
-        DS_PATH + '.util.subp',
-        side_effect=util.ProcessExecutionError()
+        DS_PATH + '.subp.subp',
+        side_effect=subp.ProcessExecutionError()
     )
     def test_continue_on_arping_error(self, m_subp):
         """Continue when command error"""

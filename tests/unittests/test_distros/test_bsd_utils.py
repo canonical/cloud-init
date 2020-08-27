@@ -62,5 +62,6 @@ class TestBsdUtils(CiTestCase):
         self.load_file.return_value = RC_FILE.format(hostname='foo')
         bsd_utils.set_rc_config_value('hostname', 'bar')
         self.write_file.assert_called_with(
-                '/etc/rc.conf',
-                RC_FILE.format(hostname='bar'))
+            '/etc/rc.conf',
+            RC_FILE.format(hostname='bar')
+        )

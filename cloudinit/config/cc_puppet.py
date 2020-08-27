@@ -83,6 +83,7 @@ import yaml
 from io import StringIO
 
 from cloudinit import helpers
+from cloudinit import subp
 from cloudinit import util
 
 PUPPET_CONF_PATH = '/etc/puppet/puppet.conf'
@@ -105,14 +106,14 @@ class PuppetConstants(object):
 def _autostart_puppet(log):
     # Set puppet to automatically start
     if os.path.exists('/etc/default/puppet'):
-        util.subp(['sed', '-i',
+        subp.subp(['sed', '-i',
                    '-e', 's/^START=.*/START=yes/',
                    '/etc/default/puppet'], capture=False)
     elif os.path.exists('/bin/systemctl'):
-        util.subp(['/bin/systemctl', 'enable', 'puppet.service'],
+        subp.subp(['/bin/systemctl', 'enable', 'puppet.service'],
                   capture=False)
     elif os.path.exists('/sbin/chkconfig'):
-        util.subp(['/sbin/chkconfig', 'puppet', 'on'], capture=False)
+        subp.subp(['/sbin/chkconfig', 'puppet', 'on'], capture=False)
     else:
         log.warning(("Sorry we do not know how to enable"
                      " puppet services on this system"))
@@ -159,9 +160,9 @@ def handle(name, cfg, cloud, log, _args):
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
         cleaned_contents = '\n'.join(cleaned_lines)
         # Move to puppet_config.read_file when dropping py2.7
-        puppet_config.readfp(  # pylint: disable=W1505
+        puppet_config.read_file(
             StringIO(cleaned_contents),
-            filename=p_constants.conf_path)
+            source=p_constants.conf_path)
         for (cfg_name, cfg) in puppet_cfg['conf'].items():
             # Cert configuration is a special case
             # Dump the puppet master ca certificate in the correct place
@@ -203,6 +204,6 @@ def handle(name, cfg, cloud, log, _args):
     _autostart_puppet(log)
 
     # Start puppetd
-    util.subp(['service', 'puppet', 'start'], capture=False)
+    subp.subp(['service', 'puppet', 'start'], capture=False)
 
 # vi: ts=4 expandtab

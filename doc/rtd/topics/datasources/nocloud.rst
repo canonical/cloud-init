@@ -53,6 +53,12 @@ These user-data and meta-data files are expected to be in the following format.
 Basically, user-data is simply user-data and meta-data is a yaml formatted file
 representing what you'd find in the EC2 metadata service.
 
+You may also optionally provide a vendor-data file in the following format.
+
+::
+
+  /vendor-data
+
 Given a disk ubuntu 12.04 cloud image in 'disk.img', you can create a
 sufficient disk by following the example below.
 

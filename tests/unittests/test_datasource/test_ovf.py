@@ -10,6 +10,7 @@ import os
 from collections import OrderedDict
 from textwrap import dedent
 
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.tests.helpers import CiTestCase, mock, wrap_and_call
 from cloudinit.helpers import Paths
@@ -219,6 +220,88 @@ class TestDatasourceOVF(CiTestCase):
         self.assertIn('Custom script is disabled by VM Administrator',
                       str(context.exception))
 
+    def test_get_data_cust_script_enabled(self):
+        """If custom script is enabled by VMware tools configuration,
+        execute the script.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+        # Prepare the conf file
+        conf_file = self.tmp_path('test-cust', self.tdir)
+        conf_content = dedent("""\
+            [CUSTOM-SCRIPT]
+            SCRIPT-NAME = test-script
+            [MISC]
+            MARKER-ID = 12345346
+            """)
+        util.write_file(conf_file, conf_content)
+
+        # Mock custom script is enabled by return true when calling
+        # get_tools_config
+        with mock.patch(MPATH + 'get_tools_config', return_value="true"):
+            with mock.patch(MPATH + 'set_customization_status',
+                            return_value=('msg', b'')):
+                with self.assertRaises(CustomScriptNotFound) as context:
+                    wrap_and_call(
+                        'cloudinit.sources.DataSourceOVF',
+                        {'util.read_dmi_data': 'vmware',
+                         'util.del_dir': True,
+                         'search_file': self.tdir,
+                         'wait_for_imc_cfg_file': conf_file,
+                         'get_nics_to_enable': ''},
+                        ds.get_data)
+        # Verify custom script is trying to be executed
+        customscript = self.tmp_path('test-script', self.tdir)
+        self.assertIn('Script %s not found!!' % customscript,
+                      str(context.exception))
+
+    def test_get_data_force_run_post_script_is_yes(self):
+        """If DEFAULT-RUN-POST-CUST-SCRIPT is yes, custom script could run if
+        enable-custom-scripts is not defined in VM Tools configuration
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+        # Prepare the conf file
+        conf_file = self.tmp_path('test-cust', self.tdir)
+        # set DEFAULT-RUN-POST-CUST-SCRIPT = yes so that enable-custom-scripts
+        # default value is TRUE
+        conf_content = dedent("""\
+            [CUSTOM-SCRIPT]
+            SCRIPT-NAME = test-script
+            [MISC]
+            MARKER-ID = 12345346
+            DEFAULT-RUN-POST-CUST-SCRIPT = yes
+            """)
+        util.write_file(conf_file, conf_content)
+
+        # Mock get_tools_config(section, key, defaultVal) to return
+        # defaultVal
+        def my_get_tools_config(*args, **kwargs):
+            return args[2]
+
+        with mock.patch(MPATH + 'get_tools_config',
+                        side_effect=my_get_tools_config):
+            with mock.patch(MPATH + 'set_customization_status',
+                            return_value=('msg', b'')):
+                with self.assertRaises(CustomScriptNotFound) as context:
+                    wrap_and_call(
+                        'cloudinit.sources.DataSourceOVF',
+                        {'util.read_dmi_data': 'vmware',
+                         'util.del_dir': True,
+                         'search_file': self.tdir,
+                         'wait_for_imc_cfg_file': conf_file,
+                         'get_nics_to_enable': ''},
+                        ds.get_data)
+        # Verify custom script still runs although it is
+        # disabled by VMware Tools
+        customscript = self.tmp_path('test-script', self.tdir)
+        self.assertIn('Script %s not found!!' % customscript,
+                      str(context.exception))
+
     def test_get_data_non_vmware_seed_platform_info(self):
         """Platform info properly reports when on non-vmware platforms."""
         paths = Paths({'cloud_dir': self.tdir, 'run_dir': self.tdir})
@@ -401,8 +484,8 @@ class TestTransportIso9660(CiTestCase):
         self.assertTrue(dsovf.maybe_cdrom_device('xvdza1'))
 
 
-@mock.patch(MPATH + "util.which")
-@mock.patch(MPATH + "util.subp")
+@mock.patch(MPATH + "subp.which")
+@mock.patch(MPATH + "subp.subp")
 class TestTransportVmwareGuestinfo(CiTestCase):
     """Test the com.vmware.guestInfo transport implemented in
        transport_vmware_guestinfo."""
@@ -420,7 +503,7 @@ class TestTransportVmwareGuestinfo(CiTestCase):
     def test_notfound_on_exit_code_1(self, m_subp, m_which):
         """If vmware-rpctool exits 1, then must return not found."""
         m_which.return_value = self.rpctool_path
-        m_subp.side_effect = util.ProcessExecutionError(
+        m_subp.side_effect = subp.ProcessExecutionError(
             stdout="", stderr="No value found", exit_code=1, cmd=["unused"])
         self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)
@@ -442,7 +525,7 @@ class TestTransportVmwareGuestinfo(CiTestCase):
     def test_notfound_and_warns_on_unexpected_exit_code(self, m_subp, m_which):
         """If vmware-rpctool exits non zero or 1, warnings should be logged."""
         m_which.return_value = self.rpctool_path
-        m_subp.side_effect = util.ProcessExecutionError(
+        m_subp.side_effect = subp.ProcessExecutionError(
             stdout=None, stderr="No value found", exit_code=2, cmd=["unused"])
         self.assertEqual(NOT_FOUND, dsovf.transport_vmware_guestinfo())
         self.assertEqual(1, m_subp.call_count)

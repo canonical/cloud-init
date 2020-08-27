@@ -34,6 +34,13 @@ MAYBE_RELIABLE_YUM_INSTALL = [
     'sh', '-c',
     """
     error() { echo "$@" 1>&2; }
+    configure_repos_for_proxy_use() {
+        grep -q "^proxy=" /etc/yum.conf || return 0
+        error ":: http proxy in use => forcing the use of fixed URLs in /etc/yum.repos.d/*.repo"
+        sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo
+        sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
+    }
+    configure_repos_for_proxy_use
     n=0; max=10;
     bcmd="yum install --downloadonly --assumeyes --setopt=keepcache=1"
     while n=$(($n+1)); do
@@ -48,6 +55,7 @@ MAYBE_RELIABLE_YUM_INSTALL = [
     done
     error ":: running yum install --cacheonly --assumeyes $*"
     yum install --cacheonly --assumeyes "$@"
+    configure_repos_for_proxy_use
     """,
     'reliable-yum-install']
 
@@ -93,6 +101,14 @@ def get_parser():
     parser.add_argument(
         '-d', '--distro', type=str, choices=DISTRO_PKG_TYPE_MAP.keys(),
         help='The name of the distro to generate package deps for.')
+    deptype = parser.add_mutually_exclusive_group()
+    deptype.add_argument(
+        '-R', '--runtime-requires', action='store_true', default=False,
+        dest='runtime_requires',
+        help='Print only runtime required packages')
+    deptype.add_argument(
+        '-b', '--build-requires', action='store_true', default=False,
+        dest='build_requires', help='Print only buildtime required packages')
     parser.add_argument(
         '--dry-run', action='store_true', default=False, dest='dry_run',
         help='Dry run the install, making no package changes.')
@@ -214,15 +230,24 @@ def main(distro):
     translated_pip_names = translate_pip_to_system_pkg(
         pip_pkg_names, renames)
     all_deps = []
+    select_requires = [args.build_requires, args.runtime_requires]
     if args.distro:
-        all_deps.extend(
-            translated_pip_names + deps_from_json['requires'] +
-            deps_from_json['build-requires'])
+        if not any(select_requires):
+            all_deps.extend(
+                translated_pip_names + deps_from_json['requires'] +
+                deps_from_json['build-requires'])
+        else:
+            if args.build_requires:
+                all_deps.extend(deps_from_json['build-requires'])
+            else:
+                all_deps.extend(
+                    translated_pip_names + deps_from_json['requires'])
     else:
         if args.system_pkg_names:
             all_deps = translated_pip_names
         else:
             all_deps = pip_pkg_names
+    all_deps = sorted(all_deps)
     if args.install:
         pkg_install(all_deps, args.distro, args.test_distro, args.dry_run)
     else:

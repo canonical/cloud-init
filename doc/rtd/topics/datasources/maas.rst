@@ -5,6 +5,6 @@ MAAS
 
 *TODO*
 
-For now see: http://maas.ubuntu.com/
+For now see: https://maas.io/docs
 
 

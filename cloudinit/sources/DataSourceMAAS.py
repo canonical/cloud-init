@@ -226,7 +226,8 @@ def read_maas_seed_url(seed_url, read_file_or_url=None, timeout=None,
         except url_helper.UrlError as e:
             if e.code == 404 and not optional:
                 raise MAASSeedDirMalformed(
-                    "Missing required %s: %s" % (path, e))
+                    "Missing required %s: %s" % (path, e)
+                ) from e
             elif e.code != 404:
                 raise e
 

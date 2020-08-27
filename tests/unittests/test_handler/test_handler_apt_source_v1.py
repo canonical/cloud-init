@@ -14,6 +14,7 @@ from unittest.mock import call
 
 from cloudinit.config import cc_apt_configure
 from cloudinit import gpg
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.tests.helpers import TestCase
@@ -42,10 +43,17 @@ class FakeDistro(object):
         return
 
 
+class FakeDatasource:
+    """Fake Datasource helper object"""
+    def __init__(self):
+        self.region = 'region'
+
+
 class FakeCloud(object):
     """Fake Cloud helper object"""
     def __init__(self):
         self.distro = FakeDistro()
+        self.datasource = FakeDatasource()
 
 
 class TestAptSourceConfig(TestCase):
@@ -271,7 +279,7 @@ class TestAptSourceConfig(TestCase):
         """
         cfg = self.wrapv1conf(cfg)
 
-        with mock.patch.object(util, 'subp',
+        with mock.patch.object(subp, 'subp',
                                return_value=('fakekey 1234', '')) as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
 
@@ -356,7 +364,7 @@ class TestAptSourceConfig(TestCase):
         """
         cfg = self.wrapv1conf([cfg])
 
-        with mock.patch.object(util, 'subp') as mockobj:
+        with mock.patch.object(subp, 'subp') as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
 
         mockobj.assert_called_with(['apt-key', 'add', '-'],
@@ -398,7 +406,7 @@ class TestAptSourceConfig(TestCase):
                'filename': self.aptlistfile}
         cfg = self.wrapv1conf([cfg])
 
-        with mock.patch.object(util, 'subp') as mockobj:
+        with mock.patch.object(subp, 'subp') as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
 
         mockobj.assert_called_once_with(['apt-key', 'add', '-'],
@@ -413,7 +421,7 @@ class TestAptSourceConfig(TestCase):
                'filename': self.aptlistfile}
         cfg = self.wrapv1conf([cfg])
 
-        with mock.patch.object(util, 'subp',
+        with mock.patch.object(subp, 'subp',
                                return_value=('fakekey 1212', '')) as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
 
@@ -476,7 +484,7 @@ class TestAptSourceConfig(TestCase):
                'filename': self.aptlistfile}
         cfg = self.wrapv1conf([cfg])
 
-        with mock.patch.object(util, 'subp') as mockobj:
+        with mock.patch.object(subp, 'subp') as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
         mockobj.assert_called_once_with(['add-apt-repository',
                                          'ppa:smoser/cloud-init-test'],
@@ -495,7 +503,7 @@ class TestAptSourceConfig(TestCase):
                 'filename': self.aptlistfile3}
         cfg = self.wrapv1conf([cfg1, cfg2, cfg3])
 
-        with mock.patch.object(util, 'subp') as mockobj:
+        with mock.patch.object(subp, 'subp') as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud,
                                     None, None)
         calls = [call(['add-apt-repository', 'ppa:smoser/cloud-init-test'],

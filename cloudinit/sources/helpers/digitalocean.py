@@ -8,6 +8,7 @@ import random
 from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import url_helper
+from cloudinit import subp
 from cloudinit import util
 
 NIC_MAP = {'public': 'eth0', 'private': 'eth1'}
@@ -15,7 +16,7 @@ NIC_MAP = {'public': 'eth0', 'private': 'eth1'}
 LOG = logging.getLogger(__name__)
 
 
-def assign_ipv4_link_local(nic=None):
+def assign_ipv4_link_local(distro, nic=None):
     """Bring up NIC using an address using link-local (ip4LL) IPs. On
        DigitalOcean, the link-local domain is per-droplet routed, so there
        is no risk of collisions. However, to be more safe, the ip4LL
@@ -23,7 +24,7 @@ def assign_ipv4_link_local(nic=None):
     """
 
     if not nic:
-        nic = get_link_local_nic()
+        nic = get_link_local_nic(distro)
         LOG.debug("selected interface '%s' for reading metadata", nic)
 
     if not nic:
@@ -36,14 +37,14 @@ def assign_ipv4_link_local(nic=None):
     ip_addr_cmd = ['ip', 'addr', 'add', addr, 'dev', nic]
     ip_link_cmd = ['ip', 'link', 'set', 'dev', nic, 'up']
 
-    if not util.which('ip'):
+    if not subp.which('ip'):
         raise RuntimeError("No 'ip' command available to configure ip4LL "
                            "address")
 
     try:
-        util.subp(ip_addr_cmd)
+        subp.subp(ip_addr_cmd)
         LOG.debug("assigned ip4LL address '%s' to '%s'", addr, nic)
-        util.subp(ip_link_cmd)
+        subp.subp(ip_link_cmd)
         LOG.debug("brought device '%s' up", nic)
     except Exception:
         util.logexc(LOG, "ip4LL address assignment of '%s' to '%s' failed."
@@ -53,8 +54,12 @@ def assign_ipv4_link_local(nic=None):
     return nic
 
 
-def get_link_local_nic():
-    nics = [f for f in cloudnet.get_devicelist() if cloudnet.is_physical(f)]
+def get_link_local_nic(distro):
+    nics = [
+        f
+        for f in cloudnet.get_devicelist()
+        if distro.networking.is_physical(f)
+    ]
     if not nics:
         return None
     return min(nics, key=lambda d: cloudnet.read_sys_net_int(d, 'ifindex'))
@@ -74,7 +79,7 @@ def del_ipv4_link_local(nic=None):
     ip_addr_cmd = ['ip', 'addr', 'flush', 'dev', nic]
 
     try:
-        util.subp(ip_addr_cmd)
+        subp.subp(ip_addr_cmd)
         LOG.debug("removed ip4LL addresses from %s", nic)
 
     except Exception as e:

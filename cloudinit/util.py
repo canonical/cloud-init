@@ -32,12 +32,13 @@ import subprocess
 import sys
 import time
 from base64 import b64decode, b64encode
-from errno import ENOENT, ENOEXEC
+from errno import ENOENT
 from functools import lru_cache
 from urllib import parse
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import (
     mergers,
     safeyaml,
@@ -67,6 +68,10 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['lxc-is-container'])
 
 
+def kernel_version():
+    return tuple(map(int, os.uname().release.split('.')[:2]))
+
+
 @lru_cache()
 def get_dpkg_architecture(target=None):
     """Return the sanitized string output by `dpkg --print-architecture`.
@@ -74,8 +79,8 @@ def get_dpkg_architecture(target=None):
     N.B. This function is wrapped in functools.lru_cache, so repeated calls
     won't shell out every time.
     """
-    out, _ = subp(['dpkg', '--print-architecture'], capture=True,
-                  target=target)
+    out, _ = subp.subp(['dpkg', '--print-architecture'], capture=True,
+                       target=target)
     return out.strip()
 
 
@@ -86,7 +91,8 @@ def lsb_release(target=None):
 
     data = {}
     try:
-        out, _ = subp(['lsb_release', '--all'], capture=True, target=target)
+        out, _ = subp.subp(['lsb_release', '--all'], capture=True,
+                           target=target)
         for line in out.splitlines():
             fname, _, val = line.partition(":")
             if fname in fmap:
@@ -96,33 +102,11 @@ def lsb_release(target=None):
             LOG.warning("Missing fields in lsb_release --all output: %s",
                         ','.join(missing))
 
-    except ProcessExecutionError as err:
+    except subp.ProcessExecutionError as err:
         LOG.warning("Unable to get lsb_release --all: %s", err)
         data = dict((v, "UNAVAILABLE") for v in fmap.values())
 
     return data
-
-
-def target_path(target, path=None):
-    # return 'path' inside target, accepting target as None
-    if target in (None, ""):
-        target = "/"
-    elif not isinstance(target, str):
-        raise ValueError("Unexpected input for target: %s" % target)
-    else:
-        target = os.path.abspath(target)
-        # abspath("//") returns "//" specifically for 2 slashes.
-        if target.startswith("//"):
-            target = target[1:]
-
-    if not path:
-        return target
-
-    # os.path.join("/etc", "/foo") returns "/foo". Chomp all leading /.
-    while len(path) and path[0] == "/":
-        path = path[1:]
-
-    return os.path.join(target, path)
 
 
 def decode_binary(blob, encoding='utf-8'):
@@ -199,91 +183,6 @@ DMIDECODE_TO_DMI_SYS_MAPPING = {
     'system-uuid': 'product_uuid',
     'system-version': 'product_version',
 }
-
-
-class ProcessExecutionError(IOError):
-
-    MESSAGE_TMPL = ('%(description)s\n'
-                    'Command: %(cmd)s\n'
-                    'Exit code: %(exit_code)s\n'
-                    'Reason: %(reason)s\n'
-                    'Stdout: %(stdout)s\n'
-                    'Stderr: %(stderr)s')
-    empty_attr = '-'
-
-    def __init__(self, stdout=None, stderr=None,
-                 exit_code=None, cmd=None,
-                 description=None, reason=None,
-                 errno=None):
-        if not cmd:
-            self.cmd = self.empty_attr
-        else:
-            self.cmd = cmd
-
-        if not description:
-            if not exit_code and errno == ENOEXEC:
-                self.description = 'Exec format error. Missing #! in script?'
-            else:
-                self.description = 'Unexpected error while running command.'
-        else:
-            self.description = description
-
-        if not isinstance(exit_code, int):
-            self.exit_code = self.empty_attr
-        else:
-            self.exit_code = exit_code
-
-        if not stderr:
-            if stderr is None:
-                self.stderr = self.empty_attr
-            else:
-                self.stderr = stderr
-        else:
-            self.stderr = self._indent_text(stderr)
-
-        if not stdout:
-            if stdout is None:
-                self.stdout = self.empty_attr
-            else:
-                self.stdout = stdout
-        else:
-            self.stdout = self._indent_text(stdout)
-
-        if reason:
-            self.reason = reason
-        else:
-            self.reason = self.empty_attr
-
-        self.errno = errno
-        message = self.MESSAGE_TMPL % {
-            'description': self._ensure_string(self.description),
-            'cmd': self._ensure_string(self.cmd),
-            'exit_code': self._ensure_string(self.exit_code),
-            'stdout': self._ensure_string(self.stdout),
-            'stderr': self._ensure_string(self.stderr),
-            'reason': self._ensure_string(self.reason),
-        }
-        IOError.__init__(self, message)
-
-    def _ensure_string(self, text):
-        """
-        if data is bytes object, decode
-        """
-        return text.decode() if isinstance(text, bytes) else text
-
-    def _indent_text(self, text, indent_level=8):
-        """
-        indent text on all but the first line, allowing for easy to read output
-        """
-        cr = '\n'
-        indent = ' ' * indent_level
-        # if input is bytes, return bytes
-        if isinstance(text, bytes):
-            cr = cr.encode()
-            indent = indent.encode()
-        # remove any newlines at end of text first to prevent unneeded blank
-        # line in output
-        return text.rstrip(cr).replace(cr, cr + indent)
 
 
 class SeLinuxGuard(object):
@@ -460,7 +359,7 @@ def decomp_gzip(data, quiet=True, decode=True):
         if quiet:
             return data
         else:
-            raise DecompressionError(str(e))
+            raise DecompressionError(str(e)) from e
 
 
 def extract_usergroup(ug_pair):
@@ -649,14 +548,16 @@ def system_info():
     if system == "linux":
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
-                'arch', 'centos', 'debian', 'fedora', 'rhel', 'suse'):
+                'alpine', 'arch', 'centos', 'debian', 'fedora', 'rhel',
+                'suse'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
         elif linux_dist == 'redhat':
             var = 'rhel'
         elif linux_dist in (
-                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap', 'sles'):
+                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap',
+                'sles', 'sle_hpc'):
             var = 'suse'
         else:
             var = 'linux'
@@ -852,37 +753,6 @@ def center(text, fill, max_len):
 def del_dir(path):
     LOG.debug("Recursively deleting %s", path)
     shutil.rmtree(path)
-
-
-def runparts(dirp, skip_no_exist=True, exe_prefix=None):
-    if skip_no_exist and not os.path.isdir(dirp):
-        return
-
-    failed = []
-    attempted = []
-
-    if exe_prefix is None:
-        prefix = []
-    elif isinstance(exe_prefix, str):
-        prefix = [str(exe_prefix)]
-    elif isinstance(exe_prefix, list):
-        prefix = exe_prefix
-    else:
-        raise TypeError("exe_prefix must be None, str, or list")
-
-    for exe_name in sorted(os.listdir(dirp)):
-        exe_path = os.path.join(dirp, exe_name)
-        if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
-            attempted.append(exe_path)
-            try:
-                subp(prefix + [exe_path], capture=False)
-            except ProcessExecutionError as e:
-                logexc(LOG, "Failed running %s [%s]", exe_path, e.exit_code)
-                failed.append(e)
-
-    if failed and attempted:
-        raise RuntimeError('Runparts: %s failures in %s attempted commands'
-                           % (len(failed), len(attempted)))
 
 
 # read_optional_seed
@@ -1247,6 +1117,7 @@ def close_stdin():
 
 def find_devs_with_freebsd(criteria=None, oformat='device',
                            tag=None, no_cache=False, path=None):
+    devlist = []
     if not criteria:
         return glob.glob("/dev/msdosfs/*") + glob.glob("/dev/iso9660/*")
     if criteria.startswith("LABEL="):
@@ -1271,10 +1142,10 @@ def find_devs_with_netbsd(criteria=None, oformat='device',
             label = criteria.lstrip("LABEL=")
         if criteria.startswith("TYPE="):
             _type = criteria.lstrip("TYPE=")
-    out, _err = subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
+    out, _err = subp.subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
     for dev in out.split():
         if label or _type:
-            mscdlabel_out, _ = subp(['mscdlabel', dev], rcs=[0, 1])
+            mscdlabel_out, _ = subp.subp(['mscdlabel', dev], rcs=[0, 1])
         if label and not ('label "%s"' % label) in mscdlabel_out:
             continue
         if _type == "iso9660" and "ISO filesystem" not in mscdlabel_out:
@@ -1287,7 +1158,7 @@ def find_devs_with_netbsd(criteria=None, oformat='device',
 
 def find_devs_with_openbsd(criteria=None, oformat='device',
                            tag=None, no_cache=False, path=None):
-    out, _err = subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
+    out, _err = subp.subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
     devlist = []
     for entry in out.split(','):
         if not entry.endswith(':'):
@@ -1353,8 +1224,8 @@ def find_devs_with(criteria=None, oformat='device',
     cmd = blk_id_cmd + options
     # See man blkid for why 2 is added
     try:
-        (out, _err) = subp(cmd, rcs=[0, 2])
-    except ProcessExecutionError as e:
+        (out, _err) = subp.subp(cmd, rcs=[0, 2])
+    except subp.ProcessExecutionError as e:
         if e.errno == ENOENT:
             # blkid not found...
             out = ""
@@ -1389,7 +1260,7 @@ def blkid(devs=None, disable_cache=False):
     # we have to decode with 'replace' as shelx.split (called by
     # load_shell_content) can't take bytes.  So this is potentially
     # lossy of non-utf-8 chars in blkid output.
-    out, _ = subp(cmd, capture=True, decode="replace")
+    out, _ = subp.subp(cmd, capture=True, decode="replace")
     ret = {}
     for line in out.splitlines():
         dev, _, data = line.partition(":")
@@ -1492,7 +1363,7 @@ def chownbyname(fname, user=None, group=None):
         if group:
             gid = grp.getgrnam(group).gr_gid
     except KeyError as e:
-        raise OSError("Unknown user or group: %s" % (e))
+        raise OSError("Unknown user or group: %s" % (e)) from e
     chownbyid(fname, uid, gid)
 
 
@@ -1709,7 +1580,7 @@ def unmounter(umount):
     finally:
         if umount:
             umount_cmd = ["umount", umount]
-            subp(umount_cmd)
+            subp.subp(umount_cmd)
 
 
 def mounts():
@@ -1720,7 +1591,7 @@ def mounts():
             mount_locs = load_file("/proc/mounts").splitlines()
             method = 'proc'
         else:
-            (mountoutput, _err) = subp("mount")
+            (mountoutput, _err) = subp.subp("mount")
             mount_locs = mountoutput.splitlines()
             method = 'mount'
         mountre = r'^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$'
@@ -1804,7 +1675,7 @@ def mount_cb(device, callback, data=None, mtype=None,
                         mountcmd.extend(['-t', mtype])
                     mountcmd.append(device)
                     mountcmd.append(tmpd)
-                    subp(mountcmd, update_env=update_env_for_mount)
+                    subp.subp(mountcmd, update_env=update_env_for_mount)
                     umount = tmpd  # This forces it to be unmounted (when set)
                     mountpoint = tmpd
                     break
@@ -1936,7 +1807,15 @@ def chmod(path, mode):
             os.chmod(path, real_mode)
 
 
-def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
+def write_file(
+    filename,
+    content,
+    mode=0o644,
+    omode="wb",
+    preserve_mode=False,
+    *,
+    ensure_dir_exists=True
+):
     """
     Writes a file with the given content and sets the file mode as specified.
     Restores the SELinux context if possible.
@@ -1945,16 +1824,22 @@ def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
     @param content: The content to write to the file.
     @param mode: The filesystem mode to set on the file.
     @param omode: The open mode used when opening the file (w, wb, a, etc.)
+    @param preserve_mode: If True and `filename` exists, preserve `filename`s
+                          current mode instead of applying `mode`.
+    @param ensure_dir_exists: If True (the default), ensure that the directory
+                              containing `filename` exists before writing to
+                              the file.
     """
 
-    if copy_mode:
+    if preserve_mode:
         try:
             file_stat = os.stat(filename)
             mode = stat.S_IMODE(file_stat.st_mode)
         except OSError:
             pass
 
-    ensure_dir(os.path.dirname(filename))
+    if ensure_dir_exists:
+        ensure_dir(os.path.dirname(filename))
     if 'b' in omode.lower():
         content = encode_text(content)
         write_type = 'bytes'
@@ -1988,185 +1873,6 @@ def delete_dir_contents(dirname):
             del_file(node_fullpath)
 
 
-def subp_blob_in_tempfile(blob, *args, **kwargs):
-    """Write blob to a tempfile, and call subp with args, kwargs. Then cleanup.
-
-    'basename' as a kwarg allows providing the basename for the file.
-    The 'args' argument to subp will be updated with the full path to the
-    filename as the first argument.
-    """
-    basename = kwargs.pop('basename', "subp_blob")
-
-    if len(args) == 0 and 'args' not in kwargs:
-        args = [tuple()]
-
-    # Use tmpdir over tmpfile to avoid 'text file busy' on execute
-    with temp_utils.tempdir(needs_exe=True) as tmpd:
-        tmpf = os.path.join(tmpd, basename)
-        if 'args' in kwargs:
-            kwargs['args'] = [tmpf] + list(kwargs['args'])
-        else:
-            args = list(args)
-            args[0] = [tmpf] + args[0]
-
-        write_file(tmpf, blob, mode=0o700)
-        return subp(*args, **kwargs)
-
-
-def subp(args, data=None, rcs=None, env=None, capture=True,
-         combine_capture=False, shell=False,
-         logstring=False, decode="replace", target=None, update_env=None,
-         status_cb=None):
-    """Run a subprocess.
-
-    :param args: command to run in a list. [cmd, arg1, arg2...]
-    :param data: input to the command, made available on its stdin.
-    :param rcs:
-        a list of allowed return codes.  If subprocess exits with a value not
-        in this list, a ProcessExecutionError will be raised.  By default,
-        data is returned as a string.  See 'decode' parameter.
-    :param env: a dictionary for the command's environment.
-    :param capture:
-        boolean indicating if output should be captured.  If True, then stderr
-        and stdout will be returned.  If False, they will not be redirected.
-    :param combine_capture:
-        boolean indicating if stderr should be redirected to stdout. When True,
-        interleaved stderr and stdout will be returned as the first element of
-        a tuple, the second will be empty string or bytes (per decode).
-        if combine_capture is True, then output is captured independent of
-        the value of capture.
-    :param shell: boolean indicating if this should be run with a shell.
-    :param logstring:
-        the command will be logged to DEBUG.  If it contains info that should
-        not be logged, then logstring will be logged instead.
-    :param decode:
-        if False, no decoding will be done and returned stdout and stderr will
-        be bytes.  Other allowed values are 'strict', 'ignore', and 'replace'.
-        These values are passed through to bytes().decode() as the 'errors'
-        parameter.  There is no support for decoding to other than utf-8.
-    :param target:
-        not supported, kwarg present only to make function signature similar
-        to curtin's subp.
-    :param update_env:
-        update the enviornment for this command with this dictionary.
-        this will not affect the current processes os.environ.
-    :param status_cb:
-        call this fuction with a single string argument before starting
-        and after finishing.
-
-    :return
-        if not capturing, return is (None, None)
-        if capturing, stdout and stderr are returned.
-            if decode:
-                entries in tuple will be python2 unicode or python3 string
-            if not decode:
-                entries in tuple will be python2 string or python3 bytes
-    """
-
-    # not supported in cloud-init (yet), for now kept in the call signature
-    # to ease maintaining code shared between cloud-init and curtin
-    if target is not None:
-        raise ValueError("target arg not supported by cloud-init")
-
-    if rcs is None:
-        rcs = [0]
-
-    devnull_fp = None
-
-    if update_env:
-        if env is None:
-            env = os.environ
-        env = env.copy()
-        env.update(update_env)
-
-    if target_path(target) != "/":
-        args = ['chroot', target] + list(args)
-
-    if status_cb:
-        command = ' '.join(args) if isinstance(args, list) else args
-        status_cb('Begin run command: {command}\n'.format(command=command))
-    if not logstring:
-        LOG.debug(("Running command %s with allowed return codes %s"
-                   " (shell=%s, capture=%s)"),
-                  args, rcs, shell, 'combine' if combine_capture else capture)
-    else:
-        LOG.debug(("Running hidden command to protect sensitive "
-                   "input/output logstring: %s"), logstring)
-
-    stdin = None
-    stdout = None
-    stderr = None
-    if capture:
-        stdout = subprocess.PIPE
-        stderr = subprocess.PIPE
-    if combine_capture:
-        stdout = subprocess.PIPE
-        stderr = subprocess.STDOUT
-    if data is None:
-        # using devnull assures any reads get null, rather
-        # than possibly waiting on input.
-        devnull_fp = open(os.devnull)
-        stdin = devnull_fp
-    else:
-        stdin = subprocess.PIPE
-        if not isinstance(data, bytes):
-            data = data.encode()
-
-    # Popen converts entries in the arguments array from non-bytes to bytes.
-    # When locale is unset it may use ascii for that encoding which can
-    # cause UnicodeDecodeErrors. (LP: #1751051)
-    if isinstance(args, bytes):
-        bytes_args = args
-    elif isinstance(args, str):
-        bytes_args = args.encode("utf-8")
-    else:
-        bytes_args = [
-            x if isinstance(x, bytes) else x.encode("utf-8")
-            for x in args]
-    try:
-        sp = subprocess.Popen(bytes_args, stdout=stdout,
-                              stderr=stderr, stdin=stdin,
-                              env=env, shell=shell)
-        (out, err) = sp.communicate(data)
-    except OSError as e:
-        if status_cb:
-            status_cb('ERROR: End run command: invalid command provided\n')
-        raise ProcessExecutionError(
-            cmd=args, reason=e, errno=e.errno,
-            stdout="-" if decode else b"-",
-            stderr="-" if decode else b"-")
-    finally:
-        if devnull_fp:
-            devnull_fp.close()
-
-    # Just ensure blank instead of none.
-    if capture or combine_capture:
-        if not out:
-            out = b''
-        if not err:
-            err = b''
-    if decode:
-        def ldecode(data, m='utf-8'):
-            if not isinstance(data, bytes):
-                return data
-            return data.decode(m, decode)
-
-        out = ldecode(out)
-        err = ldecode(err)
-
-    rc = sp.returncode
-    if rc not in rcs:
-        if status_cb:
-            status_cb(
-                'ERROR: End run command: exit({code})\n'.format(code=rc))
-        raise ProcessExecutionError(stdout=out, stderr=err,
-                                    exit_code=rc,
-                                    cmd=args)
-    if status_cb:
-        status_cb('End run command: exit({code})\n'.format(code=rc))
-    return (out, err)
-
-
 def make_header(comment_char="#", base='created'):
     ci_ver = version.version_string()
     header = str(comment_char)
@@ -2175,8 +1881,8 @@ def make_header(comment_char="#", base='created'):
     return header
 
 
-def abs_join(*paths):
-    return os.path.abspath(os.path.join(*paths))
+def abs_join(base, *paths):
+    return os.path.abspath(os.path.join(base, *paths))
 
 
 # shellify, takes a list of commands
@@ -2232,7 +1938,7 @@ def is_container():
         try:
             # try to run a helper program. if it returns true/zero
             # then we're inside a container. otherwise, no
-            subp(helper)
+            subp.subp(helper)
             return True
         except (IOError, OSError):
             pass
@@ -2438,7 +2144,7 @@ def find_freebsd_part(fs):
         return splitted[2]
     elif splitted[2] in ['label', 'gpt', 'ufs']:
         target_label = fs[5:]
-        (part, _err) = subp(['glabel', 'status', '-s'])
+        (part, _err) = subp.subp(['glabel', 'status', '-s'])
         for labels in part.split("\n"):
             items = labels.split()
             if len(items) > 0 and items[0] == target_label:
@@ -2460,10 +2166,10 @@ def get_path_dev_freebsd(path, mnt_list):
 
 
 def get_mount_info_freebsd(path):
-    (result, err) = subp(['mount', '-p', path], rcs=[0, 1])
+    (result, err) = subp.subp(['mount', '-p', path], rcs=[0, 1])
     if len(err):
         # find a path if the input is not a mounting point
-        (mnt_list, err) = subp(['mount', '-p'])
+        (mnt_list, err) = subp.subp(['mount', '-p'])
         path_found = get_path_dev_freebsd(path, mnt_list)
         if (path_found is None):
             return None
@@ -2479,8 +2185,8 @@ def get_device_info_from_zpool(zpool):
         LOG.debug('Cannot get zpool info, no /dev/zfs')
         return None
     try:
-        (zpoolstatus, err) = subp(['zpool', 'status', zpool])
-    except ProcessExecutionError as err:
+        (zpoolstatus, err) = subp.subp(['zpool', 'status', zpool])
+    except subp.ProcessExecutionError as err:
         LOG.warning("Unable to get zpool status of %s: %s", zpool, err)
         return None
     if len(err):
@@ -2494,7 +2200,7 @@ def get_device_info_from_zpool(zpool):
 
 
 def parse_mount(path):
-    (mountoutput, _err) = subp(['mount'])
+    (mountoutput, _err) = subp.subp(['mount'])
     mount_locs = mountoutput.splitlines()
     # there are 2 types of mount outputs we have to parse therefore
     # the regex is a bit complex. to better understand this regex see:
@@ -2565,40 +2271,6 @@ def get_mount_info(path, log=LOG, get_mnt_opts=False):
         return parse_mtab(path)
     else:
         return parse_mount(path)
-
-
-def is_exe(fpath):
-    # return boolean indicating if fpath exists and is executable.
-    return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-
-def which(program, search=None, target=None):
-    target = target_path(target)
-
-    if os.path.sep in program:
-        # if program had a '/' in it, then do not search PATH
-        # 'which' does consider cwd here. (cd / && which bin/ls) = bin/ls
-        # so effectively we set cwd to / (or target)
-        if is_exe(target_path(target, program)):
-            return program
-
-    if search is None:
-        paths = [p.strip('"') for p in
-                 os.environ.get("PATH", "").split(os.pathsep)]
-        if target == "/":
-            search = paths
-        else:
-            search = [p for p in paths if p.startswith("/")]
-
-    # normalize path input
-    search = [os.path.abspath(p) for p in search]
-
-    for path in search:
-        ppath = os.path.sep.join((path, program))
-        if is_exe(target_path(target, ppath)):
-            return ppath
-
-    return None
 
 
 def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
@@ -2715,8 +2387,8 @@ def human2bytes(size):
 
     try:
         num = float(num)
-    except ValueError:
-        raise ValueError("'%s' is not valid input." % size_in)
+    except ValueError as e:
+        raise ValueError("'%s' is not valid input." % size_in) from e
 
     if num < 0:
         raise ValueError("'%s': cannot be negative" % size_in)
@@ -2764,7 +2436,7 @@ def _call_dmidecode(key, dmidecode_path):
     """
     try:
         cmd = [dmidecode_path, "--string", key]
-        (result, _err) = subp(cmd)
+        (result, _err) = subp.subp(cmd)
         result = result.strip()
         LOG.debug("dmidecode returned '%s' for '%s'", result, key)
         if result.replace(".", "") == "":
@@ -2818,7 +2490,7 @@ def read_dmi_data(key):
         LOG.debug("dmidata is not supported on %s", uname_arch)
         return None
 
-    dmidecode_path = which('dmidecode')
+    dmidecode_path = subp.which('dmidecode')
     if dmidecode_path:
         return _call_dmidecode(key, dmidecode_path)
 
@@ -2834,7 +2506,7 @@ def message_from_string(string):
 
 
 def get_installed_packages(target=None):
-    (out, _) = subp(['dpkg-query', '--list'], target=target, capture=True)
+    (out, _) = subp.subp(['dpkg-query', '--list'], target=target, capture=True)
 
     pkgs_inst = set()
     for line in out.splitlines():
@@ -2970,7 +2642,7 @@ def udevadm_settle(exists=None, timeout=None):
     if timeout:
         settle_cmd.extend(['--timeout=%s' % timeout])
 
-    return subp(settle_cmd)
+    return subp.subp(settle_cmd)
 
 
 def get_proc_ppid(pid):

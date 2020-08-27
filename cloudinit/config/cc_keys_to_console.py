@@ -33,6 +33,7 @@ key can be used. By default ``ssh-dss`` keys are not written to console.
 import os
 
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import subp
 from cloudinit import util
 
 frequency = PER_INSTANCE
@@ -64,7 +65,7 @@ def handle(name, cfg, cloud, log, _args):
 
     try:
         cmd = [helper_path, ','.join(fp_blacklist), ','.join(key_blacklist)]
-        (stdout, _stderr) = util.subp(cmd)
+        (stdout, _stderr) = subp.subp(cmd)
         util.multi_log("%s\n" % (stdout.strip()),
                        stderr=False, console=True)
     except Exception:

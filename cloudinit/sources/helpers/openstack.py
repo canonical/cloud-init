@@ -16,6 +16,7 @@ from cloudinit import ec2_utils
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit import sources
+from cloudinit import subp
 from cloudinit import url_helper
 from cloudinit import util
 from cloudinit.sources import BrokenMetadata
@@ -110,7 +111,7 @@ class SourceMixin(object):
             dev_entries = util.find_devs_with(criteria)
             if dev_entries:
                 device = dev_entries[0]
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             pass
         return device
 
@@ -279,8 +280,9 @@ class BaseReader(metaclass=abc.ABCMeta):
                 try:
                     data = translator(data)
                 except Exception as e:
-                    raise BrokenMetadata("Failed to process "
-                                         "path %s: %s" % (path, e))
+                    raise BrokenMetadata(
+                        "Failed to process path %s: %s" % (path, e)
+                    ) from e
             if found:
                 results[name] = data
 
@@ -290,8 +292,9 @@ class BaseReader(metaclass=abc.ABCMeta):
             try:
                 metadata['random_seed'] = base64.b64decode(random_seed)
             except (ValueError, TypeError) as e:
-                raise BrokenMetadata("Badly formatted metadata"
-                                     " random_seed entry: %s" % e)
+                raise BrokenMetadata(
+                    "Badly formatted metadata random_seed entry: %s" % e
+                ) from e
 
         # load any files that were provided
         files = {}
@@ -303,8 +306,9 @@ class BaseReader(metaclass=abc.ABCMeta):
             try:
                 files[path] = self._read_content_path(item)
             except Exception as e:
-                raise BrokenMetadata("Failed to read provided "
-                                     "file %s: %s" % (path, e))
+                raise BrokenMetadata(
+                    "Failed to read provided file %s: %s" % (path, e)
+                ) from e
         results['files'] = files
 
         # The 'network_config' item in metadata is a content pointer
@@ -316,8 +320,9 @@ class BaseReader(metaclass=abc.ABCMeta):
                 content = self._read_content_path(net_item, decode=True)
                 results['network_config'] = content
             except IOError as e:
-                raise BrokenMetadata("Failed to read network"
-                                     " configuration: %s" % (e))
+                raise BrokenMetadata(
+                    "Failed to read network configuration: %s" % (e)
+                ) from e
 
         # To openstack, user can specify meta ('nova boot --meta=key=value')
         # and those will appear under metadata['meta'].
@@ -369,8 +374,9 @@ class ConfigDriveReader(BaseReader):
             try:
                 return util.load_json(self._path_read(path))
             except Exception as e:
-                raise BrokenMetadata("Failed to process "
-                                     "path %s: %s" % (path, e))
+                raise BrokenMetadata(
+                    "Failed to process path %s: %s" % (path, e)
+                ) from e
 
     def read_v1(self):
         """Reads a version 1 formatted location.
@@ -394,13 +400,17 @@ class ConfigDriveReader(BaseReader):
                 path = found[name]
                 try:
                     contents = self._path_read(path)
-                except IOError:
-                    raise BrokenMetadata("Failed to read: %s" % path)
+                except IOError as e:
+                    raise BrokenMetadata("Failed to read: %s" % path) from e
                 try:
-                    md[key] = translator(contents)
+                    # Disable not-callable pylint check; pylint isn't able to
+                    # determine that every member of FILES_V1 has a callable in
+                    # the appropriate position
+                    md[key] = translator(contents)  # pylint: disable=E1102
                 except Exception as e:
-                    raise BrokenMetadata("Failed to process "
-                                         "path %s: %s" % (path, e))
+                    raise BrokenMetadata(
+                        "Failed to process path %s: %s" % (path, e)
+                    ) from e
             else:
                 md[key] = copy.deepcopy(default)
 
