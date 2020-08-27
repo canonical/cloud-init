@@ -1,4 +1,4 @@
-cloud-init (20.3-2-g371b392c-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (20.3-2-g371b392c-0ubuntu1~16.04.1) xenial; urgency=medium
 
   * d/control: add python3-pytest-catchlog to Build-Depends
   * d/cloud-init.postinst: fix the grub install device for NVMe-rooted
