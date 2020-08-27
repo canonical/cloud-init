@@ -11,7 +11,7 @@ Last-Update: 2019-05-10
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/cloudinit/config/cc_ubuntu_advantage.py
 +++ b/cloudinit/config/cc_ubuntu_advantage.py
-@@ -1,141 +1,150 @@
+@@ -1,142 +1,151 @@
 +# Copyright (C) 2018 Canonical Ltd.
 +#
  # This file is part of cloud-init. See LICENSE file for license information.
@@ -28,6 +28,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -from cloudinit import log as logging
  from cloudinit.settings import PER_INSTANCE
 +from cloudinit.subp import prepend_base_command
+ from cloudinit import subp
  from cloudinit import util
  
  
@@ -193,12 +194,12 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -    attach_cmd = ['ua', 'attach', token]
 -    LOG.debug('Attaching to Ubuntu Advantage. %s', ' '.join(attach_cmd))
 -    try:
--        util.subp(attach_cmd)
--    except util.ProcessExecutionError as e:
+-        subp.subp(attach_cmd)
+-    except subp.ProcessExecutionError as e:
 -        msg = 'Failure attaching Ubuntu Advantage:\n{error}'.format(
 -            error=str(e))
 -        util.logexc(LOG, msg)
--        raise RuntimeError(msg)
+-        raise RuntimeError(msg) from e
 -    enable_errors = []
 -    for service in enable:
 +     Commands are run individually. Any errors are collected and reported
@@ -225,9 +226,9 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +        shell = isinstance(command, str)
          try:
 -            cmd = ['ua', 'enable', service]
--            util.subp(cmd, capture=True)
-+            util.subp(command, shell=shell, status_cb=sys.stderr.write)
-         except util.ProcessExecutionError as e:
+-            subp.subp(cmd, capture=True)
++            subp.subp(command, shell=shell, status_cb=sys.stderr.write)
+         except subp.ProcessExecutionError as e:
 -            enable_errors.append((service, e))
 -    if enable_errors:
 -        for service, error in enable_errors:
@@ -250,12 +251,12 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
  def maybe_install_ua_tools(cloud):
      """Install ubuntu-advantage-tools if not present."""
--    if util.which('ua'):
-+    if util.which('ubuntu-advantage'):
+-    if subp.which('ua'):
++    if subp.which('ubuntu-advantage'):
          return
      try:
          cloud.distro.update_package_sources()
-@@ -150,28 +159,14 @@ def maybe_install_ua_tools(cloud):
+@@ -151,28 +160,14 @@ def maybe_install_ua_tools(cloud):
  
  
  def handle(name, cfg, cloud, log, args):
@@ -292,7 +293,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  # vi: ts=4 expandtab
 --- a/cloudinit/config/tests/test_ubuntu_advantage.py
 +++ b/cloudinit/config/tests/test_ubuntu_advantage.py
-@@ -1,7 +1,10 @@
+@@ -1,9 +1,12 @@
  # This file is part of cloud-init. See LICENSE file for license information.
  
 +import re
@@ -302,8 +303,11 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -    configure_ua, handle, maybe_install_ua_tools, schema)
 +    handle, maybe_install_ua_tools, run_commands, schema)
  from cloudinit.config.schema import validate_cloudconfig_schema
- from cloudinit import util
+-from cloudinit import subp
++from cloudinit import util
  from cloudinit.tests.helpers import (
+     CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
+ 
 @@ -17,120 +20,90 @@ class FakeCloud(object):
          self.distro = distro
  
@@ -319,13 +323,14 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +        super(TestRunCommands, self).setUp()
          self.tmp = self.tmp_dir()
  
-     @mock.patch('%s.util.subp' % MPATH)
+-    @mock.patch('%s.subp.subp' % MPATH)
 -    def test_configure_ua_attach_error(self, m_subp):
 -        """Errors from ua attach command are raised."""
--        m_subp.side_effect = util.ProcessExecutionError(
+-        m_subp.side_effect = subp.ProcessExecutionError(
 -            'Invalid token SomeToken')
 -        with self.assertRaises(RuntimeError) as context_manager:
 -            configure_ua(token='SomeToken')
++    @mock.patch('%s.util.subp' % MPATH)
 +    def test_run_commands_on_empty_list(self, m_subp):
 +        """When provided with an empty list, run_commands does nothing."""
 +        run_commands([])
@@ -343,7 +348,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +            "commands parameter was not a list or dict: I'm Not Valid",
              str(context_manager.exception))
  
--    @mock.patch('%s.util.subp' % MPATH)
+-    @mock.patch('%s.subp.subp' % MPATH)
 -    def test_configure_ua_attach_with_token(self, m_subp):
 -        """When token is provided, attach the machine to ua using the token."""
 -        configure_ua(token='SomeToken')
@@ -352,7 +357,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
 -            self.logs.getvalue())
 -
--    @mock.patch('%s.util.subp' % MPATH)
+-    @mock.patch('%s.subp.subp' % MPATH)
 -    def test_configure_ua_attach_on_service_error(self, m_subp):
 -        """all services should be enabled and then any failures raised"""
 -
@@ -360,8 +365,10 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            fail_cmds = [['ua', 'enable', svc] for svc in ['esm', 'cc']]
 -            if cmd in fail_cmds and capture:
 -                svc = cmd[-1]
--                raise util.ProcessExecutionError(
+-                raise subp.ProcessExecutionError(
 -                    'Invalid {} credentials'.format(svc.upper()))
+-
+-        m_subp.side_effect = fake_subp
 +    def test_run_command_logs_commands_and_exit_codes_to_stderr(self):
 +        """All exit codes are logged to stderr."""
 +        outfile = self.tmp_path('output.log', dir=self.tmp)
@@ -399,8 +406,6 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 +        with mock.patch('%s.sys.stderr' % MPATH, new_callable=StringIO):
 +            run_commands(commands=commands)
  
--        m_subp.side_effect = fake_subp
--
 -        with self.assertRaises(RuntimeError) as context_manager:
 -            configure_ua(token='SomeToken', enable=['esm', 'cc', 'fips'])
 -        self.assertEqual(
@@ -425,16 +430,18 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            'Failure enabling Ubuntu Advantage service(s): "esm", "cc"',
 -            str(context_manager.exception))
 -
--    @mock.patch('%s.util.subp' % MPATH)
+-    @mock.patch('%s.subp.subp' % MPATH)
 -    def test_configure_ua_attach_with_empty_services(self, m_subp):
 -        """When services is an empty list, do not auto-enable attach."""
 -        configure_ua(token='SomeToken', enable=[])
 -        m_subp.assert_called_once_with(['ua', 'attach', 'SomeToken'])
 -        self.assertEqual(
 -            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
--            self.logs.getvalue())
--
--    @mock.patch('%s.util.subp' % MPATH)
++            'WARNING: Non-ubuntu-advantage commands in ubuntu-advantage'
++            ' config:',
+             self.logs.getvalue())
+ 
+-    @mock.patch('%s.subp.subp' % MPATH)
 -    def test_configure_ua_attach_with_specific_services(self, m_subp):
 -        """When services a list, only enable specific services."""
 -        configure_ua(token='SomeToken', enable=['fips'])
@@ -447,7 +454,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            self.logs.getvalue())
 -
 -    @mock.patch('%s.maybe_install_ua_tools' % MPATH, mock.MagicMock())
--    @mock.patch('%s.util.subp' % MPATH)
+-    @mock.patch('%s.subp.subp' % MPATH)
 -    def test_configure_ua_attach_with_string_services(self, m_subp):
 -        """When services a string, treat as singleton list and warn"""
 -        configure_ua(token='SomeToken', enable='fips')
@@ -459,11 +466,9 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            'WARNING: ubuntu_advantage: enable should be a list, not a'
 -            ' string; treating as a single enable\n'
 -            'DEBUG: Attaching to Ubuntu Advantage. ua attach SomeToken\n',
-+            'WARNING: Non-ubuntu-advantage commands in ubuntu-advantage'
-+            ' config:',
-             self.logs.getvalue())
- 
--    @mock.patch('%s.util.subp' % MPATH)
+-            self.logs.getvalue())
+-
+-    @mock.patch('%s.subp.subp' % MPATH)
 -    def test_configure_ua_attach_with_weird_services(self, m_subp):
 -        """When services not string or list, warn but still attach"""
 -        configure_ua(token='SomeToken', enable={'deffo': 'wont work'})
@@ -676,7 +681,10 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            'Deprecated configuration "ubuntu-advantage: commands" provided.'
 -            ' Expected "token"',
 -            str(context_manager.exception))
--
++    def test_handle_runs_commands_provided(self, m_install):
++        """When commands are specified as a list, run them."""
++        outfile = self.tmp_path('output.log', dir=self.tmp)
+ 
 -    def test_handle_error_on_deprecated_commands_key_underscored(self):
 -        """Error when commands is present in ubuntu_advantage key."""
 -        cfg = {'ubuntu_advantage': {'commands': 'nogo'}}
@@ -686,10 +694,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 -            'Deprecated configuration "ubuntu-advantage: commands" provided.'
 -            ' Expected "token"',
 -            str(context_manager.exception))
-+    def test_handle_runs_commands_provided(self, m_install):
-+        """When commands are specified as a list, run them."""
-+        outfile = self.tmp_path('output.log', dir=self.tmp)
- 
+-
 -    @mock.patch('%s.maybe_install_ua_tools' % MPATH, mock.MagicMock())
 -    @mock.patch('%s.configure_ua' % MPATH)
 -    def test_handle_prefers_new_style_config(
@@ -719,7 +724,7 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
  
  class TestMaybeInstallUATools(CiTestCase):
 @@ -288,7 +253,7 @@ class TestMaybeInstallUATools(CiTestCase
-     @mock.patch('%s.util.which' % MPATH)
+     @mock.patch('%s.subp.which' % MPATH)
      def test_maybe_install_ua_tools_noop_when_ua_tools_present(self, m_which):
          """Do nothing if ubuntu-advantage-tools already exists."""
 -        m_which.return_value = '/usr/bin/ua'  # already installed
