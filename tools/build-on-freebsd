@@ -28,7 +28,7 @@ pkgs="
     $py_prefix-jsonschema
     $py_prefix-oauthlib
     $py_prefix-requests
-    $py_prefix-serial
+    $py_prefix-pyserial
     $py_prefix-yaml
     sudo
 "

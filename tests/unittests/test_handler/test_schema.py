@@ -24,6 +24,7 @@ class GetSchemaTest(CiTestCase):
         schema = get_schema()
         self.assertCountEqual(
             [
+                'cc_apk_configure',
                 'cc_apt_configure',
                 'cc_bootcmd',
                 'cc_locale',
@@ -34,7 +35,8 @@ class GetSchemaTest(CiTestCase):
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
                 'cc_write_files',
-                'cc_zypper_add_repo'
+                'cc_zypper_add_repo',
+                'cc_chef'
             ],
             [subschema['id'] for subschema in schema['allOf']])
         self.assertEqual('cloud-config-schema', schema['id'])

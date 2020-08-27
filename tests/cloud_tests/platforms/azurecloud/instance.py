@@ -80,7 +80,6 @@ class AzureCloudInstance(Instance):
         except CloudError:
             LOG.debug(('image not found, launching instance with base image, '
                        'image_id=%s'), self.image_id)
-            pass
 
         vm_params = {
             'name': self.vm_name,
@@ -135,9 +134,10 @@ class AzureCloudInstance(Instance):
                                  self.vm_name, vm_params)
             LOG.debug('creating instance %s from image_id=%s', self.vm_name,
                       self.image_id)
-        except CloudError:
-            raise RuntimeError('failed creating instance:\n{}'.format(
-                traceback.format_exc()))
+        except CloudError as e:
+            raise RuntimeError(
+                'failed creating instance:\n{}'.format(traceback.format_exc())
+            ) from e
 
         if wait:
             self.instance.wait()
@@ -169,7 +169,6 @@ class AzureCloudInstance(Instance):
                     sleep(15)
                 else:
                     LOG.warning('Could not find console log: %s', e)
-                    pass
 
         LOG.debug('stopping instance %s', self.image_id)
         vm_deallocate = \

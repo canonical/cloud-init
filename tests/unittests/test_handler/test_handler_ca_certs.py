@@ -1,8 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import cloud
+from cloudinit import distros
 from cloudinit.config import cc_ca_certs
 from cloudinit import helpers
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.tests.helpers import TestCase
@@ -45,8 +47,9 @@ class TestConfig(TestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
         self.name = "ca-certs"
+        distro = self._fetch_distro('ubuntu')
         self.paths = None
-        self.cloud = cloud.Cloud(None, self.paths, None, None, None)
+        self.cloud = cloud.Cloud(None, self.paths, None, distro, None)
         self.log = logging.getLogger("TestNoConfig")
         self.args = []
 
@@ -60,6 +63,11 @@ class TestConfig(TestCase):
             mock.patch.object(cc_ca_certs, 'update_ca_certs'))
         self.mock_remove = self.mocks.enter_context(
             mock.patch.object(cc_ca_certs, 'remove_default_ca_certs'))
+
+    def _fetch_distro(self, kind):
+        cls = distros.fetch(kind)
+        paths = helpers.Paths({})
+        return cls(kind, {}, paths)
 
     def test_no_trusted_list(self):
         """
@@ -200,6 +208,28 @@ class TestAddCaCerts(TestCase):
 
             mock_load.assert_called_once_with("/etc/ca-certificates.conf")
 
+    def test_single_cert_to_empty_existing_ca_file(self):
+        """Test adding a single certificate to the trusted CAs
+        when existing ca-certificates.conf is empty"""
+        cert = "CERT1\nLINE2\nLINE3"
+
+        expected = "cloud-init-ca-certs.crt\n"
+
+        with ExitStack() as mocks:
+            mock_write = mocks.enter_context(
+                mock.patch.object(util, 'write_file', autospec=True))
+            mock_stat = mocks.enter_context(
+                mock.patch("cloudinit.config.cc_ca_certs.os.stat")
+            )
+            mock_stat.return_value.st_size = 0
+
+            cc_ca_certs.add_ca_certs([cert])
+
+            mock_write.assert_has_calls([
+                mock.call("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
+                          cert, mode=0o644),
+                mock.call("/etc/ca-certificates.conf", expected, omode="wb")])
+
     def test_multiple_certs(self):
         """Test adding multiple certificates to the trusted CAs."""
         certs = ["CERT1\nLINE2\nLINE3", "CERT2\nLINE2\nLINE3"]
@@ -228,7 +258,7 @@ class TestAddCaCerts(TestCase):
 
 class TestUpdateCaCerts(unittest.TestCase):
     def test_commands(self):
-        with mock.patch.object(util, 'subp') as mockobj:
+        with mock.patch.object(subp, 'subp') as mockobj:
             cc_ca_certs.update_ca_certs()
             mockobj.assert_called_once_with(
                 ["update-ca-certificates"], capture=False)
@@ -250,9 +280,9 @@ class TestRemoveDefaultCaCerts(TestCase):
                 mock.patch.object(util, 'delete_dir_contents'))
             mock_write = mocks.enter_context(
                 mock.patch.object(util, 'write_file'))
-            mock_subp = mocks.enter_context(mock.patch.object(util, 'subp'))
+            mock_subp = mocks.enter_context(mock.patch.object(subp, 'subp'))
 
-            cc_ca_certs.remove_default_ca_certs()
+            cc_ca_certs.remove_default_ca_certs('ubuntu')
 
             mock_delete.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/"),

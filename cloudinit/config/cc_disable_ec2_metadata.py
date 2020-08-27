@@ -26,6 +26,7 @@ by default.
     disable_ec2_metadata: <true/false>
 """
 
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.settings import PER_ALWAYS
@@ -40,15 +41,15 @@ def handle(name, cfg, _cloud, log, _args):
     disabled = util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False)
     if disabled:
         reject_cmd = None
-        if util.which('ip'):
+        if subp.which('ip'):
             reject_cmd = REJECT_CMD_IP
-        elif util.which('ifconfig'):
+        elif subp.which('ifconfig'):
             reject_cmd = REJECT_CMD_IF
         else:
             log.error(('Neither "route" nor "ip" command found, unable to '
                        'manipulate routing table'))
             return
-        util.subp(reject_cmd, capture=False)
+        subp.subp(reject_cmd, capture=False)
     else:
         log.debug(("Skipping module named %s,"
                    " disabling the ec2 route not enabled"), name)

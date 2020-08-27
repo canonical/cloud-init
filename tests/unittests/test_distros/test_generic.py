@@ -6,6 +6,7 @@ from cloudinit import util
 from cloudinit.tests import helpers
 
 import os
+import pytest
 import shutil
 import tempfile
 from unittest import mock
@@ -36,24 +37,6 @@ gapmi = distros._get_arch_package_mirror_info
 
 
 class TestGenericDistro(helpers.FilesystemMockingTestCase):
-
-    def return_first(self, mlist):
-        if not mlist:
-            return None
-        return mlist[0]
-
-    def return_second(self, mlist):
-        if not mlist:
-            return None
-        return mlist[1]
-
-    def return_none(self, _mlist):
-        return None
-
-    def return_last(self, mlist):
-        if not mlist:
-            return None
-        return(mlist[-1])
 
     def setUp(self):
         super(TestGenericDistro, self).setUp()
@@ -145,61 +128,6 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         arch_mirrors = gapmi(package_mirrors, arch="amd64")
         self.assertEqual(package_mirrors[0], arch_mirrors)
 
-    def test_get_package_mirror_info_az_ec2(self):
-        arch_mirrors = gapmi(package_mirrors, arch="amd64")
-        data_source_mock = mock.Mock(availability_zone="us-east-1a")
-
-        results = gpmi(arch_mirrors, data_source=data_source_mock,
-                       mirror_filter=self.return_first)
-        self.assertEqual(results,
-                         {'primary': 'http://us-east-1.ec2/',
-                          'security': 'http://security-mirror1-intel'})
-
-        results = gpmi(arch_mirrors, data_source=data_source_mock,
-                       mirror_filter=self.return_second)
-        self.assertEqual(results,
-                         {'primary': 'http://us-east-1a.clouds/',
-                          'security': 'http://security-mirror2-intel'})
-
-        results = gpmi(arch_mirrors, data_source=data_source_mock,
-                       mirror_filter=self.return_none)
-        self.assertEqual(results, package_mirrors[0]['failsafe'])
-
-    def test_get_package_mirror_info_az_non_ec2(self):
-        arch_mirrors = gapmi(package_mirrors, arch="amd64")
-        data_source_mock = mock.Mock(availability_zone="nova.cloudvendor")
-
-        results = gpmi(arch_mirrors, data_source=data_source_mock,
-                       mirror_filter=self.return_first)
-        self.assertEqual(results,
-                         {'primary': 'http://nova.cloudvendor.clouds/',
-                          'security': 'http://security-mirror1-intel'})
-
-        results = gpmi(arch_mirrors, data_source=data_source_mock,
-                       mirror_filter=self.return_last)
-        self.assertEqual(results,
-                         {'primary': 'http://nova.cloudvendor.clouds/',
-                          'security': 'http://security-mirror2-intel'})
-
-    def test_get_package_mirror_info_none(self):
-        arch_mirrors = gapmi(package_mirrors, arch="amd64")
-        data_source_mock = mock.Mock(availability_zone=None)
-
-        # because both search entries here replacement based on
-        # availability-zone, the filter will be called with an empty list and
-        # failsafe should be taken.
-        results = gpmi(arch_mirrors, data_source=data_source_mock,
-                       mirror_filter=self.return_first)
-        self.assertEqual(results,
-                         {'primary': 'http://fs-primary-intel',
-                          'security': 'http://security-mirror1-intel'})
-
-        results = gpmi(arch_mirrors, data_source=data_source_mock,
-                       mirror_filter=self.return_last)
-        self.assertEqual(results,
-                         {'primary': 'http://fs-primary-intel',
-                          'security': 'http://security-mirror2-intel'})
-
     def test_systemd_in_use(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
@@ -245,7 +173,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         for d_name in ("ubuntu", "rhel"):
             cls = distros.fetch(d_name)
             d = cls(d_name, {}, None)
-            with mock.patch("cloudinit.util.subp") as m_subp:
+            with mock.patch("cloudinit.subp.subp") as m_subp:
                 d.expire_passwd("myuser")
             m_subp.assert_called_once_with(["passwd", "--expire", "myuser"])
 
@@ -253,10 +181,122 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         """Test FreeBSD.expire_passwd uses the pw command."""
         cls = distros.fetch("freebsd")
         d = cls("freebsd", {}, None)
-        with mock.patch("cloudinit.util.subp") as m_subp:
+        with mock.patch("cloudinit.subp.subp") as m_subp:
             d.expire_passwd("myuser")
         m_subp.assert_called_once_with(
             ["pw", "usermod", "myuser", "-p", "01-Jan-1970"])
 
+
+class TestGetPackageMirrors:
+
+    def return_first(self, mlist):
+        if not mlist:
+            return None
+        return mlist[0]
+
+    def return_second(self, mlist):
+        if not mlist:
+            return None
+
+        return mlist[1] if len(mlist) > 1 else None
+
+    def return_none(self, _mlist):
+        return None
+
+    def return_last(self, mlist):
+        if not mlist:
+            return None
+        return(mlist[-1])
+
+    @pytest.mark.parametrize(
+        "allow_ec2_mirror, platform_type, mirrors",
+        [
+            (True, "ec2", [
+                {'primary': 'http://us-east-1.ec2/',
+                 'security': 'http://security-mirror1-intel'},
+                {'primary': 'http://us-east-1a.clouds/',
+                 'security': 'http://security-mirror2-intel'}
+            ]),
+            (True, "other", [
+                {'primary': 'http://us-east-1.ec2/',
+                 'security': 'http://security-mirror1-intel'},
+                {'primary': 'http://us-east-1a.clouds/',
+                 'security': 'http://security-mirror2-intel'}
+            ]),
+            (False, "ec2", [
+                {'primary': 'http://us-east-1.ec2/',
+                 'security': 'http://security-mirror1-intel'},
+                {'primary': 'http://us-east-1a.clouds/',
+                 'security': 'http://security-mirror2-intel'}
+            ]),
+            (False, "other", [
+                {'primary': 'http://us-east-1a.clouds/',
+                 'security': 'http://security-mirror1-intel'},
+                {'primary': 'http://fs-primary-intel',
+                 'security': 'http://security-mirror2-intel'}
+            ])
+        ])
+    def test_get_package_mirror_info_az_ec2(self,
+                                            allow_ec2_mirror,
+                                            platform_type,
+                                            mirrors):
+        flag_path = "cloudinit.distros." \
+                    "ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES"
+        with mock.patch(flag_path, allow_ec2_mirror):
+            arch_mirrors = gapmi(package_mirrors, arch="amd64")
+            data_source_mock = mock.Mock(
+                availability_zone="us-east-1a",
+                platform_type=platform_type)
+
+            results = gpmi(arch_mirrors, data_source=data_source_mock,
+                           mirror_filter=self.return_first)
+            assert(results == mirrors[0])
+
+            results = gpmi(arch_mirrors, data_source=data_source_mock,
+                           mirror_filter=self.return_second)
+            assert(results == mirrors[1])
+
+            results = gpmi(arch_mirrors, data_source=data_source_mock,
+                           mirror_filter=self.return_none)
+            assert(results == package_mirrors[0]['failsafe'])
+
+    def test_get_package_mirror_info_az_non_ec2(self):
+        arch_mirrors = gapmi(package_mirrors, arch="amd64")
+        data_source_mock = mock.Mock(availability_zone="nova.cloudvendor")
+
+        results = gpmi(arch_mirrors, data_source=data_source_mock,
+                       mirror_filter=self.return_first)
+        assert(results == {
+            'primary': 'http://nova.cloudvendor.clouds/',
+            'security': 'http://security-mirror1-intel'}
+        )
+
+        results = gpmi(arch_mirrors, data_source=data_source_mock,
+                       mirror_filter=self.return_last)
+        assert(results == {
+            'primary': 'http://nova.cloudvendor.clouds/',
+            'security': 'http://security-mirror2-intel'}
+        )
+
+    def test_get_package_mirror_info_none(self):
+        arch_mirrors = gapmi(package_mirrors, arch="amd64")
+        data_source_mock = mock.Mock(availability_zone=None)
+
+        # because both search entries here replacement based on
+        # availability-zone, the filter will be called with an empty list and
+        # failsafe should be taken.
+        results = gpmi(arch_mirrors, data_source=data_source_mock,
+                       mirror_filter=self.return_first)
+        assert(results == {
+            'primary': 'http://fs-primary-intel',
+            'security': 'http://security-mirror1-intel'}
+        )
+
+        results = gpmi(arch_mirrors, data_source=data_source_mock,
+                       mirror_filter=self.return_last)
+        assert(results == {
+            'primary': 'http://fs-primary-intel',
+            'security': 'http://security-mirror2-intel'}
+        )
 
 # vi: ts=4 expandtab

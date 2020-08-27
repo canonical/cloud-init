@@ -13,6 +13,7 @@ import re
 
 from cloudinit import handlers
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.settings import (PER_INSTANCE)
@@ -52,7 +53,7 @@ class UpstartJobPartHandler(handlers.Handler):
         util.write_file(path, payload, 0o644)
 
         if SUITABLE_UPSTART:
-            util.subp(["initctl", "reload-configuration"], capture=False)
+            subp.subp(["initctl", "reload-configuration"], capture=False)
 
 
 def _has_suitable_upstart():
@@ -63,7 +64,7 @@ def _has_suitable_upstart():
     if not os.path.exists("/sbin/initctl"):
         return False
     try:
-        (version_out, _err) = util.subp(["initctl", "version"])
+        (version_out, _err) = subp.subp(["initctl", "version"])
     except Exception:
         util.logexc(LOG, "initctl version failed")
         return False
@@ -77,7 +78,7 @@ def _has_suitable_upstart():
         if not os.path.exists("/usr/bin/dpkg-query"):
             return False
         try:
-            (dpkg_ver, _err) = util.subp(["dpkg-query",
+            (dpkg_ver, _err) = subp.subp(["dpkg-query",
                                           "--showformat=${Version}",
                                           "--show", "upstart"], rcs=[0, 1])
         except Exception:
@@ -86,9 +87,9 @@ def _has_suitable_upstart():
 
         try:
             good = "1.8-0ubuntu1.2"
-            util.subp(["dpkg", "--compare-versions", dpkg_ver, "ge", good])
+            subp.subp(["dpkg", "--compare-versions", dpkg_ver, "ge", good])
             return True
-        except util.ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             if e.exit_code == 1:
                 pass
             else:

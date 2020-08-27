@@ -29,12 +29,10 @@ class InitramfsNetworkConfigSource(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def is_applicable(self) -> bool:
         """Is this initramfs config source applicable to the current system?"""
-        pass
 
     @abc.abstractmethod
     def render_config(self) -> dict:
         """Render a v1 network config from the initramfs configuration"""
-        pass
 
 
 class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
@@ -114,8 +112,8 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     data = util.load_shell_content(content)
     try:
         name = data['DEVICE'] if 'DEVICE' in data else data['DEVICE6']
-    except KeyError:
-        raise ValueError("no 'DEVICE' or 'DEVICE6' entry in data")
+    except KeyError as e:
+        raise ValueError("no 'DEVICE' or 'DEVICE6' entry in data") from e
 
     # ipconfig on precise does not write PROTO
     # IPv6 config gives us IPV6PROTO, not PROTO.

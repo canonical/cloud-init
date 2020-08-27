@@ -34,7 +34,6 @@ class CloudTestCase(unittest.TestCase):
     @classmethod
     def maybeSkipTest(cls):
         """Present to allow subclasses to override and raise a skipTest."""
-        pass
 
     def assertPackageInstalled(self, name, version=None):
         """Check dpkg-query --show output for matching package name.
@@ -321,7 +320,7 @@ class CloudTestCase(unittest.TestCase):
             "Unexpected sys_info dist value")
         self.assertEqual(self.os_name, v1_data['distro_release'])
         self.assertEqual(
-                str(self.os_cfg['version']), v1_data['distro_version'])
+            str(self.os_cfg['version']), v1_data['distro_version'])
         self.assertEqual('x86_64', v1_data['machine'])
         self.assertIsNotNone(
             re.match(r'3.\d\.\d', v1_data['python_version']),

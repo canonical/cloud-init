@@ -55,7 +55,6 @@ class SetHostnameError(Exception):
     This may happen if we attempt to set the hostname early in cloud-init's
     init-local timeframe as certain services may not be running yet.
     """
-    pass
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -86,7 +85,7 @@ def handle(name, cfg, cloud, log, _args):
     except Exception as e:
         msg = "Failed to set the hostname to %s (%s)" % (fqdn, hostname)
         util.logexc(log, msg)
-        raise SetHostnameError("%s: %s" % (msg, e))
+        raise SetHostnameError("%s: %s" % (msg, e)) from e
     write_json(prev_fn, {'hostname': hostname, 'fqdn': fqdn})
 
 # vi: ts=4 expandtab

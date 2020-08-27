@@ -1,6 +1,6 @@
 import pytest
 
-from cloudinit import util
+from cloudinit import subp
 from cloudinit.tests.helpers import CiTestCase
 
 
@@ -9,36 +9,40 @@ class TestDisableSubpUsage:
 
     def test_using_subp_raises_assertion_error(self):
         with pytest.raises(AssertionError):
-            util.subp(["some", "args"])
+            subp.subp(["some", "args"])
 
     def test_typeerrors_on_incorrect_usage(self):
         with pytest.raises(TypeError):
             # We are intentionally passing no value for a parameter, so:
             #  pylint: disable=no-value-for-parameter
-            util.subp()
+            subp.subp()
 
-    @pytest.mark.parametrize('disable_subp_usage', [False], indirect=True)
+    @pytest.mark.allow_all_subp
     def test_subp_usage_can_be_reenabled(self):
-        util.subp(['whoami'])
+        subp.subp(['whoami'])
 
-    @pytest.mark.parametrize(
-        'disable_subp_usage', [['whoami'], 'whoami'], indirect=True)
+    @pytest.mark.allow_subp_for("whoami")
     def test_subp_usage_can_be_conditionally_reenabled(self):
         # The two parameters test each potential invocation with a single
         # argument
         with pytest.raises(AssertionError) as excinfo:
-            util.subp(["some", "args"])
+            subp.subp(["some", "args"])
         assert "allowed: whoami" in str(excinfo.value)
-        util.subp(['whoami'])
+        subp.subp(['whoami'])
 
-    @pytest.mark.parametrize(
-        'disable_subp_usage', [['whoami', 'bash']], indirect=True)
+    @pytest.mark.allow_subp_for("whoami", "bash")
     def test_subp_usage_can_be_conditionally_reenabled_for_multiple_cmds(self):
         with pytest.raises(AssertionError) as excinfo:
-            util.subp(["some", "args"])
+            subp.subp(["some", "args"])
         assert "allowed: whoami,bash" in str(excinfo.value)
-        util.subp(['bash', '-c', 'true'])
-        util.subp(['whoami'])
+        subp.subp(['bash', '-c', 'true'])
+        subp.subp(['whoami'])
+
+    @pytest.mark.allow_all_subp
+    @pytest.mark.allow_subp_for("bash")
+    def test_both_marks_raise_an_error(self):
+        with pytest.raises(AssertionError, match="marked both"):
+            subp.subp(["bash"])
 
 
 class TestDisableSubpUsageInTestSubclass(CiTestCase):
@@ -46,16 +50,16 @@ class TestDisableSubpUsageInTestSubclass(CiTestCase):
 
     def test_using_subp_raises_exception(self):
         with pytest.raises(Exception):
-            util.subp(["some", "args"])
+            subp.subp(["some", "args"])
 
     def test_typeerrors_on_incorrect_usage(self):
         with pytest.raises(TypeError):
-            util.subp()
+            subp.subp()
 
     def test_subp_usage_can_be_reenabled(self):
         _old_allowed_subp = self.allow_subp
         self.allowed_subp = True
         try:
-            util.subp(['bash', '-c', 'true'])
+            subp.subp(['bash', '-c', 'true'])
         finally:
             self.allowed_subp = _old_allowed_subp

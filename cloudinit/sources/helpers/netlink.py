@@ -55,7 +55,6 @@ NetlinkHeader = namedtuple('NetlinkHeader', ['length', 'type', 'flags', 'seq',
 
 class NetlinkCreateSocketError(RuntimeError):
     '''Raised if netlink socket fails during create or bind.'''
-    pass
 
 
 def create_bound_netlink_socket():
@@ -75,7 +74,7 @@ def create_bound_netlink_socket():
         netlink_socket.setblocking(0)
     except socket.error as e:
         msg = "Exception during netlink socket create: %s" % e
-        raise NetlinkCreateSocketError(msg)
+        raise NetlinkCreateSocketError(msg) from e
     LOG.debug("Created netlink socket")
     return netlink_socket
 

@@ -8,6 +8,5 @@
 
 class ConfigSource(object):
     """Specifies a source for the Config Content."""
-    pass
 
 # vi: ts=4 expandtab

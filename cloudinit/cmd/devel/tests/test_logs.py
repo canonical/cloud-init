@@ -8,7 +8,8 @@ from cloudinit.cmd.devel import logs
 from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
 from cloudinit.tests.helpers import (
     FilesystemMockingTestCase, mock, wrap_and_call)
-from cloudinit.util import ensure_dir, load_file, subp, write_file
+from cloudinit.subp import subp
+from cloudinit.util import ensure_dir, load_file, write_file
 
 
 @mock.patch('cloudinit.cmd.devel.logs.os.getuid')

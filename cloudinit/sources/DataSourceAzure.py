@@ -8,7 +8,6 @@ import base64
 import contextlib
 import crypt
 from functools import partial
-import json
 import os
 import os.path
 import re
@@ -19,9 +18,11 @@ import xml.etree.ElementTree as ET
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit.event import EventType
+from cloudinit.net import device_driver
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers import netlink
+from cloudinit import subp
 from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
 from cloudinit import util
 from cloudinit.reporting import events
@@ -34,7 +35,9 @@ from cloudinit.sources.helpers.azure import (
     get_system_info,
     report_diagnostic_event,
     EphemeralDHCPv4WithReporting,
-    is_byte_swapped)
+    is_byte_swapped,
+    dhcp_log_cb,
+    push_log_to_kvp)
 
 LOG = logging.getLogger(__name__)
 
@@ -139,8 +142,8 @@ def find_dev_from_busdev(camcontrol_out, busdev):
 
 def execute_or_debug(cmd, fail_ret=None):
     try:
-        return util.subp(cmd)[0]
-    except util.ProcessExecutionError:
+        return subp.subp(cmd)[0]
+    except subp.ProcessExecutionError:
         LOG.debug("Failed to execute: %s", ' '.join(cmd))
         return fail_ret
 
@@ -164,12 +167,11 @@ def get_resource_disk_on_freebsd(port_id):
         port_id = port_id - 2
     g1 = "000" + str(port_id)
     g0g1 = "{0}-{1}".format(g0, g1)
-    """
-    search 'X' from
-       'dev.storvsc.X.%pnpinfo:
-           classid=32412632-86cb-44a2-9b5c-50d1417354f5
-           deviceid=00000000-0001-8899-0000-000000000000'
-    """
+
+    # search 'X' from
+    #  'dev.storvsc.X.%pnpinfo:
+    #      classid=32412632-86cb-44a2-9b5c-50d1417354f5
+    #      deviceid=00000000-0001-8899-0000-000000000000'
     sysctl_out = get_dev_storvsc_sysctl()
 
     storvscid = find_storvscid_from_sysctl_pnpinfo(sysctl_out, g0g1)
@@ -252,11 +254,11 @@ DEF_PASSWD_REDACTION = 'REDACTED'
 def get_hostname(hostname_command='hostname'):
     if not isinstance(hostname_command, (list, tuple)):
         hostname_command = (hostname_command,)
-    return util.subp(hostname_command, capture=True)[0].strip()
+    return subp.subp(hostname_command, capture=True)[0].strip()
 
 
 def set_hostname(hostname, hostname_command='hostname'):
-    util.subp([hostname_command, hostname])
+    subp.subp([hostname_command, hostname])
 
 
 @azure_ds_telemetry_reporter
@@ -275,7 +277,14 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
        (previous_hostname == temp_hostname and policy != 'force')):
         yield None
         return
-    set_hostname(temp_hostname, hostname_command)
+    try:
+        set_hostname(temp_hostname, hostname_command)
+    except Exception as e:
+        msg = 'Failed setting temporary hostname: %s' % e
+        report_diagnostic_event(msg)
+        LOG.warning(msg)
+        yield None
+        return
     try:
         yield previous_hostname
     finally:
@@ -343,7 +352,7 @@ class DataSourceAzure(sources.DataSource):
 
         try:
             invoke_agent(agent_cmd)
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             # claim the datasource even if the command failed
             util.logexc(LOG, "agent command '%s' failed.",
                         self.ds_cfg['agent_command'])
@@ -522,8 +531,9 @@ class DataSourceAzure(sources.DataSource):
 
         try:
             crawled_data = util.log_time(
-                        logfunc=LOG.debug, msg='Crawl of metadata service',
-                        func=self.crawl_metadata)
+                logfunc=LOG.debug, msg='Crawl of metadata service',
+                func=self.crawl_metadata
+            )
         except sources.InvalidMetaDataException as e:
             LOG.warning('Could not crawl Azure metadata: %s', e)
             return False
@@ -596,25 +606,35 @@ class DataSourceAzure(sources.DataSource):
         return_val = None
 
         def exc_cb(msg, exception):
-            if isinstance(exception, UrlError) and exception.code == 404:
-                if self.imds_poll_counter == self.imds_logging_threshold:
-                    # Reducing the logging frequency as we are polling IMDS
-                    self.imds_logging_threshold *= 2
-                    LOG.debug("Call to IMDS with arguments %s failed "
-                              "with status code %s after %s retries",
-                              msg, exception.code, self.imds_poll_counter)
-                    LOG.debug("Backing off logging threshold for the same "
-                              "exception to %d", self.imds_logging_threshold)
-                self.imds_poll_counter += 1
-                return True
+            if isinstance(exception, UrlError):
+                if exception.code in (404, 410):
+                    if self.imds_poll_counter == self.imds_logging_threshold:
+                        # Reducing the logging frequency as we are polling IMDS
+                        self.imds_logging_threshold *= 2
+                        LOG.debug("Call to IMDS with arguments %s failed "
+                                  "with status code %s after %s retries",
+                                  msg, exception.code, self.imds_poll_counter)
+                        LOG.debug("Backing off logging threshold for the same "
+                                  "exception to %d",
+                                  self.imds_logging_threshold)
+                        report_diagnostic_event("poll IMDS with %s failed. "
+                                                "Exception: %s and code: %s" %
+                                                (msg, exception.cause,
+                                                 exception.code))
+                    self.imds_poll_counter += 1
+                    return True
+                else:
+                    # If we get an exception while trying to call IMDS, we call
+                    # DHCP and setup the ephemeral network to acquire a new IP.
+                    report_diagnostic_event("poll IMDS with %s failed. "
+                                            "Exception: %s and code: %s" %
+                                            (msg, exception.cause,
+                                             exception.code))
+                    return False
 
-            # If we get an exception while trying to call IMDS, we
-            # call DHCP and setup the ephemeral network to acquire the new IP.
-            LOG.debug("Call to IMDS with arguments %s failed  with "
-                      "status code %s", msg, exception.code)
-            report_diagnostic_event("polling IMDS failed with exception %s"
-                                    % exception.code)
-            return False
+                LOG.debug("poll IMDS failed with an unexpected exception: %s",
+                          exception)
+                return False
 
         LOG.debug("Wait for vnetswitch to happen")
         while True:
@@ -624,7 +644,8 @@ class DataSourceAzure(sources.DataSource):
                         name="obtain-dhcp-lease",
                         description="obtain dhcp lease",
                         parent=azure_ds_reporter):
-                    self._ephemeral_dhcp_ctx = EphemeralDHCPv4()
+                    self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
+                        dhcp_log_func=dhcp_log_cb)
                     lease = self._ephemeral_dhcp_ctx.obtain_lease()
 
                 if vnet_switched:
@@ -675,7 +696,6 @@ class DataSourceAzure(sources.DataSource):
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry
                 self._ephemeral_dhcp_ctx.clean_network()
-                pass
             finally:
                 if nl_sock:
                     nl_sock.close()
@@ -771,9 +791,12 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
-        address_ephemeral_resize(is_new_instance=is_new_instance,
-                                 preserve_ntfs=self.ds_cfg.get(
-                                     DS_CFG_KEY_PRESERVE_NTFS, False))
+        try:
+            address_ephemeral_resize(is_new_instance=is_new_instance,
+                                     preserve_ntfs=self.ds_cfg.get(
+                                         DS_CFG_KEY_PRESERVE_NTFS, False))
+        finally:
+            push_log_to_kvp(self.sys_cfg['def_log_file'])
         return
 
     @property
@@ -882,9 +905,10 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
             (cand_part, cand_path, devpath))
 
     with events.ReportEventStack(
-                name="mount-ntfs-and-count",
-                description="mount-ntfs-and-count",
-                parent=azure_ds_reporter) as evt:
+        name="mount-ntfs-and-count",
+        description="mount-ntfs-and-count",
+        parent=azure_ds_reporter
+    ) as evt:
         try:
             file_count = util.mount_cb(cand_path, count_files, mtype="ntfs",
                                        update_env_for_mount={'LANG': 'C'})
@@ -913,9 +937,10 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
     # wait for ephemeral disk to come up
     naplen = .2
     with events.ReportEventStack(
-                name="wait-for-ephemeral-disk",
-                description="wait for ephemeral disk",
-                parent=azure_ds_reporter):
+        name="wait-for-ephemeral-disk",
+        description="wait for ephemeral disk",
+        parent=azure_ds_reporter
+    ):
         missing = util.wait_for_files([devpath],
                                       maxwait=maxwait,
                                       naplen=naplen,
@@ -972,7 +997,7 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
     if command == "builtin":
         if util.is_FreeBSD():
             command = BOUNCE_COMMAND_FREEBSD
-        elif util.which('ifup'):
+        elif subp.which('ifup'):
             command = BOUNCE_COMMAND_IFUP
         else:
             LOG.debug(
@@ -983,7 +1008,7 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
     shell = not isinstance(command, (list, tuple))
     # capture=False, see comments in bug 1202758 and bug 1206164.
     util.log_time(logfunc=LOG.debug, msg="publishing hostname",
-                  get_uptime=True, func=util.subp,
+                  get_uptime=True, func=subp.subp,
                   kwargs={'args': command, 'shell': shell, 'capture': False,
                           'env': env})
     return True
@@ -993,7 +1018,7 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
 def crtfile_to_pubkey(fname, data=None):
     pipeline = ('openssl x509 -noout -pubkey < "$0" |'
                 'ssh-keygen -i -m PKCS8 -f /dev/stdin')
-    (out, _err) = util.subp(['sh', '-c', pipeline, fname],
+    (out, _err) = subp.subp(['sh', '-c', pipeline, fname],
                             capture=True, data=data)
     return out.rstrip()
 
@@ -1005,7 +1030,7 @@ def pubkeys_from_crt_files(flist):
     for fname in flist:
         try:
             pubkeys.append(crtfile_to_pubkey(fname))
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             errors.append(fname)
 
     if errors:
@@ -1047,7 +1072,7 @@ def invoke_agent(cmd):
     # this is a function itself to simplify patching it for test
     if cmd:
         LOG.debug("invoking agent: %s", cmd)
-        util.subp(cmd, shell=(not isinstance(cmd, list)))
+        subp.subp(cmd, shell=(not isinstance(cmd, list)))
     else:
         LOG.debug("not invoking agent")
 
@@ -1122,7 +1147,7 @@ def read_azure_ovf(contents):
     except Exception as e:
         error_str = "Invalid ovf-env.xml: %s" % e
         report_diagnostic_event(error_str)
-        raise BrokenAzureDataSource(error_str)
+        raise BrokenAzureDataSource(error_str) from e
 
     results = find_child(dom.documentElement,
                          lambda n: n.localName == "ProvisioningSection")
@@ -1323,9 +1348,10 @@ def parse_network_config(imds_metadata):
     @return: Dictionary containing network version 2 standard configuration.
     """
     with events.ReportEventStack(
-                name="parse_network_config",
-                description="",
-                parent=azure_ds_reporter) as evt:
+        name="parse_network_config",
+        description="",
+        parent=azure_ds_reporter
+    ) as evt:
         if imds_metadata != sources.UNSET and imds_metadata:
             netconfig = {'version': 2, 'ethernets': {}}
             LOG.debug('Azure: generating network configuration from IMDS')
@@ -1362,9 +1388,16 @@ def parse_network_config(imds_metadata):
                                 ip=privateIp, prefix=netPrefix))
                 if dev_config:
                     mac = ':'.join(re.findall(r'..', intf['macAddress']))
-                    dev_config.update(
-                        {'match': {'macaddress': mac.lower()},
-                         'set-name': nicname})
+                    dev_config.update({
+                        'match': {'macaddress': mac.lower()},
+                        'set-name': nicname
+                    })
+                    # With netvsc, we can get two interfaces that
+                    # share the same MAC, so we need to make sure
+                    # our match condition also contains the driver
+                    driver = device_driver(nicname)
+                    if driver and driver == 'hv_netvsc':
+                        dev_config['match']['driver'] = driver
                     netconfig['ethernets'][nicname] = dev_config
             evt.description = "network config from imds"
         else:
@@ -1422,8 +1455,14 @@ def _get_metadata_from_imds(retries):
         LOG.debug(msg)
         return {}
     try:
+        from json.decoder import JSONDecodeError
+        json_decode_error = JSONDecodeError
+    except ImportError:
+        json_decode_error = ValueError
+
+    try:
         return util.load_json(str(response))
-    except json.decoder.JSONDecodeError as e:
+    except json_decode_error as e:
         report_diagnostic_event('non-json imds response' % e)
         LOG.warning(
             'Ignoring non-json IMDS instance metadata: %s', str(response))
@@ -1468,12 +1507,12 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
 
 
 def _is_platform_viable(seed_dir):
+    """Check platform environment to report if this datasource may run."""
     with events.ReportEventStack(
-                name="check-platform-viability",
-                description="found azure asset tag",
-                parent=azure_ds_reporter) as evt:
-
-        """Check platform environment to report if this datasource may run."""
+        name="check-platform-viability",
+        description="found azure asset tag",
+        parent=azure_ds_reporter
+    ) as evt:
         asset_tag = util.read_dmi_data('chassis-asset-tag')
         if asset_tag == AZURE_CHASSIS_ASSET_TAG:
             return True

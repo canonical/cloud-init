@@ -6,79 +6,22 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Chef
-----
-**Summary:** module that configures, starts and installs chef.
-
-This module enables chef to be installed (from packages or
-from gems, or from omnibus). Before this occurs chef configurations are
-written to disk (validation.pem, client.pem, firstboot.json, client.rb),
-and needed chef folders/directories are created (/etc/chef and /var/log/chef
-and so-on). Then once installing proceeds correctly if configured chef will
-be started (in daemon mode or in non-daemon mode) and then once that has
-finished (if ran in non-daemon mode this will be when chef finishes
-converging, if ran in daemon mode then no further actions are possible since
-chef will have forked into its own process) then a post run function can
-run that can do finishing activities (such as removing the validation pem
-file).
-
-**Internal name:** ``cc_chef``
-
-**Module frequency:** per always
-
-**Supported distros:** all
-
-**Config keys**::
-
-    chef:
-       directories: (defaulting to /etc/chef, /var/log/chef, /var/lib/chef,
-                     /var/cache/chef, /var/backups/chef, /var/run/chef)
-       validation_cert: (optional string to be written to file validation_key)
-                        special value 'system' means set use existing file
-       validation_key: (optional the path for validation_cert. default
-                        /etc/chef/validation.pem)
-       firstboot_path: (path to write run_list and initial_attributes keys that
-                        should also be present in this configuration, defaults
-                        to /etc/chef/firstboot.json)
-       exec: boolean to run or not run chef (defaults to false, unless
-                                             a gem installed is requested
-                                             where this will then default
-                                             to true)
-
-    chef.rb template keys (if falsey, then will be skipped and not
-                           written to /etc/chef/client.rb)
-
-    chef:
-      chef_license:
-      client_key:
-      encrypted_data_bag_secret:
-      environment:
-      file_backup_path:
-      file_cache_path:
-      json_attribs:
-      log_level:
-      log_location:
-      node_name:
-      omnibus_url:
-      omnibus_url_retries:
-      omnibus_version:
-      pid_file:
-      server_url:
-      show_time:
-      ssl_verify_mode:
-      validation_cert:
-      validation_key:
-      validation_name:
-"""
+"""Chef: module that configures, starts and installs chef."""
 
 import itertools
 import json
 import os
+from textwrap import dedent
 
+from cloudinit import subp
+from cloudinit.config.schema import (
+    get_schema_doc, validate_cloudconfig_schema)
 from cloudinit import templater
+from cloudinit import temp_utils
 from cloudinit import url_helper
 from cloudinit import util
+from cloudinit.settings import PER_ALWAYS
+
 
 RUBY_VERSION_DEFAULT = "1.8"
 
@@ -99,6 +42,8 @@ OMNIBUS_URL = "https://www.chef.io/chef/install.sh"
 OMNIBUS_URL_RETRIES = 5
 
 CHEF_VALIDATION_PEM_PATH = '/etc/chef/validation.pem'
+CHEF_ENCRYPTED_DATA_BAG_PATH = '/etc/chef/encrypted_data_bag_secret'
+CHEF_ENVIRONMENT = '_default'
 CHEF_FB_PATH = '/etc/chef/firstboot.json'
 CHEF_RB_TPL_DEFAULTS = {
     # These are ruby symbols...
@@ -108,11 +53,11 @@ CHEF_RB_TPL_DEFAULTS = {
     'log_location': '/var/log/chef/client.log',
     'validation_key': CHEF_VALIDATION_PEM_PATH,
     'validation_cert': None,
-    'client_key': "/etc/chef/client.pem",
+    'client_key': '/etc/chef/client.pem',
     'json_attribs': CHEF_FB_PATH,
-    'file_cache_path': "/var/cache/chef",
-    'file_backup_path': "/var/backups/chef",
-    'pid_file': "/var/run/chef/client.pid",
+    'file_cache_path': '/var/cache/chef',
+    'file_backup_path': '/var/backups/chef',
+    'pid_file': '/var/run/chef/client.pid',
     'show_time': True,
     'encrypted_data_bag_secret': None,
 }
@@ -123,7 +68,6 @@ CHEF_RB_TPL_PATH_KEYS = frozenset([
     'client_key',
     'file_cache_path',
     'json_attribs',
-    'file_cache_path',
     'pid_file',
     'encrypted_data_bag_secret',
     'chef_license',
@@ -143,12 +87,277 @@ CHEF_EXEC_PATH = '/usr/bin/chef-client'
 CHEF_EXEC_DEF_ARGS = tuple(['-d', '-i', '1800', '-s', '20'])
 
 
-def is_installed():
-    if not os.path.isfile(CHEF_EXEC_PATH):
-        return False
-    if not os.access(CHEF_EXEC_PATH, os.X_OK):
-        return False
-    return True
+frequency = PER_ALWAYS
+distros = ["all"]
+schema = {
+    'id': 'cc_chef',
+    'name': 'Chef',
+    'title': 'module that configures, starts and installs chef',
+    'description': dedent("""\
+        This module enables chef to be installed (from packages,
+        gems, or from omnibus). Before this occurs, chef configuration is
+        written to disk (validation.pem, client.pem, firstboot.json,
+        client.rb), and required directories are created (/etc/chef and
+        /var/log/chef and so-on). If configured, chef will be
+        installed and started in either daemon or non-daemon mode.
+        If run in non-daemon mode, post run actions are executed to do
+        finishing activities such as removing validation.pem."""),
+    'distros': distros,
+    'examples': [dedent("""
+        chef:
+          directories:
+            - /etc/chef
+            - /var/log/chef
+          validation_cert: system
+          install_type: omnibus
+          initial_attributes:
+            apache:
+              prefork:
+                maxclients: 100
+              keepalive: off
+          run_list:
+            - recipe[apache2]
+            - role[db]
+          encrypted_data_bag_secret: /etc/chef/encrypted_data_bag_secret
+          environment: _default
+          log_level: :auto
+          omnibus_url_retries: 2
+          server_url: https://chef.yourorg.com:4000
+          ssl_verify_mode: :verify_peer
+          validation_name: yourorg-validator""")],
+    'frequency': frequency,
+    'type': 'object',
+    'properties': {
+        'chef': {
+            'type': 'object',
+            'additionalProperties': False,
+            'properties': {
+                'directories': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string'
+                    },
+                    'uniqueItems': True,
+                    'description': dedent("""\
+                        Create the necessary directories for chef to run. By
+                        default, it creates the following directories:
+
+                        {chef_dirs}""").format(
+                        chef_dirs="\n".join(
+                            ["   - ``{}``".format(d) for d in CHEF_DIRS]
+                        )
+                    )
+                },
+                'validation_cert': {
+                    'type': 'string',
+                    'description': dedent("""\
+                        Optional string to be written to file validation_key.
+                        Special value ``system`` means set use existing file.
+                        """)
+                },
+                'validation_key': {
+                    'type': 'string',
+                    'default': CHEF_VALIDATION_PEM_PATH,
+                    'description': dedent("""\
+                        Optional path for validation_cert. default to
+                        ``{}``.""".format(CHEF_VALIDATION_PEM_PATH))
+                },
+                'firstboot_path': {
+                    'type': 'string',
+                    'default': CHEF_FB_PATH,
+                    'description': dedent("""\
+                        Path to write run_list and initial_attributes keys that
+                        should also be present in this configuration, defaults
+                        to ``{}``.""".format(CHEF_FB_PATH))
+                },
+                'exec': {
+                    'type': 'boolean',
+                    'default': False,
+                    'description': dedent("""\
+                        define if we should run or not run chef (defaults to
+                        false, unless a gem installed is requested where this
+                        will then default to true).""")
+                },
+                'client_key': {
+                    'type': 'string',
+                    'default': CHEF_RB_TPL_DEFAULTS['client_key'],
+                    'description': dedent("""\
+                        Optional path for client_cert. default to
+                        ``{}``.""".format(CHEF_RB_TPL_DEFAULTS['client_key']))
+                },
+                'encrypted_data_bag_secret': {
+                    'type': 'string',
+                    'default': None,
+                    'description': dedent("""\
+                        Specifies the location of the secret key used by chef
+                        to encrypt data items. By default, this path is set
+                        to None, meaning that chef will have to look at the
+                        path ``{}`` for it.
+                        """.format(CHEF_ENCRYPTED_DATA_BAG_PATH))
+                },
+                'environment': {
+                    'type': 'string',
+                    'default': CHEF_ENVIRONMENT,
+                    'description': dedent("""\
+                        Specifies which environment chef will use. By default,
+                        it will use the ``{}`` configuration.
+                        """.format(CHEF_ENVIRONMENT))
+                },
+                'file_backup_path': {
+                    'type': 'string',
+                    'default': CHEF_RB_TPL_DEFAULTS['file_backup_path'],
+                    'description': dedent("""\
+                        Specifies the location in which backup files are
+                        stored. By default, it uses the
+                        ``{}`` location.""".format(
+                            CHEF_RB_TPL_DEFAULTS['file_backup_path']))
+                },
+                'file_cache_path': {
+                    'type': 'string',
+                    'default': CHEF_RB_TPL_DEFAULTS['file_cache_path'],
+                    'description': dedent("""\
+                        Specifies the location in which chef cache files will
+                        be saved. By default, it uses the ``{}``
+                        location.""".format(
+                            CHEF_RB_TPL_DEFAULTS['file_cache_path']))
+                },
+                'json_attribs': {
+                    'type': 'string',
+                    'default': CHEF_FB_PATH,
+                    'description': dedent("""\
+                        Specifies the location in which some chef json data is
+                        stored. By default, it uses the
+                        ``{}`` location.""".format(CHEF_FB_PATH))
+                },
+                'log_level': {
+                    'type': 'string',
+                    'default': CHEF_RB_TPL_DEFAULTS['log_level'],
+                    'description': dedent("""\
+                        Defines the level of logging to be stored in the log
+                        file. By default this value is set to ``{}``.
+                        """.format(CHEF_RB_TPL_DEFAULTS['log_level']))
+                },
+                'log_location': {
+                    'type': 'string',
+                    'default': CHEF_RB_TPL_DEFAULTS['log_location'],
+                    'description': dedent("""\
+                        Specifies the location of the chef lof file. By
+                        default, the location is specified at
+                        ``{}``.""".format(
+                            CHEF_RB_TPL_DEFAULTS['log_location']))
+                },
+                'node_name': {
+                    'type': 'string',
+                    'description': dedent("""\
+                        The name of the node to run. By default, we will
+                        use th instance id as the node name.""")
+                },
+                'omnibus_url': {
+                    'type': 'string',
+                    'default': OMNIBUS_URL,
+                    'description': dedent("""\
+                        Omnibus URL if chef should be installed through
+                        Omnibus. By default, it uses the
+                        ``{}``.""".format(OMNIBUS_URL))
+                },
+                'omnibus_url_retries': {
+                    'type': 'integer',
+                    'default': OMNIBUS_URL_RETRIES,
+                    'description': dedent("""\
+                        The number of retries that will be attempted to reach
+                        the Omnibus URL""")
+                },
+                'omnibus_version': {
+                    'type': 'string',
+                    'description': dedent("""\
+                        Optional version string to require for omnibus
+                        install.""")
+                },
+                'pid_file': {
+                    'type': 'string',
+                    'default': CHEF_RB_TPL_DEFAULTS['pid_file'],
+                    'description': dedent("""\
+                        The location in which a process identification
+                        number (pid) is saved. By default, it saves
+                        in the ``{}`` location.""".format(
+                            CHEF_RB_TPL_DEFAULTS['pid_file']))
+                },
+                'server_url': {
+                    'type': 'string',
+                    'description': 'The URL for the chef server'
+                },
+                'show_time': {
+                    'type': 'boolean',
+                    'default': True,
+                    'description': 'Show time in chef logs'
+                },
+                'ssl_verify_mode': {
+                    'type': 'string',
+                    'default': CHEF_RB_TPL_DEFAULTS['ssl_verify_mode'],
+                    'description': dedent("""\
+                        Set the verify mode for HTTPS requests. We can have
+                        two possible values for this parameter:
+
+                            - ``:verify_none``: No validation of SSL \
+                            certificates.
+                            - ``:verify_peer``: Validate all SSL certificates.
+
+                        By default, the parameter is set as ``{}``.
+                        """.format(CHEF_RB_TPL_DEFAULTS['ssl_verify_mode']))
+                },
+                'validation_name': {
+                    'type': 'string',
+                    'description': dedent("""\
+                        The name of the chef-validator key that Chef Infra
+                        Client uses to access the Chef Infra Server during
+                        the initial Chef Infra Client run.""")
+                },
+                'force_install': {
+                    'type': 'boolean',
+                    'default': False,
+                    'description': dedent("""\
+                        If set to ``True``, forces chef installation, even
+                        if it is already installed.""")
+                },
+                'initial_attributes': {
+                    'type': 'object',
+                    'items': {
+                        'type': 'string'
+                    },
+                    'description': dedent("""\
+                        Specify a list of initial attributes used by the
+                        cookbooks.""")
+                },
+                'install_type': {
+                    'type': 'string',
+                    'default': 'packages',
+                    'description': dedent("""\
+                        The type of installation for chef. It can be one of
+                        the following values:
+
+                            - ``packages``
+                            - ``gems``
+                            - ``omnibus``""")
+                },
+                'run_list': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string'
+                    },
+                    'description': 'A run list for a first boot json.'
+                },
+                "chef_license": {
+                    'type': 'string',
+                    'description': dedent("""\
+                        string that indicates if user accepts or not license
+                        related to some of chef products""")
+                }
+            }
+        }
+    }
+}
+
+__doc__ = get_schema_doc(schema)
 
 
 def post_run_chef(chef_cfg, log):
@@ -198,6 +407,8 @@ def handle(name, cfg, cloud, log, _args):
         log.debug(("Skipping module named %s,"
                    " no 'chef' key in configuration"), name)
         return
+
+    validate_cloudconfig_schema(cfg, schema)
     chef_cfg = cfg['chef']
 
     # Ensure the chef directories we use exist
@@ -225,7 +436,7 @@ def handle(name, cfg, cloud, log, _args):
         iid = str(cloud.datasource.get_instance_id())
         params = get_template_params(iid, chef_cfg, log)
         # Do a best effort attempt to ensure that the template values that
-        # are associated with paths have there parent directory created
+        # are associated with paths have their parent directory created
         # before they are used by the chef-client itself.
         param_paths = set()
         for (k, v) in params.items():
@@ -255,9 +466,10 @@ def handle(name, cfg, cloud, log, _args):
     # Try to install chef, if its not already installed...
     force_install = util.get_cfg_option_bool(chef_cfg,
                                              'force_install', default=False)
-    if not is_installed() or force_install:
+    installed = subp.is_exe(CHEF_EXEC_PATH)
+    if not installed or force_install:
         run = install_chef(cloud, chef_cfg, log)
-    elif is_installed():
+    elif installed:
         run = util.get_cfg_option_bool(chef_cfg, 'exec', default=False)
     else:
         run = False
@@ -282,7 +494,32 @@ def run_chef(chef_cfg, log):
             cmd.extend(CHEF_EXEC_DEF_ARGS)
     else:
         cmd.extend(CHEF_EXEC_DEF_ARGS)
-    util.subp(cmd, capture=False)
+    subp.subp(cmd, capture=False)
+
+
+def subp_blob_in_tempfile(blob, *args, **kwargs):
+    """Write blob to a tempfile, and call subp with args, kwargs. Then cleanup.
+
+    'basename' as a kwarg allows providing the basename for the file.
+    The 'args' argument to subp will be updated with the full path to the
+    filename as the first argument.
+    """
+    basename = kwargs.pop('basename', "subp_blob")
+
+    if len(args) == 0 and 'args' not in kwargs:
+        args = [tuple()]
+
+    # Use tmpdir over tmpfile to avoid 'text file busy' on execute
+    with temp_utils.tempdir(needs_exe=True) as tmpd:
+        tmpf = os.path.join(tmpd, basename)
+        if 'args' in kwargs:
+            kwargs['args'] = [tmpf] + list(kwargs['args'])
+        else:
+            args = list(args)
+            args[0] = [tmpf] + args[0]
+
+        util.write_file(tmpf, blob, mode=0o700)
+        return subp.subp(*args, **kwargs)
 
 
 def install_chef_from_omnibus(url=None, retries=None, omnibus_version=None):
@@ -305,7 +542,7 @@ def install_chef_from_omnibus(url=None, retries=None, omnibus_version=None):
     else:
         args = ['-v', omnibus_version]
     content = url_helper.readurl(url=url, retries=retries).contents
-    return util.subp_blob_in_tempfile(
+    return subp_blob_in_tempfile(
         blob=content, args=args,
         basename='chef-omnibus-install', capture=False)
 
@@ -354,11 +591,11 @@ def install_chef_from_gems(ruby_version, chef_version, distro):
     if not os.path.exists('/usr/bin/ruby'):
         util.sym_link('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
     if chef_version:
-        util.subp(['/usr/bin/gem', 'install', 'chef',
+        subp.subp(['/usr/bin/gem', 'install', 'chef',
                    '-v %s' % chef_version, '--no-ri',
                    '--no-rdoc', '--bindir', '/usr/bin', '-q'], capture=False)
     else:
-        util.subp(['/usr/bin/gem', 'install', 'chef',
+        subp.subp(['/usr/bin/gem', 'install', 'chef',
                    '--no-ri', '--no-rdoc', '--bindir',
                    '/usr/bin', '-q'], capture=False)
 
