@@ -15,8 +15,8 @@ DISABLE_CFG = {'disable_ec2_metadata': 'true'}
 
 class TestEC2MetadataRoute(CiTestCase):
 
-    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.which')
-    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.subp')
+    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.subp.which')
+    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.subp.subp')
     def test_disable_ifconfig(self, m_subp, m_which):
         """Set the route if ifconfig command is available"""
         m_which.side_effect = lambda x: x if x == 'ifconfig' else None
@@ -25,8 +25,8 @@ class TestEC2MetadataRoute(CiTestCase):
             ['route', 'add', '-host', '169.254.169.254', 'reject'],
             capture=False)
 
-    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.which')
-    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.subp')
+    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.subp.which')
+    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.subp.subp')
     def test_disable_ip(self, m_subp, m_which):
         """Set the route if ip command is available"""
         m_which.side_effect = lambda x: x if x == 'ip' else None
@@ -35,8 +35,8 @@ class TestEC2MetadataRoute(CiTestCase):
             ['ip', 'route', 'add', 'prohibit', '169.254.169.254'],
             capture=False)
 
-    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.which')
-    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.util.subp')
+    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.subp.which')
+    @mock.patch('cloudinit.config.cc_disable_ec2_metadata.subp.subp')
     def test_disable_no_tool(self, m_subp, m_which):
         """Log error when neither route nor ip commands are available"""
         m_which.return_value = None  # Find neither ifconfig nor ip

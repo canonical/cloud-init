@@ -22,7 +22,6 @@ class ConfigFile(ConfigSource, dict):
 
     def __init__(self, filename):
         self._loadConfigFile(filename)
-        pass
 
     def _insertKey(self, key, val):
         """

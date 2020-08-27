@@ -7,7 +7,7 @@ SAMPLE_FREEBSD_IFCONFIG_OUT = readResource("netinfo/freebsd-ifconfig-output")
 
 class TestInterfacesByMac(CiTestCase):
 
-    @mock.patch('cloudinit.util.subp')
+    @mock.patch('cloudinit.subp.subp')
     @mock.patch('cloudinit.util.is_FreeBSD')
     def test_get_interfaces_by_mac(self, mock_is_FreeBSD, mock_subp):
         mock_is_FreeBSD.return_value = True

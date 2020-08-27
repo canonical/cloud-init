@@ -182,6 +182,7 @@ import os
 import re
 
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 DEF_FILENAME = "20-cloud-config.conf"
@@ -215,7 +216,7 @@ def reload_syslog(command=DEF_RELOAD, systemd=False):
             cmd = ['service', service, 'restart']
     else:
         cmd = command
-    util.subp(cmd, capture=True)
+    subp.subp(cmd, capture=True)
 
 
 def load_config(cfg):
@@ -346,8 +347,10 @@ class SyslogRemotesLine(object):
         if self.port:
             try:
                 int(self.port)
-            except ValueError:
-                raise ValueError("port '%s' is not an integer" % self.port)
+            except ValueError as e:
+                raise ValueError(
+                    "port '%s' is not an integer" % self.port
+                ) from e
 
         if not self.addr:
             raise ValueError("address is required")
@@ -429,7 +432,7 @@ def handle(name, cfg, cloud, log, _args):
         restarted = reload_syslog(
             command=mycfg[KEYNAME_RELOAD],
             systemd=cloud.distro.uses_systemd()),
-    except util.ProcessExecutionError as e:
+    except subp.ProcessExecutionError as e:
         restarted = False
         log.warning("Failed to reload syslog", e)
 

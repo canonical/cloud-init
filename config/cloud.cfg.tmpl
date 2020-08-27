@@ -21,7 +21,7 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{% if variant in ["amazon", "centos", "fedora", "rhel"] %}
+{% if variant in ["alpine", "amazon", "centos", "fedora", "rhel"] %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% if variant == "amazon" %}
 resize_rootfs: noblock
@@ -70,8 +70,11 @@ cloud_init_modules:
 {% endif %}
  - set_hostname
  - update_hostname
-{% if variant not in ["freebsd", "netbsd"] %}
  - update_etc_hosts
+{% if variant in ["alpine"] %}
+ - resolv_conf
+{% endif %}
+{% if not variant.endswith("bsd") %}
  - ca-certs
  - rsyslog
 {% endif %}
@@ -103,6 +106,9 @@ cloud_config_modules:
 {% endif %}
 {% if variant in ["suse"] %}
  - zypper-add-repo
+{% endif %}
+{% if variant in ["alpine"] %}
+ - apk-configure
 {% endif %}
 {% if variant not in ["freebsd", "netbsd"] %}
  - ntp
@@ -145,7 +151,9 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["amazon", "arch", "centos", "debian", "fedora", "freebsd", "netbsd", "openbsd", "rhel", "suse", "ubuntu"] %}
+{% if variant in ["alpine", "amazon", "arch", "centos", "debian",
+                  "fedora", "freebsd", "netbsd", "openbsd", "rhel",
+                  "suse", "ubuntu"] %}
    distro: {{ variant }}
 {% else %}
    # Unknown/fallback distro.
@@ -196,7 +204,8 @@ system_info:
          primary: http://ports.ubuntu.com/ubuntu-ports
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
-{% elif variant in ["amazon", "arch", "centos", "fedora", "rhel", "suse"] %}
+{% elif variant in ["alpine", "amazon", "arch", "centos", "fedora",
+                    "rhel", "suse"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}
@@ -210,13 +219,19 @@ system_info:
 {% endif %}
 {% if variant == "suse" %}
      groups: [cdrom, users]
+{% elif variant == "alpine" %}
+     groups: [adm, sudo]
 {% elif variant == "arch" %}
      groups: [wheel, users]
 {% else %}
      groups: [wheel, adm, systemd-journal]
 {% endif %}
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+{% if variant == "alpine" %}
+     shell: /bin/ash
+{% else %}
      shell: /bin/bash
+{% endif %}
    # Other config here will be given to the distro class and/or path classes
    paths:
       cloud_dir: /var/lib/cloud/

@@ -84,7 +84,7 @@ class TestLocale(t_help.FilesystemMockingTestCase):
         util.write_file(locale_conf, 'LANG="en_US.UTF-8"\n')
         cfg = {'locale': 'C.UTF-8'}
         cc = self._get_cloud('ubuntu')
-        with mock.patch('cloudinit.distros.debian.util.subp') as m_subp:
+        with mock.patch('cloudinit.distros.debian.subp.subp') as m_subp:
             with mock.patch('cloudinit.distros.debian.LOCALE_CONF_FN',
                             locale_conf):
                 cc_locale.handle('cc_locale', cfg, cc, LOG, [])

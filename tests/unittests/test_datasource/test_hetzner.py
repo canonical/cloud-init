@@ -5,9 +5,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.sources import DataSourceHetzner
+import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import util, settings, helpers
 
 from cloudinit.tests.helpers import mock, CiTestCase
+
+import base64
+import pytest
 
 METADATA = util.load_yaml("""
 hostname: cloudinit-test
@@ -115,3 +119,22 @@ class TestDataSourceHetzner(CiTestCase):
         # These are a white box attempt to ensure it did not search.
         m_find_fallback.assert_not_called()
         m_read_md.assert_not_called()
+
+
+class TestMaybeB64Decode:
+    """Test the maybe_b64decode helper function."""
+
+    @pytest.mark.parametrize("invalid_input", (str("not bytes"), int(4)))
+    def test_raises_error_on_non_bytes(self, invalid_input):
+        """maybe_b64decode should raise error if data is not bytes."""
+        with pytest.raises(TypeError):
+            hc_helper.maybe_b64decode(invalid_input)
+
+    @pytest.mark.parametrize("in_data,expected", [
+        # If data is not b64 encoded, then return value should be the same.
+        (b"this is my data", b"this is my data"),
+        # If data is b64 encoded, then return value should be decoded.
+        (base64.b64encode(b"data"), b"data"),
+    ])
+    def test_happy_path(self, in_data, expected):
+        assert expected == hc_helper.maybe_b64decode(in_data)

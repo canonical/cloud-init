@@ -13,6 +13,7 @@ import os
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
+from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.distros.parsers.hostname import HostnameConf
@@ -197,7 +198,7 @@ class Distro(distros.Distro):
         # Allow the output of this to flow outwards (ie not be captured)
         util.log_time(logfunc=LOG.debug,
                       msg="apt-%s [%s]" % (command, ' '.join(cmd)),
-                      func=util.subp,
+                      func=subp.subp,
                       args=(cmd,), kwargs={'env': e, 'capture': False})
 
     def update_package_sources(self):
@@ -214,7 +215,7 @@ def _get_wrapper_prefix(cmd, mode):
 
     if (util.is_true(mode) or
         (str(mode).lower() == "auto" and cmd[0] and
-         util.which(cmd[0]))):
+         subp.which(cmd[0]))):
         return cmd
     else:
         return []
@@ -269,7 +270,7 @@ def update_locale_conf(locale, sys_path, keyname='LANG'):
     """Update system locale config"""
     LOG.debug('Updating %s with locale setting %s=%s',
               sys_path, keyname, locale)
-    util.subp(
+    subp.subp(
         ['update-locale', '--locale-file=' + sys_path,
          '%s=%s' % (keyname, locale)], capture=False)
 
@@ -291,7 +292,7 @@ def regenerate_locale(locale, sys_path, keyname='LANG'):
 
     # finally, trigger regeneration
     LOG.debug('Generating locales for %s', locale)
-    util.subp(['locale-gen', locale], capture=False)
+    subp.subp(['locale-gen', locale], capture=False)
 
 
 # vi: ts=4 expandtab

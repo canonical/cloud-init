@@ -11,31 +11,29 @@ import os
 import time
 import sys
 
+from cloudinit import subp
 from cloudinit import util
 from cloudinit.distros import uses_systemd
 
-#  An event:
-'''
-{
-        "description": "executing late commands",
-        "event_type": "start",
-        "level": "INFO",
-        "name": "cmd-install/stage-late"
-        "origin": "cloudinit",
-        "timestamp": 1461164249.1590767,
-},
+# Example events:
+#     {
+#             "description": "executing late commands",
+#             "event_type": "start",
+#             "level": "INFO",
+#             "name": "cmd-install/stage-late"
+#             "origin": "cloudinit",
+#             "timestamp": 1461164249.1590767,
+#     }
+#     {
+#         "description": "executing late commands",
+#         "event_type": "finish",
+#         "level": "INFO",
+#         "name": "cmd-install/stage-late",
+#         "origin": "cloudinit",
+#         "result": "SUCCESS",
+#         "timestamp": 1461164249.1590767
+#     }
 
-    {
-        "description": "executing late commands",
-        "event_type": "finish",
-        "level": "INFO",
-        "name": "cmd-install/stage-late",
-        "origin": "cloudinit",
-        "result": "SUCCESS",
-        "timestamp": 1461164249.1590767
-    }
-
-'''
 format_key = {
     '%d': 'delta',
     '%D': 'description',
@@ -155,7 +153,7 @@ class SystemctlReader(object):
         :return: whether the subp call failed or not
         '''
         try:
-            value, err = util.subp(self.args, capture=True)
+            value, err = subp.subp(self.args, capture=True)
             if err:
                 return err
             self.epoch = value
@@ -215,7 +213,7 @@ def gather_timestamps_using_dmesg():
     with gather_timestamps_using_systemd
     '''
     try:
-        data, _ = util.subp(['dmesg'], capture=True)
+        data, _ = subp.subp(['dmesg'], capture=True)
         split_entries = data[0].splitlines()
         for i in split_entries:
             if i.decode('UTF-8').find('user') != -1:
@@ -269,7 +267,7 @@ def gather_timestamps_using_systemd():
                 except OSError as err:
                     raise RuntimeError('Could not determine container boot '
                                        'time from /proc/1/cmdline. ({})'
-                                       .format(err))
+                                       .format(err)) from err
                 status = CONTAINER_CODE
             else:
                 status = FAIL_CODE

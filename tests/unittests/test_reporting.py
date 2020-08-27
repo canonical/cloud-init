@@ -349,7 +349,6 @@ class TestReportingEventStack(TestCase):
         with parent:
             with child:
                 pass
-            pass
         self.assertEqual(report_start.call_count, 0)
         self.assertEqual(report_finish.call_count, 0)
 

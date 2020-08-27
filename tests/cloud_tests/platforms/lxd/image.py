@@ -8,6 +8,7 @@ import tempfile
 
 from ..images import Image
 from .snapshot import LXDSnapshot
+from cloudinit import subp
 from cloudinit import util as c_util
 from tests.cloud_tests import util
 
@@ -75,19 +76,36 @@ class LXDImage(Image):
         }
 
     def export_image(self, output_dir):
-        """Export image from lxd image store to (split) tarball on disk.
+        """Export image from lxd image store to disk.
 
-        @param output_dir: dir to store tarballs in
-        @return_value: tuple of path to metadata tarball and rootfs tarball
+        @param output_dir: dir to store the exported image in
+        @return_value: tuple of path to metadata tarball and rootfs
+
+        Only the "split" image format with separate rootfs and metadata
+        files is supported, e.g:
+
+            71f171df[...]cd31.squashfs (could also be: .tar.xz or .tar.gz)
+            meta-71f171df[...]cd31.tar.xz
+
+        Combined images made by a single tarball are not supported.
         """
         # pylxd's image export feature doesn't do split exports, so use cmdline
-        c_util.subp(['lxc', 'image', 'export', self.pylxd_image.fingerprint,
-                     output_dir], capture=True)
-        tarballs = [p for p in os.listdir(output_dir) if p.endswith('tar.xz')]
+        fp = self.pylxd_image.fingerprint
+        subp.subp(['lxc', 'image', 'export', fp, output_dir], capture=True)
+        image_files = [p for p in os.listdir(output_dir) if fp in p]
+
+        if len(image_files) != 2:
+            raise NotImplementedError(
+                "Image %s has unsupported format. "
+                "Expected 2 files, found %d: %s."
+                % (fp, len(image_files), ', '.join(image_files)))
+
         metadata = os.path.join(
-            output_dir, next(p for p in tarballs if p.startswith('meta-')))
+            output_dir,
+            next(p for p in image_files if p.startswith('meta-')))
         rootfs = os.path.join(
-            output_dir, next(p for p in tarballs if not p.startswith('meta-')))
+            output_dir,
+            next(p for p in image_files if not p.startswith('meta-')))
         return (metadata, rootfs)
 
     def import_image(self, metadata, rootfs):
@@ -101,8 +119,8 @@ class LXDImage(Image):
         """
         alias = util.gen_instance_name(
             image_desc=str(self), use_desc='update-metadata')
-        c_util.subp(['lxc', 'image', 'import', metadata, rootfs,
-                     '--alias', alias], capture=True)
+        subp.subp(['lxc', 'image', 'import', metadata, rootfs,
+                   '--alias', alias], capture=True)
         self.pylxd_image = self.platform.query_image_by_alias(alias)
         return self.pylxd_image.fingerprint
 

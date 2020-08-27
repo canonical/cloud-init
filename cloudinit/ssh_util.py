@@ -17,34 +17,52 @@ LOG = logging.getLogger(__name__)
 # See: man sshd_config
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
-# taken from OpenSSH source openssh-7.3p1/sshkey.c:
-# static const struct keytype keytypes[] = { ... }
+# this list has been filtered out from keytypes of OpenSSH source
+# openssh-8.3p1/sshkey.c:
+# static const struct keytype keytypes[] = {
+# filter out the keytypes with the sigonly flag, eg:
+# { "rsa-sha2-256", "RSA", NULL, KEY_RSA, 0, 0, 1 },
+# refer to the keytype struct of OpenSSH in the same file, to see
+# if the position of the sigonly flag has been moved.
+#
+# dsa, rsa, ecdsa and ed25519 are added for legacy, as they are valid
+# public keys in some old distros. They can possibly be removed
+# in the future when support for the older distros is dropped
+#
+# When updating the list, also update the _is_printable_key list in
+# cloudinit/config/cc_ssh_authkey_fingerprints.py
 VALID_KEY_TYPES = (
     "dsa",
-    "ecdsa",
-    "ecdsa-sha2-nistp256",
-    "ecdsa-sha2-nistp256-cert-v01@openssh.com",
-    "ecdsa-sha2-nistp384",
-    "ecdsa-sha2-nistp384-cert-v01@openssh.com",
-    "ecdsa-sha2-nistp521",
-    "ecdsa-sha2-nistp521-cert-v01@openssh.com",
-    "ed25519",
     "rsa",
-    "rsa-sha2-256",
-    "rsa-sha2-512",
-    "ssh-dss",
+    "ecdsa",
+    "ed25519",
+    "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp256",
+    "ecdsa-sha2-nistp384-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp384",
+    "ecdsa-sha2-nistp521-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp521",
+    "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com",
+    "sk-ecdsa-sha2-nistp256@openssh.com",
+    "sk-ssh-ed25519-cert-v01@openssh.com",
+    "sk-ssh-ed25519@openssh.com",
     "ssh-dss-cert-v01@openssh.com",
-    "ssh-ed25519",
+    "ssh-dss",
     "ssh-ed25519-cert-v01@openssh.com",
-    "ssh-rsa",
+    "ssh-ed25519",
     "ssh-rsa-cert-v01@openssh.com",
+    "ssh-rsa",
+    "ssh-xmss-cert-v01@openssh.com",
+    "ssh-xmss@openssh.com",
 )
 
+_DISABLE_USER_SSH_EXIT = 142
 
 DISABLE_USER_OPTS = (
     "no-port-forwarding,no-agent-forwarding,"
     "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\""
-    " rather than the user \\\"$DISABLE_USER\\\".\';echo;sleep 10\"")
+    " rather than the user \\\"$DISABLE_USER\\\".\';echo;sleep 10;"
+    "exit " + str(_DISABLE_USER_SSH_EXIT) + "\"")
 
 
 class AuthKeyLine(object):
@@ -346,7 +364,7 @@ def update_ssh_config(updates, fname=DEF_SSHD_CFG):
         util.write_file(
             fname, "\n".join(
                 [str(line) for line in lines]
-            ) + "\n", copy_mode=True)
+            ) + "\n", preserve_mode=True)
     return len(changed) != 0
 
 

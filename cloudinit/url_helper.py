@@ -95,7 +95,7 @@ def read_file_or_url(url, **kwargs):
             code = e.errno
             if e.errno == ENOENT:
                 code = NOT_FOUND
-            raise UrlError(cause=e, code=code, headers=None, url=url)
+            raise UrlError(cause=e, code=code, headers=None, url=url) from e
         return FileResponse(file_path, contents=contents)
     else:
         return readurl(url, **kwargs)
@@ -575,8 +575,8 @@ def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
                   timestamp=None):
     try:
         import oauthlib.oauth1 as oauth1
-    except ImportError:
-        raise NotImplementedError('oauth support is not available')
+    except ImportError as e:
+        raise NotImplementedError('oauth support is not available') from e
 
     if timestamp:
         timestamp = str(timestamp)

@@ -4,7 +4,7 @@ import pytest
 
 from unittest import mock
 from logging import Logger
-from cloudinit.util import ProcessExecutionError
+from cloudinit.subp import ProcessExecutionError
 from cloudinit.config.cc_grub_dpkg import fetch_idevs, handle
 
 
@@ -79,7 +79,7 @@ class TestFetchIdevs:
     )
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
     @mock.patch("cloudinit.config.cc_grub_dpkg.os.path.exists")
-    @mock.patch("cloudinit.config.cc_grub_dpkg.util.subp")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
     def test_fetch_idevs(self, m_subp, m_exists, m_logexc, grub_output,
                          path_exists, expected_log_call, udevadm_output,
                          expected_idevs):
@@ -158,7 +158,7 @@ class TestHandle:
     @mock.patch("cloudinit.config.cc_grub_dpkg.fetch_idevs")
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.get_cfg_option_str")
     @mock.patch("cloudinit.config.cc_grub_dpkg.util.logexc")
-    @mock.patch("cloudinit.config.cc_grub_dpkg.util.subp")
+    @mock.patch("cloudinit.config.cc_grub_dpkg.subp.subp")
     def test_handle(self, m_subp, m_logexc, m_get_cfg_str, m_fetch_idevs,
                     cfg_idevs, cfg_idevs_empty, fetch_idevs_output,
                     expected_log_output):

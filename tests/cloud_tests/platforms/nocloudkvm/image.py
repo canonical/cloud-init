@@ -2,7 +2,7 @@
 
 """NoCloud KVM Image Base Class."""
 
-from cloudinit import util as c_util
+from cloudinit import subp
 
 import os
 import shutil
@@ -30,8 +30,8 @@ class NoCloudKVMImage(Image):
         self._img_path = os.path.join(self._workd,
                                       os.path.basename(self._orig_img_path))
 
-        c_util.subp(['qemu-img', 'create', '-f', 'qcow2',
-                    '-b', orig_img_path, self._img_path])
+        subp.subp(['qemu-img', 'create', '-f', 'qcow2',
+                   '-b', orig_img_path, self._img_path])
 
         super(NoCloudKVMImage, self).__init__(platform, config)
 
@@ -50,10 +50,10 @@ class NoCloudKVMImage(Image):
                       '--system-resolvconf', self._img_path,
                       '--', 'chroot', '_MOUNTPOINT_']
         try:
-            out, err = c_util.subp(mic_chroot + env_args + list(command),
-                                   data=stdin, decode=False)
+            out, err = subp.subp(mic_chroot + env_args + list(command),
+                                 data=stdin, decode=False)
             return (out, err, 0)
-        except c_util.ProcessExecutionError as e:
+        except subp.ProcessExecutionError as e:
             return (e.stdout, e.stderr, e.exit_code)
 
     def snapshot(self):

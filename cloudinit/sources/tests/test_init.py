@@ -436,10 +436,11 @@ class TestDataSource(CiTestCase):
         expected = {
             'base64_encoded_keys': [],
             'merged_cfg': {
-                 '_doc': (
-                     'Merged cloud-init system config from '
-                     '/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/'),
-                 'datasource': {'_undef': {'key1': False}}},
+                '_doc': (
+                    'Merged cloud-init system config from '
+                    '/etc/cloud/cloud.cfg and /etc/cloud/cloud.cfg.d/'
+                ),
+                'datasource': {'_undef': {'key1': False}}},
             'sensitive_keys': [
                 'ds/meta_data/some/security-credentials', 'merged_cfg'],
             'sys_info': sys_info,

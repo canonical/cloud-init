@@ -639,6 +639,33 @@ class TestConsumeUserDataHttp(TestConsumeUserData, helpers.HttprettyTestCase):
         self.reRoot()
         ci = stages.Init()
         ci.datasource = FakeDataSource(blob)
+        ci.fetch()
+        with self.assertRaises(Exception) as context:
+            ci.consume_data()
+        self.assertIn('403', str(context.exception))
+
+        with self.assertRaises(FileNotFoundError):
+            util.load_file(ci.paths.get_ipath("cloud_config"))
+
+    @mock.patch('cloudinit.url_helper.time.sleep')
+    @mock.patch(
+        "cloudinit.user_data.features.ERROR_ON_USER_DATA_FAILURE", False
+    )
+    def test_include_bad_url_no_fail(self, mock_sleep):
+        """Test #include with a bad URL and failure disabled"""
+        bad_url = 'http://bad/forbidden'
+        bad_data = '#cloud-config\nbad: true\n'
+        httpretty.register_uri(httpretty.GET, bad_url, bad_data, status=403)
+
+        included_url = 'http://hostname/path'
+        included_data = '#cloud-config\nincluded: true\n'
+        httpretty.register_uri(httpretty.GET, included_url, included_data)
+
+        blob = '#include\n%s\n%s' % (bad_url, included_url)
+
+        self.reRoot()
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(blob)
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
         ci.consume_data()

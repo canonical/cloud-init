@@ -83,50 +83,50 @@ class TestNtp(FilesystemMockingTestCase):
         ntpconfig['template_name'] = os.path.basename(confpath)
         return ntpconfig
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_ntp_install(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_ntp_install(self, mock_subp):
         """ntp_install_client runs install_func when check_exe is absent."""
-        mock_util.which.return_value = None  # check_exe not found.
+        mock_subp.which.return_value = None  # check_exe not found.
         install_func = mock.MagicMock()
         cc_ntp.install_ntp_client(install_func,
                                   packages=['ntpx'], check_exe='ntpdx')
-        mock_util.which.assert_called_with('ntpdx')
+        mock_subp.which.assert_called_with('ntpdx')
         install_func.assert_called_once_with(['ntpx'])
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_ntp_install_not_needed(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_ntp_install_not_needed(self, mock_subp):
         """ntp_install_client doesn't install when check_exe is found."""
         client = 'chrony'
-        mock_util.which.return_value = [client]  # check_exe found.
+        mock_subp.which.return_value = [client]  # check_exe found.
         install_func = mock.MagicMock()
         cc_ntp.install_ntp_client(install_func, packages=[client],
                                   check_exe=client)
         install_func.assert_not_called()
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_ntp_install_no_op_with_empty_pkg_list(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_ntp_install_no_op_with_empty_pkg_list(self, mock_subp):
         """ntp_install_client runs install_func with empty list"""
-        mock_util.which.return_value = None  # check_exe not found
+        mock_subp.which.return_value = None  # check_exe not found
         install_func = mock.MagicMock()
         cc_ntp.install_ntp_client(install_func, packages=[],
                                   check_exe='timesyncd')
         install_func.assert_called_once_with([])
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_reload_ntp_defaults(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_reload_ntp_defaults(self, mock_subp):
         """Test service is restarted/reloaded (defaults)"""
         service = 'ntp_service_name'
         cmd = ['service', service, 'restart']
         cc_ntp.reload_ntp(service)
-        mock_util.subp.assert_called_with(cmd, capture=True)
+        mock_subp.subp.assert_called_with(cmd, capture=True)
 
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_reload_ntp_systemd(self, mock_util):
+    @mock.patch("cloudinit.config.cc_ntp.subp")
+    def test_reload_ntp_systemd(self, mock_subp):
         """Test service is restarted/reloaded (systemd)"""
         service = 'ntp_service_name'
         cc_ntp.reload_ntp(service, systemd=True)
         cmd = ['systemctl', 'reload-or-restart', service]
-        mock_util.subp.assert_called_with(cmd, capture=True)
+        mock_subp.subp.assert_called_with(cmd, capture=True)
 
     def test_ntp_rename_ntp_conf(self):
         """When NTP_CONF exists, rename_ntp moves it."""
@@ -239,6 +239,35 @@ class TestNtp(FilesystemMockingTestCase):
                     self.assertEqual(delta[distro][client][key],
                                      result[client][key])
 
+    def _get_expected_pools(self, pools, distro, client):
+        if client in ['ntp', 'chrony']:
+            if client == 'ntp' and distro == 'alpine':
+                # NTP for Alpine Linux is Busybox's ntp which does not
+                # support 'pool' lines in its configuration file.
+                expected_pools = []
+            else:
+                expected_pools = [
+                    'pool {0} iburst'.format(pool) for pool in pools]
+        elif client == 'systemd-timesyncd':
+            expected_pools = " ".join(pools)
+
+        return expected_pools
+
+    def _get_expected_servers(self, servers, distro, client):
+        if client in ['ntp', 'chrony']:
+            if client == 'ntp' and distro == 'alpine':
+                # NTP for Alpine Linux is Busybox's ntp which only supports
+                # 'server' lines without iburst option.
+                expected_servers = [
+                    'server {0}'.format(srv) for srv in servers]
+            else:
+                expected_servers = [
+                    'server {0} iburst'.format(srv) for srv in servers]
+        elif client == 'systemd-timesyncd':
+            expected_servers = " ".join(servers)
+
+        return expected_servers
+
     def test_ntp_handler_real_distro_ntp_templates(self):
         """Test ntp handler renders the shipped distro ntp client templates."""
         pools = ['0.mycompany.pool.ntp.org', '3.mycompany.pool.ntp.org']
@@ -269,27 +298,35 @@ class TestNtp(FilesystemMockingTestCase):
                 content = util.load_file(confpath)
                 if client in ['ntp', 'chrony']:
                     content_lines = content.splitlines()
-                    expected_servers = [
-                        'server {0} iburst'.format(srv) for srv in servers]
+                    expected_servers = self._get_expected_servers(servers,
+                                                                  distro,
+                                                                  client)
                     print('distro=%s client=%s' % (distro, client))
                     for sline in expected_servers:
                         self.assertIn(sline, content_lines,
                                       ('failed to render {0} conf'
                                        ' for distro:{1}'.format(client,
                                                                 distro)))
-                    expected_pools = [
-                        'pool {0} iburst'.format(pool) for pool in pools]
-                    for pline in expected_pools:
-                        self.assertIn(pline, content_lines,
-                                      ('failed to render {0} conf'
-                                       ' for distro:{1}'.format(client,
-                                                                distro)))
+                    expected_pools = self._get_expected_pools(pools, distro,
+                                                              client)
+                    if expected_pools != []:
+                        for pline in expected_pools:
+                            self.assertIn(pline, content_lines,
+                                          ('failed to render {0} conf'
+                                           ' for distro:{1}'.format(client,
+                                                                    distro)))
                 elif client == 'systemd-timesyncd':
+                    expected_servers = self._get_expected_servers(servers,
+                                                                  distro,
+                                                                  client)
+                    expected_pools = self._get_expected_pools(pools,
+                                                              distro,
+                                                              client)
                     expected_content = (
                         "# cloud-init generated file\n" +
                         "# See timesyncd.conf(5) for details.\n\n" +
-                        "[Time]\nNTP=%s %s \n" % (" ".join(servers),
-                                                  " ".join(pools)))
+                        "[Time]\nNTP=%s %s \n" % (expected_servers,
+                                                  expected_pools))
                     self.assertEqual(expected_content, content)
 
     def test_no_ntpcfg_does_nothing(self):
@@ -312,10 +349,20 @@ class TestNtp(FilesystemMockingTestCase):
                 confpath = ntpconfig['confpath']
                 m_select.return_value = ntpconfig
                 cc_ntp.handle('cc_ntp', valid_empty_config, mycloud, None, [])
-                pools = cc_ntp.generate_server_names(mycloud.distro.name)
-                self.assertEqual(
-                    "servers []\npools {0}\n".format(pools),
-                    util.load_file(confpath))
+                if distro == 'alpine':
+                    # _mock_ntp_client_config call above did not specify a
+                    # client value and so it defaults to "ntp" which on
+                    # Alpine Linux only supports servers and not pools.
+
+                    servers = cc_ntp.generate_server_names(mycloud.distro.name)
+                    self.assertEqual(
+                        "servers {0}\npools []\n".format(servers),
+                        util.load_file(confpath))
+                else:
+                    pools = cc_ntp.generate_server_names(mycloud.distro.name)
+                    self.assertEqual(
+                        "servers []\npools {0}\n".format(pools),
+                        util.load_file(confpath))
             self.assertNotIn('Invalid config:', self.logs.getvalue())
 
     @skipUnlessJsonSchema()
@@ -374,18 +421,19 @@ class TestNtp(FilesystemMockingTestCase):
         invalid_config = {
             'ntp': {'invalidkey': 1, 'pools': ['0.mycompany.pool.ntp.org']}}
         for distro in cc_ntp.distros:
-            mycloud = self._get_cloud(distro)
-            ntpconfig = self._mock_ntp_client_config(distro=distro)
-            confpath = ntpconfig['confpath']
-            m_select.return_value = ntpconfig
-            cc_ntp.handle('cc_ntp', invalid_config, mycloud, None, [])
-            self.assertIn(
-                "Invalid config:\nntp: Additional properties are not allowed "
-                "('invalidkey' was unexpected)",
-                self.logs.getvalue())
-            self.assertEqual(
-                "servers []\npools ['0.mycompany.pool.ntp.org']\n",
-                util.load_file(confpath))
+            if distro != 'alpine':
+                mycloud = self._get_cloud(distro)
+                ntpconfig = self._mock_ntp_client_config(distro=distro)
+                confpath = ntpconfig['confpath']
+                m_select.return_value = ntpconfig
+                cc_ntp.handle('cc_ntp', invalid_config, mycloud, None, [])
+                self.assertIn(
+                    "Invalid config:\nntp: Additional properties are not "
+                    "allowed ('invalidkey' was unexpected)",
+                    self.logs.getvalue())
+                self.assertEqual(
+                    "servers []\npools ['0.mycompany.pool.ntp.org']\n",
+                    util.load_file(confpath))
 
     @skipUnlessJsonSchema()
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
@@ -440,9 +488,10 @@ class TestNtp(FilesystemMockingTestCase):
             cc_ntp.handle('notimportant', cfg, mycloud, None, None)
             self.assertEqual(0, m_select.call_count)
 
+    @mock.patch("cloudinit.config.cc_ntp.subp")
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
     @mock.patch("cloudinit.distros.Distro.uses_systemd")
-    def test_ntp_the_whole_package(self, m_sysd, m_select):
+    def test_ntp_the_whole_package(self, m_sysd, m_select, m_subp):
         """Test enabled config renders template, and restarts service """
         cfg = {'ntp': {'enabled': True}}
         for distro in cc_ntp.distros:
@@ -451,24 +500,35 @@ class TestNtp(FilesystemMockingTestCase):
             confpath = ntpconfig['confpath']
             service_name = ntpconfig['service_name']
             m_select.return_value = ntpconfig
-            pools = cc_ntp.generate_server_names(mycloud.distro.name)
-            # force uses systemd path
-            m_sysd.return_value = True
+
+            hosts = cc_ntp.generate_server_names(mycloud.distro.name)
+            uses_systemd = True
+            expected_service_call = ['systemctl', 'reload-or-restart',
+                                     service_name]
+            expected_content = "servers []\npools {0}\n".format(hosts)
+
+            if distro == 'alpine':
+                uses_systemd = False
+                expected_service_call = ['service', service_name, 'restart']
+                # _mock_ntp_client_config call above did not specify a client
+                # value and so it defaults to "ntp" which on Alpine Linux only
+                # supports servers and not pools.
+                expected_content = "servers {0}\npools []\n".format(hosts)
+
+            m_sysd.return_value = uses_systemd
             with mock.patch('cloudinit.config.cc_ntp.util') as m_util:
                 # allow use of util.mergemanydict
                 m_util.mergemanydict.side_effect = util.mergemanydict
                 # default client is present
-                m_util.which.return_value = True
+                m_subp.which.return_value = True
                 # use the config 'enabled' value
                 m_util.is_false.return_value = util.is_false(
                     cfg['ntp']['enabled'])
                 cc_ntp.handle('notimportant', cfg, mycloud, None, None)
-                m_util.subp.assert_called_with(
-                    ['systemctl', 'reload-or-restart',
-                     service_name], capture=True)
-            self.assertEqual(
-                "servers []\npools {0}\n".format(pools),
-                util.load_file(confpath))
+                m_subp.subp.assert_called_with(
+                    expected_service_call, capture=True)
+
+            self.assertEqual(expected_content, util.load_file(confpath))
 
     def test_opensuse_picks_chrony(self):
         """Test opensuse picks chrony or ntp on certain distro versions"""
@@ -503,7 +563,7 @@ class TestNtp(FilesystemMockingTestCase):
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual('ntp', expected_client)
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_snappy_system_picks_timesyncd(self, m_which):
         """Test snappy systems prefer installed clients"""
 
@@ -528,7 +588,7 @@ class TestNtp(FilesystemMockingTestCase):
         self.assertEqual(sorted(expected_cfg), sorted(cfg))
         self.assertEqual(sorted(expected_cfg), sorted(result))
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_ntp_distro_searches_all_preferred_clients(self, m_which):
         """Test select_ntp_client search all distro perferred clients """
         # nothing is installed
@@ -546,7 +606,7 @@ class TestNtp(FilesystemMockingTestCase):
             m_which.assert_has_calls(expected_calls)
             self.assertEqual(sorted(expected_cfg), sorted(cfg))
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_user_cfg_ntp_client_auto_uses_distro_clients(self, m_which):
         """Test user_cfg.ntp_client='auto' defaults to distro search"""
         # nothing is installed
@@ -566,7 +626,7 @@ class TestNtp(FilesystemMockingTestCase):
 
     @mock.patch('cloudinit.config.cc_ntp.write_ntp_config_template')
     @mock.patch('cloudinit.cloud.Cloud.get_template_filename')
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_ntp_custom_client_overrides_installed_clients(self, m_which,
                                                            m_tmpfn, m_write):
         """Test user client is installed despite other clients present """
@@ -582,7 +642,7 @@ class TestNtp(FilesystemMockingTestCase):
             m_install.assert_called_with([client])
             m_which.assert_called_with(client)
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_ntp_system_config_overrides_distro_builtin_clients(self, m_which):
         """Test distro system_config overrides builtin preferred ntp clients"""
         system_client = 'chrony'
@@ -597,7 +657,7 @@ class TestNtp(FilesystemMockingTestCase):
             self.assertEqual(sorted(expected_cfg), sorted(result))
             m_which.assert_has_calls([])
 
-    @mock.patch('cloudinit.config.cc_ntp.util.which')
+    @mock.patch('cloudinit.config.cc_ntp.subp.which')
     def test_ntp_user_config_overrides_system_cfg(self, m_which):
         """Test user-data overrides system_config ntp_client"""
         system_client = 'chrony'

@@ -99,6 +99,7 @@ specified using ``filesystem``.
 
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
+from cloudinit import subp
 import logging
 import os
 import shlex
@@ -106,13 +107,13 @@ import shlex
 frequency = PER_INSTANCE
 
 # Define the commands to use
-UDEVADM_CMD = util.which('udevadm')
-SFDISK_CMD = util.which("sfdisk")
-SGDISK_CMD = util.which("sgdisk")
-LSBLK_CMD = util.which("lsblk")
-BLKID_CMD = util.which("blkid")
-BLKDEV_CMD = util.which("blockdev")
-WIPEFS_CMD = util.which("wipefs")
+UDEVADM_CMD = subp.which('udevadm')
+SFDISK_CMD = subp.which("sfdisk")
+SGDISK_CMD = subp.which("sgdisk")
+LSBLK_CMD = subp.which("lsblk")
+BLKID_CMD = subp.which("blkid")
+BLKDEV_CMD = subp.which("blockdev")
+WIPEFS_CMD = subp.which("wipefs")
 
 LANG_C_ENV = {'LANG': 'C'}
 
@@ -248,9 +249,11 @@ def enumerate_disk(device, nodeps=False):
 
     info = None
     try:
-        info, _err = util.subp(lsblk_cmd)
+        info, _err = subp.subp(lsblk_cmd)
     except Exception as e:
-        raise Exception("Failed during disk check for %s\n%s" % (device, e))
+        raise Exception(
+            "Failed during disk check for %s\n%s" % (device, e)
+        ) from e
 
     parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
 
@@ -310,9 +313,11 @@ def check_fs(device):
 
     blkid_cmd = [BLKID_CMD, '-c', '/dev/null', device]
     try:
-        out, _err = util.subp(blkid_cmd, rcs=[0, 2])
+        out, _err = subp.subp(blkid_cmd, rcs=[0, 2])
     except Exception as e:
-        raise Exception("Failed during disk check for %s\n%s" % (device, e))
+        raise Exception(
+            "Failed during disk check for %s\n%s" % (device, e)
+        ) from e
 
     if out:
         if len(out.splitlines()) == 1:
@@ -427,16 +432,16 @@ def get_dyn_func(*args):
         else:
             return globals()[func_name]
 
-    except KeyError:
-        raise Exception("No such function %s to call!" % func_name)
+    except KeyError as e:
+        raise Exception("No such function %s to call!" % func_name) from e
 
 
 def get_hdd_size(device):
     try:
-        size_in_bytes, _ = util.subp([BLKDEV_CMD, '--getsize64', device])
-        sector_size, _ = util.subp([BLKDEV_CMD, '--getss', device])
+        size_in_bytes, _ = subp.subp([BLKDEV_CMD, '--getsize64', device])
+        sector_size, _ = subp.subp([BLKDEV_CMD, '--getss', device])
     except Exception as e:
-        raise Exception("Failed to get %s size\n%s" % (device, e))
+        raise Exception("Failed to get %s size\n%s" % (device, e)) from e
 
     return int(size_in_bytes) / int(sector_size)
 
@@ -452,10 +457,11 @@ def check_partition_mbr_layout(device, layout):
     read_parttbl(device)
     prt_cmd = [SFDISK_CMD, "-l", device]
     try:
-        out, _err = util.subp(prt_cmd, data="%s\n" % layout)
+        out, _err = subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
-        raise Exception("Error running partition command on %s\n%s" % (
-                        device, e))
+        raise Exception(
+            "Error running partition command on %s\n%s" % (device, e)
+        ) from e
 
     found_layout = []
     for line in out.splitlines():
@@ -482,10 +488,11 @@ def check_partition_mbr_layout(device, layout):
 def check_partition_gpt_layout(device, layout):
     prt_cmd = [SGDISK_CMD, '-p', device]
     try:
-        out, _err = util.subp(prt_cmd, update_env=LANG_C_ENV)
+        out, _err = subp.subp(prt_cmd, update_env=LANG_C_ENV)
     except Exception as e:
-        raise Exception("Error running partition command on %s\n%s" % (
-                        device, e))
+        raise Exception(
+            "Error running partition command on %s\n%s" % (device, e)
+        ) from e
 
     out_lines = iter(out.splitlines())
     # Skip header.  Output looks like:
@@ -655,9 +662,11 @@ def purge_disk(device):
             wipefs_cmd = [WIPEFS_CMD, "--all", "/dev/%s" % d['name']]
             try:
                 LOG.info("Purging filesystem on /dev/%s", d['name'])
-                util.subp(wipefs_cmd)
-            except Exception:
-                raise Exception("Failed FS purge of /dev/%s" % d['name'])
+                subp.subp(wipefs_cmd)
+            except Exception as e:
+                raise Exception(
+                    "Failed FS purge of /dev/%s" % d['name']
+                ) from e
 
     purge_disk_ptable(device)
 
@@ -682,7 +691,7 @@ def read_parttbl(device):
     blkdev_cmd = [BLKDEV_CMD, '--rereadpt', device]
     util.udevadm_settle()
     try:
-        util.subp(blkdev_cmd)
+        subp.subp(blkdev_cmd)
     except Exception as e:
         util.logexc(LOG, "Failed reading the partition table %s" % e)
 
@@ -697,25 +706,27 @@ def exec_mkpart_mbr(device, layout):
     # Create the partitions
     prt_cmd = [SFDISK_CMD, "--Linux", "--unit=S", "--force", device]
     try:
-        util.subp(prt_cmd, data="%s\n" % layout)
+        subp.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
-        raise Exception("Failed to partition device %s\n%s" % (device, e))
+        raise Exception(
+            "Failed to partition device %s\n%s" % (device, e)
+        ) from e
 
     read_parttbl(device)
 
 
 def exec_mkpart_gpt(device, layout):
     try:
-        util.subp([SGDISK_CMD, '-Z', device])
+        subp.subp([SGDISK_CMD, '-Z', device])
         for index, (partition_type, (start, end)) in enumerate(layout):
             index += 1
-            util.subp([SGDISK_CMD,
+            subp.subp([SGDISK_CMD,
                        '-n', '{}:{}:{}'.format(index, start, end), device])
             if partition_type is not None:
                 # convert to a 4 char (or more) string right padded with 0
                 # 82 -> 8200.  'Linux' -> 'Linux'
                 pinput = str(partition_type).ljust(4, "0")
-                util.subp(
+                subp.subp(
                     [SGDISK_CMD, '-t', '{}:{}'.format(index, pinput), device])
     except Exception:
         LOG.warning("Failed to partition device %s", device)
@@ -967,9 +978,9 @@ def mkfs(fs_cfg):
                 fs_cmd)
     else:
         # Find the mkfs command
-        mkfs_cmd = util.which("mkfs.%s" % fs_type)
+        mkfs_cmd = subp.which("mkfs.%s" % fs_type)
         if not mkfs_cmd:
-            mkfs_cmd = util.which("mk%s" % fs_type)
+            mkfs_cmd = subp.which("mk%s" % fs_type)
 
         if not mkfs_cmd:
             LOG.warning("Cannot create fstype '%s'.  No mkfs.%s command",
@@ -994,8 +1005,8 @@ def mkfs(fs_cfg):
     LOG.debug("Creating file system %s on %s", label, device)
     LOG.debug("     Using cmd: %s", str(fs_cmd))
     try:
-        util.subp(fs_cmd, shell=shell)
+        subp.subp(fs_cmd, shell=shell)
     except Exception as e:
-        raise Exception("Failed to exec of '%s':\n%s" % (fs_cmd, e))
+        raise Exception("Failed to exec of '%s':\n%s" % (fs_cmd, e)) from e
 
 # vi: ts=4 expandtab

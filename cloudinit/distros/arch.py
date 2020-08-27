@@ -8,6 +8,7 @@ from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit import subp
 
 from cloudinit.distros import net_util
 from cloudinit.distros.parsers.hostname import HostnameConf
@@ -44,7 +45,7 @@ class Distro(distros.Distro):
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
             out_fn = self.locale_conf_fn
-        util.subp(['locale-gen', '-G', locale], capture=False)
+        subp.subp(['locale-gen', '-G', locale], capture=False)
         # "" provides trailing newline during join
         lines = [
             util.make_header(),
@@ -60,9 +61,9 @@ class Distro(distros.Distro):
     def _write_network_config(self, netconfig):
         try:
             return self._supported_write_network_config(netconfig)
-        except RendererNotFoundError:
+        except RendererNotFoundError as e:
             # Fall back to old _write_network
-            raise NotImplementedError
+            raise NotImplementedError from e
 
     def _write_network(self, settings):
         entries = net_util.translate_network(settings)
@@ -76,11 +77,11 @@ class Distro(distros.Distro):
     def _enable_interface(self, device_name):
         cmd = ['netctl', 'reenable', device_name]
         try:
-            (_out, err) = util.subp(cmd)
+            (_out, err) = subp.subp(cmd)
             if len(err):
                 LOG.warning("Running %s resulted in stderr output: %s",
                             cmd, err)
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             util.logexc(LOG, "Running interface command %s failed", cmd)
 
     def _bring_up_interface(self, device_name):
@@ -88,12 +89,12 @@ class Distro(distros.Distro):
         LOG.debug("Attempting to run bring up interface %s using command %s",
                   device_name, cmd)
         try:
-            (_out, err) = util.subp(cmd)
+            (_out, err) = subp.subp(cmd)
             if len(err):
                 LOG.warning("Running %s resulted in stderr output: %s",
                             cmd, err)
             return True
-        except util.ProcessExecutionError:
+        except subp.ProcessExecutionError:
             util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
 
@@ -158,7 +159,7 @@ class Distro(distros.Distro):
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
-        util.subp(cmd, capture=False)
+        subp.subp(cmd, capture=False)
 
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
@@ -173,8 +174,8 @@ def _render_network(entries, target="/", conf_dir="etc/netctl",
 
     devs = []
     nameservers = []
-    resolv_conf = util.target_path(target, resolv_conf)
-    conf_dir = util.target_path(target, conf_dir)
+    resolv_conf = subp.target_path(target, resolv_conf)
+    conf_dir = subp.target_path(target, conf_dir)
 
     for (dev, info) in entries.items():
         if dev == 'lo':
