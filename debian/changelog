@@ -1,4 +1,4 @@
-cloud-init (20.2-45-g5f7825e2-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+cloud-init (20.3-2-g371b392c-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * d/control: add python3-pytest-catchlog to Build-Depends
   * d/cloud-init.postinst: fix the grub install device for NVMe-rooted
@@ -9,6 +9,126 @@ cloud-init (20.2-45-g5f7825e2-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
    + debian/patches/renderer-do-not-prefer-netplan.patch
    + debian/patches/ubuntu-advantage-revert-tip.patch
+  * New upstream snapshot. (LP: #1893064)
+    - util: remove debug statement (#556) [Joshua Powers]
+    - Fix cloud config on chef example (#551) [lucasmoura]
+    - Release 20.3 (#547) [James Falcon]
+    - tox: bump the pylint version to 2.6.0 in the default run (#544)
+      [Paride Legovini]
+    - Azure: Add netplan driver filter when using hv_netvsc driver (#539)
+      [James Falcon]
+    - query: do not handle non-decodable non-gzipped content (#543)
+    - DHCP sandboxing failing on noexec mounted /var/tmp (#521) [Eduardo Otubo]
+    - Update the list of valid ssh keys. (#487) [Ole-Martin Bratteng]
+    - cmd: cloud-init query to handle compressed userdata (#516)
+    - Pushing cloud-init log to the KVP (#529) [Moustafa Moustafa]
+    - Add Alpine Linux support. (#535) [dermotbradley]
+    - Detect kernel version before swap file creation (#428) [Eduardo Otubo]
+    - cli: add devel make-mime subcommand (#518)
+    - user-data: only verify mime-types for TYPE_NEEDED and x-shellscript
+      (#511)
+    - DataSourceOracle: retry twice (and document why we retry at all) (#536)
+    - Refactor Azure report ready code (#468) [Johnson Shi]
+    - tox.ini: pin correct version of httpretty in xenial{,-dev} envs (#531)
+    - Support Oracle IMDSv2 API (#528) [James Falcon]
+    - .travis.yml: run a doc build during CI (#534)
+    - doc/rtd/topics/datasources/ovf.rst: fix doc8 errors (#533)
+    - Fix 'Users and Groups' configuration documentation (#530) [sshedi]
+    - cloudinit.distros: update docstrings of add_user and create_user (#527)
+    - Fix headers for device types in network v2 docs (#532)
+      [Caleb Xavier Berger]
+    - Add AlexBaranowski as contributor (#508) [Aleksander Baranowski]
+    - DataSourceOracle: refactor to use only OPC v1 endpoint (#493)
+    - .github/workflows/stale.yml: s/Josh/Rick/ (#526)
+    - Fix a typo in apt pipelining module (#525) [Xiao Liang]
+    - test_util: parametrize devlist tests (#523) [James Falcon]
+    - Recognize LABEL_FATBOOT labels (#513) [James Falcon]
+    - Handle additional identifier for SLES For HPC (#520) [Robert Schweikert]
+    - Revert "test-requirements.txt: pin pytest to <6 (#512)" (#515)
+    - test-requirements.txt: pin pytest to <6 (#512)
+    - Add "tsanghan" as contributor (#504) [tsanghan]
+    - fix brpm building
+    - Adding eandersson as a contributor (#502) [Erik Olof Gunnar Andersson]
+    - azure: disable bouncing hostname when setting hostname fails (#494)
+      [Anh Vo]
+    - VMware: Support parsing DEFAULT-RUN-POST-CUST-SCRIPT (#441)
+      [xiaofengw-vmware]
+    - DataSourceAzure: Use ValueError when JSONDecodeError is not available
+      (#490) [Anh Vo]
+    - cc_ca_certs.py: fix blank line problem when removing CAs and adding
+      new one (#483) [dermotbradley]
+    - freebsd: py37-serial is now py37-pyserial (#492) [Gonéri Le Bouder]
+    - ssh exit with non-zero status on disabled user (#472) [Eduardo Otubo]
+    - cloudinit: remove global disable of pylint W0107 and fix errors (#489)
+    - networking: refactor wait_for_physdevs from cloudinit.net (#466)
+    - HACKING.rst: add pytest.param pytest gotcha (#481)
+    - cloudinit: remove global disable of pylint W0105 and fix errors (#480)
+    - Fix two minor warnings (#475)
+    - test_data: fix faulty patch (#476)
+    - cc_mounts: handle missing fstab (#484)
+    - LXD cloud_tests: support more lxd image formats (#482) [Paride Legovini]
+    - Add update_etc_hosts as default module on *BSD (#479) [Adam Dobrawy]
+    - cloudinit: fix tip-pylint failures and bump pinned pylint version (#478)
+    - Added BirknerAlex as contributor and sorted the file (#477)
+      [Alexander Birkner]
+    - Update list of types of modules in cli.rst [saurabhvartak1982]
+    - tests: use markers to configure disable_subp_usage (#473)
+    - Add mention of vendor-data to no-cloud format documentation (#470)
+      [Landon Kirk]
+    - Fix broken link to OpenStack metadata service docs (#467)
+      [Matt Riedemann]
+    - Disable ec2 mirror for non aws instances (#390) [lucasmoura]
+    - cloud_tests: don't pass --python-version to read-dependencies (#465)
+    - networking: refactor is_physical from cloudinit.net (#457)
+    - Enable use of the caplog fixture in pytest tests, and add a
+      cc_final_message test using it (#461)
+    - RbxCloud: Add support for FreeBSD (#464) [Adam Dobrawy]
+    - Add schema for cc_chef module (#375) [lucasmoura]
+    - test_util: add (partial) testing for util.mount_cb (#463)
+    - .travis.yml: revert to installing ubuntu-dev-tools (#460)
+    - HACKING.rst: add details of net refactor tracking (#456)
+    - .travis.yml: rationalise installation of dependencies in host (#449)
+    - Add dermotbradley as contributor. (#458) [dermotbradley]
+    - net/networking: remove unused functions/methods (#453)
+    - distros.networking: initial implementation of layout (#391)
+    - cloud-init.service.tmpl: use "rhel" instead of "redhat" (#452)
+    - Change from redhat to rhel in systemd generator tmpl (#450)
+      [Eduardo Otubo]
+    - Hetzner: support reading user-data that is base64 encoded. (#448)
+      [Scott Moser]
+    - HACKING.rst: add strpath gotcha to testing gotchas section (#446)
+    - cc_final_message: don't create directories when writing boot-finished
+      (#445)
+    - .travis.yml: only store new schroot if something has changed (#440)
+    - util: add ensure_dir_exists parameter to write_file (#443)
+    - printing the error stream of the dhclient process before killing it
+      (#369) [Moustafa Moustafa]
+    - Fix link to the MAAS documentation (#442) [Paride Legovini]
+    - RPM build: disable the dynamic mirror URLs when using a proxy (#437)
+      [Paride Legovini]
+    - util: rename write_file's copy_mode parameter to preserve_mode (#439)
+    - .travis.yml: use $TRAVIS_BUILD_DIR for lxd_image caching (#438)
+    - cli.rst: alphabetise devel subcommands and add net-convert to list (#430)
+    - Default to UTF-8 in /var/log/cloud-init.log (#427) [James Falcon]
+    - travis: cache the chroot we use for package builds (#429)
+    - test: fix all flake8 E126 errors (#425) [Joshua Powers]
+    - Fixes KeyError for bridge with no "parameters:" setting (#423)
+      [Brian Candler]
+    - When tools.conf does not exist, running cmd "vmware-toolbox-cmd
+      config get deployPkg enable-custom-scripts", the return code will
+      be EX_UNAVAILABLE(69), on this condition, it should not take it as
+      error. (#413) [chengcheng-chcheng]
+    - Document CloudStack data-server well-known hostname (#399) [Gregor Riepl]
+    - test: move conftest.py to top-level, to cover tests/ also (#414)
+    - Replace cc_chef is_installed with use of subp.is_exe. (#421)
+      [Scott Moser]
+    - Move runparts to subp. (#420) [Scott Moser]
+    - Move subp into its own module. (#416) [Scott Moser]
+    - readme: point at travis-ci.com (#417) [Joshua Powers]
+    - New feature flag functionality and fix includes failing silently (#367)
+      [James Falcon]
+    - Enhance poll imds logging (#365) [Moustafa Moustafa]
+    - test: fix all flake8 E121 and E123 errors (#404) [Joshua Powers]
 
  -- Chad Smith <chad.smith@canonical.com>  Thu, 27 Aug 2020 16:18:07 -0600
 
