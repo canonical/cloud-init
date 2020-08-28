@@ -1,3 +1,16 @@
+cloud-init (20.3-2-g371b392c-0ubuntu2) UNRELEASED; urgency=medium
+
+  * d/cloud-init.templates: add RbxCloud to Choices-C.
+  * Add d/clean to fully clean the build artifacts.
+  * d/control:
+    - Bump Standards-Version to 4.5.0, no changes needed.
+    - B-D on debhelper-compat; drop d/compat.
+  * Bump the debhelper compat level to 13. Required changes:
+    - Stop including the dh systemd plugin.
+    - Switch from dh_systemd_start to dh_installsystemd
+
+ -- Paride Legovini <paride.legovini@canonical.com>  Fri, 28 Aug 2020 14:27:07 +0200
+
 cloud-init (20.3-2-g371b392c-0ubuntu1) groovy; urgency=medium
 
   * New upstream snapshot.
