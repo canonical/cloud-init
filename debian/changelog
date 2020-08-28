@@ -5,9 +5,6 @@ cloud-init (20.3-2-g371b392c-0ubuntu1~16.04.1) xenial; urgency=medium
     instances on upgrade.  (LP: #1889555)
   * refresh patches:
    + debian/patches/azure-apply-network-config-false.patch
-   + debian/patches/ec2-classic-dont-reapply-networking.patch
-   + debian/patches/ec2-dont-apply-full-imds-network-config.patch
-   + debian/patches/renderer-do-not-prefer-netplan.patch
    + debian/patches/ubuntu-advantage-revert-tip.patch
   * New upstream snapshot. (LP: #1893064)
     - util: remove debug statement (#556) [Joshua Powers]
