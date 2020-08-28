@@ -5,6 +5,7 @@
 # Author: Dermot Bradley <dermot_bradley@yahoo.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
+import os
 
 from cloudinit import distros
 from cloudinit import helpers
@@ -161,5 +162,28 @@ class Distro(distros.Distro):
             self._preferred_ntp_clients = ['chrony', 'ntp']
 
         return self._preferred_ntp_clients
+
+    def device_part_info(self, devpath):
+        # input of /dev/vdb or /dev/disk/by-label/foo
+        # rpath is hopefully a real-ish path in /dev (vda, sdb..)
+        rpath = os.path.realpath(devpath)
+
+        bname = os.path.basename(rpath)
+        syspath = "/sys/class/block/%s" % bname
+
+        if not os.path.exists(syspath):
+            raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
+
+        # obtain partition number eg. sda1 -> 1
+        ptpath = os.path.join(syspath, "partition")
+        if not os.path.exists(ptpath):
+            raise TypeError("%s not a partition" % devpath)
+        ptnum = util.load_file(ptpath).rstrip()
+
+        rsyspath = os.path.realpath(syspath)
+        disksyspath = os.path.dirname(rsyspath)
+        bdname = os.path.basename(disksyspath)
+        # Alpine does not support /dev/block, so use /dev/
+        return ('/dev/%s' % bdname, ptnum)
 
 # vi: ts=4 expandtab

@@ -1,4 +1,5 @@
 import platform
+import re
 
 from cloudinit import distros
 from cloudinit.distros import bsd_utils
@@ -127,3 +128,10 @@ class BSD(distros.Distro):
 
     def apply_network_config_names(self, netconfig):
         LOG.debug('Cannot rename network interface.')
+
+    def device_part_info(self, devpath):
+        # FreeBSD doesn't know of sysfs so just get everything we need from
+        # the device, like /dev/vtbd0p2.
+        freebsd_part = "/dev/" + util.find_freebsd_part(devpath)
+        m = re.search('^(/dev/.+)p([0-9])$', freebsd_part)
+        return (m.group(1), m.group(2))

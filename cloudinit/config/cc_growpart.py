@@ -211,45 +211,6 @@ def get_size(filename):
         os.close(fd)
 
 
-def device_part_info(devpath):
-    # convert an entry in /dev/ to parent disk and partition number
-
-    # input of /dev/vdb or /dev/disk/by-label/foo
-    # rpath is hopefully a real-ish path in /dev (vda, sdb..)
-    rpath = os.path.realpath(devpath)
-
-    bname = os.path.basename(rpath)
-    syspath = "/sys/class/block/%s" % bname
-
-    # FreeBSD doesn't know of sysfs so just get everything we need from
-    # the device, like /dev/vtbd0p2.
-    if util.is_FreeBSD():
-        freebsd_part = "/dev/" + util.find_freebsd_part(devpath)
-        m = re.search('^(/dev/.+)p([0-9])$', freebsd_part)
-        return (m.group(1), m.group(2))
-
-    if not os.path.exists(syspath):
-        raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
-
-    ptpath = os.path.join(syspath, "partition")
-    if not os.path.exists(ptpath):
-        raise TypeError("%s not a partition" % devpath)
-
-    ptnum = util.load_file(ptpath).rstrip()
-
-    # for a partition, real syspath is something like:
-    # /sys/devices/pci0000:00/0000:00:04.0/virtio1/block/vda/vda1
-    rsyspath = os.path.realpath(syspath)
-    disksyspath = os.path.dirname(rsyspath)
-
-    diskmajmin = util.load_file(os.path.join(disksyspath, "dev")).rstrip()
-    diskdevpath = os.path.realpath("/dev/block/%s" % diskmajmin)
-
-    # diskdevpath has something like 253:0
-    # and udev has put links in /dev/block/253:0 to the device name in /dev/
-    return (diskdevpath, ptnum)
-
-
 def devent2dev(devent):
     if devent.startswith("/dev/"):
         return devent
@@ -273,7 +234,7 @@ def devent2dev(devent):
     return dev
 
 
-def resize_devices(resizer, devices):
+def resize_devices(resizer, devices, distro):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
     info = []
     for devent in devices:
@@ -298,7 +259,7 @@ def resize_devices(resizer, devices):
             continue
 
         try:
-            (disk, ptnum) = device_part_info(blockdev)
+            (disk, ptnum) = distro.device_part_info(blockdev)
         except (TypeError, ValueError) as e:
             info.append((devent, RESIZE.SKIPPED,
                          "device_part_info(%s) failed: %s" % (blockdev, e),))
@@ -322,7 +283,7 @@ def resize_devices(resizer, devices):
     return info
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(_name, cfg, cloud, log, _args):
     if 'growpart' not in cfg:
         log.debug("No 'growpart' entry in cfg.  Using default: %s" %
                   DEFAULT_CONFIG)
@@ -357,8 +318,11 @@ def handle(_name, cfg, _cloud, log, _args):
             raise e
         return
 
-    resized = util.log_time(logfunc=log.debug, msg="resize_devices",
-                            func=resize_devices, args=(resizer, devices))
+    resized = util.log_time(logfunc=log.debug,
+                            msg="resize_devices",
+                            func=resize_devices,
+                            args=(resizer, devices, cloud.distro)
+                            )
     for (entry, action, msg) in resized:
         if action == RESIZE.CHANGED:
             log.info("'%s' resized: %s" % (entry, msg))
