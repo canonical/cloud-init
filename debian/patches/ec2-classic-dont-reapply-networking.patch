@@ -7,8 +7,10 @@ Forwarded: not-needed
 Last-Update: 2019-03-08
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
---- a/cloudinit/sources/DataSourceEc2.py
-+++ b/cloudinit/sources/DataSourceEc2.py
+Index: cloud-init/cloudinit/sources/DataSourceEc2.py
+===================================================================
+--- cloud-init.orig/cloudinit/sources/DataSourceEc2.py
++++ cloud-init/cloudinit/sources/DataSourceEc2.py
 @@ -19,7 +19,6 @@ from cloudinit import sources
  from cloudinit import url_helper as uhelp
  from cloudinit import util
