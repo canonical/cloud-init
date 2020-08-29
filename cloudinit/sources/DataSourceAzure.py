@@ -1350,13 +1350,14 @@ def parse_network_config(imds_metadata) -> dict:
     if imds_metadata != sources.UNSET and imds_metadata:
         try:
             return _generate_network_config_from_imds_metadata(imds_metadata)
-        except Exception:
+        except Exception as e:
             LOG.error(
-                'Failed generating network config from IMDS network metadata')
+                'Failed generating network config '
+                'from IMDS network metadata: %s', str(e))
     try:
         return _generate_network_config_from_fallback_config()
-    except Exception:
-        LOG.error('Failed generating fallback network config')
+    except Exception as e:
+        LOG.error('Failed generating fallback network config: %s', str(e))
     return {}
 
 
@@ -1418,11 +1419,11 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
 
 @azure_ds_telemetry_reporter
 def _generate_network_config_from_fallback_config() -> dict:
-    """Generate fallback network config excluding mlx4_core devices.
+    """Generate fallback network config excluding mlx4_core & mlx5_core devices.
 
     @return: Dictionary containing network version 2 standard configuration.
     """
-    blacklist = ['mlx4_core']
+    blacklist = ['mlx4_core', 'mlx5_core']
     # generate a network config, blacklist picking mlx4_core devs
     return net.generate_fallback_config(
         blacklist_drivers=blacklist, config_driver=True)

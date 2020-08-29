@@ -1301,8 +1301,9 @@ scbus-1 on xpt0 bus 0
 
         netconfig = dsrc.network_config
         self.assertEqual(netconfig, fallback_config)
-        mock_fallback.assert_called_with(blacklist_drivers=['mlx4_core'],
-                                         config_driver=True)
+        mock_fallback.assert_called_with(
+            blacklist_drivers=['mlx4_core', 'mlx5_core'],
+            config_driver=True)
 
     @mock.patch('cloudinit.net.get_interface_mac')
     @mock.patch('cloudinit.net.get_devicelist')
@@ -1324,19 +1325,15 @@ scbus-1 on xpt0 bus 0
                 'subnets': [{'type': 'dhcp'}],
             }]
         }
-        blacklist_config = {
-            'type': 'physical',
-            'name': 'eth1',
-            'mac_address': '00:11:22:33:44:55',
-            'params': {'driver': 'mlx4_core'}
-        }
         mock_fallback.return_value = fallback_config
 
-        mock_devlist.return_value = ['eth0', 'eth1']
+        mock_devlist.return_value = ['eth0', 'eth1', 'eth2']
         mock_dd.side_effect = [
             'hv_netsvc',  # list composition, skipped
             'mlx4_core',  # list composition, match
             'mlx4_core',  # config get driver name
+            'mlx5_core',  # list composition, match
+            'mlx5_core',  # config get driver name
         ]
         mock_get_mac.return_value = '00:11:22:33:44:55'
 
@@ -1347,9 +1344,10 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(ret)
 
         netconfig = dsrc.network_config
-        expected_config = fallback_config
-        expected_config['config'].append(blacklist_config)
-        self.assertEqual(netconfig, expected_config)
+        self.assertEqual(netconfig, fallback_config)
+        mock_fallback.assert_called_with(
+            blacklist_drivers=['mlx4_core', 'mlx5_core'],
+            config_driver=True)
 
     @mock.patch(MOCKPATH + 'subp.subp')
     def test_get_hostname_with_no_args(self, m_subp):
