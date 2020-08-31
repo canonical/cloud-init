@@ -617,9 +617,11 @@ def parse_strict_mode(cfgval):
     if sleep:
         try:
             sleep = int(sleep)
-        except ValueError:
-            raise ValueError("Invalid sleep '%s' in strict_id setting '%s': "
-                             "not an integer" % (sleep, cfgval))
+        except ValueError as e:
+            raise ValueError(
+                "Invalid sleep '%s' in strict_id setting '%s': not an integer"
+                % (sleep, cfgval)
+            ) from e
     else:
         sleep = None
 

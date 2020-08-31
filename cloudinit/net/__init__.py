@@ -506,7 +506,9 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
     try:
         _rename_interfaces(extract_physdevs(netcfg))
     except RuntimeError as e:
-        raise RuntimeError('Failed to apply network config names: %s' % e)
+        raise RuntimeError(
+            'Failed to apply network config names: %s' % e
+        ) from e
 
 
 def interface_has_own_mac(ifname, strict=False):
@@ -965,7 +967,8 @@ class EphemeralIPv4Network(object):
             self.prefix = mask_to_net_prefix(prefix_or_mask)
         except ValueError as e:
             raise ValueError(
-                'Cannot setup network: {0}'.format(e))
+                'Cannot setup network: {0}'.format(e)
+            ) from e
 
         self.connectivity_url = connectivity_url
         self.interface = interface

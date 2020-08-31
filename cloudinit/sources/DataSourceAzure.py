@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit.event import EventType
+from cloudinit.net import device_driver
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers import netlink
@@ -1146,7 +1147,7 @@ def read_azure_ovf(contents):
     except Exception as e:
         error_str = "Invalid ovf-env.xml: %s" % e
         report_diagnostic_event(error_str)
-        raise BrokenAzureDataSource(error_str)
+        raise BrokenAzureDataSource(error_str) from e
 
     results = find_child(dom.documentElement,
                          lambda n: n.localName == "ProvisioningSection")
@@ -1387,9 +1388,16 @@ def parse_network_config(imds_metadata):
                                 ip=privateIp, prefix=netPrefix))
                 if dev_config:
                     mac = ':'.join(re.findall(r'..', intf['macAddress']))
-                    dev_config.update(
-                        {'match': {'macaddress': mac.lower()},
-                         'set-name': nicname})
+                    dev_config.update({
+                        'match': {'macaddress': mac.lower()},
+                        'set-name': nicname
+                    })
+                    # With netvsc, we can get two interfaces that
+                    # share the same MAC, so we need to make sure
+                    # our match condition also contains the driver
+                    driver = device_driver(nicname)
+                    if driver and driver == 'hv_netvsc':
+                        dev_config['match']['driver'] = driver
                     netconfig['ethernets'][nicname] = dev_config
             evt.description = "network config from imds"
         else:
