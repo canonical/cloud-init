@@ -180,12 +180,13 @@ def get_system_info():
     return evt
 
 
-def report_diagnostic_event(str):
+def report_diagnostic_event(str, logger_func):
     """Report a diagnostic event"""
+    logger_func(str)
     evt = events.ReportingEvent(
         DIAGNOSTIC_EVENT_TYPE, 'diagnostic message',
         str, events.DEFAULT_EVENT_ORIGIN)
-    events.report_event(evt)
+    events.report_event(evt, excluded_handler_types={"log"})
 
     # return the event for unit testing purpose
     return evt
@@ -215,7 +216,8 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
 
     log_pushed_to_kvp = bool(os.path.isfile(LOG_PUSHED_TO_KVP_MARKER_FILE))
     if log_pushed_to_kvp:
-        report_diagnostic_event("cloud-init.log is already pushed to KVP")
+        report_diagnostic_event(
+            "cloud-init.log is already pushed to KVP", LOG.debug)
         return
 
     LOG.debug("Dumping cloud-init.log file to KVP")
@@ -225,13 +227,14 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
             seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, 0)
             report_diagnostic_event(
                 "Dumping last {} bytes of cloud-init.log file to KVP".format(
-                    f.tell() - seek_index))
+                    f.tell() - seek_index),
+                LOG.debug)
             f.seek(seek_index, os.SEEK_SET)
             report_compressed_event("cloud-init.log", f.read())
         util.write_file(LOG_PUSHED_TO_KVP_MARKER_FILE, '')
     except Exception as ex:
-        report_diagnostic_event("Exception when dumping log file: %s" %
-                                repr(ex))
+        report_diagnostic_event(
+            "Exception when dumping log file: %s" % repr(ex), LOG.warning)
 
 
 @contextmanager
@@ -301,9 +304,8 @@ class GoalState:
         try:
             self.root = ElementTree.fromstring(unparsed_xml)
         except ElementTree.ParseError as e:
-            msg = 'Failed to parse GoalState XML: %s'
-            LOG.warning(msg, e)
-            report_diagnostic_event(msg % (e,))
+            report_diagnostic_event(
+                'Failed to parse GoalState XML: %s' % e, LOG.warning)
             raise
 
         self.container_id = self._text_from_xpath('./Container/ContainerId')
@@ -314,8 +316,7 @@ class GoalState:
         for attr in ("container_id", "instance_id", "incarnation"):
             if getattr(self, attr) is None:
                 msg = 'Missing %s in GoalState XML'
-                LOG.warning(msg, attr)
-                report_diagnostic_event(msg % (attr,))
+                report_diagnostic_event(msg % attr, LOG.warning)
                 raise InvalidGoalStateXMLException(msg)
 
         self.certificates_xml = None
@@ -509,9 +510,8 @@ class GoalStateHealthReporter:
         try:
             self._post_health_report(document=document)
         except Exception as e:
-            msg = "exception while reporting ready: %s" % e
-            LOG.error(msg)
-            report_diagnostic_event(msg)
+            report_diagnostic_event(
+                "exception while reporting ready: %s" % e, LOG.error)
             raise
 
         LOG.info('Reported ready to Azure fabric.')
@@ -694,39 +694,44 @@ class WALinuxAgentShim:
             value = dhcp245
             LOG.debug("Using Azure Endpoint from dhcp options")
         if value is None:
-            report_diagnostic_event("No Azure endpoint from dhcp options")
-            LOG.debug('Finding Azure endpoint from networkd...')
+            report_diagnostic_event(
+                'No Azure endpoint from dhcp options. '
+                'Finding Azure endpoint from networkd...', LOG.debug)
             value = WALinuxAgentShim._networkd_get_value_from_leases()
         if value is None:
             # Option-245 stored in /run/cloud-init/dhclient.hooks/<ifc>.json
             # a dhclient exit hook that calls cloud-init-dhclient-hook
-            report_diagnostic_event("No Azure endpoint from networkd")
-            LOG.debug('Finding Azure endpoint from hook json...')
+            report_diagnostic_event(
+                'No Azure endpoint from networkd. '
+                'Finding Azure endpoint from hook json...', LOG.debug)
             dhcp_options = WALinuxAgentShim._load_dhclient_json()
             value = WALinuxAgentShim._get_value_from_dhcpoptions(dhcp_options)
         if value is None:
             # Fallback and check the leases file if unsuccessful
-            report_diagnostic_event("No Azure endpoint from dhclient logs")
-            LOG.debug("Unable to find endpoint in dhclient logs. "
-                      " Falling back to check lease files")
+            report_diagnostic_event(
+                'No Azure endpoint from dhclient logs. '
+                'Unable to find endpoint in dhclient logs. '
+                'Falling back to check lease files',
+                LOG.debug)
             if fallback_lease_file is None:
-                LOG.warning("No fallback lease file was specified.")
+                report_diagnostic_event(
+                    'No fallback lease file was specified.', LOG.warning)
                 value = None
             else:
-                LOG.debug("Looking for endpoint in lease file %s",
-                          fallback_lease_file)
+                report_diagnostic_event(
+                    'Looking for endpoint in lease file %s'
+                    % fallback_lease_file, LOG.debug)
                 value = WALinuxAgentShim._get_value_from_leases_file(
                     fallback_lease_file)
         if value is None:
-            msg = "No lease found; using default endpoint"
-            report_diagnostic_event(msg)
-            LOG.warning(msg)
             value = DEFAULT_WIRESERVER_ENDPOINT
+            report_diagnostic_event(
+                'No lease found; using default endpoint: %s' % value,
+                LOG.warning)
 
         endpoint_ip_address = WALinuxAgentShim.get_ip_from_lease_value(value)
-        msg = 'Azure endpoint found at %s' % endpoint_ip_address
-        report_diagnostic_event(msg)
-        LOG.debug(msg)
+        report_diagnostic_event(
+            'Azure endpoint found at %s' % endpoint_ip_address, LOG.debug)
         return endpoint_ip_address
 
     @azure_ds_telemetry_reporter
@@ -776,9 +781,9 @@ class WALinuxAgentShim:
         try:
             response = self.azure_endpoint_client.get(url)
         except Exception as e:
-            msg = 'failed to register with Azure: %s' % e
-            LOG.warning(msg)
-            report_diagnostic_event(msg)
+            report_diagnostic_event(
+                'failed to register with Azure and fetch GoalState XML: %s'
+                % e, LOG.warning)
             raise
         LOG.debug('Successfully fetched GoalState XML.')
         return response.contents
@@ -795,16 +800,14 @@ class WALinuxAgentShim:
             goal_state = GoalState(
                 unparsed_goal_state_xml, self.azure_endpoint_client)
         except Exception as e:
-            msg = 'Error processing GoalState XML: %s' % e
-            LOG.warning(msg)
-            report_diagnostic_event(msg)
+            report_diagnostic_event(
+                'Error processing GoalState XML: %s' % e, LOG.warning)
             raise
         msg = ', '.join([
             'GoalState XML container id: %s' % goal_state.container_id,
             'GoalState XML instance id: %s' % goal_state.instance_id,
             'GoalState XML incarnation: %s' % goal_state.incarnation])
-        LOG.debug(msg)
-        report_diagnostic_event(msg)
+        report_diagnostic_event(msg, LOG.debug)
         return goal_state
 
     @azure_ds_telemetry_reporter
@@ -886,8 +889,8 @@ def get_metadata_from_fabric(fallback_lease_file=None, dhcp_opts=None,
 
 
 def dhcp_log_cb(out, err):
-    report_diagnostic_event("dhclient output stream: %s" % out)
-    report_diagnostic_event("dhclient error stream: %s" % err)
+    report_diagnostic_event("dhclient output stream: %s" % out, LOG.debug)
+    report_diagnostic_event("dhclient error stream: %s" % err, LOG.debug)
 
 
 class EphemeralDHCPv4WithReporting:

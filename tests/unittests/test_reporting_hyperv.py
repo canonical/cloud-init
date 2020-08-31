@@ -192,7 +192,7 @@ class TextKvpReporter(CiTestCase):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
 
         reporter.publish_event(
-            azure.report_diagnostic_event("test_diagnostic"))
+            azure.report_diagnostic_event("test_diagnostic", mock.MagicMock()))
         reporter.q.join()
         kvps = list(reporter._iterate_kvps(0))
         self.assertEqual(1, len(kvps))
@@ -200,6 +200,14 @@ class TextKvpReporter(CiTestCase):
 
         if "test_diagnostic" not in evt_msg:
             raise AssertionError("missing expected diagnostic message")
+
+    def test_report_diagnostic_event_calls_logger_func(self):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        logger_func = mock.MagicMock()
+        diagnostic_msg = "test_diagnostic"
+        reporter.publish_event(
+            azure.report_diagnostic_event(diagnostic_msg, logger_func))
+        logger_func.assert_called_once_with(diagnostic_msg)
 
     def test_report_compressed_event(self):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
