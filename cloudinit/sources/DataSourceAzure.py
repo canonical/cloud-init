@@ -281,7 +281,8 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
         set_hostname(temp_hostname, hostname_command)
     except Exception as e:
         report_diagnostic_event(
-            'Failed setting temporary hostname: %s' % e, LOG.warning)
+            'Failed setting temporary hostname: %s' % e,
+            logger_func=LOG.warning)
         yield None
         return
     try:
@@ -337,7 +338,8 @@ class DataSourceAzure(sources.DataSource):
                                                    prev_hostname=previous_hn)
                 except Exception as e:
                     report_diagnostic_event(
-                        "Failed publishing hostname: %s" % e, LOG.warning)
+                        "Failed publishing hostname: %s" % e,
+                        logger_func=LOG.warning)
                     util.logexc(LOG, "handling set_hostname failed")
         return False
 
@@ -435,22 +437,23 @@ class DataSourceAzure(sources.DataSource):
 
             except NonAzureDataSource:
                 report_diagnostic_event(
-                    "Did not find Azure data source in %s" % cdev, LOG.debug)
+                    "Did not find Azure data source in %s" % cdev,
+                    logger_func=LOG.debug)
                 continue
             except BrokenAzureDataSource as exc:
                 msg = 'BrokenAzureDataSource: %s' % exc
-                report_diagnostic_event(msg, LOG.error)
+                report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
             except util.MountFailedError:
                 report_diagnostic_event(
-                    '%s was not mountable' % cdev, LOG.warning)
+                    '%s was not mountable' % cdev, logger_func=LOG.warning)
                 continue
 
             perform_reprovision = reprovision or self._should_reprovision(ret)
             if perform_reprovision:
                 if util.is_FreeBSD():
                     msg = "Free BSD is not supported for PPS VMs"
-                    report_diagnostic_event(msg, LOG.error)
+                    report_diagnostic_event(msg, logger_func=LOG.error)
                     raise sources.InvalidMetaDataException(msg)
                 ret = self._reprovision()
             imds_md = get_metadata_from_imds(
@@ -465,12 +468,13 @@ class DataSourceAzure(sources.DataSource):
                 'userdata_raw': userdata_raw})
             found = cdev
 
-            report_diagnostic_event('found datasource in %s' % cdev, LOG.debug)
+            report_diagnostic_event(
+                'found datasource in %s' % cdev, logger_func=LOG.debug)
             break
 
         if not found:
             msg = 'No Azure metadata found'
-            report_diagnostic_event(msg, LOG.error)
+            report_diagnostic_event(msg, logger_func=LOG.error)
             raise sources.InvalidMetaDataException(msg)
 
         if found == ddir:
@@ -495,7 +499,8 @@ class DataSourceAzure(sources.DataSource):
                         self._report_ready(lease=lease)
                 except Exception as e:
                     report_diagnostic_event(
-                        "exception while reporting ready: %s" % e, LOG.error)
+                        "exception while reporting ready: %s" % e,
+                        logger_func=LOG.error)
                     raise
         return crawled_data
 
@@ -613,7 +618,7 @@ class DataSourceAzure(sources.DataSource):
                             "Call to IMDS with arguments %s failed "
                             "with status code %s after %s retries" %
                             (msg, exception.code, self.imds_poll_counter),
-                            LOG.warning)
+                            logger_func=LOG.warning)
                         LOG.debug("Backing off logging threshold for the same "
                                   "exception to %d",
                                   self.imds_logging_threshold)
@@ -621,7 +626,7 @@ class DataSourceAzure(sources.DataSource):
                                                 "Exception: %s and code: %s" %
                                                 (msg, exception.cause,
                                                  exception.code),
-                                                LOG.warning)
+                                                logger_func=LOG.warning)
                     self.imds_poll_counter += 1
                     return True
                 else:
@@ -631,13 +636,13 @@ class DataSourceAzure(sources.DataSource):
                                             "Exception: %s and code: %s" %
                                             (msg, exception.cause,
                                              exception.code),
-                                            LOG.warning)
+                                            logger_func=LOG.warning)
                     return False
 
             report_diagnostic_event(
                 "poll IMDS failed with an "
                 "unexpected exception: %s" % exception,
-                LOG.warning)
+                logger_func=LOG.warning)
             return False
 
         LOG.debug("Wait for vnetswitch to happen")
@@ -660,7 +665,7 @@ class DataSourceAzure(sources.DataSource):
                     except netlink.NetlinkCreateSocketError as e:
                         report_diagnostic_event(
                             'Failed to create bound netlink socket: %s' % e,
-                            LOG.warning)
+                            logger_func=LOG.warning)
                         self._ephemeral_dhcp_ctx.clean_network()
                         break
 
@@ -682,7 +687,7 @@ class DataSourceAzure(sources.DataSource):
                         except AssertionError as e:
                             report_diagnostic_event(
                                 'Error while waiting for vnet switch: %s' % e,
-                                LOG.error)
+                                logger_func=LOG.error)
                             break
 
                     vnet_switched = True
@@ -708,9 +713,11 @@ class DataSourceAzure(sources.DataSource):
 
         if vnet_switched:
             report_diagnostic_event("attempted dhcp %d times after reuse" %
-                                    dhcp_attempts, LOG.debug)
+                                    dhcp_attempts,
+                                    logger_func=LOG.debug)
             report_diagnostic_event("polled imds %d times after reuse" %
-                                    self.imds_poll_counter, LOG.debug)
+                                    self.imds_poll_counter,
+                                    logger_func=LOG.debug)
 
         return return_val
 
@@ -722,7 +729,7 @@ class DataSourceAzure(sources.DataSource):
         except Exception as e:
             report_diagnostic_event(
                 "Error communicating with Azure fabric; You may experience "
-                "connectivity issues: %s" % e, LOG.warning)
+                "connectivity issues: %s" % e, logger_func=LOG.warning)
 
     def _should_reprovision(self, ret):
         """Whether or not we should poll IMDS for reprovisioning data.
@@ -785,7 +792,7 @@ class DataSourceAzure(sources.DataSource):
         except Exception as e:
             report_diagnostic_event(
                 "Error communicating with Azure fabric; You may experience "
-                "connectivity issues: %s" % e, LOG.warning)
+                "connectivity issues: %s" % e, logger_func=LOG.warning)
             return False
 
         util.del_file(REPORTED_READY_MARKER_FILE)
@@ -953,7 +960,7 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
             report_diagnostic_event(
                 "ephemeral device '%s' did not appear after %d seconds." %
                 (devpath, maxwait),
-                LOG.warning)
+                logger_func=LOG.warning)
             return
 
     result = False
@@ -1040,7 +1047,7 @@ def pubkeys_from_crt_files(flist):
     if errors:
         report_diagnostic_event(
             "failed to convert the crt files to pubkey: %s" % errors,
-            LOG.warning)
+            logger_func=LOG.warning)
 
     return pubkeys
 
@@ -1152,7 +1159,7 @@ def read_azure_ovf(contents):
         dom = minidom.parseString(contents)
     except Exception as e:
         error_str = "Invalid ovf-env.xml: %s" % e
-        report_diagnostic_event(error_str, LOG.warning)
+        report_diagnostic_event(error_str, logger_func=LOG.warning)
         raise BrokenAzureDataSource(error_str) from e
 
     results = find_child(dom.documentElement,
@@ -1443,7 +1450,8 @@ def get_metadata_from_imds(fallback_nic, retries):
                 return util.log_time(**kwargs)
         except Exception as e:
             report_diagnostic_event(
-                "exception while getting metadata: %s" % e, LOG.warning)
+                "exception while getting metadata: %s" % e,
+                logger_func=LOG.warning)
             raise
 
 
@@ -1460,7 +1468,7 @@ def _get_metadata_from_imds(retries):
         report_diagnostic_event(
             'Ignoring IMDS instance metadata. '
             'Get metadata from IMDS failed: %s' % e,
-            LOG.warning)
+            logger_func=LOG.warning)
         return {}
     try:
         from json.decoder import JSONDecodeError
@@ -1474,7 +1482,7 @@ def _get_metadata_from_imds(retries):
         report_diagnostic_event(
             'Ignoring non-json IMDS instance metadata response: %s. '
             'Loading non-json IMDS response failed: %s' % (str(response), e),
-            LOG.warning)
+            logger_func=LOG.warning)
     return {}
 
 
@@ -1527,7 +1535,7 @@ def _is_platform_viable(seed_dir):
             return True
         msg = "Non-Azure DMI asset tag '%s' discovered." % asset_tag
         evt.description = msg
-        report_diagnostic_event(msg, LOG.debug)
+        report_diagnostic_event(msg, logger_func=LOG.debug)
         if os.path.exists(os.path.join(seed_dir, 'ovf-env.xml')):
             return True
         return False
