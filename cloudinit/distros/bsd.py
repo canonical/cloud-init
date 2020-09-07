@@ -127,3 +127,24 @@ class BSD(distros.Distro):
 
     def apply_network_config_names(self, netconfig):
         LOG.debug('Cannot rename network interface.')
+
+    def shutdown_command(self, mode='poweroff', delay='now', message=None):
+        # called from cc_power_state_change.load_power_state
+
+        # direct copy from the generic shutdown() method, except that
+        # poweroff is with -p, not -P.
+
+        opt_map = {'halt': '-H', 'poweroff': '-p', 'reboot': '-r'}
+        command = ["shutdown", opt_map[mode]]
+        try:
+            if delay != "now":
+                delay = "+%d" % int(delay)
+        except ValueError as e:
+            raise TypeError(
+                "power_state[delay] must be 'now' or '+m' (minutes)."
+                " found '%s'." % delay
+            ) from e
+        args = command + [delay]
+        if message:
+            args.append(message)
+        return args

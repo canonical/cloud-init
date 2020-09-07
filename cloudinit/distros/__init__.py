@@ -749,6 +749,23 @@ class Distro(metaclass=abc.ABCMeta):
                 subp.subp(['usermod', '-a', '-G', name, member])
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
+    def shutdown_command(self, mode='poweroff', delay='now', message=None):
+        # called from cc_power_state_change.load_power_state
+        opt_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
+        command = ["shutdown", opt_map[mode]]
+        try:
+            if delay != "now":
+                delay = "+%d" % int(delay)
+        except ValueError as e:
+            raise TypeError(
+                "power_state[delay] must be 'now' or '+m' (minutes)."
+                " found '%s'." % delay
+            ) from e
+        args = command + [delay]
+        if message:
+            args.append(message)
+        return args
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
