@@ -863,7 +863,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     vd = None
     try:
         vd_resp = url_helper.read_file_or_url(vd_url, timeout=timeout,
-                                          retries=retries)
+                                              retries=retries)
     except url_helper.UrlError:
         pass
     else:

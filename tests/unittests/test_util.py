@@ -738,7 +738,7 @@ class TestReadSeeded(helpers.TestCase):
         vd = b"vendordatablob"
         helpers.populate_dir(
             self.tmp, {'meta-data': "key1: val1", 'user-data': ud,
-                'vendor-data': vd})
+                       'vendor-data': vd})
         sdir = self.tmp + os.path.sep
         (found_md, found_ud, found_vd) = util.read_seeded(sdir)
 
