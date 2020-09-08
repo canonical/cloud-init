@@ -747,6 +747,25 @@ class TestReadSeeded(helpers.TestCase):
         self.assertEqual(found_vd, vd)
 
 
+class TestReadSeededWithoutVendorData(helpers.TestCase):
+    def setUp(self):
+        super(TestReadSeededWithoutVendorData, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def test_unicode_not_messed_up(self):
+        ud = b"userdatablob"
+        vd = None
+        helpers.populate_dir(
+            self.tmp, {'meta-data': "key1: val1", 'user-data': ud})
+        sdir = self.tmp + os.path.sep
+        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
+
+        self.assertEqual(found_md, {'key1': 'val1'})
+        self.assertEqual(found_ud, ud)
+        self.assertEqual(found_vd, vd)
+
+
 class TestEncode(helpers.TestCase):
     """Test the encoding functions"""
     def test_decode_binary_plain_text_with_hex(self):

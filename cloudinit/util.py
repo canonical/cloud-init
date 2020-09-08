@@ -860,11 +860,15 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if ud_resp.ok():
         ud = ud_resp.contents
 
-    vd_resp = url_helper.read_file_or_url(vd_url, timeout=timeout,
-                                          retries=retries)
     vd = None
-    if vd_resp.ok():
-        vd = vd_resp.contents
+    try:
+        vd_resp = url_helper.read_file_or_url(vd_url, timeout=timeout,
+                                          retries=retries)
+    except url_helper.UrlError:
+        pass
+    else:
+        if vd_resp.ok():
+            vd = vd_resp.contents
 
     return (md, ud, vd)
 
