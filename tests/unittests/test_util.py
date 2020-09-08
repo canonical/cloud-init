@@ -735,13 +735,16 @@ class TestReadSeeded(helpers.TestCase):
 
     def test_unicode_not_messed_up(self):
         ud = b"userdatablob"
+        vd = b"vendordatablob"
         helpers.populate_dir(
-            self.tmp, {'meta-data': "key1: val1", 'user-data': ud})
+            self.tmp, {'meta-data': "key1: val1", 'user-data': ud,
+                'vendor-data': vd})
         sdir = self.tmp + os.path.sep
-        (found_md, found_ud) = util.read_seeded(sdir)
+        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
 
         self.assertEqual(found_md, {'key1': 'val1'})
         self.assertEqual(found_ud, ud)
+        self.assertEqual(found_vd, vd)
 
 
 class TestEncode(helpers.TestCase):
