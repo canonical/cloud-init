@@ -99,7 +99,8 @@ class ConfigMap(object):
     def __len__(self):
         return len(self._conf)
 
-    def str_skipped(self, key, val):
+    def skip_key_value(self, key, val):
+        """Skip the pair key, value if it matches a certain rule."""
         return False
 
     def to_string(self):
@@ -109,7 +110,7 @@ class ConfigMap(object):
             buf.write("\n")
         for key in sorted(self._conf.keys()):
             value = self._conf[key]
-            if self.str_skipped(key, value):
+            if self.skip_key_value(key, value):
                 continue
             if isinstance(value, bool):
                 value = self._bool_map[value]
@@ -273,7 +274,7 @@ class NetInterface(ConfigMap):
             c.routes = self.routes.copy()
         return c
 
-    def str_skipped(self, key, val):
+    def skip_key_value(self, key, val):
         if key == 'TYPE' and val == 'Vlan':
             return True
         return False
@@ -714,8 +715,8 @@ class Renderer(renderer.Renderer):
                 supported = _supported_vlan_names(rdev, iface['vlan_id'])
                 if iface_name not in supported:
                     LOG.warning(
-                        "Name '%s' not officially supported for vlan "
-                        "device backed by '%s'. Supported: %s",
+                        "Name '%s' for vlan '%s' is not officially supported"
+                        "by RHEL. Supported: %s",
                         iface_name, rdev, ' '.join(supported))
                 iface_cfg['PHYSDEV'] = rdev
 
