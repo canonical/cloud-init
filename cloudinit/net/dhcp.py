@@ -82,8 +82,8 @@ class EphemeralDHCPv4(object):
         try:
             leases = maybe_perform_dhcp_discovery(
                 self.iface, self.dhcp_log_func)
-        except InvalidDHCPLeaseFileError:
-            raise NoDHCPLeaseError()
+        except InvalidDHCPLeaseFileError as e:
+            raise NoDHCPLeaseError() from e
         if not leases:
             raise NoDHCPLeaseError()
         self.lease = leases[-1]

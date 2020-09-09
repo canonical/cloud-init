@@ -347,8 +347,10 @@ class SyslogRemotesLine(object):
         if self.port:
             try:
                 int(self.port)
-            except ValueError:
-                raise ValueError("port '%s' is not an integer" % self.port)
+            except ValueError as e:
+                raise ValueError(
+                    "port '%s' is not an integer" % self.port
+                ) from e
 
         if not self.addr:
             raise ValueError("address is required")
