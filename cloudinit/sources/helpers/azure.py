@@ -764,7 +764,9 @@ class WALinuxAgentShim:
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
-    def _fetch_goal_state_from_azure(self, need_certificate: bool) -> GoalState:
+    def _fetch_goal_state_from_azure(
+            self,
+            need_certificate: bool) -> GoalState:
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
