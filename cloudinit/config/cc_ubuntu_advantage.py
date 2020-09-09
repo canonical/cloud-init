@@ -115,7 +115,7 @@ def configure_ua(token=None, enable=None):
         msg = 'Failure attaching Ubuntu Advantage:\n{error}'.format(
             error=str(e))
         util.logexc(LOG, msg)
-        raise RuntimeError(msg)
+        raise RuntimeError(msg) from e
     enable_errors = []
     for service in enable:
         try:

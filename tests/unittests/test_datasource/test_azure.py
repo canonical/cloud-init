@@ -284,6 +284,23 @@ class TestParseNetworkConfig(CiTestCase):
         }
         self.assertEqual(expected, dsaz.parse_network_config(imds_data))
 
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value='hv_netvsc')
+    def test_match_driver_for_netvsc(self, m_driver):
+        """parse_network_config emits driver when using netvsc."""
+        expected = {'ethernets': {
+            'eth0': {
+                'dhcp4': True,
+                'dhcp4-overrides': {'route-metric': 100},
+                'dhcp6': False,
+                'match': {
+                    'macaddress': '00:0d:3a:04:75:98',
+                    'driver': 'hv_netvsc',
+                },
+                'set-name': 'eth0'
+            }}, 'version': 2}
+        self.assertEqual(expected, dsaz.parse_network_config(NETWORK_METADATA))
+
 
 class TestGetMetadataFromIMDS(HttprettyTestCase):
 

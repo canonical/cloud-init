@@ -239,6 +239,35 @@ class TestNtp(FilesystemMockingTestCase):
                     self.assertEqual(delta[distro][client][key],
                                      result[client][key])
 
+    def _get_expected_pools(self, pools, distro, client):
+        if client in ['ntp', 'chrony']:
+            if client == 'ntp' and distro == 'alpine':
+                # NTP for Alpine Linux is Busybox's ntp which does not
+                # support 'pool' lines in its configuration file.
+                expected_pools = []
+            else:
+                expected_pools = [
+                    'pool {0} iburst'.format(pool) for pool in pools]
+        elif client == 'systemd-timesyncd':
+            expected_pools = " ".join(pools)
+
+        return expected_pools
+
+    def _get_expected_servers(self, servers, distro, client):
+        if client in ['ntp', 'chrony']:
+            if client == 'ntp' and distro == 'alpine':
+                # NTP for Alpine Linux is Busybox's ntp which only supports
+                # 'server' lines without iburst option.
+                expected_servers = [
+                    'server {0}'.format(srv) for srv in servers]
+            else:
+                expected_servers = [
+                    'server {0} iburst'.format(srv) for srv in servers]
+        elif client == 'systemd-timesyncd':
+            expected_servers = " ".join(servers)
+
+        return expected_servers
+
     def test_ntp_handler_real_distro_ntp_templates(self):
         """Test ntp handler renders the shipped distro ntp client templates."""
         pools = ['0.mycompany.pool.ntp.org', '3.mycompany.pool.ntp.org']
@@ -269,27 +298,35 @@ class TestNtp(FilesystemMockingTestCase):
                 content = util.load_file(confpath)
                 if client in ['ntp', 'chrony']:
                     content_lines = content.splitlines()
-                    expected_servers = [
-                        'server {0} iburst'.format(srv) for srv in servers]
+                    expected_servers = self._get_expected_servers(servers,
+                                                                  distro,
+                                                                  client)
                     print('distro=%s client=%s' % (distro, client))
                     for sline in expected_servers:
                         self.assertIn(sline, content_lines,
                                       ('failed to render {0} conf'
                                        ' for distro:{1}'.format(client,
                                                                 distro)))
-                    expected_pools = [
-                        'pool {0} iburst'.format(pool) for pool in pools]
-                    for pline in expected_pools:
-                        self.assertIn(pline, content_lines,
-                                      ('failed to render {0} conf'
-                                       ' for distro:{1}'.format(client,
-                                                                distro)))
+                    expected_pools = self._get_expected_pools(pools, distro,
+                                                              client)
+                    if expected_pools != []:
+                        for pline in expected_pools:
+                            self.assertIn(pline, content_lines,
+                                          ('failed to render {0} conf'
+                                           ' for distro:{1}'.format(client,
+                                                                    distro)))
                 elif client == 'systemd-timesyncd':
+                    expected_servers = self._get_expected_servers(servers,
+                                                                  distro,
+                                                                  client)
+                    expected_pools = self._get_expected_pools(pools,
+                                                              distro,
+                                                              client)
                     expected_content = (
                         "# cloud-init generated file\n" +
                         "# See timesyncd.conf(5) for details.\n\n" +
-                        "[Time]\nNTP=%s %s \n" % (" ".join(servers),
-                                                  " ".join(pools)))
+                        "[Time]\nNTP=%s %s \n" % (expected_servers,
+                                                  expected_pools))
                     self.assertEqual(expected_content, content)
 
     def test_no_ntpcfg_does_nothing(self):
@@ -312,10 +349,20 @@ class TestNtp(FilesystemMockingTestCase):
                 confpath = ntpconfig['confpath']
                 m_select.return_value = ntpconfig
                 cc_ntp.handle('cc_ntp', valid_empty_config, mycloud, None, [])
-                pools = cc_ntp.generate_server_names(mycloud.distro.name)
-                self.assertEqual(
-                    "servers []\npools {0}\n".format(pools),
-                    util.load_file(confpath))
+                if distro == 'alpine':
+                    # _mock_ntp_client_config call above did not specify a
+                    # client value and so it defaults to "ntp" which on
+                    # Alpine Linux only supports servers and not pools.
+
+                    servers = cc_ntp.generate_server_names(mycloud.distro.name)
+                    self.assertEqual(
+                        "servers {0}\npools []\n".format(servers),
+                        util.load_file(confpath))
+                else:
+                    pools = cc_ntp.generate_server_names(mycloud.distro.name)
+                    self.assertEqual(
+                        "servers []\npools {0}\n".format(pools),
+                        util.load_file(confpath))
             self.assertNotIn('Invalid config:', self.logs.getvalue())
 
     @skipUnlessJsonSchema()
@@ -374,18 +421,19 @@ class TestNtp(FilesystemMockingTestCase):
         invalid_config = {
             'ntp': {'invalidkey': 1, 'pools': ['0.mycompany.pool.ntp.org']}}
         for distro in cc_ntp.distros:
-            mycloud = self._get_cloud(distro)
-            ntpconfig = self._mock_ntp_client_config(distro=distro)
-            confpath = ntpconfig['confpath']
-            m_select.return_value = ntpconfig
-            cc_ntp.handle('cc_ntp', invalid_config, mycloud, None, [])
-            self.assertIn(
-                "Invalid config:\nntp: Additional properties are not allowed "
-                "('invalidkey' was unexpected)",
-                self.logs.getvalue())
-            self.assertEqual(
-                "servers []\npools ['0.mycompany.pool.ntp.org']\n",
-                util.load_file(confpath))
+            if distro != 'alpine':
+                mycloud = self._get_cloud(distro)
+                ntpconfig = self._mock_ntp_client_config(distro=distro)
+                confpath = ntpconfig['confpath']
+                m_select.return_value = ntpconfig
+                cc_ntp.handle('cc_ntp', invalid_config, mycloud, None, [])
+                self.assertIn(
+                    "Invalid config:\nntp: Additional properties are not "
+                    "allowed ('invalidkey' was unexpected)",
+                    self.logs.getvalue())
+                self.assertEqual(
+                    "servers []\npools ['0.mycompany.pool.ntp.org']\n",
+                    util.load_file(confpath))
 
     @skipUnlessJsonSchema()
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
@@ -452,9 +500,22 @@ class TestNtp(FilesystemMockingTestCase):
             confpath = ntpconfig['confpath']
             service_name = ntpconfig['service_name']
             m_select.return_value = ntpconfig
-            pools = cc_ntp.generate_server_names(mycloud.distro.name)
-            # force uses systemd path
-            m_sysd.return_value = True
+
+            hosts = cc_ntp.generate_server_names(mycloud.distro.name)
+            uses_systemd = True
+            expected_service_call = ['systemctl', 'reload-or-restart',
+                                     service_name]
+            expected_content = "servers []\npools {0}\n".format(hosts)
+
+            if distro == 'alpine':
+                uses_systemd = False
+                expected_service_call = ['service', service_name, 'restart']
+                # _mock_ntp_client_config call above did not specify a client
+                # value and so it defaults to "ntp" which on Alpine Linux only
+                # supports servers and not pools.
+                expected_content = "servers {0}\npools []\n".format(hosts)
+
+            m_sysd.return_value = uses_systemd
             with mock.patch('cloudinit.config.cc_ntp.util') as m_util:
                 # allow use of util.mergemanydict
                 m_util.mergemanydict.side_effect = util.mergemanydict
@@ -465,11 +526,9 @@ class TestNtp(FilesystemMockingTestCase):
                     cfg['ntp']['enabled'])
                 cc_ntp.handle('notimportant', cfg, mycloud, None, None)
                 m_subp.subp.assert_called_with(
-                    ['systemctl', 'reload-or-restart',
-                     service_name], capture=True)
-            self.assertEqual(
-                "servers []\npools {0}\n".format(pools),
-                util.load_file(confpath))
+                    expected_service_call, capture=True)
+
+            self.assertEqual(expected_content, util.load_file(confpath))
 
     def test_opensuse_picks_chrony(self):
         """Test opensuse picks chrony or ntp on certain distro versions"""

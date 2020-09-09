@@ -30,7 +30,7 @@ are configured correctly.
 
 **Module frequency:** per instance
 
-**Supported distros:** fedora, rhel, sles
+**Supported distros:** alpine, fedora, rhel, sles
 
 **Config keys**::
 
@@ -55,7 +55,7 @@ LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 
-distros = ['fedora', 'opensuse', 'rhel', 'sles']
+distros = ['alpine', 'fedora', 'opensuse', 'rhel', 'sles']
 
 
 def generate_resolv_conf(template_fn, params, target_fname="/etc/resolv.conf"):

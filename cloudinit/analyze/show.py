@@ -267,7 +267,7 @@ def gather_timestamps_using_systemd():
                 except OSError as err:
                     raise RuntimeError('Could not determine container boot '
                                        'time from /proc/1/cmdline. ({})'
-                                       .format(err))
+                                       .format(err)) from err
                 status = CONTAINER_CODE
             else:
                 status = FAIL_CODE

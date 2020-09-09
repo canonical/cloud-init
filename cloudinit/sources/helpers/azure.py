@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
+import base64
 import json
 import logging
 import os
@@ -8,7 +8,9 @@ import socket
 import struct
 import time
 import textwrap
+import zlib
 
+from cloudinit.settings import CFG_BUILTIN
 from cloudinit.net import dhcp
 from cloudinit import stages
 from cloudinit import temp_utils
@@ -33,7 +35,14 @@ DEFAULT_WIRESERVER_ENDPOINT = "a8:3f:81:10"
 BOOT_EVENT_TYPE = 'boot-telemetry'
 SYSTEMINFO_EVENT_TYPE = 'system-info'
 DIAGNOSTIC_EVENT_TYPE = 'diagnostic'
-
+COMPRESSED_EVENT_TYPE = 'compressed'
+# Maximum number of bytes of the cloud-init.log file that can be dumped to KVP
+# at once. This number is based on the analysis done on a large sample of
+# cloud-init.log files where the P95 of the file sizes was 537KB and the time
+# consumed to dump 500KB file was (P95:76, P99:233, P99.9:1170) in ms
+MAX_LOG_TO_KVP_LENGTH = 512000
+# Marker file to indicate whether cloud-init.log is pushed to KVP
+LOG_PUSHED_TO_KVP_MARKER_FILE = '/var/lib/cloud/data/log_pushed_to_kvp'
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
@@ -89,8 +98,10 @@ def get_boot_telemetry():
     LOG.debug("Collecting boot telemetry")
     try:
         kernel_start = float(time.time()) - float(util.uptime())
-    except ValueError:
-        raise RuntimeError("Failed to determine kernel start timestamp")
+    except ValueError as e:
+        raise RuntimeError(
+            "Failed to determine kernel start timestamp"
+        ) from e
 
     try:
         out, _ = subp.subp(['/bin/systemctl',
@@ -107,12 +118,13 @@ def get_boot_telemetry():
 
         user_start = kernel_start + (float(tsm) / 1000000)
     except subp.ProcessExecutionError as e:
-        raise RuntimeError("Failed to get UserspaceTimestampMonotonic: %s"
-                           % e)
+        raise RuntimeError(
+            "Failed to get UserspaceTimestampMonotonic: %s" % e
+        ) from e
     except ValueError as e:
-        raise RuntimeError("Failed to parse "
-                           "UserspaceTimestampMonotonic from systemd: %s"
-                           % e)
+        raise RuntimeError(
+            "Failed to parse UserspaceTimestampMonotonic from systemd: %s" % e
+        ) from e
 
     try:
         out, _ = subp.subp(['/bin/systemctl', 'show',
@@ -128,12 +140,14 @@ def get_boot_telemetry():
 
         cloudinit_activation = kernel_start + (float(tsm) / 1000000)
     except subp.ProcessExecutionError as e:
-        raise RuntimeError("Failed to get InactiveExitTimestampMonotonic: %s"
-                           % e)
+        raise RuntimeError(
+            "Failed to get InactiveExitTimestampMonotonic: %s" % e
+        ) from e
     except ValueError as e:
-        raise RuntimeError("Failed to parse "
-                           "InactiveExitTimestampMonotonic from systemd: %s"
-                           % e)
+        raise RuntimeError(
+            "Failed to parse InactiveExitTimestampMonotonic from systemd: %s"
+            % e
+        ) from e
 
     evt = events.ReportingEvent(
         BOOT_EVENT_TYPE, 'boot-telemetry',
@@ -175,6 +189,49 @@ def report_diagnostic_event(str):
 
     # return the event for unit testing purpose
     return evt
+
+
+def report_compressed_event(event_name, event_content):
+    """Report a compressed event"""
+    compressed_data = base64.encodebytes(zlib.compress(event_content))
+    event_data = {"encoding": "gz+b64",
+                  "data": compressed_data.decode('ascii')}
+    evt = events.ReportingEvent(
+        COMPRESSED_EVENT_TYPE, event_name,
+        json.dumps(event_data),
+        events.DEFAULT_EVENT_ORIGIN)
+    events.report_event(evt,
+                        excluded_handler_types={"log", "print", "webhook"})
+
+    # return the event for unit testing purpose
+    return evt
+
+
+@azure_ds_telemetry_reporter
+def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
+    """Push a portion of cloud-init.log file or the whole file to KVP
+    based on the file size.
+    If called more than once, it skips pushing the log file to KVP again."""
+
+    log_pushed_to_kvp = bool(os.path.isfile(LOG_PUSHED_TO_KVP_MARKER_FILE))
+    if log_pushed_to_kvp:
+        report_diagnostic_event("cloud-init.log is already pushed to KVP")
+        return
+
+    LOG.debug("Dumping cloud-init.log file to KVP")
+    try:
+        with open(file_name, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, 0)
+            report_diagnostic_event(
+                "Dumping last {} bytes of cloud-init.log file to KVP".format(
+                    f.tell() - seek_index))
+            f.seek(seek_index, os.SEEK_SET)
+            report_compressed_event("cloud-init.log", f.read())
+        util.write_file(LOG_PUSHED_TO_KVP_MARKER_FILE, '')
+    except Exception as ex:
+        report_diagnostic_event("Exception when dumping log file: %s" %
+                                repr(ex))
 
 
 @contextmanager
@@ -233,9 +290,9 @@ class GoalState:
 
     def __init__(
             self,
-            unparsed_xml,
-            azure_endpoint_client,
-            need_certificate=True):
+            unparsed_xml: str,
+            azure_endpoint_client: AzureEndpointHttpClient,
+            need_certificate: bool = True) -> None:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_xml: string representing a GoalState XML.
@@ -426,7 +483,10 @@ class GoalStateHealthReporter:
 
     PROVISIONING_SUCCESS_STATUS = 'Ready'
 
-    def __init__(self, goal_state, azure_endpoint_client, endpoint):
+    def __init__(
+            self, goal_state: GoalState,
+            azure_endpoint_client: AzureEndpointHttpClient,
+            endpoint: str) -> None:
         """Creates instance that will report provisioning status to an endpoint
 
         @param goal_state: An instance of class GoalState that contains
@@ -443,7 +503,7 @@ class GoalStateHealthReporter:
         self._endpoint = endpoint
 
     @azure_ds_telemetry_reporter
-    def send_ready_signal(self):
+    def send_ready_signal(self) -> None:
         document = self.build_report(
             incarnation=self._goal_state.incarnation,
             container_id=self._goal_state.container_id,
@@ -461,8 +521,8 @@ class GoalStateHealthReporter:
         LOG.info('Reported ready to Azure fabric.')
 
     def build_report(
-            self, incarnation, container_id, instance_id,
-            status, substatus=None, description=None):
+            self, incarnation: str, container_id: str, instance_id: str,
+            status: str, substatus=None, description=None) -> str:
         health_detail = ''
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
@@ -478,7 +538,9 @@ class GoalStateHealthReporter:
         return health_report
 
     @azure_ds_telemetry_reporter
-    def _post_health_report(self, document):
+    def _post_health_report(self, document: str) -> None:
+        push_log_to_kvp()
+
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
         # the diagnostic messages are written to special files
         # (/var/opt/hyperv/.kvp_pool_*) as Hyper-V KVP messages.
@@ -593,9 +655,10 @@ class WALinuxAgentShim:
             try:
                 name = os.path.basename(hook_file).replace('.json', '')
                 dhcp_options[name] = json.loads(util.load_file((hook_file)))
-            except ValueError:
+            except ValueError as e:
                 raise ValueError(
-                    '{_file} is not valid JSON data'.format(_file=hook_file))
+                    '{_file} is not valid JSON data'.format(_file=hook_file)
+                ) from e
         return dhcp_options
 
     @staticmethod
@@ -671,7 +734,7 @@ class WALinuxAgentShim:
         return endpoint_ip_address
 
     @azure_ds_telemetry_reporter
-    def register_with_azure_and_fetch_data(self, pubkey_info=None):
+    def register_with_azure_and_fetch_data(self, pubkey_info=None) -> dict:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
         Azure, and then uses pubkey_info to filter and obtain the user's
@@ -701,7 +764,7 @@ class WALinuxAgentShim:
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
-    def _fetch_goal_state_from_azure(self, need_certificate):
+    def _fetch_goal_state_from_azure(self, need_certificate: bool) -> GoalState:
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
@@ -714,7 +777,7 @@ class WALinuxAgentShim:
         )
 
     @azure_ds_telemetry_reporter
-    def _get_raw_goal_state_xml_from_azure(self):
+    def _get_raw_goal_state_xml_from_azure(self) -> str:
         """Fetches the GoalState XML from the Azure endpoint and returns
         the XML as a string.
 
@@ -740,8 +803,8 @@ class WALinuxAgentShim:
     @azure_ds_telemetry_reporter
     def _parse_raw_goal_state_xml(
             self,
-            unparsed_goal_state_xml,
-            need_certificate):
+            unparsed_goal_state_xml: str,
+            need_certificate: bool) -> GoalState:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
@@ -767,7 +830,8 @@ class WALinuxAgentShim:
         return goal_state
 
     @azure_ds_telemetry_reporter
-    def _get_user_pubkeys(self, goal_state, pubkey_info):
+    def _get_user_pubkeys(
+            self, goal_state: GoalState, pubkey_info: list) -> list:
         """Gets and filters the VM admin user's authorized pubkeys.
 
         The admin user in this case is the username specified as "admin"
@@ -802,7 +866,7 @@ class WALinuxAgentShim:
         return ssh_keys
 
     @staticmethod
-    def _filter_pubkeys(keys_by_fingerprint, pubkey_info):
+    def _filter_pubkeys(keys_by_fingerprint: dict, pubkey_info: list) -> list:
         """ Filter and return only the user's actual pubkeys.
 
         @param keys_by_fingerprint: pubkey fingerprint -> pubkey value dict

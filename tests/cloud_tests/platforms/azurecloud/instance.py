@@ -134,9 +134,10 @@ class AzureCloudInstance(Instance):
                                  self.vm_name, vm_params)
             LOG.debug('creating instance %s from image_id=%s', self.vm_name,
                       self.image_id)
-        except CloudError:
-            raise RuntimeError('failed creating instance:\n{}'.format(
-                traceback.format_exc()))
+        except CloudError as e:
+            raise RuntimeError(
+                'failed creating instance:\n{}'.format(traceback.format_exc())
+            ) from e
 
         if wait:
             self.instance.wait()
