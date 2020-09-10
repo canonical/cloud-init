@@ -86,7 +86,7 @@ class TestLoadPowerState(t_help.TestCase):
         freebsd = cls('freebsd', {}, paths)
         cfg = {'power_state': {'mode': 'poweroff'}}
         ret = psc.load_power_state(cfg, freebsd)
-        assert '-p' in ret[0]
+        self.assertIn('-p', ret[0])
 
     def test_alpine_delay(self):
         # alpine takes delay in seconds.
@@ -94,11 +94,11 @@ class TestLoadPowerState(t_help.TestCase):
         paths = helpers.Paths({})
         alpine = cls('alpine', {}, paths)
         cfg = {'power_state': {'mode': 'poweroff', 'delay': ''}}
-        for delay, value in {'now': 0, "+1": 60, "+30": 1800}.items():
+        for delay, value in (('now', 0), ("+1", 60), ("+30", 1800)):
             cfg['power_state']['delay'] = delay
             ret = psc.load_power_state(cfg, alpine)
-            assert ret[0][1] == '-d'
-            assert ret[0][2] == str(value)
+            self.assertEqual('-d', ret[0][1])
+            self.assertEqual(str(value), ret[0][2])
 
 
 class TestCheckCondition(t_help.TestCase):
