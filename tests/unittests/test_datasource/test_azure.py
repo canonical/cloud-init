@@ -102,7 +102,13 @@ NETWORK_METADATA = {
         "vmId": "ff702a6b-cb6a-4fcd-ad68-b4ce38227642",
         "vmScaleSetName": "",
         "vmSize": "Standard_DS1_v2",
-        "zone": ""
+        "zone": "",
+        "publicKeys": [
+            {
+                "keyData": "key1",
+                "path": "path1"
+            }
+        ]
     },
     "network": {
         "interface": [
@@ -302,7 +308,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
     def setUp(self):
         super(TestGetMetadataFromIMDS, self).setUp()
-        self.network_md_url = dsaz.IMDS_URL + "instance?api-version=2017-12-01"
+        self.network_md_url = dsaz.IMDS_URL + "instance?api-version=2019-06-01"
 
     @mock.patch(MOCKPATH + 'readurl')
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
@@ -1304,6 +1310,40 @@ scbus-1 on xpt0 bus 0
         dsaz.get_hostname(hostname_command=("hostname",))
         m_subp.assert_called_once_with(("hostname",), capture=True)
 
+    @mock.patch(
+        'cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates')
+    def test_get_public_ssh_keys_with_imds(self, m_parse_certificates):
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        dsrc.setup(True)
+        ssh_keys = dsrc.get_public_ssh_keys()
+        self.assertEqual(ssh_keys, ['key1'])
+        self.assertEqual(m_parse_certificates.call_count, 0)
+
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    def test_get_public_ssh_keys_without_imds(
+            self,
+            m_get_metadata_from_imds):
+        m_get_metadata_from_imds.return_value = dict()
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        dsrc = self._get_ds(data)
+        dsaz.get_metadata_from_fabric.return_value = {'public-keys': ['key2']}
+        dsrc.get_data()
+        dsrc.setup(True)
+        ssh_keys = dsrc.get_public_ssh_keys()
+        self.assertEqual(ssh_keys, ['key2'])
+
 
 class TestAzureBounce(CiTestCase):
 
@@ -2094,14 +2134,18 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md['local-hostname'], hostname)
         self.assertEqual(cfg['system_info']['default_user']['name'], username)
-        self.assertEqual(fake_resp.call_args_list,
-                         [mock.call(allow_redirects=True,
-                                    headers={'Metadata': 'true',
-                                             'User-Agent':
-                                             'Cloud-Init/%s' % vs()},
-                                    method='GET',
-                                    timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
-                                    url=full_url)])
+        self.assertIn(
+            mock.call(
+                allow_redirects=True,
+                headers={
+                    'Metadata': 'true',
+                    'User-Agent': 'Cloud-Init/%s' % vs()
+                },
+                method='GET',
+                timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
+                url=full_url
+            ),
+            fake_resp.call_args_list)
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
