@@ -477,7 +477,7 @@ class TestGetLinuxDistro(CiTestCase):
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_eurolinux7_redhat_release(self, m_os_release, m_exists):
-        """Verify the correct release info on CentOS 7 without os-release."""
+        """Verify the correct release info on EuroLinux 7 without os-release."""
         m_os_release.return_value = REDHAT_RELEASE_EUROLINUX_7
         m_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
         dist = util.get_linux_distro()
