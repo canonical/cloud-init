@@ -214,7 +214,7 @@ class TestLxdMaybeCleanupDefault(t_help.CiTestCase):
         """deletion of network should occur if create is True."""
         cc_lxd.maybe_cleanup_default(
             net_name=self.defnet, did_init=True, create=True, attach=False)
-        m_lxc.assert_called_once_with(["network", "delete", self.defnet])
+        m_lxc.assert_called_with(["network", "delete", self.defnet])
 
     @mock.patch("cloudinit.config.cc_lxd._lxc")
     def test_device_removed_if_attach_true(self, m_lxc):

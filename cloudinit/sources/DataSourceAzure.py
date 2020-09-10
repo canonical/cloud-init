@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit.event import EventType
+from cloudinit.net import device_driver
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers import netlink
@@ -35,7 +36,8 @@ from cloudinit.sources.helpers.azure import (
     report_diagnostic_event,
     EphemeralDHCPv4WithReporting,
     is_byte_swapped,
-    dhcp_log_cb)
+    dhcp_log_cb,
+    push_log_to_kvp)
 
 LOG = logging.getLogger(__name__)
 
@@ -559,6 +561,40 @@ class DataSourceAzure(sources.DataSource):
     def device_name_to_device(self, name):
         return self.ds_cfg['disk_aliases'].get(name)
 
+    @azure_ds_telemetry_reporter
+    def get_public_ssh_keys(self):
+        """
+        Try to get the ssh keys from IMDS first, and if that fails
+        (i.e. IMDS is unavailable) then fallback to getting the ssh
+        keys from OVF.
+
+        The benefit to getting keys from IMDS is a large performance
+        advantage, so this is a strong preference. But we must keep
+        OVF as a second option for environments that don't have IMDS.
+        """
+        LOG.debug('Retrieving public SSH keys')
+        ssh_keys = []
+        try:
+            ssh_keys = [
+                public_key['keyData']
+                for public_key
+                in self.metadata['imds']['compute']['publicKeys']
+            ]
+            LOG.debug('Retrieved SSH keys from IMDS')
+        except KeyError:
+            log_msg = 'Unable to get keys from IMDS, falling back to OVF'
+            LOG.debug(log_msg)
+            report_diagnostic_event(log_msg)
+            try:
+                ssh_keys = self.metadata['public-keys']
+                LOG.debug('Retrieved keys from OVF')
+            except KeyError:
+                log_msg = 'No keys available from OVF'
+                LOG.debug(log_msg)
+                report_diagnostic_event(log_msg)
+
+        return ssh_keys
+
     def get_config_obj(self):
         return self.cfg
 
@@ -762,7 +798,22 @@ class DataSourceAzure(sources.DataSource):
         if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
             self.bounce_network_with_azure_hostname()
 
-            pubkey_info = self.cfg.get('_pubkeys', None)
+            pubkey_info = None
+            try:
+                public_keys = self.metadata['imds']['compute']['publicKeys']
+                LOG.debug(
+                    'Successfully retrieved %s key(s) from IMDS',
+                    len(public_keys)
+                    if public_keys is not None
+                    else 0
+                )
+            except KeyError:
+                LOG.debug(
+                    'Unable to retrieve SSH keys from IMDS during '
+                    'negotiation, falling back to OVF'
+                )
+                pubkey_info = self.cfg.get('_pubkeys', None)
+
             metadata_func = partial(get_metadata_from_fabric,
                                     fallback_lease_file=self.
                                     dhclient_lease_file,
@@ -789,9 +840,12 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def activate(self, cfg, is_new_instance):
-        address_ephemeral_resize(is_new_instance=is_new_instance,
-                                 preserve_ntfs=self.ds_cfg.get(
-                                     DS_CFG_KEY_PRESERVE_NTFS, False))
+        try:
+            address_ephemeral_resize(is_new_instance=is_new_instance,
+                                     preserve_ntfs=self.ds_cfg.get(
+                                         DS_CFG_KEY_PRESERVE_NTFS, False))
+        finally:
+            push_log_to_kvp(self.sys_cfg['def_log_file'])
         return
 
     @property
@@ -1142,7 +1196,7 @@ def read_azure_ovf(contents):
     except Exception as e:
         error_str = "Invalid ovf-env.xml: %s" % e
         report_diagnostic_event(error_str)
-        raise BrokenAzureDataSource(error_str)
+        raise BrokenAzureDataSource(error_str) from e
 
     results = find_child(dom.documentElement,
                          lambda n: n.localName == "ProvisioningSection")
@@ -1383,9 +1437,16 @@ def parse_network_config(imds_metadata):
                                 ip=privateIp, prefix=netPrefix))
                 if dev_config:
                     mac = ':'.join(re.findall(r'..', intf['macAddress']))
-                    dev_config.update(
-                        {'match': {'macaddress': mac.lower()},
-                         'set-name': nicname})
+                    dev_config.update({
+                        'match': {'macaddress': mac.lower()},
+                        'set-name': nicname
+                    })
+                    # With netvsc, we can get two interfaces that
+                    # share the same MAC, so we need to make sure
+                    # our match condition also contains the driver
+                    driver = device_driver(nicname)
+                    if driver and driver == 'hv_netvsc':
+                        dev_config['match']['driver'] = driver
                     netconfig['ethernets'][nicname] = dev_config
             evt.description = "network config from imds"
         else:
@@ -1431,7 +1492,7 @@ def get_metadata_from_imds(fallback_nic, retries):
 @azure_ds_telemetry_reporter
 def _get_metadata_from_imds(retries):
 
-    url = IMDS_URL + "instance?api-version=2017-12-01"
+    url = IMDS_URL + "instance?api-version=2019-06-01"
     headers = {"Metadata": "true"}
     try:
         response = readurl(

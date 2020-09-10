@@ -39,10 +39,7 @@ Requires(post):     chkconfig
 Requires(preun):    chkconfig
 %endif
 
-# These are runtime dependencies, but declared as BuildRequires so that
-# - tests can be run here.
-# - parts of cloud-init such (setup.py) use these dependencies.
-{% for r in requires %}
+{% for r in buildrequires %}
 BuildRequires:  {{r}}
 {% endfor %}
 
@@ -57,8 +54,10 @@ Requires:  python-argparse
 %endif
 
 
-# Install 'dynamic' runtime reqs from *requirements.txt and pkg-deps.json
+# Install 'dynamic' runtime reqs from *requirements.txt and pkg-deps.json.
+# Install them as BuildRequires too as they're used for testing.
 {% for r in requires %}
+BuildRequires:  {{r}}
 Requires:       {{r}}
 {% endfor %}
 

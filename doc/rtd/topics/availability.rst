@@ -17,17 +17,18 @@ Distributions
 Cloud-init has support across all major Linux distributions, FreeBSD, NetBSD
 and OpenBSD:
 
-- Ubuntu
-- SLES/openSUSE
-- RHEL/CentOS
-- Fedora
-- Gentoo Linux
-- Debian
+- Alpine Linux
 - ArchLinux
+- Debian
+- Fedora
 - FreeBSD
+- Gentoo Linux
 - NetBSD
 - OpenBSD
 - EuroLinux
+- RHEL/CentOS
+- SLES/openSUSE
+- Ubuntu
 
 Clouds
 ======

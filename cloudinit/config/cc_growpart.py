@@ -148,14 +148,14 @@ class ResizeGrowPart(object):
             if e.exit_code != 1:
                 util.logexc(LOG, "Failed growpart --dry-run for (%s, %s)",
                             diskdev, partnum)
-                raise ResizeFailedException(e)
+                raise ResizeFailedException(e) from e
             return (before, before)
 
         try:
             subp.subp(["growpart", diskdev, partnum])
         except subp.ProcessExecutionError as e:
             util.logexc(LOG, "Failed: growpart %s %s", diskdev, partnum)
-            raise ResizeFailedException(e)
+            raise ResizeFailedException(e) from e
 
         return (before, get_size(partdev))
 
@@ -187,14 +187,14 @@ class ResizeGpart(object):
         except subp.ProcessExecutionError as e:
             if e.exit_code != 0:
                 util.logexc(LOG, "Failed: gpart recover %s", diskdev)
-                raise ResizeFailedException(e)
+                raise ResizeFailedException(e) from e
 
         before = get_size(partdev)
         try:
             subp.subp(["gpart", "resize", "-i", partnum, diskdev])
         except subp.ProcessExecutionError as e:
             util.logexc(LOG, "Failed: gpart resize -i %s %s", partnum, diskdev)
-            raise ResizeFailedException(e)
+            raise ResizeFailedException(e) from e
 
         # Since growing the FS requires a reboot, make sure we reboot
         # first when this module has finished.

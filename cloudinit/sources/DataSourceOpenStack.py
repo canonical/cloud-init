@@ -194,10 +194,10 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                         'timeout': url_params.timeout_seconds})
         except openstack.NonReadable as e:
             raise sources.InvalidMetaDataException(str(e))
-        except (openstack.BrokenMetadata, IOError):
+        except (openstack.BrokenMetadata, IOError) as e:
             msg = 'Broken metadata address {addr}'.format(
                 addr=self.metadata_address)
-            raise sources.InvalidMetaDataException(msg)
+            raise sources.InvalidMetaDataException(msg) from e
         return result
 
 

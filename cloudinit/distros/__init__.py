@@ -40,12 +40,13 @@ from .networking import LinuxNetworking
 ALL_DISTROS = 'all'
 
 OSFAMILIES = {
-    'debian': ['debian', 'ubuntu'],
-    'redhat': ['amazon', 'centos', 'eurolinux', 'fedora', 'rhel'],
-    'gentoo': ['gentoo'],
-    'freebsd': ['freebsd'],
-    'suse': ['opensuse', 'sles'],
+    'alpine': ['alpine'],
     'arch': ['arch'],
+    'debian': ['debian', 'ubuntu'],
+    'freebsd': ['freebsd'],
+    'gentoo': ['gentoo'],
+    'redhat': ['amazon', 'centos', 'eurolinux', 'fedora', 'rhel'],
+    'suse': ['opensuse', 'sles'],
 }
 
 LOG = logging.getLogger(__name__)
@@ -249,8 +250,9 @@ class Distro(metaclass=abc.ABCMeta):
         distros = []
         for family in family_list:
             if family not in OSFAMILIES:
-                raise ValueError("No distibutions found for osfamily %s"
-                                 % (family))
+                raise ValueError(
+                    "No distributions found for osfamily {}".format(family)
+                )
             distros.extend(OSFAMILIES[family])
         return distros
 
@@ -606,10 +608,11 @@ class Distro(metaclass=abc.ABCMeta):
         lock_tools = (['passwd', '-l', name], ['usermod', '--lock', name])
         try:
             cmd = next(tool for tool in lock_tools if subp.which(tool[0]))
-        except StopIteration:
+        except StopIteration as e:
             raise RuntimeError((
                 "Unable to lock user account '%s'. No tools available. "
-                "  Tried: %s.") % (name, [c[0] for c in lock_tools]))
+                "  Tried: %s.") % (name, [c[0] for c in lock_tools])
+            ) from e
         try:
             subp.subp(cmd)
         except Exception as e:
