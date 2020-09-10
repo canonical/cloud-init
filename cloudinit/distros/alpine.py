@@ -178,9 +178,8 @@ class Distro(distros.Distro):
             # Alpine's commands do not understand "now".
             command += ['0']
         else:
-            # No "+" in front of delay value (not supported)
             try:
-                command += ['%d' % int(int(delay) * 60)]
+                command.append(str(int(delay) * 60))
             except ValueError as e:
                 raise TypeError(
                     "power_state[delay] must be 'now' or '+m' (minutes)."

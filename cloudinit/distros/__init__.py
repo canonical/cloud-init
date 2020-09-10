@@ -73,6 +73,9 @@ class Distro(metaclass=abc.ABCMeta):
     renderer_configs = {}
     _preferred_ntp_clients = None
     networking_cls = LinuxNetworking
+    # This is used by self.shutdown_command(), and can be overridden in
+    # subclasses
+    shutdown_options_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -751,8 +754,7 @@ class Distro(metaclass=abc.ABCMeta):
 
     def shutdown_command(self, mode='poweroff', delay='now', message=None):
         # called from cc_power_state_change.load_power_state
-        opt_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
-        command = ["shutdown", opt_map[mode]]
+        command = ["shutdown", self.shutdown_options_map[mode]]
         try:
             if delay != "now":
                 delay = "+%d" % int(delay)
