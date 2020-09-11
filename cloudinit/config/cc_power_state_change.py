@@ -157,7 +157,7 @@ def load_power_state(cfg, distro):
 
     modes_ok = ['halt', 'poweroff', 'reboot']
     mode = pstate.get("mode")
-    if mode not in modes_ok:
+    if mode not in distro.shutdown_options_map:
         raise TypeError(
             "power_state[mode] required, must be one of: %s. found: '%s'." %
             (','.join(modes_ok), mode))
