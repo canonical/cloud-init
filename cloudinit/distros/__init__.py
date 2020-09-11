@@ -752,7 +752,7 @@ class Distro(metaclass=abc.ABCMeta):
                 subp.subp(['usermod', '-a', '-G', name, member])
                 LOG.info("Added user '%s' to group '%s'", member, name)
 
-    def shutdown_command(self, mode='poweroff', delay='now', message=None):
+    def shutdown_command(self, *, mode, delay, message):
         # called from cc_power_state_change.load_power_state
         command = ["shutdown", self.shutdown_options_map[mode]]
         try:
