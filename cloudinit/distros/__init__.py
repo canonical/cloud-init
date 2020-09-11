@@ -761,7 +761,7 @@ class Distro(metaclass=abc.ABCMeta):
         except ValueError as e:
             raise TypeError(
                 "power_state[delay] must be 'now' or '+m' (minutes)."
-                " found '%s'." % delay
+                " found '%s'." % (delay,)
             ) from e
         args = command + [delay]
         if message:

@@ -183,7 +183,7 @@ class Distro(distros.Distro):
             except ValueError as e:
                 raise TypeError(
                     "power_state[delay] must be 'now' or '+m' (minutes)."
-                    " found '%s'." % delay
+                    " found '%s'." % (delay,)
                 ) from e
 
         return command
