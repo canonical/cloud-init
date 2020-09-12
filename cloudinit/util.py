@@ -864,11 +864,13 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     try:
         vd_resp = url_helper.read_file_or_url(vd_url, timeout=timeout,
                                               retries=retries)
-    except url_helper.UrlError:
-        pass
+    except url_helper.UrlError as e:
+        LOG.debug("Error in vendor-data response: %s", e)
     else:
         if vd_resp.ok():
             vd = vd_resp.contents
+        else:
+            LOG.debug("Error in vendor-data response")
 
     return (md, ud, vd)
 
