@@ -253,8 +253,9 @@ class Distro(metaclass=abc.ABCMeta):
         distros = []
         for family in family_list:
             if family not in OSFAMILIES:
-                raise ValueError("No distibutions found for osfamily %s"
-                                 % (family))
+                raise ValueError(
+                    "No distributions found for osfamily {}".format(family)
+                )
             distros.extend(OSFAMILIES[family])
         return distros
 
