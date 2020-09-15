@@ -714,7 +714,7 @@ class Renderer(renderer.Renderer):
                 rdev = iface['vlan-raw-device']
                 supported = _supported_vlan_names(rdev, iface['vlan_id'])
                 if iface_name not in supported:
-                    LOG.warning(
+                    LOG.info(
                         "Name '%s' for vlan '%s' is not officially supported"
                         "by RHEL. Supported: %s",
                         iface_name, rdev, ' '.join(supported))
