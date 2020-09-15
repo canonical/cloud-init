@@ -564,6 +564,40 @@ class DataSourceAzure(sources.DataSource):
     def device_name_to_device(self, name):
         return self.ds_cfg['disk_aliases'].get(name)
 
+    @azure_ds_telemetry_reporter
+    def get_public_ssh_keys(self):
+        """
+        Try to get the ssh keys from IMDS first, and if that fails
+        (i.e. IMDS is unavailable) then fallback to getting the ssh
+        keys from OVF.
+
+        The benefit to getting keys from IMDS is a large performance
+        advantage, so this is a strong preference. But we must keep
+        OVF as a second option for environments that don't have IMDS.
+        """
+        LOG.debug('Retrieving public SSH keys')
+        ssh_keys = []
+        try:
+            ssh_keys = [
+                public_key['keyData']
+                for public_key
+                in self.metadata['imds']['compute']['publicKeys']
+            ]
+            LOG.debug('Retrieved SSH keys from IMDS')
+        except KeyError:
+            log_msg = 'Unable to get keys from IMDS, falling back to OVF'
+            LOG.debug(log_msg)
+            report_diagnostic_event(log_msg)
+            try:
+                ssh_keys = self.metadata['public-keys']
+                LOG.debug('Retrieved keys from OVF')
+            except KeyError:
+                log_msg = 'No keys available from OVF'
+                LOG.debug(log_msg)
+                report_diagnostic_event(log_msg)
+
+        return ssh_keys
+
     def get_config_obj(self):
         return self.cfg
 
@@ -777,7 +811,22 @@ class DataSourceAzure(sources.DataSource):
         if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
             self.bounce_network_with_azure_hostname()
 
-            pubkey_info = self.cfg.get('_pubkeys', None)
+            pubkey_info = None
+            try:
+                public_keys = self.metadata['imds']['compute']['publicKeys']
+                LOG.debug(
+                    'Successfully retrieved %s key(s) from IMDS',
+                    len(public_keys)
+                    if public_keys is not None
+                    else 0
+                )
+            except KeyError:
+                LOG.debug(
+                    'Unable to retrieve SSH keys from IMDS during '
+                    'negotiation, falling back to OVF'
+                )
+                pubkey_info = self.cfg.get('_pubkeys', None)
+
             metadata_func = partial(get_metadata_from_fabric,
                                     fallback_lease_file=self.
                                     dhclient_lease_file,
@@ -1458,7 +1507,7 @@ def get_metadata_from_imds(fallback_nic, retries):
 @azure_ds_telemetry_reporter
 def _get_metadata_from_imds(retries):
 
-    url = IMDS_URL + "instance?api-version=2017-12-01"
+    url = IMDS_URL + "instance?api-version=2019-06-01"
     headers = {"Metadata": "true"}
     try:
         response = readurl(
