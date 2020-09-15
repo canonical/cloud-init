@@ -6,10 +6,6 @@
 
 from cloudinit.distros import opensuse
 
-from cloudinit import log as logging
-
-LOG = logging.getLogger(__name__)
-
 
 class Distro(opensuse.Distro):
     pass
