@@ -410,7 +410,7 @@ class MainTest(CiTestCase):
                     main()
         self.assertEqual(1, context_manager.exception.code)
         self.assertEqual(
-            'Expected either --config-file argument or --docs\n',
+            'Expected one of --config-file, --system or --docs arguments\n',
             m_stderr.getvalue())
 
     def test_main_absent_config_file(self):
@@ -443,7 +443,18 @@ class MainTest(CiTestCase):
             with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
                 self.assertEqual(0, main(), 'Expected 0 exit code')
         self.assertIn(
-            'Valid cloud-config file {0}'.format(myyaml), m_stdout.getvalue())
+            'Valid cloud-config: {0}'.format(myyaml), m_stdout.getvalue())
+
+    @mock.patch('cloudinit.config.schema.subp')
+    def test_main_validates_system_userdata(self, m_subp):
+        """When --system is provided, main validates system userdata."""
+        m_subp.return_value = (b'#cloud-config\nntp:', b'')
+        myargs = ['mycmd', '--system']
+        with mock.patch('sys.argv', myargs):
+            with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
+                self.assertEqual(0, main(), 'Expected 0 exit code')
+        self.assertIn(
+            'Valid cloud-config: system userdata', m_stdout.getvalue())
 
 
 class CloudTestsIntegrationTest(CiTestCase):

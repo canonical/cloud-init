@@ -2,6 +2,7 @@
 """schema.py: Set of module functions for processing cloud-config schema."""
 
 from cloudinit import importer
+from cloudinit.subp import subp
 from cloudinit.util import find_modules, load_file
 
 import argparse
@@ -38,6 +39,8 @@ SCHEMA_LIST_ITEM_TMPL = (
     '{prefix}Each item in **{prop_name}** list supports the following keys:')
 SCHEMA_EXAMPLES_HEADER = '\n**Examples**::\n\n'
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = '\n    # --- Example{0} ---'
+
+SYSTEM_USERDATA_FILE = "/var/lib/cloud/instance/user-data.txt"
 
 
 class SchemaValidationError(ValueError):
@@ -173,7 +176,9 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
 def validate_cloudconfig_file(config_path, schema, annotate=False):
     """Validate cloudconfig file adheres to a specific jsonschema.
 
-    @param config_path: Path to the yaml cloud-config file to parse.
+    @param config_path: Path to the yaml cloud-config file to pars, or
+        SYSTEM_USERDATA_FILE to indicate that the system userdata should be
+        queried.
     @param schema: Dict describing a valid jsonschema to validate against.
     @param annotate: Boolean set True to print original config file with error
         annotations on the offending lines.
@@ -181,9 +186,22 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
     @raises SchemaValidationError containing any of schema_errors encountered.
     @raises RuntimeError when config_path does not exist.
     """
-    if not os.path.exists(config_path):
-        raise RuntimeError('Configfile {0} does not exist'.format(config_path))
-    content = load_file(config_path, decode=False)
+    if config_path == SYSTEM_USERDATA_FILE:
+        (content, err) = subp(
+            ["cloud-init", "query", "userdata"], decode=False
+        )
+        if err:
+            raise RuntimeError(
+                "Could not perform `cloud-init query userdata`. %s" % err
+            )
+    else:
+        if not os.path.exists(config_path):
+            raise RuntimeError(
+                'Configfile {0} does not exist'.format(
+                    config_path
+                )
+            )
+        content = load_file(config_path, decode=False)
     if not content.startswith(CLOUD_CONFIG_HEADER):
         errors = (
             ('format-l1.c1', 'File {0} needs to begin with "{1}"'.format(
@@ -425,6 +443,8 @@ def get_parser(parser=None):
             description='Validate cloud-config files or document schema')
     parser.add_argument('-c', '--config-file',
                         help='Path of the cloud-config yaml file to validate')
+    parser.add_argument('--system', action='store_true', default=False,
+                        help='Validate the system cloud-config userdata')
     parser.add_argument('-d', '--docs', nargs='+',
                         help=('Print schema module docs. Choices: all or'
                               ' space-delimited cc_names.'))
@@ -435,10 +455,12 @@ def get_parser(parser=None):
 
 def handle_schema_args(name, args):
     """Handle provided schema args and perform the appropriate actions."""
-    exclusive_args = [args.config_file, args.docs]
+    exclusive_args = [args.config_file, args.docs, args.system]
     if not any(exclusive_args) or all(exclusive_args):
-        error('Expected either --config-file argument or --docs')
+        error('Expected one of --config-file, --system or --docs arguments')
     full_schema = get_schema()
+    if args.system:
+        args.config_file = SYSTEM_USERDATA_FILE
     if args.config_file:
         try:
             validate_cloudconfig_file(
@@ -449,7 +471,11 @@ def handle_schema_args(name, args):
         except RuntimeError as e:
             error(str(e))
         else:
-            print("Valid cloud-config file {0}".format(args.config_file))
+            if args.config_file == SYSTEM_USERDATA_FILE:
+                cfg_name = "system userdata"
+            else:
+                cfg_name = args.config_file
+            print("Valid cloud-config: {0}".format(cfg_name))
     elif args.docs:
         schema_ids = [subschema['id'] for subschema in full_schema['allOf']]
         schema_ids += ['all']
