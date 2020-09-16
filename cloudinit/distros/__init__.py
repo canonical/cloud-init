@@ -73,6 +73,9 @@ class Distro(metaclass=abc.ABCMeta):
     renderer_configs = {}
     _preferred_ntp_clients = None
     networking_cls = LinuxNetworking
+    # This is used by self.shutdown_command(), and can be overridden in
+    # subclasses
+    shutdown_options_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -250,8 +253,9 @@ class Distro(metaclass=abc.ABCMeta):
         distros = []
         for family in family_list:
             if family not in OSFAMILIES:
-                raise ValueError("No distibutions found for osfamily %s"
-                                 % (family))
+                raise ValueError(
+                    "No distributions found for osfamily {}".format(family)
+                )
             distros.extend(OSFAMILIES[family])
         return distros
 
@@ -748,6 +752,22 @@ class Distro(metaclass=abc.ABCMeta):
 
                 subp.subp(['usermod', '-a', '-G', name, member])
                 LOG.info("Added user '%s' to group '%s'", member, name)
+
+    def shutdown_command(self, *, mode, delay, message):
+        # called from cc_power_state_change.load_power_state
+        command = ["shutdown", self.shutdown_options_map[mode]]
+        try:
+            if delay != "now":
+                delay = "+%d" % int(delay)
+        except ValueError as e:
+            raise TypeError(
+                "power_state[delay] must be 'now' or '+m' (minutes)."
+                " found '%s'." % (delay,)
+            ) from e
+        args = command + [delay]
+        if message:
+            args.append(message)
+        return args
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

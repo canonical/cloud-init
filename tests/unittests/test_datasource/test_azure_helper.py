@@ -609,11 +609,11 @@ class TestWALinuxAgentShim(CiTestCase):
         self.GoalState.return_value.container_id = self.test_container_id
         self.GoalState.return_value.instance_id = self.test_instance_id
 
-    def test_azure_endpoint_client_uses_certificate_during_report_ready(self):
+    def test_http_client_does_not_use_certificate(self):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
         self.assertEqual(
-            [mock.call(self.OpenSSLManager.return_value.certificate)],
+            [mock.call(None)],
             self.AzureEndpointHttpClient.call_args_list)
 
     def test_correct_url_used_for_goalstate_during_report_ready(self):
@@ -625,8 +625,11 @@ class TestWALinuxAgentShim(CiTestCase):
             [mock.call('http://test_endpoint/machine/?comp=goalstate')],
             get.call_args_list)
         self.assertEqual(
-            [mock.call(get.return_value.contents,
-                       self.AzureEndpointHttpClient.return_value)],
+            [mock.call(
+                get.return_value.contents,
+                self.AzureEndpointHttpClient.return_value,
+                False
+            )],
             self.GoalState.call_args_list)
 
     def test_certificates_used_to_determine_public_keys(self):
@@ -701,7 +704,7 @@ class TestWALinuxAgentShim(CiTestCase):
         shim.register_with_azure_and_fetch_data()
         shim.clean_up()
         self.assertEqual(
-            1, self.OpenSSLManager.return_value.clean_up.call_count)
+            0, self.OpenSSLManager.return_value.clean_up.call_count)
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get \

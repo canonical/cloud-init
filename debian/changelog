@@ -1,3 +1,40 @@
+cloud-init (20.3-15-g6d332e5c-0ubuntu1) groovy; urgency=medium
+
+  * d/cloud-init.postinst: fix the grub install device for NVMe-rooted
+    instances on upgrade.  (LP: #1889555)
+  * d/cloud-init.templates: add RbxCloud to Choices-C.
+  * Add d/clean to fully clean the build artifacts.
+  * d/control:
+    - Bump Standards-Version to 4.5.0, no changes needed.
+    - B-D on debhelper-compat; drop d/compat.
+  * Bump the debhelper compat level to 13. Required changes:
+    - Stop including the dh systemd plugin.
+    - Switch from dh_systemd_start to dh_installsystemd
+  * New upstream snapshot.
+    - create a shutdown_command method in distro classes (#567)
+      [Emmanuel Thomé]
+    - user_data: remove unused constant (#566)
+    - network: Fix type and respect name when rendering vlan in
+      sysconfig. (#541) [Eduardo Otubo] (LP: #1788915, #1826608)
+    - Retrieve SSH keys from IMDS first with OVF as a fallback (#509)
+      [Thomas Stringer]
+    - Add jqueuniet as contributor (#569) [Johann Queuniet]
+    - distros: minor typo fix (#562)
+    - Bump the integration-requirements versioned dependencies (#565)
+      [Paride Legovini]
+    - network-config-format-v1: fix typo in nameserver example (#564)
+      [Stanislas]
+    - Run cloud-init-local.service after the hv_kvp_daemon (#505)
+      [Robert Schweikert]
+    - Add method type hints for Azure helper (#540) [Johnson Shi]
+    - systemd: add Before=shutdown.target when Conflicts=shutdown.target is
+      used (#546) [Paride Legovini]
+    - LXD: detach network from profile before deleting it (#542)
+      [Paride Legovini] (LP: #1776958)
+    - redhat spec: add missing BuildRequires (#552) [Paride Legovini]
+
+ -- Chad Smith <chad.smith@canonical.com>  Tue, 15 Sep 2020 20:19:10 -0600
+
 cloud-init (20.3-2-g371b392c-0ubuntu1) groovy; urgency=medium
 
   * New upstream snapshot.

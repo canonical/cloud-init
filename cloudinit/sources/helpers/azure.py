@@ -288,11 +288,16 @@ class InvalidGoalStateXMLException(Exception):
 
 class GoalState:
 
-    def __init__(self, unparsed_xml, azure_endpoint_client):
+    def __init__(
+            self,
+            unparsed_xml: str,
+            azure_endpoint_client: AzureEndpointHttpClient,
+            need_certificate: bool = True) -> None:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_xml: string representing a GoalState XML.
-        @param azure_endpoint_client: instance of AzureEndpointHttpClient
+        @param azure_endpoint_client: instance of AzureEndpointHttpClient.
+        @param need_certificate: switch to know if certificates is needed.
         @return: GoalState object representing the GoalState XML string.
         """
         self.azure_endpoint_client = azure_endpoint_client
@@ -321,7 +326,7 @@ class GoalState:
         url = self._text_from_xpath(
             './Container/RoleInstanceList/RoleInstance'
             '/Configuration/Certificates')
-        if url is not None:
+        if url is not None and need_certificate:
             with events.ReportEventStack(
                     name="get-certificates-xml",
                     description="get certificates xml",
@@ -478,7 +483,10 @@ class GoalStateHealthReporter:
 
     PROVISIONING_SUCCESS_STATUS = 'Ready'
 
-    def __init__(self, goal_state, azure_endpoint_client, endpoint):
+    def __init__(
+            self, goal_state: GoalState,
+            azure_endpoint_client: AzureEndpointHttpClient,
+            endpoint: str) -> None:
         """Creates instance that will report provisioning status to an endpoint
 
         @param goal_state: An instance of class GoalState that contains
@@ -495,7 +503,7 @@ class GoalStateHealthReporter:
         self._endpoint = endpoint
 
     @azure_ds_telemetry_reporter
-    def send_ready_signal(self):
+    def send_ready_signal(self) -> None:
         document = self.build_report(
             incarnation=self._goal_state.incarnation,
             container_id=self._goal_state.container_id,
@@ -513,8 +521,8 @@ class GoalStateHealthReporter:
         LOG.info('Reported ready to Azure fabric.')
 
     def build_report(
-            self, incarnation, container_id, instance_id,
-            status, substatus=None, description=None):
+            self, incarnation: str, container_id: str, instance_id: str,
+            status: str, substatus=None, description=None) -> str:
         health_detail = ''
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
@@ -530,7 +538,7 @@ class GoalStateHealthReporter:
         return health_report
 
     @azure_ds_telemetry_reporter
-    def _post_health_report(self, document):
+    def _post_health_report(self, document: str) -> None:
         push_log_to_kvp()
 
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
@@ -726,7 +734,7 @@ class WALinuxAgentShim:
         return endpoint_ip_address
 
     @azure_ds_telemetry_reporter
-    def register_with_azure_and_fetch_data(self, pubkey_info=None):
+    def register_with_azure_and_fetch_data(self, pubkey_info=None) -> dict:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
         Azure, and then uses pubkey_info to filter and obtain the user's
@@ -737,30 +745,41 @@ class WALinuxAgentShim:
             GoalState.
         @return: The list of user's authorized pubkey values.
         """
-        if self.openssl_manager is None:
+        http_client_certificate = None
+        if self.openssl_manager is None and pubkey_info is not None:
             self.openssl_manager = OpenSSLManager()
+            http_client_certificate = self.openssl_manager.certificate
         if self.azure_endpoint_client is None:
             self.azure_endpoint_client = AzureEndpointHttpClient(
-                self.openssl_manager.certificate)
-        goal_state = self._fetch_goal_state_from_azure()
-        ssh_keys = self._get_user_pubkeys(goal_state, pubkey_info)
+                http_client_certificate)
+        goal_state = self._fetch_goal_state_from_azure(
+            need_certificate=http_client_certificate is not None
+        )
+        ssh_keys = None
+        if pubkey_info is not None:
+            ssh_keys = self._get_user_pubkeys(goal_state, pubkey_info)
         health_reporter = GoalStateHealthReporter(
             goal_state, self.azure_endpoint_client, self.endpoint)
         health_reporter.send_ready_signal()
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
-    def _fetch_goal_state_from_azure(self):
+    def _fetch_goal_state_from_azure(
+            self,
+            need_certificate: bool) -> GoalState:
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
         @return: GoalState object representing the GoalState XML
         """
         unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure()
-        return self._parse_raw_goal_state_xml(unparsed_goal_state_xml)
+        return self._parse_raw_goal_state_xml(
+            unparsed_goal_state_xml,
+            need_certificate
+        )
 
     @azure_ds_telemetry_reporter
-    def _get_raw_goal_state_xml_from_azure(self):
+    def _get_raw_goal_state_xml_from_azure(self) -> str:
         """Fetches the GoalState XML from the Azure endpoint and returns
         the XML as a string.
 
@@ -770,7 +789,11 @@ class WALinuxAgentShim:
         LOG.info('Registering with Azure...')
         url = 'http://{}/machine/?comp=goalstate'.format(self.endpoint)
         try:
-            response = self.azure_endpoint_client.get(url)
+            with events.ReportEventStack(
+                    name="goalstate-retrieval",
+                    description="retrieve goalstate",
+                    parent=azure_ds_reporter):
+                response = self.azure_endpoint_client.get(url)
         except Exception as e:
             msg = 'failed to register with Azure: %s' % e
             LOG.warning(msg)
@@ -780,7 +803,10 @@ class WALinuxAgentShim:
         return response.contents
 
     @azure_ds_telemetry_reporter
-    def _parse_raw_goal_state_xml(self, unparsed_goal_state_xml):
+    def _parse_raw_goal_state_xml(
+            self,
+            unparsed_goal_state_xml: str,
+            need_certificate: bool) -> GoalState:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
@@ -788,7 +814,10 @@ class WALinuxAgentShim:
         """
         try:
             goal_state = GoalState(
-                unparsed_goal_state_xml, self.azure_endpoint_client)
+                unparsed_goal_state_xml,
+                self.azure_endpoint_client,
+                need_certificate
+            )
         except Exception as e:
             msg = 'Error processing GoalState XML: %s' % e
             LOG.warning(msg)
@@ -803,7 +832,8 @@ class WALinuxAgentShim:
         return goal_state
 
     @azure_ds_telemetry_reporter
-    def _get_user_pubkeys(self, goal_state, pubkey_info):
+    def _get_user_pubkeys(
+            self, goal_state: GoalState, pubkey_info: list) -> list:
         """Gets and filters the VM admin user's authorized pubkeys.
 
         The admin user in this case is the username specified as "admin"
@@ -838,7 +868,7 @@ class WALinuxAgentShim:
         return ssh_keys
 
     @staticmethod
-    def _filter_pubkeys(keys_by_fingerprint, pubkey_info):
+    def _filter_pubkeys(keys_by_fingerprint: dict, pubkey_info: list) -> list:
         """ Filter and return only the user's actual pubkeys.
 
         @param keys_by_fingerprint: pubkey fingerprint -> pubkey value dict
