@@ -1,4 +1,4 @@
-cloud-init (20.3-15-g6d332e5c-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.3-15-g6d332e5c-0ubuntu1) groovy; urgency=medium
 
   * d/cloud-init.postinst: fix the grub install device for NVMe-rooted
     instances on upgrade.  (LP: #1889555)
