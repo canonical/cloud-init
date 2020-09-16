@@ -122,13 +122,13 @@ OpenNebula datasource only in 'net' mode.
 Example VM's context section
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+.. code-block:: sh
 
     CONTEXT=[
-      PUBLIC_IP="$NIC[IP]",
       SSH_KEY="$USER[SSH_KEY]
     $USER[SSH_KEY1]
-    $USER[SSH_KEY2] ",
+    $USER[SSH_KEY2]",
+      PUBLIC_IP="$NIC[IP]",
       USER_DATA="#cloud-config
     # see https://help.ubuntu.com/community/CloudInit
 
