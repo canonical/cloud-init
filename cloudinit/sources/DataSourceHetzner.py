@@ -6,14 +6,11 @@
 """Hetzner Cloud API Documentation.
    https://docs.hetzner.cloud/"""
 
-from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import sources
 from cloudinit import util
 
 import cloudinit.sources.helpers.hetzner as hc_helper
-
-LOG = logging.getLogger(__name__)
 
 BASE_URL_V1 = 'http://169.254.169.254/hetzner/v1'
 
