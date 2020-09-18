@@ -8,15 +8,12 @@
 
 from cloudinit import distros
 from cloudinit import helpers
-from cloudinit import log as logging
 from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.distros.parsers.hostname import HostnameConf
 
 from cloudinit.settings import PER_INSTANCE
-
-LOG = logging.getLogger(__name__)
 
 NETWORK_FILE_HEADER = """\
 # This file is generated from information provided by the datasource. Changes
@@ -161,5 +158,31 @@ class Distro(distros.Distro):
             self._preferred_ntp_clients = ['chrony', 'ntp']
 
         return self._preferred_ntp_clients
+
+    def shutdown_command(self, mode='poweroff', delay='now', message=None):
+        # called from cc_power_state_change.load_power_state
+        # Alpine has halt/poweroff/reboot, with the following specifics:
+        # - we use them rather than the generic "shutdown"
+        # - delay is given with "-d [integer]"
+        # - the integer is in seconds, cannot be "now", and takes no "+"
+        # - no message is supported (argument ignored, here)
+
+        command = [mode, "-d"]
+
+        # Convert delay from minutes to seconds, as Alpine's
+        # halt/poweroff/reboot commands take seconds rather than minutes.
+        if delay == "now":
+            # Alpine's commands do not understand "now".
+            command += ['0']
+        else:
+            try:
+                command.append(str(int(delay) * 60))
+            except ValueError as e:
+                raise TypeError(
+                    "power_state[delay] must be 'now' or '+m' (minutes)."
+                    " found '%s'." % (delay,)
+                ) from e
+
+        return command
 
 # vi: ts=4 expandtab
