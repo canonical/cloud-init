@@ -164,7 +164,7 @@ needing to have all the build and test dependencies installed locally.
 * ``--deb``: path to write output deb to (default is '.')
 * ``--packaging-branch``: import the ``debian/`` packaging directory
   from the specified branch (default: ``ubuntu/devel``) instead of using
-  the packaging template. When importing the ``debian/patches`` are excluded.
+  the packaging template.
 
 Setup Image
 -----------
