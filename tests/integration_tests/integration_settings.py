@@ -1,3 +1,4 @@
+# This file is part of cloud-init. See LICENSE file for license information.
 import os
 
 ##################################################################
@@ -7,7 +8,11 @@ import os
 # Keep instance (mostly for debugging) when test is finished
 KEEP_INSTANCE = False
 
-# One of "lxd_container', 'oracle', ... more to come
+# One of:
+#  lxd_container
+#  ec2
+#  gce
+#  oci
 PLATFORM = 'lxd_container'
 
 # The cloud-specific instance type to run. E.g., a1.medium on AWS
@@ -39,11 +44,6 @@ EXISTING_INSTANCE_ID = None
 # IN_PLACE
 #   LXD/VM only. Mount the source code as-is directly into
 #   the container to override the pre-existing cloud-init code
-# CURRENT
-#   Build and install a deb of the code as it currently exists,
-#   including uncommitted code
-# COMMIT
-#   Build and install a deb from a particular commit hash
 # PROPOSED
 #   Install from the proposed repo
 # PPA
@@ -55,12 +55,22 @@ EXISTING_INSTANCE_ID = None
 IMAGE_SOURCE = 'NONE'
 
 ##################################################################
-# ORACLE SPECIFIC SETTINGS
+# GCE SPECIFIC SETTINGS
+##################################################################
+# Required for GCE
+GCE_PROJECT = None
+
+# You probably want to override these
+GCE_REGION = 'us-central1'
+GCE_ZONE = 'a'
+
+##################################################################
+# OCI SPECIFIC SETTINGS
 ##################################################################
 # Compartment-id found at
 # https://console.us-phoenix-1.oraclecloud.com/a/identity/compartments
 # Required for Oracle
-ORACLE_COMPARTMENT_ID = None
+OCI_COMPARTMENT_ID = None
 
 ##################################################################
 # USER SETTINGS OVERRIDES

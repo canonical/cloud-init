@@ -1,3 +1,4 @@
+# This file is part of cloud-init. See LICENSE file for license information.
 import os
 import pytest
 
@@ -5,18 +6,20 @@ from tests.integration_tests import integration_settings
 from tests.integration_tests.platforms import (
     dynamic_client,
     LxdContainerClient,
-    ALL_PLATFORMS,
+    client_name_to_class
 )
 
 
 def pytest_runtest_setup(item):
-    """
+    """Skip tests on unsupported clouds.
+
     A test can take any number of marks to specify the platforms it can
     run on. If a platform(s) is specified and we're not running on that
     platform, then skip the test. If platform specific marks are not
-    specified, then we assume the test can be run anywhere
+    specified, then we assume the test can be run anywhere.
     """
-    supported_platforms = set(ALL_PLATFORMS).intersection(
+    all_platforms = client_name_to_class.keys()
+    supported_platforms = set(all_platforms).intersection(
         mark.name for mark in item.iter_markers())
     current_platform = integration_settings.PLATFORM
     if supported_platforms and current_platform not in supported_platforms:
@@ -32,36 +35,38 @@ def disable_subp_usage(request):
 
 @pytest.fixture(scope='session', autouse=True)
 def common_environment():
-    """
-    Setup the target environment with the correct version of cloud-init
-    so we can launch instances / run tests with the correct image
+    """Setup the target environment with the correct version of cloud-init.
+
+    So we can launch instances / run tests with the correct image
     """
     client = dynamic_client()
     print('Setting up environment for {}'.format(client.datasource))
     if integration_settings.IMAGE_SOURCE == 'NONE':
         pass  # that was easy
     elif integration_settings.IMAGE_SOURCE == 'IN_PLACE':
-        # pylxd version of
-        # "lxc config device add my-cloud-test host-cloud-init disk
-        # source=<path_to_repo>/cloudinit
-        # path=/usr/lib/python3/dist-packages/cloudinit"
         if not isinstance(client, LxdContainerClient):
             raise ValueError('IN_PLACE as IMAGE_SOURCE only works for LXD')
-        raise NotImplementedError  # Still not done
-    elif integration_settings.IMAGE_SOURCE == 'CURRENT':
-        raise NotImplementedError
-    elif integration_settings.IMAGE_SOURCE == 'COMMIT':
-        raise NotImplementedError
+        # The mount needs to happen after the instance is launched, so
+        # no further action needed here
     elif integration_settings.IMAGE_SOURCE == 'PROPOSED':
         client.launch()
-        client.generate_proposed_image()
+        client.install_proposed_image()
     elif integration_settings.IMAGE_SOURCE == 'PPA':
-        raise NotImplementedError
+        client.launch()
+        client.install_ppa()
     elif os.path.isfile(str(integration_settings.IMAGE_SOURCE)):
-        # Push deb to remote and install it...see existing impl
-        raise NotImplementedError  # Not done yet
+        client.launch()
+        client.install_deb()
     if client.instance:
         # Even if we're keeping instances, we don't want to keep this
         # one around as it was just for image creation
         client.destroy()
     print('Done with environment setup')
+
+
+@pytest.yield_fixture()
+def client(request, fixture_utils):
+    cloud_config = fixture_utils.closest_marker_first_arg_or(
+        request, 'cloud_config', None)
+    with dynamic_client(user_data=cloud_config) as instance:
+        yield instance
