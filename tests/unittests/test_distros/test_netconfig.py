@@ -539,6 +539,87 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                                V1_NET_CFG_IPV6,
                                expected_cfgs=expected_cfgs.copy())
 
+    def test_vlan_render_unsupported(self):
+        """Render officially unsupported vlan names."""
+        cfg = {
+            'version': 2,
+            'ethernets': {
+                'eth0': {'addresses': ["192.10.1.2/24"],
+                         'match': {'macaddress': "00:16:3e:60:7c:df"}}},
+            'vlans': {
+                'infra0': {'addresses': ["10.0.1.2/16"],
+                           'id': 1001, 'link': 'eth0'}},
+        }
+        expected_cfgs = {
+            self.ifcfg_path('eth0'): dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth0
+                HWADDR=00:16:3e:60:7c:df
+                IPADDR=192.10.1.2
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+            self.ifcfg_path('infra0'): dedent("""\
+                BOOTPROTO=none
+                DEVICE=infra0
+                IPADDR=10.0.1.2
+                NETMASK=255.255.0.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                PHYSDEV=eth0
+                USERCTL=no
+                VLAN=yes
+                """),
+            self.control_path(): dedent("""\
+                NETWORKING=yes
+                """),
+        }
+        self._apply_and_verify(
+            self.distro.apply_network_config, cfg,
+            expected_cfgs=expected_cfgs)
+
+    def test_vlan_render(self):
+        cfg = {
+            'version': 2,
+            'ethernets': {
+                'eth0': {'addresses': ["192.10.1.2/24"]}},
+            'vlans': {
+                'eth0.1001': {'addresses': ["10.0.1.2/16"],
+                              'id': 1001, 'link': 'eth0'}},
+        }
+        expected_cfgs = {
+            self.ifcfg_path('eth0'): dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth0
+                IPADDR=192.10.1.2
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+            self.ifcfg_path('eth0.1001'): dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth0.1001
+                IPADDR=10.0.1.2
+                NETMASK=255.255.0.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                PHYSDEV=eth0
+                USERCTL=no
+                VLAN=yes
+                """),
+            self.control_path(): dedent("""\
+                NETWORKING=yes
+                """),
+        }
+        self._apply_and_verify(
+            self.distro.apply_network_config, cfg,
+            expected_cfgs=expected_cfgs)
+
 
 class TestNetCfgDistroOpensuse(TestNetCfgDistroBase):
 
