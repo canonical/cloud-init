@@ -386,7 +386,7 @@ def generate_server_names(distro):
         pool_distro = 'opensuse'
     elif distro == 'alpine' or distro == 'eurolinux':
         # Alpine-specific pool (i.e. x.alpine.pool.ntp.org) does not exist
-        # so use general x.pool.ntp.org instead. The same applies to EuroLinux 
+        # so use general x.pool.ntp.org instead. The same applies to EuroLinux
         pool_distro = ''
 
     for x in range(0, NR_POOL_SERVERS):
