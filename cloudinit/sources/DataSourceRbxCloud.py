@@ -53,7 +53,7 @@ def _sub_arp(cmd):
 
 def gratuitous_arp(items, distro):
     source_param = '-S'
-    if distro.name in ['fedora', 'centos', 'rhel']:
+    if distro.name in ['centos', 'eurolinux', 'fedora', 'rhel']:
         source_param = '-s'
     for item in items:
         try:

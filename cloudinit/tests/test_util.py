@@ -485,6 +485,14 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('eurolinux', '7.8', 'Tallinn'), dist)
 
     @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_eurolinux_os_release(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and release name on EuroLinux"""
+        m_os_release.return_value = OS_RELEASE_EUROLINUX
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('EuroLinux', '7', 'Tallinn'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
     def test_get_linux_centos6(self, m_os_release, m_path_exists):
         """Verify we get the correct name and release name on CentOS 6."""
         m_os_release.return_value = REDHAT_RELEASE_CENTOS_6
