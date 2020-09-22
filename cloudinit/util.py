@@ -761,8 +761,9 @@ def del_dir(path):
 # 'meta-data' entries
 def read_optional_seed(fill, base="", ext="", timeout=5):
     try:
-        (md, ud) = read_seeded(base, ext, timeout)
+        (md, ud, vd) = read_seeded(base, ext, timeout)
         fill['user-data'] = ud
+        fill['vendor-data'] = vd
         fill['meta-data'] = md
         return True
     except url_helper.UrlError as e:
@@ -840,9 +841,11 @@ def load_yaml(blob, default=None, allowed=(dict,)):
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if base.find("%s") >= 0:
         ud_url = base % ("user-data" + ext)
+        vd_url = base % ("vendor-data" + ext)
         md_url = base % ("meta-data" + ext)
     else:
         ud_url = "%s%s%s" % (base, "user-data", ext)
+        vd_url = "%s%s%s" % (base, "vendor-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
     md_resp = url_helper.read_file_or_url(md_url, timeout=timeout,
@@ -857,7 +860,19 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if ud_resp.ok():
         ud = ud_resp.contents
 
-    return (md, ud)
+    vd = None
+    try:
+        vd_resp = url_helper.read_file_or_url(vd_url, timeout=timeout,
+                                              retries=retries)
+    except url_helper.UrlError as e:
+        LOG.debug("Error in vendor-data response: %s", e)
+    else:
+        if vd_resp.ok():
+            vd = vd_resp.contents
+        else:
+            LOG.debug("Error in vendor-data response")
+
+    return (md, ud, vd)
 
 
 def read_conf_d(confd):
