@@ -52,9 +52,9 @@ def common_environment():
     elif integration_settings.IMAGE_SOURCE == 'PROPOSED':
         client.launch()
         client.install_proposed_image()
-    elif integration_settings.IMAGE_SOURCE == 'PPA':
+    elif integration_settings.IMAGE_SOURCE.startswith('ppa:'):
         client.launch()
-        client.install_ppa()
+        client.install_ppa(integration_settings.IMAGE_SOURCE)
     elif os.path.isfile(str(integration_settings.IMAGE_SOURCE)):
         client.launch()
         client.install_deb()

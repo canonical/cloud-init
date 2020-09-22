@@ -123,13 +123,13 @@ class IntegrationClient(ABC):
         ).format(sudo='sudo' if self.use_sudo else '')
         self._install_new_cloud_init(remote_script)
 
-    def install_ppa(self):
+    def install_ppa(self, repo):
         print('Installing PPA')
         remote_script = (
-            '{sudo} add-apt-repository ppa:cloud-init-dev/proposed -y && '
+            '{sudo} add-apt-repository {repo} -y && '
             '{sudo} apt-get update -q && '
             '{sudo} apt-get install -qy cloud-init'
-        ).format(sudo='sudo' if self.use_sudo else '')
+        ).format(sudo='sudo' if self.use_sudo else '', repo=repo)
         self._install_new_cloud_init(remote_script)
 
     def install_deb(self):

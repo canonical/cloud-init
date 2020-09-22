@@ -45,9 +45,9 @@ EXISTING_INSTANCE_ID = None
 #   LXD/VM only. Mount the source code as-is directly into
 #   the container to override the pre-existing cloud-init code
 # PROPOSED
-#   Install from the proposed repo
-# PPA
-#   Install from a PPA
+#   Install from the Ubuntu proposed repo
+# <ppa repo>, e.g., ppa:cloud-init-dev/proposed
+#   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
 #   A path to a valid package to be uploaded and installed
 # <image id>
