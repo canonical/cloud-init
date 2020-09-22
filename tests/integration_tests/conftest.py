@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
 import pytest
+from contextlib import contextmanager
 
 from tests.integration_tests import integration_settings
 from tests.integration_tests.platforms import (
@@ -64,9 +65,27 @@ def common_environment():
     print('Done with environment setup')
 
 
-@pytest.yield_fixture()
-def client(request, fixture_utils):
+@contextmanager
+def _client(request, fixture_utils):
     cloud_config = fixture_utils.closest_marker_first_arg_or(
         request, 'cloud_config', None)
     with dynamic_client(user_data=cloud_config) as instance:
         yield instance
+
+
+@pytest.yield_fixture
+def client(request, fixture_utils):
+    with _client(request, fixture_utils) as client:
+        yield client
+
+
+@pytest.yield_fixture(scope='module')
+def module_client(request, fixture_utils):
+    with _client(request, fixture_utils) as client:
+        yield client
+
+
+@pytest.yield_fixture(scope='class')
+def class_client(request, fixture_utils):
+    with _client(request, fixture_utils) as client:
+        yield client

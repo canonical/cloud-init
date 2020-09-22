@@ -36,3 +36,15 @@ class TestSimple:
     def test_oci_and_ec2_client(self, client):
         print('I can only run on Oci and ec2')
         print(client.exec('cloud-init -v'))
+
+
+class TestSingleInstance:
+    # Since we're using the class_client here, everything in this class
+    # will run on the same cloud instance
+    def test_one(self, class_client):
+        print('I will (probably) get run first')
+        print(class_client.exec('cloud-init -v'))
+
+    def test_two(self, class_client):
+        print('No setup for me!')
+        print(class_client.exec('cloud-init -v'))
