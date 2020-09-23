@@ -103,7 +103,7 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
 
 def write_debian_folder_from_branch(root, templ_data, branch):
     """Import a debian package directory from a branch."""
-    print("Importing debian/ from branch %s to %r" % (branch, root))
+    print("Importing debian/ from branch %s to %s" % (branch, root))
 
     p_dumpdeb = subprocess.Popen(
         ["git", "archive", branch, "debian"], stdout=subprocess.PIPE
