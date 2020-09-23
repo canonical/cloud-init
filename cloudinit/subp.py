@@ -182,7 +182,7 @@ def subp(args, data=None, rcs=None, env=None, capture=True,
         call this fuction with a single string argument before starting
         and after finishing.
     :param cwd:
-        changee the working directory to cwd before executing the command.
+        change the working directory to cwd before executing the command.
 
     :return
         if not capturing, return is (None, None)
