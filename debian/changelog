@@ -1,3 +1,10 @@
+cloud-init (20.3-15-g6d332e5c-0ubuntu2) UNRELEASED; urgency=medium
+
+  * d/control: add gnupg to Recommends as cc_apt_configure requires it to be
+    installed for some operations.
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Wed, 23 Sep 2020 10:26:58 -0400
+
 cloud-init (20.3-15-g6d332e5c-0ubuntu1) groovy; urgency=medium
 
   * d/cloud-init.postinst: fix the grub install device for NVMe-rooted
