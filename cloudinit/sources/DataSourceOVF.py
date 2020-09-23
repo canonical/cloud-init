@@ -73,6 +73,7 @@ class DataSourceOVF(sources.DataSource):
         found = []
         md = {}
         ud = ""
+        vd = ""
         vmwareImcConfigFilePath = None
         nicspath = None
 
@@ -304,7 +305,7 @@ class DataSourceOVF(sources.DataSource):
                           seedfrom, self)
                 return False
 
-            (md_seed, ud) = util.read_seeded(seedfrom, timeout=None)
+            (md_seed, ud, vd) = util.read_seeded(seedfrom, timeout=None)
             LOG.debug("Using seeded cache data from %s", seedfrom)
 
             md = util.mergemanydict([md, md_seed])
@@ -316,6 +317,7 @@ class DataSourceOVF(sources.DataSource):
         self.seed = ",".join(found)
         self.metadata = md
         self.userdata_raw = ud
+        self.vendordata_raw = vd
         self.cfg = cfg
         return True
 
