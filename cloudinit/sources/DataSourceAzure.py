@@ -1472,8 +1472,17 @@ def _generate_network_config_from_fallback_config() -> dict:
 
     @return: Dictionary containing network version 2 standard configuration.
     """
+    # Azure Dv4 and Ev4 series VMs always have mlx5 hardware.
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/dv4-dsv4-series
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/ev4-esv4-series
+    # Earlier D and E series VMs (such as Dv2, Dv3, and Ev3 series VMs)
+    # can have either mlx4 or mlx5 hardware, with the older series VMs
+    # having a higher chance of coming with mlx4 hardware.
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/dv2-dsv2-series
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/dv3-dsv3-series
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/ev3-esv3-series
     blacklist = ['mlx4_core', 'mlx5_core']
-    # generate a network config, blacklist picking mlx4_core devs
+    # generate a network config, blacklist picking mlx4_core and mlx5_core devs
     return net.generate_fallback_config(
         blacklist_drivers=blacklist, config_driver=True)
 
