@@ -1311,50 +1311,6 @@ scbus-1 on xpt0 bus 0
             blacklist_drivers=['mlx4_core', 'mlx5_core'],
             config_driver=True)
 
-    @mock.patch('cloudinit.net.get_interface_mac')
-    @mock.patch('cloudinit.net.get_devicelist')
-    @mock.patch('cloudinit.net.device_driver')
-    @mock.patch('cloudinit.net.generate_fallback_config')
-    def test_fallback_network_config_blacklist(self, mock_fallback, mock_dd,
-                                               mock_devlist, mock_get_mac):
-        """On absent network metadata, blacklist mlx from fallback config."""
-        odata = {'HostName': "myhost", 'UserName': "myuser"}
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
-                'sys_cfg': {}}
-
-        fallback_config = {
-            'version': 1,
-            'config': [{
-                'type': 'physical', 'name': 'eth0',
-                'mac_address': '00:11:22:33:44:55',
-                'params': {'driver': 'hv_netsvc'},
-                'subnets': [{'type': 'dhcp'}],
-            }]
-        }
-        mock_fallback.return_value = fallback_config
-
-        mock_devlist.return_value = ['eth0', 'eth1', 'eth2']
-        mock_dd.side_effect = [
-            'hv_netsvc',  # list composition, skipped
-            'mlx4_core',  # list composition, match
-            'mlx4_core',  # config get driver name
-            'mlx5_core',  # list composition, match
-            'mlx5_core',  # config get driver name
-        ]
-        mock_get_mac.return_value = '00:11:22:33:44:55'
-
-        dsrc = self._get_ds(data)
-        # Represent empty response from network imds
-        self.m_get_metadata_from_imds.return_value = {}
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-
-        netconfig = dsrc.network_config
-        self.assertEqual(netconfig, fallback_config)
-        mock_fallback.assert_called_with(
-            blacklist_drivers=['mlx4_core', 'mlx5_core'],
-            config_driver=True)
-
     @mock.patch(MOCKPATH + 'subp.subp')
     def test_get_hostname_with_no_args(self, m_subp):
         dsaz.get_hostname()
