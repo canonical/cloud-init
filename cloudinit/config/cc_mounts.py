@@ -257,6 +257,7 @@ def create_swapfile(fname: str, size: str) -> None:
         except subp.ProcessExecutionError as e:
             LOG.warning(errmsg, fname, size, method, e)
             util.del_file(fname)
+            raise
 
     swap_dir = os.path.dirname(fname)
     util.ensure_dir(swap_dir)
@@ -269,8 +270,7 @@ def create_swapfile(fname: str, size: str) -> None:
     else:
         try:
             create_swap(fname, size, "fallocate")
-        except subp.ProcessExecutionError as e:
-            LOG.warning(errmsg, fname, size, "dd", e)
+        except subp.ProcessExecutionError:
             LOG.warning("Will attempt with dd.")
             create_swap(fname, size, "dd")
 
