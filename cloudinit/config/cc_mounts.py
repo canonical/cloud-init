@@ -255,7 +255,7 @@ def create_swapfile(fname: str, size: str) -> None:
         try:
             subp.subp(cmd, capture=True)
         except subp.ProcessExecutionError as e:
-            LOG.warning(errmsg, fname, size, method, e)
+            LOG.info(errmsg, fname, size, method, e)
             util.del_file(fname)
             raise
 
@@ -271,7 +271,7 @@ def create_swapfile(fname: str, size: str) -> None:
         try:
             create_swap(fname, size, "fallocate")
         except subp.ProcessExecutionError:
-            LOG.warning("Will attempt with dd.")
+            LOG.info("fallocate swap creation failed, will attempt with dd")
             create_swap(fname, size, "dd")
 
     if os.path.exists(fname):

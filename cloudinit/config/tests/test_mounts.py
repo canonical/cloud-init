@@ -57,4 +57,5 @@ class TestCreateSwapfile:
 
         assert mock.call(["mkswap", fname]) in m_subp.call_args_list
 
-        assert "Will attempt with dd" in caplog.text
+        msg = "fallocate swap creation failed, will attempt with dd"
+        assert msg in caplog.text
