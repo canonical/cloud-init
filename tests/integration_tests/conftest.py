@@ -35,7 +35,7 @@ def disable_subp_usage(request):
 
 
 @pytest.fixture(scope='session', autouse=True)
-def common_environment():
+def setup_image():
     """Setup the target environment with the correct version of cloud-init.
 
     So we can launch instances / run tests with the correct image
