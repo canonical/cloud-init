@@ -693,12 +693,19 @@ class DataSourceAzure(sources.DataSource):
                         self._ephemeral_dhcp_ctx.clean_network()
                         break
 
+                    report_ready_succeeded = self._report_ready(lease=lease)
+                    if not report_ready_succeeded:
+                        report_diagnostic_event(
+                            'Failed reporting ready while in '
+                            'the preprovisioning pool.')
+                        self._ephemeral_dhcp_ctx.clean_network()
+                        break
+
                     path = REPORTED_READY_MARKER_FILE
                     LOG.info(
                         "Creating a marker file to report ready: %s", path)
                     util.write_file(path, "{pid}: {time}\n".format(
                         pid=os.getpid(), time=time()))
-                    self._report_ready(lease=lease)
                     report_ready = False
 
                     with events.ReportEventStack(

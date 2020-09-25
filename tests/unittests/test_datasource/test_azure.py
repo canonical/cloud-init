@@ -2072,11 +2072,10 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(3, m_dhcpv4.call_count, 'Expected 3 DHCP calls')
         self.assertEqual(4, self.tries, 'Expected 4 total reads from IMDS')
 
-    def test_poll_imds_report_ready_false(self,
-                                          report_ready_func, fake_resp,
-                                          m_media_switch, m_dhcp, m_net):
-        """The poll_imds should not call reporting ready
-           when flag is false"""
+    def test_does_not_poll_imds_report_ready_when_marker_file_exists(
+            self, m_report_ready, fake_resp, m_media_switch, m_dhcp, m_net):
+        """poll_imds should not call report ready when the reported ready
+        marker file exists"""
         report_file = self.tmp_path('report_marker', self.tmp)
         write_file(report_file, content='dont run report_ready :)')
         m_dhcp.return_value = [{
@@ -2087,9 +2086,45 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
             dsa._poll_imds()
-        self.assertEqual(report_ready_func.call_count, 0)
+        self.assertEqual(m_report_ready.call_count, 0)
+
+    def test_poll_imds_report_ready_success_writes_marker_file(
+            self, m_report_ready, fake_resp, m_media_switch, m_dhcp, m_net):
+        """poll_imds should write the report_ready marker file if
+        reporting ready succeeds"""
+        report_file = self.tmp_path('report_marker', self.tmp)
+        m_dhcp.return_value = [{
+            'interface': 'eth9', 'fixed-address': '192.168.2.9',
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+            'unknown-245': '624c3620'}]
+        m_media_switch.return_value = None
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        self.assertFalse(os.path.exists(report_file))
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
+            dsa._poll_imds()
+        self.assertEqual(m_report_ready.call_count, 1)
+        self.assertTrue(os.path.exists(report_file))
+
+    def test_poll_imds_report_ready_failure_does_not_write_marker_file(
+            self, m_report_ready, fake_resp, m_media_switch, m_dhcp, m_net):
+        """poll_imds should write the report_ready marker file if
+        reporting ready succeeds"""
+        report_file = self.tmp_path('report_marker', self.tmp)
+        m_dhcp.return_value = [{
+            'interface': 'eth9', 'fixed-address': '192.168.2.9',
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+            'unknown-245': '624c3620'}]
+        m_media_switch.return_value = None
+        m_report_ready.return_value = False
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        self.assertFalse(os.path.exists(report_file))
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
+            dsa._poll_imds()
+        self.assertEqual(m_report_ready.call_count, 1)
+        self.assertFalse(os.path.exists(report_file))
 
 
+@mock.patch(MOCKPATH + 'DataSourceAzure._report_ready')
 @mock.patch(MOCKPATH + 'subp.subp')
 @mock.patch(MOCKPATH + 'util.write_file')
 @mock.patch(MOCKPATH + 'util.is_FreeBSD')
@@ -2110,7 +2145,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
     def test_poll_imds_returns_ovf_env(self, fake_resp,
                                        m_dhcp, m_net,
                                        m_media_switch,
-                                       m_is_bsd, write_f, subp):
+                                       m_is_bsd,
+                                       write_f, subp, m_report_ready):
         """The _poll_imds method should return the ovf_env.xml."""
         m_is_bsd.return_value = False
         m_media_switch.return_value = None
@@ -2142,7 +2178,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
     def test__reprovision_calls__poll_imds(self, fake_resp,
                                            m_dhcp, m_net,
                                            m_media_switch,
-                                           m_is_bsd, write_f, subp):
+                                           m_is_bsd,
+                                           write_f, subp, m_report_ready):
         """The _reprovision method should call poll IMDS."""
         m_is_bsd.return_value = False
         m_media_switch.return_value = None
