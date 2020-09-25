@@ -2105,7 +2105,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(m_report_ready.call_count, 1)
         self.assertTrue(os.path.exists(report_file))
 
-    def test_poll_imds_report_ready_failure_does_not_write_marker_file(
+    def test_poll_imds_report_ready_failure_raises_exc_and_doesnt_write_marker(
             self, m_report_ready, fake_resp, m_media_switch, m_dhcp, m_net):
         """poll_imds should write the report_ready marker file if
         reporting ready succeeds"""
@@ -2119,7 +2119,9 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         self.assertFalse(os.path.exists(report_file))
         with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
-            dsa._poll_imds()
+            self.assertRaises(
+                InvalidMetaDataException,
+                dsa._poll_imds)
         self.assertEqual(m_report_ready.call_count, 1)
         self.assertFalse(os.path.exists(report_file))
 

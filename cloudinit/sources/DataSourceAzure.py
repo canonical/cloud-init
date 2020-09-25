@@ -695,11 +695,11 @@ class DataSourceAzure(sources.DataSource):
 
                     report_ready_succeeded = self._report_ready(lease=lease)
                     if not report_ready_succeeded:
-                        report_diagnostic_event(
-                            'Failed reporting ready while in '
-                            'the preprovisioning pool.')
+                        msg = ('Failed reporting ready while in '
+                               'the preprovisioning pool.')
+                        report_diagnostic_event(msg)
                         self._ephemeral_dhcp_ctx.clean_network()
-                        break
+                        raise sources.InvalidMetaDataException(msg)
 
                     path = REPORTED_READY_MARKER_FILE
                     LOG.info(
