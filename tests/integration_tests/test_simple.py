@@ -7,18 +7,18 @@ from tests.integration_tests.platforms import (
 )
 
 
-CLOUD_CONFIG = """#cloud-config
+USER_DATA = """#cloud-config
 bootcmd:
-  - echo 'hello config!' > /tmp/cloud_config.txt"""
+  - echo 'hello config!' > /tmp/user_data.txt"""
 
 
 class TestSimple:
-    @pytest.mark.cloud_config(CLOUD_CONFIG)
+    @pytest.mark.user_data(USER_DATA)
     def test_cloud_config(self, client):
         client.push_to_file('/home/ubuntu/my_test.txt', 'Hello world!')
         print(client.exec('cloud-init -v'))
         print(client.exec('cat /home/ubuntu/my_test.txt'))
-        print(client.exec('cat /tmp/cloud_config.txt'))
+        print(client.exec('cat /tmp/user_data.txt'))
         contents = client.pull_from_file('/home/ubuntu/my_test.txt')
         print(contents)
 

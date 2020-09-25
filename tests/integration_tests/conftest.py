@@ -67,9 +67,9 @@ def setup_image():
 
 @contextmanager
 def _client(request, fixture_utils):
-    cloud_config = fixture_utils.closest_marker_first_arg_or(
-        request, 'cloud_config', None)
-    with dynamic_client(user_data=cloud_config) as instance:
+    user_data = fixture_utils.closest_marker_first_arg_or(
+        request, 'user_data', None)
+    with dynamic_client(user_data=user_data) as instance:
         yield instance
 
 
