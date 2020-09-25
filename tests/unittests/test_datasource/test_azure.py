@@ -1167,7 +1167,7 @@ scbus-1 on xpt0 bus 0
         dsrc.ds_cfg['agent_command'] = '__builtin__'
         self.assertTrue(dsrc._report_ready(lease=mock.MagicMock()))
 
-    def test_dsaz_report_ready_returns_false_when_report_fails(
+    def test_dsaz_report_ready_returns_false_and_does_not_propagate_exc(
             self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         dsrc.ds_cfg['agent_command'] = '__builtin__'
