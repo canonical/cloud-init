@@ -1161,6 +1161,19 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds({'ovfcontent': xml})
         dsrc.get_data()
 
+    def test_dsaz_report_ready_returns_true_when_report_succeeds(
+            self):
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        dsrc.ds_cfg['agent_command'] = '__builtin__'
+        self.assertTrue(dsrc._report_ready(lease=mock.MagicMock()))
+
+    def test_dsaz_report_ready_returns_false_when_report_fails(
+            self):
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        dsrc.ds_cfg['agent_command'] = '__builtin__'
+        self.get_metadata_from_fabric.side_effect = Exception
+        self.assertFalse(dsrc._report_ready(lease=mock.MagicMock()))
+
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
         """Errors communicating with fabric should warn, but return True."""
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})

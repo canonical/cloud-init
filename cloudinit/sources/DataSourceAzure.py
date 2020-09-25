@@ -743,14 +743,20 @@ class DataSourceAzure(sources.DataSource):
         return return_val
 
     @azure_ds_telemetry_reporter
-    def _report_ready(self, lease):
-        """Tells the fabric provisioning has completed """
+    def _report_ready(self, lease: dict) -> bool:
+        """Tells the fabric provisioning has completed.
+
+        @param lease: dhcp lease to use for sending the ready signal.
+        @return: The success status of sending the ready signal.
+        """
         try:
             get_metadata_from_fabric(None, lease['unknown-245'])
+            return True
         except Exception:
             LOG.warning(
                 "Error communicating with Azure fabric; You may experience."
                 "connectivity issues.", exc_info=True)
+            return False
 
     def _should_reprovision(self, ret):
         """Whether or not we should poll IMDS for reprovisioning data.
