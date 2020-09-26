@@ -1400,76 +1400,104 @@ def load_azure_ds_dir(source_dir):
     return (md, ud, cfg, {'ovf-env.xml': contents})
 
 
-def parse_network_config(imds_metadata):
+@azure_ds_telemetry_reporter
+def parse_network_config(imds_metadata) -> dict:
     """Convert imds_metadata dictionary to network v2 configuration.
-
     Parses network configuration from imds metadata if present or generate
     fallback network config excluding mlx4_core devices.
 
     @param: imds_metadata: Dict of content read from IMDS network service.
     @return: Dictionary containing network version 2 standard configuration.
     """
-    with events.ReportEventStack(
-        name="parse_network_config",
-        description="",
-        parent=azure_ds_reporter
-    ) as evt:
-        if imds_metadata != sources.UNSET and imds_metadata:
-            netconfig = {'version': 2, 'ethernets': {}}
-            LOG.debug('Azure: generating network configuration from IMDS')
-            network_metadata = imds_metadata['network']
-            for idx, intf in enumerate(network_metadata['interface']):
-                # First IPv4 and/or IPv6 address will be obtained via DHCP.
-                # Any additional IPs of each type will be set as static
-                # addresses.
-                nicname = 'eth{idx}'.format(idx=idx)
-                dhcp_override = {'route-metric': (idx + 1) * 100}
-                dev_config = {'dhcp4': True, 'dhcp4-overrides': dhcp_override,
-                              'dhcp6': False}
-                for addr_type in ('ipv4', 'ipv6'):
-                    addresses = intf.get(addr_type, {}).get('ipAddress', [])
-                    if addr_type == 'ipv4':
-                        default_prefix = '24'
-                    else:
-                        default_prefix = '128'
-                        if addresses:
-                            dev_config['dhcp6'] = True
-                            # non-primary interfaces should have a higher
-                            # route-metric (cost) so default routes prefer
-                            # primary nic due to lower route-metric value
-                            dev_config['dhcp6-overrides'] = dhcp_override
-                    for addr in addresses[1:]:
-                        # Append static address config for ip > 1
-                        netPrefix = intf[addr_type]['subnet'][0].get(
-                            'prefix', default_prefix)
-                        privateIp = addr['privateIpAddress']
-                        if not dev_config.get('addresses'):
-                            dev_config['addresses'] = []
-                        dev_config['addresses'].append(
-                            '{ip}/{prefix}'.format(
-                                ip=privateIp, prefix=netPrefix))
-                if dev_config:
-                    mac = ':'.join(re.findall(r'..', intf['macAddress']))
-                    dev_config.update({
-                        'match': {'macaddress': mac.lower()},
-                        'set-name': nicname
-                    })
-                    # With netvsc, we can get two interfaces that
-                    # share the same MAC, so we need to make sure
-                    # our match condition also contains the driver
-                    driver = device_driver(nicname)
-                    if driver and driver == 'hv_netvsc':
-                        dev_config['match']['driver'] = driver
-                    netconfig['ethernets'][nicname] = dev_config
-            evt.description = "network config from imds"
-        else:
-            blacklist = ['mlx4_core']
-            LOG.debug('Azure: generating fallback configuration')
-            # generate a network config, blacklist picking mlx4_core devs
-            netconfig = net.generate_fallback_config(
-                blacklist_drivers=blacklist, config_driver=True)
-            evt.description = "network config from fallback"
-        return netconfig
+    if imds_metadata != sources.UNSET and imds_metadata:
+        try:
+            return _generate_network_config_from_imds_metadata(imds_metadata)
+        except Exception as e:
+            LOG.error(
+                'Failed generating network config '
+                'from IMDS network metadata: %s', str(e))
+    try:
+        return _generate_network_config_from_fallback_config()
+    except Exception as e:
+        LOG.error('Failed generating fallback network config: %s', str(e))
+    return {}
+
+
+@azure_ds_telemetry_reporter
+def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
+    """Convert imds_metadata dictionary to network v2 configuration.
+    Parses network configuration from imds metadata.
+
+    @param: imds_metadata: Dict of content read from IMDS network service.
+    @return: Dictionary containing network version 2 standard configuration.
+    """
+    netconfig = {'version': 2, 'ethernets': {}}
+    network_metadata = imds_metadata['network']
+    for idx, intf in enumerate(network_metadata['interface']):
+        # First IPv4 and/or IPv6 address will be obtained via DHCP.
+        # Any additional IPs of each type will be set as static
+        # addresses.
+        nicname = 'eth{idx}'.format(idx=idx)
+        dhcp_override = {'route-metric': (idx + 1) * 100}
+        dev_config = {'dhcp4': True, 'dhcp4-overrides': dhcp_override,
+                      'dhcp6': False}
+        for addr_type in ('ipv4', 'ipv6'):
+            addresses = intf.get(addr_type, {}).get('ipAddress', [])
+            if addr_type == 'ipv4':
+                default_prefix = '24'
+            else:
+                default_prefix = '128'
+                if addresses:
+                    dev_config['dhcp6'] = True
+                    # non-primary interfaces should have a higher
+                    # route-metric (cost) so default routes prefer
+                    # primary nic due to lower route-metric value
+                    dev_config['dhcp6-overrides'] = dhcp_override
+            for addr in addresses[1:]:
+                # Append static address config for ip > 1
+                netPrefix = intf[addr_type]['subnet'][0].get(
+                    'prefix', default_prefix)
+                privateIp = addr['privateIpAddress']
+                if not dev_config.get('addresses'):
+                    dev_config['addresses'] = []
+                dev_config['addresses'].append(
+                    '{ip}/{prefix}'.format(
+                        ip=privateIp, prefix=netPrefix))
+        if dev_config:
+            mac = ':'.join(re.findall(r'..', intf['macAddress']))
+            dev_config.update({
+                'match': {'macaddress': mac.lower()},
+                'set-name': nicname
+            })
+            # With netvsc, we can get two interfaces that
+            # share the same MAC, so we need to make sure
+            # our match condition also contains the driver
+            driver = device_driver(nicname)
+            if driver and driver == 'hv_netvsc':
+                dev_config['match']['driver'] = driver
+            netconfig['ethernets'][nicname] = dev_config
+    return netconfig
+
+
+@azure_ds_telemetry_reporter
+def _generate_network_config_from_fallback_config() -> dict:
+    """Generate fallback network config excluding mlx4_core & mlx5_core devices.
+
+    @return: Dictionary containing network version 2 standard configuration.
+    """
+    # Azure Dv4 and Ev4 series VMs always have mlx5 hardware.
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/dv4-dsv4-series
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/ev4-esv4-series
+    # Earlier D and E series VMs (such as Dv2, Dv3, and Ev3 series VMs)
+    # can have either mlx4 or mlx5 hardware, with the older series VMs
+    # having a higher chance of coming with mlx4 hardware.
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/dv2-dsv2-series
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/dv3-dsv3-series
+    # https://docs.microsoft.com/en-us/azure/virtual-machines/ev3-esv3-series
+    blacklist = ['mlx4_core', 'mlx5_core']
+    # generate a network config, blacklist picking mlx4_core and mlx5_core devs
+    return net.generate_fallback_config(
+        blacklist_drivers=blacklist, config_driver=True)
 
 
 @azure_ds_telemetry_reporter
