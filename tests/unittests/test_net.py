@@ -1633,7 +1633,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=bond0
-                TYPE=Ethernet
                 USERCTL=no
                 VLAN=yes"""),
             'ifcfg-br0': textwrap.dedent("""\
@@ -1677,7 +1676,6 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=eth0
-                TYPE=Ethernet
                 USERCTL=no
                 VLAN=yes"""),
             'ifcfg-eth1': textwrap.dedent("""\
@@ -2286,7 +2284,6 @@ iface bond0 inet6 static
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=en0
-                TYPE=Ethernet
                 USERCTL=no
                 VLAN=yes"""),
         },
@@ -3339,7 +3336,6 @@ USERCTL=no
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 PHYSDEV=eno1
-                TYPE=Ethernet
                 USERCTL=no
                 VLAN=yes
                 """)

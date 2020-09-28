@@ -26,7 +26,6 @@ LOG = logging.getLogger(__name__)
 NOT_MULTIPART_TYPE = handlers.NOT_MULTIPART_TYPE
 PART_FN_TPL = handlers.PART_FN_TPL
 OCTET_TYPE = handlers.OCTET_TYPE
-INCLUDE_MAP = handlers.INCLUSION_TYPES_MAP
 
 # Saves typing errors
 CONTENT_TYPE = 'Content-Type'
