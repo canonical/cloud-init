@@ -67,6 +67,11 @@ def setup_image():
 
 @contextmanager
 def _client(request, fixture_utils):
+    """Fixture implementation for the client fixtures.
+
+    Launch the dynamic IntegrationClient instance using any provided
+    userdata, yield to the test, then cleanup
+    """
     user_data = fixture_utils.closest_marker_first_arg_or(
         request, 'user_data', None)
     with dynamic_client(user_data=user_data) as instance:
@@ -75,17 +80,20 @@ def _client(request, fixture_utils):
 
 @pytest.yield_fixture
 def client(request, fixture_utils):
+    """Provide a client that runs for every test."""
     with _client(request, fixture_utils) as client:
         yield client
 
 
 @pytest.yield_fixture(scope='module')
 def module_client(request, fixture_utils):
+    """Provide a client that runs once per module."""
     with _client(request, fixture_utils) as client:
         yield client
 
 
 @pytest.yield_fixture(scope='class')
 def class_client(request, fixture_utils):
+    """Provide a client that runs once per class."""
     with _client(request, fixture_utils) as client:
         yield client

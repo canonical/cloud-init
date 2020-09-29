@@ -173,8 +173,17 @@ Cloud Config Modules
 * Any new modules should use underscores in any new config options and not
   hyphens (e.g. `new_option` and *not* `new-option`).
 
-Unit Testing
+.. _unit_testing:
+
+Testing
 ------------
+
+cloud-init has both unit tests and integration tests. Unit tests can
+be found in-tree alongside the source code, as well as
+at ``tests/unittests``. Integration tests can be at
+``tests/integration_tests``. Documentation specifically for integration
+tests can be found on the :ref:`integration_tests` page, but
+the guidelines specified below apply to both types of tests.
 
 cloud-init uses `pytest`_ to run its tests, and has tests written both
 as ``unittest.TestCase`` sub-classes and as un-subclassed pytest tests.
