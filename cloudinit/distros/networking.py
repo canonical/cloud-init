@@ -197,6 +197,32 @@ class BSDNetworking(Networking):
 class LinuxNetworking(Networking):
     """Implementation of networking functionality common to Linux distros."""
 
+    def generate_fallback_config(
+        self, *, blacklist_drivers=None, config_driver: bool = False
+    ):
+        """Generate network cfg v2 for dhcp on the NIC most likely connected."""
+        if not config_driver:
+            config_driver = False
+
+        target_name = self.find_fallback_nic(blacklist_drivers=blacklist_drivers)
+        if not target_name:
+            # can't read any interfaces addresses (or there are none); give up
+            return None
+
+        # netfail cannot use mac for matching, they have duplicate macs
+        if self.is_netfail_master(target_name):
+            match = {'name': target_name}
+        else:
+            match = {
+                'macaddress': net.read_sys_net_safe(target_name, 'address').lower()}
+        cfg = {'dhcp4': True, 'set-name': target_name, 'match': match}
+        if config_driver:
+            driver = self.device_driver(target_name)
+            if driver:
+                cfg['match']['driver'] = driver
+        nconf = {'ethernets': {target_name: cfg}, 'version': 2}
+        return nconf
+
     def get_dev_features(self, devname: DeviceName) -> str:
         return net.get_dev_features(devname)
 
