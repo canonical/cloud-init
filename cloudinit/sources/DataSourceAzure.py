@@ -478,7 +478,8 @@ class DataSourceAzure(sources.DataSource):
             raise sources.InvalidMetaDataException(msg)
 
         if found == ddir:
-            LOG.debug("using files cached in %s", ddir)
+            report_diagnostic_event(
+                "using files cached in %s" % ddir, logger_func=LOG.debug)
 
         seed = _get_random_seed()
         if seed:
@@ -587,14 +588,14 @@ class DataSourceAzure(sources.DataSource):
         except KeyError:
             log_msg = 'Unable to get keys from IMDS, falling back to OVF'
             LOG.debug(log_msg)
-            report_diagnostic_event(log_msg)
+            report_diagnostic_event(log_msg, logger_func=LOG.debug)
             try:
                 ssh_keys = self.metadata['public-keys']
                 LOG.debug('Retrieved keys from OVF')
             except KeyError:
                 log_msg = 'No keys available from OVF'
                 LOG.debug(log_msg)
-                report_diagnostic_event(log_msg)
+                report_diagnostic_event(log_msg, logger_func=LOG.debug)
 
         return ssh_keys
 
