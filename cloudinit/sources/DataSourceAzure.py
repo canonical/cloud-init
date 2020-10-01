@@ -648,11 +648,6 @@ class DataSourceAzure(sources.DataSource):
                     if self.imds_poll_counter == self.imds_logging_threshold:
                         # Reducing the logging frequency as we are polling IMDS
                         self.imds_logging_threshold *= 2
-                        report_diagnostic_event(
-                            "Call to IMDS with arguments %s failed "
-                            "with status code %s after %s retries" %
-                            (msg, exception.code, self.imds_poll_counter),
-                            logger_func=LOG.warning)
                         LOG.debug("Backing off logging threshold for the same "
                                   "exception to %d",
                                   self.imds_logging_threshold)
@@ -660,7 +655,7 @@ class DataSourceAzure(sources.DataSource):
                                                 "Exception: %s and code: %s" %
                                                 (msg, exception.cause,
                                                  exception.code),
-                                                logger_func=LOG.warning)
+                                                logger_func=LOG.debug)
                     self.imds_poll_counter += 1
                     return True
                 else:

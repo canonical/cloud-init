@@ -181,7 +181,7 @@ def get_system_info():
 
 
 def report_diagnostic_event(
-        msg: str, logger_func=None) -> events.ReportingEvent:
+        msg: str, *, logger_func=None) -> events.ReportingEvent:
     """Report a diagnostic event"""
     if callable(logger_func):
         logger_func(msg)
