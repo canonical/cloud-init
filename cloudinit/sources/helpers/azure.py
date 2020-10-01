@@ -323,9 +323,8 @@ class GoalState:
 
         for attr in ("container_id", "instance_id", "incarnation"):
             if getattr(self, attr) is None:
-                msg = 'Missing %s in GoalState XML'
-                report_diagnostic_event(
-                    msg % attr, logger_func=LOG.warning)
+                msg = 'Missing %s in GoalState XML' % attr
+                report_diagnostic_event(msg, logger_func=LOG.warning)
                 raise InvalidGoalStateXMLException(msg)
 
         self.certificates_xml = None
