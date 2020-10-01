@@ -2,7 +2,6 @@
 from abc import ABC, abstractmethod
 import logging
 import os
-import sys
 from tempfile import NamedTemporaryFile
 
 from pycloudlib import EC2, GCE, Azure, OCI, LXD
