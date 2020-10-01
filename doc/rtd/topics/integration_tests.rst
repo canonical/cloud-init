@@ -27,11 +27,11 @@ via fixture. Image setup roughly follows these steps:
 * Take a snapshot of the instance to be used as a new image from
   which new instances can be launched
 
-Instance Setup
+Test Setup
 ==============
 Test setup occurs between image setup and test execution. Test setup
 is implemented via one of the ``client`` fixtures. When a client fixture
-is used, an instance from which to run tests is launched prior to
+is used, a test instance from which to run tests is launched prior to
 test execution and torn down after.
 
 Test Definition

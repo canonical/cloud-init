@@ -180,7 +180,7 @@ Testing
 
 cloud-init has both unit tests and integration tests. Unit tests can
 be found in-tree alongside the source code, as well as
-at ``tests/unittests``. Integration tests can be at
+at ``tests/unittests``. Integration tests can be found at
 ``tests/integration_tests``. Documentation specifically for integration
 tests can be found on the :ref:`integration_tests` page, but
 the guidelines specified below apply to both types of tests.
