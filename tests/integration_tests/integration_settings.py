@@ -52,8 +52,6 @@ EXISTING_INSTANCE_ID = None
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
 #   A path to a valid package to be uploaded and installed
-# <image id>
-#   A pre-existing (platform dependent) image id
 IMAGE_SOURCE = 'NONE'
 
 ##################################################################
@@ -79,8 +77,8 @@ OCI_COMPARTMENT_ID = None
 ##################################################################
 # Bring in any user-file defined settings
 try:
-    from tests.integration_tests.user_settings import *
-except:  # noqa
+    from tests.integration_tests.user_settings import *  # noqa
+except ImportError:
     pass
 
 ##################################################################

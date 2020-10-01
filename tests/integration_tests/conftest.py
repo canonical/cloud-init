@@ -1,6 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
+import logging
 import pytest
+import sys
 from contextlib import contextmanager
 
 from tests.integration_tests import integration_settings
@@ -9,6 +11,10 @@ from tests.integration_tests.platforms import (
     LxdContainerClient,
     client_name_to_class
 )
+
+log = logging.getLogger('integration_testing')
+log.addHandler(logging.StreamHandler(sys.stdout))
+log.setLevel(logging.INFO)
 
 
 def pytest_runtest_setup(item):
@@ -41,7 +47,7 @@ def setup_image():
     So we can launch instances / run tests with the correct image
     """
     client = dynamic_client()
-    print('Setting up environment for {}'.format(client.datasource))
+    log.info('Setting up environment for %s', client.datasource)
     if integration_settings.IMAGE_SOURCE == 'NONE':
         pass  # that was easy
     elif integration_settings.IMAGE_SOURCE == 'IN_PLACE':
@@ -62,7 +68,7 @@ def setup_image():
         # Even if we're keeping instances, we don't want to keep this
         # one around as it was just for image creation
         client.destroy()
-    print('Done with environment setup')
+    log.info('Done with environment setup')
 
 
 @contextmanager

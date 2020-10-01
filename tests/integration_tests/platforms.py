@@ -1,6 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 from abc import ABC, abstractmethod
+import logging
 import os
+import sys
 from tempfile import NamedTemporaryFile
 
 from pycloudlib import EC2, GCE, Azure, OCI, LXD
@@ -16,12 +18,8 @@ try:
 except ImportError:
     pass
 
-current_image = None
 
-
-def set_current_image(image):
-    global current_image
-    current_image = image
+log = logging.getLogger('integration_testing')
 
 
 class IntegrationClient(ABC):
@@ -29,6 +27,7 @@ class IntegrationClient(ABC):
     instance = None  # type: Optional[BaseInstance]
     datasource = None  # type: Optional[str]
     use_sudo = True
+    current_image = None
 
     def __init__(self, user_data=None, instance_type=None, wait=True,
                  settings=integration_settings, launch_kwargs=None):
@@ -45,8 +44,8 @@ class IntegrationClient(ABC):
         raise NotImplementedError
 
     def _get_image(self):
-        if current_image:
-            return current_image
+        if self.current_image:
+            return self.current_image
         image_id = self.settings.OS_IMAGE
         try:
             image_id = self.client.released_image(self.settings.OS_IMAGE)
@@ -56,8 +55,9 @@ class IntegrationClient(ABC):
 
     def launch(self):
         if self.settings.EXISTING_INSTANCE_ID:
-            print('Not launching instance due to EXISTING_INSTANCE_ID. '
-                  'Instance id: {}'.format(self.settings.EXISTING_INSTANCE_ID))
+            log.info(
+                'Not launching instance due to EXISTING_INSTANCE_ID. '
+                'Instance id: %s', self.settings.EXISTING_INSTANCE_ID)
             self.instance = self.client.get_instance(
                 self.settings.EXISTING_INSTANCE_ID
             )
@@ -72,12 +72,12 @@ class IntegrationClient(ABC):
             launch_args['instance_type'] = self.instance_type
         launch_args.update(self.launch_kwargs)
         self.instance = self.client.launch(**launch_args)
-        print('Launched instance: {}'.format(self.instance))
+        log.info('Launched instance: %s', self.instance)
 
     def destroy(self):
         self.instance.delete()
 
-    def exec(self, command):
+    def execute(self, command):
         return self.instance.execute(command)
 
     def pull_file(self, remote_file, local_file):
@@ -86,34 +86,38 @@ class IntegrationClient(ABC):
     def push_file(self, local_path, remote_path):
         self.instance.push_file(local_path, remote_path)
 
-    def pull_from_file(self, remote_path) -> str:
+    def read_from_file(self, remote_path) -> str:
         tmp_file = NamedTemporaryFile('r')
         self.pull_file(remote_path, tmp_file.name)
         with tmp_file as f:
             contents = f.read()
         return contents
 
-    def push_to_file(self, remote_path, contents: str):
+    def write_to_file(self, remote_path, contents: str):
+        # Writes file locally and then pushes it rather
+        # than writing the file directly on the instance
         with NamedTemporaryFile('w', delete=False) as tmp_file:
             tmp_file.write(contents)
-        self.push_file(tmp_file.name, remote_path)
-        os.unlink(tmp_file.name)
+
+        try:
+            self.push_file(tmp_file.name, remote_path)
+        finally:
+            os.unlink(tmp_file.name)
 
     def snapshot(self):
         return self.client.snapshot(self.instance, clean=True)
 
     def _install_new_cloud_init(self, remote_script):
-        self.exec(remote_script)
-        version = self.exec('cloud-init -v').split()[-1]
-        print('Installed cloud-init version: {}'.format(version))
+        self.execute(remote_script)
+        version = self.execute('cloud-init -v').split()[-1]
+        log.info('Installed cloud-init version: %s', version)
         self.instance.clean()
         image_id = self.snapshot()
-        print('Created new image: {}'.format(image_id))
-        set_current_image(image_id)
-        # self.instance.restart(wait=True)
+        log.info('Created new image: %s', image_id)
+        IntegrationClient.current_image = image_id
 
     def install_proposed_image(self):
-        print('Installing proposed image')
+        log.info('Installing proposed image')
         remote_script = (
             '{sudo} echo deb "http://archive.ubuntu.com/ubuntu '
             '$(lsb_release -sc)-proposed main" | '
@@ -124,7 +128,7 @@ class IntegrationClient(ABC):
         self._install_new_cloud_init(remote_script)
 
     def install_ppa(self, repo):
-        print('Installing PPA')
+        log.info('Installing PPA')
         remote_script = (
             '{sudo} add-apt-repository {repo} -y && '
             '{sudo} apt-get update -q && '
@@ -133,10 +137,10 @@ class IntegrationClient(ABC):
         self._install_new_cloud_init(remote_script)
 
     def install_deb(self):
-        print('Installing deb package')
+        log.info('Installing deb package')
         deb_path = integration_settings.IMAGE_SOURCE
         deb_name = os.path.basename(deb_path)
-        remote_path = '/tmp/{}'.format(deb_name)
+        remote_path = '/var/tmp/{}'.format(deb_name)
         self.push_file(
             local_path=integration_settings.IMAGE_SOURCE,
             remote_path=remote_path)
@@ -227,6 +231,6 @@ except KeyError:
     raise ValueError(
         "{} is an invalid PLATFORM specified in settings. "
         "Must be one of {}".format(
-            integration_settings.PLATFORM, client_name_to_class.keys()
+            integration_settings.PLATFORM, list(client_name_to_class.keys())
         )
     )
