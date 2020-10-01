@@ -838,7 +838,7 @@ def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
     return ret
 
 
-def get_interfaces(blacklist_drivers=None) -> dict:
+def get_interfaces(blacklist_drivers=None) -> list:
     """Return list of interface tuples (name, mac, driver, device_id)
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
@@ -868,7 +868,7 @@ def get_interfaces(blacklist_drivers=None) -> dict:
             continue
         # skip nics that have drivers blacklisted
         driver = device_driver(name)
-        if driver in blacklist_drivers:
+        if blacklist_drivers is not None and driver in blacklist_drivers:
             continue
         ret.append((name, mac, driver, device_devid(name)))
     return ret

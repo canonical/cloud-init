@@ -97,6 +97,7 @@ UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
 # https://docs.microsoft.com/en-us/azure/virtual-machines/ev3-esv3-series
 BLACKLIST_DRIVERS = ['mlx4_core', 'mlx5_core']
 
+
 def find_storvscid_from_sysctl_pnpinfo(sysctl_out, deviceid):
     # extract the 'X' from dev.storvsc.X. if deviceid matches
     """
@@ -323,7 +324,6 @@ class DataSourceAzure(sources.DataSource):
         # Regenerate network config new_instance boot and every boot
         self.update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
-        self.distro.networking.blacklist_drivers = BLACKLIST_DRIVERS
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -542,6 +542,9 @@ class DataSourceAzure(sources.DataSource):
             get_system_info()
         except Exception as e:
             LOG.warning("Failed to get system information: %s", e)
+
+        if self.distro is not None:
+            self.distro.networking.blacklist_drivers = BLACKLIST_DRIVERS
 
         try:
             crawled_data = util.log_time(
