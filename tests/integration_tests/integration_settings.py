@@ -52,7 +52,7 @@ EXISTING_INSTANCE_ID = None
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
 #   A path to a valid package to be uploaded and installed
-IMAGE_SOURCE = 'NONE'
+CLOUD_INIT_SOURCE = 'NONE'
 
 ##################################################################
 # GCE SPECIFIC SETTINGS

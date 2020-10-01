@@ -138,11 +138,11 @@ class IntegrationClient(ABC):
 
     def install_deb(self):
         log.info('Installing deb package')
-        deb_path = integration_settings.IMAGE_SOURCE
+        deb_path = integration_settings.CLOUD_INIT_SOURCE
         deb_name = os.path.basename(deb_path)
         remote_path = '/var/tmp/{}'.format(deb_name)
         self.push_file(
-            local_path=integration_settings.IMAGE_SOURCE,
+            local_path=integration_settings.CLOUD_INIT_SOURCE,
             remote_path=remote_path)
         remote_script = '{sudo} dpkg -i {path}'.format(
             sudo='sudo' if self.use_sudo else '', path=remote_path)
@@ -211,7 +211,7 @@ class LxdContainerClient(IntegrationClient):
 
     def launch(self):
         super().launch()
-        if self.settings.IMAGE_SOURCE == 'IN_PLACE':
+        if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
             self._mount_source()
 
 

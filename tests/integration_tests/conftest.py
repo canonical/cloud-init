@@ -48,20 +48,21 @@ def setup_image():
     """
     client = dynamic_client()
     log.info('Setting up environment for %s', client.datasource)
-    if integration_settings.IMAGE_SOURCE == 'NONE':
+    if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
         pass  # that was easy
-    elif integration_settings.IMAGE_SOURCE == 'IN_PLACE':
+    elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
         if not isinstance(client, LxdContainerClient):
-            raise ValueError('IN_PLACE as IMAGE_SOURCE only works for LXD')
+            raise ValueError(
+                'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
         # The mount needs to happen after the instance is launched, so
         # no further action needed here
-    elif integration_settings.IMAGE_SOURCE == 'PROPOSED':
+    elif integration_settings.CLOUD_INIT_SOURCE == 'PROPOSED':
         client.launch()
         client.install_proposed_image()
-    elif integration_settings.IMAGE_SOURCE.startswith('ppa:'):
+    elif integration_settings.CLOUD_INIT_SOURCE.startswith('ppa:'):
         client.launch()
-        client.install_ppa(integration_settings.IMAGE_SOURCE)
-    elif os.path.isfile(str(integration_settings.IMAGE_SOURCE)):
+        client.install_ppa(integration_settings.CLOUD_INIT_SOURCE)
+    elif os.path.isfile(str(integration_settings.CLOUD_INIT_SOURCE)):
         client.launch()
         client.install_deb()
     if client.instance:
