@@ -83,6 +83,19 @@ UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
     '/run/network/interfaces.ephemeral.d',
 ]
 
+# This list is used to blacklist devices that will be considered
+# for renaming or fallback interfaces.
+# Note:
+# Azure Dv4 and Ev4 series VMs always have mlx5 hardware.
+# https://docs.microsoft.com/en-us/azure/virtual-machines/dv4-dsv4-series
+# https://docs.microsoft.com/en-us/azure/virtual-machines/ev4-esv4-series
+# Earlier D and E series VMs (such as Dv2, Dv3, and Ev3 series VMs)
+# can have either mlx4 or mlx5 hardware, with the older series VMs
+# having a higher chance of coming with mlx4 hardware.
+# https://docs.microsoft.com/en-us/azure/virtual-machines/dv2-dsv2-series
+# https://docs.microsoft.com/en-us/azure/virtual-machines/dv3-dsv3-series
+# https://docs.microsoft.com/en-us/azure/virtual-machines/ev3-esv3-series
+BLACKLIST_DRIVERS = ['mlx4_core', 'mlx5_core']
 
 def find_storvscid_from_sysctl_pnpinfo(sysctl_out, deviceid):
     # extract the 'X' from dev.storvsc.X. if deviceid matches
@@ -310,6 +323,7 @@ class DataSourceAzure(sources.DataSource):
         # Regenerate network config new_instance boot and every boot
         self.update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
+        self.distro.networking.blacklist_drivers = BLACKLIST_DRIVERS
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -1468,23 +1482,12 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
 
 @azure_ds_telemetry_reporter
 def _generate_network_config_from_fallback_config() -> dict:
-    """Generate fallback network config excluding mlx4_core & mlx5_core devices.
+    """Generate fallback network config excluding blacklisted devices.
 
     @return: Dictionary containing network version 2 standard configuration.
     """
-    # Azure Dv4 and Ev4 series VMs always have mlx5 hardware.
-    # https://docs.microsoft.com/en-us/azure/virtual-machines/dv4-dsv4-series
-    # https://docs.microsoft.com/en-us/azure/virtual-machines/ev4-esv4-series
-    # Earlier D and E series VMs (such as Dv2, Dv3, and Ev3 series VMs)
-    # can have either mlx4 or mlx5 hardware, with the older series VMs
-    # having a higher chance of coming with mlx4 hardware.
-    # https://docs.microsoft.com/en-us/azure/virtual-machines/dv2-dsv2-series
-    # https://docs.microsoft.com/en-us/azure/virtual-machines/dv3-dsv3-series
-    # https://docs.microsoft.com/en-us/azure/virtual-machines/ev3-esv3-series
-    blacklist = ['mlx4_core', 'mlx5_core']
-    # generate a network config, blacklist picking mlx4_core and mlx5_core devs
     return net.generate_fallback_config(
-        blacklist_drivers=blacklist, config_driver=True)
+        blacklist_drivers=BLACKLIST_DRIVERS, config_driver=True)
 
 
 @azure_ds_telemetry_reporter

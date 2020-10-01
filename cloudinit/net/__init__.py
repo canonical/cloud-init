@@ -746,7 +746,7 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
         return mac
 
 
-def get_interfaces_by_mac():
+def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
     if util.is_FreeBSD():
         return get_interfaces_by_mac_on_freebsd()
     elif util.is_NetBSD():
@@ -754,7 +754,7 @@ def get_interfaces_by_mac():
     elif util.is_OpenBSD():
         return get_interfaces_by_mac_on_openbsd()
     else:
-        return get_interfaces_by_mac_on_linux()
+        return get_interfaces_by_mac_on_linux(blacklist_drivers)
 
 
 def get_interfaces_by_mac_on_freebsd():
@@ -815,12 +815,12 @@ def get_interfaces_by_mac_on_openbsd():
     return ret
 
 
-def get_interfaces_by_mac_on_linux():
+def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
     """Build a dictionary of tuples {mac: name}.
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret = {}
-    for name, mac, _driver, _devid in get_interfaces():
+    for name, mac, _driver, _devid in get_interfaces(blacklist_drivers):
         if mac in ret:
             raise RuntimeError(
                 "duplicate mac found! both '%s' and '%s' have mac '%s'" %
@@ -838,7 +838,7 @@ def get_interfaces_by_mac_on_linux():
     return ret
 
 
-def get_interfaces():
+def get_interfaces(blacklist_drivers=None) -> dict:
     """Return list of interface tuples (name, mac, driver, device_id)
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
@@ -866,7 +866,11 @@ def get_interfaces():
         # skip nics that have no mac (00:00....)
         if name != 'lo' and mac == zero_mac[:len(mac)]:
             continue
-        ret.append((name, mac, device_driver(name), device_devid(name)))
+        # skip nics that have drivers blacklisted
+        driver = device_driver(name)
+        if driver in blacklist_drivers:
+            continue
+        ret.append((name, mac, driver, device_devid(name)))
     return ret
 
 
