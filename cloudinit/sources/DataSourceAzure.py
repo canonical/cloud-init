@@ -706,6 +706,9 @@ class DataSourceAzure(sources.DataSource):
                         "Creating a marker file to report ready: %s", path)
                     util.write_file(path, "{pid}: {time}\n".format(
                         pid=os.getpid(), time=time()))
+                    report_diagnostic_event(
+                        'Successfully created reported ready marker file '
+                        'while in the preprovisioning pool.')
                     report_ready = False
 
                     with events.ReportEventStack(
