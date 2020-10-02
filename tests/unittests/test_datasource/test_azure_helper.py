@@ -519,10 +519,10 @@ class TestGoalStateHealthReporter(CiTestCase):
 
     def _get_report_ready_health_document(self):
         return self._get_formatted_health_report_xml_string(
-            incarnation=self.default_parameters['incarnation'],
-            container_id=self.default_parameters['container_id'],
-            instance_id=self.default_parameters['instance_id'],
-            health_status=self.provisioning_success_status,
+            incarnation=escape(str(self.default_parameters['incarnation'])),
+            container_id=escape(self.default_parameters['container_id']),
+            instance_id=escape(self.default_parameters['instance_id']),
+            health_status=escape(self.provisioning_success_status),
             health_detail_subsection='')
 
     def _get_report_failure_health_document(self):
@@ -591,19 +591,19 @@ class TestGoalStateHealthReporter(CiTestCase):
 
         self.assertIn(
             '<GoalStateIncarnation>{}</GoalStateIncarnation>'.format(
-                str(self.default_parameters['incarnation'])),
+                escape(str(self.default_parameters['incarnation']))),
             generated_health_document)
         self.assertIn(
             '<ContainerId>{}</ContainerId>'.format(
-                self.default_parameters['container_id']),
+                escape(self.default_parameters['container_id'])),
             generated_health_document)
         self.assertIn(
             '<InstanceId>{}</InstanceId>'.format(
-                self.default_parameters['instance_id']),
+                escape(self.default_parameters['instance_id'])),
             generated_health_document)
         self.assertIn(
             '<State>{}</State>'.format(
-                self.provisioning_success_status),
+                escape(self.provisioning_success_status)),
             generated_health_document)
 
         self.assertNotIn('<Details>', generated_health_document)
@@ -631,26 +631,26 @@ class TestGoalStateHealthReporter(CiTestCase):
 
         self.assertIn(
             '<GoalStateIncarnation>{}</GoalStateIncarnation>'.format(
-                str(self.default_parameters['incarnation'])),
+                escape(str(self.default_parameters['incarnation']))),
             generated_health_document)
         self.assertIn(
             '<ContainerId>{}</ContainerId>'.format(
-                self.default_parameters['container_id']),
+                escape(self.default_parameters['container_id'])),
             generated_health_document)
         self.assertIn(
             '<InstanceId>{}</InstanceId>'.format(
-                self.default_parameters['instance_id']),
+                escape(self.default_parameters['instance_id'])),
             generated_health_document)
         self.assertIn(
             '<State>{}</State>'.format(
-                self.provisioning_not_ready_status),
+                escape(self.provisioning_not_ready_status)),
             generated_health_document)
 
         health_substatus_subsection = '<SubStatus>{}</SubStatus>'.format(
-            self.provisioning_failure_substatus)
+            escape(self.provisioning_failure_substatus))
         self.assertIn(health_substatus_subsection, generated_health_document)
         health_description_subsection = '<Description>{}</Description>'.format(
-            self.provisioning_failure_err_msg)
+            escape(self.provisioning_failure_err_msg))
         self.assertIn(health_description_subsection, generated_health_document)
         health_detail_subsection = '\n'.join([
             '<Details>',
@@ -699,6 +699,40 @@ class TestGoalStateHealthReporter(CiTestCase):
                     substatus=self.provisioning_failure_substatus,
                     description=self.provisioning_failure_err_msg),
                 m_build_report.call_args)
+
+    def test_build_report_escapes_chars(self):
+        incarnation = 'jd8\'9*&^<\'A><A[p&o+\"SD()*&&&LKAJSD23'
+        container_id = '&&<\"><><ds8\'9+7&d9a86!@($09asdl;<>'
+        instance_id = 'Opo>>>jas\'&d;[p&fp\"a<<!!@&&'
+        health_status = '&<897\"6&>&aa\'sd!@&!)((*<&>'
+        health_substatus = '&as\"d<<a&s>d<\'^@!5&6<7'
+        health_description = '&&&>!#$\"&&<as\'1!@$d&>><>&\"sd<67<]>>'
+
+        health_detail_subsection = \
+            self._get_formatted_health_detail_subsection_xml_string(
+                health_substatus=escape(health_substatus),
+                health_description=escape(health_description))
+
+        health_document = self._get_formatted_health_report_xml_string(
+            incarnation=escape(incarnation),
+            container_id=escape(container_id),
+            instance_id=escape(instance_id),
+            health_status=escape(health_status),
+            health_detail_subsection=health_detail_subsection)
+
+        reporter = azure_helper.GoalStateHealthReporter(
+            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+            azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+            self.test_azure_endpoint)
+        generated_health_document = reporter.build_report(
+            incarnation=incarnation,
+            container_id=container_id,
+            instance_id=instance_id,
+            status=health_status,
+            substatus=health_substatus,
+            description=health_description)
+
+        self.assertEqual(health_document, generated_health_document)
 
 
 class TestWALinuxAgentShim(CiTestCase):

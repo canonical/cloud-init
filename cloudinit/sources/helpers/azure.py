@@ -16,6 +16,7 @@ from cloudinit import stages
 from cloudinit import temp_utils
 from contextlib import contextmanager
 from xml.etree import ElementTree
+from xml.sax.saxutils import escape
 
 from cloudinit import subp
 from cloudinit import url_helper
@@ -550,13 +551,14 @@ class GoalStateHealthReporter:
         health_detail = ''
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
-                health_substatus=substatus, health_description=description)
+                health_substatus=escape(substatus),
+                health_description=escape(description))
 
         health_report = self.HEALTH_REPORT_XML_TEMPLATE.format(
-            incarnation=incarnation,
-            container_id=container_id,
-            instance_id=instance_id,
-            health_status=status,
+            incarnation=escape(str(incarnation)),
+            container_id=escape(container_id),
+            instance_id=escape(instance_id),
+            health_status=escape(status),
             health_detail_subsection=health_detail)
 
         return health_report
