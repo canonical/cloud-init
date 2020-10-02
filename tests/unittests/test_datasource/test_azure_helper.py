@@ -5,6 +5,7 @@ import re
 import unittest
 from textwrap import dedent
 from xml.etree import ElementTree
+from xml.sax.saxutils import escape
 
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.tests.helpers import CiTestCase, ExitStack, mock, populate_dir
@@ -69,6 +70,13 @@ HEALTH_REPORT_XML_TEMPLATE = '''\
   </Container>
 </Health>
 '''
+
+HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent('''\
+    <Details>
+      <SubStatus>{health_substatus}</SubStatus>
+      <Description>{health_description}</Description>
+    </Details>
+    ''')
 
 
 class SentinelException(Exception):
@@ -461,17 +469,24 @@ class TestOpenSSLManagerActions(CiTestCase):
 
 class TestGoalStateHealthReporter(CiTestCase):
 
+    maxDiff = None
+
     default_parameters = {
         'incarnation': 1634,
         'container_id': 'MyContainerId',
         'instance_id': 'MyInstanceId'
     }
 
-    test_endpoint = 'TestEndpoint'
-    test_url = 'http://{0}/machine?comp=health'.format(test_endpoint)
+    test_azure_endpoint = 'TestEndpoint'
+    test_health_report_url = 'http://{0}/machine?comp=health'.format(
+        test_azure_endpoint)
     test_default_headers = {'Content-Type': 'text/xml; charset=utf-8'}
 
     provisioning_success_status = 'Ready'
+    provisioning_not_ready_status = 'NotReady'
+    provisioning_failure_substatus = 'ProvisioningFailed'
+    provisioning_failure_err_msg = (
+        'Test error message containing provisioning failure details')
 
     def setUp(self):
         super(TestGoalStateHealthReporter, self).setUp()
@@ -499,6 +514,9 @@ class TestGoalStateHealthReporter(CiTestCase):
     def _get_formatted_health_report_xml_string(self, **kwargs):
         return HEALTH_REPORT_XML_TEMPLATE.format(**kwargs)
 
+    def _get_formatted_health_detail_subsection_xml_string(self, **kwargs):
+        return HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(**kwargs)
+
     def _get_report_ready_health_document(self):
         return self._get_formatted_health_report_xml_string(
             incarnation=self.default_parameters['incarnation'],
@@ -507,6 +525,19 @@ class TestGoalStateHealthReporter(CiTestCase):
             health_status=self.provisioning_success_status,
             health_detail_subsection='')
 
+    def _get_report_failure_health_document(self):
+        health_detail_subsection = \
+            self._get_formatted_health_detail_subsection_xml_string(
+                health_substatus=escape(self.provisioning_failure_substatus),
+                health_description=escape(self.provisioning_failure_err_msg))
+
+        return self._get_formatted_health_report_xml_string(
+            incarnation=escape(str(self.default_parameters['incarnation'])),
+            container_id=escape(self.default_parameters['container_id']),
+            instance_id=escape(self.default_parameters['instance_id']),
+            health_status=escape(self.provisioning_not_ready_status),
+            health_detail_subsection=health_detail_subsection)
+
     def test_send_ready_signal_sends_post_request(self):
         with mock.patch.object(
                 azure_helper.GoalStateHealthReporter,
@@ -514,55 +545,119 @@ class TestGoalStateHealthReporter(CiTestCase):
             client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
             reporter = azure_helper.GoalStateHealthReporter(
                 azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
-                client, self.test_endpoint)
+                client, self.test_azure_endpoint)
             reporter.send_ready_signal()
 
             self.assertEqual(1, self.post.call_count)
             self.assertEqual(
                 mock.call(
-                    self.test_url,
+                    self.test_health_report_url,
                     data=m_build_report.return_value,
                     extra_headers=self.test_default_headers),
                 self.post.call_args)
 
-    def test_build_report_for_health_document(self):
+    def test_send_failure_signal_sends_post_request(self):
+        with mock.patch.object(
+                azure_helper.GoalStateHealthReporter,
+                'build_report') as m_build_report:
+            client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
+            reporter = azure_helper.GoalStateHealthReporter(
+                azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+                client, self.test_azure_endpoint)
+            reporter.send_failure_signal(
+                description=self.provisioning_failure_err_msg)
+
+            self.assertEqual(1, self.post.call_count)
+            self.assertEqual(
+                mock.call(
+                    self.test_health_report_url,
+                    data=m_build_report.return_value,
+                    extra_headers=self.test_default_headers),
+                self.post.call_args)
+
+    def test_build_report_for_ready_signal_health_document(self):
         health_document = self._get_report_ready_health_document()
         reporter = azure_helper.GoalStateHealthReporter(
             azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
             azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
-            self.test_endpoint)
+            self.test_azure_endpoint)
         generated_health_document = reporter.build_report(
             incarnation=self.default_parameters['incarnation'],
             container_id=self.default_parameters['container_id'],
             instance_id=self.default_parameters['instance_id'],
             status=self.provisioning_success_status)
+
         self.assertEqual(health_document, generated_health_document)
+
         self.assertIn(
             '<GoalStateIncarnation>{}</GoalStateIncarnation>'.format(
                 str(self.default_parameters['incarnation'])),
             generated_health_document)
         self.assertIn(
-            ''.join([
-                '<ContainerId>',
-                self.default_parameters['container_id'],
-                '</ContainerId>']),
+            '<ContainerId>{}</ContainerId>'.format(
+                self.default_parameters['container_id']),
             generated_health_document)
         self.assertIn(
-            ''.join([
-                '<InstanceId>',
-                self.default_parameters['instance_id'],
-                '</InstanceId>']),
+            '<InstanceId>{}</InstanceId>'.format(
+                self.default_parameters['instance_id']),
             generated_health_document)
         self.assertIn(
-            ''.join([
-                '<State>',
-                self.provisioning_success_status,
-                '</State>']),
-            generated_health_document
-        )
+            '<State>{}</State>'.format(
+                self.provisioning_success_status),
+            generated_health_document)
+
         self.assertNotIn('<Details>', generated_health_document)
+        self.assertNotIn('</Details>', generated_health_document)
         self.assertNotIn('<SubStatus>', generated_health_document)
+        self.assertNotIn('</SubStatus>', generated_health_document)
         self.assertNotIn('<Description>', generated_health_document)
+        self.assertNotIn('</Description>', generated_health_document)
+
+    def test_build_report_for_failure_signal_health_document(self):
+        health_document = self._get_report_failure_health_document()
+        reporter = azure_helper.GoalStateHealthReporter(
+            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+            azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+            self.test_azure_endpoint)
+        generated_health_document = reporter.build_report(
+            incarnation=self.default_parameters['incarnation'],
+            container_id=self.default_parameters['container_id'],
+            instance_id=self.default_parameters['instance_id'],
+            status=self.provisioning_not_ready_status,
+            substatus=self.provisioning_failure_substatus,
+            description=self.provisioning_failure_err_msg)
+
+        self.assertEqual(health_document, generated_health_document)
+
+        self.assertIn(
+            '<GoalStateIncarnation>{}</GoalStateIncarnation>'.format(
+                str(self.default_parameters['incarnation'])),
+            generated_health_document)
+        self.assertIn(
+            '<ContainerId>{}</ContainerId>'.format(
+                self.default_parameters['container_id']),
+            generated_health_document)
+        self.assertIn(
+            '<InstanceId>{}</InstanceId>'.format(
+                self.default_parameters['instance_id']),
+            generated_health_document)
+        self.assertIn(
+            '<State>{}</State>'.format(
+                self.provisioning_not_ready_status),
+            generated_health_document)
+
+        health_substatus_subsection = '<SubStatus>{}</SubStatus>'.format(
+            self.provisioning_failure_substatus)
+        self.assertIn(health_substatus_subsection, generated_health_document)
+        health_description_subsection = '<Description>{}</Description>'.format(
+            self.provisioning_failure_err_msg)
+        self.assertIn(health_description_subsection, generated_health_document)
+        health_detail_subsection = '\n'.join([
+            '<Details>',
+            '  {}'.format(health_substatus_subsection),
+            '  {}'.format(health_description_subsection),
+            '</Details>'])
+        self.assertIn(health_detail_subsection, generated_health_document)
 
     def test_send_ready_signal_calls_build_report(self):
         with mock.patch.object(
@@ -571,7 +666,7 @@ class TestGoalStateHealthReporter(CiTestCase):
             reporter = azure_helper.GoalStateHealthReporter(
                 azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
                 azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
-                self.test_endpoint)
+                self.test_azure_endpoint)
             reporter.send_ready_signal()
 
             self.assertEqual(1, m_build_report.call_count)
@@ -581,6 +676,28 @@ class TestGoalStateHealthReporter(CiTestCase):
                     container_id=self.default_parameters['container_id'],
                     instance_id=self.default_parameters['instance_id'],
                     status=self.provisioning_success_status),
+                m_build_report.call_args)
+
+    def test_send_failure_signal_calls_build_report(self):
+        with mock.patch.object(
+            azure_helper.GoalStateHealthReporter, 'build_report'
+        ) as m_build_report:
+            reporter = azure_helper.GoalStateHealthReporter(
+                azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+                azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+                self.test_azure_endpoint)
+            reporter.send_failure_signal(
+                description=self.provisioning_failure_err_msg)
+
+            self.assertEqual(1, m_build_report.call_count)
+            self.assertEqual(
+                mock.call(
+                    incarnation=self.default_parameters['incarnation'],
+                    container_id=self.default_parameters['container_id'],
+                    instance_id=self.default_parameters['instance_id'],
+                    status=self.provisioning_not_ready_status,
+                    substatus=self.provisioning_failure_substatus,
+                    description=self.provisioning_failure_err_msg),
                 m_build_report.call_args)
 
 

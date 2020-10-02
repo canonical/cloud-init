@@ -523,7 +523,7 @@ class GoalStateHealthReporter:
         LOG.info('Reported ready to Azure fabric.')
 
     @azure_ds_telemetry_reporter
-    def send_failure_signal(self, description) -> None:
+    def send_failure_signal(self, description: str) -> None:
         document = self.build_report(
             incarnation=self._goal_state.incarnation,
             container_id=self._goal_state.container_id,
