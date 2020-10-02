@@ -28,6 +28,7 @@ from cloudinit import util
 from cloudinit.reporting import events
 
 from cloudinit.sources.helpers.azure import (
+    DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     azure_ds_reporter,
     azure_ds_telemetry_reporter,
     get_metadata_from_fabric,
@@ -37,7 +38,8 @@ from cloudinit.sources.helpers.azure import (
     EphemeralDHCPv4WithReporting,
     is_byte_swapped,
     dhcp_log_cb,
-    push_log_to_kvp)
+    push_log_to_kvp,
+    report_failure_to_fabric)
 
 LOG = logging.getLogger(__name__)
 
@@ -534,8 +536,18 @@ class DataSourceAzure(sources.DataSource):
                 logfunc=LOG.debug, msg='Crawl of metadata service',
                 func=self.crawl_metadata
             )
-        except sources.InvalidMetaDataException as e:
-            LOG.warning('Could not crawl Azure metadata: %s', e)
+        except Exception as e:
+            msg = 'Could not crawl Azure metadata: %s' % e
+            LOG.error(msg)
+            report_diagnostic_event(msg)
+            try:
+                self._report_failure(
+                    description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
+            except Exception as inner_e:
+                msg = 'Failed to report failure to Azure: %s' % inner_e
+                LOG.error(msg)
+                report_diagnostic_event(msg)
+                raise sources.InvalidMetaDataException(msg) from e
             return False
         if (self.distro and self.distro.name == 'ubuntu' and
                 self.ds_cfg.get('apply_network_config')):
@@ -741,6 +753,24 @@ class DataSourceAzure(sources.DataSource):
                                     self.imds_poll_counter)
 
         return return_val
+
+    @azure_ds_telemetry_reporter
+    def _report_failure(self, description=None):
+        try:
+            report_diagnostic_event(
+                'Using ephemeral dhcp to report failure to Azure.')
+            with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
+                report_failure_to_fabric(
+                    fallback_lease_file=self.dhclient_lease_file,
+                    dhcp_opts=lease['unknown-245'],
+                    description=description)
+        except Exception as e:
+            report_diagnostic_event(
+                'Failed using ephemeral dhcp to report failure: %s.'
+                'Using fallback lease to report failure to Azure.' % e)
+            report_failure_to_fabric(
+                fallback_lease_file=self.dhclient_lease_file,
+                description=description)
 
     @azure_ds_telemetry_reporter
     def _report_ready(self, lease):
