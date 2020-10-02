@@ -535,9 +535,7 @@ class GoalStateHealthReporter:
             status=self.PROVISIONING_NOT_READY_STATUS,
             substatus=self.PROVISIONING_FAILURE_SUBSTATUS,
             description=description)
-
-        LOG.debug('Reporting failure to Azure fabric.')
-        # TODO should report failure document be dumped on log/kvp?
+        LOG.warning('Reporting failure to Azure fabric.')
         try:
             self._post_health_report(document=document)
         except Exception as e:
@@ -546,7 +544,7 @@ class GoalStateHealthReporter:
             report_diagnostic_event(msg)
             raise
 
-        LOG.info('Reported failure to Azure fabric.')
+        LOG.warning('Reported failure to Azure fabric.')
 
     def build_report(
             self, incarnation: str, container_id: str, instance_id: str,
