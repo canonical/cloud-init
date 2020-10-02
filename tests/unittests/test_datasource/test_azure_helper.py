@@ -78,6 +78,9 @@ HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent('''\
     </Details>
     ''')
 
+MAX_HEALTH_DESCRIPTION_LENGTH_AFTER_ESCAPING = 1024
+MAX_TOTAL_HEALTH_REPORT_LENGTH = 2048
+
 
 class SentinelException(Exception):
     pass
@@ -733,6 +736,29 @@ class TestGoalStateHealthReporter(CiTestCase):
             description=health_description)
 
         self.assertEqual(health_document, generated_health_document)
+
+    def test_build_report_conforms_to_length_limits(self):
+        reporter = azure_helper.GoalStateHealthReporter(
+            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+            azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+            self.test_azure_endpoint)
+        long_err_msg = 'a9&ea8>>>e as1< d\"q2*&(^%\'a=5<' * 100
+        generated_health_document = reporter.build_report(
+            incarnation=self.default_parameters['incarnation'],
+            container_id=self.default_parameters['container_id'],
+            instance_id=self.default_parameters['instance_id'],
+            status=self.provisioning_not_ready_status,
+            substatus=self.provisioning_failure_substatus,
+            description=long_err_msg)
+
+        user_visible_err_msg = escape(
+            long_err_msg)[:MAX_HEALTH_DESCRIPTION_LENGTH_AFTER_ESCAPING]
+        health_description_xml = '<Description>{}</Description>'.format(
+            user_visible_err_msg)
+        self.assertIn(health_description_xml, generated_health_document)
+
+        self.assertLessEqual(
+            len(generated_health_document), MAX_TOTAL_HEALTH_REPORT_LENGTH)
 
 
 class TestWALinuxAgentShim(CiTestCase):

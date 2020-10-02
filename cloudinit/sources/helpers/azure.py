@@ -486,6 +486,9 @@ class GoalStateHealthReporter:
     PROVISIONING_NOT_READY_STATUS = 'NotReady'
     PROVISIONING_FAILURE_SUBSTATUS = 'ProvisioningFailed'
 
+    MAX_HEALTH_DESCRIPTION_LENGTH_AFTER_ESCAPING = 1024
+    MAX_TOTAL_HEALTH_REPORT_LENGTH = 2048
+
     def __init__(
             self, goal_state: GoalState,
             azure_endpoint_client: AzureEndpointHttpClient,
@@ -552,7 +555,10 @@ class GoalStateHealthReporter:
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
                 health_substatus=escape(substatus),
-                health_description=escape(description))
+                health_description=escape(
+                    description
+                )[:self.MAX_HEALTH_DESCRIPTION_LENGTH_AFTER_ESCAPING]
+            )
 
         health_report = self.HEALTH_REPORT_XML_TEMPLATE.format(
             incarnation=escape(str(incarnation)),
