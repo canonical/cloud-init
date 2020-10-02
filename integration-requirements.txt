@@ -4,6 +4,8 @@
 # Note: Changes to this requirements may require updates to
 # the packages/pkg-deps.json file as well.
 #
+pytest
+git+https://github.com/canonical/pycloudlib.git
 
 # ec2 backend
 boto3==1.14.53
