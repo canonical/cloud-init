@@ -49,6 +49,9 @@ azure_ds_reporter = events.ReportEventStack(
     description="initialize reporter for azure ds",
     reporting_enabled=True)
 
+DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE = (
+    'The VM encountered an error during provisioning.')
+
 
 def azure_ds_telemetry_reporter(func):
     def impl(*args, **kwargs):
@@ -794,12 +797,27 @@ class WALinuxAgentShim:
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
+    def register_with_azure_and_report_failure(self, description: str) -> None:
+        """Gets the VM's GoalState from Azure, uses the GoalState information
+        to report failure/send provisioning failure signal to Azure.
+
+        @param: user visible error description of provisioning failure.
+        """
+        if self.azure_endpoint_client is None:
+            self.azure_endpoint_client = AzureEndpointHttpClient(None)
+        goal_state = self._fetch_goal_state_from_azure(need_certificate=False)
+        health_reporter = GoalStateHealthReporter(
+            goal_state, self.azure_endpoint_client, self.endpoint)
+        health_reporter.send_failure_signal(description=description)
+
+    @azure_ds_telemetry_reporter
     def _fetch_goal_state_from_azure(
             self,
             need_certificate: bool) -> GoalState:
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
+        @param need_certificate: switch to know if certificates is needed.
         @return: GoalState object representing the GoalState XML
         """
         unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure()
@@ -840,6 +858,7 @@ class WALinuxAgentShim:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
+        @param need_certificate: switch to know if certificates is needed.
         @return: GoalState object representing the GoalState XML
         """
         try:
@@ -935,6 +954,20 @@ def get_metadata_from_fabric(fallback_lease_file=None, dhcp_opts=None,
                             dhcp_options=dhcp_opts)
     try:
         return shim.register_with_azure_and_fetch_data(pubkey_info=pubkey_info)
+    finally:
+        shim.clean_up()
+
+
+@azure_ds_telemetry_reporter
+def report_failure_to_fabric(fallback_lease_file=None, dhcp_opts=None,
+                             description=None):
+    shim = WALinuxAgentShim(fallback_lease_file=fallback_lease_file,
+                            dhcp_options=dhcp_opts)
+    if description is None:
+        description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+    try:
+        return shim.register_with_azure_and_report_failure(
+            description=description)
     finally:
         shim.clean_up()
 
