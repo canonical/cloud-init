@@ -1021,7 +1021,13 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, mydata.encode('utf-8'))
 
-    def test_no_datasource_expected(self):
+    @mock.patch(MOCKPATH + 'report_failure_to_fabric')
+    @mock.patch(MOCKPATH + 'DataSourceAzure.fallback_interface',
+                new_callable=mock.PropertyMock())
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4WithReporting')
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
+    def test_no_datasource_expected(self, m_dhcp, m_dhcp_with_reporting,
+            m_fallback_interface, m_report_failure_to_fabric):
         # no source should be found if no seed_dir and no devs
         data = {}
         dsrc = self._get_ds({})

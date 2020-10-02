@@ -547,7 +547,6 @@ class DataSourceAzure(sources.DataSource):
                 msg = 'Failed to report failure to Azure: %s' % inner_e
                 LOG.error(msg)
                 report_diagnostic_event(msg)
-                raise sources.InvalidMetaDataException(msg) from e
             return False
         if (self.distro and self.distro.name == 'ubuntu' and
                 self.ds_cfg.get('apply_network_config')):
