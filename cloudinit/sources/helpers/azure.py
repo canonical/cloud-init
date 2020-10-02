@@ -482,6 +482,8 @@ class GoalStateHealthReporter:
         ''')
 
     PROVISIONING_SUCCESS_STATUS = 'Ready'
+    PROVISIONING_NOT_READY_STATUS = 'NotReady'
+    PROVISIONING_FAILURE_SUBSTATUS = 'ProvisioningFailed'
 
     def __init__(
             self, goal_state: GoalState,
@@ -519,6 +521,28 @@ class GoalStateHealthReporter:
             raise
 
         LOG.info('Reported ready to Azure fabric.')
+
+    @azure_ds_telemetry_reporter
+    def send_failure_signal(self, description) -> None:
+        document = self.build_report(
+            incarnation=self._goal_state.incarnation,
+            container_id=self._goal_state.container_id,
+            instance_id=self._goal_state.instance_id,
+            status=self.PROVISIONING_NOT_READY_STATUS,
+            substatus=self.PROVISIONING_FAILURE_SUBSTATUS,
+            description=description)
+
+        LOG.debug('Reporting failure to Azure fabric.')
+        # TODO should report failure document be dumped on log/kvp?
+        try:
+            self._post_health_report(document=document)
+        except Exception as e:
+            msg = "exception while reporting failure: %s" % e
+            LOG.error(msg)
+            report_diagnostic_event(msg)
+            raise
+
+        LOG.info('Reported failure to Azure fabric.')
 
     def build_report(
             self, incarnation: str, container_id: str, instance_id: str,
