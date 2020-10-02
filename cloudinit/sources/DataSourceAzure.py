@@ -543,8 +543,7 @@ class DataSourceAzure(sources.DataSource):
         except Exception as e:
             LOG.warning("Failed to get system information: %s", e)
 
-        if self.distro is not None:
-            self.distro.networking.blacklist_drivers = BLACKLIST_DRIVERS
+        self.distro.networking.blacklist_drivers = BLACKLIST_DRIVERS
 
         try:
             crawled_data = util.log_time(

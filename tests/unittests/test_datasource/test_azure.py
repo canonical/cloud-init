@@ -526,7 +526,7 @@ scbus-1 on xpt0 bus 0
         ])
         return dsaz
 
-    def _get_ds(self, data, agent_command=None, distro=None,
+    def _get_ds(self, data, agent_command=None, distro='ubuntu',
                 apply_network=None):
 
         def dsdevs():
@@ -638,7 +638,7 @@ scbus-1 on xpt0 bus 0
         # Return a non-matching asset tag value
         m_is_platform_viable.return_value = False
         dsrc = dsaz.DataSourceAzure(
-            {}, distro=None, paths=self.paths)
+            {}, distro=mock.Mock(), paths=self.paths)
         self.assertFalse(dsrc.get_data())
         m_is_platform_viable.assert_called_with(dsrc.seed_dir)
 
@@ -1421,8 +1421,7 @@ class TestAzureBounce(CiTestCase):
         if ovfcontent is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': ovfcontent})
-        dsrc = dsaz.DataSourceAzure(
-            {}, distro=None, paths=self.paths)
+        dsrc = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         if agent_command is not None:
             dsrc.ds_cfg['agent_command'] = agent_command
         return dsrc
@@ -1906,7 +1905,7 @@ class TestClearCachedData(CiTestCase):
         tmp = self.tmp_dir()
         paths = helpers.Paths(
             {'cloud_dir': tmp, 'run_dir': tmp})
-        dsrc = dsaz.DataSourceAzure({}, distro=None, paths=paths)
+        dsrc = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=paths)
         clean_values = [dsrc.metadata, dsrc.userdata, dsrc._metadata_imds]
         dsrc.metadata = 'md'
         dsrc.userdata = 'ud'
@@ -1970,7 +1969,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         """The _should_reprovision method should return true with config
            flag present."""
         isfile.return_value = False
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertTrue(dsa._should_reprovision(
             (None, None, {'PreprovisionedVm': True}, None)))
 
@@ -1978,7 +1977,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         """The _should_reprovision method should return True if the sentinal
            exists."""
         isfile.return_value = True
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertTrue(dsa._should_reprovision(
             (None, None, {'preprovisionedvm': False}, None)))
 
@@ -1986,7 +1985,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         """The _should_reprovision method should return False
            if config and sentinal are not present."""
         isfile.return_value = False
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertFalse(dsa._should_reprovision((None, None, {}, None)))
 
     @mock.patch(MOCKPATH + 'DataSourceAzure._poll_imds')
@@ -1997,7 +1996,7 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         username = "myuser"
         odata = {'HostName': hostname, 'UserName': username}
         _poll_imds.return_value = construct_valid_ovf_env(data=odata)
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         dsa._reprovision()
         _poll_imds.assert_called_with()
 
@@ -2051,7 +2050,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 
         fake_resp.side_effect = fake_timeout_once
 
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
             dsa._poll_imds()
         self.assertEqual(report_ready_func.call_count, 1)
@@ -2071,7 +2070,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
             'unknown-245': '624c3620'}]
         m_media_switch.return_value = None
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
             dsa._poll_imds()
         self.assertEqual(report_ready_func.call_count, 0)
@@ -2109,7 +2108,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         full_url = url.format(host)
         fake_resp.return_value = mock.MagicMock(status_code=200, text="ovf",
                                                 content="ovf")
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertTrue(len(dsa._poll_imds()) > 0)
         self.assertEqual(fake_resp.call_args_list,
                          [mock.call(allow_redirects=True,
@@ -2146,7 +2145,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         content = construct_valid_ovf_env(data=odata)
         fake_resp.return_value = mock.MagicMock(status_code=200, text=content,
                                                 content=content)
-        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         md, _ud, cfg, _d = dsa._reprovision()
         self.assertEqual(md['local-hostname'], hostname)
         self.assertEqual(cfg['system_info']['default_user']['name'], username)

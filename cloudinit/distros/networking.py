@@ -71,7 +71,8 @@ class Networking(metaclass=abc.ABCMeta):
         return net.get_interfaces()
 
     def get_interfaces_by_mac(self) -> dict:
-        return net.get_interfaces_by_mac(self.blacklist_drivers)
+        return net.get_interfaces_by_mac(
+            blacklist_drivers=self.blacklist_drivers)
 
     def get_master(self, devname: DeviceName):
         return net.get_master(devname)
