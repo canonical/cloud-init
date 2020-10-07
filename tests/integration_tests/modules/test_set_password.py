@@ -2,6 +2,11 @@
 
 This test specifies a combination of user/password pairs, and ensures that the
 system has the correct passwords set.
+
+There are two tests run here: one tests chpasswd's list being a YAML list, the
+other tests chpasswd's list being a string.  Both expect the same results, so
+they use a mixin to share their test definitions, because we can (of course)
+only specify one user-data per instance.
 """
 import crypt
 
@@ -9,7 +14,7 @@ import pytest
 import yaml
 
 
-USER_DATA = """\
+COMMON_USER_DATA = """\
 #cloud-config
 ssh_pwauth: yes
 users:
@@ -33,6 +38,9 @@ Uh69tP4GSrGW5XKHxMLiKowJgm/"
     lock_passwd: false
   - name: "mikey"
     lock_passwd: false
+"""
+
+LIST_USER_DATA = COMMON_USER_DATA + """
 chpasswd:
   list:
     - tom:mypassword123!
@@ -41,16 +49,26 @@ chpasswd:
     - mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
 """
 
-USER_DATA_DICT = yaml.safe_load(USER_DATA)
+STRING_USER_DATA = COMMON_USER_DATA + """
+chpasswd:
+    list: |
+      tom:mypassword123!
+      dick:RANDOM
+      harry:RANDOM
+      mikey:$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89
+"""
+
+USERS_DICTS = yaml.safe_load(COMMON_USER_DATA)["users"]
 USERS_PASSWD_VALUES = {
     user_dict["name"]: user_dict["passwd"]
-    for user_dict in USER_DATA_DICT["users"]
+    for user_dict in USERS_DICTS
     if "name" in user_dict and "passwd" in user_dict
 }
 
 
-@pytest.mark.user_data(USER_DATA)
-class TestPasswordList:
+class Mixin:
+    """Shared test definitions."""
+
     def _fetch_and_parse_etc_shadow(self, class_client):
         """Fetch /etc/shadow and parse it into Python data structures
 
@@ -110,7 +128,7 @@ class TestPasswordList:
     def test_shadow_expected_users(self, class_client):
         """Test that the right set of users is in /etc/shadow."""
         shadow = class_client.read_from_file("/etc/shadow")
-        for user_dict in USER_DATA_DICT["users"]:
+        for user_dict in USERS_DICTS:
             if "name" in user_dict:
                 assert "{}:".format(user_dict["name"]) in shadow
 
@@ -119,3 +137,13 @@ class TestPasswordList:
         sshd_config = class_client.read_from_file("/etc/ssh/sshd_config")
         # We look for the exact line match, to avoid a commented line matching
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
+
+
+@pytest.mark.user_data(LIST_USER_DATA)
+class TestPasswordList(Mixin):
+    """Launch an instance with LIST_USER_DATA, ensure Mixin tests pass."""
+
+
+@pytest.mark.user_data(STRING_USER_DATA)
+class TestPasswordListString(Mixin):
+    """Launch an instance with STRING_USER_DATA, ensure Mixin tests pass."""
