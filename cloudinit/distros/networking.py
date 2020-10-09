@@ -200,11 +200,14 @@ class LinuxNetworking(Networking):
     def generate_fallback_config(
         self, *, blacklist_drivers=None, config_driver: bool = False
     ):
-        """Generate network cfg v2 for dhcp on the NIC most likely connected."""
+        """Generate network cfg v2 for dhcp on the NIC most likely
+        connected."""
         if not config_driver:
             config_driver = False
 
-        target_name = self.find_fallback_nic(blacklist_drivers=blacklist_drivers)
+        target_name = self.find_fallback_nic(
+            blacklist_drivers=blacklist_drivers
+        )
         if not target_name:
             # can't read any interfaces addresses (or there are none); give up
             return None
@@ -214,7 +217,8 @@ class LinuxNetworking(Networking):
             match = {'name': target_name}
         else:
             match = {
-                'macaddress': net.read_sys_net_safe(target_name, 'address').lower()}
+                'macaddress': net.read_sys_net_safe(
+                    target_name, 'address').lower()}
         cfg = {'dhcp4': True, 'set-name': target_name, 'match': match}
         if config_driver:
             driver = self.device_driver(target_name)
