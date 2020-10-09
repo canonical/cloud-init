@@ -39,7 +39,7 @@ Depends: cloud-guest-utils | cloud-utils,
          python3-serial,
          ${misc:Depends},
          ${python3:Depends}
-Recommends: eatmydata, gdisk, software-properties-common
+Recommends: eatmydata, gdisk, gnupg, software-properties-common
 XB-Python-Version: ${python:Versions}
 Description: initialization and customization tool for cloud instances
  Cloud-init is the industry standard multi-distribution method for
