@@ -184,6 +184,26 @@ class Networking(metaclass=abc.ABCMeta):
 class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
 
+    def generate_fallback_config(
+        self, *, blacklist_drivers=None, config_driver: bool = False
+    ):
+        """Generate network cfg v2 for dhcp on the NIC most likely
+        connected."""
+
+        target_name = self.find_fallback_nic(
+            blacklist_drivers=blacklist_drivers
+        )
+        if not target_name:
+            # can't read any interfaces addresses (or there are none); give up
+            return None
+
+        ifs_by_name = {v: k for k, v in self.get_interfaces_by_mac().items()}
+        mac_address = ifs_by_name[target_name]
+        match = {'macaddress': mac_address}
+        cfg = {'dhcp4': True, 'set-name': target_name, 'match': match}
+        nconf = {'ethernets': {target_name: cfg}, 'version': 2}
+        return nconf
+
     def is_physical(self, devname: DeviceName) -> bool:
         raise NotImplementedError()
 
