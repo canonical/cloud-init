@@ -676,6 +676,30 @@ class Init(object):
     def apply_network_config(self, bring_up):
         # get a network config
         netcfg, src = self._find_networking_config()
+        # Data source shouldn't reset to fallback when config drive is not
+        # available
+        LOG.debug("self.datasource is %s" % self.datasource)
+        if ((self.datasource is NULL_DATA_SOURCE) or (
+                self.datasource is 'DataSourceNone')):
+            LOG.info("Data source is None. Skipping network config")
+            return
+
+        if self.datasource:
+            try:
+                if ((self.datasource.dsname is "None") or (
+                            self.datasource.dsname is None)):
+                    LOG.info(
+                        "Data source is an instance of DataSourceNone. "
+                        "Skipping network config")
+                    return
+            except BaseException:
+                LOG.info("in except block")
+                if (isinstance(self.datasource, dsnone.DataSourceNone)):
+                    LOG.info(
+                        "Data source is an instance of DataSourceNone. "
+                        "Skipping network config")
+                    return
+
         if netcfg is None:
             LOG.info("network config is disabled by %s", src)
             return
