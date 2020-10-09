@@ -22,6 +22,7 @@ from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
 from cloudinit.event import EventType
+from cloudinit.sources import DataSourceNone
 from cloudinit.sources import NetworkConfigSource
 
 from cloudinit import cloud
@@ -678,7 +679,7 @@ class Init(object):
         netcfg, src = self._find_networking_config()
         # Data source shouldn't reset to fallback when config drive is not
         # available
-        LOG.debug("self.datasource is %s" % self.datasource)
+        LOG.debug("self.datasource is {}".format(self.datasource))
         if ((self.datasource is NULL_DATA_SOURCE) or (
                 self.datasource is 'DataSourceNone')):
             LOG.info("Data source is None. Skipping network config")
@@ -694,7 +695,7 @@ class Init(object):
                     return
             except BaseException:
                 LOG.info("in except block")
-                if (isinstance(self.datasource, dsnone.DataSourceNone)):
+                if (isinstance(self.datasource, DataSourceNone)):
                     LOG.info(
                         "Data source is an instance of DataSourceNone. "
                         "Skipping network config")
