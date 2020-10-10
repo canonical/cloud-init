@@ -854,7 +854,7 @@ def main(sysv_args=None):
     (name, functor) = args.action
 
     # Setup basic logging to start (until reinitialized)
-    # iff in debug mode.
+    # if in debug mode.
     if args.debug:
         logging.setupBasicLogging()
 
