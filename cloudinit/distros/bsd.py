@@ -4,7 +4,6 @@ from cloudinit import distros
 from cloudinit.distros import bsd_utils
 from cloudinit import helpers
 from cloudinit import log as logging
-from cloudinit import net
 from cloudinit import subp
 from cloudinit import util
 from .networking import BSDNetworking
@@ -77,12 +76,7 @@ class BSD(distros.Distro):
                             member, name)
 
     def generate_fallback_config(self):
-        nconf = {'config': [], 'version': 1}
-        for mac, name in net.get_interfaces_by_mac().items():
-            nconf['config'].append(
-                {'type': 'physical', 'name': name,
-                 'mac_address': mac, 'subnets': [{'type': 'dhcp'}]})
-        return nconf
+        self.networking.generate_fallback_config()
 
     def install_packages(self, pkglist):
         self.update_package_sources()
