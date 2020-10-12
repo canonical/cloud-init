@@ -4899,18 +4899,6 @@ class TestGetInterfaces(CiTestCase):
              mock.call('b1')],
             any_order=True)
 
-    def test_gi_excludes_bkacklist_drivers(self):
-        self._mock_setup()
-        blacklist = ['mlx4_core', 'mlx5_core']
-        ret = net.get_interfaces(blacklist_drivers=blacklist)
-        expected = [
-            ('enp0s2', 'aa:aa:aa:aa:aa:02', 'e1000', '0x5'),
-            ('enp0s1', 'aa:aa:aa:aa:aa:01', 'virtio_net', '0x4'),
-            ('lo', '00:00:00:00:00:00', None, '0x8'),
-            ('bridge1-nic', 'aa:aa:aa:aa:aa:03', None, '0x3'),
-        ]
-        self.assertEqual(sorted(expected), sorted(ret))
-
 
 class TestInterfaceHasOwnMac(CiTestCase):
     """Test interface_has_own_mac.  This is admittedly a bit whitebox."""

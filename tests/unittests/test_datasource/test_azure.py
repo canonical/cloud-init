@@ -576,7 +576,7 @@ scbus-1 on xpt0 bus 0
                 side_effect=_wait_for_files)),
         ])
 
-        if distro is not None:
+        if isinstance(distro, str):
             distro_cls = distros.fetch(distro)
             distro = distro_cls(distro, data.get('sys_cfg', {}), self.paths)
         dsrc = dsaz.DataSourceAzure(
@@ -1310,6 +1310,28 @@ scbus-1 on xpt0 bus 0
         mock_fallback.assert_called_with(
             blacklist_drivers=['mlx4_core', 'mlx5_core'],
             config_driver=True)
+
+    @mock.patch(MOCKPATH + 'net.get_interfaces')
+    @mock.patch(MOCKPATH + 'util.is_FreeBSD')
+    def test_blacklist_through_distro(
+            self, m_is_freebsd, m_net_get_interfaces):
+        # This test verifies that the datasource Azure correctly
+        # updates the blacklist drivers in the distro's networking
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        distro_cls = distros.fetch('ubuntu')
+        distro = distro_cls('ubuntu', {}, self.paths)
+        dsrc = self._get_ds(data, distro=distro)
+        dsrc.get_data()
+        self.assertEqual(distro.networking.blacklist_drivers,
+                         dsaz.BLACKLIST_DRIVERS)
+
+        m_is_freebsd.return_value = False
+        distro.networking.get_interfaces_by_mac()
+        m_net_get_interfaces.assert_called_with(
+            blacklist_drivers=dsaz.BLACKLIST_DRIVERS)
 
     @mock.patch(MOCKPATH + 'subp.subp')
     def test_get_hostname_with_no_args(self, m_subp):

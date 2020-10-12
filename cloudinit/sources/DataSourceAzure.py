@@ -85,6 +85,11 @@ UBUNTU_EXTENDED_NETWORK_SCRIPTS = [
 
 # This list is used to blacklist devices that will be considered
 # for renaming or fallback interfaces.
+#
+# On Azure network devices using these drivers are automatically
+# configured by the platform and should not be configured by
+# cloud-init's network configuration.
+#
 # Note:
 # Azure Dv4 and Ev4 series VMs always have mlx5 hardware.
 # https://docs.microsoft.com/en-us/azure/virtual-machines/dv4-dsv4-series

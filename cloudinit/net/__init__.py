@@ -761,7 +761,7 @@ def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
             blacklist_drivers=blacklist_drivers)
 
 
-def get_interfaces_by_mac_on_freebsd(blacklist_drivers=None):
+def get_interfaces_by_mac_on_freebsd(blacklist_drivers=None) -> dict():
     (out, _) = subp.subp(['ifconfig', '-a', 'ether'])
 
     # flatten each interface block in a single line
@@ -788,7 +788,7 @@ def get_interfaces_by_mac_on_freebsd(blacklist_drivers=None):
     return results
 
 
-def get_interfaces_by_mac_on_netbsd(blacklist_drivers=None):
+def get_interfaces_by_mac_on_netbsd(blacklist_drivers=None) -> dict():
     ret = {}
     re_field_match = (
         r"(?P<ifname>\w+).*address:\s"
@@ -804,7 +804,7 @@ def get_interfaces_by_mac_on_netbsd(blacklist_drivers=None):
     return ret
 
 
-def get_interfaces_by_mac_on_openbsd(blacklist_drivers=None):
+def get_interfaces_by_mac_on_openbsd(blacklist_drivers=None) -> dict():
     ret = {}
     re_field_match = (
         r"(?P<ifname>\w+).*lladdr\s"
