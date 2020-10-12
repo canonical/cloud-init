@@ -47,12 +47,12 @@ class Networking(metaclass=abc.ABCMeta):
     def find_fallback_nic(self, *, blacklist_drivers=None):
         return net.find_fallback_nic(blacklist_drivers=blacklist_drivers)
 
+    @abc.abstractmethod
     def generate_fallback_config(
         self, *, blacklist_drivers=None, config_driver: bool = False
     ):
-        return net.generate_fallback_config(
-            blacklist_drivers=blacklist_drivers, config_driver=config_driver
-        )
+        """Generate network cfg v2 for dhcp on the NIC most likely
+        connected."""
 
     def get_devicelist(self) -> list:
         return net.get_devicelist()
