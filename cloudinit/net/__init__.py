@@ -121,7 +121,9 @@ def master_is_bridge_or_bond(devname):
         return False
     bonding_path = os.path.join(master_path, "bonding")
     bridge_path = os.path.join(master_path, "bridge")
-    return (os.path.exists(bonding_path) or os.path.exists(bridge_path))
+    ovs_path = sys_dev_path(devname, path="upper_ovs-system")
+    return (os.path.exists(bonding_path) or os.path.exists(bridge_path) or
+            os.path.exists(ovs_path))
 
 
 def is_netfailover(devname, driver=None):
