@@ -1338,7 +1338,7 @@ class DataSourceAzure(sources.DataSource):
                 nc_src = self._metadata_imds
             else:
                 nc_src = None
-            self._network_config = parse_network_config(nc_src)
+            self._network_config = parse_network_config(nc_src, distro=self.distro)
         return self._network_config
 
     @property
@@ -1936,7 +1936,7 @@ def load_azure_ds_dir(source_dir):
 
 
 @azure_ds_telemetry_reporter
-def parse_network_config(imds_metadata) -> dict:
+def parse_network_config(imds_metadata, distro) -> dict:
     """Convert imds_metadata dictionary to network v2 configuration.
     Parses network configuration from imds metadata if present or generate
     fallback network config excluding mlx4_core devices.
@@ -1952,7 +1952,7 @@ def parse_network_config(imds_metadata) -> dict:
                 'Failed generating network config '
                 'from IMDS network metadata: %s', str(e))
     try:
-        return _generate_network_config_from_fallback_config()
+        return _generate_network_config_from_fallback_config(distro)
     except Exception as e:
         LOG.error('Failed generating fallback network config: %s', str(e))
     return {}
@@ -2015,12 +2015,12 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
 
 
 @azure_ds_telemetry_reporter
-def _generate_network_config_from_fallback_config() -> dict:
+def _generate_network_config_from_fallback_config(distro) -> dict:
     """Generate fallback network config excluding blacklisted devices.
 
     @return: Dictionary containing network version 2 standard configuration.
     """
-    return net.generate_fallback_config(
+    return distro.networking.generate_fallback_config(
         blacklist_drivers=BLACKLIST_DRIVERS, config_driver=True)
 
 
