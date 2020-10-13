@@ -255,7 +255,7 @@ class TestInit(CiTestCase):
 
         # Monkey patch distro which gets cached on self.init
         distro = self.init.distro
-        distro.generate_fallback_config = fake_generate_fallback
+        distro.networking.generate_fallback_config = fake_generate_fallback
         self.assertEqual(
             (fake_cfg, NetworkConfigSource.fallback),
             self.init._find_networking_config())

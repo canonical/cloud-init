@@ -663,7 +663,7 @@ class Init(object):
                 return (None, cfg_source)
             if ncfg:
                 return (ncfg, cfg_source)
-        return (self.distro.generate_fallback_config(),
+        return (self.distro.networking.generate_fallback_config(),
                 NetworkConfigSource.fallback)
 
     def _apply_netcfg_names(self, netcfg):

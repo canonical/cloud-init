@@ -711,14 +711,14 @@ class TestNetworkConfig:
         m_read_initramfs_config.return_value = copy.deepcopy(ncfg)
 
         assert ncfg == oracle_ds.network_config
-        assert 0 == oracle_ds.distro.generate_fallback_config.call_count
+        assert 0 == oracle_ds.distro.networking.generate_fallback_config.call_count
 
     def test_network_fallback(self, m_read_initramfs_config, oracle_ds):
         """network_config should prefer initramfs config over fallback"""
         ncfg = {"version": 1, "config": [{"a": "b"}]}
 
         m_read_initramfs_config.return_value = None
-        oracle_ds.distro.generate_fallback_config.return_value = copy.deepcopy(
+        oracle_ds.distro.networking.generate_fallback_config.return_value = copy.deepcopy(
             ncfg
         )
 
