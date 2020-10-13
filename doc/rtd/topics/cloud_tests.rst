@@ -1,6 +1,9 @@
-*******************
-Integration Testing
-*******************
+************************
+Cloud tests (Deprecated)
+************************
+
+Cloud tests are longer be maintained. For writing integration
+tests, see the :ref:`integration_tests` page.
 
 Overview
 ========
