@@ -1315,8 +1315,8 @@ scbus-1 on xpt0 bus 0
     @mock.patch(MOCKPATH + 'util.is_FreeBSD')
     def test_blacklist_through_distro(
             self, m_is_freebsd, m_net_get_interfaces):
-        # This test verifies that the datasource Azure correctly
-        # updates the blacklist drivers in the distro's networking
+        """Verify Azure DS updates blacklist drivers in the distro's
+           networking object."""
         odata = {'HostName': "myhost", 'UserName': "myuser"}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
                 'sys_cfg': {}}
