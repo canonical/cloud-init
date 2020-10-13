@@ -1338,7 +1338,9 @@ class DataSourceAzure(sources.DataSource):
                 nc_src = self._metadata_imds
             else:
                 nc_src = None
-            self._network_config = parse_network_config(nc_src, distro=self.distro)
+            self._network_config = parse_network_config(
+                nc_src, distro=self.distro
+            )
         return self._network_config
 
     @property
