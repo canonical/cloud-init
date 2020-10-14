@@ -264,7 +264,7 @@ def create_swapfile(fname: str, size: str) -> None:
     fstype = util.get_mount_info(swap_dir)[1]
 
     if (fstype == "xfs" and
-            util.kernel_version() < (4, 18)) or fstype == "btrfs":
+            util.kernel_version() < (4, 18)) or fstype in ["btrfs", "ext4"]:
         create_swap(fname, size, "dd")
     else:
         try:

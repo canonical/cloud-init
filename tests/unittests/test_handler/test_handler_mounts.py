@@ -236,7 +236,9 @@ class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
 
         cc_mounts.handle(None, self.cc, self.mock_cloud, self.mock_log, [])
         self.m_subp_subp.assert_has_calls([
-            mock.call(['fallocate', '-l', '0M', self.swap_path], capture=True),
+            mock.call(['dd', 'if=/dev/zero',
+                       'of=' + self.swap_path,
+                       'bs=1M', 'count=0'], capture=True),
             mock.call(['mkswap', self.swap_path]),
             mock.call(['swapon', '-a'])])
 
