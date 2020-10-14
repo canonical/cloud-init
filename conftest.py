@@ -1,8 +1,16 @@
+"""Global conftest.py
+
+This conftest is used for unit tests in ``cloudinit/`` and ``tests/unittests/``
+as well as the integration tests in ``tests/integration_tests/``.
+
+Any imports that are performed at the top-level here must be installed wherever
+any of these tests run: that is to say, they must be listed in
+``integration-requirements.txt`` and in ``test-requirements.txt``.
+"""
 import os
 from unittest import mock
 
 import pytest
-import httpretty as _httpretty
 
 from cloudinit import helpers, subp
 
@@ -156,6 +164,8 @@ def httpretty():
     unset http_proxy in os.environ if present (to work around
     https://github.com/gabrielfalcao/HTTPretty/issues/122).
     """
+    import httpretty as _httpretty
+
     restore_proxy = os.environ.pop("http_proxy", None)
     _httpretty.HTTPretty.allow_net_connect = False
     _httpretty.reset()
