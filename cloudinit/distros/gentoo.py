@@ -160,10 +160,12 @@ class Distro(distros.Distro):
             pass
         if not conf:
             conf = HostnameConf('')
-        conf.set_hostname(your_hostname)
-        gentoo_hostname_config = 'hostname="%s"' % conf
-        gentoo_hostname_config = gentoo_hostname_config.replace('\n', '')
-        util.write_file(out_fn, gentoo_hostname_config, 0o644)
+
+        # Many distro's format is the hostname by itself, and that is the
+        # way HostnameConf works but gentoo expects it to be in
+        #     hostname="the-actual-hostname"
+        conf.set_hostname('hostname="%s"' % your_hostname)
+        util.write_file(out_fn, str(conf), 0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)
