@@ -30,6 +30,9 @@ def generic_networking_cls():
         def settle(self, *args, **kwargs):
             raise NotImplementedError
 
+        def try_set_link_up(self, *args, **kwargs):
+            raise NotImplementedError
+
     error = AssertionError("Unexpectedly used /sys in generic networking code")
     with mock.patch(
         "cloudinit.net.get_sys_class_path", side_effect=error,
@@ -72,6 +75,34 @@ class TestLinuxNetworkingIsPhysical:
         device_dir.join("device").write("")
 
         assert LinuxNetworking().is_physical(devname)
+
+
+class TestBSDNetworkingTrySetLinkUp:
+    def test_raises_notimplementederror(self):
+        with pytest.raises(NotImplementedError):
+            BSDNetworking().try_set_link_up("eth0")
+
+
+@mock.patch("cloudinit.net.is_up")
+@mock.patch("cloudinit.distros.networking.subp.subp")
+class TestLinuxNetworkingTrySetLinkUp:
+    def test_calls_subp_return_true(self, m_subp, m_is_up):
+        devname = "eth0"
+        m_is_up.return_value = True
+        is_success = LinuxNetworking().try_set_link_up(devname)
+
+        assert (mock.call(['ip', 'link', 'set', devname, 'up']) ==
+                m_subp.call_args_list[-1])
+        assert is_success
+
+    def test_calls_subp_return_false(self, m_subp, m_is_up):
+        devname = "eth0"
+        m_is_up.return_value = False
+        is_success = LinuxNetworking().try_set_link_up(devname)
+
+        assert (mock.call(['ip', 'link', 'set', devname, 'up']) ==
+                m_subp.call_args_list[-1])
+        assert not is_success
 
 
 class TestBSDNetworkingSettle:
