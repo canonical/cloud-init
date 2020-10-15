@@ -186,7 +186,7 @@ class DataSourceOracle(sources.DataSource):
 
             if not self._network_config:
                 # this is now v2
-                self._network_config = self.distro.networking.generate_fallback_config()
+                self._network_config = self.distro.networking.generate_fallback_config()  # noqa: E501
 
             if self.ds_cfg.get(
                 'configure_secondary_nics',
