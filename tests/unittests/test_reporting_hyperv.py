@@ -188,18 +188,34 @@ class TextKvpReporter(CiTestCase):
         if not re.search("variant=" + pattern, evt_msg):
             raise AssertionError("missing distro variant string")
 
-    def test_report_diagnostic_event(self):
+    def test_report_diagnostic_event_without_logger_func(self):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
-
+        diagnostic_msg = "test_diagnostic"
         reporter.publish_event(
-            azure.report_diagnostic_event("test_diagnostic"))
+            azure.report_diagnostic_event(diagnostic_msg))
         reporter.q.join()
         kvps = list(reporter._iterate_kvps(0))
         self.assertEqual(1, len(kvps))
         evt_msg = kvps[0]['value']
 
-        if "test_diagnostic" not in evt_msg:
+        if diagnostic_msg not in evt_msg:
             raise AssertionError("missing expected diagnostic message")
+
+    def test_report_diagnostic_event_with_logger_func(self):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        logger_func = mock.MagicMock()
+        diagnostic_msg = "test_diagnostic"
+        reporter.publish_event(
+            azure.report_diagnostic_event(diagnostic_msg,
+                                          logger_func=logger_func))
+        reporter.q.join()
+        kvps = list(reporter._iterate_kvps(0))
+        self.assertEqual(1, len(kvps))
+        evt_msg = kvps[0]['value']
+
+        if diagnostic_msg not in evt_msg:
+            raise AssertionError("missing expected diagnostic message")
+        logger_func.assert_called_once_with(diagnostic_msg)
 
     def test_report_compressed_event(self):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
