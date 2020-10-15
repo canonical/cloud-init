@@ -718,8 +718,8 @@ class TestNetworkConfig:
         ncfg = {"version": 1, "config": [{"a": "b"}]}
 
         m_read_initramfs_config.return_value = None
-        oracle_ds.distro.networking.generate_fallback_config.return_value = copy.deepcopy(  # noqa: E501
-            ncfg
+        oracle_ds.distro.networking.generate_fallback_config.return_value = (
+            copy.deepcopy(ncfg)
         )
 
         assert ncfg == oracle_ds.network_config
