@@ -799,7 +799,6 @@ class DataSourceAzure(sources.DataSource):
                 "connectivity issues: %s" % e, logger_func=LOG.warning)
             return False
 
-
     def _should_reprovision(self, ret):
         """Whether or not we should poll IMDS for reprovisioning data.
         Also sets a marker file to poll IMDS.
