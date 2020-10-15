@@ -2054,7 +2054,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
     @mock.patch('time.sleep', mock.MagicMock())
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     def test_poll_imds_re_dhcp_on_timeout(self, m_dhcpv4, report_ready_func,
-                                          fake_resp, m_media_switch, m_dhcp,
+                                          m_request, m_media_switch, m_dhcp,
                                           m_net):
         """The poll_imds will retry DHCP on IMDS timeout."""
         report_file = self.tmp_path('report_marker', self.tmp)
@@ -2083,7 +2083,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
             # Third try should succeed and stop retries or redhcp
             return mock.MagicMock(status_code=200, text="good", content="good")
 
-        fake_resp.side_effect = fake_timeout_once
+        m_request.side_effect = fake_timeout_once
 
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
@@ -2094,7 +2094,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(4, self.tries, 'Expected 4 total reads from IMDS')
 
     def test_does_not_poll_imds_report_ready_when_marker_file_exists(
-            self, m_report_ready, fake_resp, m_media_switch, m_dhcp, m_net):
+            self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
         """poll_imds should not call report ready when the reported ready
         marker file exists"""
         report_file = self.tmp_path('report_marker', self.tmp)
@@ -2110,7 +2110,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(m_report_ready.call_count, 0)
 
     def test_poll_imds_report_ready_success_writes_marker_file(
-            self, m_report_ready, fake_resp, m_media_switch, m_dhcp, m_net):
+            self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
         """poll_imds should write the report_ready marker file if
         reporting ready succeeds"""
         report_file = self.tmp_path('report_marker', self.tmp)
@@ -2127,7 +2127,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertTrue(os.path.exists(report_file))
 
     def test_poll_imds_report_ready_failure_raises_exc_and_doesnt_write_marker(
-            self, m_report_ready, fake_resp, m_media_switch, m_dhcp, m_net):
+            self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
         """poll_imds should write the report_ready marker file if
         reporting ready succeeds"""
         report_file = self.tmp_path('report_marker', self.tmp)
@@ -2165,7 +2165,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         self.paths = helpers.Paths({'cloud_dir': tmp})
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-    def test_poll_imds_returns_ovf_env(self, fake_resp,
+    def test_poll_imds_returns_ovf_env(self, m_request,
                                        m_dhcp, m_net,
                                        m_media_switch,
                                        m_is_bsd,
@@ -2179,11 +2179,11 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         url = 'http://{0}/metadata/reprovisiondata?api-version=2017-04-02'
         host = "169.254.169.254"
         full_url = url.format(host)
-        fake_resp.return_value = mock.MagicMock(status_code=200, text="ovf",
+        m_request.return_value = mock.MagicMock(status_code=200, text="ovf",
                                                 content="ovf")
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertTrue(len(dsa._poll_imds()) > 0)
-        self.assertEqual(fake_resp.call_args_list,
+        self.assertEqual(m_request.call_args_list,
                          [mock.call(allow_redirects=True,
                                     headers={'Metadata': 'true',
                                              'User-Agent':
@@ -2198,7 +2198,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
             static_routes=None)
         self.assertEqual(m_net.call_count, 2)
 
-    def test__reprovision_calls__poll_imds(self, fake_resp,
+    def test__reprovision_calls__poll_imds(self, m_request,
                                            m_dhcp, m_net,
                                            m_media_switch,
                                            m_is_bsd,
@@ -2217,7 +2217,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
         username = "myuser"
         odata = {'HostName': hostname, 'UserName': username}
         content = construct_valid_ovf_env(data=odata)
-        fake_resp.return_value = mock.MagicMock(status_code=200, text=content,
+        m_request.return_value = mock.MagicMock(status_code=200, text=content,
                                                 content=content)
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         md, _ud, cfg, _d = dsa._reprovision()
@@ -2234,7 +2234,7 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
                 timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS,
                 url=full_url
             ),
-            fake_resp.call_args_list)
+            m_request.call_args_list)
         self.assertEqual(m_dhcp.call_count, 2)
         m_net.assert_any_call(
             broadcast='192.168.2.255', interface='eth9', ip='192.168.2.9',
