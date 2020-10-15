@@ -42,7 +42,7 @@ COMPRESSED_EVENT_TYPE = 'compressed'
 # consumed to dump 500KB file was (P95:76, P99:233, P99.9:1170) in ms
 MAX_LOG_TO_KVP_LENGTH = 512000
 # Marker file to indicate whether cloud-init.log is pushed to KVP
-LOG_PUSHED_TO_KVP_MARKER_FILE = '/var/lib/cloud/data/log_pushed_to_kvp'
+LOG_PUSHED_TO_KVP_INDEX_FILE = '/var/lib/cloud/instance/log_pushed_to_kvp_index'
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
@@ -208,29 +208,31 @@ def report_compressed_event(event_name, event_content):
 
 
 @azure_ds_telemetry_reporter
-def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file'], force=False):
+def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
     """Push a portion of cloud-init.log file or the whole file to KVP
     based on the file size.
-    If called more than once, it skips pushing the log file to KVP again except
-    when force=True."""
+    If called more than once, it continues from where it left off."""
 
-    if not force:
-        log_pushed_to_kvp = bool(os.path.isfile(LOG_PUSHED_TO_KVP_MARKER_FILE))
-        if log_pushed_to_kvp:
-            report_diagnostic_event("cloud-init.log is already pushed to KVP")
-            return
+    last_log_byte_pushed_to_kvp_index = 0
+    try:
+        with open(LOG_PUSHED_TO_KVP_INDEX_FILE, "r") as f:
+            last_log_byte_pushed_to_kvp_index = int(f.read())
+    except Exception as ex:
+        report_diagnostic_event("Failed to get the last log byte pushed to KVP:"
+                                " %s." % repr(ex))
 
     LOG.debug("Dumping cloud-init.log file to KVP")
     try:
         with open(file_name, "rb") as f:
             f.seek(0, os.SEEK_END)
-            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, 0)
+            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH,
+                             last_log_byte_pushed_to_kvp_index)
             report_diagnostic_event(
                 "Dumping last {} bytes of cloud-init.log file to KVP".format(
                     f.tell() - seek_index))
             f.seek(seek_index, os.SEEK_SET)
             report_compressed_event("cloud-init.log", f.read())
-        util.write_file(LOG_PUSHED_TO_KVP_MARKER_FILE, '')
+            util.write_file(LOG_PUSHED_TO_KVP_INDEX_FILE, str(f.tell()))
     except Exception as ex:
         report_diagnostic_event("Exception when dumping log file: %s" %
                                 repr(ex))
@@ -541,7 +543,7 @@ class GoalStateHealthReporter:
 
     @azure_ds_telemetry_reporter
     def _post_health_report(self, document: str) -> None:
-        push_log_to_kvp(force=True)
+        push_log_to_kvp()
 
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
         # the diagnostic messages are written to special files

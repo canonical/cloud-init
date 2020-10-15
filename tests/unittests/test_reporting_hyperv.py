@@ -221,7 +221,7 @@ class TextKvpReporter(CiTestCase):
             instantiated_handler_registry.register_item("telemetry", reporter)
             log_file = self.tmp_path("cloud-init.log")
             azure.MAX_LOG_TO_KVP_LENGTH = 100
-            azure.LOG_PUSHED_TO_KVP_MARKER_FILE = self.tmp_path(
+            azure.LOG_PUSHED_TO_KVP_INDEX_FILE = self.tmp_path(
                 'log_pushed_to_kvp')
             with open(log_file, "w") as f:
                 log_content = "A" * 50 + "B" * 100
@@ -238,8 +238,9 @@ class TextKvpReporter(CiTestCase):
                 self.assertNotEqual(
                     event.event_type, azure.COMPRESSED_EVENT_TYPE)
             self.validate_compressed_kvps(
-                reporter, 1,
-                [log_content[-azure.MAX_LOG_TO_KVP_LENGTH:].encode()])
+                reporter, 2,
+                [log_content[-azure.MAX_LOG_TO_KVP_LENGTH:].encode(),
+                 extra_content.encode()])
         finally:
             instantiated_handler_registry.unregister_item("telemetry",
                                                           force=False)
