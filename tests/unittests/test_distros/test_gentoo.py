@@ -22,4 +22,5 @@ class TestGentoo(CiTestCase):
         hostfile = self.tmp_path("hostfile")
         atomic_helper.write_file(hostfile, contents, omode="w")
         distro._write_hostname(hostname, hostfile)
-        self.assertEqual('#This is the hostname\nhostname="myhostname"\n', util.load_file(hostfile))
+        self.assertEqual('#This is the hostname\nhostname="myhostname"\n',
+                         util.load_file(hostfile))
