@@ -208,15 +208,17 @@ def report_compressed_event(event_name, event_content):
 
 
 @azure_ds_telemetry_reporter
-def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
+def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file'], force=False):
     """Push a portion of cloud-init.log file or the whole file to KVP
     based on the file size.
-    If called more than once, it skips pushing the log file to KVP again."""
+    If called more than once, it skips pushing the log file to KVP again except
+    when force=True."""
 
-    log_pushed_to_kvp = bool(os.path.isfile(LOG_PUSHED_TO_KVP_MARKER_FILE))
-    if log_pushed_to_kvp:
-        report_diagnostic_event("cloud-init.log is already pushed to KVP")
-        return
+    if not force:
+        log_pushed_to_kvp = bool(os.path.isfile(LOG_PUSHED_TO_KVP_MARKER_FILE))
+        if log_pushed_to_kvp:
+            report_diagnostic_event("cloud-init.log is already pushed to KVP")
+            return
 
     LOG.debug("Dumping cloud-init.log file to KVP")
     try:
@@ -539,7 +541,7 @@ class GoalStateHealthReporter:
 
     @azure_ds_telemetry_reporter
     def _post_health_report(self, document: str) -> None:
-        push_log_to_kvp()
+        push_log_to_kvp(force=True)
 
         # Whenever report_diagnostic_event(diagnostic_msg) is invoked in code,
         # the diagnostic messages are written to special files
