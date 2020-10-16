@@ -368,9 +368,8 @@ class TestParseNetworkConfig(CiTestCase):
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
-    @mock.patch('cloudinit.net.generate_fallback_config')
     def test_parse_network_config_uses_fallback_cfg_when_no_network_metadata(
-            self, m_fallback_config, m_driver):
+            self, m_driver):
         """parse_network_config generates fallback network config when the
         IMDS instance metadata is corrupted/invalid, such as when
         network metadata is not present.
@@ -378,19 +377,22 @@ class TestParseNetworkConfig(CiTestCase):
         imds_metadata_missing_network_metadata = copy.deepcopy(
             NETWORK_METADATA)
         del imds_metadata_missing_network_metadata['network']
-        m_fallback_config.return_value = self.fallback_config
+
+        distro = mock.Mock()
+        m_generate_fallback_config = distro.networking.generate_fallback_config
+        m_generate_fallback_config.return_value = self.fallback_config
         self.assertEqual(
             self.fallback_config,
             dsaz.parse_network_config(
                 imds_metadata_missing_network_metadata,
-                distro=mock.Mock(),
-            ))
+                distro=distro
+            )
+        )
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
-    @mock.patch('cloudinit.net.generate_fallback_config')
     def test_parse_network_config_uses_fallback_cfg_when_no_interface_metadata(
-            self, m_fallback_config, m_driver):
+            self, m_driver):
         """parse_network_config generates fallback network config when the
         IMDS instance metadata is corrupted/invalid, such as when
         network interface metadata is not present.
@@ -398,12 +400,14 @@ class TestParseNetworkConfig(CiTestCase):
         imds_metadata_missing_interface_metadata = copy.deepcopy(
             NETWORK_METADATA)
         del imds_metadata_missing_interface_metadata['network']['interface']
-        m_fallback_config.return_value = self.fallback_config
+        distro = mock.Mock()
+        m_generate_fallback_config = distro.networking.generate_fallback_config
+        m_generate_fallback_config.return_value = self.fallback_config
         self.assertEqual(
             self.fallback_config,
             dsaz.parse_network_config(
                 imds_metadata_missing_interface_metadata,
-                distro=mock.Mock()
+                distro=distro
             )
         )
 
