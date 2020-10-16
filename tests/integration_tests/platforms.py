@@ -37,6 +37,17 @@ class IntegrationClient(ABC):
         self.launch_kwargs = launch_kwargs if launch_kwargs else {}
         self.client = self._get_client()
 
+    def emit_settings_to_log(self) -> None:
+        log.info(
+            "\n".join(
+                ["Settings:"]
+                + [
+                    "{}={}".format(key, getattr(self.settings, key))
+                    for key in sorted(self.settings.current_settings)
+                ]
+            )
+        )
+
     @abstractmethod
     def _get_client(self):
         raise NotImplementedError
