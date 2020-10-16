@@ -251,7 +251,9 @@ class TestGenerateFallbackConfig(CiTestCase):
         distro = mock.Mock()
         m_generate_fallback_config = distro.networking.generate_fallback_config
         m_generate_fallback_config.return_value = expected
-        self.assertEqual(expected, distro.networking.generate_fallback_config())
+        self.assertEqual(
+            expected, distro.networking.generate_fallback_config()
+        )
 
     def test_generate_fallback_finds_dormant_eth_with_mac(self):
         """generate_fallback_config finds any dormant device with a mac."""
@@ -265,7 +267,9 @@ class TestGenerateFallbackConfig(CiTestCase):
         distro = mock.Mock()
         m_generate_fallback_config = distro.networking.generate_fallback_config
         m_generate_fallback_config.return_value = expected
-        self.assertEqual(expected, distro.networking.generate_fallback_config())
+        self.assertEqual(
+            expected, distro.networking.generate_fallback_config()
+        )
 
     def test_generate_fallback_finds_eth_by_operstate(self):
         """generate_fallback_config finds any dormant device with a mac."""
@@ -353,7 +357,9 @@ class TestGenerateFallbackConfig(CiTestCase):
         distro = mock.Mock()
         m_generate_fallback_config = distro.networking.generate_fallback_config
         m_generate_fallback_config.return_value = expected
-        self.assertEqual(expected, distro.networking.generate_fallback_config())
+        self.assertEqual(
+            expected, distro.networking.generate_fallback_config()
+        )
 
 
 class TestNetFindFallBackNic(CiTestCase):
