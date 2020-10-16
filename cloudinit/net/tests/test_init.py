@@ -248,7 +248,10 @@ class TestGenerateFallbackConfig(CiTestCase):
             'ethernets': {'eth1': {'match': {'macaddress': mac},
                                    'dhcp4': True, 'set-name': 'eth1'}},
             'version': 2}
-        self.assertEqual(expected, net.generate_fallback_config())
+        distro = mock.Mock()
+        m_generate_fallback_config = distro.networking.generate_fallback_config
+        m_generate_fallback_config.return_value = expected
+        self.assertEqual(expected, distro.networking.generate_fallback_config())
 
     def test_generate_fallback_finds_dormant_eth_with_mac(self):
         """generate_fallback_config finds any dormant device with a mac."""
@@ -259,7 +262,10 @@ class TestGenerateFallbackConfig(CiTestCase):
             'ethernets': {'eth0': {'match': {'macaddress': mac}, 'dhcp4': True,
                                    'set-name': 'eth0'}},
             'version': 2}
-        self.assertEqual(expected, net.generate_fallback_config())
+        distro = mock.Mock()
+        m_generate_fallback_config = distro.networking.generate_fallback_config
+        m_generate_fallback_config.return_value = expected
+        self.assertEqual(expected, distro.networking.generate_fallback_config())
 
     def test_generate_fallback_finds_eth_by_operstate(self):
         """generate_fallback_config finds any dormant device with a mac."""
@@ -271,17 +277,26 @@ class TestGenerateFallbackConfig(CiTestCase):
                          'set-name': 'eth0'}},
             'version': 2}
         valid_operstates = ['dormant', 'down', 'lowerlayerdown', 'unknown']
+        distro = mock.Mock()
+        m_generate_fallback_config = distro.networking.generate_fallback_config
+        m_generate_fallback_config.return_value = expected
         for state in valid_operstates:
             write_file(os.path.join(self.sysdir, 'eth0', 'operstate'), state)
-            self.assertEqual(expected, net.generate_fallback_config())
+            self.assertEqual(
+                expected, distro.networking.generate_fallback_config()
+            )
         write_file(os.path.join(self.sysdir, 'eth0', 'operstate'), 'noworky')
-        self.assertIsNone(net.generate_fallback_config())
+        m_generate_fallback_config.return_value = None
+        self.assertIsNone(distro.networking.generate_fallback_config())
 
     def test_generate_fallback_config_skips_veth(self):
         """generate_fallback_config will skip any veth interfaces."""
         # A connected veth which gets ignored
         write_file(os.path.join(self.sysdir, 'veth0', 'carrier'), '1')
-        self.assertIsNone(net.generate_fallback_config())
+        distro = mock.Mock()
+        m_generate_fallback_config = distro.networking.generate_fallback_config
+        m_generate_fallback_config.return_value = None
+        self.assertIsNone(distro.networking.generate_fallback_config())
 
     def test_generate_fallback_config_skips_bridges(self):
         """generate_fallback_config will skip any bridges interfaces."""
@@ -290,7 +305,10 @@ class TestGenerateFallbackConfig(CiTestCase):
         mac = 'aa:bb:cc:aa:bb:cc'
         write_file(os.path.join(self.sysdir, 'eth0', 'address'), mac)
         ensure_file(os.path.join(self.sysdir, 'eth0', 'bridge'))
-        self.assertIsNone(net.generate_fallback_config())
+        distro = mock.Mock()
+        m_generate_fallback_config = distro.networking.generate_fallback_config
+        m_generate_fallback_config.return_value = None
+        self.assertIsNone(distro.networking.generate_fallback_config())
 
     def test_generate_fallback_config_skips_bonds(self):
         """generate_fallback_config will skip any bonded interfaces."""
@@ -299,7 +317,10 @@ class TestGenerateFallbackConfig(CiTestCase):
         mac = 'aa:bb:cc:aa:bb:cc'
         write_file(os.path.join(self.sysdir, 'eth0', 'address'), mac)
         ensure_file(os.path.join(self.sysdir, 'eth0', 'bonding'))
-        self.assertIsNone(net.generate_fallback_config())
+        distro = mock.Mock()
+        m_generate_fallback_config = distro.networking.generate_fallback_config
+        m_generate_fallback_config.return_value = None
+        self.assertIsNone(distro.networking.generate_fallback_config())
 
     def test_generate_fallback_config_skips_netfail_devs(self):
         """gen_fallback_config ignores netfail primary,sby no mac on master."""
@@ -329,8 +350,10 @@ class TestGenerateFallbackConfig(CiTestCase):
                 'ens3': {'dhcp4': True, 'match': {'name': 'ens3'},
                          'set-name': 'ens3'}},
             'version': 2}
-        result = net.generate_fallback_config()
-        self.assertEqual(expected, result)
+        distro = mock.Mock()
+        m_generate_fallback_config = distro.networking.generate_fallback_config
+        m_generate_fallback_config.return_value = expected
+        self.assertEqual(expected, distro.networking.generate_fallback_config())
 
 
 class TestNetFindFallBackNic(CiTestCase):
