@@ -128,6 +128,10 @@ class TestLinuxNetworkingSettle:
         ] == m_udevadm_settle.call_args_list
 
 
+class TestGenerateFallbackConfig:
+    pass
+
+
 class TestNetworkingWaitForPhysDevs:
     @pytest.fixture
     def wait_for_physdevs_netcfg(self):
