@@ -187,8 +187,11 @@ class BSDNetworking(Networking):
     def generate_fallback_config(
         self, *, blacklist_drivers=None, config_driver: bool = False
     ):
-        """Generate network cfg v2 for dhcp on the NIC most likely
-        connected."""
+        """
+        Generate network cfg v2 for dhcp on the NIC most likely connected.
+
+        note that config_driver on BSD currently has no effect.
+        """
 
         target_name = self.find_fallback_nic(
             blacklist_drivers=blacklist_drivers
