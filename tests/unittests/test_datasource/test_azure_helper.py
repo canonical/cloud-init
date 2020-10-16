@@ -487,7 +487,7 @@ class TestGoalStateHealthReporter(CiTestCase):
     provisioning_success_status = 'Ready'
     provisioning_not_ready_status = 'NotReady'
     provisioning_failure_substatus = 'ProvisioningFailed'
-    provisioning_failure_err_msg = (
+    provisioning_failure_err_description = (
         'Test error message containing provisioning failure details')
 
     def setUp(self):
@@ -540,7 +540,8 @@ class TestGoalStateHealthReporter(CiTestCase):
         health_detail_subsection = \
             self._get_formatted_health_detail_subsection_xml_string(
                 health_substatus=escape(self.provisioning_failure_substatus),
-                health_description=escape(self.provisioning_failure_err_msg))
+                health_description=escape(
+                    self.provisioning_failure_err_description))
 
         return self._get_formatted_health_report_xml_string(
             incarnation=escape(str(self.default_parameters['incarnation'])),
@@ -576,7 +577,7 @@ class TestGoalStateHealthReporter(CiTestCase):
                 azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
                 client, self.test_azure_endpoint)
             reporter.send_failure_signal(
-                description=self.provisioning_failure_err_msg)
+                description=self.provisioning_failure_err_description)
 
             self.assertEqual(1, self.post.call_count)
             self.assertEqual(
@@ -600,29 +601,38 @@ class TestGoalStateHealthReporter(CiTestCase):
 
         self.assertEqual(health_document, generated_health_document)
 
-        self.assertIn(
-            '<GoalStateIncarnation>{}</GoalStateIncarnation>'.format(
-                escape(str(self.default_parameters['incarnation']))),
-            generated_health_document)
-        self.assertIn(
-            '<ContainerId>{}</ContainerId>'.format(
-                escape(self.default_parameters['container_id'])),
-            generated_health_document)
-        self.assertIn(
-            '<InstanceId>{}</InstanceId>'.format(
-                escape(self.default_parameters['instance_id'])),
-            generated_health_document)
-        self.assertIn(
-            '<State>{}</State>'.format(
-                escape(self.provisioning_success_status)),
-            generated_health_document)
-
-        self.assertNotIn('<Details>', generated_health_document)
-        self.assertNotIn('</Details>', generated_health_document)
-        self.assertNotIn('<SubStatus>', generated_health_document)
-        self.assertNotIn('</SubStatus>', generated_health_document)
-        self.assertNotIn('<Description>', generated_health_document)
-        self.assertNotIn('</Description>', generated_health_document)
+        generated_xroot = self._xroot_from_raw_xml(generated_health_document)
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot, './GoalStateIncarnation'),
+            str(self.default_parameters['incarnation']))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot, './Container/ContainerId'),
+            str(self.default_parameters['container_id']))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/InstanceId'),
+            str(self.default_parameters['instance_id']))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/State'),
+            escape(self.provisioning_success_status))
+        self.assertIsNone(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details'))
+        self.assertIsNone(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details/SubStatus'))
+        self.assertIsNone(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details/Description')
+        )
 
     def test_build_report_for_failure_signal_health_document(self):
         health_document = self._get_report_failure_health_document()
@@ -636,39 +646,41 @@ class TestGoalStateHealthReporter(CiTestCase):
             instance_id=self.default_parameters['instance_id'],
             status=self.provisioning_not_ready_status,
             substatus=self.provisioning_failure_substatus,
-            description=self.provisioning_failure_err_msg)
+            description=self.provisioning_failure_err_description)
 
         self.assertEqual(health_document, generated_health_document)
 
-        self.assertIn(
-            '<GoalStateIncarnation>{}</GoalStateIncarnation>'.format(
-                escape(str(self.default_parameters['incarnation']))),
-            generated_health_document)
-        self.assertIn(
-            '<ContainerId>{}</ContainerId>'.format(
-                escape(self.default_parameters['container_id'])),
-            generated_health_document)
-        self.assertIn(
-            '<InstanceId>{}</InstanceId>'.format(
-                escape(self.default_parameters['instance_id'])),
-            generated_health_document)
-        self.assertIn(
-            '<State>{}</State>'.format(
-                escape(self.provisioning_not_ready_status)),
-            generated_health_document)
-
-        health_substatus_subsection = '<SubStatus>{}</SubStatus>'.format(
+        generated_xroot = self._xroot_from_raw_xml(generated_health_document)
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot, './GoalStateIncarnation'),
+            str(self.default_parameters['incarnation']))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot, './Container/ContainerId'),
+            self.default_parameters['container_id'])
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/InstanceId'),
+            self.default_parameters['instance_id'])
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/State'),
+            escape(self.provisioning_not_ready_status))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details/'
+                'SubStatus'),
             escape(self.provisioning_failure_substatus))
-        self.assertIn(health_substatus_subsection, generated_health_document)
-        health_description_subsection = '<Description>{}</Description>'.format(
-            escape(self.provisioning_failure_err_msg))
-        self.assertIn(health_description_subsection, generated_health_document)
-        health_detail_subsection = '\n'.join([
-            '<Details>',
-            '  {}'.format(health_substatus_subsection),
-            '  {}'.format(health_description_subsection),
-            '</Details>'])
-        self.assertIn(health_detail_subsection, generated_health_document)
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details/'
+                'Description'),
+            escape(self.provisioning_failure_err_description))
 
     def test_send_ready_signal_calls_build_report(self):
         with mock.patch.object(
@@ -698,7 +710,7 @@ class TestGoalStateHealthReporter(CiTestCase):
                 azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
                 self.test_azure_endpoint)
             reporter.send_failure_signal(
-                description=self.provisioning_failure_err_msg)
+                description=self.provisioning_failure_err_description)
 
             self.assertEqual(1, m_build_report.call_count)
             self.assertEqual(
@@ -708,7 +720,7 @@ class TestGoalStateHealthReporter(CiTestCase):
                     instance_id=self.default_parameters['instance_id'],
                     status=self.provisioning_not_ready_status,
                     substatus=self.provisioning_failure_substatus,
-                    description=self.provisioning_failure_err_msg),
+                    description=self.provisioning_failure_err_description),
                 m_build_report.call_args)
 
     def test_build_report_escapes_chars(self):
