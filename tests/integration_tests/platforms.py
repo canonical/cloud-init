@@ -228,7 +228,7 @@ class LxdContainerClient(IntegrationClient):
 client_name_to_class = {
     'ec2': Ec2Client,
     'gce': GceClient,
-    # 'azure': AzureClient,  # Not supported yet
+    'azure': AzureClient,
     'oci': OciClient,
     'lxd_container': LxdContainerClient
 }
