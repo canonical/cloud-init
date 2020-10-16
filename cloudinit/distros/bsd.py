@@ -75,9 +75,6 @@ class BSD(distros.Distro):
                 util.logexc(LOG, "Failed to add user '%s' to group '%s'",
                             member, name)
 
-    def generate_fallback_config(self):
-        self.networking.generate_fallback_config()
-
     def install_packages(self, pkglist):
         self.update_package_sources()
         self.package_command('install', pkgs=pkglist)
