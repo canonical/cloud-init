@@ -549,7 +549,7 @@ class GoalStateHealthReporter:
         except Exception as e:
             msg = "exception while reporting failure: %s" % e
             LOG.error(msg)
-            report_diagnostic_event(msg)
+            report_diagnostic_event(msg, logger_func=LOG.error)
             raise
 
         LOG.warning('Reported failure to Azure fabric.')

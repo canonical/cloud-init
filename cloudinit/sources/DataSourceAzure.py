@@ -562,16 +562,16 @@ class DataSourceAzure(sources.DataSource):
                 func=self.crawl_metadata
             )
         except Exception as e:
-            msg = 'Could not crawl Azure metadata: %s' % e
-            LOG.error(msg)
-            report_diagnostic_event(msg)
+            report_diagnostic_event(
+                'Could not crawl Azure metadata: %s' % e,
+                logger_func=LOG.error)
             try:
                 self._report_failure(
                     description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
             except Exception as inner_e:
-                msg = 'Failed to report failure to Azure: %s' % inner_e
-                LOG.error(msg)
-                report_diagnostic_event(msg)
+                report_diagnostic_event(
+                    'Failed to report failure to Azure: %s' % inner_e,
+                    logger_func=LOG.error)
             return False
         if (self.distro and self.distro.name == 'ubuntu' and
                 self.ds_cfg.get('apply_network_config')):
@@ -787,7 +787,8 @@ class DataSourceAzure(sources.DataSource):
     def _report_failure(self, description=None):
         try:
             report_diagnostic_event(
-                'Using ephemeral dhcp to report failure to Azure.')
+                'Using ephemeral dhcp to report failure to Azure.',
+                logger_func=LOG.debug)
             with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
                 report_failure_to_fabric(
                     fallback_lease_file=self.dhclient_lease_file,
@@ -795,8 +796,9 @@ class DataSourceAzure(sources.DataSource):
                     description=description)
         except Exception as e:
             report_diagnostic_event(
-                'Failed using ephemeral dhcp to report failure: %s.'
-                'Using fallback lease to report failure to Azure.' % e)
+                'Failed using ephemeral dhcp to report failure: %s. '
+                'Using fallback lease to report failure to Azure.' % e,
+                logger_func=LOG.debug)
             report_failure_to_fabric(
                 fallback_lease_file=self.dhclient_lease_file,
                 description=description)
