@@ -1642,8 +1642,7 @@ scbus-1 on xpt0 bus 0
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
-    @mock.patch('cloudinit.net.generate_fallback_config')
-    def test_imds_network_config(self, mock_fallback, m_driver):
+    def test_imds_network_config(self, m_driver):
         """Network config is generated from IMDS network data when present."""
         sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
         odata = {'HostName': "myhost", 'UserName': "myuser"}
@@ -1663,8 +1662,14 @@ scbus-1 on xpt0 bus 0
                          'set-name': 'eth0'}},
             'version': 2}
 
-        self.assertEqual(expected_cfg, dsrc.network_config)
-        mock_fallback.assert_not_called()
+        with mock.patch.object(
+            dsrc.distro.networking, "generate_fallback_config", autospec=True,
+        ) as m_generate_fallback_config:
+            ret = dsrc.get_data()
+            netconfig = dsrc.network_config
+            m_generate_fallback_config.assert_not_called()
+        self.assertTrue(ret)
+        self.assertEqual(expected_cfg, netconfig)
 
     @mock.patch('cloudinit.net.get_interface_mac')
     @mock.patch('cloudinit.net.get_devicelist')
