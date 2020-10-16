@@ -1642,9 +1642,8 @@ scbus-1 on xpt0 bus 0
     @mock.patch('cloudinit.net.get_interface_mac')
     @mock.patch('cloudinit.net.get_devicelist')
     @mock.patch('cloudinit.net.device_driver')
-    @mock.patch('cloudinit.net.generate_fallback_config')
     def test_imds_network_ignored_when_apply_network_config_false(
-            self, mock_fallback, mock_dd, mock_devlist, mock_get_mac):
+            self, mock_dd, mock_devlist, mock_get_mac):
         """When apply_network_config is False, use fallback instead of IMDS."""
         sys_cfg = {'datasource': {'Azure': {'apply_network_config': False}}}
         odata = {'HostName': "myhost", 'UserName': "myuser"}
@@ -1659,15 +1658,22 @@ scbus-1 on xpt0 bus 0
                 'subnets': [{'type': 'dhcp'}],
             }]
         }
-        mock_fallback.return_value = fallback_config
 
         mock_devlist.return_value = ['eth0']
         mock_dd.return_value = ['hv_netsvc']
         mock_get_mac.return_value = '00:11:22:33:44:55'
 
         dsrc = self._get_ds(data)
-        self.assertTrue(dsrc.get_data())
-        self.assertEqual(dsrc.network_config, fallback_config)
+
+        with mock.patch.object(
+            dsrc.distro.networking, "generate_fallback_config", autospec=True,
+        ) as m_generate_fallback_config:
+            m_generate_fallback_config.return_value = fallback_config
+            ret = dsrc.get_data()
+            netconfig = dsrc.network_config
+
+        self.assertTrue(ret)
+        self.assertEqual(netconfig, fallback_config)
 
     @mock.patch('cloudinit.net.get_interface_mac')
     @mock.patch('cloudinit.net.get_devicelist')
