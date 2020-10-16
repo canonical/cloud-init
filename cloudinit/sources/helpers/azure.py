@@ -494,8 +494,7 @@ class GoalStateHealthReporter:
     PROVISIONING_NOT_READY_STATUS = 'NotReady'
     PROVISIONING_FAILURE_SUBSTATUS = 'ProvisioningFailed'
 
-    MAX_HEALTH_DESCRIPTION_LENGTH_AFTER_ESCAPING = 1024
-    MAX_TOTAL_HEALTH_REPORT_LENGTH = 2048
+    HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 
     def __init__(
             self, goal_state: GoalState,
@@ -562,9 +561,7 @@ class GoalStateHealthReporter:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
                 health_substatus=escape(substatus),
                 health_description=escape(
-                    description
-                )[:self.MAX_HEALTH_DESCRIPTION_LENGTH_AFTER_ESCAPING]
-            )
+                    description[:self.HEALTH_REPORT_DESCRIPTION_TRIM_LEN]))
 
         health_report = self.HEALTH_REPORT_XML_TEMPLATE.format(
             incarnation=escape(str(incarnation)),

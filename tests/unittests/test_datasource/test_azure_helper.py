@@ -5,7 +5,7 @@ import re
 import unittest
 from textwrap import dedent
 from xml.etree import ElementTree
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, unescape
 
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.tests.helpers import CiTestCase, ExitStack, mock, populate_dir
@@ -78,8 +78,7 @@ HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent('''\
     </Details>
     ''')
 
-MAX_HEALTH_DESCRIPTION_LENGTH_AFTER_ESCAPING = 1024
-MAX_TOTAL_HEALTH_REPORT_LENGTH = 2048
+HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 
 
 class SentinelException(Exception):
@@ -514,6 +513,15 @@ class TestGoalStateHealthReporter(CiTestCase):
         self.GoalState.return_value.incarnation = \
             self.default_parameters['incarnation']
 
+    def _xroot_from_raw_xml(self, raw_xml):
+        return ElementTree.fromstring(raw_xml)
+
+    def _text_from_xpath_in_xroot(self, xroot, xpath):
+        element = xroot.find(xpath)
+        if element is not None:
+            return element.text
+        return None
+
     def _get_formatted_health_report_xml_string(self, **kwargs):
         return HEALTH_REPORT_XML_TEMPLATE.format(**kwargs)
 
@@ -715,7 +723,6 @@ class TestGoalStateHealthReporter(CiTestCase):
             self._get_formatted_health_detail_subsection_xml_string(
                 health_substatus=escape(health_substatus),
                 health_description=escape(health_description))
-
         health_document = self._get_formatted_health_report_xml_string(
             incarnation=escape(incarnation),
             container_id=escape(container_id),
@@ -751,14 +758,13 @@ class TestGoalStateHealthReporter(CiTestCase):
             substatus=self.provisioning_failure_substatus,
             description=long_err_msg)
 
-        user_visible_err_msg = escape(
-            long_err_msg)[:MAX_HEALTH_DESCRIPTION_LENGTH_AFTER_ESCAPING]
-        health_description_xml = '<Description>{}</Description>'.format(
-            user_visible_err_msg)
-        self.assertIn(health_description_xml, generated_health_document)
-
+        generated_xroot = self._xroot_from_raw_xml(generated_health_document)
+        generated_health_report_description = self._text_from_xpath_in_xroot(
+            generated_xroot,
+            './Container/RoleInstanceList/Role/Health/Details/Description')
         self.assertLessEqual(
-            len(generated_health_document), MAX_TOTAL_HEALTH_REPORT_LENGTH)
+            len(unescape(generated_health_report_description)),
+            HEALTH_REPORT_DESCRIPTION_TRIM_LEN)
 
 
 class TestWALinuxAgentShim(CiTestCase):
