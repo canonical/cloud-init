@@ -7,6 +7,7 @@ from cloudinit.net import (
     eni, interface_has_own_mac, natural_sort_key, netplan, network_state,
     renderers, sysconfig)
 from cloudinit.sources.helpers import openstack
+from cloudinit.helpers import Paths
 from cloudinit import temp_utils
 from cloudinit import subp
 from cloudinit import util
@@ -2777,7 +2778,9 @@ class TestRhelSysConfigRendering(CiTestCase):
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
 
-        network_cfg = net.generate_fallback_config()
+        distro_cls = distros.fetch('rhel')
+        distro = distro_cls('rhel', {}, paths=Paths({}))
+        network_cfg = distro.networking.generate_fallback_config()
         ns = network_state.parse_net_config_data(network_cfg,
                                                  skip_broken=False)
 
@@ -3453,7 +3456,9 @@ class TestOpenSuseSysConfigRendering(CiTestCase):
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
 
-        network_cfg = net.generate_fallback_config()
+        distro_cls = distros.fetch('opensuse')
+        distro = distro_cls('opensuse', {}, paths=Paths({}))
+        network_cfg = distro.networking.generate_fallback_config()
         ns = network_state.parse_net_config_data(network_cfg,
                                                  skip_broken=False)
 
@@ -3736,7 +3741,9 @@ class TestEniNetRendering(CiTestCase):
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
 
-        network_cfg = net.generate_fallback_config()
+        distro_cls = distros.fetch('ubuntu')
+        distro = distro_cls('ubuntu', {}, paths=Paths({}))
+        network_cfg = distro.networking.generate_fallback_config()
         ns = network_state.parse_net_config_data(network_cfg,
                                                  skip_broken=False)
 
@@ -3816,7 +3823,9 @@ class TestNetplanNetRendering(CiTestCase):
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
 
-        network_cfg = net.generate_fallback_config()
+        distro_cls = distros.fetch('ubuntu')
+        distro = distro_cls('ubuntu', {}, paths=Paths({}))
+        network_cfg = distro.networking.generate_fallback_config()
         ns = network_state.parse_net_config_data(network_cfg,
                                                  skip_broken=False)
 
