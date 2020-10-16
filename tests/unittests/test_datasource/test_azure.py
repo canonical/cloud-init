@@ -210,7 +210,10 @@ class TestParseNetworkConfig(CiTestCase):
                      'dhcp6': False,
                      'match': {'macaddress': '00:0d:3a:04:75:98'},
                      'set-name': 'eth0'}}, 'version': 2}
-        self.assertEqual(expected, dsaz.parse_network_config(NETWORK_METADATA))
+        self.assertEqual(
+            expected,
+            dsaz.parse_network_config(NETWORK_METADATA, distro=mock.Mock())
+        )
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
@@ -239,7 +242,10 @@ class TestParseNetworkConfig(CiTestCase):
         third_intf['ipv4']['subnet'][0]['address'] = '10.0.2.0'
         third_intf['ipv4']['ipAddress'][0]['privateIpAddress'] = '10.0.2.6'
         imds_data['network']['interface'].append(third_intf)
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        self.assertEqual(
+            expected,
+            dsaz.parse_network_config(imds_data, distro=mock.Mock())
+        )
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
@@ -283,7 +289,10 @@ class TestParseNetworkConfig(CiTestCase):
             "ipAddress": [{"privateIpAddress": "2001:dead:beef::1"}]
         }
         imds_data['network']['interface'].append(third_intf)
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        self.assertEqual(
+            expected,
+            dsaz.parse_network_config(imds_data, distro=mock.Mock())
+        )
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
@@ -305,7 +314,10 @@ class TestParseNetworkConfig(CiTestCase):
             "subnet": [{"prefix": "10", "address": "2001:dead:beef::16"}],
             "ipAddress": [{"privateIpAddress": "2001:dead:beef::1"}]
         }
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        self.assertEqual(
+            expected,
+            dsaz.parse_network_config(imds_data, distro=mock.Mock())
+        )
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
@@ -329,7 +341,10 @@ class TestParseNetworkConfig(CiTestCase):
             "ipAddress": [{"privateIpAddress": "2001:dead:beef::1"},
                           {"privateIpAddress": "2001:dead:beef::2"}]
         }
-        self.assertEqual(expected, dsaz.parse_network_config(imds_data))
+        self.assertEqual(
+            expected,
+            dsaz.parse_network_config(imds_data, distro=mock.Mock())
+        )
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value='hv_netvsc')
@@ -346,7 +361,10 @@ class TestParseNetworkConfig(CiTestCase):
                 },
                 'set-name': 'eth0'
             }}, 'version': 2}
-        self.assertEqual(expected, dsaz.parse_network_config(NETWORK_METADATA))
+        self.assertEqual(
+            expected,
+            dsaz.parse_network_config(NETWORK_METADATA, distro=mock.Mock())
+        )
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
@@ -364,7 +382,9 @@ class TestParseNetworkConfig(CiTestCase):
         self.assertEqual(
             self.fallback_config,
             dsaz.parse_network_config(
-                imds_metadata_missing_network_metadata))
+                imds_metadata_missing_network_metadata,
+                distro=mock.Mock(),
+            ))
 
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
@@ -382,7 +402,10 @@ class TestParseNetworkConfig(CiTestCase):
         self.assertEqual(
             self.fallback_config,
             dsaz.parse_network_config(
-                imds_metadata_missing_interface_metadata))
+                imds_metadata_missing_interface_metadata,
+                distro=mock.Mock()
+            )
+        )
 
 
 class TestGetMetadataFromIMDS(HttprettyTestCase):
