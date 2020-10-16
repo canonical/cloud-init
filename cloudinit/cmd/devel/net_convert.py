@@ -73,6 +73,9 @@ def handle_args(name, args):
     else:
         known_macs = None
 
+    distro_cls = distros.fetch(args.distro)
+    distro = distro_cls(args.distro, {}, None)
+
     net_data = args.network_data.read()
     if args.kind == "eni":
         pre_ns = eni.convert_eni_data(net_data)
@@ -87,7 +90,7 @@ def handle_args(name, args):
         pre_ns = openstack.convert_net_json(
             json.loads(net_data), known_macs=known_macs)
     elif args.kind == 'azure-imds':
-        pre_ns = azure.parse_network_config(json.loads(net_data))
+        pre_ns = azure.parse_network_config(json.loads(net_data), distro)
     elif args.kind == 'vmware-imc':
         config = ovf.Config(ovf.ConfigFile(args.network_data.name))
         pre_ns = ovf.get_network_config_from_conf(config, False)
@@ -100,8 +103,7 @@ def handle_args(name, args):
     if args.debug:
         sys.stderr.write('\n'.join(
             ["", "Internal State", safeyaml.dumps(ns), ""]))
-    distro_cls = distros.fetch(args.distro)
-    distro = distro_cls(args.distro, {}, None)
+
     config = {}
     if args.output_kind == "eni":
         r_cls = eni.Renderer
