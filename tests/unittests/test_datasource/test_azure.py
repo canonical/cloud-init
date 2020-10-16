@@ -569,6 +569,9 @@ scbus-1 on xpt0 bus 0
             (dsaz, 'get_hostname', mock.MagicMock()),
             (dsaz, 'set_hostname', mock.MagicMock()),
             (dsaz, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
+            (dsaz, 'get_boot_telemetry', mock.MagicMock()),
+            (dsaz, 'get_system_info', mock.MagicMock()),
+            (dsaz, 'report_diagnostic_event', mock.MagicMock()),
             (dsaz.subp, 'which', lambda x: True),
             (dsaz.util, 'read_dmi_data', mock.MagicMock(
                 side_effect=_dmi_mocks)),
@@ -1021,13 +1024,12 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, mydata.encode('utf-8'))
 
-    @mock.patch(MOCKPATH + 'report_failure_to_fabric')
+    @mock.patch(MOCKPATH + 'report_failure_to_fabric', mock.MagicMock())
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4WithReporting', mock.MagicMock())
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4', mock.MagicMock())
     @mock.patch(MOCKPATH + 'DataSourceAzure.fallback_interface',
-                new_callable=mock.PropertyMock())
-    @mock.patch(MOCKPATH + 'EphemeralDHCPv4WithReporting')
-    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
-    def test_no_datasource_expected(self, m_dhcp, m_dhcp_with_reporting,
-            m_fallback_interface, m_report_failure_to_fabric):
+                mock.MagicMock())
+    def test_no_datasource_expected(self):
         # no source should be found if no seed_dir and no devs
         data = {}
         dsrc = self._get_ds({})
