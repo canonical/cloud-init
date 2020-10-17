@@ -795,7 +795,12 @@ class DataSourceAzure(sources.DataSource):
         return return_val
 
     @azure_ds_telemetry_reporter
-    def _report_failure(self, description=None):
+    def _report_failure(self, description=None) -> bool:
+        """Tells the Azure fabric that provisioning has failed.
+
+        @param description: A description of the error encountered.
+        @return: The success status of sending the failure signal.
+        """
         try:
             report_diagnostic_event(
                 'Using ephemeral dhcp to report failure to Azure.',
@@ -805,14 +810,24 @@ class DataSourceAzure(sources.DataSource):
                     fallback_lease_file=self.dhclient_lease_file,
                     dhcp_opts=lease['unknown-245'],
                     description=description)
+            return True
         except Exception as e:
             report_diagnostic_event(
-                'Failed using ephemeral dhcp to report failure: %s. '
+                'Failed to report failure using ephemeral dhcp: %s. '
                 'Using fallback lease to report failure to Azure.' % e,
                 logger_func=LOG.debug)
+
+        try:
             report_failure_to_fabric(
                 fallback_lease_file=self.dhclient_lease_file,
                 description=description)
+            return True
+        except Exception as e:
+            report_diagnostic_event(
+                'Failed to report failure using fallback lease: %s.' % e,
+                logger_func=LOG.debug)
+
+        return False
 
     def _report_ready(self, lease: dict) -> bool:
         """Tells the fabric provisioning has completed.
