@@ -1219,6 +1219,28 @@ scbus-1 on xpt0 bus 0
         self.m_get_metadata_from_fabric.side_effect = Exception
         self.assertFalse(dsrc._report_ready(lease=mock.MagicMock()))
 
+    def test_dsaz_report_failure_returns_true_when_report_succeeds(self):
+        # TODO report_failure_to_fabric args, lease used, and call count
+        pass
+
+    def test_dsaz_report_failure_returns_false_and_does_not_propagate_exc(
+            self):
+        # TODO report_failure_to_fabric args, lease used, and call count
+        pass
+
+    def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
+        # TODO report_failure_to_fabric args, lease used, and call count
+        pass
+
+    def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
+        # TODO report_failure_to_fabric args, lease used, and call count
+        pass
+
+    def test_dsaz_report_failure_no_net_and_dhcp_failure_uses_fallback_lease(
+            self):
+        # TODO report_failure_to_fabric args, lease used, and call count
+        pass
+
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
         """Errors communicating with fabric should warn, but return True."""
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
