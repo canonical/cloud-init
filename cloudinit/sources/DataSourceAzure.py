@@ -573,6 +573,7 @@ class DataSourceAzure(sources.DataSource):
                     'Failed to report failure to Azure: %s' % inner_e,
                     logger_func=LOG.error)
             return False
+
         if (self.distro and self.distro.name == 'ubuntu' and
                 self.ds_cfg.get('apply_network_config')):
             maybe_remove_ubuntu_network_config_scripts()
@@ -807,7 +808,6 @@ class DataSourceAzure(sources.DataSource):
                 logger_func=LOG.debug)
             with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
                 report_failure_to_fabric(
-                    fallback_lease_file=self.dhclient_lease_file,
                     dhcp_opts=lease['unknown-245'],
                     description=description)
             return True
