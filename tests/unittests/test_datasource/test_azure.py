@@ -866,8 +866,8 @@ scbus-1 on xpt0 bus 0
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
             'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
             'unknown-245': '624c3620'}
-        self.m_ephemeral_dhcpv4_with_reporting.return_value.\
-            __enter__.return_value = lease
+        self.m_ephemeral_dhcpv4_with_reporting.return_value \
+            .__enter__.return_value = lease
         m_media_switch.return_value = None
 
         reprovision_ovfenv = construct_valid_ovf_env()
@@ -1273,7 +1273,7 @@ scbus-1 on xpt0 bus 0
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
 
-            self.assertTrue(dsrc._report_failure()) # no description msg
+            self.assertTrue(dsrc._report_failure())  # no description msg
             self.m_report_failure_to_fabric.assert_called_once_with(
                 dhcp_opts=mock.ANY, description=None)
 
@@ -1315,7 +1315,7 @@ scbus-1 on xpt0 bus 0
             # setup ephemeral dhcp lease discovery mock
             test_lease_dhcp_option_245 = 'test_lease_dhcp_option_245'
             test_lease = {'unknown-245': test_lease_dhcp_option_245}
-            self.m_ephemeral_dhcpv4_with_reporting.return_value\
+            self.m_ephemeral_dhcpv4_with_reporting.return_value \
                 .__enter__.return_value = test_lease
 
             self.assertTrue(dsrc._report_failure())
@@ -1338,7 +1338,7 @@ scbus-1 on xpt0 bus 0
             self.m_net_is_up.return_value = False
             # ephemeral dhcp discovery failure,
             # so cannot use a new ephemeral dhcp
-            self.m_ephemeral_dhcpv4_with_reporting.return_value\
+            self.m_ephemeral_dhcpv4_with_reporting.return_value \
                 .__enter__.side_effect = Exception
 
             self.assertTrue(dsrc._report_failure())

@@ -942,7 +942,8 @@ class TestWALinuxAgentShim(CiTestCase):
             container_id=escape(self.test_container_id),
             instance_id=escape(self.test_instance_id),
             health_status=escape('NotReady'),
-            health_detail_subsection=HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
+            health_detail_subsection=HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE
+            .format(
                 health_substatus=escape('ProvisioningFailed'),
                 health_description=escape('TestDesc')))
         posted_document = (
@@ -955,7 +956,7 @@ class TestWALinuxAgentShim(CiTestCase):
             self, m_goal_state_health_reporter):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
-        m_goal_state_health_reporter.return_value.send_ready_signal\
+        m_goal_state_health_reporter.return_value.send_ready_signal \
             .assert_called_once()
 
     @mock.patch.object(azure_helper, 'GoalStateHealthReporter')
@@ -963,13 +964,13 @@ class TestWALinuxAgentShim(CiTestCase):
             self, m_goal_state_health_reporter):
         shim = wa_shim()
         shim.register_with_azure_and_report_failure(description='TestDesc')
-        m_goal_state_health_reporter.return_value.send_failure_signal\
+        m_goal_state_health_reporter.return_value.send_failure_signal \
             .assert_called_once_with(description='TestDesc')
 
     def test_register_with_azure_and_report_failure_does_not_need_certificates(
             self):
         shim = wa_shim()
-        with mock.patch.object(wa_shim, '_fetch_goal_state_from_azure')\
+        with mock.patch.object(wa_shim, '_fetch_goal_state_from_azure') \
                 as m_fetch_goal_state_from_azure:
             shim.register_with_azure_and_report_failure(description='TestDesc')
             m_fetch_goal_state_from_azure.assert_called_once_with(
@@ -1019,7 +1020,8 @@ class TestWALinuxAgentShim(CiTestCase):
         self.assertRaises(SentinelException,
                           shim.register_with_azure_and_fetch_data)
 
-    def test_fetch_goalstate_during_report_failure_raises_exc_on_parse_exc(self):
+    def test_fetch_goalstate_during_report_failure_raises_exc_on_parse_exc(
+            self):
         self.GoalState.side_effect = SentinelException
         shim = wa_shim()
         self.assertRaises(SentinelException,
@@ -1103,7 +1105,7 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
     @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
             self, shim):
-        shim.return_value.register_with_azure_and_report_failure\
+        shim.return_value.register_with_azure_and_report_failure \
             .side_effect = SentinelException
         self.assertRaises(SentinelException,
                           azure_helper.report_failure_to_fabric)
@@ -1113,7 +1115,7 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
     def test_report_failure_to_fabric_with_desc_calls_shim_report_failure(
             self, shim):
         azure_helper.report_failure_to_fabric(description='TestDesc')
-        shim.return_value.register_with_azure_and_report_failure\
+        shim.return_value.register_with_azure_and_report_failure \
             .assert_called_once_with(description='TestDesc')
 
     @mock.patch.object(azure_helper, 'WALinuxAgentShim')
@@ -1122,7 +1124,7 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         azure_helper.report_failure_to_fabric()
         # default err message description to be shown to user if no description
         # passed in
-        shim.return_value.register_with_azure_and_report_failure\
+        shim.return_value.register_with_azure_and_report_failure \
             .assert_called_once_with(
                 description=azure_helper
                 .DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
