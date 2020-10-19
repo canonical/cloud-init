@@ -802,29 +802,51 @@ class DataSourceAzure(sources.DataSource):
         @param description: A description of the error encountered.
         @return: The success status of sending the failure signal.
         """
+        unknown_245_key = 'unknown-245'
+
+        try:
+            if (net.is_up(self.fallback_interface) and
+                    getattr(self, '_ephemeral_dhcp_ctx', None) and
+                    getattr(self._ephemeral_dhcp_ctx, 'lease', None) and
+                    unknown_245_key in self._ephemeral_dhcp_ctx.lease):
+                report_diagnostic_event(
+                    'Using cached ephemeral dhcp context '
+                    'to report failure to Azure', logger_func=LOG.debug)
+                report_failure_to_fabric(
+                    dhcp_opts=self._ephemeral_dhcp_ctx.lease[unknown_245_key],
+                    description=description)
+                self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
+                return True
+        except Exception as e:
+            report_diagnostic_event(
+                'Failed to report failure using '
+                'cached ephemeral dhcp context: %s' % e,
+                logger_func=LOG.error)
+
         try:
             report_diagnostic_event(
-                'Using ephemeral dhcp to report failure to Azure.',
+                'Using new ephemeral dhcp to report failure to Azure',
                 logger_func=LOG.debug)
             with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
                 report_failure_to_fabric(
-                    dhcp_opts=lease['unknown-245'],
+                    dhcp_opts=lease[unknown_245_key],
                     description=description)
             return True
         except Exception as e:
             report_diagnostic_event(
-                'Failed to report failure using ephemeral dhcp: %s. '
-                'Using fallback lease to report failure to Azure.' % e,
+                'Failed to report failure using new ephemeral dhcp: %s' % e,
                 logger_func=LOG.debug)
 
         try:
+            report_diagnostic_event(
+                'Using fallback lease to report failure to Azure')
             report_failure_to_fabric(
                 fallback_lease_file=self.dhclient_lease_file,
                 description=description)
             return True
         except Exception as e:
             report_diagnostic_event(
-                'Failed to report failure using fallback lease: %s.' % e,
+                'Failed to report failure using fallback lease: %s' % e,
                 logger_func=LOG.debug)
 
         return False
