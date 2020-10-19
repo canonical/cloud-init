@@ -385,6 +385,33 @@ class TestAzureEndpointHttpClient(CiTestCase):
                 url, data=m_data, extra_headers=extra_headers)
             self.assertEqual(1, m_http_with_retries.call_count)
 
+    def test_http_with_retries_logs_exceptions(self):
+        pass
+
+    def test_http_with_retries_logs_attempts_num_if_long_delay(self):
+        pass
+
+    def test_http_with_retries_propagates_readurl_exc(self):
+        pass
+
+    def test_http_with_retries_on_temporary_readurl_exc(self):
+        pass
+
+    def test_http_with_retries_adds_timeout_kwargs_if_not_present(self):
+        pass
+
+    def test_http_with_retries_does_not_add_timeout_kwargs_if_present(self):
+        pass
+
+    def test_http_with_retries_does_not_have_retries_kwargs_passed_to_readurl(
+            self):
+        """http_with_retries already implements retry logic,
+        so url_helper.readurl does not need to have retries.
+
+        retries kwarg should not be present.
+        infinite kwarg should not be present. If present, it should be False.
+        """
+
 
 class TestOpenSSLManager(CiTestCase):
 
