@@ -956,8 +956,10 @@ class TestWALinuxAgentShim(CiTestCase):
             self, m_goal_state_health_reporter):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
-        m_goal_state_health_reporter.return_value.send_ready_signal \
-            .assert_called_once()
+        self.assertEqual(
+            1,
+            m_goal_state_health_reporter.return_value.send_ready_signal
+            .call_count)
 
     @mock.patch.object(azure_helper, 'GoalStateHealthReporter')
     def test_register_with_azure_and_report_failure_calls_send_failure_signal(
@@ -1100,7 +1102,9 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
     @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_success_calls_clean_up(self, shim):
         azure_helper.report_failure_to_fabric()
-        shim.return_value.clean_up.assert_called_once()
+        self.assertEqual(
+            1,
+            shim.return_value.clean_up.call_count)
 
     @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
@@ -1109,7 +1113,9 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
             .side_effect = SentinelException
         self.assertRaises(SentinelException,
                           azure_helper.report_failure_to_fabric)
-        shim.return_value.clean_up.assert_called_once()
+        self.assertEqual(
+            1,
+            shim.return_value.clean_up.call_count)
 
     @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_report_failure_to_fabric_with_desc_calls_shim_report_failure(

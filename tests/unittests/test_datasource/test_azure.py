@@ -678,7 +678,9 @@ scbus-1 on xpt0 bus 0
             m_crawl_metadata.side_effect = Exception
             ret = dsrc.get_data()
             self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
-            m_crawl_metadata.assert_called_once()
+            self.assertEqual(
+                1,
+                m_crawl_metadata.call_count)
             self.assertFalse(ret)
             self.assertFalse('agent_invoked' in data)
 
@@ -690,7 +692,9 @@ scbus-1 on xpt0 bus 0
                 mock.patch.object(dsrc, '_report_failure') as m_report_failure:
             m_crawl_metadata.side_effect = Exception
             dsrc.get_data()
-            m_crawl_metadata.assert_called_once()
+            self.assertEqual(
+                1,
+                m_crawl_metadata.call_count)
             m_report_failure.assert_called_once_with(
                 description=dsaz.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
 
@@ -1238,20 +1242,32 @@ scbus-1 on xpt0 bus 0
             m_crawl_metadata.side_effect = Exception
 
             self.assertTrue(dsrc._report_failure())
-            self.m_report_failure_to_fabric.assert_called()
+            self.assertEqual(
+                1,
+                self.m_report_failure_to_fabric.call_count)
 
     def test_dsaz_report_failure_returns_false_and_does_not_propagate_exc(
             self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         dsrc.ds_cfg['agent_command'] = '__builtin__'
 
-        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc, '_ephemeral_dhcp_ctx') \
+                as m_ephemeral_dhcp_ctx:
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
+            # setup mocks to allow using cached ephemeral dhcp lease
+            self.m_net_is_up.return_value = True
+            test_lease_dhcp_option_245 = 'test_lease_dhcp_option_245'
+            test_lease = {'unknown-245': test_lease_dhcp_option_245}
+            m_ephemeral_dhcp_ctx.lease = test_lease
+
             self.m_report_failure_to_fabric.side_effect = Exception
             self.assertFalse(dsrc._report_failure())
-            self.m_report_failure_to_fabric.assert_called()
+            self.assertEqual(
+                3,
+                self.m_report_failure_to_fabric.call_count)
 
     def test_dsaz_report_failure_description_msg(self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
@@ -1287,7 +1303,7 @@ scbus-1 on xpt0 bus 0
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
-            # setup mocks for using cached ephemeral dhcp lease
+            # setup mocks to allow using cached ephemeral dhcp lease
             self.m_net_is_up.return_value = True
             test_lease_dhcp_option_245 = 'test_lease_dhcp_option_245'
             test_lease = {'unknown-245': test_lease_dhcp_option_245}
@@ -1300,7 +1316,9 @@ scbus-1 on xpt0 bus 0
                 description=mock.ANY, dhcp_opts=test_lease_dhcp_option_245)
 
             # ensure cached ephemeral is cleaned
-            m_ephemeral_dhcp_ctx.clean_network.assert_called()
+            self.assertEqual(
+                1,
+                m_ephemeral_dhcp_ctx.clean_network.call_count)
 
     def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
