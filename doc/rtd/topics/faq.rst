@@ -226,12 +226,50 @@ custom network config.
 .. _Instance Configuration: https://linuxcontainers.org/lxd/docs/master/instances
 .. _Custom Network Configuration: https://linuxcontainers.org/lxd/docs/master/cloud-init
 
+cloud-localds
+-------------
+
+The `cloud-localds` command generates a disk with user supplied data. The
+NoCloud datasouce allows users to provide their own user data, metadata, or
+network configuration directly to an instance without running a network service.
+This is helpful for launching local cloud images with QEMU for example.
+
+The following is an example of creating the local disk using the cloud-localds
+command:
+
+.. code-block:: shell-session
+
+    $ cat >user-data <<EOF
+    #cloud-config
+    password: password
+    chpasswd:
+      expire: False
+    ssh_pwauth: True
+    ssh_authorized_keys:
+      - ssh-rsa AAAA...UlIsqdaO+w==
+    EOF
+    $ cloud-localds seed.img user-data
+
+The resulting seed.img can then get passed along to a cloud image containing
+cloud-init. Below is an example of passing the seed.img with QEMU:
+
+.. code-block:: shell-session
+
+    $ qemu-system-x86_64 -m 1024 -net nic -net user \
+        -hda ubuntu-20.04-server-cloudimg-amd64.img \
+        -hdb seed.img
+
+The now booted image will allow for login using the password provided above.
+
 Where can I learn more?
 ========================================
 
 Below are some videos, blog posts, and white papers about cloud-init from a
 variety of sources.
 
+- `cloud-init - The Good Parts`_
+- `cloud-init Summit 2019`_
+- `Utilising cloud-init on Microsoft Azure (Whitepaper)`_
 - `Cloud Instance Initialization with cloud-init (Whitepaper)`_
 - `cloud-init Summit 2018`_
 - `cloud-init - The cross-cloud Magic Sauce (PDF)`_
@@ -242,6 +280,9 @@ variety of sources.
 - `The beauty of cloud-init`_
 - `Introduction to cloud-init`_
 
+.. _cloud-init - The Good Parts: https://www.youtube.com/watch?v=2_m6EUo6VOI
+.. _cloud-init Summit 2019: https://powersj.io/post/cloud-init-summit19/
+.. _Utilising cloud-init on Microsoft Azure (Whitepaper): https://ubuntu.com/engage/azure-cloud-init-whitepaper
 .. _Cloud Instance Initialization with cloud-init (Whitepaper): https://ubuntu.com/blog/cloud-instance-initialisation-with-cloud-init
 .. _cloud-init Summit 2018: https://powersj.io/post/cloud-init-summit18/
 .. _cloud-init - The cross-cloud Magic Sauce (PDF): https://events.linuxfoundation.org/wp-content/uploads/2017/12/cloud-init-The-cross-cloud-Magic-Sauce-Scott-Moser-Chad-Smith-Canonical.pdf
