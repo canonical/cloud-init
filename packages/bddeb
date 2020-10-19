@@ -200,6 +200,7 @@ def main():
             )
         except subp.ProcessExecutionError:
             print("Couldn't find branch '%s'." % args.packaging_branch)
+            print("You may need to checkout the branch from the git remote.")
             return 1
         try:
             subp.subp(
