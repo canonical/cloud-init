@@ -41,8 +41,8 @@ COMPRESSED_EVENT_TYPE = 'compressed'
 # cloud-init.log files where the P95 of the file sizes was 537KB and the time
 # consumed to dump 500KB file was (P95:76, P99:233, P99.9:1170) in ms
 MAX_LOG_TO_KVP_LENGTH = 512000
-# Marker file to indicate whether cloud-init.log is pushed to KVP
-LOG_PUSHED_TO_KVP_INDEX_FILE = '/var/lib/cloud/instance/log_pushed_to_kvp_idx'
+# File to store the last byte of cloud-init.log that was pushed to KVP
+LOG_PUSHED_TO_KVP_INDEX_FILE = '/run/cloud-init/log_pushed_to_kvp_index'
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
@@ -231,8 +231,8 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
             seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH,
                              last_log_byte_pushed_to_kvp_index)
             report_diagnostic_event(
-                "Dumping last {} bytes of cloud-init.log file to KVP".format(
-                    f.tell() - seek_index),
+                "Dumping last {0} bytes of cloud-init.log file to KVP starting"
+                " from index: {1}".format(f.tell() - seek_index, seek_index),
                 logger_func=LOG.debug)
             f.seek(seek_index, os.SEEK_SET)
             report_compressed_event("cloud-init.log", f.read())
