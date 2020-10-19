@@ -461,6 +461,8 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
 class TestAzureDataSource(CiTestCase):
 
+    with_logs = True
+
     def setUp(self):
         super(TestAzureDataSource, self).setUp()
         self.tmp = self.tmp_dir()
@@ -655,10 +657,20 @@ scbus-1 on xpt0 bus 0
         data = {}
         dsrc = self._get_ds(data)
         self.m_is_platform_viable.return_value = False
-        ret = dsrc.get_data()
-        self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
-        self.assertFalse(ret)
-        self.assertFalse('agent_invoked' in data)
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc, '_report_failure') as m_report_failure:
+            ret = dsrc.get_data()
+            self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
+            self.assertFalse(ret)
+            self.assertFalse('agent_invoked' in data)
+            # Assert that for non viable platforms,
+            # there is no communication with the Azure datasource.
+            self.assertEqual(
+                0,
+                m_crawl_metadata.call_count)
+            self.assertEqual(
+                0,
+                m_report_failure.call_count)
 
     def test_platform_viable_but_no_devs_should_return_no_datasource(self):
         """Even if matching asset tag, no source should be found if no devs."""
@@ -699,10 +711,37 @@ scbus-1 on xpt0 bus 0
                 description=dsaz.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
 
     def test_crawl_metadata_exc_should_log_could_not_crawl_msg(self):
-        pass
+        data = {}
+        dsrc = self._get_ds(data)
+        self.m_is_platform_viable.return_value = True
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
+            m_crawl_metadata.side_effect = Exception
+            dsrc.get_data()
+            self.assertEqual(
+                1,
+                m_crawl_metadata.call_count)
+            self.assertIn(
+                "Could not crawl Azure metadata",
+                self.logs.getvalue())
 
     def test_crawl_metadata_exc_report_failure_exc_should_log_msg(self):
-        pass
+        data = {}
+        dsrc = self._get_ds(data)
+        self.m_is_platform_viable.return_value = True
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc, '_report_failure') as m_report_failure:
+            m_crawl_metadata.side_effect = Exception
+            m_report_failure.side_effect = Exception
+            dsrc.get_data()
+            self.assertEqual(
+                1,
+                m_crawl_metadata.call_count)
+            self.assertEqual(
+                1,
+                m_report_failure.call_count)
+            self.assertIn(
+                "Failed to report failure to Azure",
+                self.logs.getvalue())
 
     def test_basic_seed_dir(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
