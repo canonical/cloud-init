@@ -778,6 +778,54 @@ class TestGoalStateHealthReporter(CiTestCase):
             len(unescape(generated_health_report_description)),
             HEALTH_REPORT_DESCRIPTION_TRIM_LEN)
 
+    def test_trim_description_then_escape_conforms_to_len_limits_worst_case(
+            self):
+        """When unesacped characters are XML-escaped, the length increases.
+        Char      Escape String
+        <         &lt;
+        >         &gt;
+        "         &quot;
+        '         &apos;
+        &         &amp;
+
+        We (step 1) trim the health report XML's description field,
+        and then (step 2) XML-escape the health report XML's description field.
+
+        The health report XML's description field limit within cloud-init
+        is HEALTH_REPORT_DESCRIPTION_TRIM_LEN.
+
+        The Azure platform's limit on the health report XML's description field
+        is 4096 chars.
+
+        For worst-case chars, there is a 5x blowup in length
+        when the chars are XML-escaped.
+        ' and " when XML-escaped have a 5x blowup.
+
+        Ensure that (1) trimming and then (2) XML-escaping does not blow past
+        the Azure platform's limit for health report XML's description field
+        (4096 chars).
+        """
+        reporter = azure_helper.GoalStateHealthReporter(
+            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+            azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+            self.test_azure_endpoint)
+        long_err_msg = '\'\"' * 10000
+        generated_health_document = reporter.build_report(
+            incarnation=self.default_parameters['incarnation'],
+            container_id=self.default_parameters['container_id'],
+            instance_id=self.default_parameters['instance_id'],
+            status=self.provisioning_not_ready_status,
+            substatus=self.provisioning_failure_substatus,
+            description=long_err_msg)
+
+        generated_xroot = self._xroot_from_raw_xml(generated_health_document)
+        generated_health_report_description = self._text_from_xpath_in_xroot(
+            generated_xroot,
+            './Container/RoleInstanceList/Role/Health/Details/Description')
+        # The escaped description string should be less than
+        # the Azure platform limit for the escaped description string.
+        self.assertLessEqual(len(generated_health_report_description), 4096)
+
 
 class TestWALinuxAgentShim(CiTestCase):
 
