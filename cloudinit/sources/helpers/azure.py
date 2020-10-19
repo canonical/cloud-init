@@ -973,7 +973,7 @@ def report_failure_to_fabric(fallback_lease_file=None, dhcp_opts=None,
                              description=None):
     shim = WALinuxAgentShim(fallback_lease_file=fallback_lease_file,
                             dhcp_options=dhcp_opts)
-    if description is None:
+    if not description:
         description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
     try:
         shim.register_with_azure_and_report_failure(

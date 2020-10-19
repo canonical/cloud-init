@@ -1176,8 +1176,19 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
     def test_report_failure_to_fabric_with_no_desc_calls_shim_report_failure(
             self, shim):
         azure_helper.report_failure_to_fabric()
-        # default err message description to be shown to user if no description
-        # passed in
+        # default err message description should be shown to the user
+        # if no description is passed in
+        shim.return_value.register_with_azure_and_report_failure \
+            .assert_called_once_with(
+                description=azure_helper
+                .DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
+
+    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
+    def test_report_failure_to_fabric_empty_desc_calls_shim_report_failure(
+            self, shim):
+        azure_helper.report_failure_to_fabric(description='')
+        # default err message description should be shown to the user
+        # if an empty description is passed in
         shim.return_value.register_with_azure_and_report_failure \
             .assert_called_once_with(
                 description=azure_helper
