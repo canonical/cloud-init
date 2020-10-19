@@ -52,7 +52,6 @@ class AzureCloud(IntegrationCloud):
         return Azure(tag='azure-integration-test')
 
     def destroy(self):
-        super()
         self.cloud_instance.delete_resource_group()
 
 
