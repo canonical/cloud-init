@@ -673,14 +673,23 @@ scbus-1 on xpt0 bus 0
                 m_report_failure.call_count)
 
     def test_platform_viable_but_no_devs_should_return_no_datasource(self):
-        """Even if matching asset tag, no source should be found if no devs."""
+        """For platforms where the Azure platform is viable
+        (which is indicated by the matching asset tag),
+        the absence of any devs at all (devs == candidate sources
+        for crawling Azure datasource) is NOT expected.
+        Report failure to Azure as this is an unexpected fatal error.
+        """
         data = {}
         dsrc = self._get_ds(data)
-        self.m_is_platform_viable.return_value = True
-        ret = dsrc.get_data()
-        self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
-        self.assertFalse(ret)
-        self.assertFalse('agent_invoked' in data)
+        with mock.patch.object(dsrc, '_report_failure') as m_report_failure:
+            self.m_is_platform_viable.return_value = True
+            ret = dsrc.get_data()
+            self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
+            self.assertFalse(ret)
+            self.assertFalse('agent_invoked' in data)
+            self.assertEqual(
+                1,
+                m_report_failure.call_count)
 
     def test_crawl_metadata_exception_returns_no_datasource(self):
         data = {}
