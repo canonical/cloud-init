@@ -10,6 +10,7 @@ if we can install new packages during boot too.
 NOTE: the testcase for this looks for the command in history.log as
       /usr/bin/apt-get..., which is not how it always appears. it should
       instead look for just apt-get...
+"""
 
 import re
 import pytest
