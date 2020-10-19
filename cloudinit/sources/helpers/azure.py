@@ -976,7 +976,7 @@ def report_failure_to_fabric(fallback_lease_file=None, dhcp_opts=None,
     if description is None:
         description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
     try:
-        return shim.register_with_azure_and_report_failure(
+        shim.register_with_azure_and_report_failure(
             description=description)
     finally:
         shim.clean_up()
