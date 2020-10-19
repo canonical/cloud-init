@@ -1,6 +1,6 @@
 """Integration test for the ssh_authkey_fingerprints module.
 
-This modules specifies two test  regarding the ``ssh_authkey_fingerprints``
+This modules specifies two tests regarding the ``ssh_authkey_fingerprints``
 module. The first one verifies that we can disable the module behavior while
 the second one verifies if the module is working as expected if enabled.
 

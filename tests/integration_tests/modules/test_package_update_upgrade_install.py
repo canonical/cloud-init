@@ -10,9 +10,6 @@ if we can install new packages during boot too.
 NOTE: the testcase for this looks for the command in history.log as
       /usr/bin/apt-get..., which is not how it always appears. it should
       instead look for just apt-get...
-NOTE: this testcase should not require 'apt_up_out', and should look for a
-      call to 'apt-get upgrade' or 'apt-get dist-upgrade' in cloud-init.log
-      rather than 'Calculating upgrade...' in output."""
 
 import re
 import pytest
