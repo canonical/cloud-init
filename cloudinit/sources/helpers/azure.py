@@ -258,6 +258,31 @@ def _get_dhcp_endpoint_option_name():
     return azure_endpoint
 
 
+@azure_ds_telemetry_reporter
+def http_with_retries(*args, **kwargs):
+    exc = None
+    if 'timeout' not in kwargs:
+        kwargs['timeout'] = 5
+    # 240 attempts * 5 sec timeout for each attempt = 1200 secs (20 mins)
+    for attempt in range(240):
+        try:
+            ret = url_helper.readurl(*args, **kwargs)
+            if attempt + 1 >= 5:
+                report_diagnostic_event(
+                    'Delayed success in HTTP request with Azure endpoint. '
+                    'Succeeded after %d attempts.' % attempt + 1,
+                    logger_func=LOG.debug())
+            return ret
+        except Exception as e:
+            exc = e
+            if attempt % 20 == 0:  # this prevents overly-verbose logs
+                report_diagnostic_event(
+                    'HTTP request with Azure endpoint failed during '
+                    'attempt %d with exception %s' % (attempt + 1, e),
+                    logger_func=LOG.debug())
+    raise exc
+
+
 class AzureEndpointHttpClient:
 
     headers = {
@@ -276,40 +301,15 @@ class AzureEndpointHttpClient:
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
-        return self.http_with_retries(url, headers=headers)
+        return http_with_retries(url, headers=headers)
 
     def post(self, url, data=None, extra_headers=None):
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
             headers.update(extra_headers)
-        return self.http_with_retries(
+        return http_with_retries(
             url, data=data, headers=headers)
-
-    @azure_ds_telemetry_reporter
-    @staticmethod
-    def http_with_retries(*args, **kwargs):
-        exc = None
-        if 'timeout' not in kwargs:
-            kwargs['timeout'] = 5
-        # 240 attempts * 5 sec timeout for each attempt = 1200 secs (20 mins)
-        for attempt in range(240):
-            try:
-                ret = url_helper.readurl(*args, **kwargs)
-                if attempt + 1 >= 5:
-                    report_diagnostic_event(
-                        'Delayed success in HTTP request with Azure endpoint. '
-                        'Succeeded after %d attempts.' % attempt + 1,
-                        logger_func=LOG.debug())
-                return ret
-            except Exception as e:
-                exc = e
-                if attempt % 20 == 0:  # this prevents overly-verbose logs
-                    report_diagnostic_event(
-                        'HTTP request with Azure endpoint failed during '
-                        'attempt %d with exception %s' % (attempt + 1, e),
-                        logger_func=LOG.debug())
-        raise exc
 
 
 class InvalidGoalStateXMLException(Exception):
