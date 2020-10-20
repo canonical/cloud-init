@@ -144,7 +144,7 @@ class ProcessExecutionError(IOError):
 def subp(args, data=None, rcs=None, env=None, capture=True,
          combine_capture=False, shell=False,
          logstring=False, decode="replace", target=None, update_env=None,
-         status_cb=None):
+         status_cb=None, cwd=None):
     """Run a subprocess.
 
     :param args: command to run in a list. [cmd, arg1, arg2...]
@@ -181,6 +181,8 @@ def subp(args, data=None, rcs=None, env=None, capture=True,
     :param status_cb:
         call this fuction with a single string argument before starting
         and after finishing.
+    :param cwd:
+        change the working directory to cwd before executing the command.
 
     :return
         if not capturing, return is (None, None)
@@ -254,7 +256,7 @@ def subp(args, data=None, rcs=None, env=None, capture=True,
     try:
         sp = subprocess.Popen(bytes_args, stdout=stdout,
                               stderr=stderr, stdin=stdin,
-                              env=env, shell=shell)
+                              env=env, shell=shell, cwd=cwd)
         (out, err) = sp.communicate(data)
     except OSError as e:
         if status_cb:
