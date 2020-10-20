@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import os
 import re
 import unittest
@@ -272,8 +273,6 @@ class TestGoalStateParsing(CiTestCase):
 
 class TestAzureEndpointHttpClient(CiTestCase):
 
-    with_logs = True
-
     regular_headers = {
         'x-ms-agent-name': 'WALinuxAgent',
         'x-ms-version': '2012-11-30',
@@ -283,11 +282,8 @@ class TestAzureEndpointHttpClient(CiTestCase):
         super(TestAzureEndpointHttpClient, self).setUp()
         patches = ExitStack()
         self.addCleanup(patches.close)
-
         self.m_http_with_retries = patches.enter_context(
             mock.patch.object(azure_helper, 'http_with_retries'))
-        patches.enter_context(
-            mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
 
     def test_non_secure_get(self):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
@@ -374,32 +370,157 @@ class TestAzureEndpointHttpClient(CiTestCase):
 
 class TestAzureHelperHttpWithRetries(CiTestCase):
 
-    def test_http_with_retries_logs_exceptions(self):
-        pass
+    with_logs = True
+    attempts_threshold_for_long_delay = 5
+    max_readurl_attempts = 240
+    default_readurl_timeout = 5
 
-    def test_http_with_retries_logs_attempts_num_if_long_delay(self):
-        pass
+    def setUp(self):
+        super(TestAzureHelperHttpWithRetries, self).setUp()
+        patches = ExitStack()
+        self.addCleanup(patches.close)
 
-    def test_http_with_retries_propagates_readurl_exc(self):
-        pass
+        self.m_readurl = patches.enter_context(
+            mock.patch.object(
+                azure_helper.url_helper, 'readurl', mock.MagicMock()))
+        patches.enter_context(
+            mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
 
-    def test_http_with_retries_on_temporary_readurl_exc(self):
-        pass
+    def test_http_with_retries(self):
+        self.m_readurl.return_value = 'TestResp'
+        self.assertEqual(
+            azure_helper.http_with_retries('testurl'),
+            self.m_readurl.return_value)
+        self.assertEqual(self.m_readurl.call_count, 1)
 
-    def test_http_with_retries_adds_timeout_kwargs_if_not_present(self):
-        pass
+    def test_http_with_retries_propagates_readurl_exc_and_logs_exc(
+            self):
+        self.m_readurl.side_effect = SentinelException
 
-    def test_http_with_retries_does_not_add_timeout_kwargs_if_present(self):
-        pass
+        self.assertRaises(
+            SentinelException, azure_helper.http_with_retries, 'testurl')
+        self.assertEqual(self.m_readurl.call_count, self.max_readurl_attempts)
 
-    def test_http_with_retries_does_not_have_retries_kwargs_passed_to_readurl(
+        self.assertIsNotNone(
+            re.search(
+                r'HTTP request with Azure endpoint failed during attempt \d+ '
+                r'with exception:',
+                self.logs.getvalue()))
+        self.assertIsNotNone(
+            re.search(
+                r'HTTP request with Azure endpoint failed after \d+ attempts '
+                r'with exception:',
+                self.logs.getvalue()))
+        self.assertIsNone(
+            re.search(
+                r'Delayed success in HTTP request with Azure endpoint',
+                self.logs.getvalue()))
+
+    def test_http_with_retries_delayed_success_due_to_temporary_readurl_exc(
+            self):
+        self.m_readurl.side_effect = \
+            [SentinelException] * self.attempts_threshold_for_long_delay + \
+            ['TestResp']
+        self.m_readurl.return_value = 'TestResp'
+
+        response = azure_helper.http_with_retries('testurl')
+        self.assertEqual(
+            response,
+            self.m_readurl.return_value)
+        self.assertEqual(
+            self.m_readurl.call_count,
+            self.attempts_threshold_for_long_delay + 1)
+
+    def test_http_with_retries_long_delay_logs_long_delay_msg(self):
+        self.m_readurl.side_effect = \
+            [SentinelException] * self.attempts_threshold_for_long_delay + \
+            ['TestResp']
+        self.m_readurl.return_value = 'TestResp'
+
+        azure_helper.http_with_retries('testurl')
+
+        self.assertEqual(
+            self.m_readurl.call_count,
+            self.attempts_threshold_for_long_delay + 1)
+        self.assertIsNotNone(
+            re.search(
+                r'HTTP request with Azure endpoint failed during attempt \d+ '
+                r'with exception:',
+                self.logs.getvalue()))
+        self.assertIsNotNone(
+            re.search(
+                r'Delayed success in HTTP request with Azure endpoint\. '
+                r'Succeeded after \d+ attempts\.',
+                self.logs.getvalue()))
+
+    def test_http_with_retries_short_delay_does_not_log_long_delay_msg(self):
+        self.m_readurl.side_effect = \
+            [SentinelException] * \
+            (self.attempts_threshold_for_long_delay - 1) + \
+            ['TestResp']
+        self.m_readurl.return_value = 'TestResp'
+
+        azure_helper.http_with_retries('testurl')
+        self.assertEqual(
+            self.m_readurl.call_count,
+            self.attempts_threshold_for_long_delay)
+
+        self.assertIsNotNone(
+            re.search(
+                r'HTTP request with Azure endpoint failed during attempt \d+ '
+                r'with exception:',
+                self.logs.getvalue()))
+        self.assertIsNone(
+            re.search(
+                r'Delayed success in HTTP request with Azure endpoint\. '
+                r'Succeeded after \d+ attempts\.',
+                self.logs.getvalue()))
+
+    def test_http_with_retries_calls_url_helper_readurl_with_args_kwargs(self):
+        args = ['testurl']
+        kwargs = {
+            'headers': mock.MagicMock(),
+            'data': mock.MagicMock(),
+            # timeout kwarg should not be modified or deleted if present
+            'timeout': mock.MagicMock()
+        }
+        azure_helper.http_with_retries(*args, **kwargs)
+        self.m_readurl.assert_called_once_with(*args, **kwargs)
+
+    def test_http_with_retries_adds_timeout_kwarg_if_not_present(self):
+        args = ['testurl']
+        kwargs = {
+            'headers': mock.MagicMock(),
+            'data': mock.MagicMock()
+        }
+        expected_kwargs = copy.deepcopy(kwargs)
+        expected_kwargs['timeout'] = self.default_readurl_timeout
+
+        azure_helper.http_with_retries(*args, **kwargs)
+        self.m_readurl.assert_called_once_with(*args, **expected_kwargs)
+        print(self.m_readurl.call_args.kwargs)
+
+    def test_http_with_retries_deletes_retries_kwargs_passed_in(
             self):
         """http_with_retries already implements retry logic,
-        so url_helper.readurl does not need to have retries.
-
-        retries kwarg should not be present.
-        infinite kwarg should not be present. If present, it should be False.
+        so url_helper.readurl should not have retries.
+        http_with_retries should delete kwargs that
+        cause url_helper.readurl to retry.
         """
+        args = ['testurl']
+        kwargs = {
+            'headers': mock.MagicMock(),
+            'data': mock.MagicMock(),
+            'timeout': mock.MagicMock(),
+            'retries': mock.MagicMock(),
+            'infinite': mock.MagicMock()
+        }
+        expected_kwargs = copy.deepcopy(kwargs)
+        expected_kwargs.pop('retries', None)
+        expected_kwargs.pop('infinite', None)
+
+        azure_helper.http_with_retries(*args, **kwargs)
+        self.m_readurl.assert_called_once_with(*args, **expected_kwargs)
 
 
 class TestOpenSSLManager(CiTestCase):

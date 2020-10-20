@@ -259,27 +259,51 @@ def _get_dhcp_endpoint_option_name():
 
 
 @azure_ds_telemetry_reporter
-def http_with_retries(*args, **kwargs):
+def http_with_retries(*args, **kwargs) -> str:
     exc = None
+
+    attempts_threshold_for_long_delay = 5
+    max_readurl_attempts = 240
+    default_readurl_timeout = 5
+
     if 'timeout' not in kwargs:
-        kwargs['timeout'] = 5
-    # 240 attempts * 5 sec timeout for each attempt = 1200 secs (20 mins)
-    for attempt in range(240):
+        kwargs['timeout'] = default_readurl_timeout
+
+    # remove kwargs that cause url_helper.readurl to retry,
+    # since we are already implementing our own retry logic.
+    if 'retries' in kwargs:
+        kwargs.pop('retries', None)
+        LOG.warning(
+            'retries kwarg passed in to Azure helper http_with_retries')
+    if 'infinite' in kwargs:
+        kwargs.pop('infinite', None)
+        LOG.warning(
+            'infinite kwarg passed in to Azure helper http_with_retries')
+
+    for attempt in range(max_readurl_attempts):
         try:
             ret = url_helper.readurl(*args, **kwargs)
-            if attempt + 1 >= 5:
+
+            if attempt + 1 > attempts_threshold_for_long_delay:
                 report_diagnostic_event(
                     'Delayed success in HTTP request with Azure endpoint. '
-                    'Succeeded after %d attempts.' % attempt + 1,
-                    logger_func=LOG.debug())
+                    'Succeeded after %d attempts.' % (attempt + 1),
+                    logger_func=LOG.debug)
+
             return ret
+
         except Exception as e:
             exc = e
             if attempt % 20 == 0:  # this prevents overly-verbose logs
                 report_diagnostic_event(
                     'HTTP request with Azure endpoint failed during '
-                    'attempt %d with exception %s' % (attempt + 1, e),
-                    logger_func=LOG.debug())
+                    'attempt %d with exception: %s' % (attempt + 1, e),
+                    logger_func=LOG.debug)
+
+    report_diagnostic_event(
+        'HTTP request with Azure endpoint failed after %d attempts '
+        'with exception: %s' % (max_readurl_attempts, exc),
+        logger_func=LOG.error)
     raise exc
 
 
