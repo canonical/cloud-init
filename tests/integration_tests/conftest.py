@@ -48,6 +48,7 @@ def setup_image():
     """
     client = dynamic_client()
     log.info('Setting up environment for %s', client.datasource)
+    client.emit_settings_to_log()
     if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
         pass  # that was easy
     elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
