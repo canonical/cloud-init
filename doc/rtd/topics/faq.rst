@@ -229,11 +229,11 @@ custom network config.
 cloud-localds
 -------------
 
-The `cloud-localds` command generates a disk with user supplied data. The
-NoCloud datasouce allows users to provide their own user data, metadata, or
-network configuration directly to an instance without running a network
-service. This is helpful for launching local cloud images with QEMU for
-example.
+The `cloud-localds` command from the cloud-utils generates a disk with user
+supplied data. The NoCloud datasouce allows users to provide their own user
+data, metadata, or network configuration directly to an instance without
+running a network service. This is helpful for launching local cloud images
+with QEMU for example.
 
 The following is an example of creating the local disk using the cloud-localds
 command:
@@ -261,6 +261,18 @@ cloud-init. Below is an example of passing the seed.img with QEMU:
         -hdb seed.img
 
 The now booted image will allow for login using the password provided above.
+
+For additional configuration, users can provide much more detailed
+configuration, including network configuration and metadata:
+
+.. code-block:: shell-session
+
+    $ cloud-localds --network-config=network-config-v2.yaml \
+      seed.img userdata.yaml metadata.yaml
+
+See the :ref:`network_config_v2` page for details on the format and config of
+network configuration. To learn more about the possible values for metadata,
+check out the :ref:`nocloud` page.
 
 Where can I learn more?
 ========================================
