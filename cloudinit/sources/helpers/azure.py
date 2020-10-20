@@ -50,7 +50,9 @@ azure_ds_reporter = events.ReportEventStack(
     reporting_enabled=True)
 
 DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE = (
-    'The VM encountered an error during provisioning.')
+    'The VM encountered an error during deployment. '
+    'Please visit https://aka.ms/linuxprovisioningerror '
+    'for more information on remediation.')
 
 
 def azure_ds_telemetry_reporter(func):
