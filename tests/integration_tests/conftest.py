@@ -48,6 +48,7 @@ def setup_image():
     """
     client = dynamic_client()
     log.info('Setting up environment for %s', client.datasource)
+    client.emit_settings_to_log()
     if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
         pass  # that was easy
     elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
@@ -104,3 +105,29 @@ def class_client(request, fixture_utils):
     """Provide a client that runs once per class."""
     with _client(request, fixture_utils) as client:
         yield client
+
+
+def pytest_assertrepr_compare(op, left, right):
+    """Custom integration test assertion explanations.
+
+    See
+    https://docs.pytest.org/en/stable/assert.html#defining-your-own-explanation-for-failed-assertions
+    for pytest's documentation.
+    """
+    if op == "not in" and isinstance(left, str) and isinstance(right, str):
+        # This stanza emits an improved assertion message if we're testing for
+        # the presence of a string within a cloud-init log: it will report only
+        # the specific lines containing the string (instead of the full log,
+        # the default behaviour).
+        potential_log_lines = right.splitlines()
+        first_line = potential_log_lines[0]
+        if "DEBUG" in first_line and "Cloud-init" in first_line:
+            # We are looking at a cloud-init log, so just pick out the relevant
+            # lines
+            found_lines = [
+                line for line in potential_log_lines if left in line
+            ]
+            return [
+                '"{}" not in cloud-init.log string; unexpectedly found on'
+                " these lines:".format(left)
+            ] + found_lines

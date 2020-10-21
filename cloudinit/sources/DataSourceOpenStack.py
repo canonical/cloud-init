@@ -32,7 +32,8 @@ DMI_ASSET_TAG_OPENTELEKOM = 'OpenTelekomCloud'
 # See github.com/sapcc/helm-charts/blob/master/openstack/nova/values.yaml
 # -> compute.defaults.vmware.smbios_asset_tag for this value
 DMI_ASSET_TAG_SAPCCLOUD = 'SAP CCloud VM'
-VALID_DMI_ASSET_TAGS = [DMI_ASSET_TAG_OPENTELEKOM, DMI_ASSET_TAG_SAPCCLOUD]
+VALID_DMI_ASSET_TAGS = VALID_DMI_PRODUCT_NAMES
+VALID_DMI_ASSET_TAGS += [DMI_ASSET_TAG_OPENTELEKOM, DMI_ASSET_TAG_SAPCCLOUD]
 
 
 class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):

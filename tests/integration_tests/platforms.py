@@ -28,15 +28,25 @@ class IntegrationClient(ABC):
     use_sudo = True
     current_image = None
 
-    def __init__(self, user_data=None, instance_type=None, wait=True,
+    def __init__(self, user_data=None, instance_type=None,
                  settings=integration_settings, launch_kwargs=None):
         self.user_data = user_data
         self.instance_type = settings.INSTANCE_TYPE if \
             instance_type is None else instance_type
-        self.wait = wait
         self.settings = settings
         self.launch_kwargs = launch_kwargs if launch_kwargs else {}
         self.client = self._get_client()
+
+    def emit_settings_to_log(self) -> None:
+        log.info(
+            "\n".join(
+                ["Settings:"]
+                + [
+                    "{}={}".format(key, getattr(self.settings, key))
+                    for key in sorted(self.settings.current_settings)
+                ]
+            )
+        )
 
     @abstractmethod
     def _get_client(self):
@@ -65,12 +75,13 @@ class IntegrationClient(ABC):
         launch_args = {
             'image_id': image_id,
             'user_data': self.user_data,
-            'wait': self.wait,
+            'wait': False,
         }
         if self.instance_type:
             launch_args['instance_type'] = self.instance_type
         launch_args.update(self.launch_kwargs)
         self.instance = self.client.launch(**launch_args)
+        self.instance.wait(raise_on_cloudinit_failure=False)
         log.info('Launched instance: %s', self.instance)
 
     def destroy(self):
@@ -217,7 +228,7 @@ class LxdContainerClient(IntegrationClient):
 client_name_to_class = {
     'ec2': Ec2Client,
     'gce': GceClient,
-    # 'azure': AzureClient,  # Not supported yet
+    'azure': AzureClient,
     'oci': OciClient,
     'lxd_container': LxdContainerClient
 }

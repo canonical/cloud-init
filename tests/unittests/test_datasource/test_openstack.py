@@ -548,6 +548,36 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(accept_oracle=False),
             'Expected detect_openstack == False.')
 
+    def _test_detect_openstack_nova_compute_chassis_asset_tag(self, m_dmi,
+                                                              m_is_x86,
+                                                              chassis_tag):
+        """Return True on OpenStack reporting generic asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_dmi_read(dmi_key):
+            if dmi_key == 'system-product-name':
+                return 'Generic OpenStack Platform'
+            if dmi_key == 'chassis-asset-tag':
+                return chassis_tag
+            assert False, 'Unexpected dmi read of %s' % dmi_key
+
+        m_dmi.side_effect = fake_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            'Expected detect_openstack == True on Generic OpenStack Platform')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    def test_detect_openstack_nova_chassis_asset_tag(self, m_dmi,
+                                                     m_is_x86):
+        self._test_detect_openstack_nova_compute_chassis_asset_tag(
+            m_dmi, m_is_x86, 'OpenStack Nova')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    def test_detect_openstack_compute_chassis_asset_tag(self, m_dmi,
+                                                        m_is_x86):
+        self._test_detect_openstack_nova_compute_chassis_asset_tag(
+            m_dmi, m_is_x86, 'OpenStack Compute')
+
     @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
     @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
     def test_detect_openstack_by_proc_1_environ(self, m_dmi, m_proc_env,
