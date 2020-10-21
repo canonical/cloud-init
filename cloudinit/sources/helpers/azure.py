@@ -9,6 +9,7 @@ import struct
 import time
 import textwrap
 import zlib
+from errno import ENOENT
 
 from cloudinit.settings import CFG_BUILTIN
 from cloudinit.net import dhcp
@@ -216,20 +217,13 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
     based on the file size.
     If called more than once, it continues from where it left off."""
 
-    last_log_byte_pushed_to_kvp_index = 0
-    try:
-        with open(LOG_PUSHED_TO_KVP_INDEX_FILE, "r") as f:
-            last_log_byte_pushed_to_kvp_index = int(f.read())
-    except Exception as ex:
-        report_diagnostic_event("Failed to get the last log byte pushed to KVP"
-                                ": %s." % repr(ex), logger_func=LOG.debug)
+    start_index = get_last_log_byte_pushed_to_kvp_index()
 
     LOG.debug("Dumping cloud-init.log file to KVP")
     try:
         with open(file_name, "rb") as f:
             f.seek(0, os.SEEK_END)
-            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH,
-                             last_log_byte_pushed_to_kvp_index)
+            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, start_index)
             report_diagnostic_event(
                 "Dumping last {0} bytes of cloud-init.log file to KVP starting"
                 " from index: {1}".format(f.tell() - seek_index, seek_index),
@@ -241,6 +235,26 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
         report_diagnostic_event(
             "Exception when dumping log file: %s" % repr(ex),
             logger_func=LOG.warning)
+
+
+@azure_ds_telemetry_reporter
+def get_last_log_byte_pushed_to_kvp_index():
+    try:
+        with open(LOG_PUSHED_TO_KVP_INDEX_FILE, "r") as f:
+            return int(f.read())
+    except IOError as e:
+        if e.errno != ENOENT:
+            report_diagnostic_event("Reading LOG_PUSHED_TO_KVP_INDEX_FILE"
+                                    " failed: %s." % repr(e),
+                                    logger_func=LOG.warning)
+    except ValueError as e:
+        report_diagnostic_event("Invalid value in LOG_PUSHED_TO_KVP_INDEX_FILE"
+                                ": %s." % repr(e),
+                                logger_func=LOG.warning)
+    except Exception as e:
+        report_diagnostic_event("Failed to get the last log byte pushed to KVP"
+                                ": %s." % repr(e), logger_func=LOG.warning)
+    return 0
 
 
 @contextmanager
