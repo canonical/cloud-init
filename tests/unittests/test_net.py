@@ -752,7 +752,9 @@ IPADDR=172.19.1.34
 IPV6ADDR=2001:DB8::10/64
 IPV6ADDR_SECONDARIES="2001:DB9::10/64 2001:DB10::10/64"
 IPV6INIT=yes
+IPV6_AUTOCONF=no
 IPV6_DEFAULTGW=2001:DB8::1
+IPV6_FORCE_ACCEPT_RA=no
 NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
@@ -1027,6 +1029,8 @@ NETWORK_CONFIGS = {
                 IPADDR=192.168.14.2
                 IPV6ADDR=2001:1::1/64
                 IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
                 NETMASK=255.255.255.0
                 NM_CONTROLLED=no
                 ONBOOT=yes
@@ -1250,6 +1254,33 @@ NETWORK_CONFIGS = {
                 ONBOOT=yes
                 TYPE=Ethernet
                 USERCTL=no
+            """),
+        },
+    },
+    'static6': {
+        'yaml': textwrap.dedent("""\
+        version: 1
+        config:
+          - type: 'physical'
+            name: 'iface0'
+            accept-ra: 'no'
+            subnets:
+            - type: 'static6'
+              address: 2001:1::1/64
+    """).rstrip(' '),
+        'expected_sysconfig_rhel': {
+            'ifcfg-iface0': textwrap.dedent("""\
+            BOOTPROTO=none
+            DEVICE=iface0
+            IPV6ADDR=2001:1::1/64
+            IPV6INIT=yes
+            IPV6_AUTOCONF=no
+            IPV6_FORCE_ACCEPT_RA=no
+            DEVICE=iface0
+            NM_CONTROLLED=no
+            ONBOOT=yes
+            TYPE=Ethernet
+            USERCTL=no
             """),
         },
     },
@@ -1643,6 +1674,8 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 IPADDR=192.168.14.2
                 IPV6ADDR=2001:1::1/64
                 IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
                 IPV6_DEFAULTGW=2001:4800:78ff:1b::1
                 MACADDR=bb:bb:bb:bb:bb:aa
                 NETMASK=255.255.255.0
@@ -2172,6 +2205,8 @@ iface bond0 inet6 static
         IPADDR1=192.168.1.2
         IPV6ADDR=2001:1::1/92
         IPV6INIT=yes
+        IPV6_AUTOCONF=no
+        IPV6_FORCE_ACCEPT_RA=no
         MTU=9000
         NETMASK=255.255.255.0
         NETMASK1=255.255.255.0
@@ -2277,6 +2312,8 @@ iface bond0 inet6 static
                 IPADDR1=192.168.1.2
                 IPV6ADDR=2001:1::bbbb/96
                 IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
                 IPV6_DEFAULTGW=2001:1::1
                 MTU=2222
                 NETMASK=255.255.255.0
@@ -2360,6 +2397,8 @@ iface bond0 inet6 static
                 HWADDR=52:54:00:12:34:00
                 IPV6ADDR=2001:1::100/96
                 IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
@@ -2372,6 +2411,8 @@ iface bond0 inet6 static
                 HWADDR=52:54:00:12:34:01
                 IPV6ADDR=2001:1::101/96
                 IPV6INIT=yes
+                IPV6_AUTOCONF=no
+                IPV6_FORCE_ACCEPT_RA=no
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet
@@ -3178,6 +3219,61 @@ USERCTL=no
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
+    def test_stattic6_from_json(self):
+        net_json = {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [{
+                "network_id": "dacd568d-5be6-4786-91fe-750c374b78b4",
+                "type": "ipv4", "netmask": "255.255.252.0",
+                "link": "tap1a81968a-79",
+                "routes": [{
+                    "netmask": "0.0.0.0",
+                    "network": "0.0.0.0",
+                    "gateway": "172.19.3.254",
+                }, {
+                    "netmask": "0.0.0.0",  # A second default gateway
+                    "network": "0.0.0.0",
+                    "gateway": "172.20.3.254",
+                }],
+                "ip_address": "172.19.1.34", "id": "network0"
+            }, {
+                "network_id": "mgmt",
+                "netmask": "ffff:ffff:ffff:ffff::",
+                "link": "interface1",
+                "mode": "link-local",
+                "routes": [],
+                "ip_address": "fe80::c096:67ff:fe5c:6e84",
+                "type": "static6",
+                "id": "network1",
+                "services": [],
+                "accept-ra": "false"
+            }],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None, "type": "bridge", "id":
+                    "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
+                },
+            ],
+        }
+        macs = {'fa:16:3e:ed:9a:59': 'eth0'}
+        render_dir = self.tmp_dir()
+        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
+        renderer = self._get_renderer()
+        with self.assertRaises(ValueError):
+            renderer.render_network_state(ns, target=render_dir)
+        self.assertEqual([], os.listdir(render_dir))
+
+    def test_static6_from_yaml(self):
+        entry = NETWORK_CONFIGS['static6']
+        found = self._render_and_read(network_config=yaml.load(
+            entry['yaml']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
     def test_dhcpv6_reject_ra_config_v2(self):
         entry = NETWORK_CONFIGS['dhcpv6_reject_ra']
         found = self._render_and_read(network_config=yaml.load(
@@ -3295,6 +3391,8 @@ USERCTL=no
                    IPADDR=192.168.42.100
                    IPV6ADDR=2001:db8::100/32
                    IPV6INIT=yes
+                   IPV6_AUTOCONF=no
+                   IPV6_FORCE_ACCEPT_RA=no
                    IPV6_DEFAULTGW=2001:db8::1
                    NETMASK=255.255.255.0
                    NM_CONTROLLED=no
