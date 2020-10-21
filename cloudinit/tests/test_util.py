@@ -777,20 +777,34 @@ class TestEnsureFile:
 
     def test_parameters_passed_through(self, m_write_file):
         """Test the parameters in the signature are passed to write_file."""
-        util.ensure_file(mock.sentinel.path, mode=mock.sentinel.mode)
+        util.ensure_file(
+            mock.sentinel.path,
+            mode=mock.sentinel.mode,
+            preserve_mode=mock.sentinel.preserve_mode,
+        )
 
         assert 1 == m_write_file.call_count
         args, kwargs = m_write_file.call_args
         assert (mock.sentinel.path,) == args
         assert mock.sentinel.mode == kwargs["mode"]
+        assert mock.sentinel.preserve_mode == kwargs["preserve_mode"]
 
-    def test_mode_defaults_to_world_readable(self, m_write_file):
+    @pytest.mark.parametrize(
+        "kwarg,expected",
+        [
+            # Files should be world-readable by default
+            ("mode", 0o644),
+            # The previous behaviour of not preserving mode should be retained
+            ("preserve_mode", False),
+        ],
+    )
+    def test_defaults(self, m_write_file, kwarg, expected):
         """Test that mode defaults to ensuring world-readable files."""
         util.ensure_file(mock.sentinel.path)
 
         assert 1 == m_write_file.call_count
         args, kwargs = m_write_file.call_args
-        assert 0o644 == kwargs["mode"]
+        assert expected == kwargs[kwarg]
 
     def test_static_parameters_are_passed(self, m_write_file):
         """Test that the static write_files parameters are passed correctly."""
