@@ -288,18 +288,18 @@ class TestAzureEndpointHttpClient(CiTestCase):
     def test_non_secure_get(self):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         url = 'MyTestUrl'
-        response = client.get(url=url, secure=False)
+        response = client.get(url, secure=False)
         self.assertEqual(1, self.m_http_with_retries.call_count)
         self.assertEqual(self.m_http_with_retries.return_value, response)
         self.assertEqual(
-            mock.call(url=url, headers=self.regular_headers),
+            mock.call(url, headers=self.regular_headers),
             self.m_http_with_retries.call_args)
 
     def test_non_secure_get_raises_exception(self):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         url = 'MyTestUrl'
         self.m_http_with_retries.side_effect = SentinelException
-        self.assertRaises(SentinelException, client.get, url=url, secure=False)
+        self.assertRaises(SentinelException, client.get, url, secure=False)
         self.assertEqual(1, self.m_http_with_retries.call_count)
 
     def test_secure_get(self):
@@ -311,18 +311,18 @@ class TestAzureEndpointHttpClient(CiTestCase):
             "x-ms-guest-agent-public-x509-cert": m_certificate,
         })
         client = azure_helper.AzureEndpointHttpClient(m_certificate)
-        response = client.get(url=url, secure=True)
+        response = client.get(url, secure=True)
         self.assertEqual(1, self.m_http_with_retries.call_count)
         self.assertEqual(self.m_http_with_retries.return_value, response)
         self.assertEqual(
-            mock.call(url=url, headers=expected_headers),
+            mock.call(url, headers=expected_headers),
             self.m_http_with_retries.call_args)
 
     def test_secure_get_raises_exception(self):
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         self.m_http_with_retries.side_effect = SentinelException
-        self.assertRaises(SentinelException, client.get, url=url, secure=True)
+        self.assertRaises(SentinelException, client.get, url, secure=True)
         self.assertEqual(1, self.m_http_with_retries.call_count)
 
     def test_post(self):
@@ -333,7 +333,7 @@ class TestAzureEndpointHttpClient(CiTestCase):
         self.assertEqual(1, self.m_http_with_retries.call_count)
         self.assertEqual(self.m_http_with_retries.return_value, response)
         self.assertEqual(
-            mock.call(url=url, data=m_data, headers=self.regular_headers),
+            mock.call(url, data=m_data, headers=self.regular_headers),
             self.m_http_with_retries.call_args)
 
     def test_post_raises_exception(self):
@@ -341,19 +341,19 @@ class TestAzureEndpointHttpClient(CiTestCase):
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         self.m_http_with_retries.side_effect = SentinelException
-        self.assertRaises(SentinelException, client.post, url=url, data=m_data)
+        self.assertRaises(SentinelException, client.post, url, data=m_data)
         self.assertEqual(1, self.m_http_with_retries.call_count)
 
     def test_post_with_extra_headers(self):
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         extra_headers = {'test': 'header'}
-        client.post(url=url, extra_headers=extra_headers)
+        client.post(url, extra_headers=extra_headers)
         expected_headers = self.regular_headers.copy()
         expected_headers.update(extra_headers)
         self.assertEqual(1, self.m_http_with_retries.call_count)
         self.assertEqual(
-            mock.call(url=mock.ANY, data=mock.ANY, headers=expected_headers),
+            mock.call(url, data=mock.ANY, headers=expected_headers),
             self.m_http_with_retries.call_args)
 
     def test_post_with_sleep_with_extra_headers_raises_exception(self):
@@ -364,7 +364,7 @@ class TestAzureEndpointHttpClient(CiTestCase):
         self.m_http_with_retries.side_effect = SentinelException
         self.assertRaises(
             SentinelException, client.post,
-            url=url, data=m_data, extra_headers=extra_headers)
+            url, data=m_data, extra_headers=extra_headers)
         self.assertEqual(1, self.m_http_with_retries.call_count)
 
 
@@ -390,7 +390,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
     def test_http_with_retries(self):
         self.m_readurl.return_value = 'TestResp'
         self.assertEqual(
-            azure_helper.http_with_retries(url='testurl'),
+            azure_helper.http_with_retries('testurl'),
             self.m_readurl.return_value)
         self.assertEqual(self.m_readurl.call_count, 1)
 
@@ -399,7 +399,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         self.m_readurl.side_effect = SentinelException
 
         self.assertRaises(
-            SentinelException, azure_helper.http_with_retries, url='testurl')
+            SentinelException, azure_helper.http_with_retries, 'testurl')
         self.assertEqual(self.m_readurl.call_count, self.max_readurl_attempts)
 
         self.assertIsNotNone(
@@ -420,7 +420,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
             ['TestResp']
         self.m_readurl.return_value = 'TestResp'
 
-        response = azure_helper.http_with_retries(url='testurl')
+        response = azure_helper.http_with_retries('testurl')
         self.assertEqual(
             response,
             self.m_readurl.return_value)
@@ -434,7 +434,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
             ['TestResp']
         self.m_readurl.return_value = 'TestResp'
 
-        azure_helper.http_with_retries(url='testurl')
+        azure_helper.http_with_retries('testurl')
 
         self.assertEqual(
             self.m_readurl.call_count,
@@ -458,7 +458,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
             ['TestResp']
         self.m_readurl.return_value = 'TestResp'
 
-        azure_helper.http_with_retries(url='testurl')
+        azure_helper.http_with_retries('testurl')
         self.assertEqual(
             self.m_readurl.call_count,
             self.periodic_logging_attempts)
@@ -475,27 +475,27 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
                 self.logs.getvalue()))
 
     def test_http_with_retries_calls_url_helper_readurl_with_args_kwargs(self):
+        testurl = mock.MagicMock()
         kwargs = {
-            'url': mock.MagicMock(),
             'headers': mock.MagicMock(),
             'data': mock.MagicMock(),
             # timeout kwarg should not be modified or deleted if present
             'timeout': mock.MagicMock()
         }
-        azure_helper.http_with_retries(**kwargs)
-        self.m_readurl.assert_called_once_with(**kwargs)
+        azure_helper.http_with_retries(testurl, **kwargs)
+        self.m_readurl.assert_called_once_with(testurl, **kwargs)
 
     def test_http_with_retries_adds_timeout_kwarg_if_not_present(self):
+        testurl = mock.MagicMock()
         kwargs = {
-            'url': mock.MagicMock(),
             'headers': mock.MagicMock(),
             'data': mock.MagicMock()
         }
         expected_kwargs = copy.deepcopy(kwargs)
         expected_kwargs['timeout'] = self.default_readurl_timeout
 
-        azure_helper.http_with_retries(**kwargs)
-        self.m_readurl.assert_called_once_with(**expected_kwargs)
+        azure_helper.http_with_retries(testurl, **kwargs)
+        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
         print(self.m_readurl.call_args.kwargs)
 
     def test_http_with_retries_deletes_retries_kwargs_passed_in(
@@ -505,8 +505,8 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         http_with_retries should delete kwargs that
         cause url_helper.readurl to retry.
         """
+        testurl = mock.MagicMock()
         kwargs = {
-            'url': mock.MagicMock(),
             'headers': mock.MagicMock(),
             'data': mock.MagicMock(),
             'timeout': mock.MagicMock(),
@@ -517,8 +517,8 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         expected_kwargs.pop('retries', None)
         expected_kwargs.pop('infinite', None)
 
-        azure_helper.http_with_retries(**kwargs)
-        self.m_readurl.assert_called_once_with(**expected_kwargs)
+        azure_helper.http_with_retries(testurl, **kwargs)
+        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
 
 
 class TestOpenSSLManager(CiTestCase):

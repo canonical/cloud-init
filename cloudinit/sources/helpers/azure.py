@@ -259,20 +259,12 @@ def _get_dhcp_endpoint_option_name():
 
 
 @azure_ds_telemetry_reporter
-def http_with_retries(*args, **kwargs) -> str:
+def http_with_retries(url, **kwargs) -> str:
     exc = None
 
     max_readurl_attempts = 240
     default_readurl_timeout = 5
     periodic_logging_attempts = 12
-
-    if 'url' not in kwargs:
-        # This shouldn't happen
-        msg = (
-            'RuntimeError: Missing url in kwargs '
-            'for communication with Azure endpoint.')
-        report_diagnostic_event(msg, logger_func=LOG.error)
-        raise RuntimeError(msg)
 
     if 'timeout' not in kwargs:
         kwargs['timeout'] = default_readurl_timeout
@@ -290,11 +282,11 @@ def http_with_retries(*args, **kwargs) -> str:
 
     for attempt in range(max_readurl_attempts):
         try:
-            ret = url_helper.readurl(*args, **kwargs)
+            ret = url_helper.readurl(url, **kwargs)
 
             report_diagnostic_event(
                 'Successful HTTP request with Azure endpoint %s after '
-                '%d attempts' % (kwargs['url'], attempt + 1),
+                '%d attempts' % (url, attempt + 1),
                 logger_func=LOG.debug)
 
             return ret
@@ -305,7 +297,7 @@ def http_with_retries(*args, **kwargs) -> str:
                 report_diagnostic_event(
                     'Failed HTTP request with Azure endpoint %s during '
                     'attempt %d with exception: %s' %
-                    (kwargs['url'], attempt + 1, e),
+                    (url, attempt + 1, e),
                     logger_func=LOG.debug)
 
     raise exc
@@ -329,7 +321,7 @@ class AzureEndpointHttpClient:
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
-        return http_with_retries(url=url, headers=headers)
+        return http_with_retries(url, headers=headers)
 
     def post(self, url, data=None, extra_headers=None):
         headers = self.headers
@@ -337,7 +329,7 @@ class AzureEndpointHttpClient:
             headers = self.headers.copy()
             headers.update(extra_headers)
         return http_with_retries(
-            url=url, data=data, headers=headers)
+            url, data=data, headers=headers)
 
 
 class InvalidGoalStateXMLException(Exception):
