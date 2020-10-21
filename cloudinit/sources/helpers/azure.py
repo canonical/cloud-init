@@ -259,11 +259,12 @@ def _get_dhcp_endpoint_option_name():
 
 
 @azure_ds_telemetry_reporter
-def http_with_retries(**kwargs) -> str:
+def http_with_retries(*args, **kwargs) -> str:
     exc = None
 
     max_readurl_attempts = 240
     default_readurl_timeout = 5
+    periodic_logging_attempts = 12
 
     if 'url' not in kwargs:
         # This shouldn't happen
@@ -289,20 +290,20 @@ def http_with_retries(**kwargs) -> str:
 
     for attempt in range(max_readurl_attempts):
         try:
-            ret = url_helper.readurl(**kwargs)
+            ret = url_helper.readurl(*args, **kwargs)
 
             report_diagnostic_event(
-                'Successfully communicated with %s after %d attempts.' %
-                (kwargs['url'], attempt + 1),
+                'Successful HTTP request with Azure endpoint %s after '
+                '%d attempts' % (kwargs['url'], attempt + 1),
                 logger_func=LOG.debug)
 
             return ret
 
         except Exception as e:
             exc = e
-            if attempt % 12 == 0:  # this prevents overly-verbose logs
+            if (attempt + 1) % periodic_logging_attempts == 0:
                 report_diagnostic_event(
-                    'HTTP request failed with Azure endpoint %s during '
+                    'Failed HTTP request with Azure endpoint %s during '
                     'attempt %d with exception: %s' %
                     (kwargs['url'], attempt + 1, e),
                     logger_func=LOG.debug)
