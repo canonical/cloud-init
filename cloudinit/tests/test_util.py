@@ -771,4 +771,35 @@ class TestMountCb:
         ] == callback.call_args_list
 
 
+@mock.patch("cloudinit.util.write_file")
+class TestEnsureFile:
+    """Tests for ``cloudinit.util.ensure_file``."""
+
+    def test_parameters_passed_through(self, m_write_file):
+        """Test the parameters in the signature are passed to write_file."""
+        util.ensure_file(mock.sentinel.path, mode=mock.sentinel.mode)
+
+        assert 1 == m_write_file.call_count
+        args, kwargs = m_write_file.call_args
+        assert (mock.sentinel.path,) == args
+        assert mock.sentinel.mode == kwargs["mode"]
+
+    def test_mode_defaults_to_world_readable(self, m_write_file):
+        """Test that mode defaults to ensuring world-readable files."""
+        util.ensure_file(mock.sentinel.path)
+
+        assert 1 == m_write_file.call_count
+        args, kwargs = m_write_file.call_args
+        assert 0o644 == kwargs["mode"]
+
+    def test_static_parameters_are_passed(self, m_write_file):
+        """Test that the static write_files parameters are passed correctly."""
+        util.ensure_file(mock.sentinel.path)
+
+        assert 1 == m_write_file.call_count
+        args, kwargs = m_write_file.call_args
+        assert "" == kwargs["content"]
+        assert "ab" == kwargs["omode"]
+
+
 # vi: ts=4 expandtab
