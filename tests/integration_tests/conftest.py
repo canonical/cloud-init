@@ -6,11 +6,9 @@ import sys
 from contextlib import contextmanager
 
 from tests.integration_tests import integration_settings
-from tests.integration_tests.instances import LxdContainerInstance
-from tests.integration_tests.platform import (
-    dynamic_instance,
+from tests.integration_tests.instances import IntegrationLxdContainerInstance
+from tests.integration_tests.platforms import (
     session_cloud,
-    initialize_session_client,
     platforms
 )
 
@@ -45,9 +43,9 @@ def disable_subp_usage(request):
 
 @pytest.yield_fixture(scope='session', autouse=True)
 def setup_and_destroy_session():
-    initialize_session_client()
+    cloud = session_cloud()
     yield
-    session_cloud().destroy()
+    cloud.destroy()
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -56,31 +54,31 @@ def setup_image(setup_and_destroy_session):
 
     So we can launch instances / run tests with the correct image
     """
-    client = dynamic_instance()
-    log.info('Setting up environment for %s', client.datasource)
-    client.emit_settings_to_log()
+    cloud = session_cloud()
+    client = None
+    log.info('Setting up environment for %s', cloud.datasource)
     if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
         pass  # that was easy
     elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-        if not isinstance(client, LxdContainerInstance):
+        if cloud.datasource != 'lxd_container':
             raise ValueError(
                 'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
         # The mount needs to happen after the instance is launched, so
         # no further action needed here
     elif integration_settings.CLOUD_INIT_SOURCE == 'PROPOSED':
-        client.launch()
+        client = cloud.launch()
         client.install_proposed_image()
     elif integration_settings.CLOUD_INIT_SOURCE.startswith('ppa:'):
-        client.launch()
+        client = cloud.launch()
         client.install_ppa(integration_settings.CLOUD_INIT_SOURCE)
     elif os.path.isfile(str(integration_settings.CLOUD_INIT_SOURCE)):
-        client.launch()
+        client = cloud.launch()
         client.install_deb()
     else:
         raise ValueError(
             'Invalid value for CLOUD_INIT_SOURCE setting: {}'.format(
                 integration_settings.CLOUD_INIT_SOURCE))
-    if client.instance:
+    if client:
         # Even if we're keeping instances, we don't want to keep this
         # one around as it was just for image creation
         client.destroy()
@@ -96,7 +94,7 @@ def _client(request, fixture_utils):
     """
     user_data = fixture_utils.closest_marker_first_arg_or(
         request, 'user_data', None)
-    with dynamic_instance(user_data=user_data) as instance:
+    with session_cloud().launch(user_data=user_data) as instance:
         yield instance
 
 

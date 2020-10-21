@@ -11,7 +11,9 @@ from cloudinit.subp import subp
 from tests.integration_tests import integration_settings
 
 try:
-    from typing import Optional
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+        from tests.integration_tests.clouds import IntegrationCloud
 except ImportError:
     pass
 
@@ -19,16 +21,14 @@ except ImportError:
 log = logging.getLogger('integration_testing')
 
 
-class CloudInstance(ABC):
-    datasource = None  # type: Optional[str]
+class IntegrationInstance(ABC):
     use_sudo = True
 
-    def __init__(self, cloud, user_data=None,
-                 settings=integration_settings, launch_kwargs=None):
+    def __init__(self, cloud: 'IntegrationCloud', instance: BaseInstance,
+                 settings=integration_settings):
         self.cloud = cloud
-        self.user_data = user_data
+        self.instance = instance
         self.settings = settings
-        self.launch_kwargs = launch_kwargs if launch_kwargs else {}
 
     def emit_settings_to_log(self) -> None:
         log.info(
@@ -40,25 +40,6 @@ class CloudInstance(ABC):
                 ]
             )
         )
-
-    def launch(self):
-        if self.settings.EXISTING_INSTANCE_ID:
-            log.info(
-                'Not launching instance due to EXISTING_INSTANCE_ID. '
-                'Instance id: %s', self.settings.EXISTING_INSTANCE_ID)
-            self.instance = self.cloud.get_instance(
-                self.settings.EXISTING_INSTANCE_ID
-            )
-            return
-        launch_kwargs = {
-            'image_id': self.cloud.image_id,
-            'user_data': self.user_data,
-            'wait': False,
-        }
-        launch_kwargs.update(self.launch_kwargs)
-        self.instance = self.cloud.cloud_instance.launch(**launch_kwargs)
-        self.instance.wait(raise_on_cloudinit_failure=False)
-        log.info('Launched instance: %s', self.instance)
 
     def destroy(self):
         self.instance.delete()
@@ -135,7 +116,6 @@ class CloudInstance(ABC):
         self._install_new_cloud_init(remote_script)
 
     def __enter__(self):
-        self.launch()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -143,25 +123,30 @@ class CloudInstance(ABC):
             self.destroy()
 
 
-class Ec2Instance(CloudInstance):
-    datasource = 'ec2'
+class IntegrationEc2Instance(IntegrationInstance):
+    pass
 
 
-class GceInstance(CloudInstance):
-    datasource = 'gce'
+class IntegrationGceInstance(IntegrationInstance):
+    pass
 
 
-class AzureInstance(CloudInstance):
-    datasource = 'azure'
+class IntegrationAzureInstance(IntegrationInstance):
+    pass
 
 
-class OciInstance(CloudInstance):
-    datasource = 'oci'
+class IntegrationOciInstance(IntegrationInstance):
+    pass
 
 
-class LxdContainerInstance(CloudInstance):
-    datasource = 'lxd_container'
+class IntegrationLxdContainerInstance(IntegrationInstance):
     use_sudo = False
+
+    def __init__(self, cloud: 'IntegrationCloud', instance: BaseInstance,
+                 settings=integration_settings):
+        super().__init__(cloud, instance, settings)
+        if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
+            self._mount_source()
 
     def _mount_source(self):
         command = (
@@ -171,8 +156,3 @@ class LxdContainerInstance(CloudInstance):
         ).format(
             name=self.instance.name, cloudinit_path=cloudinit.__path__[0])
         subp(command.split())
-
-    def launch(self):
-        super().launch()
-        if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-            self._mount_source()
