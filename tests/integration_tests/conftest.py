@@ -6,16 +6,26 @@ import sys
 from contextlib import contextmanager
 
 from tests.integration_tests import integration_settings
-from tests.integration_tests.instances import IntegrationLxdContainerInstance
-from tests.integration_tests.platforms import (
-    session_cloud,
-    platforms
+from tests.integration_tests.clouds import (
+    Ec2Cloud,
+    GceCloud,
+    AzureCloud,
+    OciCloud,
+    LxdContainerCloud,
 )
 
 
 log = logging.getLogger('integration_testing')
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.INFO)
+
+platforms = {
+    'ec2': Ec2Cloud,
+    'gce': GceCloud,
+    'azure': AzureCloud,
+    'oci': OciCloud,
+    'lxd_container': LxdContainerCloud,
+}
 
 
 def pytest_runtest_setup(item):
@@ -41,38 +51,45 @@ def disable_subp_usage(request):
     pass
 
 
-@pytest.yield_fixture(scope='session', autouse=True)
-def setup_and_destroy_session():
-    cloud = session_cloud()
-    yield
+@pytest.yield_fixture(scope='session')
+def session_cloud():
+    if integration_settings.PLATFORM not in platforms.keys():
+        raise ValueError(
+            "{} is an invalid PLATFORM specified in settings. "
+            "Must be one of {}".format(
+                integration_settings.PLATFORM, list(platforms.keys())
+            )
+        )
+
+    cloud = platforms[integration_settings.PLATFORM]()
+    yield cloud
     cloud.destroy()
 
 
 @pytest.fixture(scope='session', autouse=True)
-def setup_image(setup_and_destroy_session):
+def setup_image(session_cloud):
     """Setup the target environment with the correct version of cloud-init.
 
     So we can launch instances / run tests with the correct image
     """
-    cloud = session_cloud()
     client = None
-    log.info('Setting up environment for %s', cloud.datasource)
+    log.info('Setting up environment for %s', session_cloud.datasource)
     if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
         pass  # that was easy
     elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-        if cloud.datasource != 'lxd_container':
+        if session_cloud.datasource != 'lxd_container':
             raise ValueError(
                 'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
         # The mount needs to happen after the instance is launched, so
         # no further action needed here
     elif integration_settings.CLOUD_INIT_SOURCE == 'PROPOSED':
-        client = cloud.launch()
+        client = session_cloud.launch()
         client.install_proposed_image()
     elif integration_settings.CLOUD_INIT_SOURCE.startswith('ppa:'):
-        client = cloud.launch()
+        client = session_cloud.launch()
         client.install_ppa(integration_settings.CLOUD_INIT_SOURCE)
     elif os.path.isfile(str(integration_settings.CLOUD_INIT_SOURCE)):
-        client = cloud.launch()
+        client = session_cloud.launch()
         client.install_deb()
     else:
         raise ValueError(
@@ -86,7 +103,7 @@ def setup_image(setup_and_destroy_session):
 
 
 @contextmanager
-def _client(request, fixture_utils):
+def _client(request, fixture_utils, session_cloud):
     """Fixture implementation for the client fixtures.
 
     Launch the dynamic IntegrationClient instance using any provided
@@ -94,28 +111,28 @@ def _client(request, fixture_utils):
     """
     user_data = fixture_utils.closest_marker_first_arg_or(
         request, 'user_data', None)
-    with session_cloud().launch(user_data=user_data) as instance:
+    with session_cloud.launch(user_data=user_data) as instance:
         yield instance
 
 
 @pytest.yield_fixture
-def client(request, fixture_utils):
+def client(request, fixture_utils, session_cloud):
     """Provide a client that runs for every test."""
-    with _client(request, fixture_utils) as client:
+    with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
 @pytest.yield_fixture(scope='module')
-def module_client(request, fixture_utils):
+def module_client(request, fixture_utils, session_cloud):
     """Provide a client that runs once per module."""
-    with _client(request, fixture_utils) as client:
+    with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
 @pytest.yield_fixture(scope='class')
-def class_client(request, fixture_utils):
+def class_client(request, fixture_utils, session_cloud):
     """Provide a client that runs once per class."""
-    with _client(request, fixture_utils) as client:
+    with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
