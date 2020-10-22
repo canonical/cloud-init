@@ -146,6 +146,8 @@ class DsIdentifyBase(CiTestCase):
              'out': 'No value found', 'ret': 1},
             {'name': 'dmi_decode', 'ret': 1,
              'err': 'No dmidecode program. ERROR.'},
+            {'name': 'get_kenv_field', 'ret': 1,
+             'err': 'No kenv program. ERROR.'},
         ]
 
         written = [d['name'] for d in mocks]
@@ -651,14 +653,22 @@ class TestDsIdentify(DsIdentifyBase):
 class TestBSDNoSys(DsIdentifyBase):
     """Test *BSD code paths
 
-    FreeBSD doesn't have /sys so we use dmidecode(8) here
-    It also doesn't have systemd-detect-virt(8), so we use sysctl(8) to query
+    FreeBSD doesn't have /sys so we use kenv(1) here.
+    Other BSD systems fallback to dmidecode(8).
+    BSDs also doesn't have systemd-detect-virt(8), so we use sysctl(8) to query
     kern.vm_guest, and optionally map it"""
 
-    def test_dmi_decode(self):
+    def test_dmi_kenv(self):
+        """Test that kenv(1) works on systems which don't have /sys
+
+        This will be used on FreeBSD systems.
+        """
+        self._test_ds_found('Hetzner-kenv')
+
+    def test_dmi_dmidecode(self):
         """Test that dmidecode(8) works on systems which don't have /sys
 
-        This will be used on *BSD systems.
+        This will be used on all other BSD systems.
         """
         self._test_ds_found('Hetzner-dmidecode')
 
@@ -1025,6 +1035,13 @@ VALID_CFG = {
     'Hetzner': {
         'ds': 'Hetzner',
         'files': {P_SYS_VENDOR: 'Hetzner\n'},
+    },
+    'Hetzner-kenv': {
+        'ds': 'Hetzner',
+        'mocks': [
+            MOCK_UNAME_IS_FREEBSD,
+            {'name': 'get_kenv_field', 'ret': 0, 'RET': 'Hetzner'}
+        ],
     },
     'Hetzner-dmidecode': {
         'ds': 'Hetzner',
