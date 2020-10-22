@@ -6,6 +6,7 @@
 """Hetzner Cloud API Documentation.
    https://docs.hetzner.cloud/"""
 
+from cloudinit import dmi
 from cloudinit import net as cloudnet
 from cloudinit import sources
 from cloudinit import util
@@ -97,7 +98,7 @@ class DataSourceHetzner(sources.DataSource):
 
 
 def on_hetzner():
-    return util.read_dmi_data('system-manufacturer') == "Hetzner"
+    return dmi.read_dmi_data('system-manufacturer') == "Hetzner"
 
 
 # Used to match classes to dependencies

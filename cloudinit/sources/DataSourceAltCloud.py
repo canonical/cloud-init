@@ -16,6 +16,7 @@ import errno
 import os
 import os.path
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import subp
@@ -109,7 +110,7 @@ class DataSourceAltCloud(sources.DataSource):
                             CLOUD_INFO_FILE)
                 return 'UNKNOWN'
             return cloud_type
-        system_name = util.read_dmi_data("system-product-name")
+        system_name = dmi.read_dmi_data("system-product-name")
         if not system_name:
             return 'UNKNOWN'
 
