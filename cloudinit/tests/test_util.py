@@ -799,11 +799,11 @@ class TestEnsureFile:
         ],
     )
     def test_defaults(self, m_write_file, kwarg, expected):
-        """Test that mode defaults to ensuring world-readable files."""
+        """Test that ensure_file defaults appropriately."""
         util.ensure_file(mock.sentinel.path)
 
         assert 1 == m_write_file.call_count
-        args, kwargs = m_write_file.call_args
+        _args, kwargs = m_write_file.call_args
         assert expected == kwargs[kwarg]
 
     def test_static_parameters_are_passed(self, m_write_file):
@@ -811,7 +811,7 @@ class TestEnsureFile:
         util.ensure_file(mock.sentinel.path)
 
         assert 1 == m_write_file.call_count
-        args, kwargs = m_write_file.call_args
+        _args, kwargs = m_write_file.call_args
         assert "" == kwargs["content"]
         assert "ab" == kwargs["omode"]
 
