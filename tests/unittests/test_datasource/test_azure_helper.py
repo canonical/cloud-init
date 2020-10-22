@@ -496,7 +496,6 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
 
         azure_helper.http_with_retries(testurl, **kwargs)
         self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
-        print(self.m_readurl.call_args.kwargs)
 
     def test_http_with_retries_deletes_retries_kwargs_passed_in(
             self):
@@ -519,6 +518,12 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
 
         azure_helper.http_with_retries(testurl, **kwargs)
         self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
+        self.assertIn(
+            'retries kwarg passed in for communication with Azure endpoint.',
+            self.logs.getvalue())
+        self.assertIn(
+            'infinite kwarg passed in for communication with Azure endpoint.',
+            self.logs.getvalue())
 
 
 class TestOpenSSLManager(CiTestCase):
