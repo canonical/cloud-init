@@ -1804,8 +1804,12 @@ def append_file(path, content):
     write_file(path, content, omode="ab", mode=None)
 
 
-def ensure_file(path, mode=0o644):
-    write_file(path, content='', omode="ab", mode=mode)
+def ensure_file(
+    path, mode: int = 0o644, *, preserve_mode: bool = False
+) -> None:
+    write_file(
+        path, content='', omode="ab", mode=mode, preserve_mode=preserve_mode
+    )
 
 
 def safe_int(possible_int):
