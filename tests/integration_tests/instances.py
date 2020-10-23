@@ -1,5 +1,4 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from abc import ABC
 import logging
 import os
 from tempfile import NamedTemporaryFile
@@ -21,7 +20,7 @@ except ImportError:
 log = logging.getLogger('integration_testing')
 
 
-class IntegrationInstance(ABC):
+class IntegrationInstance:
     use_sudo = True
 
     def __init__(self, cloud: 'IntegrationCloud', instance: BaseInstance,
