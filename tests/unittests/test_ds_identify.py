@@ -637,8 +637,16 @@ class TestDsIdentify(DsIdentifyBase):
         self._test_ds_found('Ec2-E24Cloud')
 
     def test_e24cloud_not_active(self):
-        """EC2: bobrightbox.com in product_serial is not brightbox'"""
+        """EC2: e24cloud in sys_vendor is specific. Do not match e24cloud*"""
         self._test_ds_not_found('Ec2-E24Cloud-negative')
+
+    def test_vultr_is_ec2(self):
+        """EC2: vultr cloud identified by sys_vendor."""
+        self._test_ds_found('Ec2-Vultr')
+
+    def test_vultr_not_active(self):
+        """EC2: vultr in sys_vendor is specific. Do not match vultr*"""
+        self._test_ds_not_found('Ec2-Vultr-negative')
 
 
 class TestBSDNoSys(DsIdentifyBase):
@@ -1079,7 +1087,15 @@ VALID_CFG = {
     'Ec2-E24Cloud-negative': {
         'ds': 'Ec2',
         'files': {P_SYS_VENDOR: 'e24cloudyday\n'},
-    }
+    },
+    'Ec2-Vultr': {
+        'ds': 'Ec2',
+        'files': {P_SYS_VENDOR: 'Vultr\n'},
+    },
+    'Ec2-Vultr-negative': {
+        'ds': 'Ec2',
+        'files': {P_SYS_VENDOR: 'Vultricardo\n'},
+    },
 }
 
 # vi: ts=4 expandtab

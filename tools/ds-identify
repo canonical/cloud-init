@@ -960,6 +960,7 @@ ec2_identify_platform() {
     local vendor="${DI_DMI_SYS_VENDOR}"
     case "$vendor" in
         e24cloud) _RET="E24cloud"; return 0;;
+        Vultr) _RET="Vultr"; return 0;;
     esac
 
     # AWS http://docs.aws.amazon.com/AWSEC2/

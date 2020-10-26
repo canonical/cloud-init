@@ -971,8 +971,20 @@ class TesIdentifyPlatform(test_helpers.CiTestCase):
 
     @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
     def test_identify_e24cloud_negative(self, m_collect):
-        """e24cloud identified if vendor is e24cloud"""
+        """e24cloud must be specific. Do not match e24cloud*"""
         m_collect.return_value = self.collmock(vendor='e24cloudyday')
+        self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
+
+    @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
+    def test_identify_vultr(self, m_collect):
+        """vultr identified if vendor is Vultr"""
+        m_collect.return_value = self.collmock(vendor='Vultr')
+        self.assertEqual(ec2.CloudNames.VULTR, ec2.identify_platform())
+
+    @mock.patch('cloudinit.sources.DataSourceEc2._collect_platform_data')
+    def test_identify_vultr_negative(self, m_collect):
+        """vultr must be specific. Do not match vultr*"""
+        m_collect.return_value = self.collmock(vendor='Vultricardo')
         self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
 
 # vi: ts=4 expandtab

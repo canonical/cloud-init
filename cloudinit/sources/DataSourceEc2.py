@@ -41,6 +41,7 @@ class CloudNames(object):
     BRIGHTBOX = "brightbox"
     ZSTACK = "zstack"
     E24CLOUD = "e24cloud"
+    VULTR = "vultr"
     # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
     # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "unknown"
@@ -666,11 +667,16 @@ def identify_e24cloud(data):
         return CloudNames.E24CLOUD
 
 
+def identify_vultr(data):
+    if data['vendor'] == 'Vultr':
+        return CloudNames.VULTR
+
+
 def identify_platform():
     # identify the platform and return an entry in CloudNames.
     data = _collect_platform_data()
     checks = (identify_aws, identify_brightbox, identify_zstack,
-              identify_e24cloud, lambda x: CloudNames.UNKNOWN)
+              identify_e24cloud, identify_vultr, lambda x: CloudNames.UNKNOWN)
     for checker in checks:
         try:
             result = checker(data)
