@@ -12,6 +12,9 @@ groups:
 #       applicable on already-existing users:
 #       - 'plain_text_passwd', 'hashed_passwd', 'lock_passwd', 'sudo',
 #         'ssh_authorized_keys', 'ssh_redirect_user'.
+# Note: 'groups' will only take one argument and add the user to one
+#       additional group. Multiple groups must be handled via the 'groups'
+#       directive (see above).
 users:
   - default
   - name: foobar
@@ -26,7 +29,7 @@ users:
   - name: barfoo
     gecos: Bar B. Foo
     sudo: ALL=(ALL) NOPASSWD:ALL
-    groups: users, admin
+    groups: users
     ssh_import_id: None
     lock_passwd: true
     ssh_authorized_keys:
@@ -52,7 +55,7 @@ users:
 #           /home/<username>
 #   primary_group: define the primary group. Defaults to a new group created
 #           named after the user.
-#   groups:  Optional. Additional groups to add the user to. Defaults to none
+#   groups:  Optional. One additional group to add the user to. Defaults to none
 #   selinux_user:  Optional. The SELinux user for the user's login, such as
 #           "staff_u". When this is omitted the system will select the default
 #           SELinux user.
