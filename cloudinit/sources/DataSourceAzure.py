@@ -720,12 +720,23 @@ class DataSourceAzure(sources.DataSource):
                         self._ephemeral_dhcp_ctx.clean_network()
                         break
 
+                    report_ready_succeeded = self._report_ready(lease=lease)
+                    if not report_ready_succeeded:
+                        msg = ('Failed reporting ready while in '
+                               'the preprovisioning pool.')
+                        report_diagnostic_event(msg, logger_func=LOG.error)
+                        self._ephemeral_dhcp_ctx.clean_network()
+                        raise sources.InvalidMetaDataException(msg)
+
                     path = REPORTED_READY_MARKER_FILE
                     LOG.info(
                         "Creating a marker file to report ready: %s", path)
                     util.write_file(path, "{pid}: {time}\n".format(
                         pid=os.getpid(), time=time()))
-                    self._report_ready(lease=lease)
+                    report_diagnostic_event(
+                        'Successfully created reported ready marker file '
+                        'while in the preprovisioning pool.',
+                        logger_func=LOG.debug)
                     report_ready = False
 
                     with events.ReportEventStack(
@@ -773,14 +784,20 @@ class DataSourceAzure(sources.DataSource):
         return return_val
 
     @azure_ds_telemetry_reporter
-    def _report_ready(self, lease):
-        """Tells the fabric provisioning has completed """
+    def _report_ready(self, lease: dict) -> bool:
+        """Tells the fabric provisioning has completed.
+
+        @param lease: dhcp lease to use for sending the ready signal.
+        @return: The success status of sending the ready signal.
+        """
         try:
             get_metadata_from_fabric(None, lease['unknown-245'])
+            return True
         except Exception as e:
             report_diagnostic_event(
                 "Error communicating with Azure fabric; You may experience "
                 "connectivity issues: %s" % e, logger_func=LOG.warning)
+            return False
 
     def _should_reprovision(self, ret):
         """Whether or not we should poll IMDS for reprovisioning data.
