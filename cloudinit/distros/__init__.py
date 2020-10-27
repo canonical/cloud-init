@@ -83,6 +83,30 @@ class Distro(metaclass=abc.ABCMeta):
         self.name = name
         self.networking = self.networking_cls()
 
+    def __setstate__(self, state):
+        """Restore instance state and handle missing attributes on upgrade.
+
+        This will be called when an instance of this class is unpickled; the
+        previous instance's `__dict__` is passed as `state`.  This method
+        restores that state into the current instance, and fixes up any
+        missing/incorrect state (usually caused by upgrades to cloud-init since
+        `state` was pickled).
+
+        See https://docs.python.org/3/library/pickle.html#object.__setstate__
+        for further background.
+        """
+        # Restore instance attributes
+        self.__dict__.update(state)
+        if "networking" not in self.__dict__ or not self.networking.__dict__:
+            # This is either a Distro pickle with no networking attribute OR
+            # this is a Distro pickle with a networking attribute but from
+            # before ``Networking`` had any state (meaning that
+            # Networking.__setstate__ will not be called).  In either case, we
+            # want to ensure that `self.networking` is freshly-instantiated:
+            # either because it isn't present at all, or because it will be
+            # missing expected instance state otherwise.
+            self.networking = self.networking_cls()
+
     @abc.abstractmethod
     def install_packages(self, pkglist):
         raise NotImplementedError()
