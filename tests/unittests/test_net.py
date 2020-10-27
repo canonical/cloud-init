@@ -910,7 +910,7 @@ NETWORK_CONFIGS = {
                 # Physical interfaces.
                 - type: physical
                   name: eth99
-                  mac_address: "c0:d6:9f:2c:e8:80"
+                  mac_address: c0:d6:9f:2c:e8:80
                   subnets:
                       - type: dhcp4
                       - type: static
@@ -926,7 +926,7 @@ NETWORK_CONFIGS = {
                             metric: 10000
                 - type: physical
                   name: eth1
-                  mac_address: "cf:d6:af:48:e8:80"
+                  mac_address: cf:d6:af:48:e8:80
                 - type: nameserver
                   address:
                     - 1.2.3.4
@@ -1743,26 +1743,26 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                 # Physical interfaces.
                 - type: physical
                   name: eth0
-                  mac_address: "c0:d6:9f:2c:e8:80"
+                  mac_address: c0:d6:9f:2c:e8:80
                 - type: physical
                   name: eth1
-                  mac_address: "aa:d6:9f:2c:e8:80"
+                  mac_address: aa:d6:9f:2c:e8:80
                 - type: physical
                   name: eth2
-                  mac_address: "c0:bb:9f:2c:e8:80"
+                  mac_address: c0:bb:9f:2c:e8:80
                 - type: physical
                   name: eth3
-                  mac_address: "66:bb:9f:2c:e8:80"
+                  mac_address: 66:bb:9f:2c:e8:80
                 - type: physical
                   name: eth4
-                  mac_address: "98:bb:9f:2c:e8:80"
+                  mac_address: 98:bb:9f:2c:e8:80
                 # specify how ifupdown should treat iface
                 # control is one of ['auto', 'hotplug', 'manual']
                 # with manual meaning ifup/ifdown should not affect the iface
                 # useful for things like iscsi root + dhcp
                 - type: physical
                   name: eth5
-                  mac_address: "98:bb:9f:2c:e8:8a"
+                  mac_address: 98:bb:9f:2c:e8:8a
                   subnets:
                     - type: dhcp
                       control: manual
@@ -1793,7 +1793,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
                   name: bond0
                   # if 'mac_address' is omitted, the MAC is taken from
                   # the first slave.
-                  mac_address: "aa:bb:cc:dd:ee:ff"
+                  mac_address: aa:bb:cc:dd:ee:ff
                   bond_interfaces:
                     - eth1
                     - eth2
@@ -1888,13 +1888,13 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
             config:
               - type: physical
                 name: bond0s0
-                mac_address: "aa:bb:cc:dd:e8:00"
+                mac_address: aa:bb:cc:dd:e8:00
               - type: physical
                 name: bond0s1
-                mac_address: "aa:bb:cc:dd:e8:01"
+                mac_address: aa:bb:cc:dd:e8:01
               - type: bond
                 name: bond0
-                mac_address: "aa:bb:cc:dd:e8:ff"
+                mac_address: aa:bb:cc:dd:e8:ff
                 mtu: 9000
                 bond_interfaces:
                   - bond0s0
@@ -2042,12 +2042,12 @@ iface bond0 inet6 static
               eth0:
                 match:
                     driver: "virtio_net"
-                    macaddress: "aa:bb:cc:dd:e8:00"
+                    macaddress: aa:bb:cc:dd:e8:00
               vf0:
                 set-name: vf0
                 match:
                     driver: "e1000"
-                    macaddress: "aa:bb:cc:dd:e8:01"
+                    macaddress: aa:bb:cc:dd:e8:01
             bonds:
               bond0:
                 addresses:
@@ -2221,7 +2221,7 @@ iface bond0 inet6 static
             config:
               - type: physical
                 name: en0
-                mac_address: "aa:bb:cc:dd:e8:00"
+                mac_address: aa:bb:cc:dd:e8:00
               - type: vlan
                 mtu: 2222
                 name: en0.99
@@ -2294,13 +2294,13 @@ iface bond0 inet6 static
             config:
               - type: physical
                 name: eth0
-                mac_address: "52:54:00:12:34:00"
+                mac_address: '52:54:00:12:34:00'
                 subnets:
                   - type: static
                     address: 2001:1::100/96
               - type: physical
                 name: eth1
-                mac_address: "52:54:00:12:34:01"
+                mac_address: '52:54:00:12:34:01'
                 subnets:
                   - type: static
                     address: 2001:1::101/96
@@ -2385,7 +2385,7 @@ iface bond0 inet6 static
             config:
               - type: physical
                 name: eth0
-                mac_address: "52:54:00:12:34:00"
+                mac_address: '52:54:00:12:34:00'
                 subnets:
                   - type: static
                     address: 192.168.1.2/24
@@ -2393,12 +2393,12 @@ iface bond0 inet6 static
               - type: physical
                 name: eth1
                 mtu: 1480
-                mac_address: "52:54:00:12:34:aa"
+                mac_address: 52:54:00:12:34:aa
                 subnets:
                   - type: manual
               - type: physical
                 name: eth2
-                mac_address: "52:54:00:12:34:ff"
+                mac_address: 52:54:00:12:34:ff
                 subnets:
                   - type: manual
                     control: manual
