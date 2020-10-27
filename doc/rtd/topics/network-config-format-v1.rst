@@ -132,7 +132,7 @@ bond interfaces.  Specifying a MAC Address is optional.  If ``mac_address`` is
 not present, then the bond will use one of the MAC Address values from one of
 the bond interfaces.
 
-.. note:
+.. note::
 
   MAC addresses must be strings. As MAC addresses which consist of only the
   digits 0-9 (i.e. no hex a-f) can be interpreted as a base 60 integer per
