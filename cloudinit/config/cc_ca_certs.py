@@ -25,7 +25,7 @@ can be removed from the system with the configuration option
 
 **Module frequency:** per instance
 
-**Supported distros:** alpine, debian, ubuntu
+**Supported distros:** alpine, debian, ubuntu, rhel
 
 **Config keys**::
 
