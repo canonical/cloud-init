@@ -98,7 +98,7 @@ class TestConfig(TestCase):
 
         cc_ca_certs.handle(self.name, config, self.cloud, self.log, self.args)
 
-        self.mock_add.assert_called_once_with(['CERT1'])
+        self.mock_add.assert_called_once_with('ubuntu', ['CERT1'])
         self.assertEqual(self.mock_update.call_count, 1)
         self.assertEqual(self.mock_remove.call_count, 0)
 
@@ -108,7 +108,7 @@ class TestConfig(TestCase):
 
         cc_ca_certs.handle(self.name, config, self.cloud, self.log, self.args)
 
-        self.mock_add.assert_called_once_with(['CERT1', 'CERT2'])
+        self.mock_add.assert_called_once_with('ubuntu', ['CERT1', 'CERT2'])
         self.assertEqual(self.mock_update.call_count, 1)
         self.assertEqual(self.mock_remove.call_count, 0)
 
@@ -138,7 +138,7 @@ class TestConfig(TestCase):
 
         cc_ca_certs.handle(self.name, config, self.cloud, self.log, self.args)
 
-        self.mock_add.assert_called_once_with(['CERT1'])
+        self.mock_add.assert_called_once_with('ubuntu', ['CERT1'])
         self.assertEqual(self.mock_update.call_count, 1)
         self.assertEqual(self.mock_remove.call_count, 1)
 
@@ -153,10 +153,18 @@ class TestAddCaCerts(TestCase):
             'cloud_dir': tmpdir,
         })
 
+    def _fetch_distro(self, kind):
+        cls = distros.fetch(kind)
+        paths = helpers.Paths({})
+        return cls(kind, {}, paths)
+
     def test_no_certs_in_list(self):
         """Test that no certificate are written if not provided."""
         with mock.patch.object(util, 'write_file') as mockobj:
-            cc_ca_certs.add_ca_certs([])
+            cc_ca_certs.add_ca_certs('ubuntu', [])
+        self.assertEqual(mockobj.call_count, 0)
+        with mock.patch.object(util, 'write_file') as mockobj:
+            cc_ca_certs.add_ca_certs('rhel', [])
         self.assertEqual(mockobj.call_count, 0)
 
     def test_single_cert_trailing_cr(self):
@@ -174,7 +182,7 @@ class TestAddCaCerts(TestCase):
                 mock.patch.object(util, 'load_file',
                                   return_value=ca_certs_content))
 
-            cc_ca_certs.add_ca_certs([cert])
+            cc_ca_certs.add_ca_certs('ubuntu', [cert])
 
             mock_write.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
@@ -196,7 +204,7 @@ class TestAddCaCerts(TestCase):
                 mock.patch.object(util, 'load_file',
                                   return_value=ca_certs_content))
 
-            cc_ca_certs.add_ca_certs([cert])
+            cc_ca_certs.add_ca_certs('ubuntu', [cert])
 
             mock_write.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
@@ -223,7 +231,7 @@ class TestAddCaCerts(TestCase):
             )
             mock_stat.return_value.st_size = 0
 
-            cc_ca_certs.add_ca_certs([cert])
+            cc_ca_certs.add_ca_certs('ubuntu', [cert])
 
             mock_write.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
@@ -243,7 +251,7 @@ class TestAddCaCerts(TestCase):
                 mock.patch.object(util, 'load_file',
                                   return_value=ca_certs_content))
 
-            cc_ca_certs.add_ca_certs(certs)
+            cc_ca_certs.add_ca_certs('ubuntu', certs)
 
             mock_write.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
@@ -259,9 +267,14 @@ class TestAddCaCerts(TestCase):
 class TestUpdateCaCerts(unittest.TestCase):
     def test_commands(self):
         with mock.patch.object(subp, 'subp') as mockobj:
-            cc_ca_certs.update_ca_certs()
+            cc_ca_certs.update_ca_certs('ubuntu')
             mockobj.assert_called_once_with(
                 ["update-ca-certificates"], capture=False)
+
+        with mock.patch.object(subp, 'subp') as mockobj:
+            cc_ca_certs.update_ca_certs('rhel')
+            mockobj.assert_called_once_with(
+                ["update-ca-trust"], capture=False)
 
 
 class TestRemoveDefaultCaCerts(TestCase):
@@ -294,5 +307,18 @@ class TestRemoveDefaultCaCerts(TestCase):
             mock_subp.assert_called_once_with(
                 ('debconf-set-selections', '-'),
                 "ca-certificates ca-certificates/trust_new_crts select no")
+
+        with ExitStack() as mocks:
+            mock_delete = mocks.enter_context(
+                mock.patch.object(util, 'delete_dir_contents'))
+            mock_write = mocks.enter_context(
+                mock.patch.object(util, 'write_file'))
+            mock_subp = mocks.enter_context(mock.patch.object(subp, 'subp'))
+
+            cc_ca_certs.remove_default_ca_certs('rhel')
+
+            mock_delete.assert_has_calls([
+                mock.call("/usr/share/pki/ca-trust-source/"),
+                mock.call("/etc/pki/ca-trust/")])
 
 # vi: ts=4 expandtab
