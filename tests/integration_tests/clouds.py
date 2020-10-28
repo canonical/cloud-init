@@ -60,6 +60,11 @@ class IntegrationCloud(ABC):
             'wait': False,
         }
         kwargs.update(launch_kwargs)
+        log.info(
+            "Launching instance with launch_kwargs:\n{}".format(
+                "\n".join("{}={}".format(*item) for item in kwargs.items())
+            )
+        )
         pycloudlib_instance = self.cloud_instance.launch(**kwargs)
         pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         log.info('Launched instance: %s', pycloudlib_instance)
