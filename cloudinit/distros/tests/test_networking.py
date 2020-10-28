@@ -131,6 +131,22 @@ class TestLinuxNetworkingSettle:
 class TestGenerateFallbackConfig:
     pass
 
+class TestBSDGenerateFallbackConfig:
+    def test_generate_fallback_config_default_v2(self, two_physdevs_netcfg):
+        networking = BSDNetworking()
+        with mock.patch.object(
+            networking, "find_fallback_nic"
+        ) as m_find_fallback_nic:
+            m_find_fallback_nic.return_value = 'eth0'
+
+            with mock.patch.object(
+                networking, 'get_interfaces_by_mac'
+            ) as m_get_interfaces_by_mac:
+                m_get_interfaces_by_mac.side_effect = iter(
+                    [{"aa:bb:cc:dd:ee:ff": "eth0",
+                      "00:11:22:33:44:55": "ens3"}]
+                )
+                assert networking.generate_fallback_config() == two_physdevs_netcfg
 
 class TestNetworkingWaitForPhysDevs:
     @pytest.fixture
