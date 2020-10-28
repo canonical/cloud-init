@@ -820,8 +820,8 @@ def _normalize_subnet(subnet):
 
     if subnet.get('type') in ('static', 'static6'):
         normal_subnet.update(
-            _normalize_net_keys(normal_subnet, address_keys=('address',
-                'ip_address',)))
+            _normalize_net_keys(normal_subnet, address_keys=(
+                'address', 'ip_address',)))
     normal_subnet['routes'] = [_normalize_route(r)
                                for r in subnet.get('routes', [])]
 
