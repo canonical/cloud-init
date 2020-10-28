@@ -4,6 +4,7 @@ from unittest import mock
 import pytest
 
 from cloudinit.config.cc_mounts import create_swapfile
+from cloudinit.subp import ProcessExecutionError
 
 
 M_PATH = 'cloudinit.config.cc_mounts.'
@@ -26,3 +27,35 @@ class TestCreateSwapfile:
 
         create_swapfile(fname, '')
         assert mock.call(['mkswap', fname]) in m_subp.call_args_list
+
+    @mock.patch(M_PATH + "util.get_mount_info")
+    @mock.patch(M_PATH + "subp.subp")
+    def test_fallback_from_fallocate_to_dd(
+        self, m_subp, m_get_mount_info, caplog, tmpdir
+    ):
+        swap_file = tmpdir.join("swap-file")
+        fname = str(swap_file)
+
+        def subp_side_effect(cmd, *args, **kwargs):
+            # Mock fallocate failing, to initiate fallback
+            if cmd[0] == "fallocate":
+                raise ProcessExecutionError()
+
+        m_subp.side_effect = subp_side_effect
+        # Use ext4 so both fallocate and dd are valid swap creation methods
+        m_get_mount_info.return_value = (mock.ANY, "ext4")
+
+        create_swapfile(fname, "")
+
+        cmds = [args[0][0] for args, _kwargs in m_subp.call_args_list]
+        assert "fallocate" in cmds, "fallocate was not called"
+        assert "dd" in cmds, "fallocate failure did not fallback to dd"
+
+        assert cmds.index("dd") > cmds.index(
+            "fallocate"
+        ), "dd ran before fallocate"
+
+        assert mock.call(["mkswap", fname]) in m_subp.call_args_list
+
+        msg = "fallocate swap creation failed, will attempt with dd"
+        assert msg in caplog.text

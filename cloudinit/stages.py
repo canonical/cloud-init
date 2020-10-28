@@ -148,7 +148,7 @@ class Init(object):
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, 'def_log_file')
         if log_file:
-            util.ensure_file(log_file)
+            util.ensure_file(log_file, preserve_mode=True)
             perms = self.cfg.get('syslog_fix_perms')
             if not perms:
                 perms = {}

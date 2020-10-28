@@ -21,20 +21,32 @@ all valid states of a flag, not just the default state.
 ERROR_ON_USER_DATA_FAILURE = True
 """
 If there is a failure in obtaining user data (i.e., #include or
-decompress fails), old behavior is to log a warning and proceed.
-After the 20.2 release, we instead raise an exception.
-This flag can be removed after Focal is no longer supported
+decompress fails) and ``ERROR_ON_USER_DATA_FAILURE`` is ``False``,
+cloud-init will log a warning and proceed.  If it is ``True``,
+cloud-init will instead raise an exception.
+
+As of 20.3, ``ERROR_ON_USER_DATA_FAILURE`` is ``True``.
+
+(This flag can be removed after Focal is no longer supported.)
 """
 
 
 ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES = False
 """
-When configuring apt mirrors, old behavior is to allow
-the use of ec2 mirrors if the datasource availability_zone format
-matches one of the possible aws ec2 regions. After the 20.2 release, we
-no longer publish ec2 region mirror urls on non-AWS cloud platforms.
-Besides feature_overrides.py, users can override this by providing
-#cloud-config apt directives.
+When configuring apt mirrors, if
+``ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES`` is ``True`` cloud-init
+will detect that a datasource's ``availability_zone`` property looks
+like an EC2 availability zone and set the ``ec2_region`` variable when
+generating mirror URLs; this can lead to incorrect mirrors being
+configured in clouds whose AZs follow EC2's naming pattern.
+
+As of 20.3, ``ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES`` is ``False``
+so we no longer include ``ec2_region`` in mirror determination on
+non-AWS cloud platforms.
+
+If the old behavior is desired, users can provide the appropriate
+mirrors via :py:mod:`apt: <cloudinit.config.cc_apt_configure>`
+directives in cloud-config.
 """
 
 try:

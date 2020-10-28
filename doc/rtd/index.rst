@@ -75,6 +75,7 @@ Having trouble? We would like to help!
    topics/dir_layout.rst
    topics/analyze.rst
    topics/docs.rst
-   topics/tests.rst
+   topics/integration_tests.rst
+   topics/cloud_tests.rst
 
 .. vi: textwidth=79

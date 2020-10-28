@@ -22,6 +22,9 @@ class Networking(metaclass=abc.ABCMeta):
     Hierarchy" in HACKING.rst for full details.
     """
 
+    def __init__(self):
+        self.blacklist_drivers = None
+
     def _get_current_rename_info(self) -> dict:
         return net._get_current_rename_info()
 
@@ -68,7 +71,8 @@ class Networking(metaclass=abc.ABCMeta):
         return net.get_interfaces()
 
     def get_interfaces_by_mac(self) -> dict:
-        return net.get_interfaces_by_mac()
+        return net.get_interfaces_by_mac(
+            blacklist_drivers=self.blacklist_drivers)
 
     def get_master(self, devname: DeviceName):
         return net.get_master(devname)
