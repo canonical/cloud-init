@@ -132,7 +132,14 @@ class TestGenerateFallbackConfig:
     pass
 
 class TestBSDGenerateFallbackConfig:
-    def test_generate_fallback_config_default_v2(self, two_physdevs_netcfg):
+    @pytest.fixture
+    def default_netcfg(self):
+        match = {'macaddress': "aa:bb:cc:dd:ee:ff"}
+        cfg = {'dhcp4': True, 'set-name': 'eth0', 'match': match}
+        nconf = {'ethernets': {'eth0': cfg}, 'version': 2}
+        return nconf
+
+    def test_generate_fallback_config_default_v2(self, default_netcfg):
         networking = BSDNetworking()
         with mock.patch.object(
             networking, "find_fallback_nic"
@@ -146,7 +153,7 @@ class TestBSDGenerateFallbackConfig:
                     [{"aa:bb:cc:dd:ee:ff": "eth0",
                       "00:11:22:33:44:55": "ens3"}]
                 )
-                assert networking.generate_fallback_config() == two_physdevs_netcfg
+                assert networking.generate_fallback_config() == default_netcfg
 
 class TestNetworkingWaitForPhysDevs:
     @pytest.fixture
