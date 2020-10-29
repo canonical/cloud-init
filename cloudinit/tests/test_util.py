@@ -738,11 +738,11 @@ class TestMountCb:
             ("msdosfs", "msdos"),
         ],
     )
-    @mock.patch("cloudinit.util.is_Linux")
-    @mock.patch("cloudinit.util.is_BSD")
-    @mock.patch("cloudinit.util.subp.subp")
-    @mock.patch("cloudinit.temp_utils.tempdir")
-    def test_normalize_vfat_on_bsd(self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected):
+    @mock.patch("cloudinit.util.is_Linux", autospec=True)
+    @mock.patch("cloudinit.util.is_BSD", autospec=True)
+    @mock.patch("cloudinit.util.subp.subp", autospec=True)
+    @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
+    def test_normalize_mtype_on_bsd(self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected):
         m_is_BSD.return_value = True
         m_is_Linux.return_value = False
         m_tmpdir.return_value.__enter__ = mock.Mock(
