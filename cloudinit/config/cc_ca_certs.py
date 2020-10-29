@@ -25,7 +25,7 @@ can be removed from the system with the configuration option
 
 **Module frequency:** per instance
 
-**Supported distros:** alpine, debian, ubuntu, rhel
+**Supported distros:** alpine, debian, ubuntu
 
 **Config keys**::
 
@@ -89,10 +89,12 @@ def _distro_ca_certs_configs(distro):
     dcfg = DISTRO_DEFAULT_CONFIG
     if distro in dcfg:
         cfg = DISTRO_DEFAULT_CONFIG[distro]
-        cfg['ca_cert_full_path'] = os.path.join(cfg['ca_cert_path'], cfg['ca_cert_filename'])
+        cfg['ca_cert_full_path'] = os.path.join(cfg['ca_cert_path'],
+                                                cfg['ca_cert_filename'])
     else:
         cfg = {}
     return cfg
+
 
 def update_ca_certs(distro_name):
     """
@@ -113,7 +115,9 @@ def add_ca_certs(distro_name, certs):
     if certs:
         # First ensure they are strings...
         cert_file_contents = "\n".join([str(c) for c in certs])
-        util.write_file(distro_cfg['ca_cert_full_path'], cert_file_contents, mode=0o644)
+        util.write_file(distro_cfg['ca_cert_full_path'],
+                        cert_file_contents,
+                        mode=0o644)
 
         if distro_cfg['ca_cert_config'] != '':
             if os.stat(distro_cfg['ca_cert_config']).st_size == 0:
@@ -126,9 +130,10 @@ def add_ca_certs(distro_name, certs):
                 # We have to strip the content because blank lines in the file
                 # causes subsequent entries to be ignored. (LP: #1077020)
                 orig = util.load_file(distro_cfg['ca_cert_config'])
-                cur_cont = '\n'.join([line for line in orig.splitlines()
-                                      if line != distro_cfg['ca_cert_filename']])
-                out = "%s\n%s\n" % (cur_cont.rstrip(), distro_cfg['ca_cert_filename'])
+                cr_cont = '\n'.join([line for line in orig.splitlines()
+                                    if line != distro_cfg['ca_cert_filename']])
+                out = "%s\n%s\n" % (cr_cont.rstrip(),
+                                    distro_cfg['ca_cert_filename'])
             util.write_file(distro_cfg['ca_cert_config'], out, omode="wb")
 
 
