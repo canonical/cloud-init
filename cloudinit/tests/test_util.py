@@ -730,33 +730,32 @@ class TestMountCb:
         """already_mounted_device_and_mountdict, but return only the device"""
         return already_mounted_device_and_mountdict[0]
 
-    @mock.patch("platform.system")
+    @pytest.mark.parametrize(
+        "mtype,expected",
+        [
+            ("iso9660", "cd9660"),
+            ("vfat", "msdos"),
+            ("msdosfs", "msdos"),
+        ],
+    )
+    @mock.patch("cloudinit.util.is_Linux")
+    @mock.patch("cloudinit.util.is_BSD")
     @mock.patch("cloudinit.util.subp.subp")
     @mock.patch("cloudinit.temp_utils.tempdir")
-    def test_normalize_vfat_on_bsd(self, m_tmpdir, m_subp, m_is_BSD):
-        m_is_BSD.return_value = "SomeBSD"
-        m_tmpdir.return_value.__enter__ = mock.Mock(return_value="/tmp/fake")
-        m_tmpdir.return_value.__exit__ = mock.Mock(return_value=True)
-        callback = mock.Mock()
-
-        util.mount_cb('/dev/fake0', callback, mtype='vfat')
-        m_subp.assert_any_call(
-            ["mount", "-o", "ro", "-t", "msdos", "/dev/fake0", "/tmp/fake"],
-            update_env=None
+    def test_normalize_vfat_on_bsd(self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected):
+        m_is_BSD.return_value = True
+        m_is_Linux.return_value = False
+        m_tmpdir.return_value.__enter__ = mock.Mock(
+            autospec=True, return_value="/tmp/fake"
         )
+        m_tmpdir.return_value.__exit__ = mock.Mock(
+            autospec=True, return_value=True
+        )
+        callback = mock.Mock(autospec=True)
 
-    @mock.patch("platform.system")
-    @mock.patch("cloudinit.util.subp.subp")
-    @mock.patch("cloudinit.temp_utils.tempdir")
-    def test_normalize_iso9660_on_bsd(self, m_tmpdir, m_subp, m_is_BSD):
-        m_is_BSD.return_value = "SomeBSD"
-        m_tmpdir.return_value.__enter__ = mock.Mock(return_value="/tmp/fake")
-        m_tmpdir.return_value.__exit__ = mock.Mock(return_value=True)
-        callback = mock.Mock()
-
-        util.mount_cb('/dev/fake0', callback, mtype='iso9660')
+        util.mount_cb('/dev/fake0', callback, mtype=mtype)
         m_subp.assert_any_call(
-            ["mount", "-o", "ro", "-t", "cd9660", "/dev/fake0", "/tmp/fake"],
+            ["mount", "-o", "ro", "-t", expected, "/dev/fake0", "/tmp/fake"],
             update_env=None
         )
 
