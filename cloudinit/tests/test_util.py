@@ -730,6 +730,36 @@ class TestMountCb:
         """already_mounted_device_and_mountdict, but return only the device"""
         return already_mounted_device_and_mountdict[0]
 
+    @mock.patch("platform.system")
+    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch("cloudinit.temp_utils.tempdir")
+    def test_normalize_vfat_on_bsd(self, m_tmpdir, m_subp, m_is_BSD):
+        m_is_BSD.return_value = "SomeBSD"
+        m_tmpdir.__enter__ = mock.Mock(return_value="/tmp/fake")
+        m_tmpdir.__exit__ = mock.Mock(return_value=True)
+        callback = mock.Mock()
+
+        util.mount_cb('/dev/fake0', callback, mtype='vfat')
+        m_subp.assert_called_with(
+            ["mount", "-o", "ro", "-t", "msdos", "/dev/fake0", "/tmp/fake"],
+            update_env=None
+        )
+
+    @mock.patch("platform.system")
+    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch("cloudinit.temp_utils.tempdir")
+    def test_normalize_iso9660_on_bsd(self, m_tmpdir, m_subp, m_is_BSD):
+        m_is_BSD.return_value = "SomeBSD"
+        m_tmpdir.__enter__ = mock.Mock(return_value="/tmp/fake")
+        m_tmpdir.__exit__ = mock.Mock(return_value=True)
+        callback = mock.Mock()
+
+        util.mount_cb('/dev/fake0', callback, mtype='iso9660')
+        m_subp.assert_called_with(
+            ["mount", "-o", "ro", "-t", "cd9660", "/dev/fake0", "/tmp/fake"],
+            update_env=None
+        )
+
     @pytest.mark.parametrize("invalid_mtype", [int(0), float(0.0), dict()])
     def test_typeerror_raised_for_invalid_mtype(self, invalid_mtype):
         with pytest.raises(TypeError):
