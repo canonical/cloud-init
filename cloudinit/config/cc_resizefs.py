@@ -110,7 +110,25 @@ def _can_skip_resize_ufs(mount_point, devpth):
     for line in dumpfs_res.splitlines():
         if not line.startswith('#'):
             newfs_cmd = shlex.split(line)
-            opt_value = 'O:Ua:s:b:d:e:f:g:h:i:jk:m:o:L:'
+            # from the newfs man page:
+            # [-EJNUjlnt] [-L volname] [-O filesystem-type]
+            # [-S sector-size] [-T disktype] [-a maxcontig] [-b block-size]
+            # [-c blocks-per-cylinder-group] [-d max-extent-size]
+            # [-e maxbpg] [-f frag-size] [-g avgfilesize] [-h avgfpdir]
+            # [-i bytes] [-k held-for-metadata-blocks] [-m free-space]
+            # [-o optimization] [-p partition] [-r reserved] [-s size]
+            # special
+            opt_value = 'JUjltL:O:a:b:c:d:e:f:g:h:i:k:m:p:r:s:'
+            # you may notice that some options are skipped:
+            # -E: Erase the content of the disk before making the filesystem.
+            # -N: Cause the file system parameters to be printed out without
+            #     really creating the file system.
+            # -T disktype: For backward compatibility.
+            # -S sector-size: The following options override the standard
+            #    sizes-for the disk geometry. [...] Changing these defaults is
+            #    useful only when using newfs to build a file system whose raw
+            #    image will eventually be used on a different type of disk
+            #    than the one on which it is initially created.
             optlist, _args = getopt.getopt(newfs_cmd[1:], opt_value)
             for o, a in optlist:
                 if o == "-s":
