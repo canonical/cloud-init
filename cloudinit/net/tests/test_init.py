@@ -190,6 +190,28 @@ class TestReadSysNet(CiTestCase):
         self.assertTrue(net.master_is_bridge_or_bond('eth1'))
         self.assertTrue(net.master_is_bridge_or_bond('eth2'))
 
+    def test_master_is_openvswitch(self):
+        ovs_mac = 'bb:cc:aa:bb:cc:aa'
+
+        # No master => False
+        write_file(os.path.join(self.sysdir, 'eth1', 'address'), ovs_mac)
+
+        self.assertFalse(net.master_is_bridge_or_bond('eth1'))
+
+        # masters without ovs-system => False
+        write_file(os.path.join(self.sysdir, 'ovs-system', 'address'), ovs_mac)
+
+        os.symlink('../ovs-system', os.path.join(self.sysdir, 'eth1',
+                   'master'))
+
+        self.assertFalse(net.master_is_openvswitch('eth1'))
+
+        # masters with ovs-system => True
+        os.symlink('../ovs-system', os.path.join(self.sysdir, 'eth1',
+                   'upper_ovs-system'))
+
+        self.assertTrue(net.master_is_openvswitch('eth1'))
+
     def test_is_vlan(self):
         """is_vlan is True when /sys/net/devname/uevent has DEVTYPE=vlan."""
         ensure_file(os.path.join(self.sysdir, 'eth0', 'uevent'))
@@ -465,11 +487,16 @@ class TestGetInterfaceMAC(CiTestCase):
     ):
         bridge_mac = 'aa:bb:cc:aa:bb:cc'
         bond_mac = 'cc:bb:aa:cc:bb:aa'
+        ovs_mac = 'bb:cc:aa:bb:cc:aa'
+
         write_file(os.path.join(self.sysdir, 'br0', 'address'), bridge_mac)
         write_file(os.path.join(self.sysdir, 'br0', 'bridge'), '')
 
         write_file(os.path.join(self.sysdir, 'bond0', 'address'), bond_mac)
         write_file(os.path.join(self.sysdir, 'bond0', 'bonding'), '')
+
+        write_file(os.path.join(self.sysdir, 'ovs-system', 'address'),
+                   ovs_mac)
 
         write_file(os.path.join(self.sysdir, 'eth1', 'address'), bridge_mac)
         os.symlink('../br0', os.path.join(self.sysdir, 'eth1', 'master'))
@@ -477,8 +504,15 @@ class TestGetInterfaceMAC(CiTestCase):
         write_file(os.path.join(self.sysdir, 'eth2', 'address'), bond_mac)
         os.symlink('../bond0', os.path.join(self.sysdir, 'eth2', 'master'))
 
+        write_file(os.path.join(self.sysdir, 'eth3', 'address'), ovs_mac)
+        os.symlink('../ovs-system', os.path.join(self.sysdir, 'eth3',
+                   'master'))
+        os.symlink('../ovs-system', os.path.join(self.sysdir, 'eth3',
+                   'upper_ovs-system'))
+
         interface_names = [interface[0] for interface in net.get_interfaces()]
-        self.assertEqual(['eth1', 'eth2'], sorted(interface_names))
+        self.assertEqual(['eth1', 'eth2', 'eth3', 'ovs-system'],
+                         sorted(interface_names))
 
 
 class TestInterfaceHasOwnMAC(CiTestCase):
