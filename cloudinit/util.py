@@ -1671,7 +1671,7 @@ def mount_cb(device, callback, data=None, mtype=None,
         for index, mtype in enumerate(mtypes):
             if mtype == "iso9660":
                 mtypes[index] = "cd9660"
-            if mtype in ["vfat", "msdosfs", "msdos"]:
+            if mtype in ["vfat", "msdosfs"]:
                 mtypes[index] = "msdos"
     else:
         # we cannot do a smart "auto", so just call 'mount' once with no -t
