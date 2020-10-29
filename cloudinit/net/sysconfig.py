@@ -463,6 +463,10 @@ class Renderer(renderer.Renderer):
                             iface_cfg[mtu_key] = subnet['mtu']
                     else:
                         iface_cfg[mtu_key] = subnet['mtu']
+
+                if subnet_is_ipv6(subnet) and flavor == 'rhel':
+                    iface_cfg['IPV6_FORCE_ACCEPT_RA'] = False
+                    iface_cfg['IPV6_AUTOCONF'] = False
             elif subnet_type == 'manual':
                 if flavor == 'suse':
                     LOG.debug('Unknown subnet type setting "%s"', subnet_type)
