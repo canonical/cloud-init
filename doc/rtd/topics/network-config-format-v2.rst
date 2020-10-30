@@ -94,7 +94,16 @@ NetworkManager does not.
 
 **macaddress**: *<(scalar)>*
 
-Device's MAC address in the form "XX:XX:XX:XX:XX:XX". Globs are not allowed.
+Device's MAC address in the form XX:XX:XX:XX:XX:XX. Globs are not allowed.
+
+.. note::
+
+  MAC addresses must be strings. As MAC addresses which consist of only the
+  digits 0-9 (i.e. no hex a-f) can be interpreted as a base 60 integer per
+  the `YAML 1.1 spec`_ it is best practice to quote all MAC addresses to ensure
+  they are parsed as strings regardless of value.
+
+.. _YAML 1.1 spec: https://yaml.org/type/int.html
 
 **driver**: *<(scalar)>*
 
@@ -458,7 +467,7 @@ This is a complex example which shows most available features: ::
       # opaque ID for physical interfaces, only referred to by other stanzas
       id0:
         match:
-          macaddress: 00:11:22:33:44:55
+          macaddress: '00:11:22:33:44:55'
         wakeonlan: true
         dhcp4: true
         addresses:
