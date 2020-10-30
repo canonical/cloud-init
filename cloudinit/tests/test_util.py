@@ -733,9 +733,14 @@ class TestMountCb:
     @pytest.mark.parametrize(
         "mtype,expected",
         [
+            # While the filesystem is called iso9660, the mount type is cd9660
             ("iso9660", "cd9660"),
+            # vfat is generally called "msdos" on BSD
             ("vfat", "msdos"),
+            # judging from man pages, only FreeBSD has this alias
             ("msdosfs", "msdos"),
+            # Test happy path
+            ("ufs", "ufs")
         ],
     )
     @mock.patch("cloudinit.util.is_Linux", autospec=True)
