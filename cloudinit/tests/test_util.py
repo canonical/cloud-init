@@ -740,7 +740,7 @@ class TestMountCb:
     )
     @mock.patch("cloudinit.util.is_Linux", autospec=True)
     @mock.patch("cloudinit.util.is_BSD", autospec=True)
-    @mock.patch("cloudinit.util.subp.subp", autospec=True)
+    @mock.patch("cloudinit.util.subp.subp")
     @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
     def test_normalize_mtype_on_bsd(self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected):
         m_is_BSD.return_value = True
@@ -754,10 +754,9 @@ class TestMountCb:
         callback = mock.Mock(autospec=True)
 
         util.mount_cb('/dev/fake0', callback, mtype=mtype)
-        m_subp.assert_any_call(
+        assert mock.call(
             ["mount", "-o", "ro", "-t", expected, "/dev/fake0", "/tmp/fake"],
-            update_env=None
-        )
+            update_env=None) in m_subp.call_args_list
 
     @pytest.mark.parametrize("invalid_mtype", [int(0), float(0.0), dict()])
     def test_typeerror_raised_for_invalid_mtype(self, invalid_mtype):
