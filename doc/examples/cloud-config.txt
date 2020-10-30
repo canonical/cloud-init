@@ -518,10 +518,10 @@ manual_cache_clean: False
 # syslog being taken down while cloud-init is running.
 #
 # delay: form accepted by shutdown.  default is 'now'. other format
-#        accepted is +m (m in minutes)
+#        accepted is '+m' (m in minutes)
 # mode: required. must be one of 'poweroff', 'halt', 'reboot'
 # message: provided as the message argument to 'shutdown'. default is none.
 power_state:
-  delay: 30
+  delay: '+30'
   mode: poweroff
   message: Bye Bye
