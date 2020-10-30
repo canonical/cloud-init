@@ -747,7 +747,9 @@ class TestMountCb:
     @mock.patch("cloudinit.util.is_BSD", autospec=True)
     @mock.patch("cloudinit.util.subp.subp")
     @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
-    def test_normalize_mtype_on_bsd(self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected):
+    def test_normalize_mtype_on_bsd(
+        self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected
+    ):
         m_is_BSD.return_value = True
         m_is_Linux.return_value = False
         m_tmpdir.return_value.__enter__ = mock.Mock(

@@ -416,9 +416,11 @@ def multi_log(text, console=True, stderr=True,
         else:
             log.log(log_level, text)
 
+
 @lru_cache()
 def is_Linux():
     return 'Linux' in platform.system()
+
 
 @lru_cache()
 def is_BSD():
