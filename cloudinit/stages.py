@@ -252,12 +252,31 @@ class Init(object):
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
             # (which will affect user-data handlers down the line...)
-            (ds, dsname) = sources.find_source(self.cfg,
-                                               self.distro,
-                                               self.paths,
-                                               copy.deepcopy(self.ds_deps),
-                                               cfg_list,
-                                               pkg_list, self.reporter)
+            try:
+                (ds, dsname) = sources.find_source(self.cfg,
+                                                   self.distro,
+                                                   self.paths,
+                                                   copy.deepcopy(self.ds_deps),
+                                                   cfg_list,
+                                                   pkg_list, self.reporter)
+            except sources.DataSourceNotFoundException as e:
+                LOG.info("No datasource found - "
+                         "Trying to load previous datasource from cache")
+                ds = self._restore_from_cache()
+                if not ds:
+                    raise e
+                dsname = ds.dsname
+                restored_iid = ds.metadata.get('instance-id', None)
+                dsources = sources.list_sources(cfg_list, self.ds_deps,
+                                                pkg_list)
+                for dsource in dsources:
+                    if (dsource.dsname == dsname and
+                       self.previous_iid() == restored_iid):
+                        break
+                else:
+                    LOG.info("Cached datasource {0} doesn't match "
+                             "datasources enabled in the configuration "
+                             "{1}".format(ds.name, dsources))
             LOG.info("Loaded datasource %s - %s", dsname, ds)
         self.datasource = ds
         # Ensure we adjust our path members datasource
