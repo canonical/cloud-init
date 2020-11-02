@@ -16,9 +16,10 @@ This is useful for cloud instances with a larger amount of disk space available
 than the pristine image uses, as it allows the instance to automatically make
 use of the extra space.
 
-The devices run growpart on are specified as a list under the ``devices`` key.
-Each entry in the devices list can be either the path to the device's
-mountpoint in the filesystem or a path to the block device in ``/dev``.
+The devices on which to run growpart are specified as a list under the
+``devices`` key. Each entry in the devices list can be either the path to the
+device's mountpoint in the filesystem or a path to the block device in
+``/dev``.
 
 The utility to use for resizing can be selected using the ``mode`` config key.
 If ``mode`` key is set to ``auto``, then any available utility (either
