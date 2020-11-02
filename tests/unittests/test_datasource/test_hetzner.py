@@ -80,7 +80,8 @@ class TestDataSourceHetzner(CiTestCase):
     @mock.patch('cloudinit.sources.DataSourceHetzner.get_hcloud_data')
     def test_read_data(self, m_get_hcloud_data, m_usermd, m_readmd,
                        m_fallback_nic, m_net):
-        m_get_hcloud_data.return_value = (True, METADATA.get('instance-id'))
+        m_get_hcloud_data.return_value = (True,
+                                          str(METADATA.get('instance-id')))
         m_readmd.return_value = METADATA.copy()
         m_usermd.return_value = USERDATA
         m_fallback_nic.return_value = 'eth0'
