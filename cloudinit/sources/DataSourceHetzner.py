@@ -82,7 +82,7 @@ class DataSourceHetzner(sources.DataSource):
         self.vendordata_raw = md.get("vendor_data", None)
 
         # instance-id and serial from SMBIOS should be identical
-        if self.metadata['instance-id'] != serial:
+        if self.get_instance_id() != serial:
             raise RuntimeError(
                 "SMBIOS serial does not match instance ID from metadata"
             )
