@@ -15,7 +15,7 @@ import pytest
 USER_DATA = """\
 #cloud-config
 bootcmd:
-- rm /etc/fstab
+- rm -f /etc/fstab
 """
 
 
