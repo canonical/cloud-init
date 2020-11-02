@@ -392,6 +392,11 @@ def multi_log(text, console=True, stderr=True,
 
 
 @lru_cache()
+def is_Linux():
+    return 'Linux' in platform.system()
+
+
+@lru_cache()
 def is_BSD():
     return 'BSD' in platform.system()
 
@@ -1635,16 +1640,17 @@ def mount_cb(device, callback, data=None, mtype=None,
                 _type=type(mtype)))
 
     # clean up 'mtype' input a bit based on platform.
-    platsys = platform.system().lower()
-    if platsys == "linux":
+    if is_Linux():
         if mtypes is None:
             mtypes = ["auto"]
-    elif platsys.endswith("bsd"):
+    elif is_BSD():
         if mtypes is None:
-            mtypes = ['ufs', 'cd9660', 'vfat']
+            mtypes = ['ufs', 'cd9660', 'msdos']
         for index, mtype in enumerate(mtypes):
             if mtype == "iso9660":
                 mtypes[index] = "cd9660"
+            if mtype in ["vfat", "msdosfs"]:
+                mtypes[index] = "msdos"
     else:
         # we cannot do a smart "auto", so just call 'mount' once with no -t
         mtypes = ['']
