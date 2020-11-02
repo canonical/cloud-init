@@ -129,7 +129,7 @@ class TestDatasourceOVF(CiTestCase):
         ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
         retcode = wrap_and_call(
             'cloudinit.sources.DataSourceOVF',
-            {'util.read_dmi_data': None,
+            {'dmi.read_dmi_data': None,
              'transport_iso9660': NOT_FOUND,
              'transport_vmware_guestinfo': NOT_FOUND},
             ds.get_data)
@@ -145,7 +145,7 @@ class TestDatasourceOVF(CiTestCase):
             paths=paths)
         retcode = wrap_and_call(
             'cloudinit.sources.DataSourceOVF',
-            {'util.read_dmi_data': 'vmware',
+            {'dmi.read_dmi_data': 'vmware',
              'transport_iso9660': NOT_FOUND,
              'transport_vmware_guestinfo': NOT_FOUND},
             ds.get_data)
@@ -174,7 +174,7 @@ class TestDatasourceOVF(CiTestCase):
             with self.assertRaises(CustomScriptNotFound) as context:
                 wrap_and_call(
                     'cloudinit.sources.DataSourceOVF',
-                    {'util.read_dmi_data': 'vmware',
+                    {'dmi.read_dmi_data': 'vmware',
                      'util.del_dir': True,
                      'search_file': self.tdir,
                      'wait_for_imc_cfg_file': conf_file,
@@ -211,7 +211,7 @@ class TestDatasourceOVF(CiTestCase):
                 with self.assertRaises(RuntimeError) as context:
                     wrap_and_call(
                         'cloudinit.sources.DataSourceOVF',
-                        {'util.read_dmi_data': 'vmware',
+                        {'dmi.read_dmi_data': 'vmware',
                          'util.del_dir': True,
                          'search_file': self.tdir,
                          'wait_for_imc_cfg_file': conf_file,
@@ -246,7 +246,7 @@ class TestDatasourceOVF(CiTestCase):
                 with self.assertRaises(CustomScriptNotFound) as context:
                     wrap_and_call(
                         'cloudinit.sources.DataSourceOVF',
-                        {'util.read_dmi_data': 'vmware',
+                        {'dmi.read_dmi_data': 'vmware',
                          'util.del_dir': True,
                          'search_file': self.tdir,
                          'wait_for_imc_cfg_file': conf_file,
@@ -290,7 +290,7 @@ class TestDatasourceOVF(CiTestCase):
                 with self.assertRaises(CustomScriptNotFound) as context:
                     wrap_and_call(
                         'cloudinit.sources.DataSourceOVF',
-                        {'util.read_dmi_data': 'vmware',
+                        {'dmi.read_dmi_data': 'vmware',
                          'util.del_dir': True,
                          'search_file': self.tdir,
                          'wait_for_imc_cfg_file': conf_file,
@@ -313,7 +313,7 @@ class TestDatasourceOVF(CiTestCase):
 
         self.assertEqual('ovf', ds.cloud_name)
         self.assertEqual('ovf', ds.platform_type)
-        with mock.patch(MPATH + 'util.read_dmi_data', return_value='!VMware'):
+        with mock.patch(MPATH + 'dmi.read_dmi_data', return_value='!VMware'):
             with mock.patch(MPATH + 'transport_vmware_guestinfo') as m_guestd:
                 with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
                     m_iso9660.return_value = NOT_FOUND
@@ -334,7 +334,7 @@ class TestDatasourceOVF(CiTestCase):
 
         self.assertEqual('ovf', ds.cloud_name)
         self.assertEqual('ovf', ds.platform_type)
-        with mock.patch(MPATH + 'util.read_dmi_data', return_value='VMWare'):
+        with mock.patch(MPATH + 'dmi.read_dmi_data', return_value='VMWare'):
             with mock.patch(MPATH + 'transport_vmware_guestinfo') as m_guestd:
                 with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
                     m_iso9660.return_value = NOT_FOUND

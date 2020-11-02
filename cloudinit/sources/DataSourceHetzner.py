@@ -6,6 +6,7 @@
 """Hetzner Cloud API Documentation
    https://docs.hetzner.cloud/"""
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import sources
@@ -113,11 +114,11 @@ class DataSourceHetzner(sources.DataSource):
 
 
 def get_hcloud_data():
-    vendor_name = util.read_dmi_data('system-manufacturer')
+    vendor_name = dmi.read_dmi_data('system-manufacturer')
     if vendor_name != "Hetzner":
         return (False, None)
 
-    serial = util.read_dmi_data("system-serial-number")
+    serial = dmi.read_dmi_data("system-serial-number")
     if serial:
         LOG.debug("Running on Hetzner Cloud: serial=%s", serial)
     else:
