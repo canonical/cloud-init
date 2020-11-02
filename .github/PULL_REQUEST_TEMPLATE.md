@@ -6,7 +6,7 @@
 
 ## Test Steps
 <!-- Please include any steps necessary to verify (and reproduce if
-this is a bug fix) this change on an actual Ubuntu Server image,
+this is a bug fix) this change on a live deployed system,
 including any necessary configuration files, user-data,
 setup, and teardown. Scripts used may be attached directly to this PR. -->
 
