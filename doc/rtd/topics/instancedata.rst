@@ -592,6 +592,22 @@ see only redacted values.
  % cloud-init query --format 'cloud: {{ v1.cloud_name }} myregion: {{
  % v1.region }}'
 
+ # Locally test that your template userdata provided to the vm was rendered as
+ # intended.
+ % cloud-init query --format "$(sudo cloud-init query userdata)"
+
+ # The --format command renders jinja templates, this can also be used
+ # to develop and test jinja template constructs
+ % cat > test-templating.yaml <<EOF
+   {% for val in ds.meta_data.keys() %}
+   - {{ val }}
+   {% endfor %}
+   EOF
+ % cloud-init query --format="$( cat test-templating.yaml )"
+ - instance_id
+ - dsmode
+ - local_hostname
+
 .. note::
   To save time designing a user-data template for a specific cloud's
   instance-data.json, use the 'render' cloud-init command on an
