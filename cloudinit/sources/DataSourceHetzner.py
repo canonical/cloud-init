@@ -3,14 +3,17 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 #
-"""Hetzner Cloud API Documentation.
+"""Hetzner Cloud API Documentation
    https://docs.hetzner.cloud/"""
 
+from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import sources
 from cloudinit import util
 
 import cloudinit.sources.helpers.hetzner as hc_helper
+
+LOG = logging.getLogger(__name__)
 
 BASE_URL_V1 = 'http://169.254.169.254/hetzner/v1'
 
@@ -43,9 +46,12 @@ class DataSourceHetzner(sources.DataSource):
         self._network_config = None
         self.dsmode = sources.DSMODE_NETWORK
 
-    def get_data(self):
-        if not on_hetzner():
+    def _get_data(self):
+        (on_hetzner, serial) = get_hcloud_data()
+
+        if not on_hetzner:
             return False
+
         nic = cloudnet.find_fallback_nic()
         with cloudnet.EphemeralIPv4Network(nic, "169.254.0.1", 16,
                                            "169.254.255.255"):
@@ -75,7 +81,17 @@ class DataSourceHetzner(sources.DataSource):
         self.metadata['public-keys'] = md.get('public-keys', None)
         self.vendordata_raw = md.get("vendor_data", None)
 
+        # instance-id and serial from SMBIOS should be identical
+        if self.get_instance_id() != serial:
+            raise RuntimeError(
+                "SMBIOS serial does not match instance ID from metadata"
+            )
+
         return True
+
+    def check_instance_id(self, sys_cfg):
+        return sources.instance_id_matches_system_uuid(
+            self.get_instance_id(), 'system-serial-number')
 
     @property
     def network_config(self):
@@ -96,8 +112,18 @@ class DataSourceHetzner(sources.DataSource):
         return self._network_config
 
 
-def on_hetzner():
-    return util.read_dmi_data('system-manufacturer') == "Hetzner"
+def get_hcloud_data():
+    vendor_name = util.read_dmi_data('system-manufacturer')
+    if vendor_name != "Hetzner":
+        return (False, None)
+
+    serial = util.read_dmi_data("system-serial-number")
+    if serial:
+        LOG.debug("Running on Hetzner Cloud: serial=%s", serial)
+    else:
+        raise RuntimeError("Hetzner Cloud detected, but no serial found")
+
+    return (True, serial)
 
 
 # Used to match classes to dependencies

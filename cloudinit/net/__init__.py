@@ -124,6 +124,15 @@ def master_is_bridge_or_bond(devname):
     return (os.path.exists(bonding_path) or os.path.exists(bridge_path))
 
 
+def master_is_openvswitch(devname):
+    """Return a bool indicating if devname's master is openvswitch"""
+    master_path = get_master(devname)
+    if master_path is None:
+        return False
+    ovs_path = sys_dev_path(devname, path="upper_ovs-system")
+    return os.path.exists(ovs_path)
+
+
 def is_netfailover(devname, driver=None):
     """ netfailover driver uses 3 nics, master, primary and standby.
         this returns True if the device is either the primary or standby
@@ -862,8 +871,10 @@ def get_interfaces(blacklist_drivers=None) -> list:
             continue
         if is_bond(name):
             continue
-        if get_master(name) is not None and not master_is_bridge_or_bond(name):
-            continue
+        if get_master(name) is not None:
+            if (not master_is_bridge_or_bond(name) and
+                    not master_is_openvswitch(name)):
+                continue
         if is_netfailover(name):
             continue
         mac = get_interface_mac(name)
