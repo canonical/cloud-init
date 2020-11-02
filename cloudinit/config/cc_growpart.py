@@ -35,7 +35,7 @@ where one tool is able to function and the other is not. The default
 configuration for both should work for most cloud instances. To explicitly
 prevent ``cloud-initramfs-tools`` from running ``growroot``, the file
 ``/etc/growroot-disabled`` can be created. By default, both ``growroot`` and
-``cc_growpart`` will check for the existance of this file and will not run if
+``cc_growpart`` will check for the existence of this file and will not run if
 it is present. However, this file can be ignored for ``cc_growpart`` by setting
 ``ignore_growroot_disabled`` to ``true``. For more information on
 ``cloud-initramfs-tools`` see: https://launchpad.net/cloud-initramfs-tools
