@@ -5,6 +5,7 @@ import csv
 import json
 import os
 import shutil
+import subprocess
 import sys
 
 UNRELEASED = "UNRELEASED"
@@ -99,6 +100,36 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
                              params={'build_depends': ','.join(requires)})
 
 
+def write_debian_folder_from_branch(root, templ_data, branch):
+    """Import a debian package directory from a branch."""
+    print("Importing debian/ from branch %s to %s" % (branch, root))
+
+    p_dumpdeb = subprocess.Popen(
+        ["git", "archive", branch, "debian"], stdout=subprocess.PIPE
+    )
+    subprocess.check_call(
+        ["tar", "-v", "-C", root, "-x"],
+        stdin=p_dumpdeb.stdout
+    )
+
+    print("Adding new entry to debian/changelog")
+    full_deb_version = (
+        templ_data["version_long"] + "-1~bddeb" + templ_data["release_suffix"]
+    )
+    subp.subp(
+        [
+            "dch",
+            "--distribution",
+            templ_data["debian_release"],
+            "--newversion",
+            full_deb_version,
+            "--controlmaint",
+            "Snapshot build.",
+        ],
+        cwd=root
+    )
+
+
 def read_version():
     return json.loads(run_helper('read-version', ['--json']))
 
@@ -140,12 +171,52 @@ def get_parser():
 
     parser.add_argument("--signuser", default=False, action='store',
                         help="user to sign, see man dpkg-genchanges")
+
+    parser.add_argument("--packaging-branch", nargs="?", metavar="BRANCH",
+                        const="ubuntu/devel", type=str,
+                        help=(
+                            "Import packaging from %(metavar)s instead of"
+                            " using the packages/debian/* templates"
+                            " (default: %(const)s)"
+                        ))
+
     return parser
 
 
 def main():
     parser = get_parser()
     args = parser.parse_args()
+
+    if args.packaging_branch:
+        try:
+            subp.subp(
+                [
+                    "git",
+                    "show-ref",
+                    "--quiet",
+                    "--verify",
+                    "refs/heads/" + args.packaging_branch,
+                ]
+            )
+        except subp.ProcessExecutionError:
+            print("Couldn't find branch '%s'." % args.packaging_branch)
+            print("You may need to checkout the branch from the git remote.")
+            return 1
+        try:
+            subp.subp(
+                [
+                    "git",
+                    "cat-file",
+                    "-e",
+                    args.packaging_branch + ":debian/control",
+                ]
+            )
+        except subp.ProcessExecutionError:
+            print(
+                "Couldn't find debian/control in branch '%s'."
+                " Is it a packaging branch?" % args.packaging_branch
+            )
+            return 1
 
     if not args.sign:
         args.debuild_args.extend(['-us', '-uc'])
@@ -198,7 +269,14 @@ def main():
         xdir = util.abs_join(tdir, "cloud-init-%s" % ver_data['version_long'])
         templ_data.update(ver_data)
 
-        write_debian_folder(xdir, templ_data, cloud_util_deps=args.cloud_utils)
+        if args.packaging_branch:
+            write_debian_folder_from_branch(
+                xdir, templ_data, args.packaging_branch
+            )
+        else:
+            write_debian_folder(
+                xdir, templ_data, cloud_util_deps=args.cloud_utils
+            )
 
         print("Running 'debuild %s' in %r" % (' '.join(args.debuild_args),
                                               xdir))

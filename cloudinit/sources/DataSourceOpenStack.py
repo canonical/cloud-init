@@ -6,6 +6,7 @@
 
 import time
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from cloudinit import sources
@@ -32,7 +33,8 @@ DMI_ASSET_TAG_OPENTELEKOM = 'OpenTelekomCloud'
 # See github.com/sapcc/helm-charts/blob/master/openstack/nova/values.yaml
 # -> compute.defaults.vmware.smbios_asset_tag for this value
 DMI_ASSET_TAG_SAPCCLOUD = 'SAP CCloud VM'
-VALID_DMI_ASSET_TAGS = [DMI_ASSET_TAG_OPENTELEKOM, DMI_ASSET_TAG_SAPCCLOUD]
+VALID_DMI_ASSET_TAGS = VALID_DMI_PRODUCT_NAMES
+VALID_DMI_ASSET_TAGS += [DMI_ASSET_TAG_OPENTELEKOM, DMI_ASSET_TAG_SAPCCLOUD]
 
 
 class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
@@ -224,10 +226,10 @@ def detect_openstack(accept_oracle=False):
     """Return True when a potential OpenStack platform is detected."""
     if not util.is_x86():
         return True  # Non-Intel cpus don't properly report dmi product names
-    product_name = util.read_dmi_data('system-product-name')
+    product_name = dmi.read_dmi_data('system-product-name')
     if product_name in VALID_DMI_PRODUCT_NAMES:
         return True
-    elif util.read_dmi_data('chassis-asset-tag') in VALID_DMI_ASSET_TAGS:
+    elif dmi.read_dmi_data('chassis-asset-tag') in VALID_DMI_ASSET_TAGS:
         return True
     elif accept_oracle and oracle._is_platform_viable():
         return True

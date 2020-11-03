@@ -742,7 +742,8 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
         self.assertEqual(1, shim.return_value.clean_up.call_count)
 
     @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_failure_in_registration_calls_clean_up(self, shim):
+    def test_failure_in_registration_propagates_exc_and_calls_clean_up(
+            self, shim):
         shim.return_value.register_with_azure_and_fetch_data.side_effect = (
             SentinelException)
         self.assertRaises(SentinelException,

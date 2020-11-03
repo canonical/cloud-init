@@ -730,6 +730,41 @@ class TestMountCb:
         """already_mounted_device_and_mountdict, but return only the device"""
         return already_mounted_device_and_mountdict[0]
 
+    @pytest.mark.parametrize(
+        "mtype,expected",
+        [
+            # While the filesystem is called iso9660, the mount type is cd9660
+            ("iso9660", "cd9660"),
+            # vfat is generally called "msdos" on BSD
+            ("vfat", "msdos"),
+            # judging from man pages, only FreeBSD has this alias
+            ("msdosfs", "msdos"),
+            # Test happy path
+            ("ufs", "ufs")
+        ],
+    )
+    @mock.patch("cloudinit.util.is_Linux", autospec=True)
+    @mock.patch("cloudinit.util.is_BSD", autospec=True)
+    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
+    def test_normalize_mtype_on_bsd(
+        self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected
+    ):
+        m_is_BSD.return_value = True
+        m_is_Linux.return_value = False
+        m_tmpdir.return_value.__enter__ = mock.Mock(
+            autospec=True, return_value="/tmp/fake"
+        )
+        m_tmpdir.return_value.__exit__ = mock.Mock(
+            autospec=True, return_value=True
+        )
+        callback = mock.Mock(autospec=True)
+
+        util.mount_cb('/dev/fake0', callback, mtype=mtype)
+        assert mock.call(
+            ["mount", "-o", "ro", "-t", expected, "/dev/fake0", "/tmp/fake"],
+            update_env=None) in m_subp.call_args_list
+
     @pytest.mark.parametrize("invalid_mtype", [int(0), float(0.0), dict()])
     def test_typeerror_raised_for_invalid_mtype(self, invalid_mtype):
         with pytest.raises(TypeError):
@@ -769,6 +804,51 @@ class TestMountCb:
         assert [
             mock.call(mock.ANY, mock.sentinel.data)
         ] == callback.call_args_list
+
+
+@mock.patch("cloudinit.util.write_file")
+class TestEnsureFile:
+    """Tests for ``cloudinit.util.ensure_file``."""
+
+    def test_parameters_passed_through(self, m_write_file):
+        """Test the parameters in the signature are passed to write_file."""
+        util.ensure_file(
+            mock.sentinel.path,
+            mode=mock.sentinel.mode,
+            preserve_mode=mock.sentinel.preserve_mode,
+        )
+
+        assert 1 == m_write_file.call_count
+        args, kwargs = m_write_file.call_args
+        assert (mock.sentinel.path,) == args
+        assert mock.sentinel.mode == kwargs["mode"]
+        assert mock.sentinel.preserve_mode == kwargs["preserve_mode"]
+
+    @pytest.mark.parametrize(
+        "kwarg,expected",
+        [
+            # Files should be world-readable by default
+            ("mode", 0o644),
+            # The previous behaviour of not preserving mode should be retained
+            ("preserve_mode", False),
+        ],
+    )
+    def test_defaults(self, m_write_file, kwarg, expected):
+        """Test that ensure_file defaults appropriately."""
+        util.ensure_file(mock.sentinel.path)
+
+        assert 1 == m_write_file.call_count
+        _args, kwargs = m_write_file.call_args
+        assert expected == kwargs[kwarg]
+
+    def test_static_parameters_are_passed(self, m_write_file):
+        """Test that the static write_files parameters are passed correctly."""
+        util.ensure_file(mock.sentinel.path)
+
+        assert 1 == m_write_file.call_count
+        _args, kwargs = m_write_file.call_args
+        assert "" == kwargs["content"]
+        assert "ab" == kwargs["omode"]
 
 
 # vi: ts=4 expandtab
