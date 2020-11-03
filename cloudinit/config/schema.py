@@ -1,8 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """schema.py: Set of module functions for processing cloud-config schema."""
 
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit import importer
-from cloudinit.subp import subp
 from cloudinit.util import find_modules, load_file
 
 import argparse
@@ -39,8 +39,6 @@ SCHEMA_LIST_ITEM_TMPL = (
     '{prefix}Each item in **{prop_name}** list supports the following keys:')
 SCHEMA_EXAMPLES_HEADER = '\n**Examples**::\n\n'
 SCHEMA_EXAMPLES_SPACER_TEMPLATE = '\n    # --- Example{0} ---'
-
-SYSTEM_USERDATA_FILE = "/var/lib/cloud/instance/user-data.txt"
 
 
 class SchemaValidationError(ValueError):
@@ -176,9 +174,8 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
 def validate_cloudconfig_file(config_path, schema, annotate=False):
     """Validate cloudconfig file adheres to a specific jsonschema.
 
-    @param config_path: Path to the yaml cloud-config file to pars, or
-        SYSTEM_USERDATA_FILE to indicate that the system userdata should be
-        queried.
+    @param config_path: Path to the yaml cloud-config file to parse, or None
+        to default to system userdata from Paths object.
     @param schema: Dict describing a valid jsonschema to validate against.
     @param annotate: Boolean set True to print original config file with error
         annotations on the offending lines.
@@ -186,14 +183,16 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
     @raises SchemaValidationError containing any of schema_errors encountered.
     @raises RuntimeError when config_path does not exist.
     """
-    if config_path == SYSTEM_USERDATA_FILE:
-        (content, err) = subp(
-            ["cloud-init", "query", "userdata"], decode=False
-        )
-        if err:
+    if config_path is None:
+        # Use system's raw userdata path
+        if os.getuid() != 0:
             raise RuntimeError(
-                "Could not perform `cloud-init query userdata`. %s" % err
+                "Unable to read system userdata as non-root user."
+                " Try using sudo"
             )
+        paths = read_cfg_paths()
+        user_data_file = paths.get_ipath_cur("userdata_raw")
+        content = load_file(user_data_file, decode=False)
     else:
         if not os.path.exists(config_path):
             raise RuntimeError(
@@ -459,9 +458,7 @@ def handle_schema_args(name, args):
     if not any(exclusive_args) or all(exclusive_args):
         error('Expected one of --config-file, --system or --docs arguments')
     full_schema = get_schema()
-    if args.system:
-        args.config_file = SYSTEM_USERDATA_FILE
-    if args.config_file:
+    if args.config_file or args.system:
         try:
             validate_cloudconfig_file(
                 args.config_file, full_schema, args.annotate)
@@ -471,7 +468,7 @@ def handle_schema_args(name, args):
         except RuntimeError as e:
             error(str(e))
         else:
-            if args.config_file == SYSTEM_USERDATA_FILE:
+            if args.config_file is None:
                 cfg_name = "system userdata"
             else:
                 cfg_name = args.config_file
