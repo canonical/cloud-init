@@ -11,6 +11,7 @@
 import os
 import time
 
+from cloudinit import dmi
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import net
@@ -699,26 +700,26 @@ def _collect_platform_data():
         uuid = util.load_file("/sys/hypervisor/uuid").strip()
         data['uuid_source'] = 'hypervisor'
     except Exception:
-        uuid = util.read_dmi_data('system-uuid')
+        uuid = dmi.read_dmi_data('system-uuid')
         data['uuid_source'] = 'dmi'
 
     if uuid is None:
         uuid = ''
     data['uuid'] = uuid.lower()
 
-    serial = util.read_dmi_data('system-serial-number')
+    serial = dmi.read_dmi_data('system-serial-number')
     if serial is None:
         serial = ''
 
     data['serial'] = serial.lower()
 
-    asset_tag = util.read_dmi_data('chassis-asset-tag')
+    asset_tag = dmi.read_dmi_data('chassis-asset-tag')
     if asset_tag is None:
         asset_tag = ''
 
     data['asset_tag'] = asset_tag.lower()
 
-    vendor = util.read_dmi_data('system-manufacturer')
+    vendor = dmi.read_dmi_data('system-manufacturer')
     data['vendor'] = (vendor if vendor else '').lower()
 
     return data

@@ -730,6 +730,41 @@ class TestMountCb:
         """already_mounted_device_and_mountdict, but return only the device"""
         return already_mounted_device_and_mountdict[0]
 
+    @pytest.mark.parametrize(
+        "mtype,expected",
+        [
+            # While the filesystem is called iso9660, the mount type is cd9660
+            ("iso9660", "cd9660"),
+            # vfat is generally called "msdos" on BSD
+            ("vfat", "msdos"),
+            # judging from man pages, only FreeBSD has this alias
+            ("msdosfs", "msdos"),
+            # Test happy path
+            ("ufs", "ufs")
+        ],
+    )
+    @mock.patch("cloudinit.util.is_Linux", autospec=True)
+    @mock.patch("cloudinit.util.is_BSD", autospec=True)
+    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
+    def test_normalize_mtype_on_bsd(
+        self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected
+    ):
+        m_is_BSD.return_value = True
+        m_is_Linux.return_value = False
+        m_tmpdir.return_value.__enter__ = mock.Mock(
+            autospec=True, return_value="/tmp/fake"
+        )
+        m_tmpdir.return_value.__exit__ = mock.Mock(
+            autospec=True, return_value=True
+        )
+        callback = mock.Mock(autospec=True)
+
+        util.mount_cb('/dev/fake0', callback, mtype=mtype)
+        assert mock.call(
+            ["mount", "-o", "ro", "-t", expected, "/dev/fake0", "/tmp/fake"],
+            update_env=None) in m_subp.call_args_list
+
     @pytest.mark.parametrize("invalid_mtype", [int(0), float(0.0), dict()])
     def test_typeerror_raised_for_invalid_mtype(self, invalid_mtype):
         with pytest.raises(TypeError):

@@ -11,6 +11,7 @@
 import errno
 import os
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit.net import eni
 from cloudinit import sources
@@ -61,7 +62,7 @@ class DataSourceNoCloud(sources.DataSource):
             # Parse the system serial label from dmi. If not empty, try parsing
             # like the commandline
             md = {}
-            serial = util.read_dmi_data('system-serial-number')
+            serial = dmi.read_dmi_data('system-serial-number')
             if serial and load_cmdline_data(md, serial):
                 found.append("dmi")
                 mydata = _merge_new_seed(mydata, {'meta-data': md})
