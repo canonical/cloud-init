@@ -42,7 +42,8 @@ COMPRESSED_EVENT_TYPE = 'compressed'
 # cloud-init.log files where the P95 of the file sizes was 537KB and the time
 # consumed to dump 500KB file was (P95:76, P99:233, P99.9:1170) in ms
 MAX_LOG_TO_KVP_LENGTH = 512000
-# File to store the last byte of cloud-init.log that was pushed to KVP
+# File to store the last byte of cloud-init.log that was pushed to KVP. This
+# file will be deleted with every VM reboot.
 LOG_PUSHED_TO_KVP_INDEX_FILE = '/run/cloud-init/log_pushed_to_kvp_index'
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
@@ -215,7 +216,9 @@ def report_compressed_event(event_name, event_content):
 def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
     """Push a portion of cloud-init.log file or the whole file to KVP
     based on the file size.
-    If called more than once, it continues from where it left off."""
+    The first time this function is called after VM boot, It will push the last
+    n bytes of the log file such that n < MAX_LOG_TO_KVP_LENGTH
+    If called again on the same boot, it continues from where it left off."""
 
     start_index = get_last_log_byte_pushed_to_kvp_index()
 
