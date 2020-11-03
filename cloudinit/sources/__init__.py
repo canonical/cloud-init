@@ -14,6 +14,7 @@ import json
 import os
 from collections import namedtuple
 
+from cloudinit import dmi
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
@@ -809,7 +810,7 @@ def instance_id_matches_system_uuid(instance_id, field='system-uuid'):
     if not instance_id:
         return False
 
-    dmi_value = util.read_dmi_data(field)
+    dmi_value = dmi.read_dmi_data(field)
     if not dmi_value:
         return False
     return instance_id.lower() == dmi_value.lower()
