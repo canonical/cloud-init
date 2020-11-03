@@ -64,7 +64,7 @@ matrix:
             # pylxd talks only to the lxd from snap
             - sudo apt remove --purge lxd lxd-client
             - sudo rm -Rf /var/lib/lxd
-            - sudo snap install --channel=4.6/stable lxd
+            - sudo snap install lxd
             - sudo lxd init --auto
             - sudo mkdir --mode=1777 -p /var/snap/lxd/common/consoles
             # Move any cached lxd images into lxd's image dir
