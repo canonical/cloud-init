@@ -6,7 +6,6 @@ from cloudinit.config.cc_resizefs import (
 
 from collections import namedtuple
 import logging
-import textwrap
 
 from cloudinit.tests.helpers import (
     CiTestCase, mock, skipUnlessJsonSchema, util, wrap_and_call)
