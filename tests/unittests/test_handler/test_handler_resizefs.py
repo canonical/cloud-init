@@ -35,23 +35,18 @@ class TestResizefs(CiTestCase):
         res = can_skip_resize(fs_type, resize_what, devpth)
         self.assertTrue(res)
 
-    @mock.patch('cloudinit.config.cc_resizefs._get_dumpfs_output')
-    @mock.patch('cloudinit.config.cc_resizefs._get_gpart_output')
-    def test_skip_ufs_resize_roundup(self, gpart_out, dumpfs_out):
+    @mock.patch('cloudinit.subp.subp')
+    def test_cannot_skip_ufs_resize(self, growfs_N_out):
         fs_type = "ufs"
         resize_what = "/"
         devpth = "/dev/da0p2"
-        dumpfs_out.return_value = (
-            "# newfs command for / (/dev/label/rootfs)\n"
-            "newfs -O 2 -U -a 4 -b 32768 -d 32768 -e 4096 "
-            "-f 4096 -g 16384 -h 64 -i 8192 -j -k 368 -m 8 "
-            "-o time -s 297080 /dev/label/rootfs\n")
-        gpart_out.return_value = textwrap.dedent("""\
-            =>      34  297086  da0  GPT  (145M)
-                    34  297086    1  freebsd-ufs  (145M)
-            """)
+        growfs_N_out.return_value = (
+            ("stdout: super-block backups (for fsck_ffs -b #) at:\n\n"),
+            ("growfs: no room to allocate last cylinder group; "
+             "leaving 364KB unused\n")
+        )
         res = can_skip_resize(fs_type, resize_what, devpth)
-        self.assertTrue(res)
+        self.assertFalse(res)
 
     def test_can_skip_resize_ext(self):
         self.assertFalse(can_skip_resize('ext', '/', '/dev/sda1'))

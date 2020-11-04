@@ -87,11 +87,21 @@ def _resize_zfs(mount_point, devpth):
 
 def _can_skip_resize_ufs(_mount_point, devpth):
     (_out, err) = subp.subp(['growfs', '-N', devpth], rcs=[0, 1])
-    # possible errors:
+    # possible errors cases:
+    # stdout: empty
     # growfs: requested size 2.0GB is not larger than the current
     #   filesystem size 2.0GB
     # growfs: superblock not recognized
-    if err is not None:
+    #
+    # possible good good case:
+    # stdout: super-block backups (for fsck_ffs -b #) at:
+    #
+    # stderr: growfs: no room to allocate last cylinder group;
+    #   leaving 364KB unused
+
+    skip_err_start = "growfs: requested size"
+    skip_err_contain = "is not larger than the current filesystem size"
+    if err and err.startswith(skip_err_start) and skip_err_contain in err:
         return True
     else:
         return False
