@@ -148,6 +148,7 @@ class IntegrationLxdContainerInstance(IntegrationInstance):
             self._mount_source()
 
     def _mount_source(self):
+        log.info("Mounting source directory IN_PLACE...")
         command = (
             'lxc config device add {name} host-cloud-init disk '
             'source={cloudinit_path} '

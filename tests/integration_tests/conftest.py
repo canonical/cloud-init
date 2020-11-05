@@ -74,6 +74,9 @@ def setup_image(session_cloud):
     """
     client = None
     log.info('Setting up environment for %s', session_cloud.datasource)
+    log.info(
+        'Using CLOUD_INIT_SOURCE: %s', integration_settings.CLOUD_INIT_SOURCE
+    )
     if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
         pass  # that was easy
     elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
