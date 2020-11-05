@@ -23,6 +23,7 @@ from cloudinit import net
 from cloudinit.net import eni
 from cloudinit.net import network_state
 from cloudinit.net import renderers
+from cloudinit import persistence
 from cloudinit import ssh_util
 from cloudinit import type_utils
 from cloudinit import subp
@@ -62,7 +63,7 @@ PREFERRED_NTP_CLIENTS = ['chrony', 'systemd-timesyncd', 'ntp', 'ntpdate']
 LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
 
-class Distro(metaclass=abc.ABCMeta):
+class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
@@ -77,26 +78,16 @@ class Distro(metaclass=abc.ABCMeta):
     # subclasses
     shutdown_options_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
 
+    _ci_pkl_version = 1
+
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
         self.networking = self.networking_cls()
 
-    def __setstate__(self, state):
-        """Restore instance state and handle missing attributes on upgrade.
-
-        This will be called when an instance of this class is unpickled; the
-        previous instance's `__dict__` is passed as `state`.  This method
-        restores that state into the current instance, and fixes up any
-        missing/incorrect state (usually caused by upgrades to cloud-init since
-        `state` was pickled).
-
-        See https://docs.python.org/3/library/pickle.html#object.__setstate__
-        for further background.
-        """
-        # Restore instance attributes
-        self.__dict__.update(state)
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        """Perform deserialization fixes for Distro."""
         if "networking" not in self.__dict__ or not self.networking.__dict__:
             # This is either a Distro pickle with no networking attribute OR
             # this is a Distro pickle with a networking attribute but from
