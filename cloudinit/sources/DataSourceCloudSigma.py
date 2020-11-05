@@ -9,9 +9,9 @@ import re
 
 from cloudinit.cs_utils import Cepko, SERIAL_PORT
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class DataSourceCloudSigma(sources.DataSource):
         """
 
         LOG.debug("determining hypervisor product name via dmi data")
-        sys_product_name = util.read_dmi_data("system-product-name")
+        sys_product_name = dmi.read_dmi_data("system-product-name")
         if not sys_product_name:
             LOG.debug("system-product-name not available in dmi data")
             return False

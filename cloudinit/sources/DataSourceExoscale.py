@@ -3,6 +3,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from cloudinit import dmi
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import sources
@@ -135,7 +136,7 @@ class DataSourceExoscale(sources.DataSource):
         return self.extra_config
 
     def _is_platform_viable(self):
-        return util.read_dmi_data('system-product-name').startswith(
+        return dmi.read_dmi_data('system-product-name').startswith(
             EXOSCALE_DMI_NAME)
 
 

@@ -17,6 +17,7 @@ import base64
 from collections import namedtuple
 from contextlib import suppress as noop
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net, sources, util
 from cloudinit.net import (
@@ -273,12 +274,12 @@ class DataSourceOracle(sources.DataSource):
 
 
 def _read_system_uuid():
-    sys_uuid = util.read_dmi_data('system-uuid')
+    sys_uuid = dmi.read_dmi_data('system-uuid')
     return None if sys_uuid is None else sys_uuid.lower()
 
 
 def _is_platform_viable():
-    asset_tag = util.read_dmi_data('chassis-asset-tag')
+    asset_tag = dmi.read_dmi_data('chassis-asset-tag')
     return asset_tag == CHASSIS_ASSET_TAG
 
 

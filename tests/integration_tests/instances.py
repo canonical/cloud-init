@@ -1,11 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from abc import ABC, abstractmethod
 import logging
 import os
 from tempfile import NamedTemporaryFile
 
-from pycloudlib import EC2, GCE, Azure, OCI, LXD
-from pycloudlib.cloud import BaseCloud
 from pycloudlib.instance import BaseInstance
 
 import cloudinit
@@ -13,7 +10,9 @@ from cloudinit.subp import subp
 from tests.integration_tests import integration_settings
 
 try:
-    from typing import Callable, Optional
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+        from tests.integration_tests.clouds import IntegrationCloud
 except ImportError:
     pass
 
@@ -21,21 +20,14 @@ except ImportError:
 log = logging.getLogger('integration_testing')
 
 
-class IntegrationClient(ABC):
-    client = None  # type: Optional[BaseCloud]
-    instance = None  # type: Optional[BaseInstance]
-    datasource = None  # type: Optional[str]
+class IntegrationInstance:
     use_sudo = True
-    current_image = None
 
-    def __init__(self, user_data=None, instance_type=None,
-                 settings=integration_settings, launch_kwargs=None):
-        self.user_data = user_data
-        self.instance_type = settings.INSTANCE_TYPE if \
-            instance_type is None else instance_type
+    def __init__(self, cloud: 'IntegrationCloud', instance: BaseInstance,
+                 settings=integration_settings):
+        self.cloud = cloud
+        self.instance = instance
         self.settings = settings
-        self.launch_kwargs = launch_kwargs if launch_kwargs else {}
-        self.client = self._get_client()
 
     def emit_settings_to_log(self) -> None:
         log.info(
@@ -47,42 +39,6 @@ class IntegrationClient(ABC):
                 ]
             )
         )
-
-    @abstractmethod
-    def _get_client(self):
-        raise NotImplementedError
-
-    def _get_image(self):
-        if self.current_image:
-            return self.current_image
-        image_id = self.settings.OS_IMAGE
-        try:
-            image_id = self.client.released_image(self.settings.OS_IMAGE)
-        except (ValueError, IndexError):
-            pass
-        return image_id
-
-    def launch(self):
-        if self.settings.EXISTING_INSTANCE_ID:
-            log.info(
-                'Not launching instance due to EXISTING_INSTANCE_ID. '
-                'Instance id: %s', self.settings.EXISTING_INSTANCE_ID)
-            self.instance = self.client.get_instance(
-                self.settings.EXISTING_INSTANCE_ID
-            )
-            return
-        image_id = self._get_image()
-        launch_args = {
-            'image_id': image_id,
-            'user_data': self.user_data,
-            'wait': False,
-        }
-        if self.instance_type:
-            launch_args['instance_type'] = self.instance_type
-        launch_args.update(self.launch_kwargs)
-        self.instance = self.client.launch(**launch_args)
-        self.instance.wait(raise_on_cloudinit_failure=False)
-        log.info('Launched instance: %s', self.instance)
 
     def destroy(self):
         self.instance.delete()
@@ -115,7 +71,7 @@ class IntegrationClient(ABC):
             os.unlink(tmp_file.name)
 
     def snapshot(self):
-        return self.client.snapshot(self.instance, clean=True)
+        return self.cloud.snapshot(self.instance)
 
     def _install_new_cloud_init(self, remote_script):
         self.execute(remote_script)
@@ -124,7 +80,7 @@ class IntegrationClient(ABC):
         self.instance.clean()
         image_id = self.snapshot()
         log.info('Created new image: %s', image_id)
-        IntegrationClient.current_image = image_id
+        self.cloud.image_id = image_id
 
     def install_proposed_image(self):
         log.info('Installing proposed image')
@@ -159,7 +115,6 @@ class IntegrationClient(ABC):
         self._install_new_cloud_init(remote_script)
 
     def __enter__(self):
-        self.launch()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -167,48 +122,30 @@ class IntegrationClient(ABC):
             self.destroy()
 
 
-class Ec2Client(IntegrationClient):
-    datasource = 'ec2'
-
-    def _get_client(self):
-        return EC2(tag='ec2-integration-test')
+class IntegrationEc2Instance(IntegrationInstance):
+    pass
 
 
-class GceClient(IntegrationClient):
-    datasource = 'gce'
-
-    def _get_client(self):
-        return GCE(
-            tag='gce-integration-test',
-            project=self.settings.GCE_PROJECT,
-            region=self.settings.GCE_REGION,
-            zone=self.settings.GCE_ZONE,
-        )
+class IntegrationGceInstance(IntegrationInstance):
+    pass
 
 
-class AzureClient(IntegrationClient):
-    datasource = 'azure'
-
-    def _get_client(self):
-        return Azure(tag='azure-integration-test')
+class IntegrationAzureInstance(IntegrationInstance):
+    pass
 
 
-class OciClient(IntegrationClient):
-    datasource = 'oci'
-
-    def _get_client(self):
-        return OCI(
-            tag='oci-integration-test',
-            compartment_id=self.settings.OCI_COMPARTMENT_ID
-        )
+class IntegrationOciInstance(IntegrationInstance):
+    pass
 
 
-class LxdContainerClient(IntegrationClient):
-    datasource = 'lxd_container'
+class IntegrationLxdContainerInstance(IntegrationInstance):
     use_sudo = False
 
-    def _get_client(self):
-        return LXD(tag='lxd-integration-test')
+    def __init__(self, cloud: 'IntegrationCloud', instance: BaseInstance,
+                 settings=integration_settings):
+        super().__init__(cloud, instance, settings)
+        if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
+            self._mount_source()
 
     def _mount_source(self):
         command = (
@@ -218,29 +155,3 @@ class LxdContainerClient(IntegrationClient):
         ).format(
             name=self.instance.name, cloudinit_path=cloudinit.__path__[0])
         subp(command.split())
-
-    def launch(self):
-        super().launch()
-        if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-            self._mount_source()
-
-
-client_name_to_class = {
-    'ec2': Ec2Client,
-    'gce': GceClient,
-    'azure': AzureClient,
-    'oci': OciClient,
-    'lxd_container': LxdContainerClient
-}
-
-try:
-    dynamic_client = client_name_to_class[
-        integration_settings.PLATFORM
-    ]  # type: Callable[..., IntegrationClient]
-except KeyError:
-    raise ValueError(
-        "{} is an invalid PLATFORM specified in settings. "
-        "Must be one of {}".format(
-            integration_settings.PLATFORM, list(client_name_to_class.keys())
-        )
-    )

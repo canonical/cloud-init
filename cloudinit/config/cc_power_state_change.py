@@ -22,7 +22,7 @@ The ``delay`` key specifies a duration to be added onto any shutdown command
 used. Therefore, if a 5 minute delay and a 120 second shutdown are specified,
 the maximum amount of time between cloud-init starting and the system shutting
 down is 7 minutes, and the minimum amount of time is 5 minutes. The ``delay``
-key must have an argument in either the form ``+5`` for 5 minutes or ``now``
+key must have an argument in either the form ``'+5'`` for 5 minutes or ``now``
 for immediate shutdown.
 
 Optionally, a command can be run to determine whether or not
