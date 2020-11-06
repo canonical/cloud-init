@@ -391,7 +391,7 @@ will reference.  These will capture the differences between networking
 on our various distros, while still allowing easy reuse of code between
 distros that share functionality (e.g. most of the Linux networking
 behaviour).  ``Distro`` objects will instantiate the networking classes
-at ``self.net``, so callers will call ``distro.networking.<func>`` instead of
+at ``self.networking``, so callers will call ``distro.networking.<func>`` instead of
 ``cloudinit.net.<func>``; this will necessitate access to an instantiated
 ``Distro`` object.
 
@@ -430,7 +430,7 @@ In more detail:
   will be implemented in ``cloudinit.distros.Distro.__init__``.)
 * A helper function will be added which will determine the appropriate
   ``Distro`` subclass for the current system, instantiate it and return
-  its ``net`` attribute.  (This is the entry point for existing
+  its ``networking`` attribute.  (This is the entry point for existing
   consumers to migrate to.)
 * Callers of refactored functions will change from calling
   ``cloudinit.net.<func>`` to ``distro.networking.<func>``, where ``distro``
