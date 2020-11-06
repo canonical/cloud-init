@@ -248,7 +248,6 @@ class Init(object):
             LOG.debug(myrep.description)
 
         if not ds:
-            util.del_file(self.paths.instance_link)
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
             # (which will affect user-data handlers down the line...)
