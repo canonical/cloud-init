@@ -391,9 +391,9 @@ will reference.  These will capture the differences between networking
 on our various distros, while still allowing easy reuse of code between
 distros that share functionality (e.g. most of the Linux networking
 behaviour).  ``Distro`` objects will instantiate the networking classes
-at ``self.networking``, so callers will call ``distro.networking.<func>`` instead of
-``cloudinit.net.<func>``; this will necessitate access to an instantiated
-``Distro`` object.
+at ``self.networking``, so callers will call
+``distro.networking.<func>`` instead of ``cloudinit.net.<func>``; this
+will necessitate access to an instantiated ``Distro`` object.
 
 An implementation note: there may be external consumers of the
 ``cloudinit.net`` module.  We don't consider this a public API, so we
@@ -426,17 +426,18 @@ In more detail:
   networking class (initially this will be either ``LinuxNetworking``
   or ``BSDNetworking``).
 * When ``Distro`` classes are instantiated, they will instantiate
-  ``cls.networking_cls`` and store the instance at ``self.net``.  (This
-  will be implemented in ``cloudinit.distros.Distro.__init__``.)
+  ``cls.networking_cls`` and store the instance at ``self.networking``.
+  (This will be implemented in ``cloudinit.distros.Distro.__init__``.)
 * A helper function will be added which will determine the appropriate
   ``Distro`` subclass for the current system, instantiate it and return
   its ``networking`` attribute.  (This is the entry point for existing
   consumers to migrate to.)
 * Callers of refactored functions will change from calling
-  ``cloudinit.net.<func>`` to ``distro.networking.<func>``, where ``distro``
-  is an instance of the appropriate ``Distro`` class for this system.
-  (This will require making such an instance available to callers,
-  which will constitute a large part of the work in this project.)
+  ``cloudinit.net.<func>`` to ``distro.networking.<func>``, where
+  ``distro`` is an instance of the appropriate ``Distro`` class for
+  this system.  (This will require making such an instance available to
+  callers, which will constitute a large part of the work in this
+  project.)
 
 After the initial structure is in place, the work in this refactor will
 consist of replacing the ``cloudinit.net.some_func`` call in each
@@ -448,11 +449,11 @@ time:
 * find it in the `the list of bugs tagged net-refactor`_ and assign
   yourself to it (see :ref:`Managing Work/Tracking Progress` below for
   more details)
-* refactor all of its callers to call the ``distro.networking.<func>`` method
-  on ``Distro`` instead of the ``cloudinit.net.<func>`` function. (This
-  is likely to be the most time-consuming step, as it may require
-  plumbing ``Distro`` objects through to places that previously have
-  not consumed them.)
+* refactor all of its callers to call the ``distro.networking.<func>``
+  method on ``Distro`` instead of the ``cloudinit.net.<func>``
+  function. (This is likely to be the most time-consuming step, as it
+  may require plumbing ``Distro`` objects through to places that
+  previously have not consumed them.)
 * refactor its implementation from ``cloudinit.net`` into the
   ``Networking`` hierarchy (e.g. if it has an if/else on BSD, this is
   the time to put the implementations in their respective subclasses)
