@@ -6,17 +6,15 @@ import shutil
 import tempfile
 
 
-from cloudinit.settings import PER_INSTANCE
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources import DataSourceNotFoundException
 from cloudinit import safeyaml
 from cloudinit import stages
-from cloudinit import settings
 from cloudinit import util
 from cloudinit.tests import helpers
 from cloudinit import helpers as cloud_helpers
 
-from cloudinit.tests.helpers import CiTestCase, ExitStack, mock, populate_dir
+from cloudinit.tests.helpers import populate_dir
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
 EC2_META = {
@@ -230,7 +228,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         self.tmp = self.tmp_dir()
         self.sys_cfg = {'datasource': {'ConfigDrive': {'dsmode': 'local'}}}
         self.paths = cloud_helpers.Paths(
-                {'cloud_dir': self.tmp, 'run_dir': self.tmp})
+            {'cloud_dir': self.tmp, 'run_dir': self.tmp})
         self.ds = ds.DataSourceConfigDrive
 
     def _patchIn(self, root):
@@ -257,7 +255,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         finally:
             util.find_devs_with = orig_find_devs_with
 
-        ud = helpers.readResource('user_data.1.txt')
+        helpers.readResource('user_data.1.txt')
         cloud_cfg = safeyaml.dumps(cfg)
         util.ensure_dir(os.path.join(self.new_root, 'etc', 'cloud'))
         util.write_file(os.path.join(self.new_root, 'etc',

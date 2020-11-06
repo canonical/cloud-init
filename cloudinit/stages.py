@@ -275,7 +275,7 @@ class Init(object):
                 else:
                     LOG.info("Cached datasource %s doesn't match "
                              "datasources enabled in the configuration %s",
-                             ds.name, dsources)
+                             ds.dsname, dsources)
             LOG.info("Loaded datasource %s - %s", dsname, ds)
         self.datasource = ds
         # Ensure we adjust our path members datasource
