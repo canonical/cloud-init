@@ -391,9 +391,9 @@ will reference.  These will capture the differences between networking
 on our various distros, while still allowing easy reuse of code between
 distros that share functionality (e.g. most of the Linux networking
 behaviour).  ``Distro`` objects will instantiate the networking classes
-at ``self.net``, so callers will call ``distro.net.<func>`` instead of
-``cloudinit.net.<func>``; this will necessitate access to an
-instantiated ``Distro`` object.
+at ``self.net``, so callers will call ``distro.networking.<func>`` instead of
+``cloudinit.net.<func>``; this will necessitate access to an instantiated
+``Distro`` object.
 
 An implementation note: there may be external consumers of the
 ``cloudinit.net`` module.  We don't consider this a public API, so we
@@ -433,7 +433,7 @@ In more detail:
   its ``net`` attribute.  (This is the entry point for existing
   consumers to migrate to.)
 * Callers of refactored functions will change from calling
-  ``cloudinit.net.<func>`` to ``distro.net.<func>``, where ``distro``
+  ``cloudinit.net.<func>`` to ``distro.networking.<func>``, where ``distro``
   is an instance of the appropriate ``Distro`` class for this system.
   (This will require making such an instance available to callers,
   which will constitute a large part of the work in this project.)
@@ -448,7 +448,7 @@ time:
 * find it in the `the list of bugs tagged net-refactor`_ and assign
   yourself to it (see :ref:`Managing Work/Tracking Progress` below for
   more details)
-* refactor all of its callers to call the ``distro.net.<func>`` method
+* refactor all of its callers to call the ``distro.networking.<func>`` method
   on ``Distro`` instead of the ``cloudinit.net.<func>`` function. (This
   is likely to be the most time-consuming step, as it may require
   plumbing ``Distro`` objects through to places that previously have
