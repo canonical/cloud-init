@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-import tempfile
 import json
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit import helpers
