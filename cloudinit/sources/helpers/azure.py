@@ -545,12 +545,10 @@ class GoalStateHealthReporter:
             status=self.PROVISIONING_NOT_READY_STATUS,
             substatus=self.PROVISIONING_FAILURE_SUBSTATUS,
             description=description)
-        LOG.warning('Reporting failure to Azure fabric.')
         try:
             self._post_health_report(document=document)
         except Exception as e:
             msg = "exception while reporting failure: %s" % e
-            LOG.error(msg)
             report_diagnostic_event(msg, logger_func=LOG.error)
             raise
 
