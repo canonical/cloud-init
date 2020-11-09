@@ -488,10 +488,6 @@ class TestAzureDataSource(CiTestCase):
             mock.patch.object(
                 dsaz, 'maybe_remove_ubuntu_network_config_scripts',
                 mock.MagicMock()))
-        # mock net.is_up used in DataSourceAzure.py to determine whether
-        # cached ephemeral dhcp lease can be used
-        self.m_net_is_up = self.patches.enter_context(
-            mock.patch.object(dsaz.net, 'is_up', mock.MagicMock()))
         super(TestAzureDataSource, self).setUp()
 
     def apply_patches(self, patches):
@@ -908,27 +904,30 @@ scbus-1 on xpt0 bus 0
         }
         dsrc = self._get_ds(data)
 
-        # For this mock, net should not be up,
-        # so that cached ephemeral won't be used.
-        # This is so that a NEW ephemeral dhcp lease will be discovered
-        # and used instead.
-        self.m_net_is_up.return_value = False
+        with mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
 
-        lease = {
-            'interface': 'eth9', 'fixed-address': '192.168.2.9',
-            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
-            'unknown-245': '624c3620'}
-        self.m_ephemeral_dhcpv4_with_reporting.return_value \
-            .__enter__.return_value = lease
-        m_media_switch.return_value = None
+            # For this mock, net should not be up,
+            # so that cached ephemeral won't be used.
+            # This is so that a NEW ephemeral dhcp lease will be discovered
+            # and used instead.
+            m_dsrc_distro_networking_is_up.return_value = False
 
-        reprovision_ovfenv = construct_valid_ovf_env()
-        m_readurl.return_value = url_helper.StringResponse(
-            reprovision_ovfenv.encode('utf-8'))
+            lease = {
+                'interface': 'eth9', 'fixed-address': '192.168.2.9',
+                'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+                'unknown-245': '624c3620'}
+            self.m_ephemeral_dhcpv4_with_reporting.return_value \
+                .__enter__.return_value = lease
+            m_media_switch.return_value = None
 
-        dsrc.crawl_metadata()
-        self.assertEqual(2, m_report_ready.call_count)
-        m_report_ready.assert_called_with(lease=lease)
+            reprovision_ovfenv = construct_valid_ovf_env()
+            m_readurl.return_value = url_helper.StringResponse(
+                reprovision_ovfenv.encode('utf-8'))
+
+            dsrc.crawl_metadata()
+            self.assertEqual(2, m_report_ready.call_count)
+            m_report_ready.assert_called_with(lease=lease)
 
     def test_waagent_d_has_0700_perms(self):
         # we expect /var/lib/waagent to be created 0700
@@ -1301,12 +1300,14 @@ scbus-1 on xpt0 bus 0
 
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
                 mock.patch.object(dsrc, '_ephemeral_dhcp_ctx') \
-                as m_ephemeral_dhcp_ctx:
+                as m_ephemeral_dhcp_ctx, \
+                mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
             # setup mocks to allow using cached ephemeral dhcp lease
-            self.m_net_is_up.return_value = True
+            m_dsrc_distro_networking_is_up.return_value = True
             test_lease_dhcp_option_245 = 'test_lease_dhcp_option_245'
             test_lease = {'unknown-245': test_lease_dhcp_option_245}
             m_ephemeral_dhcp_ctx.lease = test_lease
@@ -1347,12 +1348,14 @@ scbus-1 on xpt0 bus 0
 
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
                 mock.patch.object(dsrc, '_ephemeral_dhcp_ctx') \
-                as m_ephemeral_dhcp_ctx:
+                as m_ephemeral_dhcp_ctx, \
+                mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
             # setup mocks to allow using cached ephemeral dhcp lease
-            self.m_net_is_up.return_value = True
+            m_dsrc_distro_networking_is_up.return_value = True
             test_lease_dhcp_option_245 = 'test_lease_dhcp_option_245'
             test_lease = {'unknown-245': test_lease_dhcp_option_245}
             m_ephemeral_dhcp_ctx.lease = test_lease
@@ -1372,12 +1375,14 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         dsrc.ds_cfg['agent_command'] = '__builtin__'
 
-        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
             # net is not up and cannot use cached ephemeral dhcp
-            self.m_net_is_up.return_value = False
+            m_dsrc_distro_networking_is_up.return_value = False
             # setup ephemeral dhcp lease discovery mock
             test_lease_dhcp_option_245 = 'test_lease_dhcp_option_245'
             test_lease = {'unknown-245': test_lease_dhcp_option_245}
@@ -1396,12 +1401,14 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         dsrc.ds_cfg['agent_command'] = '__builtin__'
 
-        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
             # mock crawl metadata failure to cause report failure
             m_crawl_metadata.side_effect = Exception
 
             # net is not up and cannot use cached ephemeral dhcp
-            self.m_net_is_up.return_value = False
+            m_dsrc_distro_networking_is_up.return_value = False
             # ephemeral dhcp discovery failure,
             # so cannot use a new ephemeral dhcp
             self.m_ephemeral_dhcpv4_with_reporting.return_value \

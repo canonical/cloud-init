@@ -509,8 +509,9 @@ class DataSourceAzure(sources.DataSource):
 
         if perform_reprovision:
             LOG.info("Reporting ready to Azure after getting ReprovisionData")
-            use_cached_ephemeral = (net.is_up(self.fallback_interface) and
-                                    getattr(self, '_ephemeral_dhcp_ctx', None))
+            use_cached_ephemeral = (
+                self.distro.networking.is_up(self.fallback_interface) and
+                getattr(self, '_ephemeral_dhcp_ctx', None))
             if use_cached_ephemeral:
                 self._report_ready(lease=self._ephemeral_dhcp_ctx.lease)
                 self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
@@ -805,7 +806,7 @@ class DataSourceAzure(sources.DataSource):
         unknown_245_key = 'unknown-245'
 
         try:
-            if (net.is_up(self.fallback_interface) and
+            if (self.distro.networking.is_up(self.fallback_interface) and
                     getattr(self, '_ephemeral_dhcp_ctx', None) and
                     getattr(self._ephemeral_dhcp_ctx, 'lease', None) and
                     unknown_245_key in self._ephemeral_dhcp_ctx.lease):
