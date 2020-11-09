@@ -26,6 +26,7 @@ from cloudinit import distros
 from cloudinit.reporting import events
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from datetime import datetime
+from typing import Union
 
 LOG = logging.getLogger(__name__)
 
@@ -556,7 +557,8 @@ class GoalStateHealthReporter:
         LOG.warning('Reported failure to Azure fabric.')
 
     def build_report(
-            self, incarnation: str, container_id: str, instance_id: str,
+            self, incarnation: Union[str, int],
+            container_id: str, instance_id: str,
             status: str, substatus=None, description=None) -> str:
         health_detail = ''
         if substatus is not None:
