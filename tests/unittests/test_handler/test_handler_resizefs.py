@@ -58,7 +58,6 @@ class TestResizefs(CiTestCase):
         with self.assertRaises(ProcessExecutionError):
             can_skip_resize(fs_type, resize_what, devpth)
 
-
     def test_can_skip_resize_ext(self):
         self.assertFalse(can_skip_resize('ext', '/', '/dev/sda1'))
 

@@ -93,9 +93,8 @@ def _can_skip_resize_ufs(mount_point, devpth):
     skip_contain = "is not larger than the current filesystem size"
     # growfs exits with 1 for almost all cases up to this one.
     # This means we can't just use rcs=[0, 1] as subp parameter:
-    err = None
     try:
-        (_, err) = subp.subp(['growfs', '-N', devpth])
+        subp.subp(['growfs', '-N', devpth])
     except subp.ProcessExecutionError as e:
         if e.stderr.startswith(skip_start) and skip_contain in e.stderr:
             # This FS is already at the desired size
