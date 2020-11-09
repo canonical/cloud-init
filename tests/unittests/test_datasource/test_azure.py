@@ -729,25 +729,6 @@ scbus-1 on xpt0 bus 0
                 "Could not crawl Azure metadata",
                 self.logs.getvalue())
 
-    def test_crawl_metadata_exc_report_failure_exc_should_log_msg(self):
-        data = {}
-        dsrc = self._get_ds(data)
-        self.m_is_platform_viable.return_value = True
-        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
-                mock.patch.object(dsrc, '_report_failure') as m_report_failure:
-            m_crawl_metadata.side_effect = Exception
-            m_report_failure.side_effect = Exception
-            dsrc.get_data()
-            self.assertEqual(
-                1,
-                m_crawl_metadata.call_count)
-            self.assertEqual(
-                1,
-                m_report_failure.call_count)
-            self.assertIn(
-                "Failed to report failure to Azure",
-                self.logs.getvalue())
-
     def test_basic_seed_dir(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),

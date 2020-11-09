@@ -566,13 +566,8 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(
                 'Could not crawl Azure metadata: %s' % e,
                 logger_func=LOG.error)
-            try:
-                self._report_failure(
-                    description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
-            except Exception as inner_e:
-                report_diagnostic_event(
-                    'Failed to report failure to Azure: %s' % inner_e,
-                    logger_func=LOG.error)
+            self._report_failure(
+                description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
             return False
 
         if (self.distro and self.distro.name == 'ubuntu' and
