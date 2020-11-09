@@ -555,7 +555,7 @@ scbus-1 on xpt0 bus 0
 
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-        self.m_is_platform_viable = mock.MagicMock()
+        self.m_is_platform_viable = mock.MagicMock(autospec=True)
         self.m_get_metadata_from_fabric = mock.MagicMock(
             return_value={'public-keys': []})
         self.m_report_failure_to_fabric = mock.MagicMock()
