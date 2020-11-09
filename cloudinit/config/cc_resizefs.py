@@ -89,19 +89,20 @@ def _can_skip_resize_ufs(mount_point, devpth):
     # possible errors cases on the code-path to growfs -N following:
     # https://github.com/freebsd/freebsd/blob/HEAD/sbin/growfs/growfs.c
     # This is the "good" error:
-    skip_err_start = "growfs: requested size"
-    skip_err_contain = "is not larger than the current filesystem size"
+    skip_start = "growfs: requested size"
+    skip_contain = "is not larger than the current filesystem size"
     # growfs exits with 1 for almost all cases up to this one.
     # This means we can't just use rcs=[0, 1] as subp parameter:
+    err = None
     try:
-        (_out, err) = subp.subp(['growfs', '-N', devpth])
+        (_, err) = subp.subp(['growfs', '-N', devpth])
     except subp.ProcessExecutionError as e:
-        if err and err.startswith(skip_err_start) and skip_err_contain in err:
+        if e.stderr.startswith(skip_start) and skip_contain in e.stderr:
             # This FS is already at the desired size
             return True
         else:
             raise e
-    return True
+    return False
 
 
 # Do not use a dictionary as these commands should be able to be used

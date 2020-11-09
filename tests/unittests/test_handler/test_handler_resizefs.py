@@ -7,6 +7,7 @@ from cloudinit.config.cc_resizefs import (
 from collections import namedtuple
 import logging
 
+from cloudinit.subp import ProcessExecutionError
 from cloudinit.tests.helpers import (
     CiTestCase, mock, skipUnlessJsonSchema, util, wrap_and_call)
 
@@ -26,11 +27,10 @@ class TestResizefs(CiTestCase):
         fs_type = "ufs"
         resize_what = "/"
         devpth = "/dev/da0p2"
-        growfs_N_out.return_value = (
-            None,
-            ("growfs: requested size 2.0GB is not larger than the current "
-             "filesystem size 2.0GB\n")
-        )
+        err = ("growfs: requested size 2.0GB is not larger than the "
+               "current filesystem size 2.0GB\n")
+        exception = ProcessExecutionError(stderr=err, exit_code=1)
+        growfs_N_out.side_effect = exception
         res = can_skip_resize(fs_type, resize_what, devpth)
         self.assertTrue(res)
 
@@ -46,6 +46,18 @@ class TestResizefs(CiTestCase):
         )
         res = can_skip_resize(fs_type, resize_what, devpth)
         self.assertFalse(res)
+
+    @mock.patch('cloudinit.subp.subp')
+    def test_cannot_skip_ufs_growfs_exception(self, growfs_N_out):
+        fs_type = "ufs"
+        resize_what = "/"
+        devpth = "/dev/da0p2"
+        err = "growfs: /dev/da0p2 is not clean - run fsck.\n"
+        exception = ProcessExecutionError(stderr=err, exit_code=1)
+        growfs_N_out.side_effect = exception
+        with self.assertRaises(ProcessExecutionError):
+            can_skip_resize(fs_type, resize_what, devpth)
+
 
     def test_can_skip_resize_ext(self):
         self.assertFalse(can_skip_resize('ext', '/', '/dev/sda1'))
