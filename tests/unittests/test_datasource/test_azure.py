@@ -585,7 +585,7 @@ scbus-1 on xpt0 bus 0
             (dsaz, 'get_boot_telemetry', mock.MagicMock()),
             (dsaz, 'get_system_info', mock.MagicMock()),
             (dsaz.subp, 'which', lambda x: True),
-            (dsaz.util, 'read_dmi_data', mock.MagicMock(
+            (dsaz.dmi, 'read_dmi_data', mock.MagicMock(
                 side_effect=_dmi_mocks)),
             (dsaz.util, 'wait_for_files', mock.MagicMock(
                 side_effect=_wait_for_files)),
@@ -1655,7 +1655,7 @@ class TestAzureBounce(CiTestCase):
             raise RuntimeError('should not get here')
 
         self.patches.enter_context(
-            mock.patch.object(dsaz.util, 'read_dmi_data',
+            mock.patch.object(dsaz.dmi, 'read_dmi_data',
                               mock.MagicMock(side_effect=_dmi_mocks)))
 
     def setUp(self):
@@ -2522,14 +2522,14 @@ class TestWBIsPlatformViable(CiTestCase):
     """White box tests for _is_platform_viable."""
     with_logs = True
 
-    @mock.patch(MOCKPATH + 'util.read_dmi_data')
+    @mock.patch(MOCKPATH + 'dmi.read_dmi_data')
     def test_true_on_non_azure_chassis(self, m_read_dmi_data):
         """Return True if DMI chassis-asset-tag is AZURE_CHASSIS_ASSET_TAG."""
         m_read_dmi_data.return_value = dsaz.AZURE_CHASSIS_ASSET_TAG
         self.assertTrue(dsaz._is_platform_viable('doesnotmatter'))
 
     @mock.patch(MOCKPATH + 'os.path.exists')
-    @mock.patch(MOCKPATH + 'util.read_dmi_data')
+    @mock.patch(MOCKPATH + 'dmi.read_dmi_data')
     def test_true_on_azure_ovf_env_in_seed_dir(self, m_read_dmi_data, m_exist):
         """Return True if ovf-env.xml exists in known seed dirs."""
         # Non-matching Azure chassis-asset-tag
@@ -2550,7 +2550,7 @@ class TestWBIsPlatformViable(CiTestCase):
             MOCKPATH,
             {'os.path.exists': False,
              # Non-matching Azure chassis-asset-tag
-             'util.read_dmi_data': dsaz.AZURE_CHASSIS_ASSET_TAG + 'X',
+             'dmi.read_dmi_data': dsaz.AZURE_CHASSIS_ASSET_TAG + 'X',
              'subp.which': None},
             dsaz._is_platform_viable, 'doesnotmatter'))
         self.assertIn(

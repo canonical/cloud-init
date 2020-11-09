@@ -15,6 +15,7 @@ from time import time
 from xml.dom import minidom
 import xml.etree.ElementTree as ET
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net
 from cloudinit.event import EventType
@@ -638,7 +639,7 @@ class DataSourceAzure(sources.DataSource):
     def _iid(self, previous=None):
         prev_iid_path = os.path.join(
             self.paths.get_cpath('data'), 'instance-id')
-        iid = util.read_dmi_data('system-uuid')
+        iid = dmi.read_dmi_data('system-uuid')
         if os.path.exists(prev_iid_path):
             previous = util.load_file(prev_iid_path).strip()
             if is_byte_swapped(previous, iid):
@@ -1693,7 +1694,7 @@ def _is_platform_viable(seed_dir):
         description="found azure asset tag",
         parent=azure_ds_reporter
     ) as evt:
-        asset_tag = util.read_dmi_data('chassis-asset-tag')
+        asset_tag = dmi.read_dmi_data('chassis-asset-tag')
         if asset_tag == AZURE_CHASSIS_ASSET_TAG:
             return True
         msg = "Non-Azure DMI asset tag '%s' discovered." % asset_tag

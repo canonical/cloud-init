@@ -64,7 +64,7 @@ matrix:
             # pylxd talks only to the lxd from snap
             - sudo apt remove --purge lxd lxd-client
             - sudo rm -Rf /var/lib/lxd
-            - sudo snap install --channel=4.6/stable lxd
+            - sudo snap install lxd
             - sudo lxd init --auto
             - sudo mkdir --mode=1777 -p /var/snap/lxd/common/consoles
             # Move any cached lxd images into lxd's image dir
@@ -199,7 +199,16 @@ matrix:
                 fi
             # Use sudo to get a new shell where we're in the sbuild group
             - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
-            - sg lxd -c 'CLOUD_INIT_IMAGE_SOURCE="$(ls *.deb)" tox -e integration-tests'
+            - sg lxd -c 'CLOUD_INIT_IMAGE_SOURCE="$(ls *.deb)" tox -e integration-tests' &
+            - |
+              SECONDS=0
+              while [ -e /proc/$! ]; do
+                if [ "$SECONDS" -gt "570" ]; then
+                  echo -n '.'
+                  SECONDS=0
+                fi
+                sleep 10
+              done
         - python: 3.5
           env:
               TOXENV=xenial

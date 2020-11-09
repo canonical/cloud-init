@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from cloudinit import dmi
 from cloudinit import helpers
 from cloudinit.sources.DataSourceNoCloud import (
     DataSourceNoCloud as dsNoCloud,
@@ -30,7 +31,7 @@ class TestNoCloudDataSource(CiTestCase):
         self.mocks.enter_context(
             mock.patch.object(util, 'get_cmdline', return_value=self.cmdline))
         self.mocks.enter_context(
-            mock.patch.object(util, 'read_dmi_data', return_value=None))
+            mock.patch.object(dmi, 'read_dmi_data', return_value=None))
 
     def _test_fs_config_is_read(self, fs_label, fs_label_to_search):
         vfat_device = 'device-1'
