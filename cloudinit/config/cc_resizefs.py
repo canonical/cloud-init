@@ -85,26 +85,23 @@ def _resize_zfs(mount_point, devpth):
     return ('zpool', 'online', '-e', mount_point, devpth)
 
 
-def _can_skip_resize_ufs(_mount_point, devpth):
-    (_out, err) = subp.subp(['growfs', '-N', devpth], rcs=[0, 1])
-    # possible errors cases:
-    # stdout: empty
-    # growfs: requested size 2.0GB is not larger than the current
-    #   filesystem size 2.0GB
-    # growfs: superblock not recognized
-    #
-    # possible good good case:
-    # stdout: super-block backups (for fsck_ffs -b #) at:
-    #
-    # stderr: growfs: no room to allocate last cylinder group;
-    #   leaving 364KB unused
-
+def _can_skip_resize_ufs(mount_point, devpth):
+    # possible errors cases on the code-path to growfs -N following:
+    # https://github.com/freebsd/freebsd/blob/HEAD/sbin/growfs/growfs.c
+    # This is the "good" error:
     skip_err_start = "growfs: requested size"
     skip_err_contain = "is not larger than the current filesystem size"
-    if err and err.startswith(skip_err_start) and skip_err_contain in err:
-        return True
-    else:
-        return False
+    # growfs exits with 1 for almost all cases up to this one.
+    # This means we can't just use rcs=[0, 1] as subp parameter:
+    try:
+        (_out, err) = subp.subp(['growfs', '-N', devpth])
+    except subp.ProcessExecutionError as e:
+        if err and err.startswith(skip_err_start) and skip_err_contain in err:
+            # This FS is already at the desired size
+            return True
+        else:
+            raise e
+    return True
 
 
 # Do not use a dictionary as these commands should be able to be used
