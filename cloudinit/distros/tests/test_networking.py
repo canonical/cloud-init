@@ -131,6 +131,7 @@ class TestLinuxNetworkingSettle:
 class TestGenerateFallbackConfig:
     pass
 
+
 class TestBSDGenerateFallbackConfig:
     @pytest.fixture
     def default_netcfg(self):
@@ -177,6 +178,7 @@ class TestBSDGenerateFallbackConfig:
                 assert networking.generate_fallback_config(
                     blacklist_drivers="rl"
                 ) == default_netcfg
+
 
 class TestNetworkingWaitForPhysDevs:
     @pytest.fixture
