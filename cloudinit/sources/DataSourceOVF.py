@@ -14,6 +14,7 @@ import re
 import time
 from xml.dom import minidom
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import subp
@@ -83,7 +84,7 @@ class DataSourceOVF(sources.DataSource):
 
         (seedfile, contents) = get_ovf_env(self.paths.seed_dir)
 
-        system_type = util.read_dmi_data("system-product-name")
+        system_type = dmi.read_dmi_data("system-product-name")
         if system_type is None:
             LOG.debug("No system-product-name found")
 
@@ -322,7 +323,7 @@ class DataSourceOVF(sources.DataSource):
         return True
 
     def _get_subplatform(self):
-        system_type = util.read_dmi_data("system-product-name").lower()
+        system_type = dmi.read_dmi_data("system-product-name").lower()
         if system_type == 'vmware':
             return 'vmware (%s)' % self.seed
         return 'ovf (%s)' % self.seed

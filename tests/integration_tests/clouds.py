@@ -54,13 +54,19 @@ class IntegrationCloud(ABC):
                 self.settings.EXISTING_INSTANCE_ID
             )
             return
-        launch_kwargs = {
+        kwargs = {
             'image_id': self.image_id,
             'user_data': user_data,
             'wait': False,
         }
-        launch_kwargs.update(launch_kwargs)
-        pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
+        if launch_kwargs:
+            kwargs.update(launch_kwargs)
+        log.info(
+            "Launching instance with launch_kwargs:\n{}".format(
+                "\n".join("{}={}".format(*item) for item in kwargs.items())
+            )
+        )
+        pycloudlib_instance = self.cloud_instance.launch(**kwargs)
         pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         log.info('Launched instance: %s', pycloudlib_instance)
         return self.get_instance(pycloudlib_instance, settings)

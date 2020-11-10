@@ -9,6 +9,7 @@ import struct
 import time
 import textwrap
 import zlib
+from errno import ENOENT
 
 from cloudinit.settings import CFG_BUILTIN
 from cloudinit.net import dhcp
@@ -41,8 +42,9 @@ COMPRESSED_EVENT_TYPE = 'compressed'
 # cloud-init.log files where the P95 of the file sizes was 537KB and the time
 # consumed to dump 500KB file was (P95:76, P99:233, P99.9:1170) in ms
 MAX_LOG_TO_KVP_LENGTH = 512000
-# Marker file to indicate whether cloud-init.log is pushed to KVP
-LOG_PUSHED_TO_KVP_MARKER_FILE = '/var/lib/cloud/data/log_pushed_to_kvp'
+# File to store the last byte of cloud-init.log that was pushed to KVP. This
+# file will be deleted with every VM reboot.
+LOG_PUSHED_TO_KVP_INDEX_FILE = '/run/cloud-init/log_pushed_to_kvp_index'
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
@@ -214,30 +216,48 @@ def report_compressed_event(event_name, event_content):
 def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
     """Push a portion of cloud-init.log file or the whole file to KVP
     based on the file size.
-    If called more than once, it skips pushing the log file to KVP again."""
+    The first time this function is called after VM boot, It will push the last
+    n bytes of the log file such that n < MAX_LOG_TO_KVP_LENGTH
+    If called again on the same boot, it continues from where it left off."""
 
-    log_pushed_to_kvp = bool(os.path.isfile(LOG_PUSHED_TO_KVP_MARKER_FILE))
-    if log_pushed_to_kvp:
-        report_diagnostic_event(
-            "cloud-init.log is already pushed to KVP", logger_func=LOG.debug)
-        return
+    start_index = get_last_log_byte_pushed_to_kvp_index()
 
     LOG.debug("Dumping cloud-init.log file to KVP")
     try:
         with open(file_name, "rb") as f:
             f.seek(0, os.SEEK_END)
-            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, 0)
+            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, start_index)
             report_diagnostic_event(
-                "Dumping last {} bytes of cloud-init.log file to KVP".format(
-                    f.tell() - seek_index),
+                "Dumping last {0} bytes of cloud-init.log file to KVP starting"
+                " from index: {1}".format(f.tell() - seek_index, seek_index),
                 logger_func=LOG.debug)
             f.seek(seek_index, os.SEEK_SET)
             report_compressed_event("cloud-init.log", f.read())
-        util.write_file(LOG_PUSHED_TO_KVP_MARKER_FILE, '')
+            util.write_file(LOG_PUSHED_TO_KVP_INDEX_FILE, str(f.tell()))
     except Exception as ex:
         report_diagnostic_event(
             "Exception when dumping log file: %s" % repr(ex),
             logger_func=LOG.warning)
+
+
+@azure_ds_telemetry_reporter
+def get_last_log_byte_pushed_to_kvp_index():
+    try:
+        with open(LOG_PUSHED_TO_KVP_INDEX_FILE, "r") as f:
+            return int(f.read())
+    except IOError as e:
+        if e.errno != ENOENT:
+            report_diagnostic_event("Reading LOG_PUSHED_TO_KVP_INDEX_FILE"
+                                    " failed: %s." % repr(e),
+                                    logger_func=LOG.warning)
+    except ValueError as e:
+        report_diagnostic_event("Invalid value in LOG_PUSHED_TO_KVP_INDEX_FILE"
+                                ": %s." % repr(e),
+                                logger_func=LOG.warning)
+    except Exception as e:
+        report_diagnostic_event("Failed to get the last log byte pushed to KVP"
+                                ": %s." % repr(e), logger_func=LOG.warning)
+    return 0
 
 
 @contextmanager

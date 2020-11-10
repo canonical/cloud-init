@@ -111,7 +111,15 @@ def _client(request, fixture_utils, session_cloud):
     """
     user_data = fixture_utils.closest_marker_first_arg_or(
         request, 'user_data', None)
-    with session_cloud.launch(user_data=user_data) as instance:
+    name = fixture_utils.closest_marker_first_arg_or(
+        request, 'instance_name', None
+    )
+    launch_kwargs = {}
+    if name is not None:
+        launch_kwargs = {"name": name}
+    with session_cloud.launch(
+        user_data=user_data, launch_kwargs=launch_kwargs
+    ) as instance:
         yield instance
 
 

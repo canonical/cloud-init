@@ -92,7 +92,8 @@ _DI_LOGGED=""
 # set DI_MAIN='noop' in environment to source this file with no main called.
 DI_MAIN=${DI_MAIN:-main}
 
-DI_BLKID_OUTPUT=""
+DI_BLKID_EXPORT_OUT=""
+DI_GEOM_LABEL_STATUS_OUT=""
 DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_DISABLED}"
 DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=all,notfound=${DI_ENABLED}"
 DI_DMI_CHASSIS_ASSET_TAG=""
@@ -179,13 +180,43 @@ debug() {
     echo "$@" 1>&3
 }
 
+get_kenv_field() {
+    local sys_field="$1" kenv_field="" val=""
+    command -v kenv >/dev/null 2>&1 || {
+        warn "No kenv program. Cannot read $sys_field."
+        return 1
+    }
+    case "$sys_field" in
+        board_asset_tag) kenv_field="smbios.planar.tag";;
+        board_vendor) kenv_field='smbios.planar.maker';;
+        board_name) kenv_field='smbios.planar.product';;
+        board_serial) kenv_field='smbios.planar.serial';;
+        board_version) kenv_field='smbios.planar.version';;
+        bios_date) kenv_field='smbios.bios.reldate';;
+        bios_vendor) kenv_field='smbios.bios.vendor';;
+        bios_version) kenv_field='smbios.bios.version';;
+        chassis_asset_tag) kenv_field='smbios.chassis.tag';;
+        chassis_vendor) kenv_field='smbios.chassis.maker';;
+        chassis_serial) kenv_field='smbios.chassis.serial';;
+        chassis_version) kenv_field='smbios.chassis.version';;
+        sys_vendor) kenv_field='smbios.system.maker';;
+        product_name) kenv_field='smbios.system.product';;
+        product_serial) kenv_field='smbios.system.serial';;
+        product_uuid) kenv_field='smbios.system.uuid';;
+        *) error "Unknown field $sys_field. Cannot call kenv."
+           return 1;;
+    esac
+    val=$(kenv -q "$kenv_field" 2>/dev/null) || return 1
+    _RET="$val"
+}
+
 dmi_decode() {
     local sys_field="$1" dmi_field="" val=""
     command -v dmidecode >/dev/null 2>&1 || {
         warn "No dmidecode program. Cannot read $sys_field."
         return 1
     }
-    case "$1" in
+    case "$sys_field" in
         sys_vendor) dmi_field="system-manufacturer";;
         product_name) dmi_field="system-product-name";;
         product_uuid) dmi_field="system-uuid";;
@@ -199,8 +230,14 @@ dmi_decode() {
 }
 
 get_dmi_field() {
-    local path="${PATH_SYS_CLASS_DMI_ID}/$1"
     _RET="$UNAVAILABLE"
+
+    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+        get_kenv_field "$1" || _RET="$ERROR"
+        return $?
+    fi
+
+    local path="${PATH_SYS_CLASS_DMI_ID}/$1"
     if [ -d "${PATH_SYS_CLASS_DMI_ID}" ]; then
         if [ -f "$path" ] && [ -r "$path" ]; then
             read _RET < "${path}" || _RET="$ERROR"
@@ -231,8 +268,19 @@ ensure_sane_path() {
     done
 }
 
-read_fs_info() {
-    cached "${DI_BLKID_OUTPUT}" && return 0
+blkid_export() {
+    # call 'blkid -c /dev/null export', set DI_BLKID_EXPORT_OUT
+    cached "$DI_BLKID_EXPORT_OUT" && return 0
+    local out="" ret=0
+    out=$(blkid -c /dev/null -o export) && DI_BLKID_EXPORT_OUT="$out" || {
+        ret=$?
+        error "failed running [$ret]: blkid -c /dev/null -o export"
+        DI_BLKID_EXPORT_OUT="$UNAVAILABLE"
+    }
+    return $ret
+}
+
+read_fs_info_linux() {
     # do not rely on links in /dev/disk which might not be present yet.
     # Note that blkid < 2.22 (centos6, trusty) do not output DEVNAME.
     # that means that DI_ISO9660_DEVS will not be set.
@@ -244,20 +292,23 @@ read_fs_info() {
         return
     fi
     local oifs="$IFS" line="" delim=","
-    local ret=0 out="" labels="" dev="" label="" ftype="" isodevs="" uuids=""
-    out=$(blkid -c /dev/null -o export) || {
-        ret=$?
-        error "failed running [$ret]: blkid -c /dev/null -o export"
+    local ret=0 labels="" dev="" label="" ftype="" isodevs="" uuids=""
+
+    blkid_export
+    ret=$?
+    [ "$DI_BLKID_EXPORT_OUT" = "$UNAVAILABLE" ] && {
         DI_FS_LABELS="$UNAVAILABLE:error"
         DI_ISO9660_DEVS="$UNAVAILABLE:error"
+        DI_FS_UUIDS="$UNAVAILABLE:error"
         return $ret
     }
+
     # 'set --' will collapse multiple consecutive entries in IFS for
     # whitespace characters (\n, tab, " ") so we cannot rely on getting
     # empty lines in "$@" below.
 
     # shellcheck disable=2086
-    { IFS="$CR"; set -- $out; IFS="$oifs"; }
+    { IFS="$CR"; set -- $DI_BLKID_EXPORT_OUT; IFS="$oifs"; }
 
     for line in "$@"; do
         case "${line}" in
@@ -279,6 +330,74 @@ read_fs_info() {
     DI_FS_LABELS="${labels%${delim}}"
     DI_FS_UUIDS="${uuids%${delim}}"
     DI_ISO9660_DEVS="${isodevs#,}"
+}
+
+geom_label_status_as() {
+    # call 'geom label status -as', set DI_GEOM_LABEL_STATUS_OUT
+    cached "$DI_GEOM_LABEL_STATUS_OUT" && return 0
+    local out="" ret=0
+    out=$(geom label status -as) && DI_GEOM_LABEL_STATUS_OUT="$out" || {
+        ret=$?
+        error "failed running [$ret]: geom label status -as"
+        DI_GEOM_LABEL_STATUS_OUT="$UNAVAILABLE"
+    }
+    return $ret
+}
+
+
+read_fs_info_freebsd() {
+    local oifs="$IFS" line="" delim=","
+    local ret=0 labels="" dev="" label="" ftype="" isodevs=""
+
+    geom_label_status_as
+    ret=$?
+    [ "$DI_GEOM_LABEL_STATUS_OUT" = "$UNAVAILABLE" ] && {
+        DI_FS_LABELS="$UNAVAILABLE:error"
+        DI_ISO9660_DEVS="$UNAVAILABLE:error"
+        return $ret
+    }
+
+    # The expected output looks like this:
+    #   gpt/gptboot0 N/A vtbd1p1
+    #      gpt/swap0 N/A vtbd1p2
+    # iso9660/cidata N/A vtbd2
+
+    # shellcheck disable=2086
+    { IFS="$CR"; set -- $DI_GEOM_LABEL_STATUS_OUT; IFS="$oifs"; }
+
+    for line in "$@"; do
+        # shellcheck disable=2086
+        set -- $line
+        provider=$1
+        ftype="${provider%/*}"
+        label="${provider#*/}"
+        dev=$3
+
+        [ -n "$dev" -a "$ftype" = "iso9660" ] &&
+            isodevs="${isodevs},${dev}=$label"
+
+        labels="${labels}${label}${delim}"
+    done
+
+    DI_FS_LABELS="${labels%${delim}}"
+    DI_ISO9660_DEVS="${isodevs#,}"
+}
+
+read_fs_info() {
+    # After calling its subfunctions, read_fs_info() will set the following
+    # variables:
+    #
+    # - DI_FS_LABELS
+    # - DI_ISO9660_DEVS
+    # - DI_FS_UUIDS
+
+    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+        read_fs_info_freebsd
+        return $?
+    else
+        read_fs_info_linux
+        return $?
+    fi
 }
 
 cached() {
@@ -319,6 +438,11 @@ detect_virt() {
                 *) virt="$out"
             esac
         }
+        out=$(sysctl -qn security.jail.jailed 2>/dev/null) && {
+            if [ "$out" = "1" ]; then
+                virt="jail"
+            fi
+        }
     fi
     _RET="$virt"
 }
@@ -331,7 +455,7 @@ read_virt() {
 
 is_container() {
     case "${DI_VIRT}" in
-        container-other|lxc|lxc-libvirt|systemd-nspawn|docker|rkt) return 0;;
+        container-other|lxc|lxc-libvirt|systemd-nspawn|docker|rkt|jail) return 0;;
         *) return 1;;
     esac
 }
@@ -1222,10 +1346,10 @@ dscheck_IBMCloud() {
 }
 
 collect_info() {
+    read_uname_info
     read_virt
     read_pid1_product_name
     read_kernel_cmdline
-    read_uname_info
     read_config
     read_datasource_list
     read_dmi_sys_vendor
