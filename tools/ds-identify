@@ -271,10 +271,21 @@ ensure_sane_path() {
 blkid_export() {
     # call 'blkid -c /dev/null export', set DI_BLKID_EXPORT_OUT
     cached "$DI_BLKID_EXPORT_OUT" && return 0
-    local out="" ret=0
-    out=$(blkid -c /dev/null -o export) && DI_BLKID_EXPORT_OUT="$out" || {
+    local out="" ret=0 devs="" dev="" bn=""
+    for dev in /sys/class/block/*; do
+        bn=${dev##*/}
+        case "$bn" in
+            dm-[0-9]*|md[0-9]*) continue;;
+        esac
+        devs="${devs} /dev/$bn"
+    done
+    devs=${devs# }
+    [ -n "$devs" ] || warn "All devs in /sys/class/block/* were skipped."
+
+    out=$(blkid -c /dev/null -o export $devs) &&
+        DI_BLKID_EXPORT_OUT="$out" || {
         ret=$?
-        error "failed running [$ret]: blkid -c /dev/null -o export"
+        error "failed running [$ret]: blkid -c /dev/null -o export $devs"
         DI_BLKID_EXPORT_OUT="$UNAVAILABLE"
     }
     return $ret
