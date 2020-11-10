@@ -1667,7 +1667,7 @@ scbus-1 on xpt0 bus 0
         ) as m_generate_fallback_config:
             ret = dsrc.get_data()
             netconfig = dsrc.network_config
-            m_generate_fallback_config.assert_not_called()
+            assert 0 == m_generate_fallback_config.call_count
         self.assertTrue(ret)
         self.assertEqual(expected_cfg, netconfig)
 
