@@ -135,8 +135,8 @@ class TestBSDGenerateFallbackConfig:
     @pytest.fixture
     def default_netcfg(self):
         match = {'macaddress': "aa:bb:cc:dd:ee:ff"}
-        cfg = {'dhcp4': True, 'set-name': 'eth0', 'match': match}
-        nconf = {'ethernets': {'eth0': cfg}, 'version': 2}
+        cfg = {'dhcp4': True, 'set-name': 'rl0', 'match': match}
+        nconf = {'ethernets': {'rl0': cfg}, 'version': 2}
         return nconf
 
     def test_generate_fallback_config_default_v2(self, default_netcfg):
@@ -144,16 +144,39 @@ class TestBSDGenerateFallbackConfig:
         with mock.patch.object(
             networking, "find_fallback_nic"
         ) as m_find_fallback_nic:
-            m_find_fallback_nic.return_value = 'eth0'
+            m_find_fallback_nic.return_value = 'rl0'
 
             with mock.patch.object(
                 networking, 'get_interfaces_by_mac'
             ) as m_get_interfaces_by_mac:
                 m_get_interfaces_by_mac.side_effect = iter(
-                    [{"aa:bb:cc:dd:ee:ff": "eth0",
-                      "00:11:22:33:44:55": "ens3"}]
+                    [{"aa:bb:cc:dd:ee:ff": "rl0",
+                      "00:11:22:33:44:55": "xl3"}]
                 )
                 assert networking.generate_fallback_config() == default_netcfg
+
+    def test_generate_fallback_default_v2_with_blacklist(self, default_netcfg):
+        """
+        Generate a default v2 fallback config on BSD
+
+        This test will fail as soon as we implement blacklist_drivers for BSD
+        """
+        networking = BSDNetworking()
+        with mock.patch.object(
+            networking, "find_fallback_nic"
+        ) as m_find_fallback_nic:
+            m_find_fallback_nic.return_value = 'rl0'
+
+            with mock.patch.object(
+                networking, 'get_interfaces_by_mac'
+            ) as m_get_interfaces_by_mac:
+                m_get_interfaces_by_mac.side_effect = iter(
+                    [{"aa:bb:cc:dd:ee:ff": "rl0",
+                      "00:11:22:33:44:55": "xl3"}]
+                )
+                assert networking.generate_fallback_config(
+                    blacklist_drivers="rl"
+                ) == default_netcfg
 
 class TestNetworkingWaitForPhysDevs:
     @pytest.fixture
