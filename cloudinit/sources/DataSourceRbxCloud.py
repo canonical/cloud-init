@@ -71,11 +71,13 @@ def gratuitous_arp(items, distro):
 
 
 def get_md():
-    rbx_data = None
+    """Returns False (not found or error) or a dictionary with metadata."""
     devices = set(
         util.find_devs_with('LABEL=CLOUDMD') +
         util.find_devs_with('LABEL=cloudmd')
     )
+    if not devices:
+        return False
     for device in devices:
         try:
             rbx_data = util.mount_cb(
@@ -84,17 +86,17 @@ def get_md():
                 mtype=['vfat', 'fat', 'msdosfs']
             )
             if rbx_data:
-                break
+                return rbx_data
         except OSError as err:
             if err.errno != errno.ENOENT:
                 raise
         except util.MountFailedError:
             util.logexc(LOG, "Failed to mount %s when looking for user "
                              "data", device)
-    if not rbx_data:
-        util.logexc(LOG, "Failed to load metadata and userdata")
-        return False
-    return rbx_data
+
+    LOG.debug("Did not find RbxCloud data, searched devices: %s",
+              ",".join(devices))
+    return False
 
 
 def generate_network_config(netadps):
@@ -223,6 +225,8 @@ class DataSourceRbxCloud(sources.DataSource):
         is used to perform instance configuration.
         """
         rbx_data = get_md()
+        if rbx_data is False:
+            return False
         self.userdata_raw = rbx_data['userdata']
         self.metadata = rbx_data['metadata']
         self.gratuitous_arp = rbx_data['gratuitous_arp']
