@@ -70,7 +70,10 @@ class TestUsersGroups:
     def test_users_groups(self, regex, getent_args, class_client):
         """Use getent to interrogate the various expected outcomes"""
         result = class_client.execute(["getent"] + getent_args)
-        assert re.search(regex, result.stdout) is not None
+        assert re.search(regex, result.stdout) is not None, (
+            "'getent {}' resulted in '{}', "
+            "but expected to match regex {}".format(
+                ' '.join(getent_args), result.stdout, regex))
 
     def test_user_root_in_secret(self, class_client):
         """Test root user is in 'secret' group."""
