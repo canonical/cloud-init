@@ -80,7 +80,7 @@ def setup_image(session_cloud):
         if session_cloud.datasource != 'lxd_container':
             raise ValueError(
                 'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
-        # The mount needs to happen after the instance is launched, so
+        # The mount needs to happen after the instance is created, so
         # no further action needed here
     elif integration_settings.CLOUD_INIT_SOURCE == 'PROPOSED':
         client = session_cloud.launch()
