@@ -1,8 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 from cloudinit import log as logging
 from cloudinit import subp
-from cloudinit.util import is_container
+from cloudinit.util import is_container, is_FreeBSD
 
+from collections import namedtuple
 import os
 
 LOG = logging.getLogger(__name__)
@@ -10,38 +11,43 @@ LOG = logging.getLogger(__name__)
 # Path for DMI Data
 DMI_SYS_PATH = "/sys/class/dmi/id"
 
-# dmidecode and /sys/class/dmi/id/* use different names for the same value,
-# this allows us to refer to them by one canonical name
-DMIDECODE_TO_DMI_SYS_MAPPING = {
-    'baseboard-asset-tag': 'board_asset_tag',
-    'baseboard-manufacturer': 'board_vendor',
-    'baseboard-product-name': 'board_name',
-    'baseboard-serial-number': 'board_serial',
-    'baseboard-version': 'board_version',
-    'bios-release-date': 'bios_date',
-    'bios-vendor': 'bios_vendor',
-    'bios-version': 'bios_version',
-    'chassis-asset-tag': 'chassis_asset_tag',
-    'chassis-manufacturer': 'chassis_vendor',
-    'chassis-serial-number': 'chassis_serial',
-    'chassis-version': 'chassis_version',
-    'system-manufacturer': 'sys_vendor',
-    'system-product-name': 'product_name',
-    'system-serial-number': 'product_serial',
-    'system-uuid': 'product_uuid',
-    'system-version': 'product_version',
+kdmi = namedtuple('KernelNames', ['linux', 'freebsd'])
+kdmi.__new__.defaults__ = (None, None)
+
+# FreeBSD's kenv(1) and Linux /sys/class/dmi/id/* both use different names from
+# dmidecode. The values are the same, and ultimately what we're interested in.
+# These tools offer a "cheaper" way to access those values over dmidecode.
+# This is our canonical translation table. If we add more tools on other
+# platforms to find dmidecode's values, their keys need to be put in here.
+DMIDECODE_TO_KERNEL = {
+    'baseboard-asset-tag': kdmi('board_asset_tag', 'smbios.planar.tag'),
+    'baseboard-manufacturer': kdmi('board_vendor', 'smbios.planar.maker'),
+    'baseboard-product-name': kdmi('board_name', 'smbios.planar.product'),
+    'baseboard-serial-number': kdmi('board_serial', 'smbios.planar.serial'),
+    'baseboard-version': kdmi('board_version', 'smbios.planar.version'),
+    'bios-release-date': kdmi('bios_date', 'smbios.bios.reldate'),
+    'bios-vendor': kdmi('bios_vendor', 'smbios.bios.vendor'),
+    'bios-version': kdmi('bios_version', 'smbios.bios.version'),
+    'chassis-asset-tag': kdmi('chassis_asset_tag', 'smbios.chassis.tag'),
+    'chassis-manufacturer': kdmi('chassis_vendor', 'smbios.chassis.maker'),
+    'chassis-serial-number': kdmi('chassis_serial', 'smbios.chassis.serial'),
+    'chassis-version': kdmi('chassis_version', 'smbios.chassis.version'),
+    'system-manufacturer': kdmi('sys_vendor', 'smbios.system.maker'),
+    'system-product-name': kdmi('product_name', 'smbios.system.product'),
+    'system-serial-number': kdmi('product_serial', 'smbios.system.serial'),
+    'system-uuid': kdmi('product_uuid', 'smbios.system.uuid'),
+    'system-version': kdmi('product_version', 'smbios.system.version'),
 }
 
 
 def _read_dmi_syspath(key):
     """
-    Reads dmi data with from /sys/class/dmi/id
+    Reads dmi data from /sys/class/dmi/id
     """
-    if key not in DMIDECODE_TO_DMI_SYS_MAPPING:
+    kmap = DMIDECODE_TO_KERNEL.get(key)
+    if kmap is None or kmap.linux is None:
         return None
-    mapped_key = DMIDECODE_TO_DMI_SYS_MAPPING[key]
-    dmi_key_path = "{0}/{1}".format(DMI_SYS_PATH, mapped_key)
-
+    dmi_key_path = "{0}/{1}".format(DMI_SYS_PATH, kmap.linux)
     LOG.debug("querying dmi data %s", dmi_key_path)
     if not os.path.exists(dmi_key_path):
         LOG.debug("did not find %s", dmi_key_path)
@@ -68,6 +74,29 @@ def _read_dmi_syspath(key):
     return None
 
 
+def _read_kenv(key):
+    """
+    Reads dmi data from FreeBSD's kenv(1)
+    """
+    kmap = DMIDECODE_TO_KERNEL.get(key)
+    if kmap is None or kmap.freebsd is None:
+        return None
+
+    LOG.debug("querying dmi data %s", kmap.freebsd)
+
+    try:
+        cmd = ["kenv", "-q", kmap.freebsd]
+        (result, _err) = subp.subp(cmd)
+        result = result.strip()
+        LOG.debug("kenv returned '%s' for '%s'", result, kmap.freebsd)
+        return result
+    except subp.ProcessExecutionError as e:
+        LOG.debug('failed kenv cmd: %s\n%s', cmd, e)
+        return None
+
+    return None
+
+
 def _call_dmidecode(key, dmidecode_path):
     """
     Calls out to dmidecode to get the data out. This is mostly for supporting
@@ -81,7 +110,7 @@ def _call_dmidecode(key, dmidecode_path):
         if result.replace(".", "") == "":
             return ""
         return result
-    except (IOError, OSError) as e:
+    except subp.ProcessExecutionError as e:
         LOG.debug('failed dmidecode cmd: %s\n%s', cmd, e)
         return None
 
@@ -106,6 +135,9 @@ def read_dmi_data(key):
 
     if is_container():
         return None
+
+    if is_FreeBSD():
+        return _read_kenv(key)
 
     syspath_value = _read_dmi_syspath(key)
     if syspath_value is not None:

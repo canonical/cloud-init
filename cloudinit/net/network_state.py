@@ -369,6 +369,9 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         accept_ra = command.get('accept-ra', None)
         if accept_ra is not None:
             accept_ra = util.is_true(accept_ra)
+        wakeonlan = command.get('wakeonlan', None)
+        if wakeonlan is not None:
+            wakeonlan = util.is_true(wakeonlan)
         iface.update({
             'name': command.get('name'),
             'type': command.get('type'),
@@ -379,7 +382,8 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             'address': None,
             'gateway': None,
             'subnets': subnets,
-            'accept-ra': accept_ra
+            'accept-ra': accept_ra,
+            'wakeonlan': wakeonlan,
         })
         self._network_state['interfaces'].update({command.get('name'): iface})
         self.dump_network_state()
