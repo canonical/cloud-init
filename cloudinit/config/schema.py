@@ -455,7 +455,7 @@ def get_parser(parser=None):
 def handle_schema_args(name, args):
     """Handle provided schema args and perform the appropriate actions."""
     exclusive_args = [args.config_file, args.docs, args.system]
-    if not any(exclusive_args) or all(exclusive_args):
+    if len([arg for arg in exclusive_args if arg]) != 1:
         error('Expected one of --config-file, --system or --docs arguments')
     full_schema = get_schema()
     if args.config_file or args.system:
@@ -472,7 +472,7 @@ def handle_schema_args(name, args):
                 cfg_name = "system userdata"
             else:
                 cfg_name = args.config_file
-            print("Valid cloud-config: {0}".format(cfg_name))
+            print("Valid cloud-config:", cfg_name)
     elif args.docs:
         schema_ids = [subschema['id'] for subschema in full_schema['allOf']]
         schema_ids += ['all']

@@ -9,6 +9,7 @@ from cloudinit.util import write_file
 from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 from copy import copy
+import itertools
 import os
 import pytest
 from pathlib import Path
@@ -400,6 +401,25 @@ class AnnotatedCloudconfigFileTest(CiTestCase):
 
 
 class TestMain:
+
+    exclusive_combinations = itertools.combinations(
+        ["--system", "--docs all", "--config-file something"], 2
+    )
+
+    @pytest.mark.parametrize("params", exclusive_combinations)
+    def test_main_exclusive_args(self, params, capsys):
+        """Main exits non-zero and error on required exclusive args."""
+        params = list(itertools.chain(*[a.split() for a in params]))
+        with mock.patch('sys.argv', ['mycmd'] + params):
+            with pytest.raises(SystemExit) as context_manager:
+                main()
+        assert 1 == context_manager.value.code
+
+        _out, err = capsys.readouterr()
+        expected = (
+            'Expected one of --config-file, --system or --docs arguments\n'
+        )
+        assert expected == err
 
     def test_main_missing_args(self, capsys):
         """Main exits non-zero and reports an error on missing parameters."""
