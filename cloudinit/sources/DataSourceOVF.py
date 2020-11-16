@@ -9,6 +9,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
+import json
 import os
 import re
 import time
@@ -16,6 +17,7 @@ from xml.dom import minidom
 
 from cloudinit import dmi
 from cloudinit import log as logging
+from cloudinit import safeyaml
 from cloudinit import sources
 from cloudinit import subp
 from cloudinit import util
@@ -76,7 +78,7 @@ class DataSourceOVF(sources.DataSource):
         ud = ""
         vd = ""
         vmwareImcConfigFilePath = None
-        nicspath = None
+        nicsPath = None
 
         defaults = {
             "instance-id": "iid-dsovf",
@@ -124,31 +126,75 @@ class DataSourceOVF(sources.DataSource):
                     vmwareImcConfigFilePath = util.log_time(
                         logfunc=LOG.debug,
                         msg="waiting for configuration file",
-                        func=wait_for_imc_cfg_file,
+                        func=wait_for_imc_file,
                         args=("cust.cfg", max_wait))
+
+                    if vmwareImcConfigFilePath:
+                        imcdirpath = os.path.dirname(vmwareImcConfigFilePath)
+                        cf = ConfigFile(vmwareImcConfigFilePath)
+                        self._vmware_cust_conf = Config(cf)
+
                 else:
                     LOG.debug("Did not find the customization plugin.")
 
                 if vmwareImcConfigFilePath:
                     LOG.debug("Found VMware Customization Config File at %s",
                               vmwareImcConfigFilePath)
-                    nicspath = wait_for_imc_cfg_file(
-                        filename="nics.txt", maxwait=10, naplen=5)
+                    try:
+                        (metaPath, userPath, nicsPath) = collect_imc_files(
+                            self._vmware_cust_conf)
+                    except Exception as e:
+                        _raise_error_status(
+                            "File(s) missing in directory",
+                            e,
+                            GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                            vmwareImcConfigFilePath,
+                            self._vmware_cust_conf)
                 else:
                     LOG.debug("Did not find VMware Customization Config File")
             else:
                 LOG.debug("Customization for VMware platform is disabled.")
 
-        if vmwareImcConfigFilePath:
+        if vmwareImcConfigFilePath and metaPath:
+            try:
+                set_gc_status(self._vmware_cust_conf, "Started")
+
+                (md, ud, cfg, network) = load_cloudinit_data(
+                    metaPath, userPath)
+                # TODO, if user data is enabled by default, nothing to do
+
+                if network:
+                    self._network_config = network
+                else:
+                    fallbackNetwork = self.distro.generate_fallback_config()
+                    self._network_config = fallbackNetwork
+
+            except Exception as e:
+                _raise_error_status(
+                    "Error parsing the customization Config File",
+                    e,
+                    GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                    vmwareImcConfigFilePath,
+                    self._vmware_cust_conf)
+
+            self._vmware_cust_found = True
+            found.append('vmware-tools')
+
+            util.del_dir(os.path.dirname(imcdirpath))
+            # xiaofengw, no need to enable_nics
+            # enable_nics(self._vmware_nics_to_enable)
+            set_customization_status(
+                GuestCustStateEnum.GUESTCUST_STATE_DONE,
+                GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
+            set_gc_status(self._vmware_cust_conf, "Successful")
+
+        elif vmwareImcConfigFilePath:
             self._vmware_nics_to_enable = ""
             try:
-                cf = ConfigFile(vmwareImcConfigFilePath)
-                self._vmware_cust_conf = Config(cf)
                 set_gc_status(self._vmware_cust_conf, "Started")
 
                 (md, ud, cfg) = read_vmware_imc(self._vmware_cust_conf)
-                self._vmware_nics_to_enable = get_nics_to_enable(nicspath)
-                imcdirpath = os.path.dirname(vmwareImcConfigFilePath)
+                self._vmware_nics_to_enable = get_nics_to_enable(nicsPath)
                 product_marker = self._vmware_cust_conf.marker_id
                 hasmarkerfile = check_marker_exists(
                     product_marker, os.path.join(self.paths.cloud_dir, 'data'))
@@ -378,15 +424,16 @@ def get_max_wait_from_cfg(cfg):
     return max_wait
 
 
-def wait_for_imc_cfg_file(filename, maxwait=180, naplen=5,
-                          dirpath="/var/run/vmware-imc"):
+def wait_for_imc_file(filename, maxwait=180, naplen=5,
+                      dirpath="/var/run/vmware-imc"):
     waited = 0
 
     while waited < maxwait:
         fileFullPath = os.path.join(dirpath, filename)
         if os.path.isfile(fileFullPath):
+            LOG.debug("VMware Customization File '%s' is found", fileFullPath)
             return fileFullPath
-        LOG.debug("Waiting for VMware Customization Config File")
+        LOG.debug("Waiting for VMware Customization File '%s'", fileFullPath)
         time.sleep(naplen)
         waited += naplen
     return None
@@ -683,5 +730,98 @@ def _raise_error_status(prefix, error, event, config_file, conf):
     set_gc_status(conf, prefix)
     util.del_dir(os.path.dirname(config_file))
     raise error
+
+
+def load_cloudinit_data(metaPath, userPath):
+    """
+    Load the cloud-init meta data, user data, cfg and network from the
+    given files
+    """
+    LOG.debug('load meta data: %s: user data: %s', metaPath, userPath)
+    md = {}
+    cfg = {}
+    ud = {}
+    network = {}
+    # How to handle instance-id?
+    md = load(util.load_file(metaPath).replace("\r", ""))
+
+    if 'network' in md:
+        network = md['network']
+        del md['network']
+
+    if userPath:
+        ud = util.load_file(userPath).replace("\r", "")
+    return md, ud, cfg, network
+
+
+class LoadError(Exception):
+    pass
+
+
+class FileNotFound(Exception):
+    pass
+
+
+def load(data):
+    '''
+    first attempts to unmarshal the provided data as JSON, and if
+    that fails then attempts to unmarshal the data as YAML. If data is
+    None then a new dictionary is returned.
+    '''
+    if not data:
+        return {}
+    try:
+        return json.loads(data)
+    except Exception:
+        try:
+            return safeyaml.load(data)
+        except Exception as e:
+            raise LoadError("Error parsing the meta data") from e
+
+
+def collect_imc_files(cust_conf):
+    '''
+    wait the "VMware Tools" daemon to copy all the customization files to
+    /var/run/vmware-imc directory.
+    - meta data:
+      mandatory if customization specification is raw cloud-init data
+    - user data:
+      optional if customization specification is raw cloud-init data
+    - nics.txt:
+      mandatory if customization specification is traditional one
+    '''
+    metaPath = None
+    userPath = None
+    nicsPath = None
+    metaDataFile = cust_conf.meta_data_name
+    if metaDataFile:
+        metaPath = util.log_time(
+            logfunc=LOG.debug,
+            msg="waiting for meta data file",
+            func=wait_for_imc_file,
+            args=(metaDataFile, 10))
+        if not metaPath:
+            raise FileNotFound("cloud-init meta data file is not found")
+
+        userDataFile = cust_conf.user_data_name
+        if userDataFile:
+            userPath = util.log_time(
+                logfunc=LOG.debug,
+                msg="waiting for user data file",
+                func=wait_for_imc_file,
+                args=(userDataFile, 10))
+            if not userPath:
+                raise FileNotFound("cloud-init user data file is not found")
+    else:
+        nicsPath = util.log_time(
+            logfunc=LOG.debug,
+            msg="waiting for nics.txt",
+            func=wait_for_imc_file,
+            args=("nics.txt", 10))
+        if not nicsPath:
+            raise FileNotFound("nics.txt is not found")
+
+    return metaPath, userPath, nicsPath
+
 
 # vi: ts=4 expandtab

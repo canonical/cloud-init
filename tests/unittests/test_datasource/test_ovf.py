@@ -17,6 +17,8 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceOVF as dsovf
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
     CustomScriptNotFound)
+from cloudinit.sources.DataSourceOVF import (
+    FileNotFound, LoadError)
 
 MPATH = 'cloudinit.sources.DataSourceOVF.'
 
@@ -177,7 +179,7 @@ class TestDatasourceOVF(CiTestCase):
                     {'dmi.read_dmi_data': 'vmware',
                      'util.del_dir': True,
                      'search_file': self.tdir,
-                     'wait_for_imc_cfg_file': conf_file,
+                     'wait_for_imc_file': conf_file,
                      'get_nics_to_enable': ''},
                     ds.get_data)
         customscript = self.tmp_path('test-script', self.tdir)
@@ -214,7 +216,7 @@ class TestDatasourceOVF(CiTestCase):
                         {'dmi.read_dmi_data': 'vmware',
                          'util.del_dir': True,
                          'search_file': self.tdir,
-                         'wait_for_imc_cfg_file': conf_file,
+                         'wait_for_imc_file': conf_file,
                          'get_nics_to_enable': ''},
                         ds.get_data)
         self.assertIn('Custom script is disabled by VM Administrator',
@@ -249,7 +251,7 @@ class TestDatasourceOVF(CiTestCase):
                         {'dmi.read_dmi_data': 'vmware',
                          'util.del_dir': True,
                          'search_file': self.tdir,
-                         'wait_for_imc_cfg_file': conf_file,
+                         'wait_for_imc_file': conf_file,
                          'get_nics_to_enable': ''},
                         ds.get_data)
         # Verify custom script is trying to be executed
@@ -293,7 +295,7 @@ class TestDatasourceOVF(CiTestCase):
                         {'dmi.read_dmi_data': 'vmware',
                          'util.del_dir': True,
                          'search_file': self.tdir,
-                         'wait_for_imc_cfg_file': conf_file,
+                         'wait_for_imc_file': conf_file,
                          'get_nics_to_enable': ''},
                         ds.get_data)
         # Verify custom script still runs although it is
@@ -343,6 +345,332 @@ class TestDatasourceOVF(CiTestCase):
                     self.assertEqual(
                         'vmware (%s/seed/ovf-env.xml)' % self.tdir,
                         ds.subplatform)
+
+    def test_get_data_cloudinit_metadata_json(self):
+        """Test metadata can be loaded to cloud-init metadata and network.
+        The metadata format is json.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+        # Prepare the conf file
+        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_content = dedent("""\
+            [CLOUDINIT]
+            METADATA = test-meta
+            """)
+        util.write_file(conf_file, conf_content)
+        # Prepare the meta data file
+        metadata_file = self.tmp_path('test-meta', self.tdir)
+        metadata_content = dedent("""\
+            {
+              "instance-id": "cloud-vm",
+              "local-hostname": "my-host.domain.com",
+              "network": {
+                "version": 2,
+                "ethernets": {
+                  "eths": {
+                    "match": {
+                      "name": "ens*"
+                    },
+                    "dhcp4": true
+                  }
+                }
+              }
+            }
+            """)
+        util.write_file(metadata_file, metadata_content)
+
+        # Mock wait_for_imc_file() to return the file path
+        def my_wait_for_imc_file(*args, **kwargs):
+            if len(args):
+                return self.tdir + "/" + args[0]
+            else:
+                return self.tdir + "/" + kwargs['filename']
+
+        with mock.patch(MPATH + 'set_customization_status',
+                        return_value=('msg', b'')):
+            with mock.patch(MPATH + 'wait_for_imc_file',
+                            side_effect=my_wait_for_imc_file):
+                result = wrap_and_call(
+                    'cloudinit.sources.DataSourceOVF',
+                    {'dmi.read_dmi_data': 'vmware',
+                     'util.del_dir': True,
+                     'search_file': self.tdir,
+                     'get_nics_to_enable': ''},
+                    ds.get_data)
+
+        self.assertTrue(result)
+        self.assertEqual("cloud-vm", ds.metadata['instance-id'])
+        self.assertEqual("my-host.domain.com", ds.metadata['local-hostname'])
+        self.assertEqual(2, ds.network_config['version'])
+        self.assertTrue(ds.network_config['ethernets']['eths']['dhcp4'])
+
+    def test_get_data_cloudinit_metadata_yaml(self):
+        """Test metadata can be loaded to cloud-init metadata and network.
+        The metadata format is yaml.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+        # Prepare the conf file
+        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_content = dedent("""\
+            [CLOUDINIT]
+            METADATA = test-meta
+            """)
+        util.write_file(conf_file, conf_content)
+        # Prepare the meta data file
+        metadata_file = self.tmp_path('test-meta', self.tdir)
+        metadata_content = dedent("""\
+            instance-id: cloud-vm
+            local-hostname: my-host.domain.com
+            network:
+                version: 2
+                ethernets:
+                    nics:
+                        match:
+                            name: ens*
+                        dhcp4: yes
+            """)
+        util.write_file(metadata_file, metadata_content)
+
+        # Mock wait_for_imc_file() to return the file path
+        def my_wait_for_imc_file(*args, **kwargs):
+            if len(args):
+                return self.tdir + "/" + args[0]
+            else:
+                return self.tdir + "/" + kwargs['filename']
+
+        with mock.patch(MPATH + 'set_customization_status',
+                        return_value=('msg', b'')):
+            with mock.patch(MPATH + 'wait_for_imc_file',
+                            side_effect=my_wait_for_imc_file):
+                result = wrap_and_call(
+                    'cloudinit.sources.DataSourceOVF',
+                    {'dmi.read_dmi_data': 'vmware',
+                     'util.del_dir': True,
+                     'search_file': self.tdir,
+                     'get_nics_to_enable': ''},
+                    ds.get_data)
+
+        self.assertTrue(result)
+        self.assertEqual("cloud-vm", ds.metadata['instance-id'])
+        self.assertEqual("my-host.domain.com", ds.metadata['local-hostname'])
+        self.assertEqual(2, ds.network_config['version'])
+        self.assertTrue(ds.network_config['ethernets']['nics']['dhcp4'])
+
+    def test_get_data_cloudinit_metadata_not_valid(self):
+        """Test metadata is not JSON or YAML format.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+
+        # Prepare the conf file
+        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_content = dedent("""\
+            [CLOUDINIT]
+            METADATA = test-meta
+            """)
+        util.write_file(conf_file, conf_content)
+
+        # Prepare the meta data file
+        metadata_file = self.tmp_path('test-meta', self.tdir)
+        metadata_content = "[This is not json or yaml format]a=b"
+        util.write_file(metadata_file, metadata_content)
+
+        # Mock wait_for_imc_file() to return the file path
+        def my_wait_for_imc_file(*args, **kwargs):
+            if len(args):
+                return self.tdir + "/" + args[0]
+            else:
+                return self.tdir + "/" + kwargs['filename']
+
+        with mock.patch(MPATH + 'set_customization_status',
+                        return_value=('msg', b'')):
+            with mock.patch(MPATH + 'wait_for_imc_file',
+                            side_effect=my_wait_for_imc_file):
+                with self.assertRaises(LoadError) as context:
+                    wrap_and_call(
+                        'cloudinit.sources.DataSourceOVF',
+                        {'dmi.read_dmi_data': 'vmware',
+                         'util.del_dir': True,
+                         'search_file': self.tdir,
+                         'get_nics_to_enable': ''},
+                        ds.get_data)
+
+        self.assertIn('Error parsing the meta data',
+                      str(context.exception))
+
+    def test_get_data_cloudinit_metadata_not_found(self):
+        """Test metadata file can't be found.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+        # Prepare the conf file
+        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_content = dedent("""\
+            [CLOUDINIT]
+            METADATA = test-meta
+            """)
+        util.write_file(conf_file, conf_content)
+        # Don't prepare the meta data file
+
+        # Mock wait_for_imc_file() to return the file path
+        def my_wait_for_imc_file(*args, **kwargs):
+            if len(args):
+                filename = args[0]
+            else:
+                filename = kwargs['filename']
+            # mock test-meta can't be found
+            if filename == "test-meta":
+                return None
+            else:
+                return self.tdir + "/" + filename
+
+        with mock.patch(MPATH + 'set_customization_status',
+                        return_value=('msg', b'')):
+            with mock.patch(MPATH + 'wait_for_imc_file',
+                            side_effect=my_wait_for_imc_file):
+                with self.assertRaises(FileNotFound) as context:
+                    wrap_and_call(
+                        'cloudinit.sources.DataSourceOVF',
+                        {'dmi.read_dmi_data': 'vmware',
+                         'util.del_dir': True,
+                         'search_file': self.tdir,
+                         'get_nics_to_enable': ''},
+                        ds.get_data)
+
+        self.assertIn('cloud-init meta data file is not found',
+                      str(context.exception))
+
+    def test_get_data_cloudinit_userdata(self):
+        """Test user data can be loaded to cloud-init user data.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+
+        # Prepare the conf file
+        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_content = dedent("""\
+            [CLOUDINIT]
+            METADATA = test-meta
+            USERDATA = test-user
+            """)
+        util.write_file(conf_file, conf_content)
+
+        # Prepare the meta data file
+        metadata_file = self.tmp_path('test-meta', self.tdir)
+        metadata_content = dedent("""\
+            instance-id: cloud-vm
+            local-hostname: my-host.domain.com
+            network:
+                version: 2
+                ethernets:
+                    nics:
+                        match:
+                            name: ens*
+                        dhcp4: yes
+            """)
+        util.write_file(metadata_file, metadata_content)
+
+        # Prepare the user data file
+        userdata_file = self.tmp_path('test-user', self.tdir)
+        userdata_content = "This is the user data"
+        util.write_file(userdata_file, userdata_content)
+
+        # Mock wait_for_imc_file() to return the file path
+        def my_wait_for_imc_file(*args, **kwargs):
+            if len(args):
+                return self.tdir + "/" + args[0]
+            else:
+                return self.tdir + "/" + kwargs['filename']
+
+        with mock.patch(MPATH + 'set_customization_status',
+                        return_value=('msg', b'')):
+            with mock.patch(MPATH + 'wait_for_imc_file',
+                            side_effect=my_wait_for_imc_file):
+                result = wrap_and_call(
+                    'cloudinit.sources.DataSourceOVF',
+                    {'dmi.read_dmi_data': 'vmware',
+                     'util.del_dir': True,
+                     'search_file': self.tdir,
+                     'get_nics_to_enable': ''},
+                    ds.get_data)
+
+        self.assertTrue(result)
+        self.assertEqual("cloud-vm", ds.metadata['instance-id'])
+        self.assertEqual(userdata_content, ds.userdata_raw)
+
+    def test_get_data_cloudinit_userdata_not_found(self):
+        """Test userdata file can't be found.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+
+        # Prepare the conf file
+        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_content = dedent("""\
+            [CLOUDINIT]
+            METADATA = test-meta
+            USERDATA = test-user
+            """)
+        util.write_file(conf_file, conf_content)
+
+        # Prepare the meta data file
+        metadata_file = self.tmp_path('test-meta', self.tdir)
+        metadata_content = dedent("""\
+            instance-id: cloud-vm
+            local-hostname: my-host.domain.com
+            network:
+                version: 2
+                ethernets:
+                    nics:
+                        match:
+                            name: ens*
+                        dhcp4: yes
+            """)
+        util.write_file(metadata_file, metadata_content)
+
+        # Don't prepare the user data file
+
+        # Mock wait_for_imc_file() to return the file path
+        def my_wait_for_imc_file(*args, **kwargs):
+            if len(args):
+                filename = args[0]
+            else:
+                filename = kwargs['filename']
+            # mock test-user can't be found
+            if filename == "test-user":
+                return None
+            else:
+                return self.tdir + "/" + filename
+
+        with mock.patch(MPATH + 'set_customization_status',
+                        return_value=('msg', b'')):
+            with mock.patch(MPATH + 'wait_for_imc_file',
+                            side_effect=my_wait_for_imc_file):
+                with self.assertRaises(FileNotFound) as context:
+                    wrap_and_call(
+                        'cloudinit.sources.DataSourceOVF',
+                        {'dmi.read_dmi_data': 'vmware',
+                         'util.del_dir': True,
+                         'search_file': self.tdir,
+                         'get_nics_to_enable': ''},
+                        ds.get_data)
+
+        self.assertIn('cloud-init user data file is not found',
+                      str(context.exception))
 
 
 class TestTransportIso9660(CiTestCase):
