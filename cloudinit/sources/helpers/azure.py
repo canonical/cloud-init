@@ -255,6 +255,7 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
             "Exception when dumping dmesg log: %s" % repr(ex),
             logger_func=LOG.warning)
 
+
 @azure_ds_telemetry_reporter
 def get_last_log_byte_pushed_to_kvp_index():
     try:
