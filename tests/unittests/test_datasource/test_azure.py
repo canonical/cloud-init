@@ -1080,6 +1080,9 @@ scbus-1 on xpt0 bus 0
                          crypt.crypt(odata['UserPassword'],
                                      defuser['passwd'][0:pos]))
 
+        # the same hashed value should also be present in cfg['password']
+        self.assertEqual(defuser['passwd'], dsrc.cfg['password'])
+
     def test_user_not_locked_if_password_redacted(self):
         odata = {'HostName': "myhost", 'UserName': "myuser",
                  'UserPassword': dsaz.DEF_PASSWD_REDACTION}
