@@ -62,12 +62,6 @@ TRUE_STRINGS = ('true', '1', 'on', 'yes')
 FALSE_STRINGS = ('off', '0', 'no', 'false')
 
 
-# Helper utils to see if running in a container
-CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
-                   ['running-in-container'],
-                   ['lxc-is-container'])
-
-
 def kernel_version():
     return tuple(map(int, os.uname().release.split('.')[:2]))
 
@@ -1928,19 +1922,52 @@ def strip_prefix_suffix(line, prefix=None, suffix=None):
     return line
 
 
+def _cmd_exits_zero(cmd):
+    if subp.which(cmd[0]) is None:
+        return False
+    try:
+        subp.subp(cmd)
+    except subp.ProcessExecutionError:
+        return False
+    return True
+
+
+def _is_container_systemd():
+    return _cmd_exits_zero(["systemd-detect-virt", "--quiet", "--container"])
+
+
+def _is_container_upstart():
+    return _cmd_exits_zero(["running-in-container"])
+
+
+def _is_container_old_lxc():
+    return _cmd_exits_zero(["lxc-is-container"])
+
+
+def _is_container_freebsd():
+    if not is_FreeBSD():
+        return False
+    cmd = ["sysctl", "-qn", "security.jail.jailed"]
+    if subp.which(cmd[0]) is None:
+        return False
+    out, _ = subp.subp(cmd)
+    return out.strip() == "1"
+
+
+@lru_cache()
 def is_container():
     """
     Checks to see if this code running in a container of some sort
     """
+    checks = (
+        _is_container_systemd,
+        _is_container_freebsd,
+        _is_container_upstart,
+        _is_container_old_lxc)
 
-    for helper in CONTAINER_TESTS:
-        try:
-            # try to run a helper program. if it returns true/zero
-            # then we're inside a container. otherwise, no
-            subp.subp(helper)
+    for helper in checks:
+        if helper():
             return True
-        except (IOError, OSError):
-            pass
 
     # this code is largely from the logic in
     # ubuntu's /etc/init/container-detect.conf

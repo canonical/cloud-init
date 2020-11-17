@@ -367,6 +367,11 @@ class Renderer(renderer.Renderer):
                 if new_key:
                     iface_cfg[new_key] = old_value
 
+        # only set WakeOnLan for physical interfaces
+        if ('wakeonlan' in iface and iface['wakeonlan'] and
+                iface['type'] == 'physical'):
+            iface_cfg['ETHTOOL_OPTS'] = 'wol g'
+
     @classmethod
     def _render_subnets(cls, iface_cfg, subnets, has_default_route, flavor):
         # setting base values

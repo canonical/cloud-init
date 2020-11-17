@@ -59,7 +59,8 @@ class IntegrationCloud(ABC):
             'user_data': user_data,
             'wait': False,
         }
-        kwargs.update(launch_kwargs)
+        if launch_kwargs:
+            kwargs.update(launch_kwargs)
         log.info(
             "Launching instance with launch_kwargs:\n{}".format(
                 "\n".join("{}={}".format(*item) for item in kwargs.items())
