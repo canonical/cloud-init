@@ -1,4 +1,3 @@
-import copy
 import os
 import re
 import json
@@ -14,7 +13,6 @@ from cloudinit.sources.helpers import openstack
 from cloudinit import stages
 from cloudinit import safeyaml
 import httpretty as hp
-from cloudinit import settings
 from io import StringIO
 from urllib.parse import urlparse
 
@@ -58,6 +56,10 @@ CFG_DRIVE_FILES_V2 = {
     'openstack/latest/meta_data.json': json.dumps(OSTACK_META)}
 
 BASE_URL = "http://169.254.169.254"
+
+EC2_VERSIONS = [
+    'latest',
+]
 
 
 def fill_properties(props, template=OVF_ENV_CONTENT):
@@ -219,12 +221,11 @@ class TestFallbackDatasource(tests_helpers.FilesystemMockingTestCase,
         util.write_file(ovf_env, env)
         dsrc = self.ds(sys_cfg={}, distro=None, paths=self.paths)
         MPATH = 'cloudinit.sources.DataSourceOVF.'
-        with mock.patch(MPATH + 'util.read_dmi_data', return_value='!VMware'):
-            with mock.patch(MPATH + 'transport_vmware_guestinfo') as m_guestd:
-                with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
-                    m_iso9660.return_value = None
-                    m_guestd.return_value = None
-                    self.assertTrue(dsrc.get_data())
+        with mock.patch(MPATH + 'transport_vmware_guestinfo') as m_guestd:
+            with mock.patch(MPATH + 'transport_iso9660') as m_iso9660:
+                m_iso9660.return_value = None
+                m_guestd.return_value = None
+                self.assertTrue(dsrc.get_data())
 
         self.reRoot(self.tmp)
         # simulate first boot with datasource OVF
