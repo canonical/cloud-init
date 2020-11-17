@@ -45,6 +45,7 @@ ssh_keys:
     A3tFPEOxauXpzCt8f8eXsz0WQXAgIKW2h8zu5QHjomioU3i27mtE
     -----END RSA PRIVATE KEY-----
   rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgTLnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4+XnyVeNPjfBXw4IyXoqxhfIF16Azfk022iejgjiYssoUxH31M60OfqJhxo16dWEXdkKP1nac06VOt1zS5yEeooyvEuMJEJSsv3VR/7GKhMX3TVhEz5moLmVP3bIAvvoXio8X4urVC1R819QjDC86nlxwNks/GKPRi/IHO5tjJ72Eke7KNsm/vxHgkdX4vZaHNKhfdb/pavFXN5eoUaofz3hxw5oL/u2epI/pXyUhDp8Tb5wO6slykzcIlGCSd0YeO1TnljvViRx0uSxIy97N root@xenial-lxd
+  rsa_certificate: ssh-rsa-cert-v01@openssh.com AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgMpgBP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgTLnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4+XnyVeNPjfBXw4IyXoqxhfIF16Azfk022iejgjiYssoUxH31M60OfqJhxo16dWEXdkKP1nac06VOt1zS5yEeooyvEuMJEJSsv3VR/7GKhMX3TVhEz5moLmVP3bIAvvoXio8X4urVC1R819QjDC86nlxwNks/GKPRi/IHO5tjJ72Eke7KNsm/vxHgkdX4vZaHNKhfdb/pavFXN5eoUaofz3hxw5oL/u2epI/pXyUhDp8Tb5wO6slykzcIlGCSd0YeO1TnljvViRx0uSxIy97NAAAAAAAAAAAAAAACAAAACnhlbmlhbC1seGQAAAAAAAAAAF+vVEIAAAAAYY83bgAAAAAAAAAAAAAAAAAAADMAAAALc3NoLWVkMjU1MTkAAAAgz4SlDwbq53ZrRsnS6ISdwxgFDRpnEX44K8jFmLpI9NAAAABTAAAAC3NzaC1lZDI1NTE5AAAAQMWpiRWKNMFvRX0g6OQOELMqDhtNBpkIN92IyO25qiY2oDSd1NyVme6XnGDFt8CS7z5NufV04doP4aacLOBbQww= root@xenial-lxd
   dsa_private: |
     -----BEGIN DSA PRIVATE KEY-----
     MIIBuwIBAAKBgQD5Fstc23IVSDe6k4DNP8smPKuEWUvHDTOGaXrhOVAfzZ6+jklP
@@ -107,6 +108,18 @@ class TestSshKeysProvided:
         assert (
             "4DOkqNiUGl80Zp1RgZNohHUXlJMtAbrIlAVEk+mTmg7vjfyp2un"
             "RQvLZpMRdywBm") in out
+
+    def test_ssh_rsa_certificate_provided(self, class_client):
+        """Test rsa certificate was imported."""
+        out = class_client.read_from_file("/etc/ssh/ssh_host_rsa_key-cert.pub")
+        assert (
+            "AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgMpg"
+            "BP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAAD") in out
+
+    def test_ssh_certificate_updated_sshd_config(self, class_client):
+        """Test ssh certificate was added to /etc/ssh/sshd_config."""
+        out = class_client.read_from_file("/etc/ssh/sshd_config").strip()
+        assert "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub" in out
 
     def test_ssh_ecdsa_keys_provided(self, class_client):
         """Test ecdsa public key was imported."""
