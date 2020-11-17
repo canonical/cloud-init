@@ -10,6 +10,8 @@ import logging
 LOG = logging.getLogger(__name__)
 
 MODPATH = "cloudinit.config.cc_ssh."
+KEY_NAMES_NO_DSA = [name for name in cc_ssh.GENERATE_KEY_NAMES
+                    if name not in 'dsa']
 
 
 @mock.patch(MODPATH + "ssh_util.setup_user_keys")
@@ -25,7 +27,7 @@ class TestHandleSsh(CiTestCase):
         }
         self.test_hostkey_files = []
         hostkey_tmpdir = self.tmp_dir()
-        for key_type in ['dsa', 'ecdsa', 'ed25519', 'rsa']:
+        for key_type in cc_ssh.GENERATE_KEY_NAMES:
             key_data = self.test_hostkeys[key_type]
             filename = 'ssh_host_%s_key.pub' % key_type
             filepath = os.path.join(hostkey_tmpdir, filename)
@@ -223,7 +225,7 @@ class TestHandleSsh(CiTestCase):
 
         cfg = {}
         expected_call = [self.test_hostkeys[key_type] for key_type
-                         in ['ecdsa', 'ed25519', 'rsa']]
+                         in KEY_NAMES_NO_DSA]
         cc_ssh.handle("name", cfg, cloud, LOG, None)
         self.assertEqual([mock.call(expected_call)],
                          cloud.datasource.publish_host_keys.call_args_list)
@@ -252,7 +254,7 @@ class TestHandleSsh(CiTestCase):
 
         cfg = {'ssh_publish_hostkeys': {'enabled': True}}
         expected_call = [self.test_hostkeys[key_type] for key_type
-                         in ['ecdsa', 'ed25519', 'rsa']]
+                         in KEY_NAMES_NO_DSA]
         cc_ssh.handle("name", cfg, cloud, LOG, None)
         self.assertEqual([mock.call(expected_call)],
                          cloud.datasource.publish_host_keys.call_args_list)
@@ -339,7 +341,7 @@ class TestHandleSsh(CiTestCase):
         cfg = {'ssh_publish_hostkeys': {'enabled': True,
                                         'blacklist': []}}
         expected_call = [self.test_hostkeys[key_type] for key_type
-                         in ['dsa', 'ecdsa', 'ed25519', 'rsa']]
+                         in cc_ssh.GENERATE_KEY_NAMES]
         cc_ssh.handle("name", cfg, cloud, LOG, None)
         self.assertEqual([mock.call(expected_call)],
                          cloud.datasource.publish_host_keys.call_args_list)
