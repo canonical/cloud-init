@@ -248,7 +248,7 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
 
     LOG.debug("Dumping dmesg log to KVP")
     try:
-        out,_ = subp.subp(['dmesg'], decode=False, capture=True)
+        out, _ = subp.subp(['dmesg'], decode=False, capture=True)
         report_compressed_event("dmesg", out)
     except Exception as ex:
         report_diagnostic_event(
