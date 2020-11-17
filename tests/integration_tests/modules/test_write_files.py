@@ -51,8 +51,8 @@ class TestWriteFiles:
     @pytest.mark.parametrize(
         "cmd,expected_out", (
             ("file /root/file_b64", ASCII_TEXT),
-            ("md5sum /root/file_binary", "3801184b97bb8c6e63fa0e1eae2920d7"),
-            ("sha256sum /root/file_binary", (
+            ("md5sum </root/file_binary", "3801184b97bb8c6e63fa0e1eae2920d7"),
+            ("sha256sum </root/file_binary", (
                 "2c791c4037ea5bd7e928d6a87380f8ba"
                 "7a803cd83d5e4f269e28f5090f0f2c9a"
             )),

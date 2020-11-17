@@ -44,12 +44,7 @@ class IntegrationInstance:
         self.instance.delete()
 
     def execute(self, command) -> Result:
-        if self.use_sudo:
-            if isinstance(command, str):
-                command = 'sudo {}'.format(command)
-            elif isinstance(command, list):
-                command = ['sudo'] + command
-        return self.instance.execute(command)
+        return self.instance.execute(command, use_sudo=self.use_sudo)
 
     def pull_file(self, remote_path, local_path):
         # First copy to a temporary directory because of permissions issues
