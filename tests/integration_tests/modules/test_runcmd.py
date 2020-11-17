@@ -16,6 +16,7 @@ runcmd:
 """
 
 
+@pytest.mark.ci
 class TestRuncmd:
 
     @pytest.mark.user_data(USER_DATA)

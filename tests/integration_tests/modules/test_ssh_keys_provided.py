@@ -78,6 +78,7 @@ ssh_keys:
 """  # noqa
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestSshKeysProvided:
 
