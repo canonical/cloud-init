@@ -21,10 +21,6 @@ except ImportError:
 log = logging.getLogger('integration_testing')
 
 
-class CalledProcessException(Exception):
-    pass
-
-
 def _get_tmp_path():
     tmp_filename = ''.join([random.choice(
         string.ascii_letters + string.digits) for _ in range(20)])
@@ -43,13 +39,15 @@ class IntegrationInstance:
     def destroy(self):
         self.instance.delete()
 
-    def execute(self, command) -> Result:
-        return self.instance.execute(command, use_sudo=self.use_sudo)
+    def execute(self, command, *, use_sudo=None) -> Result:
+        if use_sudo is None:
+            use_sudo = self.use_sudo
+        return self.instance.execute(command, use_sudo=use_sudo)
 
     def pull_file(self, remote_path, local_path):
         # First copy to a temporary directory because of permissions issues
         tmp_path = _get_tmp_path()
-        self.instance.execute('mv {} {}'.format(remote_path, tmp_path))
+        self.instance.execute('cp {} {}'.format(remote_path, tmp_path))
         self.instance.pull_file(tmp_path, local_path)
 
     def push_file(self, local_path, remote_path):
@@ -61,7 +59,9 @@ class IntegrationInstance:
     def read_from_file(self, remote_path) -> str:
         result = self.execute('/bin/cat {}'.format(remote_path))
         if result.failed:
-            raise CalledProcessException(
+            # TODO: Raise here whatever pycloudlib raises when it has
+            # a consistent error response
+            raise IOError(
                 'Failed reading remote file via cat: {}\n'
                 'Return code: {}\n'
                 'Stderr: {}\n'
