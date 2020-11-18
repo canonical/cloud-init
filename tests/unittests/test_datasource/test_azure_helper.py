@@ -771,7 +771,7 @@ class TestGoalStateHealthReporter(CiTestCase):
         generated_health_report_description = self._text_from_xpath_in_xroot(
             generated_xroot,
             './Container/RoleInstanceList/Role/Health/Details/Description')
-        self.assertLessEqual(
+        self.assertEqual(
             len(unescape(generated_health_report_description)),
             HEALTH_REPORT_DESCRIPTION_TRIM_LEN)
 
