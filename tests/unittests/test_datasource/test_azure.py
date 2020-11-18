@@ -658,7 +658,7 @@ scbus-1 on xpt0 bus 0
             ret = dsrc.get_data()
             self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
             self.assertFalse(ret)
-            self.assertFalse('agent_invoked' in data)
+            self.assertNotIn('agent_invoked', data)
             # Assert that for non viable platforms,
             # there is no communication with the Azure datasource.
             self.assertEqual(
@@ -682,7 +682,7 @@ scbus-1 on xpt0 bus 0
             ret = dsrc.get_data()
             self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
             self.assertFalse(ret)
-            self.assertFalse('agent_invoked' in data)
+            self.assertNotIn('agent_invoked', data)
             self.assertEqual(
                 1,
                 m_report_failure.call_count)
@@ -699,7 +699,7 @@ scbus-1 on xpt0 bus 0
                 1,
                 m_crawl_metadata.call_count)
             self.assertFalse(ret)
-            self.assertFalse('agent_invoked' in data)
+            self.assertNotIn('agent_invoked', data)
 
     def test_crawl_metadata_exception_should_report_failure_with_msg(self):
         data = {}
@@ -1066,7 +1066,7 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertTrue('default_user' in dsrc.cfg['system_info'])
+        self.assertIn('default_user', dsrc.cfg['system_info'])
         defuser = dsrc.cfg['system_info']['default_user']
 
         # default user should be updated username and should not be locked.
@@ -1088,7 +1088,7 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertTrue('default_user' in dsrc.cfg['system_info'])
+        self.assertIn('default_user', dsrc.cfg['system_info'])
         defuser = dsrc.cfg['system_info']['default_user']
 
         # default user should be updated username and should not be locked.
