@@ -513,9 +513,6 @@ class TestGoalStateHealthReporter(CiTestCase):
         self.GoalState.return_value.incarnation = \
             self.default_parameters['incarnation']
 
-    def _xroot_from_raw_xml(self, raw_xml):
-        return ElementTree.fromstring(raw_xml)
-
     def _text_from_xpath_in_xroot(self, xroot, xpath):
         element = xroot.find(xpath)
         if element is not None:
@@ -601,7 +598,7 @@ class TestGoalStateHealthReporter(CiTestCase):
 
         self.assertEqual(health_document, generated_health_document)
 
-        generated_xroot = self._xroot_from_raw_xml(generated_health_document)
+        generated_xroot = ElementTree.fromstring(generated_health_document)
         self.assertEqual(
             self._text_from_xpath_in_xroot(
                 generated_xroot, './GoalStateIncarnation'),
@@ -650,7 +647,7 @@ class TestGoalStateHealthReporter(CiTestCase):
 
         self.assertEqual(health_document, generated_health_document)
 
-        generated_xroot = self._xroot_from_raw_xml(generated_health_document)
+        generated_xroot = ElementTree.fromstring(generated_health_document)
         self.assertEqual(
             self._text_from_xpath_in_xroot(
                 generated_xroot, './GoalStateIncarnation'),
@@ -770,7 +767,7 @@ class TestGoalStateHealthReporter(CiTestCase):
             substatus=self.provisioning_failure_substatus,
             description=long_err_msg)
 
-        generated_xroot = self._xroot_from_raw_xml(generated_health_document)
+        generated_xroot = ElementTree.fromstring(generated_health_document)
         generated_health_report_description = self._text_from_xpath_in_xroot(
             generated_xroot,
             './Container/RoleInstanceList/Role/Health/Details/Description')
@@ -818,7 +815,7 @@ class TestGoalStateHealthReporter(CiTestCase):
             substatus=self.provisioning_failure_substatus,
             description=long_err_msg)
 
-        generated_xroot = self._xroot_from_raw_xml(generated_health_document)
+        generated_xroot = ElementTree.fromstring(generated_health_document)
         generated_health_report_description = self._text_from_xpath_in_xroot(
             generated_xroot,
             './Container/RoleInstanceList/Role/Health/Details/Description')
