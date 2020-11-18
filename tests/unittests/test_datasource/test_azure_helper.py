@@ -838,7 +838,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.GoalState = patches.enter_context(
             mock.patch.object(azure_helper, 'GoalState'))
         self.OpenSSLManager = patches.enter_context(
-            mock.patch.object(azure_helper, 'OpenSSLManager'))
+            mock.patch.object(azure_helper, 'OpenSSLManager', autospec=True))
         patches.enter_context(
             mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
 

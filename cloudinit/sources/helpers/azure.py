@@ -385,11 +385,19 @@ class OpenSSLManager:
 
     def __init__(self):
         self.tmpdir = temp_utils.mkdtemp()
-        self.certificate = None
+        self._certificate = None
         self.generate_certificate()
 
     def clean_up(self):
         util.del_dir(self.tmpdir)
+
+    @property
+    def certificate(self):
+        return self._certificate
+
+    @certificate.setter
+    def certificate(self, value):
+        self._certificate = value
 
     @azure_ds_telemetry_reporter
     def generate_certificate(self):
