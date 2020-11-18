@@ -996,7 +996,7 @@ class TestWALinuxAgentShim(CiTestCase):
                 .call_args[1]['data'])
         self.assertEqual(health_document, posted_document)
 
-    @mock.patch.object(azure_helper, 'GoalStateHealthReporter')
+    @mock.patch.object(azure_helper, 'GoalStateHealthReporter', autospec=True)
     def test_register_with_azure_and_fetch_data_calls_send_ready_signal(
             self, m_goal_state_health_reporter):
         shim = wa_shim()
@@ -1006,7 +1006,7 @@ class TestWALinuxAgentShim(CiTestCase):
             m_goal_state_health_reporter.return_value.send_ready_signal
             .call_count)
 
-    @mock.patch.object(azure_helper, 'GoalStateHealthReporter')
+    @mock.patch.object(azure_helper, 'GoalStateHealthReporter', autospec=True)
     def test_register_with_azure_and_report_failure_calls_send_failure_signal(
             self, m_goal_state_health_reporter):
         shim = wa_shim()
