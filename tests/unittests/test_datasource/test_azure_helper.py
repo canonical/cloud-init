@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import os
 import re
 import unittest
@@ -291,29 +292,25 @@ class TestAzureEndpointHttpClient(CiTestCase):
         super(TestAzureEndpointHttpClient, self).setUp()
         patches = ExitStack()
         self.addCleanup(patches.close)
-
-        self.readurl = patches.enter_context(
-            mock.patch.object(azure_helper.url_helper, 'readurl'))
-        patches.enter_context(
-            mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
+        self.m_http_with_retries = patches.enter_context(
+            mock.patch.object(azure_helper, 'http_with_retries'))
 
     def test_non_secure_get(self):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         url = 'MyTestUrl'
         response = client.get(url, secure=False)
-        self.assertEqual(1, self.readurl.call_count)
-        self.assertEqual(self.readurl.return_value, response)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
+        self.assertEqual(self.m_http_with_retries.return_value, response)
         self.assertEqual(
-            mock.call(url, headers=self.regular_headers,
-                      timeout=5, retries=10, sec_between=5),
-            self.readurl.call_args)
+            mock.call(url, headers=self.regular_headers),
+            self.m_http_with_retries.call_args)
 
     def test_non_secure_get_raises_exception(self):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.readurl.side_effect = SentinelException
         url = 'MyTestUrl'
-        with self.assertRaises(SentinelException):
-            client.get(url, secure=False)
+        self.m_http_with_retries.side_effect = SentinelException
+        self.assertRaises(SentinelException, client.get, url, secure=False)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
 
     def test_secure_get(self):
         url = 'MyTestUrl'
@@ -325,39 +322,37 @@ class TestAzureEndpointHttpClient(CiTestCase):
         })
         client = azure_helper.AzureEndpointHttpClient(m_certificate)
         response = client.get(url, secure=True)
-        self.assertEqual(1, self.readurl.call_count)
-        self.assertEqual(self.readurl.return_value, response)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
+        self.assertEqual(self.m_http_with_retries.return_value, response)
         self.assertEqual(
-            mock.call(url, headers=expected_headers,
-                      timeout=5, retries=10, sec_between=5),
-            self.readurl.call_args)
+            mock.call(url, headers=expected_headers),
+            self.m_http_with_retries.call_args)
 
     def test_secure_get_raises_exception(self):
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.readurl.side_effect = SentinelException
-        with self.assertRaises(SentinelException):
-            client.get(url, secure=True)
+        self.m_http_with_retries.side_effect = SentinelException
+        self.assertRaises(SentinelException, client.get, url, secure=True)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
 
     def test_post(self):
         m_data = mock.MagicMock()
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         response = client.post(url, data=m_data)
-        self.assertEqual(1, self.readurl.call_count)
-        self.assertEqual(self.readurl.return_value, response)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
+        self.assertEqual(self.m_http_with_retries.return_value, response)
         self.assertEqual(
-            mock.call(url, data=m_data, headers=self.regular_headers,
-                      timeout=5, retries=10, sec_between=5),
-            self.readurl.call_args)
+            mock.call(url, data=m_data, headers=self.regular_headers),
+            self.m_http_with_retries.call_args)
 
     def test_post_raises_exception(self):
         m_data = mock.MagicMock()
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.readurl.side_effect = SentinelException
-        with self.assertRaises(SentinelException):
-            client.post(url, data=m_data)
+        self.m_http_with_retries.side_effect = SentinelException
+        self.assertRaises(SentinelException, client.post, url, data=m_data)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
 
     def test_post_with_extra_headers(self):
         url = 'MyTestUrl'
@@ -366,21 +361,179 @@ class TestAzureEndpointHttpClient(CiTestCase):
         client.post(url, extra_headers=extra_headers)
         expected_headers = self.regular_headers.copy()
         expected_headers.update(extra_headers)
-        self.assertEqual(1, self.readurl.call_count)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
         self.assertEqual(
-            mock.call(mock.ANY, data=mock.ANY, headers=expected_headers,
-                      timeout=5, retries=10, sec_between=5),
-            self.readurl.call_args)
+            mock.call(url, data=mock.ANY, headers=expected_headers),
+            self.m_http_with_retries.call_args)
 
     def test_post_with_sleep_with_extra_headers_raises_exception(self):
         m_data = mock.MagicMock()
         url = 'MyTestUrl'
         extra_headers = {'test': 'header'}
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.readurl.side_effect = SentinelException
-        with self.assertRaises(SentinelException):
-            client.post(
-                url, data=m_data, extra_headers=extra_headers)
+        self.m_http_with_retries.side_effect = SentinelException
+        self.assertRaises(
+            SentinelException, client.post,
+            url, data=m_data, extra_headers=extra_headers)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
+
+
+class TestAzureHelperHttpWithRetries(CiTestCase):
+
+    with_logs = True
+
+    max_readurl_attempts = 240
+    default_readurl_timeout = 5
+    periodic_logging_attempts = 12
+
+    def setUp(self):
+        super(TestAzureHelperHttpWithRetries, self).setUp()
+        patches = ExitStack()
+        self.addCleanup(patches.close)
+
+        self.m_readurl = patches.enter_context(
+            mock.patch.object(
+                azure_helper.url_helper, 'readurl', mock.MagicMock()))
+        patches.enter_context(
+            mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
+
+    def test_http_with_retries(self):
+        self.m_readurl.return_value = 'TestResp'
+        self.assertEqual(
+            azure_helper.http_with_retries('testurl'),
+            self.m_readurl.return_value)
+        self.assertEqual(self.m_readurl.call_count, 1)
+
+    def test_http_with_retries_propagates_readurl_exc_and_logs_exc(
+            self):
+        self.m_readurl.side_effect = SentinelException
+
+        self.assertRaises(
+            SentinelException, azure_helper.http_with_retries, 'testurl')
+        self.assertEqual(self.m_readurl.call_count, self.max_readurl_attempts)
+
+        self.assertIsNotNone(
+            re.search(
+                r'Failed HTTP request with Azure endpoint \S* during '
+                r'attempt \d+ with exception: \S*',
+                self.logs.getvalue()))
+        self.assertIsNone(
+            re.search(
+                r'Successful HTTP request with Azure endpoint \S* after '
+                r'\d+ attempts',
+                self.logs.getvalue()))
+
+    def test_http_with_retries_delayed_success_due_to_temporary_readurl_exc(
+            self):
+        self.m_readurl.side_effect = \
+            [SentinelException] * self.periodic_logging_attempts + \
+            ['TestResp']
+        self.m_readurl.return_value = 'TestResp'
+
+        response = azure_helper.http_with_retries('testurl')
+        self.assertEqual(
+            response,
+            self.m_readurl.return_value)
+        self.assertEqual(
+            self.m_readurl.call_count,
+            self.periodic_logging_attempts + 1)
+
+    def test_http_with_retries_long_delay_logs_periodic_failure_msg(self):
+        self.m_readurl.side_effect = \
+            [SentinelException] * self.periodic_logging_attempts + \
+            ['TestResp']
+        self.m_readurl.return_value = 'TestResp'
+
+        azure_helper.http_with_retries('testurl')
+
+        self.assertEqual(
+            self.m_readurl.call_count,
+            self.periodic_logging_attempts + 1)
+        self.assertIsNotNone(
+            re.search(
+                r'Failed HTTP request with Azure endpoint \S* during '
+                r'attempt \d+ with exception: \S*',
+                self.logs.getvalue()))
+        self.assertIsNotNone(
+            re.search(
+                r'Successful HTTP request with Azure endpoint \S* after '
+                r'\d+ attempts',
+                self.logs.getvalue()))
+
+    def test_http_with_retries_short_delay_does_not_log_periodic_failure_msg(
+            self):
+        self.m_readurl.side_effect = \
+            [SentinelException] * \
+            (self.periodic_logging_attempts - 1) + \
+            ['TestResp']
+        self.m_readurl.return_value = 'TestResp'
+
+        azure_helper.http_with_retries('testurl')
+        self.assertEqual(
+            self.m_readurl.call_count,
+            self.periodic_logging_attempts)
+
+        self.assertIsNone(
+            re.search(
+                r'Failed HTTP request with Azure endpoint \S* during '
+                r'attempt \d+ with exception: \S*',
+                self.logs.getvalue()))
+        self.assertIsNotNone(
+            re.search(
+                r'Successful HTTP request with Azure endpoint \S* after '
+                r'\d+ attempts',
+                self.logs.getvalue()))
+
+    def test_http_with_retries_calls_url_helper_readurl_with_args_kwargs(self):
+        testurl = mock.MagicMock()
+        kwargs = {
+            'headers': mock.MagicMock(),
+            'data': mock.MagicMock(),
+            # timeout kwarg should not be modified or deleted if present
+            'timeout': mock.MagicMock()
+        }
+        azure_helper.http_with_retries(testurl, **kwargs)
+        self.m_readurl.assert_called_once_with(testurl, **kwargs)
+
+    def test_http_with_retries_adds_timeout_kwarg_if_not_present(self):
+        testurl = mock.MagicMock()
+        kwargs = {
+            'headers': mock.MagicMock(),
+            'data': mock.MagicMock()
+        }
+        expected_kwargs = copy.deepcopy(kwargs)
+        expected_kwargs['timeout'] = self.default_readurl_timeout
+
+        azure_helper.http_with_retries(testurl, **kwargs)
+        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
+
+    def test_http_with_retries_deletes_retries_kwargs_passed_in(
+            self):
+        """http_with_retries already implements retry logic,
+        so url_helper.readurl should not have retries.
+        http_with_retries should delete kwargs that
+        cause url_helper.readurl to retry.
+        """
+        testurl = mock.MagicMock()
+        kwargs = {
+            'headers': mock.MagicMock(),
+            'data': mock.MagicMock(),
+            'timeout': mock.MagicMock(),
+            'retries': mock.MagicMock(),
+            'infinite': mock.MagicMock()
+        }
+        expected_kwargs = copy.deepcopy(kwargs)
+        expected_kwargs.pop('retries', None)
+        expected_kwargs.pop('infinite', None)
+
+        azure_helper.http_with_retries(testurl, **kwargs)
+        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
+        self.assertIn(
+            'retries kwarg passed in for communication with Azure endpoint.',
+            self.logs.getvalue())
+        self.assertIn(
+            'infinite kwarg passed in for communication with Azure endpoint.',
+            self.logs.getvalue())
 
 
 class TestOpenSSLManager(CiTestCase):

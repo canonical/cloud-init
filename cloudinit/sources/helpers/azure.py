@@ -284,6 +284,54 @@ def _get_dhcp_endpoint_option_name():
     return azure_endpoint
 
 
+@azure_ds_telemetry_reporter
+def http_with_retries(url, **kwargs) -> str:
+    """Wrapper around url_helper.readurl() with custom telemetry logging
+    that url_helper.readurl() does not provide.
+    """
+    exc = None
+
+    max_readurl_attempts = 240
+    default_readurl_timeout = 5
+    periodic_logging_attempts = 12
+
+    if 'timeout' not in kwargs:
+        kwargs['timeout'] = default_readurl_timeout
+
+    # remove kwargs that cause url_helper.readurl to retry,
+    # since we are already implementing our own retry logic.
+    if kwargs.pop('retries', None):
+        LOG.warning(
+            'Ignoring retries kwarg passed in for '
+            'communication with Azure endpoint.')
+    if kwargs.pop('infinite', None):
+        LOG.warning(
+            'Ignoring infinite kwarg passed in for communication '
+            'with Azure endpoint.')
+
+    for attempt in range(1, max_readurl_attempts + 1):
+        try:
+            ret = url_helper.readurl(url, **kwargs)
+
+            report_diagnostic_event(
+                'Successful HTTP request with Azure endpoint %s after '
+                '%d attempts' % (url, attempt),
+                logger_func=LOG.debug)
+
+            return ret
+
+        except Exception as e:
+            exc = e
+            if attempt % periodic_logging_attempts == 0:
+                report_diagnostic_event(
+                    'Failed HTTP request with Azure endpoint %s during '
+                    'attempt %d with exception: %s' %
+                    (url, attempt, e),
+                    logger_func=LOG.debug)
+
+    raise exc
+
+
 class AzureEndpointHttpClient:
 
     headers = {
@@ -302,16 +350,15 @@ class AzureEndpointHttpClient:
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
-        return url_helper.readurl(url, headers=headers,
-                                  timeout=5, retries=10, sec_between=5)
+        return http_with_retries(url, headers=headers)
 
     def post(self, url, data=None, extra_headers=None):
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
             headers.update(extra_headers)
-        return url_helper.readurl(url, data=data, headers=headers,
-                                  timeout=5, retries=10, sec_between=5)
+        return http_with_retries(
+            url, data=data, headers=headers)
 
 
 class InvalidGoalStateXMLException(Exception):
