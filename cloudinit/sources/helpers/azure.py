@@ -280,6 +280,9 @@ def _get_dhcp_endpoint_option_name():
 
 @azure_ds_telemetry_reporter
 def http_with_retries(url, **kwargs) -> str:
+    """Wrapper around url_helper.readurl() with custom telemetry logging
+    that url_helper.readurl() does not provide.
+    """
     exc = None
 
     max_readurl_attempts = 240
