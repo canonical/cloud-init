@@ -55,6 +55,12 @@ EXISTING_INSTANCE_ID = None
 #   A path to a valid package to be uploaded and installed
 CLOUD_INIT_SOURCE = 'NONE'
 
+# Before an instance is torn down, we run `cloud-init collect-logs`
+# and transfer them locally. These settings specify whether to collect these
+# logs at all, and if so, where do we put them on the local filesystem
+COLLECT_LOGS = True
+LOCAL_LOG_PATH = '/tmp/cloud_init_test_logs'
+
 ##################################################################
 # GCE SPECIFIC SETTINGS
 ##################################################################

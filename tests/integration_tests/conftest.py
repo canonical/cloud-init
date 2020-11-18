@@ -1,9 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import datetime
 import logging
 import os
 import pytest
 import sys
+from tarfile import TarFile
 from contextlib import contextmanager
+from pathlib import Path
 
 from tests.integration_tests import integration_settings
 from tests.integration_tests.clouds import (
@@ -28,6 +31,8 @@ platforms = {
     'lxd_container': LxdContainerCloud,
     'lxd_vm': LxdVmCloud,
 }
+
+session_start_time = datetime.datetime.now().strftime('%y%m%d%H%M%S')
 
 
 def pytest_runtest_setup(item):
@@ -114,6 +119,29 @@ def setup_image(session_cloud):
     log.info('Done with environment setup')
 
 
+def _collect_logs(instance, node_id):
+    instance.execute(
+        'cloud-init collect-logs -u -t /var/tmp/cloud-init.tar.gz')
+    node_id_path = Path(
+        node_id
+        .replace('.py', '')  # Having a directory with '.py' would be weird
+        .replace('::', os.path.sep)  # Turn classes/tests into paths
+        .replace('[', '-')  # For parametrized names
+        .replace(']', '')  # For parameterized names
+    )
+    log_dir = Path(
+        integration_settings.LOCAL_LOG_PATH
+    ) / session_start_time / node_id_path
+    if not log_dir.exists():
+        log_dir.mkdir(parents=True)
+    tarball_path = log_dir / 'cloud-init.tar.gz'
+    instance.pull_file('/var/tmp/cloud-init.tar.gz', tarball_path)
+
+    tarball = TarFile.open(str(tarball_path))
+    tarball.extractall(path=str(log_dir))
+    tarball_path.unlink()
+
+
 @contextmanager
 def _client(request, fixture_utils, session_cloud):
     """Fixture implementation for the client fixtures.
@@ -133,6 +161,8 @@ def _client(request, fixture_utils, session_cloud):
         user_data=user_data, launch_kwargs=launch_kwargs
     ) as instance:
         yield instance
+        if integration_settings.COLLECT_LOGS:
+            _collect_logs(instance, request.node.nodeid)
 
 
 @pytest.yield_fixture
