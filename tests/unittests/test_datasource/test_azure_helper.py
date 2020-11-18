@@ -867,13 +867,13 @@ class TestWALinuxAgentShim(CiTestCase):
         self.find_endpoint.return_value = 'test_endpoint'
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
-        get = self.AzureEndpointHttpClient.return_value.get
+        m_get = self.AzureEndpointHttpClient.return_value.get
         self.assertEqual(
             [mock.call('http://test_endpoint/machine/?comp=goalstate')],
-            get.call_args_list)
+            m_get.call_args_list)
         self.assertEqual(
             [mock.call(
-                get.return_value.contents,
+                m_get.return_value.contents,
                 self.AzureEndpointHttpClient.return_value,
                 False
             )],
