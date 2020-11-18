@@ -121,6 +121,12 @@ cloud-init:
   $ sudo cloud-init init --local
   $ sudo cloud-init init
 
+.. warning::
+
+    These commands will re-run cloud-init as if this were first boot of a
+    system: this will, at the very least, cycle SSH host keys and may do
+    substantially more.  Do not run these commands on production systems.
+
 How can I debug my user data?
 =============================
 

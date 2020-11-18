@@ -1378,6 +1378,89 @@ NETWORK_CONFIGS = {
             """),
         },
     },
+    'wakeonlan_disabled': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet dhcp
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                ethernets:
+                    iface0:
+                        dhcp4: true
+                        wakeonlan: false
+                version: 2
+        """),
+        'expected_sysconfig_opensuse': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=dhcp4
+                STARTMODE=auto
+            """),
+        },
+        'expected_sysconfig_rhel': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=dhcp
+                DEVICE=iface0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+            """),
+        },
+        'yaml_v2': textwrap.dedent("""\
+            version: 2
+            ethernets:
+                iface0:
+                    dhcp4: true
+                    wakeonlan: false
+        """).rstrip(' '),
+    },
+    'wakeonlan_enabled': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet dhcp
+                ethernet-wol g
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                ethernets:
+                    iface0:
+                        dhcp4: true
+                        wakeonlan: true
+                version: 2
+        """),
+        'expected_sysconfig_opensuse': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=dhcp4
+                ETHTOOL_OPTS="wol g"
+                STARTMODE=auto
+            """),
+        },
+        'expected_sysconfig_rhel': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=dhcp
+                DEVICE=iface0
+                ETHTOOL_OPTS="wol g"
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+            """),
+        },
+        'yaml_v2': textwrap.dedent("""\
+            version: 2
+            ethernets:
+                iface0:
+                    dhcp4: true
+                    wakeonlan: true
+        """).rstrip(' '),
+    },
     'all': {
         'expected_eni': ("""\
 auto lo
@@ -3293,6 +3376,20 @@ USERCTL=no
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
+    def test_wakeonlan_disabled_config_v2(self):
+        entry = NETWORK_CONFIGS['wakeonlan_disabled']
+        found = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_wakeonlan_enabled_config_v2(self):
+        entry = NETWORK_CONFIGS['wakeonlan_enabled']
+        found = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
     def test_check_ifcfg_rh(self):
         """ifcfg-rh plugin is added NetworkManager.conf if conf present."""
         render_dir = self.tmp_dir()
@@ -3826,6 +3923,20 @@ STARTMODE=auto
     def test_dhcpv6_stateless_config(self):
         entry = NETWORK_CONFIGS['dhcpv6_stateless']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_wakeonlan_disabled_config_v2(self):
+        entry = NETWORK_CONFIGS['wakeonlan_disabled']
+        found = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
+        self._compare_files_to_expected(entry[self.expected_name], found)
+        self._assert_headers(found)
+
+    def test_wakeonlan_enabled_config_v2(self):
+        entry = NETWORK_CONFIGS['wakeonlan_enabled']
+        found = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
         self._compare_files_to_expected(entry[self.expected_name], found)
         self._assert_headers(found)
 
@@ -4478,6 +4589,22 @@ class TestNetplanRoundTrip(CiTestCase):
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
+    def testsimple_wakeonlan_disabled_config_v2(self):
+        entry = NETWORK_CONFIGS['wakeonlan_disabled']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_wakeonlan_enabled_config_v2(self):
+        entry = NETWORK_CONFIGS['wakeonlan_enabled']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS['all']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
@@ -4641,6 +4768,22 @@ class TestEniRoundTrip(CiTestCase):
         entry = NETWORK_CONFIGS['dhcpv6_reject_ra']
         files = self._render_and_read(network_config=yaml.load(
             entry['yaml_v1']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_wakeonlan_disabled_config_v2(self):
+        entry = NETWORK_CONFIGS['wakeonlan_disabled']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_wakeonlan_enabled_config_v2(self):
+        entry = NETWORK_CONFIGS['wakeonlan_enabled']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),
             files['/etc/network/interfaces'].splitlines())
