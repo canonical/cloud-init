@@ -1017,8 +1017,9 @@ class TestWALinuxAgentShim(CiTestCase):
     def test_register_with_azure_and_report_failure_does_not_need_certificates(
             self):
         shim = wa_shim()
-        with mock.patch.object(wa_shim, '_fetch_goal_state_from_azure') \
-                as m_fetch_goal_state_from_azure:
+        with mock.patch.object(
+            shim, '_fetch_goal_state_from_azure', autospec=True
+        ) as m_fetch_goal_state_from_azure:
             shim.register_with_azure_and_report_failure(description='TestDesc')
             m_fetch_goal_state_from_azure.assert_called_once_with(
                 need_certificate=False)
