@@ -1094,112 +1094,119 @@ class TestWALinuxAgentShim(CiTestCase):
 
 class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_data_from_shim_returned(self, shim):
+    def setUp(self):
+        super(TestGetMetadataGoalStateXMLAndReportReadyToFabric, self).setUp()
+        patches = ExitStack()
+        self.addCleanup(patches.close)
+
+        self.m_shim = patches.enter_context(
+            mock.patch.object(azure_helper, 'WALinuxAgentShim'))
+
+    def test_data_from_shim_returned(self):
         ret = azure_helper.get_metadata_from_fabric()
         self.assertEqual(
-            shim.return_value.register_with_azure_and_fetch_data.return_value,
+            self.m_shim.return_value.register_with_azure_and_fetch_data \
+                .return_value,
             ret)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_success_calls_clean_up(self, shim):
+    def test_success_calls_clean_up(self):
         azure_helper.get_metadata_from_fabric()
-        self.assertEqual(1, shim.return_value.clean_up.call_count)
+        self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_failure_in_registration_propagates_exc_and_calls_clean_up(
-            self, shim):
-        shim.return_value.register_with_azure_and_fetch_data.side_effect = (
-            SentinelException)
+            self):
+        self.m_shim.return_value.register_with_azure_and_fetch_data \
+            .side_effect = SentinelException
         self.assertRaises(SentinelException,
                           azure_helper.get_metadata_from_fabric)
-        self.assertEqual(1, shim.return_value.clean_up.call_count)
+        self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_calls_shim_register_with_azure_and_fetch_data(self, shim):
+    def test_calls_shim_register_with_azure_and_fetch_data(self):
         m_pubkey_info = mock.MagicMock()
         azure_helper.get_metadata_from_fabric(pubkey_info=m_pubkey_info)
         self.assertEqual(
             1,
-            shim.return_value
+            self.m_shim.return_value
                 .register_with_azure_and_fetch_data.call_count)
         self.assertEqual(
             mock.call(pubkey_info=m_pubkey_info),
-            shim.return_value
+            self.m_shim.return_value
                 .register_with_azure_and_fetch_data.call_args)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_instantiates_shim_with_kwargs(self, shim):
+    def test_instantiates_shim_with_kwargs(self):
         m_fallback_lease_file = mock.MagicMock()
         m_dhcp_options = mock.MagicMock()
         azure_helper.get_metadata_from_fabric(
             fallback_lease_file=m_fallback_lease_file,
             dhcp_opts=m_dhcp_options)
-        self.assertEqual(1, shim.call_count)
+        self.assertEqual(1, self.m_shim.call_count)
         self.assertEqual(
             mock.call(
                 fallback_lease_file=m_fallback_lease_file,
                 dhcp_options=m_dhcp_options),
-            shim.call_args)
+            self.m_shim.call_args)
 
 
 class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_success_calls_clean_up(self, shim):
+    def setUp(self):
+        super(
+            TestGetMetadataGoalStateXMLAndReportFailureToFabric, self).setUp()
+        patches = ExitStack()
+        self.addCleanup(patches.close)
+
+        self.m_shim = patches.enter_context(
+            mock.patch.object(azure_helper, 'WALinuxAgentShim'))
+
+    def test_success_calls_clean_up(self):
         azure_helper.report_failure_to_fabric()
         self.assertEqual(
             1,
-            shim.return_value.clean_up.call_count)
+            self.m_shim.return_value.clean_up.call_count)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
-            self, shim):
-        shim.return_value.register_with_azure_and_report_failure \
+            self):
+        self.m_shim.return_value.register_with_azure_and_report_failure \
             .side_effect = SentinelException
         self.assertRaises(SentinelException,
                           azure_helper.report_failure_to_fabric)
         self.assertEqual(
             1,
-            shim.return_value.clean_up.call_count)
+            self.m_shim.return_value.clean_up.call_count)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_report_failure_to_fabric_with_desc_calls_shim_report_failure(
-            self, shim):
+            self):
         azure_helper.report_failure_to_fabric(description='TestDesc')
-        shim.return_value.register_with_azure_and_report_failure \
+        self.m_shim.return_value.register_with_azure_and_report_failure \
             .assert_called_once_with(description='TestDesc')
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_report_failure_to_fabric_with_no_desc_calls_shim_report_failure(
-            self, shim):
+            self):
         azure_helper.report_failure_to_fabric()
         # default err message description should be shown to the user
         # if no description is passed in
-        shim.return_value.register_with_azure_and_report_failure \
+        self.m_shim.return_value.register_with_azure_and_report_failure \
             .assert_called_once_with(
                 description=azure_helper
                 .DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
     def test_report_failure_to_fabric_empty_desc_calls_shim_report_failure(
-            self, shim):
+            self):
         azure_helper.report_failure_to_fabric(description='')
         # default err message description should be shown to the user
         # if an empty description is passed in
-        shim.return_value.register_with_azure_and_report_failure \
+        self.m_shim.return_value.register_with_azure_and_report_failure \
             .assert_called_once_with(
                 description=azure_helper
                 .DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_instantiates_shim_with_kwargs(self, shim):
+    def test_instantiates_shim_with_kwargs(self):
         m_fallback_lease_file = mock.MagicMock()
         m_dhcp_options = mock.MagicMock()
         azure_helper.report_failure_to_fabric(
             fallback_lease_file=m_fallback_lease_file,
             dhcp_opts=m_dhcp_options)
-        shim.assert_called_once_with(
+        self.m_shim.assert_called_once_with(
             fallback_lease_file=m_fallback_lease_file,
             dhcp_options=m_dhcp_options)
 
