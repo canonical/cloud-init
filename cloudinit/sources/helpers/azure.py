@@ -303,24 +303,24 @@ def http_with_retries(url, **kwargs) -> str:
             'Ignoring infinite kwarg passed in for communication '
             'with Azure endpoint.')
 
-    for attempt in range(max_readurl_attempts):
+    for attempt in range(1, max_readurl_attempts + 1):
         try:
             ret = url_helper.readurl(url, **kwargs)
 
             report_diagnostic_event(
                 'Successful HTTP request with Azure endpoint %s after '
-                '%d attempts' % (url, attempt + 1),
+                '%d attempts' % (url, attempt),
                 logger_func=LOG.debug)
 
             return ret
 
         except Exception as e:
             exc = e
-            if (attempt + 1) % periodic_logging_attempts == 0:
+            if attempt % periodic_logging_attempts == 0:
                 report_diagnostic_event(
                     'Failed HTTP request with Azure endpoint %s during '
                     'attempt %d with exception: %s' %
-                    (url, attempt + 1, e),
+                    (url, attempt, e),
                     logger_func=LOG.debug)
 
     raise exc
