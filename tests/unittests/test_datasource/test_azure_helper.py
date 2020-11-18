@@ -1049,14 +1049,14 @@ class TestWALinuxAgentShim(CiTestCase):
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get \
-            .side_effect = (SentinelException)
+            .side_effect = SentinelException
         shim = wa_shim()
         self.assertRaises(SentinelException,
                           shim.register_with_azure_and_fetch_data)
 
     def test_fetch_goalstate_during_report_failure_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get \
-            .side_effect = (SentinelException)
+            .side_effect = SentinelException
         shim = wa_shim()
         self.assertRaises(SentinelException,
                           shim.register_with_azure_and_report_failure,
