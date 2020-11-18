@@ -105,8 +105,7 @@ class VersionIsPoppedFromState(CloudInitPickleMixin, metaclass=_Collector):
     def _unpickle(self, ci_pkl_version: int) -> None:
         # `self._ci_pkl_version` returns the type's _ci_pkl_version if it isn't
         # in instance state, so we need to explicitly check self.__dict__.
-        sentinel = mock.sentinel.default
-        assert self.__dict__.get("_ci_pkl_version", sentinel) == sentinel
+        assert "_ci_pkl_version" not in self.__dict__
 
 
 class TestPickleMixin:
