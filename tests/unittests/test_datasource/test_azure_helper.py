@@ -777,7 +777,7 @@ class TestGoalStateHealthReporter(CiTestCase):
 
     def test_trim_description_then_escape_conforms_to_len_limits_worst_case(
             self):
-        """When unesacped characters are XML-escaped, the length increases.
+        """When unescaped characters are XML-escaped, the length increases.
         Char      Escape String
         <         &lt;
         >         &gt;
