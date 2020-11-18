@@ -1293,6 +1293,12 @@ scbus-1 on xpt0 bus 0
             test_lease = {'unknown-245': test_lease_dhcp_option_245}
             m_ephemeral_dhcp_ctx.lease = test_lease
 
+            # We expect 3 calls to report_failure_to_fabric,
+            # because we try 3 different methods of calling report failure.
+            # The different methods are attempted in the following order:
+            # 1. Using cached ephemeral dhcp context to report failure to Azure
+            # 2. Using new ephemeral dhcp to report failure to Azure
+            # 3. Using fallback lease to report failure to Azure
             self.m_report_failure_to_fabric.side_effect = Exception
             self.assertFalse(dsrc._report_failure())
             self.assertEqual(
