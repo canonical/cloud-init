@@ -29,6 +29,7 @@ from cloudinit import util
 from cloudinit.reporting import events
 
 from cloudinit.sources.helpers.azure import (
+    DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     azure_ds_reporter,
     azure_ds_telemetry_reporter,
     get_metadata_from_fabric,
@@ -38,7 +39,8 @@ from cloudinit.sources.helpers.azure import (
     EphemeralDHCPv4WithReporting,
     is_byte_swapped,
     dhcp_log_cb,
-    push_log_to_kvp)
+    push_log_to_kvp,
+    report_failure_to_fabric)
 
 LOG = logging.getLogger(__name__)
 
@@ -508,8 +510,9 @@ class DataSourceAzure(sources.DataSource):
 
         if perform_reprovision:
             LOG.info("Reporting ready to Azure after getting ReprovisionData")
-            use_cached_ephemeral = (net.is_up(self.fallback_interface) and
-                                    getattr(self, '_ephemeral_dhcp_ctx', None))
+            use_cached_ephemeral = (
+                self.distro.networking.is_up(self.fallback_interface) and
+                getattr(self, '_ephemeral_dhcp_ctx', None))
             if use_cached_ephemeral:
                 self._report_ready(lease=self._ephemeral_dhcp_ctx.lease)
                 self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
@@ -560,9 +563,14 @@ class DataSourceAzure(sources.DataSource):
                 logfunc=LOG.debug, msg='Crawl of metadata service',
                 func=self.crawl_metadata
             )
-        except sources.InvalidMetaDataException as e:
-            LOG.warning('Could not crawl Azure metadata: %s', e)
+        except Exception as e:
+            report_diagnostic_event(
+                'Could not crawl Azure metadata: %s' % e,
+                logger_func=LOG.error)
+            self._report_failure(
+                description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
             return False
+
         if (self.distro and self.distro.name == 'ubuntu' and
                 self.ds_cfg.get('apply_network_config')):
             maybe_remove_ubuntu_network_config_scripts()
@@ -785,6 +793,61 @@ class DataSourceAzure(sources.DataSource):
         return return_val
 
     @azure_ds_telemetry_reporter
+    def _report_failure(self, description=None) -> bool:
+        """Tells the Azure fabric that provisioning has failed.
+
+        @param description: A description of the error encountered.
+        @return: The success status of sending the failure signal.
+        """
+        unknown_245_key = 'unknown-245'
+
+        try:
+            if (self.distro.networking.is_up(self.fallback_interface) and
+                    getattr(self, '_ephemeral_dhcp_ctx', None) and
+                    getattr(self._ephemeral_dhcp_ctx, 'lease', None) and
+                    unknown_245_key in self._ephemeral_dhcp_ctx.lease):
+                report_diagnostic_event(
+                    'Using cached ephemeral dhcp context '
+                    'to report failure to Azure', logger_func=LOG.debug)
+                report_failure_to_fabric(
+                    dhcp_opts=self._ephemeral_dhcp_ctx.lease[unknown_245_key],
+                    description=description)
+                self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
+                return True
+        except Exception as e:
+            report_diagnostic_event(
+                'Failed to report failure using '
+                'cached ephemeral dhcp context: %s' % e,
+                logger_func=LOG.error)
+
+        try:
+            report_diagnostic_event(
+                'Using new ephemeral dhcp to report failure to Azure',
+                logger_func=LOG.debug)
+            with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
+                report_failure_to_fabric(
+                    dhcp_opts=lease[unknown_245_key],
+                    description=description)
+            return True
+        except Exception as e:
+            report_diagnostic_event(
+                'Failed to report failure using new ephemeral dhcp: %s' % e,
+                logger_func=LOG.debug)
+
+        try:
+            report_diagnostic_event(
+                'Using fallback lease to report failure to Azure')
+            report_failure_to_fabric(
+                fallback_lease_file=self.dhclient_lease_file,
+                description=description)
+            return True
+        except Exception as e:
+            report_diagnostic_event(
+                'Failed to report failure using fallback lease: %s' % e,
+                logger_func=LOG.debug)
+
+        return False
+
     def _report_ready(self, lease: dict) -> bool:
         """Tells the fabric provisioning has completed.
 
