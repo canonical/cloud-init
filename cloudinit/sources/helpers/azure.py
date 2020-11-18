@@ -294,14 +294,14 @@ def http_with_retries(url, **kwargs) -> str:
 
     # remove kwargs that cause url_helper.readurl to retry,
     # since we are already implementing our own retry logic.
-    if 'retries' in kwargs:
-        kwargs.pop('retries', None)
+    if kwargs.pop('retries', None):
         LOG.warning(
-            'retries kwarg passed in for communication with Azure endpoint.')
-    if 'infinite' in kwargs:
-        kwargs.pop('infinite', None)
+            'Ignoring retries kwarg passed in for '
+            'communication with Azure endpoint.')
+    if kwargs.pop('infinite', None):
         LOG.warning(
-            'infinite kwarg passed in for communication with Azure endpoint.')
+            'Ignoring infinite kwarg passed in for communication '
+            'with Azure endpoint.')
 
     for attempt in range(max_readurl_attempts):
         try:
