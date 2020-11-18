@@ -1105,7 +1105,7 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
     def test_data_from_shim_returned(self):
         ret = azure_helper.get_metadata_from_fabric()
         self.assertEqual(
-            self.m_shim.return_value.register_with_azure_and_fetch_data \
+            self.m_shim.return_value.register_with_azure_and_fetch_data
                 .return_value,
             ret)
 
