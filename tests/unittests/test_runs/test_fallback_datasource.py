@@ -1,6 +1,5 @@
 import os
 import re
-import json
 from cloudinit.sources import DataSourceConfigDrive as dscd
 from cloudinit.sources import DataSourceOpenStack as dsos
 from cloudinit.sources import DataSourceOVF as dsovf
