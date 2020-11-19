@@ -75,7 +75,7 @@ class TestConfigDriveFallback(FallbackDatasource):
         # simulate datasource failure
         self.remove_seed_dir(self.seed_dir)
 
-        # simulate subsequent boot without config drive
+        # do second boot
         iid_without_dsrc = self.simulate_cloudinit_boot()
         self.assertEqual(iid_with_dsrc, iid_without_dsrc)
 
@@ -105,7 +105,7 @@ class TestOpenStackFallback(FallbackDatasource):
         url = re.compile(r'http://169.254.169.254/.*')
         hp.register_uri(hp.GET, url, status=504)
 
-        # simulate subsequent boot without datasource openstack
+        # do second boot
         iid_without_dsrc = self.simulate_cloudinit_boot()
         self.assertEqual(iid_with_dsrc, iid_without_dsrc)
 
@@ -136,6 +136,6 @@ class TestOVFFallback(FallbackDatasource):
         # simulate datasource failure
         self.remove_seed_dir(self.paths.seed_dir)
 
-        # simulate subsequent boot without datasource OVF
+        # do second boot
         iid_without_dsrc = self.simulate_cloudinit_boot()
         self.assertEqual(iid_with_dsrc, iid_without_dsrc)
