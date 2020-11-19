@@ -12,6 +12,7 @@ from tests.integration_tests.clouds import (
     AzureCloud,
     OciCloud,
     LxdContainerCloud,
+    LxdVmCloud,
 )
 
 
@@ -25,6 +26,7 @@ platforms = {
     'azure': AzureCloud,
     'oci': OciCloud,
     'lxd_container': LxdContainerCloud,
+    'lxd_vm': LxdVmCloud,
 }
 
 
@@ -78,7 +80,7 @@ def setup_image(session_cloud):
     if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
         pass  # that was easy
     elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-        if session_cloud.datasource != 'lxd_container':
+        if session_cloud.datasource not in ['lxd_container', 'lxd_vm']:
             raise ValueError(
                 'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
         # The mount needs to happen after the instance is created, so

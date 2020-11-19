@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 import logging
 
-from pycloudlib import EC2, GCE, Azure, OCI, LXD
+from pycloudlib import EC2, GCE, Azure, OCI, LXDContainer, LXDVirtualMachine
 
 import cloudinit
 from cloudinit.subp import subp
@@ -12,7 +12,7 @@ from tests.integration_tests.instances import (
     IntegrationGceInstance,
     IntegrationAzureInstance, IntegrationInstance,
     IntegrationOciInstance,
-    IntegrationLxdContainerInstance,
+    IntegrationLxdInstance,
 )
 
 try:
@@ -143,12 +143,30 @@ class OciCloud(IntegrationCloud):
         )
 
 
+def _mount_source(instance):
+    container_path = '/usr/lib/python3/dist-packages/cloudinit'
+    format_variables = {
+        'name': instance.name,
+        'cloudinit_path': cloudinit.__path__[0],
+        'container_path': container_path,
+    }
+    log.info(
+        'Mounting source {cloudinit_path} directly onto LXD container/vm '
+        'named {name} at {container_path}'.format(**format_variables))
+    command = (
+        'lxc config device add {name} host-cloud-init disk '
+        'source={cloudinit_path} '
+        'path={container_path}'
+    ).format(**format_variables)
+    subp(command.split())
+
+
 class LxdContainerCloud(IntegrationCloud):
     datasource = 'lxd_container'
-    integration_instance_cls = IntegrationLxdContainerInstance
+    integration_instance_cls = IntegrationLxdInstance
 
     def _get_cloud_instance(self):
-        return LXD(tag='lxd-integration-test')
+        return LXDContainer(tag='lxd-container-integration-test')
 
     def _perform_launch(self, launch_kwargs):
         launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
@@ -160,24 +178,46 @@ class LxdContainerCloud(IntegrationCloud):
             **launch_kwargs
         )
         if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-            self._mount_source(pycloudlib_instance)
+            _mount_source(pycloudlib_instance)
         pycloudlib_instance.start(wait=False)
         pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         return pycloudlib_instance
 
-    def _mount_source(self, instance):
-        container_path = '/usr/lib/python3/dist-packages/cloudinit'
-        format_variables = {
-            'name': instance.name,
-            'cloudinit_path': cloudinit.__path__[0],
-            'container_path': container_path,
-        }
-        log.info(
-            'Mounting source {cloudinit_path} directly onto LXD container/vm '
-            'named {name} at {container_path}'.format(**format_variables))
-        command = (
-            'lxc config device add {name} host-cloud-init disk '
-            'source={cloudinit_path} '
-            'path={container_path}'
-        ).format(**format_variables)
-        subp(command.split())
+
+class LxdVmCloud(IntegrationCloud):
+    datasource = 'lxd_vm'
+    integration_instance_cls = IntegrationLxdInstance
+    _profile_list = None
+
+    def _get_or_set_profile_list(self, release):
+        if self._profile_list:
+            return self._profile_list
+        self._profile_list = self.cloud_instance.build_necessary_profiles(
+            release)
+
+    def _get_cloud_instance(self):
+        return LXDVirtualMachine(tag='lxd-vm-integration-test')
+
+    def _perform_launch(self, launch_kwargs):
+        launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
+        launch_kwargs.pop('wait')
+        release = launch_kwargs.pop('image_id')
+
+        # profile list gets regenerated every launch. This isn't necessary
+        # and if we're trying to launch a locally created snapshot
+        # will fail. Let's generate the profile list once up front
+        # and then only use that for subsequent launches.
+        profile_list = launch_kwargs.pop(
+            'profile_list', self._get_or_set_profile_list(release)
+        )
+        pycloudlib_instance = self.cloud_instance.init(
+            launch_kwargs.pop('name', None),
+            release,
+            profile_list=profile_list,
+            **launch_kwargs
+        )
+        if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
+            _mount_source(pycloudlib_instance)
+        pycloudlib_instance.start(wait=False)
+        pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
+        return pycloudlib_instance
