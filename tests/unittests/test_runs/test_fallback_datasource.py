@@ -51,6 +51,9 @@ class FallbackDatasource(tests_helpers.FilesystemMockingTestCase,
                                      'cloud', 'cloud.cfg'), cloud_cfg)
         return sys_cfg
 
+    def reboot(self):
+        util.del_file(os.path.join(self.tmp, "run/cloud-init/.instance-id"))
+
 
 class TestConfigDriveFallback(FallbackDatasource):
     def setUp(self):
@@ -67,9 +70,10 @@ class TestConfigDriveFallback(FallbackDatasource):
         # simulate first boot with config drive
         iid_with_dsrc = self.simulate_cloudinit_boot(dsrc)
 
-        # invalidate config drive to force fallback
+        self.reboot()
+
+        # simulate datasource failure
         self.remove_seed_dir(self.seed_dir)
-        util.del_file(os.path.join(self.tmp, "run/cloud-init/.instance-id"))
 
         # simulate subsequent boot without config drive
         iid_without_dsrc = self.simulate_cloudinit_boot()
@@ -95,8 +99,9 @@ class TestOpenStackFallback(FallbackDatasource):
         # simulate first boot with datasource openstack
         iid_with_dsrc = self.simulate_cloudinit_boot(dsrc=dsrc)
 
-        # invalidate openstack uri to force fallback
-        util.del_file(os.path.join(self.tmp, "run/cloud-init/.instance-id"))
+        self.reboot()
+
+        # simulate datasource failure
         url = re.compile(r'http://169.254.169.254/.*')
         hp.register_uri(hp.GET, url, status=504)
 
@@ -126,9 +131,10 @@ class TestOVFFallback(FallbackDatasource):
         # simulate first boot with datasource OVF
         iid_with_dsrc = self.simulate_cloudinit_boot(dsrc=dsrc)
 
-        # invalidated OVF to force fallback
+        self.reboot()
+
+        # simulate datasource failure
         self.remove_seed_dir(self.paths.seed_dir)
-        util.del_file(os.path.join(self.tmp, "run/cloud-init/.instance-id"))
 
         # simulate subsequent boot without datasource OVF
         iid_without_dsrc = self.simulate_cloudinit_boot()
