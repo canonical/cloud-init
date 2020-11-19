@@ -33,6 +33,7 @@ class DataSourceEquinixMetal(EC2.DataSourceEc2):
     # The minimum supported metadata_version from the ec2 metadata apis
     min_metadata_version = '2009-04-04'
     extended_metadata_versions = []
+    url_timeout = 50
 
     def get_hostname(self, fqdn=False, resolve_ip=False, metadata_only=False):
         return self.metadata.get('hostname', 'localhost.localdomain')
