@@ -25,6 +25,7 @@ fqdn: cloudinit2.i9n.cloud-init.io
 """
 
 
+@pytest.mark.ci
 class TestHostname:
 
     @pytest.mark.user_data(USER_DATA_HOSTNAME)

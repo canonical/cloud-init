@@ -17,6 +17,7 @@ ssh_import_id:
 """
 
 
+@pytest.mark.ci
 class TestSshImportId:
 
     @pytest.mark.user_data(USER_DATA)
