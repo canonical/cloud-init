@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 import logging
 
 from pycloudlib import EC2, GCE, Azure, OCI, LXD
-import pycloudlib
 
 import cloudinit
 from cloudinit.subp import subp
