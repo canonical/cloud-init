@@ -224,7 +224,8 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
     based on the file size.
     The first time this function is called after VM boot, It will push the last
     n bytes of the log file such that n < MAX_LOG_TO_KVP_LENGTH
-    If called again on the same boot, it continues from where it left off."""
+    If called again on the same boot, it continues from where it left off.
+    In addition to cloud-init.log, dmesg log will also be collected."""
 
     start_index = get_last_log_byte_pushed_to_kvp_index()
 
@@ -243,6 +244,15 @@ def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
     except Exception as ex:
         report_diagnostic_event(
             "Exception when dumping log file: %s" % repr(ex),
+            logger_func=LOG.warning)
+
+    LOG.debug("Dumping dmesg log to KVP")
+    try:
+        out, _ = subp.subp(['dmesg'], decode=False, capture=True)
+        report_compressed_event("dmesg", out)
+    except Exception as ex:
+        report_diagnostic_event(
+            "Exception when dumping dmesg log: %s" % repr(ex),
             logger_func=LOG.warning)
 
 
