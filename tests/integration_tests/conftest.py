@@ -62,6 +62,7 @@ def session_cloud():
         )
 
     cloud = platforms[integration_settings.PLATFORM]()
+    cloud.emit_settings_to_log()
     yield cloud
     cloud.destroy()
 

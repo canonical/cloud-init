@@ -27,17 +27,6 @@ class IntegrationInstance:
         self.instance = instance
         self.settings = settings
 
-    def emit_settings_to_log(self) -> None:
-        log.info(
-            "\n".join(
-                ["Settings:"]
-                + [
-                    "{}={}".format(key, getattr(self.settings, key))
-                    for key in sorted(self.settings.current_settings)
-                ]
-            )
-        )
-
     def destroy(self):
         self.instance.delete()
 
