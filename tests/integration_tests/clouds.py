@@ -31,6 +31,17 @@ class IntegrationCloud(ABC):
         self.cloud_instance = self._get_cloud_instance()
         self.image_id = self._get_initial_image()
 
+    def emit_settings_to_log(self) -> None:
+        log.info(
+            "\n".join(
+                ["Settings:"]
+                + [
+                    "{}={}".format(key, getattr(self.settings, key))
+                    for key in sorted(self.settings.current_settings)
+                ]
+            )
+        )
+
     @abstractmethod
     def _get_cloud_instance(self):
         raise NotImplementedError
