@@ -40,6 +40,8 @@ class IntegrationInstance:
         self.instance.delete()
 
     def execute(self, command, *, use_sudo=None) -> Result:
+        if self.instance.username == 'root' and use_sudo is False:
+            raise Exception('Root user cannot run unprivileged')
         if use_sudo is None:
             use_sudo = self.use_sudo
         return self.instance.execute(command, use_sudo=use_sudo)
