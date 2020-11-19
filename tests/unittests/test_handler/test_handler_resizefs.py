@@ -23,23 +23,23 @@ class TestResizefs(CiTestCase):
         self.name = "resizefs"
 
     @mock.patch('cloudinit.subp.subp')
-    def test_skip_ufs_resize(self, growfs_N_out):
+    def test_skip_ufs_resize(self, m_subp):
         fs_type = "ufs"
         resize_what = "/"
         devpth = "/dev/da0p2"
         err = ("growfs: requested size 2.0GB is not larger than the "
                "current filesystem size 2.0GB\n")
         exception = ProcessExecutionError(stderr=err, exit_code=1)
-        growfs_N_out.side_effect = exception
+        m_subp.side_effect = exception
         res = can_skip_resize(fs_type, resize_what, devpth)
         self.assertTrue(res)
 
     @mock.patch('cloudinit.subp.subp')
-    def test_cannot_skip_ufs_resize(self, growfs_N_out):
+    def test_cannot_skip_ufs_resize(self, m_subp):
         fs_type = "ufs"
         resize_what = "/"
         devpth = "/dev/da0p2"
-        growfs_N_out.return_value = (
+        m_subp.return_value = (
             ("stdout: super-block backups (for fsck_ffs -b #) at:\n\n"),
             ("growfs: no room to allocate last cylinder group; "
              "leaving 364KB unused\n")
@@ -48,13 +48,13 @@ class TestResizefs(CiTestCase):
         self.assertFalse(res)
 
     @mock.patch('cloudinit.subp.subp')
-    def test_cannot_skip_ufs_growfs_exception(self, growfs_N_out):
+    def test_cannot_skip_ufs_growfs_exception(self, m_subp):
         fs_type = "ufs"
         resize_what = "/"
         devpth = "/dev/da0p2"
         err = "growfs: /dev/da0p2 is not clean - run fsck.\n"
         exception = ProcessExecutionError(stderr=err, exit_code=1)
-        growfs_N_out.side_effect = exception
+        m_subp.side_effect = exception
         with self.assertRaises(ProcessExecutionError):
             can_skip_resize(fs_type, resize_what, devpth)
 
