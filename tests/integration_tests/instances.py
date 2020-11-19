@@ -5,8 +5,6 @@ from tempfile import NamedTemporaryFile
 
 from pycloudlib.instance import BaseInstance
 
-import cloudinit
-from cloudinit.subp import subp
 from tests.integration_tests import integration_settings
 
 try:
@@ -129,18 +127,3 @@ class IntegrationOciInstance(IntegrationInstance):
 
 class IntegrationLxdContainerInstance(IntegrationInstance):
     use_sudo = False
-
-    def __init__(self, cloud: 'IntegrationCloud', instance: BaseInstance,
-                 settings=integration_settings):
-        super().__init__(cloud, instance, settings)
-        if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-            self._mount_source()
-
-    def _mount_source(self):
-        command = (
-            'lxc config device add {name} host-cloud-init disk '
-            'source={cloudinit_path} '
-            'path=/usr/lib/python3/dist-packages/cloudinit'
-        ).format(
-            name=self.instance.name, cloudinit_path=cloudinit.__path__[0])
-        subp(command.split())
