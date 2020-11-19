@@ -17,6 +17,7 @@ from cloudinit import stages
 from cloudinit import temp_utils
 from contextlib import contextmanager
 from xml.etree import ElementTree
+from xml.sax.saxutils import escape
 
 from cloudinit import subp
 from cloudinit import url_helper
@@ -49,6 +50,11 @@ azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
     reporting_enabled=True)
+
+DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE = (
+    'The VM encountered an error during deployment. '
+    'Please visit https://aka.ms/linuxprovisioningerror '
+    'for more information on remediation.')
 
 
 def azure_ds_telemetry_reporter(func):
@@ -278,6 +284,54 @@ def _get_dhcp_endpoint_option_name():
     return azure_endpoint
 
 
+@azure_ds_telemetry_reporter
+def http_with_retries(url, **kwargs) -> str:
+    """Wrapper around url_helper.readurl() with custom telemetry logging
+    that url_helper.readurl() does not provide.
+    """
+    exc = None
+
+    max_readurl_attempts = 240
+    default_readurl_timeout = 5
+    periodic_logging_attempts = 12
+
+    if 'timeout' not in kwargs:
+        kwargs['timeout'] = default_readurl_timeout
+
+    # remove kwargs that cause url_helper.readurl to retry,
+    # since we are already implementing our own retry logic.
+    if kwargs.pop('retries', None):
+        LOG.warning(
+            'Ignoring retries kwarg passed in for '
+            'communication with Azure endpoint.')
+    if kwargs.pop('infinite', None):
+        LOG.warning(
+            'Ignoring infinite kwarg passed in for communication '
+            'with Azure endpoint.')
+
+    for attempt in range(1, max_readurl_attempts + 1):
+        try:
+            ret = url_helper.readurl(url, **kwargs)
+
+            report_diagnostic_event(
+                'Successful HTTP request with Azure endpoint %s after '
+                '%d attempts' % (url, attempt),
+                logger_func=LOG.debug)
+
+            return ret
+
+        except Exception as e:
+            exc = e
+            if attempt % periodic_logging_attempts == 0:
+                report_diagnostic_event(
+                    'Failed HTTP request with Azure endpoint %s during '
+                    'attempt %d with exception: %s' %
+                    (url, attempt, e),
+                    logger_func=LOG.debug)
+
+    raise exc
+
+
 class AzureEndpointHttpClient:
 
     headers = {
@@ -296,16 +350,15 @@ class AzureEndpointHttpClient:
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
-        return url_helper.readurl(url, headers=headers,
-                                  timeout=5, retries=10, sec_between=5)
+        return http_with_retries(url, headers=headers)
 
     def post(self, url, data=None, extra_headers=None):
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
             headers.update(extra_headers)
-        return url_helper.readurl(url, data=data, headers=headers,
-                                  timeout=5, retries=10, sec_between=5)
+        return http_with_retries(
+            url, data=data, headers=headers)
 
 
 class InvalidGoalStateXMLException(Exception):
@@ -379,11 +432,19 @@ class OpenSSLManager:
 
     def __init__(self):
         self.tmpdir = temp_utils.mkdtemp()
-        self.certificate = None
+        self._certificate = None
         self.generate_certificate()
 
     def clean_up(self):
         util.del_dir(self.tmpdir)
+
+    @property
+    def certificate(self):
+        return self._certificate
+
+    @certificate.setter
+    def certificate(self, value):
+        self._certificate = value
 
     @azure_ds_telemetry_reporter
     def generate_certificate(self):
@@ -507,6 +568,10 @@ class GoalStateHealthReporter:
         ''')
 
     PROVISIONING_SUCCESS_STATUS = 'Ready'
+    PROVISIONING_NOT_READY_STATUS = 'NotReady'
+    PROVISIONING_FAILURE_SUBSTATUS = 'ProvisioningFailed'
+
+    HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 
     def __init__(
             self, goal_state: GoalState,
@@ -545,19 +610,39 @@ class GoalStateHealthReporter:
 
         LOG.info('Reported ready to Azure fabric.')
 
+    @azure_ds_telemetry_reporter
+    def send_failure_signal(self, description: str) -> None:
+        document = self.build_report(
+            incarnation=self._goal_state.incarnation,
+            container_id=self._goal_state.container_id,
+            instance_id=self._goal_state.instance_id,
+            status=self.PROVISIONING_NOT_READY_STATUS,
+            substatus=self.PROVISIONING_FAILURE_SUBSTATUS,
+            description=description)
+        try:
+            self._post_health_report(document=document)
+        except Exception as e:
+            msg = "exception while reporting failure: %s" % e
+            report_diagnostic_event(msg, logger_func=LOG.error)
+            raise
+
+        LOG.warning('Reported failure to Azure fabric.')
+
     def build_report(
             self, incarnation: str, container_id: str, instance_id: str,
             status: str, substatus=None, description=None) -> str:
         health_detail = ''
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
-                health_substatus=substatus, health_description=description)
+                health_substatus=escape(substatus),
+                health_description=escape(
+                    description[:self.HEALTH_REPORT_DESCRIPTION_TRIM_LEN]))
 
         health_report = self.HEALTH_REPORT_XML_TEMPLATE.format(
-            incarnation=incarnation,
-            container_id=container_id,
-            instance_id=instance_id,
-            health_status=status,
+            incarnation=escape(str(incarnation)),
+            container_id=escape(container_id),
+            instance_id=escape(instance_id),
+            health_status=escape(status),
             health_detail_subsection=health_detail)
 
         return health_report
@@ -798,12 +883,27 @@ class WALinuxAgentShim:
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
+    def register_with_azure_and_report_failure(self, description: str) -> None:
+        """Gets the VM's GoalState from Azure, uses the GoalState information
+        to report failure/send provisioning failure signal to Azure.
+
+        @param: user visible error description of provisioning failure.
+        """
+        if self.azure_endpoint_client is None:
+            self.azure_endpoint_client = AzureEndpointHttpClient(None)
+        goal_state = self._fetch_goal_state_from_azure(need_certificate=False)
+        health_reporter = GoalStateHealthReporter(
+            goal_state, self.azure_endpoint_client, self.endpoint)
+        health_reporter.send_failure_signal(description=description)
+
+    @azure_ds_telemetry_reporter
     def _fetch_goal_state_from_azure(
             self,
             need_certificate: bool) -> GoalState:
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
+        @param need_certificate: switch to know if certificates is needed.
         @return: GoalState object representing the GoalState XML
         """
         unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure()
@@ -844,6 +944,7 @@ class WALinuxAgentShim:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
+        @param need_certificate: switch to know if certificates is needed.
         @return: GoalState object representing the GoalState XML
         """
         try:
@@ -938,6 +1039,20 @@ def get_metadata_from_fabric(fallback_lease_file=None, dhcp_opts=None,
                             dhcp_options=dhcp_opts)
     try:
         return shim.register_with_azure_and_fetch_data(pubkey_info=pubkey_info)
+    finally:
+        shim.clean_up()
+
+
+@azure_ds_telemetry_reporter
+def report_failure_to_fabric(fallback_lease_file=None, dhcp_opts=None,
+                             description=None):
+    shim = WALinuxAgentShim(fallback_lease_file=fallback_lease_file,
+                            dhcp_options=dhcp_opts)
+    if not description:
+        description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+    try:
+        shim.register_with_azure_and_report_failure(
+            description=description)
     finally:
         shim.clean_up()
 

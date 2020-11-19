@@ -461,6 +461,8 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
 class TestAzureDataSource(CiTestCase):
 
+    with_logs = True
+
     def setUp(self):
         super(TestAzureDataSource, self).setUp()
         self.tmp = self.tmp_dir()
@@ -549,9 +551,12 @@ scbus-1 on xpt0 bus 0
 
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-        self.get_metadata_from_fabric = mock.MagicMock(return_value={
-            'public-keys': [],
-        })
+        self.m_is_platform_viable = mock.MagicMock(autospec=True)
+        self.m_get_metadata_from_fabric = mock.MagicMock(
+            return_value={'public-keys': []})
+        self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
+        self.m_ephemeral_dhcpv4 = mock.MagicMock()
+        self.m_ephemeral_dhcpv4_with_reporting = mock.MagicMock()
 
         self.instance_id = 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8'
 
@@ -568,7 +573,17 @@ scbus-1 on xpt0 bus 0
             (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
             (dsaz, 'get_hostname', mock.MagicMock()),
             (dsaz, 'set_hostname', mock.MagicMock()),
-            (dsaz, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
+            (dsaz, '_is_platform_viable',
+                self.m_is_platform_viable),
+            (dsaz, 'get_metadata_from_fabric',
+                self.m_get_metadata_from_fabric),
+            (dsaz, 'report_failure_to_fabric',
+                self.m_report_failure_to_fabric),
+            (dsaz, 'EphemeralDHCPv4', self.m_ephemeral_dhcpv4),
+            (dsaz, 'EphemeralDHCPv4WithReporting',
+                self.m_ephemeral_dhcpv4_with_reporting),
+            (dsaz, 'get_boot_telemetry', mock.MagicMock()),
+            (dsaz, 'get_system_info', mock.MagicMock()),
             (dsaz.subp, 'which', lambda x: True),
             (dsaz.dmi, 'read_dmi_data', mock.MagicMock(
                 side_effect=_dmi_mocks)),
@@ -632,15 +647,87 @@ scbus-1 on xpt0 bus 0
         dev = ds.get_resource_disk_on_freebsd(1)
         self.assertEqual("da1", dev)
 
-    @mock.patch(MOCKPATH + '_is_platform_viable')
-    def test_call_is_platform_viable_seed(self, m_is_platform_viable):
+    def test_not_is_platform_viable_seed_should_return_no_datasource(self):
         """Check seed_dir using _is_platform_viable and return False."""
         # Return a non-matching asset tag value
-        m_is_platform_viable.return_value = False
-        dsrc = dsaz.DataSourceAzure(
-            {}, distro=mock.Mock(), paths=self.paths)
-        self.assertFalse(dsrc.get_data())
-        m_is_platform_viable.assert_called_with(dsrc.seed_dir)
+        data = {}
+        dsrc = self._get_ds(data)
+        self.m_is_platform_viable.return_value = False
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc, '_report_failure') as m_report_failure:
+            ret = dsrc.get_data()
+            self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
+            self.assertFalse(ret)
+            self.assertNotIn('agent_invoked', data)
+            # Assert that for non viable platforms,
+            # there is no communication with the Azure datasource.
+            self.assertEqual(
+                0,
+                m_crawl_metadata.call_count)
+            self.assertEqual(
+                0,
+                m_report_failure.call_count)
+
+    def test_platform_viable_but_no_devs_should_return_no_datasource(self):
+        """For platforms where the Azure platform is viable
+        (which is indicated by the matching asset tag),
+        the absence of any devs at all (devs == candidate sources
+        for crawling Azure datasource) is NOT expected.
+        Report failure to Azure as this is an unexpected fatal error.
+        """
+        data = {}
+        dsrc = self._get_ds(data)
+        with mock.patch.object(dsrc, '_report_failure') as m_report_failure:
+            self.m_is_platform_viable.return_value = True
+            ret = dsrc.get_data()
+            self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
+            self.assertFalse(ret)
+            self.assertNotIn('agent_invoked', data)
+            self.assertEqual(
+                1,
+                m_report_failure.call_count)
+
+    def test_crawl_metadata_exception_returns_no_datasource(self):
+        data = {}
+        dsrc = self._get_ds(data)
+        self.m_is_platform_viable.return_value = True
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
+            m_crawl_metadata.side_effect = Exception
+            ret = dsrc.get_data()
+            self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
+            self.assertEqual(
+                1,
+                m_crawl_metadata.call_count)
+            self.assertFalse(ret)
+            self.assertNotIn('agent_invoked', data)
+
+    def test_crawl_metadata_exception_should_report_failure_with_msg(self):
+        data = {}
+        dsrc = self._get_ds(data)
+        self.m_is_platform_viable.return_value = True
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc, '_report_failure') as m_report_failure:
+            m_crawl_metadata.side_effect = Exception
+            dsrc.get_data()
+            self.assertEqual(
+                1,
+                m_crawl_metadata.call_count)
+            m_report_failure.assert_called_once_with(
+                description=dsaz.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
+
+    def test_crawl_metadata_exc_should_log_could_not_crawl_msg(self):
+        data = {}
+        dsrc = self._get_ds(data)
+        self.m_is_platform_viable.return_value = True
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
+            m_crawl_metadata.side_effect = Exception
+            dsrc.get_data()
+            self.assertEqual(
+                1,
+                m_crawl_metadata.call_count)
+            self.assertIn(
+                "Could not crawl Azure metadata",
+                self.logs.getvalue())
 
     def test_basic_seed_dir(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
@@ -761,7 +848,7 @@ scbus-1 on xpt0 bus 0
         'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
     @mock.patch('cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds')
     def test_crawl_metadata_on_reprovision_reports_ready(
-        self, poll_imds_func, report_ready_func, m_write, m_dhcp
+        self, poll_imds_func, m_report_ready, m_write, m_dhcp
     ):
         """If reprovisioning, report ready at the end"""
         ovfenv = construct_valid_ovf_env(
@@ -775,18 +862,16 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         poll_imds_func.return_value = ovfenv
         dsrc.crawl_metadata()
-        self.assertEqual(1, report_ready_func.call_count)
+        self.assertEqual(1, m_report_ready.call_count)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
     @mock.patch('cloudinit.sources.helpers.netlink.'
                 'wait_for_media_disconnect_connect')
     @mock.patch(
         'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
-    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
-    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     @mock.patch('cloudinit.sources.DataSourceAzure.readurl')
     def test_crawl_metadata_on_reprovision_reports_ready_using_lease(
-        self, m_readurl, m_dhcp, m_net, report_ready_func,
+        self, m_readurl, m_report_ready,
         m_media_switch, m_write
     ):
         """If reprovisioning, report ready using the obtained lease"""
@@ -800,20 +885,30 @@ scbus-1 on xpt0 bus 0
         }
         dsrc = self._get_ds(data)
 
-        lease = {
-            'interface': 'eth9', 'fixed-address': '192.168.2.9',
-            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
-            'unknown-245': '624c3620'}
-        m_dhcp.return_value = [lease]
-        m_media_switch.return_value = None
+        with mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
 
-        reprovision_ovfenv = construct_valid_ovf_env()
-        m_readurl.return_value = url_helper.StringResponse(
-            reprovision_ovfenv.encode('utf-8'))
+            # For this mock, net should not be up,
+            # so that cached ephemeral won't be used.
+            # This is so that a NEW ephemeral dhcp lease will be discovered
+            # and used instead.
+            m_dsrc_distro_networking_is_up.return_value = False
 
-        dsrc.crawl_metadata()
-        self.assertEqual(2, report_ready_func.call_count)
-        report_ready_func.assert_called_with(lease=lease)
+            lease = {
+                'interface': 'eth9', 'fixed-address': '192.168.2.9',
+                'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+                'unknown-245': '624c3620'}
+            self.m_ephemeral_dhcpv4_with_reporting.return_value \
+                .__enter__.return_value = lease
+            m_media_switch.return_value = None
+
+            reprovision_ovfenv = construct_valid_ovf_env()
+            m_readurl.return_value = url_helper.StringResponse(
+                reprovision_ovfenv.encode('utf-8'))
+
+            dsrc.crawl_metadata()
+            self.assertEqual(2, m_report_ready.call_count)
+            m_report_ready.assert_called_with(lease=lease)
 
     def test_waagent_d_has_0700_perms(self):
         # we expect /var/lib/waagent to be created 0700
@@ -971,7 +1066,7 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertTrue('default_user' in dsrc.cfg['system_info'])
+        self.assertIn('default_user', dsrc.cfg['system_info'])
         defuser = dsrc.cfg['system_info']['default_user']
 
         # default user should be updated username and should not be locked.
@@ -993,7 +1088,7 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertTrue('default_user' in dsrc.cfg['system_info'])
+        self.assertIn('default_user', dsrc.cfg['system_info'])
         defuser = dsrc.cfg['system_info']['default_user']
 
         # default user should be updated username and should not be locked.
@@ -1020,14 +1115,6 @@ scbus-1 on xpt0 bus 0
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, mydata.encode('utf-8'))
-
-    def test_no_datasource_expected(self):
-        # no source should be found if no seed_dir and no devs
-        data = {}
-        dsrc = self._get_ds({})
-        ret = dsrc.get_data()
-        self.assertFalse(ret)
-        self.assertFalse('agent_invoked' in data)
 
     def test_cfg_has_pubkeys_fingerprint(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
@@ -1171,21 +1258,168 @@ scbus-1 on xpt0 bus 0
             self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         dsrc.ds_cfg['agent_command'] = '__builtin__'
-        self.get_metadata_from_fabric.side_effect = Exception
+        self.m_get_metadata_from_fabric.side_effect = Exception
         self.assertFalse(dsrc._report_ready(lease=mock.MagicMock()))
+
+    def test_dsaz_report_failure_returns_true_when_report_succeeds(self):
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        dsrc.ds_cfg['agent_command'] = '__builtin__'
+
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
+            # mock crawl metadata failure to cause report failure
+            m_crawl_metadata.side_effect = Exception
+
+            self.assertTrue(dsrc._report_failure())
+            self.assertEqual(
+                1,
+                self.m_report_failure_to_fabric.call_count)
+
+    def test_dsaz_report_failure_returns_false_and_does_not_propagate_exc(
+            self):
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        dsrc.ds_cfg['agent_command'] = '__builtin__'
+
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc, '_ephemeral_dhcp_ctx') \
+                as m_ephemeral_dhcp_ctx, \
+                mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
+            # mock crawl metadata failure to cause report failure
+            m_crawl_metadata.side_effect = Exception
+
+            # setup mocks to allow using cached ephemeral dhcp lease
+            m_dsrc_distro_networking_is_up.return_value = True
+            test_lease_dhcp_option_245 = 'test_lease_dhcp_option_245'
+            test_lease = {'unknown-245': test_lease_dhcp_option_245}
+            m_ephemeral_dhcp_ctx.lease = test_lease
+
+            # We expect 3 calls to report_failure_to_fabric,
+            # because we try 3 different methods of calling report failure.
+            # The different methods are attempted in the following order:
+            # 1. Using cached ephemeral dhcp context to report failure to Azure
+            # 2. Using new ephemeral dhcp to report failure to Azure
+            # 3. Using fallback lease to report failure to Azure
+            self.m_report_failure_to_fabric.side_effect = Exception
+            self.assertFalse(dsrc._report_failure())
+            self.assertEqual(
+                3,
+                self.m_report_failure_to_fabric.call_count)
+
+    def test_dsaz_report_failure_description_msg(self):
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        dsrc.ds_cfg['agent_command'] = '__builtin__'
+
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
+            # mock crawl metadata failure to cause report failure
+            m_crawl_metadata.side_effect = Exception
+
+            test_msg = 'Test report failure description message'
+            self.assertTrue(dsrc._report_failure(description=test_msg))
+            self.m_report_failure_to_fabric.assert_called_once_with(
+                dhcp_opts=mock.ANY, description=test_msg)
+
+    def test_dsaz_report_failure_no_description_msg(self):
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        dsrc.ds_cfg['agent_command'] = '__builtin__'
+
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
+            m_crawl_metadata.side_effect = Exception
+
+            self.assertTrue(dsrc._report_failure())  # no description msg
+            self.m_report_failure_to_fabric.assert_called_once_with(
+                dhcp_opts=mock.ANY, description=None)
+
+    def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        dsrc.ds_cfg['agent_command'] = '__builtin__'
+
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc, '_ephemeral_dhcp_ctx') \
+                as m_ephemeral_dhcp_ctx, \
+                mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
+            # mock crawl metadata failure to cause report failure
+            m_crawl_metadata.side_effect = Exception
+
+            # setup mocks to allow using cached ephemeral dhcp lease
+            m_dsrc_distro_networking_is_up.return_value = True
+            test_lease_dhcp_option_245 = 'test_lease_dhcp_option_245'
+            test_lease = {'unknown-245': test_lease_dhcp_option_245}
+            m_ephemeral_dhcp_ctx.lease = test_lease
+
+            self.assertTrue(dsrc._report_failure())
+
+            # ensure called with cached ephemeral dhcp lease option 245
+            self.m_report_failure_to_fabric.assert_called_once_with(
+                description=mock.ANY, dhcp_opts=test_lease_dhcp_option_245)
+
+            # ensure cached ephemeral is cleaned
+            self.assertEqual(
+                1,
+                m_ephemeral_dhcp_ctx.clean_network.call_count)
+
+    def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        dsrc.ds_cfg['agent_command'] = '__builtin__'
+
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
+            # mock crawl metadata failure to cause report failure
+            m_crawl_metadata.side_effect = Exception
+
+            # net is not up and cannot use cached ephemeral dhcp
+            m_dsrc_distro_networking_is_up.return_value = False
+            # setup ephemeral dhcp lease discovery mock
+            test_lease_dhcp_option_245 = 'test_lease_dhcp_option_245'
+            test_lease = {'unknown-245': test_lease_dhcp_option_245}
+            self.m_ephemeral_dhcpv4_with_reporting.return_value \
+                .__enter__.return_value = test_lease
+
+            self.assertTrue(dsrc._report_failure())
+
+            # ensure called with the newly discovered
+            # ephemeral dhcp lease option 245
+            self.m_report_failure_to_fabric.assert_called_once_with(
+                description=mock.ANY, dhcp_opts=test_lease_dhcp_option_245)
+
+    def test_dsaz_report_failure_no_net_and_no_dhcp_uses_fallback_lease(
+            self):
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        dsrc.ds_cfg['agent_command'] = '__builtin__'
+
+        with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
+                mock.patch.object(dsrc.distro.networking, 'is_up') \
+                as m_dsrc_distro_networking_is_up:
+            # mock crawl metadata failure to cause report failure
+            m_crawl_metadata.side_effect = Exception
+
+            # net is not up and cannot use cached ephemeral dhcp
+            m_dsrc_distro_networking_is_up.return_value = False
+            # ephemeral dhcp discovery failure,
+            # so cannot use a new ephemeral dhcp
+            self.m_ephemeral_dhcpv4_with_reporting.return_value \
+                .__enter__.side_effect = Exception
+
+            self.assertTrue(dsrc._report_failure())
+
+            # ensure called with fallback lease
+            self.m_report_failure_to_fabric.assert_called_once_with(
+                description=mock.ANY,
+                fallback_lease_file=dsrc.dhclient_lease_file)
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
         """Errors communicating with fabric should warn, but return True."""
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         dsrc.ds_cfg['agent_command'] = '__builtin__'
-        self.get_metadata_from_fabric.side_effect = Exception
+        self.m_get_metadata_from_fabric.side_effect = Exception
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
 
     def test_fabric_data_included_in_metadata(self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         dsrc.ds_cfg['agent_command'] = '__builtin__'
-        self.get_metadata_from_fabric.return_value = {'test': 'value'}
+        self.m_get_metadata_from_fabric.return_value = {'test': 'value'}
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual('value', dsrc.metadata['test'])
@@ -2053,7 +2287,7 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 
     @mock.patch('time.sleep', mock.MagicMock())
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
-    def test_poll_imds_re_dhcp_on_timeout(self, m_dhcpv4, report_ready_func,
+    def test_poll_imds_re_dhcp_on_timeout(self, m_dhcpv4, m_report_ready,
                                           m_request, m_media_switch, m_dhcp,
                                           m_net):
         """The poll_imds will retry DHCP on IMDS timeout."""
@@ -2088,8 +2322,8 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
             dsa._poll_imds()
-        self.assertEqual(report_ready_func.call_count, 1)
-        report_ready_func.assert_called_with(lease=lease)
+        self.assertEqual(m_report_ready.call_count, 1)
+        m_report_ready.assert_called_with(lease=lease)
         self.assertEqual(3, m_dhcpv4.call_count, 'Expected 3 DHCP calls')
         self.assertEqual(4, self.tries, 'Expected 4 total reads from IMDS')
 
