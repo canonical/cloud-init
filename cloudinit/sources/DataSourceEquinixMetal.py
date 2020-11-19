@@ -69,7 +69,7 @@ def parse_public_keys(public_keys):
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceEquinixMetal, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceEquinixMetal, (sources.DEP_NETWORK)),
 ]
 
 # Return a list of data sources that match this set of dependencies
