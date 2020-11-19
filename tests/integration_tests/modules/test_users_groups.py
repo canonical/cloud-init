@@ -38,6 +38,7 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
 """
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestUsersGroups:
     @pytest.mark.parametrize(
