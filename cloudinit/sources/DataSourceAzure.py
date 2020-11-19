@@ -1391,7 +1391,7 @@ def read_azure_ovf(contents):
     if password:
         defuser['lock_passwd'] = False
         if DEF_PASSWD_REDACTION != password:
-            defuser['passwd'] = encrypt_pass(password)
+            defuser['passwd'] = cfg['password'] = encrypt_pass(password)
 
     if defuser:
         cfg['system_info'] = {'default_user': defuser}
