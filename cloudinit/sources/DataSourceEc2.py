@@ -43,6 +43,7 @@ class CloudNames(object):
     BRIGHTBOX = "brightbox"
     ZSTACK = "zstack"
     E24CLOUD = "e24cloud"
+    EQUINIXMETAL = "equinixmetal"
     # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
     # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "unknown"
