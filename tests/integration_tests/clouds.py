@@ -155,10 +155,18 @@ class LxdContainerCloud(IntegrationCloud):
         return pycloudlib_instance
 
     def _mount_source(self, instance):
+        container_path = '/usr/lib/python3/dist-packages/cloudinit'
+        format_variables = {
+            'name': instance.name,
+            'cloudinit_path': cloudinit.__path__[0],
+            'container_path': container_path,
+        }
+        log.info(
+            'Mounting source {cloudinit_path} directly onto LXD container/vm '
+            'named {name} at {container_path}'.format(**format_variables))
         command = (
             'lxc config device add {name} host-cloud-init disk '
             'source={cloudinit_path} '
-            'path=/usr/lib/python3/dist-packages/cloudinit'
-        ).format(
-            name=instance.name, cloudinit_path=cloudinit.__path__[0])
+            'path={container_path}'
+        ).format(**format_variables)
         subp(command.split())
