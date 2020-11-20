@@ -59,7 +59,7 @@ class IntegrationInstance:
         self.execute('mv {} {}'.format(tmp_path, remote_path))
 
     def read_from_file(self, remote_path) -> str:
-        result = self.execute('/bin/cat {}'.format(remote_path))
+        result = self.execute('cat {}'.format(remote_path))
         if result.failed:
             # TODO: Raise here whatever pycloudlib raises when it has
             # a consistent error response
