@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import string
+import uuid
 from tempfile import NamedTemporaryFile
 
 from pycloudlib.instance import BaseInstance
@@ -22,8 +23,7 @@ log = logging.getLogger('integration_testing')
 
 
 def _get_tmp_path():
-    tmp_filename = ''.join([random.choice(
-        string.ascii_letters + string.digits) for _ in range(20)])
+    tmp_filename = str(uuid.uuid4())
     return '/var/tmp/{}.tmp'.format(tmp_filename)
 
 
