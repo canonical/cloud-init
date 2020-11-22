@@ -10,6 +10,8 @@ import pytest
 
 USER_DATA = """\
 #cloud-config
+bootcmd:
+  - echo 'whoops' > /usr/bin/fallocate
 swap:
   filename: /swap.img
   size: 10000000
@@ -18,19 +20,8 @@ swap:
 
 
 @pytest.mark.user_data(USER_DATA)
-@pytest.mark.lxd_vm
+@pytest.mark.no_container
 def test_fallocate_fallback(client):
-    # Setup instance
-    client.execute('swapoff -a')
-    client.execute('rm -r /swap.img')
-    client.execute("echo 'whoops' > /usr/bin/fallocate")
-
-    # Reset instance state
-    client.execute('cloud-init clean --logs && sync')
-    client.instance.restart()
-    client.instance.wait(raise_on_cloudinit_failure=False)
-
-    # Verify
     log = client.read_from_file('/var/log/cloud-init.log')
     assert '/swap.img' in client.execute('cat /proc/swaps')
     assert '/swap.img' in client.execute('cat /etc/fstab')
