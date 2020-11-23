@@ -1,8 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
-import random
-import string
 import uuid
 from tempfile import NamedTemporaryFile
 
