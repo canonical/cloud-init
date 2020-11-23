@@ -64,7 +64,10 @@ def session_cloud():
     cloud = platforms[integration_settings.PLATFORM]()
     cloud.emit_settings_to_log()
     yield cloud
-    cloud.destroy()
+    try:
+        cloud.delete_snapshot()
+    finally:
+        cloud.destroy()
 
 
 @pytest.fixture(scope='session', autouse=True)

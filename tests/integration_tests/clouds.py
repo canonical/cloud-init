@@ -31,7 +31,14 @@ class IntegrationCloud(ABC):
     def __init__(self, settings=integration_settings):
         self.settings = settings
         self.cloud_instance = self._get_cloud_instance()
-        self.image_id = self._get_initial_image()
+        self._released_image_id = self._get_initial_image()
+        self.snapshot_id = None
+
+    @property
+    def image_id(self):
+        if self.snapshot_id:
+            return self.snapshot_id
+        return self._released_image_id
 
     def emit_settings_to_log(self) -> None:
         log.info(
@@ -49,13 +56,13 @@ class IntegrationCloud(ABC):
         raise NotImplementedError
 
     def _get_initial_image(self):
-        image_id = self.settings.OS_IMAGE
+        _released_image_id = self.settings.OS_IMAGE
         try:
-            image_id = self.cloud_instance.released_image(
+            _released_image_id = self.cloud_instance.released_image(
                 self.settings.OS_IMAGE)
         except (ValueError, IndexError):
             pass
-        return image_id
+        return _released_image_id
 
     def _perform_launch(self, launch_kwargs):
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
@@ -99,6 +106,14 @@ class IntegrationCloud(ABC):
     def snapshot(self, instance):
         return self.cloud_instance.snapshot(instance, clean=True)
 
+    def delete_snapshot(self):
+        if self.snapshot_id:
+            log.info(
+                'Deleting snapshot image created for this testrun: %s',
+                self.snapshot_id
+            )
+            self.cloud_instance.delete_image(self.snapshot_id)
+
 
 class Ec2Cloud(IntegrationCloud):
     datasource = 'ec2'
@@ -129,7 +144,14 @@ class AzureCloud(IntegrationCloud):
         return Azure(tag='azure-integration-test')
 
     def destroy(self):
-        self.cloud_instance.delete_resource_group()
+        if self.settings.KEEP_INSTANCE:
+            log.info(
+                'NOT deleting resource group because KEEP_INSTANCE is true '
+                'and deleting resource group would also delete instance. '
+                'Instance and resource group must both be manually deleted.'
+            )
+        else:
+            self.cloud_instance.delete_resource_group()
 
 
 class OciCloud(IntegrationCloud):
