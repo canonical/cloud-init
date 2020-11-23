@@ -19,8 +19,9 @@ swap:
 """
 
 
+@pytest.mark.sru_2020_11
 @pytest.mark.user_data(USER_DATA)
-@pytest.mark.no_container
+@pytest.mark.no_container('Containers cannot configure swap')
 def test_fallocate_fallback(client):
     log = client.read_from_file('/var/log/cloud-init.log')
     assert '/swap.img' in client.execute('cat /proc/swaps')
