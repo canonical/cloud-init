@@ -125,5 +125,5 @@ class IntegrationOciInstance(IntegrationInstance):
     pass
 
 
-class IntegrationLxdContainerInstance(IntegrationInstance):
+class IntegrationLxdInstance(IntegrationInstance):
     use_sudo = False
