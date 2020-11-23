@@ -2,6 +2,7 @@ import abc
 import logging
 import os
 
+from cloudinit import subp
 from cloudinit import net, util
 
 
@@ -175,6 +176,10 @@ class Networking(metaclass=abc.ABCMeta):
         if strict:
             raise RuntimeError(msg)
 
+    @abc.abstractmethod
+    def try_set_link_up(self, devname: DeviceName) -> bool:
+        """Try setting the link to up explicitly and return if it is up."""
+
 
 class BSDNetworking(Networking):
     """Implementation of networking functionality shared across BSDs."""
@@ -184,6 +189,9 @@ class BSDNetworking(Networking):
 
     def settle(self, *, exists=None) -> None:
         """BSD has no equivalent to `udevadm settle`; noop."""
+
+    def try_set_link_up(self, devname: DeviceName) -> bool:
+        raise NotImplementedError()
 
 
 class LinuxNetworking(Networking):
@@ -214,3 +222,10 @@ class LinuxNetworking(Networking):
         if exists is not None:
             exists = net.sys_dev_path(exists)
         util.udevadm_settle(exists=exists)
+
+    def try_set_link_up(self, devname: DeviceName) -> bool:
+        """Try setting the link to up explicitly and return if it is up.
+           Not guaranteed to bring the interface up. The caller is expected to
+           add wait times before retrying."""
+        subp.subp(['ip', 'link', 'set', devname, 'up'])
+        return self.is_up(devname)

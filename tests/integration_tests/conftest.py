@@ -39,11 +39,20 @@ def pytest_runtest_setup(item):
     specified, then we assume the test can be run anywhere.
     """
     all_platforms = platforms.keys()
-    supported_platforms = set(all_platforms).intersection(
-        mark.name for mark in item.iter_markers())
+    test_marks = [mark.name for mark in item.iter_markers()]
+    supported_platforms = set(all_platforms).intersection(test_marks)
     current_platform = integration_settings.PLATFORM
+    unsupported_message = 'Cannot run on platform {}'.format(current_platform)
+    if 'no_container' in test_marks:
+        if 'lxd_container' in test_marks:
+            raise Exception(
+                'lxd_container and no_container marks simultaneously set '
+                'on test'
+            )
+        if current_platform == 'lxd_container':
+            pytest.skip(unsupported_message)
     if supported_platforms and current_platform not in supported_platforms:
-        pytest.skip('Cannot run on platform {}'.format(current_platform))
+        pytest.skip(unsupported_message)
 
 
 # disable_subp_usage is defined at a higher level, but we don't
