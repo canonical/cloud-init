@@ -68,7 +68,8 @@ def register_mock_metaserver(base_url, data):
 class TestEquinixMetalDatasource(test_helpers.HttprettyTestCase):
     def setUp(self):
         super(TestEquinixMetalDatasource, self).setUp()
-        cfg = {'datasource': {'EquinixMetal': {'timeout': '1', 'max_wait': '1'}}}
+        cfg = {'datasource': {
+            'EquinixMetal': {'timeout': '1', 'max_wait': '1'}}}
         distro = {}
         paths = helpers.Paths({'run_dir': self.tmp_dir()})
         self.ds = em.DataSourceEquinixMetal(cfg, distro, paths)
@@ -144,15 +145,6 @@ class TestEquinixMetalDatasource(test_helpers.HttprettyTestCase):
         self.assertEqual('ec2', self.ds.platform)
         self.assertEqual(
             'metadata (http://100.100.100.200)', self.ds.subplatform)
-
-    @mock.patch("cloudinit.sources.DataSourceEquinixMetal._is_equinixmetal")
-    def test_returns_false_when_not_on_equinixmetal(self, m_is_equinixmetal):
-        """If is_equinixmetal returns false, then get_data should return False."""
-        m_is_equinixmetal.return_value = False
-        self.regist_default_server()
-        ret = self.ds.get_data()
-        self.assertEqual(1, m_is_equinixmetal.call_count)
-        self.assertEqual(False, ret)
 
     def test_parse_public_keys(self):
         public_keys = {}

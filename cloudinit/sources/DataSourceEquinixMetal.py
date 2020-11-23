@@ -10,9 +10,6 @@ import re
 from cloudinit import log as logging
 from cloudinit.sources import DataSourceEc2 as EC2
 from cloudinit import sources
-from cloudinit import util
-
-import cloudinit.sources.helpers.equinixmetal as equinixmetal_helper
 
 LOG = logging.getLogger(__name__)
 
@@ -22,7 +19,7 @@ BUILTIN_DS_CONFIG = {
 }
 
 
-EQUINIXMETAL_IQN_PATTERN = "iqn\.[0-9-]{6,7}\.(net\.packet|equinix\.metal):"
+EQUINIXMETAL_IQN_PATTERN = r'iqn\.[0-9-]{6,7}\.(net\.packet|equinix\.metal):'
 
 
 class DataSourceEquinixMetal(EC2.DataSourceEc2):
@@ -42,14 +39,13 @@ class DataSourceEquinixMetal(EC2.DataSourceEc2):
         return parse_public_keys(self.metadata.get('public-keys', {}))
 
     def _get_cloud_name(self):
-        if _is_equinixmetal():
+        if self._is_equinixmetal():
             return EC2.CloudNames.EQUINIXMETAL
         else:
             return EC2.CloudNames.NO_EC2_METADATA
 
-
-def _is_equinixmetal():
-    return re.match(EQUINIXMETAL_IQN_PATTERN, self.metadata.get('iqn', ''))
+    def _is_equinixmetal(self):
+        return re.match(EQUINIXMETAL_IQN_PATTERN, self.metadata.get('iqn', ''))
 
 
 def parse_public_keys(public_keys):
@@ -72,6 +68,7 @@ def parse_public_keys(public_keys):
 datasources = [
     (DataSourceEquinixMetal, (sources.DEP_NETWORK)),
 ]
+
 
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
