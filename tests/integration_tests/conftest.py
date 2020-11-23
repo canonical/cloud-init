@@ -17,6 +17,7 @@ from tests.integration_tests.clouds import (
     LxdContainerCloud,
     LxdVmCloud,
 )
+from tests.integration_tests.instances import IntegrationInstance
 
 
 log = logging.getLogger('integration_testing')
@@ -119,7 +120,21 @@ def setup_image(session_cloud):
     log.info('Done with environment setup')
 
 
-def _collect_logs(instance, node_id):
+def _collect_logs(instance: IntegrationInstance, node_id: str,
+                  test_failed: bool):
+    """Collect logs from remote instance.
+
+    Args:
+        instance: The current IntegrationInstance to collect logs from
+        node_id: The pytest representation of this test, E.g.:
+            tests/integration_tests/test_example.py::TestExample.test_example
+        test_failed: If test failed or not
+    """
+    if any([
+        integration_settings.COLLECT_LOGS == 'NEVER',
+        integration_settings.COLLECT_LOGS == 'ON_ERROR' and not test_failed
+    ]):
+        return
     instance.execute(
         'cloud-init collect-logs -u -t /var/tmp/cloud-init.tar.gz')
     node_id_path = Path(
@@ -160,9 +175,10 @@ def _client(request, fixture_utils, session_cloud):
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs
     ) as instance:
+        previous_failures = request.session.testsfailed
         yield instance
-        if integration_settings.COLLECT_LOGS:
-            _collect_logs(instance, request.node.nodeid)
+        test_failed = request.session.testsfailed - previous_failures > 0
+        _collect_logs(instance, request.node.nodeid, test_failed)
 
 
 @pytest.yield_fixture

@@ -56,9 +56,13 @@ EXISTING_INSTANCE_ID = None
 CLOUD_INIT_SOURCE = 'NONE'
 
 # Before an instance is torn down, we run `cloud-init collect-logs`
-# and transfer them locally. These settings specify whether to collect these
-# logs at all, and if so, where do we put them on the local filesystem
-COLLECT_LOGS = True
+# and transfer them locally. These settings specify when to collect these
+# logs and where to put them on the local filesystem
+# One of:
+#   'ALWAYS'
+#   'ON_ERROR'
+#   'NEVER'
+COLLECT_LOGS = 'ON_ERROR'
 LOCAL_LOG_PATH = '/tmp/cloud_init_test_logs'
 
 ##################################################################
