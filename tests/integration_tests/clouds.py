@@ -144,8 +144,11 @@ class OciCloud(IntegrationCloud):
         )
 
 
-class _LxdIntegrationCloud(IntegrationCloud, ABC):
+class _LxdIntegrationCloud(IntegrationCloud):
     integration_instance_cls = IntegrationLxdInstance
+
+    def _get_cloud_instance(self):
+        return self.pycloudlib_instance_cls(tag=self.instance_tag)
 
     @staticmethod
     def _get_or_set_profile_list(release):
@@ -194,13 +197,14 @@ class _LxdIntegrationCloud(IntegrationCloud, ABC):
 
 class LxdContainerCloud(_LxdIntegrationCloud):
     datasource = 'lxd_container'
-
-    def _get_cloud_instance(self):
-        return LXDContainer(tag='lxd-container-integration-test')
+    pycloudlib_instance_cls = LXDContainer
+    instance_tag = 'lxd-container-integration-test'
 
 
 class LxdVmCloud(_LxdIntegrationCloud):
     datasource = 'lxd_vm'
+    pycloudlib_instance_cls = LXDVirtualMachine
+    instance_tag = 'lxd-vm-integration-test'
     _profile_list = None
 
     def _get_or_set_profile_list(self, release):
@@ -209,6 +213,3 @@ class LxdVmCloud(_LxdIntegrationCloud):
         self._profile_list = self.cloud_instance.build_necessary_profiles(
             release)
         return self._profile_list
-
-    def _get_cloud_instance(self):
-        return LXDVirtualMachine(tag='lxd-vm-integration-test')
