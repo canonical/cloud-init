@@ -1,4 +1,4 @@
-cloud-init (20.4-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.4-0ubuntu1) hirsute; urgency=medium
 
   * d/control: add gnupg to Recommends as cc_apt_configure requires it to be
     installed for some operations.
