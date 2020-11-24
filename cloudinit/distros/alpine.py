@@ -8,15 +8,12 @@
 
 from cloudinit import distros
 from cloudinit import helpers
-from cloudinit import log as logging
 from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.distros.parsers.hostname import HostnameConf
 
 from cloudinit.settings import PER_INSTANCE
-
-LOG = logging.getLogger(__name__)
 
 NETWORK_FILE_HEADER = """\
 # This file is generated from information provided by the datasource. Changes

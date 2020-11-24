@@ -20,6 +20,8 @@ UNAME_MYSYS = ("Linux bart 4.4.0-62-generic #83-Ubuntu "
 UNAME_PPC64EL = ("Linux diamond 4.4.0-83-generic #106-Ubuntu SMP "
                  "Mon Jun 26 17:53:54 UTC 2017 "
                  "ppc64le ppc64le ppc64le GNU/Linux")
+UNAME_FREEBSD = ("FreeBSD fbsd12-1 12.1-RELEASE-p10 "
+                 "FreeBSD 12.1-RELEASE-p10 GENERIC  amd64")
 
 BLKID_EFI_ROOT = """
 DEVNAME=/dev/sda1
@@ -80,6 +82,7 @@ MOCK_VIRT_IS_VMWARE = {'name': 'detect_virt', 'RET': 'vmware', 'ret': 0}
 MOCK_VIRT_IS_VM_OTHER = {'name': 'detect_virt', 'RET': 'vm-other', 'ret': 0}
 MOCK_VIRT_IS_XEN = {'name': 'detect_virt', 'RET': 'xen', 'ret': 0}
 MOCK_UNAME_IS_PPC64 = {'name': 'uname', 'out': UNAME_PPC64EL, 'ret': 0}
+MOCK_UNAME_IS_FREEBSD = {'name': 'uname', 'out': UNAME_FREEBSD, 'ret': 0}
 
 shell_true = 0
 shell_false = 1
@@ -143,6 +146,8 @@ class DsIdentifyBase(CiTestCase):
              'out': 'No value found', 'ret': 1},
             {'name': 'dmi_decode', 'ret': 1,
              'err': 'No dmidecode program. ERROR.'},
+            {'name': 'get_kenv_field', 'ret': 1,
+             'err': 'No kenv program. ERROR.'},
         ]
 
         written = [d['name'] for d in mocks]
@@ -256,6 +261,10 @@ class TestDsIdentify(DsIdentifyBase):
     def test_bobrightbox_is_not_brightbox(self):
         """EC2: bobrightbox.com in product_serial is not brightbox'"""
         self._test_ds_not_found('Ec2-brightbox-negative')
+
+    def test_freebsd_nocloud(self):
+        """NoCloud identified on FreeBSD via label by geom."""
+        self._test_ds_found('NoCloud-fbsd')
 
     def test_gce_by_product_name(self):
         """GCE identifies itself with product_name."""
@@ -644,14 +653,22 @@ class TestDsIdentify(DsIdentifyBase):
 class TestBSDNoSys(DsIdentifyBase):
     """Test *BSD code paths
 
-    FreeBSD doesn't have /sys so we use dmidecode(8) here
-    It also doesn't have systemd-detect-virt(8), so we use sysctl(8) to query
+    FreeBSD doesn't have /sys so we use kenv(1) here.
+    Other BSD systems fallback to dmidecode(8).
+    BSDs also doesn't have systemd-detect-virt(8), so we use sysctl(8) to query
     kern.vm_guest, and optionally map it"""
 
-    def test_dmi_decode(self):
+    def test_dmi_kenv(self):
+        """Test that kenv(1) works on systems which don't have /sys
+
+        This will be used on FreeBSD systems.
+        """
+        self._test_ds_found('Hetzner-kenv')
+
+    def test_dmi_dmidecode(self):
         """Test that dmidecode(8) works on systems which don't have /sys
 
-        This will be used on *BSD systems.
+        This will be used on all other BSD systems.
         """
         self._test_ds_found('Hetzner-dmidecode')
 
@@ -721,6 +738,26 @@ def blkid_out(disks=None):
         lines.append("%s=%s" % ("DEVNAME", disk["DEVNAME"]))
         for key in [d for d in disk if d != "DEVNAME"]:
             lines.append("%s=%s" % (key, disk[key]))
+        lines.append("")
+    return '\n'.join(lines)
+
+
+def geom_out(disks=None):
+    """Convert a list of disk dictionaries into geom content.
+
+    geom called with -a (provider) and -s (script-friendly), will produce the
+    following output:
+
+      gpt/gptboot0  N/A  vtbd1p1
+         gpt/swap0  N/A  vtbd1p2
+    iso9660/cidata  N/A  vtbd2
+    """
+    if disks is None:
+        disks = []
+    lines = []
+    for disk in disks:
+        lines.append("%s/%s  N/A  %s" % (
+            disk["TYPE"], disk["LABEL"], disk["DEVNAME"]))
         lines.append("")
     return '\n'.join(lines)
 
@@ -805,6 +842,19 @@ VALID_CFG = {
         ],
         'files': {
             'dev/vdb': 'pretend iso content for cidata\n',
+        }
+    },
+    'NoCloud-fbsd': {
+        'ds': 'NoCloud',
+        'mocks': [
+            MOCK_VIRT_IS_KVM,
+            MOCK_UNAME_IS_FREEBSD,
+            {'name': 'geom', 'ret': 0,
+             'out': geom_out(
+                 [{'DEVNAME': 'vtbd', 'TYPE': 'iso9660', 'LABEL': 'cidata'}])},
+        ],
+        'files': {
+            '/dev/vtdb': 'pretend iso content for cidata\n',
         }
     },
     'NoCloudUpper': {
@@ -985,6 +1035,13 @@ VALID_CFG = {
     'Hetzner': {
         'ds': 'Hetzner',
         'files': {P_SYS_VENDOR: 'Hetzner\n'},
+    },
+    'Hetzner-kenv': {
+        'ds': 'Hetzner',
+        'mocks': [
+            MOCK_UNAME_IS_FREEBSD,
+            {'name': 'get_kenv_field', 'ret': 0, 'RET': 'Hetzner'}
+        ],
     },
     'Hetzner-dmidecode': {
         'ds': 'Hetzner',

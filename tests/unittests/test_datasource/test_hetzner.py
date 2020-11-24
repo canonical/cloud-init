@@ -77,10 +77,11 @@ class TestDataSourceHetzner(CiTestCase):
     @mock.patch('cloudinit.net.find_fallback_nic')
     @mock.patch('cloudinit.sources.helpers.hetzner.read_metadata')
     @mock.patch('cloudinit.sources.helpers.hetzner.read_userdata')
-    @mock.patch('cloudinit.sources.DataSourceHetzner.on_hetzner')
-    def test_read_data(self, m_on_hetzner, m_usermd, m_readmd, m_fallback_nic,
-                       m_net):
-        m_on_hetzner.return_value = True
+    @mock.patch('cloudinit.sources.DataSourceHetzner.get_hcloud_data')
+    def test_read_data(self, m_get_hcloud_data, m_usermd, m_readmd,
+                       m_fallback_nic, m_net):
+        m_get_hcloud_data.return_value = (True,
+                                          str(METADATA.get('instance-id')))
         m_readmd.return_value = METADATA.copy()
         m_usermd.return_value = USERDATA
         m_fallback_nic.return_value = 'eth0'
@@ -107,11 +108,12 @@ class TestDataSourceHetzner(CiTestCase):
 
     @mock.patch('cloudinit.sources.helpers.hetzner.read_metadata')
     @mock.patch('cloudinit.net.find_fallback_nic')
-    @mock.patch('cloudinit.sources.DataSourceHetzner.on_hetzner')
-    def test_not_on_hetzner_returns_false(self, m_on_hetzner, m_find_fallback,
-                                          m_read_md):
-        """If helper 'on_hetzner' returns False, return False from get_data."""
-        m_on_hetzner.return_value = False
+    @mock.patch('cloudinit.sources.DataSourceHetzner.get_hcloud_data')
+    def test_not_on_hetzner_returns_false(self, m_get_hcloud_data,
+                                          m_find_fallback, m_read_md):
+        """If helper 'get_hcloud_data' returns False,
+           return False from get_data."""
+        m_get_hcloud_data.return_value = (False, None)
         ds = self.get_ds()
         ret = ds.get_data()
 
