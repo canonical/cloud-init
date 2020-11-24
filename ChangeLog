@@ -1,3 +1,149 @@
+20.4
+ - tox: avoid tox testenv subsvars for xenial support (#684)
+ - Ensure proper root permissions in integration tests (#664) [James Falcon]
+ - LXD VM support in integration tests (#678) [James Falcon]
+ - Integration test for fallocate falling back to dd (#681) [James Falcon]
+ - .travis.yml: correctly integration test the built .deb (#683)
+ - Ability to hot-attach NICs to preprovisioned VMs before reprovisioning
+   (#613) [aswinrajamannar]
+ - Support configuring SSH host certificates. (#660) [Jonathan Lung]
+ - add integration test for LP: #1900837 (#679)
+ - cc_resizefs on FreeBSD: Fix _can_skip_ufs_resize (#655)
+   [Mina Galić] (LP: #1901958, #1901958)
+ - DataSourceAzure: push dmesg log to KVP (#670) [Anh Vo]
+ - Make mount in place for tests work (#667) [James Falcon]
+ - integration_tests: restore emission of settings to log (#657)
+ - DataSourceAzure: update password for defuser if exists (#671) [Anh Vo]
+ - tox.ini: only select "ci" marked tests for CI runs (#677)
+ - Azure helper: Increase Azure Endpoint HTTP retries (#619) [Johnson Shi]
+ - DataSourceAzure: send failure signal on Azure datasource failure (#594)
+   [Johnson Shi]
+ - test_persistence: simplify VersionIsPoppedFromState (#674)
+ - only run a subset of integration tests in CI (#672)
+ - cli: add --system param to allow validating system user-data on a
+   machine (#575)
+ - test_persistence: add VersionIsPoppedFromState test (#673)
+ - introduce an upgrade framework and related testing (#659)
+ - add --no-tty option to gpg (#669) [Till Riedel] (LP: #1813396)
+ - Pin pycloudlib to a working commit (#666) [James Falcon]
+ - DataSourceOpenNebula: exclude SRANDOM from context output (#665)
+ - cloud_tests: add hirsute release definition (#662)
+ - split integration and cloud_tests requirements (#652)
+ - faq.rst: add warning to answer that suggests running `clean` (#661)
+ - Fix stacktrace in DataSourceRbxCloud if no metadata disk is found (#632)
+   [Scott Moser]
+ - Make wakeonlan Network Config v2 setting actually work (#626)
+   [dermotbradley]
+ - HACKING.md: unify network-refactoring namespace (#658) [Mina Galić]
+ - replace usage of dmidecode with kenv on FreeBSD (#621) [Mina Galić]
+ - Prevent timeout on travis integration tests. (#651) [James Falcon]
+ - azure: enable pushing the log to KVP from the last pushed byte  (#614)
+   [Moustafa Moustafa]
+ - Fix launch_kwargs bug in integration tests (#654) [James Falcon]
+ - split read_fs_info into linux & freebsd parts (#625) [Mina Galić]
+ - PULL_REQUEST_TEMPLATE.md: expand commit message section (#642)
+ - Make some language improvements in growpart documentation (#649)
+   [Shane Frasier]
+ - Revert ".travis.yml: use a known-working version of lxd (#643)" (#650)
+ - Fix not sourcing default 50-cloud-init ENI file on Debian (#598)
+   [WebSpider]
+ - remove unnecessary reboot from gpart resize (#646) [Mina Galić]
+ - cloudinit: move dmi functions out of util (#622) [Scott Moser]
+ - integration_tests: various launch improvements (#638)
+ - test_lp1886531: don't assume /etc/fstab exists (#639)
+ - Remove Ubuntu restriction from PR template (#648) [James Falcon]
+ - util: fix mounting of vfat on *BSD (#637) [Mina Galić]
+ - conftest: improve docstring for disable_subp_usage (#644)
+ - doc: add example query commands to debug Jinja templates (#645)
+ - Correct documentation and testcase data for some user-data YAML (#618)
+   [dermotbradley]
+ - Hetzner: Fix instance_id / SMBIOS serial comparison (#640)
+   [Markus Schade]
+ - .travis.yml: use a known-working version of lxd (#643)
+ - tools/build-on-freebsd: fix comment explaining purpose of the script
+   (#635) [Mina Galić]
+ - Hetzner: initialize instance_id from system-serial-number (#630)
+   [Markus Schade] (LP: #1885527)
+ - Explicit set IPV6_AUTOCONF and IPV6_FORCE_ACCEPT_RA on static6 (#634)
+   [Eduardo Otubo]
+ - get_interfaces: don't exclude Open vSwitch bridge/bond members (#608)
+   [Lukas Märdian] (LP: #1898997)
+ - Add config modules for controlling IBM PowerVM RMC. (#584)
+   [Aman306] (LP: #1895979)
+ - Update network config docs to clarify MAC address quoting (#623)
+   [dermotbradley]
+ - gentoo: fix hostname rendering when value has a comment (#611)
+   [Manuel Aguilera]
+ - refactor integration testing infrastructure (#610) [James Falcon]
+ - stages: don't reset permissions of cloud-init.log every boot (#624)
+   (LP: #1900837)
+ - docs: Add how to use cloud-localds to boot qemu (#617) [Joshua Powers]
+ - Drop vestigial update_resolve_conf_file function (#620) [Scott Moser]
+ - cc_mounts: correctly fallback to dd if fallocate fails (#585)
+   (LP: #1897099)
+ - .travis.yml: add integration-tests to Travis matrix (#600)
+ - ssh_util: handle non-default AuthorizedKeysFile config (#586)
+   [Eduardo Otubo]
+ - Multiple file fix for AuthorizedKeysFile config (#60) [Eduardo Otubo]
+ - bddeb: new --packaging-branch argument to pull packaging from branch
+   (#576) [Paride Legovini]
+ - Add more integration tests (#615) [lucasmoura]
+ - DataSourceAzure: write marker file after report ready in preprovisioning
+   (#590) [Johnson Shi]
+ - integration_tests: emit settings to log during setup (#601)
+ - integration_tests: implement citest tests run in Travis (#605)
+ - Add Azure support to integration test framework (#604) [James Falcon]
+ - openstack: consider product_name as valid chassis tag (#580)
+   [Adrian Vladu] (LP: #1895976)
+ - azure: clean up and refactor report_diagnostic_event (#563) [Johnson Shi]
+ - net: add the ability to blacklist network interfaces based on driver
+   during enumeration of physical network devices (#591) [Anh Vo]
+ - integration_tests: don't error on cloud-init failure (#596)
+ - integration_tests: improve cloud-init.log assertions (#593)
+ - conftest.py: remove top-level import of httpretty (#599)
+ - tox.ini: add integration-tests testenv definition (#595)
+ - PULL_REQUEST_TEMPLATE.md: empty checkboxes need a space (#597)
+ - add integration test for LP: #1886531 (#592)
+ - Initial implementation of integration testing infrastructure (#581)
+   [James Falcon]
+ - Fix name of ntp and chrony service on CentOS and RHEL. (#589)
+   [Scott Moser] (LP: #1897915)
+ - Adding a PR template (#587) [James Falcon]
+ - Azure parse_network_config uses fallback cfg when generate IMDS network
+   cfg fails (#549) [Johnson Shi]
+ - features: refresh docs for easier out-of-context reading (#582)
+ - Fix typo in resolv_conf module's description (#578) [Wacław Schiller]
+ - cc_users_groups: minor doc formatting fix (#577)
+ - Fix typo in disk_setup module's description (#579) [Wacław Schiller]
+ - Add vendor-data support to seedfrom parameter for NoCloud and OVF (#570)
+   [Johann Queuniet]
+ - boot.rst: add First Boot Determination section (#568) (LP: #1888858)
+ - opennebula.rst: minor readability improvements (#573) [Mina Galić]
+ - cloudinit: remove unused LOG variables (#574)
+ - create a shutdown_command method in distro classes (#567)
+   [Emmanuel Thomé]
+ - user_data: remove unused constant (#566)
+ - network: Fix type and respect name when rendering vlan in
+   sysconfig. (#541) [Eduardo Otubo] (LP: #1788915, #1826608)
+ - Retrieve SSH keys from IMDS first with OVF as a fallback (#509)
+   [Thomas Stringer]
+ - Add jqueuniet as contributor (#569) [Johann Queuniet]
+ - distros: minor typo fix (#562)
+ - Bump the integration-requirements versioned dependencies (#565)
+   [Paride Legovini]
+ - network-config-format-v1: fix typo in nameserver example (#564)
+   [Stanislas]
+ - Run cloud-init-local.service after the hv_kvp_daemon (#505)
+   [Robert Schweikert]
+ - Add method type hints for Azure helper (#540) [Johnson Shi]
+ - systemd: add Before=shutdown.target when Conflicts=shutdown.target is
+   used (#546) [Paride Legovini]
+ - LXD: detach network from profile before deleting it (#542)
+   [Paride Legovini] (LP: #1776958)
+ - redhat spec: add missing BuildRequires (#552) [Paride Legovini]
+ - util: remove debug statement (#556) [Joshua Powers]
+ - Fix cloud config on chef example (#551) [lucasmoura]
+
 20.3
  - Azure: Add netplan driver filter when using hv_netvsc driver (#539)
    [James Falcon] (LP: #1830740)
