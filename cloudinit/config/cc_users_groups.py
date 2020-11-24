@@ -26,13 +26,14 @@ entry of the ``users`` list. Each entry in the ``users`` list, other than a
 config keys for an entry in ``users`` are as follows:
 
     - ``name``: The user's login name
-    - ``expiredate``: Optional. Date on which the user's login will be
+    - ``expiredate``: Optional. Date on which the user's account will be
       disabled. Default: none
     - ``gecos``: Optional. Comment about the user, usually a comma-separated
       string of real name and contact information. Default: none
     - ``groups``: Optional. Additional groups to add the user to. Default: none
     - ``homedir``: Optional. Home dir for user. Default is ``/home/<username>``
-    - ``inactive``: Optional. Mark user inactive. Default: false
+    - ``inactive``: Optional. Number of days after a password expires until
+      the account is permanently disabled. Default: none
     - ``lock_passwd``: Optional. Disable password login. Default: true
     - ``no_create_home``: Optional. Do not create home directory. Default:
       false
@@ -80,10 +81,9 @@ config keys for an entry in ``users`` are as follows:
 
 .. note::
     Most of these configuration options will not be honored if the user
-    already exists. Following options are the exceptions and they are
-    applicable on already-existing users:
-    - 'plain_text_passwd', 'hashed_passwd', 'lock_passwd', 'sudo',
-      'ssh_authorized_keys', 'ssh_redirect_user'.
+    already exists. The following options are the exceptions; they are applied
+    to already-existing users: ``plain_text_passwd``, ``hashed_passwd``,
+    ``lock_passwd``, ``sudo``, ``ssh_authorized_keys``, ``ssh_redirect_user``.
 
 **Internal name:** ``cc_users_groups``
 
@@ -103,11 +103,11 @@ config keys for an entry in ``users`` are as follows:
         - name: <some_restricted_user>
           sudo: false
         - name: <username>
-          expiredate: <date>
+          expiredate: '<date>'
           gecos: <comment>
           groups: <additional groups>
           homedir: <home directory>
-          inactive: <true/false>
+          inactive: '<number of days>'
           lock_passwd: <true/false>
           no_create_home: <true/false>
           no_log_init: <true/false>

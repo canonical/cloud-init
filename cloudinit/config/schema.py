@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """schema.py: Set of module functions for processing cloud-config schema."""
 
+from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit import importer
 from cloudinit.util import find_modules, load_file
 
@@ -173,7 +174,8 @@ def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
 def validate_cloudconfig_file(config_path, schema, annotate=False):
     """Validate cloudconfig file adheres to a specific jsonschema.
 
-    @param config_path: Path to the yaml cloud-config file to parse.
+    @param config_path: Path to the yaml cloud-config file to parse, or None
+        to default to system userdata from Paths object.
     @param schema: Dict describing a valid jsonschema to validate against.
     @param annotate: Boolean set True to print original config file with error
         annotations on the offending lines.
@@ -181,9 +183,24 @@ def validate_cloudconfig_file(config_path, schema, annotate=False):
     @raises SchemaValidationError containing any of schema_errors encountered.
     @raises RuntimeError when config_path does not exist.
     """
-    if not os.path.exists(config_path):
-        raise RuntimeError('Configfile {0} does not exist'.format(config_path))
-    content = load_file(config_path, decode=False)
+    if config_path is None:
+        # Use system's raw userdata path
+        if os.getuid() != 0:
+            raise RuntimeError(
+                "Unable to read system userdata as non-root user."
+                " Try using sudo"
+            )
+        paths = read_cfg_paths()
+        user_data_file = paths.get_ipath_cur("userdata_raw")
+        content = load_file(user_data_file, decode=False)
+    else:
+        if not os.path.exists(config_path):
+            raise RuntimeError(
+                'Configfile {0} does not exist'.format(
+                    config_path
+                )
+            )
+        content = load_file(config_path, decode=False)
     if not content.startswith(CLOUD_CONFIG_HEADER):
         errors = (
             ('format-l1.c1', 'File {0} needs to begin with "{1}"'.format(
@@ -425,6 +442,8 @@ def get_parser(parser=None):
             description='Validate cloud-config files or document schema')
     parser.add_argument('-c', '--config-file',
                         help='Path of the cloud-config yaml file to validate')
+    parser.add_argument('--system', action='store_true', default=False,
+                        help='Validate the system cloud-config userdata')
     parser.add_argument('-d', '--docs', nargs='+',
                         help=('Print schema module docs. Choices: all or'
                               ' space-delimited cc_names.'))
@@ -435,11 +454,11 @@ def get_parser(parser=None):
 
 def handle_schema_args(name, args):
     """Handle provided schema args and perform the appropriate actions."""
-    exclusive_args = [args.config_file, args.docs]
-    if not any(exclusive_args) or all(exclusive_args):
-        error('Expected either --config-file argument or --docs')
+    exclusive_args = [args.config_file, args.docs, args.system]
+    if len([arg for arg in exclusive_args if arg]) != 1:
+        error('Expected one of --config-file, --system or --docs arguments')
     full_schema = get_schema()
-    if args.config_file:
+    if args.config_file or args.system:
         try:
             validate_cloudconfig_file(
                 args.config_file, full_schema, args.annotate)
@@ -449,7 +468,11 @@ def handle_schema_args(name, args):
         except RuntimeError as e:
             error(str(e))
         else:
-            print("Valid cloud-config file {0}".format(args.config_file))
+            if args.config_file is None:
+                cfg_name = "system userdata"
+            else:
+                cfg_name = args.config_file
+            print("Valid cloud-config:", cfg_name)
     elif args.docs:
         schema_ids = [subschema['id'] for subschema in full_schema['allOf']]
         schema_ids += ['all']

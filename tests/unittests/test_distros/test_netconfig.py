@@ -514,7 +514,9 @@ class TestNetCfgDistroRedhat(TestNetCfgDistroBase):
                 DEVICE=eth0
                 IPV6ADDR=2607:f0d0:1002:0011::2/64
                 IPV6INIT=yes
+                IPV6_AUTOCONF=no
                 IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
+                IPV6_FORCE_ACCEPT_RA=no
                 NM_CONTROLLED=no
                 ONBOOT=yes
                 TYPE=Ethernet

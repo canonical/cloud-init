@@ -7,12 +7,9 @@
 import errno
 import json
 
-from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
-
-LOG = logging.getLogger(__name__)
 
 
 class DataSourceBigstep(sources.DataSource):

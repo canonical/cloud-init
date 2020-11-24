@@ -35,7 +35,7 @@ either a size or a list containing a size and the numerical value for a
 partition type. The size for partitions is specified in **percentage** of disk
 space, not in bytes (e.g. a size of 33 would take up 1/3 of the disk space).
 The ``overwrite`` option controls whether this module tries to be safe about
-writing partition talbes or not. If ``overwrite: false`` is set, the device
+writing partition tables or not. If ``overwrite: false`` is set, the device
 will be checked for a partition table and for a file system and if either is
 found, the operation will be skipped. If ``overwrite: true`` is set, no checks
 will be performed.

@@ -1,7 +1,10 @@
 #!/bin/sh
-# Since there is no official FreeBSD port yet, we need some way of building and
-# installing cloud-init. This script takes care of building and installing. It
-# will optionally make a first run at the end.
+# The official way to install cloud-init on FreeBSD is via the net/cloud-init
+# port or the (appropriately py-flavoured) package.
+# This script provides a communication medium between the cloud-init maintainers
+# and the cloud-init port maintainers as to what dependencies have changed.
+# It also provides a quick and dirty way of building and installing, and will
+# optionally make a first run at the end.
 
 set -eux
 
@@ -18,7 +21,6 @@ py_prefix=$(${PYTHON} -c 'import sys; print("py%d%d" % (sys.version_info.major, 
 depschecked=/tmp/c-i.dependencieschecked
 pkgs="
     bash
-    dmidecode
     e2fsprogs
     $py_prefix-Jinja2
     $py_prefix-boto
