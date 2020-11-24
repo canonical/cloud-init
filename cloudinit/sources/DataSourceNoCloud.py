@@ -249,7 +249,7 @@ def _quick_read_instance_id(dirs=None):
             md = util.load_yaml(data['meta-data'])
             if iid_key in md:
                 return md[iid_key]
-        except ValueError:
+        except (ValueError, TypeError):
             pass
 
     return None
