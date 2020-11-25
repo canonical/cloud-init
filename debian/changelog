@@ -1,4 +1,4 @@
-cloud-init (20.4-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (20.4-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * refresh patches:
    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
