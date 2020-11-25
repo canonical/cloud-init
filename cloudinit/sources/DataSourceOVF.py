@@ -101,9 +101,7 @@ class DataSourceOVF(sources.DataSource):
             if not self.vmware_customization_supported:
                 LOG.debug("Skipping the check for "
                           "VMware Customization support")
-            elif not util.get_cfg_option_bool(
-                    self.sys_cfg, "disable_vmware_customization", True):
-
+            else:
                 search_paths = (
                     "/usr/lib/vmware-tools", "/usr/lib64/vmware-tools",
                     "/usr/lib/open-vm-tools", "/usr/lib64/open-vm-tools")
@@ -128,16 +126,14 @@ class DataSourceOVF(sources.DataSource):
                         msg="waiting for configuration file",
                         func=wait_for_imc_file,
                         args=("cust.cfg", max_wait))
-
-                    if vmwareImcConfigFilePath:
-                        imcdirpath = os.path.dirname(vmwareImcConfigFilePath)
-                        cf = ConfigFile(vmwareImcConfigFilePath)
-                        self._vmware_cust_conf = Config(cf)
-
                 else:
                     LOG.debug("Did not find the customization plugin.")
 
+                metaPath = None
                 if vmwareImcConfigFilePath:
+                    imcdirpath = os.path.dirname(vmwareImcConfigFilePath)
+                    cf = ConfigFile(vmwareImcConfigFilePath)
+                    self._vmware_cust_conf = Config(cf)
                     LOG.debug("Found VMware Customization Config File at %s",
                               vmwareImcConfigFilePath)
                     try:
@@ -152,16 +148,25 @@ class DataSourceOVF(sources.DataSource):
                             self._vmware_cust_conf)
                 else:
                     LOG.debug("Did not find VMware Customization Config File")
-            else:
-                LOG.debug("Customization for VMware platform is disabled.")
+
+                # if meta data is avaiable, ignore disable_vmware_customization
+                if not metaPath:
+                    if util.get_cfg_option_bool(self.sys_cfg,
+                                                "disable_vmware_customization",
+                                                True):
+                        LOG.debug(
+                            "Customization for VMware platform is disabled.")
+                        # reset vmwareImcConfigFilePath to None to avoid
+                        # customization for VMware platform
+                        vmwareImcConfigFilePath = None
 
         if vmwareImcConfigFilePath and metaPath:
             try:
                 set_gc_status(self._vmware_cust_conf, "Started")
 
+                LOG.debug("Start to load cloud-init meta data and user data")
                 (md, ud, cfg, network) = load_cloudinit_data(
                     metaPath, userPath)
-                # TODO, if user data is enabled by default, nothing to do
 
                 if network:
                     self._network_config = network
@@ -169,9 +174,16 @@ class DataSourceOVF(sources.DataSource):
                     fallbackNetwork = self.distro.generate_fallback_config()
                     self._network_config = fallbackNetwork
 
+            except LoadError as e:
+                _raise_error_status(
+                    "Error parsing the cloud-init meta data",
+                    e,
+                    GuestCustErrorEnum.GUESTCUST_ERROR_WRONG_META_FORMAT,
+                    vmwareImcConfigFilePath,
+                    self._vmware_cust_conf)
             except Exception as e:
                 _raise_error_status(
-                    "Error parsing the customization Config File",
+                    "Error loading cloud-init configuration",
                     e,
                     GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
                     vmwareImcConfigFilePath,
@@ -180,9 +192,7 @@ class DataSourceOVF(sources.DataSource):
             self._vmware_cust_found = True
             found.append('vmware-tools')
 
-            util.del_dir(os.path.dirname(imcdirpath))
-            # xiaofengw, no need to enable_nics
-            # enable_nics(self._vmware_nics_to_enable)
+            util.del_dir(imcdirpath)
             set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
@@ -737,11 +747,12 @@ def load_cloudinit_data(metaPath, userPath):
     Load the cloud-init meta data, user data, cfg and network from the
     given files
     """
-    LOG.debug('load meta data: %s: user data: %s', metaPath, userPath)
+    LOG.debug('load meta data from: %s: user data from: %s',
+              metaPath, userPath)
     md = {}
     cfg = {}
-    ud = {}
-    network = {}
+    ud = None
+    network = None
     # How to handle instance-id?
     md = load(util.load_file(metaPath).replace("\r", ""))
 

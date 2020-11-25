@@ -140,16 +140,29 @@ class TestDatasourceOVF(CiTestCase):
             'DEBUG: No system-product-name found', self.logs.getvalue())
 
     def test_get_data_no_vmware_customization_disabled(self):
-        """When vmware customization is disabled via sys_cfg log a message."""
+        """When cloud-init workflow for vmware is disabled via sys_cfgi and
+        no meta data provided, log a message.
+        """
         paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(
             sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
+        conf_file = self.tmp_path('test-cust', self.tdir)
+        conf_content = dedent("""\
+            [CUSTOM-SCRIPT]
+            SCRIPT-NAME = test-script
+            [MISC]
+            MARKER-ID = 12345345
+            """)
+        util.write_file(conf_file, conf_content)
         retcode = wrap_and_call(
             'cloudinit.sources.DataSourceOVF',
             {'dmi.read_dmi_data': 'vmware',
              'transport_iso9660': NOT_FOUND,
-             'transport_vmware_guestinfo': NOT_FOUND},
+             'transport_vmware_guestinfo': NOT_FOUND,
+             'util.del_dir': True,
+             'search_file': self.tdir,
+             'wait_for_imc_file': conf_file},
             ds.get_data)
         self.assertFalse(retcode, 'Expected False return from ds.get_data')
         self.assertIn(
@@ -352,7 +365,7 @@ class TestDatasourceOVF(CiTestCase):
         """
         paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(
-            sys_cfg={'disable_vmware_customization': False}, distro={},
+            sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
         # Prepare the conf file
         conf_file = self.tmp_path('cust.cfg', self.tdir)
@@ -413,7 +426,7 @@ class TestDatasourceOVF(CiTestCase):
         """
         paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(
-            sys_cfg={'disable_vmware_customization': False}, distro={},
+            sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
         # Prepare the conf file
         conf_file = self.tmp_path('cust.cfg', self.tdir)
@@ -467,7 +480,7 @@ class TestDatasourceOVF(CiTestCase):
         """
         paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(
-            sys_cfg={'disable_vmware_customization': False}, distro={},
+            sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
 
         # Prepare the conf file
@@ -511,7 +524,7 @@ class TestDatasourceOVF(CiTestCase):
         """
         paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(
-            sys_cfg={'disable_vmware_customization': False}, distro={},
+            sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
         # Prepare the conf file
         conf_file = self.tmp_path('cust.cfg', self.tdir)
@@ -615,7 +628,7 @@ class TestDatasourceOVF(CiTestCase):
         """
         paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(
-            sys_cfg={'disable_vmware_customization': False}, distro={},
+            sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
 
         # Prepare the conf file
