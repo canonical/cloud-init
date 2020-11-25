@@ -5,6 +5,7 @@
 import json
 import random
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import url_helper
@@ -195,11 +196,11 @@ def read_sysinfo():
     # SMBIOS information
 
     # Detect if we are on DigitalOcean and return the Droplet's ID
-    vendor_name = util.read_dmi_data("system-manufacturer")
+    vendor_name = dmi.read_dmi_data("system-manufacturer")
     if vendor_name != "DigitalOcean":
         return (False, None)
 
-    droplet_id = util.read_dmi_data("system-serial-number")
+    droplet_id = dmi.read_dmi_data("system-serial-number")
     if droplet_id:
         LOG.debug("system identified via SMBIOS as DigitalOcean Droplet: %s",
                   droplet_id)

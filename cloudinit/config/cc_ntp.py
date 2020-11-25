@@ -80,6 +80,14 @@ DISTRO_CLIENT_CONFIG = {
             'confpath': '/etc/chrony/chrony.conf',
         },
     },
+    'rhel': {
+        'ntp': {
+            'service_name': 'ntpd',
+        },
+        'chrony': {
+            'service_name': 'chronyd',
+        },
+    },
     'opensuse': {
         'chrony': {
             'service_name': 'chronyd',

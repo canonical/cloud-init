@@ -459,7 +459,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(), 'Expected detect_openstack == True')
 
     @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_not_detect_openstack_intel_x86_ec2(self, m_dmi, m_proc_env,
                                                 m_is_x86):
         """Return False on EC2 platforms."""
@@ -479,7 +479,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(), 'Expected detect_openstack == False on EC2')
         m_proc_env.assert_called_with(1)
 
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_intel_product_name_compute(self, m_dmi,
                                                          m_is_x86):
         """Return True on OpenStack compute and nova instances."""
@@ -491,7 +491,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             self.assertTrue(
                 ds.detect_openstack(), 'Failed to detect_openstack')
 
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_opentelekomcloud_chassis_asset_tag(self, m_dmi,
                                                                  m_is_x86):
         """Return True on OpenStack reporting OpenTelekomCloud asset-tag."""
@@ -509,7 +509,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(),
             'Expected detect_openstack == True on OpenTelekomCloud')
 
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_sapccloud_chassis_asset_tag(self, m_dmi,
                                                           m_is_x86):
         """Return True on OpenStack reporting SAP CCloud VM asset-tag."""
@@ -527,7 +527,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(),
             'Expected detect_openstack == True on SAP CCloud VM')
 
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_oraclecloud_chassis_asset_tag(self, m_dmi,
                                                             m_is_x86):
         """Return True on OpenStack reporting Oracle cloud asset-tag."""
@@ -548,8 +548,38 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(accept_oracle=False),
             'Expected detect_openstack == False.')
 
+    def _test_detect_openstack_nova_compute_chassis_asset_tag(self, m_dmi,
+                                                              m_is_x86,
+                                                              chassis_tag):
+        """Return True on OpenStack reporting generic asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_dmi_read(dmi_key):
+            if dmi_key == 'system-product-name':
+                return 'Generic OpenStack Platform'
+            if dmi_key == 'chassis-asset-tag':
+                return chassis_tag
+            assert False, 'Unexpected dmi read of %s' % dmi_key
+
+        m_dmi.side_effect = fake_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            'Expected detect_openstack == True on Generic OpenStack Platform')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
+    def test_detect_openstack_nova_chassis_asset_tag(self, m_dmi,
+                                                     m_is_x86):
+        self._test_detect_openstack_nova_compute_chassis_asset_tag(
+            m_dmi, m_is_x86, 'OpenStack Nova')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
+    def test_detect_openstack_compute_chassis_asset_tag(self, m_dmi,
+                                                        m_is_x86):
+        self._test_detect_openstack_nova_compute_chassis_asset_tag(
+            m_dmi, m_is_x86, 'OpenStack Compute')
+
     @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_by_proc_1_environ(self, m_dmi, m_proc_env,
                                                 m_is_x86):
         """Return True when nova product_name specified in /proc/1/environ."""

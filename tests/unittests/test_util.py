@@ -492,129 +492,6 @@ class TestIsX86(helpers.CiTestCase):
         self.assertTrue(util.is_x86())
 
 
-class TestReadDMIData(helpers.FilesystemMockingTestCase):
-
-    def setUp(self):
-        super(TestReadDMIData, self).setUp()
-        self.new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.new_root)
-        self.patchOS(self.new_root)
-        self.patchUtils(self.new_root)
-        p = mock.patch("cloudinit.util.is_container", return_value=False)
-        self.addCleanup(p.stop)
-        self._m_is_container = p.start()
-
-    def _create_sysfs_parent_directory(self):
-        util.ensure_dir(os.path.join('sys', 'class', 'dmi', 'id'))
-
-    def _create_sysfs_file(self, key, content):
-        """Mocks the sys path found on Linux systems."""
-        self._create_sysfs_parent_directory()
-        dmi_key = "/sys/class/dmi/id/{0}".format(key)
-        util.write_file(dmi_key, content)
-
-    def _configure_dmidecode_return(self, key, content, error=None):
-        """
-        In order to test a missing sys path and call outs to dmidecode, this
-        function fakes the results of dmidecode to test the results.
-        """
-        def _dmidecode_subp(cmd):
-            if cmd[-1] != key:
-                raise subp.ProcessExecutionError()
-            return (content, error)
-
-        self.patched_funcs.enter_context(
-            mock.patch("cloudinit.subp.which", side_effect=lambda _: True))
-        self.patched_funcs.enter_context(
-            mock.patch("cloudinit.subp.subp", side_effect=_dmidecode_subp))
-
-    def patch_mapping(self, new_mapping):
-        self.patched_funcs.enter_context(
-            mock.patch('cloudinit.util.DMIDECODE_TO_DMI_SYS_MAPPING',
-                       new_mapping))
-
-    def test_sysfs_used_with_key_in_mapping_and_file_on_disk(self):
-        self.patch_mapping({'mapped-key': 'mapped-value'})
-        expected_dmi_value = 'sys-used-correctly'
-        self._create_sysfs_file('mapped-value', expected_dmi_value)
-        self._configure_dmidecode_return('mapped-key', 'wrong-wrong-wrong')
-        self.assertEqual(expected_dmi_value, util.read_dmi_data('mapped-key'))
-
-    def test_dmidecode_used_if_no_sysfs_file_on_disk(self):
-        self.patch_mapping({})
-        self._create_sysfs_parent_directory()
-        expected_dmi_value = 'dmidecode-used'
-        self._configure_dmidecode_return('use-dmidecode', expected_dmi_value)
-        with mock.patch("cloudinit.util.os.uname") as m_uname:
-            m_uname.return_value = ('x-sysname', 'x-nodename',
-                                    'x-release', 'x-version', 'x86_64')
-            self.assertEqual(expected_dmi_value,
-                             util.read_dmi_data('use-dmidecode'))
-
-    def test_dmidecode_not_used_on_arm(self):
-        self.patch_mapping({})
-        print("current =%s", subp)
-        self._create_sysfs_parent_directory()
-        dmi_val = 'from-dmidecode'
-        dmi_name = 'use-dmidecode'
-        self._configure_dmidecode_return(dmi_name, dmi_val)
-        print("now =%s", subp)
-
-        expected = {'armel': None, 'aarch64': dmi_val, 'x86_64': dmi_val}
-        found = {}
-        # we do not run the 'dmi-decode' binary on some arches
-        # verify that anything requested that is not in the sysfs dir
-        # will return None on those arches.
-        with mock.patch("cloudinit.util.os.uname") as m_uname:
-            for arch in expected:
-                m_uname.return_value = ('x-sysname', 'x-nodename',
-                                        'x-release', 'x-version', arch)
-                print("now2 =%s", subp)
-                found[arch] = util.read_dmi_data(dmi_name)
-        self.assertEqual(expected, found)
-
-    def test_none_returned_if_neither_source_has_data(self):
-        self.patch_mapping({})
-        self._configure_dmidecode_return('key', 'value')
-        self.assertIsNone(util.read_dmi_data('expect-fail'))
-
-    def test_none_returned_if_dmidecode_not_in_path(self):
-        self.patched_funcs.enter_context(
-            mock.patch.object(subp, 'which', lambda _: False))
-        self.patch_mapping({})
-        self.assertIsNone(util.read_dmi_data('expect-fail'))
-
-    def test_dots_returned_instead_of_foxfox(self):
-        # uninitialized dmi values show as \xff, return those as .
-        my_len = 32
-        dmi_value = b'\xff' * my_len + b'\n'
-        expected = ""
-        dmi_key = 'system-product-name'
-        sysfs_key = 'product_name'
-        self._create_sysfs_file(sysfs_key, dmi_value)
-        self.assertEqual(expected, util.read_dmi_data(dmi_key))
-
-    def test_container_returns_none(self):
-        """In a container read_dmi_data should always return None."""
-
-        # first verify we get the value if not in container
-        self._m_is_container.return_value = False
-        key, val = ("system-product-name", "my_product")
-        self._create_sysfs_file('product_name', val)
-        self.assertEqual(val, util.read_dmi_data(key))
-
-        # then verify in container returns None
-        self._m_is_container.return_value = True
-        self.assertIsNone(util.read_dmi_data(key))
-
-    def test_container_returns_none_on_unknown(self):
-        """In a container even bogus keys return None."""
-        self._m_is_container.return_value = True
-        self._create_sysfs_file('product_name', "should-be-ignored")
-        self.assertIsNone(util.read_dmi_data("bogus"))
-        self.assertIsNone(util.read_dmi_data("system-product-name"))
-
-
 class TestGetConfigLogfiles(helpers.CiTestCase):
 
     def test_empty_cfg_returns_empty_list(self):
@@ -735,13 +612,35 @@ class TestReadSeeded(helpers.TestCase):
 
     def test_unicode_not_messed_up(self):
         ud = b"userdatablob"
+        vd = b"vendordatablob"
         helpers.populate_dir(
-            self.tmp, {'meta-data': "key1: val1", 'user-data': ud})
+            self.tmp, {'meta-data': "key1: val1", 'user-data': ud,
+                       'vendor-data': vd})
         sdir = self.tmp + os.path.sep
-        (found_md, found_ud) = util.read_seeded(sdir)
+        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
 
         self.assertEqual(found_md, {'key1': 'val1'})
         self.assertEqual(found_ud, ud)
+        self.assertEqual(found_vd, vd)
+
+
+class TestReadSeededWithoutVendorData(helpers.TestCase):
+    def setUp(self):
+        super(TestReadSeededWithoutVendorData, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def test_unicode_not_messed_up(self):
+        ud = b"userdatablob"
+        vd = None
+        helpers.populate_dir(
+            self.tmp, {'meta-data': "key1: val1", 'user-data': ud})
+        sdir = self.tmp + os.path.sep
+        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
+
+        self.assertEqual(found_md, {'key1': 'val1'})
+        self.assertEqual(found_ud, ud)
+        self.assertEqual(found_vd, vd)
 
 
 class TestEncode(helpers.TestCase):
