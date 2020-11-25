@@ -133,6 +133,22 @@ features:
 
 releases:
     # UBUNTU =================================================================
+    hirsute:
+        # EOL: Jan 2022
+        default:
+            enabled: true
+            release: hirsute
+            version: "21.04"
+            os: ubuntu
+            feature_groups:
+                - base
+                - debian_base
+                - ubuntu_specific
+        lxd:
+            sstreams_server: https://cloud-images.ubuntu.com/daily
+            alias: hirsute
+            setup_overrides: null
+            override_templates: false
     groovy:
         # EOL: Jul 2021
         default:

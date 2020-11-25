@@ -27,3 +27,6 @@ cloud-init_*.dsc
 cloud-init_*.orig.tar.gz
 cloud-init_*.tar.xz
 cloud-init_*.upload
+
+# user test settings
+tests/integration_tests/user_settings.py

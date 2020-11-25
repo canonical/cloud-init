@@ -68,6 +68,12 @@ configuration information to the instance. Cloud-init uses the IMDS for:
 - network configuration for the instance which is applied per boot
 - a preprovisioing gate which blocks instance configuration until Azure fabric
   is ready to provision
+- retrieving SSH public keys. Cloud-init will first try to utilize SSH keys
+  returned from IMDS, and if they are not provided from IMDS then it will
+  fallback to using the OVF file provided from the CD-ROM. There is a large
+  performance benefit to using IMDS for SSH key retrieval, but in order to
+  support environments where IMDS is not available then we must continue to
+  all for keys from OVF
 
 
 Configuration

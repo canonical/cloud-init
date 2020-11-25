@@ -23,6 +23,7 @@ from cloudinit import net
 from cloudinit.net import eni
 from cloudinit.net import network_state
 from cloudinit.net import renderers
+from cloudinit import persistence
 from cloudinit import ssh_util
 from cloudinit import type_utils
 from cloudinit import subp
@@ -62,7 +63,7 @@ PREFERRED_NTP_CLIENTS = ['chrony', 'systemd-timesyncd', 'ntp', 'ntpdate']
 LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
 
-class Distro(metaclass=abc.ABCMeta):
+class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
@@ -73,12 +74,29 @@ class Distro(metaclass=abc.ABCMeta):
     renderer_configs = {}
     _preferred_ntp_clients = None
     networking_cls = LinuxNetworking
+    # This is used by self.shutdown_command(), and can be overridden in
+    # subclasses
+    shutdown_options_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
+
+    _ci_pkl_version = 1
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
         self.networking = self.networking_cls()
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        """Perform deserialization fixes for Distro."""
+        if "networking" not in self.__dict__ or not self.networking.__dict__:
+            # This is either a Distro pickle with no networking attribute OR
+            # this is a Distro pickle with a networking attribute but from
+            # before ``Networking`` had any state (meaning that
+            # Networking.__setstate__ will not be called).  In either case, we
+            # want to ensure that `self.networking` is freshly-instantiated:
+            # either because it isn't present at all, or because it will be
+            # missing expected instance state otherwise.
+            self.networking = self.networking_cls()
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
@@ -250,8 +268,9 @@ class Distro(metaclass=abc.ABCMeta):
         distros = []
         for family in family_list:
             if family not in OSFAMILIES:
-                raise ValueError("No distibutions found for osfamily %s"
-                                 % (family))
+                raise ValueError(
+                    "No distributions found for osfamily {}".format(family)
+                )
             distros.extend(OSFAMILIES[family])
         return distros
 
@@ -748,6 +767,22 @@ class Distro(metaclass=abc.ABCMeta):
 
                 subp.subp(['usermod', '-a', '-G', name, member])
                 LOG.info("Added user '%s' to group '%s'", member, name)
+
+    def shutdown_command(self, *, mode, delay, message):
+        # called from cc_power_state_change.load_power_state
+        command = ["shutdown", self.shutdown_options_map[mode]]
+        try:
+            if delay != "now":
+                delay = "+%d" % int(delay)
+        except ValueError as e:
+            raise TypeError(
+                "power_state[delay] must be 'now' or '+m' (minutes)."
+                " found '%s'." % (delay,)
+            ) from e
+        args = command + [delay]
+        if message:
+            args.append(message)
+        return args
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):

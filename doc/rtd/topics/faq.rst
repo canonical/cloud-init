@@ -121,6 +121,12 @@ cloud-init:
   $ sudo cloud-init init --local
   $ sudo cloud-init init
 
+.. warning::
+
+    These commands will re-run cloud-init as if this were first boot of a
+    system: this will, at the very least, cycle SSH host keys and may do
+    substantially more.  Do not run these commands on production systems.
+
 How can I debug my user data?
 =============================
 
@@ -135,12 +141,12 @@ that can validate your user data offline.
 
 .. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/master/tools/validate-yaml.py
 
-Another option is to run the following on an instance when debugging:
+Another option is to run the following on an instance to debug userdata
+provided to the system:
 
 .. code-block:: shell-session
 
-    $ sudo cloud-init query userdata > user-data.yaml
-    $ cloud-init devel schema -c user-data.yaml --annotate
+    $ cloud-init devel schema --system --annotate
 
 As launching instances in the cloud can cost money and take a bit longer,
 sometimes it is easier to launch instances locally using Multipass or LXD:
@@ -226,12 +232,65 @@ custom network config.
 .. _Instance Configuration: https://linuxcontainers.org/lxd/docs/master/instances
 .. _Custom Network Configuration: https://linuxcontainers.org/lxd/docs/master/cloud-init
 
+cloud-localds
+-------------
+
+The `cloud-localds` command from the `cloud-utils`_ package generates a disk
+with user supplied data. The NoCloud datasouce allows users to provide their
+own user data, metadata, or network configuration directly to an instance
+without running a network service. This is helpful for launching local cloud
+images with QEMU for example.
+
+The following is an example of creating the local disk using the cloud-localds
+command:
+
+.. code-block:: shell-session
+
+    $ cat >user-data <<EOF
+    #cloud-config
+    password: password
+    chpasswd:
+      expire: False
+    ssh_pwauth: True
+    ssh_authorized_keys:
+      - ssh-rsa AAAA...UlIsqdaO+w==
+    EOF
+    $ cloud-localds seed.img user-data
+
+The resulting seed.img can then get passed along to a cloud image containing
+cloud-init. Below is an example of passing the seed.img with QEMU:
+
+.. code-block:: shell-session
+
+    $ qemu-system-x86_64 -m 1024 -net nic -net user \
+        -hda ubuntu-20.04-server-cloudimg-amd64.img \
+        -hdb seed.img
+
+The now booted image will allow for login using the password provided above.
+
+For additional configuration, users can provide much more detailed
+configuration, including network configuration and metadata:
+
+.. code-block:: shell-session
+
+    $ cloud-localds --network-config=network-config-v2.yaml \
+      seed.img userdata.yaml metadata.yaml
+
+See the :ref:`network_config_v2` page for details on the format and config of
+network configuration. To learn more about the possible values for metadata,
+check out the :ref:`nocloud` page.
+
+.. _cloud-utils: https://github.com/canonical/cloud-utils/
+
 Where can I learn more?
 ========================================
 
 Below are some videos, blog posts, and white papers about cloud-init from a
 variety of sources.
 
+- `cloud-init - The Good Parts`_
+- `cloud-init Summit 2019`_
+- `Utilising cloud-init on Microsoft Azure (Whitepaper)`_
 - `Cloud Instance Initialization with cloud-init (Whitepaper)`_
 - `cloud-init Summit 2018`_
 - `cloud-init - The cross-cloud Magic Sauce (PDF)`_
@@ -242,6 +301,9 @@ variety of sources.
 - `The beauty of cloud-init`_
 - `Introduction to cloud-init`_
 
+.. _cloud-init - The Good Parts: https://www.youtube.com/watch?v=2_m6EUo6VOI
+.. _cloud-init Summit 2019: https://powersj.io/post/cloud-init-summit19/
+.. _Utilising cloud-init on Microsoft Azure (Whitepaper): https://ubuntu.com/engage/azure-cloud-init-whitepaper
 .. _Cloud Instance Initialization with cloud-init (Whitepaper): https://ubuntu.com/blog/cloud-instance-initialisation-with-cloud-init
 .. _cloud-init Summit 2018: https://powersj.io/post/cloud-init-summit18/
 .. _cloud-init - The cross-cloud Magic Sauce (PDF): https://events.linuxfoundation.org/wp-content/uploads/2017/12/cloud-init-The-cross-cloud-Magic-Sauce-Scott-Moser-Chad-Smith-Canonical.pdf

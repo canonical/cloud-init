@@ -1,8 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from cloudinit import dmi
 from cloudinit import sources
 from cloudinit.sources import DataSourceEc2 as EC2
-from cloudinit import util
 
 ALIYUN_PRODUCT = "Alibaba Cloud ECS"
 
@@ -30,7 +30,7 @@ class DataSourceAliYun(EC2.DataSourceEc2):
 
 
 def _is_aliyun():
-    return util.read_dmi_data('system-product-name') == ALIYUN_PRODUCT
+    return dmi.read_dmi_data('system-product-name') == ALIYUN_PRODUCT
 
 
 def parse_public_keys(public_keys):
