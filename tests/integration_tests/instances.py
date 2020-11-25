@@ -2,6 +2,7 @@
 import logging
 import os
 import uuid
+from functools import partial
 from tempfile import NamedTemporaryFile
 
 from pycloudlib.instance import BaseInstance
@@ -83,48 +84,18 @@ class IntegrationInstance:
             os.unlink(tmp_file.name)
 
     def snapshot(self):
-        return self.cloud.snapshot(self.instance)
+        image_id = self.cloud.snapshot(self.instance)
+        log.info('Created new image: %s', image_id)
+        return image_id
 
-    def _install_new_cloud_init(self, remote_script):
-        self.execute(remote_script)
+    def install_new_cloud_init(self, install_method, take_snapshot=True):
+        install_method(self)
         version = self.execute('cloud-init -v').split()[-1]
         log.info('Installed cloud-init version: %s', version)
         self.instance.clean()
-        image_id = self.snapshot()
-        log.info('Created new image: %s', image_id)
-        self.cloud.image_id = image_id
-
-    def install_proposed_image(self):
-        log.info('Installing proposed image')
-        remote_script = (
-            '{sudo} echo deb "http://archive.ubuntu.com/ubuntu '
-            '$(lsb_release -sc)-proposed main" | '
-            '{sudo} tee /etc/apt/sources.list.d/proposed.list\n'
-            '{sudo} apt-get update -q\n'
-            '{sudo} apt-get install -qy cloud-init'
-        ).format(sudo='sudo' if self.use_sudo else '')
-        self._install_new_cloud_init(remote_script)
-
-    def install_ppa(self, repo):
-        log.info('Installing PPA')
-        remote_script = (
-            '{sudo} add-apt-repository {repo} -y && '
-            '{sudo} apt-get update -q && '
-            '{sudo} apt-get install -qy cloud-init'
-        ).format(sudo='sudo' if self.use_sudo else '', repo=repo)
-        self._install_new_cloud_init(remote_script)
-
-    def install_deb(self):
-        log.info('Installing deb package')
-        deb_path = integration_settings.CLOUD_INIT_SOURCE
-        deb_name = os.path.basename(deb_path)
-        remote_path = '/var/tmp/{}'.format(deb_name)
-        self.push_file(
-            local_path=integration_settings.CLOUD_INIT_SOURCE,
-            remote_path=remote_path)
-        remote_script = '{sudo} dpkg -i {path}'.format(
-            sudo='sudo' if self.use_sudo else '', path=remote_path)
-        self._install_new_cloud_init(remote_script)
+        if take_snapshot:
+            image_id = self.snapshot()
+            self.cloud.image_id = image_id
 
     def __enter__(self):
         return self
@@ -132,6 +103,51 @@ class IntegrationInstance:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.settings.KEEP_INSTANCE:
             self.destroy()
+
+
+def install_proposed_image(instance):
+    log.info('Installing proposed image')
+    remote_script = (
+        'echo deb "http://archive.ubuntu.com/ubuntu '
+        '$(lsb_release -sc)-proposed main" | '
+        'tee /etc/apt/sources.list.d/proposed.list\n'
+        'apt-get update -q\n'
+        'apt-get install -qy cloud-init'
+    )
+    instance.execute(remote_script)
+
+
+def install_ppa(instance, repo):
+    log.info('Installing PPA')
+    remote_script = (
+        'add-apt-repository {repo} -y && '
+        'apt-get update -q && '
+        'apt-get install -qy cloud-init'
+    ).format(repo=repo)
+    instance.execute(remote_script)
+
+
+def install_deb(instance):
+    log.info('Installing deb package')
+    deb_path = integration_settings.CLOUD_INIT_SOURCE
+    deb_name = os.path.basename(deb_path)
+    remote_path = '/var/tmp/{}'.format(deb_name)
+    instance.push_file(
+        local_path=integration_settings.CLOUD_INIT_SOURCE,
+        remote_path=remote_path)
+    remote_script = 'dpkg -i {path}'.format(path=remote_path)
+    instance.execute(remote_script)
+
+
+def get_install_method(source=integration_settings.CLOUD_INIT_SOURCE):
+    if source == 'PROPOSED':
+        return install_proposed_image
+    elif source.startswith('ppa:'):
+        return partial(install_ppa, repo=source)
+    elif os.path.isfile(str(source)):
+        return install_deb
+    raise ValueError(
+        'Invalid value for CLOUD_INIT_SOURCE setting: {}'.format(source))
 
 
 class IntegrationEc2Instance(IntegrationInstance):
