@@ -10,7 +10,7 @@ Forwarded: not-needed
 Last-Update: 2018-10-17
 --- a/cloudinit/sources/DataSourceAzure.py
 +++ b/cloudinit/sources/DataSourceAzure.py
-@@ -228,7 +228,7 @@ BUILTIN_DS_CONFIG = {
+@@ -266,7 +266,7 @@ BUILTIN_DS_CONFIG = {
      },
      'disk_aliases': {'ephemeral0': RESOURCE_DISK_PATH},
      'dhclient_lease_file': LEASE_FILE,

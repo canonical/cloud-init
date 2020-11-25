@@ -15,7 +15,7 @@ Author: Chad Smith <chad.smith@canonical.com>
 
 --- a/cloudinit/sources/DataSourceOpenStack.py
 +++ b/cloudinit/sources/DataSourceOpenStack.py
-@@ -101,10 +101,9 @@ class DataSourceOpenStack(openstack.Sour
+@@ -103,10 +103,9 @@ class DataSourceOpenStack(openstack.Sour
          if self._network_config != sources.UNSET:
              return self._network_config
  

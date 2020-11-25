@@ -7,10 +7,8 @@ Author: Chad Smith <chad.smith@canonical.com>
 Origin: backport
 Forwarded: not-needed
 Last-Update: 2020-06-01
-Index: cloud-init/cloudinit/sources/DataSourceEc2.py
-===================================================================
---- cloud-init.orig/cloudinit/sources/DataSourceEc2.py
-+++ cloud-init/cloudinit/sources/DataSourceEc2.py
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
 @@ -408,13 +408,13 @@ class DataSourceEc2(sources.DataSource):
          iface = self.fallback_interface
          net_md = self.metadata.get('network')
@@ -28,10 +26,8 @@ Index: cloud-init/cloudinit/sources/DataSourceEc2.py
          else:
              LOG.warning("Metadata 'network' key not valid: %s.", net_md)
          self._network_config = result
-Index: cloud-init/tests/unittests/test_datasource/test_ec2.py
-===================================================================
---- cloud-init.orig/tests/unittests/test_datasource/test_ec2.py
-+++ cloud-init/tests/unittests/test_datasource/test_ec2.py
+--- a/tests/unittests/test_datasource/test_ec2.py
++++ b/tests/unittests/test_datasource/test_ec2.py
 @@ -447,7 +447,14 @@ class TestEc2(test_helpers.HttprettyTest
          """
          ds = self._setup_ds(
