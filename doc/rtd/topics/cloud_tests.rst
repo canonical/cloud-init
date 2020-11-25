@@ -1,6 +1,9 @@
-*******************
-Integration Testing
-*******************
+************************
+Cloud tests (Deprecated)
+************************
+
+Cloud tests are longer be maintained. For writing integration
+tests, see the :ref:`integration_tests` page.
 
 Overview
 ========
@@ -148,17 +151,20 @@ cloud-init located in a different directory, use the option ``--cloud-init
 Bddeb
 -----
 
-The ``bddeb`` command can be used to generate a deb file. This is used by
-the tree_run and tree_collect commands to build a deb of the current
-working tree. It can also be used a user to generate a deb for use in other
-situations and avoid needing to have all the build and test dependencies
-installed locally.
+The ``bddeb`` command can be used to generate a deb file. This is used by the
+tree_run and tree_collect commands to build a deb of the current working tree
+using the packaging template contained in the ``packages/debian/`` directory.
+It can also be used to generate a deb for use in other situations and avoid
+needing to have all the build and test dependencies installed locally.
 
 * ``--bddeb-args``: arguments to pass through to bddeb
 * ``--build-os``: distribution to use as build system (default is xenial)
 * ``--build-platform``: platform to use for build system (default is lxd)
 * ``--cloud-init``: path to base of cloud-init tree (default is '.')
 * ``--deb``: path to write output deb to (default is '.')
+* ``--packaging-branch``: import the ``debian/`` packaging directory
+  from the specified branch (default: ``ubuntu/devel``) instead of using
+  the packaging template.
 
 Setup Image
 -----------

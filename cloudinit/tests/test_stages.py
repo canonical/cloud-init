@@ -3,6 +3,9 @@
 """Tests related to cloudinit.stages module."""
 
 import os
+import stat
+
+import pytest
 
 from cloudinit import stages
 from cloudinit import sources
@@ -340,5 +343,64 @@ class TestInit(CiTestCase):
         self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_called_with(
             net_cfg, bring_up=True)
+
+
+class TestInit_InitializeFilesystem:
+    """Tests for cloudinit.stages.Init._initialize_filesystem.
+
+    TODO: Expand these tests to cover all of _initialize_filesystem's behavior.
+    """
+
+    @pytest.yield_fixture
+    def init(self, paths):
+        """A fixture which yields a stages.Init instance with paths and cfg set
+
+        As it is replaced with a mock, consumers of this fixture can set
+        `init.cfg` if the default empty dict configuration is not appropriate.
+        """
+        with mock.patch(
+            "cloudinit.stages.Init.cfg", mock.PropertyMock(return_value={})
+        ):
+            with mock.patch("cloudinit.stages.util.ensure_dirs"):
+                init = stages.Init()
+                init._paths = paths
+                yield init
+
+    @mock.patch("cloudinit.stages.util.ensure_file")
+    def test_ensure_file_not_called_if_no_log_file_configured(
+        self, m_ensure_file, init
+    ):
+        """If no log file is configured, we should not ensure its existence."""
+        init.cfg = {}
+
+        init._initialize_filesystem()
+
+        assert 0 == m_ensure_file.call_count
+
+    def test_log_files_existence_is_ensured_if_configured(self, init, tmpdir):
+        """If a log file is configured, we should ensure its existence."""
+        log_file = tmpdir.join("cloud-init.log")
+        init.cfg = {"def_log_file": str(log_file)}
+
+        init._initialize_filesystem()
+
+        assert log_file.exists
+
+    def test_existing_file_permissions_are_not_modified(self, init, tmpdir):
+        """If the log file already exists, we should not modify its permissions
+
+        See https://bugs.launchpad.net/cloud-init/+bug/1900837.
+        """
+        # Use a mode that will never be made the default so this test will
+        # always be valid
+        mode = 0o606
+        log_file = tmpdir.join("cloud-init.log")
+        log_file.ensure()
+        log_file.chmod(mode)
+        init.cfg = {"def_log_file": str(log_file)}
+
+        init._initialize_filesystem()
+
+        assert mode == stat.S_IMODE(log_file.stat().mode)
 
 # vi: ts=4 expandtab

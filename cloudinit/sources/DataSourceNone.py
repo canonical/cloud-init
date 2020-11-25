@@ -4,10 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import log as logging
 from cloudinit import sources
-
-LOG = logging.getLogger(__name__)
 
 
 class DataSourceNone(sources.DataSource):
