@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import datetime
+import functools
 import logging
 import pytest
 import os
@@ -183,14 +184,13 @@ def _client(request, fixture_utils, session_cloud):
     Launch the dynamic IntegrationClient instance using any provided
     userdata, yield to the test, then cleanup
     """
-    user_data = fixture_utils.closest_marker_first_arg_or(
-        request, 'user_data', None)
-    name = fixture_utils.closest_marker_first_arg_or(
-        request, 'instance_name', None
+    getter = functools.partial(
+        fixture_utils.closest_marker_first_arg_or, request, default=None
     )
-    lxd_config_dict = fixture_utils.closest_marker_first_arg_or(
-        request, 'lxd_config_dict', None
-    )
+    user_data = getter('user_data')
+    name = getter('instance_name')
+    lxd_config_dict = getter('lxd_config_dict')
+
     launch_kwargs = {}
     if name is not None:
         launch_kwargs["name"] = name
@@ -198,6 +198,7 @@ def _client(request, fixture_utils, session_cloud):
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_config_dict requires LXD")
         launch_kwargs["config_dict"] = lxd_config_dict
+
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs
     ) as instance:
