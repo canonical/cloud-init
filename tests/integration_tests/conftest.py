@@ -18,6 +18,7 @@ from tests.integration_tests.clouds import (
     LxdContainerCloud,
     LxdVmCloud,
     OciCloud,
+    _LxdIntegrationCloud,
 )
 from tests.integration_tests.instances import (
     CloudInitSource,
@@ -187,9 +188,16 @@ def _client(request, fixture_utils, session_cloud):
     name = fixture_utils.closest_marker_first_arg_or(
         request, 'instance_name', None
     )
+    lxd_config_dict = fixture_utils.closest_marker_first_arg_or(
+        request, 'lxd_config_dict', None
+    )
     launch_kwargs = {}
     if name is not None:
-        launch_kwargs = {"name": name}
+        launch_kwargs["name"] = name
+    if lxd_config_dict is not None:
+        if not isinstance(session_cloud, _LxdIntegrationCloud):
+            pytest.skip("lxd_config_dict requires LXD")
+        launch_kwargs["config_dict"] = lxd_config_dict
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs
     ) as instance:
