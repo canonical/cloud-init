@@ -412,7 +412,7 @@ class TestDatasourceOVF(CiTestCase):
                      'util.del_dir': True,
                      'search_file': self.tdir,
                      'get_nics_to_enable': ''},
-                    ds.get_data)
+                    ds._get_data)
 
         self.assertTrue(result)
         self.assertEqual("cloud-vm", ds.metadata['instance-id'])
@@ -467,7 +467,7 @@ class TestDatasourceOVF(CiTestCase):
                      'util.del_dir': True,
                      'search_file': self.tdir,
                      'get_nics_to_enable': ''},
-                    ds.get_data)
+                    ds._get_data)
 
         self.assertTrue(result)
         self.assertEqual("cloud-vm", ds.metadata['instance-id'])
@@ -617,7 +617,7 @@ class TestDatasourceOVF(CiTestCase):
                      'util.del_dir': True,
                      'search_file': self.tdir,
                      'get_nics_to_enable': ''},
-                    ds.get_data)
+                    ds._get_data)
 
         self.assertTrue(result)
         self.assertEqual("cloud-vm", ds.metadata['instance-id'])
