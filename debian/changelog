@@ -17,7 +17,7 @@ cloud-init (20.4-0ubuntu1~16.04.1) xenial; urgency=medium
     - Ability to hot-attach NICs to preprovisioned VMs before reprovisioning
       (#613) [aswinrajamannar]
     - Support configuring SSH host certificates. (#660) [Jonathan Lung]
-    - add integration test for LP: #1900837 (#679)
+    - add integration test for #1900837 (#679)
     - cc_resizefs on FreeBSD: Fix _can_skip_ufs_resize (#655) [Mina Galić]
     - DataSourceAzure: push dmesg log to KVP (#670) [Anh Vo]
     - Make mount in place for tests work (#667) [James Falcon]
@@ -109,7 +109,7 @@ cloud-init (20.4-0ubuntu1~16.04.1) xenial; urgency=medium
     - conftest.py: remove top-level import of httpretty (#599)
     - tox.ini: add integration-tests testenv definition (#595)
     - PULL_REQUEST_TEMPLATE.md: empty checkboxes need a space (#597)
-    - add integration test for LP: #1886531 (#592)
+    - add integration test for #1886531 (#592)
     - Initial implementation of integration testing infrastructure (#581)
       [James Falcon]
     - Fix name of ntp and chrony service on CentOS and RHEL. (#589)
