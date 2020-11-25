@@ -35,6 +35,8 @@ script:
 
 matrix:
     fast_finish: true
+    allow_failures:
+      - name: "Integration Tests (WIP)"
     include:
         - python: 3.6
           env:
@@ -119,6 +121,94 @@ matrix:
             - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
             # Ubuntu LTS: Integration
             - sg lxd -c 'tox -e citest -- run --verbose --preserve-data --data-dir results --os-name xenial --test modules/apt_configure_sources_list.yaml --test modules/ntp_servers --test modules/set_password_list --test modules/user_groups --deb cloud-init_*_all.deb'
+        - name: "Integration Tests (WIP)"
+          if: NOT branch =~ /^ubuntu\//
+          cache:
+              - directories:
+                  - lxd_images
+                  - chroots
+          before_cache:
+              - |
+                  # Find the most recent image file
+                  latest_file="$(sudo ls -Art /var/snap/lxd/common/lxd/images/ | tail -n 1)"
+                  # This might be <hash>.rootfs or <hash>, normalise
+                  latest_file="$(basename $latest_file .rootfs)"
+                  # Find all files with that prefix and copy them to our cache dir
+                  sudo find /var/snap/lxd/common/lxd/images/ -name $latest_file* -print -exec cp {} "$TRAVIS_BUILD_DIR/lxd_images/" \;
+          install:
+            - git fetch --unshallow
+            - sudo apt-get install -y --install-recommends sbuild ubuntu-dev-tools fakeroot tox debhelper
+            - pip install .
+            - pip install tox
+            # bionic has lxd from deb installed, remove it first to ensure
+            # pylxd talks only to the lxd from snap
+            - sudo apt remove --purge lxd lxd-client
+            - sudo rm -Rf /var/lib/lxd
+            - sudo snap install lxd
+            - sudo lxd init --auto
+            - sudo mkdir --mode=1777 -p /var/snap/lxd/common/consoles
+            # Move any cached lxd images into lxd's image dir
+            - sudo find "$TRAVIS_BUILD_DIR/lxd_images/" -type f -print -exec mv {} /var/snap/lxd/common/lxd/images/ \;
+            - sudo usermod -a -G lxd $USER
+            - sudo sbuild-adduser $USER
+            - cp /usr/share/doc/sbuild/examples/example.sbuildrc /home/$USER/.sbuildrc
+          script:
+            # Ubuntu LTS: Build
+            - ./packages/bddeb -S -d --release xenial
+            - |
+                needs_caching=false
+                if [ -e "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" ]; then
+                    # If we have a cached chroot, move it into place
+                    sudo mkdir -p /var/lib/schroot/chroots/xenial-amd64
+                    sudo tar --sparse --xattrs --preserve-permissions --numeric-owner -xf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64
+                    # Write its configuration
+                    cat > sbuild-xenial-amd64 << EOM
+                [xenial-amd64]
+                description=xenial-amd64
+                groups=sbuild,root,admin
+                root-groups=sbuild,root,admin
+                # Uncomment these lines to allow members of these groups to access
+                # the -source chroots directly (useful for automated updates, etc).
+                #source-root-users=sbuild,root,admin
+                #source-root-groups=sbuild,root,admin
+                type=directory
+                profile=sbuild
+                union-type=overlay
+                directory=/var/lib/schroot/chroots/xenial-amd64
+                EOM
+                    sudo mv sbuild-xenial-amd64 /etc/schroot/chroot.d/
+                    sudo chown root /etc/schroot/chroot.d/sbuild-xenial-amd64
+                    # And ensure it's up-to-date.
+                    before_pkgs="$(sudo schroot -c source:xenial-amd64 -d / dpkg -l | sha256sum)"
+                    sudo schroot -c source:xenial-amd64 -d / -- sh -c "apt-get update && apt-get -qqy upgrade"
+                    after_pkgs=$(sudo schroot -c source:xenial-amd64 -d / dpkg -l | sha256sum)
+                    if [ "$before_pkgs" != "$after_pkgs" ]; then
+                        needs_caching=true
+                    fi
+                else
+                    # Otherwise, create the chroot
+                    sudo -E su $USER -c 'mk-sbuild xenial'
+                    needs_caching=true
+                fi
+                # If there are changes to the schroot (or it's entirely new),
+                # tar up the schroot (to preserve ownership/permissions) and
+                # move it into the cached dir; no need to compress it because
+                # Travis will do that anyway
+                if [ "$needs_caching" = "true" ]; then
+                    sudo tar --sparse --xattrs --xattrs-include=* -cf "$TRAVIS_BUILD_DIR/chroots/xenial-amd64.tar" -C /var/lib/schroot/chroots/xenial-amd64 .
+                fi
+            # Use sudo to get a new shell where we're in the sbuild group
+            - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
+            - sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls *.deb)" tox -e integration-tests-ci' &
+            - |
+              SECONDS=0
+              while [ -e /proc/$! ]; do
+                if [ "$SECONDS" -gt "570" ]; then
+                  echo -n '.'
+                  SECONDS=0
+                fi
+                sleep 10
+              done
         - python: 3.5
           env:
               TOXENV=xenial

@@ -1,8 +1,16 @@
+"""Global conftest.py
+
+This conftest is used for unit tests in ``cloudinit/`` and ``tests/unittests/``
+as well as the integration tests in ``tests/integration_tests/``.
+
+Any imports that are performed at the top-level here must be installed wherever
+any of these tests run: that is to say, they must be listed in
+``integration-requirements.txt`` and in ``test-requirements.txt``.
+"""
 import os
 from unittest import mock
 
 import pytest
-import httpretty as _httpretty
 
 from cloudinit import helpers, subp
 
@@ -62,20 +70,30 @@ def disable_subp_usage(request, fixture_utils):
     """
     Across all (pytest) tests, ensure that subp.subp is not invoked.
 
-    Note that this can only catch invocations where the util module is imported
-    and ``subp.subp(...)`` is called.  ``from cloudinit.subp mport subp``
-    imports happen before the patching here (or the CiTestCase monkey-patching)
-    happens, so are left untouched.
+    Note that this can only catch invocations where the ``subp`` module is
+    imported and ``subp.subp(...)`` is called.  ``from cloudinit.subp import
+    subp`` imports happen before the patching here (or the CiTestCase
+    monkey-patching) happens, so are left untouched.
 
-    To allow a particular test method or class to use subp.subp you can mark it
-    as such::
+    While ``disable_subp_usage`` unconditionally patches
+    ``cloudinit.subp.subp``, any test-local patching will override this
+    patching (i.e. the mock created for that patch call will replace the mock
+    created by ``disable_subp_usage``), allowing tests to be written normally.
+    One important exception: if ``autospec=True`` is passed to such an
+    overriding patch call it will fail: autospeccing introspects the object
+    being patched and as ``subp.subp`` will always be a mock when that
+    autospeccing happens, the introspection fails.  (The specific error is:
+    ``TypeError: name must be a str, not a MagicMock``.)
+
+    To allow a particular test method or class to use ``subp.subp`` you can
+    mark it as such::
 
         @pytest.mark.allow_all_subp
         def test_whoami(self):
             subp.subp(["whoami"])
 
-    To instead allow subp.subp usage for a specific command, you can use the
-    ``allow_subp_for`` mark::
+    To instead allow ``subp.subp`` usage for a specific command, you can use
+    the ``allow_subp_for`` mark::
 
         @pytest.mark.allow_subp_for("bash")
         def test_bash(self):
@@ -89,9 +107,9 @@ def disable_subp_usage(request, fixture_utils):
             subp.subp(["whoami"])
 
     This fixture (roughly) mirrors the functionality of
-    CiTestCase.allowed_subp.  N.B. While autouse fixtures do affect non-pytest
-    tests, CiTestCase's allowed_subp does take precedence (and we have
-    TestDisableSubpUsageInTestSubclass to confirm that).
+    ``CiTestCase.allowed_subp``.  N.B. While autouse fixtures do affect
+    non-pytest tests, CiTestCase's ``allowed_subp`` does take precedence (and
+    we have ``TestDisableSubpUsageInTestSubclass`` to confirm that).
     """
     allow_subp_for = fixture_utils.closest_marker_args_or(
         request, "allow_subp_for", None
@@ -156,6 +174,8 @@ def httpretty():
     unset http_proxy in os.environ if present (to work around
     https://github.com/gabrielfalcao/HTTPretty/issues/122).
     """
+    import httpretty as _httpretty
+
     restore_proxy = os.environ.pop("http_proxy", None)
     _httpretty.HTTPretty.allow_net_connect = False
     _httpretty.reset()

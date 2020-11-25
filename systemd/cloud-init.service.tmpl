@@ -25,9 +25,11 @@ Before=sshd-keygen.service
 Before=sshd.service
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 Before=sysinit.target
+Before=shutdown.target
 Conflicts=shutdown.target
 {% endif %}
 {% if variant in ["suse"] %}
+Before=shutdown.target
 Conflicts=shutdown.target
 {% endif %}
 Before=systemd-user-sessions.service

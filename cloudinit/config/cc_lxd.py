@@ -283,14 +283,18 @@ def maybe_cleanup_default(net_name, did_init, create, attach,
     fail_assume_enoent = "failed. Assuming it did not exist."
     succeeded = "succeeded."
     if create:
-        msg = "Deletion of lxd network '%s' %s"
+        msg = "Detach of lxd network '%s' from profile '%s' %s"
         try:
-            _lxc(["network", "delete", net_name])
-            LOG.debug(msg, net_name, succeeded)
+            _lxc(["network", "detach-profile", net_name, profile])
+            LOG.debug(msg, net_name, profile, succeeded)
         except subp.ProcessExecutionError as e:
             if e.exit_code != 1:
                 raise e
-            LOG.debug(msg, net_name, fail_assume_enoent)
+            LOG.debug(msg, net_name, profile, fail_assume_enoent)
+        else:
+            msg = "Deletion of lxd network '%s' %s"
+            _lxc(["network", "delete", net_name])
+            LOG.debug(msg, net_name, succeeded)
 
     if attach:
         msg = "Removal of device '%s' from profile '%s' %s"

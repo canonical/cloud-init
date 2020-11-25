@@ -1,10 +1,12 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import os
 import re
 import unittest
 from textwrap import dedent
 from xml.etree import ElementTree
+from xml.sax.saxutils import escape, unescape
 
 from cloudinit.sources.helpers import azure as azure_helper
 from cloudinit.tests.helpers import CiTestCase, ExitStack, mock, populate_dir
@@ -69,6 +71,15 @@ HEALTH_REPORT_XML_TEMPLATE = '''\
   </Container>
 </Health>
 '''
+
+HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE = dedent('''\
+    <Details>
+      <SubStatus>{health_substatus}</SubStatus>
+      <Description>{health_description}</Description>
+    </Details>
+    ''')
+
+HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 
 
 class SentinelException(Exception):
@@ -281,29 +292,25 @@ class TestAzureEndpointHttpClient(CiTestCase):
         super(TestAzureEndpointHttpClient, self).setUp()
         patches = ExitStack()
         self.addCleanup(patches.close)
-
-        self.readurl = patches.enter_context(
-            mock.patch.object(azure_helper.url_helper, 'readurl'))
-        patches.enter_context(
-            mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
+        self.m_http_with_retries = patches.enter_context(
+            mock.patch.object(azure_helper, 'http_with_retries'))
 
     def test_non_secure_get(self):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         url = 'MyTestUrl'
         response = client.get(url, secure=False)
-        self.assertEqual(1, self.readurl.call_count)
-        self.assertEqual(self.readurl.return_value, response)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
+        self.assertEqual(self.m_http_with_retries.return_value, response)
         self.assertEqual(
-            mock.call(url, headers=self.regular_headers,
-                      timeout=5, retries=10, sec_between=5),
-            self.readurl.call_args)
+            mock.call(url, headers=self.regular_headers),
+            self.m_http_with_retries.call_args)
 
     def test_non_secure_get_raises_exception(self):
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.readurl.side_effect = SentinelException
         url = 'MyTestUrl'
-        with self.assertRaises(SentinelException):
-            client.get(url, secure=False)
+        self.m_http_with_retries.side_effect = SentinelException
+        self.assertRaises(SentinelException, client.get, url, secure=False)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
 
     def test_secure_get(self):
         url = 'MyTestUrl'
@@ -315,39 +322,37 @@ class TestAzureEndpointHttpClient(CiTestCase):
         })
         client = azure_helper.AzureEndpointHttpClient(m_certificate)
         response = client.get(url, secure=True)
-        self.assertEqual(1, self.readurl.call_count)
-        self.assertEqual(self.readurl.return_value, response)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
+        self.assertEqual(self.m_http_with_retries.return_value, response)
         self.assertEqual(
-            mock.call(url, headers=expected_headers,
-                      timeout=5, retries=10, sec_between=5),
-            self.readurl.call_args)
+            mock.call(url, headers=expected_headers),
+            self.m_http_with_retries.call_args)
 
     def test_secure_get_raises_exception(self):
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.readurl.side_effect = SentinelException
-        with self.assertRaises(SentinelException):
-            client.get(url, secure=True)
+        self.m_http_with_retries.side_effect = SentinelException
+        self.assertRaises(SentinelException, client.get, url, secure=True)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
 
     def test_post(self):
         m_data = mock.MagicMock()
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
         response = client.post(url, data=m_data)
-        self.assertEqual(1, self.readurl.call_count)
-        self.assertEqual(self.readurl.return_value, response)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
+        self.assertEqual(self.m_http_with_retries.return_value, response)
         self.assertEqual(
-            mock.call(url, data=m_data, headers=self.regular_headers,
-                      timeout=5, retries=10, sec_between=5),
-            self.readurl.call_args)
+            mock.call(url, data=m_data, headers=self.regular_headers),
+            self.m_http_with_retries.call_args)
 
     def test_post_raises_exception(self):
         m_data = mock.MagicMock()
         url = 'MyTestUrl'
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.readurl.side_effect = SentinelException
-        with self.assertRaises(SentinelException):
-            client.post(url, data=m_data)
+        self.m_http_with_retries.side_effect = SentinelException
+        self.assertRaises(SentinelException, client.post, url, data=m_data)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
 
     def test_post_with_extra_headers(self):
         url = 'MyTestUrl'
@@ -356,21 +361,179 @@ class TestAzureEndpointHttpClient(CiTestCase):
         client.post(url, extra_headers=extra_headers)
         expected_headers = self.regular_headers.copy()
         expected_headers.update(extra_headers)
-        self.assertEqual(1, self.readurl.call_count)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
         self.assertEqual(
-            mock.call(mock.ANY, data=mock.ANY, headers=expected_headers,
-                      timeout=5, retries=10, sec_between=5),
-            self.readurl.call_args)
+            mock.call(url, data=mock.ANY, headers=expected_headers),
+            self.m_http_with_retries.call_args)
 
     def test_post_with_sleep_with_extra_headers_raises_exception(self):
         m_data = mock.MagicMock()
         url = 'MyTestUrl'
         extra_headers = {'test': 'header'}
         client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
-        self.readurl.side_effect = SentinelException
-        with self.assertRaises(SentinelException):
-            client.post(
-                url, data=m_data, extra_headers=extra_headers)
+        self.m_http_with_retries.side_effect = SentinelException
+        self.assertRaises(
+            SentinelException, client.post,
+            url, data=m_data, extra_headers=extra_headers)
+        self.assertEqual(1, self.m_http_with_retries.call_count)
+
+
+class TestAzureHelperHttpWithRetries(CiTestCase):
+
+    with_logs = True
+
+    max_readurl_attempts = 240
+    default_readurl_timeout = 5
+    periodic_logging_attempts = 12
+
+    def setUp(self):
+        super(TestAzureHelperHttpWithRetries, self).setUp()
+        patches = ExitStack()
+        self.addCleanup(patches.close)
+
+        self.m_readurl = patches.enter_context(
+            mock.patch.object(
+                azure_helper.url_helper, 'readurl', mock.MagicMock()))
+        patches.enter_context(
+            mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
+
+    def test_http_with_retries(self):
+        self.m_readurl.return_value = 'TestResp'
+        self.assertEqual(
+            azure_helper.http_with_retries('testurl'),
+            self.m_readurl.return_value)
+        self.assertEqual(self.m_readurl.call_count, 1)
+
+    def test_http_with_retries_propagates_readurl_exc_and_logs_exc(
+            self):
+        self.m_readurl.side_effect = SentinelException
+
+        self.assertRaises(
+            SentinelException, azure_helper.http_with_retries, 'testurl')
+        self.assertEqual(self.m_readurl.call_count, self.max_readurl_attempts)
+
+        self.assertIsNotNone(
+            re.search(
+                r'Failed HTTP request with Azure endpoint \S* during '
+                r'attempt \d+ with exception: \S*',
+                self.logs.getvalue()))
+        self.assertIsNone(
+            re.search(
+                r'Successful HTTP request with Azure endpoint \S* after '
+                r'\d+ attempts',
+                self.logs.getvalue()))
+
+    def test_http_with_retries_delayed_success_due_to_temporary_readurl_exc(
+            self):
+        self.m_readurl.side_effect = \
+            [SentinelException] * self.periodic_logging_attempts + \
+            ['TestResp']
+        self.m_readurl.return_value = 'TestResp'
+
+        response = azure_helper.http_with_retries('testurl')
+        self.assertEqual(
+            response,
+            self.m_readurl.return_value)
+        self.assertEqual(
+            self.m_readurl.call_count,
+            self.periodic_logging_attempts + 1)
+
+    def test_http_with_retries_long_delay_logs_periodic_failure_msg(self):
+        self.m_readurl.side_effect = \
+            [SentinelException] * self.periodic_logging_attempts + \
+            ['TestResp']
+        self.m_readurl.return_value = 'TestResp'
+
+        azure_helper.http_with_retries('testurl')
+
+        self.assertEqual(
+            self.m_readurl.call_count,
+            self.periodic_logging_attempts + 1)
+        self.assertIsNotNone(
+            re.search(
+                r'Failed HTTP request with Azure endpoint \S* during '
+                r'attempt \d+ with exception: \S*',
+                self.logs.getvalue()))
+        self.assertIsNotNone(
+            re.search(
+                r'Successful HTTP request with Azure endpoint \S* after '
+                r'\d+ attempts',
+                self.logs.getvalue()))
+
+    def test_http_with_retries_short_delay_does_not_log_periodic_failure_msg(
+            self):
+        self.m_readurl.side_effect = \
+            [SentinelException] * \
+            (self.periodic_logging_attempts - 1) + \
+            ['TestResp']
+        self.m_readurl.return_value = 'TestResp'
+
+        azure_helper.http_with_retries('testurl')
+        self.assertEqual(
+            self.m_readurl.call_count,
+            self.periodic_logging_attempts)
+
+        self.assertIsNone(
+            re.search(
+                r'Failed HTTP request with Azure endpoint \S* during '
+                r'attempt \d+ with exception: \S*',
+                self.logs.getvalue()))
+        self.assertIsNotNone(
+            re.search(
+                r'Successful HTTP request with Azure endpoint \S* after '
+                r'\d+ attempts',
+                self.logs.getvalue()))
+
+    def test_http_with_retries_calls_url_helper_readurl_with_args_kwargs(self):
+        testurl = mock.MagicMock()
+        kwargs = {
+            'headers': mock.MagicMock(),
+            'data': mock.MagicMock(),
+            # timeout kwarg should not be modified or deleted if present
+            'timeout': mock.MagicMock()
+        }
+        azure_helper.http_with_retries(testurl, **kwargs)
+        self.m_readurl.assert_called_once_with(testurl, **kwargs)
+
+    def test_http_with_retries_adds_timeout_kwarg_if_not_present(self):
+        testurl = mock.MagicMock()
+        kwargs = {
+            'headers': mock.MagicMock(),
+            'data': mock.MagicMock()
+        }
+        expected_kwargs = copy.deepcopy(kwargs)
+        expected_kwargs['timeout'] = self.default_readurl_timeout
+
+        azure_helper.http_with_retries(testurl, **kwargs)
+        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
+
+    def test_http_with_retries_deletes_retries_kwargs_passed_in(
+            self):
+        """http_with_retries already implements retry logic,
+        so url_helper.readurl should not have retries.
+        http_with_retries should delete kwargs that
+        cause url_helper.readurl to retry.
+        """
+        testurl = mock.MagicMock()
+        kwargs = {
+            'headers': mock.MagicMock(),
+            'data': mock.MagicMock(),
+            'timeout': mock.MagicMock(),
+            'retries': mock.MagicMock(),
+            'infinite': mock.MagicMock()
+        }
+        expected_kwargs = copy.deepcopy(kwargs)
+        expected_kwargs.pop('retries', None)
+        expected_kwargs.pop('infinite', None)
+
+        azure_helper.http_with_retries(testurl, **kwargs)
+        self.m_readurl.assert_called_once_with(testurl, **expected_kwargs)
+        self.assertIn(
+            'retries kwarg passed in for communication with Azure endpoint.',
+            self.logs.getvalue())
+        self.assertIn(
+            'infinite kwarg passed in for communication with Azure endpoint.',
+            self.logs.getvalue())
 
 
 class TestOpenSSLManager(CiTestCase):
@@ -461,17 +624,24 @@ class TestOpenSSLManagerActions(CiTestCase):
 
 class TestGoalStateHealthReporter(CiTestCase):
 
+    maxDiff = None
+
     default_parameters = {
         'incarnation': 1634,
         'container_id': 'MyContainerId',
         'instance_id': 'MyInstanceId'
     }
 
-    test_endpoint = 'TestEndpoint'
-    test_url = 'http://{0}/machine?comp=health'.format(test_endpoint)
+    test_azure_endpoint = 'TestEndpoint'
+    test_health_report_url = 'http://{0}/machine?comp=health'.format(
+        test_azure_endpoint)
     test_default_headers = {'Content-Type': 'text/xml; charset=utf-8'}
 
     provisioning_success_status = 'Ready'
+    provisioning_not_ready_status = 'NotReady'
+    provisioning_failure_substatus = 'ProvisioningFailed'
+    provisioning_failure_err_description = (
+        'Test error message containing provisioning failure details')
 
     def setUp(self):
         super(TestGoalStateHealthReporter, self).setUp()
@@ -496,16 +666,39 @@ class TestGoalStateHealthReporter(CiTestCase):
         self.GoalState.return_value.incarnation = \
             self.default_parameters['incarnation']
 
+    def _text_from_xpath_in_xroot(self, xroot, xpath):
+        element = xroot.find(xpath)
+        if element is not None:
+            return element.text
+        return None
+
     def _get_formatted_health_report_xml_string(self, **kwargs):
         return HEALTH_REPORT_XML_TEMPLATE.format(**kwargs)
 
+    def _get_formatted_health_detail_subsection_xml_string(self, **kwargs):
+        return HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(**kwargs)
+
     def _get_report_ready_health_document(self):
         return self._get_formatted_health_report_xml_string(
-            incarnation=self.default_parameters['incarnation'],
-            container_id=self.default_parameters['container_id'],
-            instance_id=self.default_parameters['instance_id'],
-            health_status=self.provisioning_success_status,
+            incarnation=escape(str(self.default_parameters['incarnation'])),
+            container_id=escape(self.default_parameters['container_id']),
+            instance_id=escape(self.default_parameters['instance_id']),
+            health_status=escape(self.provisioning_success_status),
             health_detail_subsection='')
+
+    def _get_report_failure_health_document(self):
+        health_detail_subsection = \
+            self._get_formatted_health_detail_subsection_xml_string(
+                health_substatus=escape(self.provisioning_failure_substatus),
+                health_description=escape(
+                    self.provisioning_failure_err_description))
+
+        return self._get_formatted_health_report_xml_string(
+            incarnation=escape(str(self.default_parameters['incarnation'])),
+            container_id=escape(self.default_parameters['container_id']),
+            instance_id=escape(self.default_parameters['instance_id']),
+            health_status=escape(self.provisioning_not_ready_status),
+            health_detail_subsection=health_detail_subsection)
 
     def test_send_ready_signal_sends_post_request(self):
         with mock.patch.object(
@@ -514,55 +707,130 @@ class TestGoalStateHealthReporter(CiTestCase):
             client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
             reporter = azure_helper.GoalStateHealthReporter(
                 azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
-                client, self.test_endpoint)
+                client, self.test_azure_endpoint)
             reporter.send_ready_signal()
 
             self.assertEqual(1, self.post.call_count)
             self.assertEqual(
                 mock.call(
-                    self.test_url,
+                    self.test_health_report_url,
                     data=m_build_report.return_value,
                     extra_headers=self.test_default_headers),
                 self.post.call_args)
 
-    def test_build_report_for_health_document(self):
+    def test_send_failure_signal_sends_post_request(self):
+        with mock.patch.object(
+                azure_helper.GoalStateHealthReporter,
+                'build_report') as m_build_report:
+            client = azure_helper.AzureEndpointHttpClient(mock.MagicMock())
+            reporter = azure_helper.GoalStateHealthReporter(
+                azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+                client, self.test_azure_endpoint)
+            reporter.send_failure_signal(
+                description=self.provisioning_failure_err_description)
+
+            self.assertEqual(1, self.post.call_count)
+            self.assertEqual(
+                mock.call(
+                    self.test_health_report_url,
+                    data=m_build_report.return_value,
+                    extra_headers=self.test_default_headers),
+                self.post.call_args)
+
+    def test_build_report_for_ready_signal_health_document(self):
         health_document = self._get_report_ready_health_document()
         reporter = azure_helper.GoalStateHealthReporter(
             azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
             azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
-            self.test_endpoint)
+            self.test_azure_endpoint)
         generated_health_document = reporter.build_report(
             incarnation=self.default_parameters['incarnation'],
             container_id=self.default_parameters['container_id'],
             instance_id=self.default_parameters['instance_id'],
             status=self.provisioning_success_status)
+
         self.assertEqual(health_document, generated_health_document)
-        self.assertIn(
-            '<GoalStateIncarnation>{}</GoalStateIncarnation>'.format(
-                str(self.default_parameters['incarnation'])),
-            generated_health_document)
-        self.assertIn(
-            ''.join([
-                '<ContainerId>',
-                self.default_parameters['container_id'],
-                '</ContainerId>']),
-            generated_health_document)
-        self.assertIn(
-            ''.join([
-                '<InstanceId>',
-                self.default_parameters['instance_id'],
-                '</InstanceId>']),
-            generated_health_document)
-        self.assertIn(
-            ''.join([
-                '<State>',
-                self.provisioning_success_status,
-                '</State>']),
-            generated_health_document
+
+        generated_xroot = ElementTree.fromstring(generated_health_document)
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot, './GoalStateIncarnation'),
+            str(self.default_parameters['incarnation']))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot, './Container/ContainerId'),
+            str(self.default_parameters['container_id']))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/InstanceId'),
+            str(self.default_parameters['instance_id']))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/State'),
+            escape(self.provisioning_success_status))
+        self.assertIsNone(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details'))
+        self.assertIsNone(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details/SubStatus'))
+        self.assertIsNone(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details/Description')
         )
-        self.assertNotIn('<Details>', generated_health_document)
-        self.assertNotIn('<SubStatus>', generated_health_document)
-        self.assertNotIn('<Description>', generated_health_document)
+
+    def test_build_report_for_failure_signal_health_document(self):
+        health_document = self._get_report_failure_health_document()
+        reporter = azure_helper.GoalStateHealthReporter(
+            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+            azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+            self.test_azure_endpoint)
+        generated_health_document = reporter.build_report(
+            incarnation=self.default_parameters['incarnation'],
+            container_id=self.default_parameters['container_id'],
+            instance_id=self.default_parameters['instance_id'],
+            status=self.provisioning_not_ready_status,
+            substatus=self.provisioning_failure_substatus,
+            description=self.provisioning_failure_err_description)
+
+        self.assertEqual(health_document, generated_health_document)
+
+        generated_xroot = ElementTree.fromstring(generated_health_document)
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot, './GoalStateIncarnation'),
+            str(self.default_parameters['incarnation']))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot, './Container/ContainerId'),
+            self.default_parameters['container_id'])
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/InstanceId'),
+            self.default_parameters['instance_id'])
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/State'),
+            escape(self.provisioning_not_ready_status))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details/'
+                'SubStatus'),
+            escape(self.provisioning_failure_substatus))
+        self.assertEqual(
+            self._text_from_xpath_in_xroot(
+                generated_xroot,
+                './Container/RoleInstanceList/Role/Health/Details/'
+                'Description'),
+            escape(self.provisioning_failure_err_description))
 
     def test_send_ready_signal_calls_build_report(self):
         with mock.patch.object(
@@ -571,7 +839,7 @@ class TestGoalStateHealthReporter(CiTestCase):
             reporter = azure_helper.GoalStateHealthReporter(
                 azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
                 azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
-                self.test_endpoint)
+                self.test_azure_endpoint)
             reporter.send_ready_signal()
 
             self.assertEqual(1, m_build_report.call_count)
@@ -582,6 +850,131 @@ class TestGoalStateHealthReporter(CiTestCase):
                     instance_id=self.default_parameters['instance_id'],
                     status=self.provisioning_success_status),
                 m_build_report.call_args)
+
+    def test_send_failure_signal_calls_build_report(self):
+        with mock.patch.object(
+            azure_helper.GoalStateHealthReporter, 'build_report'
+        ) as m_build_report:
+            reporter = azure_helper.GoalStateHealthReporter(
+                azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+                azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+                self.test_azure_endpoint)
+            reporter.send_failure_signal(
+                description=self.provisioning_failure_err_description)
+
+            self.assertEqual(1, m_build_report.call_count)
+            self.assertEqual(
+                mock.call(
+                    incarnation=self.default_parameters['incarnation'],
+                    container_id=self.default_parameters['container_id'],
+                    instance_id=self.default_parameters['instance_id'],
+                    status=self.provisioning_not_ready_status,
+                    substatus=self.provisioning_failure_substatus,
+                    description=self.provisioning_failure_err_description),
+                m_build_report.call_args)
+
+    def test_build_report_escapes_chars(self):
+        incarnation = 'jd8\'9*&^<\'A><A[p&o+\"SD()*&&&LKAJSD23'
+        container_id = '&&<\"><><ds8\'9+7&d9a86!@($09asdl;<>'
+        instance_id = 'Opo>>>jas\'&d;[p&fp\"a<<!!@&&'
+        health_status = '&<897\"6&>&aa\'sd!@&!)((*<&>'
+        health_substatus = '&as\"d<<a&s>d<\'^@!5&6<7'
+        health_description = '&&&>!#$\"&&<as\'1!@$d&>><>&\"sd<67<]>>'
+
+        health_detail_subsection = \
+            self._get_formatted_health_detail_subsection_xml_string(
+                health_substatus=escape(health_substatus),
+                health_description=escape(health_description))
+        health_document = self._get_formatted_health_report_xml_string(
+            incarnation=escape(incarnation),
+            container_id=escape(container_id),
+            instance_id=escape(instance_id),
+            health_status=escape(health_status),
+            health_detail_subsection=health_detail_subsection)
+
+        reporter = azure_helper.GoalStateHealthReporter(
+            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+            azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+            self.test_azure_endpoint)
+        generated_health_document = reporter.build_report(
+            incarnation=incarnation,
+            container_id=container_id,
+            instance_id=instance_id,
+            status=health_status,
+            substatus=health_substatus,
+            description=health_description)
+
+        self.assertEqual(health_document, generated_health_document)
+
+    def test_build_report_conforms_to_length_limits(self):
+        reporter = azure_helper.GoalStateHealthReporter(
+            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+            azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+            self.test_azure_endpoint)
+        long_err_msg = 'a9&ea8>>>e as1< d\"q2*&(^%\'a=5<' * 100
+        generated_health_document = reporter.build_report(
+            incarnation=self.default_parameters['incarnation'],
+            container_id=self.default_parameters['container_id'],
+            instance_id=self.default_parameters['instance_id'],
+            status=self.provisioning_not_ready_status,
+            substatus=self.provisioning_failure_substatus,
+            description=long_err_msg)
+
+        generated_xroot = ElementTree.fromstring(generated_health_document)
+        generated_health_report_description = self._text_from_xpath_in_xroot(
+            generated_xroot,
+            './Container/RoleInstanceList/Role/Health/Details/Description')
+        self.assertEqual(
+            len(unescape(generated_health_report_description)),
+            HEALTH_REPORT_DESCRIPTION_TRIM_LEN)
+
+    def test_trim_description_then_escape_conforms_to_len_limits_worst_case(
+            self):
+        """When unescaped characters are XML-escaped, the length increases.
+        Char      Escape String
+        <         &lt;
+        >         &gt;
+        "         &quot;
+        '         &apos;
+        &         &amp;
+
+        We (step 1) trim the health report XML's description field,
+        and then (step 2) XML-escape the health report XML's description field.
+
+        The health report XML's description field limit within cloud-init
+        is HEALTH_REPORT_DESCRIPTION_TRIM_LEN.
+
+        The Azure platform's limit on the health report XML's description field
+        is 4096 chars.
+
+        For worst-case chars, there is a 5x blowup in length
+        when the chars are XML-escaped.
+        ' and " when XML-escaped have a 5x blowup.
+
+        Ensure that (1) trimming and then (2) XML-escaping does not blow past
+        the Azure platform's limit for health report XML's description field
+        (4096 chars).
+        """
+        reporter = azure_helper.GoalStateHealthReporter(
+            azure_helper.GoalState(mock.MagicMock(), mock.MagicMock()),
+            azure_helper.AzureEndpointHttpClient(mock.MagicMock()),
+            self.test_azure_endpoint)
+        long_err_msg = '\'\"' * 10000
+        generated_health_document = reporter.build_report(
+            incarnation=self.default_parameters['incarnation'],
+            container_id=self.default_parameters['container_id'],
+            instance_id=self.default_parameters['instance_id'],
+            status=self.provisioning_not_ready_status,
+            substatus=self.provisioning_failure_substatus,
+            description=long_err_msg)
+
+        generated_xroot = ElementTree.fromstring(generated_health_document)
+        generated_health_report_description = self._text_from_xpath_in_xroot(
+            generated_xroot,
+            './Container/RoleInstanceList/Role/Health/Details/Description')
+        # The escaped description string should be less than
+        # the Azure platform limit for the escaped description string.
+        self.assertLessEqual(len(generated_health_report_description), 4096)
 
 
 class TestWALinuxAgentShim(CiTestCase):
@@ -598,7 +991,7 @@ class TestWALinuxAgentShim(CiTestCase):
         self.GoalState = patches.enter_context(
             mock.patch.object(azure_helper, 'GoalState'))
         self.OpenSSLManager = patches.enter_context(
-            mock.patch.object(azure_helper, 'OpenSSLManager'))
+            mock.patch.object(azure_helper, 'OpenSSLManager', autospec=True))
         patches.enter_context(
             mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
 
@@ -609,24 +1002,50 @@ class TestWALinuxAgentShim(CiTestCase):
         self.GoalState.return_value.container_id = self.test_container_id
         self.GoalState.return_value.instance_id = self.test_instance_id
 
-    def test_azure_endpoint_client_uses_certificate_during_report_ready(self):
+    def test_http_client_does_not_use_certificate_for_report_ready(self):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
         self.assertEqual(
-            [mock.call(self.OpenSSLManager.return_value.certificate)],
+            [mock.call(None)],
+            self.AzureEndpointHttpClient.call_args_list)
+
+    def test_http_client_does_not_use_certificate_for_report_failure(self):
+        shim = wa_shim()
+        shim.register_with_azure_and_report_failure(description='TestDesc')
+        self.assertEqual(
+            [mock.call(None)],
             self.AzureEndpointHttpClient.call_args_list)
 
     def test_correct_url_used_for_goalstate_during_report_ready(self):
         self.find_endpoint.return_value = 'test_endpoint'
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
-        get = self.AzureEndpointHttpClient.return_value.get
+        m_get = self.AzureEndpointHttpClient.return_value.get
         self.assertEqual(
             [mock.call('http://test_endpoint/machine/?comp=goalstate')],
-            get.call_args_list)
+            m_get.call_args_list)
         self.assertEqual(
-            [mock.call(get.return_value.contents,
-                       self.AzureEndpointHttpClient.return_value)],
+            [mock.call(
+                m_get.return_value.contents,
+                self.AzureEndpointHttpClient.return_value,
+                False
+            )],
+            self.GoalState.call_args_list)
+
+    def test_correct_url_used_for_goalstate_during_report_failure(self):
+        self.find_endpoint.return_value = 'test_endpoint'
+        shim = wa_shim()
+        shim.register_with_azure_and_report_failure(description='TestDesc')
+        m_get = self.AzureEndpointHttpClient.return_value.get
+        self.assertEqual(
+            [mock.call('http://test_endpoint/machine/?comp=goalstate')],
+            m_get.call_args_list)
+        self.assertEqual(
+            [mock.call(
+                m_get.return_value.contents,
+                self.AzureEndpointHttpClient.return_value,
+                False
+            )],
             self.GoalState.call_args_list)
 
     def test_certificates_used_to_determine_public_keys(self):
@@ -667,6 +1086,16 @@ class TestWALinuxAgentShim(CiTestCase):
             self.AzureEndpointHttpClient.return_value.post
                 .call_args_list)
 
+    def test_correct_url_used_for_report_failure(self):
+        self.find_endpoint.return_value = 'test_endpoint'
+        shim = wa_shim()
+        shim.register_with_azure_and_report_failure(description='TestDesc')
+        expected_url = 'http://test_endpoint/machine?comp=health'
+        self.assertEqual(
+            [mock.call(expected_url, data=mock.ANY, extra_headers=mock.ANY)],
+            self.AzureEndpointHttpClient.return_value.post
+                .call_args_list)
+
     def test_goal_state_values_used_for_report_ready(self):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
@@ -678,43 +1107,127 @@ class TestWALinuxAgentShim(CiTestCase):
         self.assertIn(self.test_container_id, posted_document)
         self.assertIn(self.test_instance_id, posted_document)
 
-    def test_xml_elems_in_report_ready(self):
+    def test_goal_state_values_used_for_report_failure(self):
+        shim = wa_shim()
+        shim.register_with_azure_and_report_failure(description='TestDesc')
+        posted_document = (
+            self.AzureEndpointHttpClient.return_value.post
+                .call_args[1]['data']
+        )
+        self.assertIn(self.test_incarnation, posted_document)
+        self.assertIn(self.test_container_id, posted_document)
+        self.assertIn(self.test_instance_id, posted_document)
+
+    def test_xml_elems_in_report_ready_post(self):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
         health_document = HEALTH_REPORT_XML_TEMPLATE.format(
-            incarnation=self.test_incarnation,
-            container_id=self.test_container_id,
-            instance_id=self.test_instance_id,
-            health_status='Ready',
+            incarnation=escape(self.test_incarnation),
+            container_id=escape(self.test_container_id),
+            instance_id=escape(self.test_instance_id),
+            health_status=escape('Ready'),
             health_detail_subsection='')
         posted_document = (
             self.AzureEndpointHttpClient.return_value.post
                 .call_args[1]['data'])
         self.assertEqual(health_document, posted_document)
 
+    def test_xml_elems_in_report_failure_post(self):
+        shim = wa_shim()
+        shim.register_with_azure_and_report_failure(description='TestDesc')
+        health_document = HEALTH_REPORT_XML_TEMPLATE.format(
+            incarnation=escape(self.test_incarnation),
+            container_id=escape(self.test_container_id),
+            instance_id=escape(self.test_instance_id),
+            health_status=escape('NotReady'),
+            health_detail_subsection=HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE
+            .format(
+                health_substatus=escape('ProvisioningFailed'),
+                health_description=escape('TestDesc')))
+        posted_document = (
+            self.AzureEndpointHttpClient.return_value.post
+                .call_args[1]['data'])
+        self.assertEqual(health_document, posted_document)
+
+    @mock.patch.object(azure_helper, 'GoalStateHealthReporter', autospec=True)
+    def test_register_with_azure_and_fetch_data_calls_send_ready_signal(
+            self, m_goal_state_health_reporter):
+        shim = wa_shim()
+        shim.register_with_azure_and_fetch_data()
+        self.assertEqual(
+            1,
+            m_goal_state_health_reporter.return_value.send_ready_signal
+            .call_count)
+
+    @mock.patch.object(azure_helper, 'GoalStateHealthReporter', autospec=True)
+    def test_register_with_azure_and_report_failure_calls_send_failure_signal(
+            self, m_goal_state_health_reporter):
+        shim = wa_shim()
+        shim.register_with_azure_and_report_failure(description='TestDesc')
+        m_goal_state_health_reporter.return_value.send_failure_signal \
+            .assert_called_once_with(description='TestDesc')
+
+    def test_register_with_azure_and_report_failure_does_not_need_certificates(
+            self):
+        shim = wa_shim()
+        with mock.patch.object(
+            shim, '_fetch_goal_state_from_azure', autospec=True
+        ) as m_fetch_goal_state_from_azure:
+            shim.register_with_azure_and_report_failure(description='TestDesc')
+            m_fetch_goal_state_from_azure.assert_called_once_with(
+                need_certificate=False)
+
     def test_clean_up_can_be_called_at_any_time(self):
         shim = wa_shim()
         shim.clean_up()
+
+    def test_openssl_manager_not_instantiated_by_shim_report_status(self):
+        shim = wa_shim()
+        shim.register_with_azure_and_fetch_data()
+        shim.register_with_azure_and_report_failure(description='TestDesc')
+        shim.clean_up()
+        self.OpenSSLManager.assert_not_called()
 
     def test_clean_up_after_report_ready(self):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
         shim.clean_up()
-        self.assertEqual(
-            1, self.OpenSSLManager.return_value.clean_up.call_count)
+        self.OpenSSLManager.return_value.clean_up.assert_not_called()
+
+    def test_clean_up_after_report_failure(self):
+        shim = wa_shim()
+        shim.register_with_azure_and_report_failure(description='TestDesc')
+        shim.clean_up()
+        self.OpenSSLManager.return_value.clean_up.assert_not_called()
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_get_exc(self):
         self.AzureEndpointHttpClient.return_value.get \
-            .side_effect = (SentinelException)
+            .side_effect = SentinelException
         shim = wa_shim()
         self.assertRaises(SentinelException,
                           shim.register_with_azure_and_fetch_data)
+
+    def test_fetch_goalstate_during_report_failure_raises_exc_on_get_exc(self):
+        self.AzureEndpointHttpClient.return_value.get \
+            .side_effect = SentinelException
+        shim = wa_shim()
+        self.assertRaises(SentinelException,
+                          shim.register_with_azure_and_report_failure,
+                          description='TestDesc')
 
     def test_fetch_goalstate_during_report_ready_raises_exc_on_parse_exc(self):
         self.GoalState.side_effect = SentinelException
         shim = wa_shim()
         self.assertRaises(SentinelException,
                           shim.register_with_azure_and_fetch_data)
+
+    def test_fetch_goalstate_during_report_failure_raises_exc_on_parse_exc(
+            self):
+        self.GoalState.side_effect = SentinelException
+        shim = wa_shim()
+        self.assertRaises(SentinelException,
+                          shim.register_with_azure_and_report_failure,
+                          description='TestDesc')
 
     def test_failure_to_send_report_ready_health_doc_bubbles_up(self):
         self.AzureEndpointHttpClient.return_value.post \
@@ -723,55 +1236,132 @@ class TestWALinuxAgentShim(CiTestCase):
         self.assertRaises(SentinelException,
                           shim.register_with_azure_and_fetch_data)
 
+    def test_failure_to_send_report_failure_health_doc_bubbles_up(self):
+        self.AzureEndpointHttpClient.return_value.post \
+            .side_effect = SentinelException
+        shim = wa_shim()
+        self.assertRaises(SentinelException,
+                          shim.register_with_azure_and_report_failure,
+                          description='TestDesc')
+
 
 class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_data_from_shim_returned(self, shim):
+    def setUp(self):
+        super(TestGetMetadataGoalStateXMLAndReportReadyToFabric, self).setUp()
+        patches = ExitStack()
+        self.addCleanup(patches.close)
+
+        self.m_shim = patches.enter_context(
+            mock.patch.object(azure_helper, 'WALinuxAgentShim'))
+
+    def test_data_from_shim_returned(self):
         ret = azure_helper.get_metadata_from_fabric()
         self.assertEqual(
-            shim.return_value.register_with_azure_and_fetch_data.return_value,
+            self.m_shim.return_value.register_with_azure_and_fetch_data
+                .return_value,
             ret)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_success_calls_clean_up(self, shim):
+    def test_success_calls_clean_up(self):
         azure_helper.get_metadata_from_fabric()
-        self.assertEqual(1, shim.return_value.clean_up.call_count)
+        self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_failure_in_registration_calls_clean_up(self, shim):
-        shim.return_value.register_with_azure_and_fetch_data.side_effect = (
-            SentinelException)
+    def test_failure_in_registration_propagates_exc_and_calls_clean_up(
+            self):
+        self.m_shim.return_value.register_with_azure_and_fetch_data \
+            .side_effect = SentinelException
         self.assertRaises(SentinelException,
                           azure_helper.get_metadata_from_fabric)
-        self.assertEqual(1, shim.return_value.clean_up.call_count)
+        self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_calls_shim_register_with_azure_and_fetch_data(self, shim):
+    def test_calls_shim_register_with_azure_and_fetch_data(self):
         m_pubkey_info = mock.MagicMock()
         azure_helper.get_metadata_from_fabric(pubkey_info=m_pubkey_info)
         self.assertEqual(
             1,
-            shim.return_value
+            self.m_shim.return_value
                 .register_with_azure_and_fetch_data.call_count)
         self.assertEqual(
             mock.call(pubkey_info=m_pubkey_info),
-            shim.return_value
+            self.m_shim.return_value
                 .register_with_azure_and_fetch_data.call_args)
 
-    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
-    def test_instantiates_shim_with_kwargs(self, shim):
+    def test_instantiates_shim_with_kwargs(self):
         m_fallback_lease_file = mock.MagicMock()
         m_dhcp_options = mock.MagicMock()
         azure_helper.get_metadata_from_fabric(
             fallback_lease_file=m_fallback_lease_file,
             dhcp_opts=m_dhcp_options)
-        self.assertEqual(1, shim.call_count)
+        self.assertEqual(1, self.m_shim.call_count)
         self.assertEqual(
             mock.call(
                 fallback_lease_file=m_fallback_lease_file,
                 dhcp_options=m_dhcp_options),
-            shim.call_args)
+            self.m_shim.call_args)
+
+
+class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
+
+    def setUp(self):
+        super(
+            TestGetMetadataGoalStateXMLAndReportFailureToFabric, self).setUp()
+        patches = ExitStack()
+        self.addCleanup(patches.close)
+
+        self.m_shim = patches.enter_context(
+            mock.patch.object(azure_helper, 'WALinuxAgentShim'))
+
+    def test_success_calls_clean_up(self):
+        azure_helper.report_failure_to_fabric()
+        self.assertEqual(
+            1,
+            self.m_shim.return_value.clean_up.call_count)
+
+    def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
+            self):
+        self.m_shim.return_value.register_with_azure_and_report_failure \
+            .side_effect = SentinelException
+        self.assertRaises(SentinelException,
+                          azure_helper.report_failure_to_fabric)
+        self.assertEqual(
+            1,
+            self.m_shim.return_value.clean_up.call_count)
+
+    def test_report_failure_to_fabric_with_desc_calls_shim_report_failure(
+            self):
+        azure_helper.report_failure_to_fabric(description='TestDesc')
+        self.m_shim.return_value.register_with_azure_and_report_failure \
+            .assert_called_once_with(description='TestDesc')
+
+    def test_report_failure_to_fabric_with_no_desc_calls_shim_report_failure(
+            self):
+        azure_helper.report_failure_to_fabric()
+        # default err message description should be shown to the user
+        # if no description is passed in
+        self.m_shim.return_value.register_with_azure_and_report_failure \
+            .assert_called_once_with(
+                description=azure_helper
+                .DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
+
+    def test_report_failure_to_fabric_empty_desc_calls_shim_report_failure(
+            self):
+        azure_helper.report_failure_to_fabric(description='')
+        # default err message description should be shown to the user
+        # if an empty description is passed in
+        self.m_shim.return_value.register_with_azure_and_report_failure \
+            .assert_called_once_with(
+                description=azure_helper
+                .DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
+
+    def test_instantiates_shim_with_kwargs(self):
+        m_fallback_lease_file = mock.MagicMock()
+        m_dhcp_options = mock.MagicMock()
+        azure_helper.report_failure_to_fabric(
+            fallback_lease_file=m_fallback_lease_file,
+            dhcp_opts=m_dhcp_options)
+        self.m_shim.assert_called_once_with(
+            fallback_lease_file=m_fallback_lease_file,
+            dhcp_options=m_dhcp_options)
 
 
 class TestExtractIpAddressFromNetworkd(CiTestCase):
