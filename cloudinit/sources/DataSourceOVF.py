@@ -753,7 +753,7 @@ def load_cloudinit_data(metaPath, userPath):
     cfg = {}
     ud = None
     network = None
-    # How to handle instance-id?
+
     md = load(util.load_file(metaPath).replace("\r", ""))
 
     if 'network' in md:
