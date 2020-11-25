@@ -1,4 +1,4 @@
-cloud-init (20.4-3-g6ee01078-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.4-3-g6ee01078-0ubuntu1) hirsute; urgency=medium
 
   * New upstream snapshot.
     - cc_apt_configure: add riscv64 as a ports arch (#687)
