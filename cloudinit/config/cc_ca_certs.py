@@ -118,6 +118,7 @@ def update_cert_config(distro_name):
     """
     distro_cfg = _distro_ca_certs_configs(distro_name)
     if distro_cfg['ca_cert_config'] == '':
+    if distro_cfg['ca_cert_config'] is None: 
         return
     if os.stat(distro_cfg['ca_cert_config']).st_size == 0:
         # If the CA_CERT_CONFIG file is empty (i.e. all existing
