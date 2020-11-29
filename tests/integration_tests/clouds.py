@@ -2,15 +2,18 @@
 from abc import ABC, abstractmethod
 import logging
 
-from pycloudlib import EC2, GCE, Azure, OCI, LXD
+from pycloudlib import EC2, GCE, Azure, OCI, LXDContainer, LXDVirtualMachine
+from pycloudlib.lxd.instance import LXDInstance
 
+import cloudinit
+from cloudinit.subp import subp
 from tests.integration_tests import integration_settings
 from tests.integration_tests.instances import (
     IntegrationEc2Instance,
     IntegrationGceInstance,
     IntegrationAzureInstance, IntegrationInstance,
     IntegrationOciInstance,
-    IntegrationLxdContainerInstance,
+    IntegrationLxdInstance,
 )
 
 try:
@@ -31,6 +34,17 @@ class IntegrationCloud(ABC):
         self.cloud_instance = self._get_cloud_instance()
         self.image_id = self._get_initial_image()
 
+    def emit_settings_to_log(self) -> None:
+        log.info(
+            "\n".join(
+                ["Settings:"]
+                + [
+                    "{}={}".format(key, getattr(self.settings, key))
+                    for key in sorted(self.settings.current_settings)
+                ]
+            )
+        )
+
     @abstractmethod
     def _get_cloud_instance(self):
         raise NotImplementedError
@@ -43,6 +57,11 @@ class IntegrationCloud(ABC):
         except (ValueError, IndexError):
             pass
         return image_id
+
+    def _perform_launch(self, launch_kwargs):
+        pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
+        pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
+        return pycloudlib_instance
 
     def launch(self, user_data=None, launch_kwargs=None,
                settings=integration_settings):
@@ -66,8 +85,9 @@ class IntegrationCloud(ABC):
                 "\n".join("{}={}".format(*item) for item in kwargs.items())
             )
         )
-        pycloudlib_instance = self.cloud_instance.launch(**kwargs)
-        pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
+
+        pycloudlib_instance = self._perform_launch(kwargs)
+
         log.info('Launched instance: %s', pycloudlib_instance)
         return self.get_instance(pycloudlib_instance, settings)
 
@@ -124,9 +144,72 @@ class OciCloud(IntegrationCloud):
         )
 
 
-class LxdContainerCloud(IntegrationCloud):
-    datasource = 'lxd_container'
-    integration_instance_cls = IntegrationLxdContainerInstance
+class _LxdIntegrationCloud(IntegrationCloud):
+    integration_instance_cls = IntegrationLxdInstance
 
     def _get_cloud_instance(self):
-        return LXD(tag='lxd-integration-test')
+        return self.pycloudlib_instance_cls(tag=self.instance_tag)
+
+    @staticmethod
+    def _get_or_set_profile_list(release):
+        return None
+
+    @staticmethod
+    def _mount_source(instance: LXDInstance):
+        target_path = '/usr/lib/python3/dist-packages/cloudinit'
+        format_variables = {
+            'name': instance.name,
+            'source_path': cloudinit.__path__[0],
+            'container_path': target_path,
+        }
+        log.info(
+            'Mounting source {source_path} directly onto LXD container/vm '
+            'named {name} at {container_path}'.format(**format_variables))
+        command = (
+            'lxc config device add {name} host-cloud-init disk '
+            'source={source_path} '
+            'path={container_path}'
+        ).format(**format_variables)
+        subp(command.split())
+
+    def _perform_launch(self, launch_kwargs):
+        launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
+        launch_kwargs.pop('wait')
+        release = launch_kwargs.pop('image_id')
+
+        try:
+            profile_list = launch_kwargs['profile_list']
+        except KeyError:
+            profile_list = self._get_or_set_profile_list(release)
+
+        pycloudlib_instance = self.cloud_instance.init(
+            launch_kwargs.pop('name', None),
+            release,
+            profile_list=profile_list,
+            **launch_kwargs
+        )
+        if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
+            self._mount_source(pycloudlib_instance)
+        pycloudlib_instance.start(wait=False)
+        pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
+        return pycloudlib_instance
+
+
+class LxdContainerCloud(_LxdIntegrationCloud):
+    datasource = 'lxd_container'
+    pycloudlib_instance_cls = LXDContainer
+    instance_tag = 'lxd-container-integration-test'
+
+
+class LxdVmCloud(_LxdIntegrationCloud):
+    datasource = 'lxd_vm'
+    pycloudlib_instance_cls = LXDVirtualMachine
+    instance_tag = 'lxd-vm-integration-test'
+    _profile_list = None
+
+    def _get_or_set_profile_list(self, release):
+        if self._profile_list:
+            return self._profile_list
+        self._profile_list = self.cloud_instance.build_necessary_profiles(
+            release)
+        return self._profile_list

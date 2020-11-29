@@ -38,6 +38,7 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
 """
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestUsersGroups:
     @pytest.mark.parametrize(
@@ -69,7 +70,10 @@ class TestUsersGroups:
     def test_users_groups(self, regex, getent_args, class_client):
         """Use getent to interrogate the various expected outcomes"""
         result = class_client.execute(["getent"] + getent_args)
-        assert re.search(regex, result.stdout) is not None
+        assert re.search(regex, result.stdout) is not None, (
+            "'getent {}' resulted in '{}', "
+            "but expected to match regex {}".format(
+                ' '.join(getent_args), result.stdout, regex))
 
     def test_user_root_in_secret(self, class_client):
         """Test root user is in 'secret' group."""
