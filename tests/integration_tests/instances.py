@@ -86,9 +86,9 @@ class IntegrationInstance:
         version = self.execute('cloud-init -v').split()[-1]
         log.info('Installed cloud-init version: %s', version)
         self.instance.clean()
-        image_id = self.snapshot()
-        log.info('Created new image: %s', image_id)
-        self.cloud.image_id = image_id
+        snapshot_id = self.snapshot()
+        log.info('Created new image: %s', snapshot_id)
+        self.cloud.snapshot_id = snapshot_id
 
     def install_proposed_image(self):
         log.info('Installing proposed image')
