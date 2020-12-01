@@ -25,6 +25,46 @@ except ImportError:
 log = logging.getLogger('integration_testing')
 
 
+class ImageSpecification:
+    """A specification of an image to launch for testing.
+
+    If either of ``os`` and ``release`` are not specified, an attempt will be
+    made to infer the correct values for these on instantiation.
+
+    :param image_id:
+        The image identifier used by the rest of the codebase to launch this
+        image.
+    :param os:
+        An optional string describing the operating system this image is for
+        (e.g.  "ubuntu", "rhel", "freebsd").
+    :param release:
+        A optional string describing the operating system release (e.g.
+        "focal", "8"; the exact values here will depend on the OS).
+    """
+
+    def __init__(
+        self,
+        image_id: str,
+        os: "Optional[str]" = None,
+        release: "Optional[str]" = None,
+    ):
+        self.image_id = image_id
+        self.os = os
+        self.release = release
+        log.info(
+            "Detected image: image_id=%s os=%s release=%s",
+            self.image_id,
+            self.os,
+            self.release,
+        )
+
+    @classmethod
+    def from_os_image(cls):
+        """Return an ImageSpecification for integration_settings.OS_IMAGE."""
+        parts = integration_settings.OS_IMAGE.split("::", 2)
+        return cls(*parts)
+
+
 class IntegrationCloud(ABC):
     datasource = None  # type: Optional[str]
     integration_instance_cls = IntegrationInstance
@@ -57,13 +97,11 @@ class IntegrationCloud(ABC):
         raise NotImplementedError
 
     def _get_initial_image(self):
-        _released_image_id = self.settings.OS_IMAGE
+        image = ImageSpecification.from_os_image()
         try:
-            _released_image_id = self.cloud_instance.released_image(
-                self.settings.OS_IMAGE)
+            return self.cloud_instance.released_image(image.image_id)
         except (ValueError, IndexError):
-            pass
-        return _released_image_id
+            return image.image_id
 
     def _perform_launch(self, launch_kwargs):
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
