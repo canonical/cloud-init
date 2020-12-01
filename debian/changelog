@@ -106,7 +106,7 @@ cloud-init (20.4-0ubuntu1~18.04.1) bionic; urgency=medium
     - conftest.py: remove top-level import of httpretty (#599)
     - tox.ini: add integration-tests testenv definition (#595)
     - PULL_REQUEST_TEMPLATE.md: empty checkboxes need a space (#597)
-    - add integration test for LP: #1886531 (#592)
+    - add integration test for #1886531 (#592)
     - Initial implementation of integration testing infrastructure (#581)
       [James Falcon]
     - Fix name of ntp and chrony service on CentOS and RHEL. (#589)
