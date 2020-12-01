@@ -2,7 +2,8 @@
 from abc import ABC, abstractmethod
 import logging
 
-from pycloudlib import EC2, GCE, Azure, OCI, LXD
+from pycloudlib import EC2, GCE, Azure, OCI, LXDContainer, LXDVirtualMachine
+from pycloudlib.lxd.instance import LXDInstance
 
 import cloudinit
 from cloudinit.subp import subp
@@ -12,7 +13,7 @@ from tests.integration_tests.instances import (
     IntegrationGceInstance,
     IntegrationAzureInstance, IntegrationInstance,
     IntegrationOciInstance,
-    IntegrationLxdContainerInstance,
+    IntegrationLxdInstance,
 )
 
 try:
@@ -31,7 +32,14 @@ class IntegrationCloud(ABC):
     def __init__(self, settings=integration_settings):
         self.settings = settings
         self.cloud_instance = self._get_cloud_instance()
-        self.image_id = self._get_initial_image()
+        self._released_image_id = self._get_initial_image()
+        self.snapshot_id = None
+
+    @property
+    def image_id(self):
+        if self.snapshot_id:
+            return self.snapshot_id
+        return self._released_image_id
 
     def emit_settings_to_log(self) -> None:
         log.info(
@@ -49,13 +57,13 @@ class IntegrationCloud(ABC):
         raise NotImplementedError
 
     def _get_initial_image(self):
-        image_id = self.settings.OS_IMAGE
+        _released_image_id = self.settings.OS_IMAGE
         try:
-            image_id = self.cloud_instance.released_image(
+            _released_image_id = self.cloud_instance.released_image(
                 self.settings.OS_IMAGE)
         except (ValueError, IndexError):
             pass
-        return image_id
+        return _released_image_id
 
     def _perform_launch(self, launch_kwargs):
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
@@ -99,6 +107,14 @@ class IntegrationCloud(ABC):
     def snapshot(self, instance):
         return self.cloud_instance.snapshot(instance, clean=True)
 
+    def delete_snapshot(self):
+        if self.snapshot_id:
+            log.info(
+                'Deleting snapshot image created for this testrun: %s',
+                self.snapshot_id
+            )
+            self.cloud_instance.delete_image(self.snapshot_id)
+
 
 class Ec2Cloud(IntegrationCloud):
     datasource = 'ec2'
@@ -129,7 +145,14 @@ class AzureCloud(IntegrationCloud):
         return Azure(tag='azure-integration-test')
 
     def destroy(self):
-        self.cloud_instance.delete_resource_group()
+        if self.settings.KEEP_INSTANCE:
+            log.info(
+                'NOT deleting resource group because KEEP_INSTANCE is true '
+                'and deleting resource group would also delete instance. '
+                'Instance and resource group must both be manually deleted.'
+            )
+        else:
+            self.cloud_instance.delete_resource_group()
 
 
 class OciCloud(IntegrationCloud):
@@ -143,20 +166,48 @@ class OciCloud(IntegrationCloud):
         )
 
 
-class LxdContainerCloud(IntegrationCloud):
-    datasource = 'lxd_container'
-    integration_instance_cls = IntegrationLxdContainerInstance
+class _LxdIntegrationCloud(IntegrationCloud):
+    integration_instance_cls = IntegrationLxdInstance
 
     def _get_cloud_instance(self):
-        return LXD(tag='lxd-integration-test')
+        return self.pycloudlib_instance_cls(tag=self.instance_tag)
+
+    @staticmethod
+    def _get_or_set_profile_list(release):
+        return None
+
+    @staticmethod
+    def _mount_source(instance: LXDInstance):
+        target_path = '/usr/lib/python3/dist-packages/cloudinit'
+        format_variables = {
+            'name': instance.name,
+            'source_path': cloudinit.__path__[0],
+            'container_path': target_path,
+        }
+        log.info(
+            'Mounting source {source_path} directly onto LXD container/vm '
+            'named {name} at {container_path}'.format(**format_variables))
+        command = (
+            'lxc config device add {name} host-cloud-init disk '
+            'source={source_path} '
+            'path={container_path}'
+        ).format(**format_variables)
+        subp(command.split())
 
     def _perform_launch(self, launch_kwargs):
         launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
         launch_kwargs.pop('wait')
+        release = launch_kwargs.pop('image_id')
+
+        try:
+            profile_list = launch_kwargs['profile_list']
+        except KeyError:
+            profile_list = self._get_or_set_profile_list(release)
 
         pycloudlib_instance = self.cloud_instance.init(
             launch_kwargs.pop('name', None),
-            launch_kwargs.pop('image_id'),
+            release,
+            profile_list=profile_list,
             **launch_kwargs
         )
         if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
@@ -165,19 +216,22 @@ class LxdContainerCloud(IntegrationCloud):
         pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         return pycloudlib_instance
 
-    def _mount_source(self, instance):
-        container_path = '/usr/lib/python3/dist-packages/cloudinit'
-        format_variables = {
-            'name': instance.name,
-            'cloudinit_path': cloudinit.__path__[0],
-            'container_path': container_path,
-        }
-        log.info(
-            'Mounting source {cloudinit_path} directly onto LXD container/vm '
-            'named {name} at {container_path}'.format(**format_variables))
-        command = (
-            'lxc config device add {name} host-cloud-init disk '
-            'source={cloudinit_path} '
-            'path={container_path}'
-        ).format(**format_variables)
-        subp(command.split())
+
+class LxdContainerCloud(_LxdIntegrationCloud):
+    datasource = 'lxd_container'
+    pycloudlib_instance_cls = LXDContainer
+    instance_tag = 'lxd-container-integration-test'
+
+
+class LxdVmCloud(_LxdIntegrationCloud):
+    datasource = 'lxd_vm'
+    pycloudlib_instance_cls = LXDVirtualMachine
+    instance_tag = 'lxd-vm-integration-test'
+    _profile_list = None
+
+    def _get_or_set_profile_list(self, release):
+        if self._profile_list:
+            return self._profile_list
+        self._profile_list = self.cloud_instance.build_necessary_profiles(
+            release)
+        return self._profile_list

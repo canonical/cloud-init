@@ -1,9 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import logging
 import os
+import uuid
 from tempfile import NamedTemporaryFile
 
 from pycloudlib.instance import BaseInstance
+from pycloudlib.result import Result
 
 from tests.integration_tests import integration_settings
 
@@ -18,9 +20,12 @@ except ImportError:
 log = logging.getLogger('integration_testing')
 
 
-class IntegrationInstance:
-    use_sudo = True
+def _get_tmp_path():
+    tmp_filename = str(uuid.uuid4())
+    return '/var/tmp/{}.tmp'.format(tmp_filename)
 
+
+class IntegrationInstance:
     def __init__(self, cloud: 'IntegrationCloud', instance: BaseInstance,
                  settings=integration_settings):
         self.cloud = cloud
@@ -30,21 +35,37 @@ class IntegrationInstance:
     def destroy(self):
         self.instance.delete()
 
-    def execute(self, command):
-        return self.instance.execute(command)
+    def execute(self, command, *, use_sudo=True) -> Result:
+        if self.instance.username == 'root' and use_sudo is False:
+            raise Exception('Root user cannot run unprivileged')
+        return self.instance.execute(command, use_sudo=use_sudo)
 
-    def pull_file(self, remote_file, local_file):
-        self.instance.pull_file(remote_file, local_file)
+    def pull_file(self, remote_path, local_path):
+        # First copy to a temporary directory because of permissions issues
+        tmp_path = _get_tmp_path()
+        self.instance.execute('cp {} {}'.format(str(remote_path), tmp_path))
+        self.instance.pull_file(tmp_path, str(local_path))
 
     def push_file(self, local_path, remote_path):
-        self.instance.push_file(local_path, remote_path)
+        # First push to a temporary directory because of permissions issues
+        tmp_path = _get_tmp_path()
+        self.instance.push_file(str(local_path), tmp_path)
+        self.execute('mv {} {}'.format(tmp_path, str(remote_path)))
 
     def read_from_file(self, remote_path) -> str:
-        tmp_file = NamedTemporaryFile('r')
-        self.pull_file(remote_path, tmp_file.name)
-        with tmp_file as f:
-            contents = f.read()
-        return contents
+        result = self.execute('cat {}'.format(remote_path))
+        if result.failed:
+            # TODO: Raise here whatever pycloudlib raises when it has
+            # a consistent error response
+            raise IOError(
+                'Failed reading remote file via cat: {}\n'
+                'Return code: {}\n'
+                'Stderr: {}\n'
+                'Stdout: {}'.format(
+                    remote_path, result.return_code,
+                    result.stderr, result.stdout)
+            )
+        return result.stdout
 
     def write_to_file(self, remote_path, contents: str):
         # Writes file locally and then pushes it rather
@@ -65,28 +86,28 @@ class IntegrationInstance:
         version = self.execute('cloud-init -v').split()[-1]
         log.info('Installed cloud-init version: %s', version)
         self.instance.clean()
-        image_id = self.snapshot()
-        log.info('Created new image: %s', image_id)
-        self.cloud.image_id = image_id
+        snapshot_id = self.snapshot()
+        log.info('Created new image: %s', snapshot_id)
+        self.cloud.snapshot_id = snapshot_id
 
     def install_proposed_image(self):
         log.info('Installing proposed image')
         remote_script = (
-            '{sudo} echo deb "http://archive.ubuntu.com/ubuntu '
+            'echo deb "http://archive.ubuntu.com/ubuntu '
             '$(lsb_release -sc)-proposed main" | '
-            '{sudo} tee /etc/apt/sources.list.d/proposed.list\n'
-            '{sudo} apt-get update -q\n'
-            '{sudo} apt-get install -qy cloud-init'
-        ).format(sudo='sudo' if self.use_sudo else '')
+            'tee /etc/apt/sources.list.d/proposed.list\n'
+            'apt-get update -q\n'
+            'apt-get install -qy cloud-init'
+        )
         self._install_new_cloud_init(remote_script)
 
     def install_ppa(self, repo):
         log.info('Installing PPA')
         remote_script = (
-            '{sudo} add-apt-repository {repo} -y && '
-            '{sudo} apt-get update -q && '
-            '{sudo} apt-get install -qy cloud-init'
-        ).format(sudo='sudo' if self.use_sudo else '', repo=repo)
+            'add-apt-repository {repo} -y && '
+            'apt-get update -q && '
+            'apt-get install -qy cloud-init'
+        ).format(repo=repo)
         self._install_new_cloud_init(remote_script)
 
     def install_deb(self):
@@ -97,8 +118,7 @@ class IntegrationInstance:
         self.push_file(
             local_path=integration_settings.CLOUD_INIT_SOURCE,
             remote_path=remote_path)
-        remote_script = '{sudo} dpkg -i {path}'.format(
-            sudo='sudo' if self.use_sudo else '', path=remote_path)
+        remote_script = 'dpkg -i {path}'.format(path=remote_path)
         self._install_new_cloud_init(remote_script)
 
     def __enter__(self):
@@ -125,5 +145,5 @@ class IntegrationOciInstance(IntegrationInstance):
     pass
 
 
-class IntegrationLxdContainerInstance(IntegrationInstance):
-    use_sudo = False
+class IntegrationLxdInstance(IntegrationInstance):
+    pass

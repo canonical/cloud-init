@@ -199,7 +199,7 @@ matrix:
                 fi
             # Use sudo to get a new shell where we're in the sbuild group
             - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
-            - sg lxd -c 'CLOUD_INIT_IMAGE_SOURCE="$(ls *.deb)" tox -e integration-tests-ci' &
+            - sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls *.deb)" tox -e integration-tests-ci' &
             - |
               SECONDS=0
               while [ -e /proc/$! ]; do
