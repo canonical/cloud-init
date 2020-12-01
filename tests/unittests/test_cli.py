@@ -214,7 +214,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self.assertEqual(1, exit_code)
         # Known whitebox output from schema subcommand
         self.assertEqual(
-            'Expected either --config-file argument or --docs\n',
+            'Expected one of --config-file, --system or --docs arguments\n',
             self.stderr.getvalue())
 
     def test_wb_devel_schema_subcommand_doc_content(self):

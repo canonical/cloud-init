@@ -350,7 +350,8 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None,
     # exclude vars in bash that change on their own or that we used
     excluded = (
         "EPOCHREALTIME", "EPOCHSECONDS", "RANDOM", "LINENO", "SECONDS", "_",
-        "__v")
+        "SRANDOM", "__v",
+    )
     preset = {}
     ret = {}
     target = None

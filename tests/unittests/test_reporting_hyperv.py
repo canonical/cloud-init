@@ -188,18 +188,34 @@ class TextKvpReporter(CiTestCase):
         if not re.search("variant=" + pattern, evt_msg):
             raise AssertionError("missing distro variant string")
 
-    def test_report_diagnostic_event(self):
+    def test_report_diagnostic_event_without_logger_func(self):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
-
+        diagnostic_msg = "test_diagnostic"
         reporter.publish_event(
-            azure.report_diagnostic_event("test_diagnostic"))
+            azure.report_diagnostic_event(diagnostic_msg))
         reporter.q.join()
         kvps = list(reporter._iterate_kvps(0))
         self.assertEqual(1, len(kvps))
         evt_msg = kvps[0]['value']
 
-        if "test_diagnostic" not in evt_msg:
+        if diagnostic_msg not in evt_msg:
             raise AssertionError("missing expected diagnostic message")
+
+    def test_report_diagnostic_event_with_logger_func(self):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        logger_func = mock.MagicMock()
+        diagnostic_msg = "test_diagnostic"
+        reporter.publish_event(
+            azure.report_diagnostic_event(diagnostic_msg,
+                                          logger_func=logger_func))
+        reporter.q.join()
+        kvps = list(reporter._iterate_kvps(0))
+        self.assertEqual(1, len(kvps))
+        evt_msg = kvps[0]['value']
+
+        if diagnostic_msg not in evt_msg:
+            raise AssertionError("missing expected diagnostic message")
+        logger_func.assert_called_once_with(diagnostic_msg)
 
     def test_report_compressed_event(self):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
@@ -214,14 +230,39 @@ class TextKvpReporter(CiTestCase):
             instantiated_handler_registry.unregister_item("telemetry",
                                                           force=False)
 
-    @mock.patch.object(LogHandler, 'publish_event')
-    def test_push_log_to_kvp(self, publish_event):
+    @mock.patch('cloudinit.sources.helpers.azure.report_compressed_event')
+    @mock.patch('cloudinit.sources.helpers.azure.report_diagnostic_event')
+    @mock.patch('cloudinit.subp.subp')
+    def test_push_log_to_kvp_exception_handling(self, m_subp, m_diag, m_com):
         reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
         try:
             instantiated_handler_registry.register_item("telemetry", reporter)
             log_file = self.tmp_path("cloud-init.log")
             azure.MAX_LOG_TO_KVP_LENGTH = 100
-            azure.LOG_PUSHED_TO_KVP_MARKER_FILE = self.tmp_path(
+            azure.LOG_PUSHED_TO_KVP_INDEX_FILE = self.tmp_path(
+                'log_pushed_to_kvp')
+            with open(log_file, "w") as f:
+                log_content = "A" * 50 + "B" * 100
+                f.write(log_content)
+
+            m_com.side_effect = Exception("Mock Exception")
+            azure.push_log_to_kvp(log_file)
+
+            # exceptions will trigger diagnostic reporting calls
+            self.assertEqual(m_diag.call_count, 3)
+        finally:
+            instantiated_handler_registry.unregister_item("telemetry",
+                                                          force=False)
+
+    @mock.patch('cloudinit.subp.subp')
+    @mock.patch.object(LogHandler, 'publish_event')
+    def test_push_log_to_kvp(self, publish_event, m_subp):
+        reporter = HyperVKvpReportingHandler(kvp_file_path=self.tmp_file_path)
+        try:
+            instantiated_handler_registry.register_item("telemetry", reporter)
+            log_file = self.tmp_path("cloud-init.log")
+            azure.MAX_LOG_TO_KVP_LENGTH = 100
+            azure.LOG_PUSHED_TO_KVP_INDEX_FILE = self.tmp_path(
                 'log_pushed_to_kvp')
             with open(log_file, "w") as f:
                 log_content = "A" * 50 + "B" * 100
@@ -233,13 +274,18 @@ class TextKvpReporter(CiTestCase):
                 f.write(extra_content)
             azure.push_log_to_kvp(log_file)
 
+            # make sure dmesg is called every time
+            m_subp.assert_called_with(
+                ['dmesg'], capture=True, decode=False)
+
             for call_arg in publish_event.call_args_list:
                 event = call_arg[0][0]
                 self.assertNotEqual(
                     event.event_type, azure.COMPRESSED_EVENT_TYPE)
             self.validate_compressed_kvps(
-                reporter, 1,
-                [log_content[-azure.MAX_LOG_TO_KVP_LENGTH:].encode()])
+                reporter, 2,
+                [log_content[-azure.MAX_LOG_TO_KVP_LENGTH:].encode(),
+                 extra_content.encode()])
         finally:
             instantiated_handler_registry.unregister_item("telemetry",
                                                           force=False)

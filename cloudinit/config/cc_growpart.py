@@ -16,12 +16,13 @@ This is useful for cloud instances with a larger amount of disk space available
 than the pristine image uses, as it allows the instance to automatically make
 use of the extra space.
 
-The devices run growpart on are specified as a list under the ``devices`` key.
-Each entry in the devices list can be either the path to the device's
-mountpoint in the filesystem or a path to the block device in ``/dev``.
+The devices on which to run growpart are specified as a list under the
+``devices`` key. Each entry in the devices list can be either the path to the
+device's mountpoint in the filesystem or a path to the block device in
+``/dev``.
 
 The utility to use for resizing can be selected using the ``mode`` config key.
-If ``mode`` key is set to ``auto``, then any available utility (either
+If the ``mode`` key is set to ``auto``, then any available utility (either
 ``growpart`` or BSD ``gpart``) will be used. If neither utility is available,
 no error will be raised. If ``mode`` is set to ``growpart``, then the
 ``growpart`` utility will be used. If this utility is not available on the
@@ -34,7 +35,7 @@ where one tool is able to function and the other is not. The default
 configuration for both should work for most cloud instances. To explicitly
 prevent ``cloud-initramfs-tools`` from running ``growroot``, the file
 ``/etc/growroot-disabled`` can be created. By default, both ``growroot`` and
-``cc_growpart`` will check for the existance of this file and will not run if
+``cc_growpart`` will check for the existence of this file and will not run if
 it is present. However, this file can be ignored for ``cc_growpart`` by setting
 ``ignore_growroot_disabled`` to ``true``. For more information on
 ``cloud-initramfs-tools`` see: https://launchpad.net/cloud-initramfs-tools
@@ -195,10 +196,6 @@ class ResizeGpart(object):
         except subp.ProcessExecutionError as e:
             util.logexc(LOG, "Failed: gpart resize -i %s %s", partnum, diskdev)
             raise ResizeFailedException(e) from e
-
-        # Since growing the FS requires a reboot, make sure we reboot
-        # first when this module has finished.
-        open('/var/run/reboot-required', 'a').close()
 
         return (before, get_size(partdev))
 

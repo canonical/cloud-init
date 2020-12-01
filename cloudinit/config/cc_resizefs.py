@@ -9,10 +9,7 @@
 """Resizefs: cloud-config module which resizes the filesystem"""
 
 import errno
-import getopt
 import os
-import re
-import shlex
 import stat
 from textwrap import dedent
 
@@ -88,56 +85,23 @@ def _resize_zfs(mount_point, devpth):
     return ('zpool', 'online', '-e', mount_point, devpth)
 
 
-def _get_dumpfs_output(mount_point):
-    return subp.subp(['dumpfs', '-m', mount_point])[0]
-
-
-def _get_gpart_output(part):
-    return subp.subp(['gpart', 'show', part])[0]
-
-
 def _can_skip_resize_ufs(mount_point, devpth):
-    # extract the current fs sector size
-    """
-    # dumpfs -m /
-    # newfs command for / (/dev/label/rootfs)
-      newfs -L rootf -O 2 -U -a 4 -b 32768 -d 32768 -e 4096 -f 4096 -g 16384
-            -h 64 -i 8192 -j -k 6408 -m 8 -o time -s 58719232 /dev/label/rootf
-    """
-    cur_fs_sz = None
-    frag_sz = None
-    dumpfs_res = _get_dumpfs_output(mount_point)
-    for line in dumpfs_res.splitlines():
-        if not line.startswith('#'):
-            newfs_cmd = shlex.split(line)
-            opt_value = 'O:Ua:s:b:d:e:f:g:h:i:jk:m:o:L:'
-            optlist, _args = getopt.getopt(newfs_cmd[1:], opt_value)
-            for o, a in optlist:
-                if o == "-s":
-                    cur_fs_sz = int(a)
-                if o == "-f":
-                    frag_sz = int(a)
-    # check the current partition size
-    # Example output from `gpart show /dev/da0`:
-    # =>      40  62914480  da0  GPT  (30G)
-    #         40      1024    1  freebsd-boot  (512K)
-    #       1064  58719232    2  freebsd-ufs  (28G)
-    #   58720296   3145728    3  freebsd-swap  (1.5G)
-    #   61866024   1048496       - free -  (512M)
-    expect_sz = None
-    m = re.search('^(/dev/.+)p([0-9])$', devpth)
-    gpart_res = _get_gpart_output(m.group(1))
-    for line in gpart_res.splitlines():
-        if re.search(r"freebsd-ufs", line):
-            fields = line.split()
-            expect_sz = int(fields[1])
-    # Normalize the gpart sector size,
-    # because the size is not exactly the same as fs size.
-    normal_expect_sz = (expect_sz - expect_sz % (frag_sz / 512))
-    if normal_expect_sz == cur_fs_sz:
-        return True
-    else:
-        return False
+    # possible errors cases on the code-path to growfs -N following:
+    # https://github.com/freebsd/freebsd/blob/HEAD/sbin/growfs/growfs.c
+    # This is the "good" error:
+    skip_start = "growfs: requested size"
+    skip_contain = "is not larger than the current filesystem size"
+    # growfs exits with 1 for almost all cases up to this one.
+    # This means we can't just use rcs=[0, 1] as subp parameter:
+    try:
+        subp.subp(['growfs', '-N', devpth])
+    except subp.ProcessExecutionError as e:
+        if e.stderr.startswith(skip_start) and skip_contain in e.stderr:
+            # This FS is already at the desired size
+            return True
+        else:
+            raise e
+    return False
 
 
 # Do not use a dictionary as these commands should be able to be used

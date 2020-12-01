@@ -188,7 +188,7 @@ class TestIsAliYun(test_helpers.CiTestCase):
     ALIYUN_PRODUCT = 'Alibaba Cloud ECS'
     read_dmi_data_expected = [mock.call('system-product-name')]
 
-    @mock.patch("cloudinit.sources.DataSourceAliYun.util.read_dmi_data")
+    @mock.patch("cloudinit.sources.DataSourceAliYun.dmi.read_dmi_data")
     def test_true_on_aliyun_product(self, m_read_dmi_data):
         """Should return true if the dmi product data has expected value."""
         m_read_dmi_data.return_value = self.ALIYUN_PRODUCT
@@ -197,7 +197,7 @@ class TestIsAliYun(test_helpers.CiTestCase):
                          m_read_dmi_data.call_args_list)
         self.assertEqual(True, ret)
 
-    @mock.patch("cloudinit.sources.DataSourceAliYun.util.read_dmi_data")
+    @mock.patch("cloudinit.sources.DataSourceAliYun.dmi.read_dmi_data")
     def test_false_on_empty_string(self, m_read_dmi_data):
         """Should return false on empty value returned."""
         m_read_dmi_data.return_value = ""
@@ -206,7 +206,7 @@ class TestIsAliYun(test_helpers.CiTestCase):
                          m_read_dmi_data.call_args_list)
         self.assertEqual(False, ret)
 
-    @mock.patch("cloudinit.sources.DataSourceAliYun.util.read_dmi_data")
+    @mock.patch("cloudinit.sources.DataSourceAliYun.dmi.read_dmi_data")
     def test_false_on_unknown_string(self, m_read_dmi_data):
         """Should return false on an unrelated string."""
         m_read_dmi_data.return_value = "cubs win"

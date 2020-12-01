@@ -153,20 +153,20 @@ class TestDataSourceOracle:
 
 
 class TestIsPlatformViable(test_helpers.CiTestCase):
-    @mock.patch(DS_PATH + ".util.read_dmi_data",
+    @mock.patch(DS_PATH + ".dmi.read_dmi_data",
                 return_value=oracle.CHASSIS_ASSET_TAG)
     def test_expected_viable(self, m_read_dmi_data):
         """System with known chassis tag is viable."""
         self.assertTrue(oracle._is_platform_viable())
         m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
 
-    @mock.patch(DS_PATH + ".util.read_dmi_data", return_value=None)
+    @mock.patch(DS_PATH + ".dmi.read_dmi_data", return_value=None)
     def test_expected_not_viable_dmi_data_none(self, m_read_dmi_data):
         """System without known chassis tag is not viable."""
         self.assertFalse(oracle._is_platform_viable())
         m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
 
-    @mock.patch(DS_PATH + ".util.read_dmi_data", return_value="LetsGoCubs")
+    @mock.patch(DS_PATH + ".dmi.read_dmi_data", return_value="LetsGoCubs")
     def test_expected_not_viable_other(self, m_read_dmi_data):
         """System with unnown chassis tag is not viable."""
         self.assertFalse(oracle._is_platform_viable())

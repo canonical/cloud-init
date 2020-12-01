@@ -1,12 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.distros.parsers import resolv_conf
-from cloudinit.distros import rhel_util
 
 from cloudinit.tests.helpers import TestCase
 
 import re
-import tempfile
 
 
 BASE_RESOLVE = '''
@@ -23,10 +21,6 @@ class TestResolvHelper(TestCase):
         rp = resolv_conf.ResolvConf(BASE_RESOLVE)
         rp_r = str(rp).strip()
         self.assertEqual(BASE_RESOLVE, rp_r)
-
-    def test_write_works(self):
-        with tempfile.NamedTemporaryFile() as fh:
-            rhel_util.update_resolve_conf_file(fh.name, [], [])
 
     def test_local_domain(self):
         rp = resolv_conf.ResolvConf(BASE_RESOLVE)
