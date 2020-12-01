@@ -25,6 +25,7 @@ import requests
 from requests.packages.urllib3.connection import HTTPConnection
 from requests.packages.urllib3.poolmanager import PoolManager
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper
@@ -56,7 +57,7 @@ def on_scaleway():
     * the initrd created the file /var/run/scaleway.
     * "scaleway" is in the kernel cmdline.
     """
-    vendor_name = util.read_dmi_data('system-manufacturer')
+    vendor_name = dmi.read_dmi_data('system-manufacturer')
     if vendor_name == 'Scaleway':
         return True
 

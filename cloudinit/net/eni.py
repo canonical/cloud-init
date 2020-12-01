@@ -401,6 +401,10 @@ class Renderer(renderer.Renderer):
         sections = []
         subnets = iface.get('subnets', {})
         accept_ra = iface.pop('accept-ra', None)
+        ethernet_wol = iface.pop('wakeonlan', None)
+        if ethernet_wol:
+            # Specify WOL setting 'g' for using "Magic Packet"
+            iface['ethernet-wol'] = 'g'
         if subnets:
             for index, subnet in enumerate(subnets):
                 ipv4_subnet_mtu = None
