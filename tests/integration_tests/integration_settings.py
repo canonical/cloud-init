@@ -25,7 +25,8 @@ INSTANCE_TYPE = None
 #
 # This can be the name of an Ubuntu release, or in the format
 # <image_id>[::<os>[::<release>]].  If given, os and release should describe
-# the image specified by image_id.
+# the image specified by image_id.  (Ubuntu releases are converted to this
+# format internally; in this case, to "focal::ubuntu::focal".)
 OS_IMAGE = 'focal'
 
 # Populate if you want to use a pre-launched instance instead of

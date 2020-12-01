@@ -6,7 +6,7 @@ from pycloudlib import EC2, GCE, Azure, OCI, LXDContainer, LXDVirtualMachine
 from pycloudlib.lxd.instance import LXDInstance
 
 import cloudinit
-from cloudinit.subp import subp
+from cloudinit.subp import subp, ProcessExecutionError
 from tests.integration_tests import integration_settings
 from tests.integration_tests.instances import (
     IntegrationEc2Instance,
@@ -23,6 +23,19 @@ except ImportError:
 
 
 log = logging.getLogger('integration_testing')
+
+
+def _get_ubuntu_series() -> list:
+    """Use distro-info-data's ubuntu.csv to get a list of Ubuntu series"""
+    out = ""
+    try:
+        out, _err = subp(["ubuntu-distro-info", "-a"])
+    except ProcessExecutionError:
+        log.info(
+            "ubuntu-distro-info (from the distro-info package) must be"
+            " installed to guess Ubuntu os/release"
+        )
+    return out.splitlines()
 
 
 class ImageSpecification:
@@ -48,6 +61,12 @@ class ImageSpecification:
         os: "Optional[str]" = None,
         release: "Optional[str]" = None,
     ):
+        if image_id in _get_ubuntu_series():
+            if os is None:
+                os = "ubuntu"
+            if release is None:
+                release = image_id
+
         self.image_id = image_id
         self.os = os
         self.release = release
