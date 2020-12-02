@@ -210,10 +210,34 @@ def get_size(filename):
 
 def device_part_info(devpath):
     # convert an entry in /dev/ to parent disk and partition number
+    myenv = os.environ.copy()
+    myenv['LANG'] = 'C'
 
     # input of /dev/vdb or /dev/disk/by-label/foo
     # rpath is hopefully a real-ish path in /dev (vda, sdb..)
     rpath = os.path.realpath(devpath)
+
+    is_lvm = True if re.search('.*dm.*', rpath) else False
+    if is_lvm:
+        try:
+            (out, _err) = subp.subp(["lvm", "lvs", devpath, "-o", "vgname",
+                                     "--noheadings"], env=myenv)
+            vgname = out.strip()
+        except subp.ProcessExecutionError as e:
+            if e.exit_code != 0:
+                util.logexc(LOG, "Failed: can't get Volume Group information "
+                                 "from %s", devpath)
+                raise ResizeFailedException(e) from e
+
+        try:
+            (out, err) = subp.subp(["lvm", "vgs", vgname.strip(), "-o",
+                                    "pvname", "--noheadings"], env=myenv)
+            rpath = out.strip()
+        except subp.ProcessExecutionError as e:
+            if e.exit_code != 0:
+                util.logexc(LOG, "Failed: can't get Physical Volume "
+                            "information from Volume Group %s", vgname)
+                raise ResizeFailedException(e) from e
 
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
@@ -223,7 +247,7 @@ def device_part_info(devpath):
     if util.is_FreeBSD():
         freebsd_part = "/dev/" + util.find_freebsd_part(devpath)
         m = re.search('^(/dev/.+)p([0-9])$', freebsd_part)
-        return (m.group(1), m.group(2))
+        return (m.group(1), m.group(2), is_lvm)
 
     if not os.path.exists(syspath):
         raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
@@ -244,7 +268,7 @@ def device_part_info(devpath):
 
     # diskdevpath has something like 253:0
     # and udev has put links in /dev/block/253:0 to the device name in /dev/
-    return (diskdevpath, ptnum)
+    return (diskdevpath, ptnum, is_lvm)
 
 
 def devent2dev(devent):
@@ -272,6 +296,8 @@ def devent2dev(devent):
 
 def resize_devices(resizer, devices):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
+    myenv = os.environ.copy()
+    myenv['LANG'] = 'C'
     info = []
     for devent in devices:
         try:
@@ -295,7 +321,7 @@ def resize_devices(resizer, devices):
             continue
 
         try:
-            (disk, ptnum) = device_part_info(blockdev)
+            (disk, ptnum, is_lvm) = device_part_info(blockdev)
         except (TypeError, ValueError) as e:
             info.append((devent, RESIZE.SKIPPED,
                          "device_part_info(%s) failed: %s" % (blockdev, e),))
@@ -315,6 +341,22 @@ def resize_devices(resizer, devices):
             info.append((devent, RESIZE.FAILED,
                          "failed to resize: disk=%s, ptnum=%s: %s" %
                          (disk, ptnum, e),))
+
+        if is_lvm and type(resizer).__name__ == "ResizeGrowPart":
+            try:
+                if len(devices) == 1:
+                    (_out, _err) = subp.subp(["lvm", "lvextend", "---extents",
+                                             "100%FREE", blockdev], env=myenv)
+                    info.append((devent, RESIZE.CHANGED,
+                                 "Logical Volume %s extended" % devices[0],))
+                else:
+                    raise ValueError("Exactly one device should be configured "
+                                     "to be resized when using LVM. More than "
+                                     "one configured: %s" % devices)
+            except (subp.ProcessExecutionError, ValueError) as e:
+                info.append((devent, RESIZE.NOCHANGE,
+                             "Logical Volume %s resize failed: %s" %
+                             (blockdev, e),))
 
     return info
 
