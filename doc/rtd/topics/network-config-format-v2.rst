@@ -512,5 +512,5 @@ This is a complex example which shows most available features: ::
         link: id0
         dhcp4: yes
 
-.. _netplan: https://launchpad.net/netplan
+.. _netplan: https://netplan.io
 .. vi: textwidth=78
