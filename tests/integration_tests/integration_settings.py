@@ -10,6 +10,7 @@ KEEP_INSTANCE = False
 
 # One of:
 #  lxd_container
+#  lxd_vm
 #  azure
 #  ec2
 #  gce
