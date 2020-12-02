@@ -40,6 +40,7 @@ EXPECTED_REGEXES = [
 
 
 @pytest.mark.ci
+@pytest.mark.ubuntu
 class TestAptConfigureSourcesList:
 
     @pytest.mark.user_data(USER_DATA)
