@@ -98,6 +98,7 @@ disk_setup:
 #       table_type: 'mbr'
 #       layout: <LAYOUT|BOOL>
 #       overwrite: <BOOL>
+#       timeout: <INT>
 #
 # Where:
 #   <DEVICE>: The name of the device. 'ephemeralX' and 'swap' are special
@@ -159,6 +160,11 @@ disk_setup:
 #               'true' is cowboy mode. There are no checks and things are
 #                   done blindly. USE with caution, you can do things you
 #                   really, really don't want to do.
+#
+#   timeout=<INT>: Seconds to wait for a disk to appear. If omitted, no wait
+#               is performed. This is useful if a cloud provider has late or
+#               inconsistent disk attachments and you need a delay.
+#
 #
 #
 # fs_setup: Setup the filesystem

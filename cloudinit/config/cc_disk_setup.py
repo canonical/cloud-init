@@ -131,6 +131,13 @@ def handle(name: str, cfg: Config, cloud: Cloud, args: list) -> None:
                 LOG.warning("Invalid disk definition for %s", disk)
                 continue
 
+            if definition.get("timeout"):
+                tmout = int(definition.get("timeout", "0"))
+                missing = util.wait_for_files(
+                    [disk], maxwait=tmout, naplen=0.1
+                )
+                if len(missing) > 0:
+                    LOG.warning("Timeout expired waiting for %s", disk)
             try:
                 LOG.debug("Creating new partition table/disk")
                 util.log_time(

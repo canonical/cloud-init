@@ -1261,6 +1261,11 @@
                   "type": "boolean",
                   "default": false,
                   "description": "Controls whether this module tries to be safe about writing partition tables or not. If ``overwrite: false`` is set, the device will be checked for a partition table and for a file system and if either is found, the operation will be skipped. If ``overwrite: true`` is set, no checks will be performed. Using ``overwrite: true`` is **dangerous** and can lead to data loss, so double check that the correct device has been specified if using this option. Default: ``false``"
+                },
+                "timeout": {
+                  "type": "integer",
+                  "default": 0,
+                  "description": "Seconds to wait for a disk to appear. If omitted, no wait is performed. This is useful if a cloud provider has late or inconsistent disk attachments and you need a delay."
                 }
               }
             }
