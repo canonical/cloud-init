@@ -1981,10 +1981,9 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
             addresses = intf.get(addr_type, {}).get('ipAddress', [])
             # If there are no available IP addresses, then we don't
             # want to add this interface to the generated config.
-            if addresses:
-                has_ip_address = True
-            else:
+            if not addresses:
                 continue
+            has_ip_address = True
             if addr_type == 'ipv4':
                 default_prefix = '24'
             else:
