@@ -95,6 +95,7 @@ specified using ``filesystem``.
           partition: <"auto"/"any"/"none"/<partition number>>
           overwrite: <true/false>
           replace_fs: <filesystem type>
+          timeout: <seconds>
 """
 
 from cloudinit.settings import PER_INSTANCE
@@ -133,7 +134,13 @@ def handle(_name, cfg, cloud, log, _args):
             if not isinstance(definition, dict):
                 log.warning("Invalid disk definition for %s" % disk)
                 continue
-
+            if definition.get("timeout"):
+                tmout = int(definition.get("timeout"))
+                need = util.wait_for_files([disk],
+                                           maxwait=tmout,
+                                           naplen=0.1)
+                if len(need) > 0:
+                    log.warning("Timeout expired waiting for %s" % disk)
             try:
                 log.debug("Creating new partition table/disk")
                 util.log_time(logfunc=LOG.debug,
