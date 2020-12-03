@@ -10,12 +10,13 @@ from pathlib import Path
 
 from tests.integration_tests import integration_settings
 from tests.integration_tests.clouds import (
+    AzureCloud,
     Ec2Cloud,
     GceCloud,
-    AzureCloud,
-    OciCloud,
+    ImageSpecification,
     LxdContainerCloud,
     LxdVmCloud,
+    OciCloud,
 )
 from tests.integration_tests.instances import IntegrationInstance
 
@@ -32,6 +33,7 @@ platforms = {
     'lxd_container': LxdContainerCloud,
     'lxd_vm': LxdVmCloud,
 }
+os_list = ["ubuntu"]
 
 session_start_time = datetime.datetime.now().strftime('%y%m%d%H%M%S')
 
@@ -59,6 +61,12 @@ def pytest_runtest_setup(item):
             pytest.skip(unsupported_message)
     if supported_platforms and current_platform not in supported_platforms:
         pytest.skip(unsupported_message)
+
+    image = ImageSpecification.from_os_image()
+    current_os = image.os
+    supported_os_set = set(os_list).intersection(test_marks)
+    if current_os and supported_os_set and current_os not in supported_os_set:
+        pytest.skip("Cannot run on OS {}".format(current_os))
 
 
 # disable_subp_usage is defined at a higher level, but we don't
