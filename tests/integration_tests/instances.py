@@ -119,7 +119,6 @@ class IntegrationInstance:
         self.instance.clean()
         if take_snapshot:
             snapshot_id = self.snapshot()
-            log.info('Created new image: %s', snapshot_id)
             self.cloud.snapshot_id = snapshot_id
 
     def install_proposed_image(self):
