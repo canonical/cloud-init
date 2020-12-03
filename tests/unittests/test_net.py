@@ -1365,7 +1365,7 @@ NETWORK_CONFIGS = {
         },
         'expected_sysconfig_rhel': {
             'ifcfg-iface0': textwrap.dedent("""\
-            BOOTPROTO=none
+            BOOTPROTO=dhcp
             DEVICE=iface0
             DHCPV6C=yes
             IPV6INIT=yes
