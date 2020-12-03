@@ -35,8 +35,6 @@ class CloudInitSource(Enum):
 
 
 class IntegrationInstance:
-    use_sudo = True
-
     def __init__(self, cloud: 'IntegrationCloud', instance: BaseInstance,
                  settings=integration_settings):
         self.cloud = cloud
@@ -46,11 +44,20 @@ class IntegrationInstance:
     def destroy(self):
         self.instance.delete()
 
-    def execute(self, command, *, use_sudo=None) -> Result:
+    def restart(self):
+        """Restart this instance (via cloud mechanism) and wait for boot.
+
+        This wraps pycloudlib's `BaseInstance.restart` to pass
+        `raise_on_cloudinit_failure=False` to `BaseInstance.wait`, mirroring
+        our launch behaviour.
+        """
+        self.instance.restart(wait=False)
+        log.info("Instance restarted; waiting for boot")
+        self.instance.wait(raise_on_cloudinit_failure=False)
+
+    def execute(self, command, *, use_sudo=True) -> Result:
         if self.instance.username == 'root' and use_sudo is False:
             raise Exception('Root user cannot run unprivileged')
-        if use_sudo is None:
-            use_sudo = self.use_sudo
         return self.instance.execute(command, use_sudo=use_sudo)
 
     def pull_file(self, remote_path, local_path):
@@ -111,15 +118,9 @@ class IntegrationInstance:
         log.info('Installed cloud-init version: %s', version)
         self.instance.clean()
         if take_snapshot:
-            image_id = self.snapshot()
-            self.cloud.image_id = image_id
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if not self.settings.KEEP_INSTANCE:
-            self.destroy()
+            snapshot_id = self.snapshot()
+            log.info('Created new image: %s', snapshot_id)
+            self.cloud.snapshot_id = snapshot_id
 
     def install_proposed_image(self):
         log.info('Installing proposed image')
@@ -152,6 +153,13 @@ class IntegrationInstance:
         remote_script = 'dpkg -i {path}'.format(path=remote_path)
         self.execute(remote_script)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self.settings.KEEP_INSTANCE:
+            self.destroy()
+
 
 class IntegrationEc2Instance(IntegrationInstance):
     pass
@@ -170,4 +178,4 @@ class IntegrationOciInstance(IntegrationInstance):
 
 
 class IntegrationLxdInstance(IntegrationInstance):
-    use_sudo = False
+    pass
