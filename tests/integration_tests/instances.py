@@ -1,8 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+from enum import Enum
 import logging
 import os
 import uuid
-from functools import partial
 from tempfile import NamedTemporaryFile
 
 from pycloudlib.instance import BaseInstance
@@ -24,6 +24,14 @@ log = logging.getLogger('integration_testing')
 def _get_tmp_path():
     tmp_filename = str(uuid.uuid4())
     return '/var/tmp/{}.tmp'.format(tmp_filename)
+
+
+class CloudInitSource(Enum):
+    NONE = 1
+    IN_PLACE = 2
+    PROPOSED = 3
+    PPA = 4
+    DEB_PACKAGE = 5
 
 
 class IntegrationInstance:
@@ -88,8 +96,17 @@ class IntegrationInstance:
         log.info('Created new image: %s', image_id)
         return image_id
 
-    def install_new_cloud_init(self, install_method, take_snapshot=True):
-        install_method(self)
+    def install_new_cloud_init(
+        self,
+        source: CloudInitSource,
+        take_snapshot=True
+    ):
+        if source == CloudInitSource.DEB_PACKAGE:
+            self.install_deb()
+        elif source == CloudInitSource.PPA:
+            self.install_ppa()
+        elif source == CloudInitSource.PROPOSED:
+            self.install_proposed_image()
         version = self.execute('cloud-init -v').split()[-1]
         log.info('Installed cloud-init version: %s', version)
         self.instance.clean()
@@ -104,50 +121,36 @@ class IntegrationInstance:
         if not self.settings.KEEP_INSTANCE:
             self.destroy()
 
+    def install_proposed_image(self):
+        log.info('Installing proposed image')
+        remote_script = (
+            'echo deb "http://archive.ubuntu.com/ubuntu '
+            '$(lsb_release -sc)-proposed main" | '
+            'tee /etc/apt/sources.list.d/proposed.list\n'
+            'apt-get update -q\n'
+            'apt-get install -qy cloud-init'
+        )
+        self.execute(remote_script)
 
-def install_proposed_image(instance):
-    log.info('Installing proposed image')
-    remote_script = (
-        'echo deb "http://archive.ubuntu.com/ubuntu '
-        '$(lsb_release -sc)-proposed main" | '
-        'tee /etc/apt/sources.list.d/proposed.list\n'
-        'apt-get update -q\n'
-        'apt-get install -qy cloud-init'
-    )
-    instance.execute(remote_script)
+    def install_ppa(self):
+        log.info('Installing PPA')
+        remote_script = (
+            'add-apt-repository {repo} -y && '
+            'apt-get update -q && '
+            'apt-get install -qy cloud-init'
+        ).format(repo=self.settings.CLOUD_INIT_SOURCE)
+        self.execute(remote_script)
 
-
-def install_ppa(instance, repo):
-    log.info('Installing PPA')
-    remote_script = (
-        'add-apt-repository {repo} -y && '
-        'apt-get update -q && '
-        'apt-get install -qy cloud-init'
-    ).format(repo=repo)
-    instance.execute(remote_script)
-
-
-def install_deb(instance):
-    log.info('Installing deb package')
-    deb_path = integration_settings.CLOUD_INIT_SOURCE
-    deb_name = os.path.basename(deb_path)
-    remote_path = '/var/tmp/{}'.format(deb_name)
-    instance.push_file(
-        local_path=integration_settings.CLOUD_INIT_SOURCE,
-        remote_path=remote_path)
-    remote_script = 'dpkg -i {path}'.format(path=remote_path)
-    instance.execute(remote_script)
-
-
-def get_install_method(source=integration_settings.CLOUD_INIT_SOURCE):
-    if source == 'PROPOSED':
-        return install_proposed_image
-    elif source.startswith('ppa:'):
-        return partial(install_ppa, repo=source)
-    elif os.path.isfile(str(source)):
-        return install_deb
-    raise ValueError(
-        'Invalid value for CLOUD_INIT_SOURCE setting: {}'.format(source))
+    def install_deb(self):
+        log.info('Installing deb package')
+        deb_path = integration_settings.CLOUD_INIT_SOURCE
+        deb_name = os.path.basename(deb_path)
+        remote_path = '/var/tmp/{}'.format(deb_name)
+        self.push_file(
+            local_path=integration_settings.CLOUD_INIT_SOURCE,
+            remote_path=remote_path)
+        remote_script = 'dpkg -i {path}'.format(path=remote_path)
+        self.execute(remote_script)
 
 
 class IntegrationEc2Instance(IntegrationInstance):

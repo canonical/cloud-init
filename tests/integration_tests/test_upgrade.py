@@ -1,6 +1,6 @@
+from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.conftest import get_validated_source
 import pytest
-
-from tests.integration_tests.instances import get_install_method
 
 
 def _output_to_compare(instance):
@@ -21,11 +21,12 @@ def _output_to_compare(instance):
         print(instance.execute(command))
 
 
-def test_upgrade(session_cloud):
+def test_upgrade(session_cloud: IntegrationCloud):
     try:
-        install_method = get_install_method()
+        install_method = get_validated_source()
     except ValueError:
         pytest.skip("Current install method not supported for this test")
+        return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {
         'name': 'integration-upgrade-test',

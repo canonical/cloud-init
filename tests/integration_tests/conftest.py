@@ -16,9 +16,10 @@ from tests.integration_tests.clouds import (
     OciCloud,
     LxdContainerCloud,
     LxdVmCloud,
+    IntegrationCloud,
 )
 from tests.integration_tests.instances import (
-    get_install_method,
+    CloudInitSource,
     IntegrationInstance,
 )
 
@@ -87,26 +88,42 @@ def session_cloud():
     cloud.destroy()
 
 
+def get_validated_source(
+    source=integration_settings.CLOUD_INIT_SOURCE
+) -> CloudInitSource:
+    if source == 'NONE':
+        return CloudInitSource.NONE
+    elif source == 'IN_PLACE':
+        if session_cloud.datasource not in ['lxd_container', 'lxd_vm']:
+            raise ValueError(
+                'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
+        return CloudInitSource.IN_PLACE
+    elif source == 'PROPOSED':
+        return CloudInitSource.PROPOSED
+    elif source.startswith('ppa:'):
+        return CloudInitSource.PPA
+    elif os.path.isfile(str(source)):
+        return CloudInitSource.DEB_PACKAGE
+    raise ValueError(
+        'Invalid value for CLOUD_INIT_SOURCE setting: {}'.format(source))
+
+
 @pytest.fixture(scope='session')
-def setup_image(session_cloud):
+def setup_image(session_cloud: IntegrationCloud):
     """Setup the target environment with the correct version of cloud-init.
 
     So we can launch instances / run tests with the correct image
     """
-    if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
-        return  # that was easy
-    elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-        if session_cloud.datasource not in ['lxd_container', 'lxd_vm']:
-            raise ValueError(
-                'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
-        # The mount needs to happen after the instance is created, so
-        # no further action needed here
+    source = get_validated_source()
+    if source not in [
+        CloudInitSource.PROPOSED,
+        CloudInitSource.PPA,
+        CloudInitSource.DEB_PACKAGE,
+    ]:
         return
-
     log.info('Setting up environment for %s', session_cloud.datasource)
-    install_method = get_install_method(integration_settings.CLOUD_INIT_SOURCE)
     client = session_cloud.launch()
-    client.install_new_cloud_init(install_method)
+    client.install_new_cloud_init(source)
     # Even if we're keeping instances, we don't want to keep this
     # one around as it was just for image creation
     client.destroy()
