@@ -27,11 +27,23 @@ def _get_tmp_path():
 
 
 class CloudInitSource(Enum):
+    """Represents the cloud-init image source setting as a defined value.
+
+    Values here represent all possible values for CLOUD_INIT_SOURCE in
+    tests/integration_tests/integration_settings.py. See that file for an
+    explanation of these values. If the value set there can't be parsed into
+    one of these values, an exception will be raised
+    """
     NONE = 1
     IN_PLACE = 2
     PROPOSED = 3
     PPA = 4
     DEB_PACKAGE = 5
+
+    def installs_new_version(self):
+        if self.name in [self.NONE.name, self.IN_PLACE.name]:
+            return False
+        return True
 
 
 class IntegrationInstance:
@@ -114,6 +126,11 @@ class IntegrationInstance:
             self.install_ppa()
         elif source == CloudInitSource.PROPOSED:
             self.install_proposed_image()
+        else:
+            raise Exception(
+                "Specified to install {} which isn't supported here".format(
+                    source)
+            )
         version = self.execute('cloud-init -v').split()[-1]
         log.info('Installed cloud-init version: %s', version)
         self.instance.clean()

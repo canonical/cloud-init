@@ -125,12 +125,9 @@ def setup_image(session_cloud: IntegrationCloud):
 
     So we can launch instances / run tests with the correct image
     """
+
     source = get_validated_source()
-    if source not in [
-        CloudInitSource.PROPOSED,
-        CloudInitSource.PPA,
-        CloudInitSource.DEB_PACKAGE,
-    ]:
+    if not source.installs_new_version():
         return
     log.info('Setting up environment for %s', session_cloud.datasource)
     client = session_cloud.launch()
