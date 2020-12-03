@@ -1,30 +1,39 @@
-from tests.integration_tests.clouds import IntegrationCloud
-from tests.integration_tests.conftest import get_validated_source
+import logging
 import pytest
+from pathlib import Path
+
+from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
+from tests.integration_tests.conftest import (
+    get_validated_source,
+    session_start_time,
+)
+
+log = logging.getLogger('integration_testing')
 
 
-def _output_to_compare(instance):
+def _output_to_compare(instance, file_path, netcfg_path):
     commands = [
         'hostname',
         'dpkg-query --show cloud-init',
         'cat /run/cloud-init/result.json',
-        '! grep Trace /var/log/cloud-init.log',
+        'grep Trace /var/log/cloud-init.log',
         'systemd-analyze',
         'systemd-analyze blame',
         'cloud-init analyze show',
         'cloud-init analyze blame',
-        'cat $NETCFG_FILE',
+        'cat {}'.format(netcfg_path),
         'cloud-id'
     ]
-    for command in commands:
-        print('executing: {}'.format(command))
-        print(instance.execute(command))
+    with file_path.open('w') as f:
+        for command in commands:
+            f.write('===== {} ====='.format(command) + '\n')
+            f.write(instance.execute(command) + '\n')
 
 
+@pytest.mark.sru_2020_11
 def test_upgrade(session_cloud: IntegrationCloud):
-    try:
-        install_method = get_validated_source()
-    except ValueError:
+    source = get_validated_source()
+    if not source.installs_new_version():
         pytest.skip("Current install method not supported for this test")
         return  # type checking doesn't understand that skip raises
 
@@ -33,11 +42,30 @@ def test_upgrade(session_cloud: IntegrationCloud):
         'image_id': session_cloud._get_initial_image(),
         'wait': True,
     }
+
+    image = ImageSpecification.from_os_image()
+
+    # Get the paths to write test logs
+    output_dir = Path(session_cloud.settings.LOCAL_LOG_PATH)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    base_filename = 'test_upgrade_{os}_{{stage}}_{time}.log'.format(
+        os=image.release,
+        time=session_start_time,
+    )
+    before_path = output_dir / base_filename.format(stage='before')
+    after_path = output_dir / base_filename.format(stage='after')
+
+    # Get the network cfg file
+    netcfg_path = '/dev/null'
+    if image.os == 'ubuntu':
+        netcfg_path = '/etc/netplan/50-cloud-init.yaml'
+        if image.release == 'xenial':
+            netcfg_path = '/etc/network/interfaces.d/50-cloud-init.cfg'
+
     with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
-        print('Before upgrade')
-        _output_to_compare(instance)
-        instance.install_new_cloud_init(
-            install_method, take_snapshot=False)
+        _output_to_compare(instance, before_path, netcfg_path)
+        instance.install_new_cloud_init(source, take_snapshot=False)
         instance.instance.restart()
-        print('After upgrade')
-        _output_to_compare(instance)
+        _output_to_compare(instance, after_path, netcfg_path)
+
+    log.info('Wrote upgrade test logs to %s and %s', before_path, after_path)
