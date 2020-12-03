@@ -6,17 +6,17 @@ ensure we can still ssh as expected.
 import paramiko
 import pytest
 from io import StringIO
-from tests.integration_tests.assets import get_test_keypair
+from tests.integration_tests.assets import get_test_rsa_keypair
 
 
-public_key, private_key = get_test_keypair()
+public_rsa_key, private_rsa_key = get_test_rsa_keypair()
 USER_DATA = """\
 #cloud-config
 bootcmd:
   - sed -i 's/#AuthorizedKeysFile.*/AuthorizedKeysFile\\ .ssh\\/authorized_keys2/' /etc/ssh/sshd_config
 ssh_authorized_keys:
  - {public_key}
-""".format(public_key=public_key)  # noqa: E501
+""".format(public_key=public_rsa_key)  # noqa: E501
 
 
 @pytest.mark.sru_2020_11
@@ -24,14 +24,19 @@ ssh_authorized_keys:
 def test_non_default_authorized_keys(client):
     sshd = client.read_from_file('/etc/ssh/sshd_config')
     assert 'AuthorizedKeysFile .ssh/authorized_keys2' in sshd
+    assert sshd.count('AuthorizedKeysFile') == 1
 
     ssh_dir = client.execute('ls /home/ubuntu/.ssh').stdout
     assert 'authorized_keys2' in ssh_dir
 
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    paramiko_key = paramiko.RSAKey.from_private_key(StringIO(private_key))
+    paramiko_key = paramiko.RSAKey.from_private_key(StringIO(private_rsa_key))
 
     # Will fail with paramiko.ssh_exception.AuthenticationException
     # if this bug isn't fixed
-    ssh.connect(client.instance.ip, username='ubuntu', pkey=paramiko_key)
+    ssh.connect(
+        client.instance.ip,
+        username=client.instance.username,
+        pkey=paramiko_key,
+    )
