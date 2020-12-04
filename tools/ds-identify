@@ -125,7 +125,8 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud"
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud \
+EquinixMetal"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -1300,6 +1301,14 @@ dscheck_Oracle() {
     local asset_tag="OracleCloud.com"
     dmi_chassis_asset_tag_matches "${asset_tag}" && return ${DS_FOUND}
     return ${DS_NOT_FOUND}
+}
+
+dscheck_EquinixMetal() {
+    check_seed_dir "EquinixMetal" meta-data user-data && return ${DS_FOUND}
+    if dmi_product_name_matches "Equinix Metal"; then
+        return $DS_FOUND
+    fi
+    return $DS_NOT_FOUND
 }
 
 is_ibm_provisioning() {

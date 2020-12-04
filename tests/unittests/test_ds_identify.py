@@ -649,6 +649,10 @@ class TestDsIdentify(DsIdentifyBase):
         """EC2: bobrightbox.com in product_serial is not brightbox'"""
         self._test_ds_not_found('Ec2-E24Cloud-negative')
 
+        def test_equinixmetal_identified(self):
+        """Test that Equinix Metal is identified by metadata"""
+        self._test_ds_found('EquinixMetal')
+
 
 class TestBSDNoSys(DsIdentifyBase):
     """Test *BSD code paths
@@ -1136,7 +1140,11 @@ VALID_CFG = {
     'Ec2-E24Cloud-negative': {
         'ds': 'Ec2',
         'files': {P_SYS_VENDOR: 'e24cloudyday\n'},
-    }
+    },
+    'EquinixMetal': {
+        'ds': 'EquinixMetal',
+        'mocks': [], # TODO how do I mock metadata responses?
+    },
 }
 
 # vi: ts=4 expandtab
