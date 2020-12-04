@@ -86,7 +86,6 @@ def construct_valid_ovf_env(data=None, pubkeys=None,
 
     return content
 
-
 NETWORK_METADATA = {
     "compute": {
         "location": "eastus2",
@@ -156,6 +155,22 @@ SECONDARY_INTERFACE = {
                 "privateIpAddress": "10.0.1.5",
             }
         ]
+    }
+}
+
+SECONDARY_INTERFACE_NO_IP = {
+    "macAddress": "220D3A047598",
+    "ipv6": {
+        "ipAddress": []
+    },
+    "ipv4": {
+        "subnet": [
+            {
+                "prefix": "24",
+                "address": "10.0.1.0"
+            }
+        ],
+        "ipAddress": []
     }
 }
 
@@ -1134,6 +1149,30 @@ scbus-1 on xpt0 bus 0
         third_intf['ipv4']['ipAddress'][0]['privateIpAddress'] = '10.0.2.6'
         imds_data['network']['interface'].append(third_intf)
 
+        self.m_get_metadata_from_imds.return_value = imds_data
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(expected_network_config, dsrc.network_config)
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_network_config_set_from_imds_for_secondary_nic_no_ip(
+            self, m_driver):
+        """If an IP address is empty then there should no config for it."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        expected_network_config = {
+            'ethernets': {
+                'eth0': {'set-name': 'eth0',
+                         'match': {'macaddress': '00:0d:3a:04:75:98'},
+                         'dhcp6': False,
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 100}}},
+            'version': 2}
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data['network']['interface'].append(SECONDARY_INTERFACE_NO_IP)
         self.m_get_metadata_from_imds.return_value = imds_data
         dsrc = self._get_ds(data)
         dsrc.get_data()
