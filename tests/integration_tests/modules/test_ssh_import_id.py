@@ -3,6 +3,10 @@
 This test specifies ssh keys to be imported by the ``ssh_import_id`` module
 and then checks that if the ssh keys were successfully imported.
 
+TODO:
+* This test assumes that SSH keys will be imported into the /home/ubuntu; this
+  will need modification to run on other OSes.
+
 (This is ported from
 ``tests/cloud_tests/testcases/modules/ssh_import_id.yaml``.)"""
 
@@ -18,6 +22,7 @@ ssh_import_id:
 
 
 @pytest.mark.ci
+@pytest.mark.ubuntu
 class TestSshImportId:
 
     @pytest.mark.user_data(USER_DATA)
