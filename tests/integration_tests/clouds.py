@@ -166,11 +166,16 @@ class IntegrationCloud(ABC):
 
     def delete_snapshot(self):
         if self.snapshot_id:
-            log.info(
-                'Deleting snapshot image created for this testrun: %s',
-                self.snapshot_id
-            )
-            self.cloud_instance.delete_image(self.snapshot_id)
+            if self.settings.KEEP_IMAGE:
+                log.info(
+                    'NOT deleting snapshot image created for this testrun '
+                    'because KEEP_IMAGE is True: %s', self.snapshot_id)
+            else:
+                log.info(
+                    'Deleting snapshot image created for this testrun: %s',
+                    self.snapshot_id
+                )
+                self.cloud_instance.delete_image(self.snapshot_id)
 
 
 class Ec2Cloud(IntegrationCloud):
