@@ -86,6 +86,7 @@ def construct_valid_ovf_env(data=None, pubkeys=None,
 
     return content
 
+
 NETWORK_METADATA = {
     "compute": {
         "location": "eastus2",
