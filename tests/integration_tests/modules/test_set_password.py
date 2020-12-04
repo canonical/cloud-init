@@ -139,11 +139,13 @@ class Mixin:
         assert "PasswordAuthentication yes" in sshd_config.splitlines()
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(LIST_USER_DATA)
 class TestPasswordList(Mixin):
     """Launch an instance with LIST_USER_DATA, ensure Mixin tests pass."""
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(STRING_USER_DATA)
 class TestPasswordListString(Mixin):
     """Launch an instance with STRING_USER_DATA, ensure Mixin tests pass."""

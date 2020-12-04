@@ -1,18 +1,24 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import datetime
 import logging
 import os
 import pytest
 import sys
+from tarfile import TarFile
 from contextlib import contextmanager
+from pathlib import Path
 
 from tests.integration_tests import integration_settings
 from tests.integration_tests.clouds import (
+    AzureCloud,
     Ec2Cloud,
     GceCloud,
-    AzureCloud,
-    OciCloud,
+    ImageSpecification,
     LxdContainerCloud,
+    LxdVmCloud,
+    OciCloud,
 )
+from tests.integration_tests.instances import IntegrationInstance
 
 
 log = logging.getLogger('integration_testing')
@@ -25,7 +31,11 @@ platforms = {
     'azure': AzureCloud,
     'oci': OciCloud,
     'lxd_container': LxdContainerCloud,
+    'lxd_vm': LxdVmCloud,
 }
+os_list = ["ubuntu"]
+
+session_start_time = datetime.datetime.now().strftime('%y%m%d%H%M%S')
 
 
 def pytest_runtest_setup(item):
@@ -37,11 +47,26 @@ def pytest_runtest_setup(item):
     specified, then we assume the test can be run anywhere.
     """
     all_platforms = platforms.keys()
-    supported_platforms = set(all_platforms).intersection(
-        mark.name for mark in item.iter_markers())
+    test_marks = [mark.name for mark in item.iter_markers()]
+    supported_platforms = set(all_platforms).intersection(test_marks)
     current_platform = integration_settings.PLATFORM
+    unsupported_message = 'Cannot run on platform {}'.format(current_platform)
+    if 'no_container' in test_marks:
+        if 'lxd_container' in test_marks:
+            raise Exception(
+                'lxd_container and no_container marks simultaneously set '
+                'on test'
+            )
+        if current_platform == 'lxd_container':
+            pytest.skip(unsupported_message)
     if supported_platforms and current_platform not in supported_platforms:
-        pytest.skip('Cannot run on platform {}'.format(current_platform))
+        pytest.skip(unsupported_message)
+
+    image = ImageSpecification.from_os_image()
+    current_os = image.os
+    supported_os_set = set(os_list).intersection(test_marks)
+    if current_os and supported_os_set and current_os not in supported_os_set:
+        pytest.skip("Cannot run on OS {}".format(current_os))
 
 
 # disable_subp_usage is defined at a higher level, but we don't
@@ -62,8 +87,12 @@ def session_cloud():
         )
 
     cloud = platforms[integration_settings.PLATFORM]()
+    cloud.emit_settings_to_log()
     yield cloud
-    cloud.destroy()
+    try:
+        cloud.delete_snapshot()
+    finally:
+        cloud.destroy()
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -77,10 +106,10 @@ def setup_image(session_cloud):
     if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
         pass  # that was easy
     elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-        if session_cloud.datasource != 'lxd_container':
+        if session_cloud.datasource not in ['lxd_container', 'lxd_vm']:
             raise ValueError(
                 'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
-        # The mount needs to happen after the instance is launched, so
+        # The mount needs to happen after the instance is created, so
         # no further action needed here
     elif integration_settings.CLOUD_INIT_SOURCE == 'PROPOSED':
         client = session_cloud.launch()
@@ -102,6 +131,43 @@ def setup_image(session_cloud):
     log.info('Done with environment setup')
 
 
+def _collect_logs(instance: IntegrationInstance, node_id: str,
+                  test_failed: bool):
+    """Collect logs from remote instance.
+
+    Args:
+        instance: The current IntegrationInstance to collect logs from
+        node_id: The pytest representation of this test, E.g.:
+            tests/integration_tests/test_example.py::TestExample.test_example
+        test_failed: If test failed or not
+    """
+    if any([
+        integration_settings.COLLECT_LOGS == 'NEVER',
+        integration_settings.COLLECT_LOGS == 'ON_ERROR' and not test_failed
+    ]):
+        return
+    instance.execute(
+        'cloud-init collect-logs -u -t /var/tmp/cloud-init.tar.gz')
+    node_id_path = Path(
+        node_id
+        .replace('.py', '')  # Having a directory with '.py' would be weird
+        .replace('::', os.path.sep)  # Turn classes/tests into paths
+        .replace('[', '-')  # For parametrized names
+        .replace(']', '')  # For parameterized names
+    )
+    log_dir = Path(
+        integration_settings.LOCAL_LOG_PATH
+    ) / session_start_time / node_id_path
+    if not log_dir.exists():
+        log_dir.mkdir(parents=True)
+    tarball_path = log_dir / 'cloud-init.tar.gz'
+    instance.pull_file('/var/tmp/cloud-init.tar.gz', tarball_path)
+
+    tarball = TarFile.open(str(tarball_path))
+    tarball.extractall(path=str(log_dir))
+    tarball_path.unlink()
+
+
 @contextmanager
 def _client(request, fixture_utils, session_cloud):
     """Fixture implementation for the client fixtures.
@@ -120,7 +186,10 @@ def _client(request, fixture_utils, session_cloud):
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs
     ) as instance:
+        previous_failures = request.session.testsfailed
         yield instance
+        test_failed = request.session.testsfailed - previous_failures > 0
+        _collect_logs(instance, request.node.nodeid, test_failed)
 
 
 @pytest.yield_fixture

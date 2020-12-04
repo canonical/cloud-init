@@ -28,6 +28,7 @@ ssh_authorized_keys:
 """  # noqa
 
 
+@pytest.mark.ci
 class TestSshAuthkeyFingerprints:
 
     @pytest.mark.user_data(USER_DATA_SSH_AUTHKEY_DISABLE)
