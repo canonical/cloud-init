@@ -36,6 +36,7 @@ The following is a list of documents for each supported datasource:
    datasources/digitalocean.rst
    datasources/e24cloud.rst
    datasources/ec2.rst
+   datasources/equinixmetal.rst
    datasources/exoscale.rst
    datasources/fallback.rst
    datasources/gce.rst
