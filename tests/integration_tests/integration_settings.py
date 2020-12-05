@@ -7,6 +7,8 @@ import os
 
 # Keep instance (mostly for debugging) when test is finished
 KEEP_INSTANCE = False
+# Keep snapshot image (mostly for debugging) when test is finished
+KEEP_IMAGE = False
 
 # One of:
 #  lxd_container
