@@ -7,6 +7,8 @@ import os
 
 # Keep instance (mostly for debugging) when test is finished
 KEEP_INSTANCE = False
+# Keep snapshot image (mostly for debugging) when test is finished
+KEEP_IMAGE = False
 
 # One of:
 #  lxd_container
@@ -22,8 +24,11 @@ PLATFORM = 'lxd_container'
 INSTANCE_TYPE = None
 
 # Determines the base image to use or generate new images from.
-# Can be the name of the OS if running a stock image,
-# otherwise the id of the image being used if using a custom image
+#
+# This can be the name of an Ubuntu release, or in the format
+# <image_id>[::<os>[::<release>]].  If given, os and release should describe
+# the image specified by image_id.  (Ubuntu releases are converted to this
+# format internally; in this case, to "focal::ubuntu::focal".)
 OS_IMAGE = 'focal'
 
 # Populate if you want to use a pre-launched instance instead of

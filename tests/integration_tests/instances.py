@@ -35,6 +35,19 @@ class IntegrationInstance:
     def destroy(self):
         self.instance.delete()
 
+    def restart(self, raise_on_cloudinit_failure=False):
+        """Restart this instance (via cloud mechanism) and wait for boot.
+
+        This wraps pycloudlib's `BaseInstance.restart` to pass
+        `raise_on_cloudinit_failure=False` to `BaseInstance.wait`, mirroring
+        our launch behaviour.
+        """
+        self.instance.restart(wait=False)
+        log.info("Instance restarted; waiting for boot")
+        self.instance.wait(
+            raise_on_cloudinit_failure=raise_on_cloudinit_failure
+        )
+
     def execute(self, command, *, use_sudo=True) -> Result:
         if self.instance.username == 'root' and use_sudo is False:
             raise Exception('Root user cannot run unprivileged')
