@@ -1451,7 +1451,7 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
 
 
 @azure_ds_telemetry_reporter
-def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
+def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=5,
                              is_new_instance=False, preserve_ntfs=False):
     # wait for ephemeral disk to come up
     naplen = .2
