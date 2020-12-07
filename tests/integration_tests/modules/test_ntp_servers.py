@@ -22,6 +22,7 @@ ntp:
 EXPECTED_SERVERS = yaml.safe_load(USER_DATA)["ntp"]["servers"]
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestNtpServers:
 

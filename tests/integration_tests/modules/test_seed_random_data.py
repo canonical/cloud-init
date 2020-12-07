@@ -19,6 +19,7 @@ random_seed:
 """
 
 
+@pytest.mark.ci
 class TestSeedRandomData:
 
     @pytest.mark.user_data(USER_DATA)
