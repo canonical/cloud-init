@@ -21,6 +21,11 @@ def _output_to_compare(instance, file_path, netcfg_path):
         'hostname',
         'dpkg-query --show cloud-init',
         'cat /run/cloud-init/result.json',
+        # 'cloud-init init' helps us understand if our pickling upgrade paths
+        # have broken across re-constitution of a cached datasource. Some
+        # platforms invalidate their datasource cache on reboot, so we run
+        # it here to ensure we get a dirty run.
+        'cloud-init init'
         'grep Trace /var/log/cloud-init.log',
         'cloud-id'
         'cat {}'.format(netcfg_path),
