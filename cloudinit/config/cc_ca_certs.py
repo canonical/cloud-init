@@ -49,7 +49,7 @@ DEFAULT_CONFIG = {
     'ca_cert_filename': 'cloud-init-ca-certs.crt',
     'ca_cert_config': '/etc/ca-certificates.conf',
     'ca_cert_system_path': '/etc/ssl/certs/',
-    'ca_cert_update_exe': 'update-ca-certificates'
+    'ca_cert_update_cmd': ['update-ca-certificates']
 }
 DISTRO_OVERRIDES = {
     'rhel': {
@@ -57,7 +57,7 @@ DISTRO_OVERRIDES = {
         'ca_cert_filename': 'anchors/cloud-init-ca-certs.crt',
         'ca_cert_config': None,
         'ca_cert_system_path': '/etc/pki/ca-trust/',
-        'ca_cert_update_exe': 'update-ca-trust'
+        'ca_cert_update_cmd': ['update-ca-trust']
     }
 }
 
@@ -88,7 +88,7 @@ def update_ca_certs(distro_name):
     @param distro: String providing the distro class name.
     """
     distro_cfg = _distro_ca_certs_configs(distro_name)
-    subp.subp([distro_cfg['ca_cert_update_exe']], capture=False)
+    subp.subp(distro_cfg['ca_cert_update_cmd'], capture=False)
 
 
 def add_ca_certs(distro_name, certs):
@@ -117,7 +117,6 @@ def update_cert_config(distro_name):
     @param distro: String providing the distro class name.
     """
     distro_cfg = _distro_ca_certs_configs(distro_name)
-    if distro_cfg['ca_cert_config'] == '':
     if distro_cfg['ca_cert_config'] is None: 
         return
     if os.stat(distro_cfg['ca_cert_config']).st_size == 0:
