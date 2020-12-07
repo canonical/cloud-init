@@ -10,6 +10,11 @@ from tests.integration_tests.conftest import (
 
 log = logging.getLogger('integration_testing')
 
+USER_DATA = """\
+#cloud-config
+hostname: SRU-worked
+"""
+
 
 def _output_to_compare(instance, file_path, netcfg_path):
     commands = [
@@ -17,12 +22,12 @@ def _output_to_compare(instance, file_path, netcfg_path):
         'dpkg-query --show cloud-init',
         'cat /run/cloud-init/result.json',
         'grep Trace /var/log/cloud-init.log',
+        'cloud-id'
+        'cat {}'.format(netcfg_path),
         'systemd-analyze',
         'systemd-analyze blame',
         'cloud-init analyze show',
         'cloud-init analyze blame',
-        'cat {}'.format(netcfg_path),
-        'cloud-id'
     ]
     with file_path.open('w') as f:
         for command in commands:
@@ -34,7 +39,9 @@ def _output_to_compare(instance, file_path, netcfg_path):
 def test_upgrade(session_cloud: IntegrationCloud):
     source = get_validated_source()
     if not source.installs_new_version():
-        pytest.skip("Current install method not supported for this test")
+        pytest.skip("Install method '{}' not supported for this test".format(
+            source
+        ))
         return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {
@@ -62,10 +69,13 @@ def test_upgrade(session_cloud: IntegrationCloud):
         if image.release == 'xenial':
             netcfg_path = '/etc/network/interfaces.d/50-cloud-init.cfg'
 
-    with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
+    with session_cloud.launch(
+        launch_kwargs=launch_kwargs, user_data=USER_DATA
+    ) as instance:
         _output_to_compare(instance, before_path, netcfg_path)
         instance.install_new_cloud_init(source, take_snapshot=False)
-        instance.instance.restart()
+        instance.execute('hostname something-else')
+        instance.restart(raise_on_cloudinit_failure=True)
         _output_to_compare(instance, after_path, netcfg_path)
 
     log.info('Wrote upgrade test logs to %s and %s', before_path, after_path)
