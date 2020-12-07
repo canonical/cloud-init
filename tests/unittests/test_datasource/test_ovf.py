@@ -17,8 +17,7 @@ from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceOVF as dsovf
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
     CustomScriptNotFound)
-from cloudinit.sources.DataSourceOVF import (
-    FileNotFound, LoadError)
+from cloudinit.safeyaml import YAMLError
 
 MPATH = 'cloudinit.sources.DataSourceOVF.'
 
@@ -162,7 +161,7 @@ class TestDatasourceOVF(CiTestCase):
              'transport_vmware_guestinfo': NOT_FOUND,
              'util.del_dir': True,
              'search_file': self.tdir,
-             'wait_for_imc_file': conf_file},
+             'wait_for_imc_cfg_file': conf_file},
             ds.get_data)
         self.assertFalse(retcode, 'Expected False return from ds.get_data')
         self.assertIn(
@@ -192,7 +191,7 @@ class TestDatasourceOVF(CiTestCase):
                     {'dmi.read_dmi_data': 'vmware',
                      'util.del_dir': True,
                      'search_file': self.tdir,
-                     'wait_for_imc_file': conf_file,
+                     'wait_for_imc_cfg_file': conf_file,
                      'get_nics_to_enable': ''},
                     ds.get_data)
         customscript = self.tmp_path('test-script', self.tdir)
@@ -229,7 +228,7 @@ class TestDatasourceOVF(CiTestCase):
                         {'dmi.read_dmi_data': 'vmware',
                          'util.del_dir': True,
                          'search_file': self.tdir,
-                         'wait_for_imc_file': conf_file,
+                         'wait_for_imc_cfg_file': conf_file,
                          'get_nics_to_enable': ''},
                         ds.get_data)
         self.assertIn('Custom script is disabled by VM Administrator',
@@ -264,7 +263,7 @@ class TestDatasourceOVF(CiTestCase):
                         {'dmi.read_dmi_data': 'vmware',
                          'util.del_dir': True,
                          'search_file': self.tdir,
-                         'wait_for_imc_file': conf_file,
+                         'wait_for_imc_cfg_file': conf_file,
                          'get_nics_to_enable': ''},
                         ds.get_data)
         # Verify custom script is trying to be executed
@@ -308,7 +307,7 @@ class TestDatasourceOVF(CiTestCase):
                         {'dmi.read_dmi_data': 'vmware',
                          'util.del_dir': True,
                          'search_file': self.tdir,
-                         'wait_for_imc_file': conf_file,
+                         'wait_for_imc_cfg_file': conf_file,
                          'get_nics_to_enable': ''},
                         ds.get_data)
         # Verify custom script still runs although it is
@@ -368,7 +367,7 @@ class TestDatasourceOVF(CiTestCase):
             sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
         # Prepare the conf file
-        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_file = self.tmp_path('test-cust', self.tdir)
         conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
@@ -395,24 +394,17 @@ class TestDatasourceOVF(CiTestCase):
             """)
         util.write_file(metadata_file, metadata_content)
 
-        # Mock wait_for_imc_file() to return the file path
-        def my_wait_for_imc_file(*args, **kwargs):
-            if len(args):
-                return self.tdir + "/" + args[0]
-            else:
-                return self.tdir + "/" + kwargs['filename']
-
         with mock.patch(MPATH + 'set_customization_status',
                         return_value=('msg', b'')):
-            with mock.patch(MPATH + 'wait_for_imc_file',
-                            side_effect=my_wait_for_imc_file):
-                result = wrap_and_call(
-                    'cloudinit.sources.DataSourceOVF',
-                    {'dmi.read_dmi_data': 'vmware',
-                     'util.del_dir': True,
-                     'search_file': self.tdir,
-                     'get_nics_to_enable': ''},
-                    ds._get_data)
+            result = wrap_and_call(
+                'cloudinit.sources.DataSourceOVF',
+                {'dmi.read_dmi_data': 'vmware',
+                 'util.del_dir': True,
+                 'search_file': self.tdir,
+                 'wait_for_imc_cfg_file': conf_file,
+                 'collect_imc_files': [self.tdir + '/test-meta', '', ''],
+                 'get_nics_to_enable': ''},
+                ds._get_data)
 
         self.assertTrue(result)
         self.assertEqual("cloud-vm", ds.metadata['instance-id'])
@@ -429,7 +421,7 @@ class TestDatasourceOVF(CiTestCase):
             sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
         # Prepare the conf file
-        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_file = self.tmp_path('test-cust', self.tdir)
         conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
@@ -450,24 +442,17 @@ class TestDatasourceOVF(CiTestCase):
             """)
         util.write_file(metadata_file, metadata_content)
 
-        # Mock wait_for_imc_file() to return the file path
-        def my_wait_for_imc_file(*args, **kwargs):
-            if len(args):
-                return self.tdir + "/" + args[0]
-            else:
-                return self.tdir + "/" + kwargs['filename']
-
         with mock.patch(MPATH + 'set_customization_status',
                         return_value=('msg', b'')):
-            with mock.patch(MPATH + 'wait_for_imc_file',
-                            side_effect=my_wait_for_imc_file):
-                result = wrap_and_call(
-                    'cloudinit.sources.DataSourceOVF',
-                    {'dmi.read_dmi_data': 'vmware',
-                     'util.del_dir': True,
-                     'search_file': self.tdir,
-                     'get_nics_to_enable': ''},
-                    ds._get_data)
+            result = wrap_and_call(
+                'cloudinit.sources.DataSourceOVF',
+                {'dmi.read_dmi_data': 'vmware',
+                 'util.del_dir': True,
+                 'search_file': self.tdir,
+                 'wait_for_imc_cfg_file': conf_file,
+                 'collect_imc_files': [self.tdir + '/test-meta', '', ''],
+                 'get_nics_to_enable': ''},
+                ds._get_data)
 
         self.assertTrue(result)
         self.assertEqual("cloud-vm", ds.metadata['instance-id'])
@@ -484,7 +469,7 @@ class TestDatasourceOVF(CiTestCase):
             paths=paths)
 
         # Prepare the conf file
-        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_file = self.tmp_path('test-cust', self.tdir)
         conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
@@ -496,27 +481,20 @@ class TestDatasourceOVF(CiTestCase):
         metadata_content = "[This is not json or yaml format]a=b"
         util.write_file(metadata_file, metadata_content)
 
-        # Mock wait_for_imc_file() to return the file path
-        def my_wait_for_imc_file(*args, **kwargs):
-            if len(args):
-                return self.tdir + "/" + args[0]
-            else:
-                return self.tdir + "/" + kwargs['filename']
-
         with mock.patch(MPATH + 'set_customization_status',
                         return_value=('msg', b'')):
-            with mock.patch(MPATH + 'wait_for_imc_file',
-                            side_effect=my_wait_for_imc_file):
-                with self.assertRaises(LoadError) as context:
-                    wrap_and_call(
-                        'cloudinit.sources.DataSourceOVF',
-                        {'dmi.read_dmi_data': 'vmware',
-                         'util.del_dir': True,
-                         'search_file': self.tdir,
-                         'get_nics_to_enable': ''},
-                        ds.get_data)
+            with self.assertRaises(YAMLError) as context:
+                wrap_and_call(
+                    'cloudinit.sources.DataSourceOVF',
+                    {'dmi.read_dmi_data': 'vmware',
+                     'util.del_dir': True,
+                     'search_file': self.tdir,
+                     'wait_for_imc_cfg_file': conf_file,
+                     'collect_imc_files': [self.tdir + '/test-meta', '', ''],
+                     'get_nics_to_enable': ''},
+                    ds.get_data)
 
-        self.assertIn('Error parsing the meta data',
+        self.assertIn("expected '<document start>', but found '<scalar>'",
                       str(context.exception))
 
     def test_get_data_cloudinit_metadata_not_found(self):
@@ -527,7 +505,7 @@ class TestDatasourceOVF(CiTestCase):
             sys_cfg={'disable_vmware_customization': True}, distro={},
             paths=paths)
         # Prepare the conf file
-        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_file = self.tmp_path('test-cust', self.tdir)
         conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
@@ -535,33 +513,19 @@ class TestDatasourceOVF(CiTestCase):
         util.write_file(conf_file, conf_content)
         # Don't prepare the meta data file
 
-        # Mock wait_for_imc_file() to return the file path
-        def my_wait_for_imc_file(*args, **kwargs):
-            if len(args):
-                filename = args[0]
-            else:
-                filename = kwargs['filename']
-            # mock test-meta can't be found
-            if filename == "test-meta":
-                return None
-            else:
-                return self.tdir + "/" + filename
-
         with mock.patch(MPATH + 'set_customization_status',
                         return_value=('msg', b'')):
-            with mock.patch(MPATH + 'wait_for_imc_file',
-                            side_effect=my_wait_for_imc_file):
-                with self.assertRaises(FileNotFound) as context:
-                    wrap_and_call(
-                        'cloudinit.sources.DataSourceOVF',
-                        {'dmi.read_dmi_data': 'vmware',
-                         'util.del_dir': True,
-                         'search_file': self.tdir,
-                         'get_nics_to_enable': ''},
-                        ds.get_data)
+            with self.assertRaises(FileNotFoundError) as context:
+                wrap_and_call(
+                    'cloudinit.sources.DataSourceOVF',
+                    {'dmi.read_dmi_data': 'vmware',
+                     'util.del_dir': True,
+                     'search_file': self.tdir,
+                     'wait_for_imc_cfg_file': conf_file,
+                     'get_nics_to_enable': ''},
+                    ds.get_data)
 
-        self.assertIn('cloud-init meta data file is not found',
-                      str(context.exception))
+        self.assertIn('file is not found', str(context.exception))
 
     def test_get_data_cloudinit_userdata(self):
         """Test user data can be loaded to cloud-init user data.
@@ -572,7 +536,7 @@ class TestDatasourceOVF(CiTestCase):
             paths=paths)
 
         # Prepare the conf file
-        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_file = self.tmp_path('test-cust', self.tdir)
         conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
@@ -600,24 +564,18 @@ class TestDatasourceOVF(CiTestCase):
         userdata_content = "This is the user data"
         util.write_file(userdata_file, userdata_content)
 
-        # Mock wait_for_imc_file() to return the file path
-        def my_wait_for_imc_file(*args, **kwargs):
-            if len(args):
-                return self.tdir + "/" + args[0]
-            else:
-                return self.tdir + "/" + kwargs['filename']
-
         with mock.patch(MPATH + 'set_customization_status',
                         return_value=('msg', b'')):
-            with mock.patch(MPATH + 'wait_for_imc_file',
-                            side_effect=my_wait_for_imc_file):
-                result = wrap_and_call(
-                    'cloudinit.sources.DataSourceOVF',
-                    {'dmi.read_dmi_data': 'vmware',
-                     'util.del_dir': True,
-                     'search_file': self.tdir,
-                     'get_nics_to_enable': ''},
-                    ds._get_data)
+            result = wrap_and_call(
+                'cloudinit.sources.DataSourceOVF',
+                {'dmi.read_dmi_data': 'vmware',
+                 'util.del_dir': True,
+                 'search_file': self.tdir,
+                 'wait_for_imc_cfg_file': conf_file,
+                 'collect_imc_files': [self.tdir + '/test-meta',
+                                       self.tdir + '/test-user', ''],
+                 'get_nics_to_enable': ''},
+                ds._get_data)
 
         self.assertTrue(result)
         self.assertEqual("cloud-vm", ds.metadata['instance-id'])
@@ -632,7 +590,7 @@ class TestDatasourceOVF(CiTestCase):
             paths=paths)
 
         # Prepare the conf file
-        conf_file = self.tmp_path('cust.cfg', self.tdir)
+        conf_file = self.tmp_path('test-cust', self.tdir)
         conf_content = dedent("""\
             [CLOUDINIT]
             METADATA = test-meta
@@ -657,33 +615,19 @@ class TestDatasourceOVF(CiTestCase):
 
         # Don't prepare the user data file
 
-        # Mock wait_for_imc_file() to return the file path
-        def my_wait_for_imc_file(*args, **kwargs):
-            if len(args):
-                filename = args[0]
-            else:
-                filename = kwargs['filename']
-            # mock test-user can't be found
-            if filename == "test-user":
-                return None
-            else:
-                return self.tdir + "/" + filename
-
         with mock.patch(MPATH + 'set_customization_status',
                         return_value=('msg', b'')):
-            with mock.patch(MPATH + 'wait_for_imc_file',
-                            side_effect=my_wait_for_imc_file):
-                with self.assertRaises(FileNotFound) as context:
-                    wrap_and_call(
-                        'cloudinit.sources.DataSourceOVF',
-                        {'dmi.read_dmi_data': 'vmware',
-                         'util.del_dir': True,
-                         'search_file': self.tdir,
-                         'get_nics_to_enable': ''},
-                        ds.get_data)
+            with self.assertRaises(FileNotFoundError) as context:
+                wrap_and_call(
+                    'cloudinit.sources.DataSourceOVF',
+                    {'dmi.read_dmi_data': 'vmware',
+                     'util.del_dir': True,
+                     'search_file': self.tdir,
+                     'wait_for_imc_cfg_file': conf_file,
+                     'get_nics_to_enable': ''},
+                    ds.get_data)
 
-        self.assertIn('cloud-init user data file is not found',
-                      str(context.exception))
+        self.assertIn('file is not found', str(context.exception))
 
 
 class TestTransportIso9660(CiTestCase):

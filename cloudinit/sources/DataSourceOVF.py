@@ -9,7 +9,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
-import json
 import os
 import re
 import time
@@ -49,6 +48,7 @@ LOG = logging.getLogger(__name__)
 
 CONFGROUPNAME_GUESTCUSTOMIZATION = "deployPkg"
 GUESTCUSTOMIZATION_ENABLE_CUST_SCRIPTS = "enable-custom-scripts"
+VMWARE_IMC_DIR = "/var/run/vmware-imc"
 
 
 class DataSourceOVF(sources.DataSource):
@@ -78,7 +78,7 @@ class DataSourceOVF(sources.DataSource):
         ud = ""
         vd = ""
         vmwareImcConfigFilePath = None
-        nicsPath = None
+        nicspath = None
 
         defaults = {
             "instance-id": "iid-dsovf",
@@ -124,7 +124,7 @@ class DataSourceOVF(sources.DataSource):
                     vmwareImcConfigFilePath = util.log_time(
                         logfunc=LOG.debug,
                         msg="waiting for configuration file",
-                        func=wait_for_imc_file,
+                        func=wait_for_imc_cfg_file,
                         args=("cust.cfg", max_wait))
                 else:
                     LOG.debug("Did not find the customization plugin.")
@@ -137,7 +137,7 @@ class DataSourceOVF(sources.DataSource):
                     LOG.debug("Found VMware Customization Config File at %s",
                               vmwareImcConfigFilePath)
                     try:
-                        (metaPath, userPath, nicsPath) = collect_imc_files(
+                        (metaPath, userPath, nicspath) = collect_imc_files(
                             self._vmware_cust_conf)
                     except Exception as e:
                         _raise_error_status(
@@ -149,7 +149,7 @@ class DataSourceOVF(sources.DataSource):
                 else:
                     LOG.debug("Did not find VMware Customization Config File")
 
-                # if meta data is avaiable, ignore disable_vmware_customization
+                # ignore disable_vmware_customization if meta data is available
                 if not metaPath:
                     if util.get_cfg_option_bool(self.sys_cfg,
                                                 "disable_vmware_customization",
@@ -174,7 +174,7 @@ class DataSourceOVF(sources.DataSource):
                     fallbackNetwork = self.distro.generate_fallback_config()
                     self._network_config = fallbackNetwork
 
-            except LoadError as e:
+            except safeyaml.YAMLError as e:
                 _raise_error_status(
                     "Error parsing the cloud-init meta data",
                     e,
@@ -204,7 +204,7 @@ class DataSourceOVF(sources.DataSource):
                 set_gc_status(self._vmware_cust_conf, "Started")
 
                 (md, ud, cfg) = read_vmware_imc(self._vmware_cust_conf)
-                self._vmware_nics_to_enable = get_nics_to_enable(nicsPath)
+                self._vmware_nics_to_enable = get_nics_to_enable(nicspath)
                 product_marker = self._vmware_cust_conf.marker_id
                 hasmarkerfile = check_marker_exists(
                     product_marker, os.path.join(self.paths.cloud_dir, 'data'))
@@ -434,16 +434,15 @@ def get_max_wait_from_cfg(cfg):
     return max_wait
 
 
-def wait_for_imc_file(filename, maxwait=180, naplen=5,
-                      dirpath="/var/run/vmware-imc"):
+def wait_for_imc_cfg_file(filename, maxwait=180, naplen=5,
+                          dirpath="/var/run/vmware-imc"):
     waited = 0
 
     while waited < maxwait:
         fileFullPath = os.path.join(dirpath, filename)
         if os.path.isfile(fileFullPath):
-            LOG.debug("VMware Customization File '%s' is found", fileFullPath)
             return fileFullPath
-        LOG.debug("Waiting for VMware Customization File '%s'", fileFullPath)
+        LOG.debug("Waiting for VMware Customization Config File")
         time.sleep(naplen)
         waited += naplen
     return None
@@ -754,7 +753,7 @@ def load_cloudinit_data(metaPath, userPath):
     ud = None
     network = None
 
-    md = load(util.load_file(metaPath).replace("\r", ""))
+    md = load(util.load_file(metaPath))
 
     if 'network' in md:
         network = md['network']
@@ -765,72 +764,47 @@ def load_cloudinit_data(metaPath, userPath):
     return md, ud, cfg, network
 
 
-class LoadError(Exception):
-    pass
-
-
-class FileNotFound(Exception):
-    pass
-
-
 def load(data):
     '''
-    first attempts to unmarshal the provided data as JSON, and if
-    that fails then attempts to unmarshal the data as YAML. If data is
-    None then a new dictionary is returned.
+    The meta data could be JSON or YAML. Since YAML is a strict superset of
+    JSON, we will unmarshal the data as YAML. If data is None then a new
+    dictionary is returned.
     '''
     if not data:
         return {}
-    try:
-        return json.loads(data)
-    except Exception:
-        try:
-            return safeyaml.load(data)
-        except Exception as e:
-            raise LoadError("Error parsing the meta data") from e
+    return safeyaml.load(data)
 
 
 def collect_imc_files(cust_conf):
     '''
-    wait the "VMware Tools" daemon to copy all the customization files to
-    /var/run/vmware-imc directory.
+    collect all the other imc files. Since these files are copied
+    before cust.cfg is copied, check if they exist or not directly.
     - meta data:
       mandatory if customization specification is raw cloud-init data
     - user data:
       optional if customization specification is raw cloud-init data
     - nics.txt:
-      mandatory if customization specification is traditional one
+      optional if customization specification is traditional one
     '''
     metaPath = None
     userPath = None
     nicsPath = None
     metaDataFile = cust_conf.meta_data_name
     if metaDataFile:
-        metaPath = util.log_time(
-            logfunc=LOG.debug,
-            msg="waiting for meta data file",
-            func=wait_for_imc_file,
-            args=(metaDataFile, 10))
-        if not metaPath:
-            raise FileNotFound("cloud-init meta data file is not found")
+        metaPath = os.path.join(VMWARE_IMC_DIR, metaDataFile)
+        if not os.path.exists(metaPath):
+            raise FileNotFoundError("meta data file is not found")
 
         userDataFile = cust_conf.user_data_name
         if userDataFile:
-            userPath = util.log_time(
-                logfunc=LOG.debug,
-                msg="waiting for user data file",
-                func=wait_for_imc_file,
-                args=(userDataFile, 10))
-            if not userPath:
-                raise FileNotFound("cloud-init user data file is not found")
+            userPath = os.path.join(VMWARE_IMC_DIR, userDataFile)
+            if not os.path.exists(userPath):
+                raise FileNotFoundError("user data file is not found")
     else:
-        nicsPath = util.log_time(
-            logfunc=LOG.debug,
-            msg="waiting for nics.txt",
-            func=wait_for_imc_file,
-            args=("nics.txt", 10))
-        if not nicsPath:
-            raise FileNotFound("nics.txt is not found")
+        nicsPath = os.path.join(VMWARE_IMC_DIR, "nics.txt")
+        if not os.path.exists(nicsPath):
+            LOG.debug('nics.txt is not exist.')
+            nicsPath = None
 
     return metaPath, userPath, nicsPath
 
