@@ -1486,7 +1486,7 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=5,
             report_diagnostic_event(
                 "ephemeral device '%s' did not appear after %d seconds." %
                 (devpath, maxwait),
-                logger_func=LOG.warning)
+                logger_func=LOG.debug)
             return
 
     result = False
