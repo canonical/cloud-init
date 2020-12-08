@@ -123,8 +123,10 @@ class IntegrationCloud(ABC):
             return image.image_id
 
     def _perform_launch(self, launch_kwargs):
+        wait = launch_kwargs.pop('wait', True)
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
-        pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
+        if wait:
+            pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         return pycloudlib_instance
 
     def launch(self, user_data=None, launch_kwargs=None,
@@ -140,7 +142,6 @@ class IntegrationCloud(ABC):
         kwargs = {
             'image_id': self.image_id,
             'user_data': user_data,
-            'wait': False,
         }
         if launch_kwargs:
             kwargs.update(launch_kwargs)
@@ -258,7 +259,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
 
     def _perform_launch(self, launch_kwargs):
         launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
-        launch_kwargs.pop('wait')
+        wait = launch_kwargs.pop('wait', True)
         release = launch_kwargs.pop('image_id')
 
         try:
@@ -275,7 +276,8 @@ class _LxdIntegrationCloud(IntegrationCloud):
         if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
             self._mount_source(pycloudlib_instance)
         pycloudlib_instance.start(wait=False)
-        pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
+        if wait:
+            pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         return pycloudlib_instance
 
 

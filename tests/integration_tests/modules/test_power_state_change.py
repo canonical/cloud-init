@@ -1,0 +1,79 @@
+"""Integration test of the cc_power_state_change module.
+
+Test that the power state config options work as expected.
+"""
+
+from tests.integration_tests.log_utils import ordered_items_in_text
+import pytest
+import time
+
+from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.instances import IntegrationInstance
+
+USER_DATA = """\
+#cloud-config
+power_state:
+  delay: {delay}
+  mode: {mode}
+  message: msg
+  timeout: {timeout}
+  condition: {condition}
+"""
+
+
+def _detect_reboot(instance: IntegrationInstance):
+    # We'll wait for instance up here, but we don't know if we're
+    # detecting the first boot or second boot, so we also check
+    # the logs to ensure we've booted twice. If the logs show we've
+    # only booted once, wait until we've booted twice
+    instance.instance.wait()
+    for _ in range(600):
+        try:
+            log = instance.read_from_file('/var/log/cloud-init.log')
+            boot_count = log.count("running 'init-local'")
+            if boot_count == 1:
+                instance.instance.wait(raise_on_cloudinit_failure=False)
+            elif boot_count > 1:
+                break
+        except Exception:
+            pass
+        time.sleep(1)
+    else:
+        raise Exception('Could not detect reboot')
+
+
+@pytest.mark.sru_2020_11
+class TestPowerChange:
+    @pytest.mark.parametrize('mode,delay,timeout,expected', [
+        ('poweroff', 'now', '10', 'will execute: shutdown -P now msg'),
+        ('reboot', 'now', '0', 'will execute: shutdown -r now msg'),
+        ('halt', '+1', '0', 'will execute: shutdown -H +1 msg'),
+    ])
+    def test_poweroff(self, session_cloud: IntegrationCloud,
+                      mode, delay, timeout, expected):
+        with session_cloud.launch(
+            user_data=USER_DATA.format(
+                delay=delay, mode=mode, timeout=timeout, condition='true'),
+            launch_kwargs={'wait': False},
+        ) as instance:
+            if mode == 'reboot':
+                _detect_reboot(instance)
+            else:
+                instance.instance.wait_for_stop()
+                instance.instance.start(wait=True)
+            log = instance.read_from_file('/var/log/cloud-init.log')
+            assert instance.running
+        lines_to_check = [
+            'Running module power-state-change',
+            expected.format(delay=delay),
+            "running 'init-local'",
+            'config-power-state-change already ran',
+        ]
+        assert ordered_items_in_text(lines_to_check, log)
+
+    @pytest.mark.user_data(USER_DATA.format(delay='0', mode='poweroff',
+                                            timeout='0', condition='false'))
+    def test_poweroff_false_condition(self, client: IntegrationInstance):
+        log = client.read_from_file('/var/log/cloud-init.log')
+        assert client.running
+        assert 'Condition was false. Will not perform state change' in log

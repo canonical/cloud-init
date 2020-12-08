@@ -176,7 +176,7 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
 
 
 @contextmanager
-def _client(request, fixture_utils, session_cloud):
+def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     """Fixture implementation for the client fixtures.
 
     Launch the dynamic IntegrationClient instance using any provided

@@ -53,6 +53,14 @@ class IntegrationInstance:
         self.instance = instance
         self.settings = settings
 
+    @property
+    def running(self):
+        # TODO: Implement something better in pycloudlib
+        try:
+            return True if self.execute('true').return_code == 0 else False
+        except Exception:
+            return False
+
     def destroy(self):
         self.instance.delete()
 
