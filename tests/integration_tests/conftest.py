@@ -74,6 +74,10 @@ def pytest_runtest_setup(item):
     if current_os and supported_os_set and current_os not in supported_os_set:
         pytest.skip("Cannot run on OS {}".format(current_os))
 
+    current_release = image.release
+    if "not_{}".format(current_release) in test_marks:
+        pytest.skip("Cannot run on release {}".format(current_release))
+
 
 # disable_subp_usage is defined at a higher level, but we don't
 # want it applied here
