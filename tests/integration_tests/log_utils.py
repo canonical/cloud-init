@@ -1,4 +1,4 @@
-def ordered_items_in_text(to_verify: list, text: str):
+def ordered_items_in_text(to_verify: list, text: str) -> bool:
     """Return if all items in list appear in order in text.
 
     Examples:

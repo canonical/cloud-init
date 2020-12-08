@@ -123,14 +123,13 @@ class IntegrationCloud(ABC):
             return image.image_id
 
     def _perform_launch(self, launch_kwargs):
-        wait = launch_kwargs.pop('wait', True)
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
-        if wait:
-            pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         return pycloudlib_instance
 
-    def launch(self, user_data=None, launch_kwargs=None,
+    def launch(self, user_data=None, launch_kwargs=None, wait=True,
                settings=integration_settings):
+        if launch_kwargs is None:
+            launch_kwargs = {}
         if self.settings.EXISTING_INSTANCE_ID:
             log.info(
                 'Not launching instance due to EXISTING_INSTANCE_ID. '
@@ -139,12 +138,15 @@ class IntegrationCloud(ABC):
                 self.settings.EXISTING_INSTANCE_ID
             )
             return
+        if 'wait' in launch_kwargs:
+            raise Exception("Specify 'wait' directly to launch, "
+                            "not in 'launch_kwargs'")
         kwargs = {
             'image_id': self.image_id,
             'user_data': user_data,
+            'wait': False,
         }
-        if launch_kwargs:
-            kwargs.update(launch_kwargs)
+        kwargs.update(launch_kwargs)
         log.info(
             "Launching instance with launch_kwargs:\n{}".format(
                 "\n".join("{}={}".format(*item) for item in kwargs.items())
@@ -152,7 +154,8 @@ class IntegrationCloud(ABC):
         )
 
         pycloudlib_instance = self._perform_launch(kwargs)
-
+        if wait:
+            pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         log.info('Launched instance: %s', pycloudlib_instance)
         return self.get_instance(pycloudlib_instance, settings)
 
@@ -259,7 +262,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
 
     def _perform_launch(self, launch_kwargs):
         launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
-        wait = launch_kwargs.pop('wait', True)
+        launch_kwargs.pop('wait')
         release = launch_kwargs.pop('image_id')
 
         try:
@@ -276,8 +279,6 @@ class _LxdIntegrationCloud(IntegrationCloud):
         if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
             self._mount_source(pycloudlib_instance)
         pycloudlib_instance.start(wait=False)
-        if wait:
-            pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         return pycloudlib_instance
 
 
