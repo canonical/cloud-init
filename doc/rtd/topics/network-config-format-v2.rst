@@ -478,6 +478,11 @@ This is a complex example which shows most available features: ::
         nameservers:
           search: [foo.local, bar.local]
           addresses: [8.8.8.8]
+        # static routes
+        routes:
+          - to: 192.0.2.0/24
+            via: 11.0.0.1
+            metric: 3
       lom:
         match:
           driver: ixgbe
@@ -506,11 +511,6 @@ This is a complex example which shows most available features: ::
         id: 1
         link: id0
         dhcp4: yes
-    # static routes
-    routes:
-     - to: 0.0.0.0/0
-       via: 11.0.0.1
-       metric: 3
 
-.. _netplan: https://launchpad.net/netplan
+.. _netplan: https://netplan.io
 .. vi: textwidth=78
