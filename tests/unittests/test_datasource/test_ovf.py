@@ -525,7 +525,7 @@ class TestDatasourceOVF(CiTestCase):
                      'get_nics_to_enable': ''},
                     ds.get_data)
 
-        self.assertIn('file is not found', str(context.exception))
+        self.assertIn('is not found', str(context.exception))
 
     def test_get_data_cloudinit_userdata(self):
         """Test user data can be loaded to cloud-init user data.
@@ -627,7 +627,7 @@ class TestDatasourceOVF(CiTestCase):
                      'get_nics_to_enable': ''},
                     ds.get_data)
 
-        self.assertIn('file is not found', str(context.exception))
+        self.assertIn('is not found', str(context.exception))
 
 
 class TestTransportIso9660(CiTestCase):

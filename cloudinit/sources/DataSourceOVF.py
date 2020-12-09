@@ -129,7 +129,7 @@ class DataSourceOVF(sources.DataSource):
                 else:
                     LOG.debug("Did not find the customization plugin.")
 
-                metaPath = None
+                md_path = None
                 if vmwareImcConfigFilePath:
                     imcdirpath = os.path.dirname(vmwareImcConfigFilePath)
                     cf = ConfigFile(vmwareImcConfigFilePath)
@@ -137,7 +137,7 @@ class DataSourceOVF(sources.DataSource):
                     LOG.debug("Found VMware Customization Config File at %s",
                               vmwareImcConfigFilePath)
                     try:
-                        (metaPath, userPath, nicspath) = collect_imc_files(
+                        (md_path, ud_path, nicspath) = collect_imc_files(
                             self._vmware_cust_conf)
                     except Exception as e:
                         _raise_error_status(
@@ -150,7 +150,7 @@ class DataSourceOVF(sources.DataSource):
                     LOG.debug("Did not find VMware Customization Config File")
 
                 # ignore disable_vmware_customization if meta data is available
-                if not metaPath:
+                if not md_path:
                     if util.get_cfg_option_bool(self.sys_cfg,
                                                 "disable_vmware_customization",
                                                 True):
@@ -160,19 +160,19 @@ class DataSourceOVF(sources.DataSource):
                         # customization for VMware platform
                         vmwareImcConfigFilePath = None
 
-        if vmwareImcConfigFilePath and metaPath:
+        if vmwareImcConfigFilePath and md_path:
+            set_gc_status(self._vmware_cust_conf, "Started")
+            LOG.debug("Start to load cloud-init meta data and user data")
             try:
-                set_gc_status(self._vmware_cust_conf, "Started")
-
-                LOG.debug("Start to load cloud-init meta data and user data")
                 (md, ud, cfg, network) = load_cloudinit_data(
-                    metaPath, userPath)
+                    md_path, ud_path)
 
                 if network:
                     self._network_config = network
                 else:
-                    fallbackNetwork = self.distro.generate_fallback_config()
-                    self._network_config = fallbackNetwork
+                    self._network_config = (
+                        self.distro.generate_fallback_config()
+                    )
 
             except safeyaml.YAMLError as e:
                 _raise_error_status(
@@ -741,26 +741,26 @@ def _raise_error_status(prefix, error, event, config_file, conf):
     raise error
 
 
-def load_cloudinit_data(metaPath, userPath):
+def load_cloudinit_data(md_path, ud_path):
     """
     Load the cloud-init meta data, user data, cfg and network from the
     given files
     """
     LOG.debug('load meta data from: %s: user data from: %s',
-              metaPath, userPath)
+              md_path, ud_path)
     md = {}
     cfg = {}
     ud = None
     network = None
 
-    md = load(util.load_file(metaPath))
+    md = load(util.load_file(md_path))
 
     if 'network' in md:
         network = md['network']
         del md['network']
 
-    if userPath:
-        ud = util.load_file(userPath).replace("\r", "")
+    if ud_path:
+        ud = util.load_file(ud_path).replace("\r", "")
     return md, ud, cfg, network
 
 
@@ -777,36 +777,32 @@ def load(data):
 
 def collect_imc_files(cust_conf):
     '''
-    collect all the other imc files. Since these files are copied
-    before cust.cfg is copied, check if they exist or not directly.
-    - meta data:
-      mandatory if customization specification is raw cloud-init data
-    - user data:
-      optional if customization specification is raw cloud-init data
-    - nics.txt:
-      optional if customization specification is traditional one
+    collect all the other imc files. metadata/userdata must be present
+    if they are specified in customization configuration.
     '''
-    metaPath = None
-    userPath = None
-    nicsPath = None
-    metaDataFile = cust_conf.meta_data_name
-    if metaDataFile:
-        metaPath = os.path.join(VMWARE_IMC_DIR, metaDataFile)
-        if not os.path.exists(metaPath):
-            raise FileNotFoundError("meta data file is not found")
+    md_path = None
+    ud_path = None
+    nics_path = None
+    md_file = cust_conf.meta_data_name
+    if md_file:
+        md_path = os.path.join(VMWARE_IMC_DIR, md_file)
+        if not os.path.exists(md_path):
+            raise FileNotFoundError("meta data file is not found: %s"
+                                    % md_path)
 
-        userDataFile = cust_conf.user_data_name
-        if userDataFile:
-            userPath = os.path.join(VMWARE_IMC_DIR, userDataFile)
-            if not os.path.exists(userPath):
-                raise FileNotFoundError("user data file is not found")
+        ud_file = cust_conf.user_data_name
+        if ud_file:
+            ud_path = os.path.join(VMWARE_IMC_DIR, ud_file)
+            if not os.path.exists(ud_path):
+                raise FileNotFoundError("user data file is not found: %s"
+                                        % ud_path)
     else:
-        nicsPath = os.path.join(VMWARE_IMC_DIR, "nics.txt")
-        if not os.path.exists(nicsPath):
-            LOG.debug('nics.txt is not exist.')
-            nicsPath = None
+        nics_path = os.path.join(VMWARE_IMC_DIR, "nics.txt")
+        if not os.path.exists(nics_path):
+            LOG.debug('%s is not exist.', nics_path)
+            nics_path = None
 
-    return metaPath, userPath, nicsPath
+    return md_path, ud_path, nics_path
 
 
 # vi: ts=4 expandtab
