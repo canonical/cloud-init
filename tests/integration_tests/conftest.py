@@ -71,7 +71,7 @@ def pytest_runtest_setup(item):
     supported_os_set = set(os_list).intersection(test_marks)
     if current_os and supported_os_set and current_os not in supported_os_set:
         pytest.skip("Cannot run on OS {}".format(current_os))
-    if 'unstable' in test_marks:
+    if 'unstable' in test_marks and not integration_settings.RUN_UNSTABLE:
         pytest.skip('Test marked unstable. Manually remove mark to run it')
 
 

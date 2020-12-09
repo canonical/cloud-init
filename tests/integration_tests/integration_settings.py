@@ -9,6 +9,8 @@ import os
 KEEP_INSTANCE = False
 # Keep snapshot image (mostly for debugging) when test is finished
 KEEP_IMAGE = False
+# Run tests marked as unstable. Expect failures and dragons.
+RUN_UNSTABLE = False
 
 # One of:
 #  lxd_container
