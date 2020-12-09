@@ -46,8 +46,13 @@ def _can_connect(instance):
     return instance.execute('true').ok
 
 
+# This test is marked unstable because even though it should be able to
+# run anywhere, I can only get it to run in an lxd container, and even then
+# occasionally some timing issues will crop up.
+@pytest.mark.unstable
 @pytest.mark.sru_2020_11
 @pytest.mark.ubuntu
+@pytest.mark.lxd_container
 class TestPowerChange:
     @pytest.mark.parametrize('mode,delay,timeout,expected', [
         ('poweroff', 'now', '10', 'will execute: shutdown -P now msg'),
@@ -74,7 +79,8 @@ class TestPowerChange:
             "running 'init-local'",
             'config-power-state-change already ran',
         ]
-        assert ordered_items_in_text(lines_to_check, log)
+        assert ordered_items_in_text(lines_to_check, log), (
+            'Expected data not in logs')
 
     @pytest.mark.user_data(USER_DATA.format(delay='0', mode='poweroff',
                                             timeout='0', condition='false'))
