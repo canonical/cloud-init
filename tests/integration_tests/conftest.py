@@ -71,6 +71,8 @@ def pytest_runtest_setup(item):
     supported_os_set = set(os_list).intersection(test_marks)
     if current_os and supported_os_set and current_os not in supported_os_set:
         pytest.skip("Cannot run on OS {}".format(current_os))
+    if 'unstable' in test_marks and not integration_settings.RUN_UNSTABLE:
+        pytest.skip('Test marked unstable. Manually remove mark to run it')
 
 
 # disable_subp_usage is defined at a higher level, but we don't
@@ -176,7 +178,7 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
 
 
 @contextmanager
-def _client(request, fixture_utils, session_cloud):
+def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     """Fixture implementation for the client fixtures.
 
     Launch the dynamic IntegrationClient instance using any provided
