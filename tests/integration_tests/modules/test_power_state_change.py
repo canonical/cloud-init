@@ -3,8 +3,9 @@
 Test that the power state config options work as expected.
 """
 
-import pytest
 import time
+
+import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
