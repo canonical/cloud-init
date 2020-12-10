@@ -80,7 +80,7 @@ class TestPowerChange:
             "running 'init-local'",
             'config-power-state-change already ran',
         ]
-        assert verify_ordered_items_in_text(lines_to_check, log)
+        verify_ordered_items_in_text(lines_to_check, log)
 
     @pytest.mark.user_data(USER_DATA.format(delay='0', mode='poweroff',
                                             timeout='0', condition='false'))
