@@ -230,7 +230,7 @@ def device_part_info(devpath):
                 raise ResizeFailedException(e) from e
 
         try:
-            (out, err) = subp.subp(["lvm", "vgs", vgname.strip(), "-o",
+            (out, _err) = subp.subp(["lvm", "vgs", vgname.strip(), "-o",
                                     "pvname", "--noheadings"], env=myenv)
             rpath = out.strip()
         except subp.ProcessExecutionError as e:
