@@ -9,7 +9,7 @@ import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.log_utils import ordered_items_in_text
+from tests.integration_tests.log_utils import verify_ordered_items_in_text
 
 USER_DATA = """\
 #cloud-config
@@ -80,8 +80,7 @@ class TestPowerChange:
             "running 'init-local'",
             'config-power-state-change already ran',
         ]
-        assert ordered_items_in_text(lines_to_check, log), (
-            'Expected data not in logs')
+        assert verify_ordered_items_in_text(lines_to_check, log)
 
     @pytest.mark.user_data(USER_DATA.format(delay='0', mode='poweroff',
                                             timeout='0', condition='false'))
