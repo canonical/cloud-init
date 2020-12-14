@@ -1,4 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+from enum import Enum
 import logging
 import os
 import uuid
@@ -25,6 +26,26 @@ def _get_tmp_path():
     return '/var/tmp/{}.tmp'.format(tmp_filename)
 
 
+class CloudInitSource(Enum):
+    """Represents the cloud-init image source setting as a defined value.
+
+    Values here represent all possible values for CLOUD_INIT_SOURCE in
+    tests/integration_tests/integration_settings.py. See that file for an
+    explanation of these values. If the value set there can't be parsed into
+    one of these values, an exception will be raised
+    """
+    NONE = 1
+    IN_PLACE = 2
+    PROPOSED = 3
+    PPA = 4
+    DEB_PACKAGE = 5
+
+    def installs_new_version(self):
+        if self.name in [self.NONE.name, self.IN_PLACE.name]:
+            return False
+        return True
+
+
 class IntegrationInstance:
     def __init__(self, cloud: 'IntegrationCloud', instance: BaseInstance,
                  settings=integration_settings):
@@ -34,6 +55,19 @@ class IntegrationInstance:
 
     def destroy(self):
         self.instance.delete()
+
+    def restart(self, raise_on_cloudinit_failure=False):
+        """Restart this instance (via cloud mechanism) and wait for boot.
+
+        This wraps pycloudlib's `BaseInstance.restart` to pass
+        `raise_on_cloudinit_failure=False` to `BaseInstance.wait`, mirroring
+        our launch behaviour.
+        """
+        self.instance.restart(wait=False)
+        log.info("Instance restarted; waiting for boot")
+        self.instance.wait(
+            raise_on_cloudinit_failure=raise_on_cloudinit_failure
+        )
 
     def execute(self, command, *, use_sudo=True) -> Result:
         if self.instance.username == 'root' and use_sudo is False:
@@ -79,16 +113,32 @@ class IntegrationInstance:
             os.unlink(tmp_file.name)
 
     def snapshot(self):
-        return self.cloud.snapshot(self.instance)
+        image_id = self.cloud.snapshot(self.instance)
+        log.info('Created new image: %s', image_id)
+        return image_id
 
-    def _install_new_cloud_init(self, remote_script):
-        self.execute(remote_script)
+    def install_new_cloud_init(
+        self,
+        source: CloudInitSource,
+        take_snapshot=True
+    ):
+        if source == CloudInitSource.DEB_PACKAGE:
+            self.install_deb()
+        elif source == CloudInitSource.PPA:
+            self.install_ppa()
+        elif source == CloudInitSource.PROPOSED:
+            self.install_proposed_image()
+        else:
+            raise Exception(
+                "Specified to install {} which isn't supported here".format(
+                    source)
+            )
         version = self.execute('cloud-init -v').split()[-1]
         log.info('Installed cloud-init version: %s', version)
         self.instance.clean()
-        image_id = self.snapshot()
-        log.info('Created new image: %s', image_id)
-        self.cloud.image_id = image_id
+        if take_snapshot:
+            snapshot_id = self.snapshot()
+            self.cloud.snapshot_id = snapshot_id
 
     def install_proposed_image(self):
         log.info('Installing proposed image')
@@ -99,16 +149,16 @@ class IntegrationInstance:
             'apt-get update -q\n'
             'apt-get install -qy cloud-init'
         )
-        self._install_new_cloud_init(remote_script)
+        self.execute(remote_script)
 
-    def install_ppa(self, repo):
+    def install_ppa(self):
         log.info('Installing PPA')
         remote_script = (
             'add-apt-repository {repo} -y && '
             'apt-get update -q && '
             'apt-get install -qy cloud-init'
-        ).format(repo=repo)
-        self._install_new_cloud_init(remote_script)
+        ).format(repo=self.settings.CLOUD_INIT_SOURCE)
+        self.execute(remote_script)
 
     def install_deb(self):
         log.info('Installing deb package')
@@ -119,7 +169,7 @@ class IntegrationInstance:
             local_path=integration_settings.CLOUD_INIT_SOURCE,
             remote_path=remote_path)
         remote_script = 'dpkg -i {path}'.format(path=remote_path)
-        self._install_new_cloud_init(remote_script)
+        self.execute(remote_script)
 
     def __enter__(self):
         return self

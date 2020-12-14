@@ -152,6 +152,7 @@ class TestAddCaCerts(TestCase):
         self.paths = helpers.Paths({
             'cloud_dir': tmpdir,
         })
+        self.add_patch("cloudinit.config.cc_ca_certs.os.stat", "m_stat")
 
     def test_no_certs_in_list(self):
         """Test that no certificate are written if not provided."""
@@ -215,17 +216,12 @@ class TestAddCaCerts(TestCase):
 
         expected = "cloud-init-ca-certs.crt\n"
 
-        with ExitStack() as mocks:
-            mock_write = mocks.enter_context(
-                mock.patch.object(util, 'write_file', autospec=True))
-            mock_stat = mocks.enter_context(
-                mock.patch("cloudinit.config.cc_ca_certs.os.stat")
-            )
-            mock_stat.return_value.st_size = 0
+        with mock.patch.object(util, 'write_file', autospec=True) as m_write:
+            self.m_stat.return_value.st_size = 0
 
             cc_ca_certs.add_ca_certs([cert])
 
-            mock_write.assert_has_calls([
+            m_write.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
                           cert, mode=0o644),
                 mock.call("/etc/ca-certificates.conf", expected, omode="wb")])
