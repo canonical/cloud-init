@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import datetime
+import functools
 import logging
 import pytest
 import os
@@ -18,6 +19,7 @@ from tests.integration_tests.clouds import (
     LxdContainerCloud,
     LxdVmCloud,
     OciCloud,
+    _LxdIntegrationCloud,
 )
 from tests.integration_tests.instances import (
     CloudInitSource,
@@ -71,6 +73,12 @@ def pytest_runtest_setup(item):
     supported_os_set = set(os_list).intersection(test_marks)
     if current_os and supported_os_set and current_os not in supported_os_set:
         pytest.skip("Cannot run on OS {}".format(current_os))
+    if 'unstable' in test_marks and not integration_settings.RUN_UNSTABLE:
+        pytest.skip('Test marked unstable. Manually remove mark to run it')
+
+    current_release = image.release
+    if "not_{}".format(current_release) in test_marks:
+        pytest.skip("Cannot run on release {}".format(current_release))
 
 
 # disable_subp_usage is defined at a higher level, but we don't
@@ -176,20 +184,27 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
 
 
 @contextmanager
-def _client(request, fixture_utils, session_cloud):
+def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     """Fixture implementation for the client fixtures.
 
     Launch the dynamic IntegrationClient instance using any provided
     userdata, yield to the test, then cleanup
     """
-    user_data = fixture_utils.closest_marker_first_arg_or(
-        request, 'user_data', None)
-    name = fixture_utils.closest_marker_first_arg_or(
-        request, 'instance_name', None
+    getter = functools.partial(
+        fixture_utils.closest_marker_first_arg_or, request, default=None
     )
+    user_data = getter('user_data')
+    name = getter('instance_name')
+    lxd_config_dict = getter('lxd_config_dict')
+
     launch_kwargs = {}
     if name is not None:
-        launch_kwargs = {"name": name}
+        launch_kwargs["name"] = name
+    if lxd_config_dict is not None:
+        if not isinstance(session_cloud, _LxdIntegrationCloud):
+            pytest.skip("lxd_config_dict requires LXD")
+        launch_kwargs["config_dict"] = lxd_config_dict
+
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs
     ) as instance:
