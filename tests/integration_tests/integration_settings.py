@@ -1,6 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
 
+from distutils.util import strtobool
+
 ##################################################################
 # LAUNCH SETTINGS
 ##################################################################
@@ -109,6 +111,12 @@ except ImportError:
 # Perhaps a bit too hacky, but it works :)
 current_settings = [var for var in locals() if var.isupper()]
 for setting in current_settings:
-    globals()[setting] = os.getenv(
+    env_setting = os.getenv(
         'CLOUD_INIT_{}'.format(setting), globals()[setting]
     )
+    if isinstance(env_setting, str):
+        try:
+            env_setting = bool(strtobool(env_setting.strip()))
+        except ValueError:
+            pass
+    globals()[setting] = env_setting
