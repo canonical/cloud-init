@@ -27,6 +27,7 @@ from cloudinit.sources import (
     DataSourceRbxCloud as RbxCloud,
     DataSourceScaleway as Scaleway,
     DataSourceSmartOS as SmartOS,
+    DataSourceUpCloud as UpCloud,
 )
 from cloudinit.sources import DataSourceNone as DSNone
 
@@ -63,6 +64,7 @@ DEFAULT_NETWORK = [
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
     OVF.DataSourceOVFNet,
+    UpCloud.DataSourceUpCloud,
 ]
 
 
