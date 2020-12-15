@@ -82,7 +82,9 @@ class DataSourceUpCloud(sources.DataSource):
                 return False
         else:
             try:
-                LOG.debug("Discovering metadata without DHCP-configured networking")
+                LOG.debug(
+                    "Discovering metadata without DHCP-configured networking"
+                )
                 md = util.log_time(
                     logfunc=LOG.debug,
                     msg="Reading from metadata service",
@@ -91,7 +93,8 @@ class DataSourceUpCloud(sources.DataSource):
             except sources.InvalidMetaDataException as e:
                 util.logexc(LOG, str(e))
                 LOG.info(
-                    "No DHCP-enabled interfaces available, unable to fetch metadata for %s",
+                    "No DHCP-enabled interfaces available, "
+                    "unable to fetch metadata for %s",
                     server_uuid,
                 )
                 return False
@@ -131,7 +134,8 @@ class DataSourceUpCloud(sources.DataSource):
 
 
 # Used to match classes to dependencies
-datasources = [(DataSourceUpCloud, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK))]
+datasources = [(DataSourceUpCloud,
+                (sources.DEP_FILESYSTEM, sources.DEP_NETWORK))]
 
 
 # Return a list of data sources that match this set of dependencies

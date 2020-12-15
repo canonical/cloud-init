@@ -111,10 +111,16 @@ def convert_to_network_config_v1(config):
 
     def _get_subnet_config(ip_addr, dns):
         if ip_addr.get("dhcp"):
-            return {"type": "dhcp6" if ip_addr.get("family") == "IPv6" else "dhcp"}
+            dhcp_type = "dhcp"
+            if ip_addr.get("family") == "IPv6":
+                dhcp_type = "dhcp6"
+            return {"type": dhcp_type}
 
+        static_type = "static"
+        if ip_addr.get("family") == "IPv6":
+            static_type = "static6"
         subpart = {
-            "type": "static6" if ip_addr.get("family") == "IPv6" else "static",
+            "type": static_type,
             "control": "auto",
             "address": ip_addr.get("address"),
         }
@@ -156,7 +162,11 @@ def convert_to_network_config_v1(config):
             raw_iface.get("index"),
         )
 
-        interface = {"type": "physical", "name": sysfs_name, "mac_address": mac_address}
+        interface = {
+            "type": "physical",
+            "name": sysfs_name,
+            "mac_address": mac_address
+        }
 
         subnets = []
         for ip_address in raw_iface.get("ip_addresses"):
@@ -168,7 +178,10 @@ def convert_to_network_config_v1(config):
 
     if config.get("dns"):
         LOG.debug("Setting DNS nameservers to %s", config.get("dns"))
-        nic_configs.append({"type": "nameserver", "address": config.get("dns")})
+        nic_configs.append({
+            "type": "nameserver",
+            "address": config.get("dns")
+        })
 
     return {"version": 1, "config": nic_configs}
 
@@ -194,7 +207,8 @@ def read_sysinfo():
 
     server_uuid = dmi.read_dmi_data("system-uuid")
     if server_uuid:
-        LOG.debug("system identified via SMBIOS as UpCloud server: %s", server_uuid)
+        LOG.debug("system identified via SMBIOS as UpCloud server: %s",
+                  server_uuid)
     else:
         msg = (
             "system identified via SMBIOS as a UpCloud server, but "
