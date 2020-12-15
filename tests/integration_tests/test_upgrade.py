@@ -42,7 +42,7 @@ def _output_to_compare(instance, file_path, netcfg_path):
 
 
 def _restart(instance):
-    # work around pad.lv/1890528
+    # work around pad.lv/1908287
     try:
         instance.restart(raise_on_cloudinit_failure=True)
     except OSError as e:
