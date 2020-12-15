@@ -24,6 +24,7 @@ lxd:
 """
 
 
+@pytest.mark.no_container
 @pytest.mark.user_data(USER_DATA)
 class TestLxdBridge:
 
@@ -32,6 +33,7 @@ class TestLxdBridge:
         """Check that the expected LXD binaries are installed"""
         assert class_client.execute(["which", binary_name]).ok
 
+    @pytest.mark.not_xenial
     @pytest.mark.sru_2020_11
     def test_bridge(self, class_client):
         """Check that the given bridge is configured"""
