@@ -407,7 +407,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
     def setUp(self):
         super(TestGetMetadataFromIMDS, self).setUp()
-        self.network_md_url = dsaz.IMDS_URL + "instance?api-version=2019-06-01"
+        self.network_md_url = dsaz.IMDS_URL + "/instance?api-version=2019-06-01"
 
     @mock.patch(MOCKPATH + 'readurl')
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4', autospec=True)
@@ -517,7 +517,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         """Return empty dict when IMDS network metadata is absent."""
         httpretty.register_uri(
             httpretty.GET,
-            dsaz.IMDS_URL + 'instance?api-version=2017-12-01',
+            dsaz.IMDS_URL + '/instance?api-version=2017-12-01',
             body={}, status=404)
 
         m_net_is_up.return_value = True  # skips dhcp
