@@ -637,6 +637,7 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def get_imds_data(self, fallback_nic, retries, md_type=metadata_type.compute):
+        LOG.info("Using IMDS api-version: {}".format(self.api_version))
         if self.failed_desired_api_version:
             return get_metadata_from_imds(
                 fallback_nic,
@@ -654,6 +655,7 @@ class DataSourceAzure(sources.DataSource):
                     self.api_version
                 )
             except UrlError as err:
+                LOG.info("UrlError with IMDS api-version: {}".format(self.api_version))
                 if err.code == 400:
                     self.api_version = IMDS_VER_MIN
                     self.failed_desired_api_version = True
