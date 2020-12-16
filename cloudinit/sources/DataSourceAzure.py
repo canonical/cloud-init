@@ -521,8 +521,7 @@ class DataSourceAzure(sources.DataSource):
                     self._wait_for_all_nics_ready()
                 ret = self._reprovision()
 
-            imds_md = get_metadata_from_imds(
-                self.fallback_interface, retries=10)
+            imds_md = self.get_imds_data(self.fallback_interface, retries=10)
             (md, userdata_raw, cfg, files) = ret
             self.seed = cdev
             crawled_data.update({
@@ -883,10 +882,11 @@ class DataSourceAzure(sources.DataSource):
         # primary nic is being attached first helps here. Otherwise each nic
         # could add several seconds of delay.
         try:
-            imds_md = get_metadata_from_imds(
+            imds_md = self.get_imds_data(
                 ifname,
                 5,
-                metadata_type.network)
+                metadata_type.network
+            )
         except Exception as e:
             LOG.warning(
                 "Failed to get network metadata using nic %s. Attempt to "
