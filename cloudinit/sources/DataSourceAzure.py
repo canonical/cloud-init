@@ -78,17 +78,15 @@ AGENT_SEED_DIR = '/var/lib/waagent'
 # In the event where the IMDS primary server is not
 # available, it takes 1s to fallback to the secondary one
 IMDS_TIMEOUT_IN_SECONDS = 2
-IMDS_URL = "http://169.254.169.254/metadata/"
-IMDS_VER = "2019-06-01"
-IMDS_VER_PARAM = "api-version={}".format(IMDS_VER)
+IMDS_URL = "http://169.254.169.254/metadata"
+IMDS_VER_MIN = "2019-06-01"
+IMDS_VER_WANT = "2020-09-01"
 
 
 class metadata_type(Enum):
-    compute = "{}instance?{}".format(IMDS_URL, IMDS_VER_PARAM)
-    network = "{}instance/network?{}".format(IMDS_URL,
-                                             IMDS_VER_PARAM)
-    reprovisiondata = "{}reprovisiondata?{}".format(IMDS_URL,
-                                                    IMDS_VER_PARAM)
+    compute = "{}/instance".format(IMDS_URL)
+    network = "{}/instance/network".format(IMDS_URL)
+    reprovisiondata = "{}/reprovisiondata".format(IMDS_URL)
 
 
 PLATFORM_ENTROPY_SOURCE = "/sys/firmware/acpi/tables/OEM0"
@@ -348,6 +346,9 @@ class DataSourceAzure(sources.DataSource):
         # Regenerate network config new_instance boot and every boot
         self.update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
+
+        self.api_version = IMDS_VER_WANT
+        self.failed_desired_api_version = False
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -633,6 +634,32 @@ class DataSourceAzure(sources.DataSource):
         write_files(
             self.ds_cfg['data_dir'], crawled_data['files'], dirmode=0o700)
         return True
+
+    @azure_ds_telemetry_reporter
+    def get_imds_data(self, fallback_nic, retries, md_type=metadata_type.compute):
+        if self.failed_desired_api_version:
+            return get_metadata_from_imds(
+                fallback_nic,
+                retries,
+                md_type,
+                self.api_version
+            )
+
+        try:
+            try:
+                get_metadata_from_imds(
+                    fallback_nic,
+                    1,
+                    md_type,
+                    self.api_version
+                )
+            except UrlError as err:
+                if err.code == 400:
+                    self.api_version = IMDS_VER_MIN
+                    self.failed_desired_api_version = True
+                raise
+        except Exception:
+            return self.get_imds_data(fallback_nic, retries - 1, md_type)
 
     def device_name_to_device(self, name):
         return self.ds_cfg['disk_aliases'].get(name)
@@ -2042,7 +2069,8 @@ def _generate_network_config_from_fallback_config() -> dict:
 @azure_ds_telemetry_reporter
 def get_metadata_from_imds(fallback_nic,
                            retries,
-                           md_type=metadata_type.compute):
+                           md_type=metadata_type.compute,
+                           api_version):
     """Query Azure's instance metadata service, returning a dictionary.
 
     If network is not up, setup ephemeral dhcp on fallback_nic to talk to the
@@ -2058,7 +2086,7 @@ def get_metadata_from_imds(fallback_nic,
     """
     kwargs = {'logfunc': LOG.debug,
               'msg': 'Crawl of Azure Instance Metadata Service (IMDS)',
-              'func': _get_metadata_from_imds, 'args': (retries, md_type,)}
+              'func': _get_metadata_from_imds, 'args': (retries, md_type, api_version,)}
     if net.is_up(fallback_nic):
         return util.log_time(**kwargs)
     else:
@@ -2074,9 +2102,9 @@ def get_metadata_from_imds(fallback_nic,
 
 
 @azure_ds_telemetry_reporter
-def _get_metadata_from_imds(retries, md_type=metadata_type.compute):
+def _get_metadata_from_imds(retries, md_type=metadata_type.compute, api_version):
 
-    url = md_type.value
+    url = "{}?api-version={}".format(md_type.value, api_version)
     headers = {"Metadata": "true"}
     try:
         response = readurl(
