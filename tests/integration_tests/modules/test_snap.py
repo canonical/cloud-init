@@ -19,6 +19,8 @@ snap:
 """
 
 
+@pytest.mark.ci
+@pytest.mark.ubuntu
 class TestSnap:
 
     @pytest.mark.user_data(USER_DATA)

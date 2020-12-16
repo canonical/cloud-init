@@ -87,7 +87,7 @@ class TestOnScaleway(CiTestCase):
 
     @mock.patch('cloudinit.util.get_cmdline')
     @mock.patch('os.path.exists')
-    @mock.patch('cloudinit.util.read_dmi_data')
+    @mock.patch('cloudinit.dmi.read_dmi_data')
     def test_not_on_scaleway(self, m_read_dmi_data, m_file_exists,
                              m_get_cmdline):
         self.install_mocks(
@@ -105,7 +105,7 @@ class TestOnScaleway(CiTestCase):
 
     @mock.patch('cloudinit.util.get_cmdline')
     @mock.patch('os.path.exists')
-    @mock.patch('cloudinit.util.read_dmi_data')
+    @mock.patch('cloudinit.dmi.read_dmi_data')
     def test_on_scaleway_dmi(self, m_read_dmi_data, m_file_exists,
                              m_get_cmdline):
         """
@@ -121,7 +121,7 @@ class TestOnScaleway(CiTestCase):
 
     @mock.patch('cloudinit.util.get_cmdline')
     @mock.patch('os.path.exists')
-    @mock.patch('cloudinit.util.read_dmi_data')
+    @mock.patch('cloudinit.dmi.read_dmi_data')
     def test_on_scaleway_var_run_scaleway(self, m_read_dmi_data, m_file_exists,
                                           m_get_cmdline):
         """
@@ -136,7 +136,7 @@ class TestOnScaleway(CiTestCase):
 
     @mock.patch('cloudinit.util.get_cmdline')
     @mock.patch('os.path.exists')
-    @mock.patch('cloudinit.util.read_dmi_data')
+    @mock.patch('cloudinit.dmi.read_dmi_data')
     def test_on_scaleway_cmdline(self, m_read_dmi_data, m_file_exists,
                                  m_get_cmdline):
         """

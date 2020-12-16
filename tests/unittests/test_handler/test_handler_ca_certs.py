@@ -176,6 +176,7 @@ class TestAddCaCerts(TestCase):
         self.paths = helpers.Paths({
             'cloud_dir': tmpdir,
         })
+        self.add_patch("cloudinit.config.cc_ca_certs.os.stat", "m_stat")
 
     def _fetch_distro(self, kind):
         cls = distros.fetch(kind)
@@ -266,22 +267,16 @@ class TestAddCaCerts(TestCase):
 
         for distro in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro)
-
-            with ExitStack() as mocks:
-                mock_write = mocks.enter_context(
-                    mock.patch.object(util, 'write_file', autospec=True))
-                mock_stat = mocks.enter_context(
-                    mock.patch("cloudinit.config.cc_ca_certs.os.stat")
-                )
-                mock_stat.return_value.st_size = 0
+            with mock.patch.object(util, 'write_file', autospec=True) as m_write:
+                self.m_stat.return_value.st_size = 0
 
                 cc_ca_certs.add_ca_certs(distro, [cert])
 
-                mock_write.assert_has_calls([
+                m_write.assert_has_calls([
                     mock.call(conf['ca_cert_full_path'],
                               cert, mode=0o644)])
                 if conf['ca_cert_config'] is not None:
-                    mock_write.assert_has_calls([
+                    m_write.assert_has_calls([
                         mock.call(conf['ca_cert_config'],
                                   expected, omode="wb")])
 

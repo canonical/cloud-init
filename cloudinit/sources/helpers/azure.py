@@ -9,6 +9,7 @@ import struct
 import time
 import textwrap
 import zlib
+from errno import ENOENT
 
 from cloudinit.settings import CFG_BUILTIN
 from cloudinit.net import dhcp
@@ -16,6 +17,7 @@ from cloudinit import stages
 from cloudinit import temp_utils
 from contextlib import contextmanager
 from xml.etree import ElementTree
+from xml.sax.saxutils import escape
 
 from cloudinit import subp
 from cloudinit import url_helper
@@ -41,12 +43,18 @@ COMPRESSED_EVENT_TYPE = 'compressed'
 # cloud-init.log files where the P95 of the file sizes was 537KB and the time
 # consumed to dump 500KB file was (P95:76, P99:233, P99.9:1170) in ms
 MAX_LOG_TO_KVP_LENGTH = 512000
-# Marker file to indicate whether cloud-init.log is pushed to KVP
-LOG_PUSHED_TO_KVP_MARKER_FILE = '/var/lib/cloud/data/log_pushed_to_kvp'
+# File to store the last byte of cloud-init.log that was pushed to KVP. This
+# file will be deleted with every VM reboot.
+LOG_PUSHED_TO_KVP_INDEX_FILE = '/run/cloud-init/log_pushed_to_kvp_index'
 azure_ds_reporter = events.ReportEventStack(
     name="azure-ds",
     description="initialize reporter for azure ds",
     reporting_enabled=True)
+
+DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE = (
+    'The VM encountered an error during deployment. '
+    'Please visit https://aka.ms/linuxprovisioningerror '
+    'for more information on remediation.')
 
 
 def azure_ds_telemetry_reporter(func):
@@ -214,30 +222,58 @@ def report_compressed_event(event_name, event_content):
 def push_log_to_kvp(file_name=CFG_BUILTIN['def_log_file']):
     """Push a portion of cloud-init.log file or the whole file to KVP
     based on the file size.
-    If called more than once, it skips pushing the log file to KVP again."""
+    The first time this function is called after VM boot, It will push the last
+    n bytes of the log file such that n < MAX_LOG_TO_KVP_LENGTH
+    If called again on the same boot, it continues from where it left off.
+    In addition to cloud-init.log, dmesg log will also be collected."""
 
-    log_pushed_to_kvp = bool(os.path.isfile(LOG_PUSHED_TO_KVP_MARKER_FILE))
-    if log_pushed_to_kvp:
-        report_diagnostic_event(
-            "cloud-init.log is already pushed to KVP", logger_func=LOG.debug)
-        return
+    start_index = get_last_log_byte_pushed_to_kvp_index()
 
     LOG.debug("Dumping cloud-init.log file to KVP")
     try:
         with open(file_name, "rb") as f:
             f.seek(0, os.SEEK_END)
-            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, 0)
+            seek_index = max(f.tell() - MAX_LOG_TO_KVP_LENGTH, start_index)
             report_diagnostic_event(
-                "Dumping last {} bytes of cloud-init.log file to KVP".format(
-                    f.tell() - seek_index),
+                "Dumping last {0} bytes of cloud-init.log file to KVP starting"
+                " from index: {1}".format(f.tell() - seek_index, seek_index),
                 logger_func=LOG.debug)
             f.seek(seek_index, os.SEEK_SET)
             report_compressed_event("cloud-init.log", f.read())
-        util.write_file(LOG_PUSHED_TO_KVP_MARKER_FILE, '')
+            util.write_file(LOG_PUSHED_TO_KVP_INDEX_FILE, str(f.tell()))
     except Exception as ex:
         report_diagnostic_event(
             "Exception when dumping log file: %s" % repr(ex),
             logger_func=LOG.warning)
+
+    LOG.debug("Dumping dmesg log to KVP")
+    try:
+        out, _ = subp.subp(['dmesg'], decode=False, capture=True)
+        report_compressed_event("dmesg", out)
+    except Exception as ex:
+        report_diagnostic_event(
+            "Exception when dumping dmesg log: %s" % repr(ex),
+            logger_func=LOG.warning)
+
+
+@azure_ds_telemetry_reporter
+def get_last_log_byte_pushed_to_kvp_index():
+    try:
+        with open(LOG_PUSHED_TO_KVP_INDEX_FILE, "r") as f:
+            return int(f.read())
+    except IOError as e:
+        if e.errno != ENOENT:
+            report_diagnostic_event("Reading LOG_PUSHED_TO_KVP_INDEX_FILE"
+                                    " failed: %s." % repr(e),
+                                    logger_func=LOG.warning)
+    except ValueError as e:
+        report_diagnostic_event("Invalid value in LOG_PUSHED_TO_KVP_INDEX_FILE"
+                                ": %s." % repr(e),
+                                logger_func=LOG.warning)
+    except Exception as e:
+        report_diagnostic_event("Failed to get the last log byte pushed to KVP"
+                                ": %s." % repr(e), logger_func=LOG.warning)
+    return 0
 
 
 @contextmanager
@@ -258,6 +294,54 @@ def _get_dhcp_endpoint_option_name():
     return azure_endpoint
 
 
+@azure_ds_telemetry_reporter
+def http_with_retries(url, **kwargs) -> str:
+    """Wrapper around url_helper.readurl() with custom telemetry logging
+    that url_helper.readurl() does not provide.
+    """
+    exc = None
+
+    max_readurl_attempts = 240
+    default_readurl_timeout = 5
+    periodic_logging_attempts = 12
+
+    if 'timeout' not in kwargs:
+        kwargs['timeout'] = default_readurl_timeout
+
+    # remove kwargs that cause url_helper.readurl to retry,
+    # since we are already implementing our own retry logic.
+    if kwargs.pop('retries', None):
+        LOG.warning(
+            'Ignoring retries kwarg passed in for '
+            'communication with Azure endpoint.')
+    if kwargs.pop('infinite', None):
+        LOG.warning(
+            'Ignoring infinite kwarg passed in for communication '
+            'with Azure endpoint.')
+
+    for attempt in range(1, max_readurl_attempts + 1):
+        try:
+            ret = url_helper.readurl(url, **kwargs)
+
+            report_diagnostic_event(
+                'Successful HTTP request with Azure endpoint %s after '
+                '%d attempts' % (url, attempt),
+                logger_func=LOG.debug)
+
+            return ret
+
+        except Exception as e:
+            exc = e
+            if attempt % periodic_logging_attempts == 0:
+                report_diagnostic_event(
+                    'Failed HTTP request with Azure endpoint %s during '
+                    'attempt %d with exception: %s' %
+                    (url, attempt, e),
+                    logger_func=LOG.debug)
+
+    raise exc
+
+
 class AzureEndpointHttpClient:
 
     headers = {
@@ -276,16 +360,15 @@ class AzureEndpointHttpClient:
         if secure:
             headers = self.headers.copy()
             headers.update(self.extra_secure_headers)
-        return url_helper.readurl(url, headers=headers,
-                                  timeout=5, retries=10, sec_between=5)
+        return http_with_retries(url, headers=headers)
 
     def post(self, url, data=None, extra_headers=None):
         headers = self.headers
         if extra_headers is not None:
             headers = self.headers.copy()
             headers.update(extra_headers)
-        return url_helper.readurl(url, data=data, headers=headers,
-                                  timeout=5, retries=10, sec_between=5)
+        return http_with_retries(
+            url, data=data, headers=headers)
 
 
 class InvalidGoalStateXMLException(Exception):
@@ -359,11 +442,19 @@ class OpenSSLManager:
 
     def __init__(self):
         self.tmpdir = temp_utils.mkdtemp()
-        self.certificate = None
+        self._certificate = None
         self.generate_certificate()
 
     def clean_up(self):
         util.del_dir(self.tmpdir)
+
+    @property
+    def certificate(self):
+        return self._certificate
+
+    @certificate.setter
+    def certificate(self, value):
+        self._certificate = value
 
     @azure_ds_telemetry_reporter
     def generate_certificate(self):
@@ -487,6 +578,10 @@ class GoalStateHealthReporter:
         ''')
 
     PROVISIONING_SUCCESS_STATUS = 'Ready'
+    PROVISIONING_NOT_READY_STATUS = 'NotReady'
+    PROVISIONING_FAILURE_SUBSTATUS = 'ProvisioningFailed'
+
+    HEALTH_REPORT_DESCRIPTION_TRIM_LEN = 512
 
     def __init__(
             self, goal_state: GoalState,
@@ -525,19 +620,39 @@ class GoalStateHealthReporter:
 
         LOG.info('Reported ready to Azure fabric.')
 
+    @azure_ds_telemetry_reporter
+    def send_failure_signal(self, description: str) -> None:
+        document = self.build_report(
+            incarnation=self._goal_state.incarnation,
+            container_id=self._goal_state.container_id,
+            instance_id=self._goal_state.instance_id,
+            status=self.PROVISIONING_NOT_READY_STATUS,
+            substatus=self.PROVISIONING_FAILURE_SUBSTATUS,
+            description=description)
+        try:
+            self._post_health_report(document=document)
+        except Exception as e:
+            msg = "exception while reporting failure: %s" % e
+            report_diagnostic_event(msg, logger_func=LOG.error)
+            raise
+
+        LOG.warning('Reported failure to Azure fabric.')
+
     def build_report(
             self, incarnation: str, container_id: str, instance_id: str,
             status: str, substatus=None, description=None) -> str:
         health_detail = ''
         if substatus is not None:
             health_detail = self.HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
-                health_substatus=substatus, health_description=description)
+                health_substatus=escape(substatus),
+                health_description=escape(
+                    description[:self.HEALTH_REPORT_DESCRIPTION_TRIM_LEN]))
 
         health_report = self.HEALTH_REPORT_XML_TEMPLATE.format(
-            incarnation=incarnation,
-            container_id=container_id,
-            instance_id=instance_id,
-            health_status=status,
+            incarnation=escape(str(incarnation)),
+            container_id=escape(container_id),
+            instance_id=escape(instance_id),
+            health_status=escape(status),
             health_detail_subsection=health_detail)
 
         return health_report
@@ -778,12 +893,27 @@ class WALinuxAgentShim:
         return {'public-keys': ssh_keys}
 
     @azure_ds_telemetry_reporter
+    def register_with_azure_and_report_failure(self, description: str) -> None:
+        """Gets the VM's GoalState from Azure, uses the GoalState information
+        to report failure/send provisioning failure signal to Azure.
+
+        @param: user visible error description of provisioning failure.
+        """
+        if self.azure_endpoint_client is None:
+            self.azure_endpoint_client = AzureEndpointHttpClient(None)
+        goal_state = self._fetch_goal_state_from_azure(need_certificate=False)
+        health_reporter = GoalStateHealthReporter(
+            goal_state, self.azure_endpoint_client, self.endpoint)
+        health_reporter.send_failure_signal(description=description)
+
+    @azure_ds_telemetry_reporter
     def _fetch_goal_state_from_azure(
             self,
             need_certificate: bool) -> GoalState:
         """Fetches the GoalState XML from the Azure endpoint, parses the XML,
         and returns a GoalState object.
 
+        @param need_certificate: switch to know if certificates is needed.
         @return: GoalState object representing the GoalState XML
         """
         unparsed_goal_state_xml = self._get_raw_goal_state_xml_from_azure()
@@ -824,6 +954,7 @@ class WALinuxAgentShim:
         """Parses a GoalState XML string and returns a GoalState object.
 
         @param unparsed_goal_state_xml: GoalState XML string
+        @param need_certificate: switch to know if certificates is needed.
         @return: GoalState object representing the GoalState XML
         """
         try:
@@ -918,6 +1049,20 @@ def get_metadata_from_fabric(fallback_lease_file=None, dhcp_opts=None,
                             dhcp_options=dhcp_opts)
     try:
         return shim.register_with_azure_and_fetch_data(pubkey_info=pubkey_info)
+    finally:
+        shim.clean_up()
+
+
+@azure_ds_telemetry_reporter
+def report_failure_to_fabric(fallback_lease_file=None, dhcp_opts=None,
+                             description=None):
+    shim = WALinuxAgentShim(fallback_lease_file=fallback_lease_file,
+                            dhcp_options=dhcp_opts)
+    if not description:
+        description = DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+    try:
+        shim.register_with_azure_and_report_failure(
+            description=description)
     finally:
         shim.clean_up()
 

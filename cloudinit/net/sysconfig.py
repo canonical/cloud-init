@@ -367,6 +367,11 @@ class Renderer(renderer.Renderer):
                 if new_key:
                     iface_cfg[new_key] = old_value
 
+        # only set WakeOnLan for physical interfaces
+        if ('wakeonlan' in iface and iface['wakeonlan'] and
+                iface['type'] == 'physical'):
+            iface_cfg['ETHTOOL_OPTS'] = 'wol g'
+
     @classmethod
     def _render_subnets(cls, iface_cfg, subnets, has_default_route, flavor):
         # setting base values
@@ -391,6 +396,12 @@ class Renderer(renderer.Renderer):
                         # Only IPv6 is DHCP, IPv4 may be static
                         iface_cfg['BOOTPROTO'] = 'dhcp6'
                     iface_cfg['DHCLIENT6_MODE'] = 'managed'
+                # only if rhel AND dhcpv6 stateful
+                elif (flavor == 'rhel' and
+                        subnet_type == 'ipv6_dhcpv6-stateful'):
+                    iface_cfg['BOOTPROTO'] = 'dhcp'
+                    iface_cfg['DHCPV6C'] = True
+                    iface_cfg['IPV6INIT'] = True
                 else:
                     iface_cfg['IPV6INIT'] = True
                     # Configure network settings using DHCPv6
@@ -463,6 +474,10 @@ class Renderer(renderer.Renderer):
                             iface_cfg[mtu_key] = subnet['mtu']
                     else:
                         iface_cfg[mtu_key] = subnet['mtu']
+
+                if subnet_is_ipv6(subnet) and flavor == 'rhel':
+                    iface_cfg['IPV6_FORCE_ACCEPT_RA'] = False
+                    iface_cfg['IPV6_AUTOCONF'] = False
             elif subnet_type == 'manual':
                 if flavor == 'suse':
                     LOG.debug('Unknown subnet type setting "%s"', subnet_type)

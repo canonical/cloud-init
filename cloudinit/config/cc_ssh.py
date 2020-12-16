@@ -83,8 +83,9 @@ enabled by default.
 Host keys can be added using the ``ssh_keys`` configuration key. The argument
 to this config key should be a dictionary entries for the public and private
 keys of each desired key type. Entries in the ``ssh_keys`` config dict should
-have keys in the format ``<key type>_private`` and ``<key type>_public``,
-e.g. ``rsa_private: <key>`` and ``rsa_public: <key>``. See below for supported
+have keys in the format ``<key type>_private``, ``<key type>_public``, and,
+optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``,
+``rsa_public: <key>``, and ``rsa_certificate: <key>``. See below for supported
 key types. Not all key types have to be specified, ones left unspecified will
 not be used. If this config option is used, then no keys will be generated.
 
@@ -94,7 +95,8 @@ not be used. If this config option is used, then no keys will be generated.
     secure
 
 .. note::
-    to specify multiline private host keys, use yaml multiline syntax
+    to specify multiline private host keys and certificates, use yaml
+    multiline syntax
 
 If no host keys are specified using ``ssh_keys``, then keys will be generated
 using ``ssh-keygen``. By default one public/private pair of each supported
@@ -128,12 +130,17 @@ config flags are:
             ...
             -----END RSA PRIVATE KEY-----
         rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+        rsa_certificate: |
+            ssh-rsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
         dsa_private: |
             -----BEGIN DSA PRIVATE KEY-----
             MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
             ...
             -----END DSA PRIVATE KEY-----
         dsa_public: ssh-dsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+        dsa_certificate: |
+            ssh-dsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
+
     ssh_genkeytypes: <key type>
     disable_root: <true/false>
     disable_root_opts: <disable root options string>
@@ -169,6 +176,8 @@ for k in GENERATE_KEY_NAMES:
     CONFIG_KEY_TO_FILE.update({"%s_private" % k: (KEY_FILE_TPL % k, 0o600)})
     CONFIG_KEY_TO_FILE.update(
         {"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)})
+    CONFIG_KEY_TO_FILE.update(
+        {"%s_certificate" % k: (KEY_FILE_TPL % k + "-cert.pub", 0o600)})
     PRIV_TO_PUB["%s_private" % k] = "%s_public" % k
 
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
@@ -186,12 +195,18 @@ def handle(_name, cfg, cloud, log, _args):
                 util.logexc(log, "Failed deleting key file %s", f)
 
     if "ssh_keys" in cfg:
-        # if there are keys in cloud-config, use them
+        # if there are keys and/or certificates in cloud-config, use them
         for (key, val) in cfg["ssh_keys"].items():
-            if key in CONFIG_KEY_TO_FILE:
-                tgt_fn = CONFIG_KEY_TO_FILE[key][0]
-                tgt_perms = CONFIG_KEY_TO_FILE[key][1]
-                util.write_file(tgt_fn, val, tgt_perms)
+            # skip entry if unrecognized
+            if key not in CONFIG_KEY_TO_FILE:
+                continue
+            tgt_fn = CONFIG_KEY_TO_FILE[key][0]
+            tgt_perms = CONFIG_KEY_TO_FILE[key][1]
+            util.write_file(tgt_fn, val, tgt_perms)
+            # set server to present the most recently identified certificate
+            if '_certificate' in key:
+                cert_config = {'HostCertificate': tgt_fn}
+                ssh_util.update_ssh_config(cert_config)
 
         for (priv, pub) in PRIV_TO_PUB.items():
             if pub in cfg['ssh_keys'] or priv not in cfg['ssh_keys']:

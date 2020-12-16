@@ -44,6 +44,7 @@ write_files:
 """.format(B64_CONTENT.decode("ascii"))
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestWriteFiles:
 

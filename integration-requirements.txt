@@ -1,30 +1,5 @@
 # PyPI requirements for cloud-init integration testing
-# https://cloudinit.readthedocs.io/en/latest/topics/tests.html
+# https://cloudinit.readthedocs.io/en/latest/topics/integration_tests.html
 #
-# Note: Changes to this requirements may require updates to
-# the packages/pkg-deps.json file as well.
-#
+pycloudlib @ git+https://github.com/canonical/pycloudlib.git@72e800b8e99c5b735348c4778f19f92cf6c63de0
 pytest
-git+https://github.com/canonical/pycloudlib.git
-
-# ec2 backend
-boto3==1.14.53
-
-# ssh communication
-paramiko==2.7.2
-cryptography==3.1
-
-# lxd backend
-pylxd==2.2.11
-
-# finds latest image information
-git+https://git.launchpad.net/simplestreams
-
-# azure backend
-azure-storage==0.36.0
-msrestazure==0.6.1
-azure-common==1.1.23
-azure-mgmt-compute==7.0.0
-azure-mgmt-network==5.0.0
-azure-mgmt-resource==4.0.0
-azure-mgmt-storage==6.0.0
