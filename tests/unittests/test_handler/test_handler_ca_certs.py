@@ -198,6 +198,8 @@ class TestAddCaCerts(TestCase):
         ca_certs_content = "line1\nline2\ncloud-init-ca-certs.crt\nline3\n"
         expected = "line1\nline2\nline3\ncloud-init-ca-certs.crt\n"
 
+        self.m_stat.return_value.st_size = 1
+
         for distro in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro)
 
@@ -207,21 +209,17 @@ class TestAddCaCerts(TestCase):
                 mock_load = mocks.enter_context(
                     mock.patch.object(util, 'load_file',
                                       return_value=ca_certs_content))
-                mock_stat = mocks.enter_context(
-                    mock.patch("cloudinit.config.cc_ca_certs.os.stat")
-                )
-                mock_stat.return_value.st_size = 1
 
                 cc_ca_certs.add_ca_certs(distro, [cert])
 
-            mock_write.assert_has_calls([
-                mock.call(conf['ca_cert_full_path'],
-                          cert, mode=0o644)])
-            if conf['ca_cert_config'] is not None:
                 mock_write.assert_has_calls([
-                    mock.call(conf['ca_cert_config'],
-                              expected, omode="wb")])
-                mock_load.assert_called_once_with(conf['ca_cert_config'])
+                    mock.call(conf['ca_cert_full_path'],
+                              cert, mode=0o644)])
+                if conf['ca_cert_config'] is not None:
+                    mock_write.assert_has_calls([
+                        mock.call(conf['ca_cert_config'],
+                                  expected, omode="wb")])
+                    mock_load.assert_called_once_with(conf['ca_cert_config'])
 
     def test_single_cert_no_trailing_cr(self):
         """Test adding a single certificate to the trusted CAs
@@ -230,6 +228,8 @@ class TestAddCaCerts(TestCase):
 
         ca_certs_content = "line1\nline2\nline3"
 
+        self.m_stat.return_value.st_size = 1
+
         for distro in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro)
 
@@ -239,10 +239,6 @@ class TestAddCaCerts(TestCase):
                 mock_load = mocks.enter_context(
                     mock.patch.object(util, 'load_file',
                                       return_value=ca_certs_content))
-                mock_stat = mocks.enter_context(
-                    mock.patch("cloudinit.config.cc_ca_certs.os.stat")
-                )
-                mock_stat.return_value.st_size = 1
 
                 cc_ca_certs.add_ca_certs(distro, [cert])
 
@@ -265,10 +261,12 @@ class TestAddCaCerts(TestCase):
 
         expected = "cloud-init-ca-certs.crt\n"
 
+        self.m_stat.return_value.st_size = 0
+
         for distro in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro)
-            with mock.patch.object(util, 'write_file', autospec=True) as m_write:
-                self.m_stat.return_value.st_size = 0
+            with mock.patch.object(util, 'write_file',
+                                   autospec=True) as m_write:
 
                 cc_ca_certs.add_ca_certs(distro, [cert])
 
@@ -286,6 +284,8 @@ class TestAddCaCerts(TestCase):
         expected_cert_file = "\n".join(certs)
         ca_certs_content = "line1\nline2\nline3"
 
+        self.m_stat.return_value.st_size = 1
+
         for distro in cc_ca_certs.distros:
             conf = cc_ca_certs._distro_ca_certs_configs(distro)
 
@@ -295,10 +295,6 @@ class TestAddCaCerts(TestCase):
                 mock_load = mocks.enter_context(
                     mock.patch.object(util, 'load_file',
                                       return_value=ca_certs_content))
-                mock_stat = mocks.enter_context(
-                    mock.patch("cloudinit.config.cc_ca_certs.os.stat")
-                )
-                mock_stat.return_value.st_size = 1
 
                 cc_ca_certs.add_ca_certs(distro, certs)
 
