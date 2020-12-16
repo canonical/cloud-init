@@ -2070,7 +2070,7 @@ def _generate_network_config_from_fallback_config() -> dict:
 def get_metadata_from_imds(fallback_nic,
                            retries,
                            md_type=metadata_type.compute,
-                           api_version):
+                           api_version=IMDS_VER_MIN):
     """Query Azure's instance metadata service, returning a dictionary.
 
     If network is not up, setup ephemeral dhcp on fallback_nic to talk to the
@@ -2102,7 +2102,7 @@ def get_metadata_from_imds(fallback_nic,
 
 
 @azure_ds_telemetry_reporter
-def _get_metadata_from_imds(retries, md_type=metadata_type.compute, api_version):
+def _get_metadata_from_imds(retries, md_type=metadata_type.compute, api_version=IMDS_VER_MIN):
 
     url = "{}?api-version={}".format(md_type.value, api_version)
     headers = {"Metadata": "true"}
