@@ -1018,7 +1018,7 @@ class DataSourceAzure(sources.DataSource):
     def _poll_imds(self):
         """Poll IMDS for the new provisioning data until we get a valid
         response. Then return the returned JSON object."""
-        url = metadata_type.reprovisiondata.value
+        url = "{}?api-version={}".format(metadata_type.reprovisiondata.value, IMDS_VER_MIN)
         headers = {"Metadata": "true"}
         nl_sock = None
         report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
