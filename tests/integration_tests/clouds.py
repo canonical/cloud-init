@@ -6,7 +6,7 @@ from pycloudlib import EC2, GCE, Azure, OCI, LXDContainer, LXDVirtualMachine
 from pycloudlib.lxd.instance import LXDInstance
 
 import cloudinit
-from cloudinit.subp import subp
+from cloudinit.subp import subp, ProcessExecutionError
 from tests.integration_tests import integration_settings
 from tests.integration_tests.instances import (
     IntegrationEc2Instance,
@@ -23,6 +23,65 @@ except ImportError:
 
 
 log = logging.getLogger('integration_testing')
+
+
+def _get_ubuntu_series() -> list:
+    """Use distro-info-data's ubuntu.csv to get a list of Ubuntu series"""
+    out = ""
+    try:
+        out, _err = subp(["ubuntu-distro-info", "-a"])
+    except ProcessExecutionError:
+        log.info(
+            "ubuntu-distro-info (from the distro-info package) must be"
+            " installed to guess Ubuntu os/release"
+        )
+    return out.splitlines()
+
+
+class ImageSpecification:
+    """A specification of an image to launch for testing.
+
+    If either of ``os`` and ``release`` are not specified, an attempt will be
+    made to infer the correct values for these on instantiation.
+
+    :param image_id:
+        The image identifier used by the rest of the codebase to launch this
+        image.
+    :param os:
+        An optional string describing the operating system this image is for
+        (e.g.  "ubuntu", "rhel", "freebsd").
+    :param release:
+        A optional string describing the operating system release (e.g.
+        "focal", "8"; the exact values here will depend on the OS).
+    """
+
+    def __init__(
+        self,
+        image_id: str,
+        os: "Optional[str]" = None,
+        release: "Optional[str]" = None,
+    ):
+        if image_id in _get_ubuntu_series():
+            if os is None:
+                os = "ubuntu"
+            if release is None:
+                release = image_id
+
+        self.image_id = image_id
+        self.os = os
+        self.release = release
+        log.info(
+            "Detected image: image_id=%s os=%s release=%s",
+            self.image_id,
+            self.os,
+            self.release,
+        )
+
+    @classmethod
+    def from_os_image(cls):
+        """Return an ImageSpecification for integration_settings.OS_IMAGE."""
+        parts = integration_settings.OS_IMAGE.split("::", 2)
+        return cls(*parts)
 
 
 class IntegrationCloud(ABC):
@@ -57,21 +116,20 @@ class IntegrationCloud(ABC):
         raise NotImplementedError
 
     def _get_initial_image(self):
-        _released_image_id = self.settings.OS_IMAGE
+        image = ImageSpecification.from_os_image()
         try:
-            _released_image_id = self.cloud_instance.released_image(
-                self.settings.OS_IMAGE)
+            return self.cloud_instance.released_image(image.image_id)
         except (ValueError, IndexError):
-            pass
-        return _released_image_id
+            return image.image_id
 
     def _perform_launch(self, launch_kwargs):
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
-        pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         return pycloudlib_instance
 
-    def launch(self, user_data=None, launch_kwargs=None,
+    def launch(self, user_data=None, launch_kwargs=None, wait=True,
                settings=integration_settings):
+        if launch_kwargs is None:
+            launch_kwargs = {}
         if self.settings.EXISTING_INSTANCE_ID:
             log.info(
                 'Not launching instance due to EXISTING_INSTANCE_ID. '
@@ -80,13 +138,15 @@ class IntegrationCloud(ABC):
                 self.settings.EXISTING_INSTANCE_ID
             )
             return
+        if 'wait' in launch_kwargs:
+            raise Exception("Specify 'wait' directly to launch, "
+                            "not in 'launch_kwargs'")
         kwargs = {
             'image_id': self.image_id,
             'user_data': user_data,
             'wait': False,
         }
-        if launch_kwargs:
-            kwargs.update(launch_kwargs)
+        kwargs.update(launch_kwargs)
         log.info(
             "Launching instance with launch_kwargs:\n{}".format(
                 "\n".join("{}={}".format(*item) for item in kwargs.items())
@@ -94,7 +154,8 @@ class IntegrationCloud(ABC):
         )
 
         pycloudlib_instance = self._perform_launch(kwargs)
-
+        if wait:
+            pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         log.info('Launched instance: %s', pycloudlib_instance)
         return self.get_instance(pycloudlib_instance, settings)
 
@@ -109,11 +170,16 @@ class IntegrationCloud(ABC):
 
     def delete_snapshot(self):
         if self.snapshot_id:
-            log.info(
-                'Deleting snapshot image created for this testrun: %s',
-                self.snapshot_id
-            )
-            self.cloud_instance.delete_image(self.snapshot_id)
+            if self.settings.KEEP_IMAGE:
+                log.info(
+                    'NOT deleting snapshot image created for this testrun '
+                    'because KEEP_IMAGE is True: %s', self.snapshot_id)
+            else:
+                log.info(
+                    'Deleting snapshot image created for this testrun: %s',
+                    self.snapshot_id
+                )
+                self.cloud_instance.delete_image(self.snapshot_id)
 
 
 class Ec2Cloud(IntegrationCloud):
@@ -213,7 +279,6 @@ class _LxdIntegrationCloud(IntegrationCloud):
         if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
             self._mount_source(pycloudlib_instance)
         pycloudlib_instance.start(wait=False)
-        pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         return pycloudlib_instance
 
 
