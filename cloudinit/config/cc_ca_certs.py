@@ -65,17 +65,13 @@ DISTRO_OVERRIDES = {
 distros = ['alpine', 'debian', 'ubuntu', 'rhel']
 
 
-def _distro_ca_certs_configs(distro):
+def _distro_ca_certs_configs(distro_name):
     """Return a distro-specific ca_certs config dictionary
 
-    @param distro: String providing the distro class name.
+    @param distro_name: String providing the distro class name.
     @returns: Dict of distro configurations for ca-cert.
     """
-    cfg = DEFAULT_CONFIG
-    dcfg = DISTRO_OVERRIDES
-    if distro in dcfg:
-        cfg = dcfg[distro]
-
+    cfg = DISTRO_OVERRIDES.get(distro_name, DEFAULT_CONFIG)
     cfg['ca_cert_full_path'] = os.path.join(cfg['ca_cert_path'],
                                             cfg['ca_cert_filename'])
     return cfg
@@ -85,7 +81,7 @@ def update_ca_certs(distro_name):
     """
     Updates the CA certificate cache on the current machine.
 
-    @param distro: String providing the distro class name.
+    @param distro_name: String providing the distro class name.
     """
     distro_cfg = _distro_ca_certs_configs(distro_name)
     subp.subp(distro_cfg['ca_cert_update_cmd'], capture=False)
@@ -96,7 +92,7 @@ def add_ca_certs(distro_name, certs):
     Adds certificates to the system. To actually apply the new certificates
     you must also call L{update_ca_certs}.
 
-    @param distro: String providing the distro class name.
+    @param distro_name: String providing the distro class name.
     @param certs: A list of certificate strings.
     """
     distro_cfg = _distro_ca_certs_configs(distro_name)
@@ -114,7 +110,7 @@ def update_cert_config(distro_name):
     """
     Update Certificate config file to add the file path managed cloud-init
 
-    @param distro: String providing the distro class name.
+    @param distro_name: String providing the distro class name.
     """
     distro_cfg = _distro_ca_certs_configs(distro_name)
     if distro_cfg['ca_cert_config'] is None:
