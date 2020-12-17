@@ -635,7 +635,11 @@ class DataSourceAzure(sources.DataSource):
         return True
 
     @azure_ds_telemetry_reporter
-    def get_imds_data(self, fallback_nic, retries, md_type=metadata_type.compute):
+    def get_imds_data(
+                self,
+                fallback_nic,
+                retries,
+                md_type=metadata_type.compute):
         LOG.info("Using IMDS api-version: {}".format(self.api_version))
         if self.failed_desired_api_version:
             return get_metadata_from_imds(
@@ -654,7 +658,10 @@ class DataSourceAzure(sources.DataSource):
                     self.api_version
                 )
             except UrlError as err:
-                LOG.info("UrlError with IMDS api-version: {}".format(self.api_version))
+                LOG.info(
+                    "UrlError with IMDS api-version: {}".format(
+                        self.api_version
+                ))
                 if err.code == 400:
                     self.api_version = IMDS_VER_MIN
                     self.failed_desired_api_version = True
@@ -1020,7 +1027,10 @@ class DataSourceAzure(sources.DataSource):
     def _poll_imds(self):
         """Poll IMDS for the new provisioning data until we get a valid
         response. Then return the returned JSON object."""
-        url = "{}?api-version={}".format(metadata_type.reprovisiondata.value, IMDS_VER_MIN)
+        url = "{}?api-version={}".format(
+            metadata_type.reprovisiondata.value,
+            IMDS_VER_MIN
+        )
         headers = {"Metadata": "true"}
         nl_sock = None
         report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
@@ -2088,7 +2098,8 @@ def get_metadata_from_imds(fallback_nic,
     """
     kwargs = {'logfunc': LOG.debug,
               'msg': 'Crawl of Azure Instance Metadata Service (IMDS)',
-              'func': _get_metadata_from_imds, 'args': (retries, md_type, api_version,)}
+              'func': _get_metadata_from_imds,
+              'args': (retries, md_type, api_version,)}
     if net.is_up(fallback_nic):
         return util.log_time(**kwargs)
     else:
@@ -2104,8 +2115,10 @@ def get_metadata_from_imds(fallback_nic,
 
 
 @azure_ds_telemetry_reporter
-def _get_metadata_from_imds(retries, md_type=metadata_type.compute, api_version=IMDS_VER_MIN):
-
+def _get_metadata_from_imds(
+        retries,
+        md_type=metadata_type.compute,
+        api_version=IMDS_VER_MIN):
     url = "{}?api-version={}".format(md_type.value, api_version)
     headers = {"Metadata": "true"}
     try:
