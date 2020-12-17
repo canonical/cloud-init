@@ -640,7 +640,7 @@ class DataSourceAzure(sources.DataSource):
                 fallback_nic,
                 retries,
                 md_type=metadata_type.compute):
-        LOG.info("Using IMDS api-version: {}".format(self.api_version))
+        LOG.info("Using IMDS api-version: %s", self.api_version)
         if self.failed_desired_api_version:
             return get_metadata_from_imds(
                 fallback_nic,
@@ -659,9 +659,9 @@ class DataSourceAzure(sources.DataSource):
                 )
             except UrlError as err:
                 LOG.info(
-                    "UrlError with IMDS api-version: {}".format(
-                        self.api_version
-                ))
+                    "UrlError with IMDS api-version: %s",
+                    self.api_version
+                )
                 if err.code == 400:
                     self.api_version = IMDS_VER_MIN
                     self.failed_desired_api_version = True
