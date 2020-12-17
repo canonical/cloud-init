@@ -2600,7 +2600,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch(MOCKPATH + 'DataSourceAzure.wait_for_link_up')
     @mock.patch('cloudinit.sources.helpers.netlink.wait_for_nic_attach_event')
     @mock.patch('cloudinit.sources.net.find_fallback_nic')
-    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    @mock.patch(MOCKPATH + 'DataSourceAzure.get_imds_data')
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     @mock.patch(MOCKPATH + 'DataSourceAzure._wait_for_nic_detach')
     @mock.patch('os.path.isfile')
