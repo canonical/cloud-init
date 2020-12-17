@@ -79,9 +79,9 @@ class TestConfig(TestCase):
         """
         config = {"ca-certs": {}}
 
-        for distro in cc_ca_certs.distros:
+        for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro)
+            cloud = self._get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
@@ -92,9 +92,9 @@ class TestConfig(TestCase):
         """Test that no certificate are written if 'trusted' list is empty."""
         config = {"ca-certs": {"trusted": []}}
 
-        for distro in cc_ca_certs.distros:
+        for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro)
+            cloud = self._get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
@@ -105,12 +105,13 @@ class TestConfig(TestCase):
         """Test that a single cert gets passed to add_ca_certs."""
         config = {"ca-certs": {"trusted": ["CERT1"]}}
 
-        for distro in cc_ca_certs.distros:
+        for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro)
+            cloud = self._get_cloud(distro_name)
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
-            self.mock_add.assert_called_once_with(distro, ['CERT1'])
+            self.mock_add.assert_called_once_with(conf, ['CERT1'])
             self.assertEqual(self.mock_update.call_count, 1)
             self.assertEqual(self.mock_remove.call_count, 0)
 
@@ -118,12 +119,13 @@ class TestConfig(TestCase):
         """Test that multiple certs get passed to add_ca_certs."""
         config = {"ca-certs": {"trusted": ["CERT1", "CERT2"]}}
 
-        for distro in cc_ca_certs.distros:
+        for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro)
+            cloud = self._get_cloud(distro_name)
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
-            self.mock_add.assert_called_once_with(distro, ['CERT1', 'CERT2'])
+            self.mock_add.assert_called_once_with(conf, ['CERT1', 'CERT2'])
             self.assertEqual(self.mock_update.call_count, 1)
             self.assertEqual(self.mock_remove.call_count, 0)
 
@@ -131,9 +133,9 @@ class TestConfig(TestCase):
         """Test remove_defaults works as expected."""
         config = {"ca-certs": {"remove-defaults": True}}
 
-        for distro in cc_ca_certs.distros:
+        for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro)
+            cloud = self._get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
@@ -144,9 +146,9 @@ class TestConfig(TestCase):
         """Test remove_defaults is not called when config value is False."""
         config = {"ca-certs": {"remove-defaults": False}}
 
-        for distro in cc_ca_certs.distros:
+        for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro)
+            cloud = self._get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
@@ -157,12 +159,13 @@ class TestConfig(TestCase):
         """Test remove_defaults is not called when config value is False."""
         config = {"ca-certs": {"remove-defaults": True, "trusted": ["CERT1"]}}
 
-        for distro in cc_ca_certs.distros:
+        for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro)
+            cloud = self._get_cloud(distro_name)
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
-            self.mock_add.assert_called_once_with(distro, ['CERT1'])
+            self.mock_add.assert_called_once_with(conf, ['CERT1'])
             self.assertEqual(self.mock_update.call_count, 1)
             self.assertEqual(self.mock_remove.call_count, 1)
 
@@ -185,9 +188,10 @@ class TestAddCaCerts(TestCase):
 
     def test_no_certs_in_list(self):
         """Test that no certificate are written if not provided."""
-        for distro in cc_ca_certs.distros:
+        for distro_name in cc_ca_certs.distros:
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             with mock.patch.object(util, 'write_file') as mockobj:
-                cc_ca_certs.add_ca_certs(distro, [])
+                cc_ca_certs.add_ca_certs(conf, [])
             self.assertEqual(mockobj.call_count, 0)
 
     def test_single_cert_trailing_cr(self):
@@ -200,8 +204,8 @@ class TestAddCaCerts(TestCase):
 
         self.m_stat.return_value.st_size = 1
 
-        for distro in cc_ca_certs.distros:
-            conf = cc_ca_certs._distro_ca_certs_configs(distro)
+        for distro_name in cc_ca_certs.distros:
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
 
             with ExitStack() as mocks:
                 mock_write = mocks.enter_context(
@@ -210,7 +214,7 @@ class TestAddCaCerts(TestCase):
                     mock.patch.object(util, 'load_file',
                                       return_value=ca_certs_content))
 
-                cc_ca_certs.add_ca_certs(distro, [cert])
+                cc_ca_certs.add_ca_certs(conf, [cert])
 
                 mock_write.assert_has_calls([
                     mock.call(conf['ca_cert_full_path'],
@@ -230,8 +234,8 @@ class TestAddCaCerts(TestCase):
 
         self.m_stat.return_value.st_size = 1
 
-        for distro in cc_ca_certs.distros:
-            conf = cc_ca_certs._distro_ca_certs_configs(distro)
+        for distro_name in cc_ca_certs.distros:
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
 
             with ExitStack() as mocks:
                 mock_write = mocks.enter_context(
@@ -240,7 +244,7 @@ class TestAddCaCerts(TestCase):
                     mock.patch.object(util, 'load_file',
                                       return_value=ca_certs_content))
 
-                cc_ca_certs.add_ca_certs(distro, [cert])
+                cc_ca_certs.add_ca_certs(conf, [cert])
 
                 mock_write.assert_has_calls([
                     mock.call(conf['ca_cert_full_path'],
@@ -263,12 +267,12 @@ class TestAddCaCerts(TestCase):
 
         self.m_stat.return_value.st_size = 0
 
-        for distro in cc_ca_certs.distros:
-            conf = cc_ca_certs._distro_ca_certs_configs(distro)
+        for distro_name in cc_ca_certs.distros:
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             with mock.patch.object(util, 'write_file',
                                    autospec=True) as m_write:
 
-                cc_ca_certs.add_ca_certs(distro, [cert])
+                cc_ca_certs.add_ca_certs(conf, [cert])
 
                 m_write.assert_has_calls([
                     mock.call(conf['ca_cert_full_path'],
@@ -286,8 +290,8 @@ class TestAddCaCerts(TestCase):
 
         self.m_stat.return_value.st_size = 1
 
-        for distro in cc_ca_certs.distros:
-            conf = cc_ca_certs._distro_ca_certs_configs(distro)
+        for distro_name in cc_ca_certs.distros:
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
 
             with ExitStack() as mocks:
                 mock_write = mocks.enter_context(
@@ -296,7 +300,7 @@ class TestAddCaCerts(TestCase):
                     mock.patch.object(util, 'load_file',
                                       return_value=ca_certs_content))
 
-                cc_ca_certs.add_ca_certs(distro, certs)
+                cc_ca_certs.add_ca_certs(conf, certs)
 
                 mock_write.assert_has_calls([
                     mock.call(conf['ca_cert_full_path'],
@@ -313,10 +317,10 @@ class TestAddCaCerts(TestCase):
 
 class TestUpdateCaCerts(unittest.TestCase):
     def test_commands(self):
-        for distro in cc_ca_certs.distros:
-            conf = cc_ca_certs._distro_ca_certs_configs(distro)
+        for distro_name in cc_ca_certs.distros:
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             with mock.patch.object(subp, 'subp') as mockobj:
-                cc_ca_certs.update_ca_certs(distro)
+                cc_ca_certs.update_ca_certs(conf)
                 mockobj.assert_called_once_with(
                     conf['ca_cert_update_cmd'], capture=False)
 
@@ -332,8 +336,8 @@ class TestRemoveDefaultCaCerts(TestCase):
         })
 
     def test_commands(self):
-        for distro in cc_ca_certs.distros:
-            conf = cc_ca_certs._distro_ca_certs_configs(distro)
+        for distro_name in cc_ca_certs.distros:
+            conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
 
             with ExitStack() as mocks:
                 mock_delete = mocks.enter_context(
@@ -343,7 +347,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                 mock_subp = mocks.enter_context(
                     mock.patch.object(subp, 'subp'))
 
-                cc_ca_certs.remove_default_ca_certs(distro)
+                cc_ca_certs.remove_default_ca_certs(distro_name, conf)
 
                 mock_delete.assert_has_calls([
                     mock.call(conf['ca_cert_path']),
@@ -353,7 +357,7 @@ class TestRemoveDefaultCaCerts(TestCase):
                     mock_write.assert_called_once_with(
                         conf['ca_cert_config'], "", mode=0o644)
 
-                if distro in ['debian', 'ubuntu']:
+                if distro_name in ['debian', 'ubuntu']:
                     mock_subp.assert_called_once_with(
                         ('debconf-set-selections', '-'),
                         "ca-certificates \
