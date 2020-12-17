@@ -56,7 +56,7 @@ def _restart(instance):
 
 @pytest.mark.sru_2020_11
 def test_upgrade(session_cloud: IntegrationCloud):
-    source = get_validated_source()
+    source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         pytest.skip("Install method '{}' not supported for this test".format(
             source

@@ -108,6 +108,7 @@ def session_cloud():
 
 
 def get_validated_source(
+    session_cloud: IntegrationCloud,
     source=integration_settings.CLOUD_INIT_SOURCE
 ) -> CloudInitSource:
     if source == 'NONE':
@@ -134,7 +135,7 @@ def setup_image(session_cloud: IntegrationCloud):
     So we can launch instances / run tests with the correct image
     """
 
-    source = get_validated_source()
+    source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         return
     log.info('Setting up environment for %s', session_cloud.datasource)
