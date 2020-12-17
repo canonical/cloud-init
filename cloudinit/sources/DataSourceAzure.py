@@ -647,7 +647,7 @@ class DataSourceAzure(sources.DataSource):
 
         try:
             try:
-                get_metadata_from_imds(
+                return get_metadata_from_imds(
                     fallback_nic,
                     1,
                     md_type,
