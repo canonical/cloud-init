@@ -39,8 +39,6 @@ env:
 
 matrix:
     fast_finish: true
-    allow_failures:
-      - name: "Integration Tests (WIP)"
     include:
         - python: 3.6
         - if: NOT branch =~ /^ubuntu\//
