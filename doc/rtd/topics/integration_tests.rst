@@ -9,7 +9,7 @@ Overview
 
 Integration tests are written using pytest and are located at
 ``tests/integration_tests``. General design principles
-laid out in :ref:`unit_testing` should be followed for integration tests.
+laid out in :ref:`testing` should be followed for integration tests.
 
 Setup is accomplished via a set of fixtures located in
 ``tests/integration_tests/conftest.py``.
