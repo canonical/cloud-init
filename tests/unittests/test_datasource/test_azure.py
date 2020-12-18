@@ -1822,6 +1822,24 @@ scbus-1 on xpt0 bus 0
         ssh_keys = dsrc.get_public_ssh_keys()
         self.assertEqual(ssh_keys, ['key2'])
 
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    def test_imds_api_version_wanted_nonexistent(self, m_get_metadata_from_imds):
+        def get_metadata_from_imds_side_effect(*args, **kwargs):
+            if kwargs['api_version'] == dsaz.IMDS_VER_WANT:
+                raise url_helper.UrlError("No IMDS version", code=400)
+            return NETWORK_METADATA
+        m_get_metadata_from_imds.side_effect = get_metadata_from_imds_side_effect
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertIsNotNone(dsrc.metadata)
+        self.assertEqual(dsrc.api_version, dsaz.IMDS_VER_MIN)
+
 
 class TestAzureBounce(CiTestCase):
 
