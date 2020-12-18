@@ -261,3 +261,20 @@ def pytest_assertrepr_compare(op, left, right):
                 '"{}" not in cloud-init.log string; unexpectedly found on'
                 " these lines:".format(left)
             ] + found_lines
+
+
+def pytest_configure(config):
+    """Perform initial configuration, before the test runs start.
+
+    This hook is only called if integration tests are being executed, so we can
+    use it to configure defaults for integration testing that differ from the
+    rest of the tests in the codebase.
+
+    See
+    https://docs.pytest.org/en/latest/reference.html#_pytest.hookspec.pytest_configure
+    for pytest's documentation.
+    """
+    if "log_cli_level" in config.option and not config.option.log_cli_level:
+        # If log_cli_level is available in this version of pytest and not set
+        # to anything, set it to INFO.
+        config.option.log_cli_level = "INFO"
