@@ -1,6 +1,6 @@
 name: Mark and close stale pull requests
 
-#on:
+on: workflow_dispatch
 #  schedule:
 #  - cron: "0 0 * * *"  # Daily @ 00:00
 
