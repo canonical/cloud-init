@@ -174,6 +174,7 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
     log_dir = Path(
         integration_settings.LOCAL_LOG_PATH
     ) / session_start_time / node_id_path
+    log.info("Writing logs to %s", log_dir)
     if not log_dir.exists():
         log_dir.mkdir(parents=True)
     tarball_path = log_dir / 'cloud-init.tar.gz'
