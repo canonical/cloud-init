@@ -15,16 +15,16 @@ as ``unittest.TestCase`` sub-classes and as un-subclassed pytest tests.
 Guidelines
 ==========
 
-The following guidelines should be followed:
+The following guidelines should be followed.
+
+Test Layout
+-----------
 
 * For ease of organisation and greater accessibility for developers not
   familiar with pytest, all cloud-init unit tests must be contained
   within test classes
 
   * Put another way, module-level test functions should not be used
-
-* pytest test classes should use `pytest fixtures`_ to share
-  functionality instead of inheritance
 
 * As all tests are contained within classes, it is acceptable to mix
   ``TestCase`` test classes and pytest test classes within the same
@@ -36,6 +36,12 @@ The following guidelines should be followed:
     subclass (indirectly) from ``TestCase`` (e.g.
     `TestPrependBaseCommands`_)
 
+``pytest`` Tests
+----------------
+
+* pytest test classes should use `pytest fixtures`_ to share
+  functionality instead of inheritance
+
 * pytest tests should use bare ``assert`` statements, to take advantage
   of pytest's `assertion introspection`_
 
@@ -43,43 +49,49 @@ The following guidelines should be followed:
     should be placed before the value under test:
     ``assert expected_value == function_under_test()``
 
-* As we still support Ubuntu 16.04 (Xenial Xerus), we can only use
-  pytest features that are available in v2.8.7.  This is an
-  inexhaustive list of ways in which this may catch you out:
 
-  * Support for using ``yield`` in ``pytest.fixture`` functions was
-    only introduced in `pytest 3.0`_.  Such functions must instead use
-    the ``pytest.yield_fixture`` decorator.
+``pytest`` Version Gotchas
+--------------------------
 
-  * Only the following built-in fixtures are available
-    [#fixture-list]_:
+As we still support Ubuntu 16.04 (Xenial Xerus), we can only use pytest
+features that are available in v2.8.7.  This is an inexhaustive list of
+ways in which this may catch you out:
 
-    * ``cache``
-    * ``capfd``
-    * ``caplog`` (provided by ``python3-pytest-catchlog`` on xenial)
-    * ``capsys``
-    * ``monkeypatch``
-    * ``pytestconfig``
-    * ``record_xml_property``
-    * ``recwarn``
-    * ``tmpdir_factory``
-    * ``tmpdir``
+* Support for using ``yield`` in ``pytest.fixture`` functions was only
+  introduced in `pytest 3.0`_.  Such functions must instead use the
+  ``pytest.yield_fixture`` decorator.
 
-  * On xenial, the objects returned by the ``tmpdir`` fixture cannot be
-    used where paths are required; they are rejected as invalid paths.
-    You must instead use their ``.strpath`` attribute.
+* Only the following built-in fixtures are available [#fixture-list]_:
 
-    * For example, instead of
-      ``util.write_file(tmpdir.join("some_file"), ...)``, you should
-      write ``util.write_file(tmpdir.join("some_file").strpath, ...)``.
+  * ``cache``
+  * ``capfd``
+  * ``caplog`` (provided by ``python3-pytest-catchlog`` on xenial)
+  * ``capsys``
+  * ``monkeypatch``
+  * ``pytestconfig``
+  * ``record_xml_property``
+  * ``recwarn``
+  * ``tmpdir_factory``
+  * ``tmpdir``
 
-  * The `pytest.param`_ function cannot be used. It was introduced in
-    pytest 3.1, which means it is not available on xenial.  The more
-    limited mechanism it replaced was removed in pytest 4.0, so is not
-    available in focal or later.  The only available alternatives are
-    to write mark-requiring test instances as completely separate
-    tests, without utilising parameterisation, or to apply the mark to
-    the entire parameterized test (and therefore every test instance).
+* On xenial, the objects returned by the ``tmpdir`` fixture cannot be
+  used where paths are required; they are rejected as invalid paths.
+  You must instead use their ``.strpath`` attribute.
+
+  * For example, instead of ``util.write_file(tmpdir.join("some_file"),
+    ...)``, you should write
+    ``util.write_file(tmpdir.join("some_file").strpath, ...)``.
+
+* The `pytest.param`_ function cannot be used. It was introduced in
+  pytest 3.1, which means it is not available on xenial.  The more
+  limited mechanism it replaced was removed in pytest 4.0, so is not
+  available in focal or later.  The only available alternatives are to
+  write mark-requiring test instances as completely separate tests,
+  without utilising parameterisation, or to apply the mark to the
+  entire parameterized test (and therefore every test instance).
+
+Mocking and Assertions
+----------------------
 
 * Variables/parameter names for ``Mock`` or ``MagicMock`` instances
   should start with ``m_`` to clearly distinguish them from non-mock
@@ -115,6 +127,15 @@ The following guidelines should be followed:
 
   * ``m.assert_not_called()`` => ``assert 0 == m.call_count``
 
+* When there are multiple patch calls in a test file for the module it
+  is testing, it may be desirable to capture the shared string prefix
+  for these patch calls in a module-level variable.  If used, such
+  variables should be named ``M_PATH`` or, for datasource tests,
+  ``DS_PATH``.
+
+Test Argument Ordering
+----------------------
+
 * Test arguments should be ordered as follows:
 
   * ``mock.patch`` arguments.  When used as a decorator, ``mock.patch``
@@ -134,12 +155,6 @@ The following guidelines should be followed:
 
   * ``pytest.mark.parametrize``
   * ``mock.patch``
-
-* When there are multiple patch calls in a test file for the module it
-  is testing, it may be desirable to capture the shared string prefix
-  for these patch calls in a module-level variable.  If used, such
-  variables should be named ``M_PATH`` or, for datasource tests,
-  ``DS_PATH``.
 
 .. [#fixture-list] This list of fixtures (with markup) can be
    reproduced by running::
