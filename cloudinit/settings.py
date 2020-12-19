@@ -30,6 +30,7 @@ CFG_BUILTIN = {
         'GCE',
         'OpenStack',
         'AliYun',
+        'Vultr',
         'Ec2',
         'CloudSigma',
         'CloudStack',
