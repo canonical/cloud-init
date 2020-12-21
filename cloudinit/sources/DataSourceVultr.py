@@ -118,6 +118,14 @@ class DataSourceVultr(sources.DataSource):
         # without interrupting their connectivity on reboot.
         vultr.cache_network_config(config)
 
+        # Only toggle interfaces if this is a config change
+        toggle = False
+        if not old_config:
+            toggle = True
+
+        # Bring up additional interfaces
+        vultr.process_nics(config, toggle)
+
         return config
 
 

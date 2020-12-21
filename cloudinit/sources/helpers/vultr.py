@@ -8,12 +8,15 @@ import os
 from os import path
 import base64
 
+from cloudinit import log as log
 from cloudinit import url_helper
 from cloudinit import dmi
 from cloudinit import util
 from cloudinit import net
 from cloudinit import subp
 
+# Get logger
+LOGGER = log.getLogger(__name__)
 
 # Dict of all API Endpoints
 API_MAP = {
@@ -165,6 +168,75 @@ def get_interface_name(mac):
     return MAC_TO_NICS.get(mac)
 
 
+# Run system commands and handle errors
+def run_system_command(command, allow_fail=True):
+    try:
+        subp.subp(command)
+    except Exception as err:
+        if not allow_fail:
+            raise RuntimeError("Command: %s failed to execute. Error: %s" % (" ".join(command), err))
+        LOGGER.debug("Command: %s failed to execute. Error: %s" % (" ".join(command), err))
+        return False
+    return True
+
+
+# Cloud-init does not support turning on any interface beyond
+# the first. The repercussions being there is no stable and
+# appropriate way to enable critical interfaces. This hack,
+# though functional, will have minimal support and break easily.
+def bringup_nic(nic, toggle=False):
+    # Dont act if not toggling and it interface is up
+    if not toggle and net.is_up(nic['name']):
+        return
+
+    # If it is not the primary turn it on, if it is off
+    if nic['mac_address'] != md['v1']['interfaces'][0]['mac']:
+        prefix = "/" + str(sum(bin(int(x)).count('1') for x in nic['subnets'][0]['netmask'].split('.')))
+        ip = nic['subnets'][0]['address'] + prefix
+
+        # Only use IP commands if they exist and this is Linux
+        if util.is_Linux() and subp.which('ip'):
+
+            # Toggle interface if up
+            if toggle and net.is_up(nic['name']):
+                LOGGER.debug("Brining down interface: %s" % nic['name'])
+                if not run_system_command(['ip', 'link', 'set', 'dev', nic['name'], 'down']):
+                    LOGGER.debug("Failed brining down interface: %s" % nic['name'])
+                    return
+
+            LOGGER.debug("Assigning IP: %s to interface: %s" % (ip, nic['name']))
+            if not run_system_command(['ip', 'addr', 'add', ip, 'dev', nic['name']]):
+                LOGGER.debug("Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
+                return
+
+            LOGGER.debug("Brining up interface: %s" % nic['name'])
+            run_system_command(['ip', 'link', 'set', 'dev', nic['name'], 'up'])
+
+        # Only use ifconfig if this is BSD
+        if util.is_BSD() and subp.which('ifconfig'):
+            # Toggle interface if up
+            if toggle and net.is_up(nic['name']):
+                LOGGER.debug("Brining down interface: %s" % nic['name'])
+                if not run_system_command(['ifconfig', nic['name'], 'down']):
+                    LOGGER.debug("Failed brining down interface: %s" % nic['name'])
+                    return
+
+            LOGGER.debug("Assigning IP: %s to interface: %s" % (ip, nic['name']))
+            if run_system_command(['ifconfig', nic['name'], 'inet', ip]):
+                LOGGER.debug("Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
+                return
+
+            LOGGER.debug("Brining up interface: %s" % nic['name'])
+            run_system_command(['ipconfig', nic['name'], 'up'])
+
+
+# Process netcfg interfaces and bring additional up
+def process_nics(netcfg, toggle=False):
+    for config_op in netcfg['config']:
+        if config_op['type'] == "physical":
+            bringup_nic(nic, toggle)
+
+
 # Generate network configs
 def generate_network_config(config):
     md = get_metadata(config)
@@ -270,7 +342,6 @@ def generate_config(config):
 
     # Grab the rest of the details
     rootpw = md['root-password']
-    v1 = md['v1']
 
     # Start the template
     # We currently setup root, this will eventually change
@@ -303,34 +374,17 @@ def generate_config(config):
     for netcfg in config_template['network']['config']:
         # If the adapter has a name and is physical
         if "mac_address" in netcfg and netcfg['type'] == "physical":
-
             # Cloud-init does not support configuring multi-queue on
             # interfaces. A specialized tool needs to be used to enable
             # this critical functionality in a universal and predictable way.
             # This hack though functional, will have minimal support and break easily.
 
             # Enable multi-queue on linux
+            # This needs to remain a runcmd as the package may not be installed
             if util.is_Linux():
                 # Set its multi-queue to num of cores as per RHEL Docs
                 config_template['runcmd'].append(
                     "ethtool -L " + netcfg['name'] + " combined $(nproc --all)")
-
-            # Cloud-init does not support turning on any interface beyond
-            # the first. The repercussions being there is no stable and
-            # appropriate way to enable critical interfaces. This hack,
-            # though functional, will have minimal support and break easily.
-
-            # If it is not the primary turn it on
-            if netcfg['mac_address'] != md['v1']['interfaces'][0]['mac']:
-                # Only use IP commands if they exist and this is Linux
-                if util.is_Linux() and subp.which('ip'):
-                    prefix = "/" + str(sum(bin(int(x)).count('1') for x in netcfg['subnets'][0]['netmask'].split('.')))
-                    config_template['runcmd'].append("ip addr add " + netcfg['subnets'][0]['address'] + prefix + " dev " + netcfg['name'])
-                    config_template['runcmd'].append("ip link set dev " + netcfg['name'] + " up")
-
-                # Only use ifconfig if this is BSD
-                if util.is_BSD() and subp.which('ifconfig'):
-                    config_template['runcmd'].append("ifconfig " + netcfg['name'] + " up")
 
     # Set the startup script
     if script != "":
