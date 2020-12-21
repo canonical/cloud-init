@@ -357,7 +357,7 @@ class TestDataSourceVultr(CiTestCase):
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_get_data_1(self, mock_getmeta, mock_netmap):
+    def test_get_data_1(self, mock_getmeta, mock_netmap, mock_processnics):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
