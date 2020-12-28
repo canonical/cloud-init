@@ -1969,6 +1969,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
     netconfig = {'version': 2, 'ethernets': {}}
     network_metadata = imds_metadata['network']
     for idx, intf in enumerate(network_metadata['interface']):
+        has_ip_address = False
         # First IPv4 and/or IPv6 address will be obtained via DHCP.
         # Any additional IPs of each type will be set as static
         # addresses.
@@ -1978,6 +1979,11 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
                       'dhcp6': False}
         for addr_type in ('ipv4', 'ipv6'):
             addresses = intf.get(addr_type, {}).get('ipAddress', [])
+            # If there are no available IP addresses, then we don't
+            # want to add this interface to the generated config.
+            if not addresses:
+                continue
+            has_ip_address = True
             if addr_type == 'ipv4':
                 default_prefix = '24'
             else:
@@ -1998,7 +2004,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
                 dev_config['addresses'].append(
                     '{ip}/{prefix}'.format(
                         ip=privateIp, prefix=netPrefix))
-        if dev_config:
+        if dev_config and has_ip_address:
             mac = ':'.join(re.findall(r'..', intf['macAddress']))
             dev_config.update({
                 'match': {'macaddress': mac.lower()},
