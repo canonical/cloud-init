@@ -7,7 +7,8 @@ import json
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit import sources
-from cloudinit.sources.DataSourceUpCloud import DataSourceUpCloud, DataSourceUpCloudLocal
+from cloudinit.sources.DataSourceUpCloud import DataSourceUpCloud, \
+    DataSourceUpCloudLocal
 
 from cloudinit.tests.helpers import mock, CiTestCase
 
@@ -178,7 +179,8 @@ class TestUpCloudMetadata(CiTestCase):
         self.assertTrue(mock_readmd.called)
 
         self.assertEqual(UC_METADATA.get('user_data'), ds.get_userdata_raw())
-        self.assertEqual(UC_METADATA.get('vendor_data'), ds.get_vendordata_raw())
+        self.assertEqual(UC_METADATA.get('vendor_data'),
+                         ds.get_vendordata_raw())
         self.assertEqual(UC_METADATA.get('region'), ds.availability_zone)
         self.assertEqual(UC_METADATA.get('instance_id'), ds.get_instance_id())
         self.assertEqual(UC_METADATA.get('cloud_name'), ds.cloud_name)
@@ -208,7 +210,8 @@ class TestUpCloudNetworkSetup(CiTestCase):
     @mock.patch('cloudinit.net.find_fallback_nic')
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
-    def test_network_configured_metadata(self, m_net, m_dhcp, m_fallback_nic, mock_readmd):
+    def test_network_configured_metadata(self, m_net, m_dhcp,
+                                         m_fallback_nic, mock_readmd):
         mock_readmd.return_value = UC_METADATA.copy()
 
         m_fallback_nic.return_value = 'eth1'
@@ -271,9 +274,11 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertEqual(5, len(config))
         self.assertEqual('physical', config[3].get('type'))
 
-        self.assertEqual(raw_ifaces[2].get('mac'), config[2].get('mac_address'))
+        self.assertEqual(raw_ifaces[2].get('mac'), config[2]
+                         .get('mac_address'))
         self.assertEqual(1, len(config[2].get('subnets')))
-        self.assertEqual('ipv6_dhcpv6-stateless', config[2].get('subnets')[0].get('type'))
+        self.assertEqual('ipv6_dhcpv6-stateless', config[2].get('subnets')[0]
+                         .get('type'))
 
         self.assertEqual(2, len(config[0].get('subnets')))
         self.assertEqual('static', config[0].get('subnets')[1].get('type'))
@@ -281,7 +286,8 @@ class TestUpCloudNetworkSetup(CiTestCase):
         dns = config[4]
         self.assertEqual('nameserver', dns.get('type'))
         self.assertEqual(2, len(dns.get('address')))
-        self.assertEqual(UC_METADATA.get('network').get('dns')[1], dns.get('address')[1])
+        self.assertEqual(UC_METADATA.get('network').get('dns')[1],
+                         dns.get('address')[1])
 
 
 class TestUpCloudDatasourceLoading(CiTestCase):
@@ -299,7 +305,8 @@ class TestUpCloudDatasourceLoading(CiTestCase):
 
     def test_list_sources_finds_ds(self):
         found = sources.list_sources(
-            ['UpCloud'], (sources.DEP_FILESYSTEM, sources.DEP_NETWORK), ['cloudinit.sources'])
+            ['UpCloud'], (sources.DEP_FILESYSTEM, sources.DEP_NETWORK),
+            ['cloudinit.sources'])
         self.assertEqual([DataSourceUpCloud],
                          found)
 
