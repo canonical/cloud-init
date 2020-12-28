@@ -113,7 +113,9 @@ def convert_to_network_config_v1(config):
         if ip_addr.get("dhcp"):
             dhcp_type = "dhcp"
             if ip_addr.get("family") == "IPv6":
-                dhcp_type = "dhcp6"
+                # UpCloud currently passes IPv6 addresses via
+                # StateLess Address Auto Configuration (SLAAC)
+                dhcp_type = "ipv6_dhcpv6-stateless"
             return {"type": dhcp_type}
 
         static_type = "static"

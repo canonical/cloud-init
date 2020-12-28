@@ -273,7 +273,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
 
         self.assertEqual(raw_ifaces[2].get('mac'), config[2].get('mac_address'))
         self.assertEqual(1, len(config[2].get('subnets')))
-        self.assertEqual('dhcp6', config[2].get('subnets')[0].get('type'))
+        self.assertEqual('ipv6_dhcpv6-stateless', config[2].get('subnets')[0].get('type'))
 
         self.assertEqual(2, len(config[0].get('subnets')))
         self.assertEqual('static', config[0].get('subnets')[1].get('type'))
