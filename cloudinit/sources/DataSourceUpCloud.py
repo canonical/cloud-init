@@ -20,7 +20,7 @@ BUILTIN_DS_CONFIG = {"metadata_url": "http://169.254.169.254/metadata/v1.json"}
 
 # Wait for a up to a minute, retrying the meta-data server
 # every 2 seconds.
-MD_RETRIES = 30
+MD_RETRIES = 5
 MD_TIMEOUT = 2
 MD_WAIT_RETRY = 2
 
@@ -28,6 +28,9 @@ MD_WAIT_RETRY = 2
 class DataSourceUpCloud(sources.DataSource):
 
     dsname = "UpCloud"
+
+    # We'll perform DHCP setup only in init-local, see DataSourceUpCloudLocal
+    perform_dhcp_setup = False
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -43,7 +46,6 @@ class DataSourceUpCloud(sources.DataSource):
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
-        self.perform_dhcp_setup = self.ds_cfg.get("dhcp_setup", True)
         self._network_config = None
 
     def _get_sysinfo(self):
@@ -133,9 +135,23 @@ class DataSourceUpCloud(sources.DataSource):
         return self._network_config
 
 
+class DataSourceUpCloudLocal(DataSourceUpCloud):
+    """Run in init-local using a DHCP discovery prior to metadata crawl.
+
+    In init-local, no network is available. This subclass sets up minimal
+    networking with dhclient on a viable nic so that it can talk to the
+    metadata service. If the metadata service provides network configuration
+    then render the network configuration for that instance based on metadata.
+    """
+
+    perform_dhcp_setup = True  # Get metadata network config if present
+
+
 # Used to match classes to dependencies
-datasources = [(DataSourceUpCloud,
-                (sources.DEP_FILESYSTEM, sources.DEP_NETWORK))]
+datasources = [
+    (DataSourceUpCloudLocal, (sources.DEP_FILESYSTEM, )),
+    (DataSourceUpCloud, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+]
 
 
 # Return a list of data sources that match this set of dependencies

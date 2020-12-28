@@ -7,7 +7,7 @@ import json
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit import sources
-from cloudinit.sources.DataSourceUpCloud import DataSourceUpCloud
+from cloudinit.sources.DataSourceUpCloud import DataSourceUpCloud, DataSourceUpCloudLocal
 
 from cloudinit.tests.helpers import mock, CiTestCase
 
@@ -198,7 +198,7 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.tmp = self.tmp_dir()
 
     def get_ds(self, get_sysinfo=_mock_dmi):
-        ds = DataSourceUpCloud(
+        ds = DataSourceUpCloudLocal(
             settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
         if get_sysinfo:
             ds._get_sysinfo = get_sysinfo
@@ -286,6 +286,12 @@ class TestUpCloudNetworkSetup(CiTestCase):
 
 class TestUpCloudDatasourceLoading(CiTestCase):
     def test_get_datasource_list_returns_in_local(self):
+        deps = (sources.DEP_FILESYSTEM, )
+        ds_list = sources.DataSourceUpCloud.get_datasource_list(deps)
+        self.assertEqual(ds_list,
+                         [DataSourceUpCloudLocal])
+
+    def test_get_datasource_list_returns_in_normal(self):
         deps = (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)
         ds_list = sources.DataSourceUpCloud.get_datasource_list(deps)
         self.assertEqual(ds_list,

@@ -49,6 +49,7 @@ DEFAULT_LOCAL = [
     OpenStack.DataSourceOpenStackLocal,
     RbxCloud.DataSourceRbxCloud,
     Scaleway.DataSourceScaleway,
+    UpCloud.DataSourceUpCloudLocal,
 ]
 
 DEFAULT_NETWORK = [
