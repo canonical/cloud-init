@@ -1,16 +1,15 @@
-#part-handler
+# part-handler
 # vi: syntax=python ts=4
 
+import os
 from cloudinit import log
 from cloudinit import util
-import os
-import pathlib
 
 LOG = log.getLogger(__name__)
 
 
 def list_types():
-# return a list of mime-types that are handled by this module
+    # return a list of mime-types that are handled by this module
     LOG.debug("in shell_script-per-instance.list_types() ...")
     return(["text/x-shellscript-per-instance"])
 
