@@ -16,10 +16,10 @@ def list_types():
 
 def handle_part(data, ctype, script_path, payload):
     if script_path is not None:
-        LOG.debug("in shell_script-per-once.handle_part() ...")
-        LOG.debug(f"x-shellscript-per-once.handle_part: {script_path=}")
+        LOG.info("in shell_script-per-once.handle_part() ...")
+        LOG.debug("script_path=%s", script_path)
         (folder, filename) = os.path.split(script_path)
-        LOG.debug(f"{folder=} {filename=}")
+        LOG.debug("folder=%s filename=%s", folder, filename)
         path = f"/var/lib/cloud/scripts/per-once/{filename}"
-        LOG.debug(f"{path=}")
+        LOG.debug("path=%s", path)
         util.write_file(path, payload, 0o700)
