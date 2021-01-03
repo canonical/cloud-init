@@ -476,7 +476,7 @@ def route_pformat():
                 if r['iface'] == 'lo':
                     continue
                 tbl_v6.add_row([route_id, r['destination'],
-                                r['gateway'], r['iface'], r['flags']])
+                                r.get('gateway', 'undefined'), r['iface'], r['flags']])
             route_s = tbl_v6.get_string()
             max_len = len(max(route_s.splitlines(), key=len))
             header = util.center("Route IPv6 info", "+", max_len)
