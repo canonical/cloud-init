@@ -1,3 +1,9 @@
+cloud-init (20.4-0ubuntu2) hirsute; urgency=medium
+
+  * d/cloud-init.manpages: include upstream manpages in package (LP: #1908548)
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Mon, 04 Jan 2021 10:44:13 -0500
+
 cloud-init (20.4-0ubuntu1) hirsute; urgency=medium
 
   * d/control: add gnupg to Recommends as cc_apt_configure requires it to be
