@@ -1,5 +1,5 @@
 cloud-init (21.1-19-gbad84ad4-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
-
+  * d/cloud-init.manpages: include upstream manpages in package (LP: #1908548)
   * drop the following cherry-picks now included:
     + cpick-4f62ae8d-Fix-regression-with-handling-of-IMDS-ssh-keys-760
   * New upstream snapshot. (LP: #1920272)
