@@ -1,5 +1,5 @@
 cloud-init (21.1-19-gbad84ad4-0ubuntu1~20.10.1) UNRELEASED; urgency=medium
-
+  * d/cloud-init.manpages: include upstream manpages in package (LP: #1908548)
   * drop the following cherry-picks now included:
     + cpick-4f62ae8d-Fix-regression-with-handling-of-IMDS-ssh-keys-760
   * New upstream snapshot. (LP: #1920272)
@@ -147,9 +147,11 @@ cloud-init (20.4.1-0ubuntu1~20.10.1) groovy; urgency=medium
 
 cloud-init (20.4-0ubuntu1~20.10.2) groovy; urgency=medium
 
+  * d/cloud-init.manpages: include upstream manpages in package (LP: #1908548)
   * cherry-pick 4f62ae8d: Fix regression with handling of IMDS ssh keys
     (#760) (LP: #1910835)
 
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Mon, 04 Jan 2021 10:44:13 -0500
  -- Daniel Watkins <oddbloke@ubuntu.com>  Mon, 11 Jan 2021 17:10:13 -0500
 
 cloud-init (20.4-0ubuntu1~20.10.1) groovy; urgency=medium
