@@ -1,8 +1,8 @@
 name: Mark and close stale pull requests
 
-on: workflow_dispatch
-#  schedule:
-#  - cron: "0 0 * * *"  # Daily @ 00:00
+on:
+  schedule:
+  - cron: "0 0 * * *"  # Daily @ 00:00
 
 jobs:
   stale:
