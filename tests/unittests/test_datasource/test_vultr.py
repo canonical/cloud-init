@@ -132,9 +132,9 @@ VULTR_V1_2 = """
 """
 
 SSH_KEYS_1 = [
-            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM1c= test@key",
-            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM2c= test2@key",
-            "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM3c= test3@key"
+    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM1c= test@key",
+    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM2c= test2@key",
+    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM3c= test3@key"
 ]
 
 # Expected generated objects
@@ -144,7 +144,7 @@ EXPECTED_VULTR_CONFIG_1 = {
     'package_upgrade': 'true',
     'disable_root': 0,
     'packages': [
-            'ethtool'
+        'ethtool'
     ],
     'ssh_pwauth': 1,
     'chpasswd': {
@@ -186,7 +186,7 @@ EXPECTED_VULTR_CONFIG_2 = {
     'package_upgrade': 'true',
     'disable_root': 0,
     'packages': [
-            'ethtool'
+        'ethtool'
     ],
     'ssh_pwauth': 1,
     'chpasswd': {
@@ -307,8 +307,8 @@ class TestDataSourceVultr(CiTestCase):
         super(TestDataSourceVultr, self).setUp()
         self.tmp = self.tmp_dir()
 
-
     # Test the datasource itself
+
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.is_vultr')
@@ -321,12 +321,15 @@ class TestDataSourceVultr(CiTestCase):
             "root-password": VULTR_ROOT_PASSWORD_2,
             "user-data": "",
             "ssh-keys": '\n'.join(SSH_KEYS_1),
-            "startup-script": ""
+            "startup-script": "",
+            "disable_ssh_login": "",
+            "appboot": "[]"
         }
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
 
-        source = DataSourceVultr.DataSourceVultr(settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
+        source = DataSourceVultr.DataSourceVultr(
+            settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
 
         # Test for failure
         self.assertEqual(True, source._get_data())
@@ -343,7 +346,8 @@ class TestDataSourceVultr(CiTestCase):
         # Test vendor data generation
         orig_val = self.maxDiff
         self.maxDiff = None
-        self.assertEqual("#cloud-config\n" + json.dumps(EXPECTED_VULTR_CONFIG_2), source.vendordata_raw)
+        self.assertEqual(
+            "#cloud-config\n" + json.dumps(EXPECTED_VULTR_CONFIG_2), source.vendordata_raw)
         self.maxDiff = orig_val
 
         # Test network config generation
@@ -352,8 +356,8 @@ class TestDataSourceVultr(CiTestCase):
         # Test network config generation when nothing has changed
         self.assertEqual(None, source.network_config)
 
-
     # Test overall config generation
+
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
@@ -364,7 +368,9 @@ class TestDataSourceVultr(CiTestCase):
             "user-data": "",
             "startup-script": "",
             "v1": json.loads(VULTR_V1_1),
-            "root-password": VULTR_ROOT_PASSWORD_1
+            "root-password": VULTR_ROOT_PASSWORD_1,
+            "disable_ssh_login": "",
+            "appboot": "[]"
         }
 
         mock_netmap.return_value = INTERFACE_MAP
@@ -372,8 +378,8 @@ class TestDataSourceVultr(CiTestCase):
         # Test data
         self.assertEqual(EXPECTED_VULTR_CONFIG_1, vultr.generate_config({}))
 
-
     # Test overall config generation
+
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
@@ -384,7 +390,9 @@ class TestDataSourceVultr(CiTestCase):
             "user-data": "",
             "startup-script": "",
             "v1": json.loads(VULTR_V1_2),
-            "root-password": VULTR_ROOT_PASSWORD_2
+            "root-password": VULTR_ROOT_PASSWORD_2,
+            "disable_ssh_login": "",
+            "appboot": "[]"
         }
 
         mock_netmap.return_value = INTERFACE_MAP
@@ -392,8 +400,8 @@ class TestDataSourceVultr(CiTestCase):
         # Test data with private networking
         self.assertEqual(EXPECTED_VULTR_CONFIG_2, vultr.generate_config({}))
 
-
     # Test network config generation
+
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
@@ -406,10 +414,11 @@ class TestDataSourceVultr(CiTestCase):
 
         mock_netmap.return_value = INTERFACE_MAP
 
-        self.assertEqual(EXPECTED_VULTR_NETWORK_1, vultr.generate_network_config({}))
-
+        self.assertEqual(EXPECTED_VULTR_NETWORK_1,
+                         vultr.generate_network_config({}))
 
     # Test Private Networking config generation
+
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
@@ -422,6 +431,7 @@ class TestDataSourceVultr(CiTestCase):
 
         mock_netmap.return_value = INTERFACE_MAP
 
-        self.assertEqual(EXPECTED_VULTR_NETWORK_2, vultr.generate_network_config({}))
+        self.assertEqual(EXPECTED_VULTR_NETWORK_2,
+                         vultr.generate_network_config({}))
 
 # vi: ts=4 expandtab

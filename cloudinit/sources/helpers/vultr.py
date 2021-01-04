@@ -28,7 +28,9 @@ API_MAP = {
     "ssh-keys": "/current/ssh-keys",
     "ipv6-dns1": "/current/ipv6-dns1",
     "ipv6-addr": "/current/meta-data/ipv6-addr",
-    "v1.json": "/v1.json"
+    "v1.json": "/v1.json",
+    "disable_ssh_login": "/v1/internal/md-disable_ssh_login",
+    "appboot": "/v1/internal/appboot"
 }
 
 
@@ -40,6 +42,7 @@ METADATA = None
 # Cache the metadata for optimization
 def get_metadata(params):
     global METADATA
+
     if not METADATA:
         METADATA = {
             'startup-script': fetch_metadata("startup-script", params),
@@ -50,8 +53,11 @@ def get_metadata(params):
             'ssh-keys': fetch_metadata("ssh-keys", params),
             'ipv6-dns1': fetch_metadata("ipv6-dns1", params),
             'ipv6-addr': fetch_metadata("ipv6-addr", params),
-            'v1': json.loads(fetch_metadata("v1.json", params))
+            'v1': json.loads(fetch_metadata("v1.json", params)),
+            'disable_ssh_login': fetch_metadata("disable_ssh_login", params),
+            'appboot': json.loads(fetch_metadata("appboot", params))
         }
+
     return METADATA
 
 
@@ -174,8 +180,10 @@ def run_system_command(command, allow_fail=True):
         subp.subp(command)
     except Exception as err:
         if not allow_fail:
-            raise RuntimeError("Command: %s failed to execute. Error: %s" % (" ".join(command), err))
-        LOGGER.debug("Command: %s failed to execute. Error: %s" % (" ".join(command), err))
+            raise RuntimeError(
+                "Command: %s failed to execute. Error: %s" % (" ".join(command), err))
+        LOGGER.debug("Command: %s failed to execute. Error: %s" %
+                     (" ".join(command), err))
         return False
     return True
 
@@ -191,7 +199,8 @@ def bringup_nic(nic, toggle=False):
 
     # If it is not the primary turn it on, if it is off
     if nic['mac_address'] != md['v1']['interfaces'][0]['mac']:
-        prefix = "/" + str(sum(bin(int(x)).count('1') for x in nic['subnets'][0]['netmask'].split('.')))
+        prefix = "/" + str(sum(bin(int(x)).count('1')
+                         for x in nic['subnets'][0]['netmask'].split('.')))
         ip = nic['subnets'][0]['address'] + prefix
 
         # Only use IP commands if they exist and this is Linux
@@ -201,12 +210,15 @@ def bringup_nic(nic, toggle=False):
             if toggle and net.is_up(nic['name']):
                 LOGGER.debug("Brining down interface: %s" % nic['name'])
                 if not run_system_command(['ip', 'link', 'set', 'dev', nic['name'], 'down']):
-                    LOGGER.debug("Failed brining down interface: %s" % nic['name'])
+                    LOGGER.debug(
+                        "Failed brining down interface: %s" % nic['name'])
                     return
 
-            LOGGER.debug("Assigning IP: %s to interface: %s" % (ip, nic['name']))
+            LOGGER.debug("Assigning IP: %s to interface: %s" %
+                         (ip, nic['name']))
             if not run_system_command(['ip', 'addr', 'add', ip, 'dev', nic['name']]):
-                LOGGER.debug("Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
+                LOGGER.debug(
+                    "Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
                 return
 
             LOGGER.debug("Brining up interface: %s" % nic['name'])
@@ -218,12 +230,15 @@ def bringup_nic(nic, toggle=False):
             if toggle and net.is_up(nic['name']):
                 LOGGER.debug("Brining down interface: %s" % nic['name'])
                 if not run_system_command(['ifconfig', nic['name'], 'down']):
-                    LOGGER.debug("Failed brining down interface: %s" % nic['name'])
+                    LOGGER.debug(
+                        "Failed brining down interface: %s" % nic['name'])
                     return
 
-            LOGGER.debug("Assigning IP: %s to interface: %s" % (ip, nic['name']))
+            LOGGER.debug("Assigning IP: %s to interface: %s" %
+                         (ip, nic['name']))
             if run_system_command(['ifconfig', nic['name'], 'inet', ip]):
-                LOGGER.debug("Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
+                LOGGER.debug(
+                    "Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
                 return
 
             LOGGER.debug("Brining up interface: %s" % nic['name'])
@@ -257,7 +272,8 @@ def generate_network_config(config):
     if len(md['v1']['interfaces']) > 0:
         interface_name = get_interface_name(md['v1']['interfaces'][0]['mac'])
         if not interface_name:
-            raise RuntimeError("Interface: %s could not be found on the system" % md['v1']['interfaces'][0]['mac'])
+            raise RuntimeError(
+                "Interface: %s could not be found on the system" % md['v1']['interfaces'][0]['mac'])
 
         netcfg = {
             "name": interface_name,
@@ -305,7 +321,8 @@ def generate_network_config(config):
     if len(md['v1']['interfaces']) > 1:
         interface_name = get_interface_name(md['v1']['interfaces'][1]['mac'])
         if not interface_name:
-            raise RuntimeError("Interface: %s could not be found on the system" % md['v1']['interfaces'][1]['mac'])
+            raise RuntimeError(
+                "Interface: %s could not be found on the system" % md['v1']['interfaces'][1]['mac'])
 
         netcfg = {
             "name": interface_name,
@@ -340,12 +357,20 @@ def generate_config(config):
         script = base64.b64encode(
             script.encode("ascii")).decode("ascii")
 
+    # Grab the appboot scripts
+    appboot_raw = md['appboot']
+    appboot = []
+    if appboot:
+        for s in appboot_raw:
+            appboot.append(base64.b64encode(s.encode("ascii")).decode("ascii")
+
     # Grab the rest of the details
-    rootpw = md['root-password']
+    rootpw=md['root-password']
+    sshlogin=md['disable_ssh_login']
 
     # Start the template
     # We currently setup root, this will eventually change
-    config_template = {
+    config_template={
         "package_upgrade": "true",
         "disable_root": 0,
         "packages": [
@@ -365,6 +390,10 @@ def generate_config(config):
         },
         "network": generate_network_config(config)
     }
+
+    # Settings
+    if sshlogin == "yes":
+        config_template['ssh_pwauth']=False
 
     # Linux specific packages
     if util.is_Linux():
@@ -389,7 +418,7 @@ def generate_config(config):
     # Set the startup script
     if script != "":
         # Write user scripts to a temp file
-        config_template['write_files'] = [
+        config_template['write_files']=[
             {
                 "encoding": "b64",
                 "content": script,
@@ -400,10 +429,32 @@ def generate_config(config):
         ]
 
         # Add a command to runcmd to execute script added above
-        config_template['runcmd'] = config_template['runcmd'] + [
+        config_template['runcmd']=config_template['runcmd'] + [
             "/tmp/startup-vultr.sh &> /var/log/vultr-boot.log",
             "rm -f /tmp/startup-vultr.sh"
         ]
+
+    # Set the startup script
+    if appboot:
+        ctr=1
+        for s in appboot:
+            # Write user scripts to a temp file
+            loc="/tmp/startup-vultr-" + ctr + ".sh"
+            config_template['write_files']=[
+                {
+                    "encoding": "b64",
+                    "content": s,
+                    "owner": "root:root",
+                    "path": loc,
+                    "permissions": "0755"
+                }
+            ]
+
+            # Add a command to runcmd to execute script added above
+            config_template['runcmd']=config_template['runcmd'] + [
+                loc + " &> /var/log/vultr-boot.log",
+                "rm -f " + loc
+            ]
 
     return config_template
 
