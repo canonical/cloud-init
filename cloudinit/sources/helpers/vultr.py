@@ -200,7 +200,7 @@ def bringup_nic(nic, toggle=False):
     # If it is not the primary turn it on, if it is off
     if nic['mac_address'] != md['v1']['interfaces'][0]['mac']:
         prefix = "/" + str(sum(bin(int(x)).count('1')
-                         for x in nic['subnets'][0]['netmask'].split('.')))
+                               for x in nic['subnets'][0]['netmask'].split('.')))
         ip = nic['subnets'][0]['address'] + prefix
 
         # Only use IP commands if they exist and this is Linux
@@ -362,15 +362,15 @@ def generate_config(config):
     appboot = []
     if appboot:
         for s in appboot_raw:
-            appboot.append(base64.b64encode(s.encode("ascii")).decode("ascii")
+            appboot.append(base64.b64encode(s.encode("ascii")).decode("ascii"))
 
     # Grab the rest of the details
-    rootpw=md['root-password']
-    sshlogin=md['disable_ssh_login']
+    rootpw = md['root-password']
+    sshlogin = md['disable_ssh_login']
 
     # Start the template
     # We currently setup root, this will eventually change
-    config_template={
+    config_template = {
         "package_upgrade": "true",
         "disable_root": 0,
         "packages": [
@@ -393,7 +393,7 @@ def generate_config(config):
 
     # Settings
     if sshlogin == "yes":
-        config_template['ssh_pwauth']=False
+        config_template['ssh_pwauth'] = False
 
     # Linux specific packages
     if util.is_Linux():
@@ -418,7 +418,7 @@ def generate_config(config):
     # Set the startup script
     if script != "":
         # Write user scripts to a temp file
-        config_template['write_files']=[
+        config_template['write_files'] = [
             {
                 "encoding": "b64",
                 "content": script,
@@ -429,18 +429,18 @@ def generate_config(config):
         ]
 
         # Add a command to runcmd to execute script added above
-        config_template['runcmd']=config_template['runcmd'] + [
+        config_template['runcmd'] = config_template['runcmd'] + [
             "/tmp/startup-vultr.sh &> /var/log/vultr-boot.log",
             "rm -f /tmp/startup-vultr.sh"
         ]
 
     # Set the startup script
     if appboot:
-        ctr=1
+        ctr = 1
         for s in appboot:
             # Write user scripts to a temp file
-            loc="/tmp/startup-vultr-" + ctr + ".sh"
-            config_template['write_files']=[
+            loc = "/tmp/startup-vultr-" + ctr + ".sh"
+            config_template['write_files'].append(
                 {
                     "encoding": "b64",
                     "content": s,
@@ -448,10 +448,10 @@ def generate_config(config):
                     "path": loc,
                     "permissions": "0755"
                 }
-            ]
+            )
 
             # Add a command to runcmd to execute script added above
-            config_template['runcmd']=config_template['runcmd'] + [
+            config_template['runcmd'] = config_template['runcmd'] + [
                 loc + " &> /var/log/vultr-boot.log",
                 "rm -f " + loc
             ]
