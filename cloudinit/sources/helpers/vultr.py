@@ -132,6 +132,10 @@ def read_metadata(params):
                                   sec_between=params['wait'])
 
     if not response.ok():
+        if response.code == 404:
+            LOGGER.debug("Failed to connect to %s: Code: %s" %
+                         params['url'], response.code)
+            return
         raise RuntimeError("Failed to connect to %s: Code: %s" %
                            params['url'], response.code)
 
@@ -155,7 +159,7 @@ def fetch_metadata(flag, params):
     req['url'] = get_url(params['url'], flag)
 
     if req['url'] == "":
-        raise RuntimeError("Not a valid endpoint. Flag: %s" % flag)
+        raise LOGGER.debug("Not a valid endpoint. Flag: %s" % flag)
 
     return read_metadata(req)
 
