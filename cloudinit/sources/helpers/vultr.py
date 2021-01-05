@@ -53,9 +53,9 @@ def get_metadata(params):
             'ssh-keys': fetch_metadata("ssh-keys", params),
             'ipv6-dns1': fetch_metadata("ipv6-dns1", params),
             'ipv6-addr': fetch_metadata("ipv6-addr", params),
-            'v1': json.loads(fetch_metadata("v1.json", params)),
-            'disable_ssh_login': fetch_metadata("disable_ssh_login", params),
-            'appboot': json.loads(fetch_metadata("appboot", params))
+            'v1': json.loads(fetch_metadata("v1.json", params))
+            #    'disable_ssh_login': fetch_metadata("disable_ssh_login", params),
+            #    'appboot': json.loads(fetch_metadata("appboot", params))
         }
 
     return METADATA
@@ -132,10 +132,6 @@ def read_metadata(params):
                                   sec_between=params['wait'])
 
     if not response.ok():
-        if response.code == 404:
-            LOGGER.debug("Failed to connect to %s: Code: %s" %
-                         params['url'], response.code)
-            return
         raise RuntimeError("Failed to connect to %s: Code: %s" %
                            params['url'], response.code)
 
