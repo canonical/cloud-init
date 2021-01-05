@@ -46,8 +46,6 @@ An example configuration with the default values is provided below:
     CloudStack:
       max_wait: 120
       timeout: 50
-      datasource_list:
-        - CloudStack
 
 
 .. _Apache CloudStack: http://cloudstack.apache.org/
