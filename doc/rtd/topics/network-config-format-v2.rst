@@ -10,7 +10,7 @@ distro with `netplan`_ present.
 
 The ``network`` key has at least two required elements.  First
 it must include ``version: 2``  and one or more of possible device
-``types``..
+``types``.
 
 Cloud-init will read this format from system config.
 For example the following could be present in
@@ -33,9 +33,6 @@ Supported device ``types`` values are as follows:
 Each type block contains device definitions as a map where the keys (called
 "configuration IDs"). Each entry under the ``types`` may include IP and/or
 device configuration.
-
-Cloud-init does not current support ``wifis`` type that is present in native
-`netplan`_.
 
 
 Device configuration IDs
