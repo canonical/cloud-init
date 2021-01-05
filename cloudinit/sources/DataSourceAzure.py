@@ -983,6 +983,7 @@ class DataSourceAzure(sources.DataSource):
             if nl_sock:
                 nl_sock.close()
 
+    @azure_ds_telemetry_reporter
     def _poll_imds(self):
         """Poll IMDS for the new provisioning data until we get a valid
         response. Then return the returned JSON object."""
