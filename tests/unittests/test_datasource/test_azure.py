@@ -1840,6 +1840,19 @@ scbus-1 on xpt0 bus 0
         self.assertIsNotNone(dsrc.metadata)
         self.assertEqual(dsrc.api_version, dsaz.IMDS_VER_MIN)
 
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds', return_value=NETWORK_METADATA)
+    def test_imds_api_version_wanted_exists(self, m_get_metadata_from_imds):
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertIsNotNone(dsrc.metadata)
+        self.assertEqual(dsrc.api_version, dsaz.IMDS_VER_WANT)
+
 
 class TestAzureBounce(CiTestCase):
 
