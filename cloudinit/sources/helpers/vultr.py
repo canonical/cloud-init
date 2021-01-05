@@ -159,7 +159,7 @@ def fetch_metadata(flag, params):
     req['url'] = get_url(params['url'], flag)
 
     if req['url'] == "":
-        raise LOGGER.debug("Not a valid endpoint. Flag: %s" % flag)
+        raise RuntimeError("Not a valid endpoint. Flag: %s" % flag)
 
     return read_metadata(req)
 
