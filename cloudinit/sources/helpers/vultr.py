@@ -249,7 +249,7 @@ def bringup_nic(nic, toggle=False):
 def process_nics(netcfg, toggle=False):
     for config_op in netcfg['config']:
         if config_op['type'] == "physical":
-            bringup_nic(nic, toggle)
+            bringup_nic(config_op, toggle)
 
 
 # Generate network configs
