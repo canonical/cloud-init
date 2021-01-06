@@ -139,7 +139,7 @@ class TestDatasourceOVF(CiTestCase):
             'DEBUG: No system-product-name found', self.logs.getvalue())
 
     def test_get_data_no_vmware_customization_disabled(self):
-        """When cloud-init workflow for vmware is disabled via sys_cfgi and
+        """When cloud-init workflow for vmware is disabled via sys_cfg and
         no meta data provided, log a message.
         """
         paths = Paths({'cloud_dir': self.tdir})
