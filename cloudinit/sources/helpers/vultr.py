@@ -359,7 +359,7 @@ def generate_config(config):
 
     # Grab the appboot scripts
     appboot = []
-    if md['appboot']:
+    if 'appboot' in md:
         appboot_raw = md['appboot']
         if appboot:
             for s in appboot_raw:
@@ -370,7 +370,7 @@ def generate_config(config):
     rootpw = md['root-password']
 
     sshlogin = "no"
-    if md['disable_ssh_login']:
+    if 'disable_ssh_login' in md:
         sshlogin = md['disable_ssh_login']
 
     # Start the template
