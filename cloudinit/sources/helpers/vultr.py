@@ -358,11 +358,13 @@ def generate_config(config):
             script.encode("ascii")).decode("ascii")
 
     # Grab the appboot scripts
-    appboot_raw = md['appboot']
-    appboot = []
-    if appboot:
-        for s in appboot_raw:
-            appboot.append(base64.b64encode(s.encode("ascii")).decode("ascii"))
+    if md['appboot']:
+        appboot_raw = md['appboot']
+        appboot = []
+        if appboot:
+            for s in appboot_raw:
+                appboot.append(base64.b64encode(
+                    s.encode("ascii")).decode("ascii"))
 
     # Grab the rest of the details
     rootpw = md['root-password']
