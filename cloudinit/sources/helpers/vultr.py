@@ -358,9 +358,9 @@ def generate_config(config):
             script.encode("ascii")).decode("ascii")
 
     # Grab the appboot scripts
+    appboot = []
     if md['appboot']:
         appboot_raw = md['appboot']
-        appboot = []
         if appboot:
             for s in appboot_raw:
                 appboot.append(base64.b64encode(
@@ -368,7 +368,9 @@ def generate_config(config):
 
     # Grab the rest of the details
     rootpw = md['root-password']
-    sshlogin = md['disable_ssh_login']
+
+    if md['disable_ssh_login']:
+        sshlogin = md['disable_ssh_login']
 
     # Start the template
     # We currently setup root, this will eventually change
