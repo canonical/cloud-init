@@ -1,8 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import datetime
+import functools
 import logging
-import os
 import pytest
+import os
 import sys
 from tarfile import TarFile
 from contextlib import contextmanager
@@ -14,11 +15,16 @@ from tests.integration_tests.clouds import (
     Ec2Cloud,
     GceCloud,
     ImageSpecification,
+    IntegrationCloud,
     LxdContainerCloud,
     LxdVmCloud,
     OciCloud,
+    _LxdIntegrationCloud,
 )
-from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.instances import (
+    CloudInitSource,
+    IntegrationInstance,
+)
 
 
 log = logging.getLogger('integration_testing')
@@ -67,6 +73,12 @@ def pytest_runtest_setup(item):
     supported_os_set = set(os_list).intersection(test_marks)
     if current_os and supported_os_set and current_os not in supported_os_set:
         pytest.skip("Cannot run on OS {}".format(current_os))
+    if 'unstable' in test_marks and not integration_settings.RUN_UNSTABLE:
+        pytest.skip('Test marked unstable. Manually remove mark to run it')
+
+    current_release = image.release
+    if "not_{}".format(current_release) in test_marks:
+        pytest.skip("Cannot run on release {}".format(current_release))
 
 
 # disable_subp_usage is defined at a higher level, but we don't
@@ -95,39 +107,43 @@ def session_cloud():
         cloud.destroy()
 
 
-@pytest.fixture(scope='session', autouse=True)
-def setup_image(session_cloud):
+def get_validated_source(
+    session_cloud: IntegrationCloud,
+    source=integration_settings.CLOUD_INIT_SOURCE
+) -> CloudInitSource:
+    if source == 'NONE':
+        return CloudInitSource.NONE
+    elif source == 'IN_PLACE':
+        if session_cloud.datasource not in ['lxd_container', 'lxd_vm']:
+            raise ValueError(
+                'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
+        return CloudInitSource.IN_PLACE
+    elif source == 'PROPOSED':
+        return CloudInitSource.PROPOSED
+    elif source.startswith('ppa:'):
+        return CloudInitSource.PPA
+    elif os.path.isfile(str(source)):
+        return CloudInitSource.DEB_PACKAGE
+    raise ValueError(
+        'Invalid value for CLOUD_INIT_SOURCE setting: {}'.format(source))
+
+
+@pytest.fixture(scope='session')
+def setup_image(session_cloud: IntegrationCloud):
     """Setup the target environment with the correct version of cloud-init.
 
     So we can launch instances / run tests with the correct image
     """
-    client = None
+
+    source = get_validated_source(session_cloud)
+    if not source.installs_new_version():
+        return
     log.info('Setting up environment for %s', session_cloud.datasource)
-    if integration_settings.CLOUD_INIT_SOURCE == 'NONE':
-        pass  # that was easy
-    elif integration_settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
-        if session_cloud.datasource not in ['lxd_container', 'lxd_vm']:
-            raise ValueError(
-                'IN_PLACE as CLOUD_INIT_SOURCE only works for LXD')
-        # The mount needs to happen after the instance is created, so
-        # no further action needed here
-    elif integration_settings.CLOUD_INIT_SOURCE == 'PROPOSED':
-        client = session_cloud.launch()
-        client.install_proposed_image()
-    elif integration_settings.CLOUD_INIT_SOURCE.startswith('ppa:'):
-        client = session_cloud.launch()
-        client.install_ppa(integration_settings.CLOUD_INIT_SOURCE)
-    elif os.path.isfile(str(integration_settings.CLOUD_INIT_SOURCE)):
-        client = session_cloud.launch()
-        client.install_deb()
-    else:
-        raise ValueError(
-            'Invalid value for CLOUD_INIT_SOURCE setting: {}'.format(
-                integration_settings.CLOUD_INIT_SOURCE))
-    if client:
-        # Even if we're keeping instances, we don't want to keep this
-        # one around as it was just for image creation
-        client.destroy()
+    client = session_cloud.launch()
+    client.install_new_cloud_init(source)
+    # Even if we're keeping instances, we don't want to keep this
+    # one around as it was just for image creation
+    client.destroy()
     log.info('Done with environment setup')
 
 
@@ -158,6 +174,7 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
     log_dir = Path(
         integration_settings.LOCAL_LOG_PATH
     ) / session_start_time / node_id_path
+    log.info("Writing logs to %s", log_dir)
     if not log_dir.exists():
         log_dir.mkdir(parents=True)
     tarball_path = log_dir / 'cloud-init.tar.gz'
@@ -169,20 +186,27 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
 
 
 @contextmanager
-def _client(request, fixture_utils, session_cloud):
+def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     """Fixture implementation for the client fixtures.
 
     Launch the dynamic IntegrationClient instance using any provided
     userdata, yield to the test, then cleanup
     """
-    user_data = fixture_utils.closest_marker_first_arg_or(
-        request, 'user_data', None)
-    name = fixture_utils.closest_marker_first_arg_or(
-        request, 'instance_name', None
+    getter = functools.partial(
+        fixture_utils.closest_marker_first_arg_or, request, default=None
     )
+    user_data = getter('user_data')
+    name = getter('instance_name')
+    lxd_config_dict = getter('lxd_config_dict')
+
     launch_kwargs = {}
     if name is not None:
-        launch_kwargs = {"name": name}
+        launch_kwargs["name"] = name
+    if lxd_config_dict is not None:
+        if not isinstance(session_cloud, _LxdIntegrationCloud):
+            pytest.skip("lxd_config_dict requires LXD")
+        launch_kwargs["config_dict"] = lxd_config_dict
+
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs
     ) as instance:
@@ -193,21 +217,21 @@ def _client(request, fixture_utils, session_cloud):
 
 
 @pytest.yield_fixture
-def client(request, fixture_utils, session_cloud):
+def client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs for every test."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
 @pytest.yield_fixture(scope='module')
-def module_client(request, fixture_utils, session_cloud):
+def module_client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs once per module."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
 
 
 @pytest.yield_fixture(scope='class')
-def class_client(request, fixture_utils, session_cloud):
+def class_client(request, fixture_utils, session_cloud, setup_image):
     """Provide a client that runs once per class."""
     with _client(request, fixture_utils, session_cloud) as client:
         yield client
@@ -237,3 +261,20 @@ def pytest_assertrepr_compare(op, left, right):
                 '"{}" not in cloud-init.log string; unexpectedly found on'
                 " these lines:".format(left)
             ] + found_lines
+
+
+def pytest_configure(config):
+    """Perform initial configuration, before the test runs start.
+
+    This hook is only called if integration tests are being executed, so we can
+    use it to configure defaults for integration testing that differ from the
+    rest of the tests in the codebase.
+
+    See
+    https://docs.pytest.org/en/latest/reference.html#_pytest.hookspec.pytest_configure
+    for pytest's documentation.
+    """
+    if "log_cli_level" in config.option and not config.option.log_cli_level:
+        # If log_cli_level is available in this version of pytest and not set
+        # to anything, set it to INFO.
+        config.option.log_cli_level = "INFO"
