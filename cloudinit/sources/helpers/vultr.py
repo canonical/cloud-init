@@ -192,10 +192,12 @@ def run_system_command(command, allow_fail=True):
 # the first. The repercussions being there is no stable and
 # appropriate way to enable critical interfaces. This hack,
 # though functional, will have minimal support and break easily.
-def bringup_nic(nic, toggle=False):
+def bringup_nic(nic, config, toggle=False):
     # Dont act if not toggling and it interface is up
     if not toggle and net.is_up(nic['name']):
         return
+
+    md = get_metadata(config)
 
     # If it is not the primary turn it on, if it is off
     if nic['mac_address'] != md['v1']['interfaces'][0]['mac']:
@@ -246,7 +248,7 @@ def bringup_nic(nic, toggle=False):
 
 
 # Process netcfg interfaces and bring additional up
-def process_nics(netcfg, toggle=False):
+def process_nics(netcfg, config, toggle=False):
     for config_op in netcfg['config']:
         if config_op['type'] == "physical":
             bringup_nic(config_op, toggle)

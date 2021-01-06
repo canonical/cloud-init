@@ -124,7 +124,7 @@ class DataSourceVultr(sources.DataSource):
             toggle = True
 
         # Bring up additional interfaces
-        vultr.process_nics(config, toggle)
+        vultr.process_nics(config, CONFIG, toggle)
 
         return config
 
