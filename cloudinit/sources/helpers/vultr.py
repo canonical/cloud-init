@@ -369,6 +369,7 @@ def generate_config(config):
     # Grab the rest of the details
     rootpw = md['root-password']
 
+    sshlogin = "no"
     if md['disable_ssh_login']:
         sshlogin = md['disable_ssh_login']
 
