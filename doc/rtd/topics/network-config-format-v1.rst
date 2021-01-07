@@ -414,7 +414,7 @@ Subnet types are one of the following:
 - ``dhcp6``: Configure this interface with IPv6 dhcp.
 - ``static``: Configure this interface with a static IPv4.
 - ``static6``: Configure this interface with a static IPv6 .
-- ``ipv6_dhcpv6-stateful``: Configure interface with ``dhcp6``
+- ``ipv6_dhcpv6-stateful``: Configure this interface with ``dhcp6``
 - ``ipv6_dhcpv6-stateless``: Configure this interface with SLAAC and DHCP
 - ``ipv6_slaac``: Configure address with SLAAC
 
