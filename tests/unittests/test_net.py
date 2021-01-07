@@ -1369,6 +1369,7 @@ NETWORK_CONFIGS = {
             DEVICE=iface0
             DHCPV6C=yes
             IPV6INIT=yes
+            IPV6_AUTOCONF=no
             IPV6_FORCE_ACCEPT_RA=yes
             DEVICE=iface0
             NM_CONTROLLED=no
