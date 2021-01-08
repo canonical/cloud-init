@@ -28,11 +28,13 @@ def get_parser(parser=None):
     if not parser:
         parser = argparse.ArgumentParser(prog=NAME, description=__doc__)
     parser.add_argument("-p", "--network-data", type=open,
-                        metavar="PATH", required=True)
+                        metavar="PATH", required=True,
+                        help="The network configuration to read")
     parser.add_argument("-k", "--kind",
                         choices=['eni', 'network_data.json', 'yaml',
                                  'azure-imds', 'vmware-imc'],
-                        required=True)
+                        required=True,
+                        help="The format of the given network config")
     parser.add_argument("-d", "--directory",
                         metavar="PATH",
                         help="directory to place output in",
@@ -50,7 +52,8 @@ def get_parser(parser=None):
                         help='enable debug logging to stderr.')
     parser.add_argument("-O", "--output-kind",
                         choices=['eni', 'netplan', 'sysconfig'],
-                        required=True)
+                        required=True,
+                        help="The network config format to emit")
     return parser
 
 

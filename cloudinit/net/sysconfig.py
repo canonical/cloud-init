@@ -402,6 +402,7 @@ class Renderer(renderer.Renderer):
                     iface_cfg['BOOTPROTO'] = 'dhcp'
                     iface_cfg['DHCPV6C'] = True
                     iface_cfg['IPV6INIT'] = True
+                    iface_cfg['IPV6_AUTOCONF'] = False
                 else:
                     iface_cfg['IPV6INIT'] = True
                     # Configure network settings using DHCPv6
