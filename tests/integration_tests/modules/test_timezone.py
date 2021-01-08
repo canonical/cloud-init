@@ -15,6 +15,7 @@ timezone: US/Aleutian
 """
 
 
+@pytest.mark.ci
 class TestTimezone:
 
     @pytest.mark.user_data(USER_DATA)

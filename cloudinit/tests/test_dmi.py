@@ -19,6 +19,9 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         p = mock.patch("cloudinit.dmi.is_container", return_value=False)
         self.addCleanup(p.stop)
         self._m_is_container = p.start()
+        p = mock.patch("cloudinit.dmi.is_FreeBSD", return_value=False)
+        self.addCleanup(p.stop)
+        self._m_is_FreeBSD = p.start()
 
     def _create_sysfs_parent_directory(self):
         util.ensure_dir(os.path.join('sys', 'class', 'dmi', 'id'))
@@ -44,13 +47,26 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self.patched_funcs.enter_context(
             mock.patch("cloudinit.dmi.subp.subp", side_effect=_dmidecode_subp))
 
+    def _configure_kenv_return(self, key, content, error=None):
+        """
+        In order to test a FreeBSD system call outs to kenv, this
+        function fakes the results of kenv to test the results.
+        """
+        def _kenv_subp(cmd):
+            if cmd[-1] != dmi.DMIDECODE_TO_KERNEL[key].freebsd:
+                raise subp.ProcessExecutionError()
+            return (content, error)
+
+        self.patched_funcs.enter_context(
+            mock.patch("cloudinit.dmi.subp.subp", side_effect=_kenv_subp))
+
     def patch_mapping(self, new_mapping):
         self.patched_funcs.enter_context(
-            mock.patch('cloudinit.dmi.DMIDECODE_TO_DMI_SYS_MAPPING',
+            mock.patch('cloudinit.dmi.DMIDECODE_TO_KERNEL',
                        new_mapping))
 
     def test_sysfs_used_with_key_in_mapping_and_file_on_disk(self):
-        self.patch_mapping({'mapped-key': 'mapped-value'})
+        self.patch_mapping({'mapped-key': dmi.kdmi('mapped-value', None)})
         expected_dmi_value = 'sys-used-correctly'
         self._create_sysfs_file('mapped-value', expected_dmi_value)
         self._configure_dmidecode_return('mapped-key', 'wrong-wrong-wrong')
@@ -129,3 +145,10 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self._create_sysfs_file('product_name', "should-be-ignored")
         self.assertIsNone(dmi.read_dmi_data("bogus"))
         self.assertIsNone(dmi.read_dmi_data("system-product-name"))
+
+    def test_freebsd_uses_kenv(self):
+        """On a FreeBSD system, kenv is called."""
+        self._m_is_FreeBSD.return_value = True
+        key, val = ("system-product-name", "my_product")
+        self._configure_kenv_return(key, val)
+        self.assertEqual(dmi.read_dmi_data(key), val)

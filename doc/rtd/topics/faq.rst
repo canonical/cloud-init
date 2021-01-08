@@ -121,6 +121,12 @@ cloud-init:
   $ sudo cloud-init init --local
   $ sudo cloud-init init
 
+.. warning::
+
+    These commands will re-run cloud-init as if this were first boot of a
+    system: this will, at the very least, cycle SSH host keys and may do
+    substantially more.  Do not run these commands on production systems.
+
 How can I debug my user data?
 =============================
 
@@ -135,12 +141,12 @@ that can validate your user data offline.
 
 .. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/master/tools/validate-yaml.py
 
-Another option is to run the following on an instance when debugging:
+Another option is to run the following on an instance to debug userdata
+provided to the system:
 
 .. code-block:: shell-session
 
-    $ sudo cloud-init query userdata > user-data.yaml
-    $ cloud-init devel schema -c user-data.yaml --annotate
+    $ cloud-init devel schema --system --annotate
 
 As launching instances in the cloud can cost money and take a bit longer,
 sometimes it is easier to launch instances locally using Multipass or LXD:
