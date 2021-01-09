@@ -76,6 +76,18 @@ COLLECT_LOGS = 'ON_ERROR'
 LOCAL_LOG_PATH = '/tmp/cloud_init_test_logs'
 
 ##################################################################
+# SSH KEY SETTINGS
+##################################################################
+
+# A path to the public SSH key to use for test runs.  (Defaults to pycloudlib's
+# default behaviour, using ~/.ssh/id_rsa.pub.)
+PUBLIC_SSH_KEY = None
+
+# For clouds which use named keypairs for SSH connection, the name that is used
+# for the keypair.  (Defaults to pycloudlib's default behaviour.)
+KEYPAIR_NAME = None
+
+##################################################################
 # GCE SPECIFIC SETTINGS
 ##################################################################
 # Required for GCE
