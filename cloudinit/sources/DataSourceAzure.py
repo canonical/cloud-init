@@ -652,7 +652,7 @@ class DataSourceAzure(sources.DataSource):
         ssh_keys = []
         try:
             ssh_keys = [
-                public_key['keyData']
+                public_key['keyData'].replace('\r\n', '')
                 for public_key
                 in self.metadata['imds']['compute']['publicKeys']
             ]
