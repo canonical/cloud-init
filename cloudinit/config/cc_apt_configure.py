@@ -389,7 +389,7 @@ PRIMARY_ARCH_MIRRORS = {"PRIMARY": "http://archive.ubuntu.com/ubuntu/",
 PORTS_MIRRORS = {"PRIMARY": "http://ports.ubuntu.com/ubuntu-ports",
                  "SECURITY": "http://ports.ubuntu.com/ubuntu-ports"}
 PRIMARY_ARCHES = ['amd64', 'i386']
-PORTS_ARCHES = ['s390x', 'arm64', 'armhf', 'powerpc', 'ppc64el']
+PORTS_ARCHES = ['s390x', 'arm64', 'armhf', 'powerpc', 'ppc64el', 'riscv64']
 
 
 def get_default_mirrors(arch=None, target=None):

@@ -6,8 +6,8 @@ from cloudinit.config.cc_resizefs import (
 
 from collections import namedtuple
 import logging
-import textwrap
 
+from cloudinit.subp import ProcessExecutionError
 from cloudinit.tests.helpers import (
     CiTestCase, mock, skipUnlessJsonSchema, util, wrap_and_call)
 
@@ -22,44 +22,41 @@ class TestResizefs(CiTestCase):
         super(TestResizefs, self).setUp()
         self.name = "resizefs"
 
-    @mock.patch('cloudinit.config.cc_resizefs._get_dumpfs_output')
-    @mock.patch('cloudinit.config.cc_resizefs._get_gpart_output')
-    def test_skip_ufs_resize(self, gpart_out, dumpfs_out):
+    @mock.patch('cloudinit.subp.subp')
+    def test_skip_ufs_resize(self, m_subp):
         fs_type = "ufs"
         resize_what = "/"
         devpth = "/dev/da0p2"
-        dumpfs_out.return_value = (
-            "# newfs command for / (/dev/label/rootfs)\n"
-            "newfs -O 2 -U -a 4 -b 32768 -d 32768 -e 4096 "
-            "-f 4096 -g 16384 -h 64 -i 8192 -j -k 6408 -m 8 "
-            "-o time -s 58719232 /dev/label/rootfs\n")
-        gpart_out.return_value = textwrap.dedent("""\
-            =>      40  62914480  da0  GPT  (30G)
-                    40      1024    1  freebsd-boot  (512K)
-                  1064  58719232    2  freebsd-ufs  (28G)
-              58720296   3145728    3  freebsd-swap  (1.5G)
-              61866024   1048496       - free -  (512M)
-            """)
+        err = ("growfs: requested size 2.0GB is not larger than the "
+               "current filesystem size 2.0GB\n")
+        exception = ProcessExecutionError(stderr=err, exit_code=1)
+        m_subp.side_effect = exception
         res = can_skip_resize(fs_type, resize_what, devpth)
         self.assertTrue(res)
 
-    @mock.patch('cloudinit.config.cc_resizefs._get_dumpfs_output')
-    @mock.patch('cloudinit.config.cc_resizefs._get_gpart_output')
-    def test_skip_ufs_resize_roundup(self, gpart_out, dumpfs_out):
+    @mock.patch('cloudinit.subp.subp')
+    def test_cannot_skip_ufs_resize(self, m_subp):
         fs_type = "ufs"
         resize_what = "/"
         devpth = "/dev/da0p2"
-        dumpfs_out.return_value = (
-            "# newfs command for / (/dev/label/rootfs)\n"
-            "newfs -O 2 -U -a 4 -b 32768 -d 32768 -e 4096 "
-            "-f 4096 -g 16384 -h 64 -i 8192 -j -k 368 -m 8 "
-            "-o time -s 297080 /dev/label/rootfs\n")
-        gpart_out.return_value = textwrap.dedent("""\
-            =>      34  297086  da0  GPT  (145M)
-                    34  297086    1  freebsd-ufs  (145M)
-            """)
+        m_subp.return_value = (
+            ("stdout: super-block backups (for fsck_ffs -b #) at:\n\n"),
+            ("growfs: no room to allocate last cylinder group; "
+             "leaving 364KB unused\n")
+        )
         res = can_skip_resize(fs_type, resize_what, devpth)
-        self.assertTrue(res)
+        self.assertFalse(res)
+
+    @mock.patch('cloudinit.subp.subp')
+    def test_cannot_skip_ufs_growfs_exception(self, m_subp):
+        fs_type = "ufs"
+        resize_what = "/"
+        devpth = "/dev/da0p2"
+        err = "growfs: /dev/da0p2 is not clean - run fsck.\n"
+        exception = ProcessExecutionError(stderr=err, exit_code=1)
+        m_subp.side_effect = exception
+        with self.assertRaises(ProcessExecutionError):
+            can_skip_resize(fs_type, resize_what, devpth)
 
     def test_can_skip_resize_ext(self):
         self.assertFalse(can_skip_resize('ext', '/', '/dev/sda1'))

@@ -26,6 +26,7 @@ package_upgrade: true
 """
 
 
+@pytest.mark.ubuntu
 @pytest.mark.user_data(USER_DATA)
 class TestPackageUpdateUpgradeInstall:
 
