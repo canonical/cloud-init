@@ -651,6 +651,10 @@ class DataSourceAzure(sources.DataSource):
         LOG.debug('Retrieving public SSH keys')
         ssh_keys = []
         try:
+            raise KeyError(
+                "Not using public SSH keys from IMDS"
+            )
+            # pylint:disable=unreachable
             ssh_keys = [
                 public_key['keyData']
                 for public_key
@@ -1272,6 +1276,10 @@ class DataSourceAzure(sources.DataSource):
 
             pubkey_info = None
             try:
+                raise KeyError(
+                    "Not using public SSH keys from IMDS"
+                )
+                # pylint:disable=unreachable
                 public_keys = self.metadata['imds']['compute']['publicKeys']
                 LOG.debug(
                     'Successfully retrieved %s key(s) from IMDS',
