@@ -1,0 +1,54 @@
+From 4f62ae8d01e8caca9039af067280ca2adad6ab6d Mon Sep 17 00:00:00 2001
+From: Thomas Stringer <git@trstringer.com>
+Date: Mon, 11 Jan 2021 16:49:24 -0500
+Subject: [PATCH] Fix regression with handling of IMDS ssh keys (#760)
+
+With the changes for SSH public keys to be retrieved from IMDS as a
+first option, when a key is passed through not in the raw SSH public key
+format it causes an issue and the key is not added to the user's
+authorized_keys file.
+
+This PR will temporarily disable this behavior until a permanent fix is
+put in place.
+---
+ cloudinit/sources/DataSourceAzure.py          | 8 ++++++++
+ tests/unittests/test_datasource/test_azure.py | 4 +++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+--- a/cloudinit/sources/DataSourceAzure.py
++++ b/cloudinit/sources/DataSourceAzure.py
+@@ -651,6 +651,10 @@ class DataSourceAzure(sources.DataSource
+         LOG.debug('Retrieving public SSH keys')
+         ssh_keys = []
+         try:
++            raise KeyError(
++                "Not using public SSH keys from IMDS"
++            )
++            # pylint:disable=unreachable
+             ssh_keys = [
+                 public_key['keyData']
+                 for public_key
+@@ -1271,6 +1275,10 @@ class DataSourceAzure(sources.DataSource
+ 
+             pubkey_info = None
+             try:
++                raise KeyError(
++                    "Not using public SSH keys from IMDS"
++                )
++                # pylint:disable=unreachable
+                 public_keys = self.metadata['imds']['compute']['publicKeys']
+                 LOG.debug(
+                     'Successfully retrieved %s key(s) from IMDS',
+--- a/tests/unittests/test_datasource/test_azure.py
++++ b/tests/unittests/test_datasource/test_azure.py
+@@ -1757,7 +1757,9 @@ scbus-1 on xpt0 bus 0
+         dsrc.get_data()
+         dsrc.setup(True)
+         ssh_keys = dsrc.get_public_ssh_keys()
+-        self.assertEqual(ssh_keys, ['key1'])
++        # Temporarily alter this test so that SSH public keys
++        # from IMDS are *not* going to be in use to fix a regression.
++        self.assertEqual(ssh_keys, [])
+         self.assertEqual(m_parse_certificates.call_count, 0)
+ 
+     @mock.patch(MOCKPATH + 'get_metadata_from_imds')
