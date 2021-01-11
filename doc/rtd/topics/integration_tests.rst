@@ -9,10 +9,40 @@ Overview
 
 Integration tests are written using pytest and are located at
 ``tests/integration_tests``. General design principles
-laid out in :ref:`unit_testing` should be followed for integration tests.
+laid out in :ref:`testing` should be followed for integration tests.
 
 Setup is accomplished via a set of fixtures located in
 ``tests/integration_tests/conftest.py``.
+
+Image Selection
+===============
+
+Each integration testing run uses a single image as its basis.  This
+image is configured using the ``OS_IMAGE`` variable; see
+:ref:`Configuration` for details of how configuration works.
+
+``OS_IMAGE`` can take two types of value: an Ubuntu series name (e.g.
+"focal"), or an image specification.  If an Ubuntu series name is
+given, then the most recent image for that series on the target cloud
+will be used.  For other use cases, an image specification is used.
+
+In its simplest form, an image specification can simply be a cloud's
+image ID (e.g. "ami-deadbeef", "ubuntu:focal").  In this case, the
+image so-identified will be used as the basis for this testing run.
+
+This has a drawback, however: as we do not know what OS or release is
+within the image, the integration testing framework will run *all*
+tests against the image in question.  If it's a RHEL8 image, then we
+would expect Ubuntu-specific tests to fail (and vice versa).
+
+To address this, a full image specification can be given.  This is of
+the form: ``<image_id>[::<os>[::<release]]`` where ``image_id`` is a
+cloud's image ID, ``os`` is the OS name, and ``release`` is the OS
+release name.  So, for example, Ubuntu 18.04 (Bionic Beaver) on LXD is
+``ubuntu:bionic::ubuntu::bionic`` or RHEL 8 on Amazon is
+``ami-justanexample::rhel::8``.  When a full specification is given,
+only tests which are intended for use on that OS and release will be
+executed.
 
 Image Setup
 ===========

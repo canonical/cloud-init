@@ -396,6 +396,13 @@ class Renderer(renderer.Renderer):
                         # Only IPv6 is DHCP, IPv4 may be static
                         iface_cfg['BOOTPROTO'] = 'dhcp6'
                     iface_cfg['DHCLIENT6_MODE'] = 'managed'
+                # only if rhel AND dhcpv6 stateful
+                elif (flavor == 'rhel' and
+                        subnet_type == 'ipv6_dhcpv6-stateful'):
+                    iface_cfg['BOOTPROTO'] = 'dhcp'
+                    iface_cfg['DHCPV6C'] = True
+                    iface_cfg['IPV6INIT'] = True
+                    iface_cfg['IPV6_AUTOCONF'] = False
                 else:
                     iface_cfg['IPV6INIT'] = True
                     # Configure network settings using DHCPv6
