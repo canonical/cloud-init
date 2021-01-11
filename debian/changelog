@@ -1,3 +1,10 @@
+cloud-init (20.4-0ubuntu1~18.04.2) UNRELEASED; urgency=medium
+
+  * cherry-pick 4f62ae8d: Fix regression with handling of IMDS ssh keys
+    (#760)
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Mon, 11 Jan 2021 17:31:19 -0500
+
 cloud-init (20.4-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * refresh patches:
