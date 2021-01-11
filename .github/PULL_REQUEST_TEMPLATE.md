@@ -1,17 +1,19 @@
 ## Proposed Commit Message
 <!-- Include a proposed commit message because all PRs are squash merged -->
 
-> summary: no more than 70 characters
->
-> A description of what the change being made is and why it is being
-> made, if the summary line is insufficient.  The blank line above is
-> required. This should be wrapped at 72 characters, but otherwise has
-> no particular length requirements.
->
-> If you need to write multiple paragraphs, feel free.
->
-> LP: #NNNNNNN (replace with the appropriate bug reference or remove
-> this line entirely if there is no associated bug)
+```
+summary: no more than 70 characters
+
+A description of what the change being made is and why it is being
+made, if the summary line is insufficient.  The blank line above is
+required. This should be wrapped at 72 characters, but otherwise has
+no particular length requirements.
+
+If you need to write multiple paragraphs, feel free.
+
+LP: #NNNNNNN (replace with the appropriate bug reference or remove
+this line entirely if there is no associated bug)
+```
 
 ## Additional Context
 <!-- If relevant -->

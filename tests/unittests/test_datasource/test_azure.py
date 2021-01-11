@@ -159,6 +159,22 @@ SECONDARY_INTERFACE = {
     }
 }
 
+SECONDARY_INTERFACE_NO_IP = {
+    "macAddress": "220D3A047598",
+    "ipv6": {
+        "ipAddress": []
+    },
+    "ipv4": {
+        "subnet": [
+            {
+                "prefix": "24",
+                "address": "10.0.1.0"
+            }
+        ],
+        "ipAddress": []
+    }
+}
+
 IMDS_NETWORK_METADATA = {
     "interface": [
         {
@@ -1139,6 +1155,30 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
 
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_network_config_set_from_imds_for_secondary_nic_no_ip(
+            self, m_driver):
+        """If an IP address is empty then there should no config for it."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        expected_network_config = {
+            'ethernets': {
+                'eth0': {'set-name': 'eth0',
+                         'match': {'macaddress': '00:0d:3a:04:75:98'},
+                         'dhcp6': False,
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 100}}},
+            'version': 2}
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data['network']['interface'].append(SECONDARY_INTERFACE_NO_IP)
+        self.m_get_metadata_from_imds.return_value = imds_data
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(expected_network_config, dsrc.network_config)
+
     def test_availability_zone_set_from_imds(self):
         """Datasource.availability returns IMDS platformFaultDomain."""
         sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
@@ -1757,7 +1797,9 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
         dsrc.setup(True)
         ssh_keys = dsrc.get_public_ssh_keys()
-        self.assertEqual(ssh_keys, ['key1'])
+        # Temporarily alter this test so that SSH public keys
+        # from IMDS are *not* going to be in use to fix a regression.
+        self.assertEqual(ssh_keys, [])
         self.assertEqual(m_parse_certificates.call_count, 0)
 
     @mock.patch(MOCKPATH + 'get_metadata_from_imds')

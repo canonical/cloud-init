@@ -2,6 +2,10 @@
 
 This test specifies a number of users and groups via user-data, and confirms
 that they have been configured correctly in the system under test.
+
+TODO:
+* This test assumes that the "ubuntu" user will be created when "default" is
+  specified; this will need modification to run on other OSes.
 """
 import re
 
@@ -41,6 +45,7 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestUsersGroups:
+    @pytest.mark.ubuntu
     @pytest.mark.parametrize(
         "getent_args,regex",
         [
