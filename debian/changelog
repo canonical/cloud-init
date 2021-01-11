@@ -1,4 +1,4 @@
-cloud-init (20.4-55-g4f62ae8d-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (20.4-55-g4f62ae8d-0ubuntu1) hirsute; urgency=medium
 
   * New upstream snapshot.
     - Fix regression with handling of IMDS ssh keys (#760) [Thomas Stringer]
