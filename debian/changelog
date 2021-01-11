@@ -1,3 +1,10 @@
+cloud-init (20.4-0ubuntu1~20.04.2) focal; urgency=medium
+
+  * cherry-pick 4f62ae8d: Fix regression with handling of IMDS ssh keys
+    (#760) (LP: #1910835)
+
+ -- Chad Smith <chad.smith@canonical.com>  Mon, 11 Jan 2021 15:25:31 -0700
+
 cloud-init (20.4-0ubuntu1~20.04.1) focal; urgency=medium
 
   * New upstream release. (LP: #1905599)
