@@ -29,8 +29,7 @@ API_MAP = {
     "ipv6-dns1": "/current/ipv6-dns1",
     "ipv6-addr": "/current/meta-data/ipv6-addr",
     "v1.json": "/v1.json",
-    "disable_ssh_login": "/v1/internal/md-disable_ssh_login",
-    "appboot": "/v1/internal/appboot"
+    "disable_ssh_login": "/v1/internal/md-disable_ssh_login"
 }
 
 
@@ -55,7 +54,6 @@ def get_metadata(params):
             'ipv6-addr': fetch_metadata("ipv6-addr", params),
             'v1': json.loads(fetch_metadata("v1.json", params))
             #    'disable_ssh_login': fetch_metadata("disable_ssh_login", params),
-            #    'appboot': json.loads(fetch_metadata("appboot", params))
         }
 
     return METADATA
@@ -110,8 +108,9 @@ def is_vultr():
 def get_cached_network_config():
     os.makedirs("/etc/vultr/cache/", exist_ok=True)
     content = ""
-    if path.exists("/etc/vultr/cache/network"):
-        file = open("/etc/vultr/cache/network", "r")
+    fname = "/etc/vultr/cache/network"
+    if path.exists(fname):
+        file = open(fname, "r")
         content = file.read()
         file.close()
     return content
@@ -123,6 +122,18 @@ def cache_network_config(config):
     file = open("/etc/vultr/cache/network", "w")
     file.write(json.dumps(config))
     file.close()
+
+
+# Write vendor startup script
+def write_vendor_script(fname, content):
+    os.makedirs("/var/lib/scripts/vendor/", exist_ok=True)
+    file = open("/var/lib/scripts/vendor/%s" % fname, "w")
+    file.write("#!/bin/bash")
+    for line in content:
+        file.write(line)
+    file.close()
+    run_system_command(
+        ["chmod", "+x", "/var/lib/scripts/vendor/%s" % fname], False)
 
 
 # Read Metadata endpoint
@@ -207,44 +218,51 @@ def bringup_nic(nic, config, toggle=False):
 
         # Only use IP commands if they exist and this is Linux
         if util.is_Linux() and subp.which('ip'):
-
-            # Toggle interface if up
-            if toggle and net.is_up(nic['name']):
-                LOGGER.debug("Brining down interface: %s" % nic['name'])
-                if not run_system_command(['ip', 'link', 'set', 'dev', nic['name'], 'down']):
-                    LOGGER.debug(
-                        "Failed brining down interface: %s" % nic['name'])
-                    return
-
-            LOGGER.debug("Assigning IP: %s to interface: %s" %
-                         (ip, nic['name']))
-            if not run_system_command(['ip', 'addr', 'add', ip, 'dev', nic['name']]):
-                LOGGER.debug(
-                    "Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
-                return
-
-            LOGGER.debug("Brining up interface: %s" % nic['name'])
-            run_system_command(['ip', 'link', 'set', 'dev', nic['name'], 'up'])
+            bringup_nic_linux(nic, ip, toggle)
 
         # Only use ifconfig if this is BSD
         if util.is_BSD() and subp.which('ifconfig'):
-            # Toggle interface if up
-            if toggle and net.is_up(nic['name']):
-                LOGGER.debug("Brining down interface: %s" % nic['name'])
-                if not run_system_command(['ifconfig', nic['name'], 'down']):
-                    LOGGER.debug(
-                        "Failed brining down interface: %s" % nic['name'])
-                    return
+            bringup_nic_bsd(nic, ip, toggle)
 
-            LOGGER.debug("Assigning IP: %s to interface: %s" %
-                         (ip, nic['name']))
-            if run_system_command(['ifconfig', nic['name'], 'inet', ip]):
-                LOGGER.debug(
-                    "Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
-                return
 
-            LOGGER.debug("Brining up interface: %s" % nic['name'])
-            run_system_command(['ipconfig', nic['name'], 'up'])
+def bringup_nic_linux(nic, ip, toggle=False):
+    # Toggle interface if up
+    if toggle and net.is_up(nic['name']):
+        LOGGER.debug("Brining down interface: %s" % nic['name'])
+        if not run_system_command(['ip', 'link', 'set', 'dev', nic['name'], 'down']):
+            LOGGER.debug(
+                "Failed brining down interface: %s" % nic['name'])
+            return
+
+    LOGGER.debug("Assigning IP: %s to interface: %s" %
+                 (ip, nic['name']))
+    if not run_system_command(['ip', 'addr', 'add', ip, 'dev', nic['name']]):
+        LOGGER.debug(
+            "Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
+        return
+
+    LOGGER.debug("Brining up interface: %s" % nic['name'])
+    run_system_command(['ip', 'link', 'set', 'dev', nic['name'], 'up'])
+
+
+def bringup_nic_bsd(nic, ip, toggle=False):
+    # Toggle interface if up
+    if toggle and net.is_up(nic['name']):
+        LOGGER.debug("Brining down interface: %s" % nic['name'])
+        if not run_system_command(['ifconfig', nic['name'], 'down']):
+            LOGGER.debug(
+                "Failed brining down interface: %s" % nic['name'])
+            return
+
+    LOGGER.debug("Assigning IP: %s to interface: %s" %
+                 (ip, nic['name']))
+    if run_system_command(['ifconfig', nic['name'], 'inet', ip]):
+        LOGGER.debug(
+            "Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
+        return
+
+    LOGGER.debug("Brining up interface: %s" % nic['name'])
+    run_system_command(['ipconfig', nic['name'], 'up'])
 
 
 # Process netcfg interfaces and bring additional up
@@ -272,79 +290,88 @@ def generate_network_config(config):
 
     # Prepare interface 0, public
     if len(md['v1']['interfaces']) > 0:
-        interface_name = get_interface_name(md['v1']['interfaces'][0]['mac'])
-        if not interface_name:
-            raise RuntimeError(
-                "Interface: %s could not be found on the system" % md['v1']['interfaces'][0]['mac'])
-
-        netcfg = {
-            "name": interface_name,
-            "type": "physical",
-            "mac_address": md['v1']['interfaces'][0]['mac'],
-            "accept-ra": 1,
-            "subnets": [
-                {
-                    "type": "dhcp",
-                    "control": "auto"
-                },
-                {
-                    "type": "dhcp6",
-                    "control": "auto"
-                },
-            ]
-        }
-
-        # Check for additional IP's
-        if "ipv4" in md['v1']['interfaces'][0] and len(md['v1']['interfaces'][0]['ipv4']['additional']) > 0:
-            for additional in md['v1']['interfaces'][0]['ipv4']['additional']:
-                add = {
-                    "type": "static",
-                    "control": "auto",
-                    "address": additional['address'],
-                    "netmask": additional['netmask']
-                }
-                netcfg['subnets'].append(add)
-
-        # Check for additional IPv6's
-        if "ipv6" in md['v1']['interfaces'][0] and len(md['v1']['interfaces'][0]['ipv6']['additional']) > 0:
-            for additional in md['v1']['interfaces'][0]['ipv6']['additional']:
-                add = {
-                    "type": "static6",
-                    "control": "auto",
-                    "address": additional['address'],
-                    "netmask": additional['netmask']
-                }
-                netcfg['subnets'].append(add)
-
-        # Add config to template
-        network['config'].append(netcfg)
+        network['config'].append(generate_public_network_interface(md))
 
     # Prepare interface 1, private
     if len(md['v1']['interfaces']) > 1:
-        interface_name = get_interface_name(md['v1']['interfaces'][1]['mac'])
-        if not interface_name:
-            raise RuntimeError(
-                "Interface: %s could not be found on the system" % md['v1']['interfaces'][1]['mac'])
-
-        netcfg = {
-            "name": interface_name,
-            "type": "physical",
-            "mac_address": md['v1']['interfaces'][1]['mac'],
-            "accept-ra": 1,
-            "subnets": [
-                {
-                    "type": "static",
-                    "control": "auto",
-                    "address": md['v1']['interfaces'][1]['ipv4']['address'],
-                    "netmask": md['v1']['interfaces'][1]['ipv4']['netmask']
-                }
-            ]
-        }
-
-        # Add config to template
-        network['config'].append(netcfg)
+        network['config'].append(generate_private_network_interface(md))
 
     return network
+
+
+# Input Metadata and generate public network config part
+def generate_public_network_interface(md):
+    interface_name = get_interface_name(md['v1']['interfaces'][0]['mac'])
+    if not interface_name:
+        raise RuntimeError(
+            "Interface: %s could not be found on the system" % md['v1']['interfaces'][0]['mac'])
+
+    netcfg = {
+        "name": interface_name,
+        "type": "physical",
+        "mac_address": md['v1']['interfaces'][0]['mac'],
+        "accept-ra": 1,
+        "subnets": [
+            {
+                "type": "dhcp",
+                "control": "auto"
+            },
+            {
+                "type": "dhcp6",
+                "control": "auto"
+            },
+        ]
+    }
+
+    # Check for additional IP's
+    if "ipv4" in md['v1']['interfaces'][0] and len(md['v1']['interfaces'][0]['ipv4']['additional']) > 0:
+        for additional in md['v1']['interfaces'][0]['ipv4']['additional']:
+            add = {
+                "type": "static",
+                "control": "auto",
+                "address": additional['address'],
+                "netmask": additional['netmask']
+            }
+            netcfg['subnets'].append(add)
+
+    # Check for additional IPv6's
+    if "ipv6" in md['v1']['interfaces'][0] and len(md['v1']['interfaces'][0]['ipv6']['additional']) > 0:
+        for additional in md['v1']['interfaces'][0]['ipv6']['additional']:
+            add = {
+                "type": "static6",
+                "control": "auto",
+                "address": additional['address'],
+                "netmask": additional['netmask']
+            }
+            netcfg['subnets'].append(add)
+
+    # Add config to template
+    return netcfg
+
+
+# Input Metadata and generate private network config part
+def generate_private_network_interface(md):
+    interface_name = get_interface_name(md['v1']['interfaces'][1]['mac'])
+    if not interface_name:
+        raise RuntimeError(
+            "Interface: %s could not be found on the system" % md['v1']['interfaces'][1]['mac'])
+
+    netcfg = {
+        "name": interface_name,
+        "type": "physical",
+        "mac_address": md['v1']['interfaces'][1]['mac'],
+        "accept-ra": 1,
+        "subnets": [
+            {
+                "type": "static",
+                "control": "auto",
+                "address": md['v1']['interfaces'][1]['ipv4']['address'],
+                "netmask": md['v1']['interfaces'][1]['ipv4']['netmask']
+            }
+        ]
+    }
+
+    return netcfg
 
 
 # Generate the vendor config
@@ -359,15 +386,6 @@ def generate_config(config):
         script = base64.b64encode(
             script.encode("ascii")).decode("ascii")
 
-    # Grab the appboot scripts
-    appboot = []
-    if 'appboot' in md:
-        appboot_raw = md['appboot']
-        if appboot:
-            for s in appboot_raw:
-                appboot.append(base64.b64encode(
-                    s.encode("ascii")).decode("ascii"))
-
     # Grab the rest of the details
     rootpw = md['root-password']
 
@@ -380,8 +398,7 @@ def generate_config(config):
     config_template = {
         "package_upgrade": "true",
         "disable_root": 0,
-        "packages": [
-        ],
+        "packages": [],
         "ssh_pwauth": 1,
         "chpasswd": {
             "expire": False,
@@ -389,7 +406,6 @@ def generate_config(config):
                 "root:" + rootpw
             ]
         },
-        "runcmd": [],
         "system_info": {
             "default_user": {
                 "name": "root"
@@ -406,6 +422,9 @@ def generate_config(config):
     if util.is_Linux():
         config_template["packages"].append("ethtool")
 
+    # Define vendor script
+    vendor_script = []
+
     # Go through the interfaces
     for netcfg in config_template['network']['config']:
         # If the adapter has a name and is physical
@@ -419,49 +438,18 @@ def generate_config(config):
             # This needs to remain a runcmd as the package may not be installed
             if util.is_Linux():
                 # Set its multi-queue to num of cores as per RHEL Docs
-                config_template['runcmd'].append(
+                vendor_script.append(
                     "ethtool -L " + netcfg['name'] + " combined $(nproc --all)")
 
-    # Set the startup script
+    # Write vendor script
+    write_vendor_script("vultr_deploy.sh", vendor_script)
+
+    # Write the startup script
     if script != "":
-        # Write user scripts to a temp file
-        config_template['write_files'] = [
-            {
-                "encoding": "b64",
-                "content": script,
-                "owner": "root:root",
-                "path": "/tmp/startup-vultr.sh",
-                "permissions": "0755"
-            }
-        ]
-
-        # Add a command to runcmd to execute script added above
-        config_template['runcmd'] = config_template['runcmd'] + [
-            "/tmp/startup-vultr.sh &> /var/log/vultr-boot.log",
-            "rm -f /tmp/startup-vultr.sh"
-        ]
-
-    # Set the startup script
-    if appboot:
-        ctr = 1
-        for s in appboot:
-            # Write user scripts to a temp file
-            loc = "/tmp/startup-vultr-" + ctr + ".sh"
-            config_template['write_files'].append(
-                {
-                    "encoding": "b64",
-                    "content": s,
-                    "owner": "root:root",
-                    "path": loc,
-                    "permissions": "0755"
-                }
-            )
-
-            # Add a command to runcmd to execute script added above
-            config_template['runcmd'] = config_template['runcmd'] + [
-                loc + " &> /var/log/vultr-boot.log",
-                "rm -f " + loc
-            ]
+        ba = script.encode('ascii')
+        ba_dec = base64.b64decode(ba)
+        lines = ba_dec.decode('ascii').split("\n")
+        write_vendor_script("vultr_user_startup.sh", lines)
 
     return config_template
 

@@ -153,9 +153,6 @@ EXPECTED_VULTR_CONFIG_1 = {
             'root:$6$S2SmujFrCbMsobmu$5PPQqWGvBtONTg3NUW/MDhyz7l3lpYEyQ8w9gOJE.RQPlueITLXJRM4DKEbQHdc/VqxmIR9Urw0jPZ88i4yvB/'
         ]
     },
-    'runcmd': [
-        'ethtool -L eth0 combined $(nproc --all)'
-    ],
     'system_info': {
         'default_user': {
             'name': 'root'
@@ -195,10 +192,6 @@ EXPECTED_VULTR_CONFIG_2 = {
             'root:$6$SxXxTd37HQkwxlOM$/z65E0u9ucrHtQBH9y.chMD2GSbKGFKc/QyYkU9WN/pqQ/lOGZL1YmWqYLSe2W/Ik//k2mJNIzZB5vMCDBlYT1'
         ]
     },
-    'runcmd': [
-        'ethtool -L eth0 combined $(nproc --all)',
-        'ethtool -L eth1 combined $(nproc --all)'
-    ],
     'system_info': {
         'default_user': {
             'name': 'root'
@@ -307,13 +300,14 @@ class TestDataSourceVultr(CiTestCase):
         super(TestDataSourceVultr, self).setUp()
         self.tmp = self.tmp_dir()
 
-    # Test the datasource itself
 
+    # Test the datasource itself
+    @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.is_vultr')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_datasource(self, mock_getmeta, mock_isvultr, mock_netmap, mock_processnics):
+    def test_datasource(self, mock_getmeta, mock_isvultr, mock_netmap, mock_processnics, mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
@@ -322,11 +316,11 @@ class TestDataSourceVultr(CiTestCase):
             "user-data": "",
             "ssh-keys": '\n'.join(SSH_KEYS_1),
             "startup-script": "",
-            "disable_ssh_login": "",
-            "appboot": "[]"
+            "disable_ssh_login": ""
         }
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
+        mock_write_vendor_script.return_value = True
 
         source = DataSourceVultr.DataSourceVultr(
             settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
@@ -356,12 +350,13 @@ class TestDataSourceVultr(CiTestCase):
         # Test network config generation when nothing has changed
         self.assertEqual(None, source.network_config)
 
-    # Test overall config generation
 
+    # Test overall config generation
+    @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_get_data_1(self, mock_getmeta, mock_netmap, mock_processnics):
+    def test_get_data_1(self, mock_getmeta, mock_netmap, mock_processnics, mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
@@ -369,21 +364,22 @@ class TestDataSourceVultr(CiTestCase):
             "startup-script": "",
             "v1": json.loads(VULTR_V1_1),
             "root-password": VULTR_ROOT_PASSWORD_1,
-            "disable_ssh_login": "",
-            "appboot": "[]"
+            "disable_ssh_login": ""
         }
 
         mock_netmap.return_value = INTERFACE_MAP
+        mock_write_vendor_script.return_value = True
 
         # Test data
         self.assertEqual(EXPECTED_VULTR_CONFIG_1, vultr.generate_config({}))
 
-    # Test overall config generation
 
+    # Test overall config generation
+    @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_get_data_2(self, mock_getmeta, mock_netmap, mock_processnics):
+    def test_get_data_2(self, mock_getmeta, mock_netmap, mock_processnics, mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
@@ -391,21 +387,22 @@ class TestDataSourceVultr(CiTestCase):
             "startup-script": "",
             "v1": json.loads(VULTR_V1_2),
             "root-password": VULTR_ROOT_PASSWORD_2,
-            "disable_ssh_login": "",
-            "appboot": "[]"
+            "disable_ssh_login": ""
         }
 
         mock_netmap.return_value = INTERFACE_MAP
+        mock_write_vendor_script.return_value = True
 
         # Test data with private networking
         self.assertEqual(EXPECTED_VULTR_CONFIG_2, vultr.generate_config({}))
 
-    # Test network config generation
 
+    # Test network config generation
+    @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_network_config(self, mock_getmeta, mock_netmap, mock_processnics):
+    def test_network_config(self, mock_getmeta, mock_netmap, mock_processnics, mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
@@ -413,16 +410,18 @@ class TestDataSourceVultr(CiTestCase):
         }
 
         mock_netmap.return_value = INTERFACE_MAP
+        mock_write_vendor_script.return_value = True
 
         self.assertEqual(EXPECTED_VULTR_NETWORK_1,
                          vultr.generate_network_config({}))
 
-    # Test Private Networking config generation
 
+    # Test Private Networking config generation
+    @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_private_network_config(self, mock_getmeta, mock_netmap, mock_processnics):
+    def test_private_network_config(self, mock_getmeta, mock_netmap, mock_processnics, mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
@@ -430,6 +429,7 @@ class TestDataSourceVultr(CiTestCase):
         }
 
         mock_netmap.return_value = INTERFACE_MAP
+        mock_write_vendor_script.return_value = True
 
         self.assertEqual(EXPECTED_VULTR_NETWORK_2,
                          vultr.generate_network_config({}))
