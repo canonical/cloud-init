@@ -382,7 +382,7 @@ def generate_config(config):
 
     # Linux specific packages
     if util.is_Linux():
-        config_template["packages"].append("ethtool")
+        config_template['packages'].append("ethtool")
 
     # Define vendor script
     vendor_script = []
