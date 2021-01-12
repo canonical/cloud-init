@@ -355,7 +355,7 @@ class TestDataSourceVultr(CiTestCase):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "v1": json.loads(VULTR_V1_2),
-            "vendor-config": VULTR_VENDOR_CONFIG_2,
+            "vendor-config": VULTR_VENDOR_2,
             "user-data": "",
             "ssh-keys": '\n'.join(SSH_KEYS_1),
             "startup-script": ""
@@ -408,7 +408,7 @@ class TestDataSourceVultr(CiTestCase):
             "user-data": "",
             "startup-script": "",
             "v1": json.loads(VULTR_V1_1),
-            "vendor-config": VULTR_VENDOR_CONFIG_1
+            "vendor-config": VULTR_VENDOR_1
         }
 
         mock_netmap.return_value = INTERFACE_MAP
@@ -432,7 +432,7 @@ class TestDataSourceVultr(CiTestCase):
             "user-data": "",
             "startup-script": "",
             "v1": json.loads(VULTR_V1_2),
-            "vendor-config": VULTR_VENDOR_CONFIG_2
+            "vendor-config": VULTR_VENDOR_2
         }
 
         mock_netmap.return_value = INTERFACE_MAP
