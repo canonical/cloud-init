@@ -22,16 +22,11 @@ LOGGER = log.getLogger(__name__)
 
 # Dict of all API Endpoints
 API_MAP = {
-    "startup-script": "/latest/startup-script",
-    "hostname": "/latest/meta-data/hostname",
-    "user-data": "/latest/user-data",
-    "mdisk-mode": "/v1/internal/mdisk-mode",
-    "root-password": "/v1/internal/root-password",
-    "ssh-keys": "/current/ssh-keys",
-    "ipv6-dns1": "/current/ipv6-dns1",
-    "ipv6-addr": "/current/meta-data/ipv6-addr",
+    "vendor-config": "/latest/meta-data/vendor-config",
     "v1.json": "/v1.json",
-    "disable_ssh_login": "/v1/internal/md-disable_ssh_login"
+    "startup-script": "/latest/startup-script",
+    "user-data": "/latest/user-data",
+    "ssh-keys": "/current/ssh-keys"
 }
 
 
@@ -45,16 +40,18 @@ def get_metadata(params):
     global METADATA
 
     if not METADATA:
+        vendor = fetch_metadata("vendor-config", params)
+        vendor_object = json.loads(vendor)
+
+        v1 = fetch_metadata("v1.json", params)
+        v1_json = json.loads(v1)
+
         METADATA = {
+            'vendor-config': vendor_object,
+            'v1': v1_json,
             'startup-script': fetch_metadata("startup-script", params),
-            'hostname': fetch_metadata("hostname", params),
             'user-data': fetch_metadata("user-data", params),
-            'mdisk-mode': fetch_metadata("mdisk-mode", params),
-            'root-password': fetch_metadata("root-password", params),
             'ssh-keys': fetch_metadata("ssh-keys", params),
-            'ipv6-dns1': fetch_metadata("ipv6-dns1", params),
-            'ipv6-addr': fetch_metadata("ipv6-addr", params),
-            'v1': json.loads(fetch_metadata("v1.json", params))
         }
 
     return METADATA
@@ -105,26 +102,6 @@ def is_vultr():
     return False
 
 
-# Read cached network config
-def get_cached_network_config():
-    os.makedirs("/etc/vultr/cache/", exist_ok=True)
-    content = ""
-    fname = "/etc/vultr/cache/network"
-    if path.exists(fname):
-        file = open(fname, "r")
-        content = file.read()
-        file.close()
-    return content
-
-
-# Cached network config
-def cache_network_config(config):
-    os.makedirs("/etc/vultr/cache/", exist_ok=True)
-    file = open("/etc/vultr/cache/network", "w")
-    file.write(json.dumps(config))
-    file.close()
-
-
 # Write vendor startup script
 def write_vendor_script(fname, content):
     os.makedirs("/var/lib/scripts/vendor/", exist_ok=True)
@@ -133,8 +110,14 @@ def write_vendor_script(fname, content):
     for line in content:
         file.write(line)
     file.close()
-    run_system_command(
-        ["chmod", "+x", "/var/lib/scripts/vendor/%s" % fname], False)
+    command = ["chmod", "+x", "/var/lib/scripts/vendor/%s" % fname]
+
+    try:
+        subp.subp(command)
+    except Exception as err:
+        raise RuntimeError(
+            "Command: %s failed to execute. Error: %s" %
+            (" ".join(command), err))
 
 
 # Read Metadata endpoint
@@ -142,7 +125,6 @@ def read_metadata(params):
     response = url_helper.readurl(params['url'],
                                   timeout=params['timeout'],
                                   retries=params['retries'],
-                                  headers={'Metadata-Token': 'vultr'},
                                   sec_between=params['wait'])
 
     if not response.ok():
@@ -156,10 +138,6 @@ def read_metadata(params):
 def get_url(url, flag):
     if flag in API_MAP:
         return url + API_MAP[flag]
-
-    if "app-" in flag or "md-" in flag:
-        return url + "/v1/internal/" + flag
-
     return ""
 
 
@@ -188,35 +166,14 @@ def get_interface_name(mac):
     return MAC_TO_NICS.get(mac)
 
 
-# Run system commands and handle errors
-def run_system_command(command, allow_fail=True):
-    try:
-        subp.subp(command)
-    except Exception as err:
-        if not allow_fail:
-            raise RuntimeError(
-                "Command: %s failed to execute. Error: %s" %
-                (" ".join(command), err))
-        LOGGER.debug("Command: %s failed to execute. Error: %s" %
-                     (" ".join(command), err))
-        return False
-    return True
-
-
 def to_cidr(mask):
     ip = ipaddress.IPv4Network((0, mask))
     return ip.prefixlen
 
 
 # Cloud-init does not support turning on any interface beyond
-# the first. The repercussions being there is no stable and
-# appropriate way to enable critical interfaces. This hack,
-# though functional, will have minimal support and break easily.
-def bringup_nic(nic, config, toggle=False):
-    # Dont act if not toggling and it interface is up
-    if not toggle and net.is_up(nic['name']):
-        return
-
+# the first.
+def bringup_nic(nic, config):
     md = get_metadata(config)
 
     # If it is not the primary turn it on, if it is off
@@ -226,60 +183,77 @@ def bringup_nic(nic, config, toggle=False):
 
         # Only use IP commands if they exist and this is Linux
         if util.is_Linux() and subp.which('ip'):
-            bringup_nic_linux(nic, ip, toggle)
+            bringup_nic_linux(nic, ip)
 
         # Only use ifconfig if this is BSD
         if util.is_BSD() and subp.which('ifconfig'):
-            bringup_nic_bsd(nic, ip, toggle)
+            bringup_nic_bsd(nic, ip)
 
 
-def bringup_nic_linux(nic, ip, toggle=False):
-    # Toggle interface if up
-    if toggle and net.is_up(nic['name']):
-        LOGGER.debug("Brining down interface: %s" % nic['name'])
-        command = ['ip', 'link', 'set', 'dev', nic['name'], 'down']
-        if not run_system_command(command):
-            LOGGER.debug(
-                "Failed brining down interface: %s" % nic['name'])
-            return
+def bringup_nic_linux(nic, ip):
+    up = net.is_up(nic['name'])
+
+    if up:
+        LOGGER.debug("Flushing interface: %s" % nic['name'])
+
+        command = ['ip', 'addr', 'flush', 'dev', nic['name']]
+        try:
+            subp.subp(command)
+        except Exception as err:
+            raise RuntimeError(
+                "Command: %s failed to execute. Error: %s" %
+                (" ".join(command), err))
 
     LOGGER.debug("Assigning IP: %s to interface: %s" %
                  (ip, nic['name']))
     command = ['ip', 'addr', 'add', ip, 'dev', nic['name']]
-    if not run_system_command(command):
-        LOGGER.debug(
-            "Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
-        return
+    try:
+        subp.subp(command)
+    except Exception as err:
+        raise RuntimeError(
+            "Command: %s failed to execute. Error: %s" %
+            (" ".join(command), err))
 
-    LOGGER.debug("Brining up interface: %s" % nic['name'])
-    run_system_command(['ip', 'link', 'set', 'dev', nic['name'], 'up'])
+    if not up:
+        LOGGER.debug("Brining up interface: %s" % nic['name'])
+        command = ['ip', 'link', 'set', 'dev', nic['name'], 'up']
+        try:
+            subp.subp(command)
+        except Exception as err:
+            raise RuntimeError(
+                "Command: %s failed to execute. Error: %s" %
+                (" ".join(command), err))
 
 
-def bringup_nic_bsd(nic, ip, toggle=False):
-    # Toggle interface if up
-    if toggle and net.is_up(nic['name']):
-        LOGGER.debug("Brining down interface: %s" % nic['name'])
-        if not run_system_command(['ifconfig', nic['name'], 'down']):
-            LOGGER.debug(
-                "Failed brining down interface: %s" % nic['name'])
-            return
+def bringup_nic_bsd(nic, ip):
+    up = net.is_up(nic['name'])
 
     LOGGER.debug("Assigning IP: %s to interface: %s" %
                  (ip, nic['name']))
-    if run_system_command(['ifconfig', nic['name'], 'inet', ip]):
-        LOGGER.debug(
-            "Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
-        return
 
-    LOGGER.debug("Brining up interface: %s" % nic['name'])
-    run_system_command(['ipconfig', nic['name'], 'up'])
+    command = ['ifconfig', nic['name'], 'inet', ip]
+    try:
+        subp.subp(command)
+    except Exception as err:
+        raise RuntimeError(
+            "Command: %s failed to execute. Error: %s" %
+            (" ".join(command), err))
+
+    if not up:
+        command = ['ipconfig', nic['name'], 'up']
+        try:
+            subp.subp(command)
+        except Exception as err:
+            raise RuntimeError(
+                "Command: %s failed to execute. Error: %s" %
+                (" ".join(command), err))
 
 
 # Process netcfg interfaces and bring additional up
-def process_nics(netcfg, config, toggle=False):
+def process_nics(netcfg, config):
     for config_op in netcfg['config']:
         if config_op['type'] == "physical":
-            bringup_nic(config_op, toggle)
+            bringup_nic(config_op, config)
 
 
 # Generate network configs
@@ -400,37 +374,11 @@ def generate_config(config):
         script = base64.b64encode(
             script.encode("ascii")).decode("ascii")
 
-    # Grab the rest of the details
-    rootpw = md['root-password']
+    # Create vendor config
+    config_template = md['vendor-config']
 
-    sshlogin = "no"
-    if 'disable_ssh_login' in md:
-        sshlogin = md['disable_ssh_login']
-
-    # Start the template
-    # We currently setup root, this will eventually change
-    config_template = {
-        "package_upgrade": "true",
-        "disable_root": 0,
-        "packages": [],
-        "ssh_pwauth": 1,
-        "chpasswd": {
-            "expire": False,
-            "list": [
-                "root:" + rootpw
-            ]
-        },
-        "system_info": {
-            "default_user": {
-                "name": "root"
-            }
-        },
-        "network": generate_network_config(config)
-    }
-
-    # Settings
-    if sshlogin == "yes":
-        config_template['ssh_pwauth'] = False
+    # Add generated network parts
+    config_template['network']: generate_network_config(config)
 
     # Linux specific packages
     if util.is_Linux():
@@ -443,12 +391,6 @@ def generate_config(config):
     for netcfg in config_template['network']['config']:
         # If the adapter has a name and is physical
         if "mac_address" in netcfg and netcfg['type'] == "physical":
-            # Cloud-init does not support configuring multi-queue on
-            # interfaces. A specialized tool needs to be used to enable
-            # this critical functionality in a universal and predictable way.
-            # This hack though functional, will have minimal support and
-            # break easily.
-
             # Enable multi-queue on linux
             # This needs to remain a runcmd as the package may not be installed
             if util.is_Linux():
@@ -461,7 +403,7 @@ def generate_config(config):
     write_vendor_script("vultr_deploy.sh", vendor_script)
 
     # Write the startup script
-    if script != "":
+    if "No configured startup script" not in script:
         ba = script.encode('ascii')
         ba_dec = base64.b64decode(ba)
         lines = ba_dec.decode('ascii').split("\n")

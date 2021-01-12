@@ -15,7 +15,6 @@ from cloudinit.sources.helpers import vultr
 from cloudinit.tests.helpers import mock, CiTestCase
 
 # Vultr metadata test data
-VULTR_ROOT_PASSWORD_1 = "$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/"
 VULTR_V1_1 = """
 {
     "bgp": {
@@ -62,8 +61,28 @@ VULTR_V1_1 = """
     ]
 }
 """
+VULTR_VENDOR_1 = """
+{
+    'package_upgrade': 'true',
+    'disable_root': 0,
+    'packages': [
+        'ethtool'
+    ],
+    'ssh_pwauth': 1,
+    'chpasswd': {
+        'expire': False,
+        'list': [
+            'root:$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/'
+        ]
+    },
+    'system_info': {
+        'default_user': {
+            'name': 'root'
+        }
+    }
+}
+"""
 
-VULTR_ROOT_PASSWORD_2 = "$6$SxXx...k2mJNIzZB5vMCDBlYT1"
 VULTR_V1_2 = """
 {
     "bgp":{
@@ -128,6 +147,27 @@ VULTR_V1_2 = """
     },
     "user-defined":[
     ]
+}
+"""
+VULTR_VENDOR_2 = """
+{
+    'package_upgrade': 'true',
+    'disable_root': 0,
+    'packages': [
+        'ethtool'
+    ],
+    'ssh_pwauth': 1,
+    'chpasswd': {
+        'expire': False,
+        'list': [
+            'root:$6$SxXx...k2mJNIzZB5vMCDBlYT1'
+        ]
+    },
+    'system_info': {
+        'default_user': {
+            'name': 'root'
+        }
+    }
 }
 """
 
@@ -314,13 +354,11 @@ class TestDataSourceVultr(CiTestCase):
                         mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
-            "enabled": True,
             "v1": json.loads(VULTR_V1_2),
-            "root-password": VULTR_ROOT_PASSWORD_2,
+            "vendor-config": VULTR_VENDOR_CONFIG_2,
             "user-data": "",
             "ssh-keys": '\n'.join(SSH_KEYS_1),
-            "startup-script": "",
-            "disable_ssh_login": ""
+            "startup-script": ""
         }
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
@@ -367,12 +405,10 @@ class TestDataSourceVultr(CiTestCase):
                         mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
-            "enabled": True,
             "user-data": "",
             "startup-script": "",
             "v1": json.loads(VULTR_V1_1),
-            "root-password": VULTR_ROOT_PASSWORD_1,
-            "disable_ssh_login": ""
+            "vendor-config": VULTR_VENDOR_CONFIG_1
         }
 
         mock_netmap.return_value = INTERFACE_MAP
@@ -393,12 +429,10 @@ class TestDataSourceVultr(CiTestCase):
                         mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
-            "enabled": True,
             "user-data": "",
             "startup-script": "",
             "v1": json.loads(VULTR_V1_2),
-            "root-password": VULTR_ROOT_PASSWORD_2,
-            "disable_ssh_login": ""
+            "vendor-config": VULTR_VENDOR_CONFIG_2
         }
 
         mock_netmap.return_value = INTERFACE_MAP
@@ -419,7 +453,6 @@ class TestDataSourceVultr(CiTestCase):
                             mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
-            "enabled": True,
             "v1": json.loads(VULTR_V1_1)
         }
 
@@ -441,7 +474,6 @@ class TestDataSourceVultr(CiTestCase):
                                     mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
-            "enabled": True,
             "v1": json.loads(VULTR_V1_2)
         }
 

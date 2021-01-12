@@ -95,31 +95,12 @@ class DataSourceVultr(sources.DataSource):
     # Write the base configs every time. These are subject to change
     @property
     def network_config(self):
-        config = vultr.generate_network_config(CONFIG)
-        config_raw = json.dumps(config)
-        old_config = vultr.get_cached_network_config()
-
-        if config_raw == old_config:
-            LOGGER.info("Network configuration has not changed, ignoring")
-            LOGGER.info(config_raw)
-            return None
-
         # Dump network config so diagnosing failures is manageable
         LOGGER.info("Generated Network:")
         LOGGER.info(config_raw)
 
-        # Cache the network config so we can check for
-        # changes. Users should be able to change interfaces
-        # without interrupting their connectivity on reboot.
-        vultr.cache_network_config(config)
-
-        # Only toggle interfaces if this is a config change
-        toggle = False
-        if not old_config:
-            toggle = True
-
         # Bring up additional interfaces
-        vultr.process_nics(config, CONFIG, toggle)
+        vultr.process_nics(config, CONFIG)
 
         return config
 
