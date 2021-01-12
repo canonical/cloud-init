@@ -28,7 +28,6 @@ class DataSourceVultr(sources.DataSource):
 
     dsname = 'Vultr'
 
-
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceVultr, self).__init__(sys_cfg, distro, paths)
         self.ds_cfg = util.mergemanydict([
@@ -42,7 +41,6 @@ class DataSourceVultr(sources.DataSource):
             'timeout', BUILTIN_DS_CONFIG['timeout'])
         CONFIG['wait'] = self.ds_cfg.get(
             'wait', BUILTIN_DS_CONFIG['wait'])
-
 
     # Initiate data and check if Vultr
     def _get_data(self):
@@ -79,23 +77,20 @@ class DataSourceVultr(sources.DataSource):
         # Dump some data so diagnosing failures is manageable
         LOGGER.info("SUBID: " + self.metadata['instanceid'])
         LOGGER.info("Hostname: " + self.metadata['local-hostname'])
-        if self.userdata_raw != None:
+        if self.userdata_raw is not None:
             LOGGER.info("User-Data:")
             LOGGER.info(self.userdata_raw)
 
         return True
 
-
     # Get the metadata by flag
     def get_metadata(self):
         return vultr.get_metadata(CONFIG)
-
 
     # Currently unsupported
     @property
     def launch_index(self):
         return None
-
 
     # Write the base configs every time. These are subject to change
     @property

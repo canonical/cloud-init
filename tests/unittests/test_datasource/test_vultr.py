@@ -15,7 +15,7 @@ from cloudinit.sources.helpers import vultr
 from cloudinit.tests.helpers import mock, CiTestCase
 
 # Vultr metadata test data
-VULTR_ROOT_PASSWORD_1 = "$6$S2SmujFrCbMsobmu$5PPQqWGvBtONTg3NUW/MDhyz7l3lpYEyQ8w9gOJE.RQPlueITLXJRM4DKEbQHdc/VqxmIR9Urw0jPZ88i4yvB/"
+VULTR_ROOT_PASSWORD_1 = "$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/"
 VULTR_V1_1 = """
 {
     "bgp": {
@@ -54,7 +54,7 @@ VULTR_V1_1 = """
             "network-type": "public"
         }
     ],
-    "public-keys": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM1c= test@key\\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM2c= test2@key\\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM3c= test3@key\\n",
+    "public-keys": "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key\\n",
     "region": {
         "regioncode": "EWR"
     },
@@ -63,7 +63,7 @@ VULTR_V1_1 = """
 }
 """
 
-VULTR_ROOT_PASSWORD_2 = "$6$SxXxTd37HQkwxlOM$/z65E0u9ucrHtQBH9y.chMD2GSbKGFKc/QyYkU9WN/pqQ/lOGZL1YmWqYLSe2W/Ik//k2mJNIzZB5vMCDBlYT1"
+VULTR_ROOT_PASSWORD_2 = "$6$SxXx...k2mJNIzZB5vMCDBlYT1"
 VULTR_V1_2 = """
 {
     "bgp":{
@@ -122,7 +122,7 @@ VULTR_V1_2 = """
             "networkid":"net5e7155329d730"
         }
     ],
-    "public-keys": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM1c= test@key\\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM2c= test2@key\\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM3c= test3@key\\n",
+    "public-keys": "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key\\n",
     "region":{
         "regioncode":"EWR"
     },
@@ -132,9 +132,9 @@ VULTR_V1_2 = """
 """
 
 SSH_KEYS_1 = [
-    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM1c= test@key",
-    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM2c= test2@key",
-    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCvgL32fARIGLNs2w6Kt/t/jYeVgHLQf4VueOwfMZNhXAqe0183eABr40scKb4zTSre9/zMgQHFs/unptRLzLt/hS7ncyioy95Nllg8qw+u/TS71gPu5RozfB0epNzcFdWwro+ibGW3eZO0bOzV8ENaWAfA734YqTDOOVdJYquiU8iLKTP/Rl0RYmCkgQ2tyYpklWVh8DQOa0nenosYihEBOpTgKjtE98ym63EmMkozbEjgt0d8vXGHLUwZ5JvBCubR8YjJ5lL7wmcLf+nx2Dg2zFhhblsF81N+L4K1yx+s0I77hG6bKhOc1X4KoKJJn4bfH7vtMVsPptdAMsFX8W/FvsRMT7/eZ7PHMahC7d2NGCccL6TIK2vxyJxdMO+88mLockKpgixhsbPSq99NurOQiHOhFH4cityQVtH/3qyr4oDYVscAnZsUk93k+2Z/WCYFfHh5HpfWU6dZFgiZlWsJ7Yt6J7ovDUo/aZZmQc1rxsvqcIQQhv5PAOKaIl+mM3c= test3@key"
+    "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM1c= test@key",
+    "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM2c= test2@key",
+    "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"
 ]
 
 # Expected generated objects
@@ -150,7 +150,7 @@ EXPECTED_VULTR_CONFIG_1 = {
     'chpasswd': {
         'expire': False,
         'list': [
-            'root:$6$S2SmujFrCbMsobmu$5PPQqWGvBtONTg3NUW/MDhyz7l3lpYEyQ8w9gOJE.RQPlueITLXJRM4DKEbQHdc/VqxmIR9Urw0jPZ88i4yvB/'
+            'root:$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/'
         ]
     },
     'system_info': {
@@ -189,7 +189,7 @@ EXPECTED_VULTR_CONFIG_2 = {
     'chpasswd': {
         'expire': False,
         'list': [
-            'root:$6$SxXxTd37HQkwxlOM$/z65E0u9ucrHtQBH9y.chMD2GSbKGFKc/QyYkU9WN/pqQ/lOGZL1YmWqYLSe2W/Ik//k2mJNIzZB5vMCDBlYT1'
+            'root:$6$SxXx...k2mJNIzZB5vMCDBlYT1'
         ]
     },
     'system_info': {
@@ -300,14 +300,18 @@ class TestDataSourceVultr(CiTestCase):
         super(TestDataSourceVultr, self).setUp()
         self.tmp = self.tmp_dir()
 
-
     # Test the datasource itself
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.is_vultr')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_datasource(self, mock_getmeta, mock_isvultr, mock_netmap, mock_processnics, mock_write_vendor_script):
+    def test_datasource(self,
+                        mock_getmeta,
+                        mock_isvultr,
+                        mock_netmap,
+                        mock_processnics,
+                        mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
@@ -341,7 +345,8 @@ class TestDataSourceVultr(CiTestCase):
         orig_val = self.maxDiff
         self.maxDiff = None
         self.assertEqual(
-            "#cloud-config\n" + json.dumps(EXPECTED_VULTR_CONFIG_2), source.vendordata_raw)
+            "#cloud-config\n" + json.dumps(EXPECTED_VULTR_CONFIG_2),
+            source.vendordata_raw)
         self.maxDiff = orig_val
 
         # Test network config generation
@@ -350,13 +355,16 @@ class TestDataSourceVultr(CiTestCase):
         # Test network config generation when nothing has changed
         self.assertEqual(None, source.network_config)
 
-
     # Test overall config generation
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_get_data_1(self, mock_getmeta, mock_netmap, mock_processnics, mock_write_vendor_script):
+    def test_get_data_1(self,
+                        mock_getmeta,
+                        mock_netmap,
+                        mock_processnics,
+                        mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
@@ -373,13 +381,16 @@ class TestDataSourceVultr(CiTestCase):
         # Test data
         self.assertEqual(EXPECTED_VULTR_CONFIG_1, vultr.generate_config({}))
 
-
     # Test overall config generation
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_get_data_2(self, mock_getmeta, mock_netmap, mock_processnics, mock_write_vendor_script):
+    def test_get_data_2(self,
+                        mock_getmeta,
+                        mock_netmap,
+                        mock_processnics,
+                        mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
@@ -396,13 +407,16 @@ class TestDataSourceVultr(CiTestCase):
         # Test data with private networking
         self.assertEqual(EXPECTED_VULTR_CONFIG_2, vultr.generate_config({}))
 
-
     # Test network config generation
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_network_config(self, mock_getmeta, mock_netmap, mock_processnics, mock_write_vendor_script):
+    def test_network_config(self,
+                            mock_getmeta,
+                            mock_netmap,
+                            mock_processnics,
+                            mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,
@@ -415,13 +429,16 @@ class TestDataSourceVultr(CiTestCase):
         self.assertEqual(EXPECTED_VULTR_NETWORK_1,
                          vultr.generate_network_config({}))
 
-
     # Test Private Networking config generation
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_private_network_config(self, mock_getmeta, mock_netmap, mock_processnics, mock_write_vendor_script):
+    def test_private_network_config(self,
+                                    mock_getmeta,
+                                    mock_netmap,
+                                    mock_processnics,
+                                    mock_write_vendor_script):
         mock_processnics.return_value = True
         mock_getmeta.return_value = {
             "enabled": True,

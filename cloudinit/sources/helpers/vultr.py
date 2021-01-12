@@ -7,6 +7,8 @@ import json
 import os
 from os import path
 import base64
+import re
+import ipaddress
 
 from cloudinit import log as log
 from cloudinit import url_helper
@@ -53,7 +55,6 @@ def get_metadata(params):
             'ipv6-dns1': fetch_metadata("ipv6-dns1", params),
             'ipv6-addr': fetch_metadata("ipv6-addr", params),
             'v1': json.loads(fetch_metadata("v1.json", params))
-            #    'disable_ssh_login': fetch_metadata("disable_ssh_login", params),
         }
 
     return METADATA
@@ -138,7 +139,9 @@ def write_vendor_script(fname, content):
 
 # Read Metadata endpoint
 def read_metadata(params):
-    response = url_helper.readurl(params['url'], timeout=params['timeout'], retries=params['retries'],
+    response = url_helper.readurl(params['url'],
+                                  timeout=params['timeout'],
+                                  retries=params['retries'],
                                   headers={'Metadata-Token': 'vultr'},
                                   sec_between=params['wait'])
 
@@ -192,11 +195,17 @@ def run_system_command(command, allow_fail=True):
     except Exception as err:
         if not allow_fail:
             raise RuntimeError(
-                "Command: %s failed to execute. Error: %s" % (" ".join(command), err))
+                "Command: %s failed to execute. Error: %s" %
+                (" ".join(command), err))
         LOGGER.debug("Command: %s failed to execute. Error: %s" %
                      (" ".join(command), err))
         return False
     return True
+
+
+def to_cidr(mask):
+    ip = ipaddress.IPv4Network((0, mask))
+    return ip.prefixlen
 
 
 # Cloud-init does not support turning on any interface beyond
@@ -212,8 +221,7 @@ def bringup_nic(nic, config, toggle=False):
 
     # If it is not the primary turn it on, if it is off
     if nic['mac_address'] != md['v1']['interfaces'][0]['mac']:
-        prefix = "/" + str(sum(bin(int(x)).count('1')
-                               for x in nic['subnets'][0]['netmask'].split('.')))
+        prefix = "/" + to_cidr(nic['subnets'][0]['netmask'])
         ip = nic['subnets'][0]['address'] + prefix
 
         # Only use IP commands if they exist and this is Linux
@@ -229,14 +237,16 @@ def bringup_nic_linux(nic, ip, toggle=False):
     # Toggle interface if up
     if toggle and net.is_up(nic['name']):
         LOGGER.debug("Brining down interface: %s" % nic['name'])
-        if not run_system_command(['ip', 'link', 'set', 'dev', nic['name'], 'down']):
+        command = ['ip', 'link', 'set', 'dev', nic['name'], 'down']
+        if not run_system_command(command):
             LOGGER.debug(
                 "Failed brining down interface: %s" % nic['name'])
             return
 
     LOGGER.debug("Assigning IP: %s to interface: %s" %
                  (ip, nic['name']))
-    if not run_system_command(['ip', 'addr', 'add', ip, 'dev', nic['name']]):
+    command = ['ip', 'addr', 'add', ip, 'dev', nic['name']]
+    if not run_system_command(command):
         LOGGER.debug(
             "Failed assigning IP: %s to interface: %s" % (ip, nic['name']))
         return
@@ -304,7 +314,8 @@ def generate_public_network_interface(md):
     interface_name = get_interface_name(md['v1']['interfaces'][0]['mac'])
     if not interface_name:
         raise RuntimeError(
-            "Interface: %s could not be found on the system" % md['v1']['interfaces'][0]['mac'])
+            "Interface: %s could not be found on the system" %
+            md['v1']['interfaces'][0]['mac'])
 
     netcfg = {
         "name": interface_name,
@@ -324,7 +335,8 @@ def generate_public_network_interface(md):
     }
 
     # Check for additional IP's
-    if "ipv4" in md['v1']['interfaces'][0] and len(md['v1']['interfaces'][0]['ipv4']['additional']) > 0:
+    additional_count = len(md['v1']['interfaces'][0]['ipv4']['additional'])
+    if "ipv4" in md['v1']['interfaces'][0] and additional_count > 0:
         for additional in md['v1']['interfaces'][0]['ipv4']['additional']:
             add = {
                 "type": "static",
@@ -335,7 +347,8 @@ def generate_public_network_interface(md):
             netcfg['subnets'].append(add)
 
     # Check for additional IPv6's
-    if "ipv6" in md['v1']['interfaces'][0] and len(md['v1']['interfaces'][0]['ipv6']['additional']) > 0:
+    additional_count = len(md['v1']['interfaces'][0]['ipv6']['additional'])
+    if "ipv6" in md['v1']['interfaces'][0] and additional_count > 0:
         for additional in md['v1']['interfaces'][0]['ipv6']['additional']:
             add = {
                 "type": "static6",
@@ -354,7 +367,8 @@ def generate_private_network_interface(md):
     interface_name = get_interface_name(md['v1']['interfaces'][1]['mac'])
     if not interface_name:
         raise RuntimeError(
-            "Interface: %s could not be found on the system" % md['v1']['interfaces'][1]['mac'])
+            "Interface: %s could not be found on the system"
+            % md['v1']['interfaces'][1]['mac'])
 
     netcfg = {
         "name": interface_name,
@@ -432,14 +446,16 @@ def generate_config(config):
             # Cloud-init does not support configuring multi-queue on
             # interfaces. A specialized tool needs to be used to enable
             # this critical functionality in a universal and predictable way.
-            # This hack though functional, will have minimal support and break easily.
+            # This hack though functional, will have minimal support and
+            # break easily.
 
             # Enable multi-queue on linux
             # This needs to remain a runcmd as the package may not be installed
             if util.is_Linux():
                 # Set its multi-queue to num of cores as per RHEL Docs
-                vendor_script.append(
-                    "ethtool -L " + netcfg['name'] + " combined $(nproc --all)")
+                name = netcfg['name']
+                command = "ethtool -L %s combined $(nproc --all)" % name
+                vendor_script.append(command)
 
     # Write vendor script
     write_vendor_script("vultr_deploy.sh", vendor_script)
