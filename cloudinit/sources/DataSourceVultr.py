@@ -95,6 +95,9 @@ class DataSourceVultr(sources.DataSource):
     # Write the base configs every time. These are subject to change
     @property
     def network_config(self):
+        config = vultr.generate_network_config(CONFIG)
+        config_raw = json.dumps(config)
+
         # Dump network config so diagnosing failures is manageable
         LOGGER.info("Generated Network:")
         LOGGER.info(config_raw)
