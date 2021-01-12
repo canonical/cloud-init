@@ -377,7 +377,7 @@ def generate_config(config):
     config_template = copy.deepcopy(md['vendor-config'])
 
     # Add generated network parts
-    config_template['network']: generate_network_config(config)
+    config_template['network'] = generate_network_config(config)
 
     # Linux specific packages
     if util.is_Linux():
