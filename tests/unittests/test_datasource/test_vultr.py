@@ -61,8 +61,7 @@ VULTR_V1_1 = """
     ]
 }
 """
-VULTR_VENDOR_1 = """
-{
+VULTR_VENDOR_1 = {
     'package_upgrade': 'true',
     'disable_root': 0,
     'packages': [
@@ -81,7 +80,6 @@ VULTR_VENDOR_1 = """
         }
     }
 }
-"""
 
 VULTR_V1_2 = """
 {
@@ -149,8 +147,7 @@ VULTR_V1_2 = """
     ]
 }
 """
-VULTR_VENDOR_2 = """
-{
+VULTR_VENDOR_2 = {
     'package_upgrade': 'true',
     'disable_root': 0,
     'packages': [
@@ -169,7 +166,6 @@ VULTR_VENDOR_2 = """
         }
     }
 }
-"""
 
 SSH_KEYS_1 = [
     "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM1c= test@key",

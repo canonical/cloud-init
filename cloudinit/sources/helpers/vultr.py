@@ -375,7 +375,7 @@ def generate_config(config):
             script.encode("ascii")).decode("ascii")
 
     # Create vendor config
-    config_template = md['vendor-config']
+    config_template = copy.deepcopy(md['vendor-config'])
 
     # Add generated network parts
     config_template['network']: generate_network_config(config)
