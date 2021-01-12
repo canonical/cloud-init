@@ -152,6 +152,8 @@ class Distro(distros.Distro):
         elif args and isinstance(args, list):
             cmd.extend(args)
 
+        if command == "upgrade":
+            command = "-u"
         if command:
             cmd.append(command)
 
