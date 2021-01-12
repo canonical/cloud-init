@@ -382,9 +382,6 @@ class TestDataSourceVultr(CiTestCase):
         # Test network config generation
         self.assertEqual(EXPECTED_VULTR_NETWORK_2, source.network_config)
 
-        # Test network config generation when nothing has changed
-        self.assertEqual(None, source.network_config)
-
     # Test overall config generation
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
     @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
