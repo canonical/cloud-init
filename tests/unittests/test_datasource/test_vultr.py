@@ -64,9 +64,7 @@ VULTR_V1_1 = """
 VULTR_VENDOR_1 = {
     'package_upgrade': 'true',
     'disable_root': 0,
-    'packages': [
-        'ethtool'
-    ],
+    'packages': [],
     'ssh_pwauth': 1,
     'chpasswd': {
         'expire': False,
@@ -150,9 +148,7 @@ VULTR_V1_2 = """
 VULTR_VENDOR_2 = {
     'package_upgrade': 'true',
     'disable_root': 0,
-    'packages': [
-        'ethtool'
-    ],
+    'packages': [],
     'ssh_pwauth': 1,
     'chpasswd': {
         'expire': False,
