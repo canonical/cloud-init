@@ -3,9 +3,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
-
 import os
-from os import path
+import copy
 import base64
 import re
 import ipaddress
@@ -69,7 +68,7 @@ def get_sysinfo():
 
 # Get kernel parameters
 def get_kernel_parameters():
-    if not path.exists("/proc/cmdline"):
+    if not os.path.exists("/proc/cmdline"):
         return ""
 
     file = open("/proc/cmdline")
@@ -96,7 +95,7 @@ def is_vultr():
 
     # An extra fallback if the others fail
     # This needs to be a directory
-    if path.exists("/etc/vultr") and path.isdir("/etc/vultr"):
+    if os.path.exists("/etc/vultr") and os.path.isdir("/etc/vultr"):
         return True
 
     return False
