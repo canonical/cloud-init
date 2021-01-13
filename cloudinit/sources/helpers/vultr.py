@@ -388,10 +388,10 @@ def generate_config(config):
 
     # Go through the interfaces
     for netcfg in config_template['network']['config']:
-        # If the adapter has a name and is physical
+        # If the interface has a mac and is physical
         if "mac_address" in netcfg and netcfg['type'] == "physical":
             # Enable multi-queue on linux
-            # This needs to remain a runcmd as the package may not be installed
+            # This is executed as a vendor script
             if util.is_Linux():
                 # Set its multi-queue to num of cores as per RHEL Docs
                 name = netcfg['name']
