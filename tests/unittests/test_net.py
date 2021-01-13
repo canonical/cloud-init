@@ -4820,6 +4820,9 @@ class TestEniRoundTrip(CiTestCase):
             {'type': 'route', 'id': 6,
              'metric': 1, 'destination': '10.0.200.0/16',
              'gateway': '172.23.31.1'},
+            {'type': 'route', 'id': 7,
+             'metric': 1, 'destination': '10.0.0.100/32',
+             'gateway': '172.23.31.1'},
         ]
 
         files = self._render_and_read(
@@ -4842,6 +4845,10 @@ class TestEniRoundTrip(CiTestCase):
             ('post-up route add -net 10.0.200.0/16 gw '
              '172.23.31.1 metric 1 || true'),
             ('pre-down route del -net 10.0.200.0/16 gw '
+             '172.23.31.1 metric 1 || true'),
+            ('post-up route add -host 10.0.0.100/32 gw '
+             '172.23.31.1 metric 1 || true'),
+            ('pre-down route del -host 10.0.0.100/32 gw '
              '172.23.31.1 metric 1 || true'),
         ]
         found = files['/etc/network/interfaces'].splitlines()
