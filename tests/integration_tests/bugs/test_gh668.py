@@ -1,6 +1,8 @@
 """Integration test for gh-668.
 
 Ensure that static route to host is working correctly.
+The original problem is specific to the ENI renderer but that test is suitable
+for all network configuration outputs.
 """
 
 import pytest
@@ -25,12 +27,11 @@ ethernets:
 EXPECTED_ROUTE = "{} via {}".format(DESTINATION_IP, GATEWAY_IP)
 
 
-@pytest.mark.sru_2020_11
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
 @pytest.mark.lxd_config_dict({
     "user.network-config": NETWORK_CONFIG,
 })
-def test_eni_static_route_to_host(client: IntegrationInstance):
+def test_static_route_to_host(client: IntegrationInstance):
     route = client.execute("ip route | grep {}".format(DESTINATION_IP))
     assert route.startswith(EXPECTED_ROUTE)
