@@ -123,6 +123,7 @@ def read_metadata(params):
     response = url_helper.readurl(params['url'],
                                   timeout=params['timeout'],
                                   retries=params['retries'],
+                                  headers={'Metadata-Token': 'vultr'},
                                   sec_between=params['wait'])
 
     if not response.ok():
