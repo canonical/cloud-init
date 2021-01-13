@@ -165,6 +165,7 @@ def get_interface_name(mac):
     return MAC_TO_NICS.get(mac)
 
 
+# Convert a netmask to cidr
 def to_cidr(mask):
     ip = ipaddress.IPv4Network((0, mask))
     return ip.prefixlen
@@ -189,6 +190,7 @@ def bringup_nic(nic, config):
             bringup_nic_bsd(nic, ip)
 
 
+# Linux interface bring up procedure
 def bringup_nic_linux(nic, ip):
     up = net.is_up(nic['name'])
 
@@ -224,6 +226,7 @@ def bringup_nic_linux(nic, ip):
                 (" ".join(command), err))
 
 
+# BSD interface bring up procedure
 def bringup_nic_bsd(nic, ip):
     up = net.is_up(nic['name'])
 
@@ -369,9 +372,6 @@ def generate_config(config):
 
     # Grab the startup script
     script = md['startup-script']
-    if script != "":
-        script = base64.b64encode(
-            script.encode("ascii")).decode("ascii")
 
     # Create vendor config
     config_template = copy.deepcopy(md['vendor-config'])
@@ -403,9 +403,7 @@ def generate_config(config):
 
     # Write the startup script
     if "No configured startup script" not in script:
-        ba = script.encode('ascii')
-        ba_dec = base64.b64decode(ba)
-        lines = ba_dec.decode('ascii').split("\n")
+        lines = script.split("\n")
         write_vendor_script("vultr_user_startup.sh", lines)
 
     return config_template
