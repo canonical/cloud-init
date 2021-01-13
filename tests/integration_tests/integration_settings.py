@@ -1,12 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
 
+from distutils.util import strtobool
+
 ##################################################################
 # LAUNCH SETTINGS
 ##################################################################
 
 # Keep instance (mostly for debugging) when test is finished
 KEEP_INSTANCE = False
+# Keep snapshot image (mostly for debugging) when test is finished
+KEEP_IMAGE = False
+# Run tests marked as unstable. Expect failures and dragons.
+RUN_UNSTABLE = False
 
 # One of:
 #  lxd_container
@@ -70,6 +76,18 @@ COLLECT_LOGS = 'ON_ERROR'
 LOCAL_LOG_PATH = '/tmp/cloud_init_test_logs'
 
 ##################################################################
+# SSH KEY SETTINGS
+##################################################################
+
+# A path to the public SSH key to use for test runs.  (Defaults to pycloudlib's
+# default behaviour, using ~/.ssh/id_rsa.pub.)
+PUBLIC_SSH_KEY = None
+
+# For clouds which use named keypairs for SSH connection, the name that is used
+# for the keypair.  (Defaults to pycloudlib's default behaviour.)
+KEYPAIR_NAME = None
+
+##################################################################
 # GCE SPECIFIC SETTINGS
 ##################################################################
 # Required for GCE
@@ -105,6 +123,12 @@ except ImportError:
 # Perhaps a bit too hacky, but it works :)
 current_settings = [var for var in locals() if var.isupper()]
 for setting in current_settings:
-    globals()[setting] = os.getenv(
+    env_setting = os.getenv(
         'CLOUD_INIT_{}'.format(setting), globals()[setting]
     )
+    if isinstance(env_setting, str):
+        try:
+            env_setting = bool(strtobool(env_setting.strip()))
+        except ValueError:
+            pass
+    globals()[setting] = env_setting

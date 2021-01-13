@@ -12,6 +12,21 @@ The Alibaba Cloud metadata service is available at the well known url
 Alibaba Cloud ECS on `metadata
 <https://www.alibabacloud.com/help/zh/faq-detail/49122.htm>`__.
 
+Configuration
+-------------
+The following configuration can be set for the datasource in system
+configuration (in ``/etc/cloud/cloud.cfg`` or ``/etc/cloud/cloud.cfg.d/``).
+
+An example configuration with the default values is provided below:
+
+.. sourcecode:: yaml
+
+  datasource:
+    AliYun:
+      metadata_urls: ["http://100.100.100.200"]
+      timeout: 50
+      max_wait: 120
+
 Versions
 ^^^^^^^^
 Like the EC2 metadata service, Alibaba Cloud's metadata service provides
