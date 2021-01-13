@@ -387,6 +387,8 @@ class Renderer(renderer.Renderer):
                 if k == 'network':
                     if ':' in route[k]:
                         route_line += ' -A inet6'
+                    elif route.get('prefix') == 32:
+                        route_line += ' -host'
                     else:
                         route_line += ' -net'
                     if 'prefix' in route:
