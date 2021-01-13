@@ -167,7 +167,7 @@ def get_interface_name(mac):
 # Convert a netmask to cidr
 def to_cidr(mask):
     ip = ipaddress.IPv4Network((0, mask))
-    return ip.prefixlen
+    return str(ip.prefixlen)
 
 
 # Cloud-init does not support turning on any interface beyond
