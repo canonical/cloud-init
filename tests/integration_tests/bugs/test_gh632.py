@@ -9,6 +9,9 @@ import pytest
 from tests.integration_tests.instances import IntegrationInstance
 
 
+# With some datasource hacking, we can run this on a NoCloud instance
+@pytest.mark.lxd_container
+@pytest.mark.lxd_vm
 @pytest.mark.sru_2020_11
 def test_datasource_rbx_no_stacktrace(client: IntegrationInstance):
     client.write_to_file(
