@@ -174,7 +174,7 @@ def to_cidr(mask):
 # Cloud-init does not support turning on any interface beyond
 # the first.
 def bringup_nic(nic, config):
-    return true
+    return True
 
     md = get_metadata(config)
 
