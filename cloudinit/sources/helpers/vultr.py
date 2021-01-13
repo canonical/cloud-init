@@ -5,7 +5,6 @@
 import json
 import os
 import copy
-import base64
 import re
 import ipaddress
 
