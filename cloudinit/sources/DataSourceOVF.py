@@ -119,7 +119,9 @@ class DataSourceOVF(sources.DataSource):
                     # When the VM is powered on, the "VMware Tools" daemon
                     # copies the customization specification file to
                     # /var/run/vmware-imc directory. cloud-init code needs
-                    # to search for the file in that directory.
+                    # to search for the file in that directory which indicates
+                    # that required metadata and userdata files are now
+                    # present.
                     max_wait = get_max_wait_from_cfg(self.ds_cfg)
                     vmwareImcConfigFilePath = util.log_time(
                         logfunc=LOG.debug,
@@ -137,9 +139,9 @@ class DataSourceOVF(sources.DataSource):
                     LOG.debug("Found VMware Customization Config File at %s",
                               vmwareImcConfigFilePath)
                     try:
-                        (md_path, ud_path, nicspath) = collect_imc_files(
+                        (md_path, ud_path, nicspath) = collect_imc_file_paths(
                             self._vmware_cust_conf)
-                    except Exception as e:
+                    except FileNotFoundError as e:
                         _raise_error_status(
                             "File(s) missing in directory",
                             e,
@@ -149,7 +151,7 @@ class DataSourceOVF(sources.DataSource):
                 else:
                     LOG.debug("Did not find VMware Customization Config File")
 
-                # ignore disable_vmware_customization if meta data is available
+                # Honor disable_vmware_customization setting on metadata absent
                 if not md_path:
                     if util.get_cfg_option_bool(self.sys_cfg,
                                                 "disable_vmware_customization",
@@ -160,12 +162,12 @@ class DataSourceOVF(sources.DataSource):
                         # customization for VMware platform
                         vmwareImcConfigFilePath = None
 
-        if vmwareImcConfigFilePath and md_path:
+        use_raw_data = bool(vmwareImcConfigFilePath and md_path)
+        if use_raw_data:
             set_gc_status(self._vmware_cust_conf, "Started")
             LOG.debug("Start to load cloud-init meta data and user data")
             try:
-                (md, ud, cfg, network) = load_cloudinit_data(
-                    md_path, ud_path)
+                (md, ud, cfg, network) = load_cloudinit_data(md_path, ud_path)
 
                 if network:
                     self._network_config = network
@@ -199,6 +201,7 @@ class DataSourceOVF(sources.DataSource):
             set_gc_status(self._vmware_cust_conf, "Successful")
 
         elif vmwareImcConfigFilePath:
+            # Load configuration from vmware_imc
             self._vmware_nics_to_enable = ""
             try:
                 set_gc_status(self._vmware_cust_conf, "Started")
@@ -745,26 +748,29 @@ def load_cloudinit_data(md_path, ud_path):
     """
     Load the cloud-init meta data, user data, cfg and network from the
     given files
+
+    @return: 4-tuple of configuration
+        metadata, userdata, cfg={}, network
+
+    @raises: FileNotFoundError if md_path or ud_path are absent
     """
     LOG.debug('load meta data from: %s: user data from: %s',
               md_path, ud_path)
     md = {}
-    cfg = {}
     ud = None
     network = None
 
-    md = load(util.load_file(md_path))
+    md = safeload_yaml_or_dict(util.load_file(md_path))
 
     if 'network' in md:
         network = md['network']
-        del md['network']
 
     if ud_path:
         ud = util.load_file(ud_path).replace("\r", "")
-    return md, ud, cfg, network
+    return md, ud, {}, network
 
 
-def load(data):
+def safeload_yaml_or_dict(data):
     '''
     The meta data could be JSON or YAML. Since YAML is a strict superset of
     JSON, we will unmarshal the data as YAML. If data is None then a new
@@ -775,10 +781,21 @@ def load(data):
     return safeyaml.load(data)
 
 
-def collect_imc_files(cust_conf):
+def collect_imc_file_paths(cust_conf):
     '''
-    collect all the other imc files. metadata/userdata must be present
-    if they are specified in customization configuration.
+    collect all the other imc files.
+
+    metadata is preferred to nics.txt configuration data.
+
+    If metadata file exists because it is specified in customization
+    configuration, then metadata is required and userdata is optional.
+
+    @return a 3-tuple containing desired configuration file paths if present
+        Expected returns:
+             1. user provided metadata and userdata (md_path, ud_path, None)
+             2. user provided metadata (md_path, None, None)
+             3. user-provided network config (None, None, nics_path)
+             4. No config found (None, None, None)
     '''
     md_path = None
     ud_path = None
@@ -799,7 +816,7 @@ def collect_imc_files(cust_conf):
     else:
         nics_path = os.path.join(VMWARE_IMC_DIR, "nics.txt")
         if not os.path.exists(nics_path):
-            LOG.debug('%s is not exist.', nics_path)
+            LOG.debug('%s does not exist.', nics_path)
             nics_path = None
 
     return md_path, ud_path, nics_path

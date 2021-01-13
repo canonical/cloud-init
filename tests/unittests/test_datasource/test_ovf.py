@@ -402,7 +402,7 @@ class TestDatasourceOVF(CiTestCase):
                  'util.del_dir': True,
                  'search_file': self.tdir,
                  'wait_for_imc_cfg_file': conf_file,
-                 'collect_imc_files': [self.tdir + '/test-meta', '', ''],
+                 'collect_imc_file_paths': [self.tdir + '/test-meta', '', ''],
                  'get_nics_to_enable': ''},
                 ds._get_data)
 
@@ -450,7 +450,7 @@ class TestDatasourceOVF(CiTestCase):
                  'util.del_dir': True,
                  'search_file': self.tdir,
                  'wait_for_imc_cfg_file': conf_file,
-                 'collect_imc_files': [self.tdir + '/test-meta', '', ''],
+                 'collect_imc_file_paths': [self.tdir + '/test-meta', '', ''],
                  'get_nics_to_enable': ''},
                 ds._get_data)
 
@@ -490,7 +490,9 @@ class TestDatasourceOVF(CiTestCase):
                      'util.del_dir': True,
                      'search_file': self.tdir,
                      'wait_for_imc_cfg_file': conf_file,
-                     'collect_imc_files': [self.tdir + '/test-meta', '', ''],
+                     'collect_imc_file_paths': [
+                         self.tdir + '/test-meta', '', ''
+                     ],
                      'get_nics_to_enable': ''},
                     ds.get_data)
 
@@ -572,8 +574,8 @@ class TestDatasourceOVF(CiTestCase):
                  'util.del_dir': True,
                  'search_file': self.tdir,
                  'wait_for_imc_cfg_file': conf_file,
-                 'collect_imc_files': [self.tdir + '/test-meta',
-                                       self.tdir + '/test-user', ''],
+                 'collect_imc_file_paths': [self.tdir + '/test-meta',
+                                            self.tdir + '/test-user', ''],
                  'get_nics_to_enable': ''},
                 ds._get_data)
 
