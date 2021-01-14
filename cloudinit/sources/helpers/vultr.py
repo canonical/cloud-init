@@ -128,7 +128,7 @@ def read_metadata(params):
                                   sec_between=params['wait'])
 
     if not response.ok():
-        raise RuntimeError("Failed to connect to %s: Code: %s" %
+        raise RuntimeError("Failed to connect to %s: Code: %s",
                            params['url'], response.code)
 
     return response.contents.decode()
@@ -179,7 +179,7 @@ def bringup_nic(nic, config):
 
     # If it is not the primary turn it on, if it is off
     if nic['mac_address'] != md['v1']['interfaces'][0]['mac']:
-        prefix = "/%s", to_cidr(nic['subnets'][0]['netmask'])
+        prefix = "/%s" % to_cidr(nic['subnets'][0]['netmask'])
         ip = nic['subnets'][0]['address'] + prefix
 
         # Only use IP commands if they exist and this is Linux
@@ -203,19 +203,19 @@ def bringup_nic_linux(nic, ip):
             subp.subp(command)
         except Exception as err:
             LOGGER.error(
-                "Command: %s failed to execute. Error: %s" %
-                (" ".join(command), err))
+                "Command: %s failed to execute. Error: %s",
+                " ".join(command), err)
             raise
 
-    LOGGER.debug("Assigning IP: %s to interface: %s" %
-                 (ip, nic['name']))
+    LOGGER.debug("Assigning IP: %s to interface: %s",
+                 ip, nic['name'])
     command = ['ip', 'addr', 'add', ip, 'dev', nic['name']]
     try:
         subp.subp(command)
     except Exception as err:
         LOGGER.error(
-            "Command: %s failed to execute. Error: %s" %
-            (" ".join(command), err))
+            "Command: %s failed to execute. Error: %s",
+            " ".join(command), err)
         raise
 
     if not up:
@@ -225,8 +225,8 @@ def bringup_nic_linux(nic, ip):
             subp.subp(command)
         except Exception as err:
             LOGGER.error(
-                "Command: %s failed to execute. Error: %s" %
-                (" ".join(command), err))
+                "Command: %s failed to execute. Error: %s",
+                " ".join(command), err)
             raise
 
 
@@ -234,16 +234,16 @@ def bringup_nic_linux(nic, ip):
 def bringup_nic_bsd(nic, ip):
     up = net.is_up(nic['name'])
 
-    LOGGER.debug("Assigning IP: %s to interface: %s" %
-                 (ip, nic['name']))
+    LOGGER.debug("Assigning IP: %s to interface: %s",
+                 ip, nic['name'])
 
     command = ['ifconfig', nic['name'], 'inet', ip]
     try:
         subp.subp(command)
     except Exception as err:
         LOGGER.error(
-            "Command: %s failed to execute. Error: %s" %
-            (" ".join(command), err))
+            "Command: %s failed to execute. Error: %s",
+            " ".join(command), err)
         raise
 
     if not up:
@@ -252,8 +252,8 @@ def bringup_nic_bsd(nic, ip):
             subp.subp(command)
         except Exception as err:
             LOGGER.error(
-                "Command: %s failed to execute. Error: %s" %
-                (" ".join(command), err))
+                "Command: %s failed to execute. Error: %s",
+                " ".join(command), err)
             raise
 
 
@@ -296,7 +296,7 @@ def generate_public_network_interface(md):
     interface_name = get_interface_name(md['v1']['interfaces'][0]['mac'])
     if not interface_name:
         raise RuntimeError(
-            "Interface: %s could not be found on the system" %
+            "Interface: %s could not be found on the system",
             md['v1']['interfaces'][0]['mac'])
 
     netcfg = {
