@@ -113,9 +113,10 @@ def write_vendor_script(fname, content):
     try:
         subp.subp(command)
     except Exception as err:
-        raise RuntimeError(
+        LOGGER.error(
             "Command: %s failed to execute. Error: %s" %
             (" ".join(command), err))
+        raise
 
 
 # Read Metadata endpoint
@@ -178,7 +179,7 @@ def bringup_nic(nic, config):
 
     # If it is not the primary turn it on, if it is off
     if nic['mac_address'] != md['v1']['interfaces'][0]['mac']:
-        prefix = "/" + to_cidr(nic['subnets'][0]['netmask'])
+        prefix = "/%s" % to_cidr(nic['subnets'][0]['netmask'])
         ip = nic['subnets'][0]['address'] + prefix
 
         # Only use IP commands if they exist and this is Linux
@@ -201,9 +202,10 @@ def bringup_nic_linux(nic, ip):
         try:
             subp.subp(command)
         except Exception as err:
-            raise RuntimeError(
+            LOGGER.error(
                 "Command: %s failed to execute. Error: %s" %
                 (" ".join(command), err))
+            raise
 
     LOGGER.debug("Assigning IP: %s to interface: %s" %
                  (ip, nic['name']))
@@ -211,9 +213,10 @@ def bringup_nic_linux(nic, ip):
     try:
         subp.subp(command)
     except Exception as err:
-        raise RuntimeError(
+        LOGGER.error(
             "Command: %s failed to execute. Error: %s" %
             (" ".join(command), err))
+        raise
 
     if not up:
         LOGGER.debug("Brining up interface: %s" % nic['name'])
@@ -221,9 +224,10 @@ def bringup_nic_linux(nic, ip):
         try:
             subp.subp(command)
         except Exception as err:
-            raise RuntimeError(
+            LOGGER.error(
                 "Command: %s failed to execute. Error: %s" %
                 (" ".join(command), err))
+            raise
 
 
 # BSD interface bring up procedure
@@ -237,18 +241,20 @@ def bringup_nic_bsd(nic, ip):
     try:
         subp.subp(command)
     except Exception as err:
-        raise RuntimeError(
+        LOGGER.error(
             "Command: %s failed to execute. Error: %s" %
             (" ".join(command), err))
+        raise
 
     if not up:
         command = ['ipconfig', nic['name'], 'up']
         try:
             subp.subp(command)
         except Exception as err:
-            raise RuntimeError(
+            LOGGER.error(
                 "Command: %s failed to execute. Error: %s" %
                 (" ".join(command), err))
+            raise
 
 
 # Process netcfg interfaces and bring additional up

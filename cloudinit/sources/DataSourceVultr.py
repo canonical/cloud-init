@@ -72,11 +72,11 @@ class DataSourceVultr(sources.DataSource):
         self.userdata_raw = md["user-data"]
         if self.userdata_raw == "":
             self.userdata_raw = None
-        self.vendordata_raw = "#cloud-config\n" + json.dumps(config)
+        self.vendordata_raw = "#cloud-config\n%s" % json.dumps(config)
 
         # Dump some data so diagnosing failures is manageable
-        LOGGER.info("SUBID: " + self.metadata['instanceid'])
-        LOGGER.info("Hostname: " + self.metadata['local-hostname'])
+        LOGGER.info("SUBID: %s" % self.metadata['instanceid'])
+        LOGGER.info("Hostname: %s" % self.metadata['local-hostname'])
         if self.userdata_raw is not None:
             LOGGER.info("User-Data:")
             LOGGER.info(self.userdata_raw)

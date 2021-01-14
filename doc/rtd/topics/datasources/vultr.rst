@@ -26,8 +26,8 @@ Vultr's datasource can be configured as follows:
   metadata service
 - *timeout*: Determines the timeout in seconds to wait for a response from the
   metadata service
-- *wait*: Determines the timeout in seconds to wait before retrying after accessible
-  failure
+- *wait*: Determines the timeout in seconds to wait before retrying after
+  accessible failure
 
 .. _Vultr: https://www.vultr.com/
 .. _metadata service: https://www.vultr.com/metadata/
