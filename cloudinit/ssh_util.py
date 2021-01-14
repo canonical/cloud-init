@@ -238,6 +238,13 @@ def render_authorizedkeysfile_paths(value, homedir, username):
     macros = (("%h", homedir), ("%u", username), ("%%", "%"))
     if not value:
         value = "%h/.ssh/authorized_keys"
+    if "%h" not in value or "%u" not in value:
+        msg = (
+            "Absolute/global AuthorizedKeysFile configured (%s); cloud-init"
+            " does not handle these."
+        )
+        LOG.warning(msg, value)
+        raise OSError(msg % (value,))
     paths = value.split()
     rendered = []
     for path in paths:
@@ -264,7 +271,7 @@ def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
             # Give up and use a default key filename
             auth_key_fns.append(default_authorizedkeys_file)
             util.logexc(LOG, "Failed extracting 'AuthorizedKeysFile' in SSH "
-                        "config from %r, using 'AuthorizedKeysFile' file "
+                        "config from %r, using fallback file "
                         "%r instead", DEF_SSHD_CFG, auth_key_fns[0])
 
     # always store all the keys in the first file configured on sshd_config
