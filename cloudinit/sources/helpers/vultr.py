@@ -128,7 +128,7 @@ def read_metadata(params):
                                   sec_between=params['wait'])
 
     if not response.ok():
-        raise RuntimeError("Failed to connect to %s: Code: %s",
+        raise RuntimeError("Failed to connect to %s: Code: %s" %
                            params['url'], response.code)
 
     return response.contents.decode()
@@ -147,7 +147,7 @@ def fetch_metadata(flag, params):
     req['url'] = get_url(params['url'], flag)
 
     if req['url'] == "":
-        raise RuntimeError("Not a valid endpoint. Flag: %s", flag)
+        raise RuntimeError("Not a valid endpoint. Flag: %s" % flag)
 
     return read_metadata(req)
 
@@ -296,7 +296,7 @@ def generate_public_network_interface(md):
     interface_name = get_interface_name(md['v1']['interfaces'][0]['mac'])
     if not interface_name:
         raise RuntimeError(
-            "Interface: %s could not be found on the system",
+            "Interface: %s could not be found on the system" %
             md['v1']['interfaces'][0]['mac'])
 
     netcfg = {
@@ -349,7 +349,7 @@ def generate_private_network_interface(md):
     interface_name = get_interface_name(md['v1']['interfaces'][1]['mac'])
     if not interface_name:
         raise RuntimeError(
-            "Interface: %s could not be found on the system",
+            "Interface: %s could not be found on the system" %
             md['v1']['interfaces'][1]['mac'])
 
     netcfg = {
