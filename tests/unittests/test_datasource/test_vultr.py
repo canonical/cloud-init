@@ -375,8 +375,8 @@ class TestDataSourceVultr(CiTestCase):
         orig_val = self.maxDiff
         self.maxDiff = None
         self.assertEqual(
-            "#cloud-config\n%s" % json.dumps(EXPECTED_VULTR_CONFIG_2),
-            source.vendordata_raw)
+            EXPECTED_VULTR_CONFIG_2,
+            json.loads(source.vendordata_raw.replace("#cloud-config", "")))
         self.maxDiff = orig_val
 
         # Test network config generation
