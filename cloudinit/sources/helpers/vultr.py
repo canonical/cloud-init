@@ -114,8 +114,8 @@ def write_vendor_script(fname, content):
         subp.subp(command)
     except Exception as err:
         LOGGER.error(
-            "Command: %s failed to execute. Error: %s" %
-            (" ".join(command), err))
+            "Command: %s failed to execute. Error: %s",
+            " ".join(command), err)
         raise
 
 
@@ -147,7 +147,7 @@ def fetch_metadata(flag, params):
     req['url'] = get_url(params['url'], flag)
 
     if req['url'] == "":
-        raise RuntimeError("Not a valid endpoint. Flag: %s" % flag)
+        raise RuntimeError("Not a valid endpoint. Flag: %s", flag)
 
     return read_metadata(req)
 
@@ -179,7 +179,7 @@ def bringup_nic(nic, config):
 
     # If it is not the primary turn it on, if it is off
     if nic['mac_address'] != md['v1']['interfaces'][0]['mac']:
-        prefix = "/%s" % to_cidr(nic['subnets'][0]['netmask'])
+        prefix = "/%s", to_cidr(nic['subnets'][0]['netmask'])
         ip = nic['subnets'][0]['address'] + prefix
 
         # Only use IP commands if they exist and this is Linux
@@ -196,7 +196,7 @@ def bringup_nic_linux(nic, ip):
     up = net.is_up(nic['name'])
 
     if up:
-        LOGGER.debug("Flushing interface: %s" % nic['name'])
+        LOGGER.debug("Flushing interface: %s", nic['name'])
 
         command = ['ip', 'addr', 'flush', 'dev', nic['name']]
         try:
@@ -219,7 +219,7 @@ def bringup_nic_linux(nic, ip):
         raise
 
     if not up:
-        LOGGER.debug("Brining up interface: %s" % nic['name'])
+        LOGGER.debug("Brining up interface: %s", nic['name'])
         command = ['ip', 'link', 'set', 'dev', nic['name'], 'up']
         try:
             subp.subp(command)
@@ -349,8 +349,8 @@ def generate_private_network_interface(md):
     interface_name = get_interface_name(md['v1']['interfaces'][1]['mac'])
     if not interface_name:
         raise RuntimeError(
-            "Interface: %s could not be found on the system"
-            % md['v1']['interfaces'][1]['mac'])
+            "Interface: %s could not be found on the system",
+            md['v1']['interfaces'][1]['mac'])
 
     netcfg = {
         "name": interface_name,
@@ -401,7 +401,7 @@ def generate_config(config):
             if util.is_Linux():
                 # Set its multi-queue to num of cores as per RHEL Docs
                 name = netcfg['name']
-                command = "ethtool -L %s combined $(nproc --all)" % name
+                command = "ethtool -L %s combined $(nproc --all)", name
                 vendor_script.append(command)
 
     # Write vendor script

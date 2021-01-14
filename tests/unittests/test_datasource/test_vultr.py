@@ -375,7 +375,7 @@ class TestDataSourceVultr(CiTestCase):
         orig_val = self.maxDiff
         self.maxDiff = None
         self.assertEqual(
-            "#cloud-config\n" + json.dumps(EXPECTED_VULTR_CONFIG_2),
+            "#cloud-config\n%s" % json.dumps(EXPECTED_VULTR_CONFIG_2),
             source.vendordata_raw)
         self.maxDiff = orig_val
 
