@@ -144,6 +144,10 @@ The following Datasources optionally provide network configuration:
 
   - `SmartOS JSON Metadata`_
 
+- :ref:`datasource_vultr`
+
+  - `Vultr JSON metadata`_
+
 For more information on network configuration formats
 
 .. toctree::
@@ -257,5 +261,6 @@ Example output converting V2 to sysconfig:
 .. _DigitalOcean JSON metadata: https://developers.digitalocean.com/documentation/metadata/#network-interfaces-index
 .. _OpenStack Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
 .. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
+.. _Vultr JSON metadata: https://www.vultr.com/metadata/
 
 .. vi: textwidth=78

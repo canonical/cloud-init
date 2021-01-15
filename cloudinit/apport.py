@@ -40,6 +40,7 @@ KNOWN_CLOUD_NAMES = [
     'Scaleway',
     'SmartOS',
     'VMware',
+    'Vultr',
     'ZStack',
     'Other'
 ]
