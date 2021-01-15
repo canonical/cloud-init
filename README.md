@@ -1,3 +1,9 @@
+# **Note:** Vultr support is work-in-progress
+
+This current fork and branch [vultr-support](https://github.com/vultr/cloud-init) is currently in a `beta` state and is a work in progress. The code and functionality may be changed or altered at any point during this development phase.
+
+Please **do not** use this in a production environment.
+
 # cloud-init
 
 [![Build Status](https://travis-ci.com/canonical/cloud-init.svg?branch=master)](https://travis-ci.com/canonical/cloud-init) [![Read the Docs](https://readthedocs.org/projects/cloudinit/badge/?version=latest&style=flat)](https://cloudinit.readthedocs.org)
