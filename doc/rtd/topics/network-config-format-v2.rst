@@ -8,9 +8,25 @@ version 2 format defined for the `netplan`_ tool.  Cloud-init supports
 both reading and writing of Version 2; the latter support requires a
 distro with `netplan`_ present.
 
+Netplan Passthrough
+-------------------
+
+On a system with netplan present, cloud-init will pass Version 2 configuration
+through to netplan without modification.  On such systems, you do not need to
+limit yourself to the below subset of netplan's configuration format.
+
+.. warning::
+   If you are writing or generating network configuration that may be used on
+   non-netplan systems, you **must** limit yourself to the subset described in
+   this document, or you will see network configuration failures on
+   non-netplan systems.
+
+Version 2 Configuration Format
+------------------------------
+
 The ``network`` key has at least two required elements.  First
 it must include ``version: 2``  and one or more of possible device
-``types``..
+``types``.
 
 Cloud-init will read this format from system config.
 For example the following could be present in
@@ -33,9 +49,6 @@ Supported device ``types`` values are as follows:
 Each type block contains device definitions as a map where the keys (called
 "configuration IDs"). Each entry under the ``types`` may include IP and/or
 device configuration.
-
-Cloud-init does not current support ``wifis`` type that is present in native
-`netplan`_.
 
 
 Device configuration IDs
