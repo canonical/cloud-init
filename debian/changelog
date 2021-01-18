@@ -1,3 +1,11 @@
+cloud-init (20.4.1-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+
+  * New upstream release. (LP: #1911680)
+    - Release 20.4.1
+    - Revert "ssh_util: handle non-default AuthorizedKeysFile config (#586)"
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Mon, 18 Jan 2021 10:55:29 -0500
+
 cloud-init (20.4-0ubuntu1~18.04.2) bionic; urgency=medium
 
   * cherry-pick 4f62ae8d: Fix regression with handling of IMDS ssh keys
