@@ -1,3 +1,6 @@
+20.4.1
+ - Revert "ssh_util: handle non-default AuthorizedKeysFile config (#586)"
+
 20.4
  - tox: avoid tox testenv subsvars for xenial support (#684)
  - Ensure proper root permissions in integration tests (#664) [James Falcon]
