@@ -265,7 +265,52 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertTrue(mock_readmd.called)
 
         netcfg = ds.network_config
-        print(netcfg)
+
+        self.assertEqual(2, netcfg.get('version'))
+
+        ethernets = netcfg.get('ethernets')
+        self.assertIsInstance(ethernets, dict)
+        self.assertEqual(4, len(ethernets.keys()))
+        self.assertTrue('dhcp4' in ethernets.get('eth0'))
+        self.assertTrue(ethernets.get('eth0').get('dhcp4'))
+
+        self.assertEqual(raw_ifaces[2].get('mac'), ethernets.get('eth2').get('match').get('macaddress'))
+        self.assertEqual(1, len(ethernets.get('eth0').get('addresses')))
+
+        self.assertTrue('dhcp4' not in ethernets.get('eth2'))
+        self.assertTrue('dhcp6' in ethernets.get('eth2'))
+        self.assertTrue(ethernets.get('eth2').get('dhcp6'))
+        self.assertTrue('accept_ra' in ethernets.get('eth2'))
+        self.assertTrue(ethernets.get('eth2').get('accept_ra'))
+
+
+    @mock.patch('cloudinit.sources.helpers.upcloud.read_metadata')
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_v1_network_configuration(self, m_get_by_mac, mock_readmd):
+        mock_readmd.return_value = UC_METADATA.copy()
+
+        raw_ifaces = UC_METADATA.get('network').get('interfaces')
+        self.assertEqual(4, len(raw_ifaces))
+
+        m_get_by_mac.return_value = {
+            raw_ifaces[0].get('mac'): 'eth0',
+            raw_ifaces[1].get('mac'): 'eth1',
+            raw_ifaces[2].get('mac'): 'eth2',
+            raw_ifaces[3].get('mac'): 'eth3',
+        }
+
+        ds = self.get_ds()
+        ds.perform_dhcp_setup = False
+
+        # Version 2 is the defaults, so we're overriding the config option.
+        ds.network_config_version = 1
+
+        ret = ds.get_data()
+        self.assertTrue(ret)
+
+        self.assertTrue(mock_readmd.called)
+
+        netcfg = ds.network_config
 
         self.assertEqual(1, netcfg.get('version'))
 

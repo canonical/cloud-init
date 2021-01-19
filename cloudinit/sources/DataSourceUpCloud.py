@@ -23,6 +23,7 @@ BUILTIN_DS_CONFIG = {"metadata_url": "http://169.254.169.254/metadata/v1.json"}
 MD_RETRIES = 5
 MD_TIMEOUT = 2
 MD_WAIT_RETRY = 2
+MD_NETWORK_CONFIG_VERSION = 2
 
 
 class DataSourceUpCloud(sources.DataSource):
@@ -46,6 +47,9 @@ class DataSourceUpCloud(sources.DataSource):
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
+        self.network_config_version = self.ds_cfg.get(
+            "network_config_version", MD_NETWORK_CONFIG_VERSION
+        )
         self._network_config = None
 
     def _get_sysinfo(self):
@@ -117,9 +121,10 @@ class DataSourceUpCloud(sources.DataSource):
 
     @property
     def network_config(self):
-        """Configure the networking. This needs to be done each boot,
-           since the IP and interface information might have changed
-           due to reconfiguration.
+        """
+        Configure the networking. This needs to be done each boot,
+        since the IP and interface information might have changed
+        due to reconfiguration.
         """
 
         if self._network_config:
@@ -129,14 +134,16 @@ class DataSourceUpCloud(sources.DataSource):
         if not raw_network_config:
             raise Exception("Unable to get network meta-data from server....")
 
-        self._network_config = uc_helper.convert_to_network_config_v1(
-            raw_network_config
+        self._network_config = uc_helper.convert_network_config(
+            raw_network_config, self.network_config_version
         )
+
         return self._network_config
 
 
 class DataSourceUpCloudLocal(DataSourceUpCloud):
-    """Run in init-local using a DHCP discovery prior to metadata crawl.
+    """
+    Run in init-local using a DHCP discovery prior to metadata crawl.
 
     In init-local, no network is available. This subclass sets up minimal
     networking with dhclient on a viable nic so that it can talk to the
