@@ -274,7 +274,10 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertTrue('dhcp4' in ethernets.get('eth0'))
         self.assertTrue(ethernets.get('eth0').get('dhcp4'))
 
-        self.assertEqual(raw_ifaces[2].get('mac'), ethernets.get('eth2').get('match').get('macaddress'))
+        self.assertEqual(
+            raw_ifaces[2].get('mac'),
+            ethernets.get('eth2').get('match').get('macaddress')
+        )
         self.assertEqual(1, len(ethernets.get('eth0').get('addresses')))
 
         self.assertTrue('dhcp4' not in ethernets.get('eth2'))
@@ -282,7 +285,6 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertTrue(ethernets.get('eth2').get('dhcp6'))
         self.assertTrue('accept_ra' in ethernets.get('eth2'))
         self.assertTrue(ethernets.get('eth2').get('accept_ra'))
-
 
     @mock.patch('cloudinit.sources.helpers.upcloud.read_metadata')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
