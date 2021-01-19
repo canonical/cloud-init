@@ -416,7 +416,7 @@ class DataSourceOVFNet(DataSourceOVF):
 
 
 def get_max_wait_from_cfg(cfg):
-    default_max_wait = 90
+    default_max_wait = 15
     max_wait_cfg_option = 'vmware_cust_file_max_wait'
     max_wait = default_max_wait
 
