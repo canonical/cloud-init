@@ -362,6 +362,7 @@ class Init(object):
     def update(self):
         self._store_userdata()
         self._store_vendordata()
+        self._store_vendordata2()
 
     def setup_datasource(self):
         with events.ReportEventStack("setup-datasource",
@@ -404,6 +405,18 @@ class Init(object):
         util.write_file(self._get_ipath('vendordata'), str(processed_vd),
                         0o600)
 
+    def _store_vendordata2(self):
+        raw_vd = self.datasource.get_vendordata2_raw()
+        if raw_vd is None:
+            raw_vd = b''
+        util.write_file(self._get_ipath('vendordata2_raw'), raw_vd, 0o600)
+        # processed vendor data is a Mime message, so write it as string.
+        processed_vd = str(self.datasource.get_vendordata2())
+        if processed_vd is None:
+            processed_vd = ''
+        util.write_file(self._get_ipath('vendordata2'), str(processed_vd),
+                        0o600)
+
     def _default_handlers(self, opts=None):
         if opts is None:
             opts = {}
@@ -433,6 +446,11 @@ class Init(object):
         return self._default_handlers(
             opts={'script_path': 'vendor_scripts',
                   'cloud_config_path': 'vendor_cloud_config'})
+
+    def _default_vendordata2_handlers(self):
+        return self._default_handlers(
+            opts={'script_path': 'vendor_scripts',
+                  'cloud_config_path': 'vendor2_cloud_config'})
 
     def _do_handlers(self, data_msg, c_handlers_list, frequency,
                      excluded=None):
@@ -557,6 +575,11 @@ class Init(object):
                                      parent=self.reporter):
             self._consume_vendordata(frequency)
 
+        with events.ReportEventStack("consume-vendor-data2",
+                                     "reading and applying vendor-data2",
+                                     parent=self.reporter):
+            self._consume_vendordata2(frequency)
+
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
         # this consumed set.
@@ -611,6 +634,47 @@ class Init(object):
 
         # Run the handlers
         self._do_handlers(vendor_data_msg, c_handlers_list, frequency,
+                          excluded=no_handlers)
+
+    def _consume_vendordata2(self, frequency=PER_INSTANCE):
+        """
+        Consume the vendordata2 and run the part handlers on it
+        """
+        if not self.datasource.get_vendordata2_raw():
+            LOG.debug("no vendordata2 from datasource")
+            return
+
+        _cc_merger = helpers.ConfigMerger(paths=self._paths,
+                                          datasource=self.datasource,
+                                          additional_fns=[],
+                                          base_cfg=self.cfg,
+                                          include_vendor=False)
+        vdcfg = _cc_merger.cfg.get('vendor_data2', {})
+
+        if not isinstance(vdcfg, dict):
+            vdcfg = {'enabled': False}
+            LOG.warning("invalid 'vendor_data' setting. resetting to: %s",
+                        vdcfg)
+
+        enabled = vdcfg.get('enabled')
+        no_handlers = vdcfg.get('disabled_handlers', None)
+
+        if not util.is_true(enabled):
+            LOG.debug("vendordata2 consumption is disabled.")
+            return
+
+        LOG.debug("vendordata2 will be consumed. disabled_handlers=%s",
+                  no_handlers)
+
+        # Ensure vendordata source fetched before activation (just incase)
+        vendor2_data_msg = self.datasource.get_vendordata2()
+
+        # This keeps track of all the active handlers, while excluding what the
+        # users doesn't want run, i.e. boot_hook, cloud_config, shell_script
+        c_handlers_list = self._default_vendordata2_handlers()
+
+        # Run the handlers
+        self._do_handlers(vendor2_data_msg, c_handlers_list, frequency,
                           excluded=no_handlers)
 
     def _consume_userdata(self, frequency=PER_INSTANCE):
