@@ -18,8 +18,8 @@ configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
 
 The settings that may be configured are:
 
- * vmware_cust_file_max_wait: the maximum amount of clock time in seconds
-that should be spent waiting for vmware customization files. (default: 15)
+ * vmware_cust_file_max_wait: the maximum amount of clock time in seconds that
+   should be spent waiting for vmware customization files. (default: 15)
 
 
 On VMware platforms, VMTools use is required for OVF datasource configuration
