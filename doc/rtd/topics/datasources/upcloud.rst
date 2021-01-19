@@ -28,6 +28,6 @@ UpCloud's datasource can be configured as follows:
 
 .. _UpCloud: https://upcloud.com/
 .. _metadata service: https://developers.upcloud.com/1.3/8-servers/#metadata-service
-.. _Full documentation: https://developers.upcloud.com/1.3/8-servers/#metadata-service
+.. _Full documentation: https://upcloud.com/community/tutorials/upcloud-metadata-service/
 
 .. vi: textwidth=78
