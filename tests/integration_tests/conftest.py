@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import datetime
+import functools
 import logging
 import pytest
 import os
@@ -18,6 +19,7 @@ from tests.integration_tests.clouds import (
     LxdContainerCloud,
     LxdVmCloud,
     OciCloud,
+    _LxdIntegrationCloud,
 )
 from tests.integration_tests.instances import (
     CloudInitSource,
@@ -71,6 +73,12 @@ def pytest_runtest_setup(item):
     supported_os_set = set(os_list).intersection(test_marks)
     if current_os and supported_os_set and current_os not in supported_os_set:
         pytest.skip("Cannot run on OS {}".format(current_os))
+    if 'unstable' in test_marks and not integration_settings.RUN_UNSTABLE:
+        pytest.skip('Test marked unstable. Manually remove mark to run it')
+
+    current_release = image.release
+    if "not_{}".format(current_release) in test_marks:
+        pytest.skip("Cannot run on release {}".format(current_release))
 
 
 # disable_subp_usage is defined at a higher level, but we don't
@@ -100,6 +108,7 @@ def session_cloud():
 
 
 def get_validated_source(
+    session_cloud: IntegrationCloud,
     source=integration_settings.CLOUD_INIT_SOURCE
 ) -> CloudInitSource:
     if source == 'NONE':
@@ -126,7 +135,7 @@ def setup_image(session_cloud: IntegrationCloud):
     So we can launch instances / run tests with the correct image
     """
 
-    source = get_validated_source()
+    source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         return
     log.info('Setting up environment for %s', session_cloud.datasource)
@@ -165,6 +174,7 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
     log_dir = Path(
         integration_settings.LOCAL_LOG_PATH
     ) / session_start_time / node_id_path
+    log.info("Writing logs to %s", log_dir)
     if not log_dir.exists():
         log_dir.mkdir(parents=True)
     tarball_path = log_dir / 'cloud-init.tar.gz'
@@ -176,20 +186,27 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
 
 
 @contextmanager
-def _client(request, fixture_utils, session_cloud):
+def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     """Fixture implementation for the client fixtures.
 
     Launch the dynamic IntegrationClient instance using any provided
     userdata, yield to the test, then cleanup
     """
-    user_data = fixture_utils.closest_marker_first_arg_or(
-        request, 'user_data', None)
-    name = fixture_utils.closest_marker_first_arg_or(
-        request, 'instance_name', None
+    getter = functools.partial(
+        fixture_utils.closest_marker_first_arg_or, request, default=None
     )
+    user_data = getter('user_data')
+    name = getter('instance_name')
+    lxd_config_dict = getter('lxd_config_dict')
+
     launch_kwargs = {}
     if name is not None:
-        launch_kwargs = {"name": name}
+        launch_kwargs["name"] = name
+    if lxd_config_dict is not None:
+        if not isinstance(session_cloud, _LxdIntegrationCloud):
+            pytest.skip("lxd_config_dict requires LXD")
+        launch_kwargs["config_dict"] = lxd_config_dict
+
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs
     ) as instance:
@@ -244,3 +261,20 @@ def pytest_assertrepr_compare(op, left, right):
                 '"{}" not in cloud-init.log string; unexpectedly found on'
                 " these lines:".format(left)
             ] + found_lines
+
+
+def pytest_configure(config):
+    """Perform initial configuration, before the test runs start.
+
+    This hook is only called if integration tests are being executed, so we can
+    use it to configure defaults for integration testing that differ from the
+    rest of the tests in the codebase.
+
+    See
+    https://docs.pytest.org/en/latest/reference.html#_pytest.hookspec.pytest_configure
+    for pytest's documentation.
+    """
+    if "log_cli_level" in config.option and not config.option.log_cli_level:
+        # If log_cli_level is available in this version of pytest and not set
+        # to anything, set it to INFO.
+        config.option.log_cli_level = "INFO"

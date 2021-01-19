@@ -1,5 +1,6 @@
 import logging
 import pytest
+import time
 from pathlib import Path
 
 from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
@@ -40,9 +41,22 @@ def _output_to_compare(instance, file_path, netcfg_path):
             f.write(instance.execute(command) + '\n')
 
 
+def _restart(instance):
+    # work around pad.lv/1908287
+    try:
+        instance.restart(raise_on_cloudinit_failure=True)
+    except OSError as e:
+        for _ in range(10):
+            time.sleep(5)
+            result = instance.execute('cloud-init status --wait --long')
+            if result.ok:
+                return
+        raise e
+
+
 @pytest.mark.sru_2020_11
 def test_upgrade(session_cloud: IntegrationCloud):
-    source = get_validated_source()
+    source = get_validated_source(session_cloud)
     if not source.installs_new_version():
         pytest.skip("Install method '{}' not supported for this test".format(
             source
@@ -50,9 +64,7 @@ def test_upgrade(session_cloud: IntegrationCloud):
         return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {
-        'name': 'integration-upgrade-test',
         'image_id': session_cloud._get_initial_image(),
-        'wait': True,
     }
 
     image = ImageSpecification.from_os_image()
@@ -60,7 +72,8 @@ def test_upgrade(session_cloud: IntegrationCloud):
     # Get the paths to write test logs
     output_dir = Path(session_cloud.settings.LOCAL_LOG_PATH)
     output_dir.mkdir(parents=True, exist_ok=True)
-    base_filename = 'test_upgrade_{os}_{{stage}}_{time}.log'.format(
+    base_filename = 'test_upgrade_{platform}_{os}_{{stage}}_{time}.log'.format(
+        platform=session_cloud.settings.PLATFORM,
         os=image.release,
         time=session_start_time,
     )
@@ -75,12 +88,12 @@ def test_upgrade(session_cloud: IntegrationCloud):
             netcfg_path = '/etc/network/interfaces.d/50-cloud-init.cfg'
 
     with session_cloud.launch(
-        launch_kwargs=launch_kwargs, user_data=USER_DATA
+        launch_kwargs=launch_kwargs, user_data=USER_DATA, wait=True,
     ) as instance:
         _output_to_compare(instance, before_path, netcfg_path)
         instance.install_new_cloud_init(source, take_snapshot=False)
         instance.execute('hostname something-else')
-        instance.restart(raise_on_cloudinit_failure=True)
+        _restart(instance)
         _output_to_compare(instance, after_path, netcfg_path)
 
     log.info('Wrote upgrade test logs to %s and %s', before_path, after_path)
