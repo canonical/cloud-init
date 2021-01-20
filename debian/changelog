@@ -1,3 +1,22 @@
+cloud-init (20.4-66-gad23441d-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Add antonyc to .github-cla-signers (#747) [Anton Chaporgin]
+    - integration_tests: log image serial if available (#772)
+    - Revert "ssh_util: handle non-default AuthorizedKeysFile config (#586)"
+      (#775) (LP: #1911680)
+    - [VMware] Support cloudinit raw data feature (#691) [xiaofengw-vmware]
+    - net: Fix static routes to host in eni renderer (#668) [Pavel Abalikhin]
+    - .travis.yml: don't run cloud_tests in CI (#756)
+    - test_upgrade: add some missing commas (#769)
+    - cc_seed_random: update documentation and fix integration test (#771)
+      (LP: #1911227)
+    - Fix test gh-632 test to only run on NoCloud (#770) (LP: #1911230)
+    - archlinux: fix package upgrade command handling (#768) [Bao Trinh]
+    - integration_tests: add integration test for LP: #1910835 (#761)
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Wed, 20 Jan 2021 13:15:55 -0500
+
 cloud-init (20.4-55-g4f62ae8d-0ubuntu1) hirsute; urgency=medium
 
   * New upstream snapshot.
