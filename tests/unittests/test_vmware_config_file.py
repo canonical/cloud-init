@@ -17,7 +17,6 @@ from cloudinit.sources.DataSourceOVF import read_vmware_imc
 from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
-from cloudinit.sources.helpers.vmware.imc.config_nic import gen_subnet
 from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
 from cloudinit.tests.helpers import CiTestCase
 
@@ -173,16 +172,6 @@ class TestVmwareConfigFile(CiTestCase):
         self.assertEqual(['eng.vmware.com', 'proxy.vmware.com'],
                          dns_suffixes,
                          "suffixes")
-
-    def test_gen_subnet(self):
-        """Tests if gen_subnet properly calculates network subnet from
-           IPv4 address and netmask"""
-        ip_subnet_list = [['10.20.87.253', '255.255.252.0', '10.20.84.0'],
-                          ['10.20.92.105', '255.255.252.0', '10.20.92.0'],
-                          ['192.168.0.10', '255.255.0.0', '192.168.0.0']]
-        for entry in ip_subnet_list:
-            self.assertEqual(entry[2], gen_subnet(entry[0], entry[1]),
-                             "Subnet for a specified ip and netmask")
 
     def test_get_config_dns_suffixes(self):
         """Tests if get_network_config_from_conf properly
@@ -447,7 +436,7 @@ class TestVmwareNetConfig(CiTestCase):
                   {'control': 'auto', 'type': 'static',
                    'address': '10.20.87.154', 'netmask': '255.255.252.0',
                    'routes':
-                       [{'type': 'route', 'destination': '10.20.84.0/22',
+                       [{'type': 'route', 'destination': '0.0.0.0/0',
                          'gateway': '10.20.87.253', 'metric': 10000}]}]}],
             nc.generate())
 
@@ -489,7 +478,7 @@ class TestVmwareNetConfig(CiTestCase):
                   {'control': 'auto', 'type': 'static',
                    'address': '100.115.223.75', 'netmask': '255.255.255.0',
                    'routes':
-                       [{'type': 'route', 'destination': '100.115.223.0/24',
+                       [{'type': 'route', 'destination': '0.0.0.0/0',
                          'gateway': '100.115.223.254', 'metric': 10000}]}]}],
             nc.generate())
 

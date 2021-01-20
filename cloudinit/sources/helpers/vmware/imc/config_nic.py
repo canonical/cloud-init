@@ -9,27 +9,10 @@ import logging
 import os
 import re
 
-from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit import subp
 from cloudinit import util
 
 logger = logging.getLogger(__name__)
-
-
-def gen_subnet(ip, netmask):
-    """
-    Return the subnet for a given ip address and a netmask
-    @return (str): the subnet
-    @param ip: ip address
-    @param netmask: netmask
-    """
-    ip_array = ip.split(".")
-    mask_array = netmask.split(".")
-    result = []
-    for index in list(range(4)):
-        result.append(int(ip_array[index]) & int(mask_array[index]))
-
-    return ".".join([str(x) for x in result])
 
 
 class NicConfigurator(object):
@@ -167,24 +150,21 @@ class NicConfigurator(object):
         # Add routes if there is no primary nic
         if not self._primaryNic and v4.gateways:
             subnet.update(
-                {'routes': self.gen_ipv4_route(nic, v4.gateways, v4.netmask)})
+                {'routes': self.gen_ipv4_default_route(nic, v4.gateways)})
 
         return ([subnet], route_list)
 
-    def gen_ipv4_route(self, nic, gateways, netmask):
+    def gen_ipv4_default_route(self, nic, gateways):
         """
-        Return the routes list needed to configure additional Ipv4 route
+        Return the routes list to configure additional Ipv4 default route
         @return (list): the route list to configure the gateways
         @param nic (NicBase): the nic to configure
         @param gateways (str list): the list of gateways
         """
         route_list = []
 
-        cidr = mask_to_net_prefix(netmask)
-
         for gateway in gateways:
-            destination = "%s/%d" % (gen_subnet(gateway, netmask), cidr)
-            route_list.append({'destination': destination,
+            route_list.append({'destination': '0.0.0.0/0',
                                'type': 'route',
                                'gateway': gateway,
                                'metric': 10000})
