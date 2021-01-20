@@ -173,6 +173,9 @@ class IntegrationCloud(ABC):
                 'cloud-init version: %s',
                 instance.execute("cloud-init --version")
             )
+            serial = instance.execute("grep serial /etc/cloud/build.info")
+            if serial:
+                log.info('image serial: %s', serial.split()[1])
         return instance
 
     def get_instance(self, cloud_instance, settings=integration_settings):

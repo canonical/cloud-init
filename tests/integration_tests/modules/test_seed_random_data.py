@@ -25,4 +25,4 @@ class TestSeedRandomData:
     @pytest.mark.user_data(USER_DATA)
     def test_seed_random_data(self, client):
         seed_output = client.read_from_file("/root/seed")
-        assert seed_output.strip() == "MYUb34023nD:LFDK10913jk;dfnk:Df"
+        assert seed_output.startswith("MYUb34023nD:LFDK10913jk;dfnk:Df")
