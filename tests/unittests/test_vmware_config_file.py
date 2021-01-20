@@ -525,5 +525,21 @@ class TestVmwareNetConfig(CiTestCase):
                    'gateway': '10.20.87.253'}]}],
             nc.generate())
 
+    def test_meta_data(self):
+        cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
+        conf = Config(cf)
+        self.assertIsNone(conf.meta_data_name)
+        cf._insertKey("CLOUDINIT|METADATA", "test-metadata")
+        conf = Config(cf)
+        self.assertEqual("test-metadata", conf.meta_data_name)
+
+    def test_user_data(self):
+        cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
+        conf = Config(cf)
+        self.assertIsNone(conf.user_data_name)
+        cf._insertKey("CLOUDINIT|USERDATA", "test-userdata")
+        conf = Config(cf)
+        self.assertEqual("test-userdata", conf.user_data_name)
+
 
 # vi: ts=4 expandtab

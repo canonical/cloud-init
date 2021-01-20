@@ -26,9 +26,9 @@ def _output_to_compare(instance, file_path, netcfg_path):
         # have broken across re-constitution of a cached datasource. Some
         # platforms invalidate their datasource cache on reboot, so we run
         # it here to ensure we get a dirty run.
-        'cloud-init init'
+        'cloud-init init',
         'grep Trace /var/log/cloud-init.log',
-        'cloud-id'
+        'cloud-id',
         'cat {}'.format(netcfg_path),
         'systemd-analyze',
         'systemd-analyze blame',

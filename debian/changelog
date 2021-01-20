@@ -1,3 +1,22 @@
+cloud-init (20.4-66-gad23441d-0ubuntu1) hirsute; urgency=medium
+
+  * New upstream snapshot.
+    - Add antonyc to .github-cla-signers (#747) [Anton Chaporgin]
+    - integration_tests: log image serial if available (#772)
+    - Revert "ssh_util: handle non-default AuthorizedKeysFile config (#586)"
+      (#775) (LP: #1911680)
+    - [VMware] Support cloudinit raw data feature (#691) [xiaofengw-vmware]
+    - net: Fix static routes to host in eni renderer (#668) [Pavel Abalikhin]
+    - .travis.yml: don't run cloud_tests in CI (#756)
+    - test_upgrade: add some missing commas (#769)
+    - cc_seed_random: update documentation and fix integration test (#771)
+      (LP: #1911227)
+    - Fix test gh-632 test to only run on NoCloud (#770) (LP: #1911230)
+    - archlinux: fix package upgrade command handling (#768) [Bao Trinh]
+    - integration_tests: add integration test for LP: #1910835 (#761)
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Wed, 20 Jan 2021 13:15:55 -0500
+
 cloud-init (20.4-55-g4f62ae8d-0ubuntu1) hirsute; urgency=medium
 
   * New upstream snapshot.
@@ -16,7 +35,7 @@ cloud-init (20.4-55-g4f62ae8d-0ubuntu1) hirsute; urgency=medium
     - integration_tests: port ca_certs tests from cloud_tests (#732)
     - Azure: Add telemetry for poll IMDS (#741) [Johnson Shi]
     - doc: move testing section from HACKING to its own doc (#739)
-    - No longer allow integration test failures on travis (#738) [James Falcon]
+    - No longer allow integration test failures on travis (#738)
     - stale: fix error in definition (#740)
     - integration_tests: set log-cli-level to INFO by default (#737)
     - PULL_REQUEST_TEMPLATE.md: use backticks around commit message (#736)
@@ -29,44 +48,40 @@ cloud-init (20.4-55-g4f62ae8d-0ubuntu1) hirsute; urgency=medium
       [Thomas Stringer]
     - doc: fix CloudStack configuration example (#707) [Olivier Lemasle]
     - integration_tests: restrict test_lxd_bridge appropriately (#730)
-    - Add integration tests for CLI functionality (#729) [James Falcon]
-    - Integration test for gh-626 (#728) [James Falcon]
-    - Some test_upgrade fixes (#726) [James Falcon]
+    - Add integration tests for CLI functionality (#729)
+    - Integration test for gh-626 (#728)
+    - Some test_upgrade fixes (#726)
     - Ensure overriding test vars with env vars works for booleans (#727)
-      [James Falcon]
     - integration_tests: port lxd_bridge test from cloud_tests (#718)
-    - Integration test for gh-632. (#725) [James Falcon]
-    - Integration test for gh-671 (#724) [James Falcon]
+    - Integration test for gh-632. (#725)
+    - Integration test for gh-671 (#724)
     - integration-requirements.txt: bump pycloudlib commit (#723)
     - Drop unnecessary shebang from cmd/main.py (#722) [Eduardo Otubo]
-    - Integration test for LP: #1813396 and #669 (#719) [James Falcon]
+    - Integration test for LP: #1813396 and #669 (#719)
     - integration_tests: include timestamp in log output (#720)
     - integration_tests: add test for LP: #1898997 (#713)
-    - Add integration test for power_state_change module (#717) [James Falcon]
+    - Add integration test for power_state_change module (#717)
     - Update documentation for network-config-format-v2 (#701) [ggiesen]
     - sandbox CA Cert tests to not require ca-certificates (#715)
       [Eduardo Otubo]
-    - Add upgrade integration test (#693) [James Falcon]
-    - Integration test for 570 (#712) [James Falcon]
+    - Add upgrade integration test (#693)
+    - Integration test for 570 (#712)
     - Add ability to keep snapshotted images in integration tests (#711)
-      [James Falcon]
-    - Integration test for pull #586 (#706) [James Falcon]
+    - Integration test for pull #586 (#706)
     - integration_tests: introduce skipping of tests by OS (#702)
     - integration_tests: introduce IntegrationInstance.restart (#708)
     - Add lxd-vm to list of valid integration test platforms (#705)
-      [James Falcon]
     - Adding BOOTPROTO = dhcp to render sysconfig dhcp6 stateful on RHEL
       (#685) [Eduardo Otubo]
     - Delete image snapshots created for integration tests (#682)
-      [James Falcon]
     - Parametrize ssh_keys_provided integration test (#700) [lucasmoura]
     - Drop use_sudo attribute on IntegrationInstance (#694) [lucasmoura]
     - cc_apt_configure: add riscv64 as a ports arch (#687)
       [Dimitri John Ledkov]
     - cla: add xnox (#692) [Dimitri John Ledkov]
-    - Collect logs from integration test runs (#675) [James Falcon]
+    - Collect logs from integration test runs (#675)
 
- -- Daniel Watkins <oddbloke@ubuntu.com>  Mon, 11 Jan 2021 16:50:12 -0500
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Mon, 11 Jan 2021 16:57:30 -0500
 
 cloud-init (20.4-0ubuntu2) hirsute; urgency=medium
 
