@@ -5,15 +5,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """
-RedHat Subscription
--------------------
+Red Hat Subscription
+--------------------
 **Summary:** register red hat enterprise linux based system
 
-Register a RedHat system either by username and password *or* activation and
+Register a Red Hat system either by username and password *or* activation and
 org. Following a sucessful registration, you can auto-attach subscriptions, set
 the service level, add subscriptions based on pool id, enable/disable yum
 repositories based on repo id, and alter the rhsm_baseurl and server-hostname
-in ``/etc/rhsm/rhs.conf``. For more details, see the ``Register RedHat
+in ``/etc/rhsm/rhs.conf``. For more details, see the ``Register Red Hat
 Subscription`` example config.
 
 **Internal name:** ``cc_rh_subscription``
