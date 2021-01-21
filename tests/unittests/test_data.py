@@ -135,7 +135,9 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
 '''
         self.reRoot()
         initer = stages.Init()
-        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob, vendordata2=vendor2_blob)
+        initer.datasource = FakeDataSource(user_blob,
+                                           vendordata=vendor_blob,
+                                           vendordata2=vendor2_blob)
         initer.read_cfg()
         initer.initialize()
         initer.fetch()
@@ -324,7 +326,9 @@ vendor_data:
 '''
         new_root = self.reRoot()
         initer = stages.Init()
-        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob, vendordata2=vendor2_blob)
+        initer.datasource = FakeDataSource(user_blob,
+                                           vendordata=vendor_blob,
+                                           vendordata2=vendor2_blob)
         initer.read_cfg()
         initer.initialize()
         initer.fetch()

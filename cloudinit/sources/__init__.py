@@ -187,7 +187,8 @@ class DataSource(metaclass=abc.ABCMeta):
     cached_attr_defaults = (
         ('ec2_metadata', UNSET), ('network_json', UNSET),
         ('metadata', {}), ('userdata', None), ('userdata_raw', None),
-        ('vendordata', None), ('vendordata_raw', None), ('vendordata2', None), ('vendordata2_raw', None))
+        ('vendordata', None), ('vendordata_raw', None),
+        ('vendordata2', None), ('vendordata2_raw', None))
 
     _dirty_cache = False
 
