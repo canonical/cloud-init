@@ -172,9 +172,8 @@ class DataSourceOVF(sources.DataSource):
                 if network:
                     self._network_config = network
                 else:
-                    self._network_config = (
-                        self.distro.generate_fallback_config()
-                    )
+                    LOG.debug("Network not found, disable network config.")
+                    self._network_config = {'config': 'disabled'}
 
             except safeyaml.YAMLError as e:
                 _raise_error_status(

@@ -631,6 +631,55 @@ class TestDatasourceOVF(CiTestCase):
 
         self.assertIn('is not found', str(context.exception))
 
+    def test_get_data_cloudinit_metadata_no_network(self):
+        """Test network config disabled if no network in meta data
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False}, distro={},
+            paths=paths)
+
+        # Prepare the conf file
+        conf_file = self.tmp_path('test-cust', self.tdir)
+        conf_content = dedent("""\
+            [CLOUDINIT]
+            METADATA = test-meta
+            USERDATA = test-user
+            """)
+        util.write_file(conf_file, conf_content)
+
+        # Prepare the meta data file
+        metadata_file = self.tmp_path('test-meta', self.tdir)
+        # no network in meta data
+        metadata_content = dedent("""\
+            instance-id: cloud-vm
+            local-hostname: my-host.domain.com
+            """)
+        util.write_file(metadata_file, metadata_content)
+
+        # Prepare the user data file
+        userdata_file = self.tmp_path('test-user', self.tdir)
+        userdata_content = "This is the user data"
+        util.write_file(userdata_file, userdata_content)
+
+        with mock.patch(MPATH + 'set_customization_status',
+                        return_value=('msg', b'')):
+            result = wrap_and_call(
+                'cloudinit.sources.DataSourceOVF',
+                {'dmi.read_dmi_data': 'vmware',
+                 'util.del_dir': True,
+                 'search_file': self.tdir,
+                 'wait_for_imc_cfg_file': conf_file,
+                 'collect_imc_file_paths': [self.tdir + '/test-meta',
+                                            self.tdir + '/test-user', ''],
+                 'get_nics_to_enable': ''},
+                ds._get_data)
+
+        self.assertTrue(result)
+        self.assertEqual("cloud-vm", ds.metadata['instance-id'])
+        self.assertEqual("disabled", ds._network_config['config'])
+        self.assertEqual(userdata_content, ds.userdata_raw)
+
 
 class TestTransportIso9660(CiTestCase):
 
