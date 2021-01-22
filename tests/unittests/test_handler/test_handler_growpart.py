@@ -274,19 +274,17 @@ class TestResize(unittest.TestCase):
             os.stat = real_stat
 
 
-def simple_device_part_info_lvm(devpath):
+def simple_device_part_info_lvm(devpath, is_lvm):
     # simple stupid return (/dev/vda, 1) for /dev/vda
     ret = re.search("([^0-9]*)([0-9]*)$", devpath)
-    is_lvm = True
-    x = (ret.group(1), ret.group(2), is_lvm)
+    x = (ret.group(1), ret.group(2))
     return x
 
 
-def simple_device_part_info(devpath):
+def simple_device_part_info(devpath, is_lvm):
     # simple stupid return (/dev/vda, 1) for /dev/vda
     ret = re.search("([^0-9]*)([0-9]*)$", devpath)
-    is_lvm = False
-    x = (ret.group(1), ret.group(2), is_lvm)
+    x = (ret.group(1), ret.group(2))
     return x
 
 

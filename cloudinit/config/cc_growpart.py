@@ -69,6 +69,7 @@ import os.path
 import re
 import stat
 
+from functools import lru_cache
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import subp
@@ -91,6 +92,53 @@ class RESIZE(object):
 
 
 LOG = logging.getLogger(__name__)
+
+
+@lru_cache()
+def is_lvm_lv(devpath):
+    if util.is_Linux():
+        # all lvm lvs will have a realpath as a 'dm-*' name.
+        rpath = os.path.realpath(devpath)
+        if not os.path.basename(rpath).startswith("dm-"):
+            return False
+        out, _ = subp.subp("udevadm", "info", devpath)
+        # lvs should have DM_LV_NAME=<lvmuuid> and also DM_VG_NAME
+        return 'DM_LV_NAME=' in out
+    else:
+        return False
+
+
+@lru_cache()
+def get_pvs_for_lv(devpath):
+    myenv = {'LANG': 'C'}
+
+    if util.is_Linux():
+        try:
+            (out, _err) = subp.subp(["lvm", "lvs", devpath, "--options=vgname",
+                                     "--noheadings"], update_env=myenv)
+            vgname = out.strip()
+        except subp.ProcessExecutionError as e:
+            if e.exit_code != 0:
+                util.logexc(LOG, "Failed: can't get Volume Group information "
+                            "from %s", devpath)
+                raise ResizeFailedException(e) from e
+
+        try:
+            (out, _err) = subp.subp(["lvm", "vgs", vgname, "--options=pvname",
+                                     "--noheadings"], update_env=myenv)
+            pvs = [p.strip() for p in out.splitlines()]
+            if len(pvs) > 1:
+                util.logexc(LOG, "Do not know how to resize multiple Physical"
+                            " Volumes")
+            else:
+                return pvs[0]
+        except subp.ProcessExecutionError as e:
+            if e.exit_code != 0:
+                util.logexc(LOG, "Failed: can't get Physical Volume "
+                            "information from Volume Group %s", vgname)
+                raise ResizeFailedException(e) from e
+    else:
+        return False
 
 
 def resizer_factory(mode):
@@ -208,36 +256,16 @@ def get_size(filename):
         os.close(fd)
 
 
-def device_part_info(devpath):
+def device_part_info(devpath, is_lvm):
     # convert an entry in /dev/ to parent disk and partition number
-    myenv = os.environ.copy()
-    myenv['LANG'] = 'C'
 
     # input of /dev/vdb or /dev/disk/by-label/foo
     # rpath is hopefully a real-ish path in /dev (vda, sdb..)
     rpath = os.path.realpath(devpath)
 
-    is_lvm = True if re.search('.*dm.*', rpath) else False
+    # first check if this is an LVM and get its PVs
     if is_lvm:
-        try:
-            (out, _err) = subp.subp(["lvm", "lvs", devpath, "-o", "vgname",
-                                     "--noheadings"], env=myenv)
-            vgname = out.strip()
-        except subp.ProcessExecutionError as e:
-            if e.exit_code != 0:
-                util.logexc(LOG, "Failed: can't get Volume Group information "
-                                 "from %s", devpath)
-                raise ResizeFailedException(e) from e
-
-        try:
-            (out, _err) = subp.subp(["lvm", "vgs", vgname.strip(), "-o",
-                                    "pvname", "--noheadings"], env=myenv)
-            rpath = out.strip()
-        except subp.ProcessExecutionError as e:
-            if e.exit_code != 0:
-                util.logexc(LOG, "Failed: can't get Physical Volume "
-                            "information from Volume Group %s", vgname)
-                raise ResizeFailedException(e) from e
+        rpath = get_pvs_for_lv(devpath)
 
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
@@ -247,7 +275,7 @@ def device_part_info(devpath):
     if util.is_FreeBSD():
         freebsd_part = "/dev/" + util.find_freebsd_part(devpath)
         m = re.search('^(/dev/.+)p([0-9])$', freebsd_part)
-        return (m.group(1), m.group(2), is_lvm)
+        return (m.group(1), m.group(2))
 
     if not os.path.exists(syspath):
         raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
@@ -268,7 +296,7 @@ def device_part_info(devpath):
 
     # diskdevpath has something like 253:0
     # and udev has put links in /dev/block/253:0 to the device name in /dev/
-    return (diskdevpath, ptnum, is_lvm)
+    return diskdevpath, ptnum
 
 
 def devent2dev(devent):
@@ -296,8 +324,6 @@ def devent2dev(devent):
 
 def resize_devices(resizer, devices):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
-    myenv = os.environ.copy()
-    myenv['LANG'] = 'C'
     info = []
     for devent in devices:
         try:
@@ -320,8 +346,9 @@ def resize_devices(resizer, devices):
                          "device '%s' not a block device" % blockdev,))
             continue
 
+        is_lvm = is_lvm_lv(blockdev)
         try:
-            (disk, ptnum, is_lvm) = device_part_info(blockdev)
+            disk, ptnum = device_part_info(blockdev, is_lvm)
         except (TypeError, ValueError) as e:
             info.append((devent, RESIZE.SKIPPED,
                          "device_part_info(%s) failed: %s" % (blockdev, e),))
@@ -342,11 +369,12 @@ def resize_devices(resizer, devices):
                          "failed to resize: disk=%s, ptnum=%s: %s" %
                          (disk, ptnum, e),))
 
-        if is_lvm and type(resizer).__name__ == "ResizeGrowPart":
+        if is_lvm and isinstance(resizer, ResizeGrowPart):
             try:
                 if len(devices) == 1:
-                    (_out, _err) = subp.subp(["lvm", "lvextend", "---extents",
-                                             "100%FREE", blockdev], env=myenv)
+                    (_out, _err) = subp.subp(["lvm", "lvextend", "--extents=",
+                                             "100%FREE", blockdev],
+                                             update_env={'LANG': 'C'})
                     info.append((devent, RESIZE.CHANGED,
                                  "Logical Volume %s extended" % devices[0],))
                 else:
