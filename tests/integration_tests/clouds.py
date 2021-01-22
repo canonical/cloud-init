@@ -216,9 +216,6 @@ class GceCloud(IntegrationCloud):
     def _get_cloud_instance(self):
         return GCE(
             tag='gce-integration-test',
-            project=self.settings.GCE_PROJECT,
-            region=self.settings.GCE_REGION,
-            zone=self.settings.GCE_ZONE,
         )
 
 
@@ -246,8 +243,7 @@ class OciCloud(IntegrationCloud):
 
     def _get_cloud_instance(self):
         return OCI(
-            tag='oci-integration-test',
-            compartment_id=self.settings.OCI_COMPARTMENT_ID
+            tag='oci-integration-test'
         )
 
 
