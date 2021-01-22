@@ -166,7 +166,17 @@ class IntegrationCloud(ABC):
         if wait:
             pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         log.info('Launched instance: %s', pycloudlib_instance)
-        return self.get_instance(pycloudlib_instance, settings)
+        instance = self.get_instance(pycloudlib_instance, settings)
+        if wait:
+            # If we aren't waiting, we can't rely on command execution here
+            log.info(
+                'cloud-init version: %s',
+                instance.execute("cloud-init --version")
+            )
+            serial = instance.execute("grep serial /etc/cloud/build.info")
+            if serial:
+                log.info('image serial: %s', serial.split()[1])
+        return instance
 
     def get_instance(self, cloud_instance, settings=integration_settings):
         return self.integration_instance_cls(self, cloud_instance, settings)
