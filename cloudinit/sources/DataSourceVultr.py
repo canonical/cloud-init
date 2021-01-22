@@ -59,7 +59,7 @@ class DataSourceVultr(sources.DataSource):
 
         md = self.get_metadata()
 
-        self.metadata_full = md["v1"]
+        self.metadata_full = md
         self.metadata['instanceid'] = self.metadata_full['instanceid']
         self.metadata['local-hostname'] = re.sub(
             r'\W+', '', self.metadata_full['hostname'])
@@ -68,7 +68,7 @@ class DataSourceVultr(sources.DataSource):
         if self.metadata['local-hostname'] == "":
             self.metadata['local-hostname'] = "vultr"
 
-        self.metadata['public-keys'] = md["ssh-keys"].splitlines()
+        self.metadata['public-keys'] = md["public-keys"].splitlines()
         self.userdata_raw = md["user-data"]
         if self.userdata_raw == "":
             self.userdata_raw = None

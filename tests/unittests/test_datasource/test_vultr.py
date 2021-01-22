@@ -15,157 +15,157 @@ from cloudinit.sources.helpers import vultr
 from cloudinit.tests.helpers import mock, CiTestCase
 
 # Vultr metadata test data
-VULTR_V1_1 = """
-{
-    "bgp": {
-        "ipv4": {
-            "my-address": "",
-            "my-asn": "",
-            "peer-address": "",
-            "peer-asn": ""
+VULTR_V1_1 = {
+    'bgp': {
+        'ipv4': {
+            'my-address': '',
+            'my-asn': '',
+            'peer-address': '',
+            'peer-asn': ''
         },
-        "ipv6": {
-            "my-address": "",
-            "my-asn": "",
-            "peer-address": "",
-            "peer-asn": ""
+        'ipv6': {
+            'my-address': '',
+            'my-asn': '',
+            'peer-address': '',
+            'peer-asn': ''
         }
     },
-    "hostname": "CLOUDINIT_1",
-    "instanceid": "42506325",
-    "interfaces": [
+    'hostname': 'CLOUDINIT_1',
+    'instanceid': '42506325',
+    'interfaces': [
         {
-            "ipv4": {
-                "additional": [
+            'ipv4': {
+                'additional': [
                 ],
-                "address": "108.61.89.242",
-                "gateway": "108.61.89.1",
-                "netmask": "255.255.255.0"
+                'address': '108.61.89.242',
+                'gateway': '108.61.89.1',
+                'netmask': '255.255.255.0'
             },
-            "ipv6": {
-                "additional": [
+            'ipv6': {
+                'additional': [
                 ],
-                "address": "2001:19f0:5:56c2:5400:03ff:fe15:c465",
-                "network": "2001:19f0:5:56c2::",
-                "prefix": "64"
+                'address': '2001:19f0:5:56c2:5400:03ff:fe15:c465',
+                'network': '2001:19f0:5:56c2::',
+                'prefix': '64'
             },
-            "mac": "56:00:03:15:c4:65",
-            "network-type": "public"
+            'mac': '56:00:03:15:c4:65',
+            'network-type': 'public'
         }
     ],
-    "public-keys": "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key\\n",
-    "region": {
-        "regioncode": "EWR"
+    'public-keys': 'ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key\n',
+    'region': {
+        'regioncode': 'EWR'
     },
-    "user-defined": [
-    ]
-}
-"""
-VULTR_VENDOR_1 = {
-    'package_upgrade': 'true',
-    'disable_root': 0,
-    'packages': [],
-    'ssh_pwauth': 1,
-    'chpasswd': {
-        'expire': False,
-        'list': [
-            'root:$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/'
-        ]
-    },
-    'system_info': {
-        'default_user': {
-            'name': 'root'
+    'user-defined': [
+    ],
+    'startup-script': 'echo No configured startup script',
+    'user-data': [
+    ],
+    'vendor-config': {
+        'package_upgrade': 'true',
+        'disable_root': 0,
+        'packages': [],
+        'ssh_pwauth': 1,
+        'chpasswd': {
+            'expire': False,
+            'list': [
+                'root:$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/'
+            ]
+        },
+        'system_info': {
+            'default_user': {
+                'name': 'root'
+            }
         }
     }
 }
 
-VULTR_V1_2 = """
-{
-    "bgp":{
-        "ipv4":{
-            "my-address":"",
-            "my-asn":"",
-            "peer-address":"",
-            "peer-asn":""
+VULTR_V1_2 = {
+    'bgp': {
+        'ipv4': {
+            'my-address': '',
+            'my-asn': '',
+            'peer-address': '',
+            'peer-asn': ''
         },
-        "ipv6":{
-            "my-address":"",
-            "my-asn":"",
-            "peer-address":"",
-            "peer-asn":""
+        'ipv6': {
+            'my-address': '',
+            'my-asn': '',
+            'peer-address': '',
+            'peer-asn': ''
         }
     },
-    "hostname":"CLOUDINIT_2",
-    "instance-v2-id":"29bea708-2e6e-480a-90ad-0e6b5d5ad62f",
-    "instanceid":"42872224",
-    "interfaces":[
+    'hostname': 'CLOUDINIT_2',
+    'instance-v2-id': '29bea708-2e6e-480a-90ad-0e6b5d5ad62f',
+    'instanceid': '42872224',
+    'interfaces': [
         {
-            "ipv4":{
-                "additional":[
+            'ipv4': {
+                'additional': [
                 ],
-                "address":"45.76.7.171",
-                "gateway":"45.76.6.1",
-                "netmask":"255.255.254.0"
+                'address':'45.76.7.171',
+                'gateway':'45.76.6.1',
+                'netmask':'255.255.254.0'
             },
-            "ipv6":{
-                "additional":[
+            'ipv6':{
+                'additional': [
                 ],
-                "address":"2001:19f0:5:28a7:5400:03ff:fe1b:4eca",
-                "network":"2001:19f0:5:28a7::",
-                "prefix":"64"
+                'address':'2001:19f0:5:28a7:5400:03ff:fe1b:4eca',
+                'network':'2001:19f0:5:28a7::',
+                'prefix':'64'
             },
-            "mac":"56:00:03:1b:4e:ca",
-            "network-type":"public"
+            'mac':'56:00:03:1b:4e:ca',
+            'network-type':'public'
         },
         {
-            "ipv4":{
-                "additional":[
+            'ipv4': {
+                'additional': [
                 ],
-                "address":"10.1.112.3",
-                "gateway":"",
-                "netmask":"255.255.240.0"
+                'address':'10.1.112.3',
+                'gateway':'',
+                'netmask':'255.255.240.0'
             },
-            "ipv6":{
-                "additional":[
+            'ipv6':{
+                'additional': [
                 ],
-                "network":"",
-                "prefix":""
+                'network':'',
+                'prefix':''
             },
-            "mac":"5a:00:03:1b:4e:ca",
-            "network-type":"private",
-            "network-v2-id":"fbbe2b5b-b986-4396-87f5-7246660ccb64",
-            "networkid":"net5e7155329d730"
+            'mac':'5a:00:03:1b:4e:ca',
+            'network-type':'private',
+            'network-v2-id':'fbbe2b5b-b986-4396-87f5-7246660ccb64',
+            'networkid':'net5e7155329d730'
         }
     ],
-    "public-keys": "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key\\n",
-    "region":{
-        "regioncode":"EWR"
+    'public-keys': 'ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key\n',
+    'region': {
+        'regioncode': 'EWR'
     },
-    "user-defined":[
-    ]
-}
-"""
-VULTR_VENDOR_2 = {
-    'package_upgrade': 'true',
-    'disable_root': 0,
-    'packages': [],
-    'ssh_pwauth': 1,
-    'chpasswd': {
-        'expire': False,
-        'list': [
-            'root:$6$SxXx...k2mJNIzZB5vMCDBlYT1'
-        ]
-    },
-    'system_info': {
-        'default_user': {
-            'name': 'root'
+    'user-defined': [
+    ],
+    'startup-script': 'echo No configured startup script',
+    'user-data': [
+    ],
+    'vendor-config': {
+        'package_upgrade': 'true',
+        'disable_root': 0,
+        'packages': [],
+        'ssh_pwauth': 1,
+        'chpasswd': {
+            'expire': False,
+            'list': [
+                'root:$6$SxXx...k2mJNIzZB5vMCDBlYT1'
+            ]
+        },
+        'system_info': {
+            'default_user': {
+                'name': 'root'
+            }
         }
     }
 }
 
 SSH_KEYS_1 = [
-    "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM1c= test@key",
-    "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM2c= test2@key",
     "ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key"
 ]
 
@@ -345,13 +345,7 @@ class TestDataSourceVultr(CiTestCase):
                         mock_processnics,
                         mock_write_vendor_script):
         mock_processnics.return_value = True
-        mock_getmeta.return_value = {
-            "v1": json.loads(VULTR_V1_2),
-            "vendor-config": VULTR_VENDOR_2,
-            "user-data": "",
-            "ssh-keys": '\n'.join(SSH_KEYS_1),
-            "startup-script": ""
-        }
+        mock_getmeta.return_value = VULTR_V1_2
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
         mock_write_vendor_script.return_value = True
@@ -393,12 +387,7 @@ class TestDataSourceVultr(CiTestCase):
                         mock_processnics,
                         mock_write_vendor_script):
         mock_processnics.return_value = True
-        mock_getmeta.return_value = {
-            "user-data": "",
-            "startup-script": "",
-            "v1": json.loads(VULTR_V1_1),
-            "vendor-config": VULTR_VENDOR_1
-        }
+        mock_getmeta.return_value = VULTR_V1_1
 
         mock_netmap.return_value = INTERFACE_MAP
         mock_write_vendor_script.return_value = True
@@ -417,12 +406,7 @@ class TestDataSourceVultr(CiTestCase):
                         mock_processnics,
                         mock_write_vendor_script):
         mock_processnics.return_value = True
-        mock_getmeta.return_value = {
-            "user-data": "",
-            "startup-script": "",
-            "v1": json.loads(VULTR_V1_2),
-            "vendor-config": VULTR_VENDOR_2
-        }
+        mock_getmeta.return_value = VULTR_V1_2
 
         mock_netmap.return_value = INTERFACE_MAP
         mock_write_vendor_script.return_value = True
@@ -441,9 +425,7 @@ class TestDataSourceVultr(CiTestCase):
                             mock_processnics,
                             mock_write_vendor_script):
         mock_processnics.return_value = True
-        mock_getmeta.return_value = {
-            "v1": json.loads(VULTR_V1_1)
-        }
+        mock_getmeta.return_value = VULTR_V1_1
 
         mock_netmap.return_value = INTERFACE_MAP
         mock_write_vendor_script.return_value = True
@@ -462,9 +444,7 @@ class TestDataSourceVultr(CiTestCase):
                                     mock_processnics,
                                     mock_write_vendor_script):
         mock_processnics.return_value = True
-        mock_getmeta.return_value = {
-            "v1": json.loads(VULTR_V1_2)
-        }
+        mock_getmeta.return_value = VULTR_V1_2
 
         mock_netmap.return_value = INTERFACE_MAP
         mock_write_vendor_script.return_value = True

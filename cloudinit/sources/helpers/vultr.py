@@ -18,16 +18,6 @@ from cloudinit import subp
 # Get logger
 LOGGER = log.getLogger(__name__)
 
-# Dict of all API Endpoints
-API_MAP = {
-    "vendor-config": "/latest/meta-data/vendor-config",
-    "v1.json": "/v1.json",
-    "startup-script": "/latest/startup-script",
-    "user-data": "/latest/user-data",
-    "ssh-keys": "/current/ssh-keys"
-}
-
-
 # Cache
 MAC_TO_NICS = None
 METADATA = None
@@ -38,19 +28,12 @@ def get_metadata(params):
     global METADATA
 
     if not METADATA:
-        vendor = fetch_metadata("vendor-config", params)
-        vendor_object = json.loads(vendor)
-
-        v1 = fetch_metadata("v1.json", params)
+        v1 = fetch_metadata(params)
         v1_json = json.loads(v1)
+        METADATA = v1_json
 
-        METADATA = {
-            'vendor-config': vendor_object,
-            'v1': v1_json,
-            'startup-script': fetch_metadata("startup-script", params),
-            'user-data': fetch_metadata("user-data", params),
-            'ssh-keys': fetch_metadata("ssh-keys", params),
-        }
+        # This comes through as a string but is JSON, make a dict
+        METADATA['vendor-config'] = json.loads(METADATA['vendor-config'])
 
     return METADATA
 
@@ -104,7 +87,6 @@ def is_vultr():
 def write_vendor_script(fname, content):
     os.makedirs("/var/lib/scripts/vendor/", exist_ok=True)
     file = open("/var/lib/scripts/vendor/%s" % fname, "w")
-    file.write("#!/bin/bash")
     for line in content:
         file.write(line)
     file.close()
@@ -134,20 +116,10 @@ def read_metadata(params):
     return response.contents.decode()
 
 
-# Translate flag to endpoint
-def get_url(url, flag):
-    if flag in API_MAP:
-        return url + API_MAP[flag]
-    return ""
-
-
 # Get Metadata by flag
-def fetch_metadata(flag, params):
+def fetch_metadata(params):
     req = dict(params)
-    req['url'] = get_url(params['url'], flag)
-
-    if req['url'] == "":
-        raise RuntimeError("Not a valid endpoint. Flag: %s" % flag)
+    req['url'] = "%s/v1.json" % params['url']
 
     return read_metadata(req)
 
@@ -178,7 +150,7 @@ def bringup_nic(nic, config):
     md = get_metadata(config)
 
     # If it is not the primary turn it on, if it is off
-    if nic['mac_address'] != md['v1']['interfaces'][0]['mac']:
+    if nic['mac_address'] != md['interfaces'][0]['mac']:
         prefix = "/%s" % to_cidr(nic['subnets'][0]['netmask'])
         ip = nic['subnets'][0]['address'] + prefix
 
@@ -281,11 +253,11 @@ def generate_network_config(config):
     }
 
     # Prepare interface 0, public
-    if len(md['v1']['interfaces']) > 0:
+    if len(md['interfaces']) > 0:
         network['config'].append(generate_public_network_interface(md))
 
     # Prepare interface 1, private
-    if len(md['v1']['interfaces']) > 1:
+    if len(md['interfaces']) > 1:
         network['config'].append(generate_private_network_interface(md))
 
     return network
@@ -293,16 +265,16 @@ def generate_network_config(config):
 
 # Input Metadata and generate public network config part
 def generate_public_network_interface(md):
-    interface_name = get_interface_name(md['v1']['interfaces'][0]['mac'])
+    interface_name = get_interface_name(md['interfaces'][0]['mac'])
     if not interface_name:
         raise RuntimeError(
             "Interface: %s could not be found on the system" %
-            md['v1']['interfaces'][0]['mac'])
+            md['interfaces'][0]['mac'])
 
     netcfg = {
         "name": interface_name,
         "type": "physical",
-        "mac_address": md['v1']['interfaces'][0]['mac'],
+        "mac_address": md['interfaces'][0]['mac'],
         "accept-ra": 1,
         "subnets": [
             {
@@ -317,9 +289,9 @@ def generate_public_network_interface(md):
     }
 
     # Check for additional IP's
-    additional_count = len(md['v1']['interfaces'][0]['ipv4']['additional'])
-    if "ipv4" in md['v1']['interfaces'][0] and additional_count > 0:
-        for additional in md['v1']['interfaces'][0]['ipv4']['additional']:
+    additional_count = len(md['interfaces'][0]['ipv4']['additional'])
+    if "ipv4" in md['interfaces'][0] and additional_count > 0:
+        for additional in md['interfaces'][0]['ipv4']['additional']:
             add = {
                 "type": "static",
                 "control": "auto",
@@ -329,9 +301,9 @@ def generate_public_network_interface(md):
             netcfg['subnets'].append(add)
 
     # Check for additional IPv6's
-    additional_count = len(md['v1']['interfaces'][0]['ipv6']['additional'])
-    if "ipv6" in md['v1']['interfaces'][0] and additional_count > 0:
-        for additional in md['v1']['interfaces'][0]['ipv6']['additional']:
+    additional_count = len(md['interfaces'][0]['ipv6']['additional'])
+    if "ipv6" in md['interfaces'][0] and additional_count > 0:
+        for additional in md['interfaces'][0]['ipv6']['additional']:
             add = {
                 "type": "static6",
                 "control": "auto",
@@ -346,23 +318,23 @@ def generate_public_network_interface(md):
 
 # Input Metadata and generate private network config part
 def generate_private_network_interface(md):
-    interface_name = get_interface_name(md['v1']['interfaces'][1]['mac'])
+    interface_name = get_interface_name(md['interfaces'][1]['mac'])
     if not interface_name:
         raise RuntimeError(
             "Interface: %s could not be found on the system" %
-            md['v1']['interfaces'][1]['mac'])
+            md['interfaces'][1]['mac'])
 
     netcfg = {
         "name": interface_name,
         "type": "physical",
-        "mac_address": md['v1']['interfaces'][1]['mac'],
+        "mac_address": md['interfaces'][1]['mac'],
         "accept-ra": 1,
         "subnets": [
             {
                 "type": "static",
                 "control": "auto",
-                "address": md['v1']['interfaces'][1]['ipv4']['address'],
-                "netmask": md['v1']['interfaces'][1]['ipv4']['netmask']
+                "address": md['interfaces'][1]['ipv4']['address'],
+                "netmask": md['interfaces'][1]['ipv4']['netmask']
             }
         ]
     }
@@ -391,6 +363,7 @@ def generate_config(config):
 
     # Define vendor script
     vendor_script = []
+    vendor_script.append("!/bin/bash")
 
     # Go through the interfaces
     for netcfg in config_template['network']['config']:
@@ -401,15 +374,15 @@ def generate_config(config):
             if util.is_Linux():
                 # Set its multi-queue to num of cores as per RHEL Docs
                 name = netcfg['name']
-                command = "ethtool -L %s combined $(nproc --all)", name
+                command = "ethtool -L %s combined $(nproc --all)" % name
                 vendor_script.append(command)
 
     # Write vendor script
     write_vendor_script("vultr_deploy.sh", vendor_script)
 
     # Write the startup script
-    if "No configured startup script" not in script:
-        lines = script.split("\n")
+    if script and script != "echo No configured startup script":
+        lines = script.splitlines()
         write_vendor_script("vultr_user_startup.sh", lines)
 
     return config_template
