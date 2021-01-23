@@ -22,7 +22,8 @@ class TestLogPermissionsNotResetOnReboot:
         assert "600" == _get_log_perms(client)
 
         # Reboot
-        client.restart(raise_on_cloudinit_failure=True)
+        client.restart()
+        assert client.execute('cloud-init status').ok
 
         # Check that permissions are not reset on reboot
         assert "600" == _get_log_perms(client)
