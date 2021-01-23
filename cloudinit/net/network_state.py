@@ -771,6 +771,11 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             subnets.append(subnet)
         if cfg.get('dhcp6'):
             subnet = {'type': 'dhcp6'}
+            if 'accept_ra' in cfg:
+                if cfg.get('accept_ra'):
+                    subnet = {'type': 'ipv6_dhcpv6-stateless'}
+                else:
+                    subnet.update({'accept-ra': False})
             self.use_ipv6 = True
             _add_dhcp_overrides(cfg.get('dhcp6-overrides', {}), subnet)
             subnets.append(subnet)
@@ -788,11 +793,12 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 if 'gateway6' in cfg and gateway6 is None:
                     gateway6 = cfg.get('gateway6')
                     subnet.update({'gateway': gateway6})
+                if cfg.get('accept_ra'):
+                    subnet.update({'accept-ra': True})
             else:
                 if 'gateway4' in cfg and gateway4 is None:
                     gateway4 = cfg.get('gateway4')
                     subnet.update({'gateway': gateway4})
-
             if 'nameservers' in cfg and not nameservers:
                 addresses = cfg.get('nameservers').get('addresses')
                 if addresses:
