@@ -2125,6 +2125,7 @@ def _get_metadata_from_imds(
         api_version=IMDS_VER_MIN):
     url = "{}?api-version={}".format(md_type.value, api_version)
     headers = {"Metadata": "true"}
+    LOG.info("IMDS url: %s", url)
     try:
         response = readurl(
             url, timeout=IMDS_TIMEOUT_IN_SECONDS, headers=headers,
