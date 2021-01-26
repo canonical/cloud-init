@@ -59,9 +59,7 @@ class IntegrationInstance:
     def restart(self):
         """Restart this instance (via cloud mechanism) and wait for boot.
 
-        This wraps pycloudlib's `BaseInstance.restart` to pass
-        `raise_on_cloudinit_failure=False` to `BaseInstance.wait`, mirroring
-        our launch behaviour.
+        This wraps pycloudlib's `BaseInstance.restart`
         """
         log.info("Restarting instance and waiting for boot")
         self.instance.restart()
