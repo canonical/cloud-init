@@ -372,13 +372,13 @@ def resize_devices(resizer, devices):
         if is_lvm and isinstance(resizer, ResizeGrowPart):
             try:
                 if len(devices) == 1:
-                    (_out, _err) = subp.subp(["lvm", "lvextend", "--extents=",
-                                             "100%FREE", blockdev],
-                                             update_env={'LANG': 'C'})
+                    (_out, _err) = subp.subp(
+                        ["lvm", "lvextend", "--extents=100%FREE", blockdev],
+                        update_env={'LANG': 'C'})
                     info.append((devent, RESIZE.CHANGED,
                                  "Logical Volume %s extended" % devices[0],))
                 else:
-                    raise ValueError("Exactly one device should be configured "
+                    util.logexc(LOG, "Exactly one device should be configured "
                                      "to be resized when using LVM. More than "
                                      "one configured: %s" % devices)
             except (subp.ProcessExecutionError, ValueError) as e:
