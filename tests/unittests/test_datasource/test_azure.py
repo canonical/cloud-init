@@ -642,10 +642,6 @@ scbus-1 on xpt0 bus 0
             data['waited'] = flist
             return []
 
-        def _pubkeys_from_crt_files(flist):
-            data['pubkey_files'] = flist
-            return ["pubkey_from: %s" % f for f in flist]
-
         if data.get('ovfcontent') is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': data['ovfcontent']})
@@ -672,7 +668,6 @@ scbus-1 on xpt0 bus 0
 
         self.apply_patches([
             (dsaz, 'list_possible_azure_ds_devs', dsdevs),
-            (dsaz, 'pubkeys_from_crt_files', _pubkeys_from_crt_files),
             (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
             (dsaz, 'get_hostname', mock.MagicMock()),
             (dsaz, 'set_hostname', mock.MagicMock()),
