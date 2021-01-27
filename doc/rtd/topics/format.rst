@@ -23,9 +23,11 @@ Using a mime-multi part file, the user can specify more than one type of data.
 For example, both a user data script and a cloud-config type could be
 specified.
 
-Supported content-types are listed from the cloud-init subcommand make-mime::
+Supported content-types are listed from the cloud-init subcommand make-mime:
 
-    % cloud-init devel make-mime --list-types
+.. code-block:: shell-session
+
+    $ cloud-init devel make-mime --list-types
     cloud-boothook
     cloud-config
     cloud-config-archive
@@ -47,9 +49,11 @@ The cloud-init subcommand can generate MIME multi-part files: `make-mime`_.
 separated by a colon (e.g. ``config.yaml:cloud-config``) and emits a MIME
 multipart message to stdout.  An example invocation, assuming you have your
 cloud config in ``config.yaml`` and a shell script in ``script.sh`` and want
-to store the multipart message in ``user-data``::
+to store the multipart message in ``user-data``:
 
-    % cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > user-data
+.. code-block:: shell-session
+
+    $ cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > user-data
 
 .. _make-mime: https://github.com/canonical/cloud-init/blob/master/cloudinit/cmd/devel/make_mime.py
 
@@ -70,7 +74,7 @@ archive.
 Example
 -------
 
-::
+.. code-block:: shell-session
 
   $ cat myscript.sh
 
