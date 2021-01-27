@@ -2130,14 +2130,15 @@ def _get_metadata_from_imds(
         response = readurl(
             url, timeout=IMDS_TIMEOUT_IN_SECONDS, headers=headers,
             retries=retries, exception_cb=retry_on_url_exc)
-    except UrlError:
-        raise
     except Exception as e:
-        report_diagnostic_event(
-            'Ignoring IMDS instance metadata. '
-            'Get metadata from IMDS failed: %s' % e,
-            logger_func=LOG.warning)
-        return {}
+        if isinstance(e, UrlError) and e.code == 400:
+            raise
+        else:
+            report_diagnostic_event(
+                'Ignoring IMDS instance metadata. '
+                'Get metadata from IMDS failed: %s' % e,
+                logger_func=LOG.warning)
+            return {}
     try:
         from json.decoder import JSONDecodeError
         json_decode_error = JSONDecodeError
