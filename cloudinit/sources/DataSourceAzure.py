@@ -636,10 +636,10 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def get_imds_data(
-                self,
-                fallback_nic,
-                retries,
-                md_type=metadata_type.compute):
+            self,
+            fallback_nic,
+            retries,
+            md_type=metadata_type.compute):
         LOG.info("Attempting IMDS api-version: %s", self.api_version)
         if self.failed_desired_api_version:
             return get_metadata_from_imds(
@@ -2133,6 +2133,7 @@ def _get_metadata_from_imds(
             url, timeout=IMDS_TIMEOUT_IN_SECONDS, headers=headers,
             retries=retries, exception_cb=retry_on_url_exc)
     except Exception as e:
+        # pylint:disable=no-member
         if isinstance(e, UrlError) and e.code == 400:
             raise
         else:

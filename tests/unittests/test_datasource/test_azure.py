@@ -1823,12 +1823,14 @@ scbus-1 on xpt0 bus 0
         self.assertEqual(ssh_keys, ['key2'])
 
     @mock.patch(MOCKPATH + 'get_metadata_from_imds')
-    def test_imds_api_version_wanted_nonexistent(self, m_get_metadata_from_imds):
-        def get_metadata_from_imds_side_effect(*args, **kwargs):
+    def test_imds_api_version_wanted_nonexistent(
+            self,
+            m_get_metadata_from_imds):
+        def get_metadata_from_imds_side_eff(*args, **kwargs):
             if kwargs['api_version'] == dsaz.IMDS_VER_WANT:
                 raise url_helper.UrlError("No IMDS version", code=400)
             return NETWORK_METADATA
-        m_get_metadata_from_imds.side_effect = get_metadata_from_imds_side_effect
+        m_get_metadata_from_imds.side_effect = get_metadata_from_imds_side_eff
         sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
         odata = {'HostName': "myhost", 'UserName': "myuser"}
         data = {
@@ -1840,7 +1842,8 @@ scbus-1 on xpt0 bus 0
         self.assertIsNotNone(dsrc.metadata)
         self.assertEqual(dsrc.api_version, dsaz.IMDS_VER_MIN)
 
-    @mock.patch(MOCKPATH + 'get_metadata_from_imds', return_value=NETWORK_METADATA)
+    @mock.patch(
+        MOCKPATH + 'get_metadata_from_imds', return_value=NETWORK_METADATA)
     def test_imds_api_version_wanted_exists(self, m_get_metadata_from_imds):
         sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
         odata = {'HostName': "myhost", 'UserName': "myuser"}
