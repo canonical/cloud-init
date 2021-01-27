@@ -664,9 +664,12 @@ class DataSourceAzure(sources.DataSource):
                 )
                 if err.code == 400:
                     self.api_version = IMDS_VER_MIN
-                    LOG.info(
-                        "Falling back to IMDS api-version: %s",
+                    log_msg = "Falling back to IMDS api-version: {}".format(
                         self.api_version
+                    )
+                    report_diagnostic_event(
+                        log_msg,
+                        logger_func=LOG.info
                     )
                     self.failed_desired_api_version = True
                 raise
