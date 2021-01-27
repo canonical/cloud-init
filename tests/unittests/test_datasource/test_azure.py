@@ -638,9 +638,6 @@ scbus-1 on xpt0 bus 0
         def dsdevs():
             return data.get('dsdevs', [])
 
-        def _invoke_agent(cmd):
-            data['agent_invoked'] = cmd
-
         def _wait_for_files(flist, _maxwait=None, _naplen=None):
             data['waited'] = flist
             return []
@@ -675,7 +672,6 @@ scbus-1 on xpt0 bus 0
 
         self.apply_patches([
             (dsaz, 'list_possible_azure_ds_devs', dsdevs),
-            (dsaz, 'invoke_agent', _invoke_agent),
             (dsaz, 'pubkeys_from_crt_files', _pubkeys_from_crt_files),
             (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
             (dsaz, 'get_hostname', mock.MagicMock()),
@@ -1919,8 +1915,6 @@ class TestAzureBounce(CiTestCase):
     with_logs = True
 
     def mock_out_azure_moving_parts(self):
-        self.patches.enter_context(
-            mock.patch.object(dsaz, 'invoke_agent'))
         self.patches.enter_context(
             mock.patch.object(dsaz.util, 'wait_for_files'))
         self.patches.enter_context(
