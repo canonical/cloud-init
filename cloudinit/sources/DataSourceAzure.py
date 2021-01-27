@@ -2130,6 +2130,8 @@ def _get_metadata_from_imds(
         response = readurl(
             url, timeout=IMDS_TIMEOUT_IN_SECONDS, headers=headers,
             retries=retries, exception_cb=retry_on_url_exc)
+    except UrlError:
+        raise
     except Exception as e:
         report_diagnostic_event(
             'Ignoring IMDS instance metadata. '
