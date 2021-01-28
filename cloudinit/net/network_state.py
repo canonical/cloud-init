@@ -772,10 +772,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         if cfg.get('dhcp6'):
             subnet = {'type': 'dhcp6'}
             if 'accept-ra' in cfg:
-                if cfg.get('accept-ra'):
-                    subnet = {'type': 'ipv6_dhcpv6-stateless'}
-                else:
-                    subnet.update({'accept-ra': False})
+                subnet.update({'accept-ra': cfg.get('accept-ra')})
             self.use_ipv6 = True
             _add_dhcp_overrides(cfg.get('dhcp6-overrides', {}), subnet)
             subnets.append(subnet)
