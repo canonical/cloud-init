@@ -1,3 +1,6 @@
+20.4.1
+ - Revert "ssh_util: handle non-default AuthorizedKeysFile config (#586)"
+
 20.4
  - tox: avoid tox testenv subsvars for xenial support (#684)
  - Ensure proper root permissions in integration tests (#664) [James Falcon]
@@ -528,7 +531,7 @@
  - docs: add additional details to per-instance/once [Joshua Powers]
  - Update doc-requirements.txt [Joshua Powers]
  - doc-requirements: add missing dep [Joshua Powers]
- - dhcp: Support RedHat dhcp rfc3442 lease format for option 121 (#76)
+ - dhcp: Support Red Hat dhcp rfc3442 lease format for option 121 (#76)
    [Eric Lafontaine] (LP: #1850642)
  - network_state: handle empty v1 config (#45) (LP: #1852496)
  - docs: Add document on how to report bugs [Joshua Powers]

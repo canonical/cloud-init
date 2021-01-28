@@ -98,6 +98,11 @@ The cloud-init team will review the two merge proposals and verify that
 the CLA has been signed for the Launchpad user and record the
 associated GitHub account.
 
+.. note::
+   If you are a first time contributor, you will not need to touch
+   Launchpad to contribute to cloud-init: all new CLA signatures are
+   handled as part of the GitHub pull request process described above.
+
 Do these things for each feature or bug
 =======================================
 
