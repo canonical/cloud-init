@@ -1,6 +1,7 @@
 cloud-init (20.4.1-79-g71564dce-0ubuntu1) hirsute; urgency=medium
 
   * New upstream snapshot.
+    - Release 20.4.1 (LP: #1911680)
     - [VMware] change default max wait time to 15s (#774) [xiaofengw-vmware]
     - Revert integration test associated with reverted #586 (#784)
     - Add jordimassaguerpla as contributor (#787) [Jordi Massaguer Pla]
