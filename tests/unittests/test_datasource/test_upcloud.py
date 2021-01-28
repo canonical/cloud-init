@@ -285,9 +285,10 @@ class TestUpCloudNetworkSetup(CiTestCase):
         dns = config[4]
         self.assertEqual('nameserver', dns.get('type'))
         self.assertEqual(2, len(dns.get('address')))
-        self.assertEqual(UC_METADATA.get('network').get('dns')[1],
-                         dns.get('address')[1])
-
+        self.assertEqual(
+            UC_METADATA.get('network').get('dns')[1],
+            dns.get('address')[1]
+        )
 
     @mock.patch('cloudinit.sources.helpers.upcloud.read_metadata')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
