@@ -23,7 +23,7 @@ BUILTIN_DS_CONFIG = {"metadata_url": "http://169.254.169.254/metadata/v1.json"}
 MD_RETRIES = 5
 MD_TIMEOUT = 2
 MD_WAIT_RETRY = 2
-MD_NETWORK_CONFIG_VERSION = 2
+MD_NETWORK_CONFIG_VERSION = 1
 
 
 class DataSourceUpCloud(sources.DataSource):

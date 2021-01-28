@@ -145,7 +145,7 @@ def convert_to_network_config_v2(config):
             if ip_addr.get("dhcp"):
                 if ip_addr.get("family") == "IPv6":
                     interface["dhcp6"] = True
-                    interface["accept_ra"] = True
+                    interface["accept-ra"] = True
                     if "dns" in ip_addr:
                         iface_dns = ip_addr.get("dns")
                 else:
