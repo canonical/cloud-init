@@ -756,7 +756,6 @@ scbus-1 on xpt0 bus 0
             ret = dsrc.get_data()
             self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
             self.assertFalse(ret)
-            self.assertNotIn('agent_invoked', data)
             # Assert that for non viable platforms,
             # there is no communication with the Azure datasource.
             self.assertEqual(
@@ -780,7 +779,6 @@ scbus-1 on xpt0 bus 0
             ret = dsrc.get_data()
             self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
             self.assertFalse(ret)
-            self.assertNotIn('agent_invoked', data)
             self.assertEqual(
                 1,
                 m_report_failure.call_count)
@@ -797,7 +795,6 @@ scbus-1 on xpt0 bus 0
                 1,
                 m_crawl_metadata.call_count)
             self.assertFalse(ret)
-            self.assertNotIn('agent_invoked', data)
 
     def test_crawl_metadata_exception_should_report_failure_with_msg(self):
         data = {}
@@ -1077,21 +1074,6 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(os.path.isdir(self.waagent_d))
         self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0o700)
 
-    def test_user_cfg_set_agent_command_plain(self):
-        # set dscfg in via plaintext
-        # we must have friendly-to-xml formatted plaintext in yaml_cfg
-        # not all plaintext is expected to work.
-        yaml_cfg = "{agent_command: my_command}\n"
-        cfg = yaml.safe_load(yaml_cfg)
-        odata = {'HostName': "myhost", 'UserName': "myuser",
-                 'dscfg': {'text': yaml_cfg, 'encoding': 'plain'}}
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
-
-        dsrc = self._get_ds(data)
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(data['agent_invoked'], cfg['agent_command'])
-
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
     def test_network_config_set_from_imds(self, m_driver):
@@ -1195,29 +1177,6 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertEqual('eastus2', dsrc.region)
-
-    def test_user_cfg_set_agent_command(self):
-        # set dscfg in via base64 encoded yaml
-        cfg = {'agent_command': "my_command"}
-        odata = {'HostName': "myhost", 'UserName': "myuser",
-                 'dscfg': {'text': b64e(yaml.dump(cfg)),
-                           'encoding': 'base64'}}
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
-
-        dsrc = self._get_ds(data)
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(data['agent_invoked'], cfg['agent_command'])
-
-    def test_sys_cfg_set_agent_command(self):
-        sys_cfg = {'datasource': {'Azure': {'agent_command': '_COMMAND'}}}
-        data = {'ovfcontent': construct_valid_ovf_env(data={}),
-                'sys_cfg': sys_cfg}
-
-        dsrc = self._get_ds(data)
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(data['agent_invoked'], '_COMMAND')
 
     def test_sys_cfg_set_never_destroy_ntfs(self):
         sys_cfg = {'datasource': {'Azure': {
