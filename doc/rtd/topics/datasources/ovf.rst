@@ -13,6 +13,15 @@ source code tree in doc/sources/ovf
 
 Configuration
 -------------
+The following configuration can be set for the datasource in system
+configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
+
+The settings that may be configured are:
+
+ * vmware_cust_file_max_wait: the maximum amount of clock time in seconds that
+   should be spent waiting for vmware customization files. (default: 15)
+
+
 On VMware platforms, VMTools use is required for OVF datasource configuration
 settings as well as vCloud and vSphere admin configuration. User could change
 the VMTools configuration options with command::

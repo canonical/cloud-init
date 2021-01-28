@@ -34,5 +34,6 @@ def test_nocloud_seedfrom_vendordata(client: IntegrationInstance):
         VENDOR_DATA,
     )
     client.execute('cloud-init clean --logs')
-    client.restart(raise_on_cloudinit_failure=True)
+    client.restart()
+    assert client.execute('cloud-init status').ok
     assert 'seeded_vendordata_test_file' in client.execute('ls /var/tmp')

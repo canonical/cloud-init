@@ -1,3 +1,22 @@
+cloud-init (20.4.1-79-g71564dce-0ubuntu1) hirsute; urgency=medium
+
+  * New upstream snapshot.
+    - Release 20.4.1 (LP: #1911680)
+    - [VMware] change default max wait time to 15s (#774) [xiaofengw-vmware]
+    - Revert integration test associated with reverted #586 (#784)
+    - Add jordimassaguerpla as contributor (#787) [Jordi Massaguer Pla]
+    - Add Rick Harding to CLA signers (#792) [Rick Harding]
+    - HACKING.rst: add clarifying note to LP CLA process section (#789)
+    - Stop linting cloud_tests (#791)
+    - cloud-tests: update cryptography requirement (#790) [Joshua Powers]
+    - Remove 'remove-raise-on-failure' calls from integration_tests (#788)
+    - Use more cloud defaults in integration tests (#757)
+    - Adding self to cla signers (#776) [Andrew Bogott]
+    - doc: avoid two warnings (#781) [Dan Kenigsberg]
+    - Use proper spelling for Red Hat (#778) [Dan Kenigsberg]
+
+ -- Daniel Watkins <oddbloke@ubuntu.com>  Thu, 28 Jan 2021 10:50:23 -0500
+
 cloud-init (20.4-66-gad23441d-0ubuntu1) hirsute; urgency=medium
 
   * New upstream snapshot.

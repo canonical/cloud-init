@@ -14,12 +14,12 @@ Resolv Conf
 This module is intended to manage resolv.conf in environments where early
 configuration of resolv.conf is necessary for further bootstrapping and/or
 where configuration management such as puppet or chef own dns configuration.
-As Debian/Ubuntu will, by default, utilize resolvconf, and similarly RedHat
+As Debian/Ubuntu will, by default, utilize resolvconf, and similarly Red Hat
 will use sysconfig, this module is likely to be of little use unless those
 are configured correctly.
 
 .. note::
-    For RedHat with sysconfig, be sure to set PEERDNS=no for all DHCP
+    For Red Hat with sysconfig, be sure to set PEERDNS=no for all DHCP
     enabled NICs.
 
 .. note::
