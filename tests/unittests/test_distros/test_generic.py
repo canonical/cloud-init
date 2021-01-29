@@ -124,12 +124,13 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         d = cls("ubuntu", {}, None)
         self.patchOS(self.tmp)
         self.patchUtils(self.tmp)
-        util.write_file("/etc/sudoers", "@includedir /b")
-        d.ensure_sudo_dir("/b")
-        contents = util.load_file("/etc/sudoers")
-        self.assertIn("includedir /b", contents)
-        self.assertTrue(os.path.isdir("/b"))
-        self.assertEqual(1, contents.count("includedir /b"))
+        for char in ['#', '@']:
+            util.write_file("/etc/sudoers", "{}includedir /b".format(char))
+            d.ensure_sudo_dir("/b")
+            contents = util.load_file("/etc/sudoers")
+            self.assertIn("includedir /b", contents)
+            self.assertTrue(os.path.isdir("/b"))
+            self.assertEqual(1, contents.count("includedir /b"))
 
     def test_arch_package_mirror_info_unknown(self):
         """for an unknown arch, we should get back that with arch 'default'."""
