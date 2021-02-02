@@ -23,7 +23,6 @@ BUILTIN_DS_CONFIG = {"metadata_url": "http://169.254.169.254/metadata/v1.json"}
 MD_RETRIES = 5
 MD_TIMEOUT = 2
 MD_WAIT_RETRY = 2
-MD_NETWORK_CONFIG_VERSION = 1
 
 
 class DataSourceUpCloud(sources.DataSource):
@@ -47,9 +46,6 @@ class DataSourceUpCloud(sources.DataSource):
         self.retries = self.ds_cfg.get("retries", MD_RETRIES)
         self.timeout = self.ds_cfg.get("timeout", MD_TIMEOUT)
         self.wait_retry = self.ds_cfg.get("wait_retry", MD_WAIT_RETRY)
-        self.network_config_version = self.ds_cfg.get(
-            "network_config_version", MD_NETWORK_CONFIG_VERSION
-        )
         self._network_config = None
 
     def _get_sysinfo(self):
@@ -135,7 +131,7 @@ class DataSourceUpCloud(sources.DataSource):
             raise Exception("Unable to get network meta-data from server....")
 
         self._network_config = uc_helper.convert_network_config(
-            raw_network_config, self.network_config_version
+            raw_network_config,
         )
 
         return self._network_config
