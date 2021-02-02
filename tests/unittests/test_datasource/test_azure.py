@@ -1261,51 +1261,6 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, mydata.encode('utf-8'))
 
-    def test_cfg_has_pubkeys_fingerprint(self):
-        odata = {'HostName': "myhost", 'UserName': "myuser"}
-        mypklist = [{'fingerprint': 'fp1', 'path': 'path1', 'value': ''}]
-        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
-                                                      pubkeys=pubkeys)}
-
-        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        for mypk in mypklist:
-            self.assertIn(mypk, dsrc.cfg['_pubkeys'])
-            self.assertIn('pubkey_from', dsrc.metadata['public-keys'][-1])
-
-    def test_cfg_has_pubkeys_value(self):
-        # make sure that provided key is used over fingerprint
-        odata = {'HostName': "myhost", 'UserName': "myuser"}
-        mypklist = [{'fingerprint': 'fp1', 'path': 'path1', 'value': 'value1'}]
-        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
-                                                      pubkeys=pubkeys)}
-
-        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-
-        for mypk in mypklist:
-            self.assertIn(mypk, dsrc.cfg['_pubkeys'])
-            self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
-
-    def test_cfg_has_no_fingerprint_has_value(self):
-        # test value is used when fingerprint not provided
-        odata = {'HostName': "myhost", 'UserName': "myuser"}
-        mypklist = [{'fingerprint': None, 'path': 'path1', 'value': 'value1'}]
-        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
-                                                      pubkeys=pubkeys)}
-
-        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-
-        for mypk in mypklist:
-            self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
-
     def test_default_ephemeral_configs_ephemeral_exists(self):
         # make sure the ephemeral configs are correct if disk present
         odata = {}
