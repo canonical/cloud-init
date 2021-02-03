@@ -621,9 +621,21 @@ class DataSourceAzure(sources.DataSource):
 
         # Only merge in default cloud config related to the ephemeral disk
         # if the ephemeral disk exists
-        if os.path.exists(RESOURCE_DISK_PATH):
+        devpath = RESOURCE_DISK_PATH
+        if os.path.exists(devpath):
+            report_diagnostic_event(
+                "Ephemeral resource disk '%s' exists. "
+                "Merging default Azure cloud ephemeral disk configs."
+                % devpath,
+                logger_func=LOG.debug)
             self.cfg = util.mergemanydict(
                 [crawled_data['cfg'], BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG])
+        else:
+            report_diagnostic_event(
+                "Ephemeral resource disk '%s' does not exist. "
+                "Not merging default Azure cloud ephemeral disk configs."
+                % devpath,
+                logger_func=LOG.debug)
 
         self._metadata_imds = crawled_data['metadata']['imds']
         self.metadata = util.mergemanydict(
@@ -1477,9 +1489,13 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH,
                              is_new_instance=False, preserve_ntfs=False):
     if not os.path.exists(devpath):
         report_diagnostic_event(
-            "ephemeral resource disk '%s' does not exist." % devpath,
+            "Ephemeral resource disk '%s' does not exist." % devpath,
             logger_func=LOG.debug)
         return
+    else:
+        report_diagnostic_event(
+            "Ephemeral resource disk '%s' exists." % devpath,
+            logger_func=LOG.debug)
 
     result = False
     msg = None
