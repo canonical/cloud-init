@@ -360,9 +360,18 @@ class Init(object):
                            reporter=self.reporter)
 
     def update(self):
-        self._store_userdata()
-        self._store_vendordata()
-        self._store_vendordata2()
+        self._store_rawdata(self.datasource.get_userdata_raw(),
+                            'userdata')
+        self._store_processeddata(self.datasource.get_userdata(),
+                                  'userdata')
+        self._store_rawdata(self.datasource.get_vendordata_raw(),
+                            'vendordata')
+        self._store_processeddata(self.datasource.get_vendordata(),
+                                  'vendordata')
+        self._store_rawdata(self.datasource.get_vendordata2_raw(),
+                            'vendordata2')
+        self._store_processeddata(self.datasource.get_vendordata2(),
+                                  'vendordata2')
 
     def setup_datasource(self):
         with events.ReportEventStack("setup-datasource",
@@ -382,40 +391,18 @@ class Init(object):
                                      is_new_instance=self.is_new_instance())
             self._write_to_cache()
 
-    def _store_userdata(self):
-        raw_ud = self.datasource.get_userdata_raw()
-        if raw_ud is None:
-            raw_ud = b''
-        util.write_file(self._get_ipath('userdata_raw'), raw_ud, 0o600)
-        # processed userdata is a Mime message, so write it as string.
-        processed_ud = self.datasource.get_userdata()
-        if processed_ud is None:
-            raw_ud = ''
-        util.write_file(self._get_ipath('userdata'), str(processed_ud), 0o600)
+    def _store_rawdata(self, data, datasource):
+        # Raw data is bytes, not a string
+        if data is None:
+            data = b''
+        util.write_file(self._get_ipath('%s_raw' % datasource), data, 0o600)
 
-    def _store_vendordata(self):
-        raw_vd = self.datasource.get_vendordata_raw()
-        if raw_vd is None:
-            raw_vd = b''
-        util.write_file(self._get_ipath('vendordata_raw'), raw_vd, 0o600)
-        # processed vendor data is a Mime message, so write it as string.
-        processed_vd = str(self.datasource.get_vendordata())
-        if processed_vd is None:
-            processed_vd = ''
-        util.write_file(self._get_ipath('vendordata'), str(processed_vd),
-                        0o600)
-
-    def _store_vendordata2(self):
-        raw_vd = self.datasource.get_vendordata2_raw()
-        if raw_vd is None:
-            raw_vd = b''
-        util.write_file(self._get_ipath('vendordata2_raw'), raw_vd, 0o600)
-        # processed vendor data is a Mime message, so write it as string.
-        processed_vd = str(self.datasource.get_vendordata2())
-        if processed_vd is None:
-            processed_vd = ''
-        util.write_file(self._get_ipath('vendordata2'), str(processed_vd),
-                        0o600)
+    def _store_processeddata(self, data, datasource):
+        # processed is a Mime message, so write as string.
+        processeddata = str(data)
+        if processeddata is None:
+            processeddata = ''
+        util.write_file(self._get_ipath(datasource), str(processeddata), 0o600)
 
     def _default_handlers(self, opts=None):
         if opts is None:
