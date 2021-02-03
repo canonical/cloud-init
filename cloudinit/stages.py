@@ -560,12 +560,12 @@ class Init(object):
         with events.ReportEventStack("consume-vendor-data",
                                      "reading and applying vendor-data",
                                      parent=self.reporter):
-            self._consume_vendordata(frequency)
+            self._consume_vendordata("vendordata", frequency)
 
         with events.ReportEventStack("consume-vendor-data2",
                                      "reading and applying vendor-data2",
                                      parent=self.reporter):
-            self._consume_vendordata2(frequency)
+            self._consume_vendordata("vendordata2", frequency)
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
@@ -578,90 +578,66 @@ class Init(object):
         # objects before the load of the userdata happened,
         # this is expected.
 
-    def _consume_vendordata(self, frequency=PER_INSTANCE):
+    def _consume_vendordata(self, vendor_source, frequency=PER_INSTANCE):
         """
         Consume the vendordata and run the part handlers on it
         """
+
         # User-data should have been consumed first.
         # So we merge the other available cloud-configs (everything except
         # vendor provided), and check whether or not we should consume
         # vendor data at all. That gives user or system a chance to override.
-        if not self.datasource.get_vendordata_raw():
-            LOG.debug("no vendordata from datasource")
-            return
+        if vendor_source == 'vendordata':
+            if not self.datasource.get_vendordata_raw():
+                LOG.debug("no vendordata from datasource")
+                return
+            cfg_name = 'vendor_data'
+        elif vendor_source == 'vendordata2':
+            if not self.datasource.get_vendordata2_raw():
+                LOG.debug("no vendordata2 from datasource")
+                return
+            cfg_name = 'vendor_data2'
+        else:
+            raise RuntimeError("vendor_source arg must be either 'vendordata'"
+                               " or 'vendordata2'")
 
         _cc_merger = helpers.ConfigMerger(paths=self._paths,
                                           datasource=self.datasource,
                                           additional_fns=[],
                                           base_cfg=self.cfg,
                                           include_vendor=False)
-        vdcfg = _cc_merger.cfg.get('vendor_data', {})
+        vdcfg = _cc_merger.cfg.get(cfg_name, {})
 
         if not isinstance(vdcfg, dict):
             vdcfg = {'enabled': False}
-            LOG.warning("invalid 'vendor_data' setting. resetting to: %s",
-                        vdcfg)
+            LOG.warning("invalid %s setting. resetting to: %s",
+                        cfg_name, vdcfg)
 
         enabled = vdcfg.get('enabled')
         no_handlers = vdcfg.get('disabled_handlers', None)
 
         if not util.is_true(enabled):
-            LOG.debug("vendordata consumption is disabled.")
+            LOG.debug("%s consumption is disabled." % vendor_source)
             return
 
-        LOG.debug("vendor data will be consumed. disabled_handlers=%s",
-                  no_handlers)
+        LOG.debug("%s will be consumed. disabled_handlers=%s",
+                  vendor_source, no_handlers)
 
-        # Ensure vendordata source fetched before activation (just incase)
-        vendor_data_msg = self.datasource.get_vendordata()
+        # Ensure vendordata source fetched before activation (just in case.)
 
-        # This keeps track of all the active handlers, while excluding what the
-        # users doesn't want run, i.e. boot_hook, cloud_config, shell_script
-        c_handlers_list = self._default_vendordata_handlers()
+        # c_handlers_list keeps track of all the active handlers, while
+        # excluding what the users doesn't want run, i.e. boot_hook,
+        # cloud_config, shell_script
+        if vendor_source == 'vendordata':
+            vendor_data_msg = self.datasource.get_vendordata()
+            c_handlers_list = self._default_vendordata_handlers()
+        else:
+            vendor_data_msg = self.datasource.get_vendordata2()
+            c_handlers_list = self._default_vendordata2_handlers()
+
 
         # Run the handlers
         self._do_handlers(vendor_data_msg, c_handlers_list, frequency,
-                          excluded=no_handlers)
-
-    def _consume_vendordata2(self, frequency=PER_INSTANCE):
-        """
-        Consume the vendordata2 and run the part handlers on it
-        """
-        if not self.datasource.get_vendordata2_raw():
-            LOG.debug("no vendordata2 from datasource")
-            return
-
-        _cc_merger = helpers.ConfigMerger(paths=self._paths,
-                                          datasource=self.datasource,
-                                          additional_fns=[],
-                                          base_cfg=self.cfg,
-                                          include_vendor=False)
-        vdcfg = _cc_merger.cfg.get('vendor_data2', {})
-
-        if not isinstance(vdcfg, dict):
-            vdcfg = {'enabled': False}
-            LOG.warning("invalid 'vendor_data' setting. resetting to: %s",
-                        vdcfg)
-
-        enabled = vdcfg.get('enabled')
-        no_handlers = vdcfg.get('disabled_handlers', None)
-
-        if not util.is_true(enabled):
-            LOG.debug("vendordata2 consumption is disabled.")
-            return
-
-        LOG.debug("vendordata2 will be consumed. disabled_handlers=%s",
-                  no_handlers)
-
-        # Ensure vendordata source fetched before activation (just incase)
-        vendor2_data_msg = self.datasource.get_vendordata2()
-
-        # This keeps track of all the active handlers, while excluding what the
-        # users doesn't want run, i.e. boot_hook, cloud_config, shell_script
-        c_handlers_list = self._default_vendordata2_handlers()
-
-        # Run the handlers
-        self._do_handlers(vendor2_data_msg, c_handlers_list, frequency,
                           excluded=no_handlers)
 
     def _consume_userdata(self, frequency=PER_INSTANCE):
