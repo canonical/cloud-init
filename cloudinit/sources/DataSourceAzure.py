@@ -636,6 +636,7 @@ class DataSourceAzure(sources.DataSource):
                 "Not merging default Azure cloud ephemeral disk configs."
                 % devpath,
                 logger_func=LOG.debug)
+            self.cfg = crawled_data['cfg']
 
         self._metadata_imds = crawled_data['metadata']['imds']
         self.metadata = util.mergemanydict(
