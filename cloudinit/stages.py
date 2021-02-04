@@ -617,7 +617,7 @@ class Init(object):
         no_handlers = vdcfg.get('disabled_handlers', None)
 
         if not util.is_true(enabled):
-            LOG.debug("%s consumption is disabled." % vendor_source)
+            LOG.debug("%s consumption is disabled.", vendor_source)
             return
 
         LOG.debug("%s will be consumed. disabled_handlers=%s",
