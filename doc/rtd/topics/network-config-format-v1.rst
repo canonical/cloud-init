@@ -414,9 +414,19 @@ Subnet types are one of the following:
 - ``dhcp6``: Configure this interface with IPv6 dhcp.
 - ``static``: Configure this interface with a static IPv4.
 - ``static6``: Configure this interface with a static IPv6 .
+- ``ipv6_dhcpv6-stateful``: Configure this interface with ``dhcp6``
+- ``ipv6_dhcpv6-stateless``: Configure this interface with SLAAC and DHCP
+- ``ipv6_slaac``: Configure address with SLAAC
 
-When making use of ``dhcp`` types, no additional configuration is needed in
-the subnet dictionary.
+When making use of ``dhcp`` or either of the ``ipv6_dhcpv6`` types,
+no additional configuration is needed in the subnet dictionary.
+
+Using ``ipv6_dhcpv6-stateless`` or ``ipv6_slaac`` allows the IPv6 address to be
+automatically configured with StateLess Address AutoConfiguration (`SLAAC`_).
+SLAAC requires support from the network, so verify that your cloud or network
+offering has support before trying it out. With ``ipv6_dhcpv6-stateless``,
+DHCPv6 is still used to fetch other subnet details such as gateway or DNS
+servers. If you only want to discover the address, use ``ipv6_slaac``.
 
 
 **Subnet DHCP Example**::
@@ -602,5 +612,7 @@ Some more examples to explore the various options available.
       search:
       - dellstack
       type: nameserver
+
+.. _SLAAC: https://tools.ietf.org/html/rfc4862
 
 .. vi: textwidth=78

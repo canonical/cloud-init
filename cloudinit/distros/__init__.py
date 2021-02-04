@@ -673,7 +673,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
-            include_match = re.search(r"^#includedir\s+(.*)$", line)
+            include_match = re.search(r"^[#|@]includedir\s+(.*)$", line)
             if not include_match:
                 continue
             included_dir = include_match.group(1).strip()

@@ -91,6 +91,15 @@ class IntegrationCloud(ABC):
     def __init__(self, settings=integration_settings):
         self.settings = settings
         self.cloud_instance = self._get_cloud_instance()
+        if settings.PUBLIC_SSH_KEY is not None:
+            # If we have a non-default key, use it.
+            self.cloud_instance.use_key(
+                settings.PUBLIC_SSH_KEY, name=settings.KEYPAIR_NAME
+            )
+        elif settings.KEYPAIR_NAME is not None:
+            # Even if we're using the default key, it may still have a
+            # different name in the clouds, so we need to set it separately.
+            self.cloud_instance.key_pair.name = settings.KEYPAIR_NAME
         self._released_image_id = self._get_initial_image()
         self.snapshot_id = None
 
@@ -126,7 +135,7 @@ class IntegrationCloud(ABC):
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
         return pycloudlib_instance
 
-    def launch(self, user_data=None, launch_kwargs=None, wait=True,
+    def launch(self, user_data=None, launch_kwargs=None,
                settings=integration_settings):
         if launch_kwargs is None:
             launch_kwargs = {}
@@ -138,13 +147,9 @@ class IntegrationCloud(ABC):
                 self.settings.EXISTING_INSTANCE_ID
             )
             return
-        if 'wait' in launch_kwargs:
-            raise Exception("Specify 'wait' directly to launch, "
-                            "not in 'launch_kwargs'")
         kwargs = {
             'image_id': self.image_id,
             'user_data': user_data,
-            'wait': False,
         }
         kwargs.update(launch_kwargs)
         log.info(
@@ -154,10 +159,18 @@ class IntegrationCloud(ABC):
         )
 
         pycloudlib_instance = self._perform_launch(kwargs)
-        if wait:
-            pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         log.info('Launched instance: %s', pycloudlib_instance)
-        return self.get_instance(pycloudlib_instance, settings)
+        instance = self.get_instance(pycloudlib_instance, settings)
+        if kwargs.get('wait', True):
+            # If we aren't waiting, we can't rely on command execution here
+            log.info(
+                'cloud-init version: %s',
+                instance.execute("cloud-init --version")
+            )
+            serial = instance.execute("grep serial /etc/cloud/build.info")
+            if serial:
+                log.info('image serial: %s', serial.split()[1])
+        return instance
 
     def get_instance(self, cloud_instance, settings=integration_settings):
         return self.integration_instance_cls(self, cloud_instance, settings)
@@ -197,9 +210,6 @@ class GceCloud(IntegrationCloud):
     def _get_cloud_instance(self):
         return GCE(
             tag='gce-integration-test',
-            project=self.settings.GCE_PROJECT,
-            region=self.settings.GCE_REGION,
-            zone=self.settings.GCE_ZONE,
         )
 
 
@@ -227,8 +237,7 @@ class OciCloud(IntegrationCloud):
 
     def _get_cloud_instance(self):
         return OCI(
-            tag='oci-integration-test',
-            compartment_id=self.settings.OCI_COMPARTMENT_ID
+            tag='oci-integration-test'
         )
 
 
@@ -262,7 +271,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
 
     def _perform_launch(self, launch_kwargs):
         launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
-        launch_kwargs.pop('wait')
+        wait = launch_kwargs.pop('wait', True)
         release = launch_kwargs.pop('image_id')
 
         try:
@@ -278,7 +287,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
         )
         if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
             self._mount_source(pycloudlib_instance)
-        pycloudlib_instance.start(wait=False)
+        pycloudlib_instance.start(wait=wait)
         return pycloudlib_instance
 
 

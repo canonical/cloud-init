@@ -76,22 +76,16 @@ COLLECT_LOGS = 'ON_ERROR'
 LOCAL_LOG_PATH = '/tmp/cloud_init_test_logs'
 
 ##################################################################
-# GCE SPECIFIC SETTINGS
+# SSH KEY SETTINGS
 ##################################################################
-# Required for GCE
-GCE_PROJECT = None
 
-# You probably want to override these
-GCE_REGION = 'us-central1'
-GCE_ZONE = 'a'
+# A path to the public SSH key to use for test runs.  (Defaults to pycloudlib's
+# default behaviour, using ~/.ssh/id_rsa.pub.)
+PUBLIC_SSH_KEY = None
 
-##################################################################
-# OCI SPECIFIC SETTINGS
-##################################################################
-# Compartment-id found at
-# https://console.us-phoenix-1.oraclecloud.com/a/identity/compartments
-# Required for Oracle
-OCI_COMPARTMENT_ID = None
+# For clouds which use named keypairs for SSH connection, the name that is used
+# for the keypair.  (Defaults to pycloudlib's default behaviour.)
+KEYPAIR_NAME = None
 
 ##################################################################
 # USER SETTINGS OVERRIDES

@@ -26,9 +26,9 @@ def _output_to_compare(instance, file_path, netcfg_path):
         # have broken across re-constitution of a cached datasource. Some
         # platforms invalidate their datasource cache on reboot, so we run
         # it here to ensure we get a dirty run.
-        'cloud-init init'
+        'cloud-init init',
         'grep Trace /var/log/cloud-init.log',
-        'cloud-id'
+        'cloud-id',
         'cat {}'.format(netcfg_path),
         'systemd-analyze',
         'systemd-analyze blame',
@@ -43,15 +43,14 @@ def _output_to_compare(instance, file_path, netcfg_path):
 
 def _restart(instance):
     # work around pad.lv/1908287
-    try:
-        instance.restart(raise_on_cloudinit_failure=True)
-    except OSError as e:
+    instance.restart()
+    if not instance.execute('cloud-init status --wait --long').ok:
         for _ in range(10):
             time.sleep(5)
             result = instance.execute('cloud-init status --wait --long')
             if result.ok:
                 return
-        raise e
+        raise Exception("Cloud-init didn't finish starting up")
 
 
 @pytest.mark.sru_2020_11

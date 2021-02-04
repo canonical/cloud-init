@@ -27,6 +27,8 @@ class Config(object):
     UTC = 'DATETIME|UTC'
     POST_GC_STATUS = 'MISC|POST-GC-STATUS'
     DEFAULT_RUN_POST_SCRIPT = 'MISC|DEFAULT-RUN-POST-CUST-SCRIPT'
+    CLOUDINIT_META_DATA = 'CLOUDINIT|METADATA'
+    CLOUDINIT_USER_DATA = 'CLOUDINIT|USERDATA'
 
     def __init__(self, configFile):
         self._configFile = configFile
@@ -129,5 +131,15 @@ class Config(object):
         if defaultRunPostScript not in ('yes', 'no'):
             raise ValueError('defaultRunPostScript value should be yes/no')
         return defaultRunPostScript == 'yes'
+
+    @property
+    def meta_data_name(self):
+        """Return the name of cloud-init meta data."""
+        return self._configFile.get(Config.CLOUDINIT_META_DATA, None)
+
+    @property
+    def user_data_name(self):
+        """Return the name of cloud-init user data."""
+        return self._configFile.get(Config.CLOUDINIT_USER_DATA, None)
 
 # vi: ts=4 expandtab
