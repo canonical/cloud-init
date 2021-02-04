@@ -635,7 +635,6 @@ class Init(object):
             vendor_data_msg = self.datasource.get_vendordata2()
             c_handlers_list = self._default_vendordata2_handlers()
 
-
         # Run the handlers
         self._do_handlers(vendor_data_msg, c_handlers_list, frequency,
                           excluded=no_handlers)

@@ -84,9 +84,9 @@ including how it can be disabled by users on instances, see
 
 .. vi: textwidth=78
 
-OpenStack can also be configured to provide 'dynamic vendordata' which is provided by
-the DynamicJSON provider and appears under a different metadata path,
-/vendor_data2.json.
+OpenStack can also be configured to provide 'dynamic vendordata'
+which is provided by the DynamicJSON provider and appears under a
+different metadata path, /vendor_data2.json.
 
 Cloud-init will look for a ``cloud-init`` at the vendor_data2 path; if found,
 settings are applied after (and, hence, overriding) the settings from static
