@@ -401,7 +401,8 @@ class Init(object):
         # processed is a Mime message, so write as string.
         if processed_data is None:
             processed_data = ''
-        util.write_file(self._get_ipath(datasource), str(processed_data), 0o600)
+        util.write_file(self._get_ipath(datasource),
+                        str(processed_data), 0o600)
 
     def _default_handlers(self, opts=None):
         if opts is None:
