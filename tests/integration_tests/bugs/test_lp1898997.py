@@ -39,6 +39,7 @@ version: 2
     "volatile.eth0.hwaddr": MAC_ADDRESS,
 })
 @pytest.mark.lxd_vm
+@pytest.mark.lxd_use_exec
 @pytest.mark.not_bionic
 @pytest.mark.not_xenial
 @pytest.mark.sru_2020_11
