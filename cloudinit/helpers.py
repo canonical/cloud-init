@@ -230,6 +230,10 @@ class ConfigMerger(object):
 
         cc_paths = ['cloud_config']
         if self._include_vendor:
+            # the order is important here: we want vendor2
+            #  (dynamic vendor data from OpenStack)
+            #  to override vendor (static data from OpenStack)
+            cc_paths.append('vendor2_cloud_config')
             cc_paths.append('vendor_cloud_config')
 
         for cc_p in cc_paths:
@@ -337,9 +341,12 @@ class Paths(object):
             "obj_pkl": "obj.pkl",
             "cloud_config": "cloud-config.txt",
             "vendor_cloud_config": "vendor-cloud-config.txt",
+            "vendor2_cloud_config": "vendor2-cloud-config.txt",
             "data": "data",
             "vendordata_raw": "vendor-data.txt",
+            "vendordata2_raw": "vendor-data2.txt",
             "vendordata": "vendor-data.txt.i",
+            "vendordata2": "vendor-data2.txt.i",
             "instance_id": ".instance-id",
             "manual_clean_marker": "manual-clean",
             "warnings": "warnings",

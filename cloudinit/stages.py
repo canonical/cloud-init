@@ -360,8 +360,18 @@ class Init(object):
                            reporter=self.reporter)
 
     def update(self):
-        self._store_userdata()
-        self._store_vendordata()
+        self._store_rawdata(self.datasource.get_userdata_raw(),
+                            'userdata')
+        self._store_processeddata(self.datasource.get_userdata(),
+                                  'userdata')
+        self._store_rawdata(self.datasource.get_vendordata_raw(),
+                            'vendordata')
+        self._store_processeddata(self.datasource.get_vendordata(),
+                                  'vendordata')
+        self._store_rawdata(self.datasource.get_vendordata2_raw(),
+                            'vendordata2')
+        self._store_processeddata(self.datasource.get_vendordata2(),
+                                  'vendordata2')
 
     def setup_datasource(self):
         with events.ReportEventStack("setup-datasource",
@@ -381,28 +391,18 @@ class Init(object):
                                      is_new_instance=self.is_new_instance())
             self._write_to_cache()
 
-    def _store_userdata(self):
-        raw_ud = self.datasource.get_userdata_raw()
-        if raw_ud is None:
-            raw_ud = b''
-        util.write_file(self._get_ipath('userdata_raw'), raw_ud, 0o600)
-        # processed userdata is a Mime message, so write it as string.
-        processed_ud = self.datasource.get_userdata()
-        if processed_ud is None:
-            raw_ud = ''
-        util.write_file(self._get_ipath('userdata'), str(processed_ud), 0o600)
+    def _store_rawdata(self, data, datasource):
+        # Raw data is bytes, not a string
+        if data is None:
+            data = b''
+        util.write_file(self._get_ipath('%s_raw' % datasource), data, 0o600)
 
-    def _store_vendordata(self):
-        raw_vd = self.datasource.get_vendordata_raw()
-        if raw_vd is None:
-            raw_vd = b''
-        util.write_file(self._get_ipath('vendordata_raw'), raw_vd, 0o600)
-        # processed vendor data is a Mime message, so write it as string.
-        processed_vd = str(self.datasource.get_vendordata())
-        if processed_vd is None:
-            processed_vd = ''
-        util.write_file(self._get_ipath('vendordata'), str(processed_vd),
-                        0o600)
+    def _store_processeddata(self, processed_data, datasource):
+        # processed is a Mime message, so write as string.
+        if processed_data is None:
+            processed_data = ''
+        util.write_file(self._get_ipath(datasource),
+                        str(processed_data), 0o600)
 
     def _default_handlers(self, opts=None):
         if opts is None:
@@ -433,6 +433,11 @@ class Init(object):
         return self._default_handlers(
             opts={'script_path': 'vendor_scripts',
                   'cloud_config_path': 'vendor_cloud_config'})
+
+    def _default_vendordata2_handlers(self):
+        return self._default_handlers(
+            opts={'script_path': 'vendor_scripts',
+                  'cloud_config_path': 'vendor2_cloud_config'})
 
     def _do_handlers(self, data_msg, c_handlers_list, frequency,
                      excluded=None):
@@ -555,7 +560,12 @@ class Init(object):
         with events.ReportEventStack("consume-vendor-data",
                                      "reading and applying vendor-data",
                                      parent=self.reporter):
-            self._consume_vendordata(frequency)
+            self._consume_vendordata("vendordata", frequency)
+
+        with events.ReportEventStack("consume-vendor-data2",
+                                     "reading and applying vendor-data2",
+                                     parent=self.reporter):
+            self._consume_vendordata("vendordata2", frequency)
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
@@ -568,46 +578,62 @@ class Init(object):
         # objects before the load of the userdata happened,
         # this is expected.
 
-    def _consume_vendordata(self, frequency=PER_INSTANCE):
+    def _consume_vendordata(self, vendor_source, frequency=PER_INSTANCE):
         """
         Consume the vendordata and run the part handlers on it
         """
+
         # User-data should have been consumed first.
         # So we merge the other available cloud-configs (everything except
         # vendor provided), and check whether or not we should consume
         # vendor data at all. That gives user or system a chance to override.
-        if not self.datasource.get_vendordata_raw():
-            LOG.debug("no vendordata from datasource")
-            return
+        if vendor_source == 'vendordata':
+            if not self.datasource.get_vendordata_raw():
+                LOG.debug("no vendordata from datasource")
+                return
+            cfg_name = 'vendor_data'
+        elif vendor_source == 'vendordata2':
+            if not self.datasource.get_vendordata2_raw():
+                LOG.debug("no vendordata2 from datasource")
+                return
+            cfg_name = 'vendor_data2'
+        else:
+            raise RuntimeError("vendor_source arg must be either 'vendordata'"
+                               " or 'vendordata2'")
 
         _cc_merger = helpers.ConfigMerger(paths=self._paths,
                                           datasource=self.datasource,
                                           additional_fns=[],
                                           base_cfg=self.cfg,
                                           include_vendor=False)
-        vdcfg = _cc_merger.cfg.get('vendor_data', {})
+        vdcfg = _cc_merger.cfg.get(cfg_name, {})
 
         if not isinstance(vdcfg, dict):
             vdcfg = {'enabled': False}
-            LOG.warning("invalid 'vendor_data' setting. resetting to: %s",
-                        vdcfg)
+            LOG.warning("invalid %s setting. resetting to: %s",
+                        cfg_name, vdcfg)
 
         enabled = vdcfg.get('enabled')
         no_handlers = vdcfg.get('disabled_handlers', None)
 
         if not util.is_true(enabled):
-            LOG.debug("vendordata consumption is disabled.")
+            LOG.debug("%s consumption is disabled.", vendor_source)
             return
 
-        LOG.debug("vendor data will be consumed. disabled_handlers=%s",
-                  no_handlers)
+        LOG.debug("%s will be consumed. disabled_handlers=%s",
+                  vendor_source, no_handlers)
 
-        # Ensure vendordata source fetched before activation (just incase)
-        vendor_data_msg = self.datasource.get_vendordata()
+        # Ensure vendordata source fetched before activation (just in case.)
 
-        # This keeps track of all the active handlers, while excluding what the
-        # users doesn't want run, i.e. boot_hook, cloud_config, shell_script
-        c_handlers_list = self._default_vendordata_handlers()
+        # c_handlers_list keeps track of all the active handlers, while
+        # excluding what the users doesn't want run, i.e. boot_hook,
+        # cloud_config, shell_script
+        if vendor_source == 'vendordata':
+            vendor_data_msg = self.datasource.get_vendordata()
+            c_handlers_list = self._default_vendordata_handlers()
+        else:
+            vendor_data_msg = self.datasource.get_vendordata2()
+            c_handlers_list = self._default_vendordata2_handlers()
 
         # Run the handlers
         self._do_handlers(vendor_data_msg, c_handlers_list, frequency,
