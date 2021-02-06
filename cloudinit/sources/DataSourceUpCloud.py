@@ -20,7 +20,7 @@ BUILTIN_DS_CONFIG = {"metadata_url": "http://169.254.169.254/metadata/v1.json"}
 
 # Wait for a up to a minute, retrying the meta-data server
 # every 2 seconds.
-MD_RETRIES = 5
+MD_RETRIES = 30
 MD_TIMEOUT = 2
 MD_WAIT_RETRY = 2
 
