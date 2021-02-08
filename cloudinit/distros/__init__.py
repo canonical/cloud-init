@@ -257,9 +257,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                         "hostname to %s", hostname)
 
     def _select_hostname(self, hostname, fqdn):
-        # Prefer the short hostname over the long
-        # fully qualified domain name
-        if not hostname:
+        # If both fqdn and hostname are set, fqdn will be used.
+        if fqdn:
             return fqdn
         return hostname
 
