@@ -57,6 +57,7 @@ CFG_BUILTIN = {
         'network': {'renderers': None},
     },
     'vendor_data': {'enabled': True, 'prefix': []},
+    'vendor_data2': {'enabled': True, 'prefix': []},
 }
 
 # Valid frequencies of handlers/modules
