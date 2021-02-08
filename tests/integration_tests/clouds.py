@@ -1,8 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 from abc import ABC, abstractmethod
 import logging
+from uuid import UUID
 
-from pycloudlib import EC2, GCE, Azure, OCI, LXDContainer, LXDVirtualMachine
+from pycloudlib import (
+    EC2,
+    GCE,
+    Azure,
+    OCI,
+    LXDContainer,
+    LXDVirtualMachine,
+    Openstack,
+)
 from pycloudlib.lxd.instance import LXDInstance
 
 import cloudinit
@@ -311,3 +320,27 @@ class LxdVmCloud(_LxdIntegrationCloud):
         self._profile_list = self.cloud_instance.build_necessary_profiles(
             release)
         return self._profile_list
+
+
+class OpenstackCloud(IntegrationCloud):
+    datasource = 'openstack'
+    integration_instance_cls = IntegrationInstance
+
+    def _get_cloud_instance(self):
+        return Openstack(
+            tag='openstack-integration-test',
+            network=integration_settings.OPENSTACK_NETWORK,
+        )
+
+    def _get_initial_image(self):
+        image = ImageSpecification.from_os_image()
+        try:
+            UUID(image.image_id)
+        except ValueError as e:
+            raise Exception(
+                'When using Openstack, `OS_IMAGE` parameter MUST take the '
+                'form of a 36-character UUID. Passing in a release name is '
+                'not valid here.\n'
+                'OS_IMAGE: {}'.format(image.image_id)
+            ) from e
+        return image.image_id
