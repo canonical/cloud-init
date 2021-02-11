@@ -1,0 +1,14 @@
+#
+# Hide printing of ssh key and fingerprints for specific keys
+#
+required_features:
+  - syslog
+cloud_config: |
+  #cloud-config
+  no_keys_to_console: true
+collect_scripts:
+  syslog: |
+    #!/bin/bash
+    cat /var/log/syslog
+
+# vi: ts=4 expandtab

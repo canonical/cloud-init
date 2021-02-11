@@ -51,6 +51,11 @@ def _get_helper_tool_path(distro):
 
 
 def handle(name, cfg, cloud, log, _args):
+    if util.is_true(cfg.get('no_keys_to_console', False)):
+        log.debug(("Skipping module named %s, "
+                   "logging of SSH host keys disabled"), name)
+        return
+
     helper_path = _get_helper_tool_path(cloud.distro)
     if not os.path.exists(helper_path):
         log.warning(("Unable to activate module %s,"
