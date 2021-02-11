@@ -714,7 +714,7 @@ class TestMountCb:
     TODO: Test the if/else branch that actually performs the mounting operation
     """
 
-    @pytest.yield_fixture
+    @pytest.fixture
     def already_mounted_device_and_mountdict(self):
         """Mock an already-mounted device, and yield (device, mount dict)"""
         device = "/dev/fake0"

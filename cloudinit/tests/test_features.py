@@ -11,7 +11,7 @@ from pathlib import Path
 import cloudinit
 
 
-@pytest.yield_fixture()
+@pytest.fixture
 def create_override(request):
     """
     Create a feature overrides file and do some module wizardry to make

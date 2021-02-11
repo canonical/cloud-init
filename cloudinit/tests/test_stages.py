@@ -351,7 +351,7 @@ class TestInit_InitializeFilesystem:
     TODO: Expand these tests to cover all of _initialize_filesystem's behavior.
     """
 
-    @pytest.yield_fixture
+    @pytest.fixture
     def init(self, paths):
         """A fixture which yields a stages.Init instance with paths and cfg set
 

@@ -93,7 +93,7 @@ def metadata_version():
     return 2
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def oracle_ds(request, fixture_utils, paths, metadata_version):
     """
     Return an instantiated DataSourceOracle.
@@ -521,7 +521,7 @@ class TestCommon_GetDataBehaviour:
     separate class for that case.)
     """
 
-    @pytest.yield_fixture(params=[True, False])
+    @pytest.fixture(params=[True, False])
     def parameterized_oracle_ds(self, request, oracle_ds):
         """oracle_ds parameterized for iSCSI and non-iSCSI root respectively"""
         is_iscsi_root = request.param
