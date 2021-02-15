@@ -49,6 +49,7 @@ Having trouble? We would like to help!
 
    topics/format.rst
    topics/examples.rst
+   topics/events.rst
    topics/modules.rst
    topics/merging.rst
 

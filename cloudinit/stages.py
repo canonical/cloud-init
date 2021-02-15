@@ -21,7 +21,11 @@ from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
-from cloudinit.event import EventType
+from cloudinit.event import (
+    EventType,
+    get_allowed_events,
+    get_update_events_config,
+)
 from cloudinit.sources import NetworkConfigSource
 
 from cloudinit import cloud
@@ -661,6 +665,7 @@ class Init(object):
         c_handlers_list = self._default_handlers()
 
         # Run the handlers
+
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
     def _find_networking_config(self):
@@ -702,12 +707,52 @@ class Init(object):
         return (self.distro.generate_fallback_config(),
                 NetworkConfigSource.fallback)
 
+    def update_event_allowed(self, event_source_type, scope=None):
+        # convert ds events to config
+        ds_config = get_update_events_config(self.datasource.update_events)
+        LOG.debug('Datasource updates cfg: %s', ds_config)
+
+        sys_config = self.cfg.get('updates', {})
+        LOG.debug('System updates cfg: %s', sys_config)
+
+        user_config = self.datasource.get_userdata(True).get('updates', {})
+        LOG.debug('User updates cfg: %s', user_config)
+
+        allowed = get_allowed_events(sys_config, ds_config, user_config)
+        LOG.debug('Allowable update events: %s', allowed)
+
+        if not scope:
+            scopes = [allowed.keys()]
+        else:
+            scopes = [scope]
+        LOG.debug('Possible scopes for this event: %s', scopes)
+
+        for evt_scope in scopes:
+            if event_source_type in allowed.get(evt_scope, []):
+                LOG.debug('Event Allowed: scope=%s EventType=%s',
+                          evt_scope, event_source_type)
+                return True
+
+        LOG.debug('Event Denied: scopes=%s EventType=%s',
+                  scopes, event_source_type)
+        return False
+
     def _apply_netcfg_names(self, netcfg):
         try:
             LOG.debug("applying net config names for %s", netcfg)
             self.distro.apply_network_config_names(netcfg)
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
+
+    def _is_first_boot(self):
+        bpath = os.path.join(
+            self.paths.get_cpath(),
+            'sem',
+            'config_scripts_per_once.once'
+        )
+        first_boot = not os.path.exists(bpath)
+        LOG.debug('Is first boot? %s', first_boot)
+        return first_boot
 
     def apply_network_config(self, bring_up):
         # get a network config
@@ -717,25 +762,33 @@ class Init(object):
             return
 
         # request an update if needed/available
+        apply_network = True
         if self.datasource is not NULL_DATA_SOURCE:
-            if not self.is_new_instance():
-                if not self.datasource.update_metadata([EventType.BOOT]):
-                    LOG.debug(
-                        "No network config applied. Neither a new instance"
-                        " nor datasource network update on '%s' event",
-                        EventType.BOOT)
-                    # nothing new, but ensure proper names
-                    self._apply_netcfg_names(netcfg)
-                    return
+            if not self.is_new_instance() and not self._is_first_boot():
+                if self.update_event_allowed(EventType.BOOT, scope='network'):
+                    if not self.datasource.update_metadata([EventType.BOOT]):
+                        LOG.debug(
+                            "No network config applied. Neither a new instance"
+                            " nor datasource network update on '%s' event",
+                            EventType.BOOT)
+                        # nothing new, but ensure proper names
+                    apply_network = False
+                    else:
+                        # refresh netcfg after update
+                        netcfg, src = self._find_networking_config()
                 else:
-                    # refresh netcfg after update
-                    netcfg, src = self._find_networking_config()
+                    LOG.debug("No network config applied. "
+                              "'%s' event not allowed", EventType.BOOT)
+                    apply_network = False
 
         # ensure all physical devices in config are present
         self.distro.networking.wait_for_physdevs(netcfg)
 
         # apply renames from config
         self._apply_netcfg_names(netcfg)
+
+        if not apply_network:
+            return
 
         # rendering config
         LOG.info("Applying network configuration from %s bringup=%s: %s",
