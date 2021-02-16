@@ -78,12 +78,12 @@ apt_pipelining: os
 """  # noqa: E501
 
 EXPECTED_REGEXES = [
-    r"deb http://badarchive.ubuntu.com/ubuntu [a-z].* main restricted",
-    r"deb-src http://badarchive.ubuntu.com/ubuntu [a-z].* main restricted",
-    r"deb http://badarchive.ubuntu.com/ubuntu [a-z].* universe restricted",
-    r"deb-src http://badarchive.ubuntu.com/ubuntu [a-z].* universe restricted",
-    r"deb http://badsecurity.ubuntu.com/ubuntu [a-z].*security multiverse",
-    r"deb-src http://badsecurity.ubuntu.com/ubuntu [a-z].*security multiverse",
+    r"deb http://badarchive.ubuntu.com/ubuntu [a-z]+ main restricted",
+    r"deb-src http://badarchive.ubuntu.com/ubuntu [a-z]+ main restricted",
+    r"deb http://badarchive.ubuntu.com/ubuntu [a-z]+ universe restricted",
+    r"deb-src http://badarchive.ubuntu.com/ubuntu [a-z]+ universe restricted",
+    r"deb http://badsecurity.ubuntu.com/ubuntu [a-z]+-security multiverse",
+    r"deb-src http://badsecurity.ubuntu.com/ubuntu [a-z]+-security multiverse",
 ]
 
 TEST_KEYSERVER_KEY = """\
