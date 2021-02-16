@@ -40,7 +40,7 @@ apt:
         keyserver: keyserver.ubuntu.com
         source: "deb http://ppa.launchpad.net/cloud-init-raharper/curtin-dev/ubuntu $RELEASE main"
     test_ppa:
-      keyid: 3552C902B4DDF7BD38421821015D28D7441614D8
+      keyid: 441614D8
       keyserver: keyserver.ubuntu.com
       source: "ppa:simplestreams-dev/trunk"
     test_key:
