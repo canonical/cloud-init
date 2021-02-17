@@ -334,7 +334,6 @@ class TestDataSourceVultr(CiTestCase):
 
     # Test the datasource itself
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
-    @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.is_vultr')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
@@ -342,9 +341,7 @@ class TestDataSourceVultr(CiTestCase):
                         mock_getmeta,
                         mock_isvultr,
                         mock_netmap,
-                        mock_processnics,
                         mock_write_vendor_script):
-        mock_processnics.return_value = True
         mock_getmeta.return_value = VULTR_V1_2
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
@@ -378,15 +375,12 @@ class TestDataSourceVultr(CiTestCase):
 
     # Test overall config generation
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
-    @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
     def test_get_data_1(self,
                         mock_getmeta,
                         mock_netmap,
-                        mock_processnics,
                         mock_write_vendor_script):
-        mock_processnics.return_value = True
         mock_getmeta.return_value = VULTR_V1_1
 
         mock_netmap.return_value = INTERFACE_MAP
@@ -397,17 +391,13 @@ class TestDataSourceVultr(CiTestCase):
 
     # Test overall config generation
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
-    @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
     def test_get_data_2(self,
                         mock_getmeta,
                         mock_netmap,
-                        mock_processnics,
                         mock_write_vendor_script):
-        mock_processnics.return_value = True
         mock_getmeta.return_value = VULTR_V1_2
-
         mock_netmap.return_value = INTERFACE_MAP
         mock_write_vendor_script.return_value = True
 
@@ -416,15 +406,12 @@ class TestDataSourceVultr(CiTestCase):
 
     # Test network config generation
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
-    @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
     def test_network_config(self,
                             mock_getmeta,
                             mock_netmap,
-                            mock_processnics,
                             mock_write_vendor_script):
-        mock_processnics.return_value = True
         mock_getmeta.return_value = VULTR_V1_1
 
         mock_netmap.return_value = INTERFACE_MAP
@@ -435,15 +422,12 @@ class TestDataSourceVultr(CiTestCase):
 
     # Test Private Networking config generation
     @mock.patch('cloudinit.sources.helpers.vultr.write_vendor_script')
-    @mock.patch('cloudinit.sources.helpers.vultr.process_nics')
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
     def test_private_network_config(self,
                                     mock_getmeta,
                                     mock_netmap,
-                                    mock_processnics,
                                     mock_write_vendor_script):
-        mock_processnics.return_value = True
         mock_getmeta.return_value = VULTR_V1_2
 
         mock_netmap.return_value = INTERFACE_MAP

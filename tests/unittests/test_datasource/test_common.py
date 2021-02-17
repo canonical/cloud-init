@@ -45,6 +45,7 @@ DEFAULT_LOCAL = [
     Oracle.DataSourceOracle,
     OVF.DataSourceOVF,
     SmartOS.DataSourceSmartOS,
+    Vultr.DataSourceVultr,
     Ec2.DataSourceEc2Local,
     OpenStack.DataSourceOpenStackLocal,
     RbxCloud.DataSourceRbxCloud,
@@ -63,8 +64,7 @@ DEFAULT_NETWORK = [
     MAAS.DataSourceMAAS,
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
-    OVF.DataSourceOVFNet,
-    Vultr.DataSourceVultr,
+    OVF.DataSourceOVFNet
 ]
 
 

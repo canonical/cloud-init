@@ -6,7 +6,6 @@ import json
 import os
 import copy
 import re
-import ipaddress
 
 from cloudinit import log as log
 from cloudinit import url_helper
@@ -14,6 +13,7 @@ from cloudinit import dmi
 from cloudinit import util
 from cloudinit import net
 from cloudinit import subp
+from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 
 # Get logger
 LOGGER = log.getLogger(__name__)
@@ -21,6 +21,42 @@ LOGGER = log.getLogger(__name__)
 # Cache
 MAC_TO_NICS = None
 METADATA = None
+EHP = None
+
+
+def bring_up_interface(connectivity_url=None):
+    global EHP
+
+    # If for whatever reason this is up, bail
+    if EHP is not None:
+        return
+
+    # Make sure its not up already
+    if net.has_url_connectivity(connectivity_url):
+        return
+
+    # Bring up interface in local
+    try:
+        EHP = EphemeralDHCPv4(net.find_fallback_nic())
+        EHP.obtain_lease()
+    except (NoDHCPLeaseError) as exc:
+        LOGGER.error("DHCP failed, cannot continue. Exception: %s",
+                     exc)
+        raise
+
+
+# Close EphermalDHCP so its not left open
+def close_ephermeral():
+    global EHP
+
+    # No action if its not open
+    if EHP is None:
+        return
+
+    EHP.clean_network()
+
+    # Cleanup
+    EHP = None
 
 
 # Cache the metadata for optimization
@@ -28,7 +64,15 @@ def get_metadata(params):
     global METADATA
 
     if not METADATA:
+        # Bring up interface in local
+        bring_up_interface(params['url'])
+
+        # Fetch the metadata
         v1 = fetch_metadata(params)
+
+        # Close EphermeralDHCP when we are done
+        close_ephermeral()
+
         v1_json = json.loads(v1)
         METADATA = v1_json
 
@@ -136,104 +180,6 @@ def get_interface_name(mac):
         return None
 
     return MAC_TO_NICS.get(mac)
-
-
-# Convert a netmask to cidr
-def to_cidr(mask):
-    ip = ipaddress.IPv4Network((0, mask))
-    return str(ip.prefixlen)
-
-
-# Cloud-init does not support turning on any interface beyond
-# the first.
-def bringup_nic(nic, config):
-    md = get_metadata(config)
-
-    # If it is not the primary turn it on, if it is off
-    if nic['mac_address'] != md['interfaces'][0]['mac']:
-        prefix = "/%s" % to_cidr(nic['subnets'][0]['netmask'])
-        ip = nic['subnets'][0]['address'] + prefix
-
-        # Only use IP commands if they exist and this is Linux
-        if util.is_Linux() and subp.which('ip'):
-            bringup_nic_linux(nic, ip)
-
-        # Only use ifconfig if this is BSD
-        if util.is_BSD() and subp.which('ifconfig'):
-            bringup_nic_bsd(nic, ip)
-
-
-# Linux interface bring up procedure
-def bringup_nic_linux(nic, ip):
-    up = net.is_up(nic['name'])
-
-    if up:
-        LOGGER.debug("Flushing interface: %s", nic['name'])
-
-        command = ['ip', 'addr', 'flush', 'dev', nic['name']]
-        try:
-            subp.subp(command)
-        except Exception as err:
-            LOGGER.error(
-                "Command: %s failed to execute. Error: %s",
-                " ".join(command), err)
-            raise
-
-    LOGGER.debug("Assigning IP: %s to interface: %s",
-                 ip, nic['name'])
-    command = ['ip', 'addr', 'add', ip, 'dev', nic['name']]
-    try:
-        subp.subp(command)
-    except Exception as err:
-        LOGGER.error(
-            "Command: %s failed to execute. Error: %s",
-            " ".join(command), err)
-        raise
-
-    if not up:
-        LOGGER.debug("Brining up interface: %s", nic['name'])
-        command = ['ip', 'link', 'set', 'dev', nic['name'], 'up']
-        try:
-            subp.subp(command)
-        except Exception as err:
-            LOGGER.error(
-                "Command: %s failed to execute. Error: %s",
-                " ".join(command), err)
-            raise
-
-
-# BSD interface bring up procedure
-def bringup_nic_bsd(nic, ip):
-    up = net.is_up(nic['name'])
-
-    LOGGER.debug("Assigning IP: %s to interface: %s",
-                 ip, nic['name'])
-
-    command = ['ifconfig', nic['name'], 'inet', ip]
-    try:
-        subp.subp(command)
-    except Exception as err:
-        LOGGER.error(
-            "Command: %s failed to execute. Error: %s",
-            " ".join(command), err)
-        raise
-
-    if not up:
-        command = ['ipconfig', nic['name'], 'up']
-        try:
-            subp.subp(command)
-        except Exception as err:
-            LOGGER.error(
-                "Command: %s failed to execute. Error: %s",
-                " ".join(command), err)
-            raise
-
-
-# Process netcfg interfaces and bring additional up
-def process_nics(netcfg, config):
-    for config_op in netcfg['config']:
-        if config_op['type'] == "physical":
-            bringup_nic(config_op, config)
 
 
 # Generate network configs

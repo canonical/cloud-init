@@ -102,15 +102,12 @@ class DataSourceVultr(sources.DataSource):
         LOGGER.info("Generated Network:")
         LOGGER.info(config_raw)
 
-        # Bring up additional interfaces
-        vultr.process_nics(config, CONFIG)
-
         return config
 
 
-# Used to match classes to dependencies, Vultr requires basic DHCP networking
+# Used to match classes to dependencies
 datasources = [
-    (DataSourceVultr, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceVultr, (sources.DEP_FILESYSTEM, )),
 ]
 
 
