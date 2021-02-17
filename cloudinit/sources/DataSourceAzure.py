@@ -347,7 +347,6 @@ class DataSourceAzure(sources.DataSource):
         self.update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
 
-        self.api_version = IMDS_VER_WANT
         self.failed_desired_api_version = False
 
     def __str__(self):
@@ -521,7 +520,10 @@ class DataSourceAzure(sources.DataSource):
                     self._wait_for_all_nics_ready()
                 ret = self._reprovision()
 
-            imds_md = self.get_imds_data(self.fallback_interface, retries=10)
+            imds_md = self.get_imds_data_with_api_fallback(
+                self.fallback_interface,
+                retries=10
+            )
             (md, userdata_raw, cfg, files) = ret
             self.seed = cdev
             crawled_data.update({
@@ -635,46 +637,55 @@ class DataSourceAzure(sources.DataSource):
         return True
 
     @azure_ds_telemetry_reporter
-    def get_imds_data(
+    def get_imds_data_with_api_fallback(
             self,
             fallback_nic,
             retries,
             md_type=metadata_type.compute):
-        LOG.info("Attempting IMDS api-version: %s", self.api_version)
-        if self.failed_desired_api_version:
-            return get_metadata_from_imds(
-                fallback_nic=fallback_nic,
-                retries=retries,
-                md_type=md_type,
-                api_version=self.api_version
-            )
+        """
+        Wrapper for get_metadata_from_imds so that we can have flexibility
+        in which IMDS api-version we use. If a particular instance of IMDS
+        does not have the api version that is desired, we want to make
+        this fault tolerant and fall back to a good known minimum api
+        version.
+        """
 
-        try:
-            try:
-                return get_metadata_from_imds(
-                    fallback_nic=fallback_nic,
-                    retries=1,
-                    md_type=md_type,
-                    api_version=self.api_version
-                )
-            except UrlError as err:
-                LOG.info(
-                    "UrlError with IMDS api-version: %s",
-                    self.api_version
-                )
-                if err.code == 400:
-                    self.api_version = IMDS_VER_MIN
-                    log_msg = "Falling back to IMDS api-version: {}".format(
-                        self.api_version
+        if not self.failed_desired_api_version:
+            for _ in range(retries):
+                try:
+                    LOG.info(
+                        "Attempting IMDS api-version: %s",
+                        IMDS_VER_WANT
                     )
-                    report_diagnostic_event(
-                        log_msg,
-                        logger_func=LOG.info
+                    return get_metadata_from_imds(
+                        fallback_nic=fallback_nic,
+                        retries=retries,
+                        md_type=md_type,
+                        api_version=IMDS_VER_WANT
                     )
-                    self.failed_desired_api_version = True
-                raise
-        except Exception:
-            return self.get_imds_data(fallback_nic, retries - 1, md_type)
+                except UrlError as err:
+                    LOG.info(
+                        "UrlError with IMDS api-version: %s",
+                        IMDS_VER_WANT
+                    )
+                    if err.code == 400:
+                        log_msg = "Fall back to IMDS api-version: {}".format(
+                            IMDS_VER_MIN
+                        )
+                        report_diagnostic_event(
+                            log_msg,
+                            logger_func=LOG.info
+                        )
+                        self.failed_desired_api_version = True
+                        break
+
+        LOG.info("Using IMDS api-version: %s", IMDS_VER_MIN)
+        return get_metadata_from_imds(
+            fallback_nic=fallback_nic,
+            retries=retries,
+            md_type=md_type,
+            api_version=IMDS_VER_MIN
+        )
 
     def device_name_to_device(self, name):
         return self.ds_cfg['disk_aliases'].get(name)
@@ -896,7 +907,7 @@ class DataSourceAzure(sources.DataSource):
         # primary nic is being attached first helps here. Otherwise each nic
         # could add several seconds of delay.
         try:
-            imds_md = self.get_imds_data(
+            imds_md = self.get_imds_data_with_api_fallback(
                 ifname,
                 5,
                 metadata_type.network
@@ -2099,6 +2110,8 @@ def get_metadata_from_imds(fallback_nic,
     @param fallback_nic: String. The name of the nic which requires active
         network in order to query IMDS.
     @param retries: The number of retries of the IMDS_URL.
+    @param md_type: Metadata type for IMDS request.
+    @param api_version: IMDS api-version to use in the request.
 
     @return: A dict of instance metadata containing compute and network
         info.

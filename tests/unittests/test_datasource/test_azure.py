@@ -1840,7 +1840,7 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertIsNotNone(dsrc.metadata)
-        self.assertEqual(dsrc.api_version, dsaz.IMDS_VER_MIN)
+        self.assertTrue(dsrc.failed_desired_api_version)
 
     @mock.patch(
         MOCKPATH + 'get_metadata_from_imds', return_value=NETWORK_METADATA)
@@ -1854,7 +1854,7 @@ scbus-1 on xpt0 bus 0
         dsrc = self._get_ds(data)
         dsrc.get_data()
         self.assertIsNotNone(dsrc.metadata)
-        self.assertEqual(dsrc.api_version, dsaz.IMDS_VER_WANT)
+        self.assertFalse(dsrc.failed_desired_api_version)
 
 
 class TestAzureBounce(CiTestCase):
@@ -2636,7 +2636,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch(MOCKPATH + 'DataSourceAzure.wait_for_link_up')
     @mock.patch('cloudinit.sources.helpers.netlink.wait_for_nic_attach_event')
     @mock.patch('cloudinit.sources.net.find_fallback_nic')
-    @mock.patch(MOCKPATH + 'DataSourceAzure.get_imds_data')
+    @mock.patch(MOCKPATH + 'DataSourceAzure.get_imds_data_with_api_fallback')
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     @mock.patch(MOCKPATH + 'DataSourceAzure._wait_for_nic_detach')
     @mock.patch('os.path.isfile')
