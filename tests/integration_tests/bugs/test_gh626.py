@@ -7,11 +7,12 @@ in the /etc/network/interfaces or netplan config.
 import pytest
 import yaml
 
+from tests.integration_tests import random_mac_address
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 
 
-MAC_ADDRESS = "de:ad:be:ef:12:34"
+MAC_ADDRESS = random_mac_address()
 NETWORK_CONFIG = """\
 version: 2
 ethernets:
