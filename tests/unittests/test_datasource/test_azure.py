@@ -1354,23 +1354,51 @@ scbus-1 on xpt0 bus 0
         for mypk in mypklist:
             self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
 
-    def test_default_ephemeral(self):
-        # make sure the ephemeral device works
+    def test_default_ephemeral_configs_ephemeral_exists(self):
+        # make sure the ephemeral configs are correct if disk present
         odata = {}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
                 'sys_cfg': {}}
 
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        cfg = dsrc.get_config_obj()
+        orig_exists = dsaz.os.path.exists
 
-        self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
-                         dsaz.RESOURCE_DISK_PATH)
-        assert 'disk_setup' in cfg
-        assert 'fs_setup' in cfg
-        self.assertIsInstance(cfg['disk_setup'], dict)
-        self.assertIsInstance(cfg['fs_setup'], list)
+        def changed_exists(path):
+            return True if path == dsaz.RESOURCE_DISK_PATH else orig_exists(
+                path)
+
+        with mock.patch(MOCKPATH + 'os.path.exists', new=changed_exists):
+            dsrc = self._get_ds(data)
+            ret = dsrc.get_data()
+            self.assertTrue(ret)
+            cfg = dsrc.get_config_obj()
+
+            self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
+                             dsaz.RESOURCE_DISK_PATH)
+            assert 'disk_setup' in cfg
+            assert 'fs_setup' in cfg
+            self.assertIsInstance(cfg['disk_setup'], dict)
+            self.assertIsInstance(cfg['fs_setup'], list)
+
+    def test_default_ephemeral_configs_ephemeral_does_not_exist(self):
+        # make sure the ephemeral configs are correct if disk not present
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        orig_exists = dsaz.os.path.exists
+
+        def changed_exists(path):
+            return False if path == dsaz.RESOURCE_DISK_PATH else orig_exists(
+                path)
+
+        with mock.patch(MOCKPATH + 'os.path.exists', new=changed_exists):
+            dsrc = self._get_ds(data)
+            ret = dsrc.get_data()
+            self.assertTrue(ret)
+            cfg = dsrc.get_config_obj()
+
+            assert 'disk_setup' not in cfg
+            assert 'fs_setup' not in cfg
 
     def test_provide_disk_aliases(self):
         # Make sure that user can affect disk aliases
