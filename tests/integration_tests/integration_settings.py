@@ -59,6 +59,8 @@ EXISTING_INSTANCE_ID = None
 #   code.
 # PROPOSED
 #   Install from the Ubuntu proposed repo
+# UPGRADE
+#   Upgrade cloud-init to the version in the Ubuntu archive
 # <ppa repo>, e.g., ppa:cloud-init-dev/proposed
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>

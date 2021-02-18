@@ -124,6 +124,8 @@ def get_validated_source(
         return CloudInitSource.PPA
     elif os.path.isfile(str(source)):
         return CloudInitSource.DEB_PACKAGE
+    elif source == "UPGRADE":
+        return CloudInitSource.UPGRADE
     raise ValueError(
         'Invalid value for CLOUD_INIT_SOURCE setting: {}'.format(source))
 

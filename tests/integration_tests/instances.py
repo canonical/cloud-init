@@ -39,6 +39,7 @@ class CloudInitSource(Enum):
     PROPOSED = 3
     PPA = 4
     DEB_PACKAGE = 5
+    UPGRADE = 6
 
     def installs_new_version(self):
         if self.name in [self.NONE.name, self.IN_PLACE.name]:
@@ -123,6 +124,8 @@ class IntegrationInstance:
             self.install_ppa()
         elif source == CloudInitSource.PROPOSED:
             self.install_proposed_image()
+        elif source == CloudInitSource.UPGRADE:
+            self.upgrade_cloud_init()
         else:
             raise Exception(
                 "Specified to install {} which isn't supported here".format(
@@ -165,6 +168,11 @@ class IntegrationInstance:
             remote_path=remote_path)
         remote_script = 'dpkg -i {path}'.format(path=remote_path)
         self.execute(remote_script)
+
+    def upgrade_cloud_init(self):
+        log.info('Upgrading cloud-init to latest version in archive')
+        self.execute("apt-get update -q")
+        self.execute("apt-get install -qy cloud-init")
 
     def __enter__(self):
         return self
