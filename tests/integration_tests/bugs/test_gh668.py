@@ -7,12 +7,13 @@ for all network configuration outputs.
 
 import pytest
 
+from tests.integration_tests import random_mac_address
 from tests.integration_tests.instances import IntegrationInstance
 
 
 DESTINATION_IP = "172.16.0.10"
 GATEWAY_IP = "10.0.0.100"
-MAC_ADDRESS = "de:ad:be:ef:12:34"
+MAC_ADDRESS = random_mac_address()
 
 NETWORK_CONFIG = """\
 version: 2

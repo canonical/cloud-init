@@ -92,6 +92,7 @@ KEYPAIR_NAME = None
 ##################################################################
 # Bring in any user-file defined settings
 try:
+    # pylint: disable=wildcard-import,unused-wildcard-import
     from tests.integration_tests.user_settings import *  # noqa
 except ImportError:
     pass

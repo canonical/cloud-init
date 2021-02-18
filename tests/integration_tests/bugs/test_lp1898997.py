@@ -10,8 +10,9 @@ network configuration, and confirms that the bridge can be used to ping the
 default gateway.
 """
 import pytest
+from tests.integration_tests import random_mac_address
 
-MAC_ADDRESS = "de:ad:be:ef:12:34"
+MAC_ADDRESS = random_mac_address()
 
 
 NETWORK_CONFIG = """\
