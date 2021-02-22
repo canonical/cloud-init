@@ -683,10 +683,18 @@ class DataSourceAzure(sources.DataSource):
     def _iid(self, previous=None):
         prev_iid_path = os.path.join(
             self.paths.get_cpath('data'), 'instance-id')
-        iid = dmi.read_dmi_data('system-uuid')
+        # Older kernels than 4.15 will have UPPERCASE product_uuid.
+        # We don't want Azure to react to an UPPER/lower difference as a new
+        # instance id as it rewrites SSH host keys.
+        # LP: #1835584
+        iid = dmi.read_dmi_data('system-uuid').lower()
         if os.path.exists(prev_iid_path):
             previous = util.load_file(prev_iid_path).strip()
-            if is_byte_swapped(previous, iid):
+            if previous.lower() == iid:
+                # If uppercase/lowercase equivalent, return the previous value
+                # to avoid new instance id.
+                return previous
+            if is_byte_swapped(previous.lower(), iid):
                 return previous
         return iid
 

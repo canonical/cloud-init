@@ -10,8 +10,9 @@ network configuration, and confirms that the bridge can be used to ping the
 default gateway.
 """
 import pytest
+from tests.integration_tests import random_mac_address
 
-MAC_ADDRESS = "de:ad:be:ef:12:34"
+MAC_ADDRESS = random_mac_address()
 
 
 NETWORK_CONFIG = """\
@@ -38,6 +39,7 @@ version: 2
     "volatile.eth0.hwaddr": MAC_ADDRESS,
 })
 @pytest.mark.lxd_vm
+@pytest.mark.lxd_use_exec
 @pytest.mark.not_bionic
 @pytest.mark.not_xenial
 @pytest.mark.sru_2020_11
