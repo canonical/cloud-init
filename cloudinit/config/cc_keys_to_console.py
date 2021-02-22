@@ -51,7 +51,7 @@ def _get_helper_tool_path(distro):
 
 
 def handle(name, cfg, cloud, log, _args):
-    if util.is_true(cfg.get('no_keys_to_console', False)):
+    if util.is_false(cfg.get("ssh", {}).get("emit_keys_to_console", True)):
         log.debug(("Skipping module named %s, "
                    "logging of SSH host keys disabled"), name)
         return

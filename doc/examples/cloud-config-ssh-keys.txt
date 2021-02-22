@@ -49,5 +49,6 @@ ssh_keys:
 no_ssh_fingerprints: false
 
 # By default, (most) ssh host keys are printed to the console. Setting
-# no_keys_to_console to true suppresses this output.
-no_keys_to_console: false
+# emit_keys_to_console to false suppresses this output.
+ssh:
+  emit_keys_to_console: false
