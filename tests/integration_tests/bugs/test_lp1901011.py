@@ -4,8 +4,6 @@ Ensure an ephemeral disk exists after boot.
 
 See https://github.com/canonical/cloud-init/pull/800
 """
-import re
-
 import pytest
 
 from tests.integration_tests.clouds import IntegrationCloud
@@ -38,15 +36,23 @@ def test_ephemeral(instance_type, is_ephemeral,
         assert expected_log in log
 
         # Verify devices
-        dev_links = client.execute('ls -l /dev/disk/cloud')
-        assert 'azure_root -> ../../sda' in dev_links
-        assert 'azure_root-part1 -> ../../sda1' in dev_links
+        dev_links = client.execute('ls /dev/disk/cloud')
+        assert 'azure_root' in dev_links
+        assert 'azure_root-part1' in dev_links
         if is_ephemeral:
-            assert 'azure_resource -> ../../sdb' in dev_links
-            assert 'azure_resource-part1 -> ../../sdb1' in dev_links
+            assert 'azure_resource' in dev_links
+            assert 'azure_resource-part1' in dev_links
 
         # Verify mounts
-        blks = client.execute('lsblk')
-        assert re.search('sda1.*part /', blks) is not None
+        blks = client.execute('lsblk -pPo NAME,TYPE,MOUNTPOINT')
+        root_device = client.execute(
+            'realpath /dev/disk/cloud/azure_root-part1'
+        )
+        assert 'NAME="{}" TYPE="part" MOUNTPOINT="/"'.format(
+            root_device) in blks
         if is_ephemeral:
-            assert re.search('sdb1.*part /mnt', blks) is not None
+            ephemeral_device = client.execute(
+                'realpath /dev/disk/cloud/azure_resource-part1'
+            )
+            assert 'NAME="{}" TYPE="part" MOUNTPOINT="/mnt"'.format(
+                ephemeral_device) in blks
