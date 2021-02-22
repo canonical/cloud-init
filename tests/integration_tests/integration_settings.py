@@ -59,6 +59,8 @@ EXISTING_INSTANCE_ID = None
 #   code.
 # PROPOSED
 #   Install from the Ubuntu proposed repo
+# UPGRADE
+#   Upgrade cloud-init to the version in the Ubuntu archive
 # <ppa repo>, e.g., ppa:cloud-init-dev/proposed
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
@@ -88,28 +90,11 @@ PUBLIC_SSH_KEY = None
 KEYPAIR_NAME = None
 
 ##################################################################
-# GCE SPECIFIC SETTINGS
-##################################################################
-# Required for GCE
-GCE_PROJECT = None
-
-# You probably want to override these
-GCE_REGION = 'us-central1'
-GCE_ZONE = 'a'
-
-##################################################################
-# OCI SPECIFIC SETTINGS
-##################################################################
-# Compartment-id found at
-# https://console.us-phoenix-1.oraclecloud.com/a/identity/compartments
-# Required for Oracle
-OCI_COMPARTMENT_ID = None
-
-##################################################################
 # USER SETTINGS OVERRIDES
 ##################################################################
 # Bring in any user-file defined settings
 try:
+    # pylint: disable=wildcard-import,unused-wildcard-import
     from tests.integration_tests.user_settings import *  # noqa
 except ImportError:
     pass

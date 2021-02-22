@@ -39,6 +39,7 @@ KNOWN_CLOUD_NAMES = [
     'SAP Converged Cloud',
     'Scaleway',
     'SmartOS',
+    'UpCloud',
     'VMware',
     'Vultr',
     'ZStack',

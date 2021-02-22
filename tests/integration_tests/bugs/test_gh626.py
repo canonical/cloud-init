@@ -7,17 +7,21 @@ in the /etc/network/interfaces or netplan config.
 import pytest
 import yaml
 
+from tests.integration_tests import random_mac_address
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 
 
+MAC_ADDRESS = random_mac_address()
 NETWORK_CONFIG = """\
 version: 2
 ethernets:
   eth0:
     dhcp4: true
     wakeonlan: true
-"""
+    match:
+      macaddress: {}
+""".format(MAC_ADDRESS)
 
 EXPECTED_ENI_END = """\
 iface eth0 inet dhcp
@@ -28,7 +32,8 @@ iface eth0 inet dhcp
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
 @pytest.mark.lxd_config_dict({
-    'user.network-config': NETWORK_CONFIG
+    'user.network-config': NETWORK_CONFIG,
+    "volatile.eth0.hwaddr": MAC_ADDRESS,
 })
 def test_wakeonlan(client: IntegrationInstance):
     if ImageSpecification.from_os_image().release == 'xenial':
