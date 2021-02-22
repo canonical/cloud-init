@@ -65,7 +65,7 @@ class TestPowerChange:
         with session_cloud.launch(
             user_data=USER_DATA.format(
                 delay=delay, mode=mode, timeout=timeout, condition='true'),
-            wait=False
+            launch_kwargs={'wait': False},
         ) as instance:
             if mode == 'reboot':
                 _detect_reboot(instance)
