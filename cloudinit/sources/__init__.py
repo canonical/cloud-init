@@ -187,7 +187,8 @@ class DataSource(metaclass=abc.ABCMeta):
     cached_attr_defaults = (
         ('ec2_metadata', UNSET), ('network_json', UNSET),
         ('metadata', {}), ('userdata', None), ('userdata_raw', None),
-        ('vendordata', None), ('vendordata_raw', None))
+        ('vendordata', None), ('vendordata_raw', None),
+        ('vendordata2', None), ('vendordata2_raw', None))
 
     _dirty_cache = False
 
@@ -203,7 +204,9 @@ class DataSource(metaclass=abc.ABCMeta):
         self.metadata = {}
         self.userdata_raw = None
         self.vendordata = None
+        self.vendordata2 = None
         self.vendordata_raw = None
+        self.vendordata2_raw = None
 
         self.ds_cfg = util.get_cfg_by_path(
             self.sys_cfg, ("datasource", self.dsname), {})
@@ -392,6 +395,11 @@ class DataSource(metaclass=abc.ABCMeta):
             self.vendordata = self.ud_proc.process(self.get_vendordata_raw())
         return self.vendordata
 
+    def get_vendordata2(self):
+        if self.vendordata2 is None:
+            self.vendordata2 = self.ud_proc.process(self.get_vendordata2_raw())
+        return self.vendordata2
+
     @property
     def fallback_interface(self):
         """Determine the network interface used during local network config."""
@@ -493,6 +501,9 @@ class DataSource(metaclass=abc.ABCMeta):
 
     def get_vendordata_raw(self):
         return self.vendordata_raw
+
+    def get_vendordata2_raw(self):
+        return self.vendordata2_raw
 
     # the data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config

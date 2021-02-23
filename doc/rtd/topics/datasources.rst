@@ -47,6 +47,7 @@ The following is a list of documents for each supported datasource:
    datasources/ovf.rst
    datasources/rbxcloud.rst
    datasources/smartos.rst
+   datasources/upcloud.rst
    datasources/zstack.rst
 
 

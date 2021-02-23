@@ -1,3 +1,32 @@
+cloud-init (21.1-0ubuntu1) hirsute; urgency=medium
+
+  * New upstream release.
+    - Release 21.1 (#820) (LP: #1916540)
+    - Azure: Support for VMs without ephemeral resource disks. (#800)
+      [Johnson Shi] (LP: #1901011)
+    - cc_keys_to_console: add option to disable key emission (#811)
+      [Michael Hudson-Doyle] (LP: #1915460)
+    - integration_tests: introduce lxd_use_exec mark (#802)
+    - azure: case-insensitive UUID to avoid new IID during kernel upgrade
+      (#798) (LP: #1835584)
+    - stale.yml: don't ask submitters to reopen PRs (#816)
+    - integration_tests: fix use of SSH agent within tox (#815)
+    - integration_tests: add UPGRADE CloudInitSource (#812)
+    - integration_tests: use unique MAC addresses for tests (#813)
+    - Update .gitignore (#814)
+    - Port apt cloud_tests to integration tests (#808)
+    - integration_tests: fix test_gh626 on LXD VMs (#809)
+    - Fix attempting to decode binary data in test_seed_random_data test (#806)
+    - Remove wait argument from tests with session_cloud calls (#805)
+    - Datasource for UpCloud (#743) [Antti Myyrä]
+    - test_gh668: fix failure on LXD VMs (#801)
+    - openstack: read the dynamic metadata group vendor_data2.json (#777)
+      [Andrew Bogott] (LP: #1841104)
+    - includedir in suoders can be prefixed by "arroba" (#783)
+      [Jordi Massaguer Pla]
+
+ -- James Falcon <james.falcon@canonical.com>  Tue, 23 Feb 2021 10:06:10 -0500
+
 cloud-init (20.4.1-79-g71564dce-0ubuntu1) hirsute; urgency=medium
 
   * New upstream snapshot.

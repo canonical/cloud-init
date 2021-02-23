@@ -87,7 +87,7 @@ def test_upgrade(session_cloud: IntegrationCloud):
             netcfg_path = '/etc/network/interfaces.d/50-cloud-init.cfg'
 
     with session_cloud.launch(
-        launch_kwargs=launch_kwargs, user_data=USER_DATA, wait=True,
+        launch_kwargs=launch_kwargs, user_data=USER_DATA,
     ) as instance:
         _output_to_compare(instance, before_path, netcfg_path)
         instance.install_new_cloud_init(source, take_snapshot=False)
