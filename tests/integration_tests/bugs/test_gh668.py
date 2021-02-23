@@ -37,6 +37,7 @@ EXPECTED_ROUTE = "{} via {}".format(DESTINATION_IP, GATEWAY_IP)
     "user.network-config": NETWORK_CONFIG,
     "volatile.eth0.hwaddr": MAC_ADDRESS,
 })
+@pytest.mark.lxd_use_exec
 def test_static_route_to_host(client: IntegrationInstance):
     route = client.execute("ip route | grep {}".format(DESTINATION_IP))
     assert route.startswith(EXPECTED_ROUTE)
