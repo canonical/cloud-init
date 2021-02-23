@@ -1,0 +1,53 @@
+#!/bin/bash
+
+: "${PACKAGING_BRANCH:=ubuntu/devel}"
+: "${RELEASE:=UNRELEASED}"
+: "${CLOGVER_DEBIAN:=0ubuntu1}"
+: "${DEBFULLNAME:=$(git config user.name)}"
+: "${DEBEMAIL:=$(git config user.email)}"
+
+export DEBFULLNAME DEBEMAIL
+
+fail() { echo "$@" 1>&2; exit 1; }
+
+if [[ "$1" = "-h" || "$1" = "--help" ]]; then
+    cat <<-EOF
+	Usage: ${0##*/}
+	Prepare the source for building a .deb package via e.g. debuild(1).
+	Build a debian/ directory the current git HEAD pulling the debian/
+	directory from branch '$PACKAGING_BRANCH' and updating the changelog,
+	then prepare an .orig tarball matching the new changelog entry.
+	EOF
+    exit
+fi
+
+git clean -f debian || fail "Failed to run git clean."
+
+# This script could work even if a debian/ directory is already existing,
+# but it's a confusing setup that should be avoided.
+[[ ! -e debian ]] || fail "A debian/ directory already exists."
+
+[[ $DEBFULLNAME ]] || fail "Must have DEBFULLNAME or git user.name set."
+[[ $DEBEMAIL ]] || fail "Must have DEBEMAIL or git user.email set."
+
+if [[ $(git status -s) ]]; then
+    cat 1>&2 <<-EOF
+	WARNING: There are uncommitted changes in your working directory.
+	         These changes will not be included in the orig archive.
+	EOF
+fi
+
+# git describe will output something either like '0.1.0' (a tag)
+# or TAG-N-gHASH where N is number of commits since TAG
+uver=$(git describe --abbrev=8) ||
+    fail "Failed to get upstream version with 'git describe'."
+clogver_new="${uver}-${CLOGVER_DEBIAN}"
+
+git fetch "$(git remote)" "$PACKAGING_BRANCH:$PACKAGING_BRANCH" ||
+    fail "Failed to fetch pachaging branch '$PACKAGING_BRANCH'."
+git restore --source="$PACKAGING_BRANCH" debian ||
+    fail "Failed to get debian/ from '$PACKAGING_BRANCH'."
+dch --newversion "$clogver_new" --distribution="$RELEASE" "Upstream build." ||
+    fail "Failed to update d/changelog."
+git deborig --force HEAD ||
+    fail "Failed to generate the orig tarball."
