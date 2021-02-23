@@ -24,5 +24,7 @@ class TestSeedRandomData:
 
     @pytest.mark.user_data(USER_DATA)
     def test_seed_random_data(self, client):
-        seed_output = client.read_from_file("/root/seed")
-        assert seed_output.startswith("MYUb34023nD:LFDK10913jk;dfnk:Df")
+        # Only read the first 31 characters, because the rest could be
+        # binary data
+        result = client.execute("head -c 31 < /root/seed")
+        assert result.startswith("MYUb34023nD:LFDK10913jk;dfnk:Df")

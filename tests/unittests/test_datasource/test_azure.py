@@ -201,6 +201,7 @@ IMDS_NETWORK_METADATA = {
 }
 
 MOCKPATH = 'cloudinit.sources.DataSourceAzure.'
+EXAMPLE_UUID = 'd0df4c54-4ecb-4a4b-9954-5bdf3ed5c3b8'
 
 
 class TestParseNetworkConfig(CiTestCase):
@@ -630,7 +631,7 @@ scbus-1 on xpt0 bus 0
         return dsaz
 
     def _get_ds(self, data, agent_command=None, distro='ubuntu',
-                apply_network=None):
+                apply_network=None, instance_id=None):
 
         def dsdevs():
             return data.get('dsdevs', [])
@@ -659,7 +660,10 @@ scbus-1 on xpt0 bus 0
         self.m_ephemeral_dhcpv4 = mock.MagicMock()
         self.m_ephemeral_dhcpv4_with_reporting = mock.MagicMock()
 
-        self.instance_id = 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8'
+        if instance_id:
+            self.instance_id = instance_id
+        else:
+            self.instance_id = EXAMPLE_UUID
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
@@ -910,7 +914,7 @@ scbus-1 on xpt0 bus 0
             'azure_data': {
                 'configurationsettype': 'LinuxProvisioningConfiguration'},
             'imds': NETWORK_METADATA,
-            'instance-id': 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8',
+            'instance-id': EXAMPLE_UUID,
             'local-hostname': u'myhost',
             'random_seed': 'wild'}
 
@@ -1350,23 +1354,51 @@ scbus-1 on xpt0 bus 0
         for mypk in mypklist:
             self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
 
-    def test_default_ephemeral(self):
-        # make sure the ephemeral device works
+    def test_default_ephemeral_configs_ephemeral_exists(self):
+        # make sure the ephemeral configs are correct if disk present
         odata = {}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
                 'sys_cfg': {}}
 
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        cfg = dsrc.get_config_obj()
+        orig_exists = dsaz.os.path.exists
 
-        self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
-                         dsaz.RESOURCE_DISK_PATH)
-        assert 'disk_setup' in cfg
-        assert 'fs_setup' in cfg
-        self.assertIsInstance(cfg['disk_setup'], dict)
-        self.assertIsInstance(cfg['fs_setup'], list)
+        def changed_exists(path):
+            return True if path == dsaz.RESOURCE_DISK_PATH else orig_exists(
+                path)
+
+        with mock.patch(MOCKPATH + 'os.path.exists', new=changed_exists):
+            dsrc = self._get_ds(data)
+            ret = dsrc.get_data()
+            self.assertTrue(ret)
+            cfg = dsrc.get_config_obj()
+
+            self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
+                             dsaz.RESOURCE_DISK_PATH)
+            assert 'disk_setup' in cfg
+            assert 'fs_setup' in cfg
+            self.assertIsInstance(cfg['disk_setup'], dict)
+            self.assertIsInstance(cfg['fs_setup'], list)
+
+    def test_default_ephemeral_configs_ephemeral_does_not_exist(self):
+        # make sure the ephemeral configs are correct if disk not present
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        orig_exists = dsaz.os.path.exists
+
+        def changed_exists(path):
+            return False if path == dsaz.RESOURCE_DISK_PATH else orig_exists(
+                path)
+
+        with mock.patch(MOCKPATH + 'os.path.exists', new=changed_exists):
+            dsrc = self._get_ds(data)
+            ret = dsrc.get_data()
+            self.assertTrue(ret)
+            cfg = dsrc.get_config_obj()
+
+            assert 'disk_setup' not in cfg
+            assert 'fs_setup' not in cfg
 
     def test_provide_disk_aliases(self):
         # Make sure that user can affect disk aliases
@@ -1613,6 +1645,32 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(ret)
         self.assertEqual('value', dsrc.metadata['test'])
 
+    def test_instance_id_case_insensitive(self):
+        """Return the previous iid when current is a case-insensitive match."""
+        lower_iid = EXAMPLE_UUID.lower()
+        upper_iid = EXAMPLE_UUID.upper()
+        # lowercase current UUID
+        ds = self._get_ds(
+            {'ovfcontent': construct_valid_ovf_env()}, instance_id=lower_iid
+        )
+        # UPPERCASE previous
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            upper_iid)
+        ds.get_data()
+        self.assertEqual(upper_iid, ds.metadata['instance-id'])
+
+        # UPPERCASE current UUID
+        ds = self._get_ds(
+            {'ovfcontent': construct_valid_ovf_env()}, instance_id=upper_iid
+        )
+        # lowercase previous
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            lower_iid)
+        ds.get_data()
+        self.assertEqual(lower_iid, ds.metadata['instance-id'])
+
     def test_instance_id_endianness(self):
         """Return the previous iid when dmi uuid is the byteswapped iid."""
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
@@ -1628,8 +1686,7 @@ scbus-1 on xpt0 bus 0
             os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
             '644CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')
         ds.get_data()
-        self.assertEqual(
-            'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8', ds.metadata['instance-id'])
+        self.assertEqual(self.instance_id, ds.metadata['instance-id'])
 
     def test_instance_id_from_dmidecode_used(self):
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})

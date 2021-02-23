@@ -124,6 +124,8 @@ def get_validated_source(
         return CloudInitSource.PPA
     elif os.path.isfile(str(source)):
         return CloudInitSource.DEB_PACKAGE
+    elif source == "UPGRADE":
+        return CloudInitSource.UPGRADE
     raise ValueError(
         'Invalid value for CLOUD_INIT_SOURCE setting: {}'.format(source))
 
@@ -198,6 +200,9 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     user_data = getter('user_data')
     name = getter('instance_name')
     lxd_config_dict = getter('lxd_config_dict')
+    lxd_use_exec = fixture_utils.closest_marker_args_or(
+        request, 'lxd_use_exec', None
+    )
 
     launch_kwargs = {}
     if name is not None:
@@ -206,10 +211,18 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_config_dict requires LXD")
         launch_kwargs["config_dict"] = lxd_config_dict
+    if lxd_use_exec is not None:
+        if not isinstance(session_cloud, _LxdIntegrationCloud):
+            pytest.skip("lxd_use_exec requires LXD")
+        launch_kwargs["execute_via_ssh"] = False
 
     with session_cloud.launch(
         user_data=user_data, launch_kwargs=launch_kwargs
     ) as instance:
+        if lxd_use_exec is not None:
+            # Existing instances are not affected by the launch kwargs, so
+            # ensure it here; we still need the launch kwarg so waiting works
+            instance.execute_via_ssh = False
         previous_failures = request.session.testsfailed
         yield instance
         test_failed = request.session.testsfailed - previous_failures > 0

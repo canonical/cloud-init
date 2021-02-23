@@ -270,7 +270,7 @@ BUILTIN_DS_CONFIG = {
 }
 # RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
 
-BUILTIN_CLOUD_CONFIG = {
+BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
     'disk_setup': {
         'ephemeral0': {'table_type': 'gpt',
                        'layout': [100],
@@ -618,8 +618,26 @@ class DataSourceAzure(sources.DataSource):
             maybe_remove_ubuntu_network_config_scripts()
 
         # Process crawled data and augment with various config defaults
-        self.cfg = util.mergemanydict(
-            [crawled_data['cfg'], BUILTIN_CLOUD_CONFIG])
+
+        # Only merge in default cloud config related to the ephemeral disk
+        # if the ephemeral disk exists
+        devpath = RESOURCE_DISK_PATH
+        if os.path.exists(devpath):
+            report_diagnostic_event(
+                "Ephemeral resource disk '%s' exists. "
+                "Merging default Azure cloud ephemeral disk configs."
+                % devpath,
+                logger_func=LOG.debug)
+            self.cfg = util.mergemanydict(
+                [crawled_data['cfg'], BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG])
+        else:
+            report_diagnostic_event(
+                "Ephemeral resource disk '%s' does not exist. "
+                "Not merging default Azure cloud ephemeral disk configs."
+                % devpath,
+                logger_func=LOG.debug)
+            self.cfg = crawled_data['cfg']
+
         self._metadata_imds = crawled_data['metadata']['imds']
         self.metadata = util.mergemanydict(
             [crawled_data['metadata'], DEFAULT_METADATA])
@@ -683,10 +701,18 @@ class DataSourceAzure(sources.DataSource):
     def _iid(self, previous=None):
         prev_iid_path = os.path.join(
             self.paths.get_cpath('data'), 'instance-id')
-        iid = dmi.read_dmi_data('system-uuid')
+        # Older kernels than 4.15 will have UPPERCASE product_uuid.
+        # We don't want Azure to react to an UPPER/lower difference as a new
+        # instance id as it rewrites SSH host keys.
+        # LP: #1835584
+        iid = dmi.read_dmi_data('system-uuid').lower()
         if os.path.exists(prev_iid_path):
             previous = util.load_file(prev_iid_path).strip()
-            if is_byte_swapped(previous, iid):
+            if previous.lower() == iid:
+                # If uppercase/lowercase equivalent, return the previous value
+                # to avoid new instance id.
+                return previous
+            if is_byte_swapped(previous.lower(), iid):
                 return previous
         return iid
 
@@ -1460,26 +1486,17 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
 
 
 @azure_ds_telemetry_reporter
-def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
+def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH,
                              is_new_instance=False, preserve_ntfs=False):
-    # wait for ephemeral disk to come up
-    naplen = .2
-    with events.ReportEventStack(
-        name="wait-for-ephemeral-disk",
-        description="wait for ephemeral disk",
-        parent=azure_ds_reporter
-    ):
-        missing = util.wait_for_files([devpath],
-                                      maxwait=maxwait,
-                                      naplen=naplen,
-                                      log_pre="Azure ephemeral disk: ")
-
-        if missing:
-            report_diagnostic_event(
-                "ephemeral device '%s' did not appear after %d seconds." %
-                (devpath, maxwait),
-                logger_func=LOG.warning)
-            return
+    if not os.path.exists(devpath):
+        report_diagnostic_event(
+            "Ephemeral resource disk '%s' does not exist." % devpath,
+            logger_func=LOG.debug)
+        return
+    else:
+        report_diagnostic_event(
+            "Ephemeral resource disk '%s' exists." % devpath,
+            logger_func=LOG.debug)
 
     result = False
     msg = None
