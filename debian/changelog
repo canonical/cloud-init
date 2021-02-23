@@ -1,4 +1,4 @@
-cloud-init (21.1-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (21.1-0ubuntu1) hirsute; urgency=medium
 
   * New upstream release.
     - Release 21.1 (#820) (LP: #1916540)
