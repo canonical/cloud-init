@@ -137,6 +137,17 @@ class Distro(distros.Distro):
             return default
         return hostname
 
+    # hostname (inetutils) isn't installed per default on arch, so we use
+    # hostnamectl which is installed per default (systemd).
+    def _apply_hostname(self, hostname):
+        LOG.debug("Non-persistently setting the system hostname to %s",
+                  hostname)
+        try:
+            subp.subp(['hostnamectl', '--transient', 'set-hostname', hostname])
+        except subp.ProcessExecutionError:
+            util.logexc(LOG, "Failed to non-persistently adjust the system "
+                        "hostname to %s", hostname)
+
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
