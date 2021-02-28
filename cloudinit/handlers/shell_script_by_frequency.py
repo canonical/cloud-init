@@ -14,12 +14,14 @@ pathMap = {
     PER_ONCE: 'per-once'
 }
 
-def get_script_folder_by_frequency (scripts_dir, freq):
+
+def get_script_folder_by_frequency(scripts_dir, freq):
     freqPath = pathMap[freq]
     folder = os.path.join(scripts_dir, freqPath)
     return folder
 
-def write_script_by_frequency (script_path, payload, frequency, scripts_dir):
+
+def write_script_by_frequency(script_path, payload, frequency, scripts_dir):
     filename = os.path.basename(script_path)
     filename = util.clean_filename(filename)
     folder = get_script_folder_by_frequency(scripts_dir, frequency)
@@ -27,7 +29,8 @@ def write_script_by_frequency (script_path, payload, frequency, scripts_dir):
     payload = util.dos2unix(payload)
     util.write_file(path, payload, 0o700)
 
-### per-boot
+
+# per-boot
 class ShellScriptPerBootPartHandler(Handler):
     def __init__(self, paths, **_kwargs):
         Handler.__init__(self, PER_ALWAYS)
@@ -41,9 +44,11 @@ class ShellScriptPerBootPartHandler(Handler):
     def handle_part(self, data, ctype, script_path, payload):
         if script_path is not None:
             LOG.debug("script_path=%s", script_path)
-            write_script_by_frequency(script_path, payload, PER_ALWAYS, self.scripts_dir)
+            write_script_by_frequency(script_path, payload, PER_ALWAYS,
+                                      self.scripts_dir)
 
-### per-instance
+
+# per-instance
 class ShellScriptPerInstancePartHandler(Handler):
     def __init__(self, paths, **_kwargs):
         Handler.__init__(self, PER_INSTANCE)
@@ -57,9 +62,11 @@ class ShellScriptPerInstancePartHandler(Handler):
     def handle_part(self, data, ctype, script_path, payload):
         if script_path is not None:
             LOG.debug("script_path=%s", script_path)
-            write_script_by_frequency(script_path, payload, PER_INSTANCE, self.scripts_dir)
+            write_script_by_frequency(script_path, payload, PER_INSTANCE,
+                                      self.scripts_dir)
 
-### per-once
+
+# per-once
 class ShellScriptPerOncePartHandler(Handler):
     def __init__(self, paths, **_kwargs):
         Handler.__init__(self, PER_ONCE)
@@ -73,4 +80,5 @@ class ShellScriptPerOncePartHandler(Handler):
     def handle_part(self, data, ctype, script_path, payload):
         if script_path is not None:
             LOG.debug("script_path=%s", script_path)
-            write_script_by_frequency(script_path, payload, PER_ONCE, self.scripts_dir)
+            write_script_by_frequency(script_path, payload, PER_ONCE,
+                                      self.scripts_dir)

@@ -19,9 +19,10 @@ from cloudinit.handlers.boot_hook import BootHookPartHandler
 from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
-from cloudinit.handlers.shell_script_by_frequency import ShellScriptPerBootPartHandler
-from cloudinit.handlers.shell_script_by_frequency import ShellScriptPerInstancePartHandler
-from cloudinit.handlers.shell_script_by_frequency import ShellScriptPerOncePartHandler
+from cloudinit.handlers.shell_script_by_frequency import \
+    (ShellScriptPerBootPartHandler,
+     ShellScriptPerInstancePartHandler,
+     ShellScriptPerOncePartHandler)
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
 from cloudinit.event import EventType
@@ -419,7 +420,8 @@ class Init(object):
         cloudconfig_handler = CloudConfigPartHandler(**opts)
         shellscript_handler = ShellScriptPartHandler(**opts)
         shellscript_per_boot_handler = ShellScriptPerBootPartHandler(**opts)
-        shellscript_per_instance_handler = ShellScriptPerInstancePartHandler(**opts)
+        shellscript_per_instance_handler = \
+            ShellScriptPerInstancePartHandler(**opts)
         shellscript_per_once_handler = ShellScriptPerOncePartHandler(**opts)
         def_handlers = [
             cloudconfig_handler,
