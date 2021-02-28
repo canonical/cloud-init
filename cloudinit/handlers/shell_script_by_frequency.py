@@ -4,9 +4,8 @@
 import os
 from cloudinit import log
 from cloudinit import util
-from cloudinit import handlers
+from cloudinit.handlers import Handler
 from cloudinit.settings import PER_ALWAYS, PER_INSTANCE, PER_ONCE
-from cloudinit.cmd.devel import read_cfg_paths
 LOG = log.getLogger(__name__)
 
 pathMap = {
@@ -15,25 +14,26 @@ pathMap = {
     PER_ONCE: 'per-once'
 }
 
-def get_script_folder_by_frequency (freq):
+def get_script_folder_by_frequency (scripts_dir, freq):
     freqPath = pathMap[freq]
-    ci_paths = read_cfg_paths()
-    scripts_dir = ci_paths.get_cpath('scripts')   # defaults to /var/lib/cloud/ + scripts
     folder = os.path.join(scripts_dir, freqPath)
     return folder
 
-def write_script_by_frequency (script_path, payload, frequency):
+def write_script_by_frequency (script_path, payload, frequency, scripts_dir):
     filename = os.path.basename(script_path)
     filename = util.clean_filename(filename)
-    folder = get_script_folder_by_frequency(frequency)
+    folder = get_script_folder_by_frequency(scripts_dir, frequency)
     path = os.path.join(folder, filename)
     payload = util.dos2unix(payload)
     util.write_file(path, payload, 0o700)
 
 ### per-boot
-class ShellScriptPerBootPartHandler(handlers.Handler):
+class ShellScriptPerBootPartHandler(Handler):
     def __init__(self, paths, **_kwargs):
-        handlers.Handler.__init__(self, PER_ALWAYS)
+        Handler.__init__(self, PER_ALWAYS)
+        self.scripts_dir = paths.get_ipath_cur('scripts')
+        if 'script_path' in _kwargs:
+            self.scripts_dir = paths.get_ipath_cur(_kwargs['script_path'])
 
     def list_types(self):
         return(["text/x-shellscript-per-boot"])
@@ -41,12 +41,15 @@ class ShellScriptPerBootPartHandler(handlers.Handler):
     def handle_part(self, data, ctype, script_path, payload):
         if script_path is not None:
             LOG.debug("script_path=%s", script_path)
-            write_script_by_frequency(script_path, payload, PER_ALWAYS)
+            write_script_by_frequency(script_path, payload, PER_ALWAYS, self.scripts_dir)
 
 ### per-instance
-class ShellScriptPerInstancePartHandler(handlers.Handler):
+class ShellScriptPerInstancePartHandler(Handler):
     def __init__(self, paths, **_kwargs):
-        handlers.Handler.__init__(self, PER_INSTANCE)
+        Handler.__init__(self, PER_INSTANCE)
+        self.scripts_dir = paths.get_ipath_cur('scripts')
+        if 'script_path' in _kwargs:
+            self.scripts_dir = paths.get_ipath_cur(_kwargs['script_path'])
 
     def list_types(self):
         return(["text/x-shellscript-per-boot"])
@@ -54,12 +57,15 @@ class ShellScriptPerInstancePartHandler(handlers.Handler):
     def handle_part(self, data, ctype, script_path, payload):
         if script_path is not None:
             LOG.debug("script_path=%s", script_path)
-            write_script_by_frequency(script_path, payload, PER_INSTANCE)
+            write_script_by_frequency(script_path, payload, PER_INSTANCE, self.scripts_dir)
 
 ### per-once
-class ShellScriptPerOPncePartHandler(handlers.Handler):
+class ShellScriptPerOPncePartHandler(Handler):
     def __init__(self, paths, **_kwargs):
-        handlers.Handler.__init__(self, PER_ONCE)
+        Handler.__init__(self, PER_ONCE)
+        self.scripts_dir = paths.get_ipath_cur('scripts')
+        if 'script_path' in _kwargs:
+            self.scripts_dir = paths.get_ipath_cur(_kwargs['script_path'])
 
     def list_types(self):
         return(["text/x-shellscript-per-boot"])
@@ -67,4 +73,4 @@ class ShellScriptPerOPncePartHandler(handlers.Handler):
     def handle_part(self, data, ctype, script_path, payload):
         if script_path is not None:
             LOG.debug("script_path=%s", script_path)
-            write_script_by_frequency(script_path, payload, PER_ONCE)
+            write_script_by_frequency(script_path, payload, PER_ONCE, self.scripts_dir)
