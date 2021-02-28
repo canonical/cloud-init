@@ -1,3 +1,113 @@
+21.1
+ - Azure: Support for VMs without ephemeral resource disks. (#800)
+   [Johnson Shi] (LP: #1901011)
+ - cc_keys_to_console: add option to disable key emission (#811)
+   [Michael Hudson-Doyle] (LP: #1915460)
+ - integration_tests: introduce lxd_use_exec mark (#802)
+ - azure: case-insensitive UUID to avoid new IID during kernel upgrade
+   (#798) (LP: #1835584)
+ - stale.yml: don't ask submitters to reopen PRs (#816)
+ - integration_tests: fix use of SSH agent within tox (#815)
+ - integration_tests: add UPGRADE CloudInitSource (#812)
+ - integration_tests: use unique MAC addresses for tests (#813)
+ - Update .gitignore (#814)
+ - Port apt cloud_tests to integration tests (#808)
+ - integration_tests: fix test_gh626 on LXD VMs (#809)
+ - Fix attempting to decode binary data in test_seed_random_data test (#806)
+ - Remove wait argument from tests with session_cloud calls (#805)
+ - Datasource for UpCloud (#743) [Antti Myyrä]
+ - test_gh668: fix failure on LXD VMs (#801)
+ - openstack: read the dynamic metadata group vendor_data2.json (#777)
+   [Andrew Bogott] (LP: #1841104)
+ - includedir in suoders can be prefixed by "arroba" (#783)
+   [Jordi Massaguer Pla]
+ - [VMware] change default max wait time to 15s (#774) [xiaofengw-vmware]
+ - Revert integration test associated with reverted #586 (#784)
+ - Add jordimassaguerpla as contributor (#787) [Jordi Massaguer Pla]
+ - Add Rick Harding to CLA signers (#792) [Rick Harding]
+ - HACKING.rst: add clarifying note to LP CLA process section (#789)
+ - Stop linting cloud_tests (#791)
+ - cloud-tests: update cryptography requirement (#790) [Joshua Powers]
+ - Remove 'remove-raise-on-failure' calls from integration_tests (#788)
+ - Use more cloud defaults in integration tests (#757)
+ - Adding self to cla signers (#776) [Andrew Bogott]
+ - doc: avoid two warnings (#781) [Dan Kenigsberg]
+ - Use proper spelling for Red Hat (#778) [Dan Kenigsberg]
+ - Add antonyc to .github-cla-signers (#747) [Anton Chaporgin]
+ - integration_tests: log image serial if available (#772)
+ - [VMware] Support cloudinit raw data feature (#691) [xiaofengw-vmware]
+ - net: Fix static routes to host in eni renderer (#668) [Pavel Abalikhin]
+ - .travis.yml: don't run cloud_tests in CI (#756)
+ - test_upgrade: add some missing commas (#769)
+ - cc_seed_random: update documentation and fix integration test (#771)
+   (LP: #1911227)
+ - Fix test gh-632 test to only run on NoCloud (#770) (LP: #1911230)
+ - archlinux: fix package upgrade command handling (#768) [Bao Trinh]
+ - integration_tests: add integration test for LP: #1910835 (#761)
+ - Fix regression with handling of IMDS ssh keys (#760) [Thomas Stringer]
+ - integration_tests: log cloud-init version in SUT (#758)
+ - Add ajmyyra as contributor (#742) [Antti Myyrä]
+ - net_convert: add some missing help text (#755)
+ - Missing IPV6_AUTOCONF=no to render sysconfig dhcp6 stateful on RHEL
+   (#753) [Eduardo Otubo]
+ - doc: document missing IPv6 subnet types (#744) [Antti Myyrä]
+ - Add example configuration for datasource `AliYun` (#751) [Xiaoyu Zhong]
+ - integration_tests: add SSH key selection settings (#754)
+ - fix a typo in man page cloud-init.1 (#752) [Amy Chen]
+ - network-config-format-v2.rst: add Netplan Passthrough section (#750)
+ - stale: re-enable post holidays (#749)
+ - integration_tests: port ca_certs tests from cloud_tests (#732)
+ - Azure: Add telemetry for poll IMDS (#741) [Johnson Shi]
+ - doc: move testing section from HACKING to its own doc (#739)
+ - No longer allow integration test failures on travis (#738)
+ - stale: fix error in definition (#740)
+ - integration_tests: set log-cli-level to INFO by default (#737)
+ - PULL_REQUEST_TEMPLATE.md: use backticks around commit message (#736)
+ - stale: disable check for holiday break (#735)
+ - integration_tests: log the path we collect logs into (#733)
+ - .travis.yml: add (most) supported Python versions to CI (#734)
+ - integration_tests: fix IN_PLACE CLOUD_INIT_SOURCE (#731)
+ - cc_ca_certs: add RHEL support (#633) [cawamata]
+ - Azure: only generate config for NICs with addresses (#709)
+   [Thomas Stringer]
+ - doc: fix CloudStack configuration example (#707) [Olivier Lemasle]
+ - integration_tests: restrict test_lxd_bridge appropriately (#730)
+ - Add integration tests for CLI functionality (#729)
+ - Integration test for gh-626 (#728)
+ - Some test_upgrade fixes (#726)
+ - Ensure overriding test vars with env vars works for booleans (#727)
+ - integration_tests: port lxd_bridge test from cloud_tests (#718)
+ - Integration test for gh-632. (#725)
+ - Integration test for gh-671 (#724)
+ - integration-requirements.txt: bump pycloudlib commit (#723)
+ - Drop unnecessary shebang from cmd/main.py (#722) [Eduardo Otubo]
+ - Integration test for LP: #1813396 and #669 (#719)
+ - integration_tests: include timestamp in log output (#720)
+ - integration_tests: add test for LP: #1898997 (#713)
+ - Add integration test for power_state_change module (#717)
+ - Update documentation for network-config-format-v2 (#701) [ggiesen]
+ - sandbox CA Cert tests to not require ca-certificates (#715)
+   [Eduardo Otubo]
+ - Add upgrade integration test (#693)
+ - Integration test for 570 (#712)
+ - Add ability to keep snapshotted images in integration tests (#711)
+ - Integration test for pull #586 (#706)
+ - integration_tests: introduce skipping of tests by OS (#702)
+ - integration_tests: introduce IntegrationInstance.restart (#708)
+ - Add lxd-vm to list of valid integration test platforms (#705)
+ - Adding BOOTPROTO = dhcp to render sysconfig dhcp6 stateful on RHEL
+   (#685) [Eduardo Otubo]
+ - Delete image snapshots created for integration tests (#682)
+ - Parametrize ssh_keys_provided integration test (#700) [lucasmoura]
+ - Drop use_sudo attribute on IntegrationInstance (#694) [lucasmoura]
+ - cc_apt_configure: add riscv64 as a ports arch (#687)
+   [Dimitri John Ledkov]
+ - cla: add xnox (#692) [Dimitri John Ledkov]
+ - Collect logs from integration test runs (#675)
+
+20.4.1
+ - Revert "ssh_util: handle non-default AuthorizedKeysFile config (#586)"
+
 20.4
  - tox: avoid tox testenv subsvars for xenial support (#684)
  - Ensure proper root permissions in integration tests (#664) [James Falcon]
@@ -528,7 +638,7 @@
  - docs: add additional details to per-instance/once [Joshua Powers]
  - Update doc-requirements.txt [Joshua Powers]
  - doc-requirements: add missing dep [Joshua Powers]
- - dhcp: Support RedHat dhcp rfc3442 lease format for option 121 (#76)
+ - dhcp: Support Red Hat dhcp rfc3442 lease format for option 121 (#76)
    [Eric Lafontaine] (LP: #1850642)
  - network_state: handle empty v1 config (#45) (LP: #1852496)
  - docs: Add document on how to report bugs [Joshua Powers]

@@ -127,7 +127,8 @@ class TestMain(FilesystemMockingTestCase):
                  'syslog_fix_perms': [
                      'syslog:adm', 'root:adm', 'root:wheel', 'root:root'
                  ],
-                 'vendor_data': {'enabled': True, 'prefix': []}})
+                 'vendor_data': {'enabled': True, 'prefix': []},
+                 'vendor_data2': {'enabled': True, 'prefix': []}})
             updated_cfg.pop('system_info')
 
             self.assertEqual(updated_cfg, cfg)

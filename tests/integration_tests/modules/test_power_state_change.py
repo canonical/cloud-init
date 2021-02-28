@@ -27,13 +27,13 @@ def _detect_reboot(instance: IntegrationInstance):
     # detecting the first boot or second boot, so we also check
     # the logs to ensure we've booted twice. If the logs show we've
     # only booted once, wait until we've booted twice
-    instance.instance.wait(raise_on_cloudinit_failure=False)
+    instance.instance.wait()
     for _ in range(600):
         try:
             log = instance.read_from_file('/var/log/cloud-init.log')
             boot_count = log.count("running 'init-local'")
             if boot_count == 1:
-                instance.instance.wait(raise_on_cloudinit_failure=False)
+                instance.instance.wait()
             elif boot_count > 1:
                 break
         except Exception:
@@ -65,7 +65,7 @@ class TestPowerChange:
         with session_cloud.launch(
             user_data=USER_DATA.format(
                 delay=delay, mode=mode, timeout=timeout, condition='true'),
-            wait=False
+            launch_kwargs={'wait': False},
         ) as instance:
             if mode == 'reboot':
                 _detect_reboot(instance)

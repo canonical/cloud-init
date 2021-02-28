@@ -24,15 +24,19 @@ Configuration for this module is under the ``random_seed`` config key. The
 optionally be specified in encoded form, with the encoding specified in
 ``encoding``.
 
+If the cloud provides its own random seed data, it will be appended to ``data``
+before it is written to ``file``.
+
 .. note::
     when using a multiline value for ``data`` or specifying binary data, be
     sure to follow yaml syntax and use the ``|`` and ``!binary`` yaml format
     specifiers when appropriate
 
-Instead of specifying a data string, a command can be run to generate/collect
-the data to be written. The command should be specified as a list of args in
-the ``command`` key. If a command is specified that cannot be run, no error
-will be reported unless ``command_required`` is set to true.
+If the ``command`` key is specified, the given command will be executed.  This
+will happen after ``file`` has been populated.  That command's environment will
+contain the value of the ``file`` key as ``RANDOM_SEED_FILE``. If a command is
+specified that cannot be run, no error will be reported unless
+``command_required`` is set to true.
 
 For example, to use ``pollinate`` to gather data from a
 remote entropy server and write it to ``/dev/urandom``, the following could be

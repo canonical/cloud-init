@@ -1,5 +1,5 @@
 # PyPI requirements for cloud-init integration testing
 # https://cloudinit.readthedocs.io/en/latest/topics/integration_tests.html
 #
-pycloudlib @ git+https://github.com/canonical/pycloudlib.git@72e800b8e99c5b735348c4778f19f92cf6c63de0
+pycloudlib @ git+https://github.com/canonical/pycloudlib.git@da8445325875674394ffd85aaefaa3d2d0e0020d
 pytest

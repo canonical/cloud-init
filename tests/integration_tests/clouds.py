@@ -135,7 +135,7 @@ class IntegrationCloud(ABC):
         pycloudlib_instance = self.cloud_instance.launch(**launch_kwargs)
         return pycloudlib_instance
 
-    def launch(self, user_data=None, launch_kwargs=None, wait=True,
+    def launch(self, user_data=None, launch_kwargs=None,
                settings=integration_settings):
         if launch_kwargs is None:
             launch_kwargs = {}
@@ -147,32 +147,28 @@ class IntegrationCloud(ABC):
                 self.settings.EXISTING_INSTANCE_ID
             )
             return
-        if 'wait' in launch_kwargs:
-            raise Exception("Specify 'wait' directly to launch, "
-                            "not in 'launch_kwargs'")
         kwargs = {
             'image_id': self.image_id,
             'user_data': user_data,
-            'wait': False,
         }
         kwargs.update(launch_kwargs)
         log.info(
-            "Launching instance with launch_kwargs:\n{}".format(
-                "\n".join("{}={}".format(*item) for item in kwargs.items())
-            )
+            "Launching instance with launch_kwargs:\n%s",
+            "\n".join("{}={}".format(*item) for item in kwargs.items())
         )
 
         pycloudlib_instance = self._perform_launch(kwargs)
-        if wait:
-            pycloudlib_instance.wait(raise_on_cloudinit_failure=False)
         log.info('Launched instance: %s', pycloudlib_instance)
         instance = self.get_instance(pycloudlib_instance, settings)
-        if wait:
+        if kwargs.get('wait', True):
             # If we aren't waiting, we can't rely on command execution here
             log.info(
                 'cloud-init version: %s',
                 instance.execute("cloud-init --version")
             )
+            serial = instance.execute("grep serial /etc/cloud/build.info")
+            if serial:
+                log.info('image serial: %s', serial.split()[1])
         return instance
 
     def get_instance(self, cloud_instance, settings=integration_settings):
@@ -213,9 +209,6 @@ class GceCloud(IntegrationCloud):
     def _get_cloud_instance(self):
         return GCE(
             tag='gce-integration-test',
-            project=self.settings.GCE_PROJECT,
-            region=self.settings.GCE_REGION,
-            zone=self.settings.GCE_ZONE,
         )
 
 
@@ -243,8 +236,7 @@ class OciCloud(IntegrationCloud):
 
     def _get_cloud_instance(self):
         return OCI(
-            tag='oci-integration-test',
-            compartment_id=self.settings.OCI_COMPARTMENT_ID
+            tag='oci-integration-test'
         )
 
 
@@ -252,6 +244,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
     integration_instance_cls = IntegrationLxdInstance
 
     def _get_cloud_instance(self):
+        # pylint: disable=no-member
         return self.pycloudlib_instance_cls(tag=self.instance_tag)
 
     @staticmethod
@@ -267,8 +260,10 @@ class _LxdIntegrationCloud(IntegrationCloud):
             'container_path': target_path,
         }
         log.info(
-            'Mounting source {source_path} directly onto LXD container/vm '
-            'named {name} at {container_path}'.format(**format_variables))
+            'Mounting source %(source_path)s directly onto LXD container/vm '
+            'named %(name)s at %(container_path)s',
+            format_variables
+        )
         command = (
             'lxc config device add {name} host-cloud-init disk '
             'source={source_path} '
@@ -278,7 +273,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
 
     def _perform_launch(self, launch_kwargs):
         launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
-        launch_kwargs.pop('wait')
+        wait = launch_kwargs.pop('wait', True)
         release = launch_kwargs.pop('image_id')
 
         try:
@@ -294,7 +289,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
         )
         if self.settings.CLOUD_INIT_SOURCE == 'IN_PLACE':
             self._mount_source(pycloudlib_instance)
-        pycloudlib_instance.start(wait=False)
+        pycloudlib_instance.start(wait=wait)
         return pycloudlib_instance
 
 

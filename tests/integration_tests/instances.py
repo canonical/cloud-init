@@ -39,6 +39,7 @@ class CloudInitSource(Enum):
     PROPOSED = 3
     PPA = 4
     DEB_PACKAGE = 5
+    UPGRADE = 6
 
     def installs_new_version(self):
         if self.name in [self.NONE.name, self.IN_PLACE.name]:
@@ -56,18 +57,13 @@ class IntegrationInstance:
     def destroy(self):
         self.instance.delete()
 
-    def restart(self, raise_on_cloudinit_failure=False):
+    def restart(self):
         """Restart this instance (via cloud mechanism) and wait for boot.
 
-        This wraps pycloudlib's `BaseInstance.restart` to pass
-        `raise_on_cloudinit_failure=False` to `BaseInstance.wait`, mirroring
-        our launch behaviour.
+        This wraps pycloudlib's `BaseInstance.restart`
         """
-        self.instance.restart(wait=False)
-        log.info("Instance restarted; waiting for boot")
-        self.instance.wait(
-            raise_on_cloudinit_failure=raise_on_cloudinit_failure
-        )
+        log.info("Restarting instance and waiting for boot")
+        self.instance.restart()
 
     def execute(self, command, *, use_sudo=True) -> Result:
         if self.instance.username == 'root' and use_sudo is False:
@@ -120,7 +116,8 @@ class IntegrationInstance:
     def install_new_cloud_init(
         self,
         source: CloudInitSource,
-        take_snapshot=True
+        take_snapshot=True,
+        clean=True,
     ):
         if source == CloudInitSource.DEB_PACKAGE:
             self.install_deb()
@@ -128,6 +125,8 @@ class IntegrationInstance:
             self.install_ppa()
         elif source == CloudInitSource.PROPOSED:
             self.install_proposed_image()
+        elif source == CloudInitSource.UPGRADE:
+            self.upgrade_cloud_init()
         else:
             raise Exception(
                 "Specified to install {} which isn't supported here".format(
@@ -135,7 +134,8 @@ class IntegrationInstance:
             )
         version = self.execute('cloud-init -v').split()[-1]
         log.info('Installed cloud-init version: %s', version)
-        self.instance.clean()
+        if clean:
+            self.instance.clean()
         if take_snapshot:
             snapshot_id = self.snapshot()
             self.cloud.snapshot_id = snapshot_id
@@ -170,6 +170,11 @@ class IntegrationInstance:
             remote_path=remote_path)
         remote_script = 'dpkg -i {path}'.format(path=remote_path)
         self.execute(remote_script)
+
+    def upgrade_cloud_init(self):
+        log.info('Upgrading cloud-init to latest version in archive')
+        self.execute("apt-get update -q")
+        self.execute("apt-get install -qy cloud-init")
 
     def __enter__(self):
         return self

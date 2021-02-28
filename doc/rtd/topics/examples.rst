@@ -149,8 +149,8 @@ Disk setup
     :language: yaml
     :linenos:
 
-Register RedHat Subscription
-============================
+Register Red Hat Subscription
+=============================
 
 .. literalinclude:: ../../examples/cloud-config-rh_subscription.txt
     :language: yaml
