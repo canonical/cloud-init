@@ -15,7 +15,7 @@ pathMap = {
 }
 
 
-def get_script_folder_by_frequency(scripts_dir, freq):
+def get_script_folder_by_frequency(freq, scripts_dir):
     freqPath = pathMap[freq]
     folder = os.path.join(scripts_dir, freqPath)
     return folder
@@ -24,7 +24,7 @@ def get_script_folder_by_frequency(scripts_dir, freq):
 def write_script_by_frequency(script_path, payload, frequency, scripts_dir):
     filename = os.path.basename(script_path)
     filename = util.clean_filename(filename)
-    folder = get_script_folder_by_frequency(scripts_dir, frequency)
+    folder = get_script_folder_by_frequency(frequency, scripts_dir)
     path = os.path.join(folder, filename)
     payload = util.dos2unix(payload)
     util.write_file(path, payload, 0o700)

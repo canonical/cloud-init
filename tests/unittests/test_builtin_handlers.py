@@ -25,7 +25,7 @@ from cloudinit.handlers.jinja_template import (
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
-from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE)
+from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, PER_ONCE)
 
 
 class TestUpstartJobPartHandler(FilesystemMockingTestCase):
@@ -396,13 +396,13 @@ class TestShellScriptByFrequencyHandlers(CiTestCase):
         self.assertEqual(testFolder, folder)
 
     def test_get_script_folder_per_boot(self):
-        self.do_test_frequency('per-boot')
+        self.do_test_frequency(PER_ALWAYS)
 
     def test_get_script_folder_per_instance(self):
-        self.do_test_frequency('per-instance')
+        self.do_test_frequency(PER_INSTANCE)
 
     def test_get_script_folder_per_once(self):
-        self.do_test_frequency('per-once')
+        self.do_test_frequency(PER_ONCE)
 
 
 # vi: ts=4 expandtab
