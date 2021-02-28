@@ -41,7 +41,7 @@ class ShellScriptPerBootPartHandler(Handler):
     def list_types(self):
         return(["text/x-shellscript-per-boot"])
 
-    def handle_part(self, data, ctype, script_path, payload):
+    def handle_part(self, data, ctype, script_path, payload, frequency):
         if script_path is not None:
             LOG.debug("script_path=%s", script_path)
             write_script_by_frequency(script_path, payload, PER_ALWAYS,
@@ -59,7 +59,7 @@ class ShellScriptPerInstancePartHandler(Handler):
     def list_types(self):
         return(["text/x-shellscript-per-boot"])
 
-    def handle_part(self, data, ctype, script_path, payload):
+    def handle_part(self, data, ctype, script_path, payload, frequency):
         if script_path is not None:
             LOG.debug("script_path=%s", script_path)
             write_script_by_frequency(script_path, payload, PER_INSTANCE,
@@ -77,7 +77,7 @@ class ShellScriptPerOncePartHandler(Handler):
     def list_types(self):
         return(["text/x-shellscript-per-boot"])
 
-    def handle_part(self, data, ctype, script_path, payload):
+    def handle_part(self, data, ctype, script_path, payload, frequency):
         if script_path is not None:
             LOG.debug("script_path=%s", script_path)
             write_script_by_frequency(script_path, payload, PER_ONCE,
