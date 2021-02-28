@@ -380,4 +380,27 @@ class TestRenderJinjaPayload(CiTestCase):
             " 'myfile': 'NOTHERE'")
         self.assertIn(expected_log, self.logs.getvalue())
 
+
+class TestShellScriptByFrequencyHandlers(CiTestCase):
+    with_logs = True
+
+    def test_frequency(self, frequency)
+        from cloudinit.cmd.devel import read_cfg_paths
+        from handlers import shell_script_by_frequency
+        ci_paths = read_cfg_paths()
+        scripts_dir = ci_paths.get_cpath('scripts')   # defaults to /var/lib/cloud/ + scripts 
+        testFolder = os.path.join(scripts_dir, shell_script_by_frequency.pathMap[frequency])
+        folder = shell_script_by_frequency.get_script_folder_by_frequency(frequency)
+        self.assertEqual(testFolder, folder)
+
+    def test_get_script_folder_per_boot(self):
+        self.test_frequency('per-boot')
+
+    def test_get_script_folder_per_instance(self):
+        self.test_frequency('per-instance')
+
+    def test_get_script_folder_per_once(self):
+        self.test_frequency('per-once')
+
+
 # vi: ts=4 expandtab
