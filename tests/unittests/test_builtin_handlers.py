@@ -386,11 +386,11 @@ class TestShellScriptByFrequencyHandlers(CiTestCase):
 
     def test_frequency(self, frequency):
         from cloudinit.cmd.devel import read_cfg_paths
-        from handlers import shell_script_by_frequency
+        from cloudinit.handlers import shell_script_by_frequency
         ci_paths = read_cfg_paths()
         scripts_dir = ci_paths.get_cpath('scripts')   # defaults to /var/lib/cloud/ + scripts 
         testFolder = os.path.join(scripts_dir, shell_script_by_frequency.pathMap[frequency])
-        folder = shell_script_by_frequency.get_script_folder_by_frequency(frequency)
+        folder = shell_script_by_frequency.get_script_folder_by_frequency(frequency, scripts_dir)
         self.assertEqual(testFolder, folder)
 
     def test_get_script_folder_per_boot(self):
