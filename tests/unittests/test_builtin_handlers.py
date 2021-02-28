@@ -384,7 +384,7 @@ class TestRenderJinjaPayload(CiTestCase):
 class TestShellScriptByFrequencyHandlers(CiTestCase):
     with_logs = True
 
-    def test_frequency(self, frequency)
+    def test_frequency(self, frequency):
         from cloudinit.cmd.devel import read_cfg_paths
         from handlers import shell_script_by_frequency
         ci_paths = read_cfg_paths()

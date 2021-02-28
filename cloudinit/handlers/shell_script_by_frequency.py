@@ -60,7 +60,7 @@ class ShellScriptPerInstancePartHandler(Handler):
             write_script_by_frequency(script_path, payload, PER_INSTANCE, self.scripts_dir)
 
 ### per-once
-class ShellScriptPerOPncePartHandler(Handler):
+class ShellScriptPerOncePartHandler(Handler):
     def __init__(self, paths, **_kwargs):
         Handler.__init__(self, PER_ONCE)
         self.scripts_dir = paths.get_ipath_cur('scripts')
