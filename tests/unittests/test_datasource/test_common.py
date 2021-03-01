@@ -51,7 +51,7 @@ DEFAULT_LOCAL = [
     OpenStack.DataSourceOpenStackLocal,
     RbxCloud.DataSourceRbxCloud,
     Scaleway.DataSourceScaleway,
-    UpCloud.DataSourceUpCloudLocal
+    UpCloud.DataSourceUpCloudLocal,
 ]
 
 DEFAULT_NETWORK = [
@@ -67,7 +67,7 @@ DEFAULT_NETWORK = [
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
     OVF.DataSourceOVFNet,
-    UpCloud.DataSourceUpCloud
+    UpCloud.DataSourceUpCloud,
 ]
 
 
