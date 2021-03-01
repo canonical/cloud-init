@@ -47,12 +47,6 @@ Specify update policy configuration for cloud-init to define which
 events are allowed to be handled.  This is separate from whether a
 particular platform or datasource has the capability for such events.
 
-**policy-version**: *<Latest policy version, currently 1>*
-
-The ``policy-version`` value specifies the updates configuration
-version number.  Current version is 1, future versions may modify
-the configuation structure.
-
 **scope**:  *<name of the scope for event policy>*
 
 The ``scope`` value is a string which defines under which domain do the
@@ -69,31 +63,6 @@ are to allowed to be handled.
 Examples
 ========
 
-default
-~~~~~~~
-
-The default policy for handling new instances is found in
-/etc/cloud/cloud.cfg.d/10_updates_policy.cfg
-
-.. code-block:: shell-session
-
- # default policy for cloud-init for when to update system config
- # such as network and storage configurations
- updates:
-   policy-version: 1
-   network:
-     when: ['boot-new-instance']
-
-This default policy indicates that whenever cloud-init generates a
-``BOOT_NEW_INSTANCE`` event that the ``network`` scope will be updated.
-This results in cloud-init applying network configuration when booting
-a new instance.
-
-.. note::
-  Removing 'boot-new-instance' from the policy will cause issues when
-  capturing images and booting them elsewhere as the network config
-  will remain static.
-
 apply network config every boot
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 On each firsboot and every boot cloud-init will apply network configuration
@@ -103,7 +72,6 @@ found in the datasource.
 
  # apply network config on every boot
  updates:
-   policy-version: 1
    network:
      when: ['boot-new-instance', 'boot']
 

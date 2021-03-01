@@ -35,7 +35,6 @@ def get_allowed_events(sys_events, ds_events, user_events):
        update events are allowed.'''
 
     # updates:
-    #   policy-version: 1
     #   network:
     #     when: [boot-new-instance, boot, hotplug]
     #   storage:
@@ -65,7 +64,7 @@ def get_allowed_events(sys_events, ds_events, user_events):
 
 def get_update_events_config(update_events):
     '''Return a dictionary of updates config'''
-    evt_cfg = {'policy-version': 1}
+    evt_cfg = {}
     for scope, events in update_events.items():
         evt_cfg[scope] = {'when': [EventNameMap[evt] for evt in events]}
 
