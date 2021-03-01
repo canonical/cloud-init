@@ -175,12 +175,20 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     # The datasource defines a set of supported EventTypes during which
     # the datasource can react to changes in metadata and regenerate
-    # network configuration on metadata changes.
-    # A datasource which supports writing network config on each system boot
-    # would call update_events['network'].add(EventType.BOOT).
+    # network configuration on metadata changes. These are defined in
+    # `supported_network_events`.
+    # The datasource also defines a set of default EventTypes that the
+    # datasource can react to. These are the event types that will be used
+    # if not overridden by the user.
+    # A datasource requiring to write network config on each system boot
+    # would call default_update_events['network'].add(EventType.BOOT).
 
     # Default: generate network config on new instance id (first boot).
-    update_events = {'network': set([EventType.BOOT_NEW_INSTANCE])}
+    supported_update_events = {'network': set([
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+    ])}
+    default_update_events = {'network': set([EventType.BOOT_NEW_INSTANCE])}
 
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
@@ -663,7 +671,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         """
         supported_events = {}
         for event in source_event_types:
-            for update_scope, update_events in self.update_events.items():
+            for update_scope, update_events in self.supported_update_events.items():  # noqa: E501
                 if event in update_events:
                     if not supported_events.get(update_scope):
                         supported_events[update_scope] = set()

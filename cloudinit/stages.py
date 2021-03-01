@@ -709,7 +709,9 @@ class Init(object):
 
     def update_event_allowed(self, event_source_type, scope=None):
         # convert ds events to config
-        ds_config = get_update_events_config(self.datasource.update_events)
+        ds_config = get_update_events_config(
+            self.datasource.supported_update_events
+        )
         LOG.debug('Datasource updates cfg: %s', ds_config)
 
         sys_config = self.cfg.get('updates', {})

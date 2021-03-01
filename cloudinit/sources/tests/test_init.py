@@ -620,10 +620,12 @@ class TestDataSource(CiTestCase):
 
     def test_update_metadata_only_acts_on_supported_update_events(self):
         """update_metadata won't get_data on unsupported update events."""
-        self.datasource.update_events['network'].discard(EventType.BOOT)
+        self.datasource.default_update_events[
+            'network'
+        ].discard(EventType.BOOT)
         self.assertEqual(
             {'network': set([EventType.BOOT_NEW_INSTANCE])},
-            self.datasource.update_events)
+            self.datasource.default_update_events)
 
         def fake_get_data():
             raise Exception('get_data should not be called')

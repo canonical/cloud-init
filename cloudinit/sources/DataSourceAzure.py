@@ -353,7 +353,7 @@ class DataSourceAzure(sources.DataSource):
         self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
         self._network_config = None
         # Regenerate network config new_instance boot and every boot
-        self.update_events['network'].add(EventType.BOOT)
+        self.default_update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
         self.failed_desired_api_version = False
         self.iso_dev = None

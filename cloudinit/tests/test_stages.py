@@ -338,7 +338,9 @@ class TestInit(CiTestCase):
 
         self.init._find_networking_config = fake_network_config
         self.init.datasource = FakeDataSource(paths=self.init.paths)
-        self.init.datasource.update_events = {'network': [EventType.BOOT]}
+        self.init.datasource.default_update_events = {
+            'network': [EventType.BOOT]
+        }
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_called_with(

@@ -426,7 +426,7 @@ class DataSourceEc2(sources.DataSource):
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
             # network config file every boot due to MAC address change.
             if self.is_classic_instance():
-                self.update_events['network'].add(EventType.BOOT)
+                self.default_update_events['network'].add(EventType.BOOT)
         else:
             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
         self._network_config = result

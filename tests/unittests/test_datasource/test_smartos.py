@@ -654,7 +654,7 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
         # Test to ensure that network is configured from metadata on each boot
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         self.assertSetEqual(set([EventType.BOOT_NEW_INSTANCE, EventType.BOOT]),
-                            dsrc.update_events['network'])
+                            dsrc.default_update_events['network'])
 
 
 class TestIdentifyFile(CiTestCase):
