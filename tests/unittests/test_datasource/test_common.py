@@ -28,10 +28,7 @@ from cloudinit.sources import (
     DataSourceScaleway as Scaleway,
     DataSourceSmartOS as SmartOS,
     DataSourceUpCloud as UpCloud,
-<<<<<<< HEAD
-=======
     DataSourceVultr as Vultr,
->>>>>>> vultr-support
 )
 from cloudinit.sources import DataSourceNone as DSNone
 
@@ -53,15 +50,8 @@ DEFAULT_LOCAL = [
     Ec2.DataSourceEc2Local,
     OpenStack.DataSourceOpenStackLocal,
     RbxCloud.DataSourceRbxCloud,
-<<<<<<< HEAD
-    Scaleway.DataSourceScaleway
-=======
     Scaleway.DataSourceScaleway,
-    UpCloud.DataSourceUpCloudLocal,
-<<<<<<< HEAD
-=======
->>>>>>> upstream/master
->>>>>>> vultr-support
+    UpCloud.DataSourceUpCloudLocal
 ]
 
 DEFAULT_NETWORK = [
@@ -76,15 +66,8 @@ DEFAULT_NETWORK = [
     MAAS.DataSourceMAAS,
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
-<<<<<<< HEAD
-    OVF.DataSourceOVFNet
-=======
     OVF.DataSourceOVFNet,
-    UpCloud.DataSourceUpCloud,
-<<<<<<< HEAD
-=======
->>>>>>> upstream/master
->>>>>>> vultr-support
+    UpCloud.DataSourceUpCloud
 ]
 
 

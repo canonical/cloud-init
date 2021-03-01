@@ -56,10 +56,7 @@ environments in the public cloud:
 - AltCloud
 - SmartOS
 - UpCloud
-<<<<<<< HEAD
-=======
 - Vultr
->>>>>>> vultr-support
 
 Additionally, cloud-init is supported on these private clouds:
 

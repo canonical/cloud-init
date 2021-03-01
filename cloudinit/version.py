@@ -4,11 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-<<<<<<< HEAD
 __VERSION__ = "21.1"
-=======
-__VERSION__ = "20.4.1"
->>>>>>> vultr-support
 _PACKAGED_VERSION = '@@PACKAGED_VERSION@@'
 
 FEATURES = [
