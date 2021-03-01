@@ -1,39 +1,3 @@
-# **Note:** Vultr support is work-in-progress
-
-This current fork and branch [vultr-support](https://github.com/vultr/cloud-init) is currently in a `beta` state and is a work in progress. The code and functionality may be changed or altered at any point during this development phase.
-
-Please **do not** use this in a production environment.
-
-The following repo can be built from source or you can use one of the
-following packaged builds.
-
-### RHEL
-Latest
-* https://ewr1.vultrobjects.com/cloud_init_beta/cloud-init_rhel_latest.rpm
-* https://ewr1.vultrobjects.com/cloud_init_beta/rhel_latest_MD5
-
-Nightly
-* https://ewr1.vultrobjects.com/cloud_init_beta/cloud-init_rhel_nightly.rpm
-* https://ewr1.vultrobjects.com/cloud_init_beta/rhel_nightly_MD5
-
-### Debian 10 (Possibly other versions)
-Latest
-* https://ewr1.vultrobjects.com/cloud_init_beta/cloud-init_debian10_latest.deb
-* https://ewr1.vultrobjects.com/cloud_init_beta/debian10_latest_MD5
-
-Nightly
-* https://ewr1.vultrobjects.com/cloud_init_beta/cloud-init_debian10_nightly.deb
-* https://ewr1.vultrobjects.com/cloud_init_beta/debian10_nightly_MD5
-
-### Deb (Universal)
-Latest
-* https://ewr1.vultrobjects.com/cloud_init_beta/cloud-init_universal_latest.deb
-* https://ewr1.vultrobjects.com/cloud_init_beta/universal_latest_MD5
-
-Nightly
-* https://ewr1.vultrobjects.com/cloud_init_beta/cloud-init_universal_nightly.deb
-* https://ewr1.vultrobjects.com/cloud_init_beta/universal_nightly_MD5
-
 # cloud-init
 
 [![Build Status](https://travis-ci.com/canonical/cloud-init.svg?branch=master)](https://travis-ci.com/canonical/cloud-init) [![Read the Docs](https://readthedocs.org/projects/cloudinit/badge/?version=latest&style=flat)](https://cloudinit.readthedocs.org)
