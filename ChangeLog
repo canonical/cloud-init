@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 21.1
  - Azure: Support for VMs without ephemeral resource disks. (#800)
    [Johnson Shi] (LP: #1901011)
@@ -105,6 +106,8 @@
  - cla: add xnox (#692) [Dimitri John Ledkov]
  - Collect logs from integration test runs (#675)
 
+=======
+>>>>>>> vultr-support
 20.4.1
  - Revert "ssh_util: handle non-default AuthorizedKeysFile config (#586)"
 
