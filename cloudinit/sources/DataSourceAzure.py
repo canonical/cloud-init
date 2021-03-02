@@ -659,7 +659,7 @@ class DataSourceAzure(sources.DataSource):
                     )
                     return get_metadata_from_imds(
                         fallback_nic=fallback_nic,
-                        retries=retries,
+                        retries=0,
                         md_type=md_type,
                         api_version=IMDS_VER_WANT
                     )
