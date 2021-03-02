@@ -153,9 +153,8 @@ class IntegrationCloud(ABC):
         }
         kwargs.update(launch_kwargs)
         log.info(
-            "Launching instance with launch_kwargs:\n{}".format(
-                "\n".join("{}={}".format(*item) for item in kwargs.items())
-            )
+            "Launching instance with launch_kwargs:\n%s",
+            "\n".join("{}={}".format(*item) for item in kwargs.items())
         )
 
         pycloudlib_instance = self._perform_launch(kwargs)
@@ -245,6 +244,7 @@ class _LxdIntegrationCloud(IntegrationCloud):
     integration_instance_cls = IntegrationLxdInstance
 
     def _get_cloud_instance(self):
+        # pylint: disable=no-member
         return self.pycloudlib_instance_cls(tag=self.instance_tag)
 
     @staticmethod
@@ -260,8 +260,10 @@ class _LxdIntegrationCloud(IntegrationCloud):
             'container_path': target_path,
         }
         log.info(
-            'Mounting source {source_path} directly onto LXD container/vm '
-            'named {name} at {container_path}'.format(**format_variables))
+            'Mounting source %(source_path)s directly onto LXD container/vm '
+            'named %(name)s at %(container_path)s',
+            format_variables
+        )
         command = (
             'lxc config device add {name} host-cloud-init disk '
             'source={source_path} '
