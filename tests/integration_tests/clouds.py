@@ -327,6 +327,11 @@ class OpenstackCloud(IntegrationCloud):
     integration_instance_cls = IntegrationInstance
 
     def _get_cloud_instance(self):
+        if not integration_settings.OPENSTACK_NETWORK:
+            raise Exception(
+                'OPENSTACK_NETWORK must be set to a valid Openstack network. '
+                'If using the openstack CLI, try `openstack network list`'
+            )
         return Openstack(
             tag='openstack-integration-test',
             network=integration_settings.OPENSTACK_NETWORK,
@@ -338,9 +343,9 @@ class OpenstackCloud(IntegrationCloud):
             UUID(image.image_id)
         except ValueError as e:
             raise Exception(
-                'When using Openstack, `OS_IMAGE` parameter MUST take the '
-                'form of a 36-character UUID. Passing in a release name is '
+                'When using Openstack, `OS_IMAGE` MUST be specified with '
+                'a 36-character UUID image ID. Passing in a release name is '
                 'not valid here.\n'
-                'OS_IMAGE: {}'.format(image.image_id)
+                'OS image id: {}'.format(image.image_id)
             ) from e
         return image.image_id
