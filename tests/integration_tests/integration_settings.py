@@ -21,6 +21,7 @@ RUN_UNSTABLE = False
 #  ec2
 #  gce
 #  oci
+#  openstack
 PLATFORM = 'lxd_container'
 
 # The cloud-specific instance type to run. E.g., a1.medium on AWS
@@ -88,6 +89,13 @@ PUBLIC_SSH_KEY = None
 # For clouds which use named keypairs for SSH connection, the name that is used
 # for the keypair.  (Defaults to pycloudlib's default behaviour.)
 KEYPAIR_NAME = None
+
+##################################################################
+# OPENSTACK SETTINGS
+##################################################################
+# Network to use for Openstack. Should be one of the names/ids found
+# in `openstack network list`
+OPENSTACK_NETWORK = None
 
 ##################################################################
 # USER SETTINGS OVERRIDES
