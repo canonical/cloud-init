@@ -6,6 +6,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import errno
+import functools
 import ipaddress
 import logging
 import os
@@ -19,6 +20,19 @@ from cloudinit.url_helper import UrlError, readurl
 LOG = logging.getLogger(__name__)
 SYS_CLASS_NET = "/sys/class/net/"
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
+OVS_INTERNAL_INTERFACE_LOOKUP_CMD = [
+    "ovs-vsctl",
+    "--format",
+    "csv",
+    "--no-headings",
+    "--timeout",
+    "10",
+    "--columns",
+    "name",
+    "find",
+    "interface",
+    "type=internal",
+]
 
 
 def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
@@ -131,6 +145,52 @@ def master_is_openvswitch(devname):
         return False
     ovs_path = sys_dev_path(devname, path="upper_ovs-system")
     return os.path.exists(ovs_path)
+
+
+@functools.lru_cache(maxsize=None)
+def openvswitch_is_installed() -> bool:
+    """Return a bool indicating if Open vSwitch is installed in the system."""
+    ret = bool(subp.which("ovs-vsctl"))
+    if not ret:
+        LOG.debug(
+            "ovs-vsctl not in PATH; not detecting Open vSwitch interfaces"
+        )
+    return ret
+
+
+@functools.lru_cache(maxsize=None)
+def get_ovs_internal_interfaces() -> list:
+    """Return a list of the names of OVS internal interfaces on the system.
+
+    These will all be strings, and are used to exclude OVS-specific interface
+    from cloud-init's network configuration handling.
+    """
+    try:
+        out, _err = subp.subp(OVS_INTERNAL_INTERFACE_LOOKUP_CMD)
+    except subp.ProcessExecutionError as exc:
+        if "database connection failed" in exc.stderr:
+            LOG.info(
+                "Open vSwitch is not yet up; no interfaces will be detected as"
+                " OVS-internal"
+            )
+            return []
+        raise
+    else:
+        return out.splitlines()
+
+
+def is_openvswitch_internal_interface(devname: str) -> bool:
+    """Returns True if this is an OVS internal interface.
+
+    If OVS is not installed or not yet running, this will return False.
+    """
+    if not openvswitch_is_installed():
+        return False
+    ovs_bridges = get_ovs_internal_interfaces()
+    if devname in ovs_bridges:
+        LOG.debug("Detected %s as an OVS interface", devname)
+        return True
+    return False
 
 
 def is_netfailover(devname, driver=None):
@@ -883,6 +943,8 @@ def get_interfaces(blacklist_drivers=None) -> list:
             continue
         # skip nics that have no mac (00:00....)
         if name != 'lo' and mac == zero_mac[:len(mac)]:
+            continue
+        if is_openvswitch_internal_interface(name):
             continue
         # skip nics that have drivers blacklisted
         driver = device_driver(name)
