@@ -5,81 +5,45 @@
 import json
 import os
 import copy
-import re
+import base64
 
 from cloudinit import log as log
 from cloudinit import url_helper
 from cloudinit import dmi
 from cloudinit import util
 from cloudinit import net
-from cloudinit import subp
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
+from functools import lru_cache
 
-# Get logger
-LOGGER = log.getLogger(__name__)
-
-# Cache
-MAC_TO_NICS = None
-METADATA = None
-EHP = None
+# Get LOG
+LOG = log.getLogger(__name__)
 
 
-def bring_up_interface(connectivity_url=None):
-    global EHP
+@lru_cache()
+def get_metadata(params):
+    params = json.loads(params)
 
-    # If for whatever reason this is up, bail
-    if EHP is not None:
-        return
-
-    # Make sure its not up already
-    if net.has_url_connectivity(connectivity_url):
-        return
-
-    # Bring up interface in local
+    # Bring up interface
     try:
-        EHP = EphemeralDHCPv4(net.find_fallback_nic())
-        EHP.obtain_lease()
+        with EphemeralDHCPv4(connectivity_url=params['url']):
+            # Fetch the metadata
+            v1 = fetch_metadata(params)
     except (NoDHCPLeaseError) as exc:
-        LOGGER.error("DHCP failed, cannot continue. Exception: %s",
-                     exc)
+        LOG.error("DHCP failed, cannot continue. Exception: %s",
+                  exc)
         raise
 
+    v1_json = json.loads(v1)
+    metadata = v1_json
 
-# Close EphermalDHCP so its not left open
-def close_ephermeral():
-    global EHP
+    # This comes through as a string but is JSON, make a dict
+    metadata['vendor-config'] = json.loads(metadata['vendor-config'])
 
-    # No action if its not open
-    if EHP is None:
-        return
-
-    EHP.clean_network()
-
-    # Cleanup
-    EHP = None
+    return json.dumps(metadata)
 
 
-# Cache the metadata for optimization
-def get_metadata(params):
-    global METADATA
-
-    if not METADATA:
-        # Bring up interface in local
-        bring_up_interface(params['url'])
-
-        # Fetch the metadata
-        v1 = fetch_metadata(params)
-
-        # Close EphermeralDHCP when we are done
-        close_ephermeral()
-
-        v1_json = json.loads(v1)
-        METADATA = v1_json
-
-        # This comes through as a string but is JSON, make a dict
-        METADATA['vendor-config'] = json.loads(METADATA['vendor-config'])
-
-    return METADATA
+def get_cached_metadata(args):
+    return json.loads(get_metadata(json.dumps(args)))
 
 
 # Read the system information from SMBIOS
@@ -92,21 +56,6 @@ def get_sysinfo():
     }
 
 
-# Get kernel parameters
-def get_kernel_parameters():
-    if not os.path.exists("/proc/cmdline"):
-        return ""
-
-    file = open("/proc/cmdline")
-    content = file.read()
-    file.close()
-
-    if "root=" not in content:
-        return ""
-
-    return re.sub(r'.+root=', '', content)[1].strip()
-
-
 # Confirm is Vultr
 def is_vultr():
     # VC2, VDC, and HFC use DMI
@@ -116,7 +65,7 @@ def is_vultr():
         return True
 
     # Baremetal requires a kernel parameter
-    if "vultr" in get_kernel_parameters():
+    if "vultr" in util.get_cmdline():
         return True
 
     # An extra fallback if the others fail
@@ -127,22 +76,10 @@ def is_vultr():
     return False
 
 
-# Write vendor startup script
-def write_vendor_script(fname, content):
-    os.makedirs("/var/lib/scripts/vendor/", exist_ok=True)
-    file = open("/var/lib/scripts/vendor/%s" % fname, "w")
-    for line in content:
-        file.write(line)
-    file.close()
-    command = ["chmod", "+x", "/var/lib/scripts/vendor/%s" % fname]
-
-    try:
-        subp.subp(command)
-    except Exception as err:
-        LOGGER.error(
-            "Command: %s failed to execute. Error: %s",
-            " ".join(command), err)
-        raise
+def convert_to_base64(string):
+    string_bytes = string.encode('ascii')
+    b64_bytes = base64.b64encode(string_bytes)
+    return b64_bytes.decode('ascii')
 
 
 # Read Metadata endpoint
@@ -168,23 +105,25 @@ def fetch_metadata(params):
     return read_metadata(req)
 
 
+# Wrapped for caching
+@lru_cache()
+def get_interface_map():
+    return net.get_interfaces_by_mac()
+
+
 # Convert macs to nics
 def get_interface_name(mac):
-    global MAC_TO_NICS
+    macs_to_nic = get_interface_map()
 
-    # Define it if empty
-    if not MAC_TO_NICS:
-        MAC_TO_NICS = net.get_interfaces_by_mac()
-
-    if mac not in MAC_TO_NICS:
+    if mac not in macs_to_nic:
         return None
 
-    return MAC_TO_NICS.get(mac)
+    return macs_to_nic.get(mac)
 
 
 # Generate network configs
 def generate_network_config(config):
-    md = get_metadata(config)
+    md = get_cached_metadata(config)
 
     network = {
         "version": 1,
@@ -292,7 +231,8 @@ def generate_private_network_interface(md):
 # This configuration is to replicate how
 # images are deployed on Vultr before Cloud-Init
 def generate_config(config):
-    md = get_metadata(config)
+    LOG.debug("DS: %s", json.dumps(config))
+    md = get_cached_metadata(config)
 
     # Grab the startup script
     script = md['startup-script']
@@ -308,8 +248,7 @@ def generate_config(config):
         config_template['packages'].append("ethtool")
 
     # Define vendor script
-    vendor_script = []
-    vendor_script.append("!/bin/bash")
+    vendor_script = "#!/bin/bash"
 
     # Go through the interfaces
     for netcfg in config_template['network']['config']:
@@ -321,15 +260,34 @@ def generate_config(config):
                 # Set its multi-queue to num of cores as per RHEL Docs
                 name = netcfg['name']
                 command = "ethtool -L %s combined $(nproc --all)" % name
-                vendor_script.append(command)
+                vendor_script = '%s\n%s' % (vendor_script, command)
 
-    # Write vendor script
-    write_vendor_script("vultr_deploy.sh", vendor_script)
+    # Add write_files if it is not present in the template
+    if 'write_files' not in config_template.keys():
+        config_template['write_files'] = []
+
+    # Add vendor script to config
+    config_template['write_files'].append(
+        {
+            'encoding': 'b64',
+            'content': convert_to_base64(vendor_script),
+            'owner': 'root:root',
+            'path': '/var/lib/scripts/vendor/vultr-interface-setup.sh',
+            'permissions': '0750'
+        }
+    )
 
     # Write the startup script
     if script and script != "echo No configured startup script":
-        lines = script.splitlines()
-        write_vendor_script("vultr_user_startup.sh", lines)
+        config_template['write_files'].append(
+            {
+                'encoding': 'b64',
+                'content': convert_to_base64(script),
+                'owner': 'root:root',
+                'path': '/var/lib/scripts/vendor/vultr-user-startup.sh',
+                'permissions': '0750'
+            }
+        )
 
     return config_template
 
