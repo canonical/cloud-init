@@ -60,33 +60,29 @@ class ShellScriptByFreqPartHandler(Handler):
 
 # per-boot
 class ShellScriptPerBootPartHandler(ShellScriptByFreqPartHandler):
+    prefixes = ["text/x-shellscript-per-boot"]
+
     def __init__(self, paths, **_kwargs):
         # pylint: disable=too-many-function-args
         ShellScriptByFreqPartHandler.__init__(self, paths, PER_ALWAYS,
                                               **_kwargs)
 
-    def list_types(self):
-        return(["text/x-shellscript-per-boot"])
-
 
 # per-instance
 class ShellScriptPerInstancePartHandler(ShellScriptByFreqPartHandler):
+    prefixes = ["text/x-shellscript-per-instance"]
+
     def __init__(self, paths, **_kwargs):
         # pylint: disable=too-many-function-args
         ShellScriptByFreqPartHandler.__init__(self, paths, PER_INSTANCE,
                                               **_kwargs)
 
-    def list_types(self):
-        # pylint: disable=too-many-function-args
-        return(["text/x-shellscript-per-boot"])
-
 
 # per-once
 class ShellScriptPerOncePartHandler(ShellScriptByFreqPartHandler):
+    prefixes = ["text/x-shellscript-per-once"]
+
     def __init__(self, paths, **_kwargs):
         # pylint: disable=too-many-function-args
         ShellScriptByFreqPartHandler.__init__(self, paths, PER_ONCE,
                                               **_kwargs)
-
-    def list_types(self):
-        return(["text/x-shellscript-per-boot"])

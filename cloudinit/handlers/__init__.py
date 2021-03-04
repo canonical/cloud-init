@@ -51,6 +51,10 @@ INCLUSION_TYPES_MAP = {
     '#cloud-config-archive': 'text/cloud-config-archive',
     '#cloud-config-jsonp': 'text/cloud-config-jsonp',
     '## template: jinja': 'text/jinja2',
+    'text/x-shellscript-per-boot': 'text/x-shellscript-per-boot',
+    'text/x-shellscript-per-instance': 'text/x-shellscript-per-instance',
+    'text/x-shellscript-per-once': 'text/x-shellscript-per-once'
+
 }
 
 # Sorted longest first
