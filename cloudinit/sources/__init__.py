@@ -659,7 +659,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def update_metadata(self, source_event_types):
         """Refresh cached metadata if the datasource supports this event.
 
-        The datasource has a list of update_events which
+        The datasource has a list of supported_update_events which
         trigger refreshing all cached metadata as well as refreshing the
         network configuration.
 
