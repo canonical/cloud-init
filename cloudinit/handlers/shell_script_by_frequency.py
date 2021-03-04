@@ -39,16 +39,15 @@ def write_script_by_frequency(script_path, payload, frequency, scripts_dir):
     util.write_file(path, payload, 0o700)
 
 
-# per-boot
-class ShellScriptPerBootPartHandler(Handler):
-    def __init__(self, paths, **_kwargs):
-        Handler.__init__(self, PER_ALWAYS)
+# This is purely to allow packaging args up into a single object to please
+# pylint and avoid 'too many positional args' complaints. I'd be happy to
+# have an alernative.
+class ShellScriptByFreqPartHandler(Handler):
+    def __init__(self, paths, freq, **_kwargs):
+        Handler.__init__(self, freq)
         self.scripts_dir = paths.get_cpath('scripts')
         if 'script_path' in _kwargs:
             self.scripts_dir = paths.get_cpath(_kwargs['script_path'])
-
-    def list_types(self):
-        return(["text/x-shellscript-per-boot"])
 
     def handle_part(self, data, ctype, script_path, payload, frequency):
         if script_path is not None:
@@ -59,41 +58,35 @@ class ShellScriptPerBootPartHandler(Handler):
                                       self.scripts_dir)
 
 
-# per-instance
-class ShellScriptPerInstancePartHandler(Handler):
+# per-boot
+class ShellScriptPerBootPartHandler(ShellScriptByFreqPartHandler):
     def __init__(self, paths, **_kwargs):
-        Handler.__init__(self, PER_INSTANCE)
-        self.scripts_dir = paths.get_cpath('scripts')
-        if 'script_path' in _kwargs:
-            self.scripts_dir = paths.get_cpath(_kwargs['script_path'])
+        # pylint: disable=too-many-function-args
+        ShellScriptByFreqPartHandler.__init__(self, paths, PER_ALWAYS,
+                                              **_kwargs)
 
     def list_types(self):
         return(["text/x-shellscript-per-boot"])
 
-    def handle_part(self, data, ctype, script_path, payload, frequency):
-        if script_path is not None:
-            LOG.debug("script_path=%s", script_path)
-            filename = os.path.basename(script_path)
-            filename = util.clean_filename(filename)
-            write_script_by_frequency(filename, payload, PER_INSTANCE,
-                                      self.scripts_dir)
+
+# per-instance
+class ShellScriptPerInstancePartHandler(ShellScriptByFreqPartHandler):
+    def __init__(self, paths, **_kwargs):
+        # pylint: disable=too-many-function-args
+        ShellScriptByFreqPartHandler.__init__(self, paths, PER_INSTANCE,
+                                              **_kwargs)
+
+    def list_types(self):
+        # pylint: disable=too-many-function-args
+        return(["text/x-shellscript-per-boot"])
 
 
 # per-once
-class ShellScriptPerOncePartHandler(Handler):
+class ShellScriptPerOncePartHandler(ShellScriptByFreqPartHandler):
     def __init__(self, paths, **_kwargs):
-        Handler.__init__(self, PER_ONCE)
-        self.scripts_dir = paths.get_cpath('scripts')
-        if 'script_path' in _kwargs:
-            self.scripts_dir = paths.get_cpath(_kwargs['script_path'])
+        # pylint: disable=too-many-function-args
+        ShellScriptByFreqPartHandler.__init__(self, paths, PER_ONCE,
+                                              **_kwargs)
 
     def list_types(self):
         return(["text/x-shellscript-per-boot"])
-
-    def handle_part(self, data, ctype, script_path, payload, frequency):
-        if script_path is not None:
-            LOG.debug("script_path=%s", script_path)
-            filename = os.path.basename(script_path)
-            filename = util.clean_filename(filename)
-            write_script_by_frequency(script_path, payload, PER_ONCE,
-                                      self.scripts_dir)
