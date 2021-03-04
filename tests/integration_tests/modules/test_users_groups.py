@@ -11,6 +11,9 @@ import re
 
 import pytest
 
+from tests.integration_tests.clouds import ImageSpecification
+from tests.integration_tests.instances import IntegrationInstance
+
 
 USER_DATA = """\
 #cloud-config
@@ -86,3 +89,30 @@ class TestUsersGroups:
         _, groups_str = output.split(":", maxsplit=1)
         groups = groups_str.split()
         assert "secret" in groups
+
+
+@pytest.mark.user_data(USER_DATA)
+def test_sudoers_includedir(client: IntegrationInstance):
+    """Ensure we don't add additional #includedir to sudoers.
+
+    Newer verisons of /etc/sudoers will use @includedir rather than
+    #includedir. Ensure we handle that properly and don't include an
+    additional #includedir when one isn't warranted.
+
+    https://github.com/canonical/cloud-init/pull/783
+    """
+    if ImageSpecification.from_os_image().release not in ['hirsute', 'groovy']:
+        raise pytest.skip(
+            'Test requires version of sudo installed on groovy and later'
+        )
+    client.execute("sed -i 's/#include/@include/g' /etc/sudoers")
+
+    sudoers = client.read_from_file('/etc/sudoers')
+    if '@includedir /etc/sudoers.d' not in sudoers:
+        client.execute("echo '@includedir /etc/sudoers.d' > /etc/sudoers")
+    client.execute('cloud-init clean --logs')
+    client.restart()
+    sudoers = client.read_from_file('/etc/sudoers')
+
+    assert '#includedir' not in sudoers
+    assert sudoers.count('includedir /etc/sudoers.d') == 1
