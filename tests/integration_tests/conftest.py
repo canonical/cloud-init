@@ -20,6 +20,7 @@ from tests.integration_tests.clouds import (
     LxdVmCloud,
     OciCloud,
     _LxdIntegrationCloud,
+    OpenstackCloud,
 )
 from tests.integration_tests.instances import (
     CloudInitSource,
@@ -38,6 +39,7 @@ platforms = {
     'oci': OciCloud,
     'lxd_container': LxdContainerCloud,
     'lxd_vm': LxdVmCloud,
+    'openstack': OpenstackCloud,
 }
 os_list = ["ubuntu"]
 
