@@ -10,7 +10,8 @@ import pickle
 import sys
 
 from cloudinit.settings import (
-    FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, RUN_CLOUD_CONFIG)
+    FREQUENCIES, CLOUD_CONFIG, PER_ALWAYS, PER_INSTANCE, PER_ONCE,
+    RUN_CLOUD_CONFIG)
 
 from cloudinit import handlers
 
@@ -20,9 +21,7 @@ from cloudinit.handlers.cloud_config import CloudConfigPartHandler
 from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.shell_script_by_frequency import \
-    (ShellScriptPerBootPartHandler,
-     ShellScriptPerInstancePartHandler,
-     ShellScriptPerOncePartHandler)
+    ShellScriptByFreqPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
 from cloudinit.event import EventType
@@ -419,10 +418,12 @@ class Init(object):
         # TODO(harlowja) Hmmm, should we dynamically import these??
         cloudconfig_handler = CloudConfigPartHandler(**opts)
         shellscript_handler = ShellScriptPartHandler(**opts)
-        shellscript_per_boot_handler = ShellScriptPerBootPartHandler(**opts)
+        shellscript_per_boot_handler = \
+            ShellScriptByFreqPartHandler(PER_ALWAYS, **opts)
         shellscript_per_instance_handler = \
-            ShellScriptPerInstancePartHandler(**opts)
-        shellscript_per_once_handler = ShellScriptPerOncePartHandler(**opts)
+            ShellScriptByFreqPartHandler(PER_INSTANCE, **opts)
+        shellscript_per_once_handler = \
+            ShellScriptByFreqPartHandler(PER_ONCE, **opts)
         def_handlers = [
             cloudconfig_handler,
             shellscript_handler,

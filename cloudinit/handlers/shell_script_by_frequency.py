@@ -38,7 +38,11 @@ def write_script_by_frequency(script_path, payload, frequency, scripts_dir):
 
 class ShellScriptByFreqPartHandler(Handler):
     """Common base class for the frequency-specific script handlers."""
-    def __init__(self, paths, freq, **_kwargs):
+    prefixes = ["text/x-shellscript-per-boot",
+                "text/x-shellscript-per-instance",
+                "text/x-shellscript-per-once"]
+
+    def __init__(self, freq, paths, **_kwargs):
         Handler.__init__(self, freq)
         self.scripts_dir = paths.get_cpath('scripts')
         if 'script_path' in _kwargs:
@@ -51,35 +55,3 @@ class ShellScriptByFreqPartHandler(Handler):
             filename = util.clean_filename(filename)
             write_script_by_frequency(script_path, payload, self.frequency,
                                       self.scripts_dir)
-
-
-# per-boot
-class ShellScriptPerBootPartHandler(ShellScriptByFreqPartHandler):
-    prefixes = ["text/x-shellscript-per-boot"]
-
-    def __init__(self, paths, **_kwargs):
-        # pylint: disable=too-many-function-args
-        ShellScriptByFreqPartHandler.__init__(self, paths, PER_ALWAYS,
-                                              **_kwargs)
-
-
-# per-instance
-class ShellScriptPerInstancePartHandler(ShellScriptByFreqPartHandler):
-    prefixes = ["text/x-shellscript-per-instance"]
-
-    def __init__(self, paths, **_kwargs):
-        # pylint: disable=too-many-function-args
-        ShellScriptByFreqPartHandler.__init__(self, paths, PER_INSTANCE,
-                                              **_kwargs)
-
-
-# per-once
-class ShellScriptPerOncePartHandler(ShellScriptByFreqPartHandler):
-    prefixes = ["text/x-shellscript-per-once"]
-
-    def __init__(self, paths, **_kwargs):
-        # pylint: disable=too-many-function-args
-        ShellScriptByFreqPartHandler.__init__(self, paths, PER_ONCE,
-                                              **_kwargs)
-
-# vi: syntax=python ts=4
