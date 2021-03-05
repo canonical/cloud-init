@@ -1,6 +1,3 @@
-# part-handler
-# vi: syntax=python ts=4
-
 import os
 from cloudinit import log
 from cloudinit import util
@@ -20,17 +17,17 @@ pathMap = {
 }
 
 
-# Using pathMap (defined above), return the frequency-specific subfolder for a
-# given frequency constant and parent folder.
 def get_script_folder_by_frequency(freq, scripts_dir):
+    """Return the frequency-specific subfolder for a given frequency constant
+       and parent folder."""
     freqPath = pathMap[freq]
     folder = os.path.join(scripts_dir, freqPath)
     return folder
 
 
-# Given a filename, a payload, a frequency, and a scripts folder, write the
-# payload to the correct frequency-specific paths
 def write_script_by_frequency(script_path, payload, frequency, scripts_dir):
+    """Given a filename, a payload, a frequency, and a scripts folder, write 
+       the payload to the correct frequency-specific path"""
     filename = os.path.basename(script_path)
     filename = util.clean_filename(filename)
     folder = get_script_folder_by_frequency(frequency, scripts_dir)
@@ -38,11 +35,8 @@ def write_script_by_frequency(script_path, payload, frequency, scripts_dir):
     payload = util.dos2unix(payload)
     util.write_file(path, payload, 0o700)
 
-
-# This is purely to allow packaging args up into a single object to please
-# pylint and avoid 'too many positional args' complaints. I'd be happy to
-# have an alernative.
 class ShellScriptByFreqPartHandler(Handler):
+    """Common base class for the frequency-specific script handlers."""
     def __init__(self, paths, freq, **_kwargs):
         Handler.__init__(self, freq)
         self.scripts_dir = paths.get_cpath('scripts')
@@ -54,7 +48,7 @@ class ShellScriptByFreqPartHandler(Handler):
             LOG.debug("script_path=%s", script_path)
             filename = os.path.basename(script_path)
             filename = util.clean_filename(filename)
-            write_script_by_frequency(script_path, payload, PER_ALWAYS,
+            write_script_by_frequency(script_path, payload, self.frequency,
                                       self.scripts_dir)
 
 
@@ -86,3 +80,5 @@ class ShellScriptPerOncePartHandler(ShellScriptByFreqPartHandler):
         # pylint: disable=too-many-function-args
         ShellScriptByFreqPartHandler.__init__(self, paths, PER_ONCE,
                                               **_kwargs)
+
+# vi: syntax=python ts=4
