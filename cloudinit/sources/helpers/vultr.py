@@ -50,10 +50,15 @@ def get_cached_metadata(args):
 def get_sysinfo():
     return {
         'manufacturer': dmi.read_dmi_data("system-manufacturer"),
-        'subid': dmi.read_dmi_data("system-serial-number"),
-        'product': dmi.read_dmi_data("system-product-name"),
-        'family': dmi.read_dmi_data("system-family")
+        'subid': dmi.read_dmi_data("system-serial-number")
     }
+
+
+# Assumes is Vultr is already checked
+def is_baremetal():
+    if get_sysinfo()['manufacturer'] != "Vultr":
+        return True
+    return False
 
 
 # Confirm is Vultr

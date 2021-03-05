@@ -86,6 +86,13 @@ class DataSourceVultr(sources.DataSource):
 
     # Compare subid as instance id
     def check_instance_id(self, sys_cfg):
+        if not vultr.is_vultr():
+            return None
+
+        # Baremetal has no way to implement this in local
+        if vultr.is_baremetal():
+            return None
+
         subid = vultr.get_sysinfo()['subid']
         return sources.instance_id_matches_system_uuid(subid)
 
