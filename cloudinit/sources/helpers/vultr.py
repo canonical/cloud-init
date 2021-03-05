@@ -73,11 +73,6 @@ def is_vultr():
     if "vultr" in util.get_cmdline():
         return True
 
-    # An extra fallback if the others fail
-    # This needs to be a directory
-    if os.path.exists("/etc/vultr") and os.path.isdir("/etc/vultr"):
-        return True
-
     return False
 
 
