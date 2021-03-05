@@ -26,7 +26,7 @@ def get_script_folder_by_frequency(freq, scripts_dir):
 
 
 def write_script_by_frequency(script_path, payload, frequency, scripts_dir):
-    """Given a filename, a payload, a frequency, and a scripts folder, write 
+    """Given a filename, a payload, a frequency, and a scripts folder, write
        the payload to the correct frequency-specific path"""
     filename = os.path.basename(script_path)
     filename = util.clean_filename(filename)
@@ -34,6 +34,7 @@ def write_script_by_frequency(script_path, payload, frequency, scripts_dir):
     path = os.path.join(folder, filename)
     payload = util.dos2unix(payload)
     util.write_file(path, payload, 0o700)
+
 
 class ShellScriptByFreqPartHandler(Handler):
     """Common base class for the frequency-specific script handlers."""
