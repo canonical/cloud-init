@@ -130,7 +130,7 @@ if __name__ == "__main__":
     config = vultr.generate_config(BUILTIN_DS_CONFIG)
     sysinfo = vultr.get_sysinfo()
 
-    print(util.json_dumps(sysinfo, indent=1))
-    print(util.json_dumps(config, indent=1))
+    print(util.json_dumps(sysinfo))
+    print(util.json_dumps(config))
 
 # vi: ts=4 expandtab
