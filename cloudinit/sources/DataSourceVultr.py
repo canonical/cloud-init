@@ -49,7 +49,7 @@ class DataSourceVultr(sources.DataSource):
 
         LOG.debug("Machine is a Vultr instance")
 
-        config = vultr.generate_config(self.ds_config)
+        config = vultr.generate_config(self.ds_cfg)
 
         # Dump vendor config so diagnosing failures is manageable
         LOG.debug("Vultr Vendor Config:")
@@ -82,7 +82,7 @@ class DataSourceVultr(sources.DataSource):
 
     # Get the metadata by flag
     def get_metadata(self):
-        return vultr.get_cached_metadata(self.ds_config)
+        return vultr.get_cached_metadata(self.ds_cfg)
 
     # Compare subid as instance id
     def check_instance_id(self, sys_cfg):
@@ -104,7 +104,7 @@ class DataSourceVultr(sources.DataSource):
     # Write the base configs every time. These are subject to change
     @property
     def network_config(self):
-        config = vultr.generate_network_config(self.ds_config)
+        config = vultr.generate_network_config(self.ds_cfg)
 
         return config
 
