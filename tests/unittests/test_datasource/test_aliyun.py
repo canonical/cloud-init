@@ -7,6 +7,7 @@ from unittest import mock
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay
+from cloudinit.sources.DataSourceEc2 import convert_ec2_metadata_network_config
 from cloudinit.tests import helpers as test_helpers
 
 DEFAULT_METADATA = {
@@ -182,6 +183,35 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
                                                       'ssh-key-1']}}
         self.assertEqual(ay.parse_public_keys(public_keys),
                          public_keys['key-pair-0']['openssh-key'])
+
+    def test_route_metric_calculated_without_device_number(self):
+        """Test that route-metric code works without `device-number`
+
+        `device-number` is part of EC2 metadata, but not supported on aliyun.
+        Attempting to access it will raise a KeyError.
+
+        LP: #1917875
+        """
+        netcfg = convert_ec2_metadata_network_config(
+            {"interfaces": {"macs": {
+                "06:17:04:d7:26:09": {
+                    "interface-id": "eni-e44ef49e",
+                },
+                "06:17:04:d7:26:08": {
+                    "interface-id": "eni-e44ef49f",
+                }
+            }}},
+            macs_to_nics={
+                '06:17:04:d7:26:09': 'eth0',
+                '06:17:04:d7:26:08': 'eth1',
+            }
+        )
+
+        met0 = netcfg['ethernets']['eth0']['dhcp4-overrides']['route-metric']
+        met1 = netcfg['ethernets']['eth1']['dhcp4-overrides']['route-metric']
+
+        # route-metric numbers should be 100 apart
+        assert 100 == abs(met0 - met1)
 
 
 class TestIsAliYun(test_helpers.CiTestCase):
