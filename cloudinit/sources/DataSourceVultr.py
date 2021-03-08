@@ -49,7 +49,7 @@ class DataSourceVultr(sources.DataSource):
 
         LOG.debug("Machine is a Vultr instance")
 
-        config = vultr.generate_config(BUILTIN_DS_CONFIG)
+        config = vultr.generate_config(self.ds_config)
 
         # Dump vendor config so diagnosing failures is manageable
         LOG.debug("Vultr Vendor Config:")
@@ -82,16 +82,16 @@ class DataSourceVultr(sources.DataSource):
 
     # Get the metadata by flag
     def get_metadata(self):
-        return vultr.get_cached_metadata(BUILTIN_DS_CONFIG)
+        return vultr.get_cached_metadata(self.ds_config)
 
     # Compare subid as instance id
     def check_instance_id(self, sys_cfg):
         if not vultr.is_vultr():
-            return None
+            return False
 
         # Baremetal has no way to implement this in local
         if vultr.is_baremetal():
-            return None
+            return False
 
         subid = vultr.get_sysinfo()['subid']
         return sources.instance_id_matches_system_uuid(subid)
@@ -104,12 +104,7 @@ class DataSourceVultr(sources.DataSource):
     # Write the base configs every time. These are subject to change
     @property
     def network_config(self):
-        config = vultr.generate_network_config(BUILTIN_DS_CONFIG)
-        config_raw = json.dumps(config)
-
-        # Dump network config so diagnosing failures is manageable
-        LOG.debug("Generated Network:")
-        LOG.debug(config_raw)
+        config = vultr.generate_network_config(self.ds_config)
 
         return config
 
@@ -135,7 +130,7 @@ if __name__ == "__main__":
     config = vultr.generate_config(BUILTIN_DS_CONFIG)
     sysinfo = vultr.get_sysinfo()
 
-    print(json.dumps(sysinfo, indent=1))
-    print(json.dumps(config, indent=1))
+    print(util.json_dumps(sysinfo, indent=1))
+    print(util.json_dumps(config, indent=1))
 
 # vi: ts=4 expandtab
