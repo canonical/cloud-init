@@ -82,7 +82,10 @@ class DataSourceVultr(sources.DataSource):
 
     # Get the metadata by flag
     def get_metadata(self):
-        return vultr.get_cached_metadata(self.ds_cfg)
+        return vultr.get_cached_metadata(self.ds_cfg['url'],
+                                         self.ds_cfg['timeout'],
+                                         self.ds_cfg['retries'],
+                                         self.ds_cfg['wait'])
 
     # Compare subid as instance id
     def check_instance_id(self, sys_cfg):
@@ -101,7 +104,6 @@ class DataSourceVultr(sources.DataSource):
     def launch_index(self):
         return None
 
-    # Write the base configs every time. These are subject to change
     @property
     def network_config(self):
         config = vultr.generate_network_config(self.ds_cfg)
@@ -127,7 +129,10 @@ if __name__ == "__main__":
         print("Machine is not a Vultr instance")
         sys.exit(1)
 
-    config = vultr.generate_config(BUILTIN_DS_CONFIG)
+    config = vultr.generate_config(BUILTIN_DS_CONFIG['url'],
+                                   BUILTIN_DS_CONFIG['timeout'],
+                                   BUILTIN_DS_CONFIG['retries'],
+                                   BUILTIN_DS_CONFIG['wait'])
     sysinfo = vultr.get_sysinfo()
 
     print(util.json_dumps(sysinfo))

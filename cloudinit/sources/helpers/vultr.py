@@ -19,14 +19,12 @@ LOG = log.getLogger(__name__)
 
 
 @lru_cache()
-def get_metadata(params):
-    params = json.loads(params)
-
+def get_metadata(url, timeout, retries, sec_between):
     # Bring up interface
     try:
         with EphemeralDHCPv4(connectivity_url=params['url']):
             # Fetch the metadata
-            v1 = fetch_metadata(params)
+            v1 = read_metadata(url, timeout, retries, sec_between)
     except (NoDHCPLeaseError) as exc:
         LOG.error("Bailing, DHCP Exception: %s", exc)
         raise
@@ -40,8 +38,8 @@ def get_metadata(params):
     return json.dumps(metadata)
 
 
-def get_cached_metadata(args):
-    return json.loads(get_metadata(json.dumps(args)))
+def get_cached_metadata(url, timeout, retries, sec_between):
+    return json.loads(get_metadata((url, timeout, retries, sec_between))
 
 
 # Read the system information from SMBIOS
@@ -74,33 +72,20 @@ def is_vultr():
     return False
 
 
-def convert_to_base64(string):
-    string_bytes = string.encode('ascii')
-    b64_bytes = base64.b64encode(string_bytes)
-    return b64_bytes.decode('ascii')
-
-
 # Read Metadata endpoint
-def read_metadata(params):
-    response = url_helper.readurl(params['url'],
-                                  timeout=params['timeout'],
-                                  retries=params['retries'],
+def read_metadata(url, timeout, retries, sec_between):
+    url = "%s/v1.json" % url
+    response = url_helper.readurl(url,
+                                  timeout=timeout,
+                                  retries=retries,
                                   headers={'Metadata-Token': 'vultr'},
-                                  sec_between=params['wait'])
+                                  sec_between=sec_between)
 
     if not response.ok():
         raise RuntimeError("Failed to connect to %s: Code: %s" %
-                           params['url'], response.code)
+                           url, response.code)
 
     return response.contents.decode()
-
-
-# Get Metadata by flag
-def fetch_metadata(params):
-    req = dict(params)
-    req['url'] = "%s/v1.json" % params['url']
-
-    return read_metadata(req)
 
 
 # Wrapped for caching
@@ -121,7 +106,10 @@ def get_interface_name(mac):
 
 # Generate network configs
 def generate_network_config(config):
-    md = get_cached_metadata(config)
+    md = get_cached_metadata(config['url'],
+                             config['timeout'],
+                             config['retries'],
+                             config['wait'])
 
     network = {
         "version": 1,
@@ -135,29 +123,31 @@ def generate_network_config(config):
         ]
     }
 
+    intf = md['interfaces']
+
     # Prepare interface 0, public
     if len(md['interfaces']) > 0:
-        network['config'].append(generate_public_network_interface(md))
+        network['config'].append(generate_public_network_interface(intf))
 
     # Prepare interface 1, private
     if len(md['interfaces']) > 1:
-        network['config'].append(generate_private_network_interface(md))
+        network['config'].append(generate_private_network_interface(intf))
 
     return network
 
 
 # Input Metadata and generate public network config part
-def generate_public_network_interface(md):
-    interface_name = get_interface_name(md['interfaces'][0]['mac'])
+def generate_public_network_interface(interfaces):
+    interface_name = get_interface_name(interfaces[0]['mac'])
     if not interface_name:
         raise RuntimeError(
             "Interface: %s could not be found on the system" %
-            md['interfaces'][0]['mac'])
+            interfaces[0]['mac'])
 
     netcfg = {
         "name": interface_name,
         "type": "physical",
-        "mac_address": md['interfaces'][0]['mac'],
+        "mac_address": interfaces[0]['mac'],
         "accept-ra": 1,
         "subnets": [
             {
@@ -172,9 +162,9 @@ def generate_public_network_interface(md):
     }
 
     # Check for additional IP's
-    additional_count = len(md['interfaces'][0]['ipv4']['additional'])
-    if "ipv4" in md['interfaces'][0] and additional_count > 0:
-        for additional in md['interfaces'][0]['ipv4']['additional']:
+    additional_count = len(interfaces[0]['ipv4']['additional'])
+    if "ipv4" in interfaces[0] and additional_count > 0:
+        for additional in interfaces[0]['ipv4']['additional']:
             add = {
                 "type": "static",
                 "control": "auto",
@@ -184,9 +174,9 @@ def generate_public_network_interface(md):
             netcfg['subnets'].append(add)
 
     # Check for additional IPv6's
-    additional_count = len(md['interfaces'][0]['ipv6']['additional'])
-    if "ipv6" in md['interfaces'][0] and additional_count > 0:
-        for additional in md['interfaces'][0]['ipv6']['additional']:
+    additional_count = leninterfaces[0]['ipv6']['additional'])
+    if "ipv6" in interfaces[0] and additional_count > 0:
+        for additional in interfaces[0]['ipv6']['additional']:
             add = {
                 "type": "static6",
                 "control": "auto",
@@ -200,24 +190,24 @@ def generate_public_network_interface(md):
 
 
 # Input Metadata and generate private network config part
-def generate_private_network_interface(md):
-    interface_name = get_interface_name(md['interfaces'][1]['mac'])
+def generate_private_network_interface(interfaces):
+    interface_name = get_interface_name(interfaces[1]['mac'])
     if not interface_name:
         raise RuntimeError(
             "Interface: %s could not be found on the system" %
-            md['interfaces'][1]['mac'])
+            interfaces[1]['mac'])
 
     netcfg = {
         "name": interface_name,
         "type": "physical",
-        "mac_address": md['interfaces'][1]['mac'],
+        "mac_address": interfaces[1]['mac'],
         "accept-ra": 1,
         "subnets": [
             {
                 "type": "static",
                 "control": "auto",
-                "address": md['interfaces'][1]['ipv4']['address'],
-                "netmask": md['interfaces'][1]['ipv4']['netmask']
+                "address": interfaces[1]['ipv4']['address'],
+                "netmask": interfaces[1]['ipv4']['netmask']
             }
         ]
     }
@@ -229,8 +219,10 @@ def generate_private_network_interface(md):
 # This configuration is to replicate how
 # images are deployed on Vultr before Cloud-Init
 def generate_config(config):
-    LOG.debug("DS: %s", json.dumps(config))
-    md = get_cached_metadata(config)
+    md = get_cached_metadata(config['url'],
+                             config['timeout'],
+                             config['retries'],
+                             config['wait'])
 
     # Grab the startup script
     script = md['startup-script']
@@ -268,7 +260,7 @@ def generate_config(config):
     config_template['write_files'].append(
         {
             'encoding': 'b64',
-            'content': convert_to_base64(vendor_script),
+            'content': util.b64d(vendor_script),
             'owner': 'root:root',
             'path': '/var/lib/scripts/vendor/vultr-interface-setup.sh',
             'permissions': '0750'
@@ -280,7 +272,7 @@ def generate_config(config):
         config_template['write_files'].append(
             {
                 'encoding': 'b64',
-                'content': convert_to_base64(script),
+                'content': util.b64d(script),
                 'owner': 'root:root',
                 'path': '/var/lib/scripts/vendor/vultr-user-startup.sh',
                 'permissions': '0750'
