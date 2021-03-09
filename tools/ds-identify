@@ -125,7 +125,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud upCloud"
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
