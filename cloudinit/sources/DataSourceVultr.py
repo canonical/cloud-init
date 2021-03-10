@@ -49,13 +49,19 @@ class DataSourceVultr(sources.DataSource):
 
         LOG.debug("Machine is a Vultr instance")
 
-        config = vultr.generate_config(self.ds_cfg)
+        # Fetch metadata
+        md = self.get_metadata()
+
+        config = vultr.generate_config(md)
+
+        # This requires info generated in the vendor config
+        script = md['startup-script']
+        user_scripts = []
+        user_scripts = vultr.generate_user_scripts(script, config)
 
         # Dump vendor config so diagnosing failures is manageable
         LOG.debug("Vultr Vendor Config:")
         LOG.debug(json.dumps(config))
-
-        md = self.get_metadata()
 
         self.metadata_full = md
         self.metadata['instanceid'] = self.metadata_full['instanceid']
@@ -69,7 +75,11 @@ class DataSourceVultr(sources.DataSource):
         self.userdata_raw = md["user-data"]
         if self.userdata_raw == "":
             self.userdata_raw = None
-        self.vendordata_raw = "#cloud-config\n%s" % json.dumps(config)
+
+        self.vendordata_raw = []
+        for uscript in user_scripts:
+            self.vendordata_raw.append(uscript)
+        self.vendordata_raw.append("#cloud-config\n%s" % json.dumps(config))
 
         # Dump some data so diagnosing failures is manageable
         LOG.debug("SUBID: %s", self.metadata['instanceid'])
@@ -82,10 +92,10 @@ class DataSourceVultr(sources.DataSource):
 
     # Get the metadata by flag
     def get_metadata(self):
-        return vultr.get_cached_metadata(self.ds_cfg['url'],
-                                         self.ds_cfg['timeout'],
-                                         self.ds_cfg['retries'],
-                                         self.ds_cfg['wait'])
+        return vultr.get_metadata(self.ds_cfg['url'],
+                                  self.ds_cfg['timeout'],
+                                  self.ds_cfg['retries'],
+                                  self.ds_cfg['wait'])
 
     # Compare subid as instance id
     def check_instance_id(self, sys_cfg):
@@ -106,7 +116,8 @@ class DataSourceVultr(sources.DataSource):
 
     @property
     def network_config(self):
-        config = vultr.generate_network_config(self.ds_cfg)
+        md = self.get_metadata()
+        config = vultr.generate_network_config(md)
 
         return config
 

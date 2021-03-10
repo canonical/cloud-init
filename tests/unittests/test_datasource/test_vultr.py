@@ -9,6 +9,7 @@ import json
 
 from cloudinit import helpers
 from cloudinit import settings
+from cloudinit import util
 from cloudinit.sources import DataSourceVultr
 from cloudinit.sources.helpers import vultr
 
@@ -16,10 +17,10 @@ from cloudinit.tests.helpers import mock, CiTestCase
 
 # Large data
 SCRIPT1 = 'IyEvYmluL2Jhc2gKZXRodG9vbCAtTCBldGgwIGNvbWJp' \
-          'bmVkICQobnByb2MgLS1hbGwp'
+          'bmVkICQobnByb2MgLS1hbGwpCg=='
 SCRIPT2 = 'IyEvYmluL2Jhc2gKZXRodG9vbCAtTCBldGgwIGNvbWJp' \
           'bmVkICQobnByb2MgLS1hbGwpCmV0aHRvb2wgLUwgZXRo' \
-          'MSBjb21iaW5lZCAkKG5wcm9jIC0tYWxsKQ=='
+          'MSBjb21iaW5lZCAkKG5wcm9jIC0tYWxsKQo='
 
 # Vultr metadata test data
 VULTR_V1_1 = {
@@ -215,16 +216,7 @@ EXPECTED_VULTR_CONFIG_1 = {
                 ]
             }
         ]
-    },
-    'write_files': [
-        {
-            'content': SCRIPT1,
-            'encoding': 'b64',
-            'owner': 'root:root',
-            'path': '/var/lib/scripts/vendor/vultr-interface-setup.sh',
-            'permissions': '0750'
-        }
-    ]
+    }
 }
 
 EXPECTED_VULTR_CONFIG_2 = {
@@ -277,16 +269,7 @@ EXPECTED_VULTR_CONFIG_2 = {
                 ],
             }
         ]
-    },
-    'write_files': [
-        {
-            'content': SCRIPT2,
-            'encoding': 'b64',
-            'owner': 'root:root',
-            'path': '/var/lib/scripts/vendor/vultr-interface-setup.sh',
-            'permissions': '0750'
-        }
-    ]
+    }
 }
 
 # Expected network config object from generator
@@ -365,7 +348,7 @@ class TestDataSourceVultr(CiTestCase):
                         mock_getmeta,
                         mock_isvultr,
                         mock_netmap):
-        mock_getmeta.return_value = json.dumps(VULTR_V1_2)
+        mock_getmeta.return_value = VULTR_V1_2
         mock_isvultr.return_value = True
         mock_netmap.return_value = INTERFACE_MAP
 
@@ -387,9 +370,20 @@ class TestDataSourceVultr(CiTestCase):
         # Test vendor data generation
         orig_val = self.maxDiff
         self.maxDiff = None
+
+        expected_script = util.b64d(SCRIPT2)
+        vendordata = source.vendordata_raw
+
+        # Test vendor script
+        self.assertEqual(
+            expected_script,
+            vendordata[0])
+
+        # Test vendor config
         self.assertEqual(
             EXPECTED_VULTR_CONFIG_2,
-            json.loads(source.vendordata_raw.replace("#cloud-config", "")))
+            json.loads(vendordata[1].replace("#cloud-config", "")))
+
         self.maxDiff = orig_val
 
         # Test network config generation
@@ -397,56 +391,42 @@ class TestDataSourceVultr(CiTestCase):
 
     # Test overall config generation
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_get_data_1(self,
-                        mock_getmeta,
-                        mock_netmap):
-        mock_getmeta.return_value = json.dumps(VULTR_V1_1)
+    def test_get_data_1(self, mock_netmap):
         mock_netmap.return_value = INTERFACE_MAP
 
         # Test data
         orig_val = self.maxDiff
         self.maxDiff = None
-        self.assertEqual(EXPECTED_VULTR_CONFIG_1, vultr.generate_config({}))
+        self.assertEqual(EXPECTED_VULTR_CONFIG_1,
+                         vultr.generate_config(VULTR_V1_1))
         self.maxDiff = orig_val
 
     # Test overall config generation
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_get_data_2(self,
-                        mock_getmeta,
-                        mock_netmap):
-        mock_getmeta.return_value = json.dumps(VULTR_V1_2)
+    def test_get_data_2(self, mock_netmap):
         mock_netmap.return_value = INTERFACE_MAP
 
         # Test data with private networking
         orig_val = self.maxDiff
         self.maxDiff = None
-        self.assertEqual(EXPECTED_VULTR_CONFIG_2, vultr.generate_config({}))
+        self.assertEqual(EXPECTED_VULTR_CONFIG_2,
+                         vultr.generate_config(VULTR_V1_2))
         self.maxDiff = orig_val
 
     # Test network config generation
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_network_config(self,
-                            mock_getmeta,
-                            mock_netmap):
-        mock_getmeta.return_value = json.dumps(VULTR_V1_1)
+    def test_network_config(self, mock_netmap):
         mock_netmap.return_value = INTERFACE_MAP
 
         self.assertEqual(EXPECTED_VULTR_NETWORK_1,
-                         vultr.generate_network_config({}))
+                         vultr.generate_network_config(VULTR_V1_1))
 
     # Test Private Networking config generation
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    @mock.patch('cloudinit.sources.helpers.vultr.get_metadata')
-    def test_private_network_config(self,
-                                    mock_getmeta,
-                                    mock_netmap):
-        mock_getmeta.return_value = json.dumps(VULTR_V1_2)
+    def test_private_network_config(self, mock_netmap):
         mock_netmap.return_value = INTERFACE_MAP
 
         self.assertEqual(EXPECTED_VULTR_NETWORK_2,
-                         vultr.generate_network_config({}))
+                         vultr.generate_network_config(VULTR_V1_2))
 
 # vi: ts=4 expandtab

@@ -4,7 +4,6 @@
 
 import json
 import copy
-import base64
 
 from cloudinit import log as log
 from cloudinit import url_helper
@@ -22,7 +21,7 @@ LOG = log.getLogger(__name__)
 def get_metadata(url, timeout, retries, sec_between):
     # Bring up interface
     try:
-        with EphemeralDHCPv4(connectivity_url=params['url']):
+        with EphemeralDHCPv4(connectivity_url=url):
             # Fetch the metadata
             v1 = read_metadata(url, timeout, retries, sec_between)
     except (NoDHCPLeaseError) as exc:
@@ -35,11 +34,7 @@ def get_metadata(url, timeout, retries, sec_between):
     # This comes through as a string but is JSON, make a dict
     metadata['vendor-config'] = json.loads(metadata['vendor-config'])
 
-    return json.dumps(metadata)
-
-
-def get_cached_metadata(url, timeout, retries, sec_between):
-    return json.loads(get_metadata((url, timeout, retries, sec_between))
+    return metadata
 
 
 # Read the system information from SMBIOS
@@ -105,12 +100,7 @@ def get_interface_name(mac):
 
 
 # Generate network configs
-def generate_network_config(config):
-    md = get_cached_metadata(config['url'],
-                             config['timeout'],
-                             config['retries'],
-                             config['wait'])
-
+def generate_network_config(md):
     network = {
         "version": 1,
         "config": [
@@ -126,11 +116,11 @@ def generate_network_config(config):
     intf = md['interfaces']
 
     # Prepare interface 0, public
-    if len(md['interfaces']) > 0:
+    if len(intf) > 0:
         network['config'].append(generate_public_network_interface(intf))
 
     # Prepare interface 1, private
-    if len(md['interfaces']) > 1:
+    if len(intf) > 1:
         network['config'].append(generate_private_network_interface(intf))
 
     return network
@@ -174,7 +164,7 @@ def generate_public_network_interface(interfaces):
             netcfg['subnets'].append(add)
 
     # Check for additional IPv6's
-    additional_count = leninterfaces[0]['ipv6']['additional'])
+    additional_count = len(interfaces[0]['ipv6']['additional'])
     if "ipv6" in interfaces[0] and additional_count > 0:
         for additional in interfaces[0]['ipv6']['additional']:
             add = {
@@ -218,30 +208,27 @@ def generate_private_network_interface(interfaces):
 # Generate the vendor config
 # This configuration is to replicate how
 # images are deployed on Vultr before Cloud-Init
-def generate_config(config):
-    md = get_cached_metadata(config['url'],
-                             config['timeout'],
-                             config['retries'],
-                             config['wait'])
-
-    # Grab the startup script
-    script = md['startup-script']
-
+def generate_config(md):
     # Create vendor config
     config_template = copy.deepcopy(md['vendor-config'])
 
     # Add generated network parts
-    config_template['network'] = generate_network_config(config)
+    config_template['network'] = generate_network_config(md)
 
     # Linux specific packages
     if util.is_Linux():
         config_template['packages'].append("ethtool")
 
+    return config_template
+
+
+# This is for the vendor and startup scripts
+def generate_user_scripts(script, vendor_config):
     # Define vendor script
     vendor_script = "#!/bin/bash"
 
     # Go through the interfaces
-    for netcfg in config_template['network']['config']:
+    for netcfg in vendor_config['network']['config']:
         # If the interface has a mac and is physical
         if "mac_address" in netcfg and netcfg['type'] == "physical":
             # Enable multi-queue on linux
@@ -252,34 +239,16 @@ def generate_config(config):
                 command = "ethtool -L %s combined $(nproc --all)" % name
                 vendor_script = '%s\n%s' % (vendor_script, command)
 
-    # Add write_files if it is not present in the template
-    if 'write_files' not in config_template.keys():
-        config_template['write_files'] = []
+    vendor_script = '%s\n' % vendor_script
 
-    # Add vendor script to config
-    config_template['write_files'].append(
-        {
-            'encoding': 'b64',
-            'content': util.b64d(vendor_script),
-            'owner': 'root:root',
-            'path': '/var/lib/scripts/vendor/vultr-interface-setup.sh',
-            'permissions': '0750'
-        }
-    )
+    # Vendor script and start the array
+    user_scripts = [vendor_script]
 
-    # Write the startup script
+    # Startup script
     if script and script != "echo No configured startup script":
-        config_template['write_files'].append(
-            {
-                'encoding': 'b64',
-                'content': util.b64d(script),
-                'owner': 'root:root',
-                'path': '/var/lib/scripts/vendor/vultr-user-startup.sh',
-                'permissions': '0750'
-            }
-        )
+        user_scripts.append("%s\n" % script)
 
-    return config_template
+    return user_scripts
 
 
 # vi: ts=4 expandtab
