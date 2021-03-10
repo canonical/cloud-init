@@ -140,7 +140,10 @@ if __name__ == "__main__":
         print("Machine is not a Vultr instance")
         sys.exit(1)
 
-    md = self.get_metadata()
+    md = vultr.get_metadata(BUILTIN_DS_CONFIG['url'],
+                            BUILTIN_DS_CONFIG['timeout'],
+                            BUILTIN_DS_CONFIG['retries'],
+                            BUILTIN_DS_CONFIG['wait'])
     config = vultr.generate_config(md)
     sysinfo = vultr.get_sysinfo()
 
