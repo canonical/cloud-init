@@ -399,7 +399,7 @@ class Init(object):
 
     def _store_raw_vendordata(self, data, datasource):
         # This data may be a list or dict, convert it to a string if so
-        if type(data) is list:
+        if type(data) in [list, dict]:
             data = util.json_dumps(data)
         self._store_rawdata(data, datasource)
 
