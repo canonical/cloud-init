@@ -1,10 +1,10 @@
 """Series of integration tests covering apt functionality."""
 import re
-from tests.integration_tests.clouds import ImageSpecification
 
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import Release, UBUNTU
 
 
 USER_DATA = """\
@@ -94,7 +94,7 @@ TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
 
 
 @pytest.mark.ci
-@pytest.mark.ubuntu
+@pytest.mark.release(UBUNTU)
 @pytest.mark.user_data(USER_DATA)
 class TestApt:
     def test_sources_list(self, class_client: IntegrationInstance):
@@ -142,10 +142,10 @@ class TestApt:
         Ported from
         tests/cloud_tests/testcases/modules/apt_configure_sources_ppa.py
         """
-        release = ImageSpecification.from_os_image().release
+        release_name = Release.from_os_image().name
         ppa_path_contents = class_client.read_from_file(
             '/etc/apt/sources.list.d/'
-            'simplestreams-dev-ubuntu-trunk-{}.list'.format(release)
+            'simplestreams-dev-ubuntu-trunk-{}.list'.format(release_name)
         )
 
         assert (
@@ -212,7 +212,7 @@ apt:
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.release(UBUNTU)
 @pytest.mark.user_data(DEFAULT_DATA)
 class TestDefaults:
     def test_primary(self, class_client: IntegrationInstance):
@@ -251,7 +251,7 @@ apt_pipelining: false
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.release(UBUNTU)
 @pytest.mark.user_data(DISABLED_DATA)
 class TestDisabled:
     def test_disable_suites(self, class_client: IntegrationInstance):

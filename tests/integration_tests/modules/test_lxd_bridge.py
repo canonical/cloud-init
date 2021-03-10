@@ -6,6 +6,8 @@
 import pytest
 import yaml
 
+from tests.integration_tests.releases import UBUNTU, XENIAL
+
 
 USER_DATA = """\
 #cloud-config
@@ -33,7 +35,7 @@ class TestLxdBridge:
         """Check that the expected LXD binaries are installed"""
         assert class_client.execute(["which", binary_name]).ok
 
-    @pytest.mark.not_xenial
+    @pytest.mark.release([r for r in UBUNTU if r != XENIAL])
     @pytest.mark.sru_2020_11
     def test_bridge(self, class_client):
         """Check that the given bridge is configured"""

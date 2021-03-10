@@ -10,6 +10,8 @@ import os.path
 
 import pytest
 
+from tests.integration_tests.releases import UBUNTU
+
 
 USER_DATA = """\
 #cloud-config
@@ -55,7 +57,7 @@ ca-certs:
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.release(UBUNTU)
 @pytest.mark.user_data(USER_DATA)
 class TestCaCerts:
     def test_certs_updated(self, class_client):

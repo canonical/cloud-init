@@ -3,11 +3,12 @@ import pytest
 import time
 from pathlib import Path
 
-from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
+from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.conftest import (
     get_validated_source,
     session_start_time,
 )
+from tests.integration_tests.releases import Release
 
 log = logging.getLogger('integration_testing')
 
@@ -66,14 +67,14 @@ def test_upgrade(session_cloud: IntegrationCloud):
         'image_id': session_cloud._get_initial_image(),
     }
 
-    image = ImageSpecification.from_os_image()
+    release = Release.from_os_image()
 
     # Get the paths to write test logs
     output_dir = Path(session_cloud.settings.LOCAL_LOG_PATH)
     output_dir.mkdir(parents=True, exist_ok=True)
     base_filename = 'test_upgrade_{platform}_{os}_{{stage}}_{time}.log'.format(
         platform=session_cloud.settings.PLATFORM,
-        os=image.release,
+        os=release.name,
         time=session_start_time,
     )
     before_path = output_dir / base_filename.format(stage='before')
@@ -81,9 +82,9 @@ def test_upgrade(session_cloud: IntegrationCloud):
 
     # Get the network cfg file
     netcfg_path = '/dev/null'
-    if image.os == 'ubuntu':
+    if release.os == 'ubuntu':
         netcfg_path = '/etc/netplan/50-cloud-init.yaml'
-        if image.release == 'xenial':
+        if release.name == 'xenial':
             netcfg_path = '/etc/network/interfaces.d/50-cloud-init.cfg'
 
     with session_cloud.launch(

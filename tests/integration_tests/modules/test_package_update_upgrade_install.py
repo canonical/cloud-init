@@ -15,6 +15,8 @@ NOTE: the testcase for this looks for the command in history.log as
 import re
 import pytest
 
+from tests.integration_tests.releases import UBUNTU
+
 
 USER_DATA = """\
 #cloud-config
@@ -26,7 +28,7 @@ package_upgrade: true
 """
 
 
-@pytest.mark.ubuntu
+@pytest.mark.release(UBUNTU)
 @pytest.mark.user_data(USER_DATA)
 class TestPackageUpdateUpgradeInstall:
 

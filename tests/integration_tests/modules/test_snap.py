@@ -8,6 +8,8 @@ and then checks that if that command was executed during boot.
 
 import pytest
 
+from tests.integration_tests.releases import UBUNTU
+
 
 USER_DATA = """\
 #cloud-config
@@ -20,7 +22,7 @@ snap:
 
 
 @pytest.mark.ci
-@pytest.mark.ubuntu
+@pytest.mark.release(UBUNTU)
 class TestSnap:
 
     @pytest.mark.user_data(USER_DATA)

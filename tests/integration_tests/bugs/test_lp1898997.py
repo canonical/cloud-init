@@ -11,6 +11,7 @@ default gateway.
 """
 import pytest
 from tests.integration_tests import random_mac_address
+from tests.integration_tests.releases import UBUNTU, XENIAL, BIONIC
 
 MAC_ADDRESS = random_mac_address()
 
@@ -40,10 +41,8 @@ version: 2
 })
 @pytest.mark.lxd_vm
 @pytest.mark.lxd_use_exec
-@pytest.mark.not_bionic
-@pytest.mark.not_xenial
+@pytest.mark.release([r for r in UBUNTU if r not in [XENIAL, BIONIC]])
 @pytest.mark.sru_2020_11
-@pytest.mark.ubuntu
 class TestInterfaceListingWithOpenvSwitch:
     def test_ovs_member_interfaces_not_excluded(self, client):
         # We need to install openvswitch for our provided network configuration

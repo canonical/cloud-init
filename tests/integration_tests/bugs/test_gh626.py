@@ -8,8 +8,8 @@ import pytest
 import yaml
 
 from tests.integration_tests import random_mac_address
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.releases import Release
 
 
 MAC_ADDRESS = random_mac_address()
@@ -36,7 +36,7 @@ iface eth0 inet dhcp
     "volatile.eth0.hwaddr": MAC_ADDRESS,
 })
 def test_wakeonlan(client: IntegrationInstance):
-    if ImageSpecification.from_os_image().release == 'xenial':
+    if Release.from_os_image().name == 'xenial':
         eni = client.execute('cat /etc/network/interfaces.d/50-cloud-init.cfg')
         assert eni.endswith(EXPECTED_ENI_END)
         return

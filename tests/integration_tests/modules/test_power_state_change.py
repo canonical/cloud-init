@@ -10,6 +10,7 @@ import pytest
 from tests.integration_tests.clouds import IntegrationCloud
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.log_utils import verify_ordered_items_in_text
+from tests.integration_tests.releases import UBUNTU
 
 USER_DATA = """\
 #cloud-config
@@ -52,7 +53,7 @@ def _can_connect(instance):
 # occasionally some timing issues will crop up.
 @pytest.mark.unstable
 @pytest.mark.sru_2020_11
-@pytest.mark.ubuntu
+@pytest.mark.release(UBUNTU)
 @pytest.mark.lxd_container
 class TestPowerChange:
     @pytest.mark.parametrize('mode,delay,timeout,expected', [

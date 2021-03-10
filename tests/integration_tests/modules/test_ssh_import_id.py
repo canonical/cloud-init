@@ -12,6 +12,8 @@ TODO:
 
 import pytest
 
+from tests.integration_tests.releases import UBUNTU
+
 
 USER_DATA = """\
 #cloud-config
@@ -22,7 +24,7 @@ ssh_import_id:
 
 
 @pytest.mark.ci
-@pytest.mark.ubuntu
+@pytest.mark.release(UBUNTU)
 class TestSshImportId:
 
     @pytest.mark.user_data(USER_DATA)

@@ -11,6 +11,8 @@ import re
 
 import pytest
 
+from tests.integration_tests.releases import UBUNTU
+
 
 USER_DATA = """\
 #cloud-config
@@ -45,7 +47,7 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestUsersGroups:
-    @pytest.mark.ubuntu
+    @pytest.mark.release(UBUNTU)
     @pytest.mark.parametrize(
         "getent_args,regex",
         [
