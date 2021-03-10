@@ -364,12 +364,12 @@ class Init(object):
                             'userdata')
         self._store_processeddata(self.datasource.get_userdata(),
                                   'userdata')
-        self._store_rawdata(self.datasource.get_vendordata_raw(),
-                            'vendordata')
+        self._store_raw_vendordata(self.datasource.get_vendordata_raw(),
+                                   'vendordata')
         self._store_processeddata(self.datasource.get_vendordata(),
                                   'vendordata')
-        self._store_rawdata(self.datasource.get_vendordata2_raw(),
-                            'vendordata2')
+        self._store_raw_vendordata(self.datasource.get_vendordata2_raw(),
+                                   'vendordata2')
         self._store_processeddata(self.datasource.get_vendordata2(),
                                   'vendordata2')
 
@@ -396,6 +396,12 @@ class Init(object):
         if data is None:
             data = b''
         util.write_file(self._get_ipath('%s_raw' % datasource), data, 0o600)
+
+    def _store_raw_vendordata(self, data, datasource):
+        # This data may be a list or dict, convert it to a string if so
+        if type(data) is list:
+            data = util.json_dumps(data)
+        self._store_rawdata(data, datasource)
 
     def _store_processeddata(self, processed_data, datasource):
         # processed is a Mime message, so write as string.
