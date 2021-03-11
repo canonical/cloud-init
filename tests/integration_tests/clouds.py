@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 from abc import ABC, abstractmethod
 import logging
+import os.path
 from uuid import UUID
 
 from pycloudlib import (
@@ -262,23 +263,32 @@ class _LxdIntegrationCloud(IntegrationCloud):
 
     @staticmethod
     def _mount_source(instance: LXDInstance):
-        target_path = '/usr/lib/python3/dist-packages/cloudinit'
-        format_variables = {
-            'name': instance.name,
-            'source_path': cloudinit.__path__[0],
-            'container_path': target_path,
-        }
-        log.info(
-            'Mounting source %(source_path)s directly onto LXD container/vm '
-            'named %(name)s at %(container_path)s',
-            format_variables
-        )
-        command = (
-            'lxc config device add {name} host-cloud-init disk '
-            'source={source_path} '
-            'path={container_path}'
-        ).format(**format_variables)
-        subp(command.split())
+        cloudinit_path = cloudinit.__path__[0]
+        mounts = [
+            (cloudinit_path, '/usr/lib/python3/dist-packages/cloudinit'),
+            (os.path.join(cloudinit_path, '..', 'config', 'cloud.cfg.d'),
+             '/etc/cloud/cloud.cfg.d'),
+            (os.path.join(cloudinit_path, '..', 'templates'),
+             '/etc/cloud/templates'),
+        ]
+        for (n, (source_path, target_path)) in enumerate(mounts):
+            format_variables = {
+                'name': instance.name,
+                'source_path': os.path.realpath(source_path),
+                'container_path': target_path,
+                'idx': n,
+            }
+            log.info(
+                'Mounting source %(source_path)s directly onto LXD'
+                ' container/VM named %(name)s at %(container_path)s',
+                format_variables
+            )
+            command = (
+                'lxc config device add {name} host-cloud-init-{idx} disk '
+                'source={source_path} '
+                'path={container_path}'
+            ).format(**format_variables)
+            subp(command.split())
 
     def _perform_launch(self, launch_kwargs):
         launch_kwargs['inst_type'] = launch_kwargs.pop('instance_type', None)
