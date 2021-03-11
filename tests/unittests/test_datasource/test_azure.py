@@ -2806,11 +2806,19 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 @mock.patch(MOCKPATH + 'DataSourceAzure._report_ready')
 class TestPreprovisioningPollIMDS(CiTestCase):
 
+    with_logs = True
+
     def setUp(self):
         super(TestPreprovisioningPollIMDS, self).setUp()
         self.tmp = self.tmp_dir()
         self.waagent_d = self.tmp_path('/var/lib/waagent', self.tmp)
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
+        self.dhcp_lease = {
+            'interface': 'eth9', 'fixed-address': '192.168.2.9',
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+            'unknown-245': '624c3620'}
+        self.dhcp_return_value = [self.dhcp_lease]
+        self.report_file = self.tmp_path('report_marker', self.tmp)
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
     @mock.patch('time.sleep', mock.MagicMock())
@@ -2819,15 +2827,10 @@ class TestPreprovisioningPollIMDS(CiTestCase):
                                           m_request, m_media_switch, m_dhcp,
                                           m_net):
         """The poll_imds will retry DHCP on IMDS timeout."""
-        report_file = self.tmp_path('report_marker', self.tmp)
-        lease = {
-            'interface': 'eth9', 'fixed-address': '192.168.2.9',
-            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
-            'unknown-245': '624c3620'}
-        m_dhcp.return_value = [lease]
+        m_dhcp.return_value = self.dhcp_return_value
         m_media_switch.return_value = None
-        dhcp_ctx = mock.MagicMock(lease=lease)
-        dhcp_ctx.obtain_lease.return_value = lease
+        dhcp_ctx = mock.MagicMock(lease=self.dhcp_lease)
+        dhcp_ctx.obtain_lease.return_value = self.dhcp_lease
         m_dhcpv4.return_value = dhcp_ctx
 
         self.tries = 0
@@ -2848,10 +2851,11 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         m_request.side_effect = fake_timeout_once
 
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
             dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 1)
-        m_report_ready.assert_called_with(lease=lease)
+        m_report_ready.assert_called_with(lease=self.dhcp_lease)
         self.assertEqual(3, m_dhcpv4.call_count, 'Expected 3 DHCP calls')
         self.assertEqual(4, self.tries, 'Expected 4 total reads from IMDS')
 
@@ -2864,67 +2868,132 @@ class TestPreprovisioningPollIMDS(CiTestCase):
            polling for reprovisiondata. Note that if this ctx is set when
            _poll_imds is called, then it is not expected to be waiting for
            media_disconnect_connect either."""
-        report_file = self.tmp_path('report_marker', self.tmp)
         m_isfile.return_value = True
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         dsa._ephemeral_dhcp_ctx = "Dummy dhcp ctx"
-        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
             dsa._poll_imds()
         self.assertEqual(0, m_dhcp.call_count)
         self.assertEqual(0, m_media_switch.call_count)
 
-    def test_does_not_poll_imds_report_ready_when_marker_file_exists(
+    def test_poll_imds_does_not_report_ready_when_marker_file_exists(
             self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
         """poll_imds should not call report ready when the reported ready
         marker file exists"""
-        report_file = self.tmp_path('report_marker', self.tmp)
-        write_file(report_file, content='dont run report_ready :)')
-        m_dhcp.return_value = [{
-            'interface': 'eth9', 'fixed-address': '192.168.2.9',
-            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
-            'unknown-245': '624c3620'}]
-        m_media_switch.return_value = None
+        write_file(self.report_file, content='do not report ready')
+        m_dhcp.return_value = self.dhcp_return_value
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
             dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 0)
+
+    def test_poll_imds_does_not_vnet_switch_when_marker_file_exists(
+            self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
+        """poll_imds should not perform vnet switch when the reported ready
+        marker file exists"""
+        write_file(self.report_file, content='do not perform vnet switch')
+        m_dhcp.return_value = self.dhcp_return_value
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
+            dsa._poll_imds()
+        self.assertEqual(m_media_switch.call_count, 0)
 
     def test_poll_imds_report_ready_success_writes_marker_file(
             self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
         """poll_imds should write the report_ready marker file if
         reporting ready succeeds"""
-        report_file = self.tmp_path('report_marker', self.tmp)
-        m_dhcp.return_value = [{
-            'interface': 'eth9', 'fixed-address': '192.168.2.9',
-            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
-            'unknown-245': '624c3620'}]
-        m_media_switch.return_value = None
+        m_dhcp.return_value = self.dhcp_return_value
+        m_report_ready.return_value = True
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        self.assertFalse(os.path.exists(report_file))
-        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
+        self.assertFalse(os.path.exists(self.report_file))
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
             dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 1)
-        self.assertTrue(os.path.exists(report_file))
+        self.assertTrue(os.path.exists(self.report_file))
 
-    def test_poll_imds_report_ready_failure_raises_exc_and_doesnt_write_marker(
+    def test_poll_imds_report_ready_failure_writes_marker_file(
             self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
         """poll_imds should write the report_ready marker file if
-        reporting ready succeeds"""
-        report_file = self.tmp_path('report_marker', self.tmp)
-        m_dhcp.return_value = [{
-            'interface': 'eth9', 'fixed-address': '192.168.2.9',
-            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
-            'unknown-245': '624c3620'}]
-        m_media_switch.return_value = None
+        reporting ready fails"""
+        m_dhcp.return_value = self.dhcp_return_value
         m_report_ready.return_value = False
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
-        self.assertFalse(os.path.exists(report_file))
-        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file):
-            self.assertRaises(
-                InvalidMetaDataException,
-                dsa._poll_imds)
+        self.assertFalse(os.path.exists(self.report_file))
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
+            dsa._poll_imds()
         self.assertEqual(m_report_ready.call_count, 1)
-        self.assertFalse(os.path.exists(report_file))
+        self.assertTrue(os.path.exists(self.report_file))
+
+    def test_poll_imds_report_ready_success_performs_vnet_switch(
+            self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
+        """poll_imds should perform vnet switch if report ready succeeds"""
+        m_dhcp.return_value = self.dhcp_return_value
+        m_report_ready.return_value = True
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
+            dsa._poll_imds()
+        self.assertEqual(m_report_ready.call_count, 1)
+        self.assertEqual(m_media_switch.call_count, 1)
+
+    def test_poll_imds_report_ready_failure_does_not_perform_vnet_switch(
+            self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
+        """poll_imds should not perform vnet switch if report ready fails"""
+        m_dhcp.return_value = self.dhcp_return_value
+        m_report_ready.return_value = False
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
+            dsa._poll_imds()
+        self.assertEqual(m_report_ready.call_count, 1)
+        self.assertEqual(m_media_switch.call_count, 0)
+
+    def test_poll_imds_report_ready_failure_logs_msg_and_does_not_raise_exc(
+            self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
+        """poll_imds should not raise exception if report ready fails
+        but ensure that the desired exception message is logged.
+        """
+        m_dhcp.return_value = self.dhcp_return_value
+        m_report_ready.return_value = False
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
+            dsa._poll_imds()
+        self.assertEqual(m_report_ready.call_count, 1)
+        msg = ('Failed reporting ready while in '
+               'the preprovisioning pool.')
+        self.assertIn(msg, self.logs.getvalue())
+
+    @mock.patch(MOCKPATH + 'DataSourceAzure._get_reprovision_data_from_imds')
+    def test_poll_imds_report_ready_success_calls_imds_for_reprovisiondata(
+            self, m_get_reprovision_data_from_imds,
+            m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
+        m_dhcp.return_value = self.dhcp_return_value
+        m_report_ready.return_value = True
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
+            dsa._poll_imds()
+        self.assertEqual(m_report_ready.call_count, 1)
+        self.assertEqual(m_get_reprovision_data_from_imds.call_count, 1)
+
+    @mock.patch(MOCKPATH + 'DataSourceAzure._get_reprovision_data_from_imds')
+    def test_poll_imds_report_ready_failure_calls_imds_for_reprovisiondata(
+            self, m_get_reprovision_data_from_imds,
+            m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
+        m_dhcp.return_value = self.dhcp_return_value
+        m_report_ready.return_value = False
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE',
+                        self.report_file):
+            dsa._poll_imds()
+        self.assertEqual(m_report_ready.call_count, 1)
+        self.assertEqual(m_get_reprovision_data_from_imds.call_count, 1)
 
 
 @mock.patch(MOCKPATH + 'DataSourceAzure._report_ready', mock.MagicMock())
