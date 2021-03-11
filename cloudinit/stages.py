@@ -401,7 +401,7 @@ class Init(object):
         # Only these data types
         if type(data) not in [bytes, str, list, None]:
             raise TypeError("vendordata_raw is unsupported type '%s'",
-                            type(data))
+                            str(type(data)))
         # This data may be a list, convert it to a string if so
         if isinstance(data, list):
             data = util.json_dumps(data)
