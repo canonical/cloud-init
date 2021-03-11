@@ -1156,29 +1156,34 @@ class DataSourceAzure(sources.DataSource):
 
                     report_ready_succeeded = self._report_ready(lease=lease)
                     if not report_ready_succeeded:
+                        # failure to report ready in preprovisioning
+                        # is non-fatal but error should be logged.
                         msg = ('Failed reporting ready while in '
                                'the preprovisioning pool.')
                         report_diagnostic_event(msg, logger_func=LOG.error)
-                        self._ephemeral_dhcp_ctx.clean_network()
-                        raise sources.InvalidMetaDataException(msg)
 
                     self._create_report_ready_marker()
                     report_ready = False
 
-                    LOG.debug("Wait for vnetswitch to happen")
-                    with events.ReportEventStack(
-                            name="wait-for-media-disconnect-connect",
-                            description="wait for vnet switch",
-                            parent=azure_ds_reporter):
-                        try:
-                            netlink.wait_for_media_disconnect_connect(
-                                nl_sock, lease['interface'])
-                        except AssertionError as e:
-                            report_diagnostic_event(
-                                'Error while waiting for vnet switch: %s' % e,
-                                logger_func=LOG.error)
-                            break
+                    if report_ready_succeeded:
+                        LOG.debug("Wait for vnetswitch to happen")
+                        with events.ReportEventStack(
+                                name="wait-for-media-disconnect-connect",
+                                description="wait for vnet switch",
+                                parent=azure_ds_reporter):
+                            try:
+                                netlink.wait_for_media_disconnect_connect(
+                                    nl_sock, lease['interface'])
+                            except AssertionError as e:
+                                report_diagnostic_event(
+                                    'Error while waiting for vnet switch: %s'
+                                    % e,
+                                    logger_func=LOG.error)
+                                break
 
+                    # If reporting ready during preprovisioning did not
+                    # succeed, skip waiting for vnet switch and proceed
+                    # immediately to getting reprovision data from imds.
                     vnet_switched = True
                     self._ephemeral_dhcp_ctx.clean_network()
                 else:
