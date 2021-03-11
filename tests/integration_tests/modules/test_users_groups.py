@@ -1,7 +1,7 @@
 """Integration tests for the user_groups module.
 
 TODO:
-* This modules assumes that the "ubuntu" user will be created when "default" is
+* This module assumes that the "ubuntu" user will be created when "default" is
   specified; this will need modification to run on other OSes.
 """
 import re
