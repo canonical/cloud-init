@@ -400,7 +400,7 @@ class Init(object):
     def _store_raw_vendordata(self, data, datasource):
         # Only these data types
         if data is not None and type(data) not in [bytes, str, list]:
-            raise TypeError("vendordata_raw is unsupported type '%s'",
+            raise TypeError("vendordata_raw is unsupported type '%s'" %
                             str(type(data)))
         # This data may be a list, convert it to a string if so
         if isinstance(data, list):
