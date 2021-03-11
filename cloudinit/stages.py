@@ -398,8 +398,11 @@ class Init(object):
         util.write_file(self._get_ipath('%s_raw' % datasource), data, 0o600)
 
     def _store_raw_vendordata(self, data, datasource):
-        # This data may be a list or dict, convert it to a string if so
-        if type(data) in [list, dict]:
+        # Only these data types
+        if type(data) not in [bytes, string, list, None]:
+            raise TypeError("vendordata_raw is unsupported type '%s'", type(data))
+        # This data may be a list, convert it to a string if so
+        if isinstance(data, list):
             data = util.json_dumps(data)
         self._store_rawdata(data, datasource)
 
