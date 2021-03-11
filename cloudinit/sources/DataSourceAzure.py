@@ -1187,16 +1187,8 @@ class DataSourceAzure(sources.DataSource):
                     vnet_switched = True
                     self._ephemeral_dhcp_ctx.clean_network()
                 else:
-                    with events.ReportEventStack(
-                            name="get-reprovision-data-from-imds",
-                            description="get reprovision data from imds",
-                            parent=azure_ds_reporter):
-                        return_val = readurl(url,
-                                             timeout=IMDS_TIMEOUT_IN_SECONDS,
-                                             headers=headers,
-                                             exception_cb=exc_cb,
-                                             infinite=True,
-                                             log_req_resp=False).contents
+                    return_val = self._get_reprovision_data_from_imds(
+                        url, headers, exc_cb)
                     break
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry
@@ -1214,6 +1206,16 @@ class DataSourceAzure(sources.DataSource):
                                     logger_func=LOG.debug)
 
         return return_val
+
+    @azure_ds_telemetry_reporter
+    def _get_reprovision_data_from_imds(
+            self, url, headers, exc_cb):
+        return readurl(url,
+                       timeout=IMDS_TIMEOUT_IN_SECONDS,
+                       headers=headers,
+                       exception_cb=exc_cb,
+                       infinite=True,
+                       log_req_resp=False).contents
 
     @azure_ds_telemetry_reporter
     def _report_failure(self, description=None) -> bool:
