@@ -303,6 +303,7 @@ def http_with_retries(url, **kwargs) -> str:
 
     max_readurl_attempts = 240
     default_readurl_timeout = 5
+    sleep_duration_between_retries = 5
     periodic_logging_attempts = 12
 
     if 'timeout' not in kwargs:
@@ -338,6 +339,7 @@ def http_with_retries(url, **kwargs) -> str:
                     'attempt %d with exception: %s' %
                     (url, attempt, e),
                     logger_func=LOG.debug)
+            time.sleep(sleep_duration_between_retries)
 
     raise exc
 
