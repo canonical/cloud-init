@@ -80,7 +80,7 @@ AGENT_SEED_DIR = '/var/lib/waagent'
 IMDS_TIMEOUT_IN_SECONDS = 2
 IMDS_URL = "http://169.254.169.254/metadata"
 IMDS_VER_MIN = "2019-06-01"
-IMDS_VER_WANT = "2020-09-01"
+IMDS_VER_WANT = "2020-10-01"
 
 
 class metadata_type(Enum):
@@ -432,6 +432,8 @@ class DataSourceAzure(sources.DataSource):
         """Return the subplatform metadata source details."""
         if self.seed.startswith('/dev'):
             subplatform_type = 'config-disk'
+        elif self.seed.lower() == 'imds':
+            subplatform_type = 'imds'
         else:
             subplatform_type = 'seed-dir'
         return '%s (%s)' % (subplatform_type, self.seed)
@@ -474,6 +476,7 @@ class DataSourceAzure(sources.DataSource):
 
         found = None
         reprovision = False
+        ovf_is_accessible = True
         reprovision_after_nic_attach = False
         for cdev in candidates:
             try:
@@ -504,7 +507,17 @@ class DataSourceAzure(sources.DataSource):
             except util.MountFailedError:
                 report_diagnostic_event(
                     '%s was not mountable' % cdev, logger_func=LOG.warning)
-                continue
+                cdev = 'IMDS'
+                ovf_is_accessible = False
+                empty_md = {'local-hostname': ''}
+                empty_cfg = dict(
+                    system_info=dict(
+                        default_user=dict(
+                            name=''
+                        )
+                    )
+                )
+                ret = (empty_md, '', empty_cfg, {})
 
             perform_reprovision = reprovision or self._should_reprovision(ret)
             perform_reprovision_after_nic_attach = (
@@ -524,6 +537,10 @@ class DataSourceAzure(sources.DataSource):
                 self.fallback_interface,
                 retries=10
             )
+            if not imds_md and not ovf_is_accessible:
+                msg = 'No OVF or IMDS available'
+                report_diagnostic_event(msg)
+                raise sources.InvalidMetaDataException(msg)
             (md, userdata_raw, cfg, files) = ret
             self.seed = cdev
             crawled_data.update({
@@ -532,6 +549,14 @@ class DataSourceAzure(sources.DataSource):
                 'metadata': util.mergemanydict(
                     [md, {'imds': imds_md}]),
                 'userdata_raw': userdata_raw})
+            imds_username = _username_from_imds(imds_md)
+            imds_hostname = _hostname_from_imds(imds_md)
+            if imds_username:
+                LOG.debug('Username retrieved from IMDS')
+                cfg['system_info']['default_user']['name'] = imds_username
+            if imds_hostname:
+                LOG.debug('Hostname retrieved from IMDS: %s', imds_hostname)
+                crawled_data['metadata']['local-hostname'] = imds_hostname
             found = cdev
 
             report_diagnostic_event(
@@ -1436,6 +1461,20 @@ class DataSourceAzure(sources.DataSource):
     @property
     def region(self):
         return self.metadata.get('imds', {}).get('compute', {}).get('location')
+
+
+def _username_from_imds(imds_data):
+    try:
+        return imds_data['compute']['osProfile']['adminUsername']
+    except KeyError:
+        return None
+
+
+def _hostname_from_imds(imds_data):
+    try:
+        return imds_data['compute']['osProfile']['computerName']
+    except KeyError:
+        return None
 
 
 def _partitions_on_device(devpath, maxnum=16):
