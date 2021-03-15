@@ -3,6 +3,7 @@
 import copy
 import inspect
 import os
+import re
 import stat
 
 from cloudinit.event import EventType
@@ -620,9 +621,8 @@ class TestDataSource(CiTestCase):
 
     def test_update_metadata_only_acts_on_supported_update_events(self):
         """update_metadata won't get_data on unsupported update events."""
-        self.datasource.default_update_events[
-            'network'
-        ].discard(EventType.BOOT)
+        self.datasource.supported_update_events['network'].discard(
+            EventType.BOOT)
         self.assertEqual(
             {'network': set([EventType.BOOT_NEW_INSTANCE])},
             self.datasource.default_update_events)
@@ -649,10 +649,13 @@ class TestDataSource(CiTestCase):
                 source_event_types=[
                     EventType.BOOT, EventType.BOOT_NEW_INSTANCE]))
         self.assertEqual(UNSET, self.datasource._network_config)
-        self.assertIn(
+
+        values_regex = r'(System boot|New instance first boot)+'
+        expected_log = (
             "DEBUG: Update datasource metadata and network config due to"
-            " events: New instance first boot",
-            self.logs.getvalue())
+            " events: {0}, {0}".format(values_regex)
+        )
+        assert re.search(expected_log, self.logs.getvalue()) is not None
 
 
 class TestRedactSensitiveData(CiTestCase):
