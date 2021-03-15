@@ -23,12 +23,17 @@ from cloudinit import net
 from cloudinit.net import eni
 from cloudinit.net import network_state
 from cloudinit.net import renderers
+from cloudinit import persistence
 from cloudinit import ssh_util
 from cloudinit import type_utils
 from cloudinit import subp
 from cloudinit import util
 
+from cloudinit.features import \
+    ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES
+
 from cloudinit.distros.parsers import hosts
+from .networking import LinuxNetworking
 
 
 # Used when a cloud-config module can be run on all cloud-init distibutions.
@@ -36,12 +41,13 @@ from cloudinit.distros.parsers import hosts
 ALL_DISTROS = 'all'
 
 OSFAMILIES = {
-    'debian': ['debian', 'ubuntu'],
-    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
-    'gentoo': ['gentoo'],
-    'freebsd': ['freebsd'],
-    'suse': ['opensuse', 'sles'],
+    'alpine': ['alpine'],
     'arch': ['arch'],
+    'debian': ['debian', 'ubuntu'],
+    'freebsd': ['freebsd'],
+    'gentoo': ['gentoo'],
+    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
+    'suse': ['opensuse', 'sles'],
 }
 
 LOG = logging.getLogger(__name__)
@@ -57,7 +63,7 @@ PREFERRED_NTP_CLIENTS = ['chrony', 'systemd-timesyncd', 'ntp', 'ntpdate']
 LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
 
-class Distro(metaclass=abc.ABCMeta):
+class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
@@ -67,11 +73,30 @@ class Distro(metaclass=abc.ABCMeta):
     init_cmd = ['service']  # systemctl, service etc
     renderer_configs = {}
     _preferred_ntp_clients = None
+    networking_cls = LinuxNetworking
+    # This is used by self.shutdown_command(), and can be overridden in
+    # subclasses
+    shutdown_options_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
+
+    _ci_pkl_version = 1
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
+        self.networking = self.networking_cls()
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        """Perform deserialization fixes for Distro."""
+        if "networking" not in self.__dict__ or not self.networking.__dict__:
+            # This is either a Distro pickle with no networking attribute OR
+            # this is a Distro pickle with a networking attribute but from
+            # before ``Networking`` had any state (meaning that
+            # Networking.__setstate__ will not be called).  In either case, we
+            # want to ensure that `self.networking` is freshly-instantiated:
+            # either because it isn't present at all, or because it will be
+            # missing expected instance state otherwise.
+            self.networking = self.networking_cls()
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
@@ -243,8 +268,9 @@ class Distro(metaclass=abc.ABCMeta):
         distros = []
         for family in family_list:
             if family not in OSFAMILIES:
-                raise ValueError("No distibutions found for osfamily %s"
-                                 % (family))
+                raise ValueError(
+                    "No distributions found for osfamily {}".format(family)
+                )
             distros.extend(OSFAMILIES[family])
         return distros
 
@@ -386,6 +412,9 @@ class Distro(metaclass=abc.ABCMeta):
     def add_user(self, name, **kwargs):
         """
         Add a user to the system using standard GNU tools
+
+        This should be overriden on distros where useradd is not desirable or
+        not available.
         """
         # XXX need to make add_user idempotent somehow as we
         # still want to add groups or modify SSH keys on pre-existing
@@ -514,9 +543,22 @@ class Distro(metaclass=abc.ABCMeta):
 
     def create_user(self, name, **kwargs):
         """
-        Creates users for the system using the GNU passwd tools. This
-        will work on an GNU system. This should be overriden on
-        distros where useradd is not desirable or not available.
+        Creates or partially updates the ``name`` user in the system.
+
+        This defers the actual user creation to ``self.add_user`` or
+        ``self.add_snap_user``, and most of the keys in ``kwargs`` will be
+        processed there if and only if the user does not already exist.
+
+        Once the existence of the ``name`` user has been ensured, this method
+        then processes these keys (for both just-created and pre-existing
+        users):
+
+        * ``plain_text_passwd``
+        * ``hashed_passwd``
+        * ``lock_passwd``
+        * ``sudo``
+        * ``ssh_authorized_keys``
+        * ``ssh_redirect_user``
         """
 
         # Add a snap user, if requested
@@ -584,10 +626,11 @@ class Distro(metaclass=abc.ABCMeta):
         lock_tools = (['passwd', '-l', name], ['usermod', '--lock', name])
         try:
             cmd = next(tool for tool in lock_tools if subp.which(tool[0]))
-        except StopIteration:
+        except StopIteration as e:
             raise RuntimeError((
                 "Unable to lock user account '%s'. No tools available. "
-                "  Tried: %s.") % (name, [c[0] for c in lock_tools]))
+                "  Tried: %s.") % (name, [c[0] for c in lock_tools])
+            ) from e
         try:
             subp.subp(cmd)
         except Exception as e:
@@ -630,7 +673,7 @@ class Distro(metaclass=abc.ABCMeta):
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
-            include_match = re.search(r"^#includedir\s+(.*)$", line)
+            include_match = re.search(r"^[#|@]includedir\s+(.*)$", line)
             if not include_match:
                 continue
             included_dir = include_match.group(1).strip()
@@ -724,6 +767,22 @@ class Distro(metaclass=abc.ABCMeta):
 
                 subp.subp(['usermod', '-a', '-G', name, member])
                 LOG.info("Added user '%s' to group '%s'", member, name)
+
+    def shutdown_command(self, *, mode, delay, message):
+        # called from cc_power_state_change.load_power_state
+        command = ["shutdown", self.shutdown_options_map[mode]]
+        try:
+            if delay != "now":
+                delay = "+%d" % int(delay)
+        except ValueError as e:
+            raise TypeError(
+                "power_state[delay] must be 'now' or '+m' (minutes)."
+                " found '%s'." % (delay,)
+            ) from e
+        args = command + [delay]
+        if message:
+            args.append(message)
+        return args
 
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
@@ -846,7 +905,12 @@ def _get_package_mirror_info(mirror_info, data_source=None,
         # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
         # the region is us-east-1. so region = az[0:-1]
         if _EC2_AZ_RE.match(data_source.availability_zone):
-            subst['ec2_region'] = "%s" % data_source.availability_zone[0:-1]
+            ec2_region = data_source.availability_zone[0:-1]
+
+            if ALLOW_EC2_MIRRORS_ON_NON_AWS_INSTANCE_TYPES:
+                subst['ec2_region'] = "%s" % ec2_region
+            elif data_source.platform_type == "ec2":
+                subst['ec2_region'] = "%s" % ec2_region
 
     if data_source and data_source.region:
         subst['region'] = data_source.region

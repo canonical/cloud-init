@@ -83,7 +83,8 @@ def render_jinja_payload_from_file(
         if e.errno == EACCES:
             raise RuntimeError(
                 'Cannot render jinja template vars. No read permission on'
-                " '%s'. Try sudo" % instance_data_file)
+                " '%s'. Try sudo" % instance_data_file
+            ) from e
 
     rendered_payload = render_jinja_payload(
         payload, payload_fn, instance_data, debug)

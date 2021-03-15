@@ -17,16 +17,17 @@ Distributions
 Cloud-init has support across all major Linux distributions, FreeBSD, NetBSD
 and OpenBSD:
 
-- Ubuntu
-- SLES/openSUSE
-- RHEL/CentOS
-- Fedora
-- Gentoo Linux
-- Debian
+- Alpine Linux
 - ArchLinux
+- Debian
+- Fedora
 - FreeBSD
+- Gentoo Linux
 - NetBSD
 - OpenBSD
+- RHEL/CentOS
+- SLES/openSUSE
+- Ubuntu
 
 Clouds
 ======
@@ -54,6 +55,7 @@ environments in the public cloud:
 - CloudStack
 - AltCloud
 - SmartOS
+- UpCloud
 
 Additionally, cloud-init is supported on these private clouds:
 

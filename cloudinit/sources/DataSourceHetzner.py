@@ -3,9 +3,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 #
-"""Hetzner Cloud API Documentation.
+"""Hetzner Cloud API Documentation
    https://docs.hetzner.cloud/"""
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import sources
@@ -46,9 +47,12 @@ class DataSourceHetzner(sources.DataSource):
         self._network_config = None
         self.dsmode = sources.DSMODE_NETWORK
 
-    def get_data(self):
-        if not on_hetzner():
+    def _get_data(self):
+        (on_hetzner, serial) = get_hcloud_data()
+
+        if not on_hetzner:
             return False
+
         nic = cloudnet.find_fallback_nic()
         with cloudnet.EphemeralIPv4Network(nic, "169.254.0.1", 16,
                                            "169.254.255.255"):
@@ -59,19 +63,36 @@ class DataSourceHetzner(sources.DataSource):
                 self.userdata_address, timeout=self.timeout,
                 sec_between=self.wait_retry, retries=self.retries)
 
-        self.userdata_raw = ud
+        # Hetzner cloud does not support binary user-data. So here, do a
+        # base64 decode of the data if we can. The end result being that a
+        # user can provide base64 encoded (possibly gzipped) data as user-data.
+        #
+        # The fallout is that in the event of b64 encoded user-data,
+        # /var/lib/cloud-init/cloud-config.txt will not be identical to the
+        # user-data provided.  It will be decoded.
+        self.userdata_raw = hc_helper.maybe_b64decode(ud)
         self.metadata_full = md
 
-        """hostname is name provided by user at launch.  The API enforces
-        it is a valid hostname, but it is not guaranteed to be resolvable
-        in dns or fully qualified."""
+        # hostname is name provided by user at launch.  The API enforces it is
+        # a valid hostname, but it is not guaranteed to be resolvable in dns or
+        # fully qualified.
         self.metadata['instance-id'] = md['instance-id']
         self.metadata['local-hostname'] = md['hostname']
         self.metadata['network-config'] = md.get('network-config', None)
         self.metadata['public-keys'] = md.get('public-keys', None)
         self.vendordata_raw = md.get("vendor_data", None)
 
+        # instance-id and serial from SMBIOS should be identical
+        if self.get_instance_id() != serial:
+            raise RuntimeError(
+                "SMBIOS serial does not match instance ID from metadata"
+            )
+
         return True
+
+    def check_instance_id(self, sys_cfg):
+        return sources.instance_id_matches_system_uuid(
+            self.get_instance_id(), 'system-serial-number')
 
     @property
     def network_config(self):
@@ -92,8 +113,18 @@ class DataSourceHetzner(sources.DataSource):
         return self._network_config
 
 
-def on_hetzner():
-    return util.read_dmi_data('system-manufacturer') == "Hetzner"
+def get_hcloud_data():
+    vendor_name = dmi.read_dmi_data('system-manufacturer')
+    if vendor_name != "Hetzner":
+        return (False, None)
+
+    serial = dmi.read_dmi_data("system-serial-number")
+    if serial:
+        LOG.debug("Running on Hetzner Cloud: serial=%s", serial)
+    else:
+        raise RuntimeError("Hetzner Cloud detected, but no serial found")
+
+    return (True, serial)
 
 
 # Used to match classes to dependencies

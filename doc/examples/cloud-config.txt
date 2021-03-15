@@ -236,7 +236,7 @@ disable_root: false
 # The string '$USER' will be replaced with the username of the default user.
 # The string '$DISABLE_USER' will be replaced with the username to disable.
 #
-# disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"$USER\" rather than the user \"$DISABLE_USER\".';echo;sleep 10"
+# disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"$USER\" rather than the user \"$DISABLE_USER\".';echo;sleep 10;exit 142"
 
 # disable ssh access for non-root-users
 # To disable ssh access for non-root users, ssh_redirect_user: true can be
@@ -518,10 +518,10 @@ manual_cache_clean: False
 # syslog being taken down while cloud-init is running.
 #
 # delay: form accepted by shutdown.  default is 'now'. other format
-#        accepted is +m (m in minutes)
+#        accepted is '+m' (m in minutes)
 # mode: required. must be one of 'poweroff', 'halt', 'reboot'
 # message: provided as the message argument to 'shutdown'. default is none.
 power_state:
-  delay: 30
+  delay: '+30'
   mode: poweroff
   message: Bye Bye

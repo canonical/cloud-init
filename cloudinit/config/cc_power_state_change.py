@@ -22,9 +22,8 @@ The ``delay`` key specifies a duration to be added onto any shutdown command
 used. Therefore, if a 5 minute delay and a 120 second shutdown are specified,
 the maximum amount of time between cloud-init starting and the system shutting
 down is 7 minutes, and the minimum amount of time is 5 minutes. The ``delay``
-key must have an argument in a form that the ``shutdown`` utility recognizes.
-The most common format is the form ``+5`` for 5 minutes. See ``man shutdown``
-for more options.
+key must have an argument in either the form ``'+5'`` for 5 minutes or ``now``
+for immediate shutdown.
 
 Optionally, a command can be run to determine whether or not
 the system should shut down. The command to be run should be specified in the
@@ -32,6 +31,10 @@ the system should shut down. The command to be run should be specified in the
 ``cc_runcmd``. The specified shutdown behavior will only take place if the
 ``condition`` key is omitted or the command specified by the ``condition``
 key returns 0.
+
+.. note::
+    With Alpine Linux any message value specified is ignored as Alpine's halt,
+    poweroff, and reboot commands do not support broadcasting a message.
 
 **Internal name:** ``cc_power_state_change``
 
@@ -112,9 +115,9 @@ def check_condition(cond, log=None):
         return False
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(_name, cfg, cloud, log, _args):
     try:
-        (args, timeout, condition) = load_power_state(cfg)
+        (args, timeout, condition) = load_power_state(cfg, cloud.distro)
         if args is None:
             log.debug("no power_state provided. doing nothing")
             return
@@ -141,7 +144,7 @@ def handle(_name, cfg, _cloud, log, _args):
                  condition, execmd, [args, devnull_fp])
 
 
-def load_power_state(cfg):
+def load_power_state(cfg, distro):
     # returns a tuple of shutdown_command, timeout
     # shutdown_command is None if no config found
     pstate = cfg.get('power_state')
@@ -152,35 +155,23 @@ def load_power_state(cfg):
     if not isinstance(pstate, dict):
         raise TypeError("power_state is not a dict.")
 
-    opt_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
-
+    modes_ok = ['halt', 'poweroff', 'reboot']
     mode = pstate.get("mode")
-    if mode not in opt_map:
+    if mode not in distro.shutdown_options_map:
         raise TypeError(
             "power_state[mode] required, must be one of: %s. found: '%s'." %
-            (','.join(opt_map.keys()), mode))
+            (','.join(modes_ok), mode))
 
-    delay = pstate.get("delay", "now")
-    # convert integer 30 or string '30' to '+30'
-    try:
-        delay = "+%s" % int(delay)
-    except ValueError:
-        pass
-
-    if delay != "now" and not re.match(r"\+[0-9]+", delay):
-        raise TypeError(
-            "power_state[delay] must be 'now' or '+m' (minutes)."
-            " found '%s'." % delay)
-
-    args = ["shutdown", opt_map[mode], delay]
-    if pstate.get("message"):
-        args.append(pstate.get("message"))
+    args = distro.shutdown_command(mode=mode,
+                                   delay=pstate.get("delay", "now"),
+                                   message=pstate.get("message"))
 
     try:
         timeout = float(pstate.get('timeout', 30.0))
-    except ValueError:
-        raise ValueError("failed to convert timeout '%s' to float." %
-                         pstate['timeout'])
+    except ValueError as e:
+        raise ValueError(
+            "failed to convert timeout '%s' to float." % pstate['timeout']
+        ) from e
 
     condition = pstate.get("condition", True)
     if not isinstance(condition, (str, list, bool)):

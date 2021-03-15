@@ -41,6 +41,7 @@ CFG_BUILTIN = {
         'Oracle',
         'Exoscale',
         'RbxCloud',
+        'UpCloud',
         # At the end to act as a 'catch' when none of the above work...
         'None',
     ],
@@ -56,6 +57,7 @@ CFG_BUILTIN = {
         'network': {'renderers': None},
     },
     'vendor_data': {'enabled': True, 'prefix': []},
+    'vendor_data2': {'enabled': True, 'prefix': []},
 }
 
 # Valid frequencies of handlers/modules

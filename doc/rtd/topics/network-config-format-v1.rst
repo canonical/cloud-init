@@ -64,6 +64,14 @@ structure.
 The MAC Address is a device unique identifier that most Ethernet-based network
 devices possess.  Specifying a MAC Address is optional.
 
+.. note::
+
+  MAC addresses must be strings. As MAC addresses which consist of only the
+  digits 0-9 (i.e. no hex a-f) can be interpreted as a base 60 integer per
+  the `YAML 1.1 spec`_ it is best practice to quote all MAC addresses to ensure
+  they are parsed as strings regardless of value.
+
+.. _YAML 1.1 spec: https://yaml.org/type/int.html
 
 .. note::
 
@@ -91,7 +99,7 @@ packet- or frame-based network.  Specifying ``mtu`` is optional.
       # Simple network adapter
       - type: physical
         name: interface0
-        mac_address: 00:11:22:33:44:55
+        mac_address: '00:11:22:33:44:55'
       # Second nic with Jumbo frames
       - type: physical
         name: jumbo0
@@ -124,6 +132,14 @@ bond interfaces.  Specifying a MAC Address is optional.  If ``mac_address`` is
 not present, then the bond will use one of the MAC Address values from one of
 the bond interfaces.
 
+.. note::
+
+  MAC addresses must be strings. As MAC addresses which consist of only the
+  digits 0-9 (i.e. no hex a-f) can be interpreted as a base 60 integer per
+  the `YAML 1.1 spec`_ it is best practice to quote all MAC addresses to ensure
+  they are parsed as strings regardless of value.
+
+.. _YAML 1.1 spec: https://yaml.org/type/int.html
 
 **bond_interfaces**: *<List of network device names>*
 
@@ -194,7 +210,7 @@ Valid ``params`` keys are:
       # Simple network adapter
       - type: physical
         name: interface0
-        mac_address: 00:11:22:33:44:55
+        mac_address: '00:11:22:33:44:55'
       # 10G pair
       - type: physical
         name: gbe0
@@ -246,7 +262,7 @@ Valid keys are:
       # Simple network adapter
       - type: physical
         name: interface0
-        mac_address: 00:11:22:33:44:55
+        mac_address: '00:11:22:33:44:55'
       # Second nic with Jumbo frames
       - type: physical
         name: jumbo0
@@ -303,7 +319,7 @@ packet- or frame-based network.  Specifying ``mtu`` is optional.
        # Physical interfaces.
        - type: physical
          name: eth0
-         mac_address: "c0:d6:9f:2c:e8:80"
+         mac_address: c0:d6:9f:2c:e8:80
        # VLAN interface.
        - type: vlan
          name: eth0.101
@@ -327,12 +343,12 @@ the following keys:
     config:
       - type: physical
         name: interface0
-        mac_address: 00:11:22:33:44:55
+        mac_address: '00:11:22:33:44:55'
         subnets:
            - type: static
              address: 192.168.23.14/27
              gateway: 192.168.23.1
-      - type: nameserver:
+      - type: nameserver
         address:
           - 192.168.23.2
           - 8.8.8.8
@@ -358,7 +374,7 @@ has the following keys:
     config:
       - type: physical
         name: interface0
-        mac_address: 00:11:22:33:44:55
+        mac_address: '00:11:22:33:44:55'
         subnets:
            - type: static
              address: 192.168.23.14/24
@@ -398,9 +414,19 @@ Subnet types are one of the following:
 - ``dhcp6``: Configure this interface with IPv6 dhcp.
 - ``static``: Configure this interface with a static IPv4.
 - ``static6``: Configure this interface with a static IPv6 .
+- ``ipv6_dhcpv6-stateful``: Configure this interface with ``dhcp6``
+- ``ipv6_dhcpv6-stateless``: Configure this interface with SLAAC and DHCP
+- ``ipv6_slaac``: Configure address with SLAAC
 
-When making use of ``dhcp`` types, no additional configuration is needed in
-the subnet dictionary.
+When making use of ``dhcp`` or either of the ``ipv6_dhcpv6`` types,
+no additional configuration is needed in the subnet dictionary.
+
+Using ``ipv6_dhcpv6-stateless`` or ``ipv6_slaac`` allows the IPv6 address to be
+automatically configured with StateLess Address AutoConfiguration (`SLAAC`_).
+SLAAC requires support from the network, so verify that your cloud or network
+offering has support before trying it out. With ``ipv6_dhcpv6-stateless``,
+DHCPv6 is still used to fetch other subnet details such as gateway or DNS
+servers. If you only want to discover the address, use ``ipv6_slaac``.
 
 
 **Subnet DHCP Example**::
@@ -410,7 +436,7 @@ the subnet dictionary.
      config:
        - type: physical
          name: interface0
-         mac_address: 00:11:22:33:44:55
+         mac_address: '00:11:22:33:44:55'
          subnets:
            - type: dhcp
 
@@ -422,7 +448,7 @@ the subnet dictionary.
      config:
        - type: physical
          name: interface0
-         mac_address: 00:11:22:33:44:55
+         mac_address: '00:11:22:33:44:55'
          subnets:
            - type: static
              address: 192.168.23.14/27
@@ -443,7 +469,7 @@ using the static subnet configuration.
      config:
        - type: physical
          name: interface0
-         mac_address: 00:11:22:33:44:55
+         mac_address: '00:11:22:33:44:55'
          subnets:
            - type: dhcp
            - type: static
@@ -462,7 +488,7 @@ using the static subnet configuration.
      config:
        - type: physical
          name: interface0
-         mac_address: 00:11:22:33:44:55
+         mac_address: '00:11:22:33:44:55'
          subnets:
            - type: dhcp
            - type: static
@@ -586,5 +612,7 @@ Some more examples to explore the various options available.
       search:
       - dellstack
       type: nameserver
+
+.. _SLAAC: https://tools.ietf.org/html/rfc4862
 
 .. vi: textwidth=78

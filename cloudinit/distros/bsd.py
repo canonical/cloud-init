@@ -7,13 +7,19 @@ from cloudinit import log as logging
 from cloudinit import net
 from cloudinit import subp
 from cloudinit import util
+from .networking import BSDNetworking
 
 LOG = logging.getLogger(__name__)
 
 
 class BSD(distros.Distro):
+    networking_cls = BSDNetworking
     hostname_conf_fn = '/etc/rc.conf'
     rc_conf_fn = "/etc/rc.conf"
+
+    # This differs from the parent Distro class, which has -P for
+    # poweroff.
+    shutdown_options_map = {'halt': '-H', 'poweroff': '-p', 'reboot': '-r'}
 
     # Set in BSD distro subclasses
     group_add_cmd_prefix = []

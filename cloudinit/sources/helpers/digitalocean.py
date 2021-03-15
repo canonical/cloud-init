@@ -5,6 +5,7 @@
 import json
 import random
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net as cloudnet
 from cloudinit import url_helper
@@ -16,7 +17,7 @@ NIC_MAP = {'public': 'eth0', 'private': 'eth1'}
 LOG = logging.getLogger(__name__)
 
 
-def assign_ipv4_link_local(nic=None):
+def assign_ipv4_link_local(distro, nic=None):
     """Bring up NIC using an address using link-local (ip4LL) IPs. On
        DigitalOcean, the link-local domain is per-droplet routed, so there
        is no risk of collisions. However, to be more safe, the ip4LL
@@ -24,7 +25,7 @@ def assign_ipv4_link_local(nic=None):
     """
 
     if not nic:
-        nic = get_link_local_nic()
+        nic = get_link_local_nic(distro)
         LOG.debug("selected interface '%s' for reading metadata", nic)
 
     if not nic:
@@ -54,8 +55,12 @@ def assign_ipv4_link_local(nic=None):
     return nic
 
 
-def get_link_local_nic():
-    nics = [f for f in cloudnet.get_devicelist() if cloudnet.is_physical(f)]
+def get_link_local_nic(distro):
+    nics = [
+        f
+        for f in cloudnet.get_devicelist()
+        if distro.networking.is_physical(f)
+    ]
     if not nics:
         return None
     return min(nics, key=lambda d: cloudnet.read_sys_net_int(d, 'ifindex'))
@@ -191,11 +196,11 @@ def read_sysinfo():
     # SMBIOS information
 
     # Detect if we are on DigitalOcean and return the Droplet's ID
-    vendor_name = util.read_dmi_data("system-manufacturer")
+    vendor_name = dmi.read_dmi_data("system-manufacturer")
     if vendor_name != "DigitalOcean":
         return (False, None)
 
-    droplet_id = util.read_dmi_data("system-serial-number")
+    droplet_id = dmi.read_dmi_data("system-serial-number")
     if droplet_id:
         LOG.debug("system identified via SMBIOS as DigitalOcean Droplet: %s",
                   droplet_id)

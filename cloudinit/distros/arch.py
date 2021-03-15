@@ -61,9 +61,9 @@ class Distro(distros.Distro):
     def _write_network_config(self, netconfig):
         try:
             return self._supported_write_network_config(netconfig)
-        except RendererNotFoundError:
+        except RendererNotFoundError as e:
             # Fall back to old _write_network
-            raise NotImplementedError
+            raise NotImplementedError from e
 
     def _write_network(self, settings):
         entries = net_util.translate_network(settings)
@@ -137,6 +137,17 @@ class Distro(distros.Distro):
             return default
         return hostname
 
+    # hostname (inetutils) isn't installed per default on arch, so we use
+    # hostnamectl which is installed per default (systemd).
+    def _apply_hostname(self, hostname):
+        LOG.debug("Non-persistently setting the system hostname to %s",
+                  hostname)
+        try:
+            subp.subp(['hostnamectl', '--transient', 'set-hostname', hostname])
+        except subp.ProcessExecutionError:
+            util.logexc(LOG, "Failed to non-persistently adjust the system "
+                        "hostname to %s", hostname)
+
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
@@ -152,6 +163,8 @@ class Distro(distros.Distro):
         elif args and isinstance(args, list):
             cmd.extend(args)
 
+        if command == "upgrade":
+            command = "-u"
         if command:
             cmd.append(command)
 

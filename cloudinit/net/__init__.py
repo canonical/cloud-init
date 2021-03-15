@@ -6,11 +6,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import errno
+import functools
 import ipaddress
 import logging
 import os
 import re
-from functools import partial
 
 from cloudinit import subp
 from cloudinit import util
@@ -20,6 +20,19 @@ from cloudinit.url_helper import UrlError, readurl
 LOG = logging.getLogger(__name__)
 SYS_CLASS_NET = "/sys/class/net/"
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
+OVS_INTERNAL_INTERFACE_LOOKUP_CMD = [
+    "ovs-vsctl",
+    "--format",
+    "csv",
+    "--no-headings",
+    "--timeout",
+    "10",
+    "--columns",
+    "name",
+    "find",
+    "interface",
+    "type=internal",
+]
 
 
 def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
@@ -99,10 +112,6 @@ def is_up(devname):
     return read_sys_net_safe(devname, "operstate", translate=translate)
 
 
-def is_wireless(devname):
-    return os.path.exists(sys_dev_path(devname, "wireless"))
-
-
 def is_bridge(devname):
     return os.path.exists(sys_dev_path(devname, "bridge"))
 
@@ -127,6 +136,61 @@ def master_is_bridge_or_bond(devname):
     bonding_path = os.path.join(master_path, "bonding")
     bridge_path = os.path.join(master_path, "bridge")
     return (os.path.exists(bonding_path) or os.path.exists(bridge_path))
+
+
+def master_is_openvswitch(devname):
+    """Return a bool indicating if devname's master is openvswitch"""
+    master_path = get_master(devname)
+    if master_path is None:
+        return False
+    ovs_path = sys_dev_path(devname, path="upper_ovs-system")
+    return os.path.exists(ovs_path)
+
+
+@functools.lru_cache(maxsize=None)
+def openvswitch_is_installed() -> bool:
+    """Return a bool indicating if Open vSwitch is installed in the system."""
+    ret = bool(subp.which("ovs-vsctl"))
+    if not ret:
+        LOG.debug(
+            "ovs-vsctl not in PATH; not detecting Open vSwitch interfaces"
+        )
+    return ret
+
+
+@functools.lru_cache(maxsize=None)
+def get_ovs_internal_interfaces() -> list:
+    """Return a list of the names of OVS internal interfaces on the system.
+
+    These will all be strings, and are used to exclude OVS-specific interface
+    from cloud-init's network configuration handling.
+    """
+    try:
+        out, _err = subp.subp(OVS_INTERNAL_INTERFACE_LOOKUP_CMD)
+    except subp.ProcessExecutionError as exc:
+        if "database connection failed" in exc.stderr:
+            LOG.info(
+                "Open vSwitch is not yet up; no interfaces will be detected as"
+                " OVS-internal"
+            )
+            return []
+        raise
+    else:
+        return out.splitlines()
+
+
+def is_openvswitch_internal_interface(devname: str) -> bool:
+    """Returns True if this is an OVS internal interface.
+
+    If OVS is not installed or not yet running, this will return False.
+    """
+    if not openvswitch_is_installed():
+        return False
+    ovs_bridges = get_ovs_internal_interfaces()
+    if devname in ovs_bridges:
+        LOG.debug("Detected %s as an OVS interface", devname)
+        return True
+    return False
 
 
 def is_netfailover(devname, driver=None):
@@ -264,28 +328,6 @@ def is_renamed(devname):
 def is_vlan(devname):
     uevent = str(read_sys_net_safe(devname, "uevent"))
     return 'DEVTYPE=vlan' in uevent.splitlines()
-
-
-def is_connected(devname):
-    # is_connected isn't really as simple as that.  2 is
-    # 'physically connected'. 3 is 'not connected'. but a wlan interface will
-    # always show 3.
-    iflink = read_sys_net_safe(devname, "iflink")
-    if iflink == "2":
-        return True
-    if not is_wireless(devname):
-        return False
-    LOG.debug("'%s' is wireless, basing 'connected' on carrier", devname)
-    return read_sys_net_safe(devname, "carrier",
-                             translate={'0': False, '1': True})
-
-
-def is_physical(devname):
-    return os.path.exists(sys_dev_path(devname, "device"))
-
-
-def is_present(devname):
-    return os.path.exists(sys_dev_path(devname))
 
 
 def device_driver(devname):
@@ -520,43 +562,6 @@ def extract_physdevs(netcfg):
     raise RuntimeError('Unknown network config version: %s' % version)
 
 
-def wait_for_physdevs(netcfg, strict=True):
-    physdevs = extract_physdevs(netcfg)
-
-    # set of expected iface names and mac addrs
-    expected_ifaces = dict([(iface[0], iface[1]) for iface in physdevs])
-    expected_macs = set(expected_ifaces.keys())
-
-    # set of current macs
-    present_macs = get_interfaces_by_mac().keys()
-
-    # compare the set of expected mac address values to
-    # the current macs present; we only check MAC as cloud-init
-    # has not yet renamed interfaces and the netcfg may include
-    # such renames.
-    for _ in range(0, 5):
-        if expected_macs.issubset(present_macs):
-            LOG.debug('net: all expected physical devices present')
-            return
-
-        missing = expected_macs.difference(present_macs)
-        LOG.debug('net: waiting for expected net devices: %s', missing)
-        for mac in missing:
-            # trigger a settle, unless this interface exists
-            syspath = sys_dev_path(expected_ifaces[mac])
-            settle = partial(util.udevadm_settle, exists=syspath)
-            msg = 'Waiting for udev events to settle or %s exists' % syspath
-            util.log_time(LOG.debug, msg, func=settle)
-
-        # update present_macs after settles
-        present_macs = get_interfaces_by_mac().keys()
-
-    msg = 'Not all expected physical devices present: %s' % missing
-    LOG.warning(msg)
-    if strict:
-        raise RuntimeError(msg)
-
-
 def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
     """read the network config and rename devices accordingly.
     if strict_present is false, then do not raise exception if no devices
@@ -570,7 +575,9 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
     try:
         _rename_interfaces(extract_physdevs(netcfg))
     except RuntimeError as e:
-        raise RuntimeError('Failed to apply network config names: %s' % e)
+        raise RuntimeError(
+            'Failed to apply network config names: %s' % e
+        ) from e
 
 
 def interface_has_own_mac(ifname, strict=False):
@@ -808,18 +815,22 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
         return mac
 
 
-def get_interfaces_by_mac():
+def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
     if util.is_FreeBSD():
-        return get_interfaces_by_mac_on_freebsd()
+        return get_interfaces_by_mac_on_freebsd(
+            blacklist_drivers=blacklist_drivers)
     elif util.is_NetBSD():
-        return get_interfaces_by_mac_on_netbsd()
+        return get_interfaces_by_mac_on_netbsd(
+            blacklist_drivers=blacklist_drivers)
     elif util.is_OpenBSD():
-        return get_interfaces_by_mac_on_openbsd()
+        return get_interfaces_by_mac_on_openbsd(
+            blacklist_drivers=blacklist_drivers)
     else:
-        return get_interfaces_by_mac_on_linux()
+        return get_interfaces_by_mac_on_linux(
+            blacklist_drivers=blacklist_drivers)
 
 
-def get_interfaces_by_mac_on_freebsd():
+def get_interfaces_by_mac_on_freebsd(blacklist_drivers=None) -> dict():
     (out, _) = subp.subp(['ifconfig', '-a', 'ether'])
 
     # flatten each interface block in a single line
@@ -846,7 +857,7 @@ def get_interfaces_by_mac_on_freebsd():
     return results
 
 
-def get_interfaces_by_mac_on_netbsd():
+def get_interfaces_by_mac_on_netbsd(blacklist_drivers=None) -> dict():
     ret = {}
     re_field_match = (
         r"(?P<ifname>\w+).*address:\s"
@@ -862,7 +873,7 @@ def get_interfaces_by_mac_on_netbsd():
     return ret
 
 
-def get_interfaces_by_mac_on_openbsd():
+def get_interfaces_by_mac_on_openbsd(blacklist_drivers=None) -> dict():
     ret = {}
     re_field_match = (
         r"(?P<ifname>\w+).*lladdr\s"
@@ -877,12 +888,13 @@ def get_interfaces_by_mac_on_openbsd():
     return ret
 
 
-def get_interfaces_by_mac_on_linux():
+def get_interfaces_by_mac_on_linux(blacklist_drivers=None) -> dict:
     """Build a dictionary of tuples {mac: name}.
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret = {}
-    for name, mac, _driver, _devid in get_interfaces():
+    for name, mac, _driver, _devid in get_interfaces(
+            blacklist_drivers=blacklist_drivers):
         if mac in ret:
             raise RuntimeError(
                 "duplicate mac found! both '%s' and '%s' have mac '%s'" %
@@ -900,11 +912,13 @@ def get_interfaces_by_mac_on_linux():
     return ret
 
 
-def get_interfaces():
+def get_interfaces(blacklist_drivers=None) -> list:
     """Return list of interface tuples (name, mac, driver, device_id)
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret = []
+    if blacklist_drivers is None:
+        blacklist_drivers = []
     devs = get_devicelist()
     # 16 somewhat arbitrarily chosen.  Normally a mac is 6 '00:' tokens.
     zero_mac = ':'.join(('00',) * 16)
@@ -917,8 +931,10 @@ def get_interfaces():
             continue
         if is_bond(name):
             continue
-        if get_master(name) is not None and not master_is_bridge_or_bond(name):
-            continue
+        if get_master(name) is not None:
+            if (not master_is_bridge_or_bond(name) and
+                    not master_is_openvswitch(name)):
+                continue
         if is_netfailover(name):
             continue
         mac = get_interface_mac(name)
@@ -928,7 +944,13 @@ def get_interfaces():
         # skip nics that have no mac (00:00....)
         if name != 'lo' and mac == zero_mac[:len(mac)]:
             continue
-        ret.append((name, mac, device_driver(name), device_devid(name)))
+        if is_openvswitch_internal_interface(name):
+            continue
+        # skip nics that have drivers blacklisted
+        driver = device_driver(name)
+        if driver in blacklist_drivers:
+            continue
+        ret.append((name, mac, driver, device_devid(name)))
     return ret
 
 
@@ -1029,7 +1051,8 @@ class EphemeralIPv4Network(object):
             self.prefix = mask_to_net_prefix(prefix_or_mask)
         except ValueError as e:
             raise ValueError(
-                'Cannot setup network: {0}'.format(e))
+                'Cannot setup network: {0}'.format(e)
+            ) from e
 
         self.connectivity_url = connectivity_url
         self.interface = interface

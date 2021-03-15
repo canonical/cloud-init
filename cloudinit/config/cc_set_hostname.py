@@ -18,8 +18,8 @@ A hostname and fqdn can be provided by specifying a full domain name under the
 ``fqdn`` key. Alternatively, a hostname can be specified using the ``hostname``
 key, and the fqdn of the cloud wil be used. If a fqdn specified with the
 ``hostname`` key, it will be handled properly, although it is better to use
-the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set, ``fqdn``
-will be used.
+the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set,
+it is distro dependent whether ``hostname`` or ``fqdn`` is used.
 
 This module will run in the init-local stage before networking is configured
 if the hostname is set by metadata or user data on the local system.
@@ -55,7 +55,6 @@ class SetHostnameError(Exception):
     This may happen if we attempt to set the hostname early in cloud-init's
     init-local timeframe as certain services may not be running yet.
     """
-    pass
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -86,7 +85,7 @@ def handle(name, cfg, cloud, log, _args):
     except Exception as e:
         msg = "Failed to set the hostname to %s (%s)" % (fqdn, hostname)
         util.logexc(log, msg)
-        raise SetHostnameError("%s: %s" % (msg, e))
+        raise SetHostnameError("%s: %s" % (msg, e)) from e
     write_json(prev_fn, {'hostname': hostname, 'fqdn': fqdn})
 
 # vi: ts=4 expandtab

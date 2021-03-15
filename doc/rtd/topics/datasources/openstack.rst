@@ -5,7 +5,7 @@ OpenStack
 
 This datasource supports reading data from the
 `OpenStack Metadata Service
-<https://docs.openstack.org/nova/latest/admin/networking-nova.html#metadata-service>`_.
+<https://docs.openstack.org/nova/latest/admin/metadata-service.html>`_.
 
 Discovery
 -------------
@@ -81,5 +81,13 @@ upgrade packages and install ``htop`` on all instances:
 For more general information about how cloud-init handles vendor data,
 including how it can be disabled by users on instances, see
 :doc:`/topics/vendordata`.
+
+OpenStack can also be configured to provide 'dynamic vendordata'
+which is provided by the DynamicJSON provider and appears under a
+different metadata path, /vendor_data2.json.
+
+Cloud-init will look for a ``cloud-init`` at the vendor_data2 path; if found,
+settings are applied after (and, hence, overriding) the settings from static
+vendor data. Both sets of vendor data can be overridden by user data.
 
 .. vi: textwidth=78

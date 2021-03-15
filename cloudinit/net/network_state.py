@@ -297,9 +297,10 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             command_type = command['type']
             try:
                 handler = self.command_handlers[command_type]
-            except KeyError:
-                raise RuntimeError("No handler found for"
-                                   " command '%s'" % command_type)
+            except KeyError as e:
+                raise RuntimeError(
+                    "No handler found for  command '%s'" % command_type
+                ) from e
             try:
                 handler(self, command)
             except InvalidCommand:
@@ -316,9 +317,10 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 continue
             try:
                 handler = self.command_handlers[command_type]
-            except KeyError:
-                raise RuntimeError("No handler found for"
-                                   " command '%s'" % command_type)
+            except KeyError as e:
+                raise RuntimeError(
+                    "No handler found for command '%s'" % command_type
+                ) from e
             try:
                 handler(self, command)
                 self._v2_common(command)
@@ -367,6 +369,9 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         accept_ra = command.get('accept-ra', None)
         if accept_ra is not None:
             accept_ra = util.is_true(accept_ra)
+        wakeonlan = command.get('wakeonlan', None)
+        if wakeonlan is not None:
+            wakeonlan = util.is_true(wakeonlan)
         iface.update({
             'name': command.get('name'),
             'type': command.get('type'),
@@ -377,7 +382,8 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             'address': None,
             'gateway': None,
             'subnets': subnets,
-            'accept-ra': accept_ra
+            'accept-ra': accept_ra,
+            'wakeonlan': wakeonlan,
         })
         self._network_state['interfaces'].update({command.get('name'): iface})
         self.dump_network_state()
@@ -818,7 +824,8 @@ def _normalize_subnet(subnet):
 
     if subnet.get('type') in ('static', 'static6'):
         normal_subnet.update(
-            _normalize_net_keys(normal_subnet, address_keys=('address',)))
+            _normalize_net_keys(normal_subnet, address_keys=(
+                'address', 'ip_address',)))
     normal_subnet['routes'] = [_normalize_route(r)
                                for r in subnet.get('routes', [])]
 
@@ -914,9 +921,10 @@ def _normalize_route(route):
     if metric:
         try:
             normal_route['metric'] = int(metric)
-        except ValueError:
+        except ValueError as e:
             raise TypeError(
-                'Route config metric {} is not an integer'.format(metric))
+                'Route config metric {} is not an integer'.format(metric)
+            ) from e
     return normal_route
 
 

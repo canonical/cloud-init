@@ -5,9 +5,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.sources import DataSourceHetzner
+import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import util, settings, helpers
 
 from cloudinit.tests.helpers import mock, CiTestCase
+
+import base64
+import pytest
 
 METADATA = util.load_yaml("""
 hostname: cloudinit-test
@@ -73,10 +77,11 @@ class TestDataSourceHetzner(CiTestCase):
     @mock.patch('cloudinit.net.find_fallback_nic')
     @mock.patch('cloudinit.sources.helpers.hetzner.read_metadata')
     @mock.patch('cloudinit.sources.helpers.hetzner.read_userdata')
-    @mock.patch('cloudinit.sources.DataSourceHetzner.on_hetzner')
-    def test_read_data(self, m_on_hetzner, m_usermd, m_readmd, m_fallback_nic,
-                       m_net):
-        m_on_hetzner.return_value = True
+    @mock.patch('cloudinit.sources.DataSourceHetzner.get_hcloud_data')
+    def test_read_data(self, m_get_hcloud_data, m_usermd, m_readmd,
+                       m_fallback_nic, m_net):
+        m_get_hcloud_data.return_value = (True,
+                                          str(METADATA.get('instance-id')))
         m_readmd.return_value = METADATA.copy()
         m_usermd.return_value = USERDATA
         m_fallback_nic.return_value = 'eth0'
@@ -103,11 +108,12 @@ class TestDataSourceHetzner(CiTestCase):
 
     @mock.patch('cloudinit.sources.helpers.hetzner.read_metadata')
     @mock.patch('cloudinit.net.find_fallback_nic')
-    @mock.patch('cloudinit.sources.DataSourceHetzner.on_hetzner')
-    def test_not_on_hetzner_returns_false(self, m_on_hetzner, m_find_fallback,
-                                          m_read_md):
-        """If helper 'on_hetzner' returns False, return False from get_data."""
-        m_on_hetzner.return_value = False
+    @mock.patch('cloudinit.sources.DataSourceHetzner.get_hcloud_data')
+    def test_not_on_hetzner_returns_false(self, m_get_hcloud_data,
+                                          m_find_fallback, m_read_md):
+        """If helper 'get_hcloud_data' returns False,
+           return False from get_data."""
+        m_get_hcloud_data.return_value = (False, None)
         ds = self.get_ds()
         ret = ds.get_data()
 
@@ -115,3 +121,22 @@ class TestDataSourceHetzner(CiTestCase):
         # These are a white box attempt to ensure it did not search.
         m_find_fallback.assert_not_called()
         m_read_md.assert_not_called()
+
+
+class TestMaybeB64Decode:
+    """Test the maybe_b64decode helper function."""
+
+    @pytest.mark.parametrize("invalid_input", (str("not bytes"), int(4)))
+    def test_raises_error_on_non_bytes(self, invalid_input):
+        """maybe_b64decode should raise error if data is not bytes."""
+        with pytest.raises(TypeError):
+            hc_helper.maybe_b64decode(invalid_input)
+
+    @pytest.mark.parametrize("in_data,expected", [
+        # If data is not b64 encoded, then return value should be the same.
+        (b"this is my data", b"this is my data"),
+        # If data is b64 encoded, then return value should be decoded.
+        (base64.b64encode(b"data"), b"data"),
+    ])
+    def test_happy_path(self, in_data, expected):
+        assert expected == hc_helper.maybe_b64decode(in_data)

@@ -7,6 +7,11 @@ groups:
   - cloud-users
 
 # Add users to the system. Users are added after groups are added.
+# Note: Most of these configuration options will not be honored if the user
+#       already exists. Following options are the exceptions and they are
+#       applicable on already-existing users:
+#       - 'plain_text_passwd', 'hashed_passwd', 'lock_passwd', 'sudo',
+#         'ssh_authorized_keys', 'ssh_redirect_user'.
 users:
   - default
   - name: foobar
@@ -14,7 +19,7 @@ users:
     primary_group: foobar
     groups: users
     selinux_user: staff_u
-    expiredate: 2012-09-01
+    expiredate: '2012-09-01'
     ssh_import_id: foobar
     lock_passwd: false
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
@@ -29,7 +34,7 @@ users:
       - <ssh pub key 2>
   - name: cloudy
     gecos: Magic Cloud App Daemon User
-    inactive: true
+    inactive: '5'
     system: true
   - name: fizzbuzz
     sudo: False
@@ -42,6 +47,7 @@ users:
 
 # Valid Values:
 #   name: The user's login name
+#   expiredate: Date on which the user's account will be disabled.
 #   gecos: The user name's real name, i.e. "Bob B. Smith"
 #   homedir: Optional. Set to the local path you want to use. Defaults to
 #           /home/<username>
@@ -52,7 +58,7 @@ users:
 #           "staff_u". When this is omitted the system will select the default
 #           SELinux user.
 #   lock_passwd: Defaults to true. Lock the password to disable password login
-#   inactive: Create the user as inactive
+#   inactive: Number of days after password expires until account is disabled
 #   passwd: The hash -- not the password itself -- of the password you want
 #           to use for this user. You can generate a safe hash via:
 #               mkpasswd --method=SHA-512 --rounds=4096

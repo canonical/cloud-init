@@ -10,6 +10,5 @@ from .config_source import ConfigSource
 
 class ConfigNamespace(ConfigSource):
     """Specifies the Config Namespace."""
-    pass
 
 # vi: ts=4 expandtab

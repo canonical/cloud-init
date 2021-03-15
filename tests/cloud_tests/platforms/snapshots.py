@@ -40,6 +40,5 @@ class Snapshot(object):
 
     def destroy(self):
         """Clean up snapshot data."""
-        pass
 
 # vi: ts=4 expandtab

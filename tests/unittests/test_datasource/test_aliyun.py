@@ -7,6 +7,7 @@ from unittest import mock
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay
+from cloudinit.sources.DataSourceEc2 import convert_ec2_metadata_network_config
 from cloudinit.tests import helpers as test_helpers
 
 DEFAULT_METADATA = {
@@ -183,12 +184,41 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
         self.assertEqual(ay.parse_public_keys(public_keys),
                          public_keys['key-pair-0']['openssh-key'])
 
+    def test_route_metric_calculated_without_device_number(self):
+        """Test that route-metric code works without `device-number`
+
+        `device-number` is part of EC2 metadata, but not supported on aliyun.
+        Attempting to access it will raise a KeyError.
+
+        LP: #1917875
+        """
+        netcfg = convert_ec2_metadata_network_config(
+            {"interfaces": {"macs": {
+                "06:17:04:d7:26:09": {
+                    "interface-id": "eni-e44ef49e",
+                },
+                "06:17:04:d7:26:08": {
+                    "interface-id": "eni-e44ef49f",
+                }
+            }}},
+            macs_to_nics={
+                '06:17:04:d7:26:09': 'eth0',
+                '06:17:04:d7:26:08': 'eth1',
+            }
+        )
+
+        met0 = netcfg['ethernets']['eth0']['dhcp4-overrides']['route-metric']
+        met1 = netcfg['ethernets']['eth1']['dhcp4-overrides']['route-metric']
+
+        # route-metric numbers should be 100 apart
+        assert 100 == abs(met0 - met1)
+
 
 class TestIsAliYun(test_helpers.CiTestCase):
     ALIYUN_PRODUCT = 'Alibaba Cloud ECS'
     read_dmi_data_expected = [mock.call('system-product-name')]
 
-    @mock.patch("cloudinit.sources.DataSourceAliYun.util.read_dmi_data")
+    @mock.patch("cloudinit.sources.DataSourceAliYun.dmi.read_dmi_data")
     def test_true_on_aliyun_product(self, m_read_dmi_data):
         """Should return true if the dmi product data has expected value."""
         m_read_dmi_data.return_value = self.ALIYUN_PRODUCT
@@ -197,7 +227,7 @@ class TestIsAliYun(test_helpers.CiTestCase):
                          m_read_dmi_data.call_args_list)
         self.assertEqual(True, ret)
 
-    @mock.patch("cloudinit.sources.DataSourceAliYun.util.read_dmi_data")
+    @mock.patch("cloudinit.sources.DataSourceAliYun.dmi.read_dmi_data")
     def test_false_on_empty_string(self, m_read_dmi_data):
         """Should return false on empty value returned."""
         m_read_dmi_data.return_value = ""
@@ -206,7 +236,7 @@ class TestIsAliYun(test_helpers.CiTestCase):
                          m_read_dmi_data.call_args_list)
         self.assertEqual(False, ret)
 
-    @mock.patch("cloudinit.sources.DataSourceAliYun.util.read_dmi_data")
+    @mock.patch("cloudinit.sources.DataSourceAliYun.dmi.read_dmi_data")
     def test_false_on_unknown_string(self, m_read_dmi_data):
         """Should return false on an unrelated string."""
         m_read_dmi_data.return_value = "cubs win"

@@ -30,6 +30,7 @@ import random
 import re
 import socket
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import serial
 from cloudinit import sources
@@ -413,7 +414,9 @@ class JoyentMetadataClient(object):
                 response.append(byte)
             except OSError as exc:
                 if exc.errno == errno.EAGAIN:
-                    raise JoyentMetadataTimeoutException(msg % as_ascii())
+                    raise JoyentMetadataTimeoutException(
+                        msg % as_ascii()
+                    ) from exc
                 raise
 
     def _write(self, msg):
@@ -765,7 +768,7 @@ def get_smartos_environ(uname_version=None, product_name=None):
         return SMARTOS_ENV_LX_BRAND
 
     if product_name is None:
-        system_type = util.read_dmi_data("system-product-name")
+        system_type = dmi.read_dmi_data("system-product-name")
     else:
         system_type = product_name
 

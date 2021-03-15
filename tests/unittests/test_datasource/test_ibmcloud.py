@@ -15,13 +15,6 @@ mock = test_helpers.mock
 D_PATH = "cloudinit.sources.DataSourceIBMCloud."
 
 
-class TestIBMCloud(test_helpers.CiTestCase):
-    """Test the datasource."""
-    def setUp(self):
-        super(TestIBMCloud, self).setUp()
-        pass
-
-
 @mock.patch(D_PATH + "_is_xen", return_value=True)
 @mock.patch(D_PATH + "_is_ibm_provisioning")
 @mock.patch(D_PATH + "util.blkid")

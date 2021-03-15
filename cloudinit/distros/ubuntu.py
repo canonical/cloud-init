@@ -11,12 +11,9 @@
 
 from cloudinit.distros import debian
 from cloudinit.distros import PREFERRED_NTP_CLIENTS
-from cloudinit import log as logging
 from cloudinit import util
 
 import copy
-
-LOG = logging.getLogger(__name__)
 
 
 class Distro(debian.Distro):
@@ -48,8 +45,6 @@ class Distro(debian.Distro):
                 self._preferred_ntp_clients = (
                     copy.deepcopy(PREFERRED_NTP_CLIENTS))
         return self._preferred_ntp_clients
-
-    pass
 
 
 # vi: ts=4 expandtab

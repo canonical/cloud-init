@@ -7,6 +7,7 @@ import re
 import shutil
 import stat
 import tempfile
+import pytest
 import yaml
 from unittest import mock
 
@@ -98,6 +99,17 @@ class TestWriteFile(helpers.TestCase):
         self.assertTrue(os.path.isdir(dirname))
         self.assertTrue(os.path.isfile(path))
 
+    def test_dir_is_not_created_if_ensure_dir_false(self):
+        """Verify directories are not created if ensure_dir_exists is False."""
+        dirname = os.path.join(self.tmp, "subdir")
+        path = os.path.join(dirname, "NewFile.txt")
+        contents = "Hey there"
+
+        with self.assertRaises(FileNotFoundError):
+            util.write_file(path, contents, ensure_dir_exists=False)
+
+        self.assertFalse(os.path.isdir(dirname))
+
     def test_explicit_mode(self):
         """Verify explicit file mode works properly."""
         path = os.path.join(self.tmp, "NewFile.txt")
@@ -110,29 +122,29 @@ class TestWriteFile(helpers.TestCase):
         file_stat = os.stat(path)
         self.assertEqual(0o666, stat.S_IMODE(file_stat.st_mode))
 
-    def test_copy_mode_no_existing(self):
-        """Verify that file is created with mode 0o644 if copy_mode
+    def test_preserve_mode_no_existing(self):
+        """Verify that file is created with mode 0o644 if preserve_mode
         is true and there is no prior existing file."""
         path = os.path.join(self.tmp, "NewFile.txt")
         contents = "Hey there"
 
-        util.write_file(path, contents, copy_mode=True)
+        util.write_file(path, contents, preserve_mode=True)
 
         self.assertTrue(os.path.exists(path))
         self.assertTrue(os.path.isfile(path))
         file_stat = os.stat(path)
         self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
 
-    def test_copy_mode_with_existing(self):
+    def test_preserve_mode_with_existing(self):
         """Verify that file is created using mode of existing file
-        if copy_mode is true."""
+        if preserve_mode is true."""
         path = os.path.join(self.tmp, "NewFile.txt")
         contents = "Hey there"
 
         open(path, 'w').close()
         os.chmod(path, 0o666)
 
-        util.write_file(path, contents, copy_mode=True)
+        util.write_file(path, contents, preserve_mode=True)
 
         self.assertTrue(os.path.exists(path))
         self.assertTrue(os.path.isfile(path))
@@ -480,129 +492,6 @@ class TestIsX86(helpers.CiTestCase):
         self.assertTrue(util.is_x86())
 
 
-class TestReadDMIData(helpers.FilesystemMockingTestCase):
-
-    def setUp(self):
-        super(TestReadDMIData, self).setUp()
-        self.new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.new_root)
-        self.patchOS(self.new_root)
-        self.patchUtils(self.new_root)
-        p = mock.patch("cloudinit.util.is_container", return_value=False)
-        self.addCleanup(p.stop)
-        self._m_is_container = p.start()
-
-    def _create_sysfs_parent_directory(self):
-        util.ensure_dir(os.path.join('sys', 'class', 'dmi', 'id'))
-
-    def _create_sysfs_file(self, key, content):
-        """Mocks the sys path found on Linux systems."""
-        self._create_sysfs_parent_directory()
-        dmi_key = "/sys/class/dmi/id/{0}".format(key)
-        util.write_file(dmi_key, content)
-
-    def _configure_dmidecode_return(self, key, content, error=None):
-        """
-        In order to test a missing sys path and call outs to dmidecode, this
-        function fakes the results of dmidecode to test the results.
-        """
-        def _dmidecode_subp(cmd):
-            if cmd[-1] != key:
-                raise subp.ProcessExecutionError()
-            return (content, error)
-
-        self.patched_funcs.enter_context(
-            mock.patch("cloudinit.subp.which", side_effect=lambda _: True))
-        self.patched_funcs.enter_context(
-            mock.patch("cloudinit.subp.subp", side_effect=_dmidecode_subp))
-
-    def patch_mapping(self, new_mapping):
-        self.patched_funcs.enter_context(
-            mock.patch('cloudinit.util.DMIDECODE_TO_DMI_SYS_MAPPING',
-                       new_mapping))
-
-    def test_sysfs_used_with_key_in_mapping_and_file_on_disk(self):
-        self.patch_mapping({'mapped-key': 'mapped-value'})
-        expected_dmi_value = 'sys-used-correctly'
-        self._create_sysfs_file('mapped-value', expected_dmi_value)
-        self._configure_dmidecode_return('mapped-key', 'wrong-wrong-wrong')
-        self.assertEqual(expected_dmi_value, util.read_dmi_data('mapped-key'))
-
-    def test_dmidecode_used_if_no_sysfs_file_on_disk(self):
-        self.patch_mapping({})
-        self._create_sysfs_parent_directory()
-        expected_dmi_value = 'dmidecode-used'
-        self._configure_dmidecode_return('use-dmidecode', expected_dmi_value)
-        with mock.patch("cloudinit.util.os.uname") as m_uname:
-            m_uname.return_value = ('x-sysname', 'x-nodename',
-                                    'x-release', 'x-version', 'x86_64')
-            self.assertEqual(expected_dmi_value,
-                             util.read_dmi_data('use-dmidecode'))
-
-    def test_dmidecode_not_used_on_arm(self):
-        self.patch_mapping({})
-        print("current =%s", subp)
-        self._create_sysfs_parent_directory()
-        dmi_val = 'from-dmidecode'
-        dmi_name = 'use-dmidecode'
-        self._configure_dmidecode_return(dmi_name, dmi_val)
-        print("now =%s", subp)
-
-        expected = {'armel': None, 'aarch64': dmi_val, 'x86_64': dmi_val}
-        found = {}
-        # we do not run the 'dmi-decode' binary on some arches
-        # verify that anything requested that is not in the sysfs dir
-        # will return None on those arches.
-        with mock.patch("cloudinit.util.os.uname") as m_uname:
-            for arch in expected:
-                m_uname.return_value = ('x-sysname', 'x-nodename',
-                                        'x-release', 'x-version', arch)
-                print("now2 =%s", subp)
-                found[arch] = util.read_dmi_data(dmi_name)
-        self.assertEqual(expected, found)
-
-    def test_none_returned_if_neither_source_has_data(self):
-        self.patch_mapping({})
-        self._configure_dmidecode_return('key', 'value')
-        self.assertIsNone(util.read_dmi_data('expect-fail'))
-
-    def test_none_returned_if_dmidecode_not_in_path(self):
-        self.patched_funcs.enter_context(
-            mock.patch.object(subp, 'which', lambda _: False))
-        self.patch_mapping({})
-        self.assertIsNone(util.read_dmi_data('expect-fail'))
-
-    def test_dots_returned_instead_of_foxfox(self):
-        # uninitialized dmi values show as \xff, return those as .
-        my_len = 32
-        dmi_value = b'\xff' * my_len + b'\n'
-        expected = ""
-        dmi_key = 'system-product-name'
-        sysfs_key = 'product_name'
-        self._create_sysfs_file(sysfs_key, dmi_value)
-        self.assertEqual(expected, util.read_dmi_data(dmi_key))
-
-    def test_container_returns_none(self):
-        """In a container read_dmi_data should always return None."""
-
-        # first verify we get the value if not in container
-        self._m_is_container.return_value = False
-        key, val = ("system-product-name", "my_product")
-        self._create_sysfs_file('product_name', val)
-        self.assertEqual(val, util.read_dmi_data(key))
-
-        # then verify in container returns None
-        self._m_is_container.return_value = True
-        self.assertIsNone(util.read_dmi_data(key))
-
-    def test_container_returns_none_on_unknown(self):
-        """In a container even bogus keys return None."""
-        self._m_is_container.return_value = True
-        self._create_sysfs_file('product_name', "should-be-ignored")
-        self.assertIsNone(util.read_dmi_data("bogus"))
-        self.assertIsNone(util.read_dmi_data("system-product-name"))
-
-
 class TestGetConfigLogfiles(helpers.CiTestCase):
 
     def test_empty_cfg_returns_empty_list(self):
@@ -723,13 +612,35 @@ class TestReadSeeded(helpers.TestCase):
 
     def test_unicode_not_messed_up(self):
         ud = b"userdatablob"
+        vd = b"vendordatablob"
         helpers.populate_dir(
-            self.tmp, {'meta-data': "key1: val1", 'user-data': ud})
+            self.tmp, {'meta-data': "key1: val1", 'user-data': ud,
+                       'vendor-data': vd})
         sdir = self.tmp + os.path.sep
-        (found_md, found_ud) = util.read_seeded(sdir)
+        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
 
         self.assertEqual(found_md, {'key1': 'val1'})
         self.assertEqual(found_ud, ud)
+        self.assertEqual(found_vd, vd)
+
+
+class TestReadSeededWithoutVendorData(helpers.TestCase):
+    def setUp(self):
+        super(TestReadSeededWithoutVendorData, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def test_unicode_not_messed_up(self):
+        ud = b"userdatablob"
+        vd = None
+        helpers.populate_dir(
+            self.tmp, {'meta-data': "key1: val1", 'user-data': ud})
+        sdir = self.tmp + os.path.sep
+        (found_md, found_ud, found_vd) = util.read_seeded(sdir)
+
+        self.assertEqual(found_md, {'key1': 'val1'})
+        self.assertEqual(found_ud, ud)
+        self.assertEqual(found_vd, vd)
 
 
 class TestEncode(helpers.TestCase):
@@ -956,96 +867,132 @@ class TestGetProcEnv(helpers.TestCase):
         self.assertEqual(my_ppid, util.get_proc_ppid(my_pid))
 
 
-@mock.patch('cloudinit.subp.subp')
-def test_find_devs_with_openbsd(m_subp):
-    m_subp.return_value = (
-        'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+class TestKernelVersion():
+    """test kernel version function"""
+
+    params = [
+        ('5.6.19-300.fc32.x86_64', (5, 6)),
+        ('4.15.0-101-generic', (4, 15)),
+        ('3.10.0-1062.12.1.vz7.131.10', (3, 10)),
+        ('4.18.0-144.el8.x86_64', (4, 18))]
+
+    @mock.patch('os.uname')
+    @pytest.mark.parametrize("uname_release,expected", params)
+    def test_kernel_version(self, m_uname, uname_release, expected):
+        m_uname.return_value.release = uname_release
+        assert expected == util.kernel_version()
+
+
+class TestFindDevs:
+    @mock.patch('cloudinit.subp.subp')
+    def test_find_devs_with(self, m_subp):
+        m_subp.return_value = (
+            '/dev/sda1: UUID="some-uuid" TYPE="ext4" PARTUUID="some-partid"',
+            ''
+        )
+        devlist = util.find_devs_with()
+        assert devlist == [
+            '/dev/sda1: UUID="some-uuid" TYPE="ext4" PARTUUID="some-partid"']
+
+        devlist = util.find_devs_with("LABEL_FATBOOT=A_LABEL")
+        assert devlist == [
+            '/dev/sda1: UUID="some-uuid" TYPE="ext4" PARTUUID="some-partid"']
+
+    @mock.patch('cloudinit.subp.subp')
+    def test_find_devs_with_openbsd(self, m_subp):
+        m_subp.return_value = (
+            'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+        )
+        devlist = util.find_devs_with_openbsd()
+        assert devlist == ['/dev/cd0a', '/dev/sd1i']
+
+    @mock.patch('cloudinit.subp.subp')
+    def test_find_devs_with_openbsd_with_criteria(self, m_subp):
+        m_subp.return_value = (
+            'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+        )
+        devlist = util.find_devs_with_openbsd(criteria="TYPE=iso9660")
+        assert devlist == ['/dev/cd0a']
+
+        # lp: #1841466
+        devlist = util.find_devs_with_openbsd(criteria="LABEL_FATBOOT=A_LABEL")
+        assert devlist == ['/dev/cd0a', '/dev/sd1i']
+
+    @pytest.mark.parametrize(
+        'criteria,expected_devlist', (
+            (None, ['/dev/msdosfs/EFISYS', '/dev/iso9660/config-2']),
+            ('TYPE=iso9660', ['/dev/iso9660/config-2']),
+            ('TYPE=vfat', ['/dev/msdosfs/EFISYS']),
+            ('LABEL_FATBOOT=A_LABEL', []),  # lp: #1841466
+        ),
     )
-    devlist = util.find_devs_with_openbsd()
-    assert devlist == ['/dev/cd0a', '/dev/sd1i']
+    @mock.patch('glob.glob')
+    def test_find_devs_with_freebsd(self, m_glob, criteria, expected_devlist):
+        def fake_glob(pattern):
+            msdos = ["/dev/msdosfs/EFISYS"]
+            iso9660 = ["/dev/iso9660/config-2"]
+            if pattern == "/dev/msdosfs/*":
+                return msdos
+            elif pattern == "/dev/iso9660/*":
+                return iso9660
+            raise Exception
+        m_glob.side_effect = fake_glob
 
+        devlist = util.find_devs_with_freebsd(criteria=criteria)
+        assert devlist == expected_devlist
 
-@mock.patch('cloudinit.subp.subp')
-def test_find_devs_with_openbsd_with_criteria(m_subp):
-    m_subp.return_value = (
-        'cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', ''
+    @pytest.mark.parametrize(
+        'criteria,expected_devlist', (
+            (None, ['/dev/ld0', '/dev/dk0', '/dev/dk1', '/dev/cd0']),
+            ('TYPE=iso9660', ['/dev/cd0']),
+            ('TYPE=vfat', ["/dev/ld0", "/dev/dk0", "/dev/dk1"]),
+            ('LABEL_FATBOOT=A_LABEL',  # lp: #1841466
+             ['/dev/ld0', '/dev/dk0', '/dev/dk1', '/dev/cd0']),
+        )
     )
-    devlist = util.find_devs_with_openbsd(criteria="TYPE=iso9660")
-    assert devlist == ['/dev/cd0a']
-
-
-@mock.patch('glob.glob')
-def test_find_devs_with_freebsd(m_glob):
-    def fake_glob(pattern):
-        msdos = ["/dev/msdosfs/EFISYS"]
-        iso9660 = ["/dev/iso9660/config-2"]
-        if pattern == "/dev/msdosfs/*":
-            return msdos
-        elif pattern == "/dev/iso9660/*":
-            return iso9660
-        raise Exception
-    m_glob.side_effect = fake_glob
-
-    devlist = util.find_devs_with_freebsd()
-    assert set(devlist) == set([
-        '/dev/iso9660/config-2', '/dev/msdosfs/EFISYS'])
-    devlist = util.find_devs_with_freebsd(criteria="TYPE=iso9660")
-    assert devlist == ['/dev/iso9660/config-2']
-    devlist = util.find_devs_with_freebsd(criteria="TYPE=vfat")
-    assert devlist == ['/dev/msdosfs/EFISYS']
-
-
-@mock.patch("cloudinit.subp.subp")
-def test_find_devs_with_netbsd(m_subp):
-    side_effect_values = [
-        ("ld0 dk0 dk1 cd0", ""),
-        (
+    @mock.patch("cloudinit.subp.subp")
+    def test_find_devs_with_netbsd(self, m_subp, criteria, expected_devlist):
+        side_effect_values = [
+            ("ld0 dk0 dk1 cd0", ""),
             (
-                "mscdlabel: CDIOREADTOCHEADER: "
-                "Inappropriate ioctl for device\n"
-                "track (ctl=4) at sector 0\n"
-                "disklabel not written\n"
+                (
+                    "mscdlabel: CDIOREADTOCHEADER: "
+                    "Inappropriate ioctl for device\n"
+                    "track (ctl=4) at sector 0\n"
+                    "disklabel not written\n"
+                ),
+                "",
             ),
-            "",
-        ),
-        (
             (
-                "mscdlabel: CDIOREADTOCHEADER: "
-                "Inappropriate ioctl for device\n"
-                "track (ctl=4) at sector 0\n"
-                "disklabel not written\n"
+                (
+                    "mscdlabel: CDIOREADTOCHEADER: "
+                    "Inappropriate ioctl for device\n"
+                    "track (ctl=4) at sector 0\n"
+                    "disklabel not written\n"
+                ),
+                "",
             ),
-            "",
-        ),
-        (
             (
-                "mscdlabel: CDIOREADTOCHEADER: "
-                "Inappropriate ioctl for device\n"
-                "track (ctl=4) at sector 0\n"
-                "disklabel not written\n"
+                (
+                    "mscdlabel: CDIOREADTOCHEADER: "
+                    "Inappropriate ioctl for device\n"
+                    "track (ctl=4) at sector 0\n"
+                    "disklabel not written\n"
+                ),
+                "",
             ),
-            "",
-        ),
-        (
             (
-                "track (ctl=4) at sector 0\n"
-                'ISO filesystem, label "config-2", '
-                "creation time: 2020/03/31 17:29\n"
-                "adding as 'a'\n"
+                (
+                    "track (ctl=4) at sector 0\n"
+                    'ISO filesystem, label "config-2", '
+                    "creation time: 2020/03/31 17:29\n"
+                    "adding as 'a'\n"
+                ),
+                "",
             ),
-            "",
-        ),
-    ]
-    m_subp.side_effect = side_effect_values
-    devlist = util.find_devs_with_netbsd()
-    assert set(devlist) == set(
-        ["/dev/ld0", "/dev/dk0", "/dev/dk1", "/dev/cd0"]
-    )
-    m_subp.side_effect = side_effect_values
-    devlist = util.find_devs_with_netbsd(criteria="TYPE=iso9660")
-    assert devlist == ["/dev/cd0"]
-    m_subp.side_effect = side_effect_values
-    devlist = util.find_devs_with_netbsd(criteria="TYPE=vfat")
-    assert devlist == ["/dev/ld0", "/dev/dk0", "/dev/dk1"]
+        ]
+        m_subp.side_effect = side_effect_values
+        devlist = util.find_devs_with_netbsd(criteria=criteria)
+        assert devlist == expected_devlist
 
 # vi: ts=4 expandtab

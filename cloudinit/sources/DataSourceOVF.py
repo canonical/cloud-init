@@ -14,7 +14,9 @@ import re
 import time
 from xml.dom import minidom
 
+from cloudinit import dmi
 from cloudinit import log as logging
+from cloudinit import safeyaml
 from cloudinit import sources
 from cloudinit import subp
 from cloudinit import util
@@ -46,6 +48,7 @@ LOG = logging.getLogger(__name__)
 
 CONFGROUPNAME_GUESTCUSTOMIZATION = "deployPkg"
 GUESTCUSTOMIZATION_ENABLE_CUST_SCRIPTS = "enable-custom-scripts"
+VMWARE_IMC_DIR = "/var/run/vmware-imc"
 
 
 class DataSourceOVF(sources.DataSource):
@@ -73,6 +76,7 @@ class DataSourceOVF(sources.DataSource):
         found = []
         md = {}
         ud = ""
+        vd = ""
         vmwareImcConfigFilePath = None
         nicspath = None
 
@@ -82,7 +86,7 @@ class DataSourceOVF(sources.DataSource):
 
         (seedfile, contents) = get_ovf_env(self.paths.seed_dir)
 
-        system_type = util.read_dmi_data("system-product-name")
+        system_type = dmi.read_dmi_data("system-product-name")
         if system_type is None:
             LOG.debug("No system-product-name found")
 
@@ -97,9 +101,7 @@ class DataSourceOVF(sources.DataSource):
             if not self.vmware_customization_supported:
                 LOG.debug("Skipping the check for "
                           "VMware Customization support")
-            elif not util.get_cfg_option_bool(
-                    self.sys_cfg, "disable_vmware_customization", True):
-
+            else:
                 search_paths = (
                     "/usr/lib/vmware-tools", "/usr/lib64/vmware-tools",
                     "/usr/lib/open-vm-tools", "/usr/lib64/open-vm-tools")
@@ -117,7 +119,9 @@ class DataSourceOVF(sources.DataSource):
                     # When the VM is powered on, the "VMware Tools" daemon
                     # copies the customization specification file to
                     # /var/run/vmware-imc directory. cloud-init code needs
-                    # to search for the file in that directory.
+                    # to search for the file in that directory which indicates
+                    # that required metadata and userdata files are now
+                    # present.
                     max_wait = get_max_wait_from_cfg(self.ds_cfg)
                     vmwareImcConfigFilePath = util.log_time(
                         logfunc=LOG.debug,
@@ -127,39 +131,107 @@ class DataSourceOVF(sources.DataSource):
                 else:
                     LOG.debug("Did not find the customization plugin.")
 
+                md_path = None
                 if vmwareImcConfigFilePath:
+                    imcdirpath = os.path.dirname(vmwareImcConfigFilePath)
+                    cf = ConfigFile(vmwareImcConfigFilePath)
+                    self._vmware_cust_conf = Config(cf)
                     LOG.debug("Found VMware Customization Config File at %s",
                               vmwareImcConfigFilePath)
-                    nicspath = wait_for_imc_cfg_file(
-                        filename="nics.txt", maxwait=10, naplen=5)
+                    try:
+                        (md_path, ud_path, nicspath) = collect_imc_file_paths(
+                            self._vmware_cust_conf)
+                    except FileNotFoundError as e:
+                        _raise_error_status(
+                            "File(s) missing in directory",
+                            e,
+                            GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                            vmwareImcConfigFilePath,
+                            self._vmware_cust_conf)
                 else:
                     LOG.debug("Did not find VMware Customization Config File")
-            else:
-                LOG.debug("Customization for VMware platform is disabled.")
 
-        if vmwareImcConfigFilePath:
+                # Honor disable_vmware_customization setting on metadata absent
+                if not md_path:
+                    if util.get_cfg_option_bool(self.sys_cfg,
+                                                "disable_vmware_customization",
+                                                True):
+                        LOG.debug(
+                            "Customization for VMware platform is disabled.")
+                        # reset vmwareImcConfigFilePath to None to avoid
+                        # customization for VMware platform
+                        vmwareImcConfigFilePath = None
+
+        use_raw_data = bool(vmwareImcConfigFilePath and md_path)
+        if use_raw_data:
+            set_gc_status(self._vmware_cust_conf, "Started")
+            LOG.debug("Start to load cloud-init meta data and user data")
+            try:
+                (md, ud, cfg, network) = load_cloudinit_data(md_path, ud_path)
+
+                if network:
+                    self._network_config = network
+                else:
+                    self._network_config = (
+                        self.distro.generate_fallback_config()
+                    )
+
+            except safeyaml.YAMLError as e:
+                _raise_error_status(
+                    "Error parsing the cloud-init meta data",
+                    e,
+                    GuestCustErrorEnum.GUESTCUST_ERROR_WRONG_META_FORMAT,
+                    vmwareImcConfigFilePath,
+                    self._vmware_cust_conf)
+            except Exception as e:
+                _raise_error_status(
+                    "Error loading cloud-init configuration",
+                    e,
+                    GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
+                    vmwareImcConfigFilePath,
+                    self._vmware_cust_conf)
+
+            self._vmware_cust_found = True
+            found.append('vmware-tools')
+
+            util.del_dir(imcdirpath)
+            set_customization_status(
+                GuestCustStateEnum.GUESTCUST_STATE_DONE,
+                GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
+            set_gc_status(self._vmware_cust_conf, "Successful")
+
+        elif vmwareImcConfigFilePath:
+            # Load configuration from vmware_imc
             self._vmware_nics_to_enable = ""
             try:
-                cf = ConfigFile(vmwareImcConfigFilePath)
-                self._vmware_cust_conf = Config(cf)
                 set_gc_status(self._vmware_cust_conf, "Started")
 
                 (md, ud, cfg) = read_vmware_imc(self._vmware_cust_conf)
                 self._vmware_nics_to_enable = get_nics_to_enable(nicspath)
-                imcdirpath = os.path.dirname(vmwareImcConfigFilePath)
                 product_marker = self._vmware_cust_conf.marker_id
                 hasmarkerfile = check_marker_exists(
                     product_marker, os.path.join(self.paths.cloud_dir, 'data'))
                 special_customization = product_marker and not hasmarkerfile
                 customscript = self._vmware_cust_conf.custom_script_name
-                custScriptConfig = get_tools_config(
-                    CONFGROUPNAME_GUESTCUSTOMIZATION,
-                    GUESTCUSTOMIZATION_ENABLE_CUST_SCRIPTS,
-                    "false")
-                if custScriptConfig.lower() != "true":
-                    # Update the customization status if there is a
-                    # custom script is disabled
-                    if special_customization and customscript:
+
+                # In case there is a custom script, check whether VMware
+                # Tools configuration allow the custom script to run.
+                if special_customization and customscript:
+                    defVal = "false"
+                    if self._vmware_cust_conf.default_run_post_script:
+                        LOG.debug(
+                            "Set default value to true due to"
+                            " customization configuration."
+                        )
+                        defVal = "true"
+
+                    custScriptConfig = get_tools_config(
+                        CONFGROUPNAME_GUESTCUSTOMIZATION,
+                        GUESTCUSTOMIZATION_ENABLE_CUST_SCRIPTS,
+                        defVal)
+                    if custScriptConfig.lower() != "true":
+                        # Update the customization status if custom script
+                        # is disabled
                         msg = "Custom script is disabled by VM Administrator"
                         LOG.debug(msg)
                         set_customization_status(
@@ -293,7 +365,7 @@ class DataSourceOVF(sources.DataSource):
                           seedfrom, self)
                 return False
 
-            (md_seed, ud) = util.read_seeded(seedfrom, timeout=None)
+            (md_seed, ud, vd) = util.read_seeded(seedfrom, timeout=None)
             LOG.debug("Using seeded cache data from %s", seedfrom)
 
             md = util.mergemanydict([md, md_seed])
@@ -305,11 +377,12 @@ class DataSourceOVF(sources.DataSource):
         self.seed = ",".join(found)
         self.metadata = md
         self.userdata_raw = ud
+        self.vendordata_raw = vd
         self.cfg = cfg
         return True
 
     def _get_subplatform(self):
-        system_type = util.read_dmi_data("system-product-name").lower()
+        system_type = dmi.read_dmi_data("system-product-name").lower()
         if system_type == 'vmware':
             return 'vmware (%s)' % self.seed
         return 'ovf (%s)' % self.seed
@@ -343,7 +416,7 @@ class DataSourceOVFNet(DataSourceOVF):
 
 
 def get_max_wait_from_cfg(cfg):
-    default_max_wait = 90
+    default_max_wait = 15
     max_wait_cfg_option = 'vmware_cust_file_max_wait'
     max_wait = default_max_wait
 
@@ -669,5 +742,84 @@ def _raise_error_status(prefix, error, event, config_file, conf):
     set_gc_status(conf, prefix)
     util.del_dir(os.path.dirname(config_file))
     raise error
+
+
+def load_cloudinit_data(md_path, ud_path):
+    """
+    Load the cloud-init meta data, user data, cfg and network from the
+    given files
+
+    @return: 4-tuple of configuration
+        metadata, userdata, cfg={}, network
+
+    @raises: FileNotFoundError if md_path or ud_path are absent
+    """
+    LOG.debug('load meta data from: %s: user data from: %s',
+              md_path, ud_path)
+    md = {}
+    ud = None
+    network = None
+
+    md = safeload_yaml_or_dict(util.load_file(md_path))
+
+    if 'network' in md:
+        network = md['network']
+
+    if ud_path:
+        ud = util.load_file(ud_path).replace("\r", "")
+    return md, ud, {}, network
+
+
+def safeload_yaml_or_dict(data):
+    '''
+    The meta data could be JSON or YAML. Since YAML is a strict superset of
+    JSON, we will unmarshal the data as YAML. If data is None then a new
+    dictionary is returned.
+    '''
+    if not data:
+        return {}
+    return safeyaml.load(data)
+
+
+def collect_imc_file_paths(cust_conf):
+    '''
+    collect all the other imc files.
+
+    metadata is preferred to nics.txt configuration data.
+
+    If metadata file exists because it is specified in customization
+    configuration, then metadata is required and userdata is optional.
+
+    @return a 3-tuple containing desired configuration file paths if present
+        Expected returns:
+             1. user provided metadata and userdata (md_path, ud_path, None)
+             2. user provided metadata (md_path, None, None)
+             3. user-provided network config (None, None, nics_path)
+             4. No config found (None, None, None)
+    '''
+    md_path = None
+    ud_path = None
+    nics_path = None
+    md_file = cust_conf.meta_data_name
+    if md_file:
+        md_path = os.path.join(VMWARE_IMC_DIR, md_file)
+        if not os.path.exists(md_path):
+            raise FileNotFoundError("meta data file is not found: %s"
+                                    % md_path)
+
+        ud_file = cust_conf.user_data_name
+        if ud_file:
+            ud_path = os.path.join(VMWARE_IMC_DIR, ud_file)
+            if not os.path.exists(ud_path):
+                raise FileNotFoundError("user data file is not found: %s"
+                                        % ud_path)
+    else:
+        nics_path = os.path.join(VMWARE_IMC_DIR, "nics.txt")
+        if not os.path.exists(nics_path):
+            LOG.debug('%s does not exist.', nics_path)
+            nics_path = None
+
+    return md_path, ud_path, nics_path
+
 
 # vi: ts=4 expandtab

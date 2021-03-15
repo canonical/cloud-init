@@ -65,7 +65,7 @@ swap file is created.
 from string import whitespace
 
 import logging
-import os.path
+import os
 import re
 
 from cloudinit import type_utils
@@ -255,25 +255,27 @@ def create_swapfile(fname: str, size: str) -> None:
         try:
             subp.subp(cmd, capture=True)
         except subp.ProcessExecutionError as e:
-            LOG.warning(errmsg, fname, size, method, e)
+            LOG.info(errmsg, fname, size, method, e)
             util.del_file(fname)
+            raise
 
     swap_dir = os.path.dirname(fname)
     util.ensure_dir(swap_dir)
 
     fstype = util.get_mount_info(swap_dir)[1]
 
-    if fstype in ("xfs", "btrfs"):
+    if (fstype == "xfs" and
+            util.kernel_version() < (4, 18)) or fstype == "btrfs":
         create_swap(fname, size, "dd")
     else:
         try:
             create_swap(fname, size, "fallocate")
-        except subp.ProcessExecutionError as e:
-            LOG.warning(errmsg, fname, size, "dd", e)
-            LOG.warning("Will attempt with dd.")
+        except subp.ProcessExecutionError:
+            LOG.info("fallocate swap creation failed, will attempt with dd")
             create_swap(fname, size, "dd")
 
-    util.chmod(fname, 0o600)
+    if os.path.exists(fname):
+        util.chmod(fname, 0o600)
     try:
         subp.subp(['mkswap', fname])
     except subp.ProcessExecutionError:
@@ -379,17 +381,18 @@ def handle(_name, cfg, cloud, log, _args):
     fstab_devs = {}
     fstab_removed = []
 
-    for line in util.load_file(FSTAB_PATH).splitlines():
-        if MNT_COMMENT in line:
-            fstab_removed.append(line)
-            continue
+    if os.path.exists(FSTAB_PATH):
+        for line in util.load_file(FSTAB_PATH).splitlines():
+            if MNT_COMMENT in line:
+                fstab_removed.append(line)
+                continue
 
-        try:
-            toks = WS.split(line)
-        except Exception:
-            pass
-        fstab_devs[toks[0]] = line
-        fstab_lines.append(line)
+            try:
+                toks = WS.split(line)
+            except Exception:
+                pass
+            fstab_devs[toks[0]] = line
+            fstab_lines.append(line)
 
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list

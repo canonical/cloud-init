@@ -14,6 +14,7 @@ import json
 import os
 from collections import namedtuple
 
+from cloudinit import dmi
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
@@ -78,7 +79,6 @@ class DataSourceNotFoundException(Exception):
 
 class InvalidMetaDataException(Exception):
     """Raised when metadata is broken, unavailable or disabled."""
-    pass
 
 
 def process_instance_metadata(metadata, key_path='', sensitive_keys=()):
@@ -187,7 +187,8 @@ class DataSource(metaclass=abc.ABCMeta):
     cached_attr_defaults = (
         ('ec2_metadata', UNSET), ('network_json', UNSET),
         ('metadata', {}), ('userdata', None), ('userdata_raw', None),
-        ('vendordata', None), ('vendordata_raw', None))
+        ('vendordata', None), ('vendordata_raw', None),
+        ('vendordata2', None), ('vendordata2_raw', None))
 
     _dirty_cache = False
 
@@ -203,7 +204,9 @@ class DataSource(metaclass=abc.ABCMeta):
         self.metadata = {}
         self.userdata_raw = None
         self.vendordata = None
+        self.vendordata2 = None
         self.vendordata_raw = None
+        self.vendordata2_raw = None
 
         self.ds_cfg = util.get_cfg_by_path(
             self.sys_cfg, ("datasource", self.dsname), {})
@@ -392,6 +395,11 @@ class DataSource(metaclass=abc.ABCMeta):
             self.vendordata = self.ud_proc.process(self.get_vendordata_raw())
         return self.vendordata
 
+    def get_vendordata2(self):
+        if self.vendordata2 is None:
+            self.vendordata2 = self.ud_proc.process(self.get_vendordata2_raw())
+        return self.vendordata2
+
     @property
     def fallback_interface(self):
         """Determine the network interface used during local network config."""
@@ -494,6 +502,9 @@ class DataSource(metaclass=abc.ABCMeta):
     def get_vendordata_raw(self):
         return self.vendordata_raw
 
+    def get_vendordata2_raw(self):
+        return self.vendordata2_raw
+
     # the data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config
     # because cloud-config content would be handled elsewhere
@@ -511,7 +522,6 @@ class DataSource(metaclass=abc.ABCMeta):
             (e.g. 'ssh-rsa') and key_value is the key itself
             (e.g. 'AAAAB3NzaC1y...').
         """
-        pass
 
     def _remap_device(self, short_name):
         # LP: #611137
@@ -811,7 +821,7 @@ def instance_id_matches_system_uuid(instance_id, field='system-uuid'):
     if not instance_id:
         return False
 
-    dmi_value = util.read_dmi_data(field)
+    dmi_value = dmi.read_dmi_data(field)
     if not dmi_value:
         return False
     return instance_id.lower() == dmi_value.lower()

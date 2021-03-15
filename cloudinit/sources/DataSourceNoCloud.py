@@ -11,6 +11,7 @@
 import errno
 import os
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit.net import eni
 from cloudinit import sources
@@ -41,6 +42,7 @@ class DataSourceNoCloud(sources.DataSource):
 
         label_list = util.find_devs_with("LABEL=%s" % label.upper())
         label_list.extend(util.find_devs_with("LABEL=%s" % label.lower()))
+        label_list.extend(util.find_devs_with("LABEL_FATBOOT=%s" % label))
 
         devlist = list(set(fslist) & set(label_list))
         devlist.sort(reverse=True)
@@ -60,7 +62,7 @@ class DataSourceNoCloud(sources.DataSource):
             # Parse the system serial label from dmi. If not empty, try parsing
             # like the commandline
             md = {}
-            serial = util.read_dmi_data('system-serial-number')
+            serial = dmi.read_dmi_data('system-serial-number')
             if serial and load_cmdline_data(md, serial):
                 found.append("dmi")
                 mydata = _merge_new_seed(mydata, {'meta-data': md})
@@ -156,13 +158,14 @@ class DataSourceNoCloud(sources.DataSource):
 
             # This could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
-            (md_seed, ud) = util.read_seeded(seedfrom, timeout=None)
+            (md_seed, ud, vd) = util.read_seeded(seedfrom, timeout=None)
             LOG.debug("Using seeded cache data from %s", seedfrom)
 
             # Values in the command line override those from the seed
             mydata['meta-data'] = util.mergemanydict([mydata['meta-data'],
                                                       md_seed])
             mydata['user-data'] = ud
+            mydata['vendor-data'] = vd
             found.append(seedfrom)
 
         # Now that we have exhausted any other places merge in the defaults

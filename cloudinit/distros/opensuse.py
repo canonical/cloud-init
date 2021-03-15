@@ -13,14 +13,11 @@ from cloudinit import distros
 from cloudinit.distros.parsers.hostname import HostnameConf
 
 from cloudinit import helpers
-from cloudinit import log as logging
 from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.distros import rhel_util as rhutil
 from cloudinit.settings import PER_INSTANCE
-
-LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
@@ -185,7 +182,7 @@ class Distro(distros.Distro):
     def preferred_ntp_clients(self):
         """The preferred ntp client is dependent on the version."""
 
-        """Allow distro to determine the preferred ntp client list"""
+        # Allow distro to determine the preferred ntp client list
         if not self._preferred_ntp_clients:
             distro_info = util.system_info()['dist']
             name = distro_info[0]

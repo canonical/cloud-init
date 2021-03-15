@@ -53,6 +53,12 @@ These user-data and meta-data files are expected to be in the following format.
 Basically, user-data is simply user-data and meta-data is a yaml formatted file
 representing what you'd find in the EC2 metadata service.
 
+You may also optionally provide a vendor-data file in the following format.
+
+::
+
+  /vendor-data
+
 Given a disk ubuntu 12.04 cloud image in 'disk.img', you can create a
 sufficient disk by following the example below.
 
@@ -111,7 +117,7 @@ yaml formatted data in a file named ``network-config``.  If found,
 this file will override a ``network-interfaces`` file.
 
 See an example below.  Note specifically that this file does not
-have a top level ``network`` key as it it is already assumed to
+have a top level ``network`` key as it is already assumed to
 be network configuration based on the filename.
 
 .. code:: yaml
