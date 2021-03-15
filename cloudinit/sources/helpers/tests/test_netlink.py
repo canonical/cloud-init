@@ -9,9 +9,10 @@ import codecs
 from cloudinit.sources.helpers.netlink import (
     NetlinkCreateSocketError, create_bound_netlink_socket, read_netlink_socket,
     read_rta_oper_state, unpack_rta_attr, wait_for_media_disconnect_connect,
+    wait_for_nic_attach_event, wait_for_nic_detach_event,
     OPER_DOWN, OPER_UP, OPER_DORMANT, OPER_LOWERLAYERDOWN, OPER_NOTPRESENT,
-    OPER_TESTING, OPER_UNKNOWN, RTATTR_START_OFFSET, RTM_NEWLINK, RTM_SETLINK,
-    RTM_GETLINK, MAX_SIZE)
+    OPER_TESTING, OPER_UNKNOWN, RTATTR_START_OFFSET, RTM_NEWLINK, RTM_DELLINK,
+    RTM_SETLINK, RTM_GETLINK, MAX_SIZE)
 
 
 def int_to_bytes(i):
@@ -131,6 +132,75 @@ class TestParseNetlinkMessage(CiTestCase):
             unpack_rta_attr(data, 31)
         self.assertTrue('rta offset is less than expected length' in
                         str(context.exception))
+
+
+@mock.patch('cloudinit.sources.helpers.netlink.socket.socket')
+@mock.patch('cloudinit.sources.helpers.netlink.read_netlink_socket')
+class TestNicAttachDetach(CiTestCase):
+    with_logs = True
+
+    def _media_switch_data(self, ifname, msg_type, operstate):
+        '''construct netlink data with specified fields'''
+        if ifname and operstate is not None:
+            data = bytearray(48)
+            bytes = ifname.encode("utf-8")
+            struct.pack_into("HH4sHHc", data, RTATTR_START_OFFSET, 8, 3,
+                             bytes, 5, 16, int_to_bytes(operstate))
+        elif ifname:
+            data = bytearray(40)
+            bytes = ifname.encode("utf-8")
+            struct.pack_into("HH4s", data, RTATTR_START_OFFSET, 8, 3, bytes)
+        elif operstate:
+            data = bytearray(40)
+            struct.pack_into("HHc", data, RTATTR_START_OFFSET, 5, 16,
+                             int_to_bytes(operstate))
+        struct.pack_into("=LHHLL", data, 0, len(data), msg_type, 0, 0, 0)
+        return data
+
+    def test_nic_attached_oper_down(self, m_read_netlink_socket, m_socket):
+        '''Test for a new nic attached'''
+        ifname = "eth0"
+        data_op_down = self._media_switch_data(ifname, RTM_NEWLINK, OPER_DOWN)
+        m_read_netlink_socket.side_effect = [data_op_down]
+        ifread = wait_for_nic_attach_event(m_socket, [])
+        self.assertEqual(m_read_netlink_socket.call_count, 1)
+        self.assertEqual(ifname, ifread)
+
+    def test_nic_attached_oper_up(self, m_read_netlink_socket, m_socket):
+        '''Test for a new nic attached'''
+        ifname = "eth0"
+        data_op_up = self._media_switch_data(ifname, RTM_NEWLINK, OPER_UP)
+        m_read_netlink_socket.side_effect = [data_op_up]
+        ifread = wait_for_nic_attach_event(m_socket, [])
+        self.assertEqual(m_read_netlink_socket.call_count, 1)
+        self.assertEqual(ifname, ifread)
+
+    def test_nic_attach_ignore_existing(self, m_read_netlink_socket, m_socket):
+        '''Test that we read only the interfaces we are interested in.'''
+        data_eth0 = self._media_switch_data("eth0", RTM_NEWLINK, OPER_DOWN)
+        data_eth1 = self._media_switch_data("eth1", RTM_NEWLINK, OPER_DOWN)
+        m_read_netlink_socket.side_effect = [data_eth0, data_eth1]
+        ifread = wait_for_nic_attach_event(m_socket, ["eth0"])
+        self.assertEqual(m_read_netlink_socket.call_count, 2)
+        self.assertEqual("eth1", ifread)
+
+    def test_nic_attach_read_first(self, m_read_netlink_socket, m_socket):
+        '''Test that we read only the interfaces we are interested in.'''
+        data_eth0 = self._media_switch_data("eth0", RTM_NEWLINK, OPER_DOWN)
+        data_eth1 = self._media_switch_data("eth1", RTM_NEWLINK, OPER_DOWN)
+        m_read_netlink_socket.side_effect = [data_eth0, data_eth1]
+        ifread = wait_for_nic_attach_event(m_socket, ["eth1"])
+        self.assertEqual(m_read_netlink_socket.call_count, 1)
+        self.assertEqual("eth0", ifread)
+
+    def test_nic_detached(self, m_read_netlink_socket, m_socket):
+        '''Test for an existing nic detached'''
+        ifname = "eth0"
+        data_op_down = self._media_switch_data(ifname, RTM_DELLINK, OPER_DOWN)
+        m_read_netlink_socket.side_effect = [data_op_down]
+        ifread = wait_for_nic_detach_event(m_socket)
+        self.assertEqual(m_read_netlink_socket.call_count, 1)
+        self.assertEqual(ifname, ifread)
 
 
 @mock.patch('cloudinit.sources.helpers.netlink.socket.socket')

@@ -9,14 +9,17 @@
 """
 Keys to Console
 ---------------
-**Summary:** control which SSH keys may be written to console
+**Summary:** control which SSH host keys may be written to console
 
-For security reasons it may be desirable not to write SSH fingerprints and keys
-to the console. To avoid the fingerprint of types of SSH keys being written to
-console the ``ssh_fp_console_blacklist`` config key can be used. By default all
-types of keys will have their fingerprints written to console. To avoid keys
-of a key type being written to console the ``ssh_key_console_blacklist`` config
-key can be used. By default ``ssh-dss`` keys are not written to console.
+For security reasons it may be desirable not to write SSH host keys and their
+fingerprints to the console. To avoid either being written to the console the
+``emit_keys_to_console`` config key under the main ``ssh`` config key can be
+used. To avoid the fingerprint of types of SSH host keys being written to
+console the ``ssh_fp_console_blacklist`` config key can be used. By default
+all types of keys will have their fingerprints written to console. To avoid
+host keys of a key type being written to console the
+``ssh_key_console_blacklist`` config key can be used. By default ``ssh-dss``
+host keys are not written to console.
 
 **Internal name:** ``cc_keys_to_console``
 
@@ -25,6 +28,9 @@ key can be used. By default ``ssh-dss`` keys are not written to console.
 **Supported distros:** all
 
 **Config keys**::
+
+    ssh:
+      emit_keys_to_console: false
 
     ssh_fp_console_blacklist: <list of key types>
     ssh_key_console_blacklist: <list of key types>
@@ -51,6 +57,11 @@ def _get_helper_tool_path(distro):
 
 
 def handle(name, cfg, cloud, log, _args):
+    if util.is_false(cfg.get("ssh", {}).get("emit_keys_to_console", True)):
+        log.debug(("Skipping module named %s, "
+                   "logging of SSH host keys disabled"), name)
+        return
+
     helper_path = _get_helper_tool_path(cloud.distro)
     if not os.path.exists(helper_path):
         log.warning(("Unable to activate module %s,"

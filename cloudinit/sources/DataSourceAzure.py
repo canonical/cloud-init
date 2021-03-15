@@ -12,8 +12,10 @@ import os
 import os.path
 import re
 from time import time
+from time import sleep
 from xml.dom import minidom
 import xml.etree.ElementTree as ET
+from enum import Enum
 
 from cloudinit import dmi
 from cloudinit import log as logging
@@ -29,6 +31,7 @@ from cloudinit import util
 from cloudinit.reporting import events
 
 from cloudinit.sources.helpers.azure import (
+    DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
     azure_ds_reporter,
     azure_ds_telemetry_reporter,
     get_metadata_from_fabric,
@@ -38,7 +41,8 @@ from cloudinit.sources.helpers.azure import (
     EphemeralDHCPv4WithReporting,
     is_byte_swapped,
     dhcp_log_cb,
-    push_log_to_kvp)
+    push_log_to_kvp,
+    report_failure_to_fabric)
 
 LOG = logging.getLogger(__name__)
 
@@ -65,13 +69,25 @@ DEFAULT_FS = 'ext4'
 # DMI chassis-asset-tag is set static for all azure instances
 AZURE_CHASSIS_ASSET_TAG = '7783-7084-3265-9085-8269-3286-77'
 REPROVISION_MARKER_FILE = "/var/lib/cloud/data/poll_imds"
+REPROVISION_NIC_ATTACH_MARKER_FILE = "/var/lib/cloud/data/wait_for_nic_attach"
+REPROVISION_NIC_DETACHED_MARKER_FILE = "/var/lib/cloud/data/nic_detached"
 REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = '/var/lib/waagent'
+
 
 # In the event where the IMDS primary server is not
 # available, it takes 1s to fallback to the secondary one
 IMDS_TIMEOUT_IN_SECONDS = 2
-IMDS_URL = "http://169.254.169.254/metadata/"
+IMDS_URL = "http://169.254.169.254/metadata"
+IMDS_VER_MIN = "2019-06-01"
+IMDS_VER_WANT = "2020-09-01"
+
+
+class metadata_type(Enum):
+    compute = "{}/instance".format(IMDS_URL)
+    network = "{}/instance/network".format(IMDS_URL)
+    reprovisiondata = "{}/reprovisiondata".format(IMDS_URL)
+
 
 PLATFORM_ENTROPY_SOURCE = "/sys/firmware/acpi/tables/OEM0"
 
@@ -252,7 +268,7 @@ BUILTIN_DS_CONFIG = {
 }
 # RELEASE_BLOCKER: Xenial and earlier apply_network_config default is False
 
-BUILTIN_CLOUD_CONFIG = {
+BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG = {
     'disk_setup': {
         'ephemeral0': {'table_type': 'gpt',
                        'layout': [100],
@@ -330,6 +346,8 @@ class DataSourceAzure(sources.DataSource):
         # Regenerate network config new_instance boot and every boot
         self.update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
+
+        self.failed_desired_api_version = False
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -432,20 +450,39 @@ class DataSourceAzure(sources.DataSource):
         # need to look in the datadir and consider that valid
         ddir = self.ds_cfg['data_dir']
 
+        # The order in which the candidates are inserted matters here, because
+        # it determines the value of ret. More specifically, the first one in
+        # the candidate list determines the path to take in order to get the
+        # metadata we need.
         candidates = [self.seed_dir]
         if os.path.isfile(REPROVISION_MARKER_FILE):
             candidates.insert(0, "IMDS")
+            report_diagnostic_event("Reprovision marker file already present "
+                                    "before crawling Azure metadata: %s" %
+                                    REPROVISION_MARKER_FILE,
+                                    logger_func=LOG.debug)
+        elif os.path.isfile(REPROVISION_NIC_ATTACH_MARKER_FILE):
+            candidates.insert(0, "NIC_ATTACH_MARKER_PRESENT")
+            report_diagnostic_event("Reprovision nic attach marker file "
+                                    "already present before crawling Azure "
+                                    "metadata: %s" %
+                                    REPROVISION_NIC_ATTACH_MARKER_FILE,
+                                    logger_func=LOG.debug)
         candidates.extend(list_possible_azure_ds_devs())
         if ddir:
             candidates.append(ddir)
 
         found = None
         reprovision = False
+        reprovision_after_nic_attach = False
         for cdev in candidates:
             try:
                 if cdev == "IMDS":
                     ret = None
                     reprovision = True
+                elif cdev == "NIC_ATTACH_MARKER_PRESENT":
+                    ret = None
+                    reprovision_after_nic_attach = True
                 elif cdev.startswith("/dev/"):
                     if util.is_FreeBSD():
                         ret = util.mount_cb(cdev, load_azure_ds_dir,
@@ -470,14 +507,23 @@ class DataSourceAzure(sources.DataSource):
                 continue
 
             perform_reprovision = reprovision or self._should_reprovision(ret)
-            if perform_reprovision:
+            perform_reprovision_after_nic_attach = (
+                reprovision_after_nic_attach or
+                self._should_reprovision_after_nic_attach(ret))
+
+            if perform_reprovision or perform_reprovision_after_nic_attach:
                 if util.is_FreeBSD():
                     msg = "Free BSD is not supported for PPS VMs"
                     report_diagnostic_event(msg, logger_func=LOG.error)
                     raise sources.InvalidMetaDataException(msg)
+                if perform_reprovision_after_nic_attach:
+                    self._wait_for_all_nics_ready()
                 ret = self._reprovision()
-            imds_md = get_metadata_from_imds(
-                self.fallback_interface, retries=10)
+
+            imds_md = self.get_imds_data_with_api_fallback(
+                self.fallback_interface,
+                retries=10
+            )
             (md, userdata_raw, cfg, files) = ret
             self.seed = cdev
             crawled_data.update({
@@ -506,10 +552,11 @@ class DataSourceAzure(sources.DataSource):
             crawled_data['metadata']['random_seed'] = seed
         crawled_data['metadata']['instance-id'] = self._iid()
 
-        if perform_reprovision:
+        if perform_reprovision or perform_reprovision_after_nic_attach:
             LOG.info("Reporting ready to Azure after getting ReprovisionData")
-            use_cached_ephemeral = (net.is_up(self.fallback_interface) and
-                                    getattr(self, '_ephemeral_dhcp_ctx', None))
+            use_cached_ephemeral = (
+                self.distro.networking.is_up(self.fallback_interface) and
+                getattr(self, '_ephemeral_dhcp_ctx', None))
             if use_cached_ephemeral:
                 self._report_ready(lease=self._ephemeral_dhcp_ctx.lease)
                 self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
@@ -560,16 +607,39 @@ class DataSourceAzure(sources.DataSource):
                 logfunc=LOG.debug, msg='Crawl of metadata service',
                 func=self.crawl_metadata
             )
-        except sources.InvalidMetaDataException as e:
-            LOG.warning('Could not crawl Azure metadata: %s', e)
+        except Exception as e:
+            report_diagnostic_event(
+                'Could not crawl Azure metadata: %s' % e,
+                logger_func=LOG.error)
+            self._report_failure(
+                description=DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE)
             return False
+
         if (self.distro and self.distro.name == 'ubuntu' and
                 self.ds_cfg.get('apply_network_config')):
             maybe_remove_ubuntu_network_config_scripts()
 
         # Process crawled data and augment with various config defaults
-        self.cfg = util.mergemanydict(
-            [crawled_data['cfg'], BUILTIN_CLOUD_CONFIG])
+
+        # Only merge in default cloud config related to the ephemeral disk
+        # if the ephemeral disk exists
+        devpath = RESOURCE_DISK_PATH
+        if os.path.exists(devpath):
+            report_diagnostic_event(
+                "Ephemeral resource disk '%s' exists. "
+                "Merging default Azure cloud ephemeral disk configs."
+                % devpath,
+                logger_func=LOG.debug)
+            self.cfg = util.mergemanydict(
+                [crawled_data['cfg'], BUILTIN_CLOUD_EPHEMERAL_DISK_CONFIG])
+        else:
+            report_diagnostic_event(
+                "Ephemeral resource disk '%s' does not exist. "
+                "Not merging default Azure cloud ephemeral disk configs."
+                % devpath,
+                logger_func=LOG.debug)
+            self.cfg = crawled_data['cfg']
+
         self._metadata_imds = crawled_data['metadata']['imds']
         self.metadata = util.mergemanydict(
             [crawled_data['metadata'], DEFAULT_METADATA])
@@ -583,6 +653,57 @@ class DataSourceAzure(sources.DataSource):
         write_files(
             self.ds_cfg['data_dir'], crawled_data['files'], dirmode=0o700)
         return True
+
+    @azure_ds_telemetry_reporter
+    def get_imds_data_with_api_fallback(
+            self,
+            fallback_nic,
+            retries,
+            md_type=metadata_type.compute):
+        """
+        Wrapper for get_metadata_from_imds so that we can have flexibility
+        in which IMDS api-version we use. If a particular instance of IMDS
+        does not have the api version that is desired, we want to make
+        this fault tolerant and fall back to a good known minimum api
+        version.
+        """
+
+        if not self.failed_desired_api_version:
+            for _ in range(retries):
+                try:
+                    LOG.info(
+                        "Attempting IMDS api-version: %s",
+                        IMDS_VER_WANT
+                    )
+                    return get_metadata_from_imds(
+                        fallback_nic=fallback_nic,
+                        retries=0,
+                        md_type=md_type,
+                        api_version=IMDS_VER_WANT
+                    )
+                except UrlError as err:
+                    LOG.info(
+                        "UrlError with IMDS api-version: %s",
+                        IMDS_VER_WANT
+                    )
+                    if err.code == 400:
+                        log_msg = "Fall back to IMDS api-version: {}".format(
+                            IMDS_VER_MIN
+                        )
+                        report_diagnostic_event(
+                            log_msg,
+                            logger_func=LOG.info
+                        )
+                        self.failed_desired_api_version = True
+                        break
+
+        LOG.info("Using IMDS api-version: %s", IMDS_VER_MIN)
+        return get_metadata_from_imds(
+            fallback_nic=fallback_nic,
+            retries=retries,
+            md_type=md_type,
+            api_version=IMDS_VER_MIN
+        )
 
     def device_name_to_device(self, name):
         return self.ds_cfg['disk_aliases'].get(name)
@@ -601,6 +722,10 @@ class DataSourceAzure(sources.DataSource):
         LOG.debug('Retrieving public SSH keys')
         ssh_keys = []
         try:
+            raise KeyError(
+                "Not using public SSH keys from IMDS"
+            )
+            # pylint:disable=unreachable
             ssh_keys = [
                 public_key['keyData']
                 for public_key
@@ -609,14 +734,12 @@ class DataSourceAzure(sources.DataSource):
             LOG.debug('Retrieved SSH keys from IMDS')
         except KeyError:
             log_msg = 'Unable to get keys from IMDS, falling back to OVF'
-            LOG.debug(log_msg)
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
             try:
                 ssh_keys = self.metadata['public-keys']
                 LOG.debug('Retrieved keys from OVF')
             except KeyError:
                 log_msg = 'No keys available from OVF'
-                LOG.debug(log_msg)
                 report_diagnostic_event(log_msg, logger_func=LOG.debug)
 
         return ssh_keys
@@ -631,10 +754,18 @@ class DataSourceAzure(sources.DataSource):
     def _iid(self, previous=None):
         prev_iid_path = os.path.join(
             self.paths.get_cpath('data'), 'instance-id')
-        iid = dmi.read_dmi_data('system-uuid')
+        # Older kernels than 4.15 will have UPPERCASE product_uuid.
+        # We don't want Azure to react to an UPPER/lower difference as a new
+        # instance id as it rewrites SSH host keys.
+        # LP: #1835584
+        iid = dmi.read_dmi_data('system-uuid').lower()
         if os.path.exists(prev_iid_path):
             previous = util.load_file(prev_iid_path).strip()
-            if is_byte_swapped(previous, iid):
+            if previous.lower() == iid:
+                # If uppercase/lowercase equivalent, return the previous value
+                # to avoid new instance id.
+                return previous
+            if is_byte_swapped(previous.lower(), iid):
                 return previous
         return iid
 
@@ -652,10 +783,298 @@ class DataSourceAzure(sources.DataSource):
             LOG.debug("negotiating already done for %s",
                       self.get_instance_id())
 
+    @azure_ds_telemetry_reporter
+    def _wait_for_nic_detach(self, nl_sock):
+        """Use the netlink socket provided to wait for nic detach event.
+           NOTE: The function doesn't close the socket. The caller owns closing
+           the socket and disposing it safely.
+        """
+        try:
+            ifname = None
+
+            # Preprovisioned VM will only have one NIC, and it gets
+            # detached immediately after deployment.
+            with events.ReportEventStack(
+                    name="wait-for-nic-detach",
+                    description=("wait for nic detach"),
+                    parent=azure_ds_reporter):
+                ifname = netlink.wait_for_nic_detach_event(nl_sock)
+            if ifname is None:
+                msg = ("Preprovisioned nic not detached as expected. "
+                       "Proceeding without failing.")
+                report_diagnostic_event(msg, logger_func=LOG.warning)
+            else:
+                report_diagnostic_event("The preprovisioned nic %s is detached"
+                                        % ifname, logger_func=LOG.warning)
+            path = REPROVISION_NIC_DETACHED_MARKER_FILE
+            LOG.info("Creating a marker file for nic detached: %s", path)
+            util.write_file(path, "{pid}: {time}\n".format(
+                pid=os.getpid(), time=time()))
+        except AssertionError as error:
+            report_diagnostic_event(error, logger_func=LOG.error)
+            raise
+
+    @azure_ds_telemetry_reporter
+    def wait_for_link_up(self, ifname):
+        """In cases where the link state is still showing down after a nic is
+           hot-attached, we can attempt to bring it up by forcing the hv_netvsc
+           drivers to query the link state by unbinding and then binding the
+           device. This function attempts infinitely until the link is up,
+           because we cannot proceed further until we have a stable link."""
+
+        if self.distro.networking.try_set_link_up(ifname):
+            report_diagnostic_event("The link %s is already up." % ifname,
+                                    logger_func=LOG.info)
+            return
+
+        LOG.info("Attempting to bring %s up", ifname)
+
+        attempts = 0
+        while True:
+
+            LOG.info("Unbinding and binding the interface %s", ifname)
+            devicename = net.read_sys_net(ifname,
+                                          'device/device_id').strip('{}')
+            util.write_file('/sys/bus/vmbus/drivers/hv_netvsc/unbind',
+                            devicename)
+            util.write_file('/sys/bus/vmbus/drivers/hv_netvsc/bind',
+                            devicename)
+
+            attempts = attempts + 1
+            if self.distro.networking.try_set_link_up(ifname):
+                msg = "The link %s is up after %s attempts" % (ifname,
+                                                               attempts)
+                report_diagnostic_event(msg, logger_func=LOG.info)
+                return
+
+            sleep_duration = 1
+            msg = ("Link is not up after %d attempts with %d seconds sleep "
+                   "between attempts." % (attempts, sleep_duration))
+
+            if attempts % 10 == 0:
+                report_diagnostic_event(msg, logger_func=LOG.info)
+            else:
+                LOG.info(msg)
+
+            sleep(sleep_duration)
+
+    @azure_ds_telemetry_reporter
+    def _create_report_ready_marker(self):
+        path = REPORTED_READY_MARKER_FILE
+        LOG.info(
+            "Creating a marker file to report ready: %s", path)
+        util.write_file(path, "{pid}: {time}\n".format(
+            pid=os.getpid(), time=time()))
+        report_diagnostic_event(
+            'Successfully created reported ready marker file '
+            'while in the preprovisioning pool.',
+            logger_func=LOG.debug)
+
+    @azure_ds_telemetry_reporter
+    def _report_ready_if_needed(self):
+        """Report ready to the platform if the marker file is not present,
+        and create the marker file.
+        """
+        have_not_reported_ready = (
+            not os.path.isfile(REPORTED_READY_MARKER_FILE))
+
+        if have_not_reported_ready:
+            report_diagnostic_event("Reporting ready before nic detach",
+                                    logger_func=LOG.info)
+            try:
+                with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
+                    self._report_ready(lease=lease)
+            except Exception as e:
+                report_diagnostic_event("Exception reporting ready during "
+                                        "preprovisioning before nic detach: %s"
+                                        % e, logger_func=LOG.error)
+                raise
+            self._create_report_ready_marker()
+        else:
+            report_diagnostic_event("Already reported ready before nic detach."
+                                    " The marker file already exists: %s" %
+                                    REPORTED_READY_MARKER_FILE,
+                                    logger_func=LOG.error)
+
+    @azure_ds_telemetry_reporter
+    def _check_if_nic_is_primary(self, ifname):
+        """Check if a given interface is the primary nic or not. If it is the
+        primary nic, then we also get the expected total nic count from IMDS.
+        IMDS will process the request and send a response only for primary NIC.
+        """
+        is_primary = False
+        expected_nic_count = -1
+        imds_md = None
+
+        # For now, only a VM's primary NIC can contact IMDS and WireServer. If
+        # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
+        # primary or secondary. In this case, the desired behavior is to fail
+        # VM provisioning if there is any DHCP failure when trying to determine
+        # the primary NIC.
+        try:
+            with events.ReportEventStack(
+                    name="obtain-dhcp-lease",
+                    description=("obtain dhcp lease for %s when attempting to "
+                                 "determine primary NIC during reprovision of "
+                                 "a pre-provisioned VM" % ifname),
+                    parent=azure_ds_reporter):
+                dhcp_ctx = EphemeralDHCPv4(
+                    iface=ifname,
+                    dhcp_log_func=dhcp_log_cb)
+                dhcp_ctx.obtain_lease()
+        except Exception as e:
+            report_diagnostic_event("Giving up. Failed to obtain dhcp lease "
+                                    "for %s when attempting to determine "
+                                    "primary NIC during reprovision due to %s"
+                                    % (ifname, e), logger_func=LOG.error)
+            raise
+
+        # Primary nic detection will be optimized in the future. The fact that
+        # primary nic is being attached first helps here. Otherwise each nic
+        # could add several seconds of delay.
+        try:
+            imds_md = self.get_imds_data_with_api_fallback(
+                ifname,
+                5,
+                metadata_type.network
+            )
+        except Exception as e:
+            LOG.warning(
+                "Failed to get network metadata using nic %s. Attempt to "
+                "contact IMDS failed with error %s. Assuming this is not the "
+                "primary nic.", ifname, e)
+        finally:
+            # If we are not the primary nic, then clean the dhcp context.
+            if imds_md is None:
+                dhcp_ctx.clean_network()
+
+        if imds_md is not None:
+            # Only primary NIC will get a response from IMDS.
+            LOG.info("%s is the primary nic", ifname)
+            is_primary = True
+
+            # If primary, set ephemeral dhcp ctx so we can report ready
+            self._ephemeral_dhcp_ctx = dhcp_ctx
+
+            # Set the expected nic count based on the response received.
+            expected_nic_count = len(
+                imds_md['interface'])
+            report_diagnostic_event("Expected nic count: %d" %
+                                    expected_nic_count, logger_func=LOG.info)
+
+        return is_primary, expected_nic_count
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_hot_attached_nics(self, nl_sock):
+        """Wait until all the expected nics for the vm are hot-attached.
+        The expected nic count is obtained by requesting the network metadata
+        from IMDS.
+        """
+        LOG.info("Waiting for nics to be hot-attached")
+        try:
+            # Wait for nics to be attached one at a time, until we know for
+            # sure that all nics have been attached.
+            nics_found = []
+            primary_nic_found = False
+            expected_nic_count = -1
+
+            # Wait for netlink nic attach events. After the first nic is
+            # attached, we are already in the customer vm deployment path and
+            # so eerything from then on should happen fast and avoid
+            # unnecessary delays wherever possible.
+            while True:
+                ifname = None
+                with events.ReportEventStack(
+                        name="wait-for-nic-attach",
+                        description=("wait for nic attach after %d nics have "
+                                     "been attached" % len(nics_found)),
+                        parent=azure_ds_reporter):
+                    ifname = netlink.wait_for_nic_attach_event(nl_sock,
+                                                               nics_found)
+
+                # wait_for_nic_attach_event guarantees that ifname it not None
+                nics_found.append(ifname)
+                report_diagnostic_event("Detected nic %s attached." % ifname,
+                                        logger_func=LOG.info)
+
+                # Attempt to bring the interface's operating state to
+                # UP in case it is not already.
+                self.wait_for_link_up(ifname)
+
+                # If primary nic is not found, check if this is it. The
+                # platform will attach the primary nic first so we
+                # won't be in primary_nic_found = false state for long.
+                if not primary_nic_found:
+                    LOG.info("Checking if %s is the primary nic",
+                             ifname)
+                    (primary_nic_found, expected_nic_count) = (
+                        self._check_if_nic_is_primary(ifname))
+
+                # Exit criteria: check if we've discovered all nics
+                if (expected_nic_count != -1
+                        and len(nics_found) >= expected_nic_count):
+                    LOG.info("Found all the nics for this VM.")
+                    break
+
+        except AssertionError as error:
+            report_diagnostic_event(error, logger_func=LOG.error)
+
+    @azure_ds_telemetry_reporter
+    def _wait_for_all_nics_ready(self):
+        """Wait for nic(s) to be hot-attached. There may be multiple nics
+           depending on the customer request.
+           But only primary nic would be able to communicate with wireserver
+           and IMDS. So we detect and save the primary nic to be used later.
+        """
+
+        nl_sock = None
+        try:
+            nl_sock = netlink.create_bound_netlink_socket()
+
+            report_ready_marker_present = bool(
+                os.path.isfile(REPORTED_READY_MARKER_FILE))
+
+            # Report ready if the marker file is not already present.
+            # The nic of the preprovisioned vm gets hot-detached as soon as
+            # we report ready. So no need to save the dhcp context.
+            self._report_ready_if_needed()
+
+            has_nic_been_detached = bool(
+                os.path.isfile(REPROVISION_NIC_DETACHED_MARKER_FILE))
+
+            if not has_nic_been_detached:
+                LOG.info("NIC has not been detached yet.")
+                self._wait_for_nic_detach(nl_sock)
+
+            # If we know that the preprovisioned nic has been detached, and we
+            # still have a fallback nic, then it means the VM must have
+            # rebooted as part of customer assignment, and all the nics have
+            # already been attached by the Azure platform. So there is no need
+            # to wait for nics to be hot-attached.
+            if not self.fallback_interface:
+                self._wait_for_hot_attached_nics(nl_sock)
+            else:
+                report_diagnostic_event("Skipping waiting for nic attach "
+                                        "because we already have a fallback "
+                                        "interface. Report Ready marker "
+                                        "present before detaching nics: %s" %
+                                        report_ready_marker_present,
+                                        logger_func=LOG.info)
+        except netlink.NetlinkCreateSocketError as e:
+            report_diagnostic_event(e, logger_func=LOG.warning)
+            raise
+        finally:
+            if nl_sock:
+                nl_sock.close()
+
+    @azure_ds_telemetry_reporter
     def _poll_imds(self):
         """Poll IMDS for the new provisioning data until we get a valid
         response. Then return the returned JSON object."""
-        url = IMDS_URL + "reprovisiondata?api-version=2017-04-02"
+        url = "{}?api-version={}".format(
+            metadata_type.reprovisiondata.value,
+            IMDS_VER_MIN
+        )
         headers = {"Metadata": "true"}
         nl_sock = None
         report_ready = bool(not os.path.isfile(REPORTED_READY_MARKER_FILE))
@@ -697,17 +1116,31 @@ class DataSourceAzure(sources.DataSource):
                 logger_func=LOG.warning)
             return False
 
-        LOG.debug("Wait for vnetswitch to happen")
+        # When the interface is hot-attached, we would have already
+        # done dhcp and set the dhcp context. In that case, skip
+        # the attempt to do dhcp.
+        is_ephemeral_ctx_present = self._ephemeral_dhcp_ctx is not None
+        msg = ("Unexpected error. Dhcp context is not expected to be already "
+               "set when we need to wait for vnet switch")
+        if is_ephemeral_ctx_present and report_ready:
+            report_diagnostic_event(msg, logger_func=LOG.error)
+            raise RuntimeError(msg)
+
         while True:
             try:
-                # Save our EphemeralDHCPv4 context to avoid repeated dhcp
-                with events.ReportEventStack(
-                        name="obtain-dhcp-lease",
-                        description="obtain dhcp lease",
-                        parent=azure_ds_reporter):
-                    self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
-                        dhcp_log_func=dhcp_log_cb)
-                    lease = self._ephemeral_dhcp_ctx.obtain_lease()
+                # Since is_ephemeral_ctx_present is set only once, this ensures
+                # that with regular reprovisioning, dhcp is always done every
+                # time the loop runs.
+                if not is_ephemeral_ctx_present:
+                    # Save our EphemeralDHCPv4 context to avoid repeated dhcp
+                    # later when we report ready
+                    with events.ReportEventStack(
+                            name="obtain-dhcp-lease",
+                            description="obtain dhcp lease",
+                            parent=azure_ds_reporter):
+                        self._ephemeral_dhcp_ctx = EphemeralDHCPv4(
+                            dhcp_log_func=dhcp_log_cb)
+                        lease = self._ephemeral_dhcp_ctx.obtain_lease()
 
                 if vnet_switched:
                     dhcp_attempts += 1
@@ -729,17 +1162,10 @@ class DataSourceAzure(sources.DataSource):
                         self._ephemeral_dhcp_ctx.clean_network()
                         raise sources.InvalidMetaDataException(msg)
 
-                    path = REPORTED_READY_MARKER_FILE
-                    LOG.info(
-                        "Creating a marker file to report ready: %s", path)
-                    util.write_file(path, "{pid}: {time}\n".format(
-                        pid=os.getpid(), time=time()))
-                    report_diagnostic_event(
-                        'Successfully created reported ready marker file '
-                        'while in the preprovisioning pool.',
-                        logger_func=LOG.debug)
+                    self._create_report_ready_marker()
                     report_ready = False
 
+                    LOG.debug("Wait for vnetswitch to happen")
                     with events.ReportEventStack(
                             name="wait-for-media-disconnect-connect",
                             description="wait for vnet switch",
@@ -785,6 +1211,61 @@ class DataSourceAzure(sources.DataSource):
         return return_val
 
     @azure_ds_telemetry_reporter
+    def _report_failure(self, description=None) -> bool:
+        """Tells the Azure fabric that provisioning has failed.
+
+        @param description: A description of the error encountered.
+        @return: The success status of sending the failure signal.
+        """
+        unknown_245_key = 'unknown-245'
+
+        try:
+            if (self.distro.networking.is_up(self.fallback_interface) and
+                    getattr(self, '_ephemeral_dhcp_ctx', None) and
+                    getattr(self._ephemeral_dhcp_ctx, 'lease', None) and
+                    unknown_245_key in self._ephemeral_dhcp_ctx.lease):
+                report_diagnostic_event(
+                    'Using cached ephemeral dhcp context '
+                    'to report failure to Azure', logger_func=LOG.debug)
+                report_failure_to_fabric(
+                    dhcp_opts=self._ephemeral_dhcp_ctx.lease[unknown_245_key],
+                    description=description)
+                self._ephemeral_dhcp_ctx.clean_network()  # Teardown ephemeral
+                return True
+        except Exception as e:
+            report_diagnostic_event(
+                'Failed to report failure using '
+                'cached ephemeral dhcp context: %s' % e,
+                logger_func=LOG.error)
+
+        try:
+            report_diagnostic_event(
+                'Using new ephemeral dhcp to report failure to Azure',
+                logger_func=LOG.debug)
+            with EphemeralDHCPv4WithReporting(azure_ds_reporter) as lease:
+                report_failure_to_fabric(
+                    dhcp_opts=lease[unknown_245_key],
+                    description=description)
+            return True
+        except Exception as e:
+            report_diagnostic_event(
+                'Failed to report failure using new ephemeral dhcp: %s' % e,
+                logger_func=LOG.debug)
+
+        try:
+            report_diagnostic_event(
+                'Using fallback lease to report failure to Azure')
+            report_failure_to_fabric(
+                fallback_lease_file=self.dhclient_lease_file,
+                description=description)
+            return True
+        except Exception as e:
+            report_diagnostic_event(
+                'Failed to report failure using fallback lease: %s' % e,
+                logger_func=LOG.debug)
+
+        return False
+
     def _report_ready(self, lease: dict) -> bool:
         """Tells the fabric provisioning has completed.
 
@@ -799,6 +1280,35 @@ class DataSourceAzure(sources.DataSource):
                 "Error communicating with Azure fabric; You may experience "
                 "connectivity issues: %s" % e, logger_func=LOG.warning)
             return False
+
+    def _should_reprovision_after_nic_attach(self, candidate_metadata) -> bool:
+        """Whether or not we should wait for nic attach and then poll
+        IMDS for reprovisioning data. Also sets a marker file to poll IMDS.
+
+        The marker file is used for the following scenario: the VM boots into
+        wait for nic attach, which we expect to be proceeding infinitely until
+        the nic is attached. If for whatever reason the platform moves us to a
+        new host (for instance a hardware issue), we need to keep waiting.
+        However, since the VM reports ready to the Fabric, we will not attach
+        the ISO, thus cloud-init needs to have a way of knowing that it should
+        jump back into the waiting mode in order to retrieve the ovf_env.
+
+        @param candidate_metadata: Metadata obtained from reading ovf-env.
+        @return: Whether to reprovision after waiting for nics to be attached.
+        """
+        if not candidate_metadata:
+            return False
+        (_md, _userdata_raw, cfg, _files) = candidate_metadata
+        path = REPROVISION_NIC_ATTACH_MARKER_FILE
+        if (cfg.get('PreprovisionedVMType', None) == "Savable" or
+                os.path.isfile(path)):
+            if not os.path.isfile(path):
+                LOG.info("Creating a marker file to wait for nic attach: %s",
+                         path)
+                util.write_file(path, "{pid}: {time}\n".format(
+                    pid=os.getpid(), time=time()))
+            return True
+        return False
 
     def _should_reprovision(self, ret):
         """Whether or not we should poll IMDS for reprovisioning data.
@@ -816,6 +1326,7 @@ class DataSourceAzure(sources.DataSource):
         (_md, _userdata_raw, cfg, _files) = ret
         path = REPROVISION_MARKER_FILE
         if (cfg.get('PreprovisionedVm') is True or
+                cfg.get('PreprovisionedVMType', None) == 'Running' or
                 os.path.isfile(path)):
             if not os.path.isfile(path):
                 LOG.info("Creating a marker file to poll imds: %s",
@@ -848,6 +1359,10 @@ class DataSourceAzure(sources.DataSource):
 
             pubkey_info = None
             try:
+                raise KeyError(
+                    "Not using public SSH keys from IMDS"
+                )
+                # pylint:disable=unreachable
                 public_keys = self.metadata['imds']['compute']['publicKeys']
                 LOG.debug(
                     'Successfully retrieved %s key(s) from IMDS',
@@ -881,6 +1396,8 @@ class DataSourceAzure(sources.DataSource):
 
         util.del_file(REPORTED_READY_MARKER_FILE)
         util.del_file(REPROVISION_MARKER_FILE)
+        util.del_file(REPROVISION_NIC_ATTACH_MARKER_FILE)
+        util.del_file(REPROVISION_NIC_DETACHED_MARKER_FILE)
         return fabric_data
 
     @azure_ds_telemetry_reporter
@@ -1026,26 +1543,17 @@ def can_dev_be_reformatted(devpath, preserve_ntfs):
 
 
 @azure_ds_telemetry_reporter
-def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
+def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH,
                              is_new_instance=False, preserve_ntfs=False):
-    # wait for ephemeral disk to come up
-    naplen = .2
-    with events.ReportEventStack(
-        name="wait-for-ephemeral-disk",
-        description="wait for ephemeral disk",
-        parent=azure_ds_reporter
-    ):
-        missing = util.wait_for_files([devpath],
-                                      maxwait=maxwait,
-                                      naplen=naplen,
-                                      log_pre="Azure ephemeral disk: ")
-
-        if missing:
-            report_diagnostic_event(
-                "ephemeral device '%s' did not appear after %d seconds." %
-                (devpath, maxwait),
-                logger_func=LOG.warning)
-            return
+    if not os.path.exists(devpath):
+        report_diagnostic_event(
+            "Ephemeral resource disk '%s' does not exist." % devpath,
+            logger_func=LOG.debug)
+        return
+    else:
+        report_diagnostic_event(
+            "Ephemeral resource disk '%s' exists." % devpath,
+            logger_func=LOG.debug)
 
     result = False
     msg = None
@@ -1328,7 +1836,7 @@ def read_azure_ovf(contents):
     if password:
         defuser['lock_passwd'] = False
         if DEF_PASSWD_REDACTION != password:
-            defuser['passwd'] = encrypt_pass(password)
+            defuser['passwd'] = cfg['password'] = encrypt_pass(password)
 
     if defuser:
         cfg['system_info'] = {'default_user': defuser}
@@ -1336,34 +1844,109 @@ def read_azure_ovf(contents):
     if 'ssh_pwauth' not in cfg and password:
         cfg['ssh_pwauth'] = True
 
-    cfg['PreprovisionedVm'] = _extract_preprovisioned_vm_setting(dom)
+    preprovisioning_cfg = _get_preprovisioning_cfgs(dom)
+    cfg = util.mergemanydict([cfg, preprovisioning_cfg])
 
     return (md, ud, cfg)
 
 
 @azure_ds_telemetry_reporter
-def _extract_preprovisioned_vm_setting(dom):
-    """Read the preprovision flag from the ovf. It should not
-       exist unless true."""
+def _get_preprovisioning_cfgs(dom):
+    """Read the preprovisioning related flags from ovf and populates a dict
+    with the info.
+
+    Two flags are in use today: PreprovisionedVm bool and
+    PreprovisionedVMType enum. In the long term, the PreprovisionedVm bool
+    will be deprecated in favor of PreprovisionedVMType string/enum.
+
+    Only these combinations of values are possible today:
+        - PreprovisionedVm=True and PreprovisionedVMType=Running
+        - PreprovisionedVm=False and PreprovisionedVMType=Savable
+        - PreprovisionedVm is missing and PreprovisionedVMType=Running/Savable
+        - PreprovisionedVm=False and PreprovisionedVMType is missing
+
+    More specifically, this will never happen:
+        - PreprovisionedVm=True and PreprovisionedVMType=Savable
+    """
+    cfg = {
+        "PreprovisionedVm": False,
+        "PreprovisionedVMType": None
+    }
+
     platform_settings_section = find_child(
         dom.documentElement,
         lambda n: n.localName == "PlatformSettingsSection")
     if not platform_settings_section or len(platform_settings_section) == 0:
         LOG.debug("PlatformSettingsSection not found")
-        return False
+        return cfg
     platform_settings = find_child(
         platform_settings_section[0],
         lambda n: n.localName == "PlatformSettings")
     if not platform_settings or len(platform_settings) == 0:
         LOG.debug("PlatformSettings not found")
-        return False
-    preprovisionedVm = find_child(
+        return cfg
+
+    # Read the PreprovisionedVm bool flag. This should be deprecated when the
+    # platform has removed PreprovisionedVm and only surfaces
+    # PreprovisionedVMType.
+    cfg["PreprovisionedVm"] = _get_preprovisionedvm_cfg_value(
+        platform_settings)
+
+    cfg["PreprovisionedVMType"] = _get_preprovisionedvmtype_cfg_value(
+        platform_settings)
+    return cfg
+
+
+@azure_ds_telemetry_reporter
+def _get_preprovisionedvm_cfg_value(platform_settings):
+    preprovisionedVm = False
+
+    # Read the PreprovisionedVm bool flag. This should be deprecated when the
+    # platform has removed PreprovisionedVm and only surfaces
+    # PreprovisionedVMType.
+    preprovisionedVmVal = find_child(
         platform_settings[0],
         lambda n: n.localName == "PreprovisionedVm")
-    if not preprovisionedVm or len(preprovisionedVm) == 0:
+    if not preprovisionedVmVal or len(preprovisionedVmVal) == 0:
         LOG.debug("PreprovisionedVm not found")
-        return False
-    return util.translate_bool(preprovisionedVm[0].firstChild.nodeValue)
+        return preprovisionedVm
+    preprovisionedVm = util.translate_bool(
+        preprovisionedVmVal[0].firstChild.nodeValue)
+
+    report_diagnostic_event(
+        "PreprovisionedVm: %s" % preprovisionedVm, logger_func=LOG.info)
+
+    return preprovisionedVm
+
+
+@azure_ds_telemetry_reporter
+def _get_preprovisionedvmtype_cfg_value(platform_settings):
+    preprovisionedVMType = None
+
+    # Read the PreprovisionedVMType value from the ovf. It can be
+    # 'Running' or 'Savable' or not exist. This enum value is intended to
+    # replace PreprovisionedVm bool flag in the long term.
+    # A Running VM is the same as preprovisioned VMs of today. This is
+    # equivalent to having PreprovisionedVm=True.
+    # A Savable VM is one whose nic is hot-detached immediately after it
+    # reports ready the first time to free up the network resources.
+    # Once assigned to customer, the customer-requested nics are
+    # hot-attached to it and reprovision happens like today.
+    preprovisionedVMTypeVal = find_child(
+        platform_settings[0],
+        lambda n: n.localName == "PreprovisionedVMType")
+    if (not preprovisionedVMTypeVal or len(preprovisionedVMTypeVal) == 0 or
+            preprovisionedVMTypeVal[0].firstChild is None):
+        LOG.debug("PreprovisionedVMType not found")
+        return preprovisionedVMType
+
+    preprovisionedVMType = preprovisionedVMTypeVal[0].firstChild.nodeValue
+
+    report_diagnostic_event(
+        "PreprovisionedVMType: %s" % preprovisionedVMType,
+        logger_func=LOG.info)
+
+    return preprovisionedVMType
 
 
 def encrypt_pass(password, salt_id="$6$"):
@@ -1469,6 +2052,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
     netconfig = {'version': 2, 'ethernets': {}}
     network_metadata = imds_metadata['network']
     for idx, intf in enumerate(network_metadata['interface']):
+        has_ip_address = False
         # First IPv4 and/or IPv6 address will be obtained via DHCP.
         # Any additional IPs of each type will be set as static
         # addresses.
@@ -1478,6 +2062,11 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
                       'dhcp6': False}
         for addr_type in ('ipv4', 'ipv6'):
             addresses = intf.get(addr_type, {}).get('ipAddress', [])
+            # If there are no available IP addresses, then we don't
+            # want to add this interface to the generated config.
+            if not addresses:
+                continue
+            has_ip_address = True
             if addr_type == 'ipv4':
                 default_prefix = '24'
             else:
@@ -1498,7 +2087,7 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
                 dev_config['addresses'].append(
                     '{ip}/{prefix}'.format(
                         ip=privateIp, prefix=netPrefix))
-        if dev_config:
+        if dev_config and has_ip_address:
             mac = ':'.join(re.findall(r'..', intf['macAddress']))
             dev_config.update({
                 'match': {'macaddress': mac.lower()},
@@ -1525,8 +2114,11 @@ def _generate_network_config_from_fallback_config() -> dict:
 
 
 @azure_ds_telemetry_reporter
-def get_metadata_from_imds(fallback_nic, retries):
-    """Query Azure's network metadata service, returning a dictionary.
+def get_metadata_from_imds(fallback_nic,
+                           retries,
+                           md_type=metadata_type.compute,
+                           api_version=IMDS_VER_MIN):
+    """Query Azure's instance metadata service, returning a dictionary.
 
     If network is not up, setup ephemeral dhcp on fallback_nic to talk to the
     IMDS. For more info on IMDS:
@@ -1535,13 +2127,16 @@ def get_metadata_from_imds(fallback_nic, retries):
     @param fallback_nic: String. The name of the nic which requires active
         network in order to query IMDS.
     @param retries: The number of retries of the IMDS_URL.
+    @param md_type: Metadata type for IMDS request.
+    @param api_version: IMDS api-version to use in the request.
 
     @return: A dict of instance metadata containing compute and network
         info.
     """
     kwargs = {'logfunc': LOG.debug,
               'msg': 'Crawl of Azure Instance Metadata Service (IMDS)',
-              'func': _get_metadata_from_imds, 'args': (retries,)}
+              'func': _get_metadata_from_imds,
+              'args': (retries, md_type, api_version,)}
     if net.is_up(fallback_nic):
         return util.log_time(**kwargs)
     else:
@@ -1557,20 +2152,26 @@ def get_metadata_from_imds(fallback_nic, retries):
 
 
 @azure_ds_telemetry_reporter
-def _get_metadata_from_imds(retries):
-
-    url = IMDS_URL + "instance?api-version=2019-06-01"
+def _get_metadata_from_imds(
+        retries,
+        md_type=metadata_type.compute,
+        api_version=IMDS_VER_MIN):
+    url = "{}?api-version={}".format(md_type.value, api_version)
     headers = {"Metadata": "true"}
     try:
         response = readurl(
             url, timeout=IMDS_TIMEOUT_IN_SECONDS, headers=headers,
             retries=retries, exception_cb=retry_on_url_exc)
     except Exception as e:
-        report_diagnostic_event(
-            'Ignoring IMDS instance metadata. '
-            'Get metadata from IMDS failed: %s' % e,
-            logger_func=LOG.warning)
-        return {}
+        # pylint:disable=no-member
+        if isinstance(e, UrlError) and e.code == 400:
+            raise
+        else:
+            report_diagnostic_event(
+                'Ignoring IMDS instance metadata. '
+                'Get metadata from IMDS failed: %s' % e,
+                logger_func=LOG.warning)
+            return {}
     try:
         from json.decoder import JSONDecodeError
         json_decode_error = JSONDecodeError
