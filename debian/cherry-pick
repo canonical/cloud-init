@@ -1,0 +1,197 @@
+#!/bin/bash
+
+VERBOSITY=0
+TEMP_D=""
+CR=$'\n'
+
+error() { echo "$@" 1>&2; }
+fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+
+Usage() {
+    cat <<EOF
+Usage: ${0##*/} [ options ] <<ARGUMENTS>>
+
+   Cherry pick a patch into debian/patches.
+   Useful to grab an upstream commit to the current packaging branch.
+
+   options:
+      -h | --help  show help
+EOF
+}
+
+bad_Usage() { Usage 1>&2; [ $# -eq 0 ] || error "$@"; return 1; }
+cleanup() {
+    [ -z "${TEMP_D}" -o ! -d "${TEMP_D}" ] || rm -Rf "${TEMP_D}"
+}
+
+debug() {
+    local level=${1}; shift;
+    [ "${level}" -gt "${VERBOSITY}" ] && return
+    error "${@}"
+}
+
+shorten() {
+    local name="$1" len="70"
+    while [ "${#name}" -gt "$len" ]; do
+        name="${name%-*}"
+    done
+    _RET="$name"
+}
+
+print_commit() {
+    local subject="$1" author="$2" bugs="$3" aname=""
+    aname=${author% <*}
+    echo "$subject${bugs:+ (LP: ${bugs})}"
+}
+
+print_bugs() {
+    local subject="$1" author="$2" bugs="$3" aname=""
+    echo "$bugs"
+}
+
+git_log_to_dch() {
+    # call printer with subject, author and bugs as extracted
+    # from either git format-patch output or git show output.
+    local line="" commit="" lcommit="" bugs=""
+    local printer="${1:-print_commit}"
+    while :; do
+        read line || break
+        case "$line" in
+            commit\ *|From\ *)
+                if [ -n "$commit" ]; then
+                    "$printer" "$subject" "$author" "$bugs"
+                fi
+                commit=${line#* }
+                commit=${commit%% *}
+                bugs=""
+                author=""
+                subject=""
+                ;;
+            Author:\ *|From:\ *) author="${line#*: }";;
+            LP:*) bugs="${bugs:+${bugs}, }${line#*: }";;
+            "") [ -z "$subject" ] && read subject;;
+            Subject:\ *)
+                subject="${line#Subject: }"
+                subject="${subject#\[PATCH\] }"
+                ;;
+        esac
+    done
+    if [ -n "$commit" ]; then
+        "$printer" "$subject" "$author" "$bugs"
+    fi
+}
+
+main() {
+    local short_opts="ho:v"
+    local long_opts="help,verbose"
+    local getopt_out=""
+    getopt_out=$(getopt --name "${0##*/}" \
+        --options "${short_opts}" --long "${long_opts}" -- "$@") &&
+        eval set -- "${getopt_out}" ||
+        { bad_Usage; return; }
+
+    local cur="" next=""
+
+    while [ $# -ne 0 ]; do
+        cur="$1"; next="$2";
+        case "$cur" in
+            -h|--help) Usage ; exit 0;;
+            -v|--verbose) VERBOSITY=$((${VERBOSITY}+1));;
+            --) shift; break;;
+        esac
+        shift;
+    done
+
+	[ -n "$TEMP_D" ] ||
+        TEMP_D=$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXX") ||
+		{ error "failed to make tempdir"; return 1; }
+	trap cleanup EXIT
+
+    [ $# -gt 0 ] || { bad_Usage "must provide commit-ish"; return; }
+
+    local r="" commit_in="$1" chash="" shash="" sname="" fname="" cur_br=""
+    cur_br=$(git rev-parse --abbrev-ref HEAD) ||
+        { error "failed to get current branch"; return 1; }
+    chash=$(git show --quiet "--pretty=format:%H" "${commit_in}") ||
+        { error "failed git show $commit_in"; return 1; }
+
+    if git merge-base --is-ancestor "$chash" HEAD; then
+        error "current branch '$cur_br' already contains $commit_in ($chash)"
+        return 1
+    fi
+
+    out=$(git show --quiet "--pretty=format:%h %f" "$chash") ||
+        { error "failed git show $chash"; return 1; }
+
+    shash=${out% *}
+    sname=${out#* }
+    longname="cpick-$shash-$sname"
+    shorten "$longname"
+    fname="$_RET"
+
+    [ -d debian/patches ] || mkdir -p debian/patches ||
+        { error "failed to make debian/patches"; return 1; }
+
+    local series="debian/patches/series" fpath="debian/patches/$fname"
+    if [ -e "$series" ] && out=$(grep -- "-${shash}-" "$series"); then
+        error "$chash already exists in $series"
+        error "  $out"
+        return 1
+    fi
+
+    if [ -e "$series" ]; then
+        if out=$(quilt applied 2>&1); then
+            error "there are quilt patches applied!"
+            error "$out"
+            return 1
+        fi
+    fi
+
+    git format-patch --stdout -1 "$chash" > "$fpath" ||
+        { error "failed git format-patch -1 $chash > $fpath"; return 1; }
+
+    echo "$fname" >> "$series" ||
+        { error "failed to write to $series"; return 1; }
+
+    quilt push "$fname" ||
+        { error "patches do not cleanly apply"; return 1; }
+    quilt refresh && quilt pop -a ||
+        { error "failed to refresh or pop quilt"; return 1; }
+
+    local message=""
+    message=$(git_log_to_dch < "$fpath") ||
+        { error "failed getting log entry from $fpath"; return 1; }
+    dch -i "cherry-pick $shash: $message"
+
+    dch -e || {
+        r=$?;
+        error "dch -e exited $r";
+        return $r;
+    }
+
+    local commit_files=""
+    commit_files=( "$series" "$fpath" )
+    git diff HEAD "${commit_files[@]}"
+
+    echo -n "Commit this change? (Y/n): "
+    read answer || fail "failed to read answer"
+    case "$answer" in
+        n|[Nn][oO]) exit 1;;
+    esac
+
+    bugs=$(git_log_to_dch print_bugs < "$fpath")
+    msg="cherry pick $shash${bugs:+${CR}${CR}LP: ${bugs}}"
+    git add "$series" "$fpath" ||
+        { error "failed to git add $series $fpath"; return 1; }
+
+    git commit -m "$msg" "${commit_files[@]}" ||
+        fail "failed to commit '$msg'"
+
+    git commit -m "update changelog" debian/changelog ||
+        fail "failed to commit update to debian changelog."
+
+    return 0
+}
+
+main "$@"
+# vi: ts=4 expandtab
