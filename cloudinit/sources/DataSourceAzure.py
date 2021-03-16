@@ -551,12 +551,20 @@ class DataSourceAzure(sources.DataSource):
                 'userdata_raw': userdata_raw})
             imds_username = _username_from_imds(imds_md)
             imds_hostname = _hostname_from_imds(imds_md)
+            imds_disable_password = _disable_password_from_imds(imds_md)
             if imds_username:
                 LOG.debug('Username retrieved from IMDS: %s', imds_username)
                 cfg['system_info']['default_user']['name'] = imds_username
             if imds_hostname:
                 LOG.debug('Hostname retrieved from IMDS: %s', imds_hostname)
                 crawled_data['metadata']['local-hostname'] = imds_hostname
+            if imds_disable_password:
+                LOG.debug(
+                    'Disable password retrieved from IMDS: %s. Type: %s',
+                    imds_disable_password,
+                    type(imds_disable_password)
+                )
+                crawled_data['metadata']['disable_password'] = imds_disable_password  # noqa: E501
             found = cdev
 
             report_diagnostic_event(
@@ -1473,6 +1481,13 @@ def _username_from_imds(imds_data):
 def _hostname_from_imds(imds_data):
     try:
         return imds_data['compute']['osProfile']['computerName']
+    except KeyError:
+        return None
+
+
+def _disable_password_from_imds(imds_data):
+    try:
+        return imds_data['compute']['osProfile']['disablePasswordAuthentication']  # noqa: E501
     except KeyError:
         return None
 
