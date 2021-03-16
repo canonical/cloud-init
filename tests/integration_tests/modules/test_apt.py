@@ -200,30 +200,41 @@ class TestApt:
         assert conf_exists is False
 
 
-DEFAULT_DATA = """\
+_DEFAULT_DATA = """\
 #cloud-config
 apt:
   primary:
     - arches:
       - default
+      {uri}
   security:
     - arches:
       - default
 """
+DEFAULT_DATA = _DEFAULT_DATA.format(uri='')
 
 
 @pytest.mark.ubuntu
 @pytest.mark.user_data(DEFAULT_DATA)
 class TestDefaults:
-    def test_primary(self, class_client: IntegrationInstance):
-        """Test apt default primary sources.
+    @pytest.mark.openstack
+    def test_primary_on_openstack(self, class_client: IntegrationInstance):
+        """Test apt default primary source on openstack.
 
-        Ported from
-        tests/cloud_tests/testcases/modules/apt_configure_primary.py
+        When no uri is provided.
         """
-        sources_list = class_client.read_from_file('/etc/apt/sources.list')
-        assert 'deb http://archive.ubuntu.com/ubuntu' in sources_list
+        version = class_client.execute(
+            'curl http://169.254.169.254'
+        ).split('\n')[-1]
+        zone = class_client.execute(
+            'curl http://169.254.169.254/{}/meta-data/placement/'
+            'availability-zone'.format(version),
+        )
 
+        sources_list = class_client.read_from_file('/etc/apt/sources.list')
+        assert '{}.clouds.archive.ubuntu.com'.format(zone) in sources_list
+
+    @pytest.mark.user_data(DEFAULT_DATA)
     def test_security(self, class_client: IntegrationInstance):
         """Test apt default security sources.
 
@@ -237,6 +248,24 @@ class TestDefaults:
         assert 3 == sources_list.count(
             '# deb-src http://security.ubuntu.com/ubuntu'
         )
+
+
+DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
+    uri='uri: "http://something.random.invalid/ubuntu"'
+)
+
+
+@pytest.mark.user_data(DEFAULT_DATA_WITH_URI)
+def test_default_primary_with_uri(client: IntegrationInstance):
+    """Test apt default primary sources.
+
+    Ported from
+    tests/cloud_tests/testcases/modules/apt_configure_primary.py
+    """
+    sources_list = client.read_from_file('/etc/apt/sources.list')
+    assert 'archive.ubuntu.com' not in sources_list
+
+    assert 'something.random.invalid' in sources_list
 
 
 DISABLED_DATA = """\
