@@ -1487,7 +1487,7 @@ def _hostname_from_imds(imds_data):
 
 def _disable_password_from_imds(imds_data):
     try:
-        return imds_data['compute']['osProfile']['disablePasswordAuthentication']  # noqa: E501
+        return imds_data['compute']['osProfile']['disablePasswordAuthentication'] == 'true'  # noqa: E501
     except KeyError:
         return None
 
