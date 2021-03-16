@@ -552,7 +552,7 @@ class DataSourceAzure(sources.DataSource):
             imds_username = _username_from_imds(imds_md)
             imds_hostname = _hostname_from_imds(imds_md)
             if imds_username:
-                LOG.debug('Username retrieved from IMDS')
+                LOG.debug('Username retrieved from IMDS: %s', imds_username)
                 cfg['system_info']['default_user']['name'] = imds_username
             if imds_hostname:
                 LOG.debug('Hostname retrieved from IMDS: %s', imds_hostname)
