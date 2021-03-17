@@ -68,6 +68,7 @@ import os
 import os.path
 import re
 import stat
+import platform
 
 from functools import lru_cache
 from cloudinit import log as logging
@@ -128,8 +129,8 @@ def get_pvs_for_lv(devpath):
                                      "--noheadings"], update_env=myenv)
             pvs = [p.strip() for p in out.splitlines()]
             if len(pvs) > 1:
-                util.logexc(LOG, "Do not know how to resize multiple Physical"
-                            " Volumes")
+                LOG.info("Do not know how to resize multiple Physical"
+                         " Volumes")
             else:
                 return pvs[0]
         except subp.ProcessExecutionError as e:
@@ -138,6 +139,8 @@ def get_pvs_for_lv(devpath):
                             "information from Volume Group %s", vgname)
                 raise ResizeFailedException(e) from e
     else:
+        LOG.warning("No support for get_pvs_for_lv on %s",
+                    platform.system())
         return False
 
 
@@ -264,8 +267,9 @@ def device_part_info(devpath, is_lvm):
     rpath = os.path.realpath(devpath)
 
     # first check if this is an LVM and get its PVs
-    if is_lvm:
-        rpath = get_pvs_for_lv(devpath)
+    lvm_rpath = get_pvs_for_lv(devpath)
+    if is_lvm and lvm_rpath:
+        rpath = lvm_rpath
 
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
