@@ -478,6 +478,12 @@ class DataSourceAzure(sources.DataSource):
         reprovision = False
         ovf_is_accessible = True
         reprovision_after_nic_attach = False
+
+        imds_md = self.get_imds_data_with_api_fallback(
+            self.fallback_interface,
+            retries=10
+        )
+
         for cdev in candidates:
             try:
                 LOG.debug("cdev: %s", cdev)
@@ -493,7 +499,7 @@ class DataSourceAzure(sources.DataSource):
                                             mtype="udf")
                     else:
                         import json
-                        LOG.debug(json.dumps(self.metadata, indent=2))
+                        LOG.debug(json.dumps(imds_md, indent=2))
                         ret = util.mount_cb(cdev, load_azure_ds_dir)
                 else:
                     ret = load_azure_ds_dir(cdev)
@@ -536,10 +542,6 @@ class DataSourceAzure(sources.DataSource):
                     self._wait_for_all_nics_ready()
                 ret = self._reprovision()
 
-            imds_md = self.get_imds_data_with_api_fallback(
-                self.fallback_interface,
-                retries=10
-            )
             if not imds_md and not ovf_is_accessible:
                 msg = 'No OVF or IMDS available'
                 report_diagnostic_event(msg)
