@@ -492,6 +492,8 @@ class DataSourceAzure(sources.DataSource):
                         ret = util.mount_cb(cdev, load_azure_ds_dir,
                                             mtype="udf")
                     else:
+                        import json
+                        LOG.debug(json.dumps(self.metadata, indent=2))
                         ret = util.mount_cb(cdev, load_azure_ds_dir)
                 else:
                     ret = load_azure_ds_dir(cdev)
