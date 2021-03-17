@@ -480,6 +480,7 @@ class DataSourceAzure(sources.DataSource):
         reprovision_after_nic_attach = False
         for cdev in candidates:
             try:
+                LOG.debug("cdev: %s", cdev)
                 if cdev == "IMDS":
                     ret = None
                     reprovision = True
