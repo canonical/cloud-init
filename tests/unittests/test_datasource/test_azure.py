@@ -408,7 +408,9 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
     def setUp(self):
         super(TestGetMetadataFromIMDS, self).setUp()
-        self.network_md_url = dsaz.IMDS_URL + "instance?api-version=2019-06-01"
+        self.network_md_url = "{}/instance?api-version=2019-06-01".format(
+            dsaz.IMDS_URL
+        )
 
     @mock.patch(MOCKPATH + 'readurl')
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4', autospec=True)
@@ -518,7 +520,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         """Return empty dict when IMDS network metadata is absent."""
         httpretty.register_uri(
             httpretty.GET,
-            dsaz.IMDS_URL + 'instance?api-version=2017-12-01',
+            dsaz.IMDS_URL + '/instance?api-version=2017-12-01',
             body={}, status=404)
 
         m_net_is_up.return_value = True  # skips dhcp
@@ -1354,23 +1356,51 @@ scbus-1 on xpt0 bus 0
         for mypk in mypklist:
             self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
 
-    def test_default_ephemeral(self):
-        # make sure the ephemeral device works
+    def test_default_ephemeral_configs_ephemeral_exists(self):
+        # make sure the ephemeral configs are correct if disk present
         odata = {}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
                 'sys_cfg': {}}
 
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        cfg = dsrc.get_config_obj()
+        orig_exists = dsaz.os.path.exists
 
-        self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
-                         dsaz.RESOURCE_DISK_PATH)
-        assert 'disk_setup' in cfg
-        assert 'fs_setup' in cfg
-        self.assertIsInstance(cfg['disk_setup'], dict)
-        self.assertIsInstance(cfg['fs_setup'], list)
+        def changed_exists(path):
+            return True if path == dsaz.RESOURCE_DISK_PATH else orig_exists(
+                path)
+
+        with mock.patch(MOCKPATH + 'os.path.exists', new=changed_exists):
+            dsrc = self._get_ds(data)
+            ret = dsrc.get_data()
+            self.assertTrue(ret)
+            cfg = dsrc.get_config_obj()
+
+            self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
+                             dsaz.RESOURCE_DISK_PATH)
+            assert 'disk_setup' in cfg
+            assert 'fs_setup' in cfg
+            self.assertIsInstance(cfg['disk_setup'], dict)
+            self.assertIsInstance(cfg['fs_setup'], list)
+
+    def test_default_ephemeral_configs_ephemeral_does_not_exist(self):
+        # make sure the ephemeral configs are correct if disk not present
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        orig_exists = dsaz.os.path.exists
+
+        def changed_exists(path):
+            return False if path == dsaz.RESOURCE_DISK_PATH else orig_exists(
+                path)
+
+        with mock.patch(MOCKPATH + 'os.path.exists', new=changed_exists):
+            dsrc = self._get_ds(data)
+            ret = dsrc.get_data()
+            self.assertTrue(ret)
+            cfg = dsrc.get_config_obj()
+
+            assert 'disk_setup' not in cfg
+            assert 'fs_setup' not in cfg
 
     def test_provide_disk_aliases(self):
         # Make sure that user can affect disk aliases
@@ -1848,6 +1878,40 @@ scbus-1 on xpt0 bus 0
         dsrc.setup(True)
         ssh_keys = dsrc.get_public_ssh_keys()
         self.assertEqual(ssh_keys, ['key2'])
+
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    def test_imds_api_version_wanted_nonexistent(
+            self,
+            m_get_metadata_from_imds):
+        def get_metadata_from_imds_side_eff(*args, **kwargs):
+            if kwargs['api_version'] == dsaz.IMDS_VER_WANT:
+                raise url_helper.UrlError("No IMDS version", code=400)
+            return NETWORK_METADATA
+        m_get_metadata_from_imds.side_effect = get_metadata_from_imds_side_eff
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertIsNotNone(dsrc.metadata)
+        self.assertTrue(dsrc.failed_desired_api_version)
+
+    @mock.patch(
+        MOCKPATH + 'get_metadata_from_imds', return_value=NETWORK_METADATA)
+    def test_imds_api_version_wanted_exists(self, m_get_metadata_from_imds):
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertIsNotNone(dsrc.metadata)
+        self.assertFalse(dsrc.failed_desired_api_version)
 
 
 class TestAzureBounce(CiTestCase):
@@ -2629,7 +2693,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch(MOCKPATH + 'DataSourceAzure.wait_for_link_up')
     @mock.patch('cloudinit.sources.helpers.netlink.wait_for_nic_attach_event')
     @mock.patch('cloudinit.sources.net.find_fallback_nic')
-    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    @mock.patch(MOCKPATH + 'DataSourceAzure.get_imds_data_with_api_fallback')
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     @mock.patch(MOCKPATH + 'DataSourceAzure._wait_for_nic_detach')
     @mock.patch('os.path.isfile')
