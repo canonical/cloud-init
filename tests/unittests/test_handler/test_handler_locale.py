@@ -44,6 +44,29 @@ class TestLocale(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, d, None)
         return cc
 
+    def test_set_locale_arch(self):
+        locale = 'en_GB.UTF-8'
+        locale_configfile = '/etc/invalid-locale-path'
+        cfg = {
+            'locale': locale,
+            'locale_configfile': locale_configfile,
+        }
+        cc = self._get_cloud('arch')
+
+        with mock.patch('cloudinit.distros.arch.subp.subp') as m_subp:
+            with mock.patch('cloudinit.distros.arch.LOG.warning') as m_LOG:
+                cc_locale.handle('cc_locale', cfg, cc, LOG, [])
+                m_LOG.assert_called_with('Invalid locale_configfile %s, '
+                                         'only supported value is '
+                                         '/etc/locale.conf',
+                                         locale_configfile)
+
+                contents = util.load_file(cc.distro.locale_gen_fn)
+                self.assertIn('%s UTF-8' % locale, contents)
+                m_subp.assert_called_with(['localectl',
+                                           'set-locale',
+                                           locale], capture=False)
+
     def test_set_locale_sles(self):
 
         cfg = {
