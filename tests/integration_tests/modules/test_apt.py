@@ -223,18 +223,10 @@ class TestDefaults:
 
         When no uri is provided.
         """
-        version = class_client.execute(
-            'curl http://169.254.169.254'
-        ).split('\n')[-1]
-        zone = class_client.execute(
-            'curl http://169.254.169.254/{}/meta-data/placement/'
-            'availability-zone'.format(version),
-        )
-
+        zone = class_client.execute('cloud-init query v1.availability_zone')
         sources_list = class_client.read_from_file('/etc/apt/sources.list')
         assert '{}.clouds.archive.ubuntu.com'.format(zone) in sources_list
 
-    @pytest.mark.user_data(DEFAULT_DATA)
     def test_security(self, class_client: IntegrationInstance):
         """Test apt default security sources.
 
