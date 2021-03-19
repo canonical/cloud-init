@@ -561,9 +561,8 @@ class DataSourceAzure(sources.DataSource):
                 crawled_data['metadata']['local-hostname'] = imds_hostname
             if imds_disable_password:
                 LOG.debug(
-                    'Disable password retrieved from IMDS: %s. Type: %s',
-                    imds_disable_password,
-                    type(imds_disable_password)
+                    'Disable password retrieved from IMDS: %s',
+                    imds_disable_password
                 )
                 crawled_data['metadata']['disable_password'] = imds_disable_password  # noqa: E501
             found = cdev
