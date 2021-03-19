@@ -139,9 +139,9 @@ def get_pvs_for_lv(devpath):
                             "information from Volume Group %s", vgname)
                 raise ResizeFailedException(e) from e
     else:
-        LOG.warning("No support for get_pvs_for_lv on %s",
-                    platform.system())
-        return False
+        LOG.info("No support for get_pvs_for_lv on %s",
+                 platform.system())
+    return None
 
 
 def resizer_factory(mode):
@@ -382,9 +382,9 @@ def resize_devices(resizer, devices):
                     info.append((devent, RESIZE.CHANGED,
                                  "Logical Volume %s extended" % devices[0],))
                 else:
-                    util.logexc(LOG, "Exactly one device should be configured "
-                                     "to be resized when using LVM. More than "
-                                     "one configured: %s" % devices)
+                    LOG.info("Exactly one device should be configured to be "
+                             "resized when using LVM. More than one configured"
+                             ": %s", devices)
             except (subp.ProcessExecutionError, ValueError) as e:
                 info.append((devent, RESIZE.NOCHANGE,
                              "Logical Volume %s resize failed: %s" %
