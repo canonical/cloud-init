@@ -1,4 +1,4 @@
-cloud-init (21.1-19-gbad84ad4-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (21.1-19-gbad84ad4-0ubuntu1) hirsute; urgency=medium
   * d/cloud-init.postinst: Change output log permissions on upgrade
     (LP: #1918303)
   * New upstream snapshot.
