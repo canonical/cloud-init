@@ -1,5 +1,6 @@
 cloud-init (21.1-19-gbad84ad4-0ubuntu1) UNRELEASED; urgency=medium
-
+  * d/cloud-init.postinst: Change output log permissions on upgrade
+    (LP: #1918303)
   * New upstream snapshot.
     - .travis.yml: generate an SSH key before running tests (#848)
     - write passwords only to serial console, lock down cloud-init-output.log
