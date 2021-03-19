@@ -117,7 +117,7 @@ yaml formatted data in a file named ``network-config``.  If found,
 this file will override a ``network-interfaces`` file.
 
 See an example below.  Note specifically that this file does not
-have a top level ``network`` key as it it is already assumed to
+have a top level ``network`` key as it is already assumed to
 be network configuration based on the filename.
 
 .. code:: yaml

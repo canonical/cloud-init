@@ -1,3 +1,35 @@
+cloud-init (21.1-19-gbad84ad4-0ubuntu1) hirsute; urgency=medium
+  * d/cloud-init.postinst: Change output log permissions on upgrade
+    (LP: #1918303)
+  * New upstream snapshot.
+    - .travis.yml: generate an SSH key before running tests (#848)
+    - write passwords only to serial console, lock down cloud-init-output.log
+      (#847) (LP: #1918303)
+    - Fix apt default integration test (#845)
+    - integration_tests: bump pycloudlib dependency (#846)
+    - commit f35181fa970453ba6c7c14575b12185533391b97 [eb3095]
+    - archlinux: Fix broken locale logic (#841)
+      [Kristian Klausen] (LP: #1402406)
+    - Integration test for #783 (#832)
+    - integration_tests: mount more paths IN_PLACE (#838)
+    - Fix requiring device-number on EC2 derivatives (#836) (LP: #1917875)
+    - Remove the vi comment from the part-handler example (#835)
+    - net: exclude OVS internal interfaces in get_interfaces (#829)
+      (LP: #1912844)
+    - tox.ini: pass OS_* environment variables to integration tests (#830)
+    - integration_tests: add OpenStack as a platform (#804)
+    - Add flexibility to IMDS api-version (#793) [Thomas Stringer]
+    - Fix the TestApt tests using apt-key on Xenial and Hirsute (#823)
+      [Paride Legovini] (LP: #1916629)
+    - doc: remove duplicate "it" from nocloud.rst (#825) [V.I. Wood]
+    - archlinux: Use hostnamectl to set the transient hostname (#797)
+      [Kristian Klausen]
+    - cc_keys_to_console.py: Add documentation for recently added config key
+      (#824) [dermotbradley]
+    - Update cc_set_hostname documentation (#818) [Toshi Aoyama]
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 19 Mar 2021 14:32:13 -0500
+
 cloud-init (21.1-0ubuntu1) hirsute; urgency=medium
 
   * New upstream release.

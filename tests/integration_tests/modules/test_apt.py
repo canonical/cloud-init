@@ -86,25 +86,11 @@ EXPECTED_REGEXES = [
     r"deb-src http://badsecurity.ubuntu.com/ubuntu [a-z]+-security multiverse",
 ]
 
-TEST_KEYSERVER_KEY = """\
-pub   rsa1024 2013-12-09 [SC]
-      7260 0DB1 5B8E 4C8B 1964  B868 038A CC97 C660 A937
-uid           [ unknown] Launchpad PPA for Ryan Harper
-"""
+TEST_KEYSERVER_KEY = "7260 0DB1 5B8E 4C8B 1964  B868 038A CC97 C660 A937"
 
-TEST_PPA_KEY = """\
-/etc/apt/trusted.gpg.d/simplestreams-dev_ubuntu_trunk.gpg
----------------------------------------------------------
-pub   rsa4096 2016-05-04 [SC]
-      3552 C902 B4DD F7BD 3842  1821 015D 28D7 4416 14D8
-uid           [ unknown] Launchpad PPA for simplestreams-dev
-"""
+TEST_PPA_KEY = "3552 C902 B4DD F7BD 3842  1821 015D 28D7 4416 14D8"
 
-TEST_KEY = """\
-pub   rsa4096 2016-03-04 [SC]
-      1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF
-uid           [ unknown] Launchpad PPA for cloud init development team
-"""
+TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
 
 
 @pytest.mark.ci
@@ -214,29 +200,32 @@ class TestApt:
         assert conf_exists is False
 
 
-DEFAULT_DATA = """\
+_DEFAULT_DATA = """\
 #cloud-config
 apt:
   primary:
     - arches:
       - default
+      {uri}
   security:
     - arches:
       - default
 """
+DEFAULT_DATA = _DEFAULT_DATA.format(uri='')
 
 
 @pytest.mark.ubuntu
 @pytest.mark.user_data(DEFAULT_DATA)
 class TestDefaults:
-    def test_primary(self, class_client: IntegrationInstance):
-        """Test apt default primary sources.
+    @pytest.mark.openstack
+    def test_primary_on_openstack(self, class_client: IntegrationInstance):
+        """Test apt default primary source on openstack.
 
-        Ported from
-        tests/cloud_tests/testcases/modules/apt_configure_primary.py
+        When no uri is provided.
         """
+        zone = class_client.execute('cloud-init query v1.availability_zone')
         sources_list = class_client.read_from_file('/etc/apt/sources.list')
-        assert 'deb http://archive.ubuntu.com/ubuntu' in sources_list
+        assert '{}.clouds.archive.ubuntu.com'.format(zone) in sources_list
 
     def test_security(self, class_client: IntegrationInstance):
         """Test apt default security sources.
@@ -251,6 +240,24 @@ class TestDefaults:
         assert 3 == sources_list.count(
             '# deb-src http://security.ubuntu.com/ubuntu'
         )
+
+
+DEFAULT_DATA_WITH_URI = _DEFAULT_DATA.format(
+    uri='uri: "http://something.random.invalid/ubuntu"'
+)
+
+
+@pytest.mark.user_data(DEFAULT_DATA_WITH_URI)
+def test_default_primary_with_uri(client: IntegrationInstance):
+    """Test apt default primary sources.
+
+    Ported from
+    tests/cloud_tests/testcases/modules/apt_configure_primary.py
+    """
+    sources_list = client.read_from_file('/etc/apt/sources.list')
+    assert 'archive.ubuntu.com' not in sources_list
+
+    assert 'something.random.invalid' in sources_list
 
 
 DISABLED_DATA = """\
