@@ -359,7 +359,7 @@ def find_modules(root_dir):
 
 
 def multi_log(text, console=True, stderr=True,
-              log=None, log_level=logging.DEBUG):
+              log=None, log_level=logging.DEBUG, fallback_to_stdout=True):
     if stderr:
         sys.stderr.write(text)
     if console:
@@ -368,7 +368,7 @@ def multi_log(text, console=True, stderr=True,
             with open(conpath, 'w') as wfh:
                 wfh.write(text)
                 wfh.flush()
-        else:
+        elif fallback_to_stdout:
             # A container may lack /dev/console (arguably a container bug).  If
             # it does not exist, then write output to stdout.  this will result
             # in duplicate stderr and stdout messages if stderr was True.
@@ -623,6 +623,26 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
     if not o_err:
         o_err = sys.stderr
 
+    # pylint: disable=subprocess-popen-preexec-fn
+    def set_subprocess_umask_and_gid():
+        """Reconfigure umask and group ID to create output files securely.
+
+        This is passed to subprocess.Popen as preexec_fn, so it is executed in
+        the context of the newly-created process.  It:
+
+        * sets the umask of the process so created files aren't world-readable
+        * if an adm group exists in the system, sets that as the process' GID
+          (so that the created file(s) are owned by root:adm)
+        """
+        os.umask(0o037)
+        try:
+            group_id = grp.getgrnam("adm").gr_gid
+        except KeyError:
+            # No adm group, don't set a group
+            pass
+        else:
+            os.setgid(group_id)
+
     if outfmt:
         LOG.debug("Redirecting %s to %s", o_out, outfmt)
         (mode, arg) = outfmt.split(" ", 1)
@@ -632,7 +652,12 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
                 owith = "wb"
             new_fp = open(arg, owith)
         elif mode == "|":
-            proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
+            proc = subprocess.Popen(
+                arg,
+                shell=True,
+                stdin=subprocess.PIPE,
+                preexec_fn=set_subprocess_umask_and_gid,
+            )
             new_fp = proc.stdin
         else:
             raise TypeError("Invalid type for output format: %s" % outfmt)
@@ -654,7 +679,12 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
                 owith = "wb"
             new_fp = open(arg, owith)
         elif mode == "|":
-            proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
+            proc = subprocess.Popen(
+                arg,
+                shell=True,
+                stdin=subprocess.PIPE,
+                preexec_fn=set_subprocess_umask_and_gid,
+            )
             new_fp = proc.stdin
         else:
             raise TypeError("Invalid type for error format: %s" % errfmt)

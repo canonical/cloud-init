@@ -2933,6 +2933,10 @@ iface eth1 inet dhcp
         self.assertEqual(0, mock_settle.call_count)
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestRhelSysConfigRendering(CiTestCase):
 
     with_logs = True
@@ -3620,6 +3624,10 @@ USERCTL=no
                 expected, self._render_and_read(network_config=v2data))
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestOpenSuseSysConfigRendering(CiTestCase):
 
     with_logs = True
@@ -5037,6 +5045,10 @@ class TestNetRenderers(CiTestCase):
             self.assertTrue(result)
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestGetInterfaces(CiTestCase):
     _data = {'bonds': ['bond1'],
              'bridges': ['bridge1'],
@@ -5186,6 +5198,10 @@ class TestInterfaceHasOwnMac(CiTestCase):
         self.assertFalse(interface_has_own_mac("eth0"))
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestGetInterfacesByMac(CiTestCase):
     _data = {'bonds': ['bond1'],
              'bridges': ['bridge1'],
@@ -5342,6 +5358,10 @@ class TestInterfacesSorting(CiTestCase):
             ['enp0s3', 'enp0s8', 'enp0s13', 'enp1s2', 'enp2s0', 'enp2s3'])
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestGetIBHwaddrsByInterface(CiTestCase):
 
     _ib_addr = '80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56'

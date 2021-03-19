@@ -572,6 +572,10 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         util.multi_log(logged_string)
         self.assertEqual(logged_string, self.stdout.getvalue())
 
+    def test_logs_dont_go_to_stdout_if_fallback_to_stdout_is_false(self):
+        util.multi_log('something', fallback_to_stdout=False)
+        self.assertEqual('', self.stdout.getvalue())
+
     def test_logs_go_to_log_if_given(self):
         log = mock.MagicMock()
         logged_string = 'something very important'
