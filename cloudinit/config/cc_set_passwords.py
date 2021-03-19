@@ -78,7 +78,6 @@ password.
 """
 
 import re
-import sys
 
 from cloudinit.distros import ug_util
 from cloudinit import log as logging
@@ -214,7 +213,9 @@ def handle(_name, cfg, cloud, log, args):
         if len(randlist):
             blurb = ("Set the following 'random' passwords\n",
                      '\n'.join(randlist))
-            sys.stderr.write("%s\n%s\n" % blurb)
+            util.multi_log(
+                "%s\n%s\n" % blurb, stderr=False, fallback_to_stdout=False
+            )
 
         if expire:
             expired_users = []
