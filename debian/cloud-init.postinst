@@ -318,6 +318,22 @@ fix_lp1889555() {
     db_set grub-pc/install_devices_empty "false"
 }
 
+change_cloud_init_output_log_permissions() {
+    # As a consequence of LP: #1918303
+    local oldver="$1" last_bad_ver="20.4.1-0ubuntu1~16.04.1"
+    dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
+
+    output_file="/var/log/cloud-init-output.log"
+    if [ -f "$output_file" ]; then
+        if getent group adm > /dev/null; then
+            chown root:adm $output_file
+        else
+            chown root $output_file
+        fi
+        chmod 640 $output_file
+    fi
+}
+
 
 if [ "$1" = "configure" ]; then
    # disable ureadahead (LP: #499520)
@@ -351,6 +367,7 @@ EOF
    fix_azure_upgrade_1611074 "$2"
 
    fix_lp1889555 "$2"
+   change_cloud_init_output_log_permissions "$2"
 fi
 
 #DEBHELPER#
