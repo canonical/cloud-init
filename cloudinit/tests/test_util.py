@@ -851,4 +851,60 @@ class TestEnsureFile:
         assert "ab" == kwargs["omode"]
 
 
+@mock.patch("cloudinit.util.grp.getgrnam")
+@mock.patch("cloudinit.util.os.setgid")
+@mock.patch("cloudinit.util.os.umask")
+class TestRedirectOutputPreexecFn:
+    """This tests specifically the preexec_fn used in redirect_output."""
+
+    @pytest.fixture(params=["outfmt", "errfmt"])
+    def preexec_fn(self, request):
+        """A fixture to gather the preexec_fn used by redirect_output.
+
+        This enables simpler direct testing of it, and parameterises any tests
+        using it to cover both the stdout and stderr code paths.
+        """
+        test_string = "| piped output to invoke subprocess"
+        if request.param == "outfmt":
+            args = (test_string, None)
+        elif request.param == "errfmt":
+            args = (None, test_string)
+        with mock.patch("cloudinit.util.subprocess.Popen") as m_popen:
+            util.redirect_output(*args)
+
+        assert 1 == m_popen.call_count
+        _args, kwargs = m_popen.call_args
+        assert "preexec_fn" in kwargs, "preexec_fn not passed to Popen"
+        return kwargs["preexec_fn"]
+
+    def test_preexec_fn_sets_umask(
+        self, m_os_umask, _m_setgid, _m_getgrnam, preexec_fn
+    ):
+        """preexec_fn should set a mask that avoids world-readable files."""
+        preexec_fn()
+
+        assert [mock.call(0o037)] == m_os_umask.call_args_list
+
+    def test_preexec_fn_sets_group_id_if_adm_group_present(
+        self, _m_os_umask, m_setgid, m_getgrnam, preexec_fn
+    ):
+        """We should setgrp to adm if present, so files are owned by them."""
+        fake_group = mock.Mock(gr_gid=mock.sentinel.gr_gid)
+        m_getgrnam.return_value = fake_group
+
+        preexec_fn()
+
+        assert [mock.call("adm")] == m_getgrnam.call_args_list
+        assert [mock.call(mock.sentinel.gr_gid)] == m_setgid.call_args_list
+
+    def test_preexec_fn_handles_absent_adm_group_gracefully(
+        self, _m_os_umask, m_setgid, m_getgrnam, preexec_fn
+    ):
+        """We should handle an absent adm group gracefully."""
+        m_getgrnam.side_effect = KeyError("getgrnam(): name not found: 'adm'")
+
+        preexec_fn()
+
+        assert 0 == m_setgid.call_count
+
 # vi: ts=4 expandtab

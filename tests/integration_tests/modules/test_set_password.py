@@ -116,6 +116,30 @@ class Mixin:
         # Which are not the same
         assert shadow_users["harry"] != shadow_users["dick"]
 
+    def test_random_passwords_not_stored_in_cloud_init_output_log(
+        self, class_client
+    ):
+        """We should not emit passwords to the in-instance log file.
+
+        LP: #1918303
+        """
+        cloud_init_output = class_client.read_from_file(
+            "/var/log/cloud-init-output.log"
+        )
+        assert "dick:" not in cloud_init_output
+        assert "harry:" not in cloud_init_output
+
+    def test_random_passwords_emitted_to_serial_console(self, class_client):
+        """We should emit passwords to the serial console. (LP: #1918303)"""
+        try:
+            console_log = class_client.instance.console_log()
+        except NotImplementedError:
+            # Assume that an exception here means that we can't use the console
+            # log
+            pytest.skip("NotImplementedError when requesting console log")
+        assert "dick:" in console_log
+        assert "harry:" in console_log
+
     def test_explicit_password_set_correctly(self, class_client):
         """Test that an explicitly-specified password is set correctly."""
         shadow_users, _ = self._fetch_and_parse_etc_shadow(class_client)

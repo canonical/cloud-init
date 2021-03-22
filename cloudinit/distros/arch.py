@@ -23,7 +23,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
-    locale_conf_fn = "/etc/locale.gen"
+    locale_gen_fn = "/etc/locale.gen"
     network_conf_dir = "/etc/netctl"
     resolve_conf_fn = "/etc/resolv.conf"
     init_cmd = ['systemctl']  # init scripts
@@ -43,16 +43,20 @@ class Distro(distros.Distro):
         cfg['ssh_svcname'] = 'sshd'
 
     def apply_locale(self, locale, out_fn=None):
-        if not out_fn:
-            out_fn = self.locale_conf_fn
-        subp.subp(['locale-gen', '-G', locale], capture=False)
-        # "" provides trailing newline during join
+        if out_fn is not None and out_fn != "/etc/locale.conf":
+            LOG.warning("Invalid locale_configfile %s, only supported "
+                        "value is /etc/locale.conf", out_fn)
         lines = [
             util.make_header(),
-            'LANG="%s"' % (locale),
+            # Hard-coding the charset isn't ideal, but there is no other way.
+            '%s UTF-8' % (locale),
             "",
         ]
-        util.write_file(out_fn, "\n".join(lines))
+        util.write_file(self.locale_gen_fn, "\n".join(lines))
+        subp.subp(['locale-gen'], capture=False)
+        # In the future systemd can handle locale-gen stuff:
+        # https://github.com/systemd/systemd/pull/9864
+        subp.subp(['localectl', 'set-locale', locale], capture=False)
 
     def install_packages(self, pkglist):
         self.update_package_sources()
@@ -137,6 +141,17 @@ class Distro(distros.Distro):
             return default
         return hostname
 
+    # hostname (inetutils) isn't installed per default on arch, so we use
+    # hostnamectl which is installed per default (systemd).
+    def _apply_hostname(self, hostname):
+        LOG.debug("Non-persistently setting the system hostname to %s",
+                  hostname)
+        try:
+            subp.subp(['hostnamectl', '--transient', 'set-hostname', hostname])
+        except subp.ProcessExecutionError:
+            util.logexc(LOG, "Failed to non-persistently adjust the system "
+                        "hostname to %s", hostname)
+
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
@@ -152,6 +167,8 @@ class Distro(distros.Distro):
         elif args and isinstance(args, list):
             cmd.extend(args)
 
+        if command == "upgrade":
+            command = "-u"
         if command:
             cmd.append(command)
 
