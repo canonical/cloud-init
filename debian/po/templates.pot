@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cloud-init\n"
 "Report-Msgid-Bugs-To: cloud-init@packages.debian.org\n"
-"POT-Creation-Date: 2019-11-29 13:59+0100\n"
+"POT-Creation-Date: 2021-03-22 16:23-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -147,6 +147,12 @@ msgstr ""
 #. Choices
 #: ../cloud-init.templates:1001
 msgid "RbxCloud: HyperOne and Rootbox platforms"
+msgstr ""
+
+#. Type: multiselect
+#. Choices
+#: ../cloud-init.templates:1001
+msgid "UpCloud: UpCloud"
 msgstr ""
 
 #. Type: multiselect
