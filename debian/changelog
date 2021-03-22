@@ -1,3 +1,9 @@
+cloud-init (21.1-19-gbad84ad4-0ubuntu2) hirsute; urgency=medium
+
+  * debian/cloud-init.templates: enable UpCloud by default
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 22 Mar 2021 14:08:51 -0500
+
 cloud-init (21.1-19-gbad84ad4-0ubuntu1) hirsute; urgency=medium
   * d/cloud-init.postinst: Change output log permissions on upgrade
     (LP: #1918303)
