@@ -33,11 +33,12 @@ INSTANCE_ID = "i-testing"
 
 class FakeDataSource(sources.DataSource):
 
-    def __init__(self, userdata=None, vendordata=None):
+    def __init__(self, userdata=None, vendordata=None, vendordata2=None):
         sources.DataSource.__init__(self, {}, None, None)
         self.metadata = {'instance-id': INSTANCE_ID}
         self.userdata_raw = userdata
         self.vendordata_raw = vendordata
+        self.vendordata2_raw = vendordata2
 
 
 def count_messages(root):
@@ -105,13 +106,14 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         self.assertEqual('qux', cc['baz'])
         self.assertEqual('qux2', cc['bar'])
 
-    def test_simple_jsonp_vendor_and_user(self):
+    def test_simple_jsonp_vendor_and_vendor2_and_user(self):
         # test that user-data wins over vendor
         user_blob = '''
 #cloud-config-jsonp
 [
      { "op": "add", "path": "/baz", "value": "qux" },
-     { "op": "add", "path": "/bar", "value": "qux2" }
+     { "op": "add", "path": "/bar", "value": "qux2" },
+     { "op": "add", "path": "/foobar", "value": "qux3" }
 ]
 '''
         vendor_blob = '''
@@ -119,12 +121,23 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
 [
      { "op": "add", "path": "/baz", "value": "quxA" },
      { "op": "add", "path": "/bar", "value": "quxB" },
-     { "op": "add", "path": "/foo", "value": "quxC" }
+     { "op": "add", "path": "/foo", "value": "quxC" },
+     { "op": "add", "path": "/corge", "value": "quxEE" }
+]
+'''
+        vendor2_blob = '''
+#cloud-config-jsonp
+[
+     { "op": "add", "path": "/corge", "value": "quxD" },
+     { "op": "add", "path": "/grault", "value": "quxFF" },
+     { "op": "add", "path": "/foobar", "value": "quxGG" }
 ]
 '''
         self.reRoot()
         initer = stages.Init()
-        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        initer.datasource = FakeDataSource(user_blob,
+                                           vendordata=vendor_blob,
+                                           vendordata2=vendor2_blob)
         initer.read_cfg()
         initer.initialize()
         initer.fetch()
@@ -138,9 +151,15 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         (_which_ran, _failures) = mods.run_section('cloud_init_modules')
         cfg = mods.cfg
         self.assertIn('vendor_data', cfg)
+        self.assertIn('vendor_data2', cfg)
+        # Confirm that vendordata2 overrides vendordata, and that
+        #  userdata overrides both
         self.assertEqual('qux', cfg['baz'])
         self.assertEqual('qux2', cfg['bar'])
+        self.assertEqual('qux3', cfg['foobar'])
         self.assertEqual('quxC', cfg['foo'])
+        self.assertEqual('quxD', cfg['corge'])
+        self.assertEqual('quxFF', cfg['grault'])
 
     def test_simple_jsonp_no_vendor_consumed(self):
         # make sure that vendor data is not consumed
@@ -294,6 +313,10 @@ run:
 #!/bin/bash
 echo "test"
 '''
+        vendor2_blob = '''
+#!/bin/bash
+echo "dynamic test"
+'''
 
         user_blob = '''
 #cloud-config
@@ -303,7 +326,9 @@ vendor_data:
 '''
         new_root = self.reRoot()
         initer = stages.Init()
-        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        initer.datasource = FakeDataSource(user_blob,
+                                           vendordata=vendor_blob,
+                                           vendordata2=vendor2_blob)
         initer.read_cfg()
         initer.initialize()
         initer.fetch()

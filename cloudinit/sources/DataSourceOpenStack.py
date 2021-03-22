@@ -167,6 +167,14 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             LOG.warning("Invalid content in vendor-data: %s", e)
             self.vendordata_raw = None
 
+        vd2 = results.get('vendordata2')
+        self.vendordata2_pure = vd2
+        try:
+            self.vendordata2_raw = sources.convert_vendordata(vd2)
+        except ValueError as e:
+            LOG.warning("Invalid content in vendor-data2: %s", e)
+            self.vendordata2_raw = None
+
         return True
 
     def _crawl_metadata(self):

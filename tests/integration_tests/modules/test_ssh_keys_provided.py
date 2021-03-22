@@ -83,66 +83,78 @@ ssh_keys:
 @pytest.mark.user_data(USER_DATA)
 class TestSshKeysProvided:
 
-    def test_ssh_dsa_keys_provided(self, class_client):
-        """Test dsa public key was imported."""
-        out = class_client.read_from_file("/etc/ssh/ssh_host_dsa_key.pub")
-        assert (
-            "AAAAB3NzaC1kc3MAAACBAPkWy1zbchVIN7qTgM0/yyY8q4R"
-            "ZS8cNM4ZpeuE5UB/Nnr6OSU/nmbO8LuM") in out
-
-        """Test dsa private key was imported."""
-        out = class_client.read_from_file("/etc/ssh/ssh_host_dsa_key")
-        assert (
-            "MIIBuwIBAAKBgQD5Fstc23IVSDe6k4DNP8smPKuEWUvHDTOGaXr"
-            "hOVAfzZ6+jklP") in out
-
-    def test_ssh_rsa_keys_provided(self, class_client):
-        """Test rsa public key was imported."""
-        out = class_client.read_from_file("/etc/ssh/ssh_host_rsa_key.pub")
-        assert (
-            "AAAAB3NzaC1yc2EAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgT"
-            "LnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4") in out
-
-        """Test rsa private key was imported."""
-        out = class_client.read_from_file("/etc/ssh/ssh_host_rsa_key")
-        assert (
-            "4DOkqNiUGl80Zp1RgZNohHUXlJMtAbrIlAVEk+mTmg7vjfyp2un"
-            "RQvLZpMRdywBm") in out
-
-    def test_ssh_rsa_certificate_provided(self, class_client):
-        """Test rsa certificate was imported."""
-        out = class_client.read_from_file("/etc/ssh/ssh_host_rsa_key-cert.pub")
-        assert (
-            "AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgMpg"
-            "BP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAAD") in out
-
-    def test_ssh_certificate_updated_sshd_config(self, class_client):
-        """Test ssh certificate was added to /etc/ssh/sshd_config."""
-        out = class_client.read_from_file("/etc/ssh/sshd_config").strip()
-        assert "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub" in out
-
-    def test_ssh_ecdsa_keys_provided(self, class_client):
-        """Test ecdsa public key was imported."""
-        out = class_client.read_from_file("/etc/ssh/ssh_host_ecdsa_key.pub")
-        assert (
-            "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAAB"
-            "BBFsS5Tvky/IC/dXhE/afxxU") in out
-
-        """Test ecdsa private key generated."""
-        out = class_client.read_from_file("/etc/ssh/ssh_host_ecdsa_key")
-        assert (
-            "AwEHoUQDQgAEWxLlO+TL8gL91eET9p/HFQbqR1A691AkJgZk3jY"
-            "5mpZqxgX4vcgb") in out
-
-    def test_ssh_ed25519_keys_provided(self, class_client):
-        """Test ed25519 public key was imported."""
-        out = class_client.read_from_file("/etc/ssh/ssh_host_ed25519_key.pub")
-        assert (
-            "AAAAC3NzaC1lZDI1NTE5AAAAINudAZSu4vjZpVWzId5pXmZg1M6"
-            "G15dqjQ2XkNVOEnb5") in out
-
-        """Test ed25519 private key was imported."""
-        out = class_client.read_from_file("/etc/ssh/ssh_host_ed25519_key")
-        assert (
-            "XAAAAAtzc2gtZWQyNTUxOQAAACDbnQGUruL42aVVsyHeaV5mYNT"
-            "OhteXao0Nl5DVThJ2+Q") in out
+    @pytest.mark.parametrize(
+        "config_path,expected_out",
+        (
+            (
+                "/etc/ssh/ssh_host_dsa_key.pub",
+                (
+                    "AAAAB3NzaC1kc3MAAACBAPkWy1zbchVIN7qTgM0/yyY8q4R"
+                    "ZS8cNM4ZpeuE5UB/Nnr6OSU/nmbO8LuM"
+                ),
+            ),
+            (
+                "/etc/ssh/ssh_host_dsa_key",
+                (
+                    "MIIBuwIBAAKBgQD5Fstc23IVSDe6k4DNP8smPKuEWUvHDTOGaXr"
+                    "hOVAfzZ6+jklP"
+                ),
+            ),
+            (
+                "/etc/ssh/ssh_host_rsa_key.pub",
+                (
+                    "AAAAB3NzaC1yc2EAAAADAQABAAABAQC0/Ho+o3eJISydO2JvIgT"
+                    "LnZOtrxPl+fSvJfKDjoOLY0HB2eOjy2s2/2N6d9X9SGZ4"
+                ),
+            ),
+            (
+                "/etc/ssh/ssh_host_rsa_key",
+                (
+                    "4DOkqNiUGl80Zp1RgZNohHUXlJMtAbrIlAVEk+mTmg7vjfyp2un"
+                    "RQvLZpMRdywBm"
+                ),
+            ),
+            (
+                "/etc/ssh/ssh_host_rsa_key-cert.pub",
+                (
+                    "AAAAHHNzaC1yc2EtY2VydC12MDFAb3BlbnNzaC5jb20AAAAgMpg"
+                    "BP4Phn3L8I7Vqh7lmHKcOfIokEvSEbHDw83Y3JloAAAAD"
+                ),
+            ),
+            (
+                "/etc/ssh/sshd_config",
+                "HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub",
+            ),
+            (
+                "/etc/ssh/ssh_host_ecdsa_key.pub",
+                (
+                    "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAAB"
+                    "BBFsS5Tvky/IC/dXhE/afxxU"
+                ),
+            ),
+            (
+                "/etc/ssh/ssh_host_ecdsa_key",
+                (
+                    "AwEHoUQDQgAEWxLlO+TL8gL91eET9p/HFQbqR1A691AkJgZk3jY"
+                    "5mpZqxgX4vcgb"
+                ),
+            ),
+            (
+                "/etc/ssh/ssh_host_ed25519_key.pub",
+                (
+                    "AAAAC3NzaC1lZDI1NTE5AAAAINudAZSu4vjZpVWzId5pXmZg1M6"
+                    "G15dqjQ2XkNVOEnb5"
+                ),
+            ),
+            (
+                "/etc/ssh/ssh_host_ed25519_key",
+                (
+                    "XAAAAAtzc2gtZWQyNTUxOQAAACDbnQGUruL42aVVsyHeaV5mYNT"
+                    "OhteXao0Nl5DVThJ2+Q"
+                ),
+            ),
+        )
+    )
+    def test_ssh_provided_keys(self, config_path, expected_out, class_client):
+        out = class_client.read_from_file(config_path).strip()
+        assert expected_out in out
