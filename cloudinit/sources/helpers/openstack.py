@@ -247,6 +247,11 @@ class BaseReader(metaclass=abc.ABCMeta):
                 False,
                 load_json_anytype,
             )
+            files['vendordata2'] = (
+                self._path_join("openstack", version, 'vendor_data2.json'),
+                False,
+                load_json_anytype,
+            )
             files['networkdata'] = (
                 self._path_join("openstack", version, 'network_data.json'),
                 False,

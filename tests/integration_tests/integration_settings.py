@@ -1,19 +1,27 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import os
 
+from distutils.util import strtobool
+
 ##################################################################
 # LAUNCH SETTINGS
 ##################################################################
 
 # Keep instance (mostly for debugging) when test is finished
 KEEP_INSTANCE = False
+# Keep snapshot image (mostly for debugging) when test is finished
+KEEP_IMAGE = False
+# Run tests marked as unstable. Expect failures and dragons.
+RUN_UNSTABLE = False
 
 # One of:
 #  lxd_container
+#  lxd_vm
 #  azure
 #  ec2
 #  gce
 #  oci
+#  openstack
 PLATFORM = 'lxd_container'
 
 # The cloud-specific instance type to run. E.g., a1.medium on AWS
@@ -21,8 +29,11 @@ PLATFORM = 'lxd_container'
 INSTANCE_TYPE = None
 
 # Determines the base image to use or generate new images from.
-# Can be the name of the OS if running a stock image,
-# otherwise the id of the image being used if using a custom image
+#
+# This can be the name of an Ubuntu release, or in the format
+# <image_id>[::<os>[::<release>]].  If given, os and release should describe
+# the image specified by image_id.  (Ubuntu releases are converted to this
+# format internally; in this case, to "focal::ubuntu::focal".)
 OS_IMAGE = 'focal'
 
 # Populate if you want to use a pre-launched instance instead of
@@ -49,35 +60,49 @@ EXISTING_INSTANCE_ID = None
 #   code.
 # PROPOSED
 #   Install from the Ubuntu proposed repo
+# UPGRADE
+#   Upgrade cloud-init to the version in the Ubuntu archive
 # <ppa repo>, e.g., ppa:cloud-init-dev/proposed
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
 #   A path to a valid package to be uploaded and installed
 CLOUD_INIT_SOURCE = 'NONE'
 
-##################################################################
-# GCE SPECIFIC SETTINGS
-##################################################################
-# Required for GCE
-GCE_PROJECT = None
+# Before an instance is torn down, we run `cloud-init collect-logs`
+# and transfer them locally. These settings specify when to collect these
+# logs and where to put them on the local filesystem
+# One of:
+#   'ALWAYS'
+#   'ON_ERROR'
+#   'NEVER'
+COLLECT_LOGS = 'ON_ERROR'
+LOCAL_LOG_PATH = '/tmp/cloud_init_test_logs'
 
-# You probably want to override these
-GCE_REGION = 'us-central1'
-GCE_ZONE = 'a'
+##################################################################
+# SSH KEY SETTINGS
+##################################################################
+
+# A path to the public SSH key to use for test runs.  (Defaults to pycloudlib's
+# default behaviour, using ~/.ssh/id_rsa.pub.)
+PUBLIC_SSH_KEY = None
+
+# For clouds which use named keypairs for SSH connection, the name that is used
+# for the keypair.  (Defaults to pycloudlib's default behaviour.)
+KEYPAIR_NAME = None
 
 ##################################################################
-# OCI SPECIFIC SETTINGS
+# OPENSTACK SETTINGS
 ##################################################################
-# Compartment-id found at
-# https://console.us-phoenix-1.oraclecloud.com/a/identity/compartments
-# Required for Oracle
-OCI_COMPARTMENT_ID = None
+# Network to use for Openstack. Should be one of the names/ids found
+# in `openstack network list`
+OPENSTACK_NETWORK = None
 
 ##################################################################
 # USER SETTINGS OVERRIDES
 ##################################################################
 # Bring in any user-file defined settings
 try:
+    # pylint: disable=wildcard-import,unused-wildcard-import
     from tests.integration_tests.user_settings import *  # noqa
 except ImportError:
     pass
@@ -91,6 +116,12 @@ except ImportError:
 # Perhaps a bit too hacky, but it works :)
 current_settings = [var for var in locals() if var.isupper()]
 for setting in current_settings:
-    globals()[setting] = os.getenv(
+    env_setting = os.getenv(
         'CLOUD_INIT_{}'.format(setting), globals()[setting]
     )
+    if isinstance(env_setting, str):
+        try:
+            env_setting = bool(strtobool(env_setting.strip()))
+        except ValueError:
+            pass
+    globals()[setting] = env_setting

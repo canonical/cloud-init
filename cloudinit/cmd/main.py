@@ -1,4 +1,3 @@
-#!/usr/bin/python
 #
 # Copyright (C) 2012 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.

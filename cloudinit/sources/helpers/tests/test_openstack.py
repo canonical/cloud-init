@@ -1,10 +1,15 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 # ./cloudinit/sources/helpers/tests/test_openstack.py
+from unittest import mock
 
 from cloudinit.sources.helpers import openstack
 from cloudinit.tests import helpers as test_helpers
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestConvertNetJson(test_helpers.CiTestCase):
 
     def test_phy_types(self):

@@ -159,6 +159,22 @@ SECONDARY_INTERFACE = {
     }
 }
 
+SECONDARY_INTERFACE_NO_IP = {
+    "macAddress": "220D3A047598",
+    "ipv6": {
+        "ipAddress": []
+    },
+    "ipv4": {
+        "subnet": [
+            {
+                "prefix": "24",
+                "address": "10.0.1.0"
+            }
+        ],
+        "ipAddress": []
+    }
+}
+
 IMDS_NETWORK_METADATA = {
     "interface": [
         {
@@ -185,6 +201,7 @@ IMDS_NETWORK_METADATA = {
 }
 
 MOCKPATH = 'cloudinit.sources.DataSourceAzure.'
+EXAMPLE_UUID = 'd0df4c54-4ecb-4a4b-9954-5bdf3ed5c3b8'
 
 
 class TestParseNetworkConfig(CiTestCase):
@@ -391,7 +408,9 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
 
     def setUp(self):
         super(TestGetMetadataFromIMDS, self).setUp()
-        self.network_md_url = dsaz.IMDS_URL + "instance?api-version=2019-06-01"
+        self.network_md_url = "{}/instance?api-version=2019-06-01".format(
+            dsaz.IMDS_URL
+        )
 
     @mock.patch(MOCKPATH + 'readurl')
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4', autospec=True)
@@ -501,7 +520,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         """Return empty dict when IMDS network metadata is absent."""
         httpretty.register_uri(
             httpretty.GET,
-            dsaz.IMDS_URL + 'instance?api-version=2017-12-01',
+            dsaz.IMDS_URL + '/instance?api-version=2017-12-01',
             body={}, status=404)
 
         m_net_is_up.return_value = True  # skips dhcp
@@ -614,7 +633,7 @@ scbus-1 on xpt0 bus 0
         return dsaz
 
     def _get_ds(self, data, agent_command=None, distro='ubuntu',
-                apply_network=None):
+                apply_network=None, instance_id=None):
 
         def dsdevs():
             return data.get('dsdevs', [])
@@ -643,7 +662,10 @@ scbus-1 on xpt0 bus 0
         self.m_ephemeral_dhcpv4 = mock.MagicMock()
         self.m_ephemeral_dhcpv4_with_reporting = mock.MagicMock()
 
-        self.instance_id = 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8'
+        if instance_id:
+            self.instance_id = instance_id
+        else:
+            self.instance_id = EXAMPLE_UUID
 
         def _dmi_mocks(key):
             if key == 'system-uuid':
@@ -894,7 +916,7 @@ scbus-1 on xpt0 bus 0
             'azure_data': {
                 'configurationsettype': 'LinuxProvisioningConfiguration'},
             'imds': NETWORK_METADATA,
-            'instance-id': 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8',
+            'instance-id': EXAMPLE_UUID,
             'local-hostname': u'myhost',
             'random_seed': 'wild'}
 
@@ -1139,6 +1161,30 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
         self.assertEqual(expected_network_config, dsrc.network_config)
 
+    @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
+                return_value=None)
+    def test_network_config_set_from_imds_for_secondary_nic_no_ip(
+            self, m_driver):
+        """If an IP address is empty then there should no config for it."""
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': sys_cfg}
+        expected_network_config = {
+            'ethernets': {
+                'eth0': {'set-name': 'eth0',
+                         'match': {'macaddress': '00:0d:3a:04:75:98'},
+                         'dhcp6': False,
+                         'dhcp4': True,
+                         'dhcp4-overrides': {'route-metric': 100}}},
+            'version': 2}
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data['network']['interface'].append(SECONDARY_INTERFACE_NO_IP)
+        self.m_get_metadata_from_imds.return_value = imds_data
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(expected_network_config, dsrc.network_config)
+
     def test_availability_zone_set_from_imds(self):
         """Datasource.availability returns IMDS platformFaultDomain."""
         sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
@@ -1310,23 +1356,51 @@ scbus-1 on xpt0 bus 0
         for mypk in mypklist:
             self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
 
-    def test_default_ephemeral(self):
-        # make sure the ephemeral device works
+    def test_default_ephemeral_configs_ephemeral_exists(self):
+        # make sure the ephemeral configs are correct if disk present
         odata = {}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata),
                 'sys_cfg': {}}
 
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        cfg = dsrc.get_config_obj()
+        orig_exists = dsaz.os.path.exists
 
-        self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
-                         dsaz.RESOURCE_DISK_PATH)
-        assert 'disk_setup' in cfg
-        assert 'fs_setup' in cfg
-        self.assertIsInstance(cfg['disk_setup'], dict)
-        self.assertIsInstance(cfg['fs_setup'], list)
+        def changed_exists(path):
+            return True if path == dsaz.RESOURCE_DISK_PATH else orig_exists(
+                path)
+
+        with mock.patch(MOCKPATH + 'os.path.exists', new=changed_exists):
+            dsrc = self._get_ds(data)
+            ret = dsrc.get_data()
+            self.assertTrue(ret)
+            cfg = dsrc.get_config_obj()
+
+            self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
+                             dsaz.RESOURCE_DISK_PATH)
+            assert 'disk_setup' in cfg
+            assert 'fs_setup' in cfg
+            self.assertIsInstance(cfg['disk_setup'], dict)
+            self.assertIsInstance(cfg['fs_setup'], list)
+
+    def test_default_ephemeral_configs_ephemeral_does_not_exist(self):
+        # make sure the ephemeral configs are correct if disk not present
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        orig_exists = dsaz.os.path.exists
+
+        def changed_exists(path):
+            return False if path == dsaz.RESOURCE_DISK_PATH else orig_exists(
+                path)
+
+        with mock.patch(MOCKPATH + 'os.path.exists', new=changed_exists):
+            dsrc = self._get_ds(data)
+            ret = dsrc.get_data()
+            self.assertTrue(ret)
+            cfg = dsrc.get_config_obj()
+
+            assert 'disk_setup' not in cfg
+            assert 'fs_setup' not in cfg
 
     def test_provide_disk_aliases(self):
         # Make sure that user can affect disk aliases
@@ -1573,6 +1647,32 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(ret)
         self.assertEqual('value', dsrc.metadata['test'])
 
+    def test_instance_id_case_insensitive(self):
+        """Return the previous iid when current is a case-insensitive match."""
+        lower_iid = EXAMPLE_UUID.lower()
+        upper_iid = EXAMPLE_UUID.upper()
+        # lowercase current UUID
+        ds = self._get_ds(
+            {'ovfcontent': construct_valid_ovf_env()}, instance_id=lower_iid
+        )
+        # UPPERCASE previous
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            upper_iid)
+        ds.get_data()
+        self.assertEqual(upper_iid, ds.metadata['instance-id'])
+
+        # UPPERCASE current UUID
+        ds = self._get_ds(
+            {'ovfcontent': construct_valid_ovf_env()}, instance_id=upper_iid
+        )
+        # lowercase previous
+        write_file(
+            os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
+            lower_iid)
+        ds.get_data()
+        self.assertEqual(lower_iid, ds.metadata['instance-id'])
+
     def test_instance_id_endianness(self):
         """Return the previous iid when dmi uuid is the byteswapped iid."""
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
@@ -1588,8 +1688,7 @@ scbus-1 on xpt0 bus 0
             os.path.join(self.paths.cloud_dir, 'data', 'instance-id'),
             '644CDFD0-CB4E-4B4A-9954-5BDF3ED5C3B8')
         ds.get_data()
-        self.assertEqual(
-            'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8', ds.metadata['instance-id'])
+        self.assertEqual(self.instance_id, ds.metadata['instance-id'])
 
     def test_instance_id_from_dmidecode_used(self):
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
@@ -1757,7 +1856,9 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
         dsrc.setup(True)
         ssh_keys = dsrc.get_public_ssh_keys()
-        self.assertEqual(ssh_keys, ['key1'])
+        # Temporarily alter this test so that SSH public keys
+        # from IMDS are *not* going to be in use to fix a regression.
+        self.assertEqual(ssh_keys, [])
         self.assertEqual(m_parse_certificates.call_count, 0)
 
     @mock.patch(MOCKPATH + 'get_metadata_from_imds')
@@ -1777,6 +1878,40 @@ scbus-1 on xpt0 bus 0
         dsrc.setup(True)
         ssh_keys = dsrc.get_public_ssh_keys()
         self.assertEqual(ssh_keys, ['key2'])
+
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    def test_imds_api_version_wanted_nonexistent(
+            self,
+            m_get_metadata_from_imds):
+        def get_metadata_from_imds_side_eff(*args, **kwargs):
+            if kwargs['api_version'] == dsaz.IMDS_VER_WANT:
+                raise url_helper.UrlError("No IMDS version", code=400)
+            return NETWORK_METADATA
+        m_get_metadata_from_imds.side_effect = get_metadata_from_imds_side_eff
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertIsNotNone(dsrc.metadata)
+        self.assertTrue(dsrc.failed_desired_api_version)
+
+    @mock.patch(
+        MOCKPATH + 'get_metadata_from_imds', return_value=NETWORK_METADATA)
+    def test_imds_api_version_wanted_exists(self, m_get_metadata_from_imds):
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertIsNotNone(dsrc.metadata)
+        self.assertFalse(dsrc.failed_desired_api_version)
 
 
 class TestAzureBounce(CiTestCase):
@@ -2558,7 +2693,7 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch(MOCKPATH + 'DataSourceAzure.wait_for_link_up')
     @mock.patch('cloudinit.sources.helpers.netlink.wait_for_nic_attach_event')
     @mock.patch('cloudinit.sources.net.find_fallback_nic')
-    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    @mock.patch(MOCKPATH + 'DataSourceAzure.get_imds_data_with_api_fallback')
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     @mock.patch(MOCKPATH + 'DataSourceAzure._wait_for_nic_detach')
     @mock.patch('os.path.isfile')

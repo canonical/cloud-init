@@ -1,5 +1,4 @@
 #part-handler
-# vi: syntax=python ts=4
 
 def list_types():
     # return a list of mime-types that are handled by this module

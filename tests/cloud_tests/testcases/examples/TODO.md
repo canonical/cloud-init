@@ -6,7 +6,7 @@ Below lists each of the issing examples and why it is not currently added.
  - Puppet (takes > 60 seconds to run)
  - Manage resolve.conf (lxd backend overrides changes)
  - Adding a yum repository (need centos system)
- - Register RedHat Subscription (need centos system + subscription)
+ - Register Red Hat Subscription (need centos system + subscription)
  - Adjust mount points mounted (need multiple disks)
  - Call a url when finished (need end point)
  - Reboot/poweroff when finished (how to test)

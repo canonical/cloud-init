@@ -16,6 +16,9 @@ stage
 .pc/
 .cache/
 .mypy_cache/
+.pytest_cache/
+.vscode/
+htmlcov/
 
 # Ignore packaging artifacts
 cloud-init.dsc
