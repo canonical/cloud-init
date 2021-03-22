@@ -30,7 +30,7 @@ Author: Chad Smith <chad.smith@canonical.com>
          if self.network_json == sources.UNSET:
 --- a/tests/unittests/test_datasource/test_openstack.py
 +++ b/tests/unittests/test_datasource/test_openstack.py
-@@ -344,6 +344,7 @@ class TestOpenStackDataSource(test_helpe
+@@ -372,6 +372,7 @@ class TestOpenStackDataSource(test_helpe
              settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
          sample_json = {'links': [{'ethernet_mac_address': 'mymac'}],
                         'networks': [], 'services': []}
