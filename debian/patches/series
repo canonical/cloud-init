@@ -6,4 +6,3 @@ ec2-classic-dont-reapply-networking.patch
 ubuntu-advantage-revert-tip.patch
 ec2-dont-apply-full-imds-network-config.patch
 renderer-do-not-prefer-netplan.patch
-cpick-4f62ae8d-Fix-regression-with-handling-of-IMDS-ssh-keys-760
