@@ -4397,6 +4397,36 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         )
         self.assertFalse(src.is_applicable())
 
+    def test_empty_cmdline(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_whitespace_cmdline(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='          ',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_cmdline_no_lhand(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='=wut',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
     def test_with_both_ip_ip6(self):
         content = {
             '/run/net-eth0.conf': DHCP_CONTENT_1,
