@@ -286,6 +286,11 @@ def main_init(name, args):
         if cached_pyver != pyver:
             LOG.debug('Python version change detected purging cache')
             init.purge_cache(True)
+    else:
+        LOG.debug(
+            'Could not determin ePython version used to write cache, purging'
+        )
+        init.purge_cache(True)
     with open(pyrefver, 'w') as pyref:
         pyref.write(pyver)
 
