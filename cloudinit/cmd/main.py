@@ -276,6 +276,19 @@ def main_init(name, args):
         util.logexc(LOG, "Failed to initialize, likely bad things to come!")
     # Stage 4
     path_helper = init.paths
+    # Check if the Python version changed on us
+    pyver = '%d.%d' % (sys.version_info.major, sys.version_info.minor)
+    pyrefver = os.path.join(path_helper.get_cpath(), 'pyver')
+    if os.path.exists(pyrefver):
+        cached_pyver = open(pyrefver).read()
+        # The Python version has changed out from under us, anything that was
+        # pickled previously is useless.
+        if cached_pyver != pyver:
+            LOG.debug('Python version change detected purging cache')
+            init.purge_cache(True)
+    with open(pyrefver, 'w') as pyref:
+        pyref.write(pyver)
+
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:
