@@ -1,39 +1,61 @@
 #!/bin/sh
 # This file is part of cloud-init. See LICENSE file for license information.
 
-logger_opts="-p user.info -t ec2"
 
-# rhels' version of logger_opts does not support long
-# for of -s (--stderr), so use short form.
-logger_opts="$logger_opts -s"
+do_syslog() {
+    log_message=$1
+
+    # rhels' version of logger_opts does not support long
+    # form of -s (--stderr), so use short form.
+    logger_opts="-s"
+
+    # Need to end the options list with "--" to ensure that any minus symbols
+    # in the text passed to logger are not interpreted as logger options.
+    logger_opts="$logger_opts -p user.info -t cloud-init --"
+
+    # shellcheck disable=SC2086  # logger give error if $logger_opts quoted
+    logger $logger_opts "$log_message"
+}
+
 
 # Redirect stderr to stdout
 exec 2>&1
 
 fp_blist=",${1},"
 key_blist=",${2},"
-{
-echo
-echo "#############################################################"
-echo "-----BEGIN SSH HOST KEY FINGERPRINTS-----"
+
+fingerprint_header_shown=0
 for f in /etc/ssh/ssh_host_*key.pub; do
     [ -f "$f" ] || continue
-    read ktype line < "$f"
+    # shellcheck disable=SC2034  # Unused "line" required for word splitting
+    read -r ktype line < "$f"
     # skip the key if its type is in the blacklist
     [ "${fp_blist#*,$ktype,}" = "${fp_blist}" ] || continue
-    ssh-keygen -l -f "$f"
+    if [ $fingerprint_header_shown -eq 0 ]; then
+        do_syslog "#############################################################"
+        do_syslog "-----BEGIN SSH HOST KEY FINGERPRINTS-----"
+        fingerprint_header_shown=1
+    fi
+    do_syslog "$(ssh-keygen -l -f "$f")"
 done
-echo "-----END SSH HOST KEY FINGERPRINTS-----"
-echo "#############################################################"
+if [ $fingerprint_header_shown -eq 1 ]; then
+    do_syslog "-----END SSH HOST KEY FINGERPRINTS-----"
+    do_syslog "#############################################################"
+fi
 
-} | logger $logger_opts
-
-echo "-----BEGIN SSH HOST KEY KEYS-----"
+key_header_shown=0
 for f in /etc/ssh/ssh_host_*key.pub; do
     [ -f "$f" ] || continue
-    read ktype line < "$f"
+    # shellcheck disable=SC2034  # Unused "line" required for word splitting
+    read -r ktype line < "$f"
     # skip the key if its type is in the blacklist
     [ "${key_blist#*,$ktype,}" = "${key_blist}" ] || continue
-    cat $f
+    if [ $key_header_shown -eq 0 ]; then
+        echo "-----BEGIN SSH HOST KEY KEYS-----"
+        key_header_shown=1
+    fi
+    cat "$f"
 done
-echo "-----END SSH HOST KEY KEYS-----"
+if [ $key_header_shown -eq 1 ]; then
+    echo "-----END SSH HOST KEY KEYS-----"
+fi

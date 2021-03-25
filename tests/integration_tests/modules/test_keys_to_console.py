@@ -10,6 +10,11 @@ ssh_fp_console_blacklist: [ssh-dss, ssh-dsa, ecdsa-sha2-nistp256]
 ssh_key_console_blacklist: [ssh-dss, ssh-dsa, ecdsa-sha2-nistp256]
 """
 
+BLACKLIST_ALL_KEYS_USER_DATA = """\
+#cloud-config
+ssh_fp_console_blacklist: [ssh-dsa, ssh-ecdsa, ssh-ed25519, ssh-rsa, ssh-dss, ecdsa-sha2-nistp256]
+"""  # noqa: E501
+
 DISABLED_USER_DATA = """\
 #cloud-config
 ssh:
@@ -29,6 +34,20 @@ class TestKeysToConsoleBlacklist:
     def test_included_keys(self, class_client, key_type):
         syslog = class_client.read_from_file("/var/log/syslog")
         assert "({})".format(key_type) in syslog
+
+
+@pytest.mark.user_data(BLACKLIST_ALL_KEYS_USER_DATA)
+class TestAllKeysToConsoleBlacklist:
+    """Test that when key blacklist contains all key types that
+    no header/footer are output.
+    """
+    def test_header_excluded(self, class_client):
+        syslog = class_client.read_from_file("/var/log/syslog")
+        assert "BEGIN SSH HOST KEY FINGERPRINTS" not in syslog
+
+    def test_footer_excluded(self, class_client):
+        syslog = class_client.read_from_file("/var/log/syslog")
+        assert "END SSH HOST KEY FINGERPRINTS" not in syslog
 
 
 @pytest.mark.user_data(DISABLED_USER_DATA)
