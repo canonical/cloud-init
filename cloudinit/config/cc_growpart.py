@@ -114,35 +114,37 @@ def is_lvm_lv(devpath):
 def get_pvs_for_lv(devpath):
     myenv = {'LANG': 'C'}
 
-    if util.is_Linux() and subp.which('lvm'):
-        try:
-            (out, _err) = subp.subp(["lvm", "lvs", devpath, "--options=vgname",
-                                     "--noheadings"], update_env=myenv)
-            vgname = out.strip()
-        except subp.ProcessExecutionError as e:
-            if e.exit_code != 0:
-                util.logexc(LOG, "Failed: can't get Volume Group information "
-                            "from %s", devpath)
-                raise ResizeFailedException(e) from e
+    if not util.is_Linux():
+        LOG.info("No support for LVM on %s", platform.system())
+        return None
+    if not subp.which('lvm'):
+        LOG.info("No 'lvm' command present")
+        return None
 
-        try:
-            (out, _err) = subp.subp(["lvm", "vgs", vgname, "--options=pvname",
-                                     "--noheadings"], update_env=myenv)
-            pvs = [p.strip() for p in out.splitlines()]
-            if len(pvs) > 1:
-                LOG.info("Do not know how to resize multiple Physical"
-                         " Volumes")
-            else:
-                return pvs[0]
-        except subp.ProcessExecutionError as e:
-            if e.exit_code != 0:
-                util.logexc(LOG, "Failed: can't get Physical Volume "
-                            "information from Volume Group %s", vgname)
-                raise ResizeFailedException(e) from e
-    else:
-        LOG.info("No support for LVM on %s or command 'lvm' not present",
-                 platform.system())
-    return None
+    try:
+        (out, _err) = subp.subp(["lvm", "lvs", devpath, "--options=vgname",
+                                 "--noheadings"], update_env=myenv)
+        vgname = out.strip()
+    except subp.ProcessExecutionError as e:
+        if e.exit_code != 0:
+            util.logexc(LOG, "Failed: can't get Volume Group information "
+                        "from %s", devpath)
+            raise ResizeFailedException(e) from e
+
+    try:
+        (out, _err) = subp.subp(["lvm", "vgs", vgname, "--options=pvname",
+                                 "--noheadings"], update_env=myenv)
+        pvs = [p.strip() for p in out.splitlines()]
+        if len(pvs) > 1:
+            LOG.info("Do not know how to resize multiple Physical"
+                     " Volumes")
+        else:
+            return pvs[0]
+    except subp.ProcessExecutionError as e:
+        if e.exit_code != 0:
+            util.logexc(LOG, "Failed: can't get Physical Volume "
+                        "information from Volume Group %s", vgname)
+            raise ResizeFailedException(e) from e
 
 
 def resizer_factory(mode):
