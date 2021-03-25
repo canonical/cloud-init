@@ -97,7 +97,7 @@ LOG = logging.getLogger(__name__)
 
 @lru_cache()
 def is_lvm_lv(devpath):
-    if util.is_Linux() and subp.which('lvm'):
+    if util.is_Linux():
         # all lvm lvs will have a realpath as a 'dm-*' name.
         rpath = os.path.realpath(devpath)
         if not os.path.basename(rpath).startswith("dm-"):
@@ -106,6 +106,7 @@ def is_lvm_lv(devpath):
         # lvs should have DM_LV_NAME=<lvmuuid> and also DM_VG_NAME
         return 'DM_LV_NAME=' in out
     else:
+        LOG.info("Not an LVM Logical Volume partition")
         return False
 
 
@@ -113,7 +114,7 @@ def is_lvm_lv(devpath):
 def get_pvs_for_lv(devpath):
     myenv = {'LANG': 'C'}
 
-    if util.is_Linux():
+    if util.is_Linux() and subp.which('lvm'):
         try:
             (out, _err) = subp.subp(["lvm", "lvs", devpath, "--options=vgname",
                                      "--noheadings"], update_env=myenv)
@@ -139,7 +140,7 @@ def get_pvs_for_lv(devpath):
                             "information from Volume Group %s", vgname)
                 raise ResizeFailedException(e) from e
     else:
-        LOG.info("No support for get_pvs_for_lv on %s",
+        LOG.info("No support for LVM on %s or command 'lvm' not present",
                  platform.system())
     return None
 
@@ -267,10 +268,9 @@ def device_part_info(devpath, is_lvm):
     rpath = os.path.realpath(devpath)
 
     # first check if this is an LVM and get its PVs
-    if is_lvm:
-        lvm_rpath = get_pvs_for_lv(devpath)
-        if lvm_rpath:
-            rpath = lvm_rpath
+    lvm_rpath = get_pvs_for_lv(devpath)
+    if is_lvm and lvm_rpath:
+        rpath = lvm_rpath
 
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
