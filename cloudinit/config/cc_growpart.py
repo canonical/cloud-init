@@ -97,7 +97,7 @@ LOG = logging.getLogger(__name__)
 
 @lru_cache()
 def is_lvm_lv(devpath):
-    if util.is_Linux():
+    if util.is_Linux() and subp.which('lvm'):
         # all lvm lvs will have a realpath as a 'dm-*' name.
         rpath = os.path.realpath(devpath)
         if not os.path.basename(rpath).startswith("dm-"):
@@ -267,9 +267,10 @@ def device_part_info(devpath, is_lvm):
     rpath = os.path.realpath(devpath)
 
     # first check if this is an LVM and get its PVs
-    lvm_rpath = get_pvs_for_lv(devpath)
-    if is_lvm and lvm_rpath:
-        rpath = lvm_rpath
+    if is_lvm:
+        lvm_rpath = get_pvs_for_lv(devpath)
+        if lvm_rpath:
+            rpath = lvm_rpath
 
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
