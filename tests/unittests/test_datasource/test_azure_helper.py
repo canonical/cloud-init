@@ -384,6 +384,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
 
     max_readurl_attempts = 240
     default_readurl_timeout = 5
+    sleep_duration_between_retries = 5
     periodic_logging_attempts = 12
 
     def setUp(self):
@@ -394,8 +395,8 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         self.m_readurl = patches.enter_context(
             mock.patch.object(
                 azure_helper.url_helper, 'readurl', mock.MagicMock()))
-        patches.enter_context(
-            mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
+        self.m_sleep = patches.enter_context(
+            mock.patch.object(azure_helper.time, 'sleep', autospec=True))
 
     def test_http_with_retries(self):
         self.m_readurl.return_value = 'TestResp'
@@ -437,6 +438,12 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         self.assertEqual(
             self.m_readurl.call_count,
             self.periodic_logging_attempts + 1)
+
+        # Ensure that cloud-init did sleep between each failed request
+        self.assertEqual(
+            self.m_sleep.call_count,
+            self.periodic_logging_attempts)
+        self.m_sleep.assert_called_with(self.sleep_duration_between_retries)
 
     def test_http_with_retries_long_delay_logs_periodic_failure_msg(self):
         self.m_readurl.side_effect = \
