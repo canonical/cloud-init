@@ -12,6 +12,7 @@ import gzip
 import io
 import logging
 import os
+import shlex
 
 from cloudinit import util
 
@@ -72,8 +73,9 @@ class KlibcNetworkConfigSource(InitramfsNetworkConfigSource):
                 (ii) an open-iscsi interface file is present in the system
         """
         if self._files:
-            if 'ip=' in self._cmdline or 'ip6=' in self._cmdline:
-                return True
+            for item in shlex.split(self._cmdline):
+                if item.startswith('ip=') or item.startswith('ip6='):
+                    return True
             if os.path.exists(_OPEN_ISCSI_INTERFACE_FILE):
                 # iBft can configure networking without ip=
                 return True
