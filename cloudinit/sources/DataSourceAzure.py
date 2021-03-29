@@ -467,7 +467,11 @@ class DataSourceAzure(persistence.CloudInitPickleMixin, sources.DataSource):
 
             report_diagnostic_event("Found provisioning metadata in %s" % cdev,
                                     logger_func=LOG.debug)
-            self.iso_dev = cdev
+
+            # save the iso device for ejection before reporting ready
+            if cdev.startswith("/dev"):
+                self.iso_dev = cdev
+
             perform_reprovision = reprovision or self._should_reprovision(ret)
             perform_reprovision_after_nic_attach = (
                 reprovision_after_nic_attach or
