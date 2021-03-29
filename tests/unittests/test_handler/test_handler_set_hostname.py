@@ -29,10 +29,46 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         util.ensure_dir(os.path.join(self.tmp, 'data'))
         self.addCleanup(shutil.rmtree, self.tmp)
 
-    def _fetch_distro(self, kind):
+    def _fetch_distro(self, kind, conf=None):
         cls = distros.fetch(kind)
         paths = helpers.Paths({'cloud_dir': self.tmp})
-        return cls(kind, {}, paths)
+        conf = {} if conf is None else conf
+        return cls(kind, conf, paths)
+
+    def test_debian_write_hostname_prefer_fqdn(self):
+        cfg = {
+            'hostname': 'blah',
+            'prefer_fqdn_over_hostname': True,
+            'fqdn': 'blah.yahoo.com',
+        }
+        distro = self._fetch_distro('debian', cfg)
+        paths = helpers.Paths({'cloud_dir': self.tmp})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        cc_set_hostname.handle('cc_set_hostname',
+                               cfg, cc, LOG, [])
+        contents = util.load_file("/etc/hostname")
+        self.assertEqual('blah.yahoo.com', contents.strip())
+
+    def test_rhel_write_hostname_prefer_hostname(self):
+        cfg = {
+            'hostname': 'blah',
+            'prefer_fqdn_over_hostname': False,
+            'fqdn': 'blah.yahoo.com',
+        }
+        distro = self._fetch_distro('rhel', cfg)
+        paths = helpers.Paths({'cloud_dir': self.tmp})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        cc_set_hostname.handle('cc_set_hostname',
+                               cfg, cc, LOG, [])
+        if not distro.uses_systemd():
+            contents = util.load_file("/etc/sysconfig/network", decode=False)
+            n_cfg = ConfigObj(BytesIO(contents))
+            self.assertEqual({'HOSTNAME': 'blah'},
+                             dict(n_cfg))
 
     def test_write_hostname_rhel(self):
         cfg = {

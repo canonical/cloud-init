@@ -45,6 +45,13 @@ def handle(name, cfg, cloud, log, _args):
                    " not updating the hostname in module %s"), name)
         return
 
+    # Set prefer_fqdn_over_hostname value in distro
+    hostname_fqdn = util.get_cfg_option_bool(cfg,
+                                             "prefer_fqdn_over_hostname",
+                                             None)
+    if hostname_fqdn is not None:
+        cloud.distro.set_option('prefer_fqdn_over_hostname', hostname_fqdn)
+
     (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
     try:
         prev_fn = os.path.join(cloud.get_cpath('data'), "previous-hostname")
