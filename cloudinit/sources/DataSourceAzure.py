@@ -29,6 +29,7 @@ from cloudinit import subp
 from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
 from cloudinit import util
 from cloudinit.reporting import events
+from cloudinit import persistence
 
 from cloudinit.sources.helpers.azure import (
     DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
@@ -327,11 +328,12 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
         set_hostname(previous_hostname, hostname_command)
 
 
-class DataSourceAzure(sources.DataSource):
+class DataSourceAzure(persistence.CloudInitPickleMixin, sources.DataSource):
 
     dsname = 'Azure'
     _negotiated = False
     _metadata_imds = sources.UNSET
+    _ci_pkl_version = 1
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -346,8 +348,12 @@ class DataSourceAzure(sources.DataSource):
         # Regenerate network config new_instance boot and every boot
         self.update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
-
         self.failed_desired_api_version = False
+        self.iso_dev = None
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        if "iso_dev" not in self.__dict__:
+            self.iso_dev = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -459,6 +465,9 @@ class DataSourceAzure(sources.DataSource):
                     '%s was not mountable' % cdev, logger_func=LOG.warning)
                 continue
 
+            report_diagnostic_event("Found provisioning metadata in %s" % cdev,
+                                    logger_func=LOG.debug)
+            self.iso_dev = cdev
             perform_reprovision = reprovision or self._should_reprovision(ret)
             perform_reprovision_after_nic_attach = (
                 reprovision_after_nic_attach or
@@ -1226,7 +1235,9 @@ class DataSourceAzure(sources.DataSource):
         @return: The success status of sending the ready signal.
         """
         try:
-            get_metadata_from_fabric(None, lease['unknown-245'])
+            get_metadata_from_fabric(fallback_lease_file=None,
+                                     dhcp_opts=lease['unknown-245'],
+                                     iso_dev=self.iso_dev)
             return True
         except Exception as e:
             report_diagnostic_event(
@@ -1332,7 +1343,8 @@ class DataSourceAzure(sources.DataSource):
         metadata_func = partial(get_metadata_from_fabric,
                                 fallback_lease_file=self.
                                 dhclient_lease_file,
-                                pubkey_info=pubkey_info)
+                                pubkey_info=pubkey_info,
+                                iso_dev=self.iso_dev)
 
         LOG.debug("negotiating with fabric via agent command %s",
                   self.ds_cfg['agent_command'])
