@@ -771,12 +771,12 @@ class Init(object):
         if self.is_new_instance():
             current_boot_type = EventType.BOOT_NEW_INSTANCE
 
-        if not any([
-            self.datasource is NULL_DATA_SOURCE,
-            self.is_new_instance(),  # or should it be self._is_first_boot(),
+        if not (
+            self.datasource is NULL_DATA_SOURCE or
+            current_boot_type == EventType.BOOT_NEW_INSTANCE or
             (self.update_event_enabled(current_boot_type, scope='network')
              and self.datasource.update_metadata([current_boot_type]))
-        ]):
+        ):
             LOG.debug(
                 "No network config applied. Neither a new instance"
                 " nor datasource network update on '%s' event",
@@ -784,9 +784,9 @@ class Init(object):
             # nothing new, but ensure proper names
             self._apply_netcfg_names(netcfg)
             return
-        else:
-            # refresh netcfg after update
-            netcfg, src = self._find_networking_config()
+
+        # refresh netcfg after update
+        netcfg, src = self._find_networking_config()
 
         # ensure all physical devices in config are present
         self.distro.networking.wait_for_physdevs(netcfg)
