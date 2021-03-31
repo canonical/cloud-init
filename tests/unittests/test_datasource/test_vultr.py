@@ -9,18 +9,10 @@ import json
 
 from cloudinit import helpers
 from cloudinit import settings
-from cloudinit import util
 from cloudinit.sources import DataSourceVultr
 from cloudinit.sources.helpers import vultr
 
 from cloudinit.tests.helpers import mock, CiTestCase
-
-# Large data
-SCRIPT1 = 'IyEvYmluL2Jhc2gKZXRodG9vbCAtTCBldGgwIGNvbWJp' \
-          'bmVkICQobnByb2MgLS1hbGwpCg=='
-SCRIPT2 = 'IyEvYmluL2Jhc2gKZXRodG9vbCAtTCBldGgwIGNvbWJp' \
-          'bmVkICQobnByb2MgLS1hbGwpCmV0aHRvb2wgLUwgZXRo' \
-          'MSBjb21iaW5lZCAkKG5wcm9jIC0tYWxsKQo='
 
 # Vultr metadata test data
 VULTR_V1_1 = {
@@ -60,29 +52,35 @@ VULTR_V1_1 = {
             'network-type': 'public'
         }
     ],
-    'public-keys': 'ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key\n',
+    'public-keys': [
+        'ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key'
+    ],
     'region': {
         'regioncode': 'EWR'
     },
     'user-defined': [
     ],
     'startup-script': 'echo No configured startup script',
+    'raid1-script': '',
     'user-data': [
     ],
-    'vendor-config': {
-        'package_upgrade': 'true',
-        'disable_root': 0,
-        'packages': [],
-        'ssh_pwauth': 1,
-        'chpasswd': {
-            'expire': False,
-            'list': [
-                'root:$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/'
-            ]
-        },
-        'system_info': {
-            'default_user': {
-                'name': 'root'
+    'vendor-data': {
+        'vendor-script': '',
+        'ethtool-script': '',
+        'config': {
+            'package_upgrade': 'true',
+            'disable_root': 0,
+            'ssh_pwauth': 1,
+            'chpasswd': {
+                'expire': False,
+                'list': [
+                    'root:$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/'
+                ]
+            },
+            'system_info': {
+                'default_user': {
+                    'name': 'root'
+                }
             }
         }
     }
@@ -145,7 +143,9 @@ VULTR_V1_2 = {
             'networkid':'net5e7155329d730'
         }
     ],
-    'public-keys': 'ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key\n',
+    'public-keys': [
+        'ssh-rsa AAAAB3NzaC1y...IQQhv5PAOKaIl+mM3c= test3@key'
+    ],
     'region': {
         'regioncode': 'EWR'
     },
@@ -154,20 +154,25 @@ VULTR_V1_2 = {
     'startup-script': 'echo No configured startup script',
     'user-data': [
     ],
-    'vendor-config': {
-        'package_upgrade': 'true',
-        'disable_root': 0,
-        'packages': [],
-        'ssh_pwauth': 1,
-        'chpasswd': {
-            'expire': False,
-            'list': [
-                'root:$6$SxXx...k2mJNIzZB5vMCDBlYT1'
-            ]
-        },
-        'system_info': {
-            'default_user': {
-                'name': 'root'
+
+    'vendor-data': {
+        'vendor-script': '',
+        'ethtool-script': '',
+        'raid1-script': '',
+        'config': {
+            'package_upgrade': 'true',
+            'disable_root': 0,
+            'ssh_pwauth': 1,
+            'chpasswd': {
+                'expire': False,
+                'list': [
+                    'root:$6$SxXx...k2mJNIzZB5vMCDBlYT1'
+                ]
+            },
+            'system_info': {
+                'default_user': {
+                    'name': 'root'
+                }
             }
         }
     }
@@ -183,9 +188,6 @@ SSH_KEYS_1 = [
 EXPECTED_VULTR_CONFIG_1 = {
     'package_upgrade': 'true',
     'disable_root': 0,
-    'packages': [
-        'ethtool'
-    ],
     'ssh_pwauth': 1,
     'chpasswd': {
         'expire': False,
@@ -222,9 +224,6 @@ EXPECTED_VULTR_CONFIG_1 = {
 EXPECTED_VULTR_CONFIG_2 = {
     'package_upgrade': 'true',
     'disable_root': 0,
-    'packages': [
-        'ethtool'
-    ],
     'ssh_pwauth': 1,
     'chpasswd': {
         'expire': False,
@@ -371,18 +370,12 @@ class TestDataSourceVultr(CiTestCase):
         orig_val = self.maxDiff
         self.maxDiff = None
 
-        expected_script = util.b64d(SCRIPT2)
         vendordata = source.vendordata_raw
-
-        # Test vendor script
-        self.assertEqual(
-            expected_script,
-            vendordata[0])
 
         # Test vendor config
         self.assertEqual(
             EXPECTED_VULTR_CONFIG_2,
-            json.loads(vendordata[1].replace("#cloud-config", "")))
+            json.loads(vendordata[0].replace("#cloud-config", "")))
 
         self.maxDiff = orig_val
 
@@ -417,16 +410,18 @@ class TestDataSourceVultr(CiTestCase):
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     def test_network_config(self, mock_netmap):
         mock_netmap.return_value = INTERFACE_MAP
+        interf = VULTR_V1_1['interfaces']
 
         self.assertEqual(EXPECTED_VULTR_NETWORK_1,
-                         vultr.generate_network_config(VULTR_V1_1))
+                         vultr.generate_network_config(interf))
 
     # Test Private Networking config generation
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     def test_private_network_config(self, mock_netmap):
         mock_netmap.return_value = INTERFACE_MAP
+        interf = VULTR_V1_2['interfaces']
 
         self.assertEqual(EXPECTED_VULTR_NETWORK_2,
-                         vultr.generate_network_config(VULTR_V1_2))
+                         vultr.generate_network_config(interf))
 
 # vi: ts=4 expandtab
