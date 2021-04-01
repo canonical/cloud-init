@@ -45,6 +45,17 @@ os_list = ["ubuntu"]
 
 session_start_time = datetime.datetime.now().strftime('%y%m%d%H%M%S')
 
+XENIAL_LXD_VM_EXEC_MSG = """\
+The default xenial images do not support `exec` for LXD VMs.
+
+Specify an image known to work using:
+
+    OS_IMAGE=<image id>::ubuntu::xenial
+
+You can re-run specifically tests that require this by passing `-m
+lxd_use_exec` to pytest.
+"""
+
 
 def pytest_runtest_setup(item):
     """Skip tests on unsupported clouds.
@@ -216,6 +227,16 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     if lxd_use_exec is not None:
         if not isinstance(session_cloud, _LxdIntegrationCloud):
             pytest.skip("lxd_use_exec requires LXD")
+        if isinstance(session_cloud, LxdVmCloud):
+            image_spec = ImageSpecification.from_os_image()
+            if image_spec.release == image_spec.image_id == "xenial":
+                # Why fail instead of skip?  We expect that skipped tests will
+                # be run in a different one of our usual battery of test runs
+                # (e.g. LXD-only tests are skipped on EC2 but will run in our
+                # normal LXD test runs).  This is not true of this test: it
+                # can't run in our usual xenial LXD VM test run, and it may not
+                # run anywhere else.  A failure flags up this discrepancy.
+                pytest.fail(XENIAL_LXD_VM_EXEC_MSG)
         launch_kwargs["execute_via_ssh"] = False
 
     with session_cloud.launch(

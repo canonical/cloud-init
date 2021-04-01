@@ -1,15 +1,15 @@
-"""Integration test for the user_groups module.
-
-This test specifies a number of users and groups via user-data, and confirms
-that they have been configured correctly in the system under test.
+"""Integration tests for the user_groups module.
 
 TODO:
-* This test assumes that the "ubuntu" user will be created when "default" is
+* This module assumes that the "ubuntu" user will be created when "default" is
   specified; this will need modification to run on other OSes.
 """
 import re
 
 import pytest
+
+from tests.integration_tests.clouds import ImageSpecification
+from tests.integration_tests.instances import IntegrationInstance
 
 
 USER_DATA = """\
@@ -45,6 +45,12 @@ AHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
 @pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestUsersGroups:
+    """Test users and groups.
+
+    This test specifies a number of users and groups via user-data, and
+    confirms that they have been configured correctly in the system under test.
+    """
+
     @pytest.mark.ubuntu
     @pytest.mark.parametrize(
         "getent_args,regex",
@@ -86,3 +92,32 @@ class TestUsersGroups:
         _, groups_str = output.split(":", maxsplit=1)
         groups = groups_str.split()
         assert "secret" in groups
+
+
+@pytest.mark.user_data(USER_DATA)
+def test_sudoers_includedir(client: IntegrationInstance):
+    """Ensure we don't add additional #includedir to sudoers.
+
+    Newer versions of /etc/sudoers will use @includedir rather than
+    #includedir. Ensure we handle that properly and don't include an
+    additional #includedir when one isn't warranted.
+
+    https://github.com/canonical/cloud-init/pull/783
+    """
+    if ImageSpecification.from_os_image().release in [
+        'xenial', 'bionic', 'focal'
+    ]:
+        raise pytest.skip(
+            'Test requires version of sudo installed on groovy and later'
+        )
+    client.execute("sed -i 's/#include/@include/g' /etc/sudoers")
+
+    sudoers = client.read_from_file('/etc/sudoers')
+    if '@includedir /etc/sudoers.d' not in sudoers:
+        client.execute("echo '@includedir /etc/sudoers.d' >> /etc/sudoers")
+    client.instance.clean()
+    client.restart()
+    sudoers = client.read_from_file('/etc/sudoers')
+
+    assert '#includedir' not in sudoers
+    assert sudoers.count('includedir /etc/sudoers.d') == 1
