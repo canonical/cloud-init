@@ -68,7 +68,6 @@ OS_VERSIONS = (
 KNOWN_PHYSICAL_TYPES = (
     None,
     'bgpovs',  # not present in OpenStack upstream but used on OVH cloud.
-    'bridge',
     'cascading',  # not present in OpenStack upstream, used on OpenTelekomCloud
     'dvs',
     'ethernet',
@@ -651,6 +650,27 @@ def convert_net_json(network_json=None, known_macs=None):
             link_updates.append(
                 (cfg, 'bond_interfaces', '%s',
                  copy.deepcopy(link['bond_links']))
+            )
+            cfg.update({'params': params, 'name': link_name})
+
+            curinfo['name'] = link_name
+        elif link['type'] in ['bridge']:
+            params = {}
+            for k, v in link.items():
+                if k == 'bridge_links':
+                    continue
+                elif k.startswith('bridge'):
+                    params.update({k: v})
+
+            # use given id as a bridge name
+            link_name = link['id']
+
+            # bridge_links reference links by their id, but we need to add
+            # to the network config by their nic name.
+            # store that in bridge_links_needed, and update these later.
+            link_updates.append(
+                (cfg, 'bridge_interfaces', '%s',
+                 copy.deepcopy(link['bridge_links']))
             )
             cfg.update({'params': params, 'name': link_name})
 
