@@ -32,7 +32,8 @@ def get_metadata(url, timeout, retries, sec_between):
     metadata = v1_json
 
     # This comes through as a string but is JSON, make a dict
-    metadata['vendor-config'] = json.loads(metadata['vendor-config'])
+    raw = metadata['vendor-data']['config']
+    metadata['vendor-data']['config'] = json.loads(raw)
 
     return metadata
 
@@ -61,7 +62,7 @@ def is_vultr():
         return True
 
     # Baremetal requires a kernel parameter
-    if "vultr" in util.get_cmdline():
+    if "vultr" in util.get_cmdline().split():
         return True
 
     return False
@@ -113,15 +114,13 @@ def generate_network_config(md):
         ]
     }
 
-    intf = md['interfaces']
-
     # Prepare interface 0, public
-    if len(intf) > 0:
-        network['config'].append(generate_public_network_interface(intf))
+    if len(md) > 0:
+        network['config'].append(generate_public_network_interface(md))
 
     # Prepare interface 1, private
-    if len(intf) > 1:
-        network['config'].append(generate_private_network_interface(intf))
+    if len(md) > 1:
+        network['config'].append(generate_private_network_interface(md))
 
     return network
 
@@ -210,43 +209,48 @@ def generate_private_network_interface(interfaces):
 # images are deployed on Vultr before Cloud-Init
 def generate_config(md):
     # Create vendor config
-    config_template = copy.deepcopy(md['vendor-config'])
+    config_template = copy.deepcopy(md['vendor-data']['config'])
 
     # Add generated network parts
-    config_template['network'] = generate_network_config(md)
-
-    # Linux specific packages
-    if util.is_Linux():
-        config_template['packages'].append("ethtool")
+    config_template['network'] = generate_network_config(md['interfaces'])
 
     return config_template
 
 
 # This is for the vendor and startup scripts
-def generate_user_scripts(script, vendor_config):
-    # Define vendor script
-    vendor_script = "#!/bin/bash"
+def generate_user_scripts(md, vendor_config):
+    user_scripts = []
 
-    # Go through the interfaces
-    for netcfg in vendor_config['network']['config']:
-        # If the interface has a mac and is physical
-        if "mac_address" in netcfg and netcfg['type'] == "physical":
-            # Enable multi-queue on linux
-            # This is executed as a vendor script
-            if util.is_Linux():
+    # Raid 1 script
+    if md['vendor-data']['raid1-script']:
+        user_scripts.append(md['vendor-data']['raid1-script'])
+
+    # Enable multi-queue on linux
+    if util.is_Linux() and md['vendor-data']['ethtool-script']:
+        ethtool_script = md['vendor-data']['ethtool-script']
+
+        # Tool location
+        tool = "/opt/vultr/ethtool"
+
+        # Go through the interfaces
+        for netcfg in vendor_config['network']['config']:
+            # If the interface has a mac and is physical
+            if "mac_address" in netcfg and netcfg['type'] == "physical":
                 # Set its multi-queue to num of cores as per RHEL Docs
                 name = netcfg['name']
-                command = "ethtool -L %s combined $(nproc --all)" % name
-                vendor_script = '%s\n%s' % (vendor_script, command)
+                command = "%s -L %s combined $(nproc --all)" % (tool, name)
+                ethtool_script = '%s\n%s' % (ethtool_script, command)
 
-    vendor_script = '%s\n' % vendor_script
+        user_scripts.append(ethtool_script)
 
-    # Vendor script and start the array
-    user_scripts = [vendor_script]
+    # This is for vendor scripts
+    if md['vendor-data']['vendor-script']:
+        user_scripts.append(md['vendor-data']['vendor-script'])
 
     # Startup script
+    script = md['startup-script']
     if script and script != "echo No configured startup script":
-        user_scripts.append("%s\n" % script)
+        user_scripts.append(script)
 
     return user_scripts
 

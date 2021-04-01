@@ -52,26 +52,40 @@ class DataSourceVultr(sources.DataSource):
         # Fetch metadata
         md = self.get_metadata()
 
+        self.metadata_full = md
+        self.metadata['instanceid'] = md['instanceid']
+        self.metadata['local-hostname'] = md['hostname']
+        self.metadata['public-keys'] = md["public-keys"]
+        self.userdata_raw = md["user-data"]
+
+        # Generate config and process data
+        config = self.get_datasource_data(md)
+
+        # Dump some data so diagnosing failures is manageable
+        LOG.debug("Vultr Vendor Config:")
+        LOG.debug(json.dumps(config))
+        LOG.debug("SUBID: %s", self.metadata['instanceid'])
+        LOG.debug("Hostname: %s", self.metadata['local-hostname'])
+        if self.userdata_raw is not None:
+            LOG.debug("User-Data:")
+            LOG.debug(self.userdata_raw)
+
+        return True
+
+    # Process metadata
+    def get_datasource_data(self, md):
+        # Grab config
         config = vultr.generate_config(md)
 
         # This requires info generated in the vendor config
-        script = md['startup-script']
         user_scripts = []
-        user_scripts = vultr.generate_user_scripts(script, config)
-
-        # Dump vendor config so diagnosing failures is manageable
-        LOG.debug("Vultr Vendor Config:")
-        LOG.debug(json.dumps(config))
-
-        self.metadata_full = md
-        self.metadata['instanceid'] = self.metadata_full['instanceid']
-        self.metadata['local-hostname'] = self.metadata_full['hostname']
+        user_scripts = vultr.generate_user_scripts(md, config)
 
         # Default hostname is "vultr"
         if self.metadata['local-hostname'] == "":
             self.metadata['local-hostname'] = "vultr"
 
-        self.metadata['public-keys'] = md["public-keys"].splitlines()
+        self.metadata['public-keys'] = md["public-keys"]
         self.userdata_raw = md["user-data"]
         if self.userdata_raw == "":
             self.userdata_raw = None
@@ -81,14 +95,7 @@ class DataSourceVultr(sources.DataSource):
             self.vendordata_raw.append(uscript)
         self.vendordata_raw.append("#cloud-config\n%s" % json.dumps(config))
 
-        # Dump some data so diagnosing failures is manageable
-        LOG.debug("SUBID: %s", self.metadata['instanceid'])
-        LOG.debug("Hostname: %s", self.metadata['local-hostname'])
-        if self.userdata_raw is not None:
-            LOG.debug("User-Data:")
-            LOG.debug(self.userdata_raw)
-
-        return True
+        return config
 
     # Get the metadata by flag
     def get_metadata(self):
@@ -116,7 +123,7 @@ class DataSourceVultr(sources.DataSource):
 
     @property
     def network_config(self):
-        md = self.get_metadata()
+        md = self.metadata_full['interfaces']
         config = vultr.generate_network_config(md)
 
         return config
