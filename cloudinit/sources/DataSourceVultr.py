@@ -5,8 +5,6 @@
 # Vultr Metadata API:
 # https://www.vultr.com/metadata/
 
-import json
-
 from cloudinit import log as log
 from cloudinit import sources
 from cloudinit import util
@@ -59,11 +57,11 @@ class DataSourceVultr(sources.DataSource):
         self.userdata_raw = md["user-data"]
 
         # Generate config and process data
-        config = self.get_datasource_data(md)
+        self.get_datasource_data(md)
 
         # Dump some data so diagnosing failures is manageable
         LOG.debug("Vultr Vendor Config:")
-        LOG.debug(json.dumps(config))
+        LOG.debug(md['vendor-data']['config'])
         LOG.debug("SUBID: %s", self.metadata['instanceid'])
         LOG.debug("Hostname: %s", self.metadata['local-hostname'])
         if self.userdata_raw is not None:
@@ -75,27 +73,27 @@ class DataSourceVultr(sources.DataSource):
     # Process metadata
     def get_datasource_data(self, md):
         # Grab config
-        config = vultr.generate_config(md)
+        config = md['vendor-data']['config']
+
+        # Generate network config
+        self.netcfg = vultr.generate_network_config(md['interfaces'])
 
         # This requires info generated in the vendor config
-        user_scripts = []
-        user_scripts = vultr.generate_user_scripts(md, config)
+        user_scripts = vultr.generate_user_scripts(md, self.netcfg['config'])
 
-        # Default hostname is "vultr"
+        # Default hostname is "guest" for whitelabel
         if self.metadata['local-hostname'] == "":
-            self.metadata['local-hostname'] = "vultr"
+            self.metadata['local-hostname'] = "guest"
 
-        self.metadata['public-keys'] = md["public-keys"]
         self.userdata_raw = md["user-data"]
         if self.userdata_raw == "":
             self.userdata_raw = None
 
+        # Assemble vendor-data
+        # This adds provided scripts and the config
         self.vendordata_raw = []
-        for uscript in user_scripts:
-            self.vendordata_raw.append(uscript)
-        self.vendordata_raw.append("#cloud-config\n%s" % json.dumps(config))
-
-        return config
+        self.vendordata_raw.extend(user_scripts)
+        self.vendordata_raw.append("#cloud-config\n%s" % config)
 
     # Get the metadata by flag
     def get_metadata(self):
@@ -123,10 +121,7 @@ class DataSourceVultr(sources.DataSource):
 
     @property
     def network_config(self):
-        md = self.metadata_full['interfaces']
-        config = vultr.generate_network_config(md)
-
-        return config
+        return self.netcfg
 
 
 # Used to match classes to dependencies
@@ -151,10 +146,10 @@ if __name__ == "__main__":
                             BUILTIN_DS_CONFIG['timeout'],
                             BUILTIN_DS_CONFIG['retries'],
                             BUILTIN_DS_CONFIG['wait'])
-    config = vultr.generate_config(md)
+    config = md['vendor-data']['config']
     sysinfo = vultr.get_sysinfo()
 
     print(util.json_dumps(sysinfo))
-    print(util.json_dumps(config))
+    print(config)
 
 # vi: ts=4 expandtab

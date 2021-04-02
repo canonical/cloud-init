@@ -184,44 +184,8 @@ SSH_KEYS_1 = [
 
 # Expected generated objects
 
-# Expected config object from generator
-EXPECTED_VULTR_CONFIG_1 = {
-    'package_upgrade': 'true',
-    'disable_root': 0,
-    'ssh_pwauth': 1,
-    'chpasswd': {
-        'expire': False,
-        'list': [
-            'root:$6$S2Smuj.../VqxmIR9Urw0jPZ88i4yvB/'
-        ]
-    },
-    'system_info': {
-        'default_user': {
-            'name': 'root'
-        }
-    },
-    'network': {
-        'version': 1,
-        'config': [
-            {
-                'type': 'nameserver',
-                'address': ['108.61.10.10']
-            },
-            {
-                'name': 'eth0',
-                'type': 'physical',
-                'mac_address': '56:00:03:15:c4:65',
-                'accept-ra': 1,
-                'subnets': [
-                    {'type': 'dhcp', 'control': 'auto'},
-                    {'type': 'dhcp6', 'control': 'auto'}
-                ]
-            }
-        ]
-    }
-}
-
-EXPECTED_VULTR_CONFIG_2 = {
+# Expected config
+EXPECTED_VULTR_CONFIG = {
     'package_upgrade': 'true',
     'disable_root': 0,
     'ssh_pwauth': 1,
@@ -235,39 +199,6 @@ EXPECTED_VULTR_CONFIG_2 = {
         'default_user': {
             'name': 'root'
         }
-    },
-    'network': {
-        'version': 1,
-        'config': [
-            {
-                'type': 'nameserver',
-                'address': ['108.61.10.10']
-            },
-            {
-                'name': 'eth0',
-                'type': 'physical',
-                'mac_address': '56:00:03:1b:4e:ca',
-                'accept-ra': 1,
-                'subnets': [
-                    {'type': 'dhcp', 'control': 'auto'},
-                    {'type': 'dhcp6', 'control': 'auto'}
-                ]
-            },
-            {
-                'name': 'eth1',
-                'type': 'physical',
-                'mac_address': '5a:00:03:1b:4e:ca',
-                'accept-ra': 1,
-                'subnets': [
-                    {
-                        "type": "static",
-                        "control": "auto",
-                        "address": "10.1.112.3",
-                        "netmask": "255.255.240.0"
-                    }
-                ],
-            }
-        ]
     }
 }
 
@@ -337,6 +268,15 @@ INTERFACE_MAP = {
 class TestDataSourceVultr(CiTestCase):
     def setUp(self):
         super(TestDataSourceVultr, self).setUp()
+
+        # Stored as a dict to make it easier to maintain
+        raw1 = json.dumps(VULTR_V1_1['vendor-data']['config'])
+        raw2 = json.dumps(VULTR_V1_2['vendor-data']['config'])
+
+        # Make expected format
+        VULTR_V1_1['vendor-data']['config'] = raw1
+        VULTR_V1_2['vendor-data']['config'] = raw2
+
         self.tmp = self.tmp_dir()
 
     # Test the datasource itself
@@ -374,37 +314,13 @@ class TestDataSourceVultr(CiTestCase):
 
         # Test vendor config
         self.assertEqual(
-            EXPECTED_VULTR_CONFIG_2,
+            EXPECTED_VULTR_CONFIG,
             json.loads(vendordata[0].replace("#cloud-config", "")))
 
         self.maxDiff = orig_val
 
         # Test network config generation
         self.assertEqual(EXPECTED_VULTR_NETWORK_2, source.network_config)
-
-    # Test overall config generation
-    @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    def test_get_data_1(self, mock_netmap):
-        mock_netmap.return_value = INTERFACE_MAP
-
-        # Test data
-        orig_val = self.maxDiff
-        self.maxDiff = None
-        self.assertEqual(EXPECTED_VULTR_CONFIG_1,
-                         vultr.generate_config(VULTR_V1_1))
-        self.maxDiff = orig_val
-
-    # Test overall config generation
-    @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    def test_get_data_2(self, mock_netmap):
-        mock_netmap.return_value = INTERFACE_MAP
-
-        # Test data with private networking
-        orig_val = self.maxDiff
-        self.maxDiff = None
-        self.assertEqual(EXPECTED_VULTR_CONFIG_2,
-                         vultr.generate_config(VULTR_V1_2))
-        self.maxDiff = orig_val
 
     # Test network config generation
     @mock.patch('cloudinit.net.get_interfaces_by_mac')

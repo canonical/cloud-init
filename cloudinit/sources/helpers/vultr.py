@@ -3,7 +3,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import json
-import copy
 
 from cloudinit import log as log
 from cloudinit import url_helper
@@ -30,10 +29,6 @@ def get_metadata(url, timeout, retries, sec_between):
 
     v1_json = json.loads(v1)
     metadata = v1_json
-
-    # This comes through as a string but is JSON, make a dict
-    raw = metadata['vendor-data']['config']
-    metadata['vendor-data']['config'] = json.loads(raw)
 
     return metadata
 
@@ -204,21 +199,8 @@ def generate_private_network_interface(interfaces):
     return netcfg
 
 
-# Generate the vendor config
-# This configuration is to replicate how
-# images are deployed on Vultr before Cloud-Init
-def generate_config(md):
-    # Create vendor config
-    config_template = copy.deepcopy(md['vendor-data']['config'])
-
-    # Add generated network parts
-    config_template['network'] = generate_network_config(md['interfaces'])
-
-    return config_template
-
-
 # This is for the vendor and startup scripts
-def generate_user_scripts(md, vendor_config):
+def generate_user_scripts(md, network_config):
     user_scripts = []
 
     # Raid 1 script
@@ -233,7 +215,7 @@ def generate_user_scripts(md, vendor_config):
         tool = "/opt/vultr/ethtool"
 
         # Go through the interfaces
-        for netcfg in vendor_config['network']['config']:
+        for netcfg in network_config:
             # If the interface has a mac and is physical
             if "mac_address" in netcfg and netcfg['type'] == "physical":
                 # Set its multi-queue to num of cores as per RHEL Docs
