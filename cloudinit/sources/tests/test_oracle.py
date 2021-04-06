@@ -173,6 +173,10 @@ class TestIsPlatformViable(test_helpers.CiTestCase):
         m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestNetworkConfigFromOpcImds:
     def test_no_secondary_nics_does_not_mutate_input(self, oracle_ds):
         oracle_ds._vnics_data = [{}]

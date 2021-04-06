@@ -2933,6 +2933,10 @@ iface eth1 inet dhcp
         self.assertEqual(0, mock_settle.call_count)
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestRhelSysConfigRendering(CiTestCase):
 
     with_logs = True
@@ -3620,6 +3624,10 @@ USERCTL=no
                 expected, self._render_and_read(network_config=v2data))
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestOpenSuseSysConfigRendering(CiTestCase):
 
     with_logs = True
@@ -4379,6 +4387,56 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         )
         self.assertFalse(src.is_applicable())
 
+    def test_with_faux_ip(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='foo iscsi_target_ip=root=/dev/sda',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_empty_cmdline(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_whitespace_cmdline(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='          ',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_cmdline_no_lhand(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='=wut',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_cmdline_embedded_ip(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='opt="some things and ip=foo"',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
     def test_with_both_ip_ip6(self):
         content = {
             '/run/net-eth0.conf': DHCP_CONTENT_1,
@@ -5037,6 +5095,10 @@ class TestNetRenderers(CiTestCase):
             self.assertTrue(result)
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestGetInterfaces(CiTestCase):
     _data = {'bonds': ['bond1'],
              'bridges': ['bridge1'],
@@ -5186,6 +5248,10 @@ class TestInterfaceHasOwnMac(CiTestCase):
         self.assertFalse(interface_has_own_mac("eth0"))
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestGetInterfacesByMac(CiTestCase):
     _data = {'bonds': ['bond1'],
              'bridges': ['bridge1'],
@@ -5342,6 +5408,10 @@ class TestInterfacesSorting(CiTestCase):
             ['enp0s3', 'enp0s8', 'enp0s13', 'enp1s2', 'enp2s0', 'enp2s3'])
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestGetIBHwaddrsByInterface(CiTestCase):
 
     _ib_addr = '80:00:00:28:fe:80:00:00:00:00:00:00:00:11:22:03:00:33:44:56'
