@@ -106,7 +106,7 @@ def is_lvm_lv(devpath):
         # lvs should have DM_LV_NAME=<lvmuuid> and also DM_VG_NAME
         return 'DM_LV_NAME=' in out
     else:
-        LOG.info("Not an LVM Logical Volume partition")
+        LOG.info("No support for LVM on %s", platform.system())
         return False
 
 
@@ -127,8 +127,10 @@ def get_pvs_for_lv(devpath):
         vgname = out.strip()
     except subp.ProcessExecutionError as e:
         if e.exit_code != 0:
-            util.logexc(LOG, "Failed: can't get Volume Group information "
-                        "from %s", devpath)
+            LOG.warning(
+                "Unable to get Volume Group information from %s",
+                devpath
+            )
             raise ResizeFailedException(e) from e
 
     try:
@@ -142,8 +144,10 @@ def get_pvs_for_lv(devpath):
             return pvs[0]
     except subp.ProcessExecutionError as e:
         if e.exit_code != 0:
-            util.logexc(LOG, "Failed: can't get Physical Volume "
-                        "information from Volume Group %s", vgname)
+            LOG.warning(
+                "Unable to get Physical Volume information from"
+                " Volume Group %s", vgname
+            )
             raise ResizeFailedException(e) from e
 
 
@@ -270,9 +274,10 @@ def device_part_info(devpath, is_lvm):
     rpath = os.path.realpath(devpath)
 
     # first check if this is an LVM and get its PVs
-    lvm_rpath = get_pvs_for_lv(devpath)
-    if is_lvm and lvm_rpath:
-        rpath = lvm_rpath
+    if is_lvm:
+        lvm_rpath = get_pvs_for_lv(devpath)
+        if lvm_rpath:
+            rpath = lvm_rpath
 
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
