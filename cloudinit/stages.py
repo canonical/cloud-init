@@ -670,7 +670,6 @@ class Init(object):
         c_handlers_list = self._default_handlers()
 
         # Run the handlers
-
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
     def _find_networking_config(self):

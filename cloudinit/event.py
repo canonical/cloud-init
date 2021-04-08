@@ -31,7 +31,7 @@ EventTypeMap = {
 EventNameMap = {v: k for k, v in EventTypeMap.items()}
 
 
-def get_enabled_events(config_events, default_events):
+def get_enabled_events(config_events: dict, default_events: dict) -> dict:
     """Determine which update events are allowed.
 
     Merge datasource capabilities with system config to determine events
@@ -62,7 +62,7 @@ def get_enabled_events(config_events, default_events):
     return events
 
 
-def get_update_events_config(update_events):
+def get_update_events_config(update_events: dict) -> dict:
     """Return a dictionary of updates config."""
     evt_cfg = {}
     for scope, events in update_events.items():

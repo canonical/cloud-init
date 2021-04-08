@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Tests related to cloudinit.stages module."""
-
 import os
 import stat
 
@@ -319,10 +318,10 @@ class TestInit(CiTestCase):
             " nor datasource network update on '%s' event" % EventType.BOOT,
             self.logs.getvalue())
 
-    @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    @mock.patch('cloudinit.distros.ubuntu.Distro')
-    def test_apply_network_on_datasource_allowed_event(self, m_ubuntu, m_macs):
-        """Apply network if datasource.update_metadata permits BOOT event."""
+    # CiTestCase doesn't work with pytest.mark.parametrize, and moving this
+    # functionality to a separate class is more cumbersome than it'd be worth
+    # at the moment, so use this as a simple setup
+    def _apply_network_setup(self, m_macs):
         old_instance_id = os.path.join(
             self.init.paths.get_cpath('data'), 'instance-id')
         write_file(old_instance_id, TEST_INSTANCE_ID)
@@ -338,13 +337,82 @@ class TestInit(CiTestCase):
 
         self.init._find_networking_config = fake_network_config
         self.init.datasource = FakeDataSource(paths=self.init.paths)
+        return net_cfg
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    @mock.patch('cloudinit.distros.ubuntu.Distro')
+    def test_apply_network_allowed_when_default_boot(
+        self, m_ubuntu, m_macs
+    ):
+        """Apply network if datasource permits BOOT event."""
+        net_cfg = self._apply_network_setup(m_macs)
+
         self.init.datasource.default_update_events = {
-            'network': [EventType.BOOT]
+            'network': [EventType.BOOT_NEW_INSTANCE, EventType.BOOT]
         }
         self.init.apply_network_config(True)
-        self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
+        self.init.distro.apply_network_config_names.assert_called_with(
+            net_cfg)
         self.init.distro.apply_network_config.assert_called_with(
             net_cfg, bring_up=True)
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    @mock.patch('cloudinit.distros.ubuntu.Distro')
+    def test_apply_network_disabled_when_no_default_boot(
+        self, m_ubuntu, m_macs
+    ):
+        """Don't apply network if datasource has no BOOT event."""
+        self._apply_network_setup(m_macs)
+
+        self.init.datasource.default_update_events = {
+            'network': [EventType.BOOT_NEW_INSTANCE]
+        }
+        self.init.apply_network_config(True)
+        self.init.distro.apply_network_config.assert_not_called()
+        assert (
+            "No network config applied. Neither a new instance nor datasource "
+            "network update on 'System boot' event"
+        ) in self.logs.getvalue()
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    @mock.patch('cloudinit.distros.ubuntu.Distro')
+    def test_apply_network_allowed_with_userdata_overrides(
+        self, m_ubuntu, m_macs
+    ):
+        """Apply network if userdata overrides default config"""
+        net_cfg = self._apply_network_setup(m_macs)
+
+        self.init.datasource.default_update_events = {
+            'network': [EventType.BOOT_NEW_INSTANCE]
+        }
+        self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
+        self.init.apply_network_config(True)
+        self.init.distro.apply_network_config_names.assert_called_with(
+            net_cfg)
+        self.init.distro.apply_network_config.assert_called_with(
+            net_cfg, bring_up=True)
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    @mock.patch('cloudinit.distros.ubuntu.Distro')
+    def test_apply_network_disabled_when_unsupported(
+        self, m_ubuntu, m_macs
+    ):
+        """Don't apply network config if unsupported.
+
+        Shouldn't work even when specified as userdata
+        """
+        self._apply_network_setup(m_macs)
+
+        self.init.datasource.supported_update_events = {
+            'network': [EventType.BOOT_NEW_INSTANCE]
+        }
+        self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
+        self.init.apply_network_config(True)
+        self.init.distro.apply_network_config.assert_not_called()
+        assert (
+            "No network config applied. Neither a new instance nor datasource "
+            "network update on 'System boot' event"
+        ) in self.logs.getvalue()
 
 
 class TestInit_InitializeFilesystem:
