@@ -17,6 +17,35 @@ EPILOG = ("Example: make-mime -a config.yaml:cloud-config "
           "-a script.sh:x-shellscript > user-data")
 
 
+def create_mime_message(args):
+    sub_messages = []
+    errors = []
+    rc = 0
+    for i, (fh, filename, format_type) in enumerate(args.files):
+        contents = fh.read()
+        sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
+        sub_message.add_header('Content-Disposition',
+                               'attachment; filename="%s"' % (filename))
+        content_type = sub_message.get_content_type().lower()
+        if content_type not in get_content_types():
+            level = "WARNING" if args.force else "ERROR"
+            msg = (level + ": content type %r for attachment %s "
+                   "may be incorrect!") % (content_type, i + 1)
+            sys.stderr.write(msg + '\n')
+            errors.append(msg)
+        sub_messages.append(sub_message)
+    if len(errors) and not args.force:
+        sys.stderr.write("Invalid content-types, override with --force\n")
+        combined_message = None
+        rc = 1
+    else:
+        combined_message = MIMEMultipart()
+        for msg in sub_messages:
+            combined_message.attach(msg)
+        rc = 0
+    return (combined_message, 1)
+
+
 def file_content_type(text):
     """ Return file content type by reading the first line of the input. """
     try:
@@ -62,7 +91,6 @@ def get_content_types(strip_prefix=False):
     return sorted([ctype.replace("text/", "") if strip_prefix else ctype
                    for ctype in INCLUSION_TYPES_MAP.values()])
 
-
 def handle_args(name, args):
     """Create a multi-part MIME archive for use as user-data.  Optionally
        print out the list of supported content types of cloud-init.
@@ -77,29 +105,9 @@ def handle_args(name, args):
         print("\n".join(get_content_types(strip_prefix=True)))
         return 0
 
-    sub_messages = []
-    errors = []
-    for i, (fh, filename, format_type) in enumerate(args.files):
-        contents = fh.read()
-        sub_message = MIMEText(contents, format_type, sys.getdefaultencoding())
-        sub_message.add_header('Content-Disposition',
-                               'attachment; filename="%s"' % (filename))
-        content_type = sub_message.get_content_type().lower()
-        if content_type not in get_content_types():
-            level = "WARNING" if args.force else "ERROR"
-            msg = (level + ": content type %r for attachment %s "
-                   "may be incorrect!") % (content_type, i + 1)
-            sys.stderr.write(msg + '\n')
-            errors.append(msg)
-        sub_messages.append(sub_message)
-    if len(errors) and not args.force:
-        sys.stderr.write("Invalid content-types, override with --force\n")
-        return 1
-    combined_message = MIMEMultipart()
-    for msg in sub_messages:
-        combined_message.attach(msg)
+    (combined_message, rc) = create_mime_message(args)
     print(combined_message)
-    return 0
+    return rc
 
 
 def main():
