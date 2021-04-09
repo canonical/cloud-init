@@ -1654,7 +1654,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
         'expected_sysconfig_opensuse': {
             'ifcfg-bond0': textwrap.dedent("""\
                 BONDING_MASTER=yes
-                BONDING_OPTS="mode=active-backup """
+                BONDING_MODULE_OPTS="mode=active-backup """
                                            """xmit_hash_policy=layer3+4 """
                                            """miimon=100"
                 BONDING_SLAVE_0=eth1
@@ -2240,7 +2240,7 @@ iface bond0 inet6 static
         'expected_sysconfig_opensuse': {
             'ifcfg-bond0': textwrap.dedent("""\
         BONDING_MASTER=yes
-        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
+        BONDING_MODULE_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
                                            """miimon=100 num_grat_arp=5 """
                                            """downdelay=10 updelay=20 """
                                            """fail_over_mac=active """
