@@ -637,14 +637,15 @@ class Renderer(renderer.Renderer):
                     break
         if bond_opts:
             if flavor == 'suse':
-                # suse uses the sysconfig support which requires BONDING_MODULE_OPTS
-                # see https://www.kernel.org/doc/Documentation/networking/bonding.txt
-                # 3.1 Configuration with Sysconfig Support            
+                # suse uses the sysconfig support which requires
+                # BONDING_MODULE_OPTS see
+                # https://www.kernel.org/doc/Documentation/networking/bonding.txt
+                # 3.1 Configuration with Sysconfig Support
                 iface_cfg['BONDING_MODULE_OPTS'] = " ".join(bond_opts)
             else:
                 # rhel uses initscript support and thus requires BONDING_OPTS
-                # this is also the old default
-                # see https://www.kernel.org/doc/Documentation/networking/bonding.txt
+                # this is also the old default see
+                # https://www.kernel.org/doc/Documentation/networking/bonding.txt
                 #  3.2 Configuration with Initscripts Support
                 iface_cfg['BONDING_OPTS'] = " ".join(bond_opts)
 
