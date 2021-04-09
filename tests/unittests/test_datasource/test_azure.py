@@ -1913,6 +1913,66 @@ scbus-1 on xpt0 bus 0
         self.assertIsNotNone(dsrc.metadata)
         self.assertFalse(dsrc.failed_desired_api_version)
 
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    def test_hostname_from_imds(self, m_get_metadata_from_imds):
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        imds_data_with_os_profile = copy.deepcopy(NETWORK_METADATA)
+        imds_data_with_os_profile["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true"
+        )
+        m_get_metadata_from_imds.return_value = imds_data_with_os_profile
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(dsrc.metadata["local-hostname"], "hostname1")
+
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    def test_username_from_imds(self, m_get_metadata_from_imds):
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        imds_data_with_os_profile = copy.deepcopy(NETWORK_METADATA)
+        imds_data_with_os_profile["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true"
+        )
+        m_get_metadata_from_imds.return_value = imds_data_with_os_profile
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(
+            dsrc.cfg["system_info"]["default_user"]["name"],
+            "username1"
+        )
+
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    def test_disable_password_from_imds(self, m_get_metadata_from_imds):
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        imds_data_with_os_profile = copy.deepcopy(NETWORK_METADATA)
+        imds_data_with_os_profile["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true"
+        )
+        m_get_metadata_from_imds.return_value = imds_data_with_os_profile
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertTrue(dsrc.metadata["disable_password"])
+
 
 class TestAzureBounce(CiTestCase):
 
