@@ -61,6 +61,7 @@ class Init(object):
         self.datasource = NULL_DATA_SOURCE
         self.ds_restored = False
         self._previous_iid = None
+        self.boot_type = EventType.BOOT
 
         if reporter is None:
             reporter = events.ReportEventStack(
@@ -322,6 +323,9 @@ class Init(object):
         util.write_file(self.paths.get_runpath('instance_id'), "%s\n" % iid)
         util.write_file(os.path.join(dp, 'previous-instance-id'),
                         "%s\n" % (previous_iid))
+
+        if self.is_new_instance():
+            self.boot_type = EventType.BOOT_NEW_INSTANCE
 
         self._write_to_cache()
         # Ensure needed components are regenerated
@@ -766,20 +770,16 @@ class Init(object):
             LOG.info("network config is disabled by %s", src)
             return
 
-        current_boot_type = EventType.BOOT
-        if self.is_new_instance():
-            current_boot_type = EventType.BOOT_NEW_INSTANCE
-
         if not (
             self.datasource is NULL_DATA_SOURCE or
-            current_boot_type == EventType.BOOT_NEW_INSTANCE or
-            (self.update_event_enabled(current_boot_type, scope='network')
-             and self.datasource.update_metadata([current_boot_type]))
+            self.boot_type == EventType.BOOT_NEW_INSTANCE or
+            (self.update_event_enabled(self.boot_type, scope='network')
+             and self.datasource.update_metadata([self.boot_type]))
         ):
             LOG.debug(
                 "No network config applied. Neither a new instance"
                 " nor datasource network update on '%s' event",
-                current_boot_type)
+                self.boot_type)
             # nothing new, but ensure proper names
             self._apply_netcfg_names(netcfg)
             return
