@@ -779,7 +779,7 @@ class Init(object):
             LOG.debug(
                 "No network config applied. Neither a new instance"
                 " nor datasource network update on '%s' event",
-                EventType.BOOT)
+                current_boot_type)
             # nothing new, but ensure proper names
             self._apply_netcfg_names(netcfg)
             return
