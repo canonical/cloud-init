@@ -637,6 +637,9 @@ class TestDataSource(CiTestCase):
 
     def test_update_metadata_returns_true_on_supported_update_event(self):
         """update_metadata returns get_data response on supported events."""
+        self.datasource.supported_update_events['network'] = set([
+            EventType.BOOT_NEW_INSTANCE, EventType.BOOT
+        ])
 
         def fake_get_data():
             return True

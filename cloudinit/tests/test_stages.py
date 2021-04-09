@@ -290,6 +290,8 @@ class TestInit(CiTestCase):
         m_macs.return_value = {'42:42:42:42:42:42': 'eth9'}
 
         self.init._find_networking_config = fake_network_config
+        self.init.boot_type = EventType.BOOT_NEW_INSTANCE
+
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_called_with(
@@ -310,6 +312,8 @@ class TestInit(CiTestCase):
             return net_cfg, NetworkConfigSource.fallback
 
         self.init._find_networking_config = fake_network_config
+        self.init.boot_type = EventType.BOOT
+
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_not_called()
@@ -337,6 +341,7 @@ class TestInit(CiTestCase):
 
         self.init._find_networking_config = fake_network_config
         self.init.datasource = FakeDataSource(paths=self.init.paths)
+        self.init.boot_type = EventType.BOOT
         return net_cfg
 
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
