@@ -318,7 +318,7 @@ class ContentHandlers(object):
         return list(self.registered.items())
 
 
-class Paths(persistence.CloudInitPickleMixin, object):
+class Paths(persistence.CloudInitPickleMixin):
     _ci_pkl_version = 1
 
     def __init__(self, path_cfgs, ds=None):
