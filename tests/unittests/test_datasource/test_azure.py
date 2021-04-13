@@ -638,16 +638,9 @@ scbus-1 on xpt0 bus 0
         def dsdevs():
             return data.get('dsdevs', [])
 
-        def _invoke_agent(cmd):
-            data['agent_invoked'] = cmd
-
         def _wait_for_files(flist, _maxwait=None, _naplen=None):
             data['waited'] = flist
             return []
-
-        def _pubkeys_from_crt_files(flist):
-            data['pubkey_files'] = flist
-            return ["pubkey_from: %s" % f for f in flist]
 
         if data.get('ovfcontent') is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
@@ -675,8 +668,6 @@ scbus-1 on xpt0 bus 0
 
         self.apply_patches([
             (dsaz, 'list_possible_azure_ds_devs', dsdevs),
-            (dsaz, 'invoke_agent', _invoke_agent),
-            (dsaz, 'pubkeys_from_crt_files', _pubkeys_from_crt_files),
             (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
             (dsaz, 'get_hostname', mock.MagicMock()),
             (dsaz, 'set_hostname', mock.MagicMock()),
@@ -765,7 +756,6 @@ scbus-1 on xpt0 bus 0
             ret = dsrc.get_data()
             self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
             self.assertFalse(ret)
-            self.assertNotIn('agent_invoked', data)
             # Assert that for non viable platforms,
             # there is no communication with the Azure datasource.
             self.assertEqual(
@@ -789,7 +779,6 @@ scbus-1 on xpt0 bus 0
             ret = dsrc.get_data()
             self.m_is_platform_viable.assert_called_with(dsrc.seed_dir)
             self.assertFalse(ret)
-            self.assertNotIn('agent_invoked', data)
             self.assertEqual(
                 1,
                 m_report_failure.call_count)
@@ -806,7 +795,6 @@ scbus-1 on xpt0 bus 0
                 1,
                 m_crawl_metadata.call_count)
             self.assertFalse(ret)
-            self.assertNotIn('agent_invoked', data)
 
     def test_crawl_metadata_exception_should_report_failure_with_msg(self):
         data = {}
@@ -1086,21 +1074,6 @@ scbus-1 on xpt0 bus 0
         self.assertTrue(os.path.isdir(self.waagent_d))
         self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0o700)
 
-    def test_user_cfg_set_agent_command_plain(self):
-        # set dscfg in via plaintext
-        # we must have friendly-to-xml formatted plaintext in yaml_cfg
-        # not all plaintext is expected to work.
-        yaml_cfg = "{agent_command: my_command}\n"
-        cfg = yaml.safe_load(yaml_cfg)
-        odata = {'HostName': "myhost", 'UserName': "myuser",
-                 'dscfg': {'text': yaml_cfg, 'encoding': 'plain'}}
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
-
-        dsrc = self._get_ds(data)
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(data['agent_invoked'], cfg['agent_command'])
-
     @mock.patch('cloudinit.sources.DataSourceAzure.device_driver',
                 return_value=None)
     def test_network_config_set_from_imds(self, m_driver):
@@ -1205,29 +1178,6 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
         self.assertEqual('eastus2', dsrc.region)
 
-    def test_user_cfg_set_agent_command(self):
-        # set dscfg in via base64 encoded yaml
-        cfg = {'agent_command': "my_command"}
-        odata = {'HostName': "myhost", 'UserName': "myuser",
-                 'dscfg': {'text': b64e(yaml.dump(cfg)),
-                           'encoding': 'base64'}}
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
-
-        dsrc = self._get_ds(data)
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(data['agent_invoked'], cfg['agent_command'])
-
-    def test_sys_cfg_set_agent_command(self):
-        sys_cfg = {'datasource': {'Azure': {'agent_command': '_COMMAND'}}}
-        data = {'ovfcontent': construct_valid_ovf_env(data={}),
-                'sys_cfg': sys_cfg}
-
-        dsrc = self._get_ds(data)
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(data['agent_invoked'], '_COMMAND')
-
     def test_sys_cfg_set_never_destroy_ntfs(self):
         sys_cfg = {'datasource': {'Azure': {
             'never_destroy_ntfs': 'user-supplied-value'}}}
@@ -1310,51 +1260,6 @@ scbus-1 on xpt0 bus 0
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, mydata.encode('utf-8'))
-
-    def test_cfg_has_pubkeys_fingerprint(self):
-        odata = {'HostName': "myhost", 'UserName': "myuser"}
-        mypklist = [{'fingerprint': 'fp1', 'path': 'path1', 'value': ''}]
-        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
-                                                      pubkeys=pubkeys)}
-
-        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        for mypk in mypklist:
-            self.assertIn(mypk, dsrc.cfg['_pubkeys'])
-            self.assertIn('pubkey_from', dsrc.metadata['public-keys'][-1])
-
-    def test_cfg_has_pubkeys_value(self):
-        # make sure that provided key is used over fingerprint
-        odata = {'HostName': "myhost", 'UserName': "myuser"}
-        mypklist = [{'fingerprint': 'fp1', 'path': 'path1', 'value': 'value1'}]
-        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
-                                                      pubkeys=pubkeys)}
-
-        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-
-        for mypk in mypklist:
-            self.assertIn(mypk, dsrc.cfg['_pubkeys'])
-            self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
-
-    def test_cfg_has_no_fingerprint_has_value(self):
-        # test value is used when fingerprint not provided
-        odata = {'HostName': "myhost", 'UserName': "myuser"}
-        mypklist = [{'fingerprint': None, 'path': 'path1', 'value': 'value1'}]
-        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
-                                                      pubkeys=pubkeys)}
-
-        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-
-        for mypk in mypklist:
-            self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
 
     def test_default_ephemeral_configs_ephemeral_exists(self):
         # make sure the ephemeral configs are correct if disk present
@@ -1919,8 +1824,6 @@ class TestAzureBounce(CiTestCase):
     with_logs = True
 
     def mock_out_azure_moving_parts(self):
-        self.patches.enter_context(
-            mock.patch.object(dsaz, 'invoke_agent'))
         self.patches.enter_context(
             mock.patch.object(dsaz.util, 'wait_for_files'))
         self.patches.enter_context(
