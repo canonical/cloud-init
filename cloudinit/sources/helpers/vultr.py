@@ -96,7 +96,7 @@ def get_interface_name(mac):
 
 
 # Generate network configs
-def generate_network_config(md):
+def generate_network_config(interfaces):
     network = {
         "version": 1,
         "config": [
@@ -110,28 +110,30 @@ def generate_network_config(md):
     }
 
     # Prepare interface 0, public
-    if len(md) > 0:
-        network['config'].append(generate_public_network_interface(md))
+    if len(interfaces) > 0:
+        public = generate_public_network_interface(interfaces[0])
+        network['config'].append(public)
 
     # Prepare interface 1, private
-    if len(md) > 1:
-        network['config'].append(generate_private_network_interface(md))
+    if len(interfaces) > 1:
+        private = generate_private_network_interface(interfaces[1])
+        network['config'].append(private)
 
     return network
 
 
 # Input Metadata and generate public network config part
-def generate_public_network_interface(interfaces):
-    interface_name = get_interface_name(interfaces[0]['mac'])
+def generate_public_network_interface(interface):
+    interface_name = get_interface_name(interface['mac'])
     if not interface_name:
         raise RuntimeError(
             "Interface: %s could not be found on the system" %
-            interfaces[0]['mac'])
+            interface['mac'])
 
     netcfg = {
         "name": interface_name,
         "type": "physical",
-        "mac_address": interfaces[0]['mac'],
+        "mac_address": interface['mac'],
         "accept-ra": 1,
         "subnets": [
             {
@@ -146,9 +148,9 @@ def generate_public_network_interface(interfaces):
     }
 
     # Check for additional IP's
-    additional_count = len(interfaces[0]['ipv4']['additional'])
-    if "ipv4" in interfaces[0] and additional_count > 0:
-        for additional in interfaces[0]['ipv4']['additional']:
+    additional_count = len(interface['ipv4']['additional'])
+    if "ipv4" in interface and additional_count > 0:
+        for additional in interface['ipv4']['additional']:
             add = {
                 "type": "static",
                 "control": "auto",
@@ -158,9 +160,9 @@ def generate_public_network_interface(interfaces):
             netcfg['subnets'].append(add)
 
     # Check for additional IPv6's
-    additional_count = len(interfaces[0]['ipv6']['additional'])
-    if "ipv6" in interfaces[0] and additional_count > 0:
-        for additional in interfaces[0]['ipv6']['additional']:
+    additional_count = len(interface['ipv6']['additional'])
+    if "ipv6" in interface and additional_count > 0:
+        for additional in interface['ipv6']['additional']:
             add = {
                 "type": "static6",
                 "control": "auto",
@@ -174,24 +176,24 @@ def generate_public_network_interface(interfaces):
 
 
 # Input Metadata and generate private network config part
-def generate_private_network_interface(interfaces):
-    interface_name = get_interface_name(interfaces[1]['mac'])
+def generate_private_network_interface(interface):
+    interface_name = get_interface_name(interface['mac'])
     if not interface_name:
         raise RuntimeError(
             "Interface: %s could not be found on the system" %
-            interfaces[1]['mac'])
+            interface['mac'])
 
     netcfg = {
         "name": interface_name,
         "type": "physical",
-        "mac_address": interfaces[1]['mac'],
+        "mac_address": interface['mac'],
         "accept-ra": 1,
         "subnets": [
             {
                 "type": "static",
                 "control": "auto",
-                "address": interfaces[1]['ipv4']['address'],
-                "netmask": interfaces[1]['ipv4']['netmask']
+                "address": interface['ipv4']['address'],
+                "netmask": interface['ipv4']['netmask']
             }
         ]
     }
