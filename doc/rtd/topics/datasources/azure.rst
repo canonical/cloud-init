@@ -5,28 +5,6 @@ Azure
 
 This datasource finds metadata and user-data from the Azure cloud platform.
 
-walinuxagent
-------------
-walinuxagent has several functions within images.  For cloud-init
-specifically, the relevant functionality it performs is to register the
-instance with the Azure cloud platform at boot so networking will be
-permitted.  For more information about the other functionality of
-walinuxagent, see `Azure's documentation
-<https://github.com/Azure/WALinuxAgent#introduction>`_ for more details.
-(Note, however, that only one of walinuxagent's provisioning and cloud-init
-should be used to perform instance customisation.)
-
-If you are configuring walinuxagent yourself, you will want to ensure that you
-have `Provisioning.UseCloudInit
-<https://github.com/Azure/WALinuxAgent#provisioningusecloudinit>`_ set to
-``y``.
-
-
-Builtin Agent
--------------
-An alternative to using walinuxagent to register to the Azure cloud platform
-is to use the ``__builtin__`` agent command.  This section contains more
-background on what that code path does, and how to enable it.
 
 The Azure cloud platform provides initial data to an instance via an attached
 CD formatted in UDF.  That CD contains a 'ovf-env.xml' file that provides some
@@ -40,16 +18,6 @@ by calling a script in /etc/dhcp/dhclient-exit-hooks or a file in
 /etc/NetworkManager/dispatcher.d.  Both of these call a sub-command
 'dhclient_hook' of cloud-init itself. This sub-command will write the client
 information in json format to /run/cloud-init/dhclient.hook/<interface>.json.
-
-In order for cloud-init to leverage this method to find the endpoint, the
-cloud.cfg file must contain:
-
-.. sourcecode:: yaml
-
-  datasource:
-    Azure:
-      set_hostname: False
-      agent_command: __builtin__
 
 If those files are not available, the fallback is to check the leases file
 for the endpoint server (again option 245).
@@ -83,9 +51,6 @@ configuration (in ``/etc/cloud/cloud.cfg`` or ``/etc/cloud/cloud.cfg.d/``).
 
 The settings that may be configured are:
 
- * **agent_command**: Either __builtin__ (default) or a command to run to getcw
-   metadata. If __builtin__, get metadata from walinuxagent. Otherwise run the
-   provided command to obtain metadata.
  * **apply_network_config**: Boolean set to True to use network configuration
    described by Azure's IMDS endpoint instead of fallback network config of
    dhcp on eth0. Default is True. For Ubuntu 16.04 or earlier, default is
@@ -121,7 +86,6 @@ An example configuration with the default values is provided below:
 
   datasource:
     Azure:
-      agent_command: __builtin__
       apply_network_config: true
       data_dir: /var/lib/waagent
       dhclient_lease_file: /var/lib/dhcp/dhclient.eth0.leases
@@ -144,9 +108,7 @@ child of the ``LinuxProvisioningConfigurationSet`` (a sibling to ``UserName``)
 If both ``UserData`` and ``CustomData`` are provided behavior is undefined on
 which will be selected.
 
-In the example below, user-data provided is 'this is my userdata', and the
-datasource config provided is ``{"agent_command": ["start", "walinuxagent"]}``.
-That agent command will take affect as if it were specified in system config.
+In the example below, user-data provided is 'this is my userdata'
 
 Example:
 
@@ -184,20 +146,16 @@ The hostname is provided to the instance in the ovf-env.xml file as
 Whatever value the instance provides in its dhcp request will resolve in the
 domain returned in the 'search' request.
 
-The interesting issue is that a generic image will already have a hostname
-configured.  The ubuntu cloud images have 'ubuntu' as the hostname of the
-system, and the initial dhcp request on eth0 is not guaranteed to occur after
-the datasource code has been run.  So, on first boot, that initial value will
-be sent in the dhcp request and *that* value will resolve.
+A generic image will already have a hostname configured.  The ubuntu
+cloud images have 'ubuntu' as the hostname of the system, and the
+initial dhcp request on eth0 is not guaranteed to occur after the
+datasource code has been run.  So, on first boot, that initial value
+will be sent in the dhcp request and *that* value will resolve.
 
-In order to make the ``HostName`` provided in the ovf-env.xml resolve, a
-dhcp request must be made with the new value.  Walinuxagent (in its current
-version) handles this by polling the state of hostname and bouncing ('``ifdown
-eth0; ifup eth0``' the network interface if it sees that a change has been
-made.
-
-cloud-init handles this by setting the hostname in the DataSource's 'get_data'
-method via '``hostname $HostName``', and then bouncing the interface.  This
+In order to make the ``HostName`` provided in the ovf-env.xml resolve,
+a dhcp request must be made with the new value. cloud-init handles
+this by setting the hostname in the DataSource's 'get_data' method via
+'``hostname $HostName``', and then bouncing the interface.  This
 behavior can be configured or disabled in the datasource config.  See
 'Configuration' above.
 
