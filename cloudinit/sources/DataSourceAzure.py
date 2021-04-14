@@ -381,53 +381,6 @@ class DataSourceAzure(sources.DataSource):
                     util.logexc(LOG, "handling set_hostname failed")
         return False
 
-    @azure_ds_telemetry_reporter
-    def get_metadata_from_agent(self):
-        temp_hostname = self.metadata.get('local-hostname')
-        agent_cmd = self.ds_cfg['agent_command']
-        LOG.debug("Getting metadata via agent.  hostname=%s cmd=%s",
-                  temp_hostname, agent_cmd)
-
-        self.bounce_network_with_azure_hostname()
-
-        try:
-            invoke_agent(agent_cmd)
-        except subp.ProcessExecutionError:
-            # claim the datasource even if the command failed
-            util.logexc(LOG, "agent command '%s' failed.",
-                        self.ds_cfg['agent_command'])
-
-        ddir = self.ds_cfg['data_dir']
-
-        fp_files = []
-        key_value = None
-        for pk in self.cfg.get('_pubkeys', []):
-            if pk.get('value', None):
-                key_value = pk['value']
-                LOG.debug("SSH authentication: using value from fabric")
-            else:
-                bname = str(pk['fingerprint'] + ".crt")
-                fp_files += [os.path.join(ddir, bname)]
-                LOG.debug("SSH authentication: "
-                          "using fingerprint from fabric")
-
-        with events.ReportEventStack(
-                name="waiting-for-ssh-public-key",
-                description="wait for agents to retrieve SSH keys",
-                parent=azure_ds_reporter):
-            # wait very long for public SSH keys to arrive
-            # https://bugs.launchpad.net/cloud-init/+bug/1717611
-            missing = util.log_time(logfunc=LOG.debug,
-                                    msg="waiting for SSH public key files",
-                                    func=util.wait_for_files,
-                                    args=(fp_files, 900))
-            if len(missing):
-                LOG.warning("Did not find files, but going on: %s", missing)
-
-        metadata = {}
-        metadata['public-keys'] = key_value or pubkeys_from_crt_files(fp_files)
-        return metadata
-
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
         if self.seed.startswith('/dev'):
@@ -1354,35 +1307,32 @@ class DataSourceAzure(sources.DataSource):
            On failure, returns False.
         """
 
-        if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
-            self.bounce_network_with_azure_hostname()
+        self.bounce_network_with_azure_hostname()
 
-            pubkey_info = None
-            try:
-                raise KeyError(
-                    "Not using public SSH keys from IMDS"
-                )
-                # pylint:disable=unreachable
-                public_keys = self.metadata['imds']['compute']['publicKeys']
-                LOG.debug(
-                    'Successfully retrieved %s key(s) from IMDS',
-                    len(public_keys)
-                    if public_keys is not None
-                    else 0
-                )
-            except KeyError:
-                LOG.debug(
-                    'Unable to retrieve SSH keys from IMDS during '
-                    'negotiation, falling back to OVF'
-                )
-                pubkey_info = self.cfg.get('_pubkeys', None)
+        pubkey_info = None
+        try:
+            raise KeyError(
+                "Not using public SSH keys from IMDS"
+            )
+            # pylint:disable=unreachable
+            public_keys = self.metadata['imds']['compute']['publicKeys']
+            LOG.debug(
+                'Successfully retrieved %s key(s) from IMDS',
+                len(public_keys)
+                if public_keys is not None
+                else 0
+            )
+        except KeyError:
+            LOG.debug(
+                'Unable to retrieve SSH keys from IMDS during '
+                'negotiation, falling back to OVF'
+            )
+            pubkey_info = self.cfg.get('_pubkeys', None)
 
-            metadata_func = partial(get_metadata_from_fabric,
-                                    fallback_lease_file=self.
-                                    dhclient_lease_file,
-                                    pubkey_info=pubkey_info)
-        else:
-            metadata_func = self.get_metadata_from_agent
+        metadata_func = partial(get_metadata_from_fabric,
+                                fallback_lease_file=self.
+                                dhclient_lease_file,
+                                pubkey_info=pubkey_info)
 
         LOG.debug("negotiating with fabric via agent command %s",
                   self.ds_cfg['agent_command'])
@@ -1618,33 +1568,6 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
 
 
 @azure_ds_telemetry_reporter
-def crtfile_to_pubkey(fname, data=None):
-    pipeline = ('openssl x509 -noout -pubkey < "$0" |'
-                'ssh-keygen -i -m PKCS8 -f /dev/stdin')
-    (out, _err) = subp.subp(['sh', '-c', pipeline, fname],
-                            capture=True, data=data)
-    return out.rstrip()
-
-
-@azure_ds_telemetry_reporter
-def pubkeys_from_crt_files(flist):
-    pubkeys = []
-    errors = []
-    for fname in flist:
-        try:
-            pubkeys.append(crtfile_to_pubkey(fname))
-        except subp.ProcessExecutionError:
-            errors.append(fname)
-
-    if errors:
-        report_diagnostic_event(
-            "failed to convert the crt files to pubkey: %s" % errors,
-            logger_func=LOG.warning)
-
-    return pubkeys
-
-
-@azure_ds_telemetry_reporter
 def write_files(datadir, files, dirmode=None):
 
     def _redact_password(cnt, fname):
@@ -1670,16 +1593,6 @@ def write_files(datadir, files, dirmode=None):
         if 'ovf-env.xml' in name:
             content = _redact_password(content, fname)
         util.write_file(filename=fname, content=content, mode=0o600)
-
-
-@azure_ds_telemetry_reporter
-def invoke_agent(cmd):
-    # this is a function itself to simplify patching it for test
-    if cmd:
-        LOG.debug("invoking agent: %s", cmd)
-        subp.subp(cmd, shell=(not isinstance(cmd, list)))
-    else:
-        LOG.debug("not invoking agent")
 
 
 def find_child(node, filter_func):
