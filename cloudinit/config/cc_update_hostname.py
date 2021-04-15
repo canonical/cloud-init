@@ -27,6 +27,7 @@ is set, then the hostname will not be altered.
 **Config keys**::
 
     preserve_hostname: <true/false>
+    prefer_fqdn_over_hostname: <true/false>
     fqdn: <fqdn>
     hostname: <fqdn/hostname>
 """

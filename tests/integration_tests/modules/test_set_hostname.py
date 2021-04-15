@@ -26,7 +26,7 @@ fqdn: cloudinit2.i9n.cloud-init.io
 
 USER_DATA_PREFER_FQDN = """\
 #cloud-config
-prefer_fqdn_over_hostname: true
+prefer_fqdn_over_hostname: {}
 hostname: cloudinit1
 fqdn: cloudinit2.test.io
 """
@@ -40,10 +40,15 @@ class TestHostname:
         hostname_output = client.execute("hostname")
         assert "cloudinit2" in hostname_output.strip()
 
-    @pytest.mark.user_data(USER_DATA_PREFER_FQDN)
+    @pytest.mark.user_data(USER_DATA_PREFER_FQDN.format(True))
     def test_prefer_fqdn(self, client):
         hostname_output = client.execute("hostname")
         assert "cloudinit2.test.io" in hostname_output.strip()
+
+    @pytest.mark.user_data(USER_DATA_PREFER_FQDN.format(False))
+    def test_prefer_short_hostname(self, client):
+        hostname_output = client.execute("hostname")
+        assert "cloudinit1" in hostname_output.strip()
 
     @pytest.mark.user_data(USER_DATA_FQDN)
     def test_hostname_and_fqdn(self, client):
