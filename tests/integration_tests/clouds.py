@@ -25,7 +25,7 @@ from tests.integration_tests.instances import (
     IntegrationOciInstance,
     IntegrationLxdInstance,
 )
-from tests.integration_tests.utils import emit_dots_on_travis
+from tests.integration_tests.util import emit_dots_on_travis
 
 try:
     from typing import Optional
