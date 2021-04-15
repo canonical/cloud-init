@@ -25,6 +25,7 @@ from tests.integration_tests.instances import (
     IntegrationOciInstance,
     IntegrationLxdInstance,
 )
+from tests.integration_tests.util import emit_dots_on_travis
 
 try:
     from typing import Optional
@@ -167,7 +168,8 @@ class IntegrationCloud(ABC):
             "\n".join("{}={}".format(*item) for item in kwargs.items())
         )
 
-        pycloudlib_instance = self._perform_launch(kwargs)
+        with emit_dots_on_travis():
+            pycloudlib_instance = self._perform_launch(kwargs)
         log.info('Launched instance: %s', pycloudlib_instance)
         instance = self.get_instance(pycloudlib_instance, settings)
         if kwargs.get('wait', True):
