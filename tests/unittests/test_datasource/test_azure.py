@@ -654,6 +654,8 @@ scbus-1 on xpt0 bus 0
         self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
         self.m_ephemeral_dhcpv4 = mock.MagicMock()
         self.m_ephemeral_dhcpv4_with_reporting = mock.MagicMock()
+        self.m_list_possible_azure_ds_devs = mock.MagicMock(
+            side_effect=dsdevs)
 
         if instance_id:
             self.instance_id = instance_id
@@ -667,7 +669,8 @@ scbus-1 on xpt0 bus 0
                 return '7783-7084-3265-9085-8269-3286-77'
 
         self.apply_patches([
-            (dsaz, 'list_possible_azure_ds_devs', dsdevs),
+            (dsaz, 'list_possible_azure_ds_devs',
+                self.m_list_possible_azure_ds_devs),
             (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
             (dsaz, 'get_hostname', mock.MagicMock()),
             (dsaz, 'set_hostname', mock.MagicMock()),
@@ -844,15 +847,38 @@ scbus-1 on xpt0 bus 0
         """When a device path is used, present that in subplatform."""
         data = {'sys_cfg': {}, 'dsdevs': ['/dev/cd0']}
         dsrc = self._get_ds(data)
+        # DSAzure will attempt to mount /dev/sr0 first, which should
+        # fail with mount error since the list of devices doesn't have
+        # /dev/sr0
         with mock.patch(MOCKPATH + 'util.mount_cb') as m_mount_cb:
-            m_mount_cb.return_value = (
-                {'local-hostname': 'me'}, 'ud', {'cfg': ''}, {})
+            m_mount_cb.side_effect = [
+                MountFailedError("fail"),
+                ({'local-hostname': 'me'}, 'ud', {'cfg': ''}, {})
+            ]
             self.assertTrue(dsrc.get_data())
         self.assertEqual(dsrc.userdata_raw, 'ud')
         self.assertEqual(dsrc.metadata['local-hostname'], 'me')
         self.assertEqual('azure', dsrc.cloud_name)
         self.assertEqual('azure', dsrc.platform_type)
         self.assertEqual('config-disk (/dev/cd0)', dsrc.subplatform)
+
+    def test_default_iso_dev(self):
+        """When the default iso device exists, device listing does
+           not happen."""
+        data = {'sys_cfg': {}, 'dsdevs': ['/dev/cd0',
+                dsaz.DEFAULT_PROVISIONING_ISO_DEV]}
+        dsrc = self._get_ds(data)
+        with mock.patch(MOCKPATH + 'util.mount_cb') as m_mount_cb:
+            m_mount_cb.side_effect = [
+                ({'local-hostname': 'me'}, 'ud', {'cfg': ''}, {})]
+            self.assertTrue(dsrc.get_data())
+        self.assertEqual(dsrc.userdata_raw, 'ud')
+        self.assertEqual(dsrc.metadata['local-hostname'], 'me')
+        self.assertEqual('azure', dsrc.cloud_name)
+        self.assertEqual('azure', dsrc.platform_type)
+        sp = 'config-disk (' + dsaz.DEFAULT_PROVISIONING_ISO_DEV + ')'
+        self.assertEqual(sp, dsrc.subplatform)
+        self.m_list_possible_azure_ds_devs.assert_not_called()
 
     def test_get_data_non_ubuntu_will_not_remove_network_scripts(self):
         """get_data on non-Ubuntu will not remove ubuntu net scripts."""

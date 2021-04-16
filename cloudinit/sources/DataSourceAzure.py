@@ -73,7 +73,7 @@ REPROVISION_NIC_ATTACH_MARKER_FILE = "/var/lib/cloud/data/wait_for_nic_attach"
 REPROVISION_NIC_DETACHED_MARKER_FILE = "/var/lib/cloud/data/nic_detached"
 REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = '/var/lib/waagent'
-
+DEFAULT_PROVISIONING_ISO_DEV = '/dev/sr0'
 
 # In the event where the IMDS primary server is not
 # available, it takes 1s to fallback to the secondary one
@@ -421,9 +421,8 @@ class DataSourceAzure(sources.DataSource):
                                     "metadata: %s" %
                                     REPROVISION_NIC_ATTACH_MARKER_FILE,
                                     logger_func=LOG.debug)
-        candidates.extend(list_possible_azure_ds_devs())
-        if ddir:
-            candidates.append(ddir)
+        else:
+            candidates.append(DEFAULT_PROVISIONING_ISO_DEV)
 
         found = None
         reprovision = False
@@ -445,19 +444,30 @@ class DataSourceAzure(sources.DataSource):
                 else:
                     ret = load_azure_ds_dir(cdev)
 
-            except NonAzureDataSource:
-                report_diagnostic_event(
-                    "Did not find Azure data source in %s" % cdev,
-                    logger_func=LOG.debug)
+            except (NonAzureDataSource, util.MountFailedError) as e:
+                if type(e) == NonAzureDataSource:
+                    report_diagnostic_event(
+                        "Did not find Azure data source in %s" % cdev,
+                        logger_func=LOG.debug)
+                else:
+                    report_diagnostic_event(
+                        '%s was not mountable' % cdev, logger_func=LOG.warning)
+
+                if cdev == DEFAULT_PROVISIONING_ISO_DEV:
+                    try:
+                        devs = list_possible_azure_ds_devs()
+                        devs.remove(
+                            DEFAULT_PROVISIONING_ISO_DEV)
+                    except ValueError:
+                        pass
+                    candidates.extend(devs)
+                    if ddir:
+                        candidates.append(ddir)
                 continue
             except BrokenAzureDataSource as exc:
                 msg = 'BrokenAzureDataSource: %s' % exc
                 report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
-            except util.MountFailedError:
-                report_diagnostic_event(
-                    '%s was not mountable' % cdev, logger_func=LOG.warning)
-                continue
 
             perform_reprovision = reprovision or self._should_reprovision(ret)
             perform_reprovision_after_nic_attach = (
