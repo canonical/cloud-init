@@ -66,7 +66,7 @@ def test_upgrade(session_cloud: IntegrationCloud):
         return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {
-        'image_id': session_cloud._get_initial_image(),
+        'image_id': session_cloud.released_image_id,
     }
 
     image = ImageSpecification.from_os_image()
@@ -113,7 +113,7 @@ def test_upgrade_package(session_cloud: IntegrationCloud):
         else:
             pytest.skip(not_run_message)
 
-    launch_kwargs = {'image_id': session_cloud._get_initial_image()}
+    launch_kwargs = {'image_id': session_cloud.released_image_id}
 
     with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
         instance.install_deb()

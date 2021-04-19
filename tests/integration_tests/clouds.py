@@ -111,14 +111,14 @@ class IntegrationCloud(ABC):
             # Even if we're using the default key, it may still have a
             # different name in the clouds, so we need to set it separately.
             self.cloud_instance.key_pair.name = settings.KEYPAIR_NAME
-        self._released_image_id = self._get_initial_image()
+        self.released_image_id = self._get_initial_image()
         self.snapshot_id = None
 
     @property
     def image_id(self):
         if self.snapshot_id:
             return self.snapshot_id
-        return self._released_image_id
+        return self.released_image_id
 
     def emit_settings_to_log(self) -> None:
         log.info(
