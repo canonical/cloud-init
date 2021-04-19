@@ -16,6 +16,7 @@ from time import sleep
 from xml.dom import minidom
 import xml.etree.ElementTree as ET
 from enum import Enum
+import requests
 
 from cloudinit import dmi
 from cloudinit import log as logging
@@ -612,7 +613,9 @@ class DataSourceAzure(sources.DataSource):
             self,
             fallback_nic,
             retries,
-            md_type=metadata_type.compute):
+            md_type=metadata_type.compute,
+            exc_cb=retry_on_url_exc,
+            infinite=False):
         """
         Wrapper for get_metadata_from_imds so that we can have flexibility
         in which IMDS api-version we use. If a particular instance of IMDS
@@ -632,7 +635,8 @@ class DataSourceAzure(sources.DataSource):
                         fallback_nic=fallback_nic,
                         retries=0,
                         md_type=md_type,
-                        api_version=IMDS_VER_WANT
+                        api_version=IMDS_VER_WANT,
+                        exc_cb=exc_cb
                     )
                 except UrlError as err:
                     LOG.info(
@@ -655,7 +659,9 @@ class DataSourceAzure(sources.DataSource):
             fallback_nic=fallback_nic,
             retries=retries,
             md_type=md_type,
-            api_version=IMDS_VER_MIN
+            api_version=IMDS_VER_MIN,
+            exc_cb=exc_cb,
+            infinite=infinite
         )
 
     def device_name_to_device(self, name):
@@ -858,6 +864,9 @@ class DataSourceAzure(sources.DataSource):
         is_primary = False
         expected_nic_count = -1
         imds_md = None
+        metadata_poll_count = 0
+        metadata_logging_threshold = 1
+        metadata_timeout_count = 0
 
         # For now, only a VM's primary NIC can contact IMDS and WireServer. If
         # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
@@ -882,14 +891,48 @@ class DataSourceAzure(sources.DataSource):
                                     % (ifname, e), logger_func=LOG.error)
             raise
 
+        # Retry polling network metadata for a limited duration only when the
+        # calls fail due to timeout. This is because the platform drops packets
+        # going towards IMDS when it is not a primary nic. If the calls fail
+        # due to other issues like 410, 503 etc, then it means we are primary
+        # but IMDS service is unavailable at the moment. Retry indefinitely in
+        # those cases since we cannot move on without the network metadata.
+        def network_metadata_exc_cb(msg, exc):
+            nonlocal metadata_timeout_count, metadata_poll_count
+            nonlocal metadata_logging_threshold
+
+            metadata_poll_count = metadata_poll_count + 1
+
+            # Log when needed but back off exponentially to avoid exploding
+            # the log file.
+            if metadata_poll_count >= metadata_logging_threshold:
+                metadata_logging_threshold *= 2
+                report_diagnostic_event(
+                    "Ran into exception when attempting to reach %s "
+                    "after %d polls." % (msg, metadata_poll_count),
+                    logger_func=LOG.error)
+
+                if isinstance(exc, UrlError):
+                    report_diagnostic_event("poll IMDS with %s failed. "
+                                            "Exception: %s and code: %s" %
+                                            (msg, exc.cause, exc.code),
+                                            logger_func=LOG.error)
+
+            if exc.cause and isinstance(exc.cause, requests.Timeout):
+                metadata_timeout_count = metadata_timeout_count + 1
+                return (metadata_timeout_count <= 10)
+            return True
+
         # Primary nic detection will be optimized in the future. The fact that
         # primary nic is being attached first helps here. Otherwise each nic
         # could add several seconds of delay.
         try:
             imds_md = self.get_imds_data_with_api_fallback(
                 ifname,
-                5,
-                metadata_type.network
+                0,
+                metadata_type.network,
+                network_metadata_exc_cb,
+                True
             )
         except Exception as e:
             LOG.warning(
@@ -2030,7 +2073,9 @@ def _generate_network_config_from_fallback_config() -> dict:
 def get_metadata_from_imds(fallback_nic,
                            retries,
                            md_type=metadata_type.compute,
-                           api_version=IMDS_VER_MIN):
+                           api_version=IMDS_VER_MIN,
+                           exc_cb=retry_on_url_exc,
+                           infinite=False):
     """Query Azure's instance metadata service, returning a dictionary.
 
     If network is not up, setup ephemeral dhcp on fallback_nic to talk to the
@@ -2049,7 +2094,7 @@ def get_metadata_from_imds(fallback_nic,
     kwargs = {'logfunc': LOG.debug,
               'msg': 'Crawl of Azure Instance Metadata Service (IMDS)',
               'func': _get_metadata_from_imds,
-              'args': (retries, md_type, api_version,)}
+              'args': (retries, exc_cb, md_type, api_version, infinite)}
     if net.is_up(fallback_nic):
         return util.log_time(**kwargs)
     else:
@@ -2067,14 +2112,16 @@ def get_metadata_from_imds(fallback_nic,
 @azure_ds_telemetry_reporter
 def _get_metadata_from_imds(
         retries,
+        exc_cb,
         md_type=metadata_type.compute,
-        api_version=IMDS_VER_MIN):
+        api_version=IMDS_VER_MIN,
+        infinite=False):
     url = "{}?api-version={}".format(md_type.value, api_version)
     headers = {"Metadata": "true"}
     try:
         response = readurl(
             url, timeout=IMDS_TIMEOUT_IN_SECONDS, headers=headers,
-            retries=retries, exception_cb=retry_on_url_exc)
+            retries=retries, exception_cb=exc_cb, infinite=infinite)
     except Exception as e:
         # pylint:disable=no-member
         if isinstance(e, UrlError) and e.code == 400:

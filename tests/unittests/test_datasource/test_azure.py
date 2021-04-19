@@ -448,7 +448,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             "http://169.254.169.254/metadata/instance?api-version="
             "2019-06-01", exception_cb=mock.ANY,
             headers=mock.ANY, retries=mock.ANY,
-            timeout=mock.ANY)
+            timeout=mock.ANY, infinite=False)
 
     @mock.patch(MOCKPATH + 'readurl', autospec=True)
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
@@ -467,7 +467,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             "http://169.254.169.254/metadata/instance/network?api-version="
             "2019-06-01", exception_cb=mock.ANY,
             headers=mock.ANY, retries=mock.ANY,
-            timeout=mock.ANY)
+            timeout=mock.ANY, infinite=False)
 
     @mock.patch(MOCKPATH + 'readurl', autospec=True)
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
@@ -486,7 +486,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             "http://169.254.169.254/metadata/instance?api-version="
             "2019-06-01", exception_cb=mock.ANY,
             headers=mock.ANY, retries=mock.ANY,
-            timeout=mock.ANY)
+            timeout=mock.ANY, infinite=False)
 
     @mock.patch(MOCKPATH + 'readurl', autospec=True)
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4WithReporting', autospec=True)
@@ -511,7 +511,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         m_readurl.assert_called_with(
             self.network_md_url, exception_cb=mock.ANY,
             headers={'Metadata': 'true'}, retries=2,
-            timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS)
+            timeout=dsaz.IMDS_TIMEOUT_IN_SECONDS, infinite=False)
 
     @mock.patch('cloudinit.url_helper.time.sleep')
     @mock.patch(MOCKPATH + 'net.is_up', autospec=True)
@@ -2613,15 +2613,22 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
         def nic_attach_ret(nl_sock, nics_found):
             nonlocal m_attach_call_count
-            if m_attach_call_count == 0:
-                m_attach_call_count = m_attach_call_count + 1
+            m_attach_call_count = m_attach_call_count + 1
+            if m_attach_call_count == 1:
                 return "eth0"
-            return "eth1"
+            elif m_attach_call_count == 2:
+                return "eth1"
+            raise RuntimeError("Must have found primary nic by now.")
 
-        def network_metadata_ret(ifname, retries, type):
-            # Simulate two NICs by adding the same one twice.
-            md = IMDS_NETWORK_METADATA
-            md['interface'].append(md['interface'][0])
+        # Simulate two NICs by adding the same one twice.
+        md = {
+            "interface": [
+                IMDS_NETWORK_METADATA['interface'][0],
+                IMDS_NETWORK_METADATA['interface'][0]
+            ]
+        }
+
+        def network_metadata_ret(ifname, retries, type, exc_cb, infinite):
             if ifname == "eth0":
                 return md
             raise requests.Timeout('Fake connection timeout')
@@ -2642,6 +2649,72 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
         self.assertEqual(1, m_dhcpv4.call_count)
         self.assertEqual(1, m_imds.call_count)
         self.assertEqual(2, m_link_up.call_count)
+
+    @mock.patch(MOCKPATH + 'DataSourceAzure.get_imds_data_with_api_fallback')
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
+    def test_check_if_nic_is_primary_retries_on_failures(
+            self, m_dhcpv4, m_imds):
+        """Retry polling for network metadata on all failures except timeout"""
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        lease = {
+            'interface': 'eth9', 'fixed-address': '192.168.2.9',
+            'routers': '192.168.2.1', 'subnet-mask': '255.255.255.0',
+            'unknown-245': '624c3620'}
+
+        eth0Retries = []
+        eth1Retries = []
+        # Simulate two NICs by adding the same one twice.
+        md = {
+            "interface": [
+                IMDS_NETWORK_METADATA['interface'][0],
+                IMDS_NETWORK_METADATA['interface'][0]
+            ]
+        }
+
+        def network_metadata_ret(ifname, retries, type, exc_cb, infinite):
+            nonlocal eth0Retries, eth1Retries
+
+            # Simulate readurl functionality with retries and
+            # exception callbacks so that the callback logic can be
+            # validated.
+            if ifname == "eth0":
+                cause = requests.HTTPError()
+                for _ in range(0, 15):
+                    error = url_helper.UrlError(cause=cause, code=410)
+                    eth0Retries.append(exc_cb("No goal state.", error))
+            else:
+                cause = requests.Timeout('Fake connection timeout')
+                for _ in range(0, 10):
+                    error = url_helper.UrlError(cause=cause)
+                    eth1Retries.append(exc_cb("Connection timeout", error))
+                # Should stop retrying after 10 retries
+                eth1Retries.append(exc_cb("Connection timeout", error))
+                raise cause
+            return md
+
+        m_imds.side_effect = network_metadata_ret
+
+        dhcp_ctx = mock.MagicMock(lease=lease)
+        dhcp_ctx.obtain_lease.return_value = lease
+        m_dhcpv4.return_value = dhcp_ctx
+
+        is_primary, expected_nic_count = dsa._check_if_nic_is_primary("eth0")
+        self.assertEqual(True, is_primary)
+        self.assertEqual(2, expected_nic_count)
+
+        # All Eth0 errors are non-timeout errors. So we should have been
+        # retrying indefinitely until success.
+        for i in eth0Retries:
+            self.assertTrue(i)
+
+        is_primary, expected_nic_count = dsa._check_if_nic_is_primary("eth1")
+        self.assertEqual(False, is_primary)
+
+        # All Eth1 errors are timeout errors. Retry happens for a max of 10 and
+        # then we should have moved on assuming it is not the primary nic.
+        for i in range(0, 10):
+            self.assertTrue(eth1Retries[i])
+        self.assertFalse(eth1Retries[10])
 
     @mock.patch('cloudinit.distros.networking.LinuxNetworking.try_set_link_up')
     def test_wait_for_link_up_returns_if_already_up(
