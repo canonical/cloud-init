@@ -1,3 +1,12 @@
+cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.2) xenial; urgency=medium
+
+  * cherry-pick 83f6bbfb: Fix unpickle for source paths missing run_dir
+    (#863) (LP: #1899299)
+  * cherry-pick d132356c: fix error on upgrade caused by new vendordata2
+    attributes (LP: #1922739)
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 19 Apr 2021 14:06:47 -0500
+
 cloud-init (21.1-19-gbad84ad4-0ubuntu1~16.04.1) xenial; urgency=medium
   * d/cloud-init.postinst: Change output log permissions on upgrade
     (LP: #1918303)
