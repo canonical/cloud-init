@@ -1,0 +1,147 @@
+From d132356cc361abef2d90d4073438f3ab759d5964 Mon Sep 17 00:00:00 2001
+From: James Falcon <TheRealFalcon@users.noreply.github.com>
+Date: Mon, 19 Apr 2021 11:31:28 -0500
+Subject: [PATCH] fix error on upgrade caused by new vendordata2 attributes
+ (#869)
+
+In #777, we added 'vendordata2' and 'vendordata2_raw' attributes to
+the DataSource class, but didn't use the upgrade framework to deal
+with an unpickle after upgrade. This commit adds the necessary
+upgrade code.
+
+Additionally, added a smaller-scope upgrade test to our integration
+tests that will be run on every CI run so we catch these issues
+immediately in the future.
+
+LP: #1922739
+---
+ cloudinit/sources/__init__.py           | 12 +++++++++++-
+ cloudinit/tests/test_upgrade.py         |  4 ++++
+ tests/integration_tests/clouds.py       |  4 ++--
+ tests/integration_tests/test_upgrade.py | 25 ++++++++++++++++++++++++-
+ 4 files changed, 41 insertions(+), 4 deletions(-)
+
+--- a/cloudinit/sources/__init__.py
++++ b/cloudinit/sources/__init__.py
+@@ -24,6 +24,7 @@ from cloudinit import util
+ from cloudinit.atomic_helper import write_json
+ from cloudinit.event import EventType
+ from cloudinit.filters import launch_index
++from cloudinit.persistence import CloudInitPickleMixin
+ from cloudinit.reporting import events
+ 
+ DSMODE_DISABLED = "disabled"
+@@ -134,7 +135,7 @@ URLParams = namedtuple(
+     'URLParms', ['max_wait_seconds', 'timeout_seconds', 'num_retries'])
+ 
+ 
+-class DataSource(metaclass=abc.ABCMeta):
++class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
+ 
+     dsmode = DSMODE_NETWORK
+     default_locale = 'en_US.UTF-8'
+@@ -196,6 +197,8 @@ class DataSource(metaclass=abc.ABCMeta):
+     # non-root users
+     sensitive_metadata_keys = ('merged_cfg', 'security-credentials',)
+ 
++    _ci_pkl_version = 1
++
+     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
+         self.sys_cfg = sys_cfg
+         self.distro = distro
+@@ -218,6 +221,13 @@ class DataSource(metaclass=abc.ABCMeta):
+         else:
+             self.ud_proc = ud_proc
+ 
++    def _unpickle(self, ci_pkl_version: int) -> None:
++        """Perform deserialization fixes for Paths."""
++        if not hasattr(self, 'vendordata2'):
++            self.vendordata2 = None
++        if not hasattr(self, 'vendordata2_raw'):
++            self.vendordata2_raw = None
++
+     def __str__(self):
+         return type_utils.obj_name(self)
+ 
+--- a/cloudinit/tests/test_upgrade.py
++++ b/cloudinit/tests/test_upgrade.py
+@@ -46,3 +46,7 @@ class TestUpgrade:
+ 
+     def test_paths_has_run_dir_attribute(self, previous_obj_pkl):
+         assert previous_obj_pkl.paths.run_dir is not None
++
++    def test_vendordata_exists(self, previous_obj_pkl):
++        assert previous_obj_pkl.vendordata2 is None
++        assert previous_obj_pkl.vendordata2_raw is None
+--- a/tests/integration_tests/clouds.py
++++ b/tests/integration_tests/clouds.py
+@@ -110,14 +110,14 @@ class IntegrationCloud(ABC):
+             # Even if we're using the default key, it may still have a
+             # different name in the clouds, so we need to set it separately.
+             self.cloud_instance.key_pair.name = settings.KEYPAIR_NAME
+-        self._released_image_id = self._get_initial_image()
++        self.released_image_id = self._get_initial_image()
+         self.snapshot_id = None
+ 
+     @property
+     def image_id(self):
+         if self.snapshot_id:
+             return self.snapshot_id
+-        return self._released_image_id
++        return self.released_image_id
+ 
+     def emit_settings_to_log(self) -> None:
+         log.info(
+--- a/tests/integration_tests/test_upgrade.py
++++ b/tests/integration_tests/test_upgrade.py
+@@ -1,4 +1,5 @@
+ import logging
++import os
+ import pytest
+ import time
+ from pathlib import Path
+@@ -8,6 +9,8 @@ from tests.integration_tests.conftest im
+     get_validated_source,
+     session_start_time,
+ )
++from tests.integration_tests.instances import CloudInitSource
++
+ 
+ log = logging.getLogger('integration_testing')
+ 
+@@ -63,7 +66,7 @@ def test_upgrade(session_cloud: Integrat
+         return  # type checking doesn't understand that skip raises
+ 
+     launch_kwargs = {
+-        'image_id': session_cloud._get_initial_image(),
++        'image_id': session_cloud.released_image_id,
+     }
+ 
+     image = ImageSpecification.from_os_image()
+@@ -93,6 +96,26 @@ def test_upgrade(session_cloud: Integrat
+         instance.install_new_cloud_init(source, take_snapshot=False)
+         instance.execute('hostname something-else')
+         _restart(instance)
++        assert instance.execute('cloud-init status --wait --long').ok
+         _output_to_compare(instance, after_path, netcfg_path)
+ 
+     log.info('Wrote upgrade test logs to %s and %s', before_path, after_path)
++
++
++@pytest.mark.ci
++@pytest.mark.ubuntu
++def test_upgrade_package(session_cloud: IntegrationCloud):
++    if get_validated_source(session_cloud) != CloudInitSource.DEB_PACKAGE:
++        not_run_message = 'Test only supports upgrading to build deb'
++        if os.environ.get('TRAVIS'):
++            # If this isn't running on CI, we should know
++            pytest.fail(not_run_message)
++        else:
++            pytest.skip(not_run_message)
++
++    launch_kwargs = {'image_id': session_cloud.released_image_id}
++
++    with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
++        instance.install_deb()
++        instance.restart()
++        assert instance.execute('cloud-init status --wait --long').ok
