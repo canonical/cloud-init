@@ -2,3 +2,4 @@ openstack-no-network-config.patch
 ubuntu-advantage-revert-tip.patch
 ec2-dont-apply-full-imds-network-config.patch
 renderer-do-not-prefer-netplan.patch
+cpick-83f6bbfb-Fix-unpickle-for-source-paths-missing-run_dir-863
