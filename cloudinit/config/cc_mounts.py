@@ -534,7 +534,7 @@ def handle(_name, cfg, cloud, log, _args):
         need_mount_all = True
 
     if need_mount_all:
-        activate_cmds.append(["mount", "-a"])
+        activate_cmds.append(["mount", "-a", "-O", "no_netdev"])
         if uses_systemd:
             activate_cmds.append(["systemctl", "daemon-reload"])
 

@@ -391,7 +391,7 @@ class TestFstabHandling(test_helpers.FilesystemMockingTestCase):
             self.assertEqual(fstab_expected_content, fstab_new_content)
         cc_mounts.handle(None, cc, self.mock_cloud, self.mock_log, [])
         self.m_subp_subp.assert_has_calls([
-            mock.call(['mount', '-a']),
+            mock.call(['mount', '-a', '-O', 'no_netdev']),
             mock.call(['systemctl', 'daemon-reload'])])
 
 # vi: ts=4 expandtab
