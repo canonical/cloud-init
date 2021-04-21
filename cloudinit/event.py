@@ -1,72 +1,71 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Classes and functions related to event handling."""
 
-import copy
+from enum import Enum
+from typing import Dict, Set
 
 from cloudinit import log as logging
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
 
-class EventType(object):
+class EventScope(Enum):
+    # NETWORK is currently the only scope, but we want to leave room to
+    # grow other scopes (e.g., STORAGE) without having to make breaking
+    # changes to the user config
+    NETWORK = 'network'
+
+    def __str__(self):
+        return self.value
+
+
+class EventType(Enum):
     """Event types which can generate maintenance requests for cloud-init."""
-
-    BOOT = "System boot"
-    BOOT_NEW_INSTANCE = "New instance first boot"
-
     # Cloud-init should grow support for the follow event types:
     # HOTPLUG
     # METADATA_CHANGE
     # USER_REQUEST
 
+    BOOT = "boot"
+    BOOT_NEW_INSTANCE = "boot-new-instance"
 
-EventTypeMap = {
-    'boot': EventType.BOOT,
-    'boot-new-instance': EventType.BOOT_NEW_INSTANCE,
-}
-
-
-# inverted mapping
-EventNameMap = {v: k for k, v in EventTypeMap.items()}
+    def __str__(self):
+        return self.value
 
 
-def get_enabled_events(config_events: dict, default_events: dict) -> dict:
-    """Determine which update events are allowed.
+def userdata_to_events(user_config: dict) -> Dict[EventScope, Set[EventType]]:
+    """Convert userdata into update config format defined on datasource.
 
-    Merge datasource capabilities with system config to determine events
+    Userdata is in the form of (e.g):
+    {'network': {'when': ['boot']}}
+
+    DataSource config is in the form of:
+    {EventScope.Network: {EventType.BOOT}}
+
+    Take the first and return the second
     """
-    # updates:
-    #   network:
-    #     when: [boot]
+    update_config = {}
+    for scope, scope_list in user_config.items():
+        try:
+            new_scope = EventScope(scope)
+        except ValueError as e:
+            LOG.warning(
+                "%s! Update data will be ignored for '%s' scope",
+                str(e),
+                scope,
+            )
+            continue
+        try:
+            new_values = [EventType(x) for x in scope_list['when']]
+        except ValueError as e:
+            LOG.warning(
+                "%s! Update data will be ignored for '%s' scope",
+                str(e),
+                scope,
+            )
+            new_values = []
+        update_config[new_scope] = set(new_values)
 
-    LOG.debug('updates user: %s', config_events)
-    LOG.debug('updates default: %s', default_events)
-
-    # If a key exists in multiple places, the first in the list wins.
-    updates = util.mergemanydict([
-        copy.deepcopy(config_events),
-        copy.deepcopy(default_events),
-    ])
-    LOG.debug('updates merged: %s', updates)
-
-    events = {}
-    for etype in [scope for scope, val in default_events.items()
-                  if type(val) == dict and 'when' in val]:
-        events[etype] = (
-            set([EventTypeMap.get(evt)
-                 for evt in updates.get(etype, {}).get('when', [])
-                 if evt in EventTypeMap]))
-
-    LOG.debug('updates allowed: %s', events)
-    return events
-
-
-def get_update_events_config(update_events: dict) -> dict:
-    """Return a dictionary of updates config."""
-    evt_cfg = {}
-    for scope, events in update_events.items():
-        evt_cfg[scope] = {'when': [EventNameMap[evt] for evt in events]}
-    return evt_cfg
+    return update_config
 
 # vi: ts=4 expandtab

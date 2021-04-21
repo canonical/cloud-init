@@ -1,39 +1,26 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 """Tests related to cloudinit.event module."""
-
-from unittest import TestCase
-
-import pytest
-
-from cloudinit.event import (
-    EventType,
-    get_enabled_events,
-    get_update_events_config
-)
+from cloudinit.event import EventType, EventScope, userdata_to_events
 
 
 class TestEvent:
-    def test_events_to_config(self):
-        """Validate update_events dictionary maps to expected type map."""
-        events = {
-            'network': set([EventType.BOOT_NEW_INSTANCE, EventType.BOOT])
-        }
+    def test_userdata_to_events(self):
+        userdata = {'network': {'when': ['boot']}}
+        expected = {EventScope.NETWORK: set([EventType.BOOT])}
+        assert expected == userdata_to_events(userdata)
 
-        TestCase().assertCountEqual(
-            get_update_events_config(events)['network']['when'],
-            ['boot', 'boot-new-instance']
-        )
+    def test_invalid_scope(self, caplog):
+        userdata = {'networkasdfasdf': {'when': ['boot']}}
+        userdata_to_events(userdata)
+        assert (
+            "'networkasdfasdf' is not a valid EventScope! Update data "
+            "will be ignored for 'networkasdfasdf' scope"
+        ) in caplog.text
 
-    @pytest.mark.parametrize('default_events,config_events,expected_enabled', [
-        (['boot-new-instance'], ['boot'], {EventType.BOOT}),
-        (['boot-new-instance'], [], set()),
-    ])
-    def test_get_enabled_events_defaults_filter_datasource(
-        self, default_events, config_events, expected_enabled
-    ):
-        allowed = get_enabled_events(
-            {'network': {'when': config_events}},
-            {'network': {'when': default_events}}
-        )
-
-        assert allowed == {'network': expected_enabled}
+    def test_invalid_event(self, caplog):
+        userdata = {'network': {'when': ['bootasdfasdf']}}
+        userdata_to_events(userdata)
+        assert (
+            "'bootasdfasdf' is not a valid EventType! Update data "
+            "will be ignored for 'network' scope"
+        ) in caplog.text

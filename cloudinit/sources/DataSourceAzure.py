@@ -22,7 +22,7 @@ import requests
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
@@ -353,7 +353,7 @@ class DataSourceAzure(sources.DataSource):
         self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
         self._network_config = None
         # Regenerate network config new_instance boot and every boot
-        self.default_update_events['network'].add(EventType.BOOT)
+        self.default_update_events[EventScope.NETWORK].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
         self.failed_desired_api_version = False
         self.iso_dev = None

@@ -6,7 +6,7 @@ import os
 import re
 import stat
 
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
 from cloudinit import importer
 from cloudinit.sources import (
@@ -64,6 +64,19 @@ class TestDataSource(CiTestCase):
         self.distro = 'distrotest'  # generally should be a Distro object
         self.paths = Paths({})
         self.datasource = DataSource(self.sys_cfg, self.distro, self.paths)
+        self.original_supported_events = copy.deepcopy(
+            self.datasource.supported_update_events)
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.original_supported_events = copy.deepcopy(
+            DataSource.supported_update_events)
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        DataSource.supported_update_events = cls.original_supported_events
 
     def test_datasource_init(self):
         """DataSource initializes metadata attributes, ds_cfg and ud_proc."""
@@ -621,11 +634,13 @@ class TestDataSource(CiTestCase):
 
     def test_update_metadata_only_acts_on_supported_update_events(self):
         """update_metadata won't get_data on unsupported update events."""
-        self.datasource.supported_update_events['network'].discard(
-            EventType.BOOT)
+        self.datasource.supported_update_events[EventScope.NETWORK] = set([
+            EventType.BOOT_NEW_INSTANCE
+        ])
         self.assertEqual(
-            {'network': set([EventType.BOOT_NEW_INSTANCE])},
-            self.datasource.default_update_events)
+            {EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])},
+            self.datasource.default_update_events
+        )
 
         def fake_get_data():
             raise Exception('get_data should not be called')
@@ -637,8 +652,8 @@ class TestDataSource(CiTestCase):
 
     def test_update_metadata_returns_true_on_supported_update_event(self):
         """update_metadata returns get_data response on supported events."""
-        self.datasource.supported_update_events['network'] = set([
-            EventType.BOOT_NEW_INSTANCE, EventType.BOOT
+        self.datasource.supported_update_events[EventScope.NETWORK] = set([
+            EventType.BOOT_NEW_INSTANCE
         ])
 
         def fake_get_data():
@@ -653,12 +668,11 @@ class TestDataSource(CiTestCase):
                     EventType.BOOT, EventType.BOOT_NEW_INSTANCE]))
         self.assertEqual(UNSET, self.datasource._network_config)
 
-        values_regex = r'(System boot|New instance first boot)+'
-        expected_log = (
+        self.assertIn(
             "DEBUG: Update datasource metadata and network config due to"
-            " events: {0}, {0}".format(values_regex)
+            " events: boot-new-instance",
+            self.logs.getvalue()
         )
-        assert re.search(expected_log, self.logs.getvalue()) is not None
 
 
 class TestRedactSensitiveData(CiTestCase):

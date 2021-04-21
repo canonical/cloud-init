@@ -13,6 +13,7 @@ import copy
 import json
 import os
 from collections import namedtuple
+from typing import Dict, List
 
 from cloudinit import dmi
 from cloudinit import importer
@@ -22,7 +23,7 @@ from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.filters import launch_index
 from cloudinit.persistence import CloudInitPickleMixin
 from cloudinit.reporting import events
@@ -184,11 +185,13 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # would call default_update_events['network'].add(EventType.BOOT).
 
     # Default: generate network config on new instance id (first boot).
-    supported_update_events = {'network': set([
+    supported_update_events = {EventScope.NETWORK: set([
         EventType.BOOT_NEW_INSTANCE,
         EventType.BOOT,
     ])}
-    default_update_events = {'network': set([EventType.BOOT_NEW_INSTANCE])}
+    default_update_events = {EventScope.NETWORK: set(
+        [EventType.BOOT_NEW_INSTANCE
+    ])}
 
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
@@ -656,7 +659,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
 
-    def update_metadata(self, source_event_types):
+    def update_metadata(self, source_event_types: List[EventType]) -> bool:
         """Refresh cached metadata if the datasource supports this event.
 
         The datasource has a list of supported_update_events which
@@ -669,7 +672,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         @return True if the datasource did successfully update cached metadata
             due to source_event_type.
         """
-        supported_events = {}
+        supported_events = {}  # type: Dict[EventScope, set]
         for event in source_event_types:
             for update_scope, update_events in self.supported_update_events.items():  # noqa: E501
                 if event in update_events:
@@ -679,7 +682,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         for scope, matched_events in supported_events.items():
             LOG.debug(
                 "Update datasource metadata and %s config due to events: %s",
-                scope, ', '.join(matched_events))
+                scope.value,
+                ', '.join([event.value for event in matched_events]))
             # Each datasource has a cached config property which needs clearing
             # Once cleared that config property will be regenerated from
             # current metadata.
@@ -690,7 +694,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if result:
                 return True
         LOG.debug("Datasource %s not updated for events: %s", self,
-                  ', '.join(source_event_types))
+                  ', '.join([event.value for event in source_event_types]))
         return False
 
     def check_instance_id(self, sys_cfg):

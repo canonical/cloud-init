@@ -52,11 +52,11 @@ def test_boot_event_disabled_by_default(client: IntegrationInstance):
     # We attempt to apply network config twice on every boot.
     # Ensure neither time works.
     assert 2 == log.count(
-        "Event Denied: scopes=['network'] EventType=System boot"
+        "Event Denied: scopes=['network'] EventType=boot"
     )
     assert 2 == log.count(
         "No network config applied. Neither a new instance nor datasource "
-        "network update on 'System boot' event"
+        "network update on 'boot' event"
     )
 
     assert 'dummy0' in client.execute('ls /sys/class/net')
@@ -74,7 +74,7 @@ def test_boot_event_enabled_by_default(client: IntegrationInstance):
     client.restart()
     log = client.read_from_file('/var/log/cloud-init.log')
 
-    assert 'Event Allowed: scope=network EventType=System boot' in log
+    assert 'Event Allowed: scope=network EventType=boot' in log
     assert 'Applying network configuration' in log
     assert 'dummy0' not in client.execute('ls /sys/class/net')
 
@@ -99,6 +99,6 @@ def test_boot_event_enabled(client: IntegrationInstance):
     client.restart()
     log = client.read_from_file('/var/log/cloud-init.log')
 
-    assert 'Event Allowed: scope=network EventType=System boot' in log
+    assert 'Event Allowed: scope=network EventType=boot' in log
     assert 'Applying network configuration' in log
     assert 'dummy0' not in client.execute('ls /sys/class/net')

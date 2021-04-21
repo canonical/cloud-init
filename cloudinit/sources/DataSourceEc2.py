@@ -20,7 +20,7 @@ from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit import warnings
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
 
@@ -426,7 +426,8 @@ class DataSourceEc2(sources.DataSource):
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
             # network config file every boot due to MAC address change.
             if self.is_classic_instance():
-                self.default_update_events['network'].add(EventType.BOOT)
+                self.default_update_events[EventScope.NETWORK].add(
+                    EventType.BOOT)
         else:
             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
         self._network_config = result

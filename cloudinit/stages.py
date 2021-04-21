@@ -22,9 +22,9 @@ from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
 from cloudinit.event import (
+    EventScope,
     EventType,
-    get_enabled_events,
-    get_update_events_config,
+    userdata_to_events,
 )
 from cloudinit.sources import NetworkConfigSource
 
@@ -715,18 +715,20 @@ class Init(object):
         return (self.distro.generate_fallback_config(),
                 NetworkConfigSource.fallback)
 
-    def update_event_enabled(self, event_source_type, scope=None):
-        # convert ds events to config
-        default_events = get_update_events_config(
-            self.datasource.default_update_events
-        )
-        config_events = self.cfg.get('updates', {})
-        allowed = get_enabled_events(
-            config_events, default_events
-        )
+    def update_event_enabled(
+        self, event_source_type: EventType, scope: EventScope = None
+    ) -> bool:
+        default_events = self.datasource.default_update_events
+        user_events = userdata_to_events(self.cfg.get('updates', {}))
+        # A value in the first will override a value in the second
+        allowed = util.mergemanydict([
+            copy.deepcopy(user_events),
+            copy.deepcopy(default_events),
+        ])
+        LOG.debug('Allowed events: %s', allowed)
 
         if not scope:
-            scopes = [allowed.keys()]
+            scopes = list(allowed.keys())
         else:
             scopes = [scope]
         LOG.debug('Possible scopes for this event: %s', scopes)
@@ -738,7 +740,7 @@ class Init(object):
                 return True
 
         LOG.debug('Event Denied: scopes=%s EventType=%s',
-                  scopes, event_source_type)
+                  [s.value for s in scopes], event_source_type)
         return False
 
     def _apply_netcfg_names(self, netcfg):
@@ -748,23 +750,12 @@ class Init(object):
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
-    def _is_first_boot(self):
-        bpath = os.path.join(
-            self.paths.get_cpath(),
-            'sem',
-            'config_scripts_per_once.once'
-        )
-        first_boot = not os.path.exists(bpath)
-        LOG.debug('Is first boot? %s', first_boot)
-        return first_boot
-
     def apply_network_config(self, bring_up):
         """Apply the network config.
 
         Find the config, determine whether to apply it, apply it via
         the distro, and optionally bring it up
         """
-
         netcfg, src = self._find_networking_config()
         if netcfg is None:
             LOG.info("network config is disabled by %s", src)
@@ -773,8 +764,11 @@ class Init(object):
         if not (
             self.datasource is NULL_DATA_SOURCE or
             self.boot_type == EventType.BOOT_NEW_INSTANCE or
-            (self.update_event_enabled(self.boot_type, scope='network')
-             and self.datasource.update_metadata([self.boot_type]))
+            (
+                self.update_event_enabled(
+                    self.boot_type, scope=EventScope.NETWORK
+                ) and self.datasource.update_metadata([self.boot_type])
+            )
         ):
             LOG.debug(
                 "No network config applied. Neither a new instance"

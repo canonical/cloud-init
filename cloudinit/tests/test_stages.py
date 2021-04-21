@@ -10,7 +10,7 @@ from cloudinit import stages
 from cloudinit import sources
 from cloudinit.sources import NetworkConfigSource
 
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.util import write_file
 
 from cloudinit.tests.helpers import CiTestCase, mock
@@ -46,6 +46,7 @@ class TestInit(CiTestCase):
         super(TestInit, self).setUp()
         self.tmpdir = self.tmp_dir()
         self.init = stages.Init()
+        self.init.boot_type = EventType.BOOT_NEW_INSTANCE
         # Setup fake Paths for Init to reference
         self.init._cfg = {'system_info': {
             'distro': 'ubuntu', 'paths': {'cloud_dir': self.tmpdir,
@@ -353,13 +354,18 @@ class TestInit(CiTestCase):
         net_cfg = self._apply_network_setup(m_macs)
 
         self.init.datasource.default_update_events = {
-            'network': [EventType.BOOT_NEW_INSTANCE, EventType.BOOT]
+            EventScope.NETWORK: set([
+                EventType.BOOT_NEW_INSTANCE,
+                EventType.BOOT
+            ])
         }
         self.init.apply_network_config(True)
-        self.init.distro.apply_network_config_names.assert_called_with(
-            net_cfg)
-        self.init.distro.apply_network_config.assert_called_with(
-            net_cfg, bring_up=True)
+        assert mock.call(
+            net_cfg
+        ) == self.init.distro.apply_network_config_names.call_args_list[-1]
+        assert mock.call(
+            net_cfg, bring_up=True
+        ) == self.init.distro.apply_network_config.call_args_list[-1]
 
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.distros.ubuntu.Distro')
@@ -370,13 +376,13 @@ class TestInit(CiTestCase):
         self._apply_network_setup(m_macs)
 
         self.init.datasource.default_update_events = {
-            'network': [EventType.BOOT_NEW_INSTANCE]
+            EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])
         }
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config.assert_not_called()
         assert (
             "No network config applied. Neither a new instance nor datasource "
-            "network update on 'System boot' event"
+            "network update on 'boot' event"
         ) in self.logs.getvalue()
 
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
@@ -388,7 +394,7 @@ class TestInit(CiTestCase):
         net_cfg = self._apply_network_setup(m_macs)
 
         self.init.datasource.default_update_events = {
-            'network': [EventType.BOOT_NEW_INSTANCE]
+            EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])
         }
         self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
         self.init.apply_network_config(True)
@@ -409,14 +415,14 @@ class TestInit(CiTestCase):
         self._apply_network_setup(m_macs)
 
         self.init.datasource.supported_update_events = {
-            'network': [EventType.BOOT_NEW_INSTANCE]
+            EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])
         }
         self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config.assert_not_called()
         assert (
             "No network config applied. Neither a new instance nor datasource "
-            "network update on 'System boot' event"
+            "network update on 'boot' event"
         ) in self.logs.getvalue()
 
 
