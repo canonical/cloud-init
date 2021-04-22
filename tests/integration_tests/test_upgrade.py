@@ -1,4 +1,5 @@
 import logging
+import os
 import pytest
 import time
 from pathlib import Path
@@ -8,6 +9,8 @@ from tests.integration_tests.conftest import (
     get_validated_source,
     session_start_time,
 )
+from tests.integration_tests.instances import CloudInitSource
+
 
 log = logging.getLogger('integration_testing')
 
@@ -63,7 +66,7 @@ def test_upgrade(session_cloud: IntegrationCloud):
         return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {
-        'image_id': session_cloud._get_initial_image(),
+        'image_id': session_cloud.released_image_id,
     }
 
     image = ImageSpecification.from_os_image()
@@ -93,6 +96,26 @@ def test_upgrade(session_cloud: IntegrationCloud):
         instance.install_new_cloud_init(source, take_snapshot=False)
         instance.execute('hostname something-else')
         _restart(instance)
+        assert instance.execute('cloud-init status --wait --long').ok
         _output_to_compare(instance, after_path, netcfg_path)
 
     log.info('Wrote upgrade test logs to %s and %s', before_path, after_path)
+
+
+@pytest.mark.ci
+@pytest.mark.ubuntu
+def test_upgrade_package(session_cloud: IntegrationCloud):
+    if get_validated_source(session_cloud) != CloudInitSource.DEB_PACKAGE:
+        not_run_message = 'Test only supports upgrading to build deb'
+        if os.environ.get('TRAVIS'):
+            # If this isn't running on CI, we should know
+            pytest.fail(not_run_message)
+        else:
+            pytest.skip(not_run_message)
+
+    launch_kwargs = {'image_id': session_cloud.released_image_id}
+
+    with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
+        instance.install_deb()
+        instance.restart()
+        assert instance.execute('cloud-init status --wait --long').ok

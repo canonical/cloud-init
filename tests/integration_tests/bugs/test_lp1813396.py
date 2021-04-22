@@ -6,7 +6,7 @@ Ensure gpg is called with no tty flag.
 import pytest
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.log_utils import verify_ordered_items_in_text
+from tests.integration_tests.util import verify_ordered_items_in_text
 
 
 USER_DATA = """\
