@@ -19,7 +19,10 @@ A hostname and fqdn can be provided by specifying a full domain name under the
 key, and the fqdn of the cloud wil be used. If a fqdn specified with the
 ``hostname`` key, it will be handled properly, although it is better to use
 the ``fqdn`` config key. If both ``fqdn`` and ``hostname`` are set,
-it is distro dependent whether ``hostname`` or ``fqdn`` is used.
+it is distro dependent whether ``hostname`` or ``fqdn`` is used,
+unless the ``prefer_fqdn_over_hostname`` option is true and fqdn is set
+it will force the use of FQDN in all distros, and if false then it will
+force the hostname use.
 
 This module will run in the init-local stage before networking is configured
 if the hostname is set by metadata or user data on the local system.
@@ -38,6 +41,7 @@ based on initial hostname.
 **Config keys**::
 
     preserve_hostname: <true/false>
+    prefer_fqdn_over_hostname: <true/false>
     fqdn: <fqdn>
     hostname: <fqdn/hostname>
 """
@@ -62,6 +66,14 @@ def handle(name, cfg, cloud, log, _args):
         log.debug(("Configuration option 'preserve_hostname' is set,"
                    " not setting the hostname in module %s"), name)
         return
+
+    # Set prefer_fqdn_over_hostname value in distro
+    hostname_fqdn = util.get_cfg_option_bool(cfg,
+                                             "prefer_fqdn_over_hostname",
+                                             None)
+    if hostname_fqdn is not None:
+        cloud.distro.set_option('prefer_fqdn_over_hostname', hostname_fqdn)
+
     (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
     # Check for previous successful invocation of set-hostname
 

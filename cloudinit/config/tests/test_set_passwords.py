@@ -74,10 +74,6 @@ class TestSetPasswordsHandle(CiTestCase):
 
     with_logs = True
 
-    def setUp(self):
-        super(TestSetPasswordsHandle, self).setUp()
-        self.add_patch('cloudinit.config.cc_set_passwords.sys.stderr', 'm_err')
-
     def test_handle_on_empty_config(self, *args):
         """handle logs that no password has changed when config is empty."""
         cloud = self.tmp_cloud(distro='ubuntu')
@@ -129,10 +125,12 @@ class TestSetPasswordsHandle(CiTestCase):
             mock.call(['pw', 'usermod', 'ubuntu', '-p', '01-Jan-1970'])],
             m_subp.call_args_list)
 
+    @mock.patch(MODPATH + "util.multi_log")
     @mock.patch(MODPATH + "util.is_BSD")
     @mock.patch(MODPATH + "subp.subp")
-    def test_handle_on_chpasswd_list_creates_random_passwords(self, m_subp,
-                                                              m_is_bsd):
+    def test_handle_on_chpasswd_list_creates_random_passwords(
+        self, m_subp, m_is_bsd, m_multi_log
+    ):
         """handle parses command set random passwords."""
         m_is_bsd.return_value = False
         cloud = self.tmp_cloud(distro='ubuntu')
@@ -146,10 +144,32 @@ class TestSetPasswordsHandle(CiTestCase):
         self.assertIn(
             'DEBUG: Handling input for chpasswd as list.',
             self.logs.getvalue())
-        self.assertNotEqual(
-            [mock.call(['chpasswd'],
-             '\n'.join(valid_random_pwds) + '\n')],
-            m_subp.call_args_list)
+
+        self.assertEqual(1, m_subp.call_count)
+        args, _kwargs = m_subp.call_args
+        self.assertEqual(["chpasswd"], args[0])
+
+        stdin = args[1]
+        user_pass = {
+            user: password
+            for user, password
+            in (line.split(":") for line in stdin.splitlines())
+        }
+
+        self.assertEqual(1, m_multi_log.call_count)
+        self.assertEqual(
+            mock.call(mock.ANY, stderr=False, fallback_to_stdout=False),
+            m_multi_log.call_args
+        )
+
+        self.assertEqual(set(["root", "ubuntu"]), set(user_pass.keys()))
+        written_lines = m_multi_log.call_args[0][0].splitlines()
+        for password in user_pass.values():
+            for line in written_lines:
+                if password in line:
+                    break
+            else:
+                self.fail("Password not emitted to console")
 
 
 # vi: ts=4 expandtab

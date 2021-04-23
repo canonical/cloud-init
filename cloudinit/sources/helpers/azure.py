@@ -303,6 +303,7 @@ def http_with_retries(url, **kwargs) -> str:
 
     max_readurl_attempts = 240
     default_readurl_timeout = 5
+    sleep_duration_between_retries = 5
     periodic_logging_attempts = 12
 
     if 'timeout' not in kwargs:
@@ -338,6 +339,7 @@ def http_with_retries(url, **kwargs) -> str:
                     'attempt %d with exception: %s' %
                     (url, attempt, e),
                     logger_func=LOG.debug)
+            time.sleep(sleep_duration_between_retries)
 
     raise exc
 
@@ -863,7 +865,19 @@ class WALinuxAgentShim:
         return endpoint_ip_address
 
     @azure_ds_telemetry_reporter
-    def register_with_azure_and_fetch_data(self, pubkey_info=None) -> dict:
+    def eject_iso(self, iso_dev) -> None:
+        try:
+            LOG.debug("Ejecting the provisioning iso")
+            subp.subp(['eject', iso_dev])
+        except Exception as e:
+            report_diagnostic_event(
+                "Failed ejecting the provisioning iso: %s" % e,
+                logger_func=LOG.debug)
+
+    @azure_ds_telemetry_reporter
+    def register_with_azure_and_fetch_data(self,
+                                           pubkey_info=None,
+                                           iso_dev=None) -> dict:
         """Gets the VM's GoalState from Azure, uses the GoalState information
         to report ready/send the ready signal/provisioning complete signal to
         Azure, and then uses pubkey_info to filter and obtain the user's
@@ -889,6 +903,10 @@ class WALinuxAgentShim:
             ssh_keys = self._get_user_pubkeys(goal_state, pubkey_info)
         health_reporter = GoalStateHealthReporter(
             goal_state, self.azure_endpoint_client, self.endpoint)
+
+        if iso_dev is not None:
+            self.eject_iso(iso_dev)
+
         health_reporter.send_ready_signal()
         return {'public-keys': ssh_keys}
 
@@ -1044,11 +1062,12 @@ class WALinuxAgentShim:
 
 @azure_ds_telemetry_reporter
 def get_metadata_from_fabric(fallback_lease_file=None, dhcp_opts=None,
-                             pubkey_info=None):
+                             pubkey_info=None, iso_dev=None):
     shim = WALinuxAgentShim(fallback_lease_file=fallback_lease_file,
                             dhcp_options=dhcp_opts)
     try:
-        return shim.register_with_azure_and_fetch_data(pubkey_info=pubkey_info)
+        return shim.register_with_azure_and_fetch_data(
+            pubkey_info=pubkey_info, iso_dev=iso_dev)
     finally:
         shim.clean_up()
 
