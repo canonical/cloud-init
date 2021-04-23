@@ -29,7 +29,6 @@ from cloudinit import subp
 from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
 from cloudinit import util
 from cloudinit.reporting import events
-from cloudinit import persistence
 
 from cloudinit.sources.helpers.azure import (
     DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE,
@@ -328,7 +327,7 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
         set_hostname(previous_hostname, hostname_command)
 
 
-class DataSourceAzure(persistence.CloudInitPickleMixin, sources.DataSource):
+class DataSourceAzure(sources.DataSource):
 
     dsname = 'Azure'
     _negotiated = False
@@ -352,6 +351,7 @@ class DataSourceAzure(persistence.CloudInitPickleMixin, sources.DataSource):
         self.iso_dev = None
 
     def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
         if "iso_dev" not in self.__dict__:
             self.iso_dev = None
 
