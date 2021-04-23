@@ -514,7 +514,7 @@ class DataSourceAzure(sources.DataSource):
                 raise sources.InvalidMetaDataException(msg)
             except util.MountFailedError:
                 report_diagnostic_event(
-                    '%s was not mountable' % cdev, logger_func=LOG.warning)
+                    '%s was not mountable' % cdev, logger_func=LOG.debug)
                 cdev = 'IMDS'
                 ovf_is_accessible = False
                 empty_md = {'local-hostname': ''}
@@ -770,6 +770,7 @@ class DataSourceAzure(sources.DataSource):
         LOG.debug('Retrieving public SSH keys')
         ssh_keys = []
         keys_from_imds = True
+        LOG.debug('Attempting to get SSH keys from IMDS')
         try:
             ssh_keys = [
                 public_key['keyData']
@@ -796,6 +797,7 @@ class DataSourceAzure(sources.DataSource):
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
 
         if not keys_from_imds:
+            LOG.debug('Attempting to get SSH keys from OVF')
             try:
                 ssh_keys = self.metadata['public-keys']
                 log_msg = 'Retrieved {} keys from OVF'.format(len(ssh_keys))
