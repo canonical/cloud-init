@@ -1,13 +1,6 @@
 """Test user-overridable events.
 
 This is currently limited to applying network config on BOOT events.
-Since we reapply the same config on reboot, verification is limited to
-checking log messages.
-
-Because the supported/default events are datasource specific, the datasource
-is being limited to LXD containers/vms (NoCloud).
-For NoCloud, BOOT_NEW_INSTANCE and BOOT are supported, but only
-BOOT_NEW_INSTANCE is default.
 """
 
 import pytest
@@ -62,9 +55,7 @@ def test_boot_event_disabled_by_default(client: IntegrationInstance):
     assert 'dummy0' in client.execute('ls /sys/class/net')
 
 
-@pytest.mark.azure
-@pytest.mark.not_xenial
-def test_boot_event_enabled_by_default(client: IntegrationInstance):
+def _test_network_config_applied_on_reboot(client: IntegrationInstance):
     log = client.read_from_file('/var/log/cloud-init.log')
     assert 'Applying network configuration' in log
     assert 'dummy0' not in client.execute('ls /sys/class/net')
@@ -77,6 +68,12 @@ def test_boot_event_enabled_by_default(client: IntegrationInstance):
     assert 'Event Allowed: scope=network EventType=boot' in log
     assert 'Applying network configuration' in log
     assert 'dummy0' not in client.execute('ls /sys/class/net')
+
+
+@pytest.mark.azure
+@pytest.mark.not_xenial
+def test_boot_event_enabled_by_default(client: IntegrationInstance):
+    _test_network_config_applied_on_reboot(client)
 
 
 USER_DATA = """\
@@ -90,15 +87,4 @@ updates:
 @pytest.mark.not_xenial
 @pytest.mark.user_data(USER_DATA)
 def test_boot_event_enabled(client: IntegrationInstance):
-    log = client.read_from_file('/var/log/cloud-init.log')
-    assert 'Applying network configuration' in log
-    assert 'dummy0' not in client.execute('ls /sys/class/net')
-
-    _add_dummy_bridge_to_netplan(client)
-    client.execute('rm /var/log/cloud-init.log')
-    client.restart()
-    log = client.read_from_file('/var/log/cloud-init.log')
-
-    assert 'Event Allowed: scope=network EventType=boot' in log
-    assert 'Applying network configuration' in log
-    assert 'dummy0' not in client.execute('ls /sys/class/net')
+    _test_network_config_applied_on_reboot(client)

@@ -185,13 +185,13 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     # would call default_update_events['network'].add(EventType.BOOT).
 
     # Default: generate network config on new instance id (first boot).
-    supported_update_events = {EventScope.NETWORK: set([
+    supported_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,
         EventType.BOOT,
-    ])}
-    default_update_events = {EventScope.NETWORK: set(
-        [EventType.BOOT_NEW_INSTANCE
-    ])}
+    }}
+    default_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE
+    }}
 
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute

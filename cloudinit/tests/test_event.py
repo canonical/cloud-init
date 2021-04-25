@@ -6,7 +6,7 @@ from cloudinit.event import EventType, EventScope, userdata_to_events
 class TestEvent:
     def test_userdata_to_events(self):
         userdata = {'network': {'when': ['boot']}}
-        expected = {EventScope.NETWORK: set([EventType.BOOT])}
+        expected = {EventScope.NETWORK: {EventType.BOOT}}
         assert expected == userdata_to_events(userdata)
 
     def test_invalid_scope(self, caplog):

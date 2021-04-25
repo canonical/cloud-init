@@ -206,10 +206,10 @@ def read_user_data_callback(mount_dir):
 
 class DataSourceRbxCloud(sources.DataSource):
     dsname = "RbxCloud"
-    default_update_events = {EventScope.NETWORK: set([
+    default_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,
         EventType.BOOT
-    ])}
+    }}
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)

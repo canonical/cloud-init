@@ -354,10 +354,10 @@ class TestInit(CiTestCase):
         net_cfg = self._apply_network_setup(m_macs)
 
         self.init.datasource.default_update_events = {
-            EventScope.NETWORK: set([
+            EventScope.NETWORK: {
                 EventType.BOOT_NEW_INSTANCE,
                 EventType.BOOT
-            ])
+            }
         }
         self.init.apply_network_config(True)
         assert mock.call(
@@ -376,7 +376,7 @@ class TestInit(CiTestCase):
         self._apply_network_setup(m_macs)
 
         self.init.datasource.default_update_events = {
-            EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])
+            EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}
         }
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config.assert_not_called()
@@ -394,7 +394,7 @@ class TestInit(CiTestCase):
         net_cfg = self._apply_network_setup(m_macs)
 
         self.init.datasource.default_update_events = {
-            EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])
+            EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}
         }
         self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
         self.init.apply_network_config(True)
@@ -415,7 +415,7 @@ class TestInit(CiTestCase):
         self._apply_network_setup(m_macs)
 
         self.init.datasource.supported_update_events = {
-            EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])
+            EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}
         }
         self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
         self.init.apply_network_config(True)

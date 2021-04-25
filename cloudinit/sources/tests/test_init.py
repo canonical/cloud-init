@@ -64,19 +64,6 @@ class TestDataSource(CiTestCase):
         self.distro = 'distrotest'  # generally should be a Distro object
         self.paths = Paths({})
         self.datasource = DataSource(self.sys_cfg, self.distro, self.paths)
-        self.original_supported_events = copy.deepcopy(
-            self.datasource.supported_update_events)
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.original_supported_events = copy.deepcopy(
-            DataSource.supported_update_events)
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        DataSource.supported_update_events = cls.original_supported_events
 
     def test_datasource_init(self):
         """DataSource initializes metadata attributes, ds_cfg and ud_proc."""
@@ -632,11 +619,10 @@ class TestDataSource(CiTestCase):
         self.assertEqual('himom', getattr(self.datasource, cached_attr_name))
         self.assertEqual('updated', self.datasource.myattr)
 
+    @mock.patch.dict(DataSource.supported_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_update_metadata_only_acts_on_supported_update_events(self):
         """update_metadata won't get_data on unsupported update events."""
-        self.datasource.supported_update_events[EventScope.NETWORK] = set([
-            EventType.BOOT_NEW_INSTANCE
-        ])
         self.assertEqual(
             {EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])},
             self.datasource.default_update_events
@@ -650,12 +636,10 @@ class TestDataSource(CiTestCase):
             self.datasource.update_metadata(
                 source_event_types=[EventType.BOOT]))
 
+    @mock.patch.dict(DataSource.supported_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_update_metadata_returns_true_on_supported_update_event(self):
         """update_metadata returns get_data response on supported events."""
-        self.datasource.supported_update_events[EventScope.NETWORK] = set([
-            EventType.BOOT_NEW_INSTANCE
-        ])
-
         def fake_get_data():
             return True
 
