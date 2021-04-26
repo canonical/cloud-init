@@ -619,6 +619,8 @@ class TestDataSource(CiTestCase):
         self.assertEqual('himom', getattr(self.datasource, cached_attr_name))
         self.assertEqual('updated', self.datasource.myattr)
 
+    @mock.patch.dict(DataSource.default_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     @mock.patch.dict(DataSource.supported_update_events, {
         EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_update_metadata_only_acts_on_supported_update_events(self):

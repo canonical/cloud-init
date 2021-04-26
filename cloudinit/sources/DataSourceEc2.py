@@ -8,6 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import os
 import time
 
@@ -426,6 +427,8 @@ class DataSourceEc2(sources.DataSource):
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
             # network config file every boot due to MAC address change.
             if self.is_classic_instance():
+                self.default_update_events = copy.deepcopy(
+                    self.default_update_events)
                 self.default_update_events[EventScope.NETWORK].add(
                     EventType.BOOT)
         else:

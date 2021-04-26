@@ -338,6 +338,12 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
 class DataSourceAzure(sources.DataSource):
 
     dsname = 'Azure'
+    # Regenerate network config new_instance boot and every boot
+    default_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT
+    }}
+
     _negotiated = False
     _metadata_imds = sources.UNSET
     _ci_pkl_version = 1
@@ -352,8 +358,6 @@ class DataSourceAzure(sources.DataSource):
             BUILTIN_DS_CONFIG])
         self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
         self._network_config = None
-        # Regenerate network config new_instance boot and every boot
-        self.default_update_events[EventScope.NETWORK].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
         self.failed_desired_api_version = False
         self.iso_dev = None
