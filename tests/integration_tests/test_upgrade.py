@@ -9,11 +9,13 @@ from tests.integration_tests.conftest import (
     get_validated_source,
     session_start_time,
 )
-from tests.integration_tests.instances import CloudInitSource
 
 
 log = logging.getLogger('integration_testing')
 
+UNSUPPORTED_INSTALL_METHOD_MSG = (
+    "Install method '{}' not supported for this test"
+)
 USER_DATA = """\
 #cloud-config
 hostname: SRU-worked
@@ -57,12 +59,10 @@ def _restart(instance):
 
 
 @pytest.mark.sru_2020_11
-def test_upgrade(session_cloud: IntegrationCloud):
+def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
-        pytest.skip("Install method '{}' not supported for this test".format(
-            source
-        ))
+        pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {
@@ -104,18 +104,21 @@ def test_upgrade(session_cloud: IntegrationCloud):
 
 @pytest.mark.ci
 @pytest.mark.ubuntu
-def test_upgrade_package(session_cloud: IntegrationCloud):
-    if get_validated_source(session_cloud) != CloudInitSource.DEB_PACKAGE:
-        not_run_message = 'Test only supports upgrading to build deb'
+def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
+    source = get_validated_source(session_cloud)
+    if not source.installs_new_version():
         if os.environ.get('TRAVIS'):
             # If this isn't running on CI, we should know
-            pytest.fail(not_run_message)
+            pytest.fail(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         else:
-            pytest.skip(not_run_message)
+            pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
+        return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {'image_id': session_cloud.released_image_id}
 
     with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
-        instance.install_deb()
+        instance.install_new_cloud_init(
+            source, take_snapshot=False, clean=False
+        )
         instance.restart()
         assert instance.execute('cloud-init status --wait --long').ok
