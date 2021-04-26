@@ -91,11 +91,6 @@ IMDS_VER_WANT = "2020-10-01"
 SSHKeys = namedtuple("SSHKeys", ("keys_from_imds", "ssh_keys"))
 
 
-# This holds SSH key data including if the source was
-# from IMDS, as well as the SSH key data itself.
-SSHKeys = namedtuple("SSHKeys", ("keys_from_imds", "ssh_keys"))
-
-
 class metadata_type(Enum):
     compute = "{}/instance".format(IMDS_URL)
     network = "{}/instance/network".format(IMDS_URL)
