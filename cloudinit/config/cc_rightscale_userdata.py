@@ -44,7 +44,7 @@ user scripts configuration directory, to be run later by ``cc_scripts_user``.
 # - read the blob of data from raw user data, and parse it as key/value
 # - for each key that is found, download the content to
 #   the local instance/scripts directory and set them executable.
-# - the files in that directory will be run by the user-scripts module
+# - the files in that directory will be run by the scripts-user module
 #   Therefore, this must run before that.
 #
 #

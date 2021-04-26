@@ -148,6 +148,10 @@ The following Datasources optionally provide network configuration:
 
   - `UpCloud JSON metadata`_
 
+- :ref:`datasource_vultr`
+
+  - `Vultr JSON metadata`_
+
 For more information on network configuration formats
 
 .. toctree::
@@ -262,5 +266,6 @@ Example output converting V2 to sysconfig:
 .. _OpenStack Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
 .. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
 .. _UpCloud JSON metadata: https://developers.upcloud.com/1.3/8-servers/#metadata-service
+.. _Vultr JSON metadata: https://www.vultr.com/metadata/
 
 .. vi: textwidth=78
