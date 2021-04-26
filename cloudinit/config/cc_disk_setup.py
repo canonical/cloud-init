@@ -113,6 +113,7 @@ SGDISK_CMD = subp.which("sgdisk")
 LSBLK_CMD = subp.which("lsblk")
 BLKID_CMD = subp.which("blkid")
 BLKDEV_CMD = subp.which("blockdev")
+PARTPROBE_CMD = subp.which("partprobe")
 WIPEFS_CMD = subp.which("wipefs")
 
 LANG_C_ENV = {'LANG': 'C'}
@@ -685,13 +686,17 @@ def get_partition_layout(table_type, size, layout):
 
 def read_parttbl(device):
     """
-    Use partprobe instead of 'udevadm'. Partprobe is the only
-    reliable way to probe the partition table.
+    Use `partprobe` or `blkdev` instead of `udevadm`. `Partprobe` is
+    preferred over `blkdev` since it is more reliably able to probe
+    the partition table.
     """
-    blkdev_cmd = [BLKDEV_CMD, '--rereadpt', device]
+    if PARTPROBE_CMD is not None:
+        probe_cmd = [PARTPROBE_CMD, device]
+    else:
+        probe_cmd = [BLKDEV_CMD, '--rereadpt', device]
     util.udevadm_settle()
     try:
-        subp.subp(blkdev_cmd)
+        subp.subp(probe_cmd)
     except Exception as e:
         util.logexc(LOG, "Failed reading the partition table %s" % e)
 
