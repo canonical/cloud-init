@@ -3,7 +3,6 @@
 import copy
 import inspect
 import os
-import re
 import stat
 
 from cloudinit.event import EventScope, EventType

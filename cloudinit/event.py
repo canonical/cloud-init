@@ -15,7 +15,7 @@ class EventScope(Enum):
     # changes to the user config
     NETWORK = 'network'
 
-    def __str__(self):
+    def __str__(self):  # pylint: disable=invalid-str-returned
         return self.value
 
 
@@ -29,7 +29,7 @@ class EventType(Enum):
     BOOT = "boot"
     BOOT_NEW_INSTANCE = "boot-new-instance"
 
-    def __str__(self):
+    def __str__(self):  # pylint: disable=invalid-str-returned
         return self.value
 
 
