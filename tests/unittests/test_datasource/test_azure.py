@@ -1899,6 +1899,51 @@ scbus-1 on xpt0 bus 0
         dsrc.get_data()
         self.assertTrue(dsrc.metadata["disable_password"])
 
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    def test_userdata_from_imds(self, m_get_metadata_from_imds):
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        userdata = 'userdataImds'
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true",
+        )
+        imds_data["compute"]["userData"] = b64e(userdata)
+        m_get_metadata_from_imds.return_value = imds_data
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(dsrc.metadata["userdata_raw"], userdata)
+
+    @mock.patch(MOCKPATH + 'get_metadata_from_imds')
+    def test_userdata_from_imds_with_customdata_from_OVF(
+            self, m_get_metadata_from_imds):
+        sys_cfg = {'datasource': {'Azure': {'apply_network_config': True}}}
+        userdataOVF = 'userdataOVF'
+        odata = {'UserData': {'text': b64e(userdataOVF),
+                              'encoding': 'base64'}}
+        data = {
+            'ovfcontent': construct_valid_ovf_env(data=odata),
+            'sys_cfg': sys_cfg
+        }
+        userdataImds = 'userdataImds'
+        imds_data = copy.deepcopy(NETWORK_METADATA)
+        imds_data["compute"]["osProfile"] = dict(
+            adminUsername="username1",
+            computerName="hostname1",
+            disablePasswordAuthentication="true",
+        )
+        imds_data["compute"]["userData"] = b64e(userdataImds)
+        m_get_metadata_from_imds.return_value = imds_data
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+        self.assertEqual(dsrc.metadata["userdata_raw"], userdataOVF)
+
 
 class TestAzureBounce(CiTestCase):
 
