@@ -347,18 +347,14 @@ class TestInit(CiTestCase):
 
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.distros.ubuntu.Distro')
+    @mock.patch.dict(sources.DataSource.default_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE, EventType.BOOT}})
     def test_apply_network_allowed_when_default_boot(
         self, m_ubuntu, m_macs
     ):
         """Apply network if datasource permits BOOT event."""
         net_cfg = self._apply_network_setup(m_macs)
 
-        self.init.datasource.default_update_events = {
-            EventScope.NETWORK: {
-                EventType.BOOT_NEW_INSTANCE,
-                EventType.BOOT
-            }
-        }
         self.init.apply_network_config(True)
         assert mock.call(
             net_cfg
@@ -369,15 +365,13 @@ class TestInit(CiTestCase):
 
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.distros.ubuntu.Distro')
+    @mock.patch.dict(sources.DataSource.default_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_apply_network_disabled_when_no_default_boot(
         self, m_ubuntu, m_macs
     ):
         """Don't apply network if datasource has no BOOT event."""
         self._apply_network_setup(m_macs)
-
-        self.init.datasource.default_update_events = {
-            EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}
-        }
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config.assert_not_called()
         assert (
@@ -387,15 +381,13 @@ class TestInit(CiTestCase):
 
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.distros.ubuntu.Distro')
+    @mock.patch.dict(sources.DataSource.default_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_apply_network_allowed_with_userdata_overrides(
         self, m_ubuntu, m_macs
     ):
         """Apply network if userdata overrides default config"""
         net_cfg = self._apply_network_setup(m_macs)
-
-        self.init.datasource.default_update_events = {
-            EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}
-        }
         self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config_names.assert_called_with(
