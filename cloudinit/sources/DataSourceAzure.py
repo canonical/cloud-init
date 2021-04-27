@@ -83,7 +83,7 @@ AGENT_SEED_DIR = '/var/lib/waagent'
 IMDS_TIMEOUT_IN_SECONDS = 2
 IMDS_URL = "http://169.254.169.254/metadata"
 IMDS_VER_MIN = "2019-06-01"
-IMDS_VER_WANT = "2020-10-01"
+IMDS_VER_WANT = "2021-01-01"
 
 
 # This holds SSH key data including if the source was
@@ -539,6 +539,20 @@ class DataSourceAzure(sources.DataSource):
                     imds_disable_password
                 )
                 crawled_data['metadata']['disable_password'] = imds_disable_password  # noqa: E501
+
+            # only use userdata from imds if OVF did not provide custom data
+            # userdata provided by IMDS is always base64 encoded
+            if not userdata_raw:
+                imds_userdata = _userdata_from_imds(imds_md)
+                if imds_userdata:
+                    LOG.debug("Retrieved userdata from IMDS")
+                    try:
+                        crawled_data['userdata_raw'] = base64.b64decode(
+                            ''.join(imds_userdata.split()))
+                    except Exception:
+                        report_diagnostic_event(
+                            "Bad userdata in IMDS",
+                            logger_func=LOG.warning)
             found = cdev
 
             report_diagnostic_event(
@@ -1508,6 +1522,13 @@ class DataSourceAzure(sources.DataSource):
 def _username_from_imds(imds_data):
     try:
         return imds_data['compute']['osProfile']['adminUsername']
+    except KeyError:
+        return None
+
+
+def _userdata_from_imds(imds_data):
+    try:
+        return imds_data['compute']['userData']
     except KeyError:
         return None
 
