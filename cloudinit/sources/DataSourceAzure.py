@@ -540,18 +540,19 @@ class DataSourceAzure(sources.DataSource):
                 )
                 crawled_data['metadata']['disable_password'] = imds_disable_password  # noqa: E501
 
-            #only use userdata from imds if OVF did not provide custom data
-            #userdata provided by IMDS is always base64 encoded
+            # only use userdata from imds if OVF did not provide custom data
+            # userdata provided by IMDS is always base64 encoded
             if not userdata_raw:
-               imds_userdata = _userdata_from_imds(imds_md)
-               if imds_userdata:
-                   LOG.debug("Retrieved userdata from IMDS")
-                   try:
-                       crawled_data['userdata_raw'] = base64.b64decode(
-                           ''.join(imds_userdata.split()))
-                   except Exception as e:
-                       report_diagnostic_event("Bad userdata in IMDS",
-                           logger_func=LOG.warning)
+                imds_userdata = _userdata_from_imds(imds_md)
+                if imds_userdata:
+                    LOG.debug("Retrieved userdata from IMDS")
+                    try:
+                        crawled_data['userdata_raw'] = base64.b64decode(
+                            ''.join(imds_userdata.split()))
+                    except Exception:
+                        report_diagnostic_event(
+                            "Bad userdata in IMDS",
+                            logger_func=LOG.warning)
             found = cdev
 
             report_diagnostic_event(
