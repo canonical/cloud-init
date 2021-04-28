@@ -775,15 +775,17 @@ class Init(object):
             LOG.info("network config is disabled by %s", src)
             return
 
-        def _boot_event_enabled_and_supported():
+        def _boot_event_enabled_and_metadata_updated():
             return self.update_event_enabled(
                 EventType.BOOT, scope=EventScope.NETWORK
-            ) and self.datasource.update_metadata([EventType.BOOT])
+            ) and self.datasource.update_metadata_if_supported(
+                [EventType.BOOT]
+            )
 
         if (
             self.datasource is not NULL_DATA_SOURCE and
             self.boot_type != EventType.BOOT_NEW_INSTANCE and
-            not _boot_event_enabled_and_supported()
+            not _boot_event_enabled_and_metadata_updated()
         ):
             LOG.debug(
                 "No network config applied. Neither a new instance"

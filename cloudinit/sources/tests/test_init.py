@@ -623,7 +623,7 @@ class TestDataSource(CiTestCase):
     @mock.patch.dict(DataSource.supported_update_events, {
         EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_update_metadata_only_acts_on_supported_update_events(self):
-        """update_metadata won't get_data on unsupported update events."""
+        """update_metadata_if_supported wont get_data on unsupported events."""
         self.assertEqual(
             {EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])},
             self.datasource.default_update_events
@@ -634,13 +634,13 @@ class TestDataSource(CiTestCase):
 
         self.datasource.get_data = fake_get_data
         self.assertFalse(
-            self.datasource.update_metadata(
+            self.datasource.update_metadata_if_supported(
                 source_event_types=[EventType.BOOT]))
 
     @mock.patch.dict(DataSource.supported_update_events, {
         EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_update_metadata_returns_true_on_supported_update_event(self):
-        """update_metadata returns get_data response on supported events."""
+        """update_metadata_if_supported returns get_data on supported events"""
         def fake_get_data():
             return True
 
@@ -648,7 +648,7 @@ class TestDataSource(CiTestCase):
         self.datasource._network_config = 'something'
         self.datasource._dirty_cache = True
         self.assertTrue(
-            self.datasource.update_metadata(
+            self.datasource.update_metadata_if_supported(
                 source_event_types=[
                     EventType.BOOT, EventType.BOOT_NEW_INSTANCE]))
         self.assertEqual(UNSET, self.datasource._network_config)

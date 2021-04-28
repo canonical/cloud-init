@@ -659,7 +659,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
 
-    def update_metadata(self, source_event_types: List[EventType]) -> bool:
+    def update_metadata_if_supported(
+        self, source_event_types: List[EventType]
+    ) -> bool:
         """Refresh cached metadata if the datasource supports this event.
 
         The datasource has a list of supported_update_events which
@@ -801,7 +803,9 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
             with myrep:
                 LOG.debug("Seeing if we can get any data from %s", cls)
                 s = cls(sys_cfg, distro, paths)
-                if s.update_metadata([EventType.BOOT_NEW_INSTANCE]):
+                if s.update_metadata_if_supported(
+                    [EventType.BOOT_NEW_INSTANCE]
+                ):
                     myrep.message = "found %s data from %s" % (mode, name)
                     return (s, type_utils.obj_name(cls))
         except Exception:
