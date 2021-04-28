@@ -28,6 +28,7 @@ class EventType(Enum):
 
     BOOT = "boot"
     BOOT_NEW_INSTANCE = "boot-new-instance"
+    BOOT_LEGACY = "boot-legacy"
 
     def __str__(self):  # pylint: disable=invalid-str-returned
         return self.value

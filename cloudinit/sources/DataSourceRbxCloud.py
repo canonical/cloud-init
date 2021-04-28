@@ -208,7 +208,8 @@ class DataSourceRbxCloud(sources.DataSource):
     dsname = "RbxCloud"
     default_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,
-        EventType.BOOT
+        EventType.BOOT,
+        EventType.BOOT_LEGACY
     }}
 
     def __init__(self, sys_cfg, distro, paths):

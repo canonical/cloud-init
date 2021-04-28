@@ -11,7 +11,7 @@ import sys
 from typing import Dict, Set
 
 from cloudinit.settings import (
-    FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, RUN_CLOUD_CONFIG)
+    FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, PER_ONCE, RUN_CLOUD_CONFIG)
 
 from cloudinit import handlers
 
@@ -62,7 +62,9 @@ class Init(object):
         self.datasource = NULL_DATA_SOURCE
         self.ds_restored = False
         self._previous_iid = None
-        self.boot_type = EventType.BOOT
+        self.network_semaphore = helpers.FileSemaphores(
+            self.paths.get_runpath('sem'))
+        self.network_semaphore_args = ('apply_network_config', PER_ONCE)
 
         if reporter is None:
             reporter = events.ReportEventStack(
@@ -124,6 +126,7 @@ class Init(object):
 
     def _initial_subdirs(self):
         c_dir = self.paths.cloud_dir
+        run_dir = self.paths.run_dir
         initial_dirs = [
             c_dir,
             os.path.join(c_dir, 'scripts'),
@@ -136,6 +139,7 @@ class Init(object):
             os.path.join(c_dir, 'handlers'),
             os.path.join(c_dir, 'sem'),
             os.path.join(c_dir, 'data'),
+            os.path.join(run_dir, 'sem'),
         ]
         return initial_dirs
 
@@ -324,9 +328,6 @@ class Init(object):
         util.write_file(self.paths.get_runpath('instance_id'), "%s\n" % iid)
         util.write_file(os.path.join(dp, 'previous-instance-id'),
                         "%s\n" % (previous_iid))
-
-        if self.is_new_instance():
-            self.boot_type = EventType.BOOT_NEW_INSTANCE
 
         self._write_to_cache()
         # Ensure needed components are regenerated
@@ -745,7 +746,6 @@ class Init(object):
         else:
             scopes = [scope]
         scope_values = [s.value for s in scopes]
-        LOG.debug('Possible scopes for this event: %s', scope_values)
 
         for evt_scope in scopes:
             if event_source_type in allowed.get(evt_scope, []):
@@ -764,6 +764,9 @@ class Init(object):
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
+    def _network_already_configured(self) -> bool:
+        return self.network_semaphore.has_run(*self.network_semaphore_args)
+
     def apply_network_config(self, bring_up):
         """Apply the network config.
 
@@ -775,22 +778,24 @@ class Init(object):
             LOG.info("network config is disabled by %s", src)
             return
 
-        def _boot_event_enabled_and_metadata_updated():
+        def event_enabled_and_metadata_updated(event_type):
             return self.update_event_enabled(
-                EventType.BOOT, scope=EventScope.NETWORK
-            ) and self.datasource.update_metadata_if_supported(
-                [EventType.BOOT]
-            )
+                event_type, scope=EventScope.NETWORK
+            ) and self.datasource.update_metadata_if_supported([event_type])
+
+        def should_run_on_boot_event():
+            return (not self._network_already_configured() and
+                    event_enabled_and_metadata_updated(EventType.BOOT))
 
         if (
             self.datasource is not NULL_DATA_SOURCE and
-            self.boot_type != EventType.BOOT_NEW_INSTANCE and
-            not _boot_event_enabled_and_metadata_updated()
+            not self.is_new_instance() and
+            not should_run_on_boot_event() and
+            not event_enabled_and_metadata_updated(EventType.BOOT_LEGACY)
         ):
             LOG.debug(
                 "No network config applied. Neither a new instance"
-                " nor datasource network update on '%s' event",
-                self.boot_type)
+                " nor datasource network update allowed")
             # nothing new, but ensure proper names
             self._apply_netcfg_names(netcfg)
             return
@@ -807,8 +812,11 @@ class Init(object):
         # rendering config
         LOG.info("Applying network configuration from %s bringup=%s: %s",
                  src, bring_up, netcfg)
+
         try:
-            return self.distro.apply_network_config(netcfg, bring_up=bring_up)
+            with self.network_semaphore.lock(*self.network_semaphore_args):
+                return self.distro.apply_network_config(
+                    netcfg, bring_up=bring_up)
         except net.RendererNotFoundError as e:
             LOG.error("Unable to render networking. Network config is "
                       "likely broken: %s", e)

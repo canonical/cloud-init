@@ -341,7 +341,8 @@ class DataSourceAzure(sources.DataSource):
     # Regenerate network config new_instance boot and every boot
     default_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,
-        EventType.BOOT
+        EventType.BOOT,
+        EventType.BOOT_LEGACY
     }}
 
     _negotiated = False
@@ -2310,8 +2311,8 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
                 LOG.info(
                     'Removing Ubuntu extended network scripts because'
                     ' cloud-init updates Azure network configuration on the'
-                    ' following event: %s.',
-                    EventType.BOOT)
+                    ' following events: %s.',
+                    [EventType.BOOT.value, EventType.BOOT_LEGACY.value])
                 logged = True
             if os.path.isdir(path):
                 util.del_dir(path)

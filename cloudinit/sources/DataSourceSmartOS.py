@@ -172,7 +172,8 @@ class DataSourceSmartOS(sources.DataSource):
     md_client = sources.UNSET
     default_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,
-        EventType.BOOT
+        EventType.BOOT,
+        EventType.BOOT_LEGACY
     }}
 
     def __init__(self, sys_cfg, distro, paths):

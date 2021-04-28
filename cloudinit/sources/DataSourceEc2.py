@@ -431,6 +431,8 @@ class DataSourceEc2(sources.DataSource):
                     self.default_update_events)
                 self.default_update_events[EventScope.NETWORK].add(
                     EventType.BOOT)
+                self.default_update_events[EventScope.NETWORK].add(
+                    EventType.BOOT_LEGACY)
         else:
             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
         self._network_config = result

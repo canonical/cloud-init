@@ -173,7 +173,11 @@ def query_data_api(api_type, api_address, retries, timeout):
 class DataSourceScaleway(sources.DataSource):
     dsname = "Scaleway"
     default_update_events = {
-        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE, EventType.BOOT}
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+            EventType.BOOT_LEGACY
+        }
     }
 
     def __init__(self, sys_cfg, distro, paths):

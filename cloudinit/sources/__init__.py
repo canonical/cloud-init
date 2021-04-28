@@ -188,9 +188,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     supported_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,
         EventType.BOOT,
+        EventType.BOOT_LEGACY,
     }}
     default_update_events = {EventScope.NETWORK: {
-        EventType.BOOT_NEW_INSTANCE
+        EventType.BOOT_NEW_INSTANCE,
     }}
 
     # N-tuple listing default values for any metadata-related class
