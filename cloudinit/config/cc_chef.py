@@ -70,7 +70,6 @@ CHEF_RB_TPL_PATH_KEYS = frozenset([
     'json_attribs',
     'pid_file',
     'encrypted_data_bag_secret',
-    'chef_license',
 ])
 CHEF_RB_TPL_KEYS = list(CHEF_RB_TPL_DEFAULTS.keys())
 CHEF_RB_TPL_KEYS.extend(CHEF_RB_TPL_BOOL_KEYS)
@@ -80,6 +79,7 @@ CHEF_RB_TPL_KEYS.extend([
     'node_name',
     'environment',
     'validation_name',
+    'chef_license',
 ])
 CHEF_RB_TPL_KEYS = frozenset(CHEF_RB_TPL_KEYS)
 CHEF_RB_PATH = '/etc/chef/client.rb'
