@@ -3151,8 +3151,8 @@ class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
 
         expected_logs = [
             'INFO: Removing Ubuntu extended network scripts because cloud-init'
-            ' updates Azure network configuration on the following event:'
-            ' boot.',
+            ' updates Azure network configuration on the following events:'
+            " ['boot', 'boot-legacy']",
             'Recursively deleting %s' % subdir,
             'Attempting to remove %s' % file1]
         for log in expected_logs:

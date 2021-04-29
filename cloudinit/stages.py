@@ -8,6 +8,7 @@ import copy
 import os
 import pickle
 import sys
+from collections import namedtuple
 from typing import Dict, Set
 
 from cloudinit.settings import (
@@ -62,9 +63,6 @@ class Init(object):
         self.datasource = NULL_DATA_SOURCE
         self.ds_restored = False
         self._previous_iid = None
-        self.network_semaphore = helpers.FileSemaphores(
-            self.paths.get_runpath('sem'))
-        self.network_semaphore_args = ('apply_network_config', PER_ONCE)
 
         if reporter is None:
             reporter = events.ReportEventStack(
@@ -764,8 +762,15 @@ class Init(object):
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
+    def _get_per_boot_network_semaphore(self):
+        return namedtuple('Semaphore', 'semaphore args')(
+            helpers.FileSemaphores(self.paths.get_runpath('sem')),
+            ('apply_network_config', PER_ONCE)
+        )
+
     def _network_already_configured(self) -> bool:
-        return self.network_semaphore.has_run(*self.network_semaphore_args)
+        sem = self._get_per_boot_network_semaphore()
+        return sem.semaphore.has_run(*sem.args)
 
     def apply_network_config(self, bring_up):
         """Apply the network config.
@@ -813,8 +818,9 @@ class Init(object):
         LOG.info("Applying network configuration from %s bringup=%s: %s",
                  src, bring_up, netcfg)
 
+        sem = self._get_per_boot_network_semaphore()
         try:
-            with self.network_semaphore.lock(*self.network_semaphore_args):
+            with sem.semaphore.lock(*sem.args):
                 return self.distro.apply_network_config(
                     netcfg, bring_up=bring_up)
         except net.RendererNotFoundError as e:

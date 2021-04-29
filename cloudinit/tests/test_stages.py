@@ -46,12 +46,13 @@ class TestInit(CiTestCase):
         super(TestInit, self).setUp()
         self.tmpdir = self.tmp_dir()
         self.init = stages.Init()
-        self.init.boot_type = EventType.BOOT_NEW_INSTANCE
         # Setup fake Paths for Init to reference
         self.init._cfg = {'system_info': {
             'distro': 'ubuntu', 'paths': {'cloud_dir': self.tmpdir,
                                           'run_dir': self.tmpdir}}}
         self.init.datasource = FakeDataSource(paths=self.init.paths)
+        self._real_is_new_instance = self.init.is_new_instance
+        self.init.is_new_instance = mock.Mock(return_value=True)
 
     def test_wb__find_networking_config_disabled(self):
         """find_networking_config returns no config when disabled."""
@@ -291,7 +292,6 @@ class TestInit(CiTestCase):
         m_macs.return_value = {'42:42:42:42:42:42': 'eth9'}
 
         self.init._find_networking_config = fake_network_config
-        self.init.boot_type = EventType.BOOT_NEW_INSTANCE
 
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
@@ -301,6 +301,7 @@ class TestInit(CiTestCase):
     @mock.patch('cloudinit.distros.ubuntu.Distro')
     def test_apply_network_on_same_instance_id(self, m_ubuntu):
         """Only call distro.apply_network_config_names on same instance id."""
+        self.init.is_new_instance = self._real_is_new_instance
         old_instance_id = os.path.join(
             self.init.paths.get_cpath('data'), 'instance-id')
         write_file(old_instance_id, TEST_INSTANCE_ID)
@@ -313,15 +314,14 @@ class TestInit(CiTestCase):
             return net_cfg, NetworkConfigSource.fallback
 
         self.init._find_networking_config = fake_network_config
-        self.init.boot_type = EventType.BOOT
 
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_not_called()
-        self.assertIn(
-            'No network config applied. Neither a new instance'
-            " nor datasource network update on '%s' event" % EventType.BOOT,
-            self.logs.getvalue())
+        assert (
+            "No network config applied. Neither a new instance nor datasource "
+            "network update allowed"
+        ) in self.logs.getvalue()
 
     # CiTestCase doesn't work with pytest.mark.parametrize, and moving this
     # functionality to a separate class is more cumbersome than it'd be worth
@@ -342,7 +342,7 @@ class TestInit(CiTestCase):
 
         self.init._find_networking_config = fake_network_config
         self.init.datasource = FakeDataSource(paths=self.init.paths)
-        self.init.boot_type = EventType.BOOT
+        self.init.is_new_instance = mock.Mock(return_value=False)
         return net_cfg
 
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
@@ -376,7 +376,7 @@ class TestInit(CiTestCase):
         self.init.distro.apply_network_config.assert_not_called()
         assert (
             "No network config applied. Neither a new instance nor datasource "
-            "network update on 'boot' event"
+            "network update allowed"
         ) in self.logs.getvalue()
 
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
@@ -397,6 +397,8 @@ class TestInit(CiTestCase):
 
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     @mock.patch('cloudinit.distros.ubuntu.Distro')
+    @mock.patch.dict(sources.DataSource.supported_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_apply_network_disabled_when_unsupported(
         self, m_ubuntu, m_macs
     ):
@@ -406,15 +408,12 @@ class TestInit(CiTestCase):
         """
         self._apply_network_setup(m_macs)
 
-        self.init.datasource.supported_update_events = {
-            EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}
-        }
         self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config.assert_not_called()
         assert (
             "No network config applied. Neither a new instance nor datasource "
-            "network update on 'boot' event"
+            "network update allowed"
         ) in self.logs.getvalue()
 
 

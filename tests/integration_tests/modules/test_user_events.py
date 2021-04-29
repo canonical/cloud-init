@@ -4,6 +4,7 @@ This is currently limited to applying network config on BOOT events.
 """
 
 import pytest
+import re
 import yaml
 
 from tests.integration_tests.instances import IntegrationInstance
@@ -40,16 +41,20 @@ def test_boot_event_disabled_by_default(client: IntegrationInstance):
     client.execute('rm /var/log/cloud-init.log')
 
     client.restart()
-    log = client.read_from_file('/var/log/cloud-init.log')
+    log2 = client.read_from_file('/var/log/cloud-init.log')
 
     # We attempt to apply network config twice on every boot.
     # Ensure neither time works.
-    assert 2 == log.count(
-        "Event Denied: scopes=['network'] EventType=boot"
+    assert 2 == len(
+        re.findall(r"Event Denied: scopes=\['network'\] EventType=boot[^-]",
+                   log2)
     )
-    assert 2 == log.count(
-        "No network config applied. Neither a new instance nor datasource "
-        "network update on 'boot' event"
+    assert 2 == log2.count(
+        "Event Denied: scopes=['network'] EventType=boot-legacy"
+    )
+    assert 2 == log2.count(
+        "No network config applied. Neither a new instance"
+        " nor datasource network update allowed"
     )
 
     assert 'dummy0' in client.execute('ls /sys/class/net')
