@@ -129,6 +129,7 @@ class Mixin:
         assert "dick:" not in cloud_init_output
         assert "harry:" not in cloud_init_output
 
+    @pytest.mark.lxd_container
     def test_random_passwords_emitted_to_serial_console(self, class_client):
         """We should emit passwords to the serial console. (LP: #1918303)"""
         try:
