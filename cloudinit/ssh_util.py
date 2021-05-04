@@ -148,15 +148,11 @@ class AuthKeyLineParser(object):
 
         def parse_ssh_key(ent):
             # return ketype, key, [comment]
-            toks = ent.split(' ')
+            toks = ent.split(None, 2)
             if len(toks) < 2:
                 raise TypeError("To few fields: %s" % len(toks))
-            if len(toks) > 3:
-                raise TypeError("Too many fields: %s" % len(toks))
             if toks[0] not in VALID_KEY_TYPES:
                 raise TypeError("Invalid keytype %s" % toks[0])
-            if not util.is_base64(toks[1]):
-                raise TypeError("Key not base64 encoded: %s" % toks[1])
 
             # valid key type and 2 or 3 fields:
             if len(toks) == 2:
