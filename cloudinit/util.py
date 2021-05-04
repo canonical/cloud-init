@@ -8,6 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import binascii
 import contextlib
 import copy as obj_copy
 import email
@@ -115,6 +116,15 @@ def encode_text(text, encoding='utf-8'):
     if isinstance(text, bytes):
         return text
     return text.encode(encoding)
+
+
+def is_base64(source):
+    # Return True if source is base64 encoded, else False
+    try:
+        b64decode(source, validate=True)
+        return True
+    except binascii.Error:
+        return False
 
 
 def b64d(source):
