@@ -60,6 +60,7 @@
  - cc_keys_to_console.py: Add documentation for recently added config key
    (#824) [dermotbradley]
  - Update cc_set_hostname documentation (#818) [Toshi Aoyama]
+
 21.1
  - Azure: Support for VMs without ephemeral resource disks. (#800)
    [Johnson Shi] (LP: #1901011)
