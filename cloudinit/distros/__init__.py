@@ -79,6 +79,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     shutdown_options_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
 
     _ci_pkl_version = 1
+    prefer_fqdn = False
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -130,6 +131,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     def get_option(self, opt_name, default=None):
         return self._cfg.get(opt_name, default)
+
+    def set_option(self, opt_name, value=None):
+        self._cfg[opt_name] = value
 
     def set_hostname(self, hostname, fqdn=None):
         writeable_hostname = self._select_hostname(hostname, fqdn)
@@ -259,6 +263,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def _select_hostname(self, hostname, fqdn):
         # Prefer the short hostname over the long
         # fully qualified domain name
+        if util.get_cfg_option_bool(self._cfg, "prefer_fqdn_over_hostname",
+                                    self.prefer_fqdn) and fqdn:
+            return fqdn
         if not hostname:
             return fqdn
         return hostname
