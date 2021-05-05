@@ -635,15 +635,20 @@ scbus-1 on xpt0 bus 0
     def _get_ds(self, data, agent_command=None, distro='ubuntu',
                 apply_network=None, instance_id=None):
 
-        def dsdevs():
-            return data.get('dsdevs', [])
-
         def _wait_for_files(flist, _maxwait=None, _naplen=None):
             data['waited'] = flist
             return []
 
+        def _load_possible_azure_ds(seed_dir, cache_dir):
+            yield seed_dir
+            yield dsaz.DEFAULT_PROVISIONING_ISO_DEV
+            yield from data.get('dsdevs', [])
+            if cache_dir:
+                yield cache_dir
+
+        seed_dir = os.path.join(self.paths.seed_dir, "azure")
         if data.get('ovfcontent') is not None:
-            populate_dir(os.path.join(self.paths.seed_dir, "azure"),
+            populate_dir(seed_dir,
                          {'ovf-env.xml': data['ovfcontent']})
 
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
@@ -654,8 +659,8 @@ scbus-1 on xpt0 bus 0
         self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
         self.m_ephemeral_dhcpv4 = mock.MagicMock()
         self.m_ephemeral_dhcpv4_with_reporting = mock.MagicMock()
-        self.m_list_possible_azure_ds_devs = mock.MagicMock(
-            side_effect=dsdevs)
+        self.m_list_possible_azure_ds = mock.MagicMock(
+            side_effect=_load_possible_azure_ds)
 
         if instance_id:
             self.instance_id = instance_id
@@ -669,8 +674,8 @@ scbus-1 on xpt0 bus 0
                 return '7783-7084-3265-9085-8269-3286-77'
 
         self.apply_patches([
-            (dsaz, 'list_possible_azure_ds_devs',
-                self.m_list_possible_azure_ds_devs),
+            (dsaz, 'list_possible_azure_ds',
+                self.m_list_possible_azure_ds),
             (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
             (dsaz, 'get_hostname', mock.MagicMock()),
             (dsaz, 'set_hostname', mock.MagicMock()),
@@ -861,24 +866,6 @@ scbus-1 on xpt0 bus 0
         self.assertEqual('azure', dsrc.cloud_name)
         self.assertEqual('azure', dsrc.platform_type)
         self.assertEqual('config-disk (/dev/cd0)', dsrc.subplatform)
-
-    def test_default_iso_dev(self):
-        """When the default iso device exists, device listing does
-           not happen."""
-        data = {'sys_cfg': {}, 'dsdevs': ['/dev/cd0',
-                dsaz.DEFAULT_PROVISIONING_ISO_DEV]}
-        dsrc = self._get_ds(data)
-        with mock.patch(MOCKPATH + 'util.mount_cb') as m_mount_cb:
-            m_mount_cb.side_effect = [
-                ({'local-hostname': 'me'}, 'ud', {'cfg': ''}, {})]
-            self.assertTrue(dsrc.get_data())
-        self.assertEqual(dsrc.userdata_raw, 'ud')
-        self.assertEqual(dsrc.metadata['local-hostname'], 'me')
-        self.assertEqual('azure', dsrc.cloud_name)
-        self.assertEqual('azure', dsrc.platform_type)
-        sp = 'config-disk (' + dsaz.DEFAULT_PROVISIONING_ISO_DEV + ')'
-        self.assertEqual(sp, dsrc.subplatform)
-        self.m_list_possible_azure_ds_devs.assert_not_called()
 
     def test_get_data_non_ubuntu_will_not_remove_network_scripts(self):
         """get_data on non-Ubuntu will not remove ubuntu net scripts."""
@@ -1634,12 +1621,19 @@ scbus-1 on xpt0 bus 0
 
     @mock.patch(MOCKPATH + 'util.is_FreeBSD')
     @mock.patch(MOCKPATH + '_check_freebsd_cdrom')
-    def test_list_possible_azure_ds_devs(self, m_check_fbsd_cdrom,
-                                         m_is_FreeBSD):
+    def test_list_possible_azure_ds(self, m_check_fbsd_cdrom,
+                                    m_is_FreeBSD):
         """On FreeBSD, possible devs should show /dev/cd0."""
         m_is_FreeBSD.return_value = True
         m_check_fbsd_cdrom.return_value = True
-        self.assertEqual(dsaz.list_possible_azure_ds_devs(), ['/dev/cd0'])
+        possible_ds = []
+        for src in dsaz.list_possible_azure_ds(
+                "seed_dir", "cache_dir"):
+            possible_ds.append(src)
+        self.assertEqual(possible_ds, ["seed_dir",
+                                       dsaz.DEFAULT_PROVISIONING_ISO_DEV,
+                                       "/dev/cd0",
+                                       "cache_dir"])
         self.assertEqual(
             [mock.call("/dev/cd0")], m_check_fbsd_cdrom.call_args_list)
 
@@ -1850,11 +1844,19 @@ class TestAzureBounce(CiTestCase):
     with_logs = True
 
     def mock_out_azure_moving_parts(self):
+
+        def _load_possible_azure_ds(seed_dir, cache_dir):
+            yield seed_dir
+            yield dsaz.DEFAULT_PROVISIONING_ISO_DEV
+            if cache_dir:
+                yield cache_dir
+
         self.patches.enter_context(
             mock.patch.object(dsaz.util, 'wait_for_files'))
         self.patches.enter_context(
-            mock.patch.object(dsaz, 'list_possible_azure_ds_devs',
-                              mock.MagicMock(return_value=[])))
+            mock.patch.object(
+                dsaz, 'list_possible_azure_ds',
+                mock.MagicMock(side_effect=_load_possible_azure_ds)))
         self.patches.enter_context(
             mock.patch.object(dsaz, 'get_metadata_from_fabric',
                               mock.MagicMock(return_value={})))

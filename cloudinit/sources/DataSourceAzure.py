@@ -407,106 +407,92 @@ class DataSourceAzure(sources.DataSource):
         # it determines the value of ret. More specifically, the first one in
         # the candidate list determines the path to take in order to get the
         # metadata we need.
-        candidates = [self.seed_dir]
+        reprovision = False
+        reprovision_after_nic_attach = False
+        metadata_source = None
+        ret = None
         if os.path.isfile(REPROVISION_MARKER_FILE):
-            candidates.insert(0, "IMDS")
+            ret = None
+            reprovision = True
+            metadata_source = "IMDS"
             report_diagnostic_event("Reprovision marker file already present "
                                     "before crawling Azure metadata: %s" %
                                     REPROVISION_MARKER_FILE,
                                     logger_func=LOG.debug)
         elif os.path.isfile(REPROVISION_NIC_ATTACH_MARKER_FILE):
-            candidates.insert(0, "NIC_ATTACH_MARKER_PRESENT")
+            ret = None
+            reprovision_after_nic_attach = True
+            metadata_source = "NIC_ATTACH_MARKER_PRESENT"
             report_diagnostic_event("Reprovision nic attach marker file "
                                     "already present before crawling Azure "
                                     "metadata: %s" %
                                     REPROVISION_NIC_ATTACH_MARKER_FILE,
                                     logger_func=LOG.debug)
         else:
-            candidates.append(DEFAULT_PROVISIONING_ISO_DEV)
-
-        found = None
-        reprovision = False
-        reprovision_after_nic_attach = False
-        for cdev in candidates:
-            try:
-                if cdev == "IMDS":
-                    ret = None
-                    reprovision = True
-                elif cdev == "NIC_ATTACH_MARKER_PRESENT":
-                    ret = None
-                    reprovision_after_nic_attach = True
-                elif cdev.startswith("/dev/"):
-                    if util.is_FreeBSD():
-                        ret = util.mount_cb(cdev, load_azure_ds_dir,
-                                            mtype="udf")
+            for src in list_possible_azure_ds(self.seed_dir, ddir):
+                try:
+                    if src.startswith("/dev/"):
+                        if util.is_FreeBSD():
+                            ret = util.mount_cb(src, load_azure_ds_dir,
+                                                mtype="udf")
+                        else:
+                            ret = util.mount_cb(src, load_azure_ds_dir)
+                        self.iso_dev = metadata_source
                     else:
-                        ret = util.mount_cb(cdev, load_azure_ds_dir)
-                else:
-                    ret = load_azure_ds_dir(cdev)
-
-            except (NonAzureDataSource, util.MountFailedError) as e:
-                if type(e) == NonAzureDataSource:
-                    report_diagnostic_event(
-                        "Did not find Azure data source in %s" % cdev,
-                        logger_func=LOG.debug)
-                else:
-                    report_diagnostic_event(
-                        '%s was not mountable' % cdev, logger_func=LOG.warning)
-
-                if cdev == DEFAULT_PROVISIONING_ISO_DEV:
-                    try:
-                        devs = list_possible_azure_ds_devs()
-                        devs.remove(
-                            DEFAULT_PROVISIONING_ISO_DEV)
-                    except ValueError:
-                        pass
-                    candidates.extend(devs)
-                    if ddir:
-                        candidates.append(ddir)
-                continue
-            except BrokenAzureDataSource as exc:
-                msg = 'BrokenAzureDataSource: %s' % exc
-                report_diagnostic_event(msg, logger_func=LOG.error)
-                raise sources.InvalidMetaDataException(msg)
-
-            perform_reprovision = reprovision or self._should_reprovision(ret)
-            perform_reprovision_after_nic_attach = (
-                reprovision_after_nic_attach or
-                self._should_reprovision_after_nic_attach(ret))
-
-            if perform_reprovision or perform_reprovision_after_nic_attach:
-                if util.is_FreeBSD():
-                    msg = "Free BSD is not supported for PPS VMs"
+                        ret = load_azure_ds_dir(src)
+                    metadata_source = src
+                    break
+                except (NonAzureDataSource, util.MountFailedError) as e:
+                    if type(e) == NonAzureDataSource:
+                        report_diagnostic_event(
+                            "Did not find Azure data source in %s" % src,
+                            logger_func=LOG.debug)
+                    else:
+                        report_diagnostic_event(
+                            '%s was not mountable' % src,
+                            logger_func=LOG.warning)
+                    continue
+                except BrokenAzureDataSource as exc:
+                    msg = 'BrokenAzureDataSource: %s' % exc
                     report_diagnostic_event(msg, logger_func=LOG.error)
                     raise sources.InvalidMetaDataException(msg)
-                if perform_reprovision_after_nic_attach:
-                    self._wait_for_all_nics_ready()
-                ret = self._reprovision()
 
-            imds_md = self.get_imds_data_with_api_fallback(
-                self.fallback_interface,
-                retries=10
-            )
-            (md, userdata_raw, cfg, files) = ret
-            self.seed = cdev
-            crawled_data.update({
-                'cfg': cfg,
-                'files': files,
-                'metadata': util.mergemanydict(
-                    [md, {'imds': imds_md}]),
-                'userdata_raw': userdata_raw})
-            found = cdev
+        perform_reprovision = reprovision or self._should_reprovision(ret)
+        perform_reprovision_after_nic_attach = (
+            reprovision_after_nic_attach or
+            self._should_reprovision_after_nic_attach(ret))
 
-            report_diagnostic_event(
-                'found datasource in %s' % cdev, logger_func=LOG.debug)
-            break
+        if perform_reprovision or perform_reprovision_after_nic_attach:
+            if util.is_FreeBSD():
+                msg = "Free BSD is not supported for PPS VMs"
+                report_diagnostic_event(msg, logger_func=LOG.error)
+                raise sources.InvalidMetaDataException(msg)
+            if perform_reprovision_after_nic_attach:
+                self._wait_for_all_nics_ready()
+            ret = self._reprovision()
 
-        if not found:
+        imds_md = self.get_imds_data_with_api_fallback(
+            self.fallback_interface,
+            retries=10
+        )
+        (md, userdata_raw, cfg, files) = ret
+        self.seed = metadata_source
+        crawled_data.update({
+            'cfg': cfg,
+            'files': files,
+            'metadata': util.mergemanydict(
+                [md, {'imds': imds_md}]),
+            'userdata_raw': userdata_raw})
+        if not metadata_source:
             msg = 'No Azure metadata found'
             report_diagnostic_event(msg, logger_func=LOG.error)
             raise sources.InvalidMetaDataException(msg)
+        else:
+            report_diagnostic_event(
+                'found datasource in %s' % metadata_source,
+                logger_func=LOG.debug)
 
-        if found == ddir:
+        if metadata_source == ddir:
             report_diagnostic_event(
                 "using files cached in %s" % ddir, logger_func=LOG.debug)
 
@@ -1913,18 +1899,18 @@ def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
 
 
 @azure_ds_telemetry_reporter
-def list_possible_azure_ds_devs():
-    devlist = []
+def list_possible_azure_ds(seed, cache_dir):
+    yield seed
+    yield DEFAULT_PROVISIONING_ISO_DEV
     if util.is_FreeBSD():
         cdrom_dev = "/dev/cd0"
         if _check_freebsd_cdrom(cdrom_dev):
-            return [cdrom_dev]
+            yield cdrom_dev
     else:
         for fstype in ("iso9660", "udf"):
-            devlist.extend(util.find_devs_with("TYPE=%s" % fstype))
-
-    devlist.sort(reverse=True)
-    return devlist
+            yield from util.find_devs_with("TYPE=%s" % fstype)
+    if cache_dir:
+        yield cache_dir
 
 
 @azure_ds_telemetry_reporter
