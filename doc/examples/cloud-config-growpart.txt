@@ -13,8 +13,6 @@
 #
 # devices:
 #   a list of things to resize.
-#   if the devices are under LVM, the list should be a single entry,
-#   cloud-init will then extend the single entry, otherwise it will fail.
 #   items can be filesystem paths or devices (in /dev)
 #   examples:
 #     devices: [/, /dev/vdb1]
