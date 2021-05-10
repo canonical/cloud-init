@@ -1556,6 +1556,9 @@ def _key_is_openssh_formatted(key):
     """
     Validate whether or not the key is OpenSSH-formatted.
     """
+    # See https://bugs.launchpad.net/cloud-init/+bug/1910835
+    if '\r\n' in key.strip():
+        return False
 
     parser = ssh_util.AuthKeyLineParser()
     try:

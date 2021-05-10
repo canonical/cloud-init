@@ -1764,6 +1764,18 @@ scbus-1 on xpt0 bus 0
         self.assertEqual(ssh_keys, ["ssh-rsa key1"])
         self.assertEqual(m_parse_certificates.call_count, 0)
 
+    def test_key_without_crlf_valid(self):
+        test_key = 'ssh-rsa somerandomkeystuff some comment'
+        assert True is dsaz._key_is_openssh_formatted(test_key)
+
+    def test_key_with_crlf_invalid(self):
+        test_key = 'ssh-rsa someran\r\ndomkeystuff some comment'
+        assert False is dsaz._key_is_openssh_formatted(test_key)
+
+    def test_key_endswith_crlf_valid(self):
+        test_key = 'ssh-rsa somerandomkeystuff some comment\r\n'
+        assert True is dsaz._key_is_openssh_formatted(test_key)
+
     @mock.patch(
         'cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates')
     @mock.patch(MOCKPATH + 'get_metadata_from_imds')
