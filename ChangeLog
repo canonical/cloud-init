@@ -1,3 +1,66 @@
+21.2
+ - Add \r\n check for SSH keys in Azure (#889)
+ - Revert "Add support to resize rootfs if using LVM (#721)" (#887)
+   (LP: #1922742)
+ - Add Vultaire as contributor (#881) [Paul Goins]
+ - Azure: adding support for consuming userdata from IMDS (#884) [Anh Vo]
+ - test_upgrade: modify test_upgrade_package to run for more sources (#883)
+ - Fix chef module run failure when chef_license is set (#868) [Ben Hughes]
+ - Azure: Retry net metadata during nic attach for non-timeout errs (#878)
+   [aswinrajamannar]
+ - Azure: Retrieve username and hostname from IMDS (#865) [Thomas Stringer]
+ - Azure: eject the provisioning iso before reporting ready (#861) [Anh Vo]
+ - Use `partprobe` to re-read partition table if available (#856)
+   [Nicolas Bock] (LP: #1920939)
+ - fix error on upgrade caused by new vendordata2 attributes (#869)
+   (LP: #1922739)
+ - add prefer_fqdn_over_hostname config option (#859)
+   [hamalq] (LP: #1921004)
+ - Emit dots on travis to avoid timeout (#867)
+ - doc: Replace remaining references to user-scripts as a config module
+   (#866) [Ryan Harper]
+ - azure: Removing ability to invoke walinuxagent (#799) [Anh Vo]
+ - Add Vultr support (#827) [David Dymko]
+ - Fix unpickle for source paths missing run_dir (#863)
+   [lucasmoura] (LP: #1899299)
+ - sysconfig: use BONDING_MODULE_OPTS on SUSE (#831) [Jens Sandmann]
+ - bringup_static_routes: fix gateway check (#850) [Petr Fedchenkov]
+ - add hamalq user (#860) [hamalq]
+ - Add support to resize rootfs if using LVM (#721)
+   [Eduardo Otubo] (LP: #1799953)
+ - Fix mis-detecting network configuration in initramfs cmdline (#844)
+   (LP: #1919188)
+ - tools/write-ssh-key-fingerprints: do not display empty header/footer
+   (#817) [dermotbradley]
+ - Azure helper: Ensure Azure http handler sleeps between retries (#842)
+   [Johnson Shi]
+ - Fix chef apt source example (#826) [timothegenzmer]
+ - .travis.yml: generate an SSH key before running tests (#848)
+ - write passwords only to serial console, lock down cloud-init-output.log
+   (#847) (LP: #1918303)
+ - Fix apt default integration test (#845)
+ - integration_tests: bump pycloudlib dependency (#846)
+ - Fix stack trace if vendordata_raw contained an array (#837) [eb3095]
+ - archlinux: Fix broken locale logic (#841)
+   [Kristian Klausen] (LP: #1402406)
+ - Integration test for #783 (#832)
+ - integration_tests: mount more paths IN_PLACE (#838)
+ - Fix requiring device-number on EC2 derivatives (#836) (LP: #1917875)
+ - Remove the vi comment from the part-handler example (#835)
+ - net: exclude OVS internal interfaces in get_interfaces (#829)
+   (LP: #1912844)
+ - tox.ini: pass OS_* environment variables to integration tests (#830)
+ - integration_tests: add OpenStack as a platform (#804)
+ - Add flexibility to IMDS api-version (#793) [Thomas Stringer]
+ - Fix the TestApt tests using apt-key on Xenial and Hirsute (#823)
+   [Paride Legovini] (LP: #1916629)
+ - doc: remove duplicate "it" from nocloud.rst (#825) [V.I. Wood]
+ - archlinux: Use hostnamectl to set the transient hostname (#797)
+   [Kristian Klausen]
+ - cc_keys_to_console.py: Add documentation for recently added config key
+   (#824) [dermotbradley]
+ - Update cc_set_hostname documentation (#818) [Toshi Aoyama]
+
 21.1
  - Azure: Support for VMs without ephemeral resource disks. (#800)
    [Johnson Shi] (LP: #1901011)

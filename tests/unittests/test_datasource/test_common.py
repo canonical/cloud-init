@@ -28,6 +28,7 @@ from cloudinit.sources import (
     DataSourceScaleway as Scaleway,
     DataSourceSmartOS as SmartOS,
     DataSourceUpCloud as UpCloud,
+    DataSourceVultr as Vultr,
 )
 from cloudinit.sources import DataSourceNone as DSNone
 
@@ -45,6 +46,7 @@ DEFAULT_LOCAL = [
     Oracle.DataSourceOracle,
     OVF.DataSourceOVF,
     SmartOS.DataSourceSmartOS,
+    Vultr.DataSourceVultr,
     Ec2.DataSourceEc2Local,
     OpenStack.DataSourceOpenStackLocal,
     RbxCloud.DataSourceRbxCloud,

@@ -1135,7 +1135,7 @@ class EphemeralIPv4Network(object):
         #                  ("0.0.0.0/0", "130.56.240.1")]
         for net_address, gateway in self.static_routes:
             via_arg = []
-            if gateway != "0.0.0.0/0":
+            if gateway != "0.0.0.0":
                 via_arg = ['via', gateway]
             subp.subp(
                 ['ip', '-4', 'route', 'add', net_address] + via_arg +

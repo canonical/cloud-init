@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
+from collections import namedtuple
 import contextlib
 import crypt
 from functools import partial
@@ -16,6 +17,7 @@ from time import sleep
 from xml.dom import minidom
 import xml.etree.ElementTree as ET
 from enum import Enum
+import requests
 
 from cloudinit import dmi
 from cloudinit import log as logging
@@ -25,6 +27,7 @@ from cloudinit.net import device_driver
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
 from cloudinit.sources.helpers import netlink
+from cloudinit import ssh_util
 from cloudinit import subp
 from cloudinit.url_helper import UrlError, readurl, retry_on_url_exc
 from cloudinit import util
@@ -80,7 +83,12 @@ AGENT_SEED_DIR = '/var/lib/waagent'
 IMDS_TIMEOUT_IN_SECONDS = 2
 IMDS_URL = "http://169.254.169.254/metadata"
 IMDS_VER_MIN = "2019-06-01"
-IMDS_VER_WANT = "2020-09-01"
+IMDS_VER_WANT = "2021-01-01"
+
+
+# This holds SSH key data including if the source was
+# from IMDS, as well as the SSH key data itself.
+SSHKeys = namedtuple("SSHKeys", ("keys_from_imds", "ssh_keys"))
 
 
 class metadata_type(Enum):
@@ -332,6 +340,7 @@ class DataSourceAzure(sources.DataSource):
     dsname = 'Azure'
     _negotiated = False
     _metadata_imds = sources.UNSET
+    _ci_pkl_version = 1
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -346,8 +355,13 @@ class DataSourceAzure(sources.DataSource):
         # Regenerate network config new_instance boot and every boot
         self.update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
-
         self.failed_desired_api_version = False
+        self.iso_dev = None
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        super()._unpickle(ci_pkl_version)
+        if "iso_dev" not in self.__dict__:
+            self.iso_dev = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -381,57 +395,12 @@ class DataSourceAzure(sources.DataSource):
                     util.logexc(LOG, "handling set_hostname failed")
         return False
 
-    @azure_ds_telemetry_reporter
-    def get_metadata_from_agent(self):
-        temp_hostname = self.metadata.get('local-hostname')
-        agent_cmd = self.ds_cfg['agent_command']
-        LOG.debug("Getting metadata via agent.  hostname=%s cmd=%s",
-                  temp_hostname, agent_cmd)
-
-        self.bounce_network_with_azure_hostname()
-
-        try:
-            invoke_agent(agent_cmd)
-        except subp.ProcessExecutionError:
-            # claim the datasource even if the command failed
-            util.logexc(LOG, "agent command '%s' failed.",
-                        self.ds_cfg['agent_command'])
-
-        ddir = self.ds_cfg['data_dir']
-
-        fp_files = []
-        key_value = None
-        for pk in self.cfg.get('_pubkeys', []):
-            if pk.get('value', None):
-                key_value = pk['value']
-                LOG.debug("SSH authentication: using value from fabric")
-            else:
-                bname = str(pk['fingerprint'] + ".crt")
-                fp_files += [os.path.join(ddir, bname)]
-                LOG.debug("SSH authentication: "
-                          "using fingerprint from fabric")
-
-        with events.ReportEventStack(
-                name="waiting-for-ssh-public-key",
-                description="wait for agents to retrieve SSH keys",
-                parent=azure_ds_reporter):
-            # wait very long for public SSH keys to arrive
-            # https://bugs.launchpad.net/cloud-init/+bug/1717611
-            missing = util.log_time(logfunc=LOG.debug,
-                                    msg="waiting for SSH public key files",
-                                    func=util.wait_for_files,
-                                    args=(fp_files, 900))
-            if len(missing):
-                LOG.warning("Did not find files, but going on: %s", missing)
-
-        metadata = {}
-        metadata['public-keys'] = key_value or pubkeys_from_crt_files(fp_files)
-        return metadata
-
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
         if self.seed.startswith('/dev'):
             subplatform_type = 'config-disk'
+        elif self.seed.lower() == 'imds':
+            subplatform_type = 'imds'
         else:
             subplatform_type = 'seed-dir'
         return '%s (%s)' % (subplatform_type, self.seed)
@@ -474,9 +443,11 @@ class DataSourceAzure(sources.DataSource):
 
         found = None
         reprovision = False
+        ovf_is_accessible = True
         reprovision_after_nic_attach = False
         for cdev in candidates:
             try:
+                LOG.debug("cdev: %s", cdev)
                 if cdev == "IMDS":
                     ret = None
                     reprovision = True
@@ -503,8 +474,25 @@ class DataSourceAzure(sources.DataSource):
                 raise sources.InvalidMetaDataException(msg)
             except util.MountFailedError:
                 report_diagnostic_event(
-                    '%s was not mountable' % cdev, logger_func=LOG.warning)
-                continue
+                    '%s was not mountable' % cdev, logger_func=LOG.debug)
+                cdev = 'IMDS'
+                ovf_is_accessible = False
+                empty_md = {'local-hostname': ''}
+                empty_cfg = dict(
+                    system_info=dict(
+                        default_user=dict(
+                            name=''
+                        )
+                    )
+                )
+                ret = (empty_md, '', empty_cfg, {})
+
+            report_diagnostic_event("Found provisioning metadata in %s" % cdev,
+                                    logger_func=LOG.debug)
+
+            # save the iso device for ejection before reporting ready
+            if cdev.startswith("/dev"):
+                self.iso_dev = cdev
 
             perform_reprovision = reprovision or self._should_reprovision(ret)
             perform_reprovision_after_nic_attach = (
@@ -524,6 +512,10 @@ class DataSourceAzure(sources.DataSource):
                 self.fallback_interface,
                 retries=10
             )
+            if not imds_md and not ovf_is_accessible:
+                msg = 'No OVF or IMDS available'
+                report_diagnostic_event(msg)
+                raise sources.InvalidMetaDataException(msg)
             (md, userdata_raw, cfg, files) = ret
             self.seed = cdev
             crawled_data.update({
@@ -532,6 +524,35 @@ class DataSourceAzure(sources.DataSource):
                 'metadata': util.mergemanydict(
                     [md, {'imds': imds_md}]),
                 'userdata_raw': userdata_raw})
+            imds_username = _username_from_imds(imds_md)
+            imds_hostname = _hostname_from_imds(imds_md)
+            imds_disable_password = _disable_password_from_imds(imds_md)
+            if imds_username:
+                LOG.debug('Username retrieved from IMDS: %s', imds_username)
+                cfg['system_info']['default_user']['name'] = imds_username
+            if imds_hostname:
+                LOG.debug('Hostname retrieved from IMDS: %s', imds_hostname)
+                crawled_data['metadata']['local-hostname'] = imds_hostname
+            if imds_disable_password:
+                LOG.debug(
+                    'Disable password retrieved from IMDS: %s',
+                    imds_disable_password
+                )
+                crawled_data['metadata']['disable_password'] = imds_disable_password  # noqa: E501
+
+            # only use userdata from imds if OVF did not provide custom data
+            # userdata provided by IMDS is always base64 encoded
+            if not userdata_raw:
+                imds_userdata = _userdata_from_imds(imds_md)
+                if imds_userdata:
+                    LOG.debug("Retrieved userdata from IMDS")
+                    try:
+                        crawled_data['userdata_raw'] = base64.b64decode(
+                            ''.join(imds_userdata.split()))
+                    except Exception:
+                        report_diagnostic_event(
+                            "Bad userdata in IMDS",
+                            logger_func=LOG.warning)
             found = cdev
 
             report_diagnostic_event(
@@ -659,7 +680,9 @@ class DataSourceAzure(sources.DataSource):
             self,
             fallback_nic,
             retries,
-            md_type=metadata_type.compute):
+            md_type=metadata_type.compute,
+            exc_cb=retry_on_url_exc,
+            infinite=False):
         """
         Wrapper for get_metadata_from_imds so that we can have flexibility
         in which IMDS api-version we use. If a particular instance of IMDS
@@ -679,7 +702,8 @@ class DataSourceAzure(sources.DataSource):
                         fallback_nic=fallback_nic,
                         retries=0,
                         md_type=md_type,
-                        api_version=IMDS_VER_WANT
+                        api_version=IMDS_VER_WANT,
+                        exc_cb=exc_cb
                     )
                 except UrlError as err:
                     LOG.info(
@@ -702,7 +726,9 @@ class DataSourceAzure(sources.DataSource):
             fallback_nic=fallback_nic,
             retries=retries,
             md_type=md_type,
-            api_version=IMDS_VER_MIN
+            api_version=IMDS_VER_MIN,
+            exc_cb=exc_cb,
+            infinite=infinite
         )
 
     def device_name_to_device(self, name):
@@ -710,6 +736,13 @@ class DataSourceAzure(sources.DataSource):
 
     @azure_ds_telemetry_reporter
     def get_public_ssh_keys(self):
+        """
+        Retrieve public SSH keys.
+        """
+
+        return self._get_public_ssh_keys_and_source().ssh_keys
+
+    def _get_public_ssh_keys_and_source(self):
         """
         Try to get the ssh keys from IMDS first, and if that fails
         (i.e. IMDS is unavailable) then fallback to getting the ssh
@@ -719,30 +752,50 @@ class DataSourceAzure(sources.DataSource):
         advantage, so this is a strong preference. But we must keep
         OVF as a second option for environments that don't have IMDS.
         """
+
         LOG.debug('Retrieving public SSH keys')
         ssh_keys = []
+        keys_from_imds = True
+        LOG.debug('Attempting to get SSH keys from IMDS')
         try:
-            raise KeyError(
-                "Not using public SSH keys from IMDS"
-            )
-            # pylint:disable=unreachable
             ssh_keys = [
                 public_key['keyData']
                 for public_key
                 in self.metadata['imds']['compute']['publicKeys']
             ]
-            LOG.debug('Retrieved SSH keys from IMDS')
+            for key in ssh_keys:
+                if not _key_is_openssh_formatted(key=key):
+                    keys_from_imds = False
+                    break
+
+            if not keys_from_imds:
+                log_msg = 'Keys not in OpenSSH format, using OVF'
+            else:
+                log_msg = 'Retrieved {} keys from IMDS'.format(
+                    len(ssh_keys)
+                    if ssh_keys is not None
+                    else 0
+                )
         except KeyError:
             log_msg = 'Unable to get keys from IMDS, falling back to OVF'
+            keys_from_imds = False
+        finally:
             report_diagnostic_event(log_msg, logger_func=LOG.debug)
+
+        if not keys_from_imds:
+            LOG.debug('Attempting to get SSH keys from OVF')
             try:
                 ssh_keys = self.metadata['public-keys']
-                LOG.debug('Retrieved keys from OVF')
+                log_msg = 'Retrieved {} keys from OVF'.format(len(ssh_keys))
             except KeyError:
                 log_msg = 'No keys available from OVF'
+            finally:
                 report_diagnostic_event(log_msg, logger_func=LOG.debug)
 
-        return ssh_keys
+        return SSHKeys(
+            keys_from_imds=keys_from_imds,
+            ssh_keys=ssh_keys
+        )
 
     def get_config_obj(self):
         return self.cfg
@@ -905,6 +958,9 @@ class DataSourceAzure(sources.DataSource):
         is_primary = False
         expected_nic_count = -1
         imds_md = None
+        metadata_poll_count = 0
+        metadata_logging_threshold = 1
+        metadata_timeout_count = 0
 
         # For now, only a VM's primary NIC can contact IMDS and WireServer. If
         # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
@@ -929,14 +985,48 @@ class DataSourceAzure(sources.DataSource):
                                     % (ifname, e), logger_func=LOG.error)
             raise
 
+        # Retry polling network metadata for a limited duration only when the
+        # calls fail due to timeout. This is because the platform drops packets
+        # going towards IMDS when it is not a primary nic. If the calls fail
+        # due to other issues like 410, 503 etc, then it means we are primary
+        # but IMDS service is unavailable at the moment. Retry indefinitely in
+        # those cases since we cannot move on without the network metadata.
+        def network_metadata_exc_cb(msg, exc):
+            nonlocal metadata_timeout_count, metadata_poll_count
+            nonlocal metadata_logging_threshold
+
+            metadata_poll_count = metadata_poll_count + 1
+
+            # Log when needed but back off exponentially to avoid exploding
+            # the log file.
+            if metadata_poll_count >= metadata_logging_threshold:
+                metadata_logging_threshold *= 2
+                report_diagnostic_event(
+                    "Ran into exception when attempting to reach %s "
+                    "after %d polls." % (msg, metadata_poll_count),
+                    logger_func=LOG.error)
+
+                if isinstance(exc, UrlError):
+                    report_diagnostic_event("poll IMDS with %s failed. "
+                                            "Exception: %s and code: %s" %
+                                            (msg, exc.cause, exc.code),
+                                            logger_func=LOG.error)
+
+            if exc.cause and isinstance(exc.cause, requests.Timeout):
+                metadata_timeout_count = metadata_timeout_count + 1
+                return (metadata_timeout_count <= 10)
+            return True
+
         # Primary nic detection will be optimized in the future. The fact that
         # primary nic is being attached first helps here. Otherwise each nic
         # could add several seconds of delay.
         try:
             imds_md = self.get_imds_data_with_api_fallback(
                 ifname,
-                5,
-                metadata_type.network
+                0,
+                metadata_type.network,
+                network_metadata_exc_cb,
+                True
             )
         except Exception as e:
             LOG.warning(
@@ -1273,7 +1363,9 @@ class DataSourceAzure(sources.DataSource):
         @return: The success status of sending the ready signal.
         """
         try:
-            get_metadata_from_fabric(None, lease['unknown-245'])
+            get_metadata_from_fabric(fallback_lease_file=None,
+                                     dhcp_opts=lease['unknown-245'],
+                                     iso_dev=self.iso_dev)
             return True
         except Exception as e:
             report_diagnostic_event(
@@ -1354,35 +1446,24 @@ class DataSourceAzure(sources.DataSource):
            On failure, returns False.
         """
 
-        if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
-            self.bounce_network_with_azure_hostname()
+        self.bounce_network_with_azure_hostname()
 
-            pubkey_info = None
-            try:
-                raise KeyError(
-                    "Not using public SSH keys from IMDS"
-                )
-                # pylint:disable=unreachable
-                public_keys = self.metadata['imds']['compute']['publicKeys']
-                LOG.debug(
-                    'Successfully retrieved %s key(s) from IMDS',
-                    len(public_keys)
-                    if public_keys is not None
-                    else 0
-                )
-            except KeyError:
-                LOG.debug(
-                    'Unable to retrieve SSH keys from IMDS during '
-                    'negotiation, falling back to OVF'
-                )
-                pubkey_info = self.cfg.get('_pubkeys', None)
+        pubkey_info = None
+        ssh_keys_and_source = self._get_public_ssh_keys_and_source()
 
-            metadata_func = partial(get_metadata_from_fabric,
-                                    fallback_lease_file=self.
-                                    dhclient_lease_file,
-                                    pubkey_info=pubkey_info)
-        else:
-            metadata_func = self.get_metadata_from_agent
+        if not ssh_keys_and_source.keys_from_imds:
+            pubkey_info = self.cfg.get('_pubkeys', None)
+            log_msg = 'Retrieved {} fingerprints from OVF'.format(
+                len(pubkey_info)
+                if pubkey_info is not None
+                else 0
+            )
+            report_diagnostic_event(log_msg, logger_func=LOG.debug)
+
+        metadata_func = partial(get_metadata_from_fabric,
+                                fallback_lease_file=self.
+                                dhclient_lease_file,
+                                pubkey_info=pubkey_info)
 
         LOG.debug("negotiating with fabric via agent command %s",
                   self.ds_cfg['agent_command'])
@@ -1436,6 +1517,51 @@ class DataSourceAzure(sources.DataSource):
     @property
     def region(self):
         return self.metadata.get('imds', {}).get('compute', {}).get('location')
+
+
+def _username_from_imds(imds_data):
+    try:
+        return imds_data['compute']['osProfile']['adminUsername']
+    except KeyError:
+        return None
+
+
+def _userdata_from_imds(imds_data):
+    try:
+        return imds_data['compute']['userData']
+    except KeyError:
+        return None
+
+
+def _hostname_from_imds(imds_data):
+    try:
+        return imds_data['compute']['osProfile']['computerName']
+    except KeyError:
+        return None
+
+
+def _disable_password_from_imds(imds_data):
+    try:
+        return imds_data['compute']['osProfile']['disablePasswordAuthentication'] == 'true'  # noqa: E501
+    except KeyError:
+        return None
+
+
+def _key_is_openssh_formatted(key):
+    """
+    Validate whether or not the key is OpenSSH-formatted.
+    """
+    # See https://bugs.launchpad.net/cloud-init/+bug/1910835
+    if '\r\n' in key.strip():
+        return False
+
+    parser = ssh_util.AuthKeyLineParser()
+    try:
+        akl = parser.parse(key)
+    except TypeError:
+        return False
+
+    return akl.keytype is not None
 
 
 def _partitions_on_device(devpath, maxnum=16):
@@ -1618,33 +1744,6 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
 
 
 @azure_ds_telemetry_reporter
-def crtfile_to_pubkey(fname, data=None):
-    pipeline = ('openssl x509 -noout -pubkey < "$0" |'
-                'ssh-keygen -i -m PKCS8 -f /dev/stdin')
-    (out, _err) = subp.subp(['sh', '-c', pipeline, fname],
-                            capture=True, data=data)
-    return out.rstrip()
-
-
-@azure_ds_telemetry_reporter
-def pubkeys_from_crt_files(flist):
-    pubkeys = []
-    errors = []
-    for fname in flist:
-        try:
-            pubkeys.append(crtfile_to_pubkey(fname))
-        except subp.ProcessExecutionError:
-            errors.append(fname)
-
-    if errors:
-        report_diagnostic_event(
-            "failed to convert the crt files to pubkey: %s" % errors,
-            logger_func=LOG.warning)
-
-    return pubkeys
-
-
-@azure_ds_telemetry_reporter
 def write_files(datadir, files, dirmode=None):
 
     def _redact_password(cnt, fname):
@@ -1670,16 +1769,6 @@ def write_files(datadir, files, dirmode=None):
         if 'ovf-env.xml' in name:
             content = _redact_password(content, fname)
         util.write_file(filename=fname, content=content, mode=0o600)
-
-
-@azure_ds_telemetry_reporter
-def invoke_agent(cmd):
-    # this is a function itself to simplify patching it for test
-    if cmd:
-        LOG.debug("invoking agent: %s", cmd)
-        subp.subp(cmd, shell=(not isinstance(cmd, list)))
-    else:
-        LOG.debug("not invoking agent")
 
 
 def find_child(node, filter_func):
@@ -2117,7 +2206,9 @@ def _generate_network_config_from_fallback_config() -> dict:
 def get_metadata_from_imds(fallback_nic,
                            retries,
                            md_type=metadata_type.compute,
-                           api_version=IMDS_VER_MIN):
+                           api_version=IMDS_VER_MIN,
+                           exc_cb=retry_on_url_exc,
+                           infinite=False):
     """Query Azure's instance metadata service, returning a dictionary.
 
     If network is not up, setup ephemeral dhcp on fallback_nic to talk to the
@@ -2136,7 +2227,7 @@ def get_metadata_from_imds(fallback_nic,
     kwargs = {'logfunc': LOG.debug,
               'msg': 'Crawl of Azure Instance Metadata Service (IMDS)',
               'func': _get_metadata_from_imds,
-              'args': (retries, md_type, api_version,)}
+              'args': (retries, exc_cb, md_type, api_version, infinite)}
     if net.is_up(fallback_nic):
         return util.log_time(**kwargs)
     else:
@@ -2154,14 +2245,16 @@ def get_metadata_from_imds(fallback_nic,
 @azure_ds_telemetry_reporter
 def _get_metadata_from_imds(
         retries,
+        exc_cb,
         md_type=metadata_type.compute,
-        api_version=IMDS_VER_MIN):
+        api_version=IMDS_VER_MIN,
+        infinite=False):
     url = "{}?api-version={}".format(md_type.value, api_version)
     headers = {"Metadata": "true"}
     try:
         response = readurl(
             url, timeout=IMDS_TIMEOUT_IN_SECONDS, headers=headers,
-            retries=retries, exception_cb=retry_on_url_exc)
+            retries=retries, exception_cb=exc_cb, infinite=infinite)
     except Exception as e:
         # pylint:disable=no-member
         if isinstance(e, UrlError) and e.code == 400:

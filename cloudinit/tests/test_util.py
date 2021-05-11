@@ -107,12 +107,31 @@ OS_RELEASE_REDHAT_7 = dedent("""\
     REDHAT_SUPPORT_PRODUCT_VERSION="7.5"
 """)
 
+OS_RELEASE_ALMALINUX_8 = dedent("""\
+    NAME="AlmaLinux"
+    VERSION="8.3 (Purple Manul)"
+    ID="almalinux"
+    ID_LIKE="rhel centos fedora"
+    VERSION_ID="8.3"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="AlmaLinux 8.3 (Purple Manul)"
+    ANSI_COLOR="0;34"
+    CPE_NAME="cpe:/o:almalinux:almalinux:8.3:GA"
+    HOME_URL="https://almalinux.org/"
+    BUG_REPORT_URL="https://bugs.almalinux.org/"
+
+    ALMALINUX_MANTISBT_PROJECT="AlmaLinux-8"
+    ALMALINUX_MANTISBT_PROJECT_VERSION="8.3"
+""")
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
     "Red Hat Enterprise Linux Server release 6.10 (Santiago)")
 REDHAT_RELEASE_REDHAT_7 = (
     "Red Hat Enterprise Linux Server release 7.5 (Maipo)")
+REDHAT_RELEASE_ALMALINUX_8 = (
+    "AlmaLinux release 8.3 (Purple Manul)")
 
 
 OS_RELEASE_DEBIAN = dedent("""\
@@ -501,6 +520,22 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('centos', '7', 'Core'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_almalinux8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify almalinux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_ALMALINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('almalinux', '8.3', 'Purple Manul'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_almalinux8_osrelease(self, m_os_release, m_path_exists):
+        """Verify almalinux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_ALMALINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('almalinux', '8.3', 'Purple Manul'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_debian(self, m_os_release, m_path_exists):
