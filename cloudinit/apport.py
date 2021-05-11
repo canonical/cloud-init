@@ -41,6 +41,7 @@ KNOWN_CLOUD_NAMES = [
     'SmartOS',
     'UpCloud',
     'VMware',
+    'Vultr',
     'ZStack',
     'Other'
 ]

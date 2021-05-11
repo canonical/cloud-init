@@ -384,6 +384,7 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
 
     max_readurl_attempts = 240
     default_readurl_timeout = 5
+    sleep_duration_between_retries = 5
     periodic_logging_attempts = 12
 
     def setUp(self):
@@ -394,8 +395,8 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         self.m_readurl = patches.enter_context(
             mock.patch.object(
                 azure_helper.url_helper, 'readurl', mock.MagicMock()))
-        patches.enter_context(
-            mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
+        self.m_sleep = patches.enter_context(
+            mock.patch.object(azure_helper.time, 'sleep', autospec=True))
 
     def test_http_with_retries(self):
         self.m_readurl.return_value = 'TestResp'
@@ -437,6 +438,12 @@ class TestAzureHelperHttpWithRetries(CiTestCase):
         self.assertEqual(
             self.m_readurl.call_count,
             self.periodic_logging_attempts + 1)
+
+        # Ensure that cloud-init did sleep between each failed request
+        self.assertEqual(
+            self.m_sleep.call_count,
+            self.periodic_logging_attempts)
+        self.m_sleep.assert_called_with(self.sleep_duration_between_retries)
 
     def test_http_with_retries_long_delay_logs_periodic_failure_msg(self):
         self.m_readurl.side_effect = \
@@ -1002,6 +1009,14 @@ class TestWALinuxAgentShim(CiTestCase):
         self.GoalState.return_value.container_id = self.test_container_id
         self.GoalState.return_value.instance_id = self.test_instance_id
 
+    def test_eject_iso_is_called(self):
+        shim = wa_shim()
+        with mock.patch.object(
+            shim, 'eject_iso', autospec=True
+        ) as m_eject_iso:
+            shim.register_with_azure_and_fetch_data(iso_dev="/dev/sr0")
+            m_eject_iso.assert_called_once_with("/dev/sr0")
+
     def test_http_client_does_not_use_certificate_for_report_ready(self):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
@@ -1276,13 +1291,14 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
 
     def test_calls_shim_register_with_azure_and_fetch_data(self):
         m_pubkey_info = mock.MagicMock()
-        azure_helper.get_metadata_from_fabric(pubkey_info=m_pubkey_info)
+        azure_helper.get_metadata_from_fabric(
+            pubkey_info=m_pubkey_info, iso_dev="/dev/sr0")
         self.assertEqual(
             1,
             self.m_shim.return_value
                 .register_with_azure_and_fetch_data.call_count)
         self.assertEqual(
-            mock.call(pubkey_info=m_pubkey_info),
+            mock.call(iso_dev="/dev/sr0", pubkey_info=m_pubkey_info),
             self.m_shim.return_value
                 .register_with_azure_and_fetch_data.call_args)
 
