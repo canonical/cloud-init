@@ -11,8 +11,8 @@ import pytest
 
 from cloudinit.distros import _get_package_mirror_info, LDH_ASCII_CHARS
 
-# In newer versions of python, these characters won't be substituted
-# because of security concerns.
+# In newer versions of Python, these characters will be omitted instead
+# of substituted because of security concerns.
 # See https://bugs.python.org/issue43882
 SECURITY_URL_CHARS = '\n\r\t'
 
