@@ -1654,7 +1654,7 @@ pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
         'expected_sysconfig_opensuse': {
             'ifcfg-bond0': textwrap.dedent("""\
                 BONDING_MASTER=yes
-                BONDING_OPTS="mode=active-backup """
+                BONDING_MODULE_OPTS="mode=active-backup """
                                            """xmit_hash_policy=layer3+4 """
                                            """miimon=100"
                 BONDING_SLAVE_0=eth1
@@ -2240,7 +2240,7 @@ iface bond0 inet6 static
         'expected_sysconfig_opensuse': {
             'ifcfg-bond0': textwrap.dedent("""\
         BONDING_MASTER=yes
-        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
+        BONDING_MODULE_OPTS="mode=active-backup xmit_hash_policy=layer3+4 """
                                            """miimon=100 num_grat_arp=5 """
                                            """downdelay=10 updelay=20 """
                                            """fail_over_mac=active """
@@ -4384,6 +4384,56 @@ class TestCmdlineKlibcNetworkConfigSource(FilesystemMockingTestCase):
         files = sorted(populate_dir(self.tmp_dir(), content))
         src = cmdline.KlibcNetworkConfigSource(
             _files=files, _cmdline='foo root=/dev/sda', _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_with_faux_ip(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='foo iscsi_target_ip=root=/dev/sda',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_empty_cmdline(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_whitespace_cmdline(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='          ',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_cmdline_no_lhand(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='=wut',
+            _mac_addrs=self.macs,
+        )
+        self.assertFalse(src.is_applicable())
+
+    def test_cmdline_embedded_ip(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        files = sorted(populate_dir(self.tmp_dir(), content))
+        src = cmdline.KlibcNetworkConfigSource(
+            _files=files,
+            _cmdline='opt="some things and ip=foo"',
+            _mac_addrs=self.macs,
         )
         self.assertFalse(src.is_applicable())
 

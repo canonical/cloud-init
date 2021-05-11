@@ -25,6 +25,7 @@ from tests.integration_tests.instances import (
     IntegrationOciInstance,
     IntegrationLxdInstance,
 )
+from tests.integration_tests.util import emit_dots_on_travis
 
 try:
     from typing import Optional
@@ -110,14 +111,14 @@ class IntegrationCloud(ABC):
             # Even if we're using the default key, it may still have a
             # different name in the clouds, so we need to set it separately.
             self.cloud_instance.key_pair.name = settings.KEYPAIR_NAME
-        self._released_image_id = self._get_initial_image()
+        self.released_image_id = self._get_initial_image()
         self.snapshot_id = None
 
     @property
     def image_id(self):
         if self.snapshot_id:
             return self.snapshot_id
-        return self._released_image_id
+        return self.released_image_id
 
     def emit_settings_to_log(self) -> None:
         log.info(
@@ -167,7 +168,8 @@ class IntegrationCloud(ABC):
             "\n".join("{}={}".format(*item) for item in kwargs.items())
         )
 
-        pycloudlib_instance = self._perform_launch(kwargs)
+        with emit_dots_on_travis():
+            pycloudlib_instance = self._perform_launch(kwargs)
         log.info('Launched instance: %s', pycloudlib_instance)
         instance = self.get_instance(pycloudlib_instance, settings)
         if kwargs.get('wait', True):

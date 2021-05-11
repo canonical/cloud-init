@@ -24,6 +24,7 @@ from cloudinit import util
 from cloudinit.atomic_helper import write_json
 from cloudinit.event import EventType
 from cloudinit.filters import launch_index
+from cloudinit.persistence import CloudInitPickleMixin
 from cloudinit.reporting import events
 
 DSMODE_DISABLED = "disabled"
@@ -134,7 +135,7 @@ URLParams = namedtuple(
     'URLParms', ['max_wait_seconds', 'timeout_seconds', 'num_retries'])
 
 
-class DataSource(metaclass=abc.ABCMeta):
+class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     dsmode = DSMODE_NETWORK
     default_locale = 'en_US.UTF-8'
@@ -196,6 +197,8 @@ class DataSource(metaclass=abc.ABCMeta):
     # non-root users
     sensitive_metadata_keys = ('merged_cfg', 'security-credentials',)
 
+    _ci_pkl_version = 1
+
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
         self.distro = distro
@@ -217,6 +220,13 @@ class DataSource(metaclass=abc.ABCMeta):
             self.ud_proc = ud.UserDataProcessor(self.paths)
         else:
             self.ud_proc = ud_proc
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        """Perform deserialization fixes for Paths."""
+        if not hasattr(self, 'vendordata2'):
+            self.vendordata2 = None
+        if not hasattr(self, 'vendordata2_raw'):
+            self.vendordata2_raw = None
 
     def __str__(self):
         return type_utils.obj_name(self)
