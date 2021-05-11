@@ -1,3 +1,11 @@
+cloud-init (21.1-19-gbad84ad4-0ubuntu1~20.10.3) UNRELEASED; urgency=medium
+
+  * drop the following cherry-picks now included:
+    + cpick-83f6bbfb-Fix-unpickle-for-source-paths-missing-run_dir-863
+    + cpick-d132356c-fix-error-on-upgrade-caused-by-new-vendordata2
+
+ -- James Falcon <james.falcon@canonical.com>  Tue, 11 May 2021 12:07:28 -0500
+
 cloud-init (21.1-19-gbad84ad4-0ubuntu1~20.10.2) groovy; urgency=medium
 
   * cherry-pick 83f6bbfb: Fix unpickle for source paths missing run_dir
