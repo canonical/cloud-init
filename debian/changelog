@@ -1,4 +1,4 @@
-cloud-init (21.2-3-g899bfaa9-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (21.2-3-g899bfaa9-0ubuntu1) impish; urgency=medium
 
   * drop the following cherry-picks now included:
     + cpick-83f6bbfb-Fix-unpickle-for-source-paths-missing-run_dir-863
