@@ -1,8 +1,44 @@
-cloud-init (21.1-19-gbad84ad4-0ubuntu1~20.10.3) UNRELEASED; urgency=medium
+cloud-init (21.2-3-g899bfaa9-0ubuntu1~20.10.1) UNRELEASED; urgency=medium
 
   * drop the following cherry-picks now included:
     + cpick-83f6bbfb-Fix-unpickle-for-source-paths-missing-run_dir-863
     + cpick-d132356c-fix-error-on-upgrade-caused-by-new-vendordata2
+  * New upstream snapshot. (LP: #1927491)
+    - Update test characters in substitution unit test (#893)
+    - cc_disk_setup.py: remove UDEVADM_CMD definition as not used (#886)
+      [dermotbradley]
+    - Add AlmaLinux OS support (#872) [Andrew Lukoshko]
+    - Release 21.2 (#890)
+    - Add \r\n check for SSH keys in Azure (#889)
+    - Revert "Add support to resize rootfs if using LVM (#721)" (#887)
+    - Add Vultaire as contributor (#881) [Paul Goins]
+    - Azure: adding support for consuming userdata from IMDS (#884) [Anh Vo]
+    - test_upgrade: modify test_upgrade_package to run for more sources (#883)
+    - Fix chef module run failure when chef_license is set (#868) [Ben Hughes]
+    - Azure: Retry net metadata during nic attach for non-timeout errs (#878)
+      [aswinrajamannar]
+    - Azure: Retrieve username and hostname from IMDS (#865) [Thomas Stringer]
+    - Azure: eject the provisioning iso before reporting ready (#861) [Anh Vo]
+    - Use `partprobe` to re-read partition table if available (#856)
+      [Nicolas Bock]
+    - fix error on upgrade caused by new vendordata2 attributes (#869)
+    - add prefer_fqdn_over_hostname config option (#859) [hamalq]
+    - Emit dots on travis to avoid timeout (#867)
+    - doc: Replace remaining references to user-scripts as a config module
+      (#866) [Ryan Harper]
+    - azure: Removing ability to invoke walinuxagent (#799) [Anh Vo]
+    - Add Vultr support (#827) [David Dymko]
+    - Fix unpickle for source paths missing run_dir (#863) [lucasmoura]
+    - sysconfig: use BONDING_MODULE_OPTS on SUSE (#831) [Jens Sandmann]
+    - bringup_static_routes: fix gateway check (#850) [Petr Fedchenkov]
+    - add hamalq user (#860) [hamalq]
+    - Add support to resize rootfs if using LVM (#721) [Eduardo Otubo]
+    - Fix mis-detecting network configuration in initramfs cmdline (#844)
+    - tools/write-ssh-key-fingerprints: do not display empty header/footer
+      (#817) [dermotbradley]
+    - Azure helper: Ensure Azure http handler sleeps between retries (#842)
+      [Johnson Shi]
+    - Fix chef apt source example (#826) [timothegenzmer]
 
  -- James Falcon <james.falcon@canonical.com>  Tue, 11 May 2021 12:07:28 -0500
 
