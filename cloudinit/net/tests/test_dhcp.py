@@ -194,6 +194,11 @@ class TestDHCPParseStaticRoutes(CiTestCase):
         self.assertEqual([('0.0.0.0/0', '130.56.240.1')],
                          parse_static_routes(rfc3442))
 
+    def test_unspecified_gateway(self):
+        rfc3442 = "32,169,254,169,254,0,0,0,0"
+        self.assertEqual([('169.254.169.254/32', '0.0.0.0')],
+                         parse_static_routes(rfc3442))
+
     def test_parse_static_routes_class_c_b_a(self):
         class_c = "24,192,168,74,192,168,0,4"
         class_b = "16,172,16,172,16,0,4"
