@@ -3,7 +3,11 @@
 Description=Initial cloud-init job (metadata service crawler)
 DefaultDependencies=no
 Wants=cloud-init-local.service
+{% if variant in ["centos", "fedora", "rhel"] %}
+Wants=sshd-keygen.target
+{% else %}
 Wants=sshd-keygen.service
+{% endif %}
 Wants=sshd.service
 After=cloud-init-local.service
 After=systemd-networkd-wait-online.service
@@ -21,7 +25,13 @@ After=wicked.service
 After=dbus.service
 {% endif %}
 Before=network-online.target
+{% if variant in ["centos", "fedora", "rhel"] %}
+Before=sshd-keygen@rsa.service
+Before=sshd-keygen@ed25519.service
+Before=sshd-keygen@ecdsa.service
+{% else %}
 Before=sshd-keygen.service
+{% endif %}
 Before=sshd.service
 {% if variant in ["ubuntu", "unknown", "debian"] %}
 Before=sysinit.target
