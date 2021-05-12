@@ -1,4 +1,4 @@
-cloud-init (21.2-3-g899bfaa9-0ubuntu1~20.04.1) focal; urgency=medium
+cloud-init (21.2-3-g899bfaa9-0ubuntu2~20.04.1) focal; urgency=medium
 
   * d/cloud-init.templates: Add Vultr datasource support
   * drop the following cherry-picks now included:
