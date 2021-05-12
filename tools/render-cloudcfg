@@ -4,8 +4,8 @@ import argparse
 import os
 import sys
 
-VARIANTS = ["alpine", "amazon", "arch", "centos", "debian", "fedora",
-            "freebsd", "netbsd", "openbsd", "rhel", "suse", "ubuntu",
+VARIANTS = ["almalinux", "alpine", "amazon", "arch", "centos", "debian",
+            "fedora", "freebsd", "netbsd", "openbsd", "rhel", "suse", "ubuntu",
             "unknown"]
 
 

@@ -121,16 +121,7 @@ matrix:
             # Use sudo to get a new shell where we're in the sbuild group
             - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
             - ssh-keygen -P "" -q -f ~/.ssh/id_rsa
-            - sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls *.deb)" tox -e integration-tests-ci' &
-            - |
-              SECONDS=0
-              while [ -e /proc/$! ]; do
-                if [ "$SECONDS" -gt "570" ]; then
-                  echo -n '.'
-                  SECONDS=0
-                fi
-                sleep 10
-              done
+            - sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls *.deb)" tox -e integration-tests-ci'
         - python: 3.5
           env:
               TOXENV=xenial

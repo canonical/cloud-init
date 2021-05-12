@@ -50,6 +50,10 @@ class Distro(distros.Distro):
         }
     }
 
+    # Should be fqdn if we can use it
+    # See: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/5/html/deployment_guide/ch-sysconfig  # noqa: E501
+    prefer_fqdn = True
+
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
         # This will be used to restrict certain
@@ -90,13 +94,6 @@ class Distro(distros.Distro):
                 'HOSTNAME': hostname,
             }
             rhel_util.update_sysconfig_file(out_fn, host_cfg)
-
-    def _select_hostname(self, hostname, fqdn):
-        # Should be fqdn if we can use it
-        # See: https://www.centos.org/docs/5/html/Deployment_Guide-en-US/ch-sysconfig.html#s2-sysconfig-network # noqa
-        if fqdn:
-            return fqdn
-        return hostname
 
     def _read_system_hostname(self):
         if self.uses_systemd():
