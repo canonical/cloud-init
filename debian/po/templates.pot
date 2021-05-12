@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cloud-init\n"
 "Report-Msgid-Bugs-To: cloud-init@packages.debian.org\n"
-"POT-Creation-Date: 2021-04-20 10:14-0400\n"
+"POT-Creation-Date: 2021-05-12 12:22-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -158,7 +158,7 @@ msgstr ""
 #. Type: multiselect
 #. Choices
 #: ../cloud-init.templates:1001
-msgid "Vultr: Vultr"
+msgid "Vultr: Vultr Cloud"
 msgstr ""
 
 #. Type: multiselect
