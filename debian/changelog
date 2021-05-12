@@ -1,5 +1,6 @@
-cloud-init (21.2-3-g899bfaa9-0ubuntu1~21.04.1) UNRELEASED; urgency=medium
+cloud-init (21.2-3-g899bfaa9-0ubuntu1~21.04.1) hirsute; urgency=medium
 
+  * d/cloud-init.templates: Add Vultr datasource support
   * drop the following cherry-picks now included:
     + cpick-83f6bbfb-Fix-unpickle-for-source-paths-missing-run_dir-863
     + cpick-d132356c-fix-error-on-upgrade-caused-by-new-vendordata2
