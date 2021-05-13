@@ -13,6 +13,7 @@ import copy
 import json
 import os
 from collections import namedtuple
+from typing import Dict, List
 
 from cloudinit import dmi
 from cloudinit import importer
@@ -22,7 +23,7 @@ from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.filters import launch_index
 from cloudinit.persistence import CloudInitPickleMixin
 from cloudinit.reporting import events
@@ -175,12 +176,23 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     # The datasource defines a set of supported EventTypes during which
     # the datasource can react to changes in metadata and regenerate
-    # network configuration on metadata changes.
-    # A datasource which supports writing network config on each system boot
-    # would call update_events['network'].add(EventType.BOOT).
+    # network configuration on metadata changes. These are defined in
+    # `supported_network_events`.
+    # The datasource also defines a set of default EventTypes that the
+    # datasource can react to. These are the event types that will be used
+    # if not overridden by the user.
+    # A datasource requiring to write network config on each system boot
+    # would call default_update_events['network'].add(EventType.BOOT).
 
     # Default: generate network config on new instance id (first boot).
-    update_events = {'network': set([EventType.BOOT_NEW_INSTANCE])}
+    supported_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY,
+    }}
+    default_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+    }}
 
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
@@ -648,10 +660,12 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
 
-    def update_metadata(self, source_event_types):
+    def update_metadata_if_supported(
+        self, source_event_types: List[EventType]
+    ) -> bool:
         """Refresh cached metadata if the datasource supports this event.
 
-        The datasource has a list of update_events which
+        The datasource has a list of supported_update_events which
         trigger refreshing all cached metadata as well as refreshing the
         network configuration.
 
@@ -661,9 +675,9 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         @return True if the datasource did successfully update cached metadata
             due to source_event_type.
         """
-        supported_events = {}
+        supported_events = {}  # type: Dict[EventScope, set]
         for event in source_event_types:
-            for update_scope, update_events in self.update_events.items():
+            for update_scope, update_events in self.supported_update_events.items():  # noqa: E501
                 if event in update_events:
                     if not supported_events.get(update_scope):
                         supported_events[update_scope] = set()
@@ -671,7 +685,8 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         for scope, matched_events in supported_events.items():
             LOG.debug(
                 "Update datasource metadata and %s config due to events: %s",
-                scope, ', '.join(matched_events))
+                scope.value,
+                ', '.join([event.value for event in matched_events]))
             # Each datasource has a cached config property which needs clearing
             # Once cleared that config property will be regenerated from
             # current metadata.
@@ -682,7 +697,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             if result:
                 return True
         LOG.debug("Datasource %s not updated for events: %s", self,
-                  ', '.join(source_event_types))
+                  ', '.join([event.value for event in source_event_types]))
         return False
 
     def check_instance_id(self, sys_cfg):
@@ -789,7 +804,9 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
             with myrep:
                 LOG.debug("Seeing if we can get any data from %s", cls)
                 s = cls(sys_cfg, distro, paths)
-                if s.update_metadata([EventType.BOOT_NEW_INSTANCE]):
+                if s.update_metadata_if_supported(
+                    [EventType.BOOT_NEW_INSTANCE]
+                ):
                     myrep.message = "found %s data from %s" % (mode, name)
                     return (s, type_utils.obj_name(cls))
         except Exception:
