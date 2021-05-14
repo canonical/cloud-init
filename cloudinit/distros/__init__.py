@@ -46,7 +46,7 @@ OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
-    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
+    'redhat': ['almalinux', 'amazon', 'centos', 'fedora', 'rhel'],
     'suse': ['opensuse', 'sles'],
 }
 

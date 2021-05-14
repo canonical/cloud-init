@@ -172,53 +172,6 @@ class TestResize(unittest.TestCase):
         self.name = "growpart"
         self.log = logging.getLogger("TestResize")
 
-    def test_lvm_resize(self):
-        # LVM resize should work only if a single device is configured. More
-        # than one device should fail.
-        lvm_pass = ["/dev/XXdm-0"]
-        lvm_fail = ["/dev/XXdm-1", "/dev/YYdm-1"]
-        devstat_ret = Bunch(st_mode=25008, st_ino=6078, st_dev=5,
-                            st_nlink=1, st_uid=0, st_gid=6, st_size=0,
-                            st_atime=0, st_mtime=0, st_ctime=0)
-        real_stat = os.stat
-        resize_calls = []
-
-        class myresizer(object):
-            def resize(self, diskdev, partnum, partdev):
-                resize_calls.append((diskdev, partnum, partdev))
-                if partdev == "/dev/XXdm-0":
-                    return (1024, 2048)
-                return (1024, 1024)  # old size, new size
-
-        def mystat(path):
-            if path in lvm_pass or path in lvm_fail:
-                return devstat_ret
-            return real_stat(path)
-
-        try:
-            opinfo = cc_growpart.device_part_info
-            cc_growpart.device_part_info = simple_device_part_info_lvm
-            os.stat = mystat
-
-            resized = cc_growpart.resize_devices(myresizer(), lvm_pass)
-            not_resized = cc_growpart.resize_devices(myresizer(), lvm_fail)
-
-            def find(name, res):
-                for f in res:
-                    if f[0] == name:
-                        return f
-                return None
-
-            self.assertEqual(cc_growpart.RESIZE.CHANGED,
-                             find("/dev/XXdm-0", resized)[1])
-            self.assertEqual(cc_growpart.RESIZE.NOCHANGE,
-                             find("/dev/XXdm-1", not_resized)[1])
-            self.assertEqual(cc_growpart.RESIZE.NOCHANGE,
-                             find("/dev/YYdm-1", not_resized)[1])
-        finally:
-            cc_growpart.device_part_info = opinfo
-            os.stat = real_stat
-
     def test_simple_devices(self):
         # test simple device list
         # this patches out devent2dev, os.stat, and device_part_info
@@ -274,14 +227,7 @@ class TestResize(unittest.TestCase):
             os.stat = real_stat
 
 
-def simple_device_part_info_lvm(devpath, is_lvm):
-    # simple stupid return (/dev/vda, 1) for /dev/vda
-    ret = re.search("([^0-9]*)([0-9]*)$", devpath)
-    x = (ret.group(1), ret.group(2))
-    return x
-
-
-def simple_device_part_info(devpath, is_lvm):
+def simple_device_part_info(devpath):
     # simple stupid return (/dev/vda, 1) for /dev/vda
     ret = re.search("([^0-9]*)([0-9]*)$", devpath)
     x = (ret.group(1), ret.group(2))

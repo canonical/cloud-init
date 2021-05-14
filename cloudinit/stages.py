@@ -8,9 +8,11 @@ import copy
 import os
 import pickle
 import sys
+from collections import namedtuple
+from typing import Dict, Set
 
 from cloudinit.settings import (
-    FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, RUN_CLOUD_CONFIG)
+    FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, PER_ONCE, RUN_CLOUD_CONFIG)
 
 from cloudinit import handlers
 
@@ -21,7 +23,11 @@ from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
-from cloudinit.event import EventType
+from cloudinit.event import (
+    EventScope,
+    EventType,
+    userdata_to_events,
+)
 from cloudinit.sources import NetworkConfigSource
 
 from cloudinit import cloud
@@ -118,6 +124,7 @@ class Init(object):
 
     def _initial_subdirs(self):
         c_dir = self.paths.cloud_dir
+        run_dir = self.paths.run_dir
         initial_dirs = [
             c_dir,
             os.path.join(c_dir, 'scripts'),
@@ -130,6 +137,7 @@ class Init(object):
             os.path.join(c_dir, 'handlers'),
             os.path.join(c_dir, 'sem'),
             os.path.join(c_dir, 'data'),
+            os.path.join(run_dir, 'sem'),
         ]
         return initial_dirs
 
@@ -341,6 +349,11 @@ class Init(object):
         return self._previous_iid
 
     def is_new_instance(self):
+        """Return true if this is a new instance.
+
+        If datasource has already been initialized, this will return False,
+        even on first boot.
+        """
         previous = self.previous_iid()
         ret = (previous == NO_PREVIOUS_INSTANCE_ID or
                previous != self.datasource.get_instance_id())
@@ -702,6 +715,46 @@ class Init(object):
         return (self.distro.generate_fallback_config(),
                 NetworkConfigSource.fallback)
 
+    def update_event_enabled(
+        self, event_source_type: EventType, scope: EventScope = None
+    ) -> bool:
+        """Determine if a particular EventType is enabled.
+
+        For the `event_source_type` passed in, check whether this EventType
+        is enabled in the `updates` section of the userdata. If `updates`
+        is not enabled in userdata, check if defined as one of the
+        `default_events` on the datasource. `scope` may be used to
+        narrow the check to a particular `EventScope`.
+
+        Note that on first boot, userdata may NOT be available yet. In this
+        case, we only have the data source's `default_update_events`,
+        so an event that should be enabled in userdata may be denied.
+        """
+        default_events = self.datasource.default_update_events  # type: Dict[EventScope, Set[EventType]]    # noqa: E501
+        user_events = userdata_to_events(self.cfg.get('updates', {}))  # type: Dict[EventScope, Set[EventType]]  # noqa: E501
+        # A value in the first will override a value in the second
+        allowed = util.mergemanydict([
+            copy.deepcopy(user_events),
+            copy.deepcopy(default_events),
+        ])
+        LOG.debug('Allowed events: %s', allowed)
+
+        if not scope:
+            scopes = allowed.keys()
+        else:
+            scopes = [scope]
+        scope_values = [s.value for s in scopes]
+
+        for evt_scope in scopes:
+            if event_source_type in allowed.get(evt_scope, []):
+                LOG.debug('Event Allowed: scope=%s EventType=%s',
+                          evt_scope.value, event_source_type)
+                return True
+
+        LOG.debug('Event Denied: scopes=%s EventType=%s',
+                  scope_values, event_source_type)
+        return False
+
     def _apply_netcfg_names(self, netcfg):
         try:
             LOG.debug("applying net config names for %s", netcfg)
@@ -709,27 +762,51 @@ class Init(object):
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
+    def _get_per_boot_network_semaphore(self):
+        return namedtuple('Semaphore', 'semaphore args')(
+            helpers.FileSemaphores(self.paths.get_runpath('sem')),
+            ('apply_network_config', PER_ONCE)
+        )
+
+    def _network_already_configured(self) -> bool:
+        sem = self._get_per_boot_network_semaphore()
+        return sem.semaphore.has_run(*sem.args)
+
     def apply_network_config(self, bring_up):
-        # get a network config
+        """Apply the network config.
+
+        Find the config, determine whether to apply it, apply it via
+        the distro, and optionally bring it up
+        """
         netcfg, src = self._find_networking_config()
         if netcfg is None:
             LOG.info("network config is disabled by %s", src)
             return
 
-        # request an update if needed/available
-        if self.datasource is not NULL_DATA_SOURCE:
-            if not self.is_new_instance():
-                if not self.datasource.update_metadata([EventType.BOOT]):
-                    LOG.debug(
-                        "No network config applied. Neither a new instance"
-                        " nor datasource network update on '%s' event",
-                        EventType.BOOT)
-                    # nothing new, but ensure proper names
-                    self._apply_netcfg_names(netcfg)
-                    return
-                else:
-                    # refresh netcfg after update
-                    netcfg, src = self._find_networking_config()
+        def event_enabled_and_metadata_updated(event_type):
+            return self.update_event_enabled(
+                event_type, scope=EventScope.NETWORK
+            ) and self.datasource.update_metadata_if_supported([event_type])
+
+        def should_run_on_boot_event():
+            return (not self._network_already_configured() and
+                    event_enabled_and_metadata_updated(EventType.BOOT))
+
+        if (
+            self.datasource is not NULL_DATA_SOURCE and
+            not self.is_new_instance() and
+            not should_run_on_boot_event() and
+            not event_enabled_and_metadata_updated(EventType.BOOT_LEGACY)
+        ):
+            LOG.debug(
+                "No network config applied. Neither a new instance"
+                " nor datasource network update allowed")
+            # nothing new, but ensure proper names
+            self._apply_netcfg_names(netcfg)
+            return
+
+        # refresh netcfg after update
+        netcfg, src = self._find_networking_config()
 
         # ensure all physical devices in config are present
         self.distro.networking.wait_for_physdevs(netcfg)
@@ -740,8 +817,12 @@ class Init(object):
         # rendering config
         LOG.info("Applying network configuration from %s bringup=%s: %s",
                  src, bring_up, netcfg)
+
+        sem = self._get_per_boot_network_semaphore()
         try:
-            return self.distro.apply_network_config(netcfg, bring_up=bring_up)
+            with sem.semaphore.lock(*sem.args):
+                return self.distro.apply_network_config(
+                    netcfg, bring_up=bring_up)
         except net.RendererNotFoundError as e:
             LOG.error("Unable to render networking. Network config is "
                       "likely broken: %s", e)

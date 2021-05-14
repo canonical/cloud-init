@@ -107,7 +107,6 @@ import shlex
 frequency = PER_INSTANCE
 
 # Define the commands to use
-UDEVADM_CMD = subp.which('udevadm')
 SFDISK_CMD = subp.which("sfdisk")
 SGDISK_CMD = subp.which("sgdisk")
 LSBLK_CMD = subp.which("lsblk")
@@ -686,9 +685,8 @@ def get_partition_layout(table_type, size, layout):
 
 def read_parttbl(device):
     """
-    Use `partprobe` or `blkdev` instead of `udevadm`. `Partprobe` is
-    preferred over `blkdev` since it is more reliably able to probe
-    the partition table.
+    `Partprobe` is preferred over `blkdev` since it is more reliably
+    able to probe the partition table.
     """
     if PARTPROBE_CMD is not None:
         probe_cmd = [PARTPROBE_CMD, device]
