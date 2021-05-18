@@ -8,6 +8,7 @@ from cloudinit import util
 from cloudinit import version
 
 import httpretty
+import logging
 import requests
 
 
@@ -81,6 +82,9 @@ class TestReadFileOrUrl(CiTestCase):
         url = 'http://hostname/path'
         headers = {'sensitive': 'sekret', 'server': 'blah'}
         httpretty.register_uri(httpretty.GET, url)
+        # By default, httpretty will log our request along with the header,
+        # so if we don't change this the secret will show up in the logs
+        logging.getLogger('httpretty.core').setLevel(logging.CRITICAL)
 
         read_file_or_url(url, headers=headers, headers_redact=['sensitive'])
         logs = self.logs.getvalue()

@@ -22,9 +22,11 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             )
         for device_name, v in self.interface_configurations.items():
             if isinstance(v, dict):
-                self.set_rc_config_value(
-                    'ifconfig_' + device_name,
-                    v.get('address') + ' netmask ' + v.get('netmask'))
+                net_config = v.get('address') + ' netmask ' + v.get('netmask')
+                mtu = v.get('mtu')
+                if mtu:
+                    net_config += (' mtu %d' % mtu)
+                self.set_rc_config_value('ifconfig_' + device_name, net_config)
 
     def start_services(self, run=False):
         if not run:

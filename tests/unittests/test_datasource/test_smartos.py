@@ -29,7 +29,7 @@ from cloudinit.sources.DataSourceSmartOS import (
     convert_smartos_network_data as convert_net,
     SMARTOS_ENV_KVM, SERIAL_DEVICE, get_smartos_environ,
     identify_file)
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 
 from cloudinit import helpers as c_helpers
 from cloudinit.util import (b64e, write_file)
@@ -653,8 +653,12 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
     def test_reconfig_network_on_boot(self):
         # Test to ensure that network is configured from metadata on each boot
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
-        self.assertSetEqual(set([EventType.BOOT_NEW_INSTANCE, EventType.BOOT]),
-                            dsrc.update_events['network'])
+        self.assertSetEqual(
+            {EventType.BOOT_NEW_INSTANCE,
+             EventType.BOOT,
+             EventType.BOOT_LEGACY},
+            dsrc.default_update_events[EventScope.NETWORK]
+        )
 
 
 class TestIdentifyFile(CiTestCase):

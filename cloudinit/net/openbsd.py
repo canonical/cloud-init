@@ -18,7 +18,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                 content = 'dhcp\n'
             elif isinstance(v, dict):
                 try:
-                    content = "inet {address} {netmask}\n".format(
+                    content = "inet {address} {netmask}".format(
                         address=v['address'],
                         netmask=v['netmask']
                     )
@@ -26,6 +26,10 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                     LOG.error(
                         "Invalid static configuration for %s",
                         device_name)
+                mtu = v.get("mtu")
+                if mtu:
+                    content += (' mtu %d' % mtu)
+                content += "\n"
             util.write_file(fn, content)
 
     def start_services(self, run=False):

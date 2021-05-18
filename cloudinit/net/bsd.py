@@ -76,6 +76,7 @@ class BSDRenderer(renderer.Renderer):
                     self.interface_configurations[device_name] = {
                         'address': subnet.get('address'),
                         'netmask': subnet.get('netmask'),
+                        'mtu': subnet.get('mtu'),
                     }
 
     def _route_entries(self, settings, target=None):
