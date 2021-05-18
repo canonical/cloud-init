@@ -1009,6 +1009,29 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main""")
         self.assertEqual(mirrors['SECURITY'],
                          smir)
 
+    def test_apt_v3_add_mirror_keys(self):
+        """test_apt_v3_add_mirror_keys - Test adding key for mirrors"""
+        arch = 'amd64'
+        cfg = {
+            'primary': [
+                {'arches': [arch],
+                 'uri': 'http://test.ubuntu.com/',
+                 'key': 'fakekey_primary'}],
+            'security': [
+                {'arches': [arch],
+                 'uri': 'http://testsec.ubuntu.com/',
+                 'key': 'fakekey_security'}]
+        }
+
+        with mock.patch.object(cc_apt_configure,
+                               'add_apt_key_raw') as mockadd:
+            cc_apt_configure.add_mirror_keys(cfg, TARGET)
+        calls = [
+            mock.call('fakekey_primary', TARGET),
+            mock.call('fakekey_security', TARGET),
+        ]
+        mockadd.assert_has_calls(calls, any_order=True)
+
 
 class TestDebconfSelections(TestCase):
 
