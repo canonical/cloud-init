@@ -560,7 +560,7 @@ class TestGetLinuxDistro(CiTestCase):
         m_os_release.return_value = REDHAT_RELEASE_ROCKY_8
         m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
         dist = util.get_linux_distro()
-        self.assertEqual(('rocky', '8.3'), dist)
+        self.assertEqual(('rocky', '8.3', ''), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_rocky8_osrelease(self, m_os_release, m_path_exists):
@@ -568,7 +568,7 @@ class TestGetLinuxDistro(CiTestCase):
         m_os_release.return_value = OS_RELEASE_ROCKY_8
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
-        self.assertEqual(('rocky', '8.3'), dist)
+        self.assertEqual(('rocky', '8.3', ''), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_debian(self, m_os_release, m_path_exists):
