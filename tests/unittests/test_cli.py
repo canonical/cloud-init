@@ -224,7 +224,8 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self._call_main(['cloud-init', 'devel', 'schema', '--docs', 'all'])
         expected_doc_sections = [
             '**Supported distros:** all',
-            '**Supported distros:** almalinux, alpine, centos, debian, fedora',
+            ('**Supported distros:** almalinux, alpine, centos, debian, '
+             'fedora, rocky'),
             '**Config schema**:\n    **resize_rootfs:** (true/false/noblock)',
             '**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n'
         ]

@@ -124,6 +124,22 @@ OS_RELEASE_ALMALINUX_8 = dedent("""\
     ALMALINUX_MANTISBT_PROJECT_VERSION="8.3"
 """)
 
+OS_RELEASE_ROCKY_8 = dedent("""\
+    NAME="Rocky Linux"
+    VERSION="8.3"
+    ID="rocky"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8.3"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="Rocky Linux 8.3"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:rocky:rocky:8"
+    HOME_URL="https://rockylinux.org/"
+    BUG_REPORT_URL="https://bugs.rockylinux.org/"
+    ROCKY_SUPPORT_PRODUCT="Rocky Linux"
+    ROCKY_SUPPORT_PRODUCT_VERSION="8"
+""")
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
@@ -132,7 +148,8 @@ REDHAT_RELEASE_REDHAT_7 = (
     "Red Hat Enterprise Linux Server release 7.5 (Maipo)")
 REDHAT_RELEASE_ALMALINUX_8 = (
     "AlmaLinux release 8.3 (Purple Manul)")
-
+REDHAT_RELEASE_ROCKY_8 = (
+    "Rocky Linux release 8.3")
 
 OS_RELEASE_DEBIAN = dedent("""\
     PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
@@ -536,6 +553,22 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('almalinux', '8.3', 'Purple Manul'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_rocky8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify rocky linux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_ROCKY_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('rocky', '8.3'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_rocky8_osrelease(self, m_os_release, m_path_exists):
+        """Verify rocky linux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_ROCKY_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('rocky', '8.3'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_debian(self, m_os_release, m_path_exists):

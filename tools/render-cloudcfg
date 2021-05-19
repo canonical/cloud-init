@@ -6,7 +6,7 @@ import sys
 
 VARIANTS = ["almalinux", "alpine", "amazon", "arch", "centos", "debian",
             "fedora", "freebsd", "netbsd", "openbsd", "rhel", "suse", "ubuntu",
-            "unknown"]
+            "rocky", "unknown"]
 
 
 if "avoid-pep8-E402-import-not-top-of-file":
