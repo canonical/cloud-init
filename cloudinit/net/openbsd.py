@@ -36,6 +36,9 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         if not self._postcmds:
             LOG.debug("openbsd generate postcmd disabled")
             return
+        subp.subp(['pkill', 'dhclient'], capture=True, rcs=[0, 1])
+        subp.subp(['route', 'del', 'default'], capture=True, rcs=[0, 1])
+        subp.subp(['route', 'flush', 'default'], capture=True, rcs=[0, 1])
         subp.subp(['sh', '/etc/netstart'], capture=True)
 
     def set_route(self, network, netmask, gateway):
