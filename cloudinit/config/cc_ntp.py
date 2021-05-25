@@ -25,7 +25,7 @@ frequency = PER_INSTANCE
 NTP_CONF = '/etc/ntp.conf'
 NR_POOL_SERVERS = 4
 distros = ['almalinux', 'alpine', 'centos', 'debian', 'fedora', 'opensuse',
-           'rhel', 'sles', 'ubuntu', 'rocky']
+           'rhel', 'rocky', 'sles', 'ubuntu']
 
 NTP_CLIENT_CONFIG = {
     'chrony': {

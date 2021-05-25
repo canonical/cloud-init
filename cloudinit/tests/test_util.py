@@ -126,12 +126,12 @@ OS_RELEASE_ALMALINUX_8 = dedent("""\
 
 OS_RELEASE_ROCKY_8 = dedent("""\
     NAME="Rocky Linux"
-    VERSION="8.3"
+    VERSION="8.3 (Green Obsidian)"
     ID="rocky"
     ID_LIKE="rhel fedora"
     VERSION_ID="8.3"
     PLATFORM_ID="platform:el8"
-    PRETTY_NAME="Rocky Linux 8.3"
+    PRETTY_NAME="Rocky Linux 8.3 (Green Obsidian)"
     ANSI_COLOR="0;31"
     CPE_NAME="cpe:/o:rocky:rocky:8"
     HOME_URL="https://rockylinux.org/"
@@ -149,7 +149,7 @@ REDHAT_RELEASE_REDHAT_7 = (
 REDHAT_RELEASE_ALMALINUX_8 = (
     "AlmaLinux release 8.3 (Purple Manul)")
 REDHAT_RELEASE_ROCKY_8 = (
-    "Rocky Linux release 8.3")
+    "Rocky Linux release 8.3 (Green Obsidian)")
 
 OS_RELEASE_DEBIAN = dedent("""\
     PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
@@ -560,7 +560,7 @@ class TestGetLinuxDistro(CiTestCase):
         m_os_release.return_value = REDHAT_RELEASE_ROCKY_8
         m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
         dist = util.get_linux_distro()
-        self.assertEqual(('rocky', '8.3', ''), dist)
+        self.assertEqual(('rocky', '8.3', 'Green Obsidian'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_rocky8_osrelease(self, m_os_release, m_path_exists):
@@ -568,7 +568,7 @@ class TestGetLinuxDistro(CiTestCase):
         m_os_release.return_value = OS_RELEASE_ROCKY_8
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
-        self.assertEqual(('rocky', '8.3', ''), dist)
+        self.assertEqual(('rocky', '8.3', 'Green Obsidian'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_debian(self, m_os_release, m_path_exists):
