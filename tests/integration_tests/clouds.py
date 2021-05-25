@@ -247,8 +247,15 @@ class OciCloud(IntegrationCloud):
     integration_instance_cls = IntegrationOciInstance
 
     def _get_cloud_instance(self):
+        if not integration_settings.ORACLE_AVAILABILITY_DOMAIN:
+            raise Exception(
+                'ORACLE_AVAILABILITY_DOMAIN must be set to a valid '
+                'availability domain. If using the oracle CLI, '
+                'try `oci iam availability-domain list`'
+            )
         return OCI(
-            tag='oci-integration-test'
+            tag='oci-integration-test',
+            availability_domain=integration_settings.ORACLE_AVAILABILITY_DOMAIN
         )
 
 
