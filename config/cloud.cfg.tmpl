@@ -61,11 +61,11 @@ cloud_init_modules:
 {% endif %}
  - bootcmd
  - write-files
-{% if variant not in ["netbsd", "openbsd", "dragonfly"] %}
+{% if variant not in ["dragonfly", "netbsd", "openbsd"] %}
  - growpart
  - resizefs
 {% endif %}
-{% if variant not in ["freebsd", "netbsd", "openbsd", "dragonfly"] %}
+{% if variant not in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
  - disk_setup
  - mounts
 {% endif %}

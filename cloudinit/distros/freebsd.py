@@ -17,7 +17,7 @@ from cloudinit.settings import PER_INSTANCE
 LOG = logging.getLogger(__name__)
 
 
-class FreeBSD(cloudinit.distros.bsd.BSD):
+class Distro(cloudinit.distros.bsd.BSD):
     """
     Distro subclass for FreeBSD.
 
@@ -35,12 +35,6 @@ class FreeBSD(cloudinit.distros.bsd.BSD):
     pkg_cmd_upgrade_prefix = ["pkg", "upgrade"]
     prefer_fqdn = True  # See rc.conf(5) in FreeBSD
     home_dir = '/usr/home'
-
-    def _select_hostname(self, hostname, fqdn):
-        # Should be FQDN if available. See rc.conf(5) in FreeBSD
-        if fqdn:
-            return fqdn
-        return hostname
 
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         return ['pw', 'usermod', '-n', member_name, '-G', group_name]
@@ -170,10 +164,6 @@ class FreeBSD(cloudinit.distros.bsd.BSD):
         self._runner.run(
             "update-sources", self.package_command,
             ["update"], freq=PER_INSTANCE)
-
-
-class Distro(FreeBSD):
-    pass
 
 
 # vi: ts=4 expandtab

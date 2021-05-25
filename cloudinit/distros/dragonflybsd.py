@@ -5,7 +5,7 @@
 import cloudinit.distros.freebsd
 
 
-class Distro(cloudinit.distros.freebsd.FreeBSD):
+class Distro(cloudinit.distros.freebsd.Distro):
     home_dir = '/home'
 
 
