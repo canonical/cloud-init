@@ -22,7 +22,7 @@ questions about the code review process, or at any point during the
 code review process, these are the available avenues:
 
 * if you have an open Pull Request, comment on that pull request
-* join the ``#cloud-init`` channel on the Freenode IRC network and ask
+* join the ``#cloud-init`` channel on the Libera IRC network and ask
   away
 * send an email to the cloud-init mailing list,
   cloud-init@lists.launchpad.net
