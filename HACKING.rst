@@ -34,7 +34,7 @@ Follow these steps to submit your first pull request to cloud-init:
     "Cloud-Init CLA"
 
   * You also may contact user ``rick_h`` in the ``#cloud-init``
-    channel on the Freenode IRC network.
+    channel on the Libera IRC network.
 
 * Configure git with your email and name for commit messages.
 
@@ -159,7 +159,7 @@ Then, someone in the `Ubuntu Server`_ team will review your changes and
 follow up in the pull request.  Look at the `Code Review Process`_ doc
 to understand the following steps.
 
-Feel free to ping and/or join ``#cloud-init`` on freenode irc if you
+Feel free to ping and/or join ``#cloud-init`` on Libera irc if you
 have any questions.
 
 .. _tox: https://tox.readthedocs.io/en/latest/
