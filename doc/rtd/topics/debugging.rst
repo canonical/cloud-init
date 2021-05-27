@@ -258,9 +258,8 @@ from **-proposed**
 
    * Create a `new cloud-init bug`_ reporting the version of cloud-init
      affected
-   * Ping upstream cloud-init on Freenode's `#cloud-init IRC channel`_
+   * Ping upstream cloud-init on Libera's #cloud-init IRC channel
 
 .. _SRU: https://wiki.ubuntu.com/StableReleaseUpdates
 .. _CloudinitUpdates: https://wiki.ubuntu.com/CloudinitUpdates
 .. _new cloud-init bug: https://bugs.launchpad.net/cloud-init/+filebug
-.. _#cloud-init IRC channel: https://webchat.freenode.net/?channel=#cloud-init

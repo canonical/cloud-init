@@ -26,7 +26,7 @@ If you need support, start with the [user documentation](https://cloudinit.readt
 
 If you need additional help consider reaching out with one of the following options:
 
-- Ask a question in the [``#cloud-init`` IRC channel on Freenode](https://webchat.freenode.net/?channel=#cloud-init)
+- Ask a question in the [``#cloud-init`` IRC channel on Libera](https://libera.chat/)
 - Search the cloud-init [mailing list archive](https://lists.launchpad.net/cloud-init/)
 - Better yet, join the [cloud-init mailing list](https://launchpad.net/~cloud-init) and participate
 - Find a bug? [Report bugs on Launchpad](https://bugs.launchpad.net/cloud-init/+filebug)
