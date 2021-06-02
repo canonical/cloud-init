@@ -7,16 +7,19 @@ from io import StringIO
 
 from cloudinit.cmd import main
 from cloudinit import safeyaml
+from cloudinit import stages
 from cloudinit.util import (
     ensure_dir, load_file, write_file)
 from cloudinit.tests.helpers import (
-    FilesystemMockingTestCase, wrap_and_call)
+    FilesystemMockingTestCase, mock, wrap_and_call)
 
 mypaths = namedtuple('MyPaths', 'run_dir')
 myargs = namedtuple('MyArgs', 'debug files force local reporter subcommand')
 
 
 class TestMain(FilesystemMockingTestCase):
+    with_logs = True
+    allowed_subp = False
 
     def setUp(self):
         super(TestMain, self).setUp()
@@ -159,5 +162,34 @@ class TestMain(FilesystemMockingTestCase):
         ]
         for log in expected_logs:
             self.assertIn(log, self.stderr.getvalue())
+
+    @mock.patch('os.path.exists')
+    def test_main_cache_pyver_maybe_purge_cache_no_cache(
+            self, m_pathexists):
+        """The python version cache file does not exist"""
+        m_pathexists.return_value = False
+        init = stages.Init()
+        # Setup fake Paths for Init to reference
+        init._cfg = self.cfg
+        main.cache_pyver_maybe_purge_cache(init)
+        self.assertIn(
+            'Could not determine Python version used to write cache, purging',
+            self.logs.getvalue())
+
+    @mock.patch('cloudinit.cmd.main.open', mock.mock_open(read_data='1.8'))
+    @mock.patch('os.path.exists')
+    def test_main_cache_pyver_maybe_purge_cache_ver_mismatch(
+            self, m_pathexists):
+        """
+        The python version cache file and we have a Python version mismatch
+        """
+        m_pathexists.return_value = True
+        init = stages.Init()
+        # Setup fake Paths for Init to reference
+        init._cfg = self.cfg
+        main.cache_pyver_maybe_purge_cache(init)
+        self.assertIn(
+            'Python version change detected purging cache',
+            self.logs.getvalue())
 
 # vi: ts=4 expandtab

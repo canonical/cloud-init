@@ -210,6 +210,25 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
             (cmdline_name, url, path))
 
 
+def cache_pyver_maybe_purge_cache(init):
+    """Check if the Python version changed on us"""
+    pyver = '%d.%d' % (sys.version_info.major, sys.version_info.minor)
+    pyrefver = os.path.join(init.paths.get_cpath('data'), 'python-version')
+    if os.path.exists(pyrefver):
+        cached_pyver = open(pyrefver).read()
+        # The Python version has changed out from under us, anything that was
+        # pickled previously is likely useless due to API changes.
+        if cached_pyver != pyver:
+            LOG.debug('Python version change detected purging cache')
+            init.purge_cache(True)
+    else:
+        LOG.debug(
+            'Could not determine Python version used to write cache, purging'
+        )
+        init.purge_cache(True)
+    util.write_file(pyrefver, pyver)
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
@@ -276,24 +295,7 @@ def main_init(name, args):
         util.logexc(LOG, "Failed to initialize, likely bad things to come!")
     # Stage 4
     path_helper = init.paths
-    # Check if the Python version changed on us
-    pyver = '%d.%d' % (sys.version_info.major, sys.version_info.minor)
-    pyrefver = os.path.join(path_helper.get_cpath(), 'pyver')
-    if os.path.exists(pyrefver):
-        cached_pyver = open(pyrefver).read()
-        # The Python version has changed out from under us, anything that was
-        # pickled previously is useless.
-        if cached_pyver != pyver:
-            LOG.debug('Python version change detected purging cache')
-            init.purge_cache(True)
-    else:
-        LOG.debug(
-            'Could not determin ePython version used to write cache, purging'
-        )
-        init.purge_cache(True)
-    with open(pyrefver, 'w') as pyref:
-        pyref.write(pyver)
-
+    cache_pyver_maybe_purge_cache(init)
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:
