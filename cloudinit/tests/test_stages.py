@@ -21,8 +21,10 @@ TEST_INSTANCE_ID = 'i-testing'
 class FakeDataSource(sources.DataSource):
 
     def __init__(self, paths=None, userdata=None, vendordata=None,
-                 network_config=''):
+                 network_config='', excluded_drivers=None):
         super(FakeDataSource, self).__init__({}, None, paths=paths)
+        if excluded_drivers:
+            self.excluded_drivers = excluded_drivers
         self.metadata = {'instance-id': TEST_INSTANCE_ID}
         self.userdata_raw = userdata
         self.vendordata_raw = vendordata
@@ -53,6 +55,24 @@ class TestInit(CiTestCase):
         self.init.datasource = FakeDataSource(paths=self.init.paths)
         self._real_is_new_instance = self.init.is_new_instance
         self.init.is_new_instance = mock.Mock(return_value=True)
+
+    def test_distro_cached_property(self):
+        """distro is a cached property on Init."""
+        self.assertIsNone(self.init._distro)
+        distro = self.init.distro
+        self.assertEqual(distro, self.init._distro)
+        self.init._distro = "cacheddistro"
+        self.assertEqual("cacheddistro", self.init.distro)
+
+    def test_distro_honors_datasource_exclude_drivers(self):
+        """When datasource.exclude_drivers exists copy to distro.networking."""
+        self.assertFalse(hasattr(self.init.datasource, "exclude_drivers"))
+        distro = self.init.distro
+        self.assertIsNone(getattr(distro.networking, "blacklist_drivers"))
+        self.init._distro = None  # clears _distro cache
+        self.init.datasource.exclude_drivers = ["baddriver1", "baddriver2"]
+        distro = self.init.distro
+        self.assertIsNone(getattr(distro.networking, "blacklist_drivers"))
 
     def test_wb__find_networking_config_disabled(self):
         """find_networking_config returns no config when disabled."""

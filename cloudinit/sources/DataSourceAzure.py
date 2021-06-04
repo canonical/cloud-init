@@ -344,6 +344,7 @@ class DataSourceAzure(sources.DataSource):
         EventType.BOOT,
         EventType.BOOT_LEGACY
     }}
+    excluded_drivers = BLACKLIST_DRIVERS  # Drivers excluded from network cfg
 
     _negotiated = False
     _metadata_imds = sources.UNSET
@@ -626,7 +627,7 @@ class DataSourceAzure(sources.DataSource):
         except Exception as e:
             LOG.warning("Failed to get system information: %s", e)
 
-        self.distro.networking.blacklist_drivers = BLACKLIST_DRIVERS
+        self.distro.networking.blacklist_drivers = self.excluded_drivers
 
         try:
             crawled_data = util.log_time(

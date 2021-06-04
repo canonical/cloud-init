@@ -92,6 +92,15 @@ class Init(object):
             # said datasource and move its distro/system config
             # from whatever it was to a new set...
             if self.datasource is not NULL_DATA_SOURCE:
+                if hasattr(self.datasource, "excluded_drivers"):
+                    # Certain datasources exclude network devices based
+                    # on the corresponding driver (Azure SRIOV).
+                    # When copying in a new distro, set the
+                    # distro.networking.excluded_drivers for networking config
+                    # generation.
+                    self._distro.networking.blacklist_drivers = getattr(
+                        self.datasource, "excluded_drivers"
+                    )
                 self.datasource.distro = self._distro
                 self.datasource.sys_cfg = self.cfg
         return self._distro
