@@ -2197,7 +2197,6 @@ def _generate_network_config_from_imds_metadata(imds_metadata) -> dict:
     return netconfig
 
 
-@azure_ds_telemetry_reporter
 def _generate_network_config_from_fallback_config() -> dict:
     """Generate fallback network config excluding blacklisted devices.
 

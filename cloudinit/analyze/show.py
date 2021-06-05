@@ -134,6 +134,7 @@ class SystemctlReader(object):
     '''
     Class for dealing with all systemctl subp calls in a consistent manner.
     '''
+
     def __init__(self, property, parameter=None):
         self.epoch = None
         self.args = ['/bin/systemctl', 'show']
@@ -310,9 +311,9 @@ def generate_records(events, blame_sort=False,
 
     unprocessed = []
     for e in range(0, len(sorted_events)):
-        event = events[e]
+        event = sorted_events[e]
         try:
-            next_evt = events[e + 1]
+            next_evt = sorted_events[e + 1]
         except IndexError:
             next_evt = None
 
