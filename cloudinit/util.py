@@ -1209,7 +1209,18 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
 def find_devs_with_dragonflybsd(criteria=None, oformat='device',
                                 tag=None, no_cache=False, path=None):
     out, _err = subp.subp(['sysctl', '-n', 'kern.disks'], rcs=[0])
-    return ['/dev/' + dev for dev in sorted(out.split(), reverse=True)]
+    devlist = [i for i in sorted(out.split(), reverse=True)
+               if not i.startswith("md") and not i.startswith("vn")]
+
+    if criteria == "TYPE=iso9660":
+        devlist = [i for i in devlist
+                   if i.startswith('cd') or i.startswith('acd')]
+    elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
+        devlist = [i for i in devlist
+                   if not (i.startswith('cd') or i.startswith('acd'))]
+    elif criteria:
+        LOG.debug("Unexpected criteria: %s", criteria)
+    return ['/dev/' + i for i in devlist]
 
 
 def find_devs_with(criteria=None, oformat='device',
