@@ -73,6 +73,7 @@ cloud_init_modules:
  - seed_random
 {% endif %}
  - bootcmd
+ - users-groups
  - write-files
 {% if variant not in ["netbsd", "openbsd"] %}
  - growpart
@@ -94,7 +95,6 @@ cloud_init_modules:
 {% endif %}
  - rsyslog
 {% endif %}
- - users-groups
  - ssh
 
 # The modules that run in the 'config' stage
