@@ -1,8 +1,8 @@
 ## template:jinja
 # The top level settings are used as module
 # and system configuration.
-
-{% if variant.endswith("bsd") %}
+{% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
+{% if is_bsd %}
 syslog_fix_perms: root:wheel
 {% elif variant in ["suse"] %}
 syslog_fix_perms: root:root
@@ -65,7 +65,7 @@ cloud_init_modules:
  - growpart
  - resizefs
 {% endif %}
-{% if variant not in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
+{% if not is_bsd %}
  - disk_setup
  - mounts
 {% endif %}
@@ -280,8 +280,7 @@ system_info:
 {% if variant in ["freebsd", "netbsd", "openbsd"] %}
    network:
       renderers: ['{{ variant }}']
-{% endif %}
-{% if variant in ["dragonfly"] %}
+{% elif variant in ["dragonfly"] %}
    network:
       renderers: ['freebsd']
 {% endif %}
