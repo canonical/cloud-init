@@ -3,8 +3,12 @@ import multiprocessing
 import os
 import time
 from contextlib import contextmanager
+from pathlib import Path
 
 log = logging.getLogger('integration_testing')
+
+
+ASSETS_DIR = Path('tests/integration_tests/assets')
 
 
 def verify_ordered_items_in_text(to_verify: list, text: str):

@@ -210,23 +210,35 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
             (cmdline_name, url, path))
 
 
-def cache_pyver_maybe_purge_cache(init):
-    """Check if the Python version changed on us"""
-    pyver = '%d.%d' % (sys.version_info.major, sys.version_info.minor)
-    pyrefver = os.path.join(init.paths.get_cpath('data'), 'python-version')
-    if os.path.exists(pyrefver):
-        cached_pyver = open(pyrefver).read()
+def purge_cache_on_python_version_change(init):
+    """Purge the cache if python version changed on us.
+
+    There could be changes not represented in our cache (obj.pkl) after we
+    upgrade to a new version of python, so at that point clear the cache
+    """
+    current_python_version = '%d.%d' % (
+        sys.version_info.major, sys.version_info.minor
+    )
+    python_version_path = os.path.join(
+        init.paths.get_cpath('data'), 'python-version'
+    )
+    if os.path.exists(python_version_path):
+        cached_python_version = open(python_version_path).read()
         # The Python version has changed out from under us, anything that was
         # pickled previously is likely useless due to API changes.
-        if cached_pyver != pyver:
-            LOG.debug('Python version change detected purging cache')
+        if cached_python_version != current_python_version:
+            LOG.debug('Python version change detected. Purging cache')
             init.purge_cache(True)
+            util.write_file(python_version_path, current_python_version)
     else:
-        LOG.debug(
-            'Could not determine Python version used to write cache, purging'
-        )
-        init.purge_cache(True)
-    util.write_file(pyrefver, pyver)
+        if os.path.exists(init.paths.get_ipath_cur('obj_pkl')):
+            # Only worrying about purging if there's cached instance data
+            LOG.debug(
+                'Could not determine Python version used to write cache. '
+                'Purging cache'
+            )
+            init.purge_cache(True)
+        util.write_file(python_version_path, current_python_version)
 
 
 def main_init(name, args):
@@ -295,7 +307,7 @@ def main_init(name, args):
         util.logexc(LOG, "Failed to initialize, likely bad things to come!")
     # Stage 4
     path_helper = init.paths
-    cache_pyver_maybe_purge_cache(init)
+    purge_cache_on_python_version_change(init)
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:
