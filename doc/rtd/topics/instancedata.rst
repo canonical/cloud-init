@@ -509,13 +509,18 @@ EC2 instance:
 Using instance-data
 ===================
 
-As of cloud-init v. 18.4, any variables present in
-``/run/cloud-init/instance-data.json`` can be used in:
+As of cloud-init v. 18.4, any instance-data can be used in:
 
 * User-data scripts
 * Cloud config data
 * Command line interface via **cloud-init query** or
   **cloud-init devel render**
+
+This means that any variable present in
+``/run/cloud-init/instance-data-sensitive.json`` can be used,
+unless a non-root user is using the command line interface.
+In the non-root user case,
+``/run/cloud-init/instance-data.json`` will be used instead.
 
 Many clouds allow users to provide user-data to an instance at
 the time the instance is launched. Cloud-init supports a number of
