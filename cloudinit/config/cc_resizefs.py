@@ -85,6 +85,10 @@ def _resize_zfs(mount_point, devpth):
     return ('zpool', 'online', '-e', mount_point, devpth)
 
 
+def _resize_hammer2(mount_point, devpth):
+    return ('hammer2', 'growfs', mount_point)
+
+
 def _can_skip_resize_ufs(mount_point, devpth):
     # possible errors cases on the code-path to growfs -N following:
     # https://github.com/freebsd/freebsd/blob/HEAD/sbin/growfs/growfs.c
@@ -113,6 +117,7 @@ RESIZE_FS_PREFIXES_CMDS = [
     ('xfs', _resize_xfs),
     ('ufs', _resize_ufs),
     ('zfs', _resize_zfs),
+    ('hammer2', _resize_hammer2),
 ]
 
 RESIZE_FS_PRECHECK_CMDS = {

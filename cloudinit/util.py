@@ -2242,6 +2242,14 @@ def find_freebsd_part(fs):
         LOG.warning("Unexpected input in find_freebsd_part: %s", fs)
 
 
+def find_dragonflybsd_part(fs):
+    splitted = fs.split('/')
+    if len(splitted) == 3 and splitted[1] == 'dev':
+        return splitted[2]
+    else:
+        LOG.warning("Unexpected input in find_dragonflybsd_part: %s", fs)
+
+
 def get_path_dev_freebsd(path, mnt_list):
     path_found = None
     for line in mnt_list.split("\n"):
@@ -2295,6 +2303,9 @@ def parse_mount(path):
     # https://regex101.com/r/T2en7a/1
     regex = (r'^(/dev/[\S]+|.*zroot\S*?) on (/[\S]*) '
              r'(?=(?:type)[\s]+([\S]+)|\(([^,]*))')
+    if is_DragonFlyBSD():
+        regex = (r'^(/dev/[\S]+|\S*?) on (/[\S]*) '
+                 r'(?=(?:type)[\s]+([\S]+)|\(([^,]*))')
     for line in mount_locs:
         m = re.search(regex, line)
         if not m:
