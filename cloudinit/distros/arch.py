@@ -61,9 +61,9 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command('', pkgs=pkglist)
 
-    def _write_network_config(self, netconfig):
+    def _write_network_state(self, network_state):
         try:
-            return self._supported_write_network_config(netconfig)
+            super()._write_network_state(network_state)
         except RendererNotFoundError as e:
             # Fall back to old _write_network
             raise NotImplementedError from e

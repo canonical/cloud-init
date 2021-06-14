@@ -12,13 +12,13 @@ from cloudinit import util
 from cloudinit import subp
 from cloudinit.distros.parsers import networkmanager_conf
 from cloudinit.distros.parsers import resolv_conf
+from cloudinit.net import network_manager
 
 from . import renderer
 from .network_state import (
     is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6, IPV6_DYNAMIC_TYPES)
 
 LOG = logging.getLogger(__name__)
-NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
 KNOWN_DISTROS = ['almalinux', 'centos', 'fedora', 'rhel', 'rocky', 'suse']
 
 
@@ -931,7 +931,9 @@ class Renderer(renderer.Renderer):
             netrules_path = subp.target_path(target, self.netrules_path)
             util.write_file(netrules_path, netrules_content, file_mode)
         if available_nm(target=target):
-            enable_ifcfg_rh(subp.target_path(target, path=NM_CFG_FILE))
+            enable_ifcfg_rh(subp.target_path(
+                target, path=network_manager.NM_CFG_FILE
+            ))
 
         sysconfig_path = subp.target_path(target, templates.get('control'))
         # Distros configuring /etc/sysconfig/network as a file e.g. Centos
@@ -978,7 +980,10 @@ def available_sysconfig(target=None):
 
 
 def available_nm(target=None):
-    if not os.path.isfile(subp.target_path(target, path=NM_CFG_FILE)):
+    if not os.path.isfile(subp.target_path(
+        target,
+        path=network_manager.NM_CFG_FILE
+    )):
         return False
     return True
 

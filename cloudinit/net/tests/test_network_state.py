@@ -67,11 +67,13 @@ class TestNetworkStateParseConfig(CiTestCase):
 
     def test_missing_version_returns_none(self):
         ncfg = {}
-        self.assertEqual(None, network_state.parse_net_config_data(ncfg))
+        with self.assertRaises(RuntimeError):
+            network_state.parse_net_config_data(ncfg)
 
     def test_unknown_versions_returns_none(self):
         ncfg = {'version': 13.2}
-        self.assertEqual(None, network_state.parse_net_config_data(ncfg))
+        with self.assertRaises(RuntimeError):
+            network_state.parse_net_config_data(ncfg)
 
     def test_version_2_passes_self_as_config(self):
         ncfg = {'version': 2, 'otherconfig': {}, 'somemore': [1, 2, 3]}

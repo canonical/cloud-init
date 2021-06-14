@@ -1,10 +1,17 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
+from cloudinit.net.configurer import NetworkConfigurer
 import copy
 import os
+from typing import Iterable
 
 from . import renderer
-from .network_state import subnet_is_ipv6, NET_CONFIG_TO_V2, IPV6_DYNAMIC_TYPES
+from .network_state import (
+    NetworkState,
+    subnet_is_ipv6,
+    NET_CONFIG_TO_V2,
+    IPV6_DYNAMIC_TYPES,
+)
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -189,6 +196,7 @@ class Renderer(renderer.Renderer):
 
     NETPLAN_GENERATE = ['netplan', 'generate']
     NETPLAN_INFO = ['netplan', 'info']
+    NETPLAN_APPLY = ['netplan', 'apply']
 
     def __init__(self, config=None):
         if not config:
@@ -256,7 +264,7 @@ class Renderer(renderer.Renderer):
                     os.path.islink(SYS_CLASS_NET + iface)]:
             subp.subp(cmd, capture=True)
 
-    def _render_content(self, network_state):
+    def _render_content(self, network_state: NetworkState):
 
         # if content already in netplan format, pass it back
         if network_state.version == 2:
@@ -425,5 +433,37 @@ def network_state_to_netplan(network_state, header=None):
         header += "\n"
     contents = renderer._render_content(network_state)
     return header + contents
+
+
+class NetplanConfigurer(NetworkConfigurer):
+    @staticmethod
+    def available(target=None) -> bool:
+        return available(target=target)
+
+    @staticmethod
+    def _apply_netplan():
+        LOG.debug('Applying current netplan config')
+        try:
+            subp.subp(Renderer.NETPLAN_APPLY, capture=True)
+        except subp.ProcessExecutionError:
+            util.logexc(LOG, "netplan apply failed")
+            return False
+        return True
+
+    @staticmethod
+    def bring_up_interface(device_name: str) -> bool:
+        LOG.debug("Calling 'netplan apply' rather than "
+                  "bringing up individual interfaces")
+        return NetplanConfigurer._apply_netplan()
+
+    @staticmethod
+    def bring_up_interfaces(device_names: Iterable[str]) -> bool:
+        LOG.debug("Calling 'netplan apply' rather than "
+                  "bringing up individual interfaces")
+        return NetplanConfigurer._apply_netplan()
+
+    @staticmethod
+    def bring_up_all_interfaces(network_state: NetworkState) -> bool:
+        return NetplanConfigurer._apply_netplan()
 
 # vi: ts=4 expandtab
