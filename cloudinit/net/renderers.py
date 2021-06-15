@@ -4,6 +4,7 @@ from . import eni
 from . import freebsd
 from . import netbsd
 from . import netplan
+from . import networkd
 from . import RendererNotFoundError
 from . import openbsd
 from . import sysconfig
@@ -13,12 +14,13 @@ NAME_TO_RENDERER = {
     "freebsd": freebsd,
     "netbsd": netbsd,
     "netplan": netplan,
+    "networkd": networkd,
     "openbsd": openbsd,
     "sysconfig": sysconfig,
 }
 
 DEFAULT_PRIORITY = ["eni", "sysconfig", "netplan", "freebsd",
-                    "netbsd", "openbsd"]
+                    "netbsd", "openbsd", "networkd"]
 
 
 def search(priority=None, target=None, first=False):

@@ -36,7 +36,6 @@ class Distro(distros.Distro):
     hostname_conf_fn = "/etc/sysconfig/network"
     systemd_hostname_conf_fn = "/etc/hostname"
     network_script_tpl = '/etc/sysconfig/network-scripts/ifcfg-%s'
-    resolve_conf_fn = "/etc/resolv.conf"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
     renderer_configs = {

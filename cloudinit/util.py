@@ -483,6 +483,8 @@ def get_linux_distro():
             # which will include both version codename and architecture
             # on all distributions.
             flavor = platform.machine()
+        elif distro_name == 'photon':
+            flavor = os_release.get('PRETTY_NAME', '')
         else:
             flavor = os_release.get('VERSION_CODENAME', '')
             if not flavor:
@@ -531,7 +533,7 @@ def system_info():
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
                 'almalinux', 'alpine', 'arch', 'centos', 'debian', 'fedora',
-                'rhel', 'rocky', 'suse'):
+                'photon', 'rhel', 'rocky', 'suse'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
