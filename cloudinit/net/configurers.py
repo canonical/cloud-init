@@ -42,7 +42,7 @@ def select_configurer(priority=None, target=None) -> Type[NetworkConfigurer]:
         tmsg = ""
         if target and target != "/":
             tmsg = " in target=%s" % target
-        raise ValueError(
+        raise RuntimeError(
             "No available network configurers found%s. Searched "
             "through list: %s" % (tmsg, priority))
     return found[0]
