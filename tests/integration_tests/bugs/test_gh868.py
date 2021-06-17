@@ -13,6 +13,7 @@ chef:
 """
 
 
+@pytest.mark.adhoc  # Can't be regularly reaching out to chef install script
 @pytest.mark.user_data(USERDATA)
 def test_chef_license(client: IntegrationInstance):
     log = client.read_from_file('/var/log/cloud-init.log')
