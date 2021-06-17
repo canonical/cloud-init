@@ -8,6 +8,7 @@
 from cloudinit import log as log
 from cloudinit import sources
 from cloudinit import util
+from cloudinit import version
 
 import cloudinit.sources.helpers.vultr as vultr
 
@@ -16,7 +17,9 @@ BUILTIN_DS_CONFIG = {
     'url': 'http://169.254.169.254',
     'retries': 30,
     'timeout': 2,
-    'wait': 2
+    'wait': 2,
+    'user-agent': 'Cloud-Init/%s - OS: %s' % (version.version_string(),
+                                              util.system_info()['variant'])
 }
 
 
@@ -92,7 +95,8 @@ class DataSourceVultr(sources.DataSource):
         return vultr.get_metadata(self.ds_cfg['url'],
                                   self.ds_cfg['timeout'],
                                   self.ds_cfg['retries'],
-                                  self.ds_cfg['wait'])
+                                  self.ds_cfg['wait'],
+                                  self.ds_cfg['user-agent'])
 
     # Compare subid as instance id
     def check_instance_id(self, sys_cfg):
@@ -137,7 +141,8 @@ if __name__ == "__main__":
     md = vultr.get_metadata(BUILTIN_DS_CONFIG['url'],
                             BUILTIN_DS_CONFIG['timeout'],
                             BUILTIN_DS_CONFIG['retries'],
-                            BUILTIN_DS_CONFIG['wait'])
+                            BUILTIN_DS_CONFIG['wait'],
+                            BUILTIN_DS_CONFIG['user-agent'])
     config = md['vendor-data']['config']
     sysinfo = vultr.get_sysinfo()
 

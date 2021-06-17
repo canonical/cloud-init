@@ -11,18 +11,19 @@ from cloudinit import util
 from cloudinit import net
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from functools import lru_cache
+from os import path
 
 # Get LOG
 LOG = log.getLogger(__name__)
 
 
 @lru_cache()
-def get_metadata(url, timeout, retries, sec_between):
+def get_metadata(url, timeout, retries, sec_between, agent):
     # Bring up interface
     try:
         with EphemeralDHCPv4(connectivity_url=url):
             # Fetch the metadata
-            v1 = read_metadata(url, timeout, retries, sec_between)
+            v1 = read_metadata(url, timeout, retries, sec_between, agent)
     except (NoDHCPLeaseError) as exc:
         LOG.error("Bailing, DHCP Exception: %s", exc)
         raise
@@ -64,12 +65,20 @@ def is_vultr():
 
 
 # Read Metadata endpoint
-def read_metadata(url, timeout, retries, sec_between):
+def read_metadata(url, timeout, retries, sec_between, agent):
     url = "%s/v1.json" % url
+
+    # We need to test the user-agent for distros that need
+    # special handling, such as the arch-iso
+    headers = {
+        'Metadata-Token': 'vultr',
+        'User-Agent': agent
+    }
+
     response = url_helper.readurl(url,
                                   timeout=timeout,
                                   retries=retries,
-                                  headers={'Metadata-Token': 'vultr'},
+                                  headers=headers,
                                   sec_between=sec_between)
 
     if not response.ok():
@@ -114,10 +123,11 @@ def generate_network_config(interfaces):
         public = generate_public_network_interface(interfaces[0])
         network['config'].append(public)
 
-    # Prepare interface 1, private
+    # Prepare additional interfaces, private
     if len(interfaces) > 1:
-        private = generate_private_network_interface(interfaces[1])
-        network['config'].append(private)
+        for i in range(1, len(interfaces)):
+            private = generate_private_network_interface(interfaces[i])
+            network['config'].append(private)
 
     return network
 
@@ -209,6 +219,10 @@ def generate_user_scripts(md, network_config):
     if md['vendor-data']['raid1-script']:
         user_scripts.append(md['vendor-data']['raid1-script'])
 
+    # JBOD script
+    if md['vendor-data']['jbod-script']:
+        user_scripts.append(md['vendor-data']['jbod-script'])
+
     # Enable multi-queue on linux
     if util.is_Linux() and md['vendor-data']['ethtool-script']:
         ethtool_script = md['vendor-data']['ethtool-script']
@@ -216,16 +230,18 @@ def generate_user_scripts(md, network_config):
         # Tool location
         tool = "/opt/vultr/ethtool"
 
-        # Go through the interfaces
-        for netcfg in network_config:
-            # If the interface has a mac and is physical
-            if "mac_address" in netcfg and netcfg['type'] == "physical":
-                # Set its multi-queue to num of cores as per RHEL Docs
-                name = netcfg['name']
-                command = "%s -L %s combined $(nproc --all)" % (tool, name)
-                ethtool_script = '%s\n%s' % (ethtool_script, command)
+        # Only if the tool exists
+        if path.exists(tool):
+            # Go through the interfaces
+            for netcfg in network_config:
+                # If the interface has a mac and is physical
+                if "mac_address" in netcfg and netcfg['type'] == "physical":
+                    # Set its multi-queue to num of cores as per RHEL Docs
+                    name = netcfg['name']
+                    command = "%s -L %s combined $(nproc --all)" % (tool, name)
+                    ethtool_script = '%s\n%s' % (ethtool_script, command)
 
-        user_scripts.append(ethtool_script)
+            user_scripts.append(ethtool_script)
 
     # This is for vendor scripts
     if md['vendor-data']['vendor-script']:

@@ -67,6 +67,8 @@ VULTR_V1_1 = {
     'vendor-data': {
         'vendor-script': '',
         'ethtool-script': '',
+        'raid1-script': '',
+        'jbod-script': '',
         'config': {
             'package_upgrade': 'true',
             'disable_root': 0,
@@ -159,6 +161,7 @@ VULTR_V1_2 = {
         'vendor-script': '',
         'ethtool-script': '',
         'raid1-script': '',
+        'jbod-script': '',
         'config': {
             'package_upgrade': 'true',
             'disable_root': 0,
