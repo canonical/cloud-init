@@ -1,6 +1,6 @@
 .. _datasource_digital_ocean:
 
-Digital Ocean
+DigitalOcean
 =============
 
 The `DigitalOcean`_ datasource consumes the content served from DigitalOcean's
