@@ -10,7 +10,7 @@ Having trouble? We would like to help!
 
 - First go through this page with answers to common questions
 - Use the search bar at the upper left to search these docs
-- Ask a question in the ``#cloud-init`` IRC channel on Freenode
+- Ask a question in the ``#cloud-init`` IRC channel on Libera
 - Join and ask questions on the `cloud-init mailing list <https://launchpad.net/~cloud-init>`_
 - Find a bug? Check out the :ref:`reporting_bugs` topic for
   how to report one

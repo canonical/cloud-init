@@ -1009,6 +1009,14 @@ class TestWALinuxAgentShim(CiTestCase):
         self.GoalState.return_value.container_id = self.test_container_id
         self.GoalState.return_value.instance_id = self.test_instance_id
 
+    def test_eject_iso_is_called(self):
+        shim = wa_shim()
+        with mock.patch.object(
+            shim, 'eject_iso', autospec=True
+        ) as m_eject_iso:
+            shim.register_with_azure_and_fetch_data(iso_dev="/dev/sr0")
+            m_eject_iso.assert_called_once_with("/dev/sr0")
+
     def test_http_client_does_not_use_certificate_for_report_ready(self):
         shim = wa_shim()
         shim.register_with_azure_and_fetch_data()
@@ -1283,13 +1291,14 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
 
     def test_calls_shim_register_with_azure_and_fetch_data(self):
         m_pubkey_info = mock.MagicMock()
-        azure_helper.get_metadata_from_fabric(pubkey_info=m_pubkey_info)
+        azure_helper.get_metadata_from_fabric(
+            pubkey_info=m_pubkey_info, iso_dev="/dev/sr0")
         self.assertEqual(
             1,
             self.m_shim.return_value
                 .register_with_azure_and_fetch_data.call_count)
         self.assertEqual(
-            mock.call(pubkey_info=m_pubkey_info),
+            mock.call(iso_dev="/dev/sr0", pubkey_info=m_pubkey_info),
             self.m_shim.return_value
                 .register_with_azure_and_fetch_data.call_args)
 

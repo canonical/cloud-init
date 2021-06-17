@@ -98,6 +98,13 @@ KEYPAIR_NAME = None
 OPENSTACK_NETWORK = None
 
 ##################################################################
+# OCI SETTINGS
+##################################################################
+# Availability domain to use for Oracle. Should be one of the namess found
+# in `oci iam availability-domain list`
+ORACLE_AVAILABILITY_DOMAIN = None
+
+##################################################################
 # USER SETTINGS OVERRIDES
 ##################################################################
 # Bring in any user-file defined settings

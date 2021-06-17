@@ -392,12 +392,21 @@ def is_Linux():
 
 @lru_cache()
 def is_BSD():
-    return 'BSD' in platform.system()
+    if 'BSD' in platform.system():
+        return True
+    if platform.system() == 'DragonFly':
+        return True
+    return False
 
 
 @lru_cache()
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
+
+
+@lru_cache()
+def is_DragonFlyBSD():
+    return system_info()['variant'] == "dragonfly"
 
 
 @lru_cache()
@@ -521,8 +530,8 @@ def system_info():
     if system == "linux":
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
-                'alpine', 'arch', 'centos', 'debian', 'fedora', 'rhel',
-                'suse'):
+                'almalinux', 'alpine', 'arch', 'centos', 'debian', 'fedora',
+                'rhel', 'rocky', 'suse'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
@@ -534,7 +543,9 @@ def system_info():
             var = 'suse'
         else:
             var = 'linux'
-    elif system in ('windows', 'darwin', "freebsd", "netbsd", "openbsd"):
+    elif system in (
+            'windows', 'darwin', "freebsd", "netbsd",
+            "openbsd", "dragonfly"):
         var = system
 
     info['variant'] = var
@@ -1195,6 +1206,23 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
     return ['/dev/' + i for i in devlist]
 
 
+def find_devs_with_dragonflybsd(criteria=None, oformat='device',
+                                tag=None, no_cache=False, path=None):
+    out, _err = subp.subp(['sysctl', '-n', 'kern.disks'], rcs=[0])
+    devlist = [i for i in sorted(out.split(), reverse=True)
+               if not i.startswith("md") and not i.startswith("vn")]
+
+    if criteria == "TYPE=iso9660":
+        devlist = [i for i in devlist
+                   if i.startswith('cd') or i.startswith('acd')]
+    elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
+        devlist = [i for i in devlist
+                   if not (i.startswith('cd') or i.startswith('acd'))]
+    elif criteria:
+        LOG.debug("Unexpected criteria: %s", criteria)
+    return ['/dev/' + i for i in devlist]
+
+
 def find_devs_with(criteria=None, oformat='device',
                    tag=None, no_cache=False, path=None):
     """
@@ -1213,6 +1241,9 @@ def find_devs_with(criteria=None, oformat='device',
     elif is_OpenBSD():
         return find_devs_with_openbsd(criteria, oformat,
                                       tag, no_cache, path)
+    elif is_DragonFlyBSD():
+        return find_devs_with_dragonflybsd(criteria, oformat,
+                                           tag, no_cache, path)
 
     blk_id_cmd = ['blkid']
     options = []
@@ -2211,6 +2242,14 @@ def find_freebsd_part(fs):
         LOG.warning("Unexpected input in find_freebsd_part: %s", fs)
 
 
+def find_dragonflybsd_part(fs):
+    splitted = fs.split('/')
+    if len(splitted) == 3 and splitted[1] == 'dev':
+        return splitted[2]
+    else:
+        LOG.warning("Unexpected input in find_dragonflybsd_part: %s", fs)
+
+
 def get_path_dev_freebsd(path, mnt_list):
     path_found = None
     for line in mnt_list.split("\n"):
@@ -2264,6 +2303,9 @@ def parse_mount(path):
     # https://regex101.com/r/T2en7a/1
     regex = (r'^(/dev/[\S]+|.*zroot\S*?) on (/[\S]*) '
              r'(?=(?:type)[\s]+([\S]+)|\(([^,]*))')
+    if is_DragonFlyBSD():
+        regex = (r'^(/dev/[\S]+|\S*?) on (/[\S]*) '
+                 r'(?=(?:type)[\s]+([\S]+)|\(([^,]*))')
     for line in mount_locs:
         m = re.search(regex, line)
         if not m:

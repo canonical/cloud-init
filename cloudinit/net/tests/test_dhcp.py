@@ -42,6 +42,7 @@ class TestParseDHCPLeasesFile(CiTestCase):
             lease {
               interface "wlp3s0";
               fixed-address 192.168.2.74;
+              filename "http://192.168.2.50/boot.php?mac=${netX}";
               option subnet-mask 255.255.255.0;
               option routers 192.168.2.1;
               renew 4 2017/07/27 18:02:30;
@@ -50,6 +51,7 @@ class TestParseDHCPLeasesFile(CiTestCase):
             lease {
               interface "wlp3s0";
               fixed-address 192.168.2.74;
+              filename "http://192.168.2.50/boot.php?mac=${netX}";
               option subnet-mask 255.255.255.0;
               option routers 192.168.2.1;
             }
@@ -58,8 +60,10 @@ class TestParseDHCPLeasesFile(CiTestCase):
             {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
              'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1',
              'renew': '4 2017/07/27 18:02:30',
-             'expire': '5 2017/07/28 07:08:15'},
+             'expire': '5 2017/07/28 07:08:15',
+             'filename': 'http://192.168.2.50/boot.php?mac=${netX}'},
             {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
+             'filename': 'http://192.168.2.50/boot.php?mac=${netX}',
              'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1'}]
         write_file(lease_file, content)
         self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))

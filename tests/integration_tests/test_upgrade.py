@@ -1,4 +1,5 @@
 import logging
+import os
 import pytest
 import time
 from pathlib import Path
@@ -9,8 +10,12 @@ from tests.integration_tests.conftest import (
     session_start_time,
 )
 
+
 log = logging.getLogger('integration_testing')
 
+UNSUPPORTED_INSTALL_METHOD_MSG = (
+    "Install method '{}' not supported for this test"
+)
 USER_DATA = """\
 #cloud-config
 hostname: SRU-worked
@@ -54,16 +59,14 @@ def _restart(instance):
 
 
 @pytest.mark.sru_2020_11
-def test_upgrade(session_cloud: IntegrationCloud):
+def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
-        pytest.skip("Install method '{}' not supported for this test".format(
-            source
-        ))
+        pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         return  # type checking doesn't understand that skip raises
 
     launch_kwargs = {
-        'image_id': session_cloud._get_initial_image(),
+        'image_id': session_cloud.released_image_id,
     }
 
     image = ImageSpecification.from_os_image()
@@ -93,6 +96,29 @@ def test_upgrade(session_cloud: IntegrationCloud):
         instance.install_new_cloud_init(source, take_snapshot=False)
         instance.execute('hostname something-else')
         _restart(instance)
+        assert instance.execute('cloud-init status --wait --long').ok
         _output_to_compare(instance, after_path, netcfg_path)
 
     log.info('Wrote upgrade test logs to %s and %s', before_path, after_path)
+
+
+@pytest.mark.ci
+@pytest.mark.ubuntu
+def test_subsequent_boot_of_upgraded_package(session_cloud: IntegrationCloud):
+    source = get_validated_source(session_cloud)
+    if not source.installs_new_version():
+        if os.environ.get('TRAVIS'):
+            # If this isn't running on CI, we should know
+            pytest.fail(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
+        else:
+            pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
+        return  # type checking doesn't understand that skip raises
+
+    launch_kwargs = {'image_id': session_cloud.released_image_id}
+
+    with session_cloud.launch(launch_kwargs=launch_kwargs) as instance:
+        instance.install_new_cloud_init(
+            source, take_snapshot=False, clean=False
+        )
+        instance.restart()
+        assert instance.execute('cloud-init status --wait --long').ok

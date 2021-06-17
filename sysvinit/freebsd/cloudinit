@@ -2,7 +2,7 @@
 
 # PROVIDE: cloudinit
 # REQUIRE: FILESYSTEMS NETWORKING cloudinitlocal ldconfig devd
-# BEFORE:  cloudconfig cloudfinal
+# BEFORE:  LOGIN cloudconfig cloudfinal
 
 . /etc/rc.subr
 

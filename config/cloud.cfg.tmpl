@@ -1,8 +1,8 @@
 ## template:jinja
 # The top level settings are used as module
 # and system configuration.
-
-{% if variant.endswith("bsd") %}
+{% set is_bsd = variant in ["dragonfly", "freebsd", "netbsd", "openbsd"] %}
+{% if is_bsd %}
 syslog_fix_perms: root:wheel
 {% elif variant in ["suse"] %}
 syslog_fix_perms: root:root
@@ -21,7 +21,8 @@ disable_root: false
 disable_root: true
 {% endif %}
 
-{% if variant in ["alpine", "amazon", "centos", "fedora", "rhel"] %}
+{% if variant in ["almalinux", "alpine", "amazon", "centos", "fedora",
+                  "rhel", "rocky"] %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% if variant == "amazon" %}
 resize_rootfs: noblock
@@ -60,11 +61,11 @@ cloud_init_modules:
 {% endif %}
  - bootcmd
  - write-files
-{% if variant not in ["netbsd"] %}
+{% if variant not in ["netbsd", "openbsd"] %}
  - growpart
  - resizefs
 {% endif %}
-{% if variant not in ["freebsd", "netbsd"] %}
+{% if not is_bsd %}
  - disk_setup
  - mounts
 {% endif %}
@@ -153,10 +154,12 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["alpine", "amazon", "arch", "centos", "debian",
-                  "fedora", "freebsd", "netbsd", "openbsd", "rhel",
+{% if variant in ["almalinux", "alpine", "amazon", "arch", "centos", "debian",
+                  "fedora", "freebsd", "netbsd", "openbsd", "rhel", "rocky",
                   "suse", "ubuntu"] %}
    distro: {{ variant }}
+{% elif variant in ["dragonfly"] %}
+   distro: dragonflybsd
 {% else %}
    # Unknown/fallback distro.
    distro: ubuntu
@@ -206,8 +209,8 @@ system_info:
          primary: http://ports.ubuntu.com/ubuntu-ports
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
-{% elif variant in ["alpine", "amazon", "arch", "centos", "fedora",
-                    "rhel", "suse"] %}
+{% elif variant in ["almalinux", "alpine", "amazon", "arch", "centos", "fedora",
+                    "rhel", "rocky", "suse"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}
@@ -248,6 +251,15 @@ system_info:
      groups: [wheel]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/tcsh
+{% elif variant in ["dragonfly"] %}
+   # Default user name + that default users groups (if added/used)
+   default_user:
+     name: dragonfly
+     lock_passwd: True
+     gecos: DragonFly
+     groups: [wheel]
+     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+     shell: /bin/sh
 {% elif variant in ["netbsd"] %}
    default_user:
      name: netbsd
@@ -268,4 +280,7 @@ system_info:
 {% if variant in ["freebsd", "netbsd", "openbsd"] %}
    network:
       renderers: ['{{ variant }}']
+{% elif variant in ["dragonfly"] %}
+   network:
+      renderers: ['freebsd']
 {% endif %}
