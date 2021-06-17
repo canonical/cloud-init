@@ -1,6 +1,6 @@
 # cloud-init
 
-[![Build Status](https://travis-ci.com/canonical/cloud-init.svg?branch=master)](https://travis-ci.com/canonical/cloud-init) [![Read the Docs](https://readthedocs.org/projects/cloudinit/badge/?version=latest&style=flat)](https://cloudinit.readthedocs.org)
+[![Build Status](https://travis-ci.com/canonical/cloud-init.svg?branch=main)](https://travis-ci.com/canonical/cloud-init) [![Read the Docs](https://readthedocs.org/projects/cloudinit/badge/?version=latest&style=flat)](https://cloudinit.readthedocs.org)
 
 Cloud-init is the *industry standard* multi-distribution method for
 cross-platform cloud instance initialization. It is supported across all
