@@ -43,7 +43,7 @@ environments in the public cloud:
 - Softlayer
 - Rackspace Public Cloud
 - IBM Cloud
-- Digital Ocean
+- DigitalOcean
 - Bigstep
 - Hetzner
 - Joyent
