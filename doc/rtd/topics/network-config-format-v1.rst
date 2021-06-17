@@ -353,6 +353,7 @@ the following keys:
              address: 192.168.23.14/27
              gateway: 192.168.23.1
       - type: nameserver
+        interface: interface0  # Ties nameserver to interface0 only
         address:
           - 192.168.23.2
           - 8.8.8.8

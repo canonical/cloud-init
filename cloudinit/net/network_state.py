@@ -572,7 +572,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             dns['search'].extend(search)
 
     @ensure_command_keys(['address'])
-    def handle_individual_nameserver(self, command, iface):
+    def _handle_individual_nameserver(self, command, iface):
         _iface = self._network_state.get('interfaces')
         nameservers, search = self._parse_dns(command)
         _iface[iface]['dns'] = {'nameservers': nameservers, 'search': search}
@@ -751,7 +751,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                 if len(dns) > 0:
                     name_cmd.update({'address': dns})
                 self.handle_nameserver(name_cmd)
-                self.handle_individual_nameserver(name_cmd, iface)
+                self._handle_individual_nameserver(name_cmd, iface)
 
     def _handle_bond_bridge(self, command, cmd_type=None):
         """Common handler for bond and bridge types"""

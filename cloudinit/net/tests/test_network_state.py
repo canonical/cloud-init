@@ -16,7 +16,7 @@ network:
   version: 1
   config:
     - type: nameserver
-      interface: {}
+      interface: {iface}
       address:
         - 192.168.1.1
         - 8.8.8.8
@@ -36,8 +36,8 @@ network:
       mac_address: '66:77:88:99:00:11'
 """
 
-V1_CONFIG_NAMESERVERS_VALID = _V1_CONFIG_NAMESERVERS.format('eth1')
-V1_CONFIG_NAMESERVERS_INVALID = _V1_CONFIG_NAMESERVERS.format('eth90')
+V1_CONFIG_NAMESERVERS_VALID = _V1_CONFIG_NAMESERVERS.format(iface='eth1')
+V1_CONFIG_NAMESERVERS_INVALID = _V1_CONFIG_NAMESERVERS.format(iface='eth90')
 
 V2_CONFIG_NAMESERVERS = """\
 network:
