@@ -2,6 +2,7 @@
 
 import copy
 import os
+import re
 from io import StringIO
 from textwrap import dedent
 from unittest import mock
@@ -14,7 +15,6 @@ from cloudinit.tests.helpers import (
     FilesystemMockingTestCase, dir2dict)
 from cloudinit import subp
 from cloudinit import util
-
 
 BASE_NET_CFG = '''
 auto lo
@@ -769,6 +769,103 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                                    V1_NET_CFG,
                                    expected_cfgs=expected_cfgs.copy(),
                                    with_netplan=True)
+
+
+class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
+
+    def setUp(self):
+        super(TestNetCfgDistroPhoton, self).setUp()
+        self.distro = self._get_distro('photon', renderers=['networkd'])
+
+    def create_conf_dict(self, contents):
+        content_dict = {}
+        for line in contents:
+            if line:
+                line = line.strip()
+                if line and re.search(r'^\[(.+)\]$', line):
+                    content_dict[line] = []
+                    key = line
+                elif line:
+                    assert key
+                    content_dict[key].append(line)
+
+        return content_dict
+
+    def compare_dicts(self, actual, expected):
+        for k, v in actual.items():
+            self.assertEqual(sorted(expected[k]), sorted(v))
+
+    def _apply_and_verify(self, apply_fn, config, expected_cfgs=None,
+                          bringup=False):
+        if not expected_cfgs:
+            raise ValueError('expected_cfg must not be None')
+
+        tmpd = None
+        with mock.patch('cloudinit.net.networkd.available') as m_avail:
+            m_avail.return_value = True
+            with self.reRooted(tmpd) as tmpd:
+                apply_fn(config, bringup)
+
+        results = dir2dict(tmpd)
+        for cfgpath, expected in expected_cfgs.items():
+            actual = self.create_conf_dict(results[cfgpath].splitlines())
+            self.compare_dicts(actual, expected)
+            self.assertEqual(0o644, get_mode(cfgpath, tmpd))
+
+    def nwk_file_path(self, ifname):
+        return '/etc/systemd/network/10-cloud-init-%s.network' % ifname
+
+    def net_cfg_1(self, ifname):
+        ret = """\
+        [Match]
+        Name=%s
+        [Network]
+        DHCP=no
+        [Address]
+        Address=192.168.1.5/24
+        [Route]
+        Gateway=192.168.1.254""" % ifname
+        return ret
+
+    def net_cfg_2(self, ifname):
+        ret = """\
+        [Match]
+        Name=%s
+        [Network]
+        DHCP=ipv4""" % ifname
+        return ret
+
+    def test_photon_network_config_v1(self):
+        tmp = self.net_cfg_1('eth0').splitlines()
+        expected_eth0 = self.create_conf_dict(tmp)
+
+        tmp = self.net_cfg_2('eth1').splitlines()
+        expected_eth1 = self.create_conf_dict(tmp)
+
+        expected_cfgs = {
+            self.nwk_file_path('eth0'): expected_eth0,
+            self.nwk_file_path('eth1'): expected_eth1,
+        }
+
+        self._apply_and_verify(self.distro.apply_network_config,
+                               V1_NET_CFG,
+                               expected_cfgs.copy())
+
+    def test_photon_network_config_v2(self):
+        tmp = self.net_cfg_1('eth7').splitlines()
+        expected_eth7 = self.create_conf_dict(tmp)
+
+        tmp = self.net_cfg_2('eth9').splitlines()
+        expected_eth9 = self.create_conf_dict(tmp)
+
+        expected_cfgs = {
+            self.nwk_file_path('eth7'): expected_eth7,
+            self.nwk_file_path('eth9'): expected_eth9,
+        }
+
+        self._apply_and_verify(self.distro.apply_network_config,
+                               V2_NET_CFG,
+                               expected_cfgs.copy())
 
 
 def get_mode(path, target=None):

@@ -46,7 +46,8 @@ OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
-    'redhat': ['almalinux', 'amazon', 'centos', 'fedora', 'rhel', 'rocky'],
+    'redhat': ['almalinux', 'amazon', 'centos', 'fedora', 'photon', 'rhel',
+               'rocky'],
     'suse': ['opensuse', 'sles'],
 }
 
@@ -80,6 +81,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     _ci_pkl_version = 1
     prefer_fqdn = False
+    resolve_conf_fn = "/etc/resolv.conf"
 
     def __init__(self, name, cfg, paths):
         self._paths = paths

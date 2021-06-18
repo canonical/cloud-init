@@ -25,7 +25,6 @@ LOG = logging.getLogger(__name__)
 class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
     network_conf_dir = "/etc/netctl"
-    resolve_conf_fn = "/etc/resolv.conf"
     init_cmd = ['systemctl']  # init scripts
     renderer_configs = {
         "netplan": {"netplan_path": "/etc/netplan/50-cloud-init.yaml",

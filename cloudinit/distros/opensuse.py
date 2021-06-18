@@ -27,7 +27,6 @@ class Distro(distros.Distro):
     locale_conf_fn = '/etc/sysconfig/language'
     network_conf_fn = '/etc/sysconfig/network/config'
     network_script_tpl = '/etc/sysconfig/network/ifcfg-%s'
-    resolve_conf_fn = '/etc/resolv.conf'
     route_conf_tpl = '/etc/sysconfig/network/ifroute-%s'
     systemd_hostname_conf_fn = '/etc/hostname'
     systemd_locale_conf_fn = '/etc/locale.conf'
