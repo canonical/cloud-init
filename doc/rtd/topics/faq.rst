@@ -139,7 +139,7 @@ cloud-config is:
 To verify your YAML, we do have a short script called `validate-yaml.py`_
 that can validate your user data offline.
 
-.. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/master/tools/validate-yaml.py
+.. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/main/tools/validate-yaml.py
 
 Another option is to run the following on an instance to debug userdata
 provided to the system:

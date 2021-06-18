@@ -50,6 +50,8 @@ These user-data and meta-data files are expected to be in the following format.
   /user-data
   /meta-data
 
+Both files are required to be present for it to be considered a valid seed ISO.
+
 Basically, user-data is simply user-data and meta-data is a yaml formatted file
 representing what you'd find in the EC2 metadata service.
 

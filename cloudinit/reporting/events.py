@@ -165,7 +165,15 @@ class ReportEventStack(object):
     :param result_on_exception:
         The result value to set if an exception is caught. default
         value is FAIL.
+
+    :param post_files:
+        Can hold filepaths of files that are to get posted/created
+        regarding a given event. Something like success or failure information
+        in a given log file. For each filepath, if it's a valid regular file
+        it will get: read & encoded as base64 at the close of the event.
+        Default value, if None, is an empty list.
     """
+
     def __init__(self, name, description, message=None, parent=None,
                  reporting_enabled=None, result_on_exception=status.FAIL,
                  post_files=None):

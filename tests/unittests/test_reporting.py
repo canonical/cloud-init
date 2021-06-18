@@ -113,6 +113,7 @@ class TestReportingEvent(TestCase):
 
 
 class TestFinishReportingEvent(TestCase):
+
     def test_as_has_result(self):
         result = events.status.SUCCESS
         name, desc = 'test_name', 'test_desc'
@@ -120,6 +121,23 @@ class TestFinishReportingEvent(TestCase):
         ret = event.as_dict()
         self.assertTrue('result' in ret)
         self.assertEqual(ret['result'], result)
+
+    def test_has_result_with_optional_post_files(self):
+        result = events.status.SUCCESS
+        name, desc, files = 'test_name', 'test_desc', [
+            '/really/fake/path/install.log']
+        event = events.FinishReportingEvent(
+            name, desc, result, post_files=files)
+        ret = event.as_dict()
+        self.assertTrue('result' in ret)
+        self.assertTrue('files' in ret)
+        self.assertEqual(ret['result'], result)
+        posted_install_log = ret['files'][0]
+        self.assertTrue('path' in posted_install_log)
+        self.assertTrue('content' in posted_install_log)
+        self.assertTrue('encoding' in posted_install_log)
+        self.assertEqual(posted_install_log['path'], files[0])
+        self.assertEqual(posted_install_log['encoding'], 'base64')
 
 
 class TestBaseReportingHandler(TestCase):
