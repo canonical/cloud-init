@@ -1,4 +1,3 @@
-# Oracle DS absent to retain orig behavior: Oracle(Bionic) == OpenStack detected
 Template: cloud-init/datasources
 Type: multiselect
 Default: NoCloud, ConfigDrive, OpenNebula, DigitalOcean, Azure, AltCloud, OVF, MAAS, GCE, OpenStack, CloudSigma, SmartOS, Bigstep, Scaleway, AliYun, Ec2, CloudStack, Hetzner, IBMCloud, Exoscale, RbxCloud, UpCloud, Vultr, None
