@@ -15,6 +15,7 @@ from cloudinit.tests.helpers import (
     FilesystemMockingTestCase, dir2dict)
 from cloudinit import subp
 from cloudinit import util
+from cloudinit import safeyaml
 
 BASE_NET_CFG = '''
 auto lo
@@ -87,6 +88,24 @@ V1_NET_CFG = {'config': [{'name': 'eth0',
                           'subnets': [{'control': 'auto', 'type': 'dhcp4'}],
                           'type': 'physical'}],
               'version': 1}
+
+V1_NET_CFG_WITH_DUPS = """\
+# same value in interface specific dns and global dns
+# should produce single entry in network file
+version: 1
+config:
+    - type: physical
+      name: eth0
+      subnets:
+          - type: static
+            address: 192.168.0.102/24
+            dns_nameservers: [1.2.3.4]
+            dns_search: [test.com]
+            interface: eth0
+    - type: nameserver
+      address: [1.2.3.4]
+      search: [test.com]
+"""
 
 V1_NET_CFG_OUTPUT = """\
 # This file is generated from information provided by the datasource.  Changes
@@ -865,6 +884,28 @@ class TestNetCfgDistroPhoton(TestNetCfgDistroBase):
 
         self._apply_and_verify(self.distro.apply_network_config,
                                V2_NET_CFG,
+                               expected_cfgs.copy())
+
+    def test_photon_network_config_v1_with_duplicates(self):
+        expected = """\
+        [Match]
+        Name=eth0
+        [Network]
+        DHCP=no
+        DNS=1.2.3.4
+        Domains=test.com
+        [Address]
+        Address=192.168.0.102/24"""
+
+        net_cfg = safeyaml.load(V1_NET_CFG_WITH_DUPS)
+
+        expected = self.create_conf_dict(expected.splitlines())
+        expected_cfgs = {
+            self.nwk_file_path('eth0'): expected,
+        }
+
+        self._apply_and_verify(self.distro.apply_network_config,
+                               net_cfg,
                                expected_cfgs.copy())
 
 
