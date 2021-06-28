@@ -825,10 +825,14 @@ NETWORK_CONFIGS = {
             [Match]
             Name=eth99
             MACAddress=c0:d6:9f:2c:e8:80
+            [Address]
+            Address=192.168.21.3/24
             [Network]
             DHCP=ipv4
+            Domains=barley.maas sach.maas
             Domains=wark.maas
             DNS=1.2.3.4 5.6.7.8
+            DNS=8.8.8.8 8.8.4.4
             [Route]
             Gateway=65.61.151.37
             Destination=0.0.0.0/0

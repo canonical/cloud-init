@@ -35,6 +35,8 @@ class CfgParser:
         for k in self.conf_dict.keys():
             if k == sec:
                 self.conf_dict[k].append(key+'='+str(val))
+                # remove duplicates from list
+                self.conf_dict[k] = list(dict.fromkeys(self.conf_dict[k]))
                 self.conf_dict[k].sort()
 
     def get_final_conf(self):
@@ -103,19 +105,27 @@ class Renderer(renderer.Renderer):
 
     def parse_routes(self, conf, cfg):
         sec = 'Route'
+        route_cfg_map = {
+            'gateway': 'Gateway',
+            'network': 'Destination',
+            'metric': 'Metric',
+        }
+
+        # prefix is derived using netmask by network_state
+        prefix = ''
+        if 'prefix' in conf:
+            prefix = '/' + str(conf['prefix'])
+
         for k, v in conf.items():
-            if k == 'gateway':
-                cfg.update_section(sec, 'Gateway', v)
-            elif k == 'network':
-                tmp = v
-                if 'prefix' in conf:
-                    tmp += '/' + str(conf['prefix'])
-                cfg.update_section(sec, 'Destination', tmp)
-            elif k == 'metric':
-                cfg.update_section(sec, 'Metric', v)
+            if k not in route_cfg_map:
+                continue
+            if k == 'network':
+                v += prefix
+            cfg.update_section(sec, route_cfg_map[k], v)
 
     def parse_subnets(self, iface, cfg):
         dhcp = 'no'
+        sec = 'Network'
         for e in iface.get('subnets', []):
             t = e['type']
             if t == 'dhcp4' or t == 'dhcp':
@@ -131,21 +141,24 @@ class Renderer(renderer.Renderer):
             if 'routes' in e and e['routes']:
                 for i in e['routes']:
                     self.parse_routes(i, cfg)
-            elif 'address' in e:
+            if 'address' in e:
+                subnet_cfg_map = {
+                    'address': 'Address',
+                    'gateway': 'Gateway',
+                    'dns_nameservers': 'DNS',
+                    'dns_search': 'Domains',
+                }
                 for k, v in e.items():
                     if k == 'address':
-                        tmp = v
                         if 'prefix' in e:
-                            tmp += '/' + str(e['prefix'])
-                        cfg.update_section('Address', 'Address', tmp)
+                            v += '/' + str(e['prefix'])
+                        cfg.update_section('Address', subnet_cfg_map[k], v)
                     elif k == 'gateway':
-                        cfg.update_section('Route', 'Gateway', v)
-                    elif k == 'dns_nameservers':
-                        cfg.update_section('Network', 'DNS', ' '.join(v))
-                    elif k == 'dns_search':
-                        cfg.update_section('Network', 'Domains', ' '.join(v))
+                        cfg.update_section('Route', subnet_cfg_map[k], v)
+                    elif k == 'dns_nameservers' or k == 'dns_search':
+                        cfg.update_section(sec, subnet_cfg_map[k], ' '.join(v))
 
-        cfg.update_section('Network', 'DHCP', dhcp)
+        cfg.update_section(sec, 'DHCP', dhcp)
 
     # This is to accommodate extra keys present in VMware config
     def dhcp_domain(self, d, cfg):
