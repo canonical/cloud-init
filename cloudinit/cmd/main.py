@@ -231,13 +231,6 @@ def purge_cache_on_python_version_change(init):
             init.purge_cache(True)
             util.write_file(python_version_path, current_python_version)
     else:
-        if os.path.exists(init.paths.get_ipath_cur('obj_pkl')):
-            # Only worrying about purging if there's cached instance data
-            LOG.debug(
-                'Could not determine Python version used to write cache. '
-                'Purging cache'
-            )
-            init.purge_cache(True)
         util.write_file(python_version_path, current_python_version)
 
 
