@@ -137,7 +137,7 @@ releases:
         # EOL: July 2022
         default:
             enabled: true
-            release: hirsute
+            release: impish
             version: "21.10"
             os: ubuntu
             feature_groups:
