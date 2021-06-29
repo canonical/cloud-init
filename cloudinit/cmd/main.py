@@ -231,6 +231,11 @@ def purge_cache_on_python_version_change(init):
             init.purge_cache(True)
             util.write_file(python_version_path, current_python_version)
     else:
+        if os.path.exists(init.paths.get_ipath_cur('obj_pkl')):
+            LOG.info(
+                'Writing python-version file. '
+                'Cache compatibility status is currently unknown.'
+            )
         util.write_file(python_version_path, current_python_version)
 
 
