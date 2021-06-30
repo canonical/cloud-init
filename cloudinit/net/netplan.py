@@ -1,9 +1,7 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
-from cloudinit.net.activator import NetworkActivator
 import copy
 import os
-from typing import Iterable
 
 from . import renderer
 from .network_state import (
@@ -196,7 +194,6 @@ class Renderer(renderer.Renderer):
 
     NETPLAN_GENERATE = ['netplan', 'generate']
     NETPLAN_INFO = ['netplan', 'info']
-    NETPLAN_APPLY = ['netplan', 'apply']
 
     def __init__(self, config=None):
         if not config:
@@ -434,36 +431,5 @@ def network_state_to_netplan(network_state, header=None):
     contents = renderer._render_content(network_state)
     return header + contents
 
-
-class NetplanActivator(NetworkActivator):
-    @staticmethod
-    def available(target=None) -> bool:
-        return available(target=target)
-
-    @staticmethod
-    def _apply_netplan():
-        LOG.debug('Applying current netplan config')
-        try:
-            subp.subp(Renderer.NETPLAN_APPLY, capture=True)
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, "netplan apply failed")
-            return False
-        return True
-
-    @staticmethod
-    def bring_up_interface(device_name: str) -> bool:
-        LOG.debug("Calling 'netplan apply' rather than "
-                  "bringing up individual interfaces")
-        return NetplanActivator._apply_netplan()
-
-    @staticmethod
-    def bring_up_interfaces(device_names: Iterable[str]) -> bool:
-        LOG.debug("Calling 'netplan apply' rather than "
-                  "bringing up individual interfaces")
-        return NetplanActivator._apply_netplan()
-
-    @staticmethod
-    def bring_up_all_interfaces(network_state: NetworkState) -> bool:
-        return NetplanActivator._apply_netplan()
 
 # vi: ts=4 expandtab

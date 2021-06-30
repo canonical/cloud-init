@@ -8,9 +8,11 @@ from cloudinit.net.activators import (
     search_activator,
     select_activator,
 )
-from cloudinit.net.ifupdown import IfUpDownActivator
-from cloudinit.net.netplan import NetplanActivator
-from cloudinit.net.network_manager import NetworkManagerActivator
+from cloudinit.net.activators import (
+    IfUpDownActivator,
+    NetplanActivator,
+    NetworkManagerActivator
+)
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.safeyaml import load
 
@@ -101,7 +103,7 @@ class TestSearchAndSelect:
         select_activator(target='/tmp')
         assert '/tmp' == available_mocks.m_which.call_args[1]['target']
 
-    @patch('cloudinit.net.ifupdown.IfUpDownActivator.available',
+    @patch('cloudinit.net.activators.IfUpDownActivator.available',
            return_value=False)
     def test_first_not_available(self, m_available):
         resp = search_activator()

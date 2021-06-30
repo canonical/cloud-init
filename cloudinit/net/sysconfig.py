@@ -12,7 +12,6 @@ from cloudinit import util
 from cloudinit import subp
 from cloudinit.distros.parsers import networkmanager_conf
 from cloudinit.distros.parsers import resolv_conf
-from cloudinit.net import network_manager
 
 from . import renderer
 from .network_state import (
@@ -20,6 +19,7 @@ from .network_state import (
 
 LOG = logging.getLogger(__name__)
 KNOWN_DISTROS = ['almalinux', 'centos', 'fedora', 'rhel', 'rocky', 'suse']
+NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
 
 
 def _make_header(sep='#'):
@@ -932,7 +932,7 @@ class Renderer(renderer.Renderer):
             util.write_file(netrules_path, netrules_content, file_mode)
         if available_nm(target=target):
             enable_ifcfg_rh(subp.target_path(
-                target, path=network_manager.NM_CFG_FILE
+                target, path=NM_CFG_FILE
             ))
 
         sysconfig_path = subp.target_path(target, templates.get('control'))
@@ -982,7 +982,7 @@ def available_sysconfig(target=None):
 def available_nm(target=None):
     if not os.path.isfile(subp.target_path(
         target,
-        path=network_manager.NM_CFG_FILE
+        path=NM_CFG_FILE
     )):
         return False
     return True
