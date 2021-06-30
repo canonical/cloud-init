@@ -113,6 +113,7 @@ class Distro(distros.Distro):
 
     def _write_network_config(self, netconfig):
         _maybe_remove_legacy_eth0()
+        _maybe_remove_legacy_eth0("/etc/network/interfaces")
         return self._supported_write_network_config(netconfig)
 
     def _bring_up_interfaces(self, device_names):
