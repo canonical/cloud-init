@@ -101,12 +101,6 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
 
-    def _bring_up_interfaces(self, device_names):
-        for d in device_names:
-            if not self._bring_up_interface(d):
-                return False
-        return True
-
     def _write_hostname(self, your_hostname, out_fn):
         conf = None
         try:
