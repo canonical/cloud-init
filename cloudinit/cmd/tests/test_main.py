@@ -7,11 +7,10 @@ from io import StringIO
 
 from cloudinit.cmd import main
 from cloudinit import safeyaml
-from cloudinit import stages
 from cloudinit.util import (
     ensure_dir, load_file, write_file)
 from cloudinit.tests.helpers import (
-    FilesystemMockingTestCase, mock, wrap_and_call)
+    FilesystemMockingTestCase, wrap_and_call)
 
 mypaths = namedtuple('MyPaths', 'run_dir')
 myargs = namedtuple('MyArgs', 'debug files force local reporter subcommand')
