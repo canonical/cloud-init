@@ -139,11 +139,7 @@ def search_activator(
         raise ValueError(
             "Unknown activators provided in priority list: %s" % unknown)
 
-    found = []
-    for activator in priority:
-        if activator.available(target):
-            found.append(activator)
-    return found
+    return [activator for activator in priority if activator.available(target)]
 
 
 def select_activator(priority=None, target=None) -> Type[NetworkActivator]:
