@@ -4,38 +4,38 @@
 # version to encompass both seems overkill at this point
 from typing import List, Type
 
-from cloudinit.net.configurer import NetworkConfigurer
-from cloudinit.net.ifupdown import IfUpDownConfigurer
-from cloudinit.net.netplan import NetplanConfigurer
-from cloudinit.net.network_manager import NetworkManagerConfigurer
+from cloudinit.net.activator import NetworkActivator
+from cloudinit.net.ifupdown import IfUpDownActivator
+from cloudinit.net.netplan import NetplanActivator
+from cloudinit.net.network_manager import NetworkManagerActivator
 
 DEFAULT_PRIORITY = [
-    IfUpDownConfigurer,
-    NetworkManagerConfigurer,
-    NetplanConfigurer,
+    IfUpDownActivator,
+    NetworkManagerActivator,
+    NetplanActivator,
 ]
 
 
-def search_configurer(
+def search_activator(
     priority=None, target=None
-) -> List[Type[NetworkConfigurer]]:
+) -> List[Type[NetworkActivator]]:
     if priority is None:
         priority = DEFAULT_PRIORITY
 
     unknown = [i for i in priority if i not in DEFAULT_PRIORITY]
     if unknown:
         raise ValueError(
-            "Unknown configurers provided in priority list: %s" % unknown)
+            "Unknown activators provided in priority list: %s" % unknown)
 
     found = []
-    for configurer in priority:
-        if configurer.available(target):
-            found.append(configurer)
+    for activator in priority:
+        if activator.available(target):
+            found.append(activator)
     return found
 
 
-def select_configurer(priority=None, target=None) -> Type[NetworkConfigurer]:
-    found = search_configurer(priority, target)
+def select_activator(priority=None, target=None) -> Type[NetworkActivator]:
+    found = search_activator(priority, target)
     if not found:
         if priority is None:
             priority = DEFAULT_PRIORITY
@@ -43,6 +43,6 @@ def select_configurer(priority=None, target=None) -> Type[NetworkConfigurer]:
         if target and target != "/":
             tmsg = " in target=%s" % target
         raise RuntimeError(
-            "No available network configurers found%s. Searched "
+            "No available network activators found%s. Searched "
             "through list: %s" % (tmsg, priority))
     return found[0]

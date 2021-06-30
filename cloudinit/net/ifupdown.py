@@ -2,13 +2,13 @@ import logging
 
 from cloudinit import subp
 from cloudinit import util
-from cloudinit.net.configurer import NetworkConfigurer
+from cloudinit.net.activator import NetworkActivator
 from cloudinit.net.eni import available as eni_available
 
 LOG = logging.getLogger(__name__)
 
 
-class IfUpDownConfigurer(NetworkConfigurer):
+class IfUpDownActivator(NetworkActivator):
     # Note that we're not overriding bring_up_interfaces to pass something
     # like ifup --all because it isn't supported everywhere.
     # E.g., NetworkManager has a ifupdown plugin that requires the name

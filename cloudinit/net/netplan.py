@@ -1,6 +1,6 @@
 # This file is part of cloud-init.  See LICENSE file ...
 
-from cloudinit.net.configurer import NetworkConfigurer
+from cloudinit.net.activator import NetworkActivator
 import copy
 import os
 from typing import Iterable
@@ -435,7 +435,7 @@ def network_state_to_netplan(network_state, header=None):
     return header + contents
 
 
-class NetplanConfigurer(NetworkConfigurer):
+class NetplanActivator(NetworkActivator):
     @staticmethod
     def available(target=None) -> bool:
         return available(target=target)
@@ -454,16 +454,16 @@ class NetplanConfigurer(NetworkConfigurer):
     def bring_up_interface(device_name: str) -> bool:
         LOG.debug("Calling 'netplan apply' rather than "
                   "bringing up individual interfaces")
-        return NetplanConfigurer._apply_netplan()
+        return NetplanActivator._apply_netplan()
 
     @staticmethod
     def bring_up_interfaces(device_names: Iterable[str]) -> bool:
         LOG.debug("Calling 'netplan apply' rather than "
                   "bringing up individual interfaces")
-        return NetplanConfigurer._apply_netplan()
+        return NetplanActivator._apply_netplan()
 
     @staticmethod
     def bring_up_all_interfaces(network_state: NetworkState) -> bool:
-        return NetplanConfigurer._apply_netplan()
+        return NetplanActivator._apply_netplan()
 
 # vi: ts=4 expandtab

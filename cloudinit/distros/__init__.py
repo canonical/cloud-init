@@ -21,7 +21,7 @@ from typing import Any, Mapping
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.net import configurers
+from cloudinit.net import activators
 from cloudinit.net import eni
 from cloudinit.net import network_state
 from cloudinit.net import renderers
@@ -220,8 +220,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Now try to bring them up
         if bring_up:
-            network_configurer = configurers.select_configurer()
-            network_configurer.bring_up_all_interfaces(network_state)
+            network_activator = activators.select_activator()
+            network_activator.bring_up_all_interfaces(network_state)
         return False
 
     def apply_network_config_names(self, netconfig):

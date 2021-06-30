@@ -3,14 +3,14 @@ import os
 
 from cloudinit import subp
 from cloudinit import util
-from cloudinit.net.configurer import NetworkConfigurer
+from cloudinit.net.activator import NetworkActivator
 
 LOG = logging.getLogger(__name__)
 
 NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
 
 
-class NetworkManagerConfigurer(NetworkConfigurer):
+class NetworkManagerActivator(NetworkActivator):
     @staticmethod
     def available(target=None) -> bool:
         config_present = os.path.isfile(

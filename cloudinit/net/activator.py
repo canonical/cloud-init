@@ -5,7 +5,7 @@ from typing import Iterable
 from cloudinit.net.network_state import NetworkState
 
 
-class NetworkConfigurer(ABC):
+class NetworkActivator(ABC):
     @staticmethod
     @abstractmethod
     def available() -> bool:

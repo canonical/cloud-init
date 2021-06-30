@@ -3,14 +3,14 @@ from unittest.mock import patch
 
 import pytest
 
-from cloudinit.net.configurers import (
+from cloudinit.net.activators import (
     DEFAULT_PRIORITY,
-    search_configurer,
-    select_configurer,
+    search_activator,
+    select_activator,
 )
-from cloudinit.net.ifupdown import IfUpDownConfigurer
-from cloudinit.net.netplan import NetplanConfigurer
-from cloudinit.net.network_manager import NetworkManagerConfigurer
+from cloudinit.net.ifupdown import IfUpDownActivator
+from cloudinit.net.netplan import NetplanActivator
+from cloudinit.net.network_manager import NetworkManagerActivator
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.safeyaml import load
 
@@ -80,96 +80,96 @@ def unavailable_mocks():
 
 class TestSearchAndSelect:
     def test_defaults(self, available_mocks):
-        resp = search_configurer()
+        resp = search_activator()
         assert resp == DEFAULT_PRIORITY
 
-        configurer = select_configurer()
-        assert configurer == DEFAULT_PRIORITY[0]
+        activator = select_activator()
+        assert activator == DEFAULT_PRIORITY[0]
 
     def test_priority(self, available_mocks):
-        new_order = [NetplanConfigurer, NetworkManagerConfigurer]
-        resp = search_configurer(priority=new_order)
+        new_order = [NetplanActivator, NetworkManagerActivator]
+        resp = search_activator(priority=new_order)
         assert resp == new_order
 
-        configurer = select_configurer(priority=new_order)
-        assert configurer == new_order[0]
+        activator = select_activator(priority=new_order)
+        assert activator == new_order[0]
 
     def test_target(self, available_mocks):
-        search_configurer(target='/tmp')
+        search_activator(target='/tmp')
         assert '/tmp' == available_mocks.m_which.call_args[1]['target']
 
-        select_configurer(target='/tmp')
+        select_activator(target='/tmp')
         assert '/tmp' == available_mocks.m_which.call_args[1]['target']
 
-    @patch('cloudinit.net.ifupdown.IfUpDownConfigurer.available',
+    @patch('cloudinit.net.ifupdown.IfUpDownActivator.available',
            return_value=False)
     def test_first_not_available(self, m_available):
-        resp = search_configurer()
+        resp = search_activator()
         assert resp == DEFAULT_PRIORITY[1:]
 
-        resp = select_configurer()
+        resp = select_activator()
         assert resp == DEFAULT_PRIORITY[1]
 
     def test_priority_not_exist(self, available_mocks):
         with pytest.raises(ValueError):
-            search_configurer(priority=['spam', 'eggs'])
+            search_activator(priority=['spam', 'eggs'])
         with pytest.raises(ValueError):
-            select_configurer(priority=['spam', 'eggs'])
+            select_activator(priority=['spam', 'eggs'])
 
     def test_none_available(self, unavailable_mocks):
-        resp = search_configurer()
+        resp = search_activator()
         assert resp == []
 
         with pytest.raises(RuntimeError):
-            select_configurer()
+            select_activator()
 
 
-@pytest.mark.parametrize('configurer, available_calls, expected_call_list', [
-    (IfUpDownConfigurer, IF_UP_DOWN_AVAILABLE_CALLS, IF_UP_DOWN_CALL_LIST),
-    (NetplanConfigurer, NETPLAN_AVAILABLE_CALLS, NETPLAN_CALL_LIST),
-    (NetworkManagerConfigurer, NETWORK_MANAGER_AVAILABLE_CALLS,
+@pytest.mark.parametrize('activator, available_calls, expected_call_list', [
+    (IfUpDownActivator, IF_UP_DOWN_AVAILABLE_CALLS, IF_UP_DOWN_CALL_LIST),
+    (NetplanActivator, NETPLAN_AVAILABLE_CALLS, NETPLAN_CALL_LIST),
+    (NetworkManagerActivator, NETWORK_MANAGER_AVAILABLE_CALLS,
      NETWORK_MANAGER_CALL_LIST),
 ])
-class TestIfUpDownConfigurer:
+class TestIfUpDownActivator:
     def test_available(
-        self, configurer, available_calls, expected_call_list, available_mocks
+        self, activator, available_calls, expected_call_list, available_mocks
     ):
-        configurer.available()
+        activator.available()
         assert available_mocks.m_which.call_args_list == available_calls
 
     @patch('cloudinit.subp.subp', return_value=('', ''))
     def test_bring_up_interface(
-        self, m_subp, configurer, available_calls, expected_call_list,
+        self, m_subp, activator, available_calls, expected_call_list,
         available_mocks
     ):
-        configurer.bring_up_interface('eth0')
+        activator.bring_up_interface('eth0')
         assert len(m_subp.call_args_list) == 1
         assert m_subp.call_args_list[0] == expected_call_list[0]
 
     @patch('cloudinit.subp.subp', return_value=('', ''))
     def test_bring_up_interfaces(
-        self, m_subp, configurer, available_calls, expected_call_list,
+        self, m_subp, activator, available_calls, expected_call_list,
         available_mocks
     ):
-        configurer.bring_up_interfaces(['eth0', 'eth1'])
+        activator.bring_up_interfaces(['eth0', 'eth1'])
         assert expected_call_list == m_subp.call_args_list
 
     @patch('cloudinit.subp.subp', return_value=('', ''))
     def test_bring_up_all_interfaces_v1(
-        self, m_subp, configurer, available_calls, expected_call_list,
+        self, m_subp, activator, available_calls, expected_call_list,
         available_mocks
     ):
         network_state = parse_net_config_data(load(V1_CONFIG))
-        configurer.bring_up_all_interfaces(network_state)
+        activator.bring_up_all_interfaces(network_state)
         for call in m_subp.call_args_list:
             assert call in expected_call_list
 
     @patch('cloudinit.subp.subp', return_value=('', ''))
     def test_bring_up_all_interfaces_v2(
-        self, m_subp, configurer, available_calls, expected_call_list,
+        self, m_subp, activator, available_calls, expected_call_list,
         available_mocks
     ):
         network_state = parse_net_config_data(load(V2_CONFIG))
-        configurer.bring_up_all_interfaces(network_state)
+        activator.bring_up_all_interfaces(network_state)
         for call in m_subp.call_args_list:
             assert call in expected_call_list
