@@ -57,6 +57,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         pre_hostname = instance.execute('hostname')
         pre_cloud_id = instance.execute('cloud-id')
         pre_result = instance.execute('cat /run/cloud-init/result.json')
+        pre_network = instance.execute('cat /etc/netplan/50-cloud-init.yaml')
         pre_systemd_analyze = instance.execute('systemd-analyze')
         pre_systemd_blame = instance.execute('systemd-analyze blame')
         pre_cloud_analyze = instance.execute('cloud-init analyze show')
@@ -85,6 +86,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         post_hostname = instance.execute('hostname')
         post_cloud_id = instance.execute('cloud-id')
         post_result = instance.execute('cat /run/cloud-init/result.json')
+        post_network = instance.execute('cat /etc/netplan/50-cloud-init.yaml')
         post_systemd_analyze = instance.execute('systemd-analyze')
         post_systemd_blame = instance.execute('systemd-analyze blame')
         post_cloud_analyze = instance.execute('cloud-init analyze show')
@@ -101,6 +103,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         assert pre_hostname == post_hostname
         assert pre_cloud_id == post_cloud_id
         assert pre_result == post_result
+        assert pre_network == post_network
 
         # Calculate and log all the boot numbers
         pre_analyze_totals = [
