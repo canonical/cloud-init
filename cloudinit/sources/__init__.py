@@ -239,6 +239,13 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.vendordata2 = None
         if not hasattr(self, 'vendordata2_raw'):
             self.vendordata2_raw = None
+        if hasattr(self, 'userdata') and self.userdata is not None:
+            # If userdata stores MIME data, on < python3.6 it will be
+            # missing the 'policy' attribute that exists on >=python3.6.
+            # Calling str() on the userdata will attempt to access this
+            # policy attribute. This will raise an exception, causing
+            # the pickle load to fail, so cloud-init will discard the cache
+            str(self.userdata)
 
     def __str__(self):
         return type_utils.obj_name(self)
