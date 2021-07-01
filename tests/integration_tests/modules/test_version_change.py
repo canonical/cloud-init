@@ -17,7 +17,7 @@ def _assert_no_pickle_problems(log):
 def test_reboot_without_version_change(client: IntegrationInstance):
     log = client.read_from_file('/var/log/cloud-init.log')
     assert 'Python version change detected' not in log
-    assert 'Cache compatibility status is currently unknown.' not in log    
+    assert 'Cache compatibility status is currently unknown.' not in log
     _assert_no_pickle_problems(log)
 
     client.restart()
@@ -44,12 +44,13 @@ def test_cache_purged_on_version_change(client: IntegrationInstance):
     _assert_no_pickle_problems(log)
 
 
-def test_cache_purged_on_missing_version_file(client: IntegrationInstance):
-    # Start by pushing the invalid pickle so we'll hit an error if the
-    # cache didn't actually get purged
+def test_log_message_on_missing_version_file(client: IntegrationInstance):
+    # Start by pushing a pickle so we can see the log message
     client.push_file(TEST_PICKLE, PICKLE_PATH)
     client.execute("rm /var/lib/cloud/data/python-version")
     client.restart()
     log = client.read_from_file('/var/log/cloud-init.log')
-    assert 'Could not determine Python version used to write cache.' in log
-    _assert_no_pickle_problems(log)
+    assert (
+        'Writing python-version file. '
+        'Cache compatibility status is currently unknown.'
+    ) in log
