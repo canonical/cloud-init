@@ -76,9 +76,6 @@ class Distro(distros.Distro):
         # self.update_package_sources()
         self.package_command('install', pkgs=pkglist)
 
-    def _write_network_config(self, netconfig):
-        return self._supported_write_network_config(netconfig)
-
     def _bring_up_interfaces(self, device_names):
         cmd = ['systemctl', 'restart', 'systemd-networkd', 'systemd-resolved']
         LOG.debug('Attempting to run bring up interfaces using command %s',
