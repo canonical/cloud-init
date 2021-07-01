@@ -28,6 +28,8 @@ filter_by_physical = filter_by_type('physical')
 
 
 class Renderer(object):
+    def __init__(self, config=None):
+        pass
 
     @staticmethod
     def _render_persistent_net(network_state):

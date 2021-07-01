@@ -5277,7 +5277,7 @@ class TestNetRenderers(CiTestCase):
         # available should only be called until one is found.
         m_eni_avail.return_value = True
         m_sysc_avail.side_effect = Exception("Should not call me")
-        found = renderers.search(priority=['eni', 'sysconfig'], first=True)
+        found = renderers.search(priority=['eni', 'sysconfig'], first=True)[0]
         self.assertEqual(['eni'], [found[0]])
 
     @mock.patch("cloudinit.net.renderers.sysconfig.available")

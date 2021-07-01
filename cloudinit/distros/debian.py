@@ -111,19 +111,9 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command('install', pkgs=pkglist)
 
-    def _write_network_config(self, netconfig):
+    def _write_network_state(self, network_state):
         _maybe_remove_legacy_eth0()
-        return self._supported_write_network_config(netconfig)
-
-    def _bring_up_interfaces(self, device_names):
-        use_all = False
-        for d in device_names:
-            if d == 'all':
-                use_all = True
-        if use_all:
-            return distros.Distro._bring_up_interface(self, '--all')
-        else:
-            return distros.Distro._bring_up_interfaces(self, device_names)
+        return super()._write_network_state(network_state)
 
     def _write_hostname(self, your_hostname, out_fn):
         conf = None
