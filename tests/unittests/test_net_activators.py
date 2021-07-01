@@ -105,7 +105,7 @@ class TestSearchAndSelect:
 
     @patch('cloudinit.net.activators.IfUpDownActivator.available',
            return_value=False)
-    def test_first_not_available(self, m_available):
+    def test_first_not_available(self, m_available, available_mocks):
         resp = search_activator()
         assert resp == DEFAULT_PRIORITY[1:]
 
