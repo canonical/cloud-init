@@ -17,7 +17,7 @@ def _assert_no_pickle_problems(log):
 def test_reboot_without_version_change(client: IntegrationInstance):
     log = client.read_from_file('/var/log/cloud-init.log')
     assert 'Python version change detected' not in log
-    assert 'Could not determine Python version used to write cache' not in log
+    assert 'Cache compatibility status is currently unknown.' not in log    
     _assert_no_pickle_problems(log)
 
     client.restart()
