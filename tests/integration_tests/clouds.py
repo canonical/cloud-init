@@ -157,7 +157,7 @@ class IntegrationCloud(ABC):
             self.instance = self.cloud_instance.get_instance(
                 self.settings.EXISTING_INSTANCE_ID
             )
-            return
+            return self.instance
         default_launch_kwargs = {
             'image_id': self.image_id,
             'user_data': user_data,
