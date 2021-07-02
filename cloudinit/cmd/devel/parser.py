@@ -7,6 +7,7 @@
 import argparse
 from cloudinit.config import schema
 
+from . import hotplug_hook
 from . import net_convert
 from . import render
 from . import make_mime
@@ -21,6 +22,8 @@ def get_parser(parser=None):
     subparsers.required = True
 
     subcmds = [
+        (hotplug_hook.NAME, hotplug_hook.__doc__,
+         hotplug_hook.get_parser, hotplug_hook.handle_args),
         ('schema', 'Validate cloud-config files for document schema',
          schema.get_parser, schema.handle_schema_args),
         (net_convert.NAME, net_convert.__doc__,
