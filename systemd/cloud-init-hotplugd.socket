@@ -1,0 +1,8 @@
+[Unit]
+Description=cloud-init hotplug hook socket
+
+[Socket]
+ListenFIFO=/run/cloud-init/hook-hotplug-cmd
+
+[Install]
+WantedBy=cloud-init.target

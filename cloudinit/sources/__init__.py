@@ -23,6 +23,7 @@ from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
+from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 from cloudinit.filters import launch_index
 from cloudinit.persistence import CloudInitPickleMixin
@@ -211,7 +212,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     _ci_pkl_version = 1
 
-    def __init__(self, sys_cfg, distro, paths, ud_proc=None):
+    def __init__(self, sys_cfg, distro: Distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths

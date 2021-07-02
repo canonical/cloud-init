@@ -1,0 +1,11 @@
+[Unit]
+Description=cloud-init hotplug hook daemon
+After=cloud-init-hotplugd.socket
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -c 'read args <&3; echo "args=$args"; \
+                        exec /usr/bin/cloud-init devel hotplug-hook $args; \
+                        exit 0'
+SyslogIdentifier=cloud-init-hotplugd
+TimeoutStopSec=5
