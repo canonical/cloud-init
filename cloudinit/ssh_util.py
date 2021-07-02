@@ -252,13 +252,15 @@ def render_authorizedkeysfile_paths(value, homedir, username):
 def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
     (ssh_dir, pw_ent) = users_ssh_info(username)
     default_authorizedkeys_file = os.path.join(ssh_dir, 'authorized_keys')
+    user_authorizedkeys_file = default_authorizedkeys_file
     auth_key_fns = []
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         try:
             ssh_cfg = parse_ssh_config_map(sshd_cfg_file)
+            key_paths = ssh_cfg.get("authorizedkeysfile",
+                                    "%h/.ssh/authorized_keys")
             auth_key_fns = render_authorizedkeysfile_paths(
-                ssh_cfg.get("authorizedkeysfile", "%h/.ssh/authorized_keys"),
-                pw_ent.pw_dir, username)
+                key_paths, pw_ent.pw_dir, username)
 
         except (IOError, OSError):
             # Give up and use a default key filename
@@ -267,8 +269,22 @@ def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
                         "config from %r, using 'AuthorizedKeysFile' file "
                         "%r instead", DEF_SSHD_CFG, auth_key_fns[0])
 
+    # check if one of the keys is the user's one
+    for key_path, auth_key_fn in zip(key_paths.split(), auth_key_fns):
+        if any([
+            '%u' in key_path,
+            '%h' in key_path,
+            auth_key_fn.startswith(pw_ent.pw_dir)
+        ]):
+            user_authorizedkeys_file = auth_key_fn
+
+    if user_authorizedkeys_file != default_authorizedkeys_file:
+        LOG.debug(
+            "AuthorizedKeysFile has an user-specific authorized_keys, "
+            "using %s", user_authorizedkeys_file)
+
     # always store all the keys in the user's private file
-    return (default_authorizedkeys_file, parse_authorized_keys(auth_key_fns))
+    return (user_authorizedkeys_file, parse_authorized_keys(auth_key_fns))
 
 
 def setup_user_keys(keys, username, options=None):
