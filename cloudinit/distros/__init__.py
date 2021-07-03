@@ -14,7 +14,6 @@ import os
 import re
 import stat
 import string
-from typing import Iterable
 import urllib.parse
 from io import StringIO
 from typing import Any, Mapping
@@ -207,9 +206,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def generate_fallback_config(self):
         return net.generate_fallback_config()
 
-    def apply_network_config(
-        self, netconfig, bring_up=False, devices: Iterable[str] = None
-    ) -> bool:
+    def apply_network_config(self, netconfig, bring_up=False) -> bool:
         """Apply the network config.
 
         If bring_up is True, attempt to bring up the passed in devices. If
@@ -231,10 +228,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Now try to bring them up
         if bring_up:
             network_activator = activators.select_activator()
-            if devices:
-                network_activator.bring_up_interfaces(devices)
-            else:
-                network_activator.bring_up_all_interfaces(network_state)
+            network_activator.bring_up_all_interfaces(network_state)
         return False
 
     def apply_network_config_names(self, netconfig):

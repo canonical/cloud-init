@@ -35,32 +35,8 @@ ethernets:
     dhcp4: true
 """
 
-IF_UP_DOWN_AVAILABLE_CALLS = [
-    (('ifquery',), {'search': ['/sbin', '/usr/sbin'], 'target': None}),
-    (('ifup',), {'search': ['/sbin', '/usr/sbin'], 'target': None}),
-    (('ifdown',), {'search': ['/sbin', '/usr/sbin'], 'target': None}),
-]
-
-IF_UP_DOWN_CALL_LIST = [
-    ((['ifup', 'eth0'], ), {}),
-    ((['ifup', 'eth1'], ), {}),
-]
-
-NETPLAN_AVAILABLE_CALLS = [
-    (('netplan',), {'search': ['/usr/sbin', '/sbin'], 'target': None}),
-]
-
 NETPLAN_CALL_LIST = [
-    ((['netplan', 'apply'], ), {'capture': True}),
-]
-
-NETWORK_MANAGER_AVAILABLE_CALLS = [
-    (('nmcli',), {'target': None}),
-]
-
-NETWORK_MANAGER_CALL_LIST = [
-    ((['nmcli', 'connection', 'up', 'eth0'], ), {}),
-    ((['nmcli', 'connection', 'up', 'eth1'], ), {}),
+    ((['netplan', 'apply'], ), {}),
 ]
 
 
@@ -126,23 +102,54 @@ class TestSearchAndSelect:
             select_activator()
 
 
-@pytest.mark.parametrize('activator, available_calls, expected_call_list', [
-    (IfUpDownActivator, IF_UP_DOWN_AVAILABLE_CALLS, IF_UP_DOWN_CALL_LIST),
-    (NetplanActivator, NETPLAN_AVAILABLE_CALLS, NETPLAN_CALL_LIST),
-    (NetworkManagerActivator, NETWORK_MANAGER_AVAILABLE_CALLS,
-     NETWORK_MANAGER_CALL_LIST),
+IF_UP_DOWN_AVAILABLE_CALLS = [
+    (('ifquery',), {'search': ['/sbin', '/usr/sbin'], 'target': None}),
+    (('ifup',), {'search': ['/sbin', '/usr/sbin'], 'target': None}),
+    (('ifdown',), {'search': ['/sbin', '/usr/sbin'], 'target': None}),
+]
+
+NETPLAN_AVAILABLE_CALLS = [
+    (('netplan',), {'search': ['/usr/sbin', '/sbin'], 'target': None}),
+]
+
+NETWORK_MANAGER_AVAILABLE_CALLS = [
+    (('nmcli',), {'target': None}),
+]
+
+
+@pytest.mark.parametrize('activator, available_calls', [
+    (IfUpDownActivator, IF_UP_DOWN_AVAILABLE_CALLS),
+    (NetplanActivator, NETPLAN_AVAILABLE_CALLS),
+    (NetworkManagerActivator, NETWORK_MANAGER_AVAILABLE_CALLS),
 ])
-class TestIfUpDownActivator:
+class TestActivatorsAvailable:
     def test_available(
-        self, activator, available_calls, expected_call_list, available_mocks
+        self, activator, available_calls, available_mocks
     ):
         activator.available()
         assert available_mocks.m_which.call_args_list == available_calls
 
+
+IF_UP_DOWN_BRING_UP_CALL_LIST = [
+    ((['ifup', 'eth0'], ), {}),
+    ((['ifup', 'eth1'], ), {}),
+]
+
+NETWORK_MANAGER_BRING_UP_CALL_LIST = [
+    ((['nmcli', 'connection', 'up', 'eth0'], ), {}),
+    ((['nmcli', 'connection', 'up', 'eth1'], ), {}),
+]
+
+
+@pytest.mark.parametrize('activator, expected_call_list', [
+    (IfUpDownActivator, IF_UP_DOWN_BRING_UP_CALL_LIST),
+    (NetplanActivator, NETPLAN_CALL_LIST),
+    (NetworkManagerActivator, NETWORK_MANAGER_BRING_UP_CALL_LIST),
+])
+class TestActivatorsBringUp:
     @patch('cloudinit.subp.subp', return_value=('', ''))
     def test_bring_up_interface(
-        self, m_subp, activator, available_calls, expected_call_list,
-        available_mocks
+        self, m_subp, activator, expected_call_list, available_mocks
     ):
         activator.bring_up_interface('eth0')
         assert len(m_subp.call_args_list) == 1
@@ -150,16 +157,14 @@ class TestIfUpDownActivator:
 
     @patch('cloudinit.subp.subp', return_value=('', ''))
     def test_bring_up_interfaces(
-        self, m_subp, activator, available_calls, expected_call_list,
-        available_mocks
+        self, m_subp, activator, expected_call_list, available_mocks
     ):
         activator.bring_up_interfaces(['eth0', 'eth1'])
         assert expected_call_list == m_subp.call_args_list
 
     @patch('cloudinit.subp.subp', return_value=('', ''))
     def test_bring_up_all_interfaces_v1(
-        self, m_subp, activator, available_calls, expected_call_list,
-        available_mocks
+        self, m_subp, activator, expected_call_list, available_mocks
     ):
         network_state = parse_net_config_data(load(V1_CONFIG))
         activator.bring_up_all_interfaces(network_state)
@@ -168,10 +173,60 @@ class TestIfUpDownActivator:
 
     @patch('cloudinit.subp.subp', return_value=('', ''))
     def test_bring_up_all_interfaces_v2(
-        self, m_subp, activator, available_calls, expected_call_list,
-        available_mocks
+        self, m_subp, activator, expected_call_list, available_mocks
     ):
         network_state = parse_net_config_data(load(V2_CONFIG))
         activator.bring_up_all_interfaces(network_state)
+        for call in m_subp.call_args_list:
+            assert call in expected_call_list
+
+
+IF_UP_DOWN_BRING_DOWN_CALL_LIST = [
+    ((['ifdown', 'eth0'], ), {}),
+    ((['ifdown', 'eth1'], ), {}),
+]
+
+NETWORK_MANAGER_BRING_DOWN_CALL_LIST = [
+    ((['nmcli', 'connection', 'down', 'eth0'], ), {}),
+    ((['nmcli', 'connection', 'down', 'eth1'], ), {}),
+]
+
+
+@pytest.mark.parametrize('activator, expected_call_list', [
+    (IfUpDownActivator, IF_UP_DOWN_BRING_DOWN_CALL_LIST),
+    (NetplanActivator, NETPLAN_CALL_LIST),
+    (NetworkManagerActivator, NETWORK_MANAGER_BRING_DOWN_CALL_LIST),
+])
+class TestActivatorsBringDown:
+    @patch('cloudinit.subp.subp', return_value=('', ''))
+    def test_bring_down_interface(
+        self, m_subp, activator, expected_call_list, available_mocks
+    ):
+        activator.bring_down_interface('eth0')
+        assert len(m_subp.call_args_list) == 1
+        assert m_subp.call_args_list[0] == expected_call_list[0]
+
+    @patch('cloudinit.subp.subp', return_value=('', ''))
+    def test_bring_down_interfaces(
+        self, m_subp, activator, expected_call_list, available_mocks
+    ):
+        activator.bring_down_interfaces(['eth0', 'eth1'])
+        assert expected_call_list == m_subp.call_args_list
+
+    @patch('cloudinit.subp.subp', return_value=('', ''))
+    def test_bring_down_all_interfaces_v1(
+        self, m_subp, activator, expected_call_list, available_mocks
+    ):
+        network_state = parse_net_config_data(load(V1_CONFIG))
+        activator.bring_down_all_interfaces(network_state)
+        for call in m_subp.call_args_list:
+            assert call in expected_call_list
+
+    @patch('cloudinit.subp.subp', return_value=('', ''))
+    def test_bring_down_all_interfaces_v2(
+        self, m_subp, activator, expected_call_list, available_mocks
+    ):
+        network_state = parse_net_config_data(load(V2_CONFIG))
+        activator.bring_down_all_interfaces(network_state)
         for call in m_subp.call_args_list:
             assert call in expected_call_list
