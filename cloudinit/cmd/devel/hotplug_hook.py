@@ -9,7 +9,7 @@ import time
 from cloudinit import log
 from cloudinit import reporting
 from cloudinit.event import EventScope, EventType
-from cloudinit.net import read_sys_net_safe
+from cloudinit.net import activators, read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
 from cloudinit.stages import Init
@@ -35,19 +35,20 @@ def get_parser(parser=None):
                         metavar="PATH",
                         help="sysfs path to hotplugged device")
     parser.add_argument("-s", "--subsystem",
-                        choices=['net', 'block'])
+                        choices=['net'])
     parser.add_argument("-u", "--udevaction",
-                        choices=['add', 'change', 'remove'])
+                        choices=['add', 'remove'])
 
     return parser
 
 
 @six.add_metaclass(abc.ABCMeta)
 class UeventHandler(object):
-    def __init__(self, id, datasource, devpath, success_fn):
+    def __init__(self, id, datasource, devpath, action, success_fn):
         self.id = id
         self.datasource = datasource  # type: DataSource
         self.devpath = devpath
+        self.action = action
         self.success_fn = success_fn
 
     @abc.abstractmethod
@@ -63,14 +64,14 @@ class UeventHandler(object):
     def device_detected(self) -> bool:
         raise NotImplementedError()
 
-    def detect_hotplugged_device(self, action):
+    def detect_hotplugged_device(self):
         detect_presence = None
-        if action == 'add':
+        if self.action == 'add':
             detect_presence = True
-        elif action == 'remove':
+        elif self.action == 'remove':
             detect_presence = False
         else:
-            raise ValueError('Cannot detect unknown action: %s' % action)
+            raise ValueError('Cannot detect unknown action: %s' % self.action)
 
         if detect_presence != self.device_detected():
             raise RuntimeError(
@@ -91,20 +92,26 @@ class UeventHandler(object):
 
 
 class NetHandler(UeventHandler):
-    def __init__(self, datasource, devpath, success_fn):
+    def __init__(self, datasource, devpath, action, success_fn):
         # convert devpath to mac address
         id = read_sys_net_safe(os.path.basename(devpath), 'address')
-        super().__init__(id, datasource, devpath, success_fn)
+        super().__init__(id, datasource, devpath, action, success_fn)
 
     def apply(self):
-        if self.datasource.distro.apply_network_config(
+        self.datasource.distro.apply_network_config(
             self.config,
-            bring_up=True,
-            devices=[os.path.basename(self.devpath)],
-        ):
-            # apply_network_config returns **False** on success
-            raise RuntimeError(
-                'Failed to bring devices: {}'.format(self.devpath))
+            bring_up=False,
+        )
+        interface_name = os.path.basename(self.devpath)
+        activator = activators.select_activator()
+        if self.action == 'add':
+            if not activator.bring_up_interface(interface_name):
+                raise RuntimeError(
+                    'Failed to bring up device: {}'.format(self.devpath))
+        elif self.action == 'remove':
+            if not activator.bring_down_interface(interface_name):
+                raise RuntimeError(
+                    'Failed to bring down device: {}'.format(self.devpath))
 
     @property
     def config(self):
@@ -150,6 +157,7 @@ def handle_hotplug(
     event_handler = handler_cls(
         datasource=datasource,
         devpath=devpath,
+        action=udevaction,
         success_fn=hotplug_init._write_to_cache
     )  # type: UeventHandler
     wait_times = [1, 1, 1, 3, 5]
@@ -163,7 +171,7 @@ def handle_hotplug(
             LOG.debug('Refreshing metadata')
             event_handler.update_metadata()
             LOG.debug('Detecting device in updated metadata')
-            event_handler.detect_hotplugged_device(action=udevaction)
+            event_handler.detect_hotplugged_device()
             LOG.debug('Applying config change')
             event_handler.apply()
             LOG.debug('Updating cache')

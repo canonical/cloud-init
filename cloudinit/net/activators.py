@@ -15,6 +15,19 @@ from cloudinit.net.sysconfig import NM_CFG_FILE
 LOG = logging.getLogger(__name__)
 
 
+def _alter_interface(cmd, device_name):
+    LOG.debug("Attempting command %s for device %s", cmd, device_name)
+    try:
+        (_out, err) = subp.subp(cmd)
+        if len(err):
+            LOG.warning("Running %s resulted in stderr output: %s",
+                        cmd, err)
+        return True
+    except subp.ProcessExecutionError:
+        util.logexc(LOG, "Running interface command %s failed", cmd)
+        return False
+
+
 class NetworkActivator(ABC):
     @staticmethod
     @abstractmethod
@@ -26,17 +39,28 @@ class NetworkActivator(ABC):
     def bring_up_interface(device_name: str) -> bool:
         raise NotImplementedError()
 
+    @staticmethod
+    @abstractmethod
+    def bring_down_interface(device_name: str) -> bool:
+        raise NotImplementedError()
+
     @classmethod
     def bring_up_interfaces(cls, device_names: Iterable[str]) -> bool:
-        all_succeeded = True
-        for device in device_names:
-            if not cls.bring_up_interface(device):
-                all_succeeded = False
-        return all_succeeded
+        return all(cls.bring_up_interface(device) for device in device_names)
 
     @classmethod
     def bring_up_all_interfaces(cls, network_state: NetworkState) -> bool:
         return cls.bring_up_interfaces(
+            [i['name'] for i in network_state.iter_interfaces()]
+        )
+
+    @classmethod
+    def bring_down_interfaces(cls, device_names: Iterable[str]) -> bool:
+        return all(cls.bring_down_interface(device) for device in device_names)
+
+    @classmethod
+    def bring_down_all_interfaces(cls, network_state: NetworkState) -> bool:
+        return cls.bring_down_interfaces(
             [i['name'] for i in network_state.iter_interfaces()]
         )
 
@@ -55,22 +79,18 @@ class IfUpDownActivator(NetworkActivator):
     def bring_up_interface(device_name: str) -> bool:
         """Bring up interface using ifup."""
         cmd = ['ifup', device_name]
-        LOG.debug("Attempting to run bring up interface %s using command %s",
-                  device_name, cmd)
-        try:
-            (_out, err) = subp.subp(cmd)
-            if len(err):
-                LOG.warning("Running %s resulted in stderr output: %s",
-                            cmd, err)
-            return True
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, "Running interface command %s failed", cmd)
-            return False
+        return _alter_interface(cmd, device_name)
+
+    @staticmethod
+    def bring_down_interface(device_name: str) -> bool:
+        cmd = ['ifdown', device_name]
+        return _alter_interface(cmd, device_name)
 
 
 class NetworkManagerActivator(NetworkActivator):
     @staticmethod
     def available(target=None) -> bool:
+        """ Return true if network manager can be used on this system."""
         config_present = os.path.isfile(
             subp.target_path(target, path=NM_CFG_FILE)
         )
@@ -79,44 +99,54 @@ class NetworkManagerActivator(NetworkActivator):
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
-        try:
-            subp.subp(['nmcli', 'connection', 'up', device_name])
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, "nmcli failed to bring up {}".format(device_name))
-            return False
-        return True
+        cmd = ['nmcli', 'connection', 'up', device_name]
+        return _alter_interface(cmd, device_name)
+
+    @staticmethod
+    def bring_down_interface(device_name: str) -> bool:
+        cmd = ['nmcli', 'connection', 'down', device_name]
+        return _alter_interface(cmd, device_name)
 
 
 class NetplanActivator(NetworkActivator):
-    @staticmethod
-    def available(target=None) -> bool:
-        return netplan_available(target=target)
+    NETPLAN_CMD = ['netplan', 'apply']
 
     @staticmethod
-    def _apply_netplan():
-        LOG.debug('Applying current netplan config')
-        try:
-            subp.subp(['netplan', 'apply'], capture=True)
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, "netplan apply failed")
-            return False
-        return True
+    def available(target=None) -> bool:
+        """ Return true if netplan can be used on this system."""
+        return netplan_available(target=target)
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
         LOG.debug("Calling 'netplan apply' rather than "
-                  "bringing up individual interfaces")
-        return NetplanActivator._apply_netplan()
+                  "altering individual interfaces")
+        return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
     @staticmethod
     def bring_up_interfaces(device_names: Iterable[str]) -> bool:
         LOG.debug("Calling 'netplan apply' rather than "
-                  "bringing up individual interfaces")
-        return NetplanActivator._apply_netplan()
+                  "altering individual interfaces")
+        return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
     @staticmethod
     def bring_up_all_interfaces(network_state: NetworkState) -> bool:
-        return NetplanActivator._apply_netplan()
+        return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
+
+    @staticmethod
+    def bring_down_interface(device_name: str) -> bool:
+        LOG.debug("Calling 'netplan apply' rather than "
+                  "altering individual interfaces")
+        return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
+
+    @staticmethod
+    def bring_down_interfaces(device_names: Iterable[str]) -> bool:
+        LOG.debug("Calling 'netplan apply' rather than "
+                  "altering individual interfaces")
+        return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
+
+    @staticmethod
+    def bring_down_all_interfaces(network_state: NetworkState) -> bool:
+        return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
 
 # This section is mostly copied and pasted from renderers.py. An abstract
