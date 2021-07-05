@@ -71,7 +71,7 @@ class UeventHandler(object):
         elif self.action == 'remove':
             detect_presence = False
         else:
-            raise ValueError('Cannot detect unknown action: %s' % self.action)
+            raise ValueError('Unknown action: %s' % self.action)
 
         if detect_presence != self.device_detected():
             raise RuntimeError(
@@ -178,10 +178,11 @@ def handle_hotplug(
             event_handler.success()
             break
         except Exception as e:
-            if attempt + 1 >= len(wait_times):
-                raise
             LOG.debug('Exception while processing hotplug event. %s' % e)
             time.sleep(wait)
+            last_exception = e
+    else:
+        raise last_exception  # type: ignore
 
 
 def handle_args(name, args):
