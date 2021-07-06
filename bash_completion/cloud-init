@@ -28,7 +28,7 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help --tarfile --include-userdata" -- $cur_word))
                     ;;
                 devel)
-                    COMPREPLY=($(compgen -W "--help hotplug-book schema net-convert" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help hotplug-hook schema net-convert" -- $cur_word))
                     ;;
                 dhclient-hook)
                     COMPREPLY=($(compgen -W "--help up down" -- $cur_word))
