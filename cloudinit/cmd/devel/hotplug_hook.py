@@ -3,7 +3,6 @@
 import abc
 import argparse
 import os
-import six
 import time
 
 from cloudinit import log
@@ -42,8 +41,7 @@ def get_parser(parser=None):
     return parser
 
 
-@six.add_metaclass(abc.ABCMeta)
-class UeventHandler(object):
+class UeventHandler(abc.ABC):
     def __init__(self, id, datasource, devpath, action, success_fn):
         self.id = id
         self.datasource = datasource  # type: DataSource
