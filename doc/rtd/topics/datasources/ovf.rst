@@ -18,6 +18,10 @@ configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
 
 The settings that may be configured are:
 
+ * disable_vmware_customization: disable or enable the vmware customization
+   based on vmware customization files. (default: True)
+ * allow_raw_data: enable or disable the vmware customization based on raw
+   cloud-init data including metadata and userdata. (default: True)
  * vmware_cust_file_max_wait: the maximum amount of clock time in seconds that
    should be spent waiting for vmware customization files. (default: 15)
 
