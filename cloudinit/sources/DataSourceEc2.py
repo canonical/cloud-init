@@ -76,6 +76,13 @@ class DataSourceEc2(sources.DataSource):
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
 
+    supported_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY,
+        EventType.HOTPLUG,
+    }}
+
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
         self.metadata_address = None
