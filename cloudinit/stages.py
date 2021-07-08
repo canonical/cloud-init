@@ -28,7 +28,10 @@ from cloudinit.event import (
     EventType,
     userdata_to_events,
 )
-from cloudinit.sources import NetworkConfigSource
+from cloudinit.sources import (
+    DatasourceUnpickleUserDataError,
+    NetworkConfigSource,
+)
 
 from cloudinit import cloud
 from cloudinit import config
@@ -1070,6 +1073,8 @@ def _pkl_load(fname):
         return None
     try:
         return pickle.loads(pickle_contents)
+    except sources.DatasourceUnpickleUserDataError:
+        return None
     except Exception:
         util.logexc(LOG, "Failed loading pickled blob from %s", fname)
         return None

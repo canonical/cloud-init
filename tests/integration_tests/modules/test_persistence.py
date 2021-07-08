@@ -22,8 +22,8 @@ def test_log_message_on_missing_version_file(client: IntegrationInstance):
     assert client.execute('cloud-init status --wait').ok
     log = client.read_from_file('/var/log/cloud-init.log')
     verify_ordered_items_in_text([
-        'Failed loading pickled blob from /var/lib/cloud/instance/obj.pkl',
-        "'MIMEMultipart' object has no attribute 'policy",
+        "Unable to unpickle datasource: 'MIMEMultipart' object has no "
+        "attribute 'policy'. Ignoring current cache.",
         'no cache found',
         'Searching for local data source',
         'SUCCESS: found local data from DataSourceNoCloud'
