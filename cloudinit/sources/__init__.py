@@ -256,7 +256,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                     "Unable to unpickle datasource: %s."
                     " Ignoring current cache.", e
                 )
-                raise DatasourceUnpickleUserDataError()
+                raise DatasourceUnpickleUserDataError() from e
 
     def __str__(self):
         return type_utils.obj_name(self)

@@ -28,10 +28,7 @@ from cloudinit.event import (
     EventType,
     userdata_to_events,
 )
-from cloudinit.sources import (
-    DatasourceUnpickleUserDataError,
-    NetworkConfigSource,
-)
+from cloudinit.sources import NetworkConfigSource
 
 from cloudinit import cloud
 from cloudinit import config
