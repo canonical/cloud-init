@@ -183,4 +183,6 @@ def select_activator(priority=None, target=None) -> Type[NetworkActivator]:
         raise RuntimeError(
             "No available network activators found%s. Searched "
             "through list: %s" % (tmsg, priority))
-    return found[0]
+    selected = found[0]
+    LOG.debug('Using selected activator: %s', selected)
+    return selected

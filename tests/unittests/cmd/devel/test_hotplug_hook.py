@@ -214,5 +214,5 @@ class TestHotplug:
             )
         assert mocks.m_sleep.call_count == 5
         assert mocks.m_sleep.call_args_list == [
-            call(1), call(1), call(1), call(3), call(5)
+            call(1), call(3), call(5), call(10), call(30)
         ]

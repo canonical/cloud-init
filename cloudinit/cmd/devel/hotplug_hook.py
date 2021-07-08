@@ -158,7 +158,7 @@ def handle_hotplug(
         action=udevaction,
         success_fn=hotplug_init._write_to_cache
     )  # type: UeventHandler
-    wait_times = [1, 1, 1, 3, 5]
+    wait_times = [1, 3, 5, 10, 30]
     for attempt, wait in enumerate(wait_times):
         LOG.debug(
             'subsystem=%s update attempt %s/%s' % (
