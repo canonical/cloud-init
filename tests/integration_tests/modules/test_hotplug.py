@@ -44,7 +44,7 @@ def test_hotplug_add_remove(client: IntegrationInstance):
     assert 'Exiting hotplug handler' not in log
 
     # Add new NIC
-    added_ip = client.instance.add_nic()
+    added_ip = client.instance.add_network_interface()
     _wait_till_hotplug_complete(client)
     ips_after_add = _get_ip_addr(client)
     new_addition = [ip for ip in ips_after_add if ip.ip4 == added_ip][0]
@@ -59,7 +59,7 @@ def test_hotplug_add_remove(client: IntegrationInstance):
     assert new_addition.interface in config['network']['ethernets']
 
     # Remove new NIC
-    client.instance.remove_nic(added_ip)
+    client.instance.remove_network_interface(added_ip)
     _wait_till_hotplug_complete(client, expected_runs=2)
     ips_after_remove = _get_ip_addr(client)
     assert len(ips_after_remove) == len(ips_before)
