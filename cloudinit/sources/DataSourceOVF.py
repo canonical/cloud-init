@@ -98,9 +98,20 @@ class DataSourceOVF(sources.DataSource):
             found.append(seed)
         elif system_type and 'vmware' in system_type.lower():
             LOG.debug("VMware Virtualization Platform found")
+            allow_vmware_cust = False
+            allow_raw_data = False
             if not self.vmware_customization_supported:
                 LOG.debug("Skipping the check for "
                           "VMware Customization support")
+            else:
+                allow_vmware_cust = not util.get_cfg_option_bool(
+                    self.sys_cfg, "disable_vmware_customization", True)
+                allow_raw_data = util.get_cfg_option_bool(
+                    self.ds_cfg, "allow_raw_data", True)
+
+            if not (allow_vmware_cust or allow_raw_data):
+                LOG.debug(
+                    "Customization for VMware platform is disabled.")
             else:
                 search_paths = (
                     "/usr/lib/vmware-tools", "/usr/lib64/vmware-tools",
@@ -148,19 +159,21 @@ class DataSourceOVF(sources.DataSource):
                             GuestCustEvent.GUESTCUST_EVENT_CUSTOMIZE_FAILED,
                             vmwareImcConfigFilePath,
                             self._vmware_cust_conf)
-                else:
-                    LOG.debug("Did not find VMware Customization Config File")
-
-                # Honor disable_vmware_customization setting on metadata absent
-                if not md_path:
-                    if util.get_cfg_option_bool(self.sys_cfg,
-                                                "disable_vmware_customization",
-                                                True):
+                    # Don't handle the customization for below 2 cases:
+                    # 1. meta data is found, allow_raw_data is False.
+                    # 2. no meta data is found, allow_vmware_cust is False.
+                    if md_path and not allow_raw_data:
                         LOG.debug(
-                            "Customization for VMware platform is disabled.")
+                            "Customization using raw data is disabled.")
                         # reset vmwareImcConfigFilePath to None to avoid
                         # customization for VMware platform
                         vmwareImcConfigFilePath = None
+                    if md_path is None and not allow_vmware_cust:
+                        LOG.debug(
+                            "Customization using VMware config is disabled.")
+                        vmwareImcConfigFilePath = None
+                else:
+                    LOG.debug("Did not find VMware Customization Config File")
 
         use_raw_data = bool(vmwareImcConfigFilePath and md_path)
         if use_raw_data:
@@ -429,7 +442,7 @@ def get_max_wait_from_cfg(cfg):
         LOG.warning("Failed to get '%s', using %s",
                     max_wait_cfg_option, default_max_wait)
 
-    if max_wait <= 0:
+    if max_wait < 0:
         LOG.warning("Invalid value '%s' for '%s', using '%s' instead",
                     max_wait, max_wait_cfg_option, default_max_wait)
         max_wait = default_max_wait
@@ -440,6 +453,8 @@ def get_max_wait_from_cfg(cfg):
 def wait_for_imc_cfg_file(filename, maxwait=180, naplen=5,
                           dirpath="/var/run/vmware-imc"):
     waited = 0
+    if maxwait <= naplen:
+        naplen = 1
 
     while waited < maxwait:
         fileFullPath = os.path.join(dirpath, filename)
