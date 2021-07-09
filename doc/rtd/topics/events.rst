@@ -20,11 +20,11 @@ event types:
   boot: once during Local stage, then again in Network stage. As this behavior
   was previously the default behavior, this option exists to prevent regressing
   such behavior.
+- **HOTPLUG**: Dynamic add of a system device
 
 Future work will likely include infrastructure and support for the following
 events:
 
-- **HOTPLUG**: Dynamic add of a system device
 - **METADATA_CHANGE**: An instance's metadata has change
 - **USER_REQUEST**: Directed request to update
 
@@ -64,6 +64,12 @@ arbitrary values can be used.
 Each ``scope`` requires a ``when`` element to specify which events
 are to allowed to be handled.
 
+Hotplug
+=======
+When the hotplug event is supported by the data source and configured in
+user data, cloud-init will respond to the addition or removal of network
+interfaces to the system. In addition to fetching and updating the system
+metadata, cloud-init will also bring up/down the newly added interface.
 
 Examples
 ========
@@ -77,7 +83,7 @@ On every boot, apply network configuration found in the datasource.
  # apply network config on every boot
  updates:
    network:
-     when: ['boot']
+     when: ['boot', 'hotplug']
 
 .. _Cloud-init: https://launchpad.net/cloud-init
 .. vi: textwidth=78
