@@ -33,7 +33,7 @@ users:
 
 @pytest.mark.ubuntu
 @pytest.mark.user_data(USERDATA)
-def test_stuff(client: IntegrationInstance):
+def test_authorized_keys(client: IntegrationInstance):
     expected_keys = [
         ('test_user1', '/home/test_user1/.ssh/authorized_keys2',
          TEST_USER1_KEYS),
