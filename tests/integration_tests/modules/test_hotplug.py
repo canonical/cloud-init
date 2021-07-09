@@ -28,9 +28,12 @@ def _get_ip_addr(client):
     ips = []
     lines = client.execute('ip --brief addr').split('\n')
     for line in lines:
-        interface, state, ip4_cidr, ip6_cidr = line.split()
-        ip4 = ip4_cidr.split('/')[0]
-        ip6 = ip6_cidr.split('/')[0]
+        attributes = line.split()
+        interface, state = attributes[0], attributes[1]
+        ip4_cidr = attributes[2] if len(attributes) > 2 else None
+        ip6_cidr = attributes[3] if len(attributes) > 3 else None
+        ip4 = ip4_cidr.split('/')[0] if ip4_cidr else None
+        ip6 = ip6_cidr.split('/')[0] if ip6_cidr else None
         ip = ip_addr(interface, state, ip4, ip6)
         ips.append(ip)
     return ips
@@ -68,3 +71,24 @@ def test_hotplug_add_remove(client: IntegrationInstance):
     netplan_cfg = client.read_from_file('/etc/netplan/50-cloud-init.yaml')
     config = yaml.safe_load(netplan_cfg)
     assert new_addition.interface not in config['network']['ethernets']
+
+
+@pytest.mark.openstack
+def test_no_hotplug_in_userdata(client: IntegrationInstance):
+    ips_before = _get_ip_addr(client)
+    log = client.read_from_file('/var/log/cloud-init.log')
+    assert 'Exiting hotplug handler' not in log
+
+    # Add new NIC
+    client.instance.add_network_interface()
+    _wait_till_hotplug_complete(client)
+    log = client.read_from_file('/var/log/cloud-init.log')
+    assert 'hotplug not enabled for event of type network' in log
+
+    ips_after_add = _get_ip_addr(client)
+    if len(ips_after_add) == len(ips_before) + 1:
+        # We can see the device, but it should not have been brought up
+        new_ip = [ip for ip in ips_after_add if ip not in ips_before][0]
+        assert new_ip.state == 'DOWN'
+    else:
+        assert len(ips_after_add) == len(ips_before)
