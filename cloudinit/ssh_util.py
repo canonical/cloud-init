@@ -274,7 +274,7 @@ def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
         if any([
             '%u' in key_path,
             '%h' in key_path,
-            auth_key_fn.startswith(pw_ent.pw_dir)
+            auth_key_fn.startswith('{}/'.format(pw_ent.pw_dir))
         ]):
             user_authorizedkeys_file = auth_key_fn
 
