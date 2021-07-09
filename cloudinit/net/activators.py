@@ -15,7 +15,7 @@ from cloudinit.net.sysconfig import NM_CFG_FILE
 LOG = logging.getLogger(__name__)
 
 
-def _alter_interface(cmd, device_name):
+def _alter_interface(cmd, device_name) -> bool:
     LOG.debug("Attempting command %s for device %s", cmd, device_name)
     try:
         (_out, err) = subp.subp(cmd)
@@ -32,34 +32,59 @@ class NetworkActivator(ABC):
     @staticmethod
     @abstractmethod
     def available() -> bool:
+        """Return True if activator is available, otherwise return False."""
         raise NotImplementedError()
 
     @staticmethod
     @abstractmethod
     def bring_up_interface(device_name: str) -> bool:
+        """Bring up interface.
+
+        Return True is successful, otherwise return False
+        """
         raise NotImplementedError()
 
     @staticmethod
     @abstractmethod
     def bring_down_interface(device_name: str) -> bool:
+        """Bring down interface.
+
+        Return True is successful, otherwise return False
+        """
         raise NotImplementedError()
 
     @classmethod
     def bring_up_interfaces(cls, device_names: Iterable[str]) -> bool:
+        """Bring up specified list of interfaces.
+
+        Return True is successful, otherwise return False
+        """
         return all(cls.bring_up_interface(device) for device in device_names)
 
     @classmethod
     def bring_up_all_interfaces(cls, network_state: NetworkState) -> bool:
+        """Bring up all interfaces.
+
+        Return True is successful, otherwise return False
+        """
         return cls.bring_up_interfaces(
             [i['name'] for i in network_state.iter_interfaces()]
         )
 
     @classmethod
     def bring_down_interfaces(cls, device_names: Iterable[str]) -> bool:
+        """Bring down specified list of interfaces.
+
+        Return True is successful, otherwise return False
+        """
         return all(cls.bring_down_interface(device) for device in device_names)
 
     @classmethod
     def bring_down_all_interfaces(cls, network_state: NetworkState) -> bool:
+        """Bring down all interfaces.
+
+        Return True is successful, otherwise return False
+        """
         return cls.bring_down_interfaces(
             [i['name'] for i in network_state.iter_interfaces()]
         )
@@ -77,12 +102,19 @@ class IfUpDownActivator(NetworkActivator):
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
-        """Bring up interface using ifup."""
+        """Bring up interface using ifup.
+
+        Return True is successful, otherwise return False
+        """
         cmd = ['ifup', device_name]
         return _alter_interface(cmd, device_name)
 
     @staticmethod
     def bring_down_interface(device_name: str) -> bool:
+        """Bring up interface using ifup.
+
+        Return True is successful, otherwise return False
+        """
         cmd = ['ifdown', device_name]
         return _alter_interface(cmd, device_name)
 
@@ -99,11 +131,19 @@ class NetworkManagerActivator(NetworkActivator):
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
+        """Bring up interface using nmcli.
+
+        Return True is successful, otherwise return False
+        """
         cmd = ['nmcli', 'connection', 'up', device_name]
         return _alter_interface(cmd, device_name)
 
     @staticmethod
     def bring_down_interface(device_name: str) -> bool:
+        """Bring down interface using nmcli.
+
+        Return True is successful, otherwise return False
+        """
         cmd = ['nmcli', 'connection', 'down', device_name]
         return _alter_interface(cmd, device_name)
 
@@ -118,34 +158,58 @@ class NetplanActivator(NetworkActivator):
 
     @staticmethod
     def bring_up_interface(device_name: str) -> bool:
+        """Apply netplan config.
+
+        Return True is successful, otherwise return False
+        """
         LOG.debug("Calling 'netplan apply' rather than "
                   "altering individual interfaces")
         return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
     @staticmethod
     def bring_up_interfaces(device_names: Iterable[str]) -> bool:
+        """Apply netplan config.
+
+        Return True is successful, otherwise return False
+        """
         LOG.debug("Calling 'netplan apply' rather than "
                   "altering individual interfaces")
         return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
     @staticmethod
     def bring_up_all_interfaces(network_state: NetworkState) -> bool:
+        """Apply netplan config.
+
+        Return True is successful, otherwise return False
+        """
         return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
     @staticmethod
     def bring_down_interface(device_name: str) -> bool:
+        """Apply netplan config.
+
+        Return True is successful, otherwise return False
+        """
         LOG.debug("Calling 'netplan apply' rather than "
                   "altering individual interfaces")
         return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
     @staticmethod
     def bring_down_interfaces(device_names: Iterable[str]) -> bool:
+        """Apply netplan config.
+
+        Return True is successful, otherwise return False
+        """
         LOG.debug("Calling 'netplan apply' rather than "
                   "altering individual interfaces")
         return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
     @staticmethod
     def bring_down_all_interfaces(network_state: NetworkState) -> bool:
+        """Apply netplan config.
+
+        Return True is successful, otherwise return False
+        """
         return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
 

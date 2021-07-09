@@ -20,7 +20,7 @@ NAME = 'hotplug-hook'
 
 
 def get_parser(parser=None):
-    """Build or extend and arg parser for hotplug-hook utility.
+    """Build or extend an arg parser for hotplug-hook utility.
 
     @param parser: Optional existing ArgumentParser instance representing the
         subcommand which will be extended to support the args of this utility.
@@ -30,12 +30,15 @@ def get_parser(parser=None):
     if not parser:
         parser = argparse.ArgumentParser(prog=NAME, description=__doc__)
 
-    parser.add_argument("-d", "--devpath",
+    parser.description = __doc__
+    parser.add_argument("-d", "--devpath", required=True,
                         metavar="PATH",
                         help="sysfs path to hotplugged device")
-    parser.add_argument("-s", "--subsystem",
+    parser.add_argument("-s", "--subsystem", required=True,
+                        help="subsystem to act on",
                         choices=['net'])
-    parser.add_argument("-u", "--udevaction",
+    parser.add_argument("-u", "--udevaction", required=True,
+                        help="action to take",
                         choices=['add', 'remove'])
 
     return parser
@@ -197,7 +200,12 @@ def handle_args(name, args):
     if 'reporting' in hotplug_init.cfg:
         reporting.update_configuration(hotplug_init.cfg.get('reporting'))
 
-    # Logging isn't be setup until now
+    # Logging isn't going to be setup until now
+    LOG.debug(
+        '%s called with the following arguments: {udevaction: %s, '
+        'subsystem: %s, devpath: %s}',
+        name, args.udevaction, args.subsystem, args.devpath
+    )
     LOG.debug(
         '%s called with the following arguments:\n'
         'udevaction: %s\n'
