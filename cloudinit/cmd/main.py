@@ -210,6 +210,35 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
             (cmdline_name, url, path))
 
 
+def purge_cache_on_python_version_change(init):
+    """Purge the cache if python version changed on us.
+
+    There could be changes not represented in our cache (obj.pkl) after we
+    upgrade to a new version of python, so at that point clear the cache
+    """
+    current_python_version = '%d.%d' % (
+        sys.version_info.major, sys.version_info.minor
+    )
+    python_version_path = os.path.join(
+        init.paths.get_cpath('data'), 'python-version'
+    )
+    if os.path.exists(python_version_path):
+        cached_python_version = open(python_version_path).read()
+        # The Python version has changed out from under us, anything that was
+        # pickled previously is likely useless due to API changes.
+        if cached_python_version != current_python_version:
+            LOG.debug('Python version change detected. Purging cache')
+            init.purge_cache(True)
+            util.write_file(python_version_path, current_python_version)
+    else:
+        if os.path.exists(init.paths.get_ipath_cur('obj_pkl')):
+            LOG.info(
+                'Writing python-version file. '
+                'Cache compatibility status is currently unknown.'
+            )
+        util.write_file(python_version_path, current_python_version)
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
@@ -276,6 +305,7 @@ def main_init(name, args):
         util.logexc(LOG, "Failed to initialize, likely bad things to come!")
     # Stage 4
     path_helper = init.paths
+    purge_cache_on_python_version_change(init)
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:

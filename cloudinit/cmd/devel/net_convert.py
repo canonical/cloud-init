@@ -96,9 +96,6 @@ def handle_args(name, args):
         pre_ns = ovf.get_network_config_from_conf(config, False)
 
     ns = network_state.parse_net_config_data(pre_ns)
-    if not ns:
-        raise RuntimeError("No valid network_state object created from"
-                           " input data")
 
     if args.debug:
         sys.stderr.write('\n'.join(

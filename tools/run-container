@@ -191,7 +191,7 @@ os_info() {
 
 get_os_info() {
     # run inside container, set OS_NAME, OS_VERSION
-    # example OS_NAME are centos, debian, opensuse
+    # example OS_NAME are centos, debian, opensuse, rockylinux
     [ -n "${OS_NAME:-}" -a -n "${OS_VERSION:-}" ] && return 0
     if [ -f /etc/os-release ]; then
         OS_NAME=$(sh -c '. /etc/os-release; echo $ID')
@@ -247,7 +247,7 @@ apt_install() {
 install_packages() {
     get_os_info || return
     case "$OS_NAME" in
-        centos) yum_install "$@";;
+        centos|rocky*) yum_install "$@";;
         opensuse) zypper_install "$@";;
         debian|ubuntu) apt_install "$@";;
         *) error "Do not know how to install packages on ${OS_NAME}";
@@ -353,6 +353,7 @@ wait_for_boot() {
             inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
             inside "$name" sh -c "sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo"
             inside "$name" sh -c "sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo"
+            inside "$name" sh -c "sed -i 's/download\.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo"
         else
             debug 1 "do not know how to configure proxy on $OS_NAME"
         fi
@@ -485,7 +486,7 @@ main() {
 
     local build_pkg="" build_srcpkg="" pkg_ext="" distflag=""
     case "$OS_NAME" in
-        centos) distflag="--distro=redhat";;
+        centos|rocky) distflag="--distro=redhat";;
         opensuse) distflag="--distro=suse";;
     esac
 
@@ -494,7 +495,7 @@ main() {
             build_pkg="./packages/bddeb -d" 
             build_srcpkg="./packages/bddeb -S -d"
             pkg_ext=".deb";;
-        centos|opensuse)
+        centos|opensuse|rocky)
             build_pkg="./packages/brpm $distflag"
             build_srcpkg="./packages/brpm $distflag --srpm"
             pkg_ext=".rpm";;

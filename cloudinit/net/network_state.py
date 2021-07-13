@@ -58,38 +58,6 @@ NET_CONFIG_TO_V2 = {
                'bridge_waitport': None}}
 
 
-def parse_net_config_data(net_config, skip_broken=True):
-    """Parses the config, returns NetworkState object
-
-    :param net_config: curtin network config dict
-    """
-    state = None
-    version = net_config.get('version')
-    config = net_config.get('config')
-    if version == 2:
-        # v2 does not have explicit 'config' key so we
-        # pass the whole net-config as-is
-        config = net_config
-
-    if version and config is not None:
-        nsi = NetworkStateInterpreter(version=version, config=config)
-        nsi.parse_config(skip_broken=skip_broken)
-        state = nsi.get_network_state()
-
-    return state
-
-
-def parse_net_config(path, skip_broken=True):
-    """Parses a curtin network configuration file and
-       return network state"""
-    ns = None
-    net_config = util.read_conf(path)
-    if 'network' in net_config:
-        ns = parse_net_config_data(net_config.get('network'),
-                                   skip_broken=skip_broken)
-    return ns
-
-
 def from_state_file(state_file):
     state = util.read_conf(state_file)
     nsi = NetworkStateInterpreter()
@@ -1086,6 +1054,33 @@ def mask_and_ipv4_to_bcast_addr(mask, ip):
     bcast_str = '.'.join([str(bcast_bin >> (i << 3) & 0xFF)
                           for i in range(4)[::-1]])
     return bcast_str
+
+
+def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
+    """Parses the config, returns NetworkState object
+
+    :param net_config: curtin network config dict
+    """
+    state = None
+    version = net_config.get('version')
+    config = net_config.get('config')
+    if version == 2:
+        # v2 does not have explicit 'config' key so we
+        # pass the whole net-config as-is
+        config = net_config
+
+    if version and config is not None:
+        nsi = NetworkStateInterpreter(version=version, config=config)
+        nsi.parse_config(skip_broken=skip_broken)
+        state = nsi.get_network_state()
+
+    if not state:
+        raise RuntimeError(
+            "No valid network_state object created from network config. "
+            "Did you specify the correct version?"
+        )
+
+    return state
 
 
 # vi: ts=4 expandtab
