@@ -40,6 +40,7 @@ MAYBE_RELIABLE_YUM_INSTALL = [
         error ":: http proxy in use => forcing the use of fixed URLs in /etc/yum.repos.d/*.repo"
         sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo
         sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
+        sed -i 's/download\.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo
     }
     configure_repos_for_proxy_use
     n=0; max=10;
