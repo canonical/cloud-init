@@ -135,7 +135,7 @@ class NetworkManagerActivator(NetworkActivator):
 
         Return True is successful, otherwise return False
         """
-        cmd = ['nmcli', 'connection', 'up', device_name]
+        cmd = ['nmcli', 'connection', 'up', 'ifname', device_name]
         return _alter_interface(cmd, device_name)
 
     @staticmethod
