@@ -115,7 +115,7 @@ class Distro(distros.Distro):
         _maybe_remove_legacy_eth0()
         return super()._write_network_state(network_state)
 
-    def _write_hostname(self, your_hostname, out_fn):
+    def _write_hostname(self, hostname, out_fn):
         conf = None
         try:
             # Try to update the previous one
@@ -125,7 +125,7 @@ class Distro(distros.Distro):
             pass
         if not conf:
             conf = HostnameConf('')
-        conf.set_hostname(your_hostname)
+        conf.set_hostname(hostname)
         util.write_file(out_fn, str(conf), 0o644)
 
     def _read_system_hostname(self):

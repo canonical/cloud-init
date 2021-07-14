@@ -147,7 +147,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return uses_systemd()
 
     @abc.abstractmethod
-    def package_command(self, cmd, args=None, pkgs=None):
+    def package_command(self, command, args=None, pkgs=None):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -253,7 +253,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def _write_hostname(self, hostname, filename):
+    def _write_hostname(self, hostname, out_fn):
         raise NotImplementedError()
 
     @abc.abstractmethod

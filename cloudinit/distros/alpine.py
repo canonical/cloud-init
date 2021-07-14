@@ -73,7 +73,7 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command('add', pkgs=pkglist)
 
-    def _write_hostname(self, your_hostname, out_fn):
+    def _write_hostname(self, hostname, out_fn):
         conf = None
         try:
             # Try to update the previous one
@@ -83,7 +83,7 @@ class Distro(distros.Distro):
             pass
         if not conf:
             conf = HostnameConf('')
-        conf.set_hostname(your_hostname)
+        conf.set_hostname(hostname)
         util.write_file(out_fn, str(conf), 0o644)
 
     def _read_system_hostname(self):

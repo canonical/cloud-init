@@ -23,7 +23,7 @@ class MyBaseDistro(distros.Distro):
     def _write_network(self, settings):
         raise NotImplementedError()
 
-    def package_command(self, cmd, args=None, pkgs=None):
+    def package_command(self, command, args=None, pkgs=None):
         raise NotImplementedError()
 
     def update_package_sources(self):
@@ -38,7 +38,7 @@ class MyBaseDistro(distros.Distro):
     def _read_hostname(self, filename, default=None):
         raise NotImplementedError()
 
-    def _write_hostname(self, hostname, filename):
+    def _write_hostname(self, hostname, out_fn):
         raise NotImplementedError()
 
     def _read_system_hostname(self):
