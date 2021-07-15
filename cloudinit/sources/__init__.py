@@ -75,6 +75,10 @@ NetworkConfigSource = namedtuple('NetworkConfigSource',
                                  _NETCFG_SOURCE_NAMES)(*_NETCFG_SOURCE_NAMES)
 
 
+class DatasourceUnpickleUserDataError(Exception):
+    """Raised when userdata is unable to be unpickled due to python upgrades"""
+
+
 class DataSourceNotFoundException(Exception):
     pass
 
@@ -239,6 +243,20 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.vendordata2 = None
         if not hasattr(self, 'vendordata2_raw'):
             self.vendordata2_raw = None
+        if hasattr(self, 'userdata') and self.userdata is not None:
+            # If userdata stores MIME data, on < python3.6 it will be
+            # missing the 'policy' attribute that exists on >=python3.6.
+            # Calling str() on the userdata will attempt to access this
+            # policy attribute. This will raise an exception, causing
+            # the pickle load to fail, so cloud-init will discard the cache
+            try:
+                str(self.userdata)
+            except AttributeError as e:
+                LOG.debug(
+                    "Unable to unpickle datasource: %s."
+                    " Ignoring current cache.", e
+                )
+                raise DatasourceUnpickleUserDataError() from e
 
     def __str__(self):
         return type_utils.obj_name(self)

@@ -1070,6 +1070,8 @@ def _pkl_load(fname):
         return None
     try:
         return pickle.loads(pickle_contents)
+    except sources.DatasourceUnpickleUserDataError:
+        return None
     except Exception:
         util.logexc(LOG, "Failed loading pickled blob from %s", fname)
         return None
