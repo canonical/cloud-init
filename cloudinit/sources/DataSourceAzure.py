@@ -471,7 +471,7 @@ class DataSourceAzure(sources.DataSource):
                         "Did not find Azure data source in %s" % src,
                         logger_func=LOG.debug)
                     continue
-                except util.MountFailedError e:
+                except util.MountFailedError:
                     report_diagnostic_event(
                         '%s was not mountable' % src,
                         logger_func=LOG.debug)
@@ -492,8 +492,9 @@ class DataSourceAzure(sources.DataSource):
                     report_diagnostic_event(msg, logger_func=LOG.error)
                     raise sources.InvalidMetaDataException(msg)
 
-        report_diagnostic_event("Found provisioning metadata in %s" % cdev,
-                                    logger_func=LOG.debug)
+        report_diagnostic_event(
+            "Found provisioning metadata in %s" % metadata_source,
+            logger_func=LOG.debug)
 
         perform_reprovision = reprovision or self._should_reprovision(ret)
         perform_reprovision_after_nic_attach = (
