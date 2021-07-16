@@ -83,6 +83,103 @@ class TestReadOvfEnv(CiTestCase):
         self.assertEqual({'password': "passw0rd"}, cfg)
         self.assertIsNone(ud)
 
+    def test_with_b64_network_config_enable_read_network(self):
+        network_config = dedent("""\
+        network:
+           version: 2
+           ethernets:
+              nics:
+                 nameservers:
+                    addresses:
+                    - 127.0.0.53
+                    search:
+                    - eng.vmware.com
+                    - vmware.com
+                 match:
+                    name: eth*
+                 gateway4: 10.10.10.253
+                 dhcp4: false
+                 addresses:
+                 - 10.10.10.1/24
+        """)
+        network_config_b64 = base64.b64encode(network_config.encode()).decode()
+        props = {"network-config": network_config_b64,
+                 "password": "passw0rd",
+                 "instance-id": "inst-001"}
+        env = fill_properties(props)
+        md, ud, cfg = dsovf.read_ovf_environment(env, True)
+        self.assertEqual("inst-001", md["instance-id"])
+        self.assertEqual({'password': "passw0rd"}, cfg)
+        self.assertEqual(
+            {'version': 2, 'ethernets':
+                {'nics':
+                    {'nameservers':
+                        {'addresses': ['127.0.0.53'],
+                         'search': ['eng.vmware.com', 'vmware.com']},
+                     'match': {'name': 'eth*'},
+                     'gateway4': '10.10.10.253',
+                     'dhcp4': False,
+                     'addresses': ['10.10.10.1/24']}}},
+            md["network-config"])
+        self.assertIsNone(ud)
+
+    def test_with_non_b64_network_config_enable_read_network(self):
+        network_config = dedent("""\
+        network:
+           version: 2
+           ethernets:
+              nics:
+                 nameservers:
+                    addresses:
+                    - 127.0.0.53
+                    search:
+                    - eng.vmware.com
+                    - vmware.com
+                 match:
+                    name: eth*
+                 gateway4: 10.10.10.253
+                 dhcp4: false
+                 addresses:
+                 - 10.10.10.1/24
+        """)
+        props = {"network-config": network_config,
+                 "password": "passw0rd",
+                 "instance-id": "inst-001"}
+        env = fill_properties(props)
+        md, ud, cfg = dsovf.read_ovf_environment(env, True)
+        self.assertEqual({"instance-id": "inst-001"}, md)
+        self.assertEqual({'password': "passw0rd"}, cfg)
+        self.assertIsNone(ud)
+
+    def test_with_b64_network_config_disable_read_network(self):
+        network_config = dedent("""\
+        network:
+           version: 2
+           ethernets:
+              nics:
+                 nameservers:
+                    addresses:
+                    - 127.0.0.53
+                    search:
+                    - eng.vmware.com
+                    - vmware.com
+                 match:
+                    name: eth*
+                 gateway4: 10.10.10.253
+                 dhcp4: false
+                 addresses:
+                 - 10.10.10.1/24
+        """)
+        network_config_b64 = base64.b64encode(network_config.encode()).decode()
+        props = {"network-config": network_config_b64,
+                 "password": "passw0rd",
+                 "instance-id": "inst-001"}
+        env = fill_properties(props)
+        md, ud, cfg = dsovf.read_ovf_environment(env)
+        self.assertEqual({"instance-id": "inst-001"}, md)
+        self.assertEqual({'password': "passw0rd"}, cfg)
+        self.assertIsNone(ud)
+
 
 class TestMarkerFiles(CiTestCase):
 
