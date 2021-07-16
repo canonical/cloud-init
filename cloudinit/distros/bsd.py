@@ -120,9 +120,6 @@ class BSD(distros.Distro):
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, env=self._get_pkg_cmd_environ(), capture=False)
 
-    def _write_network_config(self, netconfig):
-        return self._supported_write_network_config(netconfig)
-
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 

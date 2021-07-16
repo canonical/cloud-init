@@ -31,8 +31,8 @@ from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
 from cloudinit import net
+from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
-from cloudinit.event import EventType
 
 LOG = logging.getLogger(__name__)
 
@@ -172,7 +172,13 @@ def query_data_api(api_type, api_address, retries, timeout):
 
 class DataSourceScaleway(sources.DataSource):
     dsname = "Scaleway"
-    update_events = {'network': [EventType.BOOT_NEW_INSTANCE, EventType.BOOT]}
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+            EventType.BOOT_LEGACY
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceScaleway, self).__init__(sys_cfg, distro, paths)

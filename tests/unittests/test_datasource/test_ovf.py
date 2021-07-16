@@ -138,18 +138,17 @@ class TestDatasourceOVF(CiTestCase):
         self.assertIn(
             'DEBUG: No system-product-name found', self.logs.getvalue())
 
-    def test_get_data_no_vmware_customization_disabled(self):
-        """When cloud-init workflow for vmware is disabled via sys_cfg and
-        no meta data provided, log a message.
+    def test_get_data_vmware_customization_disabled(self):
+        """When vmware customization is disabled via sys_cfg and
+        allow_raw_data is disabled via ds_cfg, log a message.
         """
         paths = Paths({'cloud_dir': self.tdir})
         ds = self.datasource(
-            sys_cfg={'disable_vmware_customization': True}, distro={},
-            paths=paths)
+            sys_cfg={'disable_vmware_customization': True,
+                     'datasource': {'OVF': {'allow_raw_data': False}}},
+            distro={}, paths=paths)
         conf_file = self.tmp_path('test-cust', self.tdir)
         conf_content = dedent("""\
-            [CUSTOM-SCRIPT]
-            SCRIPT-NAME = test-script
             [MISC]
             MARKER-ID = 12345345
             """)
@@ -168,7 +167,71 @@ class TestDatasourceOVF(CiTestCase):
             'DEBUG: Customization for VMware platform is disabled.',
             self.logs.getvalue())
 
-    def test_get_data_vmware_customization_disabled(self):
+    def test_get_data_vmware_customization_sys_cfg_disabled(self):
+        """When vmware customization is disabled via sys_cfg and
+        no meta data is found, log a message.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': True,
+                     'datasource': {'OVF': {'allow_raw_data': True}}},
+            distro={}, paths=paths)
+        conf_file = self.tmp_path('test-cust', self.tdir)
+        conf_content = dedent("""\
+            [MISC]
+            MARKER-ID = 12345345
+            """)
+        util.write_file(conf_file, conf_content)
+        retcode = wrap_and_call(
+            'cloudinit.sources.DataSourceOVF',
+            {'dmi.read_dmi_data': 'vmware',
+             'transport_iso9660': NOT_FOUND,
+             'transport_vmware_guestinfo': NOT_FOUND,
+             'util.del_dir': True,
+             'search_file': self.tdir,
+             'wait_for_imc_cfg_file': conf_file},
+            ds.get_data)
+        self.assertFalse(retcode, 'Expected False return from ds.get_data')
+        self.assertIn(
+            'DEBUG: Customization using VMware config is disabled.',
+            self.logs.getvalue())
+
+    def test_get_data_allow_raw_data_disabled(self):
+        """When allow_raw_data is disabled via ds_cfg and
+        meta data is found, log a message.
+        """
+        paths = Paths({'cloud_dir': self.tdir})
+        ds = self.datasource(
+            sys_cfg={'disable_vmware_customization': False,
+                     'datasource': {'OVF': {'allow_raw_data': False}}},
+            distro={}, paths=paths)
+
+        # Prepare the conf file
+        conf_file = self.tmp_path('test-cust', self.tdir)
+        conf_content = dedent("""\
+            [CLOUDINIT]
+            METADATA = test-meta
+            """)
+        util.write_file(conf_file, conf_content)
+        # Prepare the meta data file
+        metadata_file = self.tmp_path('test-meta', self.tdir)
+        util.write_file(metadata_file, "This is meta data")
+        retcode = wrap_and_call(
+            'cloudinit.sources.DataSourceOVF',
+            {'dmi.read_dmi_data': 'vmware',
+             'transport_iso9660': NOT_FOUND,
+             'transport_vmware_guestinfo': NOT_FOUND,
+             'util.del_dir': True,
+             'search_file': self.tdir,
+             'wait_for_imc_cfg_file': conf_file,
+             'collect_imc_file_paths': [self.tdir + '/test-meta', '', '']},
+            ds.get_data)
+        self.assertFalse(retcode, 'Expected False return from ds.get_data')
+        self.assertIn(
+            'DEBUG: Customization using raw data is disabled.',
+            self.logs.getvalue())
+
+    def test_get_data_vmware_customization_enabled(self):
         """When cloud-init workflow for vmware is enabled via sys_cfg log a
         message.
         """

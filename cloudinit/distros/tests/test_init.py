@@ -11,10 +11,15 @@ import pytest
 
 from cloudinit.distros import _get_package_mirror_info, LDH_ASCII_CHARS
 
+# In newer versions of Python, these characters will be omitted instead
+# of substituted because of security concerns.
+# See https://bugs.python.org/issue43882
+SECURITY_URL_CHARS = '\n\r\t'
 
 # Define a set of characters we would expect to be replaced
 INVALID_URL_CHARS = [
-    chr(x) for x in range(127) if chr(x) not in LDH_ASCII_CHARS
+    chr(x) for x in range(127)
+    if chr(x) not in LDH_ASCII_CHARS + SECURITY_URL_CHARS
 ]
 for separator in [":", ".", "/", "#", "?", "@", "[", "]"]:
     # Remove from the set characters that either separate hostname parts (":",

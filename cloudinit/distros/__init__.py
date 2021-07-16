@@ -16,13 +16,16 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
+from typing import Any, Mapping
 
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
+from cloudinit.net import activators
 from cloudinit.net import eni
 from cloudinit.net import network_state
 from cloudinit.net import renderers
+from cloudinit.net.network_state import parse_net_config_data
 from cloudinit import persistence
 from cloudinit import ssh_util
 from cloudinit import type_utils
@@ -46,7 +49,8 @@ OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
-    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
+    'redhat': ['almalinux', 'amazon', 'centos', 'fedora', 'photon', 'rhel',
+               'rocky'],
     'suse': ['opensuse', 'sles'],
 }
 
@@ -71,7 +75,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
     init_cmd = ['service']  # systemctl, service etc
-    renderer_configs = {}
+    renderer_configs = {}  # type: Mapping[str, Mapping[str, Any]]
     _preferred_ntp_clients = None
     networking_cls = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
@@ -80,6 +84,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     _ci_pkl_version = 1
     prefer_fqdn = False
+    resolve_conf_fn = "/etc/resolv.conf"
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -104,14 +109,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     def _write_network(self, settings):
-        raise RuntimeError(
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
+        raise NotImplementedError(
             "Legacy function '_write_network' was called in distro '%s'.\n"
             "_write_network_config needs implementation.\n" % self.name)
 
-    def _write_network_config(self, settings):
-        raise NotImplementedError()
-
-    def _supported_write_network_config(self, network_config):
+    def _write_network_state(self, network_state):
         priority = util.get_cfg_by_path(
             self._cfg, ('network', 'renderers'), None)
 
@@ -119,8 +122,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         LOG.debug("Selected renderer '%s' from priority list: %s",
                   name, priority)
         renderer = render_cls(config=self.renderer_configs.get(name))
-        renderer.render_network_config(network_config)
-        return []
+        renderer.render_network_state(network_state)
 
     def _find_tz_file(self, tz):
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
@@ -172,6 +174,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
                                         mirror_info=arch_info)
 
     def apply_network(self, settings, bring_up=True):
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
         # this applies network where 'settings' is interfaces(5) style
         # it is obsolete compared to apply_network_config
         # Write it out
@@ -186,6 +189,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return False
 
     def _apply_network_from_network_config(self, netconfig, bring_up=True):
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
         distro = self.__class__
         LOG.warning("apply_network_config is not currently implemented "
                     "for distribution '%s'.  Attempting to use apply_network",
@@ -206,8 +210,9 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # apply network config netconfig
         # This method is preferred to apply_network which only takes
         # a much less complete network config format (interfaces(5)).
+        network_state = parse_net_config_data(netconfig)
         try:
-            dev_names = self._write_network_config(netconfig)
+            self._write_network_state(network_state)
         except NotImplementedError:
             # backwards compat until all distros have apply_network_config
             return self._apply_network_from_network_config(
@@ -215,7 +220,8 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Now try to bring them up
         if bring_up:
-            return self._bring_up_interfaces(dev_names)
+            network_activator = activators.select_activator()
+            network_activator.bring_up_all_interfaces(network_state)
         return False
 
     def apply_network_config_names(self, netconfig):
@@ -391,20 +397,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return self._preferred_ntp_clients
 
     def _bring_up_interface(self, device_name):
-        cmd = ['ifup', device_name]
-        LOG.debug("Attempting to run bring up interface %s using command %s",
-                  device_name, cmd)
-        try:
-            (_out, err) = subp.subp(cmd)
-            if len(err):
-                LOG.warning("Running %s resulted in stderr output: %s",
-                            cmd, err)
-            return True
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, "Running interface command %s failed", cmd)
-            return False
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
+        raise NotImplementedError
 
     def _bring_up_interfaces(self, device_names):
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
         am_failed = 0
         for d in device_names:
             if not self._bring_up_interface(d):

@@ -107,13 +107,49 @@ OS_RELEASE_REDHAT_7 = dedent("""\
     REDHAT_SUPPORT_PRODUCT_VERSION="7.5"
 """)
 
+OS_RELEASE_ALMALINUX_8 = dedent("""\
+    NAME="AlmaLinux"
+    VERSION="8.3 (Purple Manul)"
+    ID="almalinux"
+    ID_LIKE="rhel centos fedora"
+    VERSION_ID="8.3"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="AlmaLinux 8.3 (Purple Manul)"
+    ANSI_COLOR="0;34"
+    CPE_NAME="cpe:/o:almalinux:almalinux:8.3:GA"
+    HOME_URL="https://almalinux.org/"
+    BUG_REPORT_URL="https://bugs.almalinux.org/"
+
+    ALMALINUX_MANTISBT_PROJECT="AlmaLinux-8"
+    ALMALINUX_MANTISBT_PROJECT_VERSION="8.3"
+""")
+
+OS_RELEASE_ROCKY_8 = dedent("""\
+    NAME="Rocky Linux"
+    VERSION="8.3 (Green Obsidian)"
+    ID="rocky"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8.3"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="Rocky Linux 8.3 (Green Obsidian)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:rocky:rocky:8"
+    HOME_URL="https://rockylinux.org/"
+    BUG_REPORT_URL="https://bugs.rockylinux.org/"
+    ROCKY_SUPPORT_PRODUCT="Rocky Linux"
+    ROCKY_SUPPORT_PRODUCT_VERSION="8"
+""")
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
     "Red Hat Enterprise Linux Server release 6.10 (Santiago)")
 REDHAT_RELEASE_REDHAT_7 = (
     "Red Hat Enterprise Linux Server release 7.5 (Maipo)")
-
+REDHAT_RELEASE_ALMALINUX_8 = (
+    "AlmaLinux release 8.3 (Purple Manul)")
+REDHAT_RELEASE_ROCKY_8 = (
+    "Rocky Linux release 8.3 (Green Obsidian)")
 
 OS_RELEASE_DEBIAN = dedent("""\
     PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
@@ -139,6 +175,17 @@ OS_RELEASE_UBUNTU = dedent("""\
     BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"\n
     VERSION_CODENAME=xenial\n
     UBUNTU_CODENAME=xenial\n
+""")
+
+OS_RELEASE_PHOTON = ("""\
+        NAME="VMware Photon OS"
+        VERSION="4.0"
+        ID=photon
+        VERSION_ID=4.0
+        PRETTY_NAME="VMware Photon OS/Linux"
+        ANSI_COLOR="1;34"
+        HOME_URL="https://vmware.github.io/photon/"
+        BUG_REPORT_URL="https://github.com/vmware/photon/issues"
 """)
 
 
@@ -503,6 +550,38 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('centos', '7', 'Core'), dist)
 
     @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_almalinux8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify almalinux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_ALMALINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('almalinux', '8.3', 'Purple Manul'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_almalinux8_osrelease(self, m_os_release, m_path_exists):
+        """Verify almalinux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_ALMALINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('almalinux', '8.3', 'Purple Manul'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_rocky8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify rocky linux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_ROCKY_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('rocky', '8.3', 'Green Obsidian'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_rocky8_osrelease(self, m_os_release, m_path_exists):
+        """Verify rocky linux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_ROCKY_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('rocky', '8.3', 'Green Obsidian'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
     def test_get_linux_debian(self, m_os_release, m_path_exists):
         """Verify we get the correct name and release name on Debian."""
         m_os_release.return_value = OS_RELEASE_DEBIAN
@@ -540,6 +619,15 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(
             ('opensuse-tumbleweed', '20180920', platform.machine()), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_photon_os_release(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on PhotonOS"""
+        m_os_release.return_value = OS_RELEASE_PHOTON
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(
+            ('photon', '4.0', 'VMware Photon OS/Linux'), dist)
 
     @mock.patch('platform.system')
     @mock.patch('platform.dist', create=True)

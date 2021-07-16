@@ -173,7 +173,7 @@ def parse_dhcp_lease_file(lease_file):
     @raises: InvalidDHCPLeaseFileError on empty of unparseable leasefile
         content.
     """
-    lease_regex = re.compile(r"lease {(?P<lease>[^}]*)}\n")
+    lease_regex = re.compile(r"lease {(?P<lease>.*?)}\n", re.DOTALL)
     dhcp_leases = []
     lease_content = util.load_file(lease_file)
     if len(lease_content) == 0:
