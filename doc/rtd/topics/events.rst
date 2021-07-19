@@ -71,6 +71,11 @@ user data, cloud-init will respond to the addition or removal of network
 interfaces to the system. In addition to fetching and updating the system
 metadata, cloud-init will also bring up/down the newly added interface.
 
+.. warning:: Due to its use of systemd sockets, hotplug functionality
+   is currently incompatible with SELinux. This issue is being tracked
+   `on Launchpad`_. Additionally, hotplug support is considered experimental for
+   non-Debian based systems.
+
 Examples
 ========
 
@@ -83,7 +88,8 @@ On every boot, apply network configuration found in the datasource.
  # apply network config on every boot
  updates:
    network:
-     when: ['boot', 'hotplug']
+     when: ['boot']
 
 .. _Cloud-init: https://launchpad.net/cloud-init
+.. _on Launchpad: https://bugs.launchpad.net/cloud-init/+bug/1936229
 .. vi: textwidth=78
