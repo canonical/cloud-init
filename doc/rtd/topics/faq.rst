@@ -10,7 +10,7 @@ Having trouble? We would like to help!
 
 - First go through this page with answers to common questions
 - Use the search bar at the upper left to search these docs
-- Ask a question in the ``#cloud-init`` IRC channel on Freenode
+- Ask a question in the ``#cloud-init`` IRC channel on Libera
 - Join and ask questions on the `cloud-init mailing list <https://launchpad.net/~cloud-init>`_
 - Find a bug? Check out the :ref:`reporting_bugs` topic for
   how to report one
@@ -139,7 +139,7 @@ cloud-config is:
 To verify your YAML, we do have a short script called `validate-yaml.py`_
 that can validate your user data offline.
 
-.. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/master/tools/validate-yaml.py
+.. _validate-yaml.py: https://github.com/canonical/cloud-init/blob/main/tools/validate-yaml.py
 
 Another option is to run the following on an instance to debug userdata
 provided to the system:

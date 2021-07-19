@@ -8,6 +8,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import os
 import time
 
@@ -20,7 +21,7 @@ from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit import warnings
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
 
@@ -74,6 +75,13 @@ class DataSourceEc2(sources.DataSource):
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
+
+    supported_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY,
+        EventType.HOTPLUG,
+    }}
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
@@ -426,7 +434,12 @@ class DataSourceEc2(sources.DataSource):
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
             # network config file every boot due to MAC address change.
             if self.is_classic_instance():
-                self.update_events['network'].add(EventType.BOOT)
+                self.default_update_events = copy.deepcopy(
+                    self.default_update_events)
+                self.default_update_events[EventScope.NETWORK].add(
+                    EventType.BOOT)
+                self.default_update_events[EventScope.NETWORK].add(
+                    EventType.BOOT_LEGACY)
         else:
             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
         self._network_config = result

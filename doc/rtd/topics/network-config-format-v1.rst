@@ -335,6 +335,10 @@ the following keys:
 
 - ``address``: List of IPv4 or IPv6 address of nameservers.
 - ``search``: List of of hostnames to include in the resolv.conf search path.
+- ``interface``: Optional. Ties the nameserver definition to the specified
+  interface. The value specified here must match the `name` of an interface
+  defined in this config. If unspecified, this nameserver will be considered
+  a global nameserver.
 
 **Nameserver Example**::
 
@@ -349,6 +353,7 @@ the following keys:
              address: 192.168.23.14/27
              gateway: 192.168.23.1
       - type: nameserver
+        interface: interface0  # Ties nameserver to interface0 only
         address:
           - 192.168.23.2
           - 8.8.8.8

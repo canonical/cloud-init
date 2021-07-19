@@ -73,19 +73,6 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command('add', pkgs=pkglist)
 
-    def _write_network_config(self, netconfig):
-        return self._supported_write_network_config(netconfig)
-
-    def _bring_up_interfaces(self, device_names):
-        use_all = False
-        for d in device_names:
-            if d == 'all':
-                use_all = True
-        if use_all:
-            return distros.Distro._bring_up_interface(self, '-a')
-        else:
-            return distros.Distro._bring_up_interfaces(self, device_names)
-
     def _write_hostname(self, your_hostname, out_fn):
         conf = None
         try:

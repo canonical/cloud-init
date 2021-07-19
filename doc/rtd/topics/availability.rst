@@ -14,12 +14,13 @@ distributions and clouds, both public and private.
 Distributions
 =============
 
-Cloud-init has support across all major Linux distributions, FreeBSD, NetBSD
-and OpenBSD:
+Cloud-init has support across all major Linux distributions, FreeBSD, NetBSD,
+OpenBSD and DragonFlyBSD:
 
 - Alpine Linux
 - ArchLinux
 - Debian
+- DragonFlyBSD
 - Fedora
 - FreeBSD
 - Gentoo Linux
@@ -42,7 +43,7 @@ environments in the public cloud:
 - Softlayer
 - Rackspace Public Cloud
 - IBM Cloud
-- Digital Ocean
+- DigitalOcean
 - Bigstep
 - Hetzner
 - Joyent

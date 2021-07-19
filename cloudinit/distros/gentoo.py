@@ -23,7 +23,6 @@ LOG = logging.getLogger(__name__)
 class Distro(distros.Distro):
     locale_conf_fn = '/etc/locale.gen'
     network_conf_fn = '/etc/conf.d/net'
-    resolve_conf_fn = '/etc/resolv.conf'
     hostname_conf_fn = '/etc/conf.d/hostname'
     init_cmd = ['rc-service']  # init scripts
 

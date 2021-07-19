@@ -36,7 +36,7 @@ from cloudinit import serial
 from cloudinit import sources
 from cloudinit import subp
 from cloudinit import util
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
 
@@ -170,6 +170,11 @@ class DataSourceSmartOS(sources.DataSource):
 
     smartos_type = sources.UNSET
     md_client = sources.UNSET
+    default_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY
+    }}
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -181,7 +186,6 @@ class DataSourceSmartOS(sources.DataSource):
         self.metadata = {}
         self.network_data = None
         self._network_config = None
-        self.update_events['network'].add(EventType.BOOT)
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
 

@@ -17,7 +17,7 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import subp
 from cloudinit import util
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
 ETC_HOSTS = '/etc/hosts'
@@ -206,10 +206,11 @@ def read_user_data_callback(mount_dir):
 
 class DataSourceRbxCloud(sources.DataSource):
     dsname = "RbxCloud"
-    update_events = {'network': [
+    default_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,
-        EventType.BOOT
-    ]}
+        EventType.BOOT,
+        EventType.BOOT_LEGACY
+    }}
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)

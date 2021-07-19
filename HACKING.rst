@@ -34,7 +34,7 @@ Follow these steps to submit your first pull request to cloud-init:
     "Cloud-Init CLA"
 
   * You also may contact user ``rick_h`` in the ``#cloud-init``
-    channel on the Freenode IRC network.
+    channel on the Libera IRC network.
 
 * Configure git with your email and name for commit messages.
 
@@ -55,7 +55,7 @@ Follow these steps to submit your first pull request to cloud-init:
     git clone git://github.com/canonical/cloud-init
     cd cloud-init
     git remote add GH_USER git@github.com:GH_USER/cloud-init.git
-    git push GH_USER master
+    git push GH_USER main
 
 * Read through the cloud-init `Code Review Process`_, so you understand
   how your changes will end up in cloud-init's codebase.
@@ -78,7 +78,7 @@ Follow these steps to submit your first pull request to cloud-init:
 .. _repository: https://github.com/canonical/cloud-init
 .. _contributor license agreement: https://ubuntu.com/legal/contributors
 .. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
-.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/master/tools/.github-cla-signers
+.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers
 .. _PR #344: https://github.com/canonical/cloud-init/pull/344
 .. _PR #345: https://github.com/canonical/cloud-init/pull/345
 
@@ -159,7 +159,7 @@ Then, someone in the `Ubuntu Server`_ team will review your changes and
 follow up in the pull request.  Look at the `Code Review Process`_ doc
 to understand the following steps.
 
-Feel free to ping and/or join ``#cloud-init`` on freenode irc if you
+Feel free to ping and/or join ``#cloud-init`` on Libera irc if you
 have any questions.
 
 .. _tox: https://tox.readthedocs.io/en/latest/
