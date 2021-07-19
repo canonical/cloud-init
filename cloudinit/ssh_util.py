@@ -283,8 +283,10 @@ def extract_authorized_keys(username, sshd_cfg_file=DEF_SSHD_CFG):
             "AuthorizedKeysFile has an user-specific authorized_keys, "
             "using %s", user_authorizedkeys_file)
 
-    # always store all the keys in the user's private file
-    return (user_authorizedkeys_file, parse_authorized_keys(auth_key_fns))
+    return (
+        user_authorizedkeys_file,
+        parse_authorized_keys([user_authorizedkeys_file])
+    )
 
 
 def setup_user_keys(keys, username, options=None):
