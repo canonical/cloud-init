@@ -1,3 +1,59 @@
+cloud-init (21.2-43-g184c836a-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Initial hotplug support (#936)
+    - Fix MIME policy failure on python version upgrade (#934)
+    - run-container: fixup the centos repos baseurls when using http_proxy
+      (#944) [Paride Legovini]
+    - tools: add support for building rpms on rocky linux (#940)
+    - ssh-util: allow cloudinit to merge all ssh keys into a custom user
+      file, defined in AuthorizedKeysFile (#937) [Emanuele Giuseppe Esposito]
+      (LP: #1911680)
+    - VMware: new "allow_raw_data" switch (#939) [xiaofengw-vmware]
+    - bump pycloudlib version (#935)
+    - add renanrodrigo as a contributor (#938) [Renan Rodrigo]
+    - testing: simplify test_upgrade.py (#932)
+    - freebsd/net_v1 format: read MTU from root (#930) [Gonéri Le Bouder]
+    - Add new network activators to bring up interfaces (#919)
+    - Detect a Python version change and clear the cache (#857)
+      [Robert Schweikert]
+    - cloud_tests: fix the Impish release name (#931) [Paride Legovini]
+    - Removed distro specific network code from Photon (#929) [sshedi]
+    - Add support for VMware PhotonOS (#909) [sshedi]
+    - cloud_tests: add impish release definition (#927) [Paride Legovini]
+    - docs: fix stale links rename master branch to main (#926)
+    - Fix DNS in NetworkState (SC-133) (#923)
+    - tests: Add 'adhoc' mark for integration tests (#925)
+    - Fix the spelling of "DigitalOcean" (#924) [Mark Mercado]
+    - Small Doc Update for ReportEventStack and Test (#920) [Mike Russell]
+    - Replace deprecated collections.Iterable with abc replacement (#922)
+      (LP: #1932048)
+    - testing: OCI availability domain is now required (SC-59) (#910)
+    - add DragonFlyBSD support (#904) [Gonéri Le Bouder]
+    - Use instance-data-sensitive.json in jinja templates (SC-117) (#917)
+      (LP: #1931392)
+    - doc: Update NoCloud docs stating required files (#918) (LP: #1931577)
+    - build-on-netbsd: don't pin a specific py3 version (#913)
+      [Gonéri Le Bouder]
+    - - Create the log file with 640 permissions (#858) [Robert Schweikert]
+    - Allow braces to appear in dhclient output (#911) [eb3095]
+    - Docs: Replace all freenode references with libera (#912)
+    - openbsd/net: flush the route table on net restart (#908)
+      [Gonéri Le Bouder]
+    - Add Rocky Linux support to cloud-init (#906) [Louis Abel]
+    - Add "esposem" as contributor (#907) [Emanuele Giuseppe Esposito]
+    - Add integration test for #868 (#901)
+    - Added support for importing keys via primary/security mirror clauses
+      (#882) [Paul Goins] (LP: #1925395)
+    - [examples] config-user-groups expire in the future (#902)
+      [Geert Stappers]
+    - BSD: static network, set the mtu (#894) [Gonéri Le Bouder]
+    - Add integration test for lp-1920939 (#891)
+    - Fix unit tests breaking from new httpretty version (#903)
+    - Allow user control over update events (#834)
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 19 Jul 2021 14:23:12 -0500
+
 cloud-init (21.2-3-g899bfaa9-0ubuntu2) impish; urgency=medium
 
   * d/po/templates.pot: refresh with debconf-updatepo
