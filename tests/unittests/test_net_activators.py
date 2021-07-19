@@ -136,8 +136,8 @@ IF_UP_DOWN_BRING_UP_CALL_LIST = [
 ]
 
 NETWORK_MANAGER_BRING_UP_CALL_LIST = [
-    ((['nmcli', 'connection', 'up', 'eth0'], ), {}),
-    ((['nmcli', 'connection', 'up', 'eth1'], ), {}),
+    ((['nmcli', 'connection', 'up', 'ifname', 'eth0'], ), {}),
+    ((['nmcli', 'connection', 'up', 'ifname', 'eth1'], ), {}),
 ]
 
 

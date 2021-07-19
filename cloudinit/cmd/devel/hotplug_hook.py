@@ -124,7 +124,7 @@ class NetHandler(UeventHandler):
             iface for iface in netstate.iter_interfaces()
             if iface.get('mac_address') == self.id
         ]
-        LOG.debug('Ifaces with ID=%s : %s' % (self.id, found))
+        LOG.debug('Ifaces with ID=%s : %s', self.id, found)
         return len(found) > 0
 
 
@@ -154,7 +154,7 @@ def handle_hotplug(
         LOG.debug('hotplug not enabled for event of type %s', event_scope)
         return
 
-    LOG.debug('Creating %s event handler' % subsystem)
+    LOG.debug('Creating %s event handler', subsystem)
     event_handler = handler_cls(
         datasource=datasource,
         devpath=devpath,
@@ -164,10 +164,11 @@ def handle_hotplug(
     wait_times = [1, 3, 5, 10, 30]
     for attempt, wait in enumerate(wait_times):
         LOG.debug(
-            'subsystem=%s update attempt %s/%s' % (
-                subsystem,
-                attempt,
-                len(wait_times)))
+            'subsystem=%s update attempt %s/%s',
+            subsystem,
+            attempt,
+            len(wait_times)
+        )
         try:
             LOG.debug('Refreshing metadata')
             event_handler.update_metadata()
@@ -179,7 +180,7 @@ def handle_hotplug(
             event_handler.success()
             break
         except Exception as e:
-            LOG.debug('Exception while processing hotplug event. %s' % e)
+            LOG.debug('Exception while processing hotplug event. %s', e)
             time.sleep(wait)
             last_exception = e
     else:
