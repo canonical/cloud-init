@@ -434,7 +434,6 @@ class DataSourceAzure(sources.DataSource):
         metadata_source = None
         ret = None
         if os.path.isfile(REPROVISION_MARKER_FILE):
-            ret = None
             reprovision = True
             metadata_source = "IMDS"
             report_diagnostic_event("Reprovision marker file already present "
@@ -442,7 +441,6 @@ class DataSourceAzure(sources.DataSource):
                                     REPROVISION_MARKER_FILE,
                                     logger_func=LOG.debug)
         elif os.path.isfile(REPROVISION_NIC_ATTACH_MARKER_FILE):
-            ret = None
             reprovision_after_nic_attach = True
             metadata_source = "NIC_ATTACH_MARKER_PRESENT"
             report_diagnostic_event("Reprovision nic attach marker file "
