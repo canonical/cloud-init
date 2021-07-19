@@ -19,17 +19,25 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
 
     def write_config(self):
         for device_name, v in self.interface_configurations.items():
+            net_config = 'DHCP'
             if isinstance(v, dict):
-                self.set_rc_config_value(
-                    'ifconfig_' + device_name,
-                    v.get('address') + ' netmask ' + v.get('netmask'))
-            else:
-                self.set_rc_config_value('ifconfig_' + device_name, 'DHCP')
+                net_config = v.get('address') + ' netmask ' + v.get('netmask')
+                mtu = v.get('mtu')
+                if mtu:
+                    net_config += (' mtu %d' % mtu)
+            self.set_rc_config_value('ifconfig_' + device_name, net_config)
 
     def start_services(self, run=False):
         if not run:
             LOG.debug("freebsd generate postcmd disabled")
             return
+
+        for dhcp_interface in self.dhcp_interfaces():
+            # Observed on DragonFlyBSD 6. If we use the "restart" parameter,
+            # the routes are not recreated.
+            subp.subp(['service', 'dhclient', 'stop', dhcp_interface],
+                      rcs=[0, 1],
+                      capture=True)
 
         subp.subp(['service', 'netif', 'restart'], capture=True)
         # On FreeBSD 10, the restart of routing and dhclient is likely to fail
@@ -41,7 +49,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
         subp.subp(['service', 'routing', 'restart'], capture=True, rcs=[0, 1])
 
         for dhcp_interface in self.dhcp_interfaces():
-            subp.subp(['service', 'dhclient', 'restart', dhcp_interface],
+            subp.subp(['service', 'dhclient', 'start', dhcp_interface],
                       rcs=[0, 1],
                       capture=True)
 
@@ -56,4 +64,4 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
 
 
 def available(target=None):
-    return util.is_FreeBSD()
+    return util.is_FreeBSD() or util.is_DragonFlyBSD()

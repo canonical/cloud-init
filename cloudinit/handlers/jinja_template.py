@@ -12,7 +12,7 @@ except ImportError:
 
 from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit.sources import INSTANCE_JSON_FILE
+from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
 from cloudinit.templater import render_string, MISSING_JINJA_PREFIX
 from cloudinit.util import b64d, load_file, load_json, json_dumps
 
@@ -36,7 +36,8 @@ class JinjaTemplatePartHandler(handlers.Handler):
     def handle_part(self, data, ctype, filename, payload, frequency, headers):
         if ctype in handlers.CONTENT_SIGNALS:
             return
-        jinja_json_file = os.path.join(self.paths.run_dir, INSTANCE_JSON_FILE)
+        jinja_json_file = os.path.join(
+            self.paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE)
         rendered_payload = render_jinja_payload_from_file(
             payload, filename, jinja_json_file)
         if not rendered_payload:

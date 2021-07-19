@@ -17,6 +17,8 @@ myargs = namedtuple('MyArgs', 'debug files force local reporter subcommand')
 
 
 class TestMain(FilesystemMockingTestCase):
+    with_logs = True
+    allowed_subp = False
 
     def setUp(self):
         super(TestMain, self).setUp()

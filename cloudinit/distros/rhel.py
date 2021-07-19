@@ -36,7 +36,6 @@ class Distro(distros.Distro):
     hostname_conf_fn = "/etc/sysconfig/network"
     systemd_hostname_conf_fn = "/etc/hostname"
     network_script_tpl = '/etc/sysconfig/network-scripts/ifcfg-%s'
-    resolve_conf_fn = "/etc/resolv.conf"
     tz_local_fn = "/etc/localtime"
     usr_lib_exec = "/usr/libexec"
     renderer_configs = {
@@ -65,9 +64,6 @@ class Distro(distros.Distro):
 
     def install_packages(self, pkglist):
         self.package_command('install', pkgs=pkglist)
-
-    def _write_network_config(self, netconfig):
-        return self._supported_write_network_config(netconfig)
 
     def apply_locale(self, locale, out_fn=None):
         if self.uses_systemd():
@@ -117,12 +113,6 @@ class Distro(distros.Distro):
                 return contents['HOSTNAME']
             else:
                 return default
-
-    def _bring_up_interfaces(self, device_names):
-        if device_names and 'all' in device_names:
-            raise RuntimeError(('Distro %s can not translate '
-                                'the device name "all"') % (self.name))
-        return distros.Distro._bring_up_interfaces(self, device_names)
 
     def set_timezone(self, tz):
         tz_file = self._find_tz_file(tz)

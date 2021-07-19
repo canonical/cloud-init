@@ -22,7 +22,7 @@ import requests
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
@@ -338,6 +338,13 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
 class DataSourceAzure(sources.DataSource):
 
     dsname = 'Azure'
+    # Regenerate network config new_instance boot and every boot
+    default_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY
+    }}
+
     _negotiated = False
     _metadata_imds = sources.UNSET
     _ci_pkl_version = 1
@@ -352,8 +359,6 @@ class DataSourceAzure(sources.DataSource):
             BUILTIN_DS_CONFIG])
         self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
         self._network_config = None
-        # Regenerate network config new_instance boot and every boot
-        self.update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
         self.failed_desired_api_version = False
         self.iso_dev = None
@@ -2309,8 +2314,8 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
                 LOG.info(
                     'Removing Ubuntu extended network scripts because'
                     ' cloud-init updates Azure network configuration on the'
-                    ' following event: %s.',
-                    EventType.BOOT)
+                    ' following events: %s.',
+                    [EventType.BOOT.value, EventType.BOOT_LEGACY.value])
                 logged = True
             if os.path.isdir(path):
                 util.del_dir(path)

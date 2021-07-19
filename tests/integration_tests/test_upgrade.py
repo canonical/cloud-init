@@ -1,17 +1,35 @@
+import json
 import logging
 import os
 import pytest
-import time
-from pathlib import Path
 
-from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
-from tests.integration_tests.conftest import (
-    get_validated_source,
-    session_start_time,
-)
+from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.conftest import get_validated_source
 
 
-log = logging.getLogger('integration_testing')
+LOG = logging.getLogger('integration_testing.test_upgrade')
+
+LOG_TEMPLATE = """\n\
+=== `systemd-analyze` before:
+{pre_systemd_analyze}
+=== `systemd-analyze` after:
+{post_systemd_analyze}
+
+=== `systemd-analyze blame` before (first 10 lines):
+{pre_systemd_blame}
+=== `systemd-analyze blame` after (first 10 lines):
+{post_systemd_blame}
+
+=== `cloud-init analyze show` before:')
+{pre_analyze_totals}
+=== `cloud-init analyze show` after:')
+{post_analyze_totals}
+
+=== `cloud-init analyze blame` before (first 10 lines): ')
+{pre_cloud_blame}
+=== `cloud-init analyze blame` after (first 10 lines): ')
+{post_cloud_blame}
+"""
 
 UNSUPPORTED_INSTALL_METHOD_MSG = (
     "Install method '{}' not supported for this test"
@@ -22,43 +40,6 @@ hostname: SRU-worked
 """
 
 
-def _output_to_compare(instance, file_path, netcfg_path):
-    commands = [
-        'hostname',
-        'dpkg-query --show cloud-init',
-        'cat /run/cloud-init/result.json',
-        # 'cloud-init init' helps us understand if our pickling upgrade paths
-        # have broken across re-constitution of a cached datasource. Some
-        # platforms invalidate their datasource cache on reboot, so we run
-        # it here to ensure we get a dirty run.
-        'cloud-init init',
-        'grep Trace /var/log/cloud-init.log',
-        'cloud-id',
-        'cat {}'.format(netcfg_path),
-        'systemd-analyze',
-        'systemd-analyze blame',
-        'cloud-init analyze show',
-        'cloud-init analyze blame',
-    ]
-    with file_path.open('w') as f:
-        for command in commands:
-            f.write('===== {} ====='.format(command) + '\n')
-            f.write(instance.execute(command) + '\n')
-
-
-def _restart(instance):
-    # work around pad.lv/1908287
-    instance.restart()
-    if not instance.execute('cloud-init status --wait --long').ok:
-        for _ in range(10):
-            time.sleep(5)
-            result = instance.execute('cloud-init status --wait --long')
-            if result.ok:
-                return
-        raise Exception("Cloud-init didn't finish starting up")
-
-
-@pytest.mark.sru_2020_11
 def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     source = get_validated_source(session_cloud)
     if not source.installs_new_version():
@@ -69,37 +50,82 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         'image_id': session_cloud.released_image_id,
     }
 
-    image = ImageSpecification.from_os_image()
-
-    # Get the paths to write test logs
-    output_dir = Path(session_cloud.settings.LOCAL_LOG_PATH)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    base_filename = 'test_upgrade_{platform}_{os}_{{stage}}_{time}.log'.format(
-        platform=session_cloud.settings.PLATFORM,
-        os=image.release,
-        time=session_start_time,
-    )
-    before_path = output_dir / base_filename.format(stage='before')
-    after_path = output_dir / base_filename.format(stage='after')
-
-    # Get the network cfg file
-    netcfg_path = '/dev/null'
-    if image.os == 'ubuntu':
-        netcfg_path = '/etc/netplan/50-cloud-init.yaml'
-        if image.release == 'xenial':
-            netcfg_path = '/etc/network/interfaces.d/50-cloud-init.cfg'
-
     with session_cloud.launch(
         launch_kwargs=launch_kwargs, user_data=USER_DATA,
     ) as instance:
-        _output_to_compare(instance, before_path, netcfg_path)
+        # get pre values
+        pre_hostname = instance.execute('hostname')
+        pre_cloud_id = instance.execute('cloud-id')
+        pre_result = instance.execute('cat /run/cloud-init/result.json')
+        pre_network = instance.execute('cat /etc/netplan/50-cloud-init.yaml')
+        pre_systemd_analyze = instance.execute('systemd-analyze')
+        pre_systemd_blame = instance.execute('systemd-analyze blame')
+        pre_cloud_analyze = instance.execute('cloud-init analyze show')
+        pre_cloud_blame = instance.execute('cloud-init analyze blame')
+
+        # Ensure no issues pre-upgrade
+        assert not json.loads(pre_result)['v1']['errors']
+
+        log = instance.read_from_file('/var/log/cloud-init.log')
+        assert 'Traceback' not in log
+        assert 'WARN' not in log
+
+        # Upgrade and reboot
         instance.install_new_cloud_init(source, take_snapshot=False)
         instance.execute('hostname something-else')
-        _restart(instance)
+        instance.restart()
         assert instance.execute('cloud-init status --wait --long').ok
-        _output_to_compare(instance, after_path, netcfg_path)
 
-    log.info('Wrote upgrade test logs to %s and %s', before_path, after_path)
+        # 'cloud-init init' helps us understand if our pickling upgrade paths
+        # have broken across re-constitution of a cached datasource. Some
+        # platforms invalidate their datasource cache on reboot, so we run
+        # it here to ensure we get a dirty run.
+        assert instance.execute('cloud-init init').ok
+
+        # get post values
+        post_hostname = instance.execute('hostname')
+        post_cloud_id = instance.execute('cloud-id')
+        post_result = instance.execute('cat /run/cloud-init/result.json')
+        post_network = instance.execute('cat /etc/netplan/50-cloud-init.yaml')
+        post_systemd_analyze = instance.execute('systemd-analyze')
+        post_systemd_blame = instance.execute('systemd-analyze blame')
+        post_cloud_analyze = instance.execute('cloud-init analyze show')
+        post_cloud_blame = instance.execute('cloud-init analyze blame')
+
+        # Ensure no issues post-upgrade
+        assert not json.loads(pre_result)['v1']['errors']
+
+        log = instance.read_from_file('/var/log/cloud-init.log')
+        assert 'Traceback' not in log
+        assert 'WARN' not in log
+
+        # Ensure important things stayed the same
+        assert pre_hostname == post_hostname
+        assert pre_cloud_id == post_cloud_id
+        assert pre_result == post_result
+        assert pre_network == post_network
+
+        # Calculate and log all the boot numbers
+        pre_analyze_totals = [
+            x for x in pre_cloud_analyze.splitlines()
+            if x.startswith('Finished stage') or x.startswith('Total Time')
+        ]
+        post_analyze_totals = [
+            x for x in post_cloud_analyze.splitlines()
+            if x.startswith('Finished stage') or x.startswith('Total Time')
+        ]
+
+        # pylint: disable=logging-format-interpolation
+        LOG.info(LOG_TEMPLATE.format(
+            pre_systemd_analyze=pre_systemd_analyze,
+            post_systemd_analyze=post_systemd_analyze,
+            pre_systemd_blame='\n'.join(pre_systemd_blame.splitlines()[:10]),
+            post_systemd_blame='\n'.join(post_systemd_blame.splitlines()[:10]),
+            pre_analyze_totals='\n'.join(pre_analyze_totals),
+            post_analyze_totals='\n'.join(post_analyze_totals),
+            pre_cloud_blame='\n'.join(pre_cloud_blame.splitlines()[:10]),
+            post_cloud_blame='\n'.join(post_cloud_blame.splitlines()[:10]),
+        ))
 
 
 @pytest.mark.ci

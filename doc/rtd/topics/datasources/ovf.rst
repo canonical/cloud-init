@@ -18,6 +18,10 @@ configuration (in `/etc/cloud/cloud.cfg` or `/etc/cloud/cloud.cfg.d/`).
 
 The settings that may be configured are:
 
+ * disable_vmware_customization: disable or enable the vmware customization
+   based on vmware customization files. (default: True)
+ * allow_raw_data: enable or disable the vmware customization based on raw
+   cloud-init data including metadata and userdata. (default: True)
  * vmware_cust_file_max_wait: the maximum amount of clock time in seconds that
    should be spent waiting for vmware customization files. (default: 15)
 
@@ -35,7 +39,7 @@ The following VMTools configuration options affect cloud-init's behavior on a bo
       change this default behavior (for example: enabled by default) via
       customization specification settings.
 
-VMWare admin can refer to (https://github.com/canonical/cloud-init/blob/master/cloudinit/sources/helpers/vmware/imc/config.py) and set the customization specification settings.
+VMWare admin can refer to (https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/helpers/vmware/imc/config.py) and set the customization specification settings.
 
 For more information, see [VMware vSphere Product Documentation](https://docs.vmware.com/en/VMware-vSphere/7.0/com.vmware.vsphere.vm_admin.doc/GUID-9A5093A5-C54F-4502-941B-3F9C0F573A39.html) and specific VMTools parameters consumed.
 

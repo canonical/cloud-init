@@ -55,7 +55,7 @@ to store the multipart message in ``user-data``:
 
     $ cloud-init devel make-mime -a config.yaml:cloud-config -a script.sh:x-shellscript > user-data
 
-.. _make-mime: https://github.com/canonical/cloud-init/blob/master/cloudinit/cmd/devel/make_mime.py
+.. _make-mime: https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/devel/make_mime.py
 
 
 User-Data Script
