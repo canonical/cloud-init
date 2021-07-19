@@ -206,8 +206,15 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def generate_fallback_config(self):
         return net.generate_fallback_config()
 
-    def apply_network_config(self, netconfig, bring_up=False):
-        # apply network config netconfig
+    def apply_network_config(self, netconfig, bring_up=False) -> bool:
+        """Apply the network config.
+
+        If bring_up is True, attempt to bring up the passed in devices. If
+        devices is None, attempt to bring up devices returned by
+        _write_network_config.
+
+        Returns True if any devices failed to come up, otherwise False.
+        """
         # This method is preferred to apply_network which only takes
         # a much less complete network config format (interfaces(5)).
         network_state = parse_net_config_data(netconfig)

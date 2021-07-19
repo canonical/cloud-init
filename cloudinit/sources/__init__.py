@@ -23,6 +23,7 @@ from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
+from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 from cloudinit.filters import launch_index
 from cloudinit.persistence import CloudInitPickleMixin
@@ -73,6 +74,10 @@ CLOUD_ID_REGION_PREFIX_MAP = {
 _NETCFG_SOURCE_NAMES = ('cmdline', 'ds', 'system_cfg', 'fallback', 'initramfs')
 NetworkConfigSource = namedtuple('NetworkConfigSource',
                                  _NETCFG_SOURCE_NAMES)(*_NETCFG_SOURCE_NAMES)
+
+
+class DatasourceUnpickleUserDataError(Exception):
+    """Raised when userdata is unable to be unpickled due to python upgrades"""
 
 
 class DataSourceNotFoundException(Exception):
@@ -211,7 +216,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     _ci_pkl_version = 1
 
-    def __init__(self, sys_cfg, distro, paths, ud_proc=None):
+    def __init__(self, sys_cfg, distro: Distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
@@ -239,6 +244,20 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.vendordata2 = None
         if not hasattr(self, 'vendordata2_raw'):
             self.vendordata2_raw = None
+        if hasattr(self, 'userdata') and self.userdata is not None:
+            # If userdata stores MIME data, on < python3.6 it will be
+            # missing the 'policy' attribute that exists on >=python3.6.
+            # Calling str() on the userdata will attempt to access this
+            # policy attribute. This will raise an exception, causing
+            # the pickle load to fail, so cloud-init will discard the cache
+            try:
+                str(self.userdata)
+            except AttributeError as e:
+                LOG.debug(
+                    "Unable to unpickle datasource: %s."
+                    " Ignoring current cache.", e
+                )
+                raise DatasourceUnpickleUserDataError() from e
 
     def __str__(self):
         return type_utils.obj_name(self)

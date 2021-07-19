@@ -119,6 +119,10 @@ Current subcommands:
    schema errors locally without the need for deployment. Schema
    validation is work in progress and supports a subset of cloud-config
    modules.
+ * ``hotplug-hook``: respond to newly added system devices by retrieving
+   updated system metadata and bringing up/down the corresponding device.
+   This command is intended to be called via a systemd service and is
+   not considered user-accessible except for debugging purposes.
 
 
 .. _cli_features:

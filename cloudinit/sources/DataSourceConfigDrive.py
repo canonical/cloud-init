@@ -12,9 +12,8 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import subp
 from cloudinit import util
-
+from cloudinit.event import EventScope, EventType
 from cloudinit.net import eni
-
 from cloudinit.sources.DataSourceIBMCloud import get_ibm_platform
 from cloudinit.sources.helpers import openstack
 
@@ -36,6 +35,13 @@ OPTICAL_DEVICES = tuple(('/dev/%s%s' % (z, i) for z in POSSIBLE_MOUNTS
 class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
     dsname = 'ConfigDrive'
+
+    supported_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY,
+        EventType.HOTPLUG,
+    }}
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceConfigDrive, self).__init__(sys_cfg, distro, paths)
