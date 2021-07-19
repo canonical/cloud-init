@@ -1,4 +1,4 @@
-cloud-init (21.2-43-g184c836a-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (21.2-43-g184c836a-0ubuntu1) impish; urgency=medium
 
   * New upstream snapshot.
     - Initial hotplug support (#936)
