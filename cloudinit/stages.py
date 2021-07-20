@@ -241,7 +241,7 @@ class Init(object):
             else:
                 return (None, "cache invalid in datasource: %s" % ds)
 
-    def _get_data_source(self, existing):
+    def _get_data_source(self, existing) -> sources.DataSource:
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
 
@@ -267,7 +267,7 @@ class Init(object):
                                                cfg_list,
                                                pkg_list, self.reporter)
             LOG.info("Loaded datasource %s - %s", dsname, ds)
-        self.datasource = ds
+        self.datasource = ds  # type: sources.DataSource
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
         self._reset()
@@ -1070,6 +1070,8 @@ def _pkl_load(fname):
         return None
     try:
         return pickle.loads(pickle_contents)
+    except sources.DatasourceUnpickleUserDataError:
+        return None
     except Exception:
         util.logexc(LOG, "Failed loading pickled blob from %s", fname)
         return None

@@ -1,9 +1,8 @@
-from unittest import mock
-
 import pytest
 
+from unittest import mock
 from cloudinit.config.cc_resolv_conf import generate_resolv_conf
-
+from tests.unittests.test_distros.test_create_users import MyBaseDistro
 
 EXPECTED_HEADER = """\
 # Your system has been configured with 'manage-resolv-conf' set to true.
@@ -14,22 +13,28 @@ EXPECTED_HEADER = """\
 
 
 class TestGenerateResolvConf:
+
+    dist = MyBaseDistro()
+    tmpl_fn = "templates/resolv.conf.tmpl"
+
     @mock.patch("cloudinit.config.cc_resolv_conf.templater.render_to_file")
-    def test_default_target_fname_is_etc_resolvconf(self, m_render_to_file):
-        generate_resolv_conf("templates/resolv.conf.tmpl", mock.MagicMock())
+    def test_dist_resolv_conf_fn(self, m_render_to_file):
+        self.dist.resolve_conf_fn = "/tmp/resolv-test.conf"
+        generate_resolv_conf(self.tmpl_fn,
+                             mock.MagicMock(),
+                             self.dist.resolve_conf_fn)
 
         assert [
-            mock.call(mock.ANY, "/etc/resolv.conf", mock.ANY)
+            mock.call(mock.ANY, self.dist.resolve_conf_fn, mock.ANY)
         ] == m_render_to_file.call_args_list
 
     @mock.patch("cloudinit.config.cc_resolv_conf.templater.render_to_file")
     def test_target_fname_is_used_if_passed(self, m_render_to_file):
-        generate_resolv_conf(
-            "templates/resolv.conf.tmpl", mock.MagicMock(), "/use/this/path"
-        )
+        path = "/use/this/path"
+        generate_resolv_conf(self.tmpl_fn, mock.MagicMock(), path)
 
         assert [
-            mock.call(mock.ANY, "/use/this/path", mock.ANY)
+            mock.call(mock.ANY, path, mock.ANY)
         ] == m_render_to_file.call_args_list
 
     # Patch in templater so we can assert on the actual generated content
@@ -75,7 +80,8 @@ class TestGenerateResolvConf:
     def test_flags_and_options(
         self, m_write_file, params, expected_extra_line
     ):
-        generate_resolv_conf("templates/resolv.conf.tmpl", params)
+        target_fn = "/etc/resolv.conf"
+        generate_resolv_conf(self.tmpl_fn, params, target_fn)
 
         expected_content = EXPECTED_HEADER
         if expected_extra_line is not None:

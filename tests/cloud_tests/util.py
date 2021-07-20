@@ -23,7 +23,7 @@ from tests.cloud_tests import LOG
 
 OS_FAMILY_MAPPING = {
     'debian': ['debian', 'ubuntu'],
-    'redhat': ['centos', 'rhel', 'fedora'],
+    'redhat': ['centos', 'photon', 'rhel', 'fedora'],
     'gentoo': ['gentoo'],
     'freebsd': ['freebsd'],
     'suse': ['sles'],

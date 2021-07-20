@@ -11,11 +11,21 @@ syslog_fix_perms: root:root
 # when a 'default' entry is found it will reference the 'default_user'
 # from the distro configuration specified below
 users:
+{% if variant in ["photon"] %}
+   - name: root
+     lock_passwd: false
+{% else %}
    - default
+{% endif %}
+
+# VMware guest customization.
+{% if variant in ["photon"] %}
+disable_vmware_customization: true
+{% endif %}
 
 # If this is set, 'root' will not be able to ssh in and they
 # will get a message to login instead as the default $user
-{% if variant in ["freebsd"] %}
+{% if variant in ["freebsd", "photon"] %}
 disable_root: false
 {% else %}
 disable_root: true
@@ -34,6 +44,8 @@ ssh_pwauth:   0
 # This will cause the set+update hostname module to not operate (if true)
 preserve_hostname: false
 
+# If you use datasource_list array, keep array items in a single line.
+# If you use multi line array, ds-identify script won't read array items.
 {% if variant.endswith("bsd") %}
 # This should not be required, but leave it in place until the real cause of
 # not finding -any- datasources is resolved.
@@ -72,11 +84,13 @@ cloud_init_modules:
  - set_hostname
  - update_hostname
  - update_etc_hosts
-{% if variant in ["alpine"] %}
+{% if variant in ["alpine", "photon"] %}
  - resolv_conf
 {% endif %}
 {% if not variant.endswith("bsd") %}
+{% if variant not in ["photon"] %}
  - ca-certs
+{% endif %}
  - rsyslog
 {% endif %}
  - users-groups
@@ -90,11 +104,15 @@ cloud_config_modules:
  - emit_upstart
  - snap
 {% endif %}
+{% if variant not in ["photon"] %}
  - ssh-import-id
  - locale
+{% endif %}
  - set-passwords
-{% if variant in ["rhel", "fedora"] %}
+{% if variant in ["rhel", "fedora", "photon"] %}
+{% if variant not in ["photon"] %}
  - spacewalk
+{% endif %}
  - yum-add-repo
 {% endif %}
 {% if variant in ["ubuntu", "unknown", "debian"] %}
@@ -155,8 +173,8 @@ cloud_final_modules:
 system_info:
    # This will affect which distro class gets used
 {% if variant in ["almalinux", "alpine", "amazon", "arch", "centos", "debian",
-                  "fedora", "freebsd", "netbsd", "openbsd", "rhel", "rocky",
-                  "suse", "ubuntu"] %}
+                  "fedora", "freebsd", "netbsd", "openbsd", "photon", "rhel",
+                  "rocky", "suse", "ubuntu"] %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
    distro: dragonflybsd
@@ -276,6 +294,22 @@ system_info:
      groups: [wheel]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
      shell: /bin/ksh
+{% elif variant == "photon" %}
+   default_user:
+     name: photon
+     lock_passwd: True
+     gecos: PhotonOS
+     groups: [wheel]
+     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+     shell: /bin/bash
+   # Other config here will be given to the distro class and/or path classes
+   paths:
+      cloud_dir: /var/lib/cloud/
+      templates_dir: /etc/cloud/templates/
+
+   ssh_svcname: sshd
+
+#manage_etc_hosts: true
 {% endif %}
 {% if variant in ["freebsd", "netbsd", "openbsd"] %}
    network:

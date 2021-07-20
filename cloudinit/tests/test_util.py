@@ -177,6 +177,17 @@ OS_RELEASE_UBUNTU = dedent("""\
     UBUNTU_CODENAME=xenial\n
 """)
 
+OS_RELEASE_PHOTON = ("""\
+        NAME="VMware Photon OS"
+        VERSION="4.0"
+        ID=photon
+        VERSION_ID=4.0
+        PRETTY_NAME="VMware Photon OS/Linux"
+        ANSI_COLOR="1;34"
+        HOME_URL="https://vmware.github.io/photon/"
+        BUG_REPORT_URL="https://github.com/vmware/photon/issues"
+""")
+
 
 class FakeCloud(object):
 
@@ -608,6 +619,15 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(
             ('opensuse-tumbleweed', '20180920', platform.machine()), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_photon_os_release(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on PhotonOS"""
+        m_os_release.return_value = OS_RELEASE_PHOTON
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(
+            ('photon', '4.0', 'VMware Photon OS/Linux'), dist)
 
     @mock.patch('platform.system')
     @mock.patch('platform.dist', create=True)

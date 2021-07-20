@@ -25,7 +25,6 @@ LOG = logging.getLogger(__name__)
 class Distro(distros.Distro):
     locale_gen_fn = "/etc/locale.gen"
     network_conf_dir = "/etc/netctl"
-    resolve_conf_fn = "/etc/resolv.conf"
     init_cmd = ['systemctl']  # init scripts
     renderer_configs = {
         "netplan": {"netplan_path": "/etc/netplan/50-cloud-init.yaml",
@@ -62,9 +61,9 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command('', pkgs=pkglist)
 
-    def _write_network_config(self, netconfig):
+    def _write_network_state(self, network_state):
         try:
-            return self._supported_write_network_config(netconfig)
+            super()._write_network_state(network_state)
         except RendererNotFoundError as e:
             # Fall back to old _write_network
             raise NotImplementedError from e
@@ -102,24 +101,18 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
 
-    def _bring_up_interfaces(self, device_names):
-        for d in device_names:
-            if not self._bring_up_interface(d):
-                return False
-        return True
-
-    def _write_hostname(self, your_hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         conf = None
         try:
             # Try to update the previous one
             # so lets see if we can read it first.
-            conf = self._read_hostname_conf(out_fn)
+            conf = self._read_hostname_conf(filename)
         except IOError:
             pass
         if not conf:
             conf = HostnameConf('')
-        conf.set_hostname(your_hostname)
-        util.write_file(out_fn, str(conf), omode="w", mode=0o644)
+        conf.set_hostname(hostname)
+        util.write_file(filename, str(conf), omode="w", mode=0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)

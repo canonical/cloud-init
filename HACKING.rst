@@ -55,7 +55,7 @@ Follow these steps to submit your first pull request to cloud-init:
     git clone git://github.com/canonical/cloud-init
     cd cloud-init
     git remote add GH_USER git@github.com:GH_USER/cloud-init.git
-    git push GH_USER master
+    git push GH_USER main
 
 * Read through the cloud-init `Code Review Process`_, so you understand
   how your changes will end up in cloud-init's codebase.
@@ -78,7 +78,7 @@ Follow these steps to submit your first pull request to cloud-init:
 .. _repository: https://github.com/canonical/cloud-init
 .. _contributor license agreement: https://ubuntu.com/legal/contributors
 .. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
-.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/master/tools/.github-cla-signers
+.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers
 .. _PR #344: https://github.com/canonical/cloud-init/pull/344
 .. _PR #345: https://github.com/canonical/cloud-init/pull/345
 
