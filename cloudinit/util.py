@@ -453,9 +453,19 @@ def _parse_redhat_release(release_file=None):
     redhat_regex = (
         r'(?P<name>.+) release (?P<version>[\d\.]+) '
         r'\((?P<codename>[^)]+)\)')
+
+    # Virtuozzo deviates here
+    if "Virtuozzo" in redhat_release:
+        redhat_regex = r'(?P<name>.+) release (?P<version>[\d\.]+)'
+
     match = re.match(redhat_regex, redhat_release)
     if match:
         group = match.groupdict()
+
+        # Virtuozzo has no codename in this file
+        if "Virtuozzo" in group['name']:
+            group['codename'] = group['name']
+
         group['name'] = group['name'].lower().partition(' linux')[0]
         if group['name'] == 'red hat enterprise':
             group['name'] = 'redhat'
@@ -470,9 +480,11 @@ def get_linux_distro():
     distro_version = ''
     flavor = ''
     os_release = {}
+    os_release_rhel = False
     if os.path.exists('/etc/os-release'):
         os_release = load_shell_content(load_file('/etc/os-release'))
     if not os_release:
+        os_release_rhel = True
         os_release = _parse_redhat_release()
     if os_release:
         distro_name = os_release.get('ID', '')
@@ -484,6 +496,9 @@ def get_linux_distro():
             # on all distributions.
             flavor = platform.machine()
         elif distro_name == 'photon':
+            flavor = os_release.get('PRETTY_NAME', '')
+        elif distro_name == 'virtuozzo' and not os_release_rhel:
+            # Only use this if the redhat file is not parsed
             flavor = os_release.get('PRETTY_NAME', '')
         else:
             flavor = os_release.get('VERSION_CODENAME', '')
@@ -533,7 +548,7 @@ def system_info():
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
                 'almalinux', 'alpine', 'arch', 'centos', 'debian', 'fedora',
-                'photon', 'rhel', 'rocky', 'suse'):
+                'photon', 'rhel', 'rocky', 'suse', 'virtuozzo'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
