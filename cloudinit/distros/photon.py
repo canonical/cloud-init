@@ -83,19 +83,19 @@ class Distro(distros.Distro):
         ret, _out, _err = self.exec_cmd(cmd)
         return ret
 
-    def _write_hostname(self, hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         conf = None
         try:
             # Try to update the previous one
             # Let's see if we can read it first.
-            conf = HostnameConf(util.load_file(out_fn))
+            conf = HostnameConf(util.load_file(filename))
             conf.parse()
         except IOError:
             pass
         if not conf:
             conf = HostnameConf('')
         conf.set_hostname(hostname)
-        util.write_file(out_fn, str(conf), mode=0o644)
+        util.write_file(filename, str(conf), mode=0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)

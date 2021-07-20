@@ -48,7 +48,7 @@ class BSD(distros.Distro):
     def _get_add_member_to_group_cmd(self, member_name, group_name):
         raise NotImplementedError('Return list cmd to add member to group')
 
-    def _write_hostname(self, hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         bsd_utils.set_rc_config_value('hostname', hostname, fn='/etc/rc.conf')
 
     def create_group(self, name, members=None):

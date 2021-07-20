@@ -253,7 +253,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def _write_hostname(self, hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         raise NotImplementedError()
 
     @abc.abstractmethod

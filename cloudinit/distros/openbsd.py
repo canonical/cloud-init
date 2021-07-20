@@ -19,7 +19,7 @@ class Distro(cloudinit.distros.netbsd.NetBSD):
     def _read_hostname(self, filename, default=None):
         return util.load_file(self.hostname_conf_fn)
 
-    def _write_hostname(self, hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         content = hostname + '\n'
         util.write_file(self.hostname_conf_fn, content)
 

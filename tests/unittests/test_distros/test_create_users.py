@@ -38,7 +38,7 @@ class MyBaseDistro(distros.Distro):
     def _read_hostname(self, filename, default=None):
         raise NotImplementedError()
 
-    def _write_hostname(self, hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         raise NotImplementedError()
 
     def _read_system_hostname(self):

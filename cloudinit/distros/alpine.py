@@ -73,18 +73,18 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command('add', pkgs=pkglist)
 
-    def _write_hostname(self, hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         conf = None
         try:
             # Try to update the previous one
             # so lets see if we can read it first.
-            conf = self._read_hostname_conf(out_fn)
+            conf = self._read_hostname_conf(filename)
         except IOError:
             pass
         if not conf:
             conf = HostnameConf('')
         conf.set_hostname(hostname)
-        util.write_file(out_fn, str(conf), 0o644)
+        util.write_file(filename, str(conf), 0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)
