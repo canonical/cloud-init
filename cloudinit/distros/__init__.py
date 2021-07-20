@@ -147,7 +147,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return uses_systemd()
 
     @abc.abstractmethod
-    def package_command(self, cmd, args=None, pkgs=None):
+    def package_command(self, command, args=None, pkgs=None):
         raise NotImplementedError()
 
     @abc.abstractmethod

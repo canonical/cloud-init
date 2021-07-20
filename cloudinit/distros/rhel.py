@@ -78,18 +78,18 @@ class Distro(distros.Distro):
         }
         rhel_util.update_sysconfig_file(out_fn, locale_cfg)
 
-    def _write_hostname(self, hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         # systemd will never update previous-hostname for us, so
         # we need to do it ourselves
-        if self.uses_systemd() and out_fn.endswith('/previous-hostname'):
-            util.write_file(out_fn, hostname)
+        if self.uses_systemd() and filename.endswith('/previous-hostname'):
+            util.write_file(filename, hostname)
         elif self.uses_systemd():
             subp.subp(['hostnamectl', 'set-hostname', str(hostname)])
         else:
             host_cfg = {
                 'HOSTNAME': hostname,
             }
-            rhel_util.update_sysconfig_file(out_fn, host_cfg)
+            rhel_util.update_sysconfig_file(filename, host_cfg)
 
     def _read_system_hostname(self):
         if self.uses_systemd():
