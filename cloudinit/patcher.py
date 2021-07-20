@@ -6,7 +6,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import imp
 import logging
 import sys
 
@@ -39,10 +38,6 @@ def _patch_logging():
 
 
 def patch():
-    imp.acquire_lock()
-    try:
-        _patch_logging()
-    finally:
-        imp.release_lock()
+    _patch_logging()
 
 # vi: ts=4 expandtab
