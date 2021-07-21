@@ -31,15 +31,31 @@ def get_parser(parser=None):
         parser = argparse.ArgumentParser(prog=NAME, description=__doc__)
 
     parser.description = __doc__
-    parser.add_argument("-d", "--devpath", required=True,
-                        metavar="PATH",
-                        help="sysfs path to hotplugged device")
-    parser.add_argument("-s", "--subsystem", required=True,
-                        help="subsystem to act on",
-                        choices=['net'])
-    parser.add_argument("-u", "--udevaction", required=True,
-                        help="action to take",
-                        choices=['add', 'remove'])
+    parser.add_argument(
+        "-s", "--subsystem", required=True,
+        help="subsystem to act on",
+        choices=['net']
+    )
+
+    subparsers = parser.add_subparsers(dest='hotplug_action')
+
+    subparsers.add_parser(
+        'query',
+        help='query if hotplug is enabled for given subsystem'
+    )
+
+    parser_handle = subparsers.add_parser(
+        'handle', help='handle the hotplug event')
+    parser_handle.add_argument(
+        "-d", "--devpath", required=True,
+        metavar="PATH",
+        help="sysfs path to hotplugged device"
+    )
+    parser_handle.add_argument(
+        "-u", "--udevaction", required=True,
+        help="action to take",
+        choices=['add', 'remove']
+    )
 
     return parser
 
@@ -133,6 +149,14 @@ SUBSYSTEM_PROPERTES_MAP = {
 }
 
 
+def is_enabled(hotplug_init, subsystem):
+    scope = SUBSYSTEM_PROPERTES_MAP[subsystem][1]
+    return hotplug_init.update_event_enabled(
+        event_source_type=EventType.HOTPLUG,
+        scope=scope
+    )
+
+
 def handle_hotplug(
     hotplug_init: Init, devpath, subsystem, udevaction
 ):
@@ -147,10 +171,7 @@ def handle_hotplug(
     LOG.debug('Fetching datasource')
     datasource = hotplug_init.fetch(existing="trust")
 
-    if not hotplug_init.update_event_enabled(
-        event_source_type=EventType.HOTPLUG,
-        scope=EventScope.NETWORK
-    ):
+    if not is_enabled(hotplug_init, subsystem):
         LOG.debug('hotplug not enabled for event of type %s', event_scope)
         return
 
@@ -200,29 +221,30 @@ def handle_args(name, args):
     log.setupLogging(hotplug_init.cfg)
     if 'reporting' in hotplug_init.cfg:
         reporting.update_configuration(hotplug_init.cfg.get('reporting'))
-
     # Logging isn't going to be setup until now
     LOG.debug(
-        '%s called with the following arguments: {udevaction: %s, '
-        'subsystem: %s, devpath: %s}',
-        name, args.udevaction, args.subsystem, args.devpath
-    )
-    LOG.debug(
-        '%s called with the following arguments:\n'
-        'udevaction: %s\n'
-        'subsystem: %s\n'
-        'devpath: %s',
-        name, args.udevaction, args.subsystem, args.devpath
+        '%s called with the following arguments: {'
+        'hotplug_action: %s, subsystem: %s, udevaction: %s, devpath: %s}',
+        name,
+        args.hotplug_action,
+        args.subsystem,
+        args.udevaction if 'udevaction' in args else None,
+        args.devpath if 'devpath' in args else None,
     )
 
     with hotplug_reporter:
         try:
-            handle_hotplug(
-                hotplug_init=hotplug_init,
-                devpath=args.devpath,
-                subsystem=args.subsystem,
-                udevaction=args.udevaction,
-            )
+            if args.hotplug_action == 'query':
+                hotplug_init.fetch(existing="trust")
+                enabled = is_enabled(hotplug_init, args.subsystem)
+                print('enabled' if enabled else 'disabled')
+            else:
+                handle_hotplug(
+                    hotplug_init=hotplug_init,
+                    devpath=args.devpath,
+                    subsystem=args.subsystem,
+                    udevaction=args.udevaction,
+                )
         except Exception:
             LOG.exception('Received fatal exception handling hotplug!')
             raise
