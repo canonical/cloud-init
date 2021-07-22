@@ -151,7 +151,7 @@ def generate_public_network_interface(interface):
                 "control": "auto"
             },
             {
-                "type": "dhcp6",
+                "type": "ipv6_slaac",
                 "control": "auto"
             },
         ]

@@ -220,7 +220,7 @@ EXPECTED_VULTR_NETWORK_1 = {
             'accept-ra': 1,
             'subnets': [
                 {'type': 'dhcp', 'control': 'auto'},
-                {'type': 'dhcp6', 'control': 'auto'}
+                {'type': 'ipv6_slaac', 'control': 'auto'}
             ],
         }
     ]
@@ -240,7 +240,7 @@ EXPECTED_VULTR_NETWORK_2 = {
             'accept-ra': 1,
             'subnets': [
                 {'type': 'dhcp', 'control': 'auto'},
-                {'type': 'dhcp6', 'control': 'auto'}
+                {'type': 'ipv6_slaac', 'control': 'auto'}
             ],
         },
         {
