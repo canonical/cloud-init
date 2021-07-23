@@ -104,6 +104,13 @@ interface given the information it has available.
 Finally after selecting the "right" interface, a configuration is
 generated and applied to the system.
 
+.. note::
+
+   PhotonOS disables fallback networking configuration by default leaving
+   network unrendered when no other network config is provided.
+   If fallback config is still desired on PhotonOS, it can be enabled by
+   providing `disable_fallback_netcfg: false` in
+   `/etc/cloud/cloud.cfg:sys_config` settings.
 
 Network Configuration Sources
 =============================

@@ -26,6 +26,7 @@ OpenBSD and DragonFlyBSD:
 - Gentoo Linux
 - NetBSD
 - OpenBSD
+- Photon OS
 - RHEL/CentOS
 - SLES/openSUSE
 - Ubuntu

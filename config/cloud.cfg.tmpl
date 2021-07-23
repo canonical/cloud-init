@@ -18,9 +18,10 @@ users:
    - default
 {% endif %}
 
-# VMware guest customization.
 {% if variant in ["photon"] %}
+# VMware guest customization.
 disable_vmware_customization: true
+manage_etc_hosts: false
 {% endif %}
 
 # If this is set, 'root' will not be able to ssh in and they
@@ -306,10 +307,15 @@ system_info:
    paths:
       cloud_dir: /var/lib/cloud/
       templates_dir: /etc/cloud/templates/
+   network:
+      renderers: ['networkd']
 
    ssh_svcname: sshd
 
-#manage_etc_hosts: true
+   # If set to true, cloud-init will not use fallback network config.
+   # In Photon, we have default network settings, hence if network settings are
+   # not explicitly given in metadata, don't use fallback network config.
+   disable_fallback_netcfg: true
 {% endif %}
 {% if variant in ["freebsd", "netbsd", "openbsd"] %}
    network:
