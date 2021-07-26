@@ -4,6 +4,8 @@ instance launch. Generally tests should only be added here if a failure
 of the test would be unlikely to affect the running of another test using
 the same instance launch.
 """
+import json
+from tests.integration_tests.clouds import ImageSpecification
 import pytest
 import re
 from datetime import date
@@ -31,6 +33,7 @@ ntp:
 """
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestCombined:
     def test_final_message(self, class_client: IntegrationInstance):
@@ -43,7 +46,7 @@ class TestCombined:
         today = date.today().strftime('%a, %d %b %Y')
         expected = (
             'This is my final message!\n'
-            r'\d+\.\d+\n'
+            r'\d+\.\d+.*\n'
             '{}.*\n'
             'DataSource.*\n'
             r'\d+\.\d+'
@@ -87,3 +90,84 @@ class TestCombined:
             'en_GB.UTF-8',
             'en_US.UTF-8'
         ], locale_gen)
+
+    def test_no_problems(self, class_client: IntegrationInstance):
+        """Test no errors, warnings, or tracebacks"""
+        client = class_client
+        status_file = client.read_from_file('/run/cloud-init/status.json')
+        status_json = json.loads(status_file)['v1']
+        for stage in ('init', 'init-local', 'modules-config', 'modules-final'):
+            assert status_json[stage]['errors'] == []
+        result_file = client.read_from_file('/run/cloud-init/result.json')
+        result_json = json.loads(result_file)['v1']
+        assert result_json['errors'] == []
+
+        log = client.read_from_file('/var/log/cloud-init.log')
+        assert 'WARN' not in log
+        assert 'Traceback' not in log
+
+    def _check_common_metadata(self, data):
+        assert data['base64_encoded_keys'] == []
+        assert data['merged_cfg'] == 'redacted for non-root user'
+
+        image_spec = ImageSpecification.from_os_image()
+        assert data['sys_info']['dist'][0] == image_spec.os
+
+        v1_data = data['v1']
+        assert re.match(r'\d\.\d+\.\d+-\d+', v1_data['kernel_release'])
+        assert v1_data['variant'] == image_spec.os
+        assert v1_data['distro'] == image_spec.os
+        assert v1_data['distro_release'] == image_spec.release
+        assert v1_data['machine'] == 'x86_64'
+        assert re.match(r'3.\d\.\d', v1_data['python_version'])
+
+    @pytest.mark.lxd_container
+    def test_instance_json_lxd(self, class_client: IntegrationInstance):
+        client = class_client
+        instance_json_file = client.read_from_file(
+            '/run/cloud-init/instance-data.json')
+
+        data = json.loads(instance_json_file)
+        self._check_common_metadata(data)
+        v1_data = data['v1']
+        assert v1_data['cloud_name'] == 'unknown'
+        assert v1_data['platform'] == 'lxd'
+        assert v1_data['subplatform'] == (
+            'seed-dir (/var/lib/cloud/seed/nocloud-net)')
+        assert v1_data['availability_zone'] is None
+        assert v1_data['instance_id'] == client.instance.name
+        assert v1_data['local_hostname'] == client.instance.name
+        assert v1_data['region'] is None
+
+    @pytest.mark.lxd_vm
+    def test_instance_json_lxd_vm(self, class_client: IntegrationInstance):
+        client = class_client
+        instance_json_file = client.read_from_file(
+            '/run/cloud-init/instance-data.json')
+
+        data = json.loads(instance_json_file)
+        self._check_common_metadata(data)
+        v1_data = data['v1']
+        assert v1_data['cloud_name'] == 'unknown'
+        assert v1_data['platform'] == 'lxd'
+        assert v1_data['subplatform'] == (
+            'seed-dir (/var/lib/cloud/seed/nocloud-net)')
+        assert v1_data['availability_zone'] is None
+        assert v1_data['instance_id'] == client.instance.name
+        assert v1_data['local_hostname'] == client.instance.name
+        assert v1_data['region'] is None
+
+    @pytest.mark.ec2
+    def test_instance_json_ec2(self, class_client: IntegrationInstance):
+        client = class_client
+        instance_json_file = client.read_from_file(
+            '/run/cloud-init/instance-data.json')
+        data = json.loads(instance_json_file)
+        v1_data = data['v1']
+        assert v1_data['cloud_name'] == 'aws'
+        assert v1_data['platform'] == 'ec2'
+        assert v1_data['subplatform'].startswith('metadata')
+        assert v1_data['availability_zone'] == client.instance.availability_zone
+        assert v1_data['instance_id'] == client.instance.name
+        assert v1_data['local_hostname'].startswith('ip-')
+        assert v1_data['region'] == client.cloud.cloud_instance.region

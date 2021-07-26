@@ -81,6 +81,7 @@ ntp:
 """
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(CHRONY_DATA)
 def test_chrony(client: IntegrationInstance):
     if client.execute('test -f /etc/chrony.conf').ok:
@@ -99,6 +100,7 @@ ntp:
 """
 
 
+@pytest.mark.ci
 @pytest.mark.user_data(TIMESYNCD_DATA)
 def test_timesyncd(client: IntegrationInstance):
     contents = client.read_from_file(
