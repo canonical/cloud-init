@@ -89,3 +89,37 @@ def test_chrony(client: IntegrationInstance):
         chrony_conf = '/etc/chrony/chrony.conf'
     contents = client.read_from_file(chrony_conf)
     assert '.pool.ntp.org' in contents
+
+
+TIMESYNCD_DATA = """\
+#cloud-config
+ntp:
+  enabled: true
+  ntp_client: systemd-timesyncd
+"""
+
+
+@pytest.mark.user_data(TIMESYNCD_DATA)
+def test_timesyncd(client: IntegrationInstance):
+    contents = client.read_from_file(
+        '/etc/systemd/timesyncd.conf.d/cloud-init.conf'
+    )
+    assert '.pool.ntp.org' in contents
+
+
+EMPTY_NTP = """\
+#cloud-config
+ntp:
+  ntp_client: ntp
+  pools: []
+  servers: []
+"""
+
+
+@pytest.mark.user_data(EMPTY_NTP)
+def test_empty_ntp(client: IntegrationInstance):
+    assert client.execute('ntpd --version').ok
+    assert client.execute('test -f /etc/ntp.conf.dist').failed
+    assert 'pool.ntp.org iburst' in client.execute(
+        'grep -v "^#" /etc/ntp.conf'
+    )
