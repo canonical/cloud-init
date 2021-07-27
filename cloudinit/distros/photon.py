@@ -5,6 +5,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from cloudinit import net
 from cloudinit import util
 from cloudinit import subp
 from cloudinit import distros
@@ -53,6 +54,20 @@ class Distro(distros.Distro):
         except subp.ProcessExecutionError:
             util.logexc(LOG, 'Command %s failed', cmd)
             return False, None, None
+
+    def generate_fallback_config(self):
+        key = 'disable_fallback_netcfg'
+        disable_fallback_netcfg = self._cfg.get(key, True)
+        LOG.debug('%s value is: %s', key, disable_fallback_netcfg)
+
+        if not disable_fallback_netcfg:
+            return net.generate_fallback_config()
+
+        LOG.info(
+            'Skipping generate_fallback_config. Rely on PhotonOS default '
+            'network config'
+        )
+        return None
 
     def apply_locale(self, locale, out_fn=None):
         # This has a dependancy on glibc-i18n, user need to manually install it

@@ -140,6 +140,20 @@ OS_RELEASE_ROCKY_8 = dedent("""\
     ROCKY_SUPPORT_PRODUCT_VERSION="8"
 """)
 
+OS_RELEASE_VIRTUOZZO_8 = dedent("""\
+    NAME="Virtuozzo Linux"
+    VERSION="8"
+    ID="virtuozzo"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="Virtuozzo Linux"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:virtuozzoproject:vzlinux:8"
+    HOME_URL="https://www.vzlinux.org"
+    BUG_REPORT_URL="https://bugs.openvz.org"
+""")
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
@@ -150,6 +164,8 @@ REDHAT_RELEASE_ALMALINUX_8 = (
     "AlmaLinux release 8.3 (Purple Manul)")
 REDHAT_RELEASE_ROCKY_8 = (
     "Rocky Linux release 8.3 (Green Obsidian)")
+REDHAT_RELEASE_VIRTUOZZO_8 = (
+    "Virtuozzo Linux release 8")
 
 OS_RELEASE_DEBIAN = dedent("""\
     PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
@@ -580,6 +596,22 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('rocky', '8.3', 'Green Obsidian'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_virtuozzo8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify virtuozzo linux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_VIRTUOZZO_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('virtuozzo', '8', 'Virtuozzo Linux'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_virtuozzo8_osrelease(self, m_os_release, m_path_exists):
+        """Verify virtuozzo linux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_VIRTUOZZO_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('virtuozzo', '8', 'Virtuozzo Linux'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_debian(self, m_os_release, m_path_exists):

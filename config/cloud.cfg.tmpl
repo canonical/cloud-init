@@ -18,9 +18,10 @@ users:
    - default
 {% endif %}
 
-# VMware guest customization.
 {% if variant in ["photon"] %}
+# VMware guest customization.
 disable_vmware_customization: true
+manage_etc_hosts: false
 {% endif %}
 
 # If this is set, 'root' will not be able to ssh in and they
@@ -32,7 +33,7 @@ disable_root: true
 {% endif %}
 
 {% if variant in ["almalinux", "alpine", "amazon", "centos", "fedora",
-                  "rhel", "rocky"] %}
+                  "rhel", "rocky", "virtuozzo"] %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% if variant == "amazon" %}
 resize_rootfs: noblock
@@ -174,7 +175,7 @@ system_info:
    # This will affect which distro class gets used
 {% if variant in ["almalinux", "alpine", "amazon", "arch", "centos", "debian",
                   "fedora", "freebsd", "netbsd", "openbsd", "photon", "rhel",
-                  "rocky", "suse", "ubuntu"] %}
+                  "rocky", "suse", "ubuntu", "virtuozzo"] %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
    distro: dragonflybsd
@@ -228,7 +229,7 @@ system_info:
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
 {% elif variant in ["almalinux", "alpine", "amazon", "arch", "centos", "fedora",
-                    "rhel", "rocky", "suse"] %}
+                    "rhel", "rocky", "suse", "virtuozzo"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}
@@ -306,10 +307,15 @@ system_info:
    paths:
       cloud_dir: /var/lib/cloud/
       templates_dir: /etc/cloud/templates/
+   network:
+      renderers: ['networkd']
 
    ssh_svcname: sshd
 
-#manage_etc_hosts: true
+   # If set to true, cloud-init will not use fallback network config.
+   # In Photon, we have default network settings, hence if network settings are
+   # not explicitly given in metadata, don't use fallback network config.
+   disable_fallback_netcfg: true
 {% endif %}
 {% if variant in ["freebsd", "netbsd", "openbsd"] %}
    network:
