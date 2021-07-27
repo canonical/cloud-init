@@ -661,6 +661,8 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
         cur['name'] = name
         cur_info[name] = cur
 
+    LOG.debug("Detected interfaces %s", cur_info)
+
     def update_byname(bymac):
         return dict((data['name'], data)
                     for data in cur_info.values())
