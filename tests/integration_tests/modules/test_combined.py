@@ -2,14 +2,15 @@
 """A set of somewhat unrelated tests that can be combined into a single
 instance launch. Generally tests should only be added here if a failure
 of the test would be unlikely to affect the running of another test using
-the same instance launch.
+the same instance launch. Most independent module coherence tests can go
+here.
 """
 import json
-from tests.integration_tests.clouds import ImageSpecification
 import pytest
 import re
 from datetime import date
 
+from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_ordered_items_in_text
 
@@ -167,7 +168,8 @@ class TestCombined:
         assert v1_data['cloud_name'] == 'aws'
         assert v1_data['platform'] == 'ec2'
         assert v1_data['subplatform'].startswith('metadata')
-        assert v1_data['availability_zone'] == client.instance.availability_zone
+        assert v1_data[
+            'availability_zone'] == client.instance.availability_zone
         assert v1_data['instance_id'] == client.instance.name
         assert v1_data['local_hostname'].startswith('ip-')
         assert v1_data['region'] == client.cloud.cloud_instance.region
