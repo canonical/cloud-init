@@ -28,6 +28,11 @@ config keys for an entry in ``users`` are as follows:
     - ``name``: The user's login name
     - ``expiredate``: Optional. Date on which the user's account will be
       disabled. Default: none
+    - ``files``: Optional. List of files following the same scheme of
+      ``write_files`` items, except that ``owner`` is inferred (note that the
+      user part is always ignored, group may be recognized if value stats with
+      a ``:``), that ``permissions`` defaults to ``'0600'``, and that these
+      configurations are being applied only after users & groups have been created
     - ``gecos``: Optional. Comment about the user, usually a comma-separated
       string of real name and contact information. Default: none
     - ``groups``: Optional. Additional groups to add the user to. Default: none
@@ -104,6 +109,7 @@ config keys for an entry in ``users`` are as follows:
           sudo: false
         - name: <username>
           expiredate: '<date>'
+          files: <write_files list>
           gecos: <comment>
           groups: <additional groups>
           homedir: <home directory>
@@ -169,6 +175,10 @@ def handle(name, cfg, cloud, _log, _args):
             else:
                 config['ssh_redirect_user'] = default_user
                 config['cloud_public_ssh_keys'] = cloud_keys
+
+        # Remove configuration handled by module 'write-deferred-files'
+        config.pop('files', None)
+
         cloud.distro.create_user(user, **config)
 
 # vi: ts=4 expandtab
