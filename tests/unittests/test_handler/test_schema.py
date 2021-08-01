@@ -26,6 +26,7 @@ class GetSchemaTest(CiTestCase):
                 'cc_apk_configure',
                 'cc_apt_configure',
                 'cc_bootcmd',
+                'cc_write_deferred_files',
                 'cc_locale',
                 'cc_ntp',
                 'cc_resizefs',
