@@ -13,13 +13,12 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.distros import rhel_util as rhutil
-from cloudinit.distros.parsers.hostname import HostnameConf
 
 LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
-    hostname_conf_fn = '/etc/hostname'
+    systemd_hostname_conf_fn = '/etc/hostname'
     network_conf_dir = '/etc/systemd/network/'
     systemd_locale_conf_fn = '/etc/locale.conf'
     resolve_conf_fn = '/etc/systemd/resolved.conf'
@@ -43,17 +42,18 @@ class Distro(distros.Distro):
         self.osfamily = 'photon'
         self.init_cmd = ['systemctl']
 
-    def exec_cmd(self, cmd, capture=False):
+    def exec_cmd(self, cmd, capture=True):
         LOG.debug('Attempting to run: %s', cmd)
         try:
             (out, err) = subp.subp(cmd, capture=capture)
             if err:
                 LOG.warning('Running %s resulted in stderr output: %s',
                             cmd, err)
-            return True, out, err
+                return True, out, err
+            return False, out, err
         except subp.ProcessExecutionError:
             util.logexc(LOG, 'Command %s failed', cmd)
-            return False, None, None
+            return True, None, None
 
     def generate_fallback_config(self):
         key = 'disable_fallback_netcfg'
@@ -85,7 +85,7 @@ class Distro(distros.Distro):
         # For locale change to take effect, reboot is needed or we can restart
         # systemd-localed. This is equivalent of localectl
         cmd = ['systemctl', 'restart', 'systemd-localed']
-        _ret, _out, _err = self.exec_cmd(cmd)
+        self.exec_cmd(cmd)
 
     def install_packages(self, pkglist):
         # self.update_package_sources()
@@ -95,31 +95,31 @@ class Distro(distros.Distro):
         cmd = ['systemctl', 'restart', 'systemd-networkd', 'systemd-resolved']
         LOG.debug('Attempting to run bring up interfaces using command %s',
                   cmd)
-        ret, _out, _err = self.exec_cmd(cmd)
+        ret, _out, err = self.exec_cmd(cmd)
+        if ret:
+            LOG.error('Failed to bringup interfaces: %s', err)
         return ret
 
     def _write_hostname(self, hostname, filename):
-        conf = None
-        try:
-            # Try to update the previous one
-            # Let's see if we can read it first.
-            conf = HostnameConf(util.load_file(filename))
-            conf.parse()
-        except IOError:
-            pass
-        if not conf:
-            conf = HostnameConf('')
-        conf.set_hostname(hostname)
-        util.write_file(filename, str(conf), mode=0o644)
+        if filename and filename.endswith('/previous-hostname'):
+            util.write_file(filename, hostname)
+        else:
+            ret, _out, err = self.exec_cmd(['hostnamectl', 'set-hostname',
+                                            str(hostname)])
+            if ret:
+                LOG.warning(('Error while setting hostname: %s\n'
+                             'Given hostname: %s', err, hostname))
 
     def _read_system_hostname(self):
-        sys_hostname = self._read_hostname(self.hostname_conf_fn)
-        return (self.hostname_conf_fn, sys_hostname)
+        sys_hostname = self._read_hostname(self.systemd_hostname_conf_fn)
+        return (self.systemd_hostname_conf_fn, sys_hostname)
 
     def _read_hostname(self, filename, default=None):
-        _ret, out, _err = self.exec_cmd(['hostname'])
+        if filename and filename.endswith('/previous-hostname'):
+            return util.load_file(filename).strip()
 
-        return out if out else default
+        _ret, out, _err = self.exec_cmd(['hostname', '-f'])
+        return out.strip() if out else default
 
     def _get_localhost_ip(self):
         return '127.0.1.1'
@@ -128,7 +128,7 @@ class Distro(distros.Distro):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def package_command(self, command, args=None, pkgs=None):
-        if pkgs is None:
+        if not pkgs:
             pkgs = []
 
         cmd = ['tdnf', '-y']
@@ -142,8 +142,9 @@ class Distro(distros.Distro):
         pkglist = util.expand_package_list('%s-%s', pkgs)
         cmd.extend(pkglist)
 
-        # Allow the output of this to flow outwards (ie not be captured)
-        _ret, _out, _err = self.exec_cmd(cmd, capture=False)
+        ret, _out, err = self.exec_cmd(cmd)
+        if ret:
+            LOG.error('Error while installing packages: %s', err)
 
     def update_package_sources(self):
         self._runner.run('update-sources', self.package_command,
