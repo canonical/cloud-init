@@ -344,6 +344,40 @@ def http_with_retries(url, **kwargs) -> str:
     raise exc
 
 
+def build_minimal_ovf(
+        username: str,
+        hostname: str,
+        disableSshPwd: str) -> bytes:
+    OVF_ENV_TEMPLATE = textwrap.dedent('''\
+        <ns0:Environment xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
+         xmlns:ns1="http://schemas.microsoft.com/windowsazure"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <ns1:ProvisioningSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:LinuxProvisioningConfigurationSet>
+              <ns1:ConfigurationSetType>LinuxProvisioningConfiguration
+              </ns1:ConfigurationSetType>
+              <ns1:UserName>{username}</ns1:UserName>
+              <ns1:DisableSshPasswordAuthentication>{disableSshPwd}
+              </ns1:DisableSshPasswordAuthentication>
+              <ns1:HostName>{hostname}</ns1:HostName>
+            </ns1:LinuxProvisioningConfigurationSet>
+          </ns1:ProvisioningSection>
+          <ns1:PlatformSettingsSection>
+            <ns1:Version>1.0</ns1:Version>
+            <ns1:PlatformSettings>
+              <ns1:ProvisionGuestAgent>true</ns1:ProvisionGuestAgent>
+            </ns1:PlatformSettings>
+          </ns1:PlatformSettingsSection>
+        </ns0:Environment>
+        ''')
+    ret = OVF_ENV_TEMPLATE.format(
+        username=username,
+        hostname=hostname,
+        disableSshPwd=disableSshPwd)
+    return ret.encode('utf-8')
+
+
 class AzureEndpointHttpClient:
 
     headers = {
