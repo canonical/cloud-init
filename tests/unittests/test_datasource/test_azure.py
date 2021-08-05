@@ -2825,7 +2825,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     def test_check_if_nic_is_primary_retries_on_failures(
             self, m_dhcpv4, m_imds):
-        """Retry polling for network metadata on all failures except timeout"""
+        """Retry polling for network metadata on all failures except timeout
+        and network unreachable errors"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         lease = {
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
@@ -2854,10 +2855,17 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
                     error = url_helper.UrlError(cause=cause, code=410)
                     eth0Retries.append(exc_cb("No goal state.", error))
             else:
-                cause = requests.Timeout('Fake connection timeout')
                 for _ in range(0, 10):
-                    error = url_helper.UrlError(cause=cause)
-                    eth1Retries.append(exc_cb("Connection timeout", error))
+                    # We are expected to retry for a certain period for both
+                    # timeout errors and network unreachable errors.
+                    if _ < 5:
+                        cause = requests.Timeout('Fake connection timeout')
+                        error = url_helper.UrlError(cause=cause)
+                        eth1Retries.append(exc_cb("Connection timeout", error))
+                    else:
+                        cause = requests.ConnectionError('Network Unreachable')
+                        error = url_helper.UrlError(cause=cause)
+                        eth1Retries.append(exc_cb("Connection timeout", error))
                 # Should stop retrying after 10 retries
                 eth1Retries.append(exc_cb("Connection timeout", error))
                 raise cause
