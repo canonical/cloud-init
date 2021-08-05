@@ -343,10 +343,11 @@ def http_with_retries(url, **kwargs) -> str:
 
     raise exc
 
+
 def build_minimal_ovf(
         username: str,
         hostname: str,
-        disableSshPwd: str)  ->  bytes:
+        disableSshPwd: str) -> bytes:
     OVF_ENV_TEMPLATE = textwrap.dedent('''\
         <ns0:Environment xmlns:ns0="http://schemas.dmtf.org/ovf/environment/1"
          xmlns:ns1="http://schemas.microsoft.com/windowsazure"
@@ -375,6 +376,7 @@ def build_minimal_ovf(
         hostname=hostname,
         disableSshPwd=disableSshPwd)
     return ret.encode('utf-8')
+
 
 class AzureEndpointHttpClient:
 
