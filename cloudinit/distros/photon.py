@@ -91,15 +91,6 @@ class Distro(distros.Distro):
         # self.update_package_sources()
         self.package_command('install', pkgs=pkglist)
 
-    def _bring_up_interfaces(self, device_names):
-        cmd = ['systemctl', 'restart', 'systemd-networkd', 'systemd-resolved']
-        LOG.debug('Attempting to run bring up interfaces using command %s',
-                  cmd)
-        ret, _out, err = self.exec_cmd(cmd)
-        if ret:
-            LOG.error('Failed to bringup interfaces: %s', err)
-        return ret
-
     def _write_hostname(self, hostname, filename):
         if filename and filename.endswith('/previous-hostname'):
             util.write_file(filename, hostname)
