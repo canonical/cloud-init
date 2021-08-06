@@ -4,7 +4,7 @@ This test specifies a command to be executed by the ``snap`` module
 and then checks that if that command was executed during boot.
 
 (This is ported from
-``tests/cloud_tests/testcases/modules/runcmd.yaml``.)"""
+``tests/cloud_tests/testcases/modules/snap.yaml``.)"""
 
 import pytest
 
