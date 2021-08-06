@@ -125,9 +125,15 @@ def handle(_name, cfg, cloud, log, _args):
     See doc/examples/cloud-config-disk-setup.txt for documentation on the
     format.
     """
+    device_aliases = cfg.get("device_aliases", {})
+
+    def alias_to_device(cand):
+        name = device_aliases.get(cand)
+        return cloud.device_name_to_device(name or cand) or name
+
     disk_setup = cfg.get("disk_setup")
     if isinstance(disk_setup, dict):
-        update_disk_setup_devices(disk_setup, cloud.device_name_to_device)
+        update_disk_setup_devices(disk_setup, alias_to_device)
         log.debug("Partitioning disks: %s", str(disk_setup))
         for disk, definition in disk_setup.items():
             if not isinstance(definition, dict):
@@ -145,7 +151,7 @@ def handle(_name, cfg, cloud, log, _args):
     fs_setup = cfg.get("fs_setup")
     if isinstance(fs_setup, list):
         log.debug("setting up filesystems: %s", str(fs_setup))
-        update_fs_setup_devices(fs_setup, cloud.device_name_to_device)
+        update_fs_setup_devices(fs_setup, alias_to_device)
         for definition in fs_setup:
             if not isinstance(definition, dict):
                 log.warning("Invalid file system definition: %s" % definition)
@@ -174,7 +180,8 @@ def update_disk_setup_devices(disk_setup, tformer):
             del disk_setup[transformed]
 
         disk_setup[transformed] = disk_setup[origname]
-        disk_setup[transformed]['_origname'] = origname
+        if isinstance(disk_setup[transformed], dict):
+            disk_setup[transformed]['_origname'] = origname
         del disk_setup[origname]
         LOG.debug("updated disk_setup device entry '%s' to '%s'",
                   origname, transformed)

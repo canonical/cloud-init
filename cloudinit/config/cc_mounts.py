@@ -123,7 +123,7 @@ def _is_block_device(device_path, partition_path=None):
     return os.path.exists(sys_path)
 
 
-def sanitize_devname(startname, transformer, log):
+def sanitize_devname(startname, transformer, log, aliases=None):
     log.debug("Attempting to determine the real name of %s", startname)
 
     # workaround, allow user to specify 'ephemeral'
@@ -137,9 +137,14 @@ def sanitize_devname(startname, transformer, log):
         return startname
 
     device_path, partition_number = util.expand_dotted_devname(devname)
+    orig = device_path
+
+    if aliases:
+        device_path = aliases.get(device_path, device_path)
+        if orig != device_path:
+            log.debug("Mapped device alias %s to %s", orig, device_path)
 
     if is_meta_device_name(device_path):
-        orig = device_path
         device_path = transformer(device_path)
         if not device_path:
             return None
@@ -394,6 +399,8 @@ def handle(_name, cfg, cloud, log, _args):
             fstab_devs[toks[0]] = line
             fstab_lines.append(line)
 
+    device_aliases = cfg.get("device_aliases", {})
+
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
         if not isinstance(cfgmnt[i], list):
@@ -402,7 +409,8 @@ def handle(_name, cfg, cloud, log, _args):
             continue
 
         start = str(cfgmnt[i][0])
-        sanitized = sanitize_devname(start, cloud.device_name_to_device, log)
+        sanitized = sanitize_devname(start, cloud.device_name_to_device, log,
+                                     aliases=device_aliases)
         if sanitized != start:
             log.debug("changed %s => %s" % (start, sanitized))
 
@@ -444,7 +452,8 @@ def handle(_name, cfg, cloud, log, _args):
     # entry has the same device name
     for defmnt in defmnts:
         start = defmnt[0]
-        sanitized = sanitize_devname(start, cloud.device_name_to_device, log)
+        sanitized = sanitize_devname(start, cloud.device_name_to_device, log,
+                                     aliases=device_aliases)
         if sanitized != start:
             log.debug("changed default device %s => %s" % (start, sanitized))
 
