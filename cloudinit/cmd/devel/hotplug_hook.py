@@ -3,6 +3,7 @@
 import abc
 import argparse
 import os
+import sys
 import time
 
 from cloudinit import log
@@ -12,7 +13,7 @@ from cloudinit.net import activators, read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
 from cloudinit.stages import Init
-from cloudinit.sources import DataSource
+from cloudinit.sources import DataSource, DataSourceNotFoundException
 
 
 LOG = log.getLogger(__name__)
@@ -236,7 +237,13 @@ def handle_args(name, args):
     with hotplug_reporter:
         try:
             if args.hotplug_action == 'query':
-                hotplug_init.fetch(existing="trust")
+                try:
+                    hotplug_init.fetch(existing="trust")
+                except DataSourceNotFoundException:
+                    print(
+                        "Unable to determine hotplug state. No datasource "
+                        "detected")
+                    sys.exit(1)
                 enabled = is_enabled(hotplug_init, args.subsystem)
                 print('enabled' if enabled else 'disabled')
             else:
