@@ -38,6 +38,7 @@ def get_parser(parser=None):
     )
 
     subparsers = parser.add_subparsers(dest='hotplug_action')
+    subparsers.required = True
 
     subparsers.add_parser(
         'query',
