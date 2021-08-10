@@ -1029,8 +1029,9 @@ class DataSourceAzure(sources.DataSource):
 
             # Retry up to a certain limit for both timeout and network
             # unreachable errors.
-            if exc.cause and (isinstance(exc.cause, requests.Timeout) or
-                              isinstance(exc.cause, requests.ConnectionError)):
+            if exc.cause and isinstance(
+                exc.cause, (requests.Timeout, requests.ConnectionError)
+            ):
                 expected_errors_count = expected_errors_count + 1
                 return (expected_errors_count <= 10)
             return True
