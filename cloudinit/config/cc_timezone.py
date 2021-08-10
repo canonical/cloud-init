@@ -1,6 +1,8 @@
+# Copyright (C) 2021 Hewlett Packard Enterprise Development LP
 # Copyright (C) 2009-2010 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
+# Author: Jacob Salmela <jacob.salmela@hpe.com>
 # Author: Scott Moser <scott.moser@canonical.com>
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
@@ -46,4 +48,21 @@ def handle(name, cfg, cloud, log, args):
     # Let the distro handle settings its timezone
     cloud.distro.set_timezone(timezone)
 
+    if timezone == 'UTC':
+        pass
+    else:
+        timezone = 'LOCAL'
+
+    with open('/etc/adjtime', 'r') as file:
+        # read a list of lines into data
+        content = file.readlines()
+
+    hwclock_tz = timezone + '\n'
+
+    # now change the 3rd line
+    content[2] = hwclock_tz
+
+    # and write everything back
+    with open('/etc/adjtime', 'w') as file:
+        file.writelines(content)
 # vi: ts=4 expandtab
