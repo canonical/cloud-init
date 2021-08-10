@@ -4,11 +4,11 @@
 # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
-Name:           cloud-init
+Name:           metal-cloud-init
 Version:        {{rpm_upstream_version}}
 Release:        1{{subrelease}}%{?dist}
 Summary:        Cloud instance init scripts
-
+Provides:       cloud-init
 Group:          System/Management
 License:        Dual licensed GPLv3 or Apache 2.0
 URL:            http://launchpad.net/cloud-init
@@ -103,9 +103,9 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 # There doesn't seem to be an agreed upon place for these
 # although it appears the standard says /usr/lib but rpmbuild
 # will try /usr/lib64 ??
-/usr/lib/%{name}/uncloud-init
-/usr/lib/%{name}/write-ssh-key-fingerprints
-/usr/lib/%{name}/ds-identify
+/usr/lib/cloud-init/uncloud-init
+/usr/lib/cloud-init/write-ssh-key-fingerprints
+/usr/lib/cloud-init/ds-identify
 
 # udev rules
 /usr/lib/udev/rules.d/66-azure-ephemeral.rules
