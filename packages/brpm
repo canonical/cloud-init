@@ -172,14 +172,15 @@ def main():
             util.copy(p, util.abs_join(topdir, 'SOURCES', os.path.basename(p)))
 
         # Now build it!
+        default_build_metadata, _ = subp.subp(['git', 'rev-parse', '--short', 'HEAD'], capture=True)
+        if not os.environ.get('BUILD_METADATA'):
+            os.environ['BUILD_METADATA'] = default_build_metadata.rstrip()
         print("Running 'rpmbuild' in %r" % (topdir))
-
         if args.srpm:
-            cmd = ['rpmbuild', '-bs', '--nodeps', spec_fn]
+            cmd = ['rpmbuild', '-bs', '--define', f'_topdir {topdir}', '--nodeps', spec_fn]
         else:
-            cmd = ['rpmbuild', '-ba', spec_fn]
-
-        subp.subp(cmd, capture=capture)
+            cmd = ['rpmbuild', '-ba', '--define', f'_topdir {topdir}', spec_fn]
+        subp.subp(cmd, capture=capture, env={'BUILD_METADATA': default_build_metadata.rstrip()})
 
         # Copy the items built to our local dir
         globs = []
@@ -191,10 +192,8 @@ def main():
                                (util.abs_join(topdir, 'RPMS'))))
         globs.extend(glob.glob("%s/*.rpm" %
                                (util.abs_join(topdir, 'SRPMS'))))
-        for rpm_fn in globs:
-            tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
-            shutil.move(rpm_fn, tgt_fn)
-            print("Wrote out %s package %r" % (args.distro, tgt_fn))
+        shutil.move(topdir, os.getcwd())
+        print("Wrote out %s package %r" % (args.distro, os.getcwd()))
     finally:
         if workdir is not None:
             shutil.rmtree(workdir)

@@ -1,0 +1,56 @@
+@Library('csm-shared-library') _
+
+def isStable = env.TAG_NAME != null || env.BRANCH_NAME == 'main' ? true : false
+pipeline {
+  agent {
+    docker {
+        label "metal-gcp-builder"
+        image "arti.dev.cray.com/dstbuildenv-docker-master-local/cray-sle15sp2_build_environment:latest"
+        args "-u root -v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker --group-add 999"
+    }
+  }
+
+  options {
+    buildDiscarder(logRotator(numToKeepStr: "10"))
+    timestamps()
+  }
+
+  environment {
+    BUILD_METADATA = getRpmRevision(isStable: isStable)
+    GIT_REPO_NAME = getRepoName()
+  }
+
+  stages {
+
+    stage('Build: Dependencies') {
+      steps {
+        sh "git remote add upstream https://git.launchpad.net/cloud-init"
+        sh "git fetch upstream --tags"
+        sh "pip3 install -r requirements.txt"
+        sh "zypper --no-gpg-checks -n in -y --no-recommends --auto-agree-with-licenses fdupes python3-httpretty python3-pytest python3-pytest-cov"
+      }
+    }
+
+    stage('Build: RPM') {
+      steps {
+        sh "make rpm distro=suse"
+        sh "ls -lR rpmbuild"
+      }
+    }
+
+    stage('Publish') {
+      steps {
+        script {
+          // The cloud-init packages/brpm script moves all the built RPMs to the present working directory.
+          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "rpmbuild/RPMS/noarch/*.rpm", arch: "noarch", isStable: isStable)
+          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "rpmbuild/SRPMS/*.rpm", arch: "src", isStable: isStable)
+        }
+      }
+    }
+  }
+  post {
+        always {
+            sh "chown -R jenkins:jenkins ${env.WORKSPACE}"
+        }
+    }
+}

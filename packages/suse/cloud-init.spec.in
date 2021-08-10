@@ -18,6 +18,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 BuildArch:      noarch
 
+%global __python /usr/bin/python3
 
 {% for r in buildrequires %}
 BuildRequires:        {{r}}
@@ -48,12 +49,13 @@ end for
 {% endfor %}
 
 %build
-%{__python} setup.py build
+%{__python} -m pip install -q build
+%{__python} -m build
 
 %install
 %{__python} setup.py install \
-            --skip-build --root=%{buildroot} --prefix=%{_prefix} \
-            --record-rpm=INSTALLED_FILES --install-lib=%{python_sitelib} \
+            --root=%{buildroot} --prefix=%{_prefix} \
+            --record-rpm=INSTALLED_FILES \
             --init-system=systemd
 
 # Move udev rules
@@ -102,9 +104,9 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 # There doesn't seem to be an agreed upon place for these
 # although it appears the standard says /usr/lib but rpmbuild
 # will try /usr/lib64 ??
-/usr/lib/%{name}/uncloud-init
-/usr/lib/%{name}/write-ssh-key-fingerprints
-/usr/lib/%{name}/ds-identify
+/usr/lib/cloud-init/uncloud-init
+/usr/lib/cloud-init/write-ssh-key-fingerprints
+/usr/lib/cloud-init/ds-identify
 
 # udev rules
 /usr/lib/udev/rules.d/66-azure-ephemeral.rules
