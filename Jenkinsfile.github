@@ -1,0 +1,36 @@
+@Library('csm-shared-library') _
+
+def isStable = env.TAG_NAME != null || env.BRANCH_NAME == 'main' ? true : false
+pipeline {
+  agent {
+    label "metal-gcp-builder"
+  }
+
+  options {
+    buildDiscarder(logRotator(numToKeepStr: "10"))
+    timestamps()
+  }
+
+  environment {
+    BUILD_METADATA = getRpmRevision(isStable: isStable)
+    GIT_REPO_NAME = getRepoName()
+  }
+
+  stages {
+
+    stage('Build: RPM') {
+      steps {
+        sh "make rpm"
+      }
+    }
+
+    stage('Publish') {
+      steps {
+        script {
+          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "dist/rpmbuild/RPMS/noarch/*.rpm", arch: "x86_64", isStable: isStable)
+          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "dist/rpmbuild/SRPMS/*.rpm", arch: "src", isStable: isStable)
+        }
+      }
+    }
+  }
+}
