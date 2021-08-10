@@ -43,6 +43,7 @@ CFG_BUILTIN = {
         'Exoscale',
         'RbxCloud',
         'UpCloud',
+        'VMware',
         # At the end to act as a 'catch' when none of the above work...
         'None',
     ],

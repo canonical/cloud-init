@@ -649,6 +649,50 @@ class TestDsIdentify(DsIdentifyBase):
         """EC2: bobrightbox.com in product_serial is not brightbox'"""
         self._test_ds_not_found('Ec2-E24Cloud-negative')
 
+    def test_vmware_no_valid_transports(self):
+        """VMware: no valid transports"""
+        self._test_ds_not_found('VMware-NoValidTransports')
+
+    def test_vmware_envvar_no_data(self):
+        """VMware: envvar transport no data"""
+        self._test_ds_not_found('VMware-EnvVar-NoData')
+
+    def test_vmware_envvar_no_virt_id(self):
+        """VMware: envvar transport success if no virt id"""
+        self._test_ds_found('VMware-EnvVar-NoVirtID')
+
+    def test_vmware_envvar_activated_by_metadata(self):
+        """VMware: envvar transport activated by metadata"""
+        self._test_ds_found('VMware-EnvVar-Metadata')
+
+    def test_vmware_envvar_activated_by_userdata(self):
+        """VMware: envvar transport activated by userdata"""
+        self._test_ds_found('VMware-EnvVar-Userdata')
+
+    def test_vmware_envvar_activated_by_vendordata(self):
+        """VMware: envvar transport activated by vendordata"""
+        self._test_ds_found('VMware-EnvVar-Vendordata')
+
+    def test_vmware_guestinfo_no_data(self):
+        """VMware: guestinfo transport no data"""
+        self._test_ds_not_found('VMware-GuestInfo-NoData')
+
+    def test_vmware_guestinfo_no_virt_id(self):
+        """VMware: guestinfo transport fails if no virt id"""
+        self._test_ds_not_found('VMware-GuestInfo-NoVirtID')
+
+    def test_vmware_guestinfo_activated_by_metadata(self):
+        """VMware: guestinfo transport activated by metadata"""
+        self._test_ds_found('VMware-GuestInfo-Metadata')
+
+    def test_vmware_guestinfo_activated_by_userdata(self):
+        """VMware: guestinfo transport activated by userdata"""
+        self._test_ds_found('VMware-GuestInfo-Userdata')
+
+    def test_vmware_guestinfo_activated_by_vendordata(self):
+        """VMware: guestinfo transport activated by vendordata"""
+        self._test_ds_found('VMware-GuestInfo-Vendordata')
+
 
 class TestBSDNoSys(DsIdentifyBase):
     """Test *BSD code paths
@@ -1136,7 +1180,240 @@ VALID_CFG = {
     'Ec2-E24Cloud-negative': {
         'ds': 'Ec2',
         'files': {P_SYS_VENDOR: 'e24cloudyday\n'},
-    }
+    },
+    'VMware-NoValidTransports': {
+        'ds': 'VMware',
+        'mocks': [
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    'VMware-EnvVar-NoData': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo',
+                'ret': 0,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_metadata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_userdata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_vendordata',
+                'ret': 1,
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    'VMware-EnvVar-NoVirtID': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo',
+                'ret': 0,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_metadata',
+                'ret': 0,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_userdata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_vendordata',
+                'ret': 1,
+            },
+        ],
+    },
+    'VMware-EnvVar-Metadata': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo',
+                'ret': 0,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_metadata',
+                'ret': 0,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_userdata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_vendordata',
+                'ret': 1,
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    'VMware-EnvVar-Userdata': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo',
+                'ret': 0,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_metadata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_userdata',
+                'ret': 0,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_vendordata',
+                'ret': 1,
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    'VMware-EnvVar-Vendordata': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo',
+                'ret': 0,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_metadata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_userdata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_has_envvar_vmx_guestinfo_vendordata',
+                'ret': 0,
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    'VMware-GuestInfo-NoData': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_rpctool',
+                'ret': 0,
+                'out': '/usr/bin/vmware-rpctool',
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_metadata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_userdata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_vendordata',
+                'ret': 1,
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    'VMware-GuestInfo-NoVirtID': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_rpctool',
+                'ret': 0,
+                'out': '/usr/bin/vmware-rpctool',
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_metadata',
+                'ret': 0,
+                'out': '---',
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_userdata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_vendordata',
+                'ret': 1,
+            },
+        ],
+    },
+    'VMware-GuestInfo-Metadata': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_rpctool',
+                'ret': 0,
+                'out': '/usr/bin/vmware-rpctool',
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_metadata',
+                'ret': 0,
+                'out': '---',
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_userdata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_vendordata',
+                'ret': 1,
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    'VMware-GuestInfo-Userdata': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_rpctool',
+                'ret': 0,
+                'out': '/usr/bin/vmware-rpctool',
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_metadata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_userdata',
+                'ret': 0,
+                'out': '---',
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_vendordata',
+                'ret': 1,
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
+    'VMware-GuestInfo-Vendordata': {
+        'ds': 'VMware',
+        'mocks': [
+            {
+                'name': 'vmware_has_rpctool',
+                'ret': 0,
+                'out': '/usr/bin/vmware-rpctool',
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_metadata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_userdata',
+                'ret': 1,
+            },
+            {
+                'name': 'vmware_rpctool_guestinfo_vendordata',
+                'ret': 0,
+                'out': '---',
+            },
+            MOCK_VIRT_IS_VMWARE,
+        ],
+    },
 }
 
 # vi: ts=4 expandtab

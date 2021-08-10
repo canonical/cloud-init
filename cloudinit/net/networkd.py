@@ -246,7 +246,7 @@ class Renderer(renderer.Renderer):
 
 
 def available(target=None):
-    expected = ['systemctl']
+    expected = ['ip', 'systemctl']
     search = ['/usr/bin', '/bin']
     for p in expected:
         if not subp.which(p, search=search, target=target):
