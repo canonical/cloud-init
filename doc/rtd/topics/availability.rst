@@ -27,7 +27,7 @@ OpenBSD and DragonFlyBSD:
 - NetBSD
 - OpenBSD
 - Photon OS
-- RHEL/CentOS
+- RHEL/CentOS/AlmaLinux/Rocky Linux/EuroLinux
 - SLES/openSUSE
 - Ubuntu
 
@@ -67,5 +67,6 @@ Additionally, cloud-init is supported on these private clouds:
 - LXD
 - KVM
 - Metal-as-a-Service (MAAS)
+- VMware
 
 .. vi: textwidth=79

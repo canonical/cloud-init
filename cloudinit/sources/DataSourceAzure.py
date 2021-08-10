@@ -45,7 +45,8 @@ from cloudinit.sources.helpers.azure import (
     is_byte_swapped,
     dhcp_log_cb,
     push_log_to_kvp,
-    report_failure_to_fabric)
+    report_failure_to_fabric,
+    build_minimal_ovf)
 
 LOG = logging.getLogger(__name__)
 
@@ -539,6 +540,18 @@ class DataSourceAzure(sources.DataSource):
                 imds_disable_password
             )
             crawled_data['metadata']['disable_password'] = imds_disable_password  # noqa: E501
+
+        if metadata_source == 'IMDS' and not crawled_data['files']:
+            try:
+                contents = build_minimal_ovf(
+                    username=imds_username,
+                    hostname=imds_hostname,
+                    disableSshPwd=imds_disable_password)
+                crawled_data['files'] = {'ovf-env.xml': contents}
+            except Exception as e:
+                report_diagnostic_event(
+                    "Failed to construct OVF from IMDS data %s" % e,
+                    logger_func=LOG.debug)
 
         # only use userdata from imds if OVF did not provide custom data
         # userdata provided by IMDS is always base64 encoded

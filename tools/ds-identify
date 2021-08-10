@@ -125,7 +125,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud"
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -1362,6 +1362,80 @@ dscheck_Vultr() {
     fi
 
     return $DS_NOT_FOUND
+}
+
+vmware_has_envvar_vmx_guestinfo() {
+    [ -n "${VMX_GUESTINFO:-}" ]
+}
+
+vmware_has_envvar_vmx_guestinfo_metadata() {
+    [ -n "${VMX_GUESTINFO_METADATA:-}" ]
+}
+
+vmware_has_envvar_vmx_guestinfo_userdata() {
+    [ -n "${VMX_GUESTINFO_USERDATA:-}" ]
+}
+
+vmware_has_envvar_vmx_guestinfo_vendordata() {
+    [ -n "${VMX_GUESTINFO_VENDORDATA:-}" ]
+}
+
+vmware_has_rpctool() {
+    command -v vmware-rpctool >/dev/null 2>&1
+}
+
+vmware_rpctool_guestinfo_metadata() {
+    vmware-rpctool "info-get guestinfo.metadata"
+}
+
+vmware_rpctool_guestinfo_userdata() {
+    vmware-rpctool "info-get guestinfo.userdata"
+}
+
+vmware_rpctool_guestinfo_vendordata() {
+    vmware-rpctool "info-get guestinfo.vendordata"
+}
+
+dscheck_VMware() {
+    # Checks to see if there is valid data for the VMware datasource.
+    # The data transports are checked in the following order:
+    #
+    #   * envvars
+    #   * guestinfo
+    #
+    # Please note when updating this function with support for new data
+    # transports, the order should match the order in the _get_data
+    # function from the file DataSourceVMware.py.
+
+    # Check to see if running in a container and the VMware
+    # datasource is configured via environment variables.
+    if vmware_has_envvar_vmx_guestinfo; then
+        if vmware_has_envvar_vmx_guestinfo_metadata || \
+            vmware_has_envvar_vmx_guestinfo_userdata || \
+            vmware_has_envvar_vmx_guestinfo_vendordata; then
+            return "${DS_FOUND}"
+        fi
+    fi
+
+    # Do not proceed unless the detected platform is VMware.
+    if [ ! "${DI_VIRT}" = "vmware" ]; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # Do not proceed if the vmware-rpctool command is not present.
+    if ! vmware_has_rpctool; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # Activate the VMware datasource only if any of the fields used
+    # by the datasource are present in the guestinfo table.
+    if { vmware_rpctool_guestinfo_metadata || \
+         vmware_rpctool_guestinfo_userdata || \
+         vmware_rpctool_guestinfo_vendordata; } >/dev/null 2>&1; then
+        return "${DS_FOUND}"
+    fi
+
+    return "${DS_NOT_FOUND}"
 }
 
 collect_info() {
