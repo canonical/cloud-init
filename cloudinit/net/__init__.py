@@ -313,11 +313,11 @@ def is_netfail_standby(devname, driver=None):
 def is_renamed(devname):
     """
     /* interface name assignment types (sysfs name_assign_type attribute) */
-    #define NET_NAME_UNKNOWN	0	/* unknown origin (not exposed to user) */
-    #define NET_NAME_ENUM		1	/* enumerated by kernel */
-    #define NET_NAME_PREDICTABLE	2	/* predictably named by the kernel */
-    #define NET_NAME_USER		3	/* provided by user-space */
-    #define NET_NAME_RENAMED	4	/* renamed by user-space */
+    #define NET_NAME_UNKNOWN      0  /* unknown origin (not exposed to user) */
+    #define NET_NAME_ENUM         1  /* enumerated by kernel */
+    #define NET_NAME_PREDICTABLE  2  /* predictably named by the kernel */
+    #define NET_NAME_USER         3  /* provided by user-space */
+    #define NET_NAME_RENAMED      4  /* renamed by user-space */
     """
     name_assign_type = read_sys_net_safe(devname, 'name_assign_type')
     if name_assign_type and name_assign_type in ['3', '4']:
