@@ -2860,12 +2860,10 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
                     # timeout errors and network unreachable errors.
                     if _ < 5:
                         cause = requests.Timeout('Fake connection timeout')
-                        error = url_helper.UrlError(cause=cause)
-                        eth1Retries.append(exc_cb("Connection timeout", error))
                     else:
                         cause = requests.ConnectionError('Network Unreachable')
-                        error = url_helper.UrlError(cause=cause)
-                        eth1Retries.append(exc_cb("Connection timeout", error))
+                    error = url_helper.UrlError(cause=cause)
+                    eth1Retries.append(exc_cb("Connection timeout", error))
                 # Should stop retrying after 10 retries
                 eth1Retries.append(exc_cb("Connection timeout", error))
                 raise cause
