@@ -11,6 +11,7 @@ ifeq ($(distro),)
 endif
 READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-failed)
 CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
+BUILD_DIR ?= $(PWD)/dist/rpmbuild
 
 
 all: check
