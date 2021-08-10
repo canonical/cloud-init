@@ -177,8 +177,7 @@ def main():
         if args.srpm:
             cmd = ['rpmbuild', '-bs', '--nodeps', spec_fn]
         else:
-            cmd = ['rpmbuild', '-ba', spec_fn]
-
+            cmd = ['rpmbuild', '-ba', '--define', f'_topdir {topdir}', spec_fn]
         subp.subp(cmd, capture=capture)
 
         # Copy the items built to our local dir

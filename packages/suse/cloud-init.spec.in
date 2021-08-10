@@ -18,6 +18,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 BuildArch:      noarch
 
+%global __python /usr/bin/python3
 
 {% for r in buildrequires %}
 BuildRequires:        {{r}}

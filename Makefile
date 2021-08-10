@@ -9,7 +9,6 @@ PIP_INSTALL := pip3 install
 ifeq ($(distro),)
   distro = redhat
 endif
-
 READ_VERSION=$(shell $(PYTHON) $(CWD)/tools/read-version || echo read-version-failed)
 CODE_VERSION=$(shell $(PYTHON) -c "from cloudinit import version; print(version.version_string())")
 
@@ -34,6 +33,9 @@ ci-deps-ubuntu:
 
 ci-deps-centos:
 	@$(PYTHON) $(CWD)/tools/read-dependencies --distro centos --test-distro
+
+ci-deps-suse:
+	@$(PYTHON) $(CWD)/tools/read-dependencies --distro suse --test-distro
 
 pip-requirements:
 	@echo "Installing cloud-init dependencies..."
