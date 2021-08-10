@@ -1,25 +1,65 @@
 #cloud-config
 #
-# This is an example file to automatically setup and run puppetd
+# This is an example file to automatically setup and run puppet
 # when the instance boots for the first time.
 # Make sure that this file is valid yaml before starting instances.
 # It should be passed as user-data when starting the instance.
 puppet:
+  # Boolean: whether or not to install puppet (default: true)
+  install: true
+
+  # A specific version to pass to the installer script or package manager
+  version: "7.7.0"
+
+  # Valid values are 'packages' and 'aio' (default: 'packages')
+  install_type: "packages"
+
+  # Puppet collection to install if 'install_type' is 'aio'
+  collection: "puppet7"
+
+  # Boolean: whether or not to remove the puppetlabs repo after installation
+  # if 'install_type' is 'aio' (default: true)
+  cleanup: true
+
+  # If 'install_type' is 'aio', change the url to the install script
+  aio_install_url: "https://raw.githubusercontent.com/puppetlabs/install-puppet/main/install.sh"
+
+  # Path to the puppet config file (default: depends on 'install_type')
+  conf_file: "/etc/puppet/puppet.conf"
+
+  # Path to the puppet SSL directory (default: depends on 'install_type')
+  ssl_dir: "/var/lib/puppet/ssl"
+
+  # Path to the CSR attributes file (default: depends on 'install_type')
+  csr_attributes_path: "/etc/puppet/csr_attributes.yaml"
+
+  # The name of the puppet package to install (no-op if 'install_type' is 'aio')
+  package_name: "puppet"
+
+  # Boolean: whether or not to run puppet after configuration finishes
+  # (default: false)
+  exec: false
+
+  # A list of arguments to pass to 'puppet agent' if 'exec' is true
+  # (default: ['--test'])
+  exec_args: ['--test']
+
   # Every key present in the conf object will be added to puppet.conf:
   # [name]
   # subkey=value
   #
   # For example the configuration below will have the following section
   # added to puppet.conf:
-  # [puppetd]
-  # server=puppetmaster.example.org
+  # [main]
+  # server=puppetserver.example.org
   # certname=i-0123456.ip-X-Y-Z.cloud.internal
   #
-  # The puppmaster ca certificate will be available in 
-  # /var/lib/puppet/ssl/certs/ca.pem
+  # The puppetserver ca certificate will be available in
+  # /var/lib/puppet/ssl/certs/ca.pem if using distro packages
+  # or /etc/puppetlabs/puppet/ssl/certs/ca.pem if using AIO packages.
   conf:
     agent:
-      server: "puppetmaster.example.org"
+      server: "puppetserver.example.org"
       # certname supports substitutions at runtime:
       #   %i: instanceid 
       #       Example: i-0123456
@@ -29,11 +69,13 @@ puppet:
       # NB: the certname will automatically be lowercased as required by puppet
       certname: "%i.%f"
     # ca_cert is a special case. It won't be added to puppet.conf.
-    # It holds the puppetmaster certificate in pem format. 
+    # It holds the puppetserver certificate in pem format.
     # It should be a multi-line string (using the | yaml notation for 
     # multi-line strings).
-    # The puppetmaster certificate is located in 
-    # /var/lib/puppet/ssl/ca/ca_crt.pem on the puppetmaster host.
+    # The puppetserver certificate is located in
+    # /var/lib/puppet/ssl/ca/ca_crt.pem on the puppetserver host if using
+    # distro packages or /etc/puppetlabs/puppet/ssl/ca/ca_crt.pem if using AIO
+    # packages.
     #
     ca_cert: |
       -----BEGIN CERTIFICATE-----
