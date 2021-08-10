@@ -158,6 +158,12 @@ msgstr ""
 #. Type: multiselect
 #. Choices
 #: ../cloud-init.templates:1001
+msgid "VMware: reads data from guestinfo table or env vars"
+msgstr ""
+
+#. Type: multiselect
+#. Choices
+#: ../cloud-init.templates:1001
 msgid "Vultr: Vultr Cloud"
 msgstr ""
 
