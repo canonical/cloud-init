@@ -33,7 +33,9 @@ pipeline {
 
     stage('Build: RPM') {
       steps {
+        sh "[ -d rpmbuild ] && rm -rf rpmbuild"
         sh "make rpm distro=suse"
+        sh "ls -lR rpmbuild"
       }
     }
 
@@ -41,8 +43,8 @@ pipeline {
       steps {
         script {
           // The cloud-init packages/brpm script moves all the built RPMs to the present working directory.
-          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "*.noarch.rpm", arch: "noarch", isStable: isStable)
-          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "*.src.rpm", arch: "src", isStable: isStable)
+          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "rpmbuild/RPMS/noarch/*.rpm", arch: "noarch", isStable: isStable)
+          publishCsmRpms(component: env.GIT_REPO_NAME, pattern: "rpmbuild/SRPMS/*.rpm", arch: "src", isStable: isStable)
         }
       }
     }

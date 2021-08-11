@@ -175,7 +175,7 @@ def main():
         print("Running 'rpmbuild' in %r" % (topdir))
 
         if args.srpm:
-            cmd = ['rpmbuild', '-bs', '--nodeps', spec_fn]
+            cmd = ['rpmbuild', '-bs', '--define', f'_topdir {topdir}', '--nodeps', spec_fn]
         else:
             cmd = ['rpmbuild', '-ba', '--define', f'_topdir {topdir}', spec_fn]
         subp.subp(cmd, capture=capture)
@@ -190,10 +190,8 @@ def main():
                                (util.abs_join(topdir, 'RPMS'))))
         globs.extend(glob.glob("%s/*.rpm" %
                                (util.abs_join(topdir, 'SRPMS'))))
-        for rpm_fn in globs:
-            tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
-            shutil.move(rpm_fn, tgt_fn)
-            print("Wrote out %s package %r" % (args.distro, tgt_fn))
+        shutil.move(topdir, os.getcwd())
+        print("Wrote out %s package %r" % (args.distro, os.getcwd()))
     finally:
         if workdir is not None:
             shutil.rmtree(workdir)
