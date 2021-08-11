@@ -57,6 +57,8 @@
    },
    "suse" : {
       "renames" : {
+         "jinja2": "python3-Jinja2",
+         "pyyaml": "python3-PyYAML"
       },
       "build-requires" : [
          "fdupes",

@@ -33,7 +33,6 @@ pipeline {
 
     stage('Build: RPM') {
       steps {
-        sh "[ -d rpmbuild ] && rm -rf rpmbuild"
         sh "make rpm distro=suse"
         sh "ls -lR rpmbuild"
       }
