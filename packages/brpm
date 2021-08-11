@@ -172,13 +172,15 @@ def main():
             util.copy(p, util.abs_join(topdir, 'SOURCES', os.path.basename(p)))
 
         # Now build it!
+        default_build_metadata, _ = subp.subp(['git', 'rev-parse', '--short', 'HEAD'], capture=True)
+        if not os.environ.get('BUILD_METADATA'):
+            os.environ['BUILD_METADATA'] = default_build_metadata.rstrip()
         print("Running 'rpmbuild' in %r" % (topdir))
-
         if args.srpm:
             cmd = ['rpmbuild', '-bs', '--define', f'_topdir {topdir}', '--nodeps', spec_fn]
         else:
             cmd = ['rpmbuild', '-ba', '--define', f'_topdir {topdir}', spec_fn]
-        subp.subp(cmd, capture=capture)
+        subp.subp(cmd, capture=capture, env={'BUILD_METADATA': default_build_metadata.rstrip()})
 
         # Copy the items built to our local dir
         globs = []
