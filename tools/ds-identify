@@ -141,6 +141,7 @@ error() {
     debug 0 "$@"
     stderr "$@"
 }
+
 warn() {
     set -- "WARN:" "$@"
     debug 0 "$@"
@@ -344,7 +345,6 @@ geom_label_status_as() {
     return $ret
 }
 
-
 read_fs_info_freebsd() {
     local oifs="$IFS" line="" delim=","
     local ret=0 labels="" dev="" label="" ftype="" isodevs=""
@@ -404,7 +404,6 @@ cached() {
     [ -n "$1" ] && _RET="$1" && return || return 1
 }
 
-
 detect_virt() {
     local virt="${UNAVAILABLE}" r="" out=""
     if [ -d /run/systemd ]; then
@@ -450,7 +449,7 @@ detect_virt() {
 read_virt() {
     cached "$DI_VIRT" && return 0
     detect_virt
-    DI_VIRT=${_RET}
+    DI_VIRT="$(echo "${_RET}" | tr '[:upper:]' '[:lower:]')"
 }
 
 is_container() {
@@ -1384,16 +1383,20 @@ vmware_has_rpctool() {
     command -v vmware-rpctool >/dev/null 2>&1
 }
 
+vmware_rpctool_guestinfo() {
+    vmware-rpctool "info-get guestinfo.${1}" 2>/dev/null | grep "[[:alnum:]]"
+}
+
 vmware_rpctool_guestinfo_metadata() {
-    vmware-rpctool "info-get guestinfo.metadata"
+    vmware_rpctool_guestinfo "metadata"
 }
 
 vmware_rpctool_guestinfo_userdata() {
-    vmware-rpctool "info-get guestinfo.userdata"
+    vmware_rpctool_guestinfo "userdata"
 }
 
 vmware_rpctool_guestinfo_vendordata() {
-    vmware-rpctool "info-get guestinfo.vendordata"
+    vmware_rpctool_guestinfo "vendordata"
 }
 
 dscheck_VMware() {
