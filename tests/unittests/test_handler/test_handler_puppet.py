@@ -5,7 +5,6 @@ from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
 from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase, mock
 
-import httpretty
 import logging
 import textwrap
 
