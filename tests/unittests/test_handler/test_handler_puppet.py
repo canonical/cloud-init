@@ -309,62 +309,45 @@ class TestPuppetHandle(CiTestCase):
             m_subp.call_args_list)
 
 
+URL_MOCK = mock.Mock()
+URL_MOCK.contents = b'#!/bin/bash\necho "Hi Mom"'
+
+
+@mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=(None, None))
+@mock.patch(
+    'cloudinit.config.cc_puppet.url_helper.readurl',
+    return_value=URL_MOCK, autospec=True,
+)
 class TestInstallPuppetAio(HttprettyTestCase):
-
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp',
-                return_value=(None, None))
-    def test_install_with_default_arguments(self, m_subp):
+    def test_install_with_default_arguments(self, m_readurl, m_subp):
         """Install AIO with no arguments"""
-        response = b'#!/bin/bash\necho "Hi Mom"'
-        httpretty.register_uri(
-            httpretty.GET, cc_puppet.AIO_INSTALL_URL,
-            body=response, status=200)
-
         cc_puppet.install_puppet_aio()
 
         self.assertEqual(
             [mock.call([mock.ANY, '--cleanup'], capture=False)],
             m_subp.call_args_list)
 
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp',
-                return_value=(None, None))
-    def test_install_with_custom_url(self, m_subp):
+    def test_install_with_custom_url(self, m_readurl, m_subp):
         """Install AIO from custom URL"""
-        response = b'#!/bin/bash\necho "Hi Mom"'
-        url = 'http://custom.url/path/to/script.sh'
-        httpretty.register_uri(
-            httpretty.GET, url, body=response, status=200)
-
         cc_puppet.install_puppet_aio('http://custom.url/path/to/script.sh')
+        m_readurl.assert_called_with(
+            url='http://custom.url/path/to/script.sh',
+            retries=5)
 
         self.assertEqual(
             [mock.call([mock.ANY, '--cleanup'], capture=False)],
             m_subp.call_args_list)
 
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp',
-                return_value=(None, None))
-    def test_install_with_version(self, m_subp):
+    def test_install_with_version(self, m_readurl, m_subp):
         """Install AIO with specific version"""
-        response = b'#!/bin/bash\necho "Hi Mom"'
-        httpretty.register_uri(
-            httpretty.GET, cc_puppet.AIO_INSTALL_URL,
-            body=response, status=200)
-
         cc_puppet.install_puppet_aio(cc_puppet.AIO_INSTALL_URL, '7.6.0')
 
         self.assertEqual(
             [mock.call([mock.ANY, '-v', '7.6.0', '--cleanup'], capture=False)],
             m_subp.call_args_list)
 
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp',
-                return_value=(None, None))
-    def test_install_with_collection(self, m_subp):
+    def test_install_with_collection(self, m_readurl, m_subp):
         """Install AIO with specific collection"""
-        response = b'#!/bin/bash\necho "Hi Mom"'
-        httpretty.register_uri(
-            httpretty.GET, cc_puppet.AIO_INSTALL_URL,
-            body=response, status=200)
-
         cc_puppet.install_puppet_aio(
             cc_puppet.AIO_INSTALL_URL, None, 'puppet6-nightly')
 
@@ -373,15 +356,8 @@ class TestInstallPuppetAio(HttprettyTestCase):
                        capture=False)],
             m_subp.call_args_list)
 
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp',
-                return_value=(None, None))
-    def test_install_with_no_cleanup(self, m_subp):
+    def test_install_with_no_cleanup(self, m_readurl, m_subp):
         """Install AIO with no cleanup"""
-        response = b'#!/bin/bash\necho "Hi Mom"'
-        httpretty.register_uri(
-            httpretty.GET, cc_puppet.AIO_INSTALL_URL,
-            body=response, status=200)
-
         cc_puppet.install_puppet_aio(
             cc_puppet.AIO_INSTALL_URL, None, None, False)
 
