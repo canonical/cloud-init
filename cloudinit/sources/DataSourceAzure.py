@@ -923,6 +923,16 @@ class DataSourceAzure(sources.DataSource):
 
             sleep(sleep_duration)
 
+            # Since we just did a unbind and bind, check again after sleep
+            # but before doing unbind and bind again to avoid races where the
+            # link might take a slight delay after bind to be up.
+            if self.distro.networking.is_up(ifname):
+                msg = ("Link is up after checking after sleeping for %d secs"
+                       " after %d attempts" %
+                       (sleep_duration, attempts))
+                report_diagnostic_event(msg, logger_func=LOG.info)
+                return
+
     @azure_ds_telemetry_reporter
     def _create_report_ready_marker(self):
         path = REPORTED_READY_MARKER_FILE
