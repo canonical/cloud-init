@@ -11,6 +11,7 @@ import ipaddress
 import logging
 import os
 import re
+from typing import Any, MutableMapping, Union
 
 from cloudinit import subp
 from cloudinit import util
@@ -971,18 +972,28 @@ def get_ib_hwaddrs_by_interface():
     return ret
 
 
-def has_url_connectivity(url):
+def has_url_connectivity(
+    url_data: Union[MutableMapping[str, Any], str]
+) -> bool:
     """Return true when the instance has access to the provided URL
 
     Logs a warning if url is not the expected format.
     """
+    if isinstance(url_data, str):
+        url_data = {'url': url_data}
+    if 'url' not in url_data:
+        LOG.warning(
+            "Ignoring connectivity check. No 'url' to check in %s", url_data)
+    url = url_data['url']
     if not any([url.startswith('http://'), url.startswith('https://')]):
         LOG.warning(
             "Ignoring connectivity check. Expected URL beginning with http*://"
             " received '%s'", url)
         return False
+    if 'timeout' not in url_data:
+        url_data['timeout'] = 5
     try:
-        readurl(url, timeout=5)
+        readurl(**url_data)
     except UrlError:
         return False
     return True
