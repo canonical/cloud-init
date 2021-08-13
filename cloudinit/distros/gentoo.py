@@ -149,12 +149,12 @@ class Distro(distros.Distro):
         else:
             return distros.Distro._bring_up_interfaces(self, device_names)
 
-    def _write_hostname(self, your_hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         conf = None
         try:
             # Try to update the previous one
             # so lets see if we can read it first.
-            conf = self._read_hostname_conf(out_fn)
+            conf = self._read_hostname_conf(filename)
         except IOError:
             pass
         if not conf:
@@ -163,8 +163,8 @@ class Distro(distros.Distro):
         # Many distro's format is the hostname by itself, and that is the
         # way HostnameConf works but gentoo expects it to be in
         #     hostname="the-actual-hostname"
-        conf.set_hostname('hostname="%s"' % your_hostname)
-        util.write_file(out_fn, str(conf), 0o644)
+        conf.set_hostname('hostname="%s"' % hostname)
+        util.write_file(filename, str(conf), 0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)

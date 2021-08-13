@@ -49,8 +49,8 @@ OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
-    'redhat': ['almalinux', 'amazon', 'centos', 'fedora', 'photon', 'rhel',
-               'rocky'],
+    'redhat': ['almalinux', 'amazon', 'centos', 'eurolinux', 'fedora',
+               'photon', 'rhel', 'rocky', 'virtuozzo'],
     'suse': ['opensuse', 'sles'],
 }
 
@@ -147,7 +147,7 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         return uses_systemd()
 
     @abc.abstractmethod
-    def package_command(self, cmd, args=None, pkgs=None):
+    def package_command(self, command, args=None, pkgs=None):
         raise NotImplementedError()
 
     @abc.abstractmethod

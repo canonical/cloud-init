@@ -8,6 +8,7 @@ from cloudinit import subp
 from cloudinit import util
 from cloudinit.net.eni import available as eni_available
 from cloudinit.net.netplan import available as netplan_available
+from cloudinit.net.networkd import available as networkd_available
 from cloudinit.net.network_state import NetworkState
 from cloudinit.net.sysconfig import NM_CFG_FILE
 
@@ -213,12 +214,38 @@ class NetplanActivator(NetworkActivator):
         return _alter_interface(NetplanActivator.NETPLAN_CMD, 'all')
 
 
+class NetworkdActivator(NetworkActivator):
+    @staticmethod
+    def available(target=None) -> bool:
+        """Return true if ifupdown can be used on this system."""
+        return networkd_available(target=target)
+
+    @staticmethod
+    def bring_up_interface(device_name: str) -> bool:
+        """ Return True is successful, otherwise return False """
+        cmd = ['ip', 'link', 'set', 'up', device_name]
+        return _alter_interface(cmd, device_name)
+
+    @staticmethod
+    def bring_up_all_interfaces(network_state: NetworkState) -> bool:
+        """ Return True is successful, otherwise return False """
+        cmd = ['systemctl', 'restart', 'systemd-networkd', 'systemd-resolved']
+        return _alter_interface(cmd, 'all')
+
+    @staticmethod
+    def bring_down_interface(device_name: str) -> bool:
+        """ Return True is successful, otherwise return False """
+        cmd = ['ip', 'link', 'set', 'down', device_name]
+        return _alter_interface(cmd, device_name)
+
+
 # This section is mostly copied and pasted from renderers.py. An abstract
 # version to encompass both seems overkill at this point
 DEFAULT_PRIORITY = [
     IfUpDownActivator,
     NetworkManagerActivator,
     NetplanActivator,
+    NetworkdActivator,
 ]
 
 

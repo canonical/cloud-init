@@ -358,8 +358,11 @@ class DataSourceOVF(sources.DataSource):
                 if contents:
                     break
             if contents:
-                (md, ud, cfg) = read_ovf_environment(contents)
+                read_network = ('com.vmware.guestinfo' == name)
+                (md, ud, cfg) = read_ovf_environment(contents, read_network)
                 self.environment = contents
+                if 'network-config' in md and md['network-config']:
+                    self._network_config = md['network-config']
                 found.append(name)
 
         # There was no OVF transports found
@@ -507,13 +510,14 @@ def read_vmware_imc(config):
 
 # This will return a dict with some content
 #  meta-data, user-data, some config
-def read_ovf_environment(contents):
+def read_ovf_environment(contents, read_network=False):
     props = get_properties(contents)
     md = {}
     cfg = {}
     ud = None
     cfg_props = ['password']
     md_props = ['seedfrom', 'local-hostname', 'public-keys', 'instance-id']
+    network_props = ['network-config']
     for (prop, val) in props.items():
         if prop == 'hostname':
             prop = "local-hostname"
@@ -521,6 +525,12 @@ def read_ovf_environment(contents):
             md[prop] = val
         elif prop in cfg_props:
             cfg[prop] = val
+        elif prop in network_props and read_network:
+            try:
+                network_config = base64.b64decode(val.encode())
+                md[prop] = safeload_yaml_or_dict(network_config).get('network')
+            except Exception:
+                LOG.debug("Ignore network-config in wrong format")
         elif prop == "user-data":
             try:
                 ud = base64.b64decode(val.encode())

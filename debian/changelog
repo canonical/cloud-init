@@ -1,3 +1,46 @@
+cloud-init (21.2-69-g65607405-0ubuntu1) impish; urgency=medium
+
+  * d/cloud-init.templates: Add VMware to default datasource_list
+  * d/control: Add dependencies on python3-netifaces for vmware ds
+  * New upstream snapshot.
+    - Only invoke hotplug socket when functionality is enabled (#952)
+    - Revert unnecesary lcase in ds-identify (#978) [Andrew Kutz]
+    - cc_resolv_conf: fix typos (#969) [Shreenidhi Shedi]
+    - Replace broken httpretty tests with mock (SC-324) (#973)
+    - Azure: Check if interface is up after sleep when trying to bring it up
+      (#972) [aswinrajamannar]
+    - Update dscheck_VMware's rpctool check (#970) [Shreenidhi Shedi]
+    - Azure: Logging the detected interfaces (#968) [Moustafa Moustafa]
+    - Change netifaces dependency to 0.10.4 (#965) [Andrew Kutz]
+    - Azure: Limit polling network metadata on connection errors (#961)
+      [aswinrajamannar]
+    - Update inconsistent indentation (#962) [Andrew Kutz]
+    - cc_puppet: support AIO installations and more (#960) [Gabriel Nagy]
+    - Add Puppet contributors to CLA signers (#964) [Noah Fontes]
+    - Datasource for VMware (#953) [Andrew Kutz]
+    - photon: refactor hostname handling and add networkd activator (#958)
+      [sshedi]
+    - Stop copying ssh system keys and check folder permissions (#956)
+      [Emanuele Giuseppe Esposito]
+    - testing: port remaining cloud tests to integration testing framework
+      (SC-191) (#955)
+    - generate contents for ovf-env.xml when provisioning via IMDS (#959)
+      [Anh Vo]
+    - Add support for EuroLinux 7 && EuroLinux 8 (#957) [Aleksander Baranowski]
+    - Implementing device_aliases as described in docs (#945)
+      [Mal Graty] (LP: #1867532)
+    - testing: fix test_ssh_import_id.py (#954)
+    - Add ability to manage fallback network config on PhotonOS (#941) [sshedi]
+    - Add VZLinux support (#951) [eb3095]
+    - VMware: add network-config support in ovf-env.xml (#947) [PengpengSun]
+    - Update pylint to v2.9.3 and fix the new issues it spots (#946)
+      [Paride Legovini]
+    - Azure: mount default provisioning iso before try device listing (#870)
+      [Anh Vo]
+    - Document known hotplug limitations (#950)
+
+ -- James Falcon <james.falcon@canonical.com>  Fri, 13 Aug 2021 15:37:31 -0500
+
 cloud-init (21.2-43-g184c836a-0ubuntu1) impish; urgency=medium
 
   * New upstream snapshot.
