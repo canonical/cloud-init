@@ -1,4 +1,4 @@
-cloud-init (21.2-69-g65607405-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (21.2-69-g65607405-0ubuntu1) impish; urgency=medium
 
   * d/cloud-init.templates: Add VMware to default datasource_list
   * d/control: Add dependencies on python3-netifaces for vmware ds
