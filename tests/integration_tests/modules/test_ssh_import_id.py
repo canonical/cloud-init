@@ -12,6 +12,7 @@ TODO:
 
 import pytest
 
+from tests.integration_tests.util import retry
 
 USER_DATA = """\
 #cloud-config
@@ -26,6 +27,11 @@ ssh_import_id:
 class TestSshImportId:
 
     @pytest.mark.user_data(USER_DATA)
+    # Retry is needed here because ssh import id is one of the last modules
+    # run, and it fires off a web request, then continues with the rest of
+    # cloud-init. It is possible cloud-init's status is "done" before the
+    # id's have been fully imported.
+    @retry(tries=30, delay=1)
     def test_ssh_import_id(self, client):
         ssh_output = client.read_from_file(
             "/home/ubuntu/.ssh/authorized_keys")

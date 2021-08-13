@@ -35,6 +35,7 @@ from base64 import b64decode, b64encode
 from errno import ENOENT
 from functools import lru_cache
 from urllib import parse
+from typing import List
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -453,9 +454,19 @@ def _parse_redhat_release(release_file=None):
     redhat_regex = (
         r'(?P<name>.+) release (?P<version>[\d\.]+) '
         r'\((?P<codename>[^)]+)\)')
+
+    # Virtuozzo deviates here
+    if "Virtuozzo" in redhat_release:
+        redhat_regex = r'(?P<name>.+) release (?P<version>[\d\.]+)'
+
     match = re.match(redhat_regex, redhat_release)
     if match:
         group = match.groupdict()
+
+        # Virtuozzo has no codename in this file
+        if "Virtuozzo" in group['name']:
+            group['codename'] = group['name']
+
         group['name'] = group['name'].lower().partition(' linux')[0]
         if group['name'] == 'red hat enterprise':
             group['name'] = 'redhat'
@@ -470,9 +481,11 @@ def get_linux_distro():
     distro_version = ''
     flavor = ''
     os_release = {}
+    os_release_rhel = False
     if os.path.exists('/etc/os-release'):
         os_release = load_shell_content(load_file('/etc/os-release'))
     if not os_release:
+        os_release_rhel = True
         os_release = _parse_redhat_release()
     if os_release:
         distro_name = os_release.get('ID', '')
@@ -484,6 +497,9 @@ def get_linux_distro():
             # on all distributions.
             flavor = platform.machine()
         elif distro_name == 'photon':
+            flavor = os_release.get('PRETTY_NAME', '')
+        elif distro_name == 'virtuozzo' and not os_release_rhel:
+            # Only use this if the redhat file is not parsed
             flavor = os_release.get('PRETTY_NAME', '')
         else:
             flavor = os_release.get('VERSION_CODENAME', '')
@@ -532,8 +548,8 @@ def system_info():
     if system == "linux":
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
-                'almalinux', 'alpine', 'arch', 'centos', 'debian', 'fedora',
-                'photon', 'rhel', 'rocky', 'suse'):
+                'almalinux', 'alpine', 'arch', 'centos', 'debian', 'eurolinux',
+                'fedora', 'photon', 'rhel', 'rocky', 'suse', 'virtuozzo'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
@@ -1863,6 +1879,53 @@ def chmod(path, mode):
             os.chmod(path, real_mode)
 
 
+def get_permissions(path: str) -> int:
+    """
+    Returns the octal permissions of the file/folder pointed by the path,
+    encoded as an int.
+
+    @param path: The full path of the file/folder.
+    """
+
+    return stat.S_IMODE(os.stat(path).st_mode)
+
+
+def get_owner(path: str) -> str:
+    """
+    Returns the owner of the file/folder pointed by the path.
+
+    @param path: The full path of the file/folder.
+    """
+    st = os.stat(path)
+    return pwd.getpwuid(st.st_uid).pw_name
+
+
+def get_group(path: str) -> str:
+    """
+    Returns the group of the file/folder pointed by the path.
+
+    @param path: The full path of the file/folder.
+    """
+    st = os.stat(path)
+    return grp.getgrgid(st.st_gid).gr_name
+
+
+def get_user_groups(username: str) -> List[str]:
+    """
+    Returns a list of all groups to which the user belongs
+
+    @param username: the user we want to check
+    """
+    groups = []
+    for group in grp.getgrall():
+        if username in group.gr_mem:
+            groups.append(group.gr_name)
+
+    gid = pwd.getpwnam(username).pw_gid
+    groups.append(grp.getgrgid(gid).gr_name)
+    return groups
+
+
 def write_file(
     filename,
     content,
@@ -1889,8 +1952,7 @@ def write_file(
 
     if preserve_mode:
         try:
-            file_stat = os.stat(filename)
-            mode = stat.S_IMODE(file_stat.st_mode)
+            mode = get_permissions(filename)
         except OSError:
             pass
 
