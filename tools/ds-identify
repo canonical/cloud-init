@@ -449,7 +449,7 @@ detect_virt() {
 read_virt() {
     cached "$DI_VIRT" && return 0
     detect_virt
-    DI_VIRT="$(echo "${_RET}" | tr '[:upper:]' '[:lower:]')"
+    DI_VIRT="${_RET}"
 }
 
 is_container() {
