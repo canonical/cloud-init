@@ -73,7 +73,7 @@ class Renderer(renderer.Renderer):
         if not config:
             config = {}
         self.resolve_conf_fn = config.get('resolve_conf_fn',
-                                        '/etc/systemd/resolved.conf')
+                                          '/etc/systemd/resolved.conf')
         self.network_conf_dir = config.get('network_conf_dir',
                                            '/etc/systemd/network/')
 

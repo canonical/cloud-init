@@ -21,7 +21,7 @@ LOG = logging.getLogger(__name__)
 
 class TestResolvConf(t_help.FilesystemMockingTestCase):
     with_logs = True
-    cfg = { 'manage_resolv_conf': True, 'resolv_conf': {}, }
+    cfg = {'manage_resolv_conf': True, 'resolv_conf': {}}
 
     def setUp(self):
         super(TestResolvConf, self).setUp()
