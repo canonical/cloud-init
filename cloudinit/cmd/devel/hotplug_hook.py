@@ -173,6 +173,10 @@ def initialize_datasource(hotplug_init, subsystem):
     LOG.debug('Fetching datasource')
     datasource = hotplug_init.fetch(existing="trust")
 
+    if not datasource.get_supported_events([EventType.HOTPLUG]):
+        LOG.debug('hotplug not supported for event of type %s', subsystem)
+        return
+
     if not is_enabled(hotplug_init, subsystem):
         LOG.debug('hotplug not enabled for event of type %s', subsystem)
         return
