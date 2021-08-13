@@ -38,7 +38,10 @@ def get_parser(parser=None):
         choices=['net']
     )
 
-    subparsers = parser.add_subparsers(dest='hotplug_action')
+    subparsers = parser.add_subparsers(
+        title='Hotplug Action',
+        dest='hotplug_action'
+    )
     subparsers.required = True
 
     subparsers.add_parser(
@@ -152,31 +155,37 @@ SUBSYSTEM_PROPERTES_MAP = {
 
 
 def is_enabled(hotplug_init, subsystem):
-    scope = SUBSYSTEM_PROPERTES_MAP[subsystem][1]
+    try:
+        scope = SUBSYSTEM_PROPERTES_MAP[subsystem][1]
+    except KeyError as e:
+        raise Exception(
+            'hotplug-hook: cannot handle events for subsystem: {}'.format(
+                subsystem)
+        ) from e
+
     return hotplug_init.update_event_enabled(
         event_source_type=EventType.HOTPLUG,
         scope=scope
     )
 
 
-def handle_hotplug(
-    hotplug_init: Init, devpath, subsystem, udevaction
-):
-    handler_cls, event_scope = SUBSYSTEM_PROPERTES_MAP.get(
-        subsystem, (None, None)
-    )
-    if handler_cls is None:
-        raise Exception(
-            'hotplug-hook: cannot handle events for subsystem: {}'.format(
-                subsystem))
-
+def initialize_datasource(hotplug_init, subsystem):
     LOG.debug('Fetching datasource')
     datasource = hotplug_init.fetch(existing="trust")
 
     if not is_enabled(hotplug_init, subsystem):
-        LOG.debug('hotplug not enabled for event of type %s', event_scope)
+        LOG.debug('hotplug not enabled for event of type %s', subsystem)
         return
+    return datasource
 
+
+def handle_hotplug(
+    hotplug_init: Init, devpath, subsystem, udevaction
+):
+    datasource = initialize_datasource(hotplug_init, subsystem)
+    if not datasource:
+        return
+    handler_cls = SUBSYSTEM_PROPERTES_MAP[subsystem][0]
     LOG.debug('Creating %s event handler', subsystem)
     event_handler = handler_cls(
         datasource=datasource,
@@ -238,14 +247,14 @@ def handle_args(name, args):
         try:
             if args.hotplug_action == 'query':
                 try:
-                    hotplug_init.fetch(existing="trust")
+                    datasource = initialize_datasource(
+                        hotplug_init, args.subsystem)
                 except DataSourceNotFoundException:
                     print(
                         "Unable to determine hotplug state. No datasource "
                         "detected")
                     sys.exit(1)
-                enabled = is_enabled(hotplug_init, args.subsystem)
-                print('enabled' if enabled else 'disabled')
+                print('enabled' if datasource else 'disabled')
             else:
                 handle_hotplug(
                     hotplug_init=hotplug_init,
