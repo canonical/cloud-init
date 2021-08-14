@@ -108,18 +108,19 @@ def handle(name, cfg, cloud, log, _args):
 
     if "resolv_conf" not in cfg:
         log.warning("manage_resolv_conf True but no parameters provided!")
+        return
 
     try:
         template_fn = cloud.get_template_filename(
-            RESOLVE_CONFIG_TEMPLATE_MAP[cloud.distro.resolv_conf_fn])
+            RESOLVE_CONFIG_TEMPLATE_MAP[cloud.distro.resolve_conf_fn])
     except KeyError:
-        log.warning("No template found, not rendering /etc/resolv.conf")
+        log.warning("No template found, not rendering resolve configs")
         return
 
     generate_resolv_conf(
         template_fn=template_fn,
         params=cfg["resolv_conf"],
-        target_fname=cloud.disro.resolve_conf_fn
+        target_fname=cloud.distro.resolve_conf_fn
     )
     return
 
