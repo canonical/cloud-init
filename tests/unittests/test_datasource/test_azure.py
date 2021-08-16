@@ -2825,7 +2825,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     def test_check_if_nic_is_primary_retries_on_failures(
             self, m_dhcpv4, m_imds):
-        """Retry polling for network metadata on all failures except timeout"""
+        """Retry polling for network metadata on all failures except timeout
+        and network unreachable errors"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         lease = {
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
@@ -2854,8 +2855,13 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
                     error = url_helper.UrlError(cause=cause, code=410)
                     eth0Retries.append(exc_cb("No goal state.", error))
             else:
-                cause = requests.Timeout('Fake connection timeout')
                 for _ in range(0, 10):
+                    # We are expected to retry for a certain period for both
+                    # timeout errors and network unreachable errors.
+                    if _ < 5:
+                        cause = requests.Timeout('Fake connection timeout')
+                    else:
+                        cause = requests.ConnectionError('Network Unreachable')
                     error = url_helper.UrlError(cause=cause)
                     eth1Retries.append(exc_cb("Connection timeout", error))
                 # Should stop retrying after 10 retries
@@ -2900,6 +2906,25 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
         dsa.wait_for_link_up("eth0")
         self.assertEqual(1, m_is_link_up.call_count)
+
+    @mock.patch(MOCKPATH + 'net.is_up', autospec=True)
+    @mock.patch(MOCKPATH + 'util.write_file')
+    @mock.patch('cloudinit.net.read_sys_net')
+    @mock.patch('cloudinit.distros.networking.LinuxNetworking.try_set_link_up')
+    def test_wait_for_link_up_checks_link_after_sleep(
+            self, m_is_link_up, m_read_sys_net, m_writefile, m_is_up):
+        """Waiting for link to be up should return immediately if the link is
+           already up."""
+
+        distro_cls = distros.fetch('ubuntu')
+        distro = distro_cls('ubuntu', {}, self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
+        m_is_link_up.return_value = False
+        m_is_up.return_value = True
+
+        dsa.wait_for_link_up("eth0")
+        self.assertEqual(2, m_is_link_up.call_count)
+        self.assertEqual(1, m_is_up.call_count)
 
     @mock.patch(MOCKPATH + 'util.write_file')
     @mock.patch('cloudinit.net.read_sys_net')

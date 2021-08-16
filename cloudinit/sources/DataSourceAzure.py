@@ -923,6 +923,16 @@ class DataSourceAzure(sources.DataSource):
 
             sleep(sleep_duration)
 
+            # Since we just did a unbind and bind, check again after sleep
+            # but before doing unbind and bind again to avoid races where the
+            # link might take a slight delay after bind to be up.
+            if self.distro.networking.is_up(ifname):
+                msg = ("Link is up after checking after sleeping for %d secs"
+                       " after %d attempts" %
+                       (sleep_duration, attempts))
+                report_diagnostic_event(msg, logger_func=LOG.info)
+                return
+
     @azure_ds_telemetry_reporter
     def _create_report_ready_marker(self):
         path = REPORTED_READY_MARKER_FILE
@@ -972,7 +982,7 @@ class DataSourceAzure(sources.DataSource):
         imds_md = None
         metadata_poll_count = 0
         metadata_logging_threshold = 1
-        metadata_timeout_count = 0
+        expected_errors_count = 0
 
         # For now, only a VM's primary NIC can contact IMDS and WireServer. If
         # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
@@ -998,13 +1008,16 @@ class DataSourceAzure(sources.DataSource):
             raise
 
         # Retry polling network metadata for a limited duration only when the
-        # calls fail due to timeout. This is because the platform drops packets
-        # going towards IMDS when it is not a primary nic. If the calls fail
-        # due to other issues like 410, 503 etc, then it means we are primary
-        # but IMDS service is unavailable at the moment. Retry indefinitely in
-        # those cases since we cannot move on without the network metadata.
+        # calls fail due to network unreachable error or timeout.
+        # This is because the platform drops packets going towards IMDS
+        # when it is not a primary nic. If the calls fail due to other issues
+        # like 410, 503 etc, then it means we are primary but IMDS service
+        # is unavailable at the moment. Retry indefinitely in those cases
+        # since we cannot move on without the network metadata. In the future,
+        # all this will not be necessary, as a new dhcp option would tell
+        # whether the nic is primary or not.
         def network_metadata_exc_cb(msg, exc):
-            nonlocal metadata_timeout_count, metadata_poll_count
+            nonlocal expected_errors_count, metadata_poll_count
             nonlocal metadata_logging_threshold
 
             metadata_poll_count = metadata_poll_count + 1
@@ -1024,9 +1037,13 @@ class DataSourceAzure(sources.DataSource):
                                             (msg, exc.cause, exc.code),
                                             logger_func=LOG.error)
 
-            if exc.cause and isinstance(exc.cause, requests.Timeout):
-                metadata_timeout_count = metadata_timeout_count + 1
-                return (metadata_timeout_count <= 10)
+            # Retry up to a certain limit for both timeout and network
+            # unreachable errors.
+            if exc.cause and isinstance(
+                exc.cause, (requests.Timeout, requests.ConnectionError)
+            ):
+                expected_errors_count = expected_errors_count + 1
+                return (expected_errors_count <= 10)
             return True
 
         # Primary nic detection will be optimized in the future. The fact that

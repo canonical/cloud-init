@@ -679,6 +679,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
 
+    def get_supported_events(self, source_event_types: List[EventType]):
+        supported_events = {}  # type: Dict[EventScope, set]
+        for event in source_event_types:
+            for update_scope, update_events in self.supported_update_events.items():  # noqa: E501
+                if event in update_events:
+                    if not supported_events.get(update_scope):
+                        supported_events[update_scope] = set()
+                    supported_events[update_scope].add(event)
+        return supported_events
+
     def update_metadata_if_supported(
         self, source_event_types: List[EventType]
     ) -> bool:
@@ -694,13 +704,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         @return True if the datasource did successfully update cached metadata
             due to source_event_type.
         """
-        supported_events = {}  # type: Dict[EventScope, set]
-        for event in source_event_types:
-            for update_scope, update_events in self.supported_update_events.items():  # noqa: E501
-                if event in update_events:
-                    if not supported_events.get(update_scope):
-                        supported_events[update_scope] = set()
-                    supported_events[update_scope].add(event)
+        supported_events = self.get_supported_events(source_event_types)
         for scope, matched_events in supported_events.items():
             LOG.debug(
                 "Update datasource metadata and %s config due to events: %s",

@@ -11,7 +11,8 @@ from cloudinit.net.activators import (
 from cloudinit.net.activators import (
     IfUpDownActivator,
     NetplanActivator,
-    NetworkManagerActivator
+    NetworkManagerActivator,
+    NetworkdActivator
 )
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.safeyaml import load
@@ -116,11 +117,17 @@ NETWORK_MANAGER_AVAILABLE_CALLS = [
     (('nmcli',), {'target': None}),
 ]
 
+NETWORKD_AVAILABLE_CALLS = [
+    (('ip',), {'search': ['/usr/bin', '/bin'], 'target': None}),
+    (('systemctl',), {'search': ['/usr/bin', '/bin'], 'target': None}),
+]
+
 
 @pytest.mark.parametrize('activator, available_calls', [
     (IfUpDownActivator, IF_UP_DOWN_AVAILABLE_CALLS),
     (NetplanActivator, NETPLAN_AVAILABLE_CALLS),
     (NetworkManagerActivator, NETWORK_MANAGER_AVAILABLE_CALLS),
+    (NetworkdActivator, NETWORKD_AVAILABLE_CALLS),
 ])
 class TestActivatorsAvailable:
     def test_available(
@@ -140,11 +147,18 @@ NETWORK_MANAGER_BRING_UP_CALL_LIST = [
     ((['nmcli', 'connection', 'up', 'ifname', 'eth1'], ), {}),
 ]
 
+NETWORKD_BRING_UP_CALL_LIST = [
+    ((['ip', 'link', 'set', 'up', 'eth0'], ), {}),
+    ((['ip', 'link', 'set', 'up', 'eth1'], ), {}),
+    ((['systemctl', 'restart', 'systemd-networkd', 'systemd-resolved'], ), {}),
+]
+
 
 @pytest.mark.parametrize('activator, expected_call_list', [
     (IfUpDownActivator, IF_UP_DOWN_BRING_UP_CALL_LIST),
     (NetplanActivator, NETPLAN_CALL_LIST),
     (NetworkManagerActivator, NETWORK_MANAGER_BRING_UP_CALL_LIST),
+    (NetworkdActivator, NETWORKD_BRING_UP_CALL_LIST),
 ])
 class TestActivatorsBringUp:
     @patch('cloudinit.subp.subp', return_value=('', ''))
@@ -159,8 +173,11 @@ class TestActivatorsBringUp:
     def test_bring_up_interfaces(
         self, m_subp, activator, expected_call_list, available_mocks
     ):
+        index = 0
         activator.bring_up_interfaces(['eth0', 'eth1'])
-        assert expected_call_list == m_subp.call_args_list
+        for call in m_subp.call_args_list:
+            assert call == expected_call_list[index]
+            index += 1
 
     @patch('cloudinit.subp.subp', return_value=('', ''))
     def test_bring_up_all_interfaces_v1(
@@ -191,11 +208,17 @@ NETWORK_MANAGER_BRING_DOWN_CALL_LIST = [
     ((['nmcli', 'connection', 'down', 'eth1'], ), {}),
 ]
 
+NETWORKD_BRING_DOWN_CALL_LIST = [
+    ((['ip', 'link', 'set', 'down', 'eth0'], ), {}),
+    ((['ip', 'link', 'set', 'down', 'eth1'], ), {}),
+]
+
 
 @pytest.mark.parametrize('activator, expected_call_list', [
     (IfUpDownActivator, IF_UP_DOWN_BRING_DOWN_CALL_LIST),
     (NetplanActivator, NETPLAN_CALL_LIST),
     (NetworkManagerActivator, NETWORK_MANAGER_BRING_DOWN_CALL_LIST),
+    (NetworkdActivator, NETWORKD_BRING_DOWN_CALL_LIST),
 ])
 class TestActivatorsBringDown:
     @patch('cloudinit.subp.subp', return_value=('', ''))

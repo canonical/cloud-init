@@ -68,5 +68,6 @@ Additionally, cloud-init is supported on these private clouds:
 - LXD
 - KVM
 - Metal-as-a-Service (MAAS)
+- VMware
 
 .. vi: textwidth=79

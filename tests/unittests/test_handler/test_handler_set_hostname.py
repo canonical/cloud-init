@@ -120,8 +120,8 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         contents = util.load_file(distro.hostname_conf_fn)
         self.assertEqual('blah', contents.strip())
 
-    @mock.patch('cloudinit.distros.Distro.uses_systemd', return_value=False)
-    def test_photon_hostname(self, m_uses_systemd):
+    @mock.patch('cloudinit.distros.photon.subp.subp')
+    def test_photon_hostname(self, m_subp):
         cfg1 = {
             'hostname': 'photon',
             'prefer_fqdn_over_hostname': True,
@@ -134,17 +134,31 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         }
 
         ds = None
+        m_subp.return_value = (None, None)
         distro = self._fetch_distro('photon', cfg1)
         paths = helpers.Paths({'cloud_dir': self.tmp})
         cc = cloud.Cloud(ds, paths, {}, distro, None)
-        self.patchUtils(self.tmp)
         for c in [cfg1, cfg2]:
             cc_set_hostname.handle('cc_set_hostname', c, cc, LOG, [])
-            contents = util.load_file(distro.hostname_conf_fn, decode=True)
+            print("\n", m_subp.call_args_list)
             if c['prefer_fqdn_over_hostname']:
-                self.assertEqual(contents.strip(), c['fqdn'])
+                assert [
+                    mock.call(['hostnamectl', 'set-hostname', c['fqdn']],
+                              capture=True)
+                ] in m_subp.call_args_list
+                assert [
+                    mock.call(['hostnamectl', 'set-hostname', c['hostname']],
+                              capture=True)
+                ] not in m_subp.call_args_list
             else:
-                self.assertEqual(contents.strip(), c['hostname'])
+                assert [
+                    mock.call(['hostnamectl', 'set-hostname', c['hostname']],
+                              capture=True)
+                ] in m_subp.call_args_list
+                assert [
+                    mock.call(['hostnamectl', 'set-hostname', c['fqdn']],
+                              capture=True)
+                ] not in m_subp.call_args_list
 
     def test_multiple_calls_skips_unchanged_hostname(self):
         """Only new hostname or fqdn values will generate a hostname call."""
