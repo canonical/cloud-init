@@ -325,7 +325,7 @@ def check_create_path(username, filename, strictmodes):
                     parent_folder == user_pwent.pw_dir):
                 continue
 
-            if not os.path.isdir(parent_folder):
+            if not os.path.exists(parent_folder):
                 # directory does not exist, and permission so far are good:
                 # create the directory, and make it accessible by everyone
                 # but owned by root, as it might be used by many users.
@@ -339,6 +339,11 @@ def check_create_path(username, filename, strictmodes):
                         gid = user_pwent.pw_gid
                     try:
                         os.mkdir(parent_folder, mode=mode)
+                    except NotADirectoryError:
+                        LOG.debug(
+                            'Cannot create directory. File exists in path: '
+                            '{}'.format(parent_folder))
+                        return False
                     except FileExistsError:
                         continue
                     util.chownbyid(parent_folder, uid, gid)
