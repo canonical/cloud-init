@@ -341,8 +341,8 @@ def check_create_path(username, filename, strictmodes):
                         os.mkdir(parent_folder, mode=mode)
                     except NotADirectoryError:
                         LOG.debug(
-                            'Cannot create directory. File exists in path: '
-                            '{}'.format(parent_folder))
+                            'Cannot create directory. File exists in path: %s',
+                            parent_folder)
                         return False
                     except FileExistsError:
                         continue
