@@ -28,10 +28,7 @@ def get_metadata(url, timeout, retries, sec_between, agent):
         LOG.error("Bailing, DHCP Exception: %s", exc)
         raise
 
-    v1_json = json.loads(v1)
-    metadata = v1_json
-
-    return metadata
+    return json.loads(v1)
 
 
 # Read the system information from SMBIOS
@@ -68,10 +65,10 @@ def is_vultr():
 def read_metadata(url, timeout, retries, sec_between, agent):
     url = "%s/v1.json" % url
 
-    # We need to test the user-agent for distros that need
-    # special handling, such as the arch-iso
+    # Announce os details so we can handle non Vultr origin
+    # images and provide correct vendordata generation.
     headers = {
-        'Metadata-Token': 'vultr',
+        'Metadata-Token': 'cloudinit',
         'User-Agent': agent
     }
 
@@ -197,7 +194,6 @@ def generate_private_network_interface(interface):
         "name": interface_name,
         "type": "physical",
         "mac_address": interface['mac'],
-        "accept-ra": 1,
         "subnets": [
             {
                 "type": "static",
@@ -209,50 +205,6 @@ def generate_private_network_interface(interface):
     }
 
     return netcfg
-
-
-# This is for the vendor and startup scripts
-def generate_user_scripts(md, network_config):
-    user_scripts = []
-
-    # Raid 1 script
-    if md['vendor-data']['raid1-script']:
-        user_scripts.append(md['vendor-data']['raid1-script'])
-
-    # JBOD script
-    if md['vendor-data']['jbod-script']:
-        user_scripts.append(md['vendor-data']['jbod-script'])
-
-    # Enable multi-queue on linux
-    if util.is_Linux() and md['vendor-data']['ethtool-script']:
-        ethtool_script = md['vendor-data']['ethtool-script']
-
-        # Tool location
-        tool = "/opt/vultr/ethtool"
-
-        # Only if the tool exists
-        if path.exists(tool):
-            # Go through the interfaces
-            for netcfg in network_config:
-                # If the interface has a mac and is physical
-                if "mac_address" in netcfg and netcfg['type'] == "physical":
-                    # Set its multi-queue to num of cores as per RHEL Docs
-                    name = netcfg['name']
-                    command = "%s -L %s combined $(nproc --all)" % (tool, name)
-                    ethtool_script = '%s\n%s' % (ethtool_script, command)
-
-            user_scripts.append(ethtool_script)
-
-    # This is for vendor scripts
-    if md['vendor-data']['vendor-script']:
-        user_scripts.append(md['vendor-data']['vendor-script'])
-
-    # Startup script
-    script = md['startup-script']
-    if script and script != "echo No configured startup script":
-        user_scripts.append(script)
-
-    return user_scripts
 
 
 # vi: ts=4 expandtab
