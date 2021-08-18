@@ -329,7 +329,6 @@ def check_create_path(username, filename, strictmodes):
                     parent_folder)
                 return False
 
-            # check no file exists
             if os.path.isfile(parent_folder):
                 LOG.debug(
                     "Invalid directory. File exists in path: %s",
@@ -361,7 +360,7 @@ def check_create_path(username, filename, strictmodes):
                 return False
 
         if os.path.islink(filename) or os.path.isdir(filename):
-            LOG.debug("%s is not a file!" % filename)
+            LOG.debug("%s is not a file!", filename)
             return False
 
         # check the file
