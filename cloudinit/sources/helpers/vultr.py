@@ -17,20 +17,17 @@ LOG = log.getLogger(__name__)
 
 
 @lru_cache()
-def get_metadata(url, timeout, retries, sec_between):
+def get_metadata(url, timeout, retries, sec_between, agent):
     # Bring up interface
     try:
         with EphemeralDHCPv4(connectivity_url=url):
             # Fetch the metadata
-            v1 = read_metadata(url, timeout, retries, sec_between)
+            v1 = read_metadata(url, timeout, retries, sec_between, agent)
     except (NoDHCPLeaseError) as exc:
         LOG.error("Bailing, DHCP Exception: %s", exc)
         raise
 
-    v1_json = json.loads(v1)
-    metadata = v1_json
-
-    return metadata
+    return json.loads(v1)
 
 
 # Read the system information from SMBIOS
@@ -64,12 +61,20 @@ def is_vultr():
 
 
 # Read Metadata endpoint
-def read_metadata(url, timeout, retries, sec_between):
+def read_metadata(url, timeout, retries, sec_between, agent):
     url = "%s/v1.json" % url
+
+    # Announce os details so we can handle non Vultr origin
+    # images and provide correct vendordata generation.
+    headers = {
+        'Metadata-Token': 'cloudinit',
+        'User-Agent': agent
+    }
+
     response = url_helper.readurl(url,
                                   timeout=timeout,
                                   retries=retries,
-                                  headers={'Metadata-Token': 'vultr'},
+                                  headers=headers,
                                   sec_between=sec_between)
 
     if not response.ok():
@@ -114,10 +119,11 @@ def generate_network_config(interfaces):
         public = generate_public_network_interface(interfaces[0])
         network['config'].append(public)
 
-    # Prepare interface 1, private
+    # Prepare additional interfaces, private
     if len(interfaces) > 1:
-        private = generate_private_network_interface(interfaces[1])
-        network['config'].append(private)
+        for i in range(1, len(interfaces)):
+            private = generate_private_network_interface(interfaces[i])
+            network['config'].append(private)
 
     return network
 
@@ -141,7 +147,7 @@ def generate_public_network_interface(interface):
                 "control": "auto"
             },
             {
-                "type": "dhcp6",
+                "type": "ipv6_slaac",
                 "control": "auto"
             },
         ]
@@ -187,7 +193,6 @@ def generate_private_network_interface(interface):
         "name": interface_name,
         "type": "physical",
         "mac_address": interface['mac'],
-        "accept-ra": 1,
         "subnets": [
             {
                 "type": "static",
@@ -199,44 +204,6 @@ def generate_private_network_interface(interface):
     }
 
     return netcfg
-
-
-# This is for the vendor and startup scripts
-def generate_user_scripts(md, network_config):
-    user_scripts = []
-
-    # Raid 1 script
-    if md['vendor-data']['raid1-script']:
-        user_scripts.append(md['vendor-data']['raid1-script'])
-
-    # Enable multi-queue on linux
-    if util.is_Linux() and md['vendor-data']['ethtool-script']:
-        ethtool_script = md['vendor-data']['ethtool-script']
-
-        # Tool location
-        tool = "/opt/vultr/ethtool"
-
-        # Go through the interfaces
-        for netcfg in network_config:
-            # If the interface has a mac and is physical
-            if "mac_address" in netcfg and netcfg['type'] == "physical":
-                # Set its multi-queue to num of cores as per RHEL Docs
-                name = netcfg['name']
-                command = "%s -L %s combined $(nproc --all)" % (tool, name)
-                ethtool_script = '%s\n%s' % (ethtool_script, command)
-
-        user_scripts.append(ethtool_script)
-
-    # This is for vendor scripts
-    if md['vendor-data']['vendor-script']:
-        user_scripts.append(md['vendor-data']['vendor-script'])
-
-    # Startup script
-    script = md['startup-script']
-    if script and script != "echo No configured startup script":
-        user_scripts.append(script)
-
-    return user_scripts
 
 
 # vi: ts=4 expandtab
