@@ -25,11 +25,28 @@ class TestPhoton(CiTestCase):
     def test_get_distro(self):
         self.assertEqual(self.distro.osfamily, 'photon')
 
-    def test_write_hostname(self):
+    @mock.patch("cloudinit.distros.photon.subp.subp")
+    def test_write_hostname(self, m_subp):
         hostname = 'myhostname'
-        hostfile = self.tmp_path('hostfile')
+        hostfile = self.tmp_path('previous-hostname')
         self.distro._write_hostname(hostname, hostfile)
-        self.assertEqual(hostname + '\n', util.load_file(hostfile))
+        self.assertEqual(hostname, util.load_file(hostfile))
+
+        ret = self.distro._read_hostname(hostfile)
+        self.assertEqual(ret, hostname)
+
+        m_subp.return_value = (None, None)
+        hostfile += 'hostfile'
+        self.distro._write_hostname(hostname, hostfile)
+
+        m_subp.return_value = (hostname, None)
+        ret = self.distro._read_hostname(hostfile)
+        self.assertEqual(ret, hostname)
+
+        self.logs.truncate(0)
+        m_subp.return_value = (None, 'bla')
+        self.distro._write_hostname(hostname, None)
+        self.assertIn('Error while setting hostname', self.logs.getvalue())
 
     @mock.patch('cloudinit.net.generate_fallback_config')
     def test_fallback_netcfg(self, m_fallback_cfg):

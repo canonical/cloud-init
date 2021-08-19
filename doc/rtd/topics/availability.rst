@@ -59,6 +59,7 @@ environments in the public cloud:
 - SmartOS
 - UpCloud
 - Vultr
+- Zadara Edge Cloud Platform
 
 Additionally, cloud-init is supported on these private clouds:
 
@@ -67,5 +68,6 @@ Additionally, cloud-init is supported on these private clouds:
 - LXD
 - KVM
 - Metal-as-a-Service (MAAS)
+- VMware
 
 .. vi: textwidth=79

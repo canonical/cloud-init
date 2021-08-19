@@ -3,7 +3,7 @@ import logging
 import os
 import pytest
 
-from tests.integration_tests.clouds import IntegrationCloud
+from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
 
 
@@ -45,6 +45,15 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
     if not source.installs_new_version():
         pytest.skip(UNSUPPORTED_INSTALL_METHOD_MSG.format(source))
         return  # type checking doesn't understand that skip raises
+    if (ImageSpecification.from_os_image().release == 'bionic' and
+            session_cloud.settings.PLATFORM == 'lxd_vm'):
+        # The issues that we see on Bionic VMs don't appear anywhere
+        # else, including when calling KVM directly. It likely has to
+        # do with the extra lxd-agent setup happening on bionic.
+        # Given that we still have Bionic covered on all other platforms,
+        # the risk of skipping bionic here seems low enough.
+        pytest.skip("Upgrade test doesn't run on LXD VMs and bionic")
+        return
 
     launch_kwargs = {
         'image_id': session_cloud.released_image_id,
