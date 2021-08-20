@@ -15,6 +15,7 @@ from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_ordered_items_in_text
 
 USER_DATA = """\
+## template: jinja
 #cloud-config
 apt:
   primary:
@@ -31,6 +32,9 @@ locale: en_GB.UTF-8
 locale_configfile: /etc/default/locale
 ntp:
   servers: ['ntp.ubuntu.com']
+runcmd:
+  - echo {{ds.meta_data.local_hostname}} > /var/tmp/runcmd_output
+  - echo {{merged_cfg.def_log_file}} >> /var/tmp/runcmd_output
 """
 
 
@@ -91,6 +95,22 @@ class TestCombined:
             'en_GB.UTF-8',
             'en_US.UTF-8'
         ], locale_gen)
+
+    def test_runcmd_with_variable_substitution(
+        self, class_client: IntegrationInstance
+    ):
+        """Test runcmd, while including jinja substitution.
+
+        Ensure we can also substitue variables from instance-data-sensitive
+        LP: #1931392
+        """
+        client = class_client
+        expected = [
+            client.execute('hostname').stdout.strip(),
+            '/var/log/cloud-init.log',
+        ]
+        output = client.read_from_file('/var/tmp/runcmd_output')
+        verify_ordered_items_in_text(expected, output)
 
     def test_no_problems(self, class_client: IntegrationInstance):
         """Test no errors, warnings, or tracebacks"""
