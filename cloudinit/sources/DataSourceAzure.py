@@ -924,6 +924,7 @@ class DataSourceAzure(sources.DataSource):
             # again.
             sleep_duration = 0.5
             max_status_polls = 20
+            LOG.debug("Polling %d seconds for primary NIC link up after rebind.", sleep_duration * max_status_polls)
             for i in range(0, max_status_polls):
                 if self.distro.networking.is_up(ifname):
                     msg = ("After %d attempts to rebind, link is up after "
