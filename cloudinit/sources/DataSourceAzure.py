@@ -892,12 +892,12 @@ class DataSourceAzure(sources.DataSource):
                                     logger_func=LOG.info)
             return
 
-        LOG.info("Attempting to bring %s up", ifname)
+        LOG.debug("Attempting to bring %s up", ifname)
 
         attempts = 0
+        LOG.info("Unbinding and binding the interface %s", ifname)
         while True:
 
-            LOG.info("Unbinding and binding the interface %s", ifname)
             devicename = net.read_sys_net(ifname,
                                           'device/device_id').strip('{}')
             util.write_file('/sys/bus/vmbus/drivers/hv_netvsc/unbind',
@@ -912,11 +912,9 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(msg, logger_func=LOG.info)
                 return
 
-            msg = ("Link is not up after %d attempts to rebind" % attempts)
-
             if attempts % 10 == 0:
+                msg = ("Link is not up after %d attempts to rebind" % attempts)
                 report_diagnostic_event(msg, logger_func=LOG.info)
-            else:
                 LOG.info(msg)
 
             # It could take some time after rebind for the interface to be up.
@@ -924,12 +922,15 @@ class DataSourceAzure(sources.DataSource):
             # again.
             sleep_duration = 0.5
             max_status_polls = 20
-            LOG.debug("Polling %d seconds for primary NIC link up after rebind.", sleep_duration * max_status_polls)
+            LOG.debug("Polling %d seconds for primary NIC link up after "
+                      "rebind.", sleep_duration * max_status_polls)
+
             for i in range(0, max_status_polls):
                 if self.distro.networking.is_up(ifname):
                     msg = ("After %d attempts to rebind, link is up after "
                            "polling the link status %d times" % (attempts, i))
                     report_diagnostic_event(msg, logger_func=LOG.info)
+                    LOG.debug(msg)
                     return
                 else:
                     sleep(sleep_duration)
