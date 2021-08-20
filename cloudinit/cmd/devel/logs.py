@@ -48,11 +48,15 @@ def get_parser(parser=None):
     return parser
 
 
-def _copytree_ignore_sensitive_files(curdir, files):
-    """Return a list of files to ignore if we are non-root"""
-    if os.getuid() == 0:
-        return ()
-    return (INSTANCE_JSON_SENSITIVE_FILE,)  # Ignore root-permissioned files
+def _copytree_rundir_ignore_files(curdir, files):
+    """Return a list of files to ignore for /run/cloud-init directory"""
+    ignored_files = [
+        'hook-hotplug-cmd',  # named pipe for hotplug
+    ]
+    if os.getuid() != 0:
+        # Ignore root-permissioned files
+        ignored_files.append(INSTANCE_JSON_SENSITIVE_FILE)
+    return ignored_files
 
 
 def _write_command_output_to_file(cmd, filename, msg, verbosity):
@@ -123,9 +127,13 @@ def collect_logs(tarfile, include_userdata, verbosity=0):
         run_dir = os.path.join(log_dir, 'run')
         ensure_dir(run_dir)
         if os.path.exists(CLOUDINIT_RUN_DIR):
-            shutil.copytree(CLOUDINIT_RUN_DIR,
-                            os.path.join(run_dir, 'cloud-init'),
-                            ignore=_copytree_ignore_sensitive_files)
+            try:
+                shutil.copytree(CLOUDINIT_RUN_DIR,
+                                os.path.join(run_dir, 'cloud-init'),
+                                ignore=_copytree_rundir_ignore_files)
+            except shutil.Error as e:
+                sys.stderr.write("Failed collecting file(s) due to error:\n")
+                sys.stderr.write(str(e) + '\n')
             _debug("collected dir %s\n" % CLOUDINIT_RUN_DIR, 1, verbosity)
         else:
             _debug("directory '%s' did not exist\n" % CLOUDINIT_RUN_DIR, 1,
