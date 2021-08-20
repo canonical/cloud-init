@@ -74,7 +74,7 @@ def common_verify(client, expected_keys):
                     allow_agent=False,
                 )
 
-        # Also ensure we haven't messed with any /home permissions
+        # Ensure we haven't messed with any /home permissions
         # See LP: #1940233
         home_dir = '/home/{}'.format(user)
         home_perms = '755'
@@ -84,13 +84,23 @@ def common_verify(client, expected_keys):
         assert '{} {}'.format(user, home_perms) == client.execute(
             'stat -c "%U %a" {}'.format(home_dir)
         )
-        if client.execute("test -f {}/.ssh".format(home_dir)).ok:
+        if client.execute("test -d {}/.ssh".format(home_dir)).ok:
             assert '{} 700'.format(user) == client.execute(
                 'stat -c "%U %a" {}/.ssh'.format(home_dir)
             )
         assert '{} 600'.format(user) == client.execute(
             'stat -c "%U %a" {}'.format(filename)
         )
+
+        # Also ensure ssh-keygen works as expected
+        client.execute('mkdir {}/.ssh'.format(home_dir))
+        assert client.execute(
+            "ssh-keygen -b 2048 -t rsa -f {}/.ssh/id_rsa -q -N ''".format(
+                home_dir)
+        ).ok
+        assert client.execute('test -f {}/.ssh/id_rsa'.format(home_dir))
+        assert client.execute('test -f {}/.ssh/id_rsa.pub'.format(home_dir))
+
     assert 'root 755' == client.execute('stat -c "%U %a" /home')
 
 
