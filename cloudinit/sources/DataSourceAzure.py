@@ -912,26 +912,26 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(msg, logger_func=LOG.info)
                 return
 
-            sleep_duration = 1
-            msg = ("Link is not up after %d attempts with %d seconds sleep "
-                   "between attempts." % (attempts, sleep_duration))
+            msg = ("Link is not up after %d attempts to rebind" % attempts)
 
             if attempts % 10 == 0:
                 report_diagnostic_event(msg, logger_func=LOG.info)
             else:
                 LOG.info(msg)
 
-            sleep(sleep_duration)
-
-            # Since we just did a unbind and bind, check again after sleep
-            # but before doing unbind and bind again to avoid races where the
-            # link might take a slight delay after bind to be up.
-            if self.distro.networking.is_up(ifname):
-                msg = ("Link is up after checking after sleeping for %d secs"
-                       " after %d attempts" %
-                       (sleep_duration, attempts))
-                report_diagnostic_event(msg, logger_func=LOG.info)
-                return
+            # It could take some time after rebind for the interface to be up.
+            # So poll for the status for some time before attempting to rebind
+            # again.
+            sleep_duration = 0.5
+            max_status_polls = 20
+            for i in range(0, max_status_polls):
+                if self.distro.networking.is_up(ifname):
+                    msg = ("After %d attempts to rebind, link is up after "
+                           "polling the link status %d times" % (attempts, i))
+                    report_diagnostic_event(msg, logger_func=LOG.info)
+                    return
+                else:
+                    sleep(sleep_duration)
 
     @azure_ds_telemetry_reporter
     def _create_report_ready_marker(self):
