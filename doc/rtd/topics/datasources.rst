@@ -52,6 +52,13 @@ The following is a list of documents for each supported datasource:
    datasources/vultr.rst
    datasources/vmware.rst
 
+Seeding
+=======
+
+If you want to embed cloud-init in a disk, create
+`/var/lib/cloud/seed/nocloud/user-data` and
+`/var/lib/cloud/seed/nocloud/meta-data`.
+
 Creation
 ========
 
