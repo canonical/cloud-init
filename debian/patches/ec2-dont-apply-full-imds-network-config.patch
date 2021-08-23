@@ -9,7 +9,7 @@ Forwarded: not-needed
 Last-Update: 2020-06-01
 --- a/cloudinit/sources/DataSourceEc2.py
 +++ b/cloudinit/sources/DataSourceEc2.py
-@@ -409,13 +409,13 @@ class DataSourceEc2(sources.DataSource):
+@@ -417,13 +417,13 @@ class DataSourceEc2(sources.DataSource):
          iface = self.fallback_interface
          net_md = self.metadata.get('network')
          if isinstance(net_md, dict):
