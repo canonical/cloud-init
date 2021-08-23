@@ -23,7 +23,7 @@ class MyBaseDistro(distros.Distro):
     def _write_network(self, settings):
         raise NotImplementedError()
 
-    def package_command(self, cmd, args=None, pkgs=None):
+    def package_command(self, command, args=None, pkgs=None):
         raise NotImplementedError()
 
     def update_package_sources(self):

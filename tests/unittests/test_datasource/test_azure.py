@@ -635,15 +635,20 @@ scbus-1 on xpt0 bus 0
     def _get_ds(self, data, agent_command=None, distro='ubuntu',
                 apply_network=None, instance_id=None):
 
-        def dsdevs():
-            return data.get('dsdevs', [])
-
         def _wait_for_files(flist, _maxwait=None, _naplen=None):
             data['waited'] = flist
             return []
 
+        def _load_possible_azure_ds(seed_dir, cache_dir):
+            yield seed_dir
+            yield dsaz.DEFAULT_PROVISIONING_ISO_DEV
+            yield from data.get('dsdevs', [])
+            if cache_dir:
+                yield cache_dir
+
+        seed_dir = os.path.join(self.paths.seed_dir, "azure")
         if data.get('ovfcontent') is not None:
-            populate_dir(os.path.join(self.paths.seed_dir, "azure"),
+            populate_dir(seed_dir,
                          {'ovf-env.xml': data['ovfcontent']})
 
         dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
@@ -654,6 +659,8 @@ scbus-1 on xpt0 bus 0
         self.m_report_failure_to_fabric = mock.MagicMock(autospec=True)
         self.m_ephemeral_dhcpv4 = mock.MagicMock()
         self.m_ephemeral_dhcpv4_with_reporting = mock.MagicMock()
+        self.m_list_possible_azure_ds = mock.MagicMock(
+            side_effect=_load_possible_azure_ds)
 
         if instance_id:
             self.instance_id = instance_id
@@ -667,7 +674,8 @@ scbus-1 on xpt0 bus 0
                 return '7783-7084-3265-9085-8269-3286-77'
 
         self.apply_patches([
-            (dsaz, 'list_possible_azure_ds_devs', dsdevs),
+            (dsaz, 'list_possible_azure_ds',
+                self.m_list_possible_azure_ds),
             (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
             (dsaz, 'get_hostname', mock.MagicMock()),
             (dsaz, 'set_hostname', mock.MagicMock()),
@@ -844,9 +852,14 @@ scbus-1 on xpt0 bus 0
         """When a device path is used, present that in subplatform."""
         data = {'sys_cfg': {}, 'dsdevs': ['/dev/cd0']}
         dsrc = self._get_ds(data)
+        # DSAzure will attempt to mount /dev/sr0 first, which should
+        # fail with mount error since the list of devices doesn't have
+        # /dev/sr0
         with mock.patch(MOCKPATH + 'util.mount_cb') as m_mount_cb:
-            m_mount_cb.return_value = (
-                {'local-hostname': 'me'}, 'ud', {'cfg': ''}, {})
+            m_mount_cb.side_effect = [
+                MountFailedError("fail"),
+                ({'local-hostname': 'me'}, 'ud', {'cfg': ''}, {})
+            ]
             self.assertTrue(dsrc.get_data())
         self.assertEqual(dsrc.userdata_raw, 'ud')
         self.assertEqual(dsrc.metadata['local-hostname'], 'me')
@@ -1608,12 +1621,19 @@ scbus-1 on xpt0 bus 0
 
     @mock.patch(MOCKPATH + 'util.is_FreeBSD')
     @mock.patch(MOCKPATH + '_check_freebsd_cdrom')
-    def test_list_possible_azure_ds_devs(self, m_check_fbsd_cdrom,
-                                         m_is_FreeBSD):
+    def test_list_possible_azure_ds(self, m_check_fbsd_cdrom,
+                                    m_is_FreeBSD):
         """On FreeBSD, possible devs should show /dev/cd0."""
         m_is_FreeBSD.return_value = True
         m_check_fbsd_cdrom.return_value = True
-        self.assertEqual(dsaz.list_possible_azure_ds_devs(), ['/dev/cd0'])
+        possible_ds = []
+        for src in dsaz.list_possible_azure_ds(
+                "seed_dir", "cache_dir"):
+            possible_ds.append(src)
+        self.assertEqual(possible_ds, ["seed_dir",
+                                       dsaz.DEFAULT_PROVISIONING_ISO_DEV,
+                                       "/dev/cd0",
+                                       "cache_dir"])
         self.assertEqual(
             [mock.call("/dev/cd0")], m_check_fbsd_cdrom.call_args_list)
 
@@ -1967,11 +1987,19 @@ class TestAzureBounce(CiTestCase):
     with_logs = True
 
     def mock_out_azure_moving_parts(self):
+
+        def _load_possible_azure_ds(seed_dir, cache_dir):
+            yield seed_dir
+            yield dsaz.DEFAULT_PROVISIONING_ISO_DEV
+            if cache_dir:
+                yield cache_dir
+
         self.patches.enter_context(
             mock.patch.object(dsaz.util, 'wait_for_files'))
         self.patches.enter_context(
-            mock.patch.object(dsaz, 'list_possible_azure_ds_devs',
-                              mock.MagicMock(return_value=[])))
+            mock.patch.object(
+                dsaz, 'list_possible_azure_ds',
+                mock.MagicMock(side_effect=_load_possible_azure_ds)))
         self.patches.enter_context(
             mock.patch.object(dsaz, 'get_metadata_from_fabric',
                               mock.MagicMock(return_value={})))
@@ -2797,7 +2825,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     def test_check_if_nic_is_primary_retries_on_failures(
             self, m_dhcpv4, m_imds):
-        """Retry polling for network metadata on all failures except timeout"""
+        """Retry polling for network metadata on all failures except timeout
+        and network unreachable errors"""
         dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
         lease = {
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
@@ -2826,8 +2855,13 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
                     error = url_helper.UrlError(cause=cause, code=410)
                     eth0Retries.append(exc_cb("No goal state.", error))
             else:
-                cause = requests.Timeout('Fake connection timeout')
                 for _ in range(0, 10):
+                    # We are expected to retry for a certain period for both
+                    # timeout errors and network unreachable errors.
+                    if _ < 5:
+                        cause = requests.Timeout('Fake connection timeout')
+                    else:
+                        cause = requests.ConnectionError('Network Unreachable')
                     error = url_helper.UrlError(cause=cause)
                     eth1Retries.append(exc_cb("Connection timeout", error))
                 # Should stop retrying after 10 retries
@@ -2872,6 +2906,35 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
         dsa.wait_for_link_up("eth0")
         self.assertEqual(1, m_is_link_up.call_count)
+
+    @mock.patch(MOCKPATH + 'net.is_up', autospec=True)
+    @mock.patch(MOCKPATH + 'util.write_file')
+    @mock.patch('cloudinit.net.read_sys_net')
+    @mock.patch('cloudinit.distros.networking.LinuxNetworking.try_set_link_up')
+    def test_wait_for_link_up_checks_link_after_sleep(
+            self, m_try_set_link_up, m_read_sys_net, m_writefile, m_is_up):
+        """Waiting for link to be up should return immediately if the link is
+           already up."""
+
+        distro_cls = distros.fetch('ubuntu')
+        distro = distro_cls('ubuntu', {}, self.paths)
+        dsa = dsaz.DataSourceAzure({}, distro=distro, paths=self.paths)
+        m_try_set_link_up.return_value = False
+
+        callcount = 0
+
+        def is_up_mock(key):
+            nonlocal callcount
+            if callcount == 0:
+                callcount += 1
+                return False
+            return True
+
+        m_is_up.side_effect = is_up_mock
+
+        dsa.wait_for_link_up("eth0")
+        self.assertEqual(2, m_try_set_link_up.call_count)
+        self.assertEqual(2, m_is_up.call_count)
 
     @mock.patch(MOCKPATH + 'util.write_file')
     @mock.patch('cloudinit.net.read_sys_net')
@@ -3163,8 +3226,8 @@ class TestRemoveUbuntuNetworkConfigScripts(CiTestCase):
 
         expected_logs = [
             'INFO: Removing Ubuntu extended network scripts because cloud-init'
-            ' updates Azure network configuration on the following event:'
-            ' System boot.',
+            ' updates Azure network configuration on the following events:'
+            " ['boot', 'boot-legacy']",
             'Recursively deleting %s' % subdir,
             'Attempting to remove %s' % file1]
         for log in expected_logs:

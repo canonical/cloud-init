@@ -1,7 +1,7 @@
 .. _datasource_digital_ocean:
 
-Digital Ocean
-=============
+DigitalOcean
+============
 
 The `DigitalOcean`_ datasource consumes the content served from DigitalOcean's
 `metadata service`_.  This metadata service serves information about the

@@ -133,6 +133,23 @@ features:
 
 releases:
     # UBUNTU =================================================================
+    impish:
+        # EOL: July 2022
+        default:
+            enabled: true
+            release: impish
+            version: "21.10"
+            os: ubuntu
+            feature_groups:
+                - base
+                - debian_base
+                - ubuntu_specific
+        lxd:
+            sstreams_server: https://cloud-images.ubuntu.com/daily
+            alias: impish
+            setup_overrides: null
+            override_templates: false
+
     hirsute:
         # EOL: Jan 2022
         default:

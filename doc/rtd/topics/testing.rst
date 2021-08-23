@@ -166,8 +166,8 @@ Test Argument Ordering
 .. _pytest: https://docs.pytest.org/
 .. _pytest fixtures: https://docs.pytest.org/en/latest/fixture.html
 .. _TestGetPackageMirrorInfo: https://github.com/canonical/cloud-init/blob/42f69f410ab8850c02b1f53dd67c132aa8ef64f5/cloudinit/distros/tests/test_init.py\#L15
-.. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/master/cloudinit/tests/test_subp.py#L9
+.. _TestPrependBaseCommands: https://github.com/canonical/cloud-init/blob/fbcb224bc12495ba200ab107246349d802c5d8e6/cloudinit/tests/test_subp.py#L20
 .. _assertion introspection: https://docs.pytest.org/en/latest/assert.html
 .. _pytest 3.0: https://docs.pytest.org/en/latest/changelog.html#id1093
-.. _pytest.param: https://docs.pytest.org/en/latest/reference.html#pytest-param
+.. _pytest.param: https://docs.pytest.org/en/6.2.x/reference.html#pytest-param
 .. _autospecced: https://docs.python.org/3.8/library/unittest.mock.html#autospeccing

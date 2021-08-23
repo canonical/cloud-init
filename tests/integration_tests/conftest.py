@@ -213,6 +213,7 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     user_data = getter('user_data')
     name = getter('instance_name')
     lxd_config_dict = getter('lxd_config_dict')
+    lxd_setup = getter('lxd_setup')
     lxd_use_exec = fixture_utils.closest_marker_args_or(
         request, 'lxd_use_exec', None
     )
@@ -238,9 +239,14 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
                 # run anywhere else.  A failure flags up this discrepancy.
                 pytest.fail(XENIAL_LXD_VM_EXEC_MSG)
         launch_kwargs["execute_via_ssh"] = False
+    local_launch_kwargs = {}
+    if lxd_setup is not None:
+        if not isinstance(session_cloud, _LxdIntegrationCloud):
+            pytest.skip('lxd_setup requres LXD')
+        local_launch_kwargs['lxd_setup'] = lxd_setup
 
     with session_cloud.launch(
-        user_data=user_data, launch_kwargs=launch_kwargs
+        user_data=user_data, launch_kwargs=launch_kwargs, **local_launch_kwargs
     ) as instance:
         if lxd_use_exec is not None:
             # Existing instances are not affected by the launch kwargs, so

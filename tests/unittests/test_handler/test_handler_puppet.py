@@ -3,7 +3,7 @@
 from cloudinit.config import cc_puppet
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
-from cloudinit.tests.helpers import CiTestCase, mock
+from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase, mock
 
 import logging
 import textwrap
@@ -63,7 +63,8 @@ class TestPuppetHandle(CiTestCase):
         super(TestPuppetHandle, self).setUp()
         self.new_root = self.tmp_dir()
         self.conf = self.tmp_path('puppet.conf')
-        self.csr_attributes_path = self.tmp_path('csr_attributes.yaml')
+        self.csr_attributes_path = self.tmp_path(
+            'csr_attributes.yaml')
 
     def _get_cloud(self, distro):
         paths = helpers.Paths({'templates_dir': self.new_root})
@@ -72,7 +73,7 @@ class TestPuppetHandle(CiTestCase):
         myds = DataSourceNone.DataSourceNone({}, mydist, paths)
         return cloud.Cloud(myds, paths, {}, mydist, None)
 
-    def test_handler_skips_missing_puppet_key_in_cloudconfig(self, m_auto):
+    def test_skips_missing_puppet_key_in_cloudconfig(self, m_auto):
         """Cloud-config containing no 'puppet' key is skipped."""
         mycloud = self._get_cloud('ubuntu')
         cfg = {}
@@ -81,19 +82,19 @@ class TestPuppetHandle(CiTestCase):
             "no 'puppet' configuration found", self.logs.getvalue())
         self.assertEqual(0, m_auto.call_count)
 
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp')
-    def test_handler_puppet_config_starts_puppet_service(self, m_subp, m_auto):
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_config_starts_puppet_service(self, m_subp, m_auto):
         """Cloud-config 'puppet' configuration starts puppet."""
         mycloud = self._get_cloud('ubuntu')
         cfg = {'puppet': {'install': False}}
         cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
         self.assertEqual(1, m_auto.call_count)
-        self.assertEqual(
+        self.assertIn(
             [mock.call(['service', 'puppet', 'start'], capture=False)],
             m_subp.call_args_list)
 
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp')
-    def test_handler_empty_puppet_config_installs_puppet(self, m_subp, m_auto):
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_empty_puppet_config_installs_puppet(self, m_subp, m_auto):
         """Cloud-config empty 'puppet' configuration installs latest puppet."""
         mycloud = self._get_cloud('ubuntu')
         mycloud.distro = mock.MagicMock()
@@ -103,8 +104,8 @@ class TestPuppetHandle(CiTestCase):
             [mock.call(('puppet', None))],
             mycloud.distro.install_packages.call_args_list)
 
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp')
-    def test_handler_puppet_config_installs_puppet_on_true(self, m_subp, _):
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_config_installs_puppet_on_true(self, m_subp, _):
         """Cloud-config with 'puppet' key installs when 'install' is True."""
         mycloud = self._get_cloud('ubuntu')
         mycloud.distro = mock.MagicMock()
@@ -114,8 +115,85 @@ class TestPuppetHandle(CiTestCase):
             [mock.call(('puppet', None))],
             mycloud.distro.install_packages.call_args_list)
 
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp')
-    def test_handler_puppet_config_installs_puppet_version(self, m_subp, _):
+    @mock.patch('cloudinit.config.cc_puppet.install_puppet_aio', autospec=True)
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_config_installs_puppet_aio(self, m_subp, m_aio, _):
+        """Cloud-config with 'puppet' key installs
+        when 'install_type' is 'aio'."""
+        mycloud = self._get_cloud('ubuntu')
+        mycloud.distro = mock.MagicMock()
+        cfg = {'puppet': {'install': True, 'install_type': 'aio'}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        m_aio.assert_called_with(
+            cc_puppet.AIO_INSTALL_URL,
+            None, None, True)
+
+    @mock.patch('cloudinit.config.cc_puppet.install_puppet_aio', autospec=True)
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_config_installs_puppet_aio_with_version(self,
+                                                            m_subp, m_aio, _):
+        """Cloud-config with 'puppet' key installs
+        when 'install_type' is 'aio' and 'version' is specified."""
+        mycloud = self._get_cloud('ubuntu')
+        mycloud.distro = mock.MagicMock()
+        cfg = {'puppet': {'install': True,
+                          'version': '6.24.0', 'install_type': 'aio'}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        m_aio.assert_called_with(
+            cc_puppet.AIO_INSTALL_URL,
+            '6.24.0', None, True)
+
+    @mock.patch('cloudinit.config.cc_puppet.install_puppet_aio', autospec=True)
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_config_installs_puppet_aio_with_collection(self,
+                                                               m_subp,
+                                                               m_aio, _):
+        """Cloud-config with 'puppet' key installs
+        when 'install_type' is 'aio' and 'collection' is specified."""
+        mycloud = self._get_cloud('ubuntu')
+        mycloud.distro = mock.MagicMock()
+        cfg = {'puppet': {'install': True,
+                          'collection': 'puppet6', 'install_type': 'aio'}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        m_aio.assert_called_with(
+            cc_puppet.AIO_INSTALL_URL,
+            None, 'puppet6', True)
+
+    @mock.patch('cloudinit.config.cc_puppet.install_puppet_aio', autospec=True)
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_config_installs_puppet_aio_with_custom_url(self,
+                                                               m_subp,
+                                                               m_aio, _):
+        """Cloud-config with 'puppet' key installs
+        when 'install_type' is 'aio' and 'aio_install_url' is specified."""
+        mycloud = self._get_cloud('ubuntu')
+        mycloud.distro = mock.MagicMock()
+        cfg = {'puppet':
+               {'install': True,
+                'aio_install_url': 'http://test.url/path/to/script.sh',
+                'install_type': 'aio'}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        m_aio.assert_called_with(
+            'http://test.url/path/to/script.sh', None, None, True)
+
+    @mock.patch('cloudinit.config.cc_puppet.install_puppet_aio', autospec=True)
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_config_installs_puppet_aio_without_cleanup(self,
+                                                               m_subp,
+                                                               m_aio, _):
+        """Cloud-config with 'puppet' key installs
+        when 'install_type' is 'aio' and no cleanup."""
+        mycloud = self._get_cloud('ubuntu')
+        mycloud.distro = mock.MagicMock()
+        cfg = {'puppet': {'install': True,
+                          'cleanup': False, 'install_type': 'aio'}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        m_aio.assert_called_with(
+            cc_puppet.AIO_INSTALL_URL,
+            None, None, False)
+
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_config_installs_puppet_version(self, m_subp, _):
         """Cloud-config 'puppet' configuration can specify a version."""
         mycloud = self._get_cloud('ubuntu')
         mycloud.distro = mock.MagicMock()
@@ -125,26 +203,39 @@ class TestPuppetHandle(CiTestCase):
             [mock.call(('puppet', '3.8'))],
             mycloud.distro.install_packages.call_args_list)
 
-    @mock.patch('cloudinit.config.cc_puppet.subp.subp')
-    def test_handler_puppet_config_updates_puppet_conf(self, m_subp, m_auto):
+    @mock.patch('cloudinit.config.cc_puppet.get_config_value')
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_config_updates_puppet_conf(self,
+                                               m_subp, m_default, m_auto):
         """When 'conf' is provided update values in PUPPET_CONF_PATH."""
+
+        def _fake_get_config_value(puppet_bin, setting):
+            return self.conf
+
+        m_default.side_effect = _fake_get_config_value
         mycloud = self._get_cloud('ubuntu')
         cfg = {
             'puppet': {
-                'conf': {'agent': {'server': 'puppetmaster.example.org'}}}}
-        util.write_file(self.conf, '[agent]\nserver = origpuppet\nother = 3')
-        puppet_conf_path = 'cloudinit.config.cc_puppet.PUPPET_CONF_PATH'
+                'conf': {'agent': {'server': 'puppetserver.example.org'}}}}
+        util.write_file(
+            self.conf, '[agent]\nserver = origpuppet\nother = 3')
         mycloud.distro = mock.MagicMock()
-        with mock.patch(puppet_conf_path, self.conf):
-            cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
         content = util.load_file(self.conf)
-        expected = '[agent]\nserver = puppetmaster.example.org\nother = 3\n\n'
+        expected = '[agent]\nserver = puppetserver.example.org\nother = 3\n\n'
         self.assertEqual(expected, content)
 
+    @mock.patch('cloudinit.config.cc_puppet.get_config_value')
     @mock.patch('cloudinit.config.cc_puppet.subp.subp')
-    def test_handler_puppet_writes_csr_attributes_file(self, m_subp, m_auto):
+    def test_puppet_writes_csr_attributes_file(self,
+                                               m_subp, m_default, m_auto):
         """When csr_attributes is provided
             creates file in PUPPET_CSR_ATTRIBUTES_PATH."""
+
+        def _fake_get_config_value(puppet_bin, setting):
+            return self.csr_attributes_path
+
+        m_default.side_effect = _fake_get_config_value
         mycloud = self._get_cloud('ubuntu')
         mycloud.distro = mock.MagicMock()
         cfg = {
@@ -163,10 +254,7 @@ class TestPuppetHandle(CiTestCase):
                 }
             }
         }
-        csr_attributes = 'cloudinit.config.cc_puppet.' \
-                         'PUPPET_CSR_ATTRIBUTES_PATH'
-        with mock.patch(csr_attributes, self.csr_attributes_path):
-            cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
         content = util.load_file(self.csr_attributes_path)
         expected = textwrap.dedent("""\
             custom_attributes:
@@ -177,3 +265,101 @@ class TestPuppetHandle(CiTestCase):
               pp_uuid: ED803750-E3C7-44F5-BB08-41A04433FE2E
             """)
         self.assertEqual(expected, content)
+
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_runs_puppet_if_requested(self, m_subp, m_auto):
+        """Run puppet with default args if 'exec' is set to True."""
+        mycloud = self._get_cloud('ubuntu')
+        cfg = {'puppet': {'exec': True}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        self.assertEqual(1, m_auto.call_count)
+        self.assertIn(
+            [mock.call(['puppet', 'agent', '--test'], capture=False)],
+            m_subp.call_args_list)
+
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_runs_puppet_with_args_list_if_requested(self,
+                                                            m_subp, m_auto):
+        """Run puppet with 'exec_args' list if 'exec' is set to True."""
+        mycloud = self._get_cloud('ubuntu')
+        cfg = {'puppet': {'exec': True, 'exec_args': [
+            '--onetime', '--detailed-exitcodes']}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        self.assertEqual(1, m_auto.call_count)
+        self.assertIn(
+            [mock.call(
+                ['puppet', 'agent', '--onetime', '--detailed-exitcodes'],
+                capture=False)],
+            m_subp.call_args_list)
+
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_runs_puppet_with_args_string_if_requested(self,
+                                                              m_subp, m_auto):
+        """Run puppet with 'exec_args' string if 'exec' is set to True."""
+        mycloud = self._get_cloud('ubuntu')
+        cfg = {'puppet': {'exec': True,
+                          'exec_args': '--onetime --detailed-exitcodes'}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        self.assertEqual(1, m_auto.call_count)
+        self.assertIn(
+            [mock.call(
+                ['puppet', 'agent', '--onetime', '--detailed-exitcodes'],
+                capture=False)],
+            m_subp.call_args_list)
+
+
+URL_MOCK = mock.Mock()
+URL_MOCK.contents = b'#!/bin/bash\necho "Hi Mom"'
+
+
+@mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=(None, None))
+@mock.patch(
+    'cloudinit.config.cc_puppet.url_helper.readurl',
+    return_value=URL_MOCK, autospec=True,
+)
+class TestInstallPuppetAio(HttprettyTestCase):
+    def test_install_with_default_arguments(self, m_readurl, m_subp):
+        """Install AIO with no arguments"""
+        cc_puppet.install_puppet_aio()
+
+        self.assertEqual(
+            [mock.call([mock.ANY, '--cleanup'], capture=False)],
+            m_subp.call_args_list)
+
+    def test_install_with_custom_url(self, m_readurl, m_subp):
+        """Install AIO from custom URL"""
+        cc_puppet.install_puppet_aio('http://custom.url/path/to/script.sh')
+        m_readurl.assert_called_with(
+            url='http://custom.url/path/to/script.sh',
+            retries=5)
+
+        self.assertEqual(
+            [mock.call([mock.ANY, '--cleanup'], capture=False)],
+            m_subp.call_args_list)
+
+    def test_install_with_version(self, m_readurl, m_subp):
+        """Install AIO with specific version"""
+        cc_puppet.install_puppet_aio(cc_puppet.AIO_INSTALL_URL, '7.6.0')
+
+        self.assertEqual(
+            [mock.call([mock.ANY, '-v', '7.6.0', '--cleanup'], capture=False)],
+            m_subp.call_args_list)
+
+    def test_install_with_collection(self, m_readurl, m_subp):
+        """Install AIO with specific collection"""
+        cc_puppet.install_puppet_aio(
+            cc_puppet.AIO_INSTALL_URL, None, 'puppet6-nightly')
+
+        self.assertEqual(
+            [mock.call([mock.ANY, '-c', 'puppet6-nightly', '--cleanup'],
+                       capture=False)],
+            m_subp.call_args_list)
+
+    def test_install_with_no_cleanup(self, m_readurl, m_subp):
+        """Install AIO with no cleanup"""
+        cc_puppet.install_puppet_aio(
+            cc_puppet.AIO_INSTALL_URL, None, None, False)
+
+        self.assertEqual(
+            [mock.call([mock.ANY], capture=False)],
+            m_subp.call_args_list)

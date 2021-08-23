@@ -138,6 +138,12 @@ apt:
       # the first defining a valid mirror wins (in the order as defined here,
       # not the order as listed in the config).
       #
+      # Additionally, if the repository requires a custom signing key, it can be
+      # specified via the same fields as for custom sources:
+      #   'keyid': providing a key to import via shortid or fingerprint
+      #   'key': providing a raw PGP key
+      #   'keyserver': specify an alternate keyserver to pull keys from that
+      #                were specified by keyid
     - arches: [s390x, arm64]
       # as above, allowing to have one config for different per arch mirrors
   # security is optional, if not defined it is set to the same value as primary
