@@ -5,7 +5,7 @@ import inspect
 import os
 import stat
 
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
 from cloudinit import importer
 from cloudinit.sources import (
@@ -618,24 +618,29 @@ class TestDataSource(CiTestCase):
         self.assertEqual('himom', getattr(self.datasource, cached_attr_name))
         self.assertEqual('updated', self.datasource.myattr)
 
+    @mock.patch.dict(DataSource.default_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
+    @mock.patch.dict(DataSource.supported_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_update_metadata_only_acts_on_supported_update_events(self):
-        """update_metadata won't get_data on unsupported update events."""
-        self.datasource.update_events['network'].discard(EventType.BOOT)
+        """update_metadata_if_supported wont get_data on unsupported events."""
         self.assertEqual(
-            {'network': set([EventType.BOOT_NEW_INSTANCE])},
-            self.datasource.update_events)
+            {EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])},
+            self.datasource.default_update_events
+        )
 
         def fake_get_data():
             raise Exception('get_data should not be called')
 
         self.datasource.get_data = fake_get_data
         self.assertFalse(
-            self.datasource.update_metadata(
+            self.datasource.update_metadata_if_supported(
                 source_event_types=[EventType.BOOT]))
 
+    @mock.patch.dict(DataSource.supported_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_update_metadata_returns_true_on_supported_update_event(self):
-        """update_metadata returns get_data response on supported events."""
-
+        """update_metadata_if_supported returns get_data on supported events"""
         def fake_get_data():
             return True
 
@@ -643,14 +648,16 @@ class TestDataSource(CiTestCase):
         self.datasource._network_config = 'something'
         self.datasource._dirty_cache = True
         self.assertTrue(
-            self.datasource.update_metadata(
+            self.datasource.update_metadata_if_supported(
                 source_event_types=[
                     EventType.BOOT, EventType.BOOT_NEW_INSTANCE]))
         self.assertEqual(UNSET, self.datasource._network_config)
+
         self.assertIn(
             "DEBUG: Update datasource metadata and network config due to"
-            " events: New instance first boot",
-            self.logs.getvalue())
+            " events: boot-new-instance",
+            self.logs.getvalue()
+        )
 
 
 class TestRedactSensitiveData(CiTestCase):

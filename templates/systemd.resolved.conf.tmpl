@@ -1,0 +1,15 @@
+## template:jinja
+# Your system has been configured with 'manage-resolv-conf' set to true.
+# As a result, cloud-init has written this file with configuration data
+# that it has been provided. Cloud-init, by default, will write this file
+# a single time (PER_ONCE).
+#
+[Resolve]
+LLMNR=false
+{% if nameservers is defined %}
+DNS={% for server in nameservers %}{{server}} {% endfor %}
+{% endif %}
+
+{% if searchdomains is defined %}
+Domains={% for search in searchdomains %}{{search}} {% endfor %}
+{% endif %}

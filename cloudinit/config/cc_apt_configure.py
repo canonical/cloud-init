@@ -57,6 +57,15 @@ mirror_property = {
             },
             'search_dns': {
                 'type': 'boolean',
+            },
+            'keyid': {
+                'type': 'string'
+            },
+            'key': {
+                'type': 'string'
+            },
+            'keyserver': {
+                'type': 'string'
             }
         }
     }
@@ -227,6 +236,15 @@ schema = {
                         If ``search_dns`` is used for the ``security``
                         key, the search pattern will be
                         ``<distro>-security-mirror``.
+
+                        Each mirror may also specify a key to import via
+                        any of the following optional keys:
+
+                            - ``keyid``: a key to import via shortid or \
+                                  fingerprint.
+                            - ``key``: a raw PGP key.
+                            - ``keyserver``: alternate keyserver to pull \
+                                    ``keyid`` key from.
 
                         If no mirrors are specified, or all lookups fail,
                         then default mirrors defined in the datasource
@@ -453,6 +471,7 @@ def apply_apt(cfg, cloud, target):
     LOG.debug("Apt Mirror info: %s", mirrors)
 
     if util.is_false(cfg.get('preserve_sources_list', False)):
+        add_mirror_keys(cfg, target)
         generate_sources_list(cfg, release, mirrors, cloud)
         rename_apt_lists(mirrors, target, arch)
 
@@ -658,6 +677,13 @@ def disable_suites(disabled, src, release):
         retsrc = newsrc
 
     return retsrc
+
+
+def add_mirror_keys(cfg, target):
+    """Adds any keys included in the primary/security mirror clauses"""
+    for key in ('primary', 'security'):
+        for mirror in cfg.get(key, []):
+            add_apt_key(mirror, target)
 
 
 def generate_sources_list(cfg, release, mirrors, cloud):

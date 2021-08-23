@@ -35,6 +35,7 @@ from base64 import b64decode, b64encode
 from errno import ENOENT
 from functools import lru_cache
 from urllib import parse
+from typing import List
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -392,12 +393,21 @@ def is_Linux():
 
 @lru_cache()
 def is_BSD():
-    return 'BSD' in platform.system()
+    if 'BSD' in platform.system():
+        return True
+    if platform.system() == 'DragonFly':
+        return True
+    return False
 
 
 @lru_cache()
 def is_FreeBSD():
     return system_info()['variant'] == "freebsd"
+
+
+@lru_cache()
+def is_DragonFlyBSD():
+    return system_info()['variant'] == "dragonfly"
 
 
 @lru_cache()
@@ -444,9 +454,19 @@ def _parse_redhat_release(release_file=None):
     redhat_regex = (
         r'(?P<name>.+) release (?P<version>[\d\.]+) '
         r'\((?P<codename>[^)]+)\)')
+
+    # Virtuozzo deviates here
+    if "Virtuozzo" in redhat_release:
+        redhat_regex = r'(?P<name>.+) release (?P<version>[\d\.]+)'
+
     match = re.match(redhat_regex, redhat_release)
     if match:
         group = match.groupdict()
+
+        # Virtuozzo has no codename in this file
+        if "Virtuozzo" in group['name']:
+            group['codename'] = group['name']
+
         group['name'] = group['name'].lower().partition(' linux')[0]
         if group['name'] == 'red hat enterprise':
             group['name'] = 'redhat'
@@ -461,9 +481,11 @@ def get_linux_distro():
     distro_version = ''
     flavor = ''
     os_release = {}
+    os_release_rhel = False
     if os.path.exists('/etc/os-release'):
         os_release = load_shell_content(load_file('/etc/os-release'))
     if not os_release:
+        os_release_rhel = True
         os_release = _parse_redhat_release()
     if os_release:
         distro_name = os_release.get('ID', '')
@@ -474,6 +496,11 @@ def get_linux_distro():
             # which will include both version codename and architecture
             # on all distributions.
             flavor = platform.machine()
+        elif distro_name == 'photon':
+            flavor = os_release.get('PRETTY_NAME', '')
+        elif distro_name == 'virtuozzo' and not os_release_rhel:
+            # Only use this if the redhat file is not parsed
+            flavor = os_release.get('PRETTY_NAME', '')
         else:
             flavor = os_release.get('VERSION_CODENAME', '')
             if not flavor:
@@ -521,8 +548,8 @@ def system_info():
     if system == "linux":
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
-                'almalinux', 'alpine', 'arch', 'centos', 'debian', 'fedora',
-                'rhel', 'suse'):
+                'almalinux', 'alpine', 'arch', 'centos', 'debian', 'eurolinux',
+                'fedora', 'photon', 'rhel', 'rocky', 'suse', 'virtuozzo'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
@@ -534,7 +561,9 @@ def system_info():
             var = 'suse'
         else:
             var = 'linux'
-    elif system in ('windows', 'darwin', "freebsd", "netbsd", "openbsd"):
+    elif system in (
+            'windows', 'darwin', "freebsd", "netbsd",
+            "openbsd", "dragonfly"):
         var = system
 
     info['variant'] = var
@@ -1195,6 +1224,23 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
     return ['/dev/' + i for i in devlist]
 
 
+def find_devs_with_dragonflybsd(criteria=None, oformat='device',
+                                tag=None, no_cache=False, path=None):
+    out, _err = subp.subp(['sysctl', '-n', 'kern.disks'], rcs=[0])
+    devlist = [i for i in sorted(out.split(), reverse=True)
+               if not i.startswith("md") and not i.startswith("vn")]
+
+    if criteria == "TYPE=iso9660":
+        devlist = [i for i in devlist
+                   if i.startswith('cd') or i.startswith('acd')]
+    elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
+        devlist = [i for i in devlist
+                   if not (i.startswith('cd') or i.startswith('acd'))]
+    elif criteria:
+        LOG.debug("Unexpected criteria: %s", criteria)
+    return ['/dev/' + i for i in devlist]
+
+
 def find_devs_with(criteria=None, oformat='device',
                    tag=None, no_cache=False, path=None):
     """
@@ -1213,6 +1259,9 @@ def find_devs_with(criteria=None, oformat='device',
     elif is_OpenBSD():
         return find_devs_with_openbsd(criteria, oformat,
                                       tag, no_cache, path)
+    elif is_DragonFlyBSD():
+        return find_devs_with_dragonflybsd(criteria, oformat,
+                                           tag, no_cache, path)
 
     blk_id_cmd = ['blkid']
     options = []
@@ -1830,6 +1879,53 @@ def chmod(path, mode):
             os.chmod(path, real_mode)
 
 
+def get_permissions(path: str) -> int:
+    """
+    Returns the octal permissions of the file/folder pointed by the path,
+    encoded as an int.
+
+    @param path: The full path of the file/folder.
+    """
+
+    return stat.S_IMODE(os.stat(path).st_mode)
+
+
+def get_owner(path: str) -> str:
+    """
+    Returns the owner of the file/folder pointed by the path.
+
+    @param path: The full path of the file/folder.
+    """
+    st = os.stat(path)
+    return pwd.getpwuid(st.st_uid).pw_name
+
+
+def get_group(path: str) -> str:
+    """
+    Returns the group of the file/folder pointed by the path.
+
+    @param path: The full path of the file/folder.
+    """
+    st = os.stat(path)
+    return grp.getgrgid(st.st_gid).gr_name
+
+
+def get_user_groups(username: str) -> List[str]:
+    """
+    Returns a list of all groups to which the user belongs
+
+    @param username: the user we want to check
+    """
+    groups = []
+    for group in grp.getgrall():
+        if username in group.gr_mem:
+            groups.append(group.gr_name)
+
+    gid = pwd.getpwnam(username).pw_gid
+    groups.append(grp.getgrgid(gid).gr_name)
+    return groups
+
+
 def write_file(
     filename,
     content,
@@ -1856,8 +1952,7 @@ def write_file(
 
     if preserve_mode:
         try:
-            file_stat = os.stat(filename)
-            mode = stat.S_IMODE(file_stat.st_mode)
+            mode = get_permissions(filename)
         except OSError:
             pass
 
@@ -2211,6 +2306,14 @@ def find_freebsd_part(fs):
         LOG.warning("Unexpected input in find_freebsd_part: %s", fs)
 
 
+def find_dragonflybsd_part(fs):
+    splitted = fs.split('/')
+    if len(splitted) == 3 and splitted[1] == 'dev':
+        return splitted[2]
+    else:
+        LOG.warning("Unexpected input in find_dragonflybsd_part: %s", fs)
+
+
 def get_path_dev_freebsd(path, mnt_list):
     path_found = None
     for line in mnt_list.split("\n"):
@@ -2264,6 +2367,9 @@ def parse_mount(path):
     # https://regex101.com/r/T2en7a/1
     regex = (r'^(/dev/[\S]+|.*zroot\S*?) on (/[\S]*) '
              r'(?=(?:type)[\s]+([\S]+)|\(([^,]*))')
+    if is_DragonFlyBSD():
+        regex = (r'^(/dev/[\S]+|\S*?) on (/[\S]*) '
+                 r'(?=(?:type)[\s]+([\S]+)|\(([^,]*))')
     for line in mount_locs:
         m = re.search(regex, line)
         if not m:

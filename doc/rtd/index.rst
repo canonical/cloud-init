@@ -27,7 +27,7 @@ Getting help
 Having trouble? We would like to help!
 
 - Try the :ref:`FAQ` – its got answers to some common questions
-- Ask a question in the ``#cloud-init`` IRC channel on Freenode
+- Ask a question in the ``#cloud-init`` IRC channel on Libera
 - Join and ask questions on the `cloud-init mailing list <https://launchpad.net/~cloud-init>`_
 - Find a bug? `Report bugs on Launchpad <https://bugs.launchpad.net/cloud-init/+filebug>`_
 
@@ -49,6 +49,7 @@ Having trouble? We would like to help!
 
    topics/format.rst
    topics/examples.rst
+   topics/events.rst
    topics/modules.rst
    topics/merging.rst
 
