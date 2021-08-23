@@ -1,3 +1,104 @@
+21.3
+ - Azure: During primary nic detection, check interface status continuously
+   before rebinding again (#990) [aswinrajamannar]
+ - Fix home permissions modified by ssh module (SC-338) (#984)
+   (LP: #1940233)
+ - Add integration test for sensitive jinja substitution (#986)
+ - Ignore hotplug socket when collecting logs (#985) (LP: #1940235)
+ - testing: Add missing mocks to test_vmware.py (#982)
+ - add Zadara Edge Cloud Platform to the supported clouds list (#963)
+   [sarahwzadara]
+ - testing: skip upgrade tests on LXD VMs (#980)
+ - Only invoke hotplug socket when functionality is enabled (#952)
+ - Revert unnecesary lcase in ds-identify (#978) [Andrew Kutz]
+ - cc_resolv_conf: fix typos (#969) [Shreenidhi Shedi]
+ - Replace broken httpretty tests with mock (SC-324) (#973)
+ - Azure: Check if interface is up after sleep when trying to bring it up
+   (#972) [aswinrajamannar]
+ - Update dscheck_VMware's rpctool check (#970) [Shreenidhi Shedi]
+ - Azure: Logging the detected interfaces (#968) [Moustafa Moustafa]
+ - Change netifaces dependency to 0.10.4 (#965) [Andrew Kutz]
+ - Azure: Limit polling network metadata on connection errors (#961)
+   [aswinrajamannar]
+ - Update inconsistent indentation (#962) [Andrew Kutz]
+ - cc_puppet: support AIO installations and more (#960) [Gabriel Nagy]
+ - Add Puppet contributors to CLA signers (#964) [Noah Fontes]
+ - Datasource for VMware (#953) [Andrew Kutz]
+ - photon: refactor hostname handling and add networkd activator (#958)
+   [sshedi]
+ - Stop copying ssh system keys and check folder permissions (#956)
+   [Emanuele Giuseppe Esposito]
+ - testing: port remaining cloud tests to integration testing framework
+   (SC-191) (#955)
+ - generate contents for ovf-env.xml when provisioning via IMDS (#959)
+   [Anh Vo]
+ - Add support for EuroLinux 7 && EuroLinux 8 (#957) [Aleksander Baranowski]
+ - Implementing device_aliases as described in docs (#945)
+   [Mal Graty] (LP: #1867532)
+ - testing: fix test_ssh_import_id.py (#954)
+ - Add ability to manage fallback network config on PhotonOS (#941) [sshedi]
+ - Add VZLinux support (#951) [eb3095]
+ - VMware: add network-config support in ovf-env.xml (#947) [PengpengSun]
+ - Update pylint to v2.9.3 and fix the new issues it spots (#946)
+   [Paride Legovini]
+ - Azure: mount default provisioning iso before try device listing (#870)
+   [Anh Vo]
+ - Document known hotplug limitations (#950)
+ - Initial hotplug support (#936)
+ - Fix MIME policy failure on python version upgrade (#934)
+ - run-container: fixup the centos repos baseurls when using http_proxy
+   (#944) [Paride Legovini]
+ - tools: add support for building rpms on rocky linux (#940)
+ - ssh-util: allow cloudinit to merge all ssh keys into a custom user
+   file, defined in AuthorizedKeysFile (#937) [Emanuele Giuseppe Esposito]
+   (LP: #1911680)
+ - VMware: new "allow_raw_data" switch (#939) [xiaofengw-vmware]
+ - bump pycloudlib version (#935)
+ - add renanrodrigo as a contributor (#938) [Renan Rodrigo]
+ - testing: simplify test_upgrade.py (#932)
+ - freebsd/net_v1 format: read MTU from root (#930) [Gonéri Le Bouder]
+ - Add new network activators to bring up interfaces (#919)
+ - - Detect a Python version change and clear the cache (#857)
+   [Robert Schweikert]
+ - cloud_tests: fix the Impish release name (#931) [Paride Legovini]
+ - Removed distro specific network code from Photon (#929) [sshedi]
+ - Add support for VMware PhotonOS (#909) [sshedi]
+ - cloud_tests: add impish release definition (#927) [Paride Legovini]
+ - docs: fix stale links rename master branch to main (#926)
+ - Fix DNS in NetworkState (SC-133) (#923)
+ - tests: Add 'adhoc' mark for integration tests (#925)
+ - Fix the spelling of "DigitalOcean" (#924) [Mark Mercado]
+ - Small Doc Update for ReportEventStack and Test (#920) [Mike Russell]
+ - Replace deprecated collections.Iterable with abc replacement (#922)
+   (LP: #1932048)
+ - testing: OCI availability domain is now required (SC-59) (#910)
+ - add DragonFlyBSD support (#904) [Gonéri Le Bouder]
+ - Use instance-data-sensitive.json in jinja templates (SC-117) (#917)
+   (LP: #1931392)
+ - doc: Update NoCloud docs stating required files (#918) (LP: #1931577)
+ - build-on-netbsd: don't pin a specific py3 version (#913)
+   [Gonéri Le Bouder]
+ - - Create the log file with 640 permissions (#858) [Robert Schweikert]
+ - Allow braces to appear in dhclient output (#911) [eb3095]
+ - Docs: Replace all freenode references with libera (#912)
+ - openbsd/net: flush the route table on net restart (#908)
+   [Gonéri Le Bouder]
+ - Add Rocky Linux support to cloud-init (#906) [Louis Abel]
+ - Add "esposem" as contributor (#907) [Emanuele Giuseppe Esposito]
+ - Add integration test for #868 (#901)
+ - Added support for importing keys via primary/security mirror clauses
+   (#882) [Paul Goins] (LP: #1925395)
+ - [examples] config-user-groups expire in the future (#902)
+   [Geert Stappers]
+ - BSD: static network, set the mtu (#894) [Gonéri Le Bouder]
+ - Add integration test for lp-1920939 (#891)
+ - Fix unit tests breaking from new httpretty version (#903)
+ - Allow user control over update events (#834)
+ - Update test characters in substitution unit test (#893)
+ - cc_disk_setup.py: remove UDEVADM_CMD definition as not used (#886)
+   [dermotbradley]
+ - Add AlmaLinux OS support (#872) [Andrew Lukoshko]
+
 21.2
  - Add \r\n check for SSH keys in Azure (#889)
  - Revert "Add support to resize rootfs if using LVM (#721)" (#887)
