@@ -1,4 +1,4 @@
-cloud-init (21.3-1-g6803368d-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (21.3-1-g6803368d-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * d/patches/ubuntu-advantage-revert-tip.patch: drop revert patch
     + ubuntu-advantage-tools completed SRU to bionic. Bionic now
