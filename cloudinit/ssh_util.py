@@ -321,22 +321,47 @@ def check_create_path(username, filename, strictmodes):
         home_folder = os.path.dirname(user_pwent.pw_dir)
         for directory in directories:
             parent_folder += "/" + directory
-            if home_folder.startswith(parent_folder):
+
+            # security check, disallow symlinks in the AuthorizedKeysFile path.
+            if os.path.islink(parent_folder):
+                LOG.debug(
+                    "Invalid directory. Symlink exists in path: %s",
+                    parent_folder)
+                return False
+
+            if os.path.isfile(parent_folder):
+                LOG.debug(
+                    "Invalid directory. File exists in path: %s",
+                    parent_folder)
+                return False
+
+            if (home_folder.startswith(parent_folder) or
+                    parent_folder == user_pwent.pw_dir):
                 continue
 
-            if not os.path.isdir(parent_folder):
+            if not os.path.exists(parent_folder):
                 # directory does not exist, and permission so far are good:
                 # create the directory, and make it accessible by everyone
                 # but owned by root, as it might be used by many users.
                 with util.SeLinuxGuard(parent_folder):
-                    os.makedirs(parent_folder, mode=0o755, exist_ok=True)
-                    util.chownbyid(parent_folder, root_pwent.pw_uid,
-                                   root_pwent.pw_gid)
+                    mode = 0o755
+                    uid = root_pwent.pw_uid
+                    gid = root_pwent.pw_gid
+                    if parent_folder.startswith(user_pwent.pw_dir):
+                        mode = 0o700
+                        uid = user_pwent.pw_uid
+                        gid = user_pwent.pw_gid
+                    os.makedirs(parent_folder, mode=mode, exist_ok=True)
+                    util.chownbyid(parent_folder, uid, gid)
 
             permissions = check_permissions(username, parent_folder,
                                             filename, False, strictmodes)
             if not permissions:
                 return False
+
+        if os.path.islink(filename) or os.path.isdir(filename):
+            LOG.debug("%s is not a file!", filename)
+            return False
 
         # check the file
         if not os.path.exists(filename):
