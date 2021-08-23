@@ -1,4 +1,4 @@
-cloud-init (21.3-1-g6803368d-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (21.3-1-g6803368d-0ubuntu1) impish; urgency=medium
 
   * New upstream snapshot.
     - testing: Fix ssh keys integration test (#992)
