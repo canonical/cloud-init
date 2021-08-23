@@ -3,8 +3,12 @@ cloud-init (21.2-3-g899bfaa9-0ubuntu2~18.04.2) UNRELEASED; urgency=medium
   * d/patches/ubuntu-advantage-revert-tip.patch: drop revert patch
     + ubuntu-advantage-tools completed SRU to bionic. Bionic now
       compatible with upstream ua python-client CLI behavior.
+  * refresh patches:
+   + debian/patches/ec2-dont-apply-full-imds-network-config.patch
+   + debian/patches/openstack-no-network-config.patch
+   + debian/patches/renderer-do-not-prefer-netplan.patch
 
- -- Chad Smith <chad.smith@canonical.com>  Tue, 15 Jun 2021 10:37:40 -0600
+ -- James Falcon <james.falcon@canonical.com>  Mon, 23 Aug 2021 17:28:07 -0500
 
 cloud-init (21.2-3-g899bfaa9-0ubuntu2~18.04.1) bionic; urgency=medium
 
