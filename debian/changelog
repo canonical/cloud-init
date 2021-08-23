@@ -1,3 +1,21 @@
+cloud-init (21.3-1-g6803368d-0ubuntu1) impish; urgency=medium
+
+  * New upstream snapshot.
+    - testing: Fix ssh keys integration test (#992)
+    - Release 21.3 (#993) (LP: #1940839)
+    - Azure: During primary nic detection, check interface status continuously
+      before rebinding again (#990) [aswinrajamannar]
+    - Fix home permissions modified by ssh module (SC-338) (#984)
+      (LP: #1940233)
+    - Add integration test for sensitive jinja substitution (#986)
+    - Ignore hotplug socket when collecting logs (#985) (LP: #1940235)
+    - testing: Add missing mocks to test_vmware.py (#982)
+    - add Zadara Edge Cloud Platform to the supported clouds list (#963)
+      [sarahwzadara]
+    - testing: skip upgrade tests on LXD VMs (#980)
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 23 Aug 2021 16:53:23 -0500
+
 cloud-init (21.2-69-g65607405-0ubuntu1) impish; urgency=medium
 
   * d/cloud-init.templates: Add VMware to default datasource_list

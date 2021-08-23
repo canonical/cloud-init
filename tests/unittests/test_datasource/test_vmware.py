@@ -6,6 +6,10 @@
 
 import base64
 import gzip
+import os
+
+import pytest
+
 from cloudinit import dmi, helpers, safeyaml
 from cloudinit import settings
 from cloudinit.sources import DataSourceVMware
@@ -16,7 +20,6 @@ from cloudinit.tests.helpers import (
     populate_dir,
 )
 
-import os
 
 PRODUCT_NAME_FILE_PATH = "/sys/class/dmi/id/product_name"
 PRODUCT_NAME = "VMware7,1"
@@ -54,6 +57,17 @@ VMW_VENDORDATA_YAML = """## template: jinja
 runcmd:
 - echo "Hello, world."
 """
+
+
+@pytest.yield_fixture(autouse=True)
+def common_patches():
+    with mock.patch('cloudinit.util.platform.platform', return_value='Linux'):
+        with mock.patch.multiple(
+            'cloudinit.dmi',
+            is_container=mock.Mock(return_value=False),
+            is_FreeBSD=mock.Mock(return_value=False)
+        ):
+            yield
 
 
 class TestDataSourceVMware(CiTestCase):
