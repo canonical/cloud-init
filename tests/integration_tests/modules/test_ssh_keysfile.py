@@ -77,13 +77,15 @@ def common_verify(client, expected_keys):
         # Ensure we haven't messed with any /home permissions
         # See LP: #1940233
         home_dir = '/home/{}'.format(user)
-        home_perms = '755'
+        # Home permissions aren't consistent between releases. On ubuntu
+        # this can change to 750 once focal is unsupported.
+        home_perms = '75'
         if user == 'root':
             home_dir = '/root'
             home_perms = '700'
-        assert '{} {}'.format(user, home_perms) == client.execute(
+        client.execute(
             'stat -c "%U %a" {}'.format(home_dir)
-        )
+        ).startswith('{} {}'.format(user, home_perms))
         if client.execute("test -d {}/.ssh".format(home_dir)).ok:
             assert '{} 700'.format(user) == client.execute(
                 'stat -c "%U %a" {}/.ssh'.format(home_dir)
