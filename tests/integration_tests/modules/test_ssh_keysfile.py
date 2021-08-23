@@ -79,7 +79,10 @@ def common_verify(client, expected_keys):
         home_dir = '/home/{}'.format(user)
         # Home permissions aren't consistent between releases. On ubuntu
         # this can change to 750 once focal is unsupported.
-        home_perms = '75'
+        if ImageSpecification.from_os_image().release in ("bionic", "focal"):
+            home_perms = '755'
+        else:
+            home_perms = '750'
         if user == 'root':
             home_dir = '/root'
             home_perms = '700'
