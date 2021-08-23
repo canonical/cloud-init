@@ -3,6 +3,7 @@ import pytest
 from io import StringIO
 from paramiko.ssh_exception import SSHException
 
+from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import get_test_rsa_keypair
 
@@ -86,9 +87,9 @@ def common_verify(client, expected_keys):
         if user == 'root':
             home_dir = '/root'
             home_perms = '700'
-        client.execute(
+        assert '{} {}'.format(user, home_perms) == client.execute(
             'stat -c "%U %a" {}'.format(home_dir)
-        ).startswith('{} {}'.format(user, home_perms))
+        )
         if client.execute("test -d {}/.ssh".format(home_dir)).ok:
             assert '{} 700'.format(user) == client.execute(
                 'stat -c "%U %a" {}/.ssh'.format(home_dir)
