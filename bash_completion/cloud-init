@@ -28,7 +28,7 @@ _cloudinit_complete()
                     COMPREPLY=($(compgen -W "--help --tarfile --include-userdata" -- $cur_word))
                     ;;
                 devel)
-                    COMPREPLY=($(compgen -W "--help schema net-convert" -- $cur_word))
+                    COMPREPLY=($(compgen -W "--help hotplug-hook schema net-convert" -- $cur_word))
                     ;;
                 dhclient-hook)
                     COMPREPLY=($(compgen -W "--help up down" -- $cur_word))
@@ -63,6 +63,9 @@ _cloudinit_complete()
                     ;;
                 --frequency)
                     COMPREPLY=($(compgen -W "--help instance always once" -- $cur_word))
+                    ;;
+                hotplug-hook)
+                    COMPREPLY=($(compgen -W "--help" -- $cur_word))
                     ;;
                 net-convert)
                     COMPREPLY=($(compgen -W "--help --network-data --kind --directory --output-kind" -- $cur_word))

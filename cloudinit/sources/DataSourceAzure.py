@@ -22,7 +22,7 @@ import requests
 from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.net import device_driver
 from cloudinit.net.dhcp import EphemeralDHCPv4
 from cloudinit import sources
@@ -45,7 +45,8 @@ from cloudinit.sources.helpers.azure import (
     is_byte_swapped,
     dhcp_log_cb,
     push_log_to_kvp,
-    report_failure_to_fabric)
+    report_failure_to_fabric,
+    build_minimal_ovf)
 
 LOG = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ REPROVISION_NIC_ATTACH_MARKER_FILE = "/var/lib/cloud/data/wait_for_nic_attach"
 REPROVISION_NIC_DETACHED_MARKER_FILE = "/var/lib/cloud/data/nic_detached"
 REPORTED_READY_MARKER_FILE = "/var/lib/cloud/data/reported_ready"
 AGENT_SEED_DIR = '/var/lib/waagent'
-
+DEFAULT_PROVISIONING_ISO_DEV = '/dev/sr0'
 
 # In the event where the IMDS primary server is not
 # available, it takes 1s to fallback to the secondary one
@@ -338,6 +339,13 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
 class DataSourceAzure(sources.DataSource):
 
     dsname = 'Azure'
+    # Regenerate network config new_instance boot and every boot
+    default_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY
+    }}
+
     _negotiated = False
     _metadata_imds = sources.UNSET
     _ci_pkl_version = 1
@@ -352,8 +360,6 @@ class DataSourceAzure(sources.DataSource):
             BUILTIN_DS_CONFIG])
         self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
         self._network_config = None
-        # Regenerate network config new_instance boot and every boot
-        self.update_events['network'].add(EventType.BOOT)
         self._ephemeral_dhcp_ctx = None
         self.failed_desired_api_version = False
         self.iso_dev = None
@@ -423,148 +429,154 @@ class DataSourceAzure(sources.DataSource):
         # it determines the value of ret. More specifically, the first one in
         # the candidate list determines the path to take in order to get the
         # metadata we need.
-        candidates = [self.seed_dir]
+        reprovision = False
+        ovf_is_accessible = True
+        reprovision_after_nic_attach = False
+        metadata_source = None
+        ret = None
         if os.path.isfile(REPROVISION_MARKER_FILE):
-            candidates.insert(0, "IMDS")
+            reprovision = True
+            metadata_source = "IMDS"
             report_diagnostic_event("Reprovision marker file already present "
                                     "before crawling Azure metadata: %s" %
                                     REPROVISION_MARKER_FILE,
                                     logger_func=LOG.debug)
         elif os.path.isfile(REPROVISION_NIC_ATTACH_MARKER_FILE):
-            candidates.insert(0, "NIC_ATTACH_MARKER_PRESENT")
+            reprovision_after_nic_attach = True
+            metadata_source = "NIC_ATTACH_MARKER_PRESENT"
             report_diagnostic_event("Reprovision nic attach marker file "
                                     "already present before crawling Azure "
                                     "metadata: %s" %
                                     REPROVISION_NIC_ATTACH_MARKER_FILE,
                                     logger_func=LOG.debug)
-        candidates.extend(list_possible_azure_ds_devs())
-        if ddir:
-            candidates.append(ddir)
-
-        found = None
-        reprovision = False
-        ovf_is_accessible = True
-        reprovision_after_nic_attach = False
-        for cdev in candidates:
-            try:
-                LOG.debug("cdev: %s", cdev)
-                if cdev == "IMDS":
-                    ret = None
-                    reprovision = True
-                elif cdev == "NIC_ATTACH_MARKER_PRESENT":
-                    ret = None
-                    reprovision_after_nic_attach = True
-                elif cdev.startswith("/dev/"):
-                    if util.is_FreeBSD():
-                        ret = util.mount_cb(cdev, load_azure_ds_dir,
-                                            mtype="udf")
+        else:
+            for src in list_possible_azure_ds(self.seed_dir, ddir):
+                try:
+                    if src.startswith("/dev/"):
+                        if util.is_FreeBSD():
+                            ret = util.mount_cb(src, load_azure_ds_dir,
+                                                mtype="udf")
+                        else:
+                            ret = util.mount_cb(src, load_azure_ds_dir)
+                        # save the device for ejection later
+                        self.iso_dev = src
+                        ovf_is_accessible = True
                     else:
-                        ret = util.mount_cb(cdev, load_azure_ds_dir)
-                else:
-                    ret = load_azure_ds_dir(cdev)
-
-            except NonAzureDataSource:
-                report_diagnostic_event(
-                    "Did not find Azure data source in %s" % cdev,
-                    logger_func=LOG.debug)
-                continue
-            except BrokenAzureDataSource as exc:
-                msg = 'BrokenAzureDataSource: %s' % exc
-                report_diagnostic_event(msg, logger_func=LOG.error)
-                raise sources.InvalidMetaDataException(msg)
-            except util.MountFailedError:
-                report_diagnostic_event(
-                    '%s was not mountable' % cdev, logger_func=LOG.debug)
-                cdev = 'IMDS'
-                ovf_is_accessible = False
-                empty_md = {'local-hostname': ''}
-                empty_cfg = dict(
-                    system_info=dict(
-                        default_user=dict(
-                            name=''
+                        ret = load_azure_ds_dir(src)
+                    metadata_source = src
+                    break
+                except NonAzureDataSource:
+                    report_diagnostic_event(
+                        "Did not find Azure data source in %s" % src,
+                        logger_func=LOG.debug)
+                    continue
+                except util.MountFailedError:
+                    report_diagnostic_event(
+                        '%s was not mountable' % src,
+                        logger_func=LOG.debug)
+                    ovf_is_accessible = False
+                    empty_md = {'local-hostname': ''}
+                    empty_cfg = dict(
+                        system_info=dict(
+                            default_user=dict(
+                                name=''
+                            )
                         )
                     )
-                )
-                ret = (empty_md, '', empty_cfg, {})
-
-            report_diagnostic_event("Found provisioning metadata in %s" % cdev,
-                                    logger_func=LOG.debug)
-
-            # save the iso device for ejection before reporting ready
-            if cdev.startswith("/dev"):
-                self.iso_dev = cdev
-
-            perform_reprovision = reprovision or self._should_reprovision(ret)
-            perform_reprovision_after_nic_attach = (
-                reprovision_after_nic_attach or
-                self._should_reprovision_after_nic_attach(ret))
-
-            if perform_reprovision or perform_reprovision_after_nic_attach:
-                if util.is_FreeBSD():
-                    msg = "Free BSD is not supported for PPS VMs"
+                    ret = (empty_md, '', empty_cfg, {})
+                    metadata_source = 'IMDS'
+                    continue
+                except BrokenAzureDataSource as exc:
+                    msg = 'BrokenAzureDataSource: %s' % exc
                     report_diagnostic_event(msg, logger_func=LOG.error)
                     raise sources.InvalidMetaDataException(msg)
-                if perform_reprovision_after_nic_attach:
-                    self._wait_for_all_nics_ready()
-                ret = self._reprovision()
 
-            imds_md = self.get_imds_data_with_api_fallback(
-                self.fallback_interface,
-                retries=10
-            )
-            if not imds_md and not ovf_is_accessible:
-                msg = 'No OVF or IMDS available'
-                report_diagnostic_event(msg)
+        report_diagnostic_event(
+            "Found provisioning metadata in %s" % metadata_source,
+            logger_func=LOG.debug)
+
+        perform_reprovision = reprovision or self._should_reprovision(ret)
+        perform_reprovision_after_nic_attach = (
+            reprovision_after_nic_attach or
+            self._should_reprovision_after_nic_attach(ret))
+
+        if perform_reprovision or perform_reprovision_after_nic_attach:
+            if util.is_FreeBSD():
+                msg = "Free BSD is not supported for PPS VMs"
+                report_diagnostic_event(msg, logger_func=LOG.error)
                 raise sources.InvalidMetaDataException(msg)
-            (md, userdata_raw, cfg, files) = ret
-            self.seed = cdev
-            crawled_data.update({
-                'cfg': cfg,
-                'files': files,
-                'metadata': util.mergemanydict(
-                    [md, {'imds': imds_md}]),
-                'userdata_raw': userdata_raw})
-            imds_username = _username_from_imds(imds_md)
-            imds_hostname = _hostname_from_imds(imds_md)
-            imds_disable_password = _disable_password_from_imds(imds_md)
-            if imds_username:
-                LOG.debug('Username retrieved from IMDS: %s', imds_username)
-                cfg['system_info']['default_user']['name'] = imds_username
-            if imds_hostname:
-                LOG.debug('Hostname retrieved from IMDS: %s', imds_hostname)
-                crawled_data['metadata']['local-hostname'] = imds_hostname
-            if imds_disable_password:
-                LOG.debug(
-                    'Disable password retrieved from IMDS: %s',
-                    imds_disable_password
-                )
-                crawled_data['metadata']['disable_password'] = imds_disable_password  # noqa: E501
+            if perform_reprovision_after_nic_attach:
+                self._wait_for_all_nics_ready()
+            ret = self._reprovision()
 
-            # only use userdata from imds if OVF did not provide custom data
-            # userdata provided by IMDS is always base64 encoded
-            if not userdata_raw:
-                imds_userdata = _userdata_from_imds(imds_md)
-                if imds_userdata:
-                    LOG.debug("Retrieved userdata from IMDS")
-                    try:
-                        crawled_data['userdata_raw'] = base64.b64decode(
-                            ''.join(imds_userdata.split()))
-                    except Exception:
-                        report_diagnostic_event(
-                            "Bad userdata in IMDS",
-                            logger_func=LOG.warning)
-            found = cdev
+        imds_md = self.get_imds_data_with_api_fallback(
+            self.fallback_interface,
+            retries=10
+        )
+        if not imds_md and not ovf_is_accessible:
+            msg = 'No OVF or IMDS available'
+            report_diagnostic_event(msg)
+            raise sources.InvalidMetaDataException(msg)
+        (md, userdata_raw, cfg, files) = ret
+        self.seed = metadata_source
+        crawled_data.update({
+            'cfg': cfg,
+            'files': files,
+            'metadata': util.mergemanydict(
+                [md, {'imds': imds_md}]),
+            'userdata_raw': userdata_raw})
+        imds_username = _username_from_imds(imds_md)
+        imds_hostname = _hostname_from_imds(imds_md)
+        imds_disable_password = _disable_password_from_imds(imds_md)
+        if imds_username:
+            LOG.debug('Username retrieved from IMDS: %s', imds_username)
+            cfg['system_info']['default_user']['name'] = imds_username
+        if imds_hostname:
+            LOG.debug('Hostname retrieved from IMDS: %s', imds_hostname)
+            crawled_data['metadata']['local-hostname'] = imds_hostname
+        if imds_disable_password:
+            LOG.debug(
+                'Disable password retrieved from IMDS: %s',
+                imds_disable_password
+            )
+            crawled_data['metadata']['disable_password'] = imds_disable_password  # noqa: E501
 
-            report_diagnostic_event(
-                'found datasource in %s' % cdev, logger_func=LOG.debug)
-            break
+        if metadata_source == 'IMDS' and not crawled_data['files']:
+            try:
+                contents = build_minimal_ovf(
+                    username=imds_username,
+                    hostname=imds_hostname,
+                    disableSshPwd=imds_disable_password)
+                crawled_data['files'] = {'ovf-env.xml': contents}
+            except Exception as e:
+                report_diagnostic_event(
+                    "Failed to construct OVF from IMDS data %s" % e,
+                    logger_func=LOG.debug)
 
-        if not found:
+        # only use userdata from imds if OVF did not provide custom data
+        # userdata provided by IMDS is always base64 encoded
+        if not userdata_raw:
+            imds_userdata = _userdata_from_imds(imds_md)
+            if imds_userdata:
+                LOG.debug("Retrieved userdata from IMDS")
+                try:
+                    crawled_data['userdata_raw'] = base64.b64decode(
+                        ''.join(imds_userdata.split()))
+                except Exception:
+                    report_diagnostic_event(
+                        "Bad userdata in IMDS",
+                        logger_func=LOG.warning)
+
+        if not metadata_source:
             msg = 'No Azure metadata found'
             report_diagnostic_event(msg, logger_func=LOG.error)
             raise sources.InvalidMetaDataException(msg)
+        else:
+            report_diagnostic_event(
+                'found datasource in %s' % metadata_source,
+                logger_func=LOG.debug)
 
-        if found == ddir:
+        if metadata_source == ddir:
             report_diagnostic_event(
                 "using files cached in %s" % ddir, logger_func=LOG.debug)
 
@@ -880,12 +892,12 @@ class DataSourceAzure(sources.DataSource):
                                     logger_func=LOG.info)
             return
 
-        LOG.info("Attempting to bring %s up", ifname)
+        LOG.debug("Attempting to bring %s up", ifname)
 
         attempts = 0
+        LOG.info("Unbinding and binding the interface %s", ifname)
         while True:
 
-            LOG.info("Unbinding and binding the interface %s", ifname)
             devicename = net.read_sys_net(ifname,
                                           'device/device_id').strip('{}')
             util.write_file('/sys/bus/vmbus/drivers/hv_netvsc/unbind',
@@ -900,16 +912,28 @@ class DataSourceAzure(sources.DataSource):
                 report_diagnostic_event(msg, logger_func=LOG.info)
                 return
 
-            sleep_duration = 1
-            msg = ("Link is not up after %d attempts with %d seconds sleep "
-                   "between attempts." % (attempts, sleep_duration))
-
             if attempts % 10 == 0:
+                msg = ("Link is not up after %d attempts to rebind" % attempts)
                 report_diagnostic_event(msg, logger_func=LOG.info)
-            else:
                 LOG.info(msg)
 
-            sleep(sleep_duration)
+            # It could take some time after rebind for the interface to be up.
+            # So poll for the status for some time before attempting to rebind
+            # again.
+            sleep_duration = 0.5
+            max_status_polls = 20
+            LOG.debug("Polling %d seconds for primary NIC link up after "
+                      "rebind.", sleep_duration * max_status_polls)
+
+            for i in range(0, max_status_polls):
+                if self.distro.networking.is_up(ifname):
+                    msg = ("After %d attempts to rebind, link is up after "
+                           "polling the link status %d times" % (attempts, i))
+                    report_diagnostic_event(msg, logger_func=LOG.info)
+                    LOG.debug(msg)
+                    return
+                else:
+                    sleep(sleep_duration)
 
     @azure_ds_telemetry_reporter
     def _create_report_ready_marker(self):
@@ -960,7 +984,7 @@ class DataSourceAzure(sources.DataSource):
         imds_md = None
         metadata_poll_count = 0
         metadata_logging_threshold = 1
-        metadata_timeout_count = 0
+        expected_errors_count = 0
 
         # For now, only a VM's primary NIC can contact IMDS and WireServer. If
         # DHCP fails for a NIC, we have no mechanism to determine if the NIC is
@@ -986,13 +1010,16 @@ class DataSourceAzure(sources.DataSource):
             raise
 
         # Retry polling network metadata for a limited duration only when the
-        # calls fail due to timeout. This is because the platform drops packets
-        # going towards IMDS when it is not a primary nic. If the calls fail
-        # due to other issues like 410, 503 etc, then it means we are primary
-        # but IMDS service is unavailable at the moment. Retry indefinitely in
-        # those cases since we cannot move on without the network metadata.
+        # calls fail due to network unreachable error or timeout.
+        # This is because the platform drops packets going towards IMDS
+        # when it is not a primary nic. If the calls fail due to other issues
+        # like 410, 503 etc, then it means we are primary but IMDS service
+        # is unavailable at the moment. Retry indefinitely in those cases
+        # since we cannot move on without the network metadata. In the future,
+        # all this will not be necessary, as a new dhcp option would tell
+        # whether the nic is primary or not.
         def network_metadata_exc_cb(msg, exc):
-            nonlocal metadata_timeout_count, metadata_poll_count
+            nonlocal expected_errors_count, metadata_poll_count
             nonlocal metadata_logging_threshold
 
             metadata_poll_count = metadata_poll_count + 1
@@ -1012,9 +1039,13 @@ class DataSourceAzure(sources.DataSource):
                                             (msg, exc.cause, exc.code),
                                             logger_func=LOG.error)
 
-            if exc.cause and isinstance(exc.cause, requests.Timeout):
-                metadata_timeout_count = metadata_timeout_count + 1
-                return (metadata_timeout_count <= 10)
+            # Retry up to a certain limit for both timeout and network
+            # unreachable errors.
+            if exc.cause and isinstance(
+                exc.cause, (requests.Timeout, requests.ConnectionError)
+            ):
+                expected_errors_count = expected_errors_count + 1
+                return (expected_errors_count <= 10)
             return True
 
         # Primary nic detection will be optimized in the future. The fact that
@@ -2079,18 +2110,18 @@ def _get_random_seed(source=PLATFORM_ENTROPY_SOURCE):
 
 
 @azure_ds_telemetry_reporter
-def list_possible_azure_ds_devs():
-    devlist = []
+def list_possible_azure_ds(seed, cache_dir):
+    yield seed
+    yield DEFAULT_PROVISIONING_ISO_DEV
     if util.is_FreeBSD():
         cdrom_dev = "/dev/cd0"
         if _check_freebsd_cdrom(cdrom_dev):
-            return [cdrom_dev]
+            yield cdrom_dev
     else:
         for fstype in ("iso9660", "udf"):
-            devlist.extend(util.find_devs_with("TYPE=%s" % fstype))
-
-    devlist.sort(reverse=True)
-    return devlist
+            yield from util.find_devs_with("TYPE=%s" % fstype)
+    if cache_dir:
+        yield cache_dir
 
 
 @azure_ds_telemetry_reporter
@@ -2309,8 +2340,8 @@ def maybe_remove_ubuntu_network_config_scripts(paths=None):
                 LOG.info(
                     'Removing Ubuntu extended network scripts because'
                     ' cloud-init updates Azure network configuration on the'
-                    ' following event: %s.',
-                    EventType.BOOT)
+                    ' following events: %s.',
+                    [EventType.BOOT.value, EventType.BOOT_LEGACY.value])
                 logged = True
             if os.path.isdir(path):
                 util.del_dir(path)

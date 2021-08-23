@@ -22,7 +22,7 @@ questions about the code review process, or at any point during the
 code review process, these are the available avenues:
 
 * if you have an open Pull Request, comment on that pull request
-* join the ``#cloud-init`` channel on the Freenode IRC network and ask
+* join the ``#cloud-init`` channel on the Libera IRC network and ask
   away
 * send an email to the cloud-init mailing list,
   cloud-init@lists.launchpad.net
@@ -58,12 +58,12 @@ Reviewer
 
 Committer
    A cloud-init core developer (i.e. a person who has permission to
-   merge PRs into master).
+   merge PRs into **main**).
 
 Prerequisites For Landing Pull Requests
 =======================================
 
-Before a PR can be landed into master, the following conditions *must*
+Before a PR can be landed into **main**, the following conditions *must*
 be met:
 
 * the CLA has been signed by the **Proposer** (or is covered by an
@@ -148,7 +148,7 @@ temporarily closed.  (The first two are covered in this section; see
 
 (In the below, when the verbs "merge" or "squash merge" are used, they
 should be understood to mean "squash merged using the GitHub UI", which
-is the only way that changes can land in cloud-init's master branch.)
+is the only way that changes can land in cloud-init's **main** branch.)
 
 These are the steps that comprise the review phase:
 

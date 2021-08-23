@@ -9,8 +9,9 @@ from cloudinit import subp
 from cloudinit import util
 
 # TODO(Look to align with tools.render-cloudcfg or cloudinit.distos.OSFAMILIES)
-DISTRO_VARIANTS = ["amazon", "arch", "centos", "debian", "fedora", "freebsd",
-                   "netbsd", "openbsd", "rhel", "suse", "ubuntu", "unknown"]
+DISTRO_VARIANTS = ["amazon", "arch", "centos", "debian", "eurolinux", "fedora",
+                   "freebsd", "netbsd", "openbsd", "photon", "rhel", "suse",
+                   "ubuntu", "unknown"]
 
 
 @pytest.mark.allow_subp_for(sys.executable)

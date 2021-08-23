@@ -313,11 +313,11 @@ def is_netfail_standby(devname, driver=None):
 def is_renamed(devname):
     """
     /* interface name assignment types (sysfs name_assign_type attribute) */
-    #define NET_NAME_UNKNOWN	0	/* unknown origin (not exposed to user) */
-    #define NET_NAME_ENUM		1	/* enumerated by kernel */
-    #define NET_NAME_PREDICTABLE	2	/* predictably named by the kernel */
-    #define NET_NAME_USER		3	/* provided by user-space */
-    #define NET_NAME_RENAMED	4	/* renamed by user-space */
+    #define NET_NAME_UNKNOWN      0  /* unknown origin (not exposed to user) */
+    #define NET_NAME_ENUM         1  /* enumerated by kernel */
+    #define NET_NAME_PREDICTABLE  2  /* predictably named by the kernel */
+    #define NET_NAME_USER         3  /* provided by user-space */
+    #define NET_NAME_RENAMED      4  /* renamed by user-space */
     """
     name_assign_type = read_sys_net_safe(devname, 'name_assign_type')
     if name_assign_type and name_assign_type in ['3', '4']:
@@ -351,7 +351,7 @@ def device_devid(devname):
 
 
 def get_devicelist():
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return list(get_interfaces_by_mac().values())
 
     try:
@@ -376,7 +376,7 @@ def is_disabled_cfg(cfg):
 
 def find_fallback_nic(blacklist_drivers=None):
     """Return the name of the 'fallback' network device."""
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return find_fallback_nic_on_freebsd(blacklist_drivers)
     elif util.is_NetBSD() or util.is_OpenBSD():
         return find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers)
@@ -661,6 +661,8 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
         cur['name'] = name
         cur_info[name] = cur
 
+    LOG.debug("Detected interfaces %s", cur_info)
+
     def update_byname(bymac):
         return dict((data['name'], data)
                     for data in cur_info.values())
@@ -816,7 +818,7 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
 
 
 def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return get_interfaces_by_mac_on_freebsd(
             blacklist_drivers=blacklist_drivers)
     elif util.is_NetBSD():

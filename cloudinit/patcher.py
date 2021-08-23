@@ -6,7 +6,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-import imp
 import logging
 import sys
 
@@ -20,7 +19,7 @@ class QuietStreamHandler(logging.StreamHandler):
         pass
 
 
-def _patch_logging():
+def patch_logging():
     # Replace 'handleError' with one that will be more
     # tolerant of errors in that it can avoid
     # re-notifying on exceptions and when errors
@@ -36,13 +35,5 @@ def _patch_logging():
         except IOError:
             pass
     setattr(logging.Handler, 'handleError', handleError)
-
-
-def patch():
-    imp.acquire_lock()
-    try:
-        _patch_logging()
-    finally:
-        imp.release_lock()
 
 # vi: ts=4 expandtab
