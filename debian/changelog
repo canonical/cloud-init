@@ -13,7 +13,7 @@ cloud-init (21.3-1-g6803368d-0ubuntu1~20.04.1) UNRELEASED; urgency=medium
       [sarahwzadara]
     - testing: skip upgrade tests on LXD VMs (#980)
     - Only invoke hotplug socket when functionality is enabled (#952)
-    - Revert unnecesary lcase in ds-identify (#978) [Andrew Kutz]
+    - Revert unnecessary lcase in ds-identify (#978) [Andrew Kutz]
     - cc_resolv_conf: fix typos (#969) [Shreenidhi Shedi]
     - Replace broken httpretty tests with mock (SC-324) (#973)
     - Azure: Check if interface is up after sleep when trying to bring it up
