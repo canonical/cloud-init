@@ -1317,6 +1317,10 @@ class DataSourceAzure(sources.DataSource):
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry
                 self._ephemeral_dhcp_ctx.clean_network()
+
+                # Also reset this flag which determines if we should do dhcp
+                # during retries.
+                is_ephemeral_ctx_present = False
             finally:
                 if nl_sock:
                     nl_sock.close()
