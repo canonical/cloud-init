@@ -1,5 +1,7 @@
 cloud-init (21.3-1-g6803368d-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
+  * d/cloud-init.templates: Add VMware datasource support
+  * d/control: Add dependencies on python3-netifaces for VMware ds
   * d/patches/ubuntu-advantage-revert-tip.patch: drop revert patch
     + ubuntu-advantage-tools completed SRU to bionic. Bionic now
       compatible with upstream ua python-client CLI behavior.
