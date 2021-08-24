@@ -3055,6 +3055,40 @@ class TestPreprovisioningPollIMDS(CiTestCase):
         self.assertEqual(0, m_dhcp.call_count)
         self.assertEqual(0, m_media_switch.call_count)
 
+    @mock.patch('os.path.isfile')
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
+    def test_poll_imds_does_dhcp_on_retries_if_ctx_present(
+            self, m_ephemeral_dhcpv4, m_isfile, report_ready_func, m_request,
+            m_media_switch, m_dhcp, m_net):
+        """The poll_imds function should reuse the dhcp ctx if it is already
+           present. This happens when we wait for nic to be hot-attached before
+           polling for reprovisiondata. Note that if this ctx is set when
+           _poll_imds is called, then it is not expected to be waiting for
+           media_disconnect_connect either."""
+
+        tries = 0
+
+        def fake_timeout_once(**kwargs):
+            nonlocal tries
+            tries += 1
+            if tries == 1:
+                raise requests.Timeout('Fake connection timeout')
+            return mock.MagicMock(status_code=200, text="good", content="good")
+
+        m_request.side_effect = fake_timeout_once
+        report_file = self.tmp_path('report_marker', self.tmp)
+        m_isfile.return_value = True
+        dsa = dsaz.DataSourceAzure({}, distro=None, paths=self.paths)
+        with mock.patch(MOCKPATH + 'REPORTED_READY_MARKER_FILE', report_file),\
+                mock.patch.object(dsa, '_ephemeral_dhcp_ctx') as m_dhcp_ctx:
+            m_dhcp_ctx.obtain_lease.return_value = "Dummy lease"
+            dsa._ephemeral_dhcp_ctx = m_dhcp_ctx
+            dsa._poll_imds()
+            self.assertEqual(1, m_dhcp_ctx.clean_network.call_count)
+        self.assertEqual(1, m_ephemeral_dhcpv4.call_count)
+        self.assertEqual(0, m_media_switch.call_count)
+        self.assertEqual(2, m_request.call_count)
+
     def test_does_not_poll_imds_report_ready_when_marker_file_exists(
             self, m_report_ready, m_request, m_media_switch, m_dhcp, m_net):
         """poll_imds should not call report ready when the reported ready
