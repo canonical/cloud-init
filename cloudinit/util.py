@@ -35,6 +35,7 @@ from base64 import b64decode, b64encode
 from errno import ENOENT
 from functools import lru_cache
 from urllib import parse
+from typing import List
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -1878,6 +1879,53 @@ def chmod(path, mode):
             os.chmod(path, real_mode)
 
 
+def get_permissions(path: str) -> int:
+    """
+    Returns the octal permissions of the file/folder pointed by the path,
+    encoded as an int.
+
+    @param path: The full path of the file/folder.
+    """
+
+    return stat.S_IMODE(os.stat(path).st_mode)
+
+
+def get_owner(path: str) -> str:
+    """
+    Returns the owner of the file/folder pointed by the path.
+
+    @param path: The full path of the file/folder.
+    """
+    st = os.stat(path)
+    return pwd.getpwuid(st.st_uid).pw_name
+
+
+def get_group(path: str) -> str:
+    """
+    Returns the group of the file/folder pointed by the path.
+
+    @param path: The full path of the file/folder.
+    """
+    st = os.stat(path)
+    return grp.getgrgid(st.st_gid).gr_name
+
+
+def get_user_groups(username: str) -> List[str]:
+    """
+    Returns a list of all groups to which the user belongs
+
+    @param username: the user we want to check
+    """
+    groups = []
+    for group in grp.getgrall():
+        if username in group.gr_mem:
+            groups.append(group.gr_name)
+
+    gid = pwd.getpwnam(username).pw_gid
+    groups.append(grp.getgrgid(gid).gr_name)
+    return groups
+
+
 def write_file(
     filename,
     content,
@@ -1904,8 +1952,7 @@ def write_file(
 
     if preserve_mode:
         try:
-            file_stat = os.stat(filename)
-            mode = stat.S_IMODE(file_stat.st_mode)
+            mode = get_permissions(filename)
         except OSError:
             pass
 
