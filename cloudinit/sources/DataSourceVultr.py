@@ -45,21 +45,18 @@ class DataSourceVultr(sources.DataSource):
         LOG.debug("Machine is a Vultr instance")
 
         # Fetch metadata
-        md = self.get_metadata()
-
-        self.metadata_full = md
-        self.metadata['instanceid'] = md['instanceid']
-        self.metadata['local-hostname'] = md['hostname']
-        self.metadata['public-keys'] = md["public-keys"]
-        self.userdata_raw = md["user-data"]
+        self.metadata = self.get_metadata()
+        self.metadata['instance-id'] = self.metadata['instanceid']
+        self.metadata['local-hostname'] = self.metadata['hostname']
+        self.userdata_raw = self.metadata["user-data"]
 
         # Generate config and process data
-        self.get_datasource_data(md)
+        self.get_datasource_data(self.metadata)
 
         # Dump some data so diagnosing failures is manageable
         LOG.debug("Vultr Vendor Config:")
-        LOG.debug(util.json_dumps(md['vendor-data']))
-        LOG.debug("SUBID: %s", self.metadata['instanceid'])
+        LOG.debug(util.json_dumps(self.metadata['vendor-data']))
+        LOG.debug("SUBID: %s", self.metadata['instance-id'])
         LOG.debug("Hostname: %s", self.metadata['local-hostname'])
         if self.userdata_raw is not None:
             LOG.debug("User-Data:")
