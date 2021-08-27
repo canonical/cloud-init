@@ -110,7 +110,16 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         # Ensure important things stayed the same
         assert pre_hostname == post_hostname
         assert pre_cloud_id == post_cloud_id
-        assert pre_result == post_result
+        try:
+            assert pre_result == post_result
+        except AssertionError:
+            if instance.settings.PLATFORM == 'azure':
+                pre_json = json.loads(pre_result)
+                post_json = json.loads(post_result)
+                assert pre_json['v1']['datasource'].startswith(
+                    'DataSourceAzure')
+                assert post_json['v1']['datasource'].startswith(
+                    'DataSourceAzure')
         assert pre_network == post_network
 
         # Calculate and log all the boot numbers
