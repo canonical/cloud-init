@@ -5,6 +5,7 @@ import pytest
 
 from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
+from tests.integration_tests.util import verify_clean_log
 
 
 LOG = logging.getLogger('integration_testing.test_upgrade')
@@ -76,8 +77,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         assert not json.loads(pre_result)['v1']['errors']
 
         log = instance.read_from_file('/var/log/cloud-init.log')
-        assert 'Traceback' not in log
-        assert 'WARN' not in log
+        verify_clean_log(log)
 
         # Upgrade and reboot
         instance.install_new_cloud_init(source, take_snapshot=False)
@@ -105,8 +105,7 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         assert not json.loads(pre_result)['v1']['errors']
 
         log = instance.read_from_file('/var/log/cloud-init.log')
-        assert 'Traceback' not in log
-        assert 'WARN' not in log
+        verify_clean_log(log)
 
         # Ensure important things stayed the same
         assert pre_hostname == post_hostname

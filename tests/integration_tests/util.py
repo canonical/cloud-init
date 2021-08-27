@@ -28,6 +28,20 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
         assert index > -1, "Expected item not found: '{}'".format(item)
 
 
+def verify_clean_log(log):
+    """Assert no unexpected tracebacks or warnings in logs"""
+    assert 'Traceback' not in log
+
+    warning_count = log.count('WARN')
+    expected_warnings = 0
+
+    # Consistently on all Azure launches:
+    # azure.py[WARNING]: No lease found; using default endpoint
+    expected_warnings += log.count('No lease found; using default endpoint')
+
+    assert warning_count == expected_warnings
+
+
 @contextmanager
 def emit_dots_on_travis():
     """emit a dot every 60 seconds if running on Travis.

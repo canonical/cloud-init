@@ -12,7 +12,10 @@ from datetime import date
 
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import verify_ordered_items_in_text
+from tests.integration_tests.util import (
+    verify_clean_log,
+    verify_ordered_items_in_text,
+)
 
 USER_DATA = """\
 #cloud-config
@@ -111,8 +114,7 @@ class TestCombined:
         assert result_json['errors'] == []
 
         log = client.read_from_file('/var/log/cloud-init.log')
-        assert 'WARN' not in log
-        assert 'Traceback' not in log
+        verify_clean_log(log)
 
     def _check_common_metadata(self, data):
         assert data['base64_encoded_keys'] == []

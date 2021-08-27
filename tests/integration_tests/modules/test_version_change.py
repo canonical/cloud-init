@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import ASSETS_DIR
+from tests.integration_tests.util import ASSETS_DIR, verify_clean_log
 
 
 PICKLE_PATH = Path('/var/lib/cloud/instance/obj.pkl')
@@ -10,8 +10,7 @@ TEST_PICKLE = ASSETS_DIR / 'test_version_change.pkl'
 
 def _assert_no_pickle_problems(log):
     assert 'Failed loading pickled blob' not in log
-    assert 'Traceback' not in log
-    assert 'WARN' not in log
+    verify_clean_log(log)
 
 
 def test_reboot_without_version_change(client: IntegrationInstance):
