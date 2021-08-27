@@ -11,7 +11,7 @@ USER_DATA = """\
 #cloud-config
 runcmd:
   - echo {{v1.local_hostname}} > /var/tmp/runcmd_output
-  - echo {{merged_cfg._doc}} >> /var/tmp/runcmd_output'
+  - echo {{merged_cfg._doc}} >> /var/tmp/runcmd_output
 """
 
 
