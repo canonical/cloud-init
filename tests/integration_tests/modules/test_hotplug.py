@@ -40,6 +40,10 @@ def _get_ip_addr(client):
 
 
 @pytest.mark.openstack
+# On Bionic, we traceback when attempting to detect the hotplugged
+# device in the updated metadata. This is because Bionic is specifically
+# configured not to provide network metadata.
+@pytest.mark.not_bionic
 @pytest.mark.user_data(USER_DATA)
 def test_hotplug_add_remove(client: IntegrationInstance):
     ips_before = _get_ip_addr(client)
