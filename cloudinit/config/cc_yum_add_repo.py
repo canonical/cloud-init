@@ -18,7 +18,7 @@ entry, the config entry will be skipped.
 
 **Module frequency:** per always
 
-**Supported distros:** almalinux, centos, eurolinux, fedora, photon, rhel,
+**Supported distros:** almalinux, centos, cloudlinux, eurolinux, fedora, photon, rhel,
                        rocky, virtuozzo
 
 **Config keys**::
@@ -37,7 +37,7 @@ from configparser import ConfigParser
 
 from cloudinit import util
 
-distros = ['almalinux', 'centos', 'eurolinux', 'fedora', 'photon', 'rhel',
+distros = ['almalinux', 'centos', 'cloudlinux', 'eurolinux', 'fedora', 'photon', 'rhel',
            'rocky', 'virtuozzo']
 
 

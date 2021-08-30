@@ -186,6 +186,20 @@ OS_RELEASE_VIRTUOZZO_8 = dedent("""\
     BUG_REPORT_URL="https://bugs.openvz.org"
 """)
 
+OS_RELEASE_CLOUDLINUX_8 = dedent("""\
+    NAME="CloudLinux"
+    VERSION="8.4 (Valery Rozhdestvensky)"
+    ID="cloudlinux"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="8.4"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="CloudLinux 8.4 (Valery Rozhdestvensky)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:cloudlinux:cloudlinux:8.4:GA:server"
+    HOME_URL="https://www.cloudlinux.com/"
+    BUG_REPORT_URL="https://www.cloudlinux.com/support"
+""")
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
@@ -200,7 +214,8 @@ REDHAT_RELEASE_ROCKY_8 = (
     "Rocky Linux release 8.3 (Green Obsidian)")
 REDHAT_RELEASE_VIRTUOZZO_8 = (
     "Virtuozzo Linux release 8")
-
+REDHAT_RELEASE_CLOUDLINUX_8 = (
+    "CloudLinux release 8.4 (Valery Rozhdestvensky)")
 OS_RELEASE_DEBIAN = dedent("""\
     PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
     NAME="Debian GNU/Linux"
@@ -678,6 +693,22 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('virtuozzo', '8', 'Virtuozzo Linux'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_cloudlinux8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify cloudlinux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_CLOUDLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('cloudlinux', '8.4', 'Valery Rozhdestvensky'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_cloudlinux8_osrelease(self, m_os_release, m_path_exists):
+        """Verify cloudlinux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_CLOUDLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('cloudlinux', '8.4', 'Valery Rozhdestvensky'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_debian(self, m_os_release, m_path_exists):
