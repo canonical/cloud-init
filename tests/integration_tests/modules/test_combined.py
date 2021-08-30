@@ -8,7 +8,6 @@ here.
 import json
 import pytest
 import re
-from datetime import date
 
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
@@ -45,11 +44,17 @@ class TestCombined:
     def test_final_message(self, class_client: IntegrationInstance):
         """Test that final_message module works as expected.
 
-        Also tests LP 1511485: final_message is silent
+        Also tests LP 1511485: final_message is silent.
+
+        It's possible that if this test is run within a minute or so of
+        midnight that we'll see a failure because the day in the logs
+        is different from the day specified in the test definition.
         """
         client = class_client
         log = client.read_from_file('/var/log/cloud-init.log')
-        today = date.today().strftime('%a, %d %b %Y')
+        # Get date on host rather than locally as our host could be in a
+        # wildly different timezone (or more likely recording UTC)
+        today = client.execute('date "+%a, %d %b %Y"')
         expected = (
             'This is my final message!\n'
             r'\d+\.\d+.*\n'
