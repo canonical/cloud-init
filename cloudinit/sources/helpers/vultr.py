@@ -120,10 +120,9 @@ def generate_network_config(interfaces):
         network['config'].append(public)
 
     # Prepare additional interfaces, private
-    if len(interfaces) > 1:
-        for i in range(1, len(interfaces)):
-            private = generate_private_network_interface(interfaces[i])
-            network['config'].append(private)
+    for i in range(1, len(interfaces)):
+        private = generate_private_network_interface(interfaces[i])
+        network['config'].append(private)
 
     return network
 
