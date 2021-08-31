@@ -29,6 +29,8 @@ class GoogleMetadataFetcher(object):
 
     def __init__(self, metadata_address):
         self.metadata_address = metadata_address
+        self.retries = 5
+        self.sec_between_retries = 1
 
     def get_value(self, path, is_text, is_recursive=False):
         value = None
@@ -36,7 +38,9 @@ class GoogleMetadataFetcher(object):
             url = self.metadata_address + path
             if is_recursive:
                 url += '/?recursive=True'
-            resp = url_helper.readurl(url=url, headers=HEADERS)
+            resp = url_helper.readurl(url=url, headers=HEADERS,
+                                      retries=self.retries,
+                                      sec_between=self.sec_between_retries)
         except url_helper.UrlError as exc:
             msg = "url %s raised exception %s"
             LOG.debug(msg, path, exc)
