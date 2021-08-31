@@ -695,7 +695,7 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('virtuozzo', '8', 'Virtuozzo Linux'), dist)
 
     @mock.patch('cloudinit.util.load_file')
-    def test_get_linux_cloudlinux8_rhrelease(self, m_os_release, m_path_exists):
+    def test_get_linux_cloud8_rhrelease(self, m_os_release, m_path_exists):
         """Verify cloudlinux 8 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_CLOUDLINUX_8
         m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
@@ -703,7 +703,7 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('cloudlinux', '8.4', 'Valery Rozhdestvensky'), dist)
 
     @mock.patch('cloudinit.util.load_file')
-    def test_get_linux_cloudlinux8_osrelease(self, m_os_release, m_path_exists):
+    def test_get_linux_cloud8_osrelease(self, m_os_release, m_path_exists):
         """Verify cloudlinux 8 read from os-release."""
         m_os_release.return_value = OS_RELEASE_CLOUDLINUX_8
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists

@@ -548,8 +548,9 @@ def system_info():
     if system == "linux":
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
-                'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux', 'debian', 'eurolinux',
-                'fedora', 'photon', 'rhel', 'rocky', 'suse', 'virtuozzo'):
+                'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
+                'debian', 'eurolinux','fedora', 'photon', 'rhel', 'rocky',
+                'suse', 'virtuozzo'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
