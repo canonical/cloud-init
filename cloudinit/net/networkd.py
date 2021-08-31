@@ -160,6 +160,10 @@ class Renderer(renderer.Renderer):
 
         cfg.update_section(sec, 'DHCP', dhcp)
 
+        if (dhcp in ['ipv6', 'yes'] and
+                isinstance(iface.get('accept-ra', ''), bool)):
+            cfg.update_section(sec, 'IPv6AcceptRA', iface['accept-ra'])
+
     # This is to accommodate extra keys present in VMware config
     def dhcp_domain(self, d, cfg):
         for item in ['dhcp4domain', 'dhcp6domain']:
@@ -247,7 +251,7 @@ class Renderer(renderer.Renderer):
 
 def available(target=None):
     expected = ['ip', 'systemctl']
-    search = ['/usr/bin', '/bin']
+    search = ['/usr/sbin', '/bin']
     for p in expected:
         if not subp.which(p, search=search, target=target):
             return False
