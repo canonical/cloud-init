@@ -34,6 +34,8 @@ def _add_dummy_bridge_to_netplan(client: IntegrationInstance):
 @pytest.mark.not_xenial
 def test_boot_event_disabled_by_default(client: IntegrationInstance):
     log = client.read_from_file('/var/log/cloud-init.log')
+    if 'network config is disabled' in log:
+        pytest.skip("network config disabled. Test doesn't apply")
     assert 'Applying network configuration' in log
     assert 'dummy0' not in client.execute('ls /sys/class/net')
 
@@ -68,6 +70,8 @@ def test_boot_event_disabled_by_default(client: IntegrationInstance):
 
 def _test_network_config_applied_on_reboot(client: IntegrationInstance):
     log = client.read_from_file('/var/log/cloud-init.log')
+    if 'network config is disabled' in log:
+        pytest.skip("network config disabled. Test doesn't apply")
     assert 'Applying network configuration' in log
     assert 'dummy0' not in client.execute('ls /sys/class/net')
 
