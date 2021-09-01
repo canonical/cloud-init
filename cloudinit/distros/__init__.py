@@ -49,8 +49,8 @@ OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
-    'redhat': ['almalinux', 'amazon', 'centos', 'eurolinux', 'fedora',
-               'photon', 'rhel', 'rocky', 'virtuozzo'],
+    'redhat': ['almalinux', 'amazon', 'centos', 'cloudlinux', 'eurolinux',
+               'fedora', 'photon', 'rhel', 'rocky', 'virtuozzo'],
     'suse': ['opensuse', 'sles'],
 }
 
