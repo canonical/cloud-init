@@ -16,7 +16,7 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping
+from typing import Any, Mapping  # noqa: F401
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -49,8 +49,8 @@ OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
-    'redhat': ['almalinux', 'amazon', 'centos', 'eurolinux', 'fedora',
-               'photon', 'rhel', 'rocky', 'virtuozzo'],
+    'redhat': ['almalinux', 'amazon', 'centos', 'cloudlinux', 'eurolinux',
+               'fedora', 'photon', 'rhel', 'rocky', 'virtuozzo'],
     'suse': ['opensuse', 'sles'],
 }
 

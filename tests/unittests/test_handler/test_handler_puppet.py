@@ -278,6 +278,28 @@ class TestPuppetHandle(CiTestCase):
             m_subp.call_args_list)
 
     @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_starts_puppetd(self, m_subp, m_auto):
+        """Run puppet with default args if 'exec' is set to True."""
+        mycloud = self._get_cloud('ubuntu')
+        cfg = {'puppet': {}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        self.assertEqual(1, m_auto.call_count)
+        self.assertIn(
+            [mock.call(['service', 'puppet', 'start'], capture=False)],
+            m_subp.call_args_list)
+
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
+    def test_puppet_skips_puppetd(self, m_subp, m_auto):
+        """Run puppet with default args if 'exec' is set to True."""
+        mycloud = self._get_cloud('ubuntu')
+        cfg = {'puppet': {'start_service': False}}
+        cc_puppet.handle('notimportant', cfg, mycloud, LOG, None)
+        self.assertEqual(0, m_auto.call_count)
+        self.assertNotIn(
+            [mock.call(['service', 'puppet', 'start'], capture=False)],
+            m_subp.call_args_list)
+
+    @mock.patch('cloudinit.config.cc_puppet.subp.subp', return_value=("", ""))
     def test_puppet_runs_puppet_with_args_list_if_requested(self,
                                                             m_subp, m_auto):
         """Run puppet with 'exec_args' list if 'exec' is set to True."""

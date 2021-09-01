@@ -28,8 +28,10 @@ import subprocess
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
 VARIANT = None
 
+
 def is_f(p):
     return os.path.isfile(p)
+
 
 def is_generator(p):
     return '-generator' in p
@@ -111,6 +113,7 @@ def render_tmpl(template, mode=None):
     # return path relative to setup.py
     return os.path.join(os.path.basename(tmpd), bname)
 
+
 # User can set the variant for template rendering
 if '--distro' in sys.argv:
     idx = sys.argv.index('--distro')
@@ -166,7 +169,7 @@ elif os.path.isfile('/etc/system-release-cpe'):
     with open('/etc/system-release-cpe') as f:
         cpe_data = f.read().rstrip().split(':')
 
-        if cpe_data[1] == "\o":
+        if cpe_data[1] == "\o":  # noqa: W605
             # URI formated CPE
             inc = 0
         else:
@@ -216,7 +219,8 @@ class InitsysInstallData(install):
         if self.init_system and isinstance(self.init_system, str):
             self.init_system = self.init_system.split(",")
 
-        if len(self.init_system) == 0 and not platform.system().endswith('BSD'):
+        if (len(self.init_system) == 0 and
+                not platform.system().endswith('BSD')):
             self.init_system = ['systemd']
 
         bad = [f for f in self.init_system if f not in INITSYS_TYPES]
