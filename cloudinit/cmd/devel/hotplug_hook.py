@@ -13,7 +13,8 @@ from cloudinit.net import activators, read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
 from cloudinit.stages import Init
-from cloudinit.sources import DataSource, DataSourceNotFoundException
+from cloudinit.sources import DataSource  # noqa: F401
+from cloudinit.sources import DataSourceNotFoundException
 
 
 LOG = log.getLogger(__name__)
