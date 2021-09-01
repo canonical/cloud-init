@@ -13,7 +13,9 @@ from tests.integration_tests import integration_settings
 try:
     from typing import TYPE_CHECKING
     if TYPE_CHECKING:
-        from tests.integration_tests.clouds import IntegrationCloud
+        from tests.integration_tests.clouds import (  # noqa: F401
+            IntegrationCloud
+        )
 except ImportError:
     pass
 

@@ -13,7 +13,7 @@ import copy
 import json
 import os
 from collections import namedtuple
-from typing import Dict, List
+from typing import Dict, List  # noqa: F401
 
 from cloudinit import dmi
 from cloudinit import importer

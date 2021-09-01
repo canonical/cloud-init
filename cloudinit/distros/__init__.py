@@ -16,7 +16,7 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping
+from typing import Any, Mapping  # noqa: F401
 
 from cloudinit import importer
 from cloudinit import log as logging
