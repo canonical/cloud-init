@@ -339,13 +339,6 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
 class DataSourceAzure(sources.DataSource):
 
     dsname = 'Azure'
-    # Regenerate network config new_instance boot and every boot
-    default_update_events = {EventScope.NETWORK: {
-        EventType.BOOT_NEW_INSTANCE,
-        EventType.BOOT,
-        EventType.BOOT_LEGACY
-    }}
-
     _negotiated = False
     _metadata_imds = sources.UNSET
     _ci_pkl_version = 1
