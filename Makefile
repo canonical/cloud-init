@@ -18,13 +18,10 @@ all: check
 
 check: check_version test yaml
 
-style-check: pep8 $(pyflakes)
+style-check: flake8
 
-pep8:
-	@$(CWD)/tools/run-pep8
-
-pyflakes:
-	@$(CWD)/tools/run-pyflakes
+flake8:
+	@$(CWD)/tools/run-flake8
 
 unittest: clean_pyc
 	python3 -m pytest -v tests/unittests cloudinit
@@ -86,6 +83,6 @@ deb-src:
 doc:
 	tox -e doc
 
-.PHONY: test pyflakes clean pep8 rpm srpm deb deb-src yaml
+.PHONY: test flake8 clean rpm srpm deb deb-src yaml
 .PHONY: check_version pip-test-requirements pip-requirements clean_pyc
 .PHONY: unittest style-check doc
