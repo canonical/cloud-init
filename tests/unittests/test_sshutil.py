@@ -525,6 +525,14 @@ class TestUpdateSshConfigLines(test_helpers.CiTestCase):
         self.assertEqual([self.pwauth], result)
         self.check_line(lines[-1], self.pwauth, "no")
 
+    def test_option_without_value(self):
+        """Implementation only accepts key-value pairs."""
+        extended_exlines = self.exlines.copy()
+        denyusers_opt = "DenyUsers"
+        extended_exlines.append(denyusers_opt)
+        lines = ssh_util.parse_ssh_config_lines(list(extended_exlines))
+        self.assertNotIn(denyusers_opt, str(lines))
+
     def test_single_option_updated(self):
         """A single update should have change made and line updated."""
         opt, val = ("UsePAM", "no")
