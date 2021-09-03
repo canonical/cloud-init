@@ -27,10 +27,10 @@ HEADERS = {'Metadata-Flavor': 'Google'}
 
 class GoogleMetadataFetcher(object):
 
-    def __init__(self, metadata_address):
+    def __init__(self, metadata_address, num_retries, sec_between_retries):
         self.metadata_address = metadata_address
-        self.retries = 5
-        self.sec_between_retries = 1
+        self.num_retries = num_retries
+        self.sec_between_retries = sec_between_retries
 
     def get_value(self, path, is_text, is_recursive=False):
         value = None
@@ -39,7 +39,7 @@ class GoogleMetadataFetcher(object):
             if is_recursive:
                 url += '/?recursive=True'
             resp = url_helper.readurl(url=url, headers=HEADERS,
-                                      retries=self.retries,
+                                      retries=self.num_retries,
                                       sec_between=self.sec_between_retries)
         except url_helper.UrlError as exc:
             msg = "url %s raised exception %s"
@@ -72,9 +72,11 @@ class DataSourceGCE(sources.DataSource):
         self.metadata_address = self.ds_cfg['metadata_url']
 
     def _get_data(self):
+        url_params = self.get_url_params()
         ret = util.log_time(
             LOG.debug, 'Crawl of GCE metadata service',
-            read_md, kwargs={'address': self.metadata_address})
+            read_md, kwargs={'address': self.metadata_address,
+                             'url_params': url_params})
 
         if not ret['success']:
             if ret['platform_reports_gce']:
@@ -180,7 +182,7 @@ def _parse_public_keys(public_keys_data, default_user=None):
     return public_keys
 
 
-def read_md(address=None, platform_check=True):
+def read_md(address=None, url_params=None, platform_check=True):
 
     if address is None:
         address = MD_V1_URL
@@ -207,8 +209,9 @@ def read_md(address=None, platform_check=True):
         ('instance-data', ('instance/attributes',), False, False, True),
         ('project-data', ('project/attributes',), False, False, True),
     ]
-
-    metadata_fetcher = GoogleMetadataFetcher(address)
+    metadata_fetcher = GoogleMetadataFetcher(address,
+                                             url_params.num_retries,
+                                             url_params.sec_between_retries)
     md = {}
     # Iterate over url_map keys to get metadata items.
     for (mkey, paths, required, is_text, is_recursive) in url_map:
