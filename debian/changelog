@@ -1,4 +1,4 @@
-cloud-init (21.3-1-g6803368d-0ubuntu3) UNRELEASED; urgency=medium
+cloud-init (21.3-1-g6803368d-0ubuntu2) impish; urgency=medium
 
   * cherry-pick 28e56d99: Azure: Retry dhcp on timeouts when polling
     reprovisiondata
