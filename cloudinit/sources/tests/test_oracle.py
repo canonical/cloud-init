@@ -696,7 +696,12 @@ class TestNonIscsiRoot_GetDataBehaviour:
         assert [
             mock.call(
                 iface=m_find_fallback_nic.return_value,
-                connectivity_url='http://169.254.169.254'
+                connectivity_url={
+                    'headers': {
+                        'Authorization': 'Bearer Oracle'
+                    },
+                    'url': 'http://169.254.169.254/opc/v2/instance/'
+                }
             )
         ] == m_EphemeralDHCPv4.call_args_list
 

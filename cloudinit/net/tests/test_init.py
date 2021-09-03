@@ -625,8 +625,10 @@ class TestEphemeralIPV4Network(CiTestCase):
             'connectivity_url': 'http://example.org/index.html'}
 
         with net.EphemeralIPv4Network(**params):
-            self.assertEqual([mock.call('http://example.org/index.html',
-                                        timeout=5)], m_readurl.call_args_list)
+            self.assertEqual(
+                [mock.call(url='http://example.org/index.html', timeout=5)],
+                m_readurl.call_args_list
+            )
         # Ensure that no teardown happens:
         m_subp.assert_has_calls([])
 
