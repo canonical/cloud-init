@@ -26,7 +26,6 @@ class GetSchemaTest(CiTestCase):
                 'cc_apk_configure',
                 'cc_apt_configure',
                 'cc_bootcmd',
-                'cc_write_deferred_files',
                 'cc_locale',
                 'cc_ntp',
                 'cc_resizefs',
@@ -35,6 +34,7 @@ class GetSchemaTest(CiTestCase):
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
                 'cc_write_files',
+                'cc_write_files_deferred',
                 'cc_zypper_add_repo',
                 'cc_chef'
             ],
