@@ -225,7 +225,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         expected_doc_sections = [
             '**Supported distros:** all',
             ('**Supported distros:** almalinux, alpine, centos, cloudlinux, '
-             'debian, eurolinux, fedora, opensuse, photon, rhel, rocky, '
+             'debian, eurolinux, fedora, openEuler, opensuse, photon, rhel, rocky, '
              'sles, ubuntu, virtuozzo'),
             '**Config schema**:\n    **resize_rootfs:** (true/false/noblock)',
             '**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n'
