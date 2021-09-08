@@ -9,7 +9,7 @@ import os
 import pickle
 import sys
 from collections import namedtuple
-from typing import Dict, Set
+from typing import Dict, Set  # noqa: F401
 
 from cloudinit.settings import (
     FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, PER_ONCE, RUN_CLOUD_CONFIG)
