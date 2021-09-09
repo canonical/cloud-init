@@ -166,7 +166,7 @@ class TestCombined:
         assert v1_data['cloud_name'] == 'unknown'
         assert v1_data['platform'] == 'lxd'
         assert any([
-            '/var/lib/cloud/ssed/no-cloud-net' in v1_data['subplatform'],
+            '/var/lib/cloud/seed/nocloud-net' in v1_data['subplatform'],
             '/dev/sr0' in v1_data['subplatform']
         ])
         assert v1_data['availability_zone'] is None
