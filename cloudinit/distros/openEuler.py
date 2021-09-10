@@ -1,7 +1,6 @@
-from cloudinit.distros import rhel
-from cloudinit import log as logging
+# This file is part of cloud-init. See LICENSE file for license information.
 
-LOG = logging.getLogger(__name__)
+from cloudinit.distros import rhel
 
 
 class Distro(rhel.Distro):
