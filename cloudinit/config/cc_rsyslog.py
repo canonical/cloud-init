@@ -207,16 +207,11 @@ HOST_PORT_RE = re.compile(
     r'([:](?P<port>[0-9]+))?$')
 
 
-def reload_syslog(command=DEF_RELOAD, systemd=False):
-    service = 'rsyslog'
+def reload_syslog(distro, command=DEF_RELOAD):
     if command == DEF_RELOAD:
-        if systemd:
-            cmd = ['systemctl', 'reload-or-try-restart', service]
-        else:
-            cmd = ['service', service, 'restart']
-    else:
-        cmd = command
-    subp.subp(cmd, capture=True)
+        service = distro.get_option('rsyslog_svcname', 'rsyslog')
+        return distro.manage_service('try-reload', service)
+    return subp.subp(command, capture=True)
 
 
 def load_config(cfg):
@@ -429,9 +424,7 @@ def handle(name, cfg, cloud, log, _args):
         return
 
     try:
-        restarted = reload_syslog(
-            command=mycfg[KEYNAME_RELOAD],
-            systemd=cloud.distro.uses_systemd()),
+        restarted = reload_syslog(cloud.distro, command=mycfg[KEYNAME_RELOAD])
     except subp.ProcessExecutionError as e:
         restarted = False
         log.warning("Failed to reload syslog", e)
