@@ -795,6 +795,32 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             args.append(message)
         return args
 
+    def manage_service(self, action, service):
+        init_cmd = self.init_cmd
+        if self.uses_systemd() or 'systemctl' in init_cmd:
+            init_cmd = ['systemctl']
+            cmds = {'stop': ['stop', service],
+                    'start': ['start', service],
+                    'enable': ['enable', service],
+                    'restart': ['restart', service],
+                    'reload': ['reload-or-restart', service],
+                    'try-reload': ['reload-or-try-restart', service],
+                    }
+        else:
+            cmds = {'stop': [service, 'stop'],
+                    'start': [service, 'start'],
+                    'enable': [service, 'start'],
+                    'restart': [service, 'restart'],
+                    'reload': [service, 'restart'],
+                    'try-reload': [service, 'restart'],
+                    }
+        cmd = list(init_cmd) + list(cmds[action])
+        try:
+            return subp.subp(cmd, capture=True)
+        except subp.ProcessExecutionError as e:
+            LOG.warning("failed: %s (%s): %s", service, cmd, e)
+        return False
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """

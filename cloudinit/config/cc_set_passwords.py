@@ -94,18 +94,15 @@ PW_SET = (''.join([x for x in ascii_letters + digits
                    if x not in 'loLOI01']))
 
 
-def handle_ssh_pwauth(pw_auth, service_cmd=None, service_name="ssh"):
+def handle_ssh_pwauth(pw_auth, distro):
     """Apply sshd PasswordAuthentication changes.
 
     @param pw_auth: config setting from 'pw_auth'.
                     Best given as True, False, or "unchanged".
-    @param service_cmd: The service command list (['service'])
-    @param service_name: The name of the sshd service for the system.
+    @param distro: an instance of the distro class for the target distribution
 
     @return: None"""
     cfg_name = "PasswordAuthentication"
-    if service_cmd is None:
-        service_cmd = ["service"]
 
     if util.is_true(pw_auth):
         cfg_val = 'yes'
@@ -124,11 +121,7 @@ def handle_ssh_pwauth(pw_auth, service_cmd=None, service_name="ssh"):
         LOG.debug("No need to restart SSH service, %s not updated.", cfg_name)
         return
 
-    if 'systemctl' in service_cmd:
-        cmd = list(service_cmd) + ["restart", service_name]
-    else:
-        cmd = list(service_cmd) + [service_name, "restart"]
-    subp.subp(cmd)
+    distro.manage_service('restart', distro.get_option('ssh_svcname', 'ssh'))
     LOG.debug("Restarted the SSH daemon.")
 
 
@@ -229,9 +222,7 @@ def handle(_name, cfg, cloud, log, args):
             if expired_users:
                 log.debug("Expired passwords for: %s users", expired_users)
 
-    handle_ssh_pwauth(
-        cfg.get('ssh_pwauth'), service_cmd=cloud.distro.init_cmd,
-        service_name=cloud.distro.get_option('ssh_svcname', 'ssh'))
+    handle_ssh_pwauth(cfg.get('ssh_pwauth'), cloud.distro)
 
     if len(errors):
         log.debug("%s errors occured, re-raising the last one", len(errors))

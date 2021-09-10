@@ -473,21 +473,6 @@ def write_ntp_config_template(distro_name, service_name=None, servers=None,
         util.del_file(template_fn)
 
 
-def reload_ntp(service, systemd=False):
-    """Restart or reload an ntp system service.
-
-    @param service: A string specifying the name of the service to be affected.
-    @param systemd: A boolean indicating if the distro uses systemd, defaults
-    to False.
-    @returns: A tuple of stdout, stderr results from executing the action.
-    """
-    if systemd:
-        cmd = ['systemctl', 'reload-or-restart', service]
-    else:
-        cmd = ['service', service, 'restart']
-    subp.subp(cmd, capture=True)
-
-
 def supplemental_schema_validation(ntp_config):
     """Validate user-provided ntp:config option values.
 
@@ -595,11 +580,8 @@ def handle(name, cfg, cloud, log, _args):
     install_ntp_client(cloud.distro.install_packages,
                        packages=ntp_client_config['packages'],
                        check_exe=ntp_client_config['check_exe'])
-    try:
-        reload_ntp(ntp_client_config['service_name'],
-                   systemd=cloud.distro.uses_systemd())
-    except subp.ProcessExecutionError as e:
-        LOG.exception("Failed to reload/start ntp service: %s", e)
-        raise
+    cloud.distro.manage_service('reload',
+                                ntp_client_config.get('service_name'))
+
 
 # vi: ts=4 expandtab

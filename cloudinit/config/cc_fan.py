@@ -52,33 +52,17 @@ BUILTIN_CFG = {
 }
 
 
-def stop_update_start(service, config_file, content, systemd=False):
-    if systemd:
-        cmds = {'stop': ['systemctl', 'stop', service],
-                'start': ['systemctl', 'start', service],
-                'enable': ['systemctl', 'enable', service]}
-    else:
-        cmds = {'stop': ['service', 'stop'],
-                'start': ['service', 'start']}
-
-    def run(cmd, msg):
-        try:
-            return subp.subp(cmd, capture=True)
-        except subp.ProcessExecutionError as e:
-            LOG.warning("failed: %s (%s): %s", service, cmd, e)
-            return False
-
-    stop_failed = not run(cmds['stop'], msg='stop %s' % service)
+def stop_update_start(distro, service, config_file, content):
+    stop_failed = not distro.manage_service('stop', service)
     if not content.endswith('\n'):
         content += '\n'
     util.write_file(config_file, content, omode="w")
 
-    ret = run(cmds['start'], msg='start %s' % service)
+    ret = distro.manage_service('start', service)
     if ret and stop_failed:
         LOG.warning("success: %s started", service)
 
-    if 'enable' in cmds:
-        ret = run(cmds['enable'], msg='enable %s' % service)
+    ret = distro.manage_service('enable', service)
 
     return ret
 
@@ -99,7 +83,8 @@ def handle(name, cfg, cloud, log, args):
         distro.install_packages(['ubuntu-fan'])
 
     stop_update_start(
+        distro,
         service='ubuntu-fan', config_file=mycfg.get('config_path'),
-        content=mycfg.get('config'), systemd=distro.uses_systemd())
+        content=mycfg.get('config'))
 
 # vi: ts=4 expandtab

@@ -112,22 +112,6 @@ class TestNtp(FilesystemMockingTestCase):
                                   check_exe='timesyncd')
         install_func.assert_called_once_with([])
 
-    @mock.patch("cloudinit.config.cc_ntp.subp")
-    def test_reload_ntp_defaults(self, mock_subp):
-        """Test service is restarted/reloaded (defaults)"""
-        service = 'ntp_service_name'
-        cmd = ['service', service, 'restart']
-        cc_ntp.reload_ntp(service)
-        mock_subp.subp.assert_called_with(cmd, capture=True)
-
-    @mock.patch("cloudinit.config.cc_ntp.subp")
-    def test_reload_ntp_systemd(self, mock_subp):
-        """Test service is restarted/reloaded (systemd)"""
-        service = 'ntp_service_name'
-        cc_ntp.reload_ntp(service, systemd=True)
-        cmd = ['systemctl', 'reload-or-restart', service]
-        mock_subp.subp.assert_called_with(cmd, capture=True)
-
     def test_ntp_rename_ntp_conf(self):
         """When NTP_CONF exists, rename_ntp moves it."""
         ntpconf = self.tmp_path("ntp.conf", self.new_root)
@@ -488,10 +472,11 @@ class TestNtp(FilesystemMockingTestCase):
             cc_ntp.handle('notimportant', cfg, mycloud, None, None)
             self.assertEqual(0, m_select.call_count)
 
+    @mock.patch("cloudinit.distros.subp")
     @mock.patch("cloudinit.config.cc_ntp.subp")
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
     @mock.patch("cloudinit.distros.Distro.uses_systemd")
-    def test_ntp_the_whole_package(self, m_sysd, m_select, m_subp):
+    def test_ntp_the_whole_package(self, m_sysd, m_select, m_subp, m_dsubp):
         """Test enabled config renders template, and restarts service """
         cfg = {'ntp': {'enabled': True}}
         for distro in cc_ntp.distros:
@@ -509,7 +494,7 @@ class TestNtp(FilesystemMockingTestCase):
 
             if distro == 'alpine':
                 uses_systemd = False
-                expected_service_call = ['service', service_name, 'restart']
+                expected_service_call = ['rc-service', service_name, 'restart']
                 # _mock_ntp_client_config call above did not specify a client
                 # value and so it defaults to "ntp" which on Alpine Linux only
                 # supports servers and not pools.
@@ -525,7 +510,7 @@ class TestNtp(FilesystemMockingTestCase):
                 m_util.is_false.return_value = util.is_false(
                     cfg['ntp']['enabled'])
                 cc_ntp.handle('notimportant', cfg, mycloud, None, None)
-                m_subp.subp.assert_called_with(
+                m_dsubp.subp.assert_called_with(
                     expected_service_call, capture=True)
 
             self.assertEqual(expected_content, util.load_file(confpath))
@@ -673,9 +658,8 @@ class TestNtp(FilesystemMockingTestCase):
             self.assertEqual(sorted(expected_cfg), sorted(result))
             m_which.assert_has_calls([])
 
-    @mock.patch('cloudinit.config.cc_ntp.reload_ntp')
     @mock.patch('cloudinit.config.cc_ntp.install_ntp_client')
-    def test_ntp_user_provided_config_with_template(self, m_install, m_reload):
+    def test_ntp_user_provided_config_with_template(self, m_install):
         custom = r'\n#MyCustomTemplate'
         user_template = NTP_TEMPLATE + custom
         confpath = os.path.join(self.new_root, 'etc/myntp/myntp.conf')
@@ -702,11 +686,10 @@ class TestNtp(FilesystemMockingTestCase):
                 util.load_file(confpath))
 
     @mock.patch('cloudinit.config.cc_ntp.supplemental_schema_validation')
-    @mock.patch('cloudinit.config.cc_ntp.reload_ntp')
     @mock.patch('cloudinit.config.cc_ntp.install_ntp_client')
     @mock.patch('cloudinit.config.cc_ntp.select_ntp_client')
     def test_ntp_user_provided_config_template_only(self, m_select, m_install,
-                                                    m_reload, m_schema):
+                                                    m_schema):
         """Test custom template for default client"""
         custom = r'\n#MyCustomTemplate'
         user_template = NTP_TEMPLATE + custom
