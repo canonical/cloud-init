@@ -74,10 +74,15 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         pre_cloud_blame = instance.execute('cloud-init analyze blame')
 
         # Ensure no issues pre-upgrade
+        log = instance.read_from_file('/var/log/cloud-init.log')
         assert not json.loads(pre_result)['v1']['errors']
 
-        log = instance.read_from_file('/var/log/cloud-init.log')
-        verify_clean_log(log)
+        try:
+            verify_clean_log(log)
+        except AssertionError:
+            LOG.warning(
+                'There were errors/warnings/tracebacks pre-upgrade. '
+                'Any failures may be due to pre-upgrade problem')
 
         # Upgrade and reboot
         instance.install_new_cloud_init(source, take_snapshot=False)
