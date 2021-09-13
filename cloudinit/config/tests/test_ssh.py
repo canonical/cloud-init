@@ -14,6 +14,12 @@ KEY_NAMES_NO_DSA = [name for name in cc_ssh.GENERATE_KEY_NAMES
                     if name not in 'dsa']
 
 
+def mock_path_exist_host_keys(filename):
+    if 'rsa' in filename:
+        return False
+    return True
+
+
 @mock.patch(MODPATH + "ssh_util.setup_user_keys")
 class TestHandleSsh(CiTestCase):
     """Test cc_ssh handling of ssh config."""
@@ -102,6 +108,37 @@ class TestHandleSsh(CiTestCase):
              mock.call('/etc/ssh/ssh_host_ecdsa_key'),
              mock.call('/etc/ssh/ssh_host_ed25519_key')],
             m_path_exists.call_args_list)
+        self.assertEqual([mock.call(set(keys), "root", options=options)],
+                         m_setup_keys.call_args_list)
+
+    @mock.patch(MODPATH + "subp.subp")
+    @mock.patch(MODPATH + "ug_util.normalize_users_groups")
+    @mock.patch(MODPATH + "os.path.exists")
+    def test_handle_existing_host_keys(self, m_path_exists, m_nug,
+                                       m_subp, m_setup_keys):
+        """Test handle with existing host keys, except ssh_host_rsa_key."""
+        # Do not remove the keys
+        cfg = {"ssh_deletekeys": False}
+        keys = ["key1"]
+        # ssh_host_rsa_key[.pub] is missing, should be created
+        m_path_exists.side_effect = mock_path_exist_host_keys
+        m_subp.return_value = ("OK", "")
+        m_nug.return_value = ([], {})
+        cc_ssh.PUBLISH_HOST_KEYS = False
+        cloud = self.tmp_cloud(
+            distro='ubuntu', metadata={'public-keys': keys})
+        cc_ssh.handle("name", cfg, cloud, LOG, None)
+        options = ssh_util.DISABLE_USER_OPTS.replace("$USER", "NONE")
+        options = options.replace("$DISABLE_USER", "root")
+        self.assertIn(
+            [mock.call('/etc/ssh/ssh_host_rsa_key'),
+             mock.call('/etc/ssh/ssh_host_dsa_key'),
+             mock.call('/etc/ssh/ssh_host_ecdsa_key'),
+             mock.call('/etc/ssh/ssh_host_ed25519_key')],
+            m_path_exists.call_args_list)
+        self.assertIn(
+            '/etc/ssh/ssh_host_rsa_key',
+            m_subp.call_args.args[0])
         self.assertEqual([mock.call(set(keys), "root", options=options)],
                          m_setup_keys.call_args_list)
 

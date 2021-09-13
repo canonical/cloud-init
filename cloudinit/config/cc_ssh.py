@@ -241,10 +241,15 @@ def handle(_name, cfg, cloud, log, _args):
                     out, err = subp.subp(cmd, capture=True, env=lang_c)
                     sys.stdout.write(util.decode_binary(out))
                 except subp.ProcessExecutionError as e:
+                    out = util.decode_binary(e.stdout).lower()
                     err = util.decode_binary(e.stderr).lower()
                     if (e.exit_code == 1 and
                             err.lower().startswith("unknown key")):
                         log.debug("ssh-keygen: unknown key type '%s'", keytype)
+                    elif (e.exit_code == 1 and
+                            ("%s already exists." % keyfile) in out):
+                        log.debug("ssh-keygen: key concurrently created by "
+                                  "sshd-keygen.service. Ignoring key.")
                     else:
                         util.logexc(log, "Failed generating key type %s to "
                                     "file %s", keytype, keyfile)
