@@ -5,7 +5,7 @@ import os
 import sys
 
 VARIANTS = ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "debian",
-            "eurolinux", "fedora", "freebsd", "netbsd", "openbsd", "photon",
+            "eurolinux", "fedora", "freebsd", "netbsd", "openbsd", "openEuler", "photon",
             "rhel", "suse","rocky", "ubuntu", "unknown", "virtuozzo"]
 
 
