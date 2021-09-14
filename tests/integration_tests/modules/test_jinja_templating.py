@@ -1,7 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 import pytest
 
-from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_ordered_items_in_text
 
