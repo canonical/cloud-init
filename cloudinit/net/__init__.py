@@ -975,9 +975,19 @@ def get_ib_hwaddrs_by_interface():
 def has_url_connectivity(
     url_data: Union[MutableMapping[str, Any], str]
 ) -> bool:
-    """Return true when the instance has access to the provided URL
+    """Return true when the instance has access to the provided URL.
 
     Logs a warning if url is not the expected format.
+
+    url_data is either the URL string to check, or a dictionary of kwargs
+    to send to readurl. E.g.:
+
+    has_url_connectivity("http://example.invalid")
+    has_url_connectivity({
+        "url": "http://example.invalid",
+        "headers": {"some": "header"},
+        "timeout": 10
+    })
     """
     if isinstance(url_data, str):
         url_data = {'url': url_data}
