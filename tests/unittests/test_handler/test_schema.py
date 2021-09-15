@@ -10,7 +10,6 @@ from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 from copy import copy
 import itertools
-import os
 import pytest
 from pathlib import Path
 from textwrap import dedent
@@ -491,46 +490,6 @@ class TestMain:
             'Unable to read system userdata as non-root user. Try using sudo\n'
         )
         assert expected == err
-
-
-class CloudTestsIntegrationTest(CiTestCase):
-    """Validate all cloud-config yaml schema provided in integration tests.
-
-    It is less expensive to have unittests validate schema of all cloud-config
-    yaml provided to integration tests, than to run an integration test which
-    raises Warnings or errors on invalid cloud-config schema.
-    """
-
-    @skipUnlessJsonSchema()
-    def test_all_integration_test_cloud_config_schema(self):
-        """Validate schema of cloud_tests yaml files looking for warnings."""
-        schema = get_schema()
-        testsdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        integration_testdir = os.path.sep.join(
-            [testsdir, 'cloud_tests', 'testcases'])
-        errors = []
-
-        yaml_files = []
-        for root, _dirnames, filenames in os.walk(integration_testdir):
-            yaml_files.extend([os.path.join(root, f)
-                               for f in filenames if f.endswith(".yaml")])
-        self.assertTrue(len(yaml_files) > 0)
-
-        for filename in yaml_files:
-            test_cfg = safe_load(open(filename))
-            cloud_config = test_cfg.get('cloud_config')
-            if cloud_config:
-                cloud_config = safe_load(
-                    cloud_config.replace("#cloud-config\n", ""))
-                try:
-                    validate_cloudconfig_schema(
-                        cloud_config, schema, strict=True)
-                except SchemaValidationError as e:
-                    errors.append(
-                        '{0}: {1}'.format(
-                            filename, e))
-        if errors:
-            raise AssertionError(', '.join(errors))
 
 
 def _get_schema_doc_examples():
