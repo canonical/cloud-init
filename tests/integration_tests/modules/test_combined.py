@@ -8,14 +8,15 @@ here.
 import json
 import pytest
 import re
-from datetime import date
 
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
-from tests.integration_tests.util import verify_ordered_items_in_text
+from tests.integration_tests.util import (
+    verify_clean_log,
+    verify_ordered_items_in_text,
+)
 
 USER_DATA = """\
-## template: jinja
 #cloud-config
 apt:
   primary:
@@ -33,8 +34,7 @@ locale_configfile: /etc/default/locale
 ntp:
   servers: ['ntp.ubuntu.com']
 runcmd:
-  - echo {{ds.meta_data.local_hostname}} > /var/tmp/runcmd_output
-  - echo {{merged_cfg.def_log_file}} >> /var/tmp/runcmd_output
+  - echo 'hello world' > /var/tmp/runcmd_output
 """
 
 
@@ -44,11 +44,17 @@ class TestCombined:
     def test_final_message(self, class_client: IntegrationInstance):
         """Test that final_message module works as expected.
 
-        Also tests LP 1511485: final_message is silent
+        Also tests LP 1511485: final_message is silent.
+
+        It's possible that if this test is run within a minute or so of
+        midnight that we'll see a failure because the day in the logs
+        is different from the day specified in the test definition.
         """
         client = class_client
         log = client.read_from_file('/var/log/cloud-init.log')
-        today = date.today().strftime('%a, %d %b %Y')
+        # Get date on host rather than locally as our host could be in a
+        # wildly different timezone (or more likely recording UTC)
+        today = client.execute('date "+%a, %d %b %Y"')
         expected = (
             'This is my final message!\n'
             r'\d+\.\d+.*\n'
@@ -96,21 +102,10 @@ class TestCombined:
             'en_US.UTF-8'
         ], locale_gen)
 
-    def test_runcmd_with_variable_substitution(
-        self, class_client: IntegrationInstance
-    ):
-        """Test runcmd, while including jinja substitution.
-
-        Ensure we can also substitue variables from instance-data-sensitive
-        LP: #1931392
-        """
+    def test_runcmd(self, class_client: IntegrationInstance):
+        """Test runcmd works as expected"""
         client = class_client
-        expected = [
-            client.execute('hostname').stdout.strip(),
-            '/var/log/cloud-init.log',
-        ]
-        output = client.read_from_file('/var/tmp/runcmd_output')
-        verify_ordered_items_in_text(expected, output)
+        assert 'hello world' == client.read_from_file('/var/tmp/runcmd_output')
 
     def test_no_problems(self, class_client: IntegrationInstance):
         """Test no errors, warnings, or tracebacks"""
@@ -124,8 +119,7 @@ class TestCombined:
         assert result_json['errors'] == []
 
         log = client.read_from_file('/var/log/cloud-init.log')
-        assert 'WARN' not in log
-        assert 'Traceback' not in log
+        verify_clean_log(log)
 
     def _check_common_metadata(self, data):
         assert data['base64_encoded_keys'] == []
@@ -171,8 +165,10 @@ class TestCombined:
         v1_data = data['v1']
         assert v1_data['cloud_name'] == 'unknown'
         assert v1_data['platform'] == 'lxd'
-        assert v1_data['subplatform'] == (
-            'seed-dir (/var/lib/cloud/seed/nocloud-net)')
+        assert any([
+            '/var/lib/cloud/seed/nocloud-net' in v1_data['subplatform'],
+            '/dev/sr0' in v1_data['subplatform']
+        ])
         assert v1_data['availability_zone'] is None
         assert v1_data['instance_id'] == client.instance.name
         assert v1_data['local_hostname'] == client.instance.name
