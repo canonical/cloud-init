@@ -18,7 +18,7 @@ runcmd:
 def test_runcmd_with_variable_substitution(client: IntegrationInstance):
     """Test jinja substitution.
 
-    Ensure we can also substitue variables from instance-data-sensitive
+    Ensure we can also substitute variables from instance-data-sensitive
     LP: #1931392
     """
     expected = [
