@@ -297,7 +297,7 @@ def uniq_merge(*lists):
         if isinstance(a_list, str):
             a_list = a_list.strip().split(",")
             # Kickout the empty ones
-            a_list = [a for a in a_list if len(a)]
+            a_list = [a for a in a_list if a]
         combined_list.extend(a_list)
     return uniq_list(combined_list)
 
@@ -549,8 +549,8 @@ def system_info():
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
                 'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
-                'debian', 'eurolinux', 'fedora', 'photon', 'rhel', 'rocky',
-                'suse', 'virtuozzo'):
+                'debian', 'eurolinux', 'fedora', 'openEuler', 'photon',
+                'rhel', 'rocky', 'suse', 'virtuozzo'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'

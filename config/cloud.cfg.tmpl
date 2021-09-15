@@ -33,7 +33,7 @@ disable_root: true
 {% endif %}
 
 {% if variant in ["almalinux", "alpine", "amazon", "centos", "cloudlinux", "eurolinux",
-                  "fedora", "rhel", "rocky", "virtuozzo"] %}
+                  "fedora", "openEuler", "rhel", "rocky", "virtuozzo"] %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% if variant == "amazon" %}
 resize_rootfs: noblock
@@ -174,7 +174,7 @@ cloud_final_modules:
 system_info:
    # This will affect which distro class gets used
 {% if variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "debian",
-                  "eurolinux", "fedora", "freebsd", "netbsd", "openbsd",
+                  "eurolinux", "fedora", "freebsd", "netbsd", "openbsd", "openEuler",
                   "photon", "rhel", "rocky", "suse", "ubuntu", "virtuozzo"] %}
    distro: {{ variant }}
 {% elif variant in ["dragonfly"] %}
@@ -229,7 +229,7 @@ system_info:
          security: http://ports.ubuntu.com/ubuntu-ports
    ssh_svcname: ssh
 {% elif variant in ["almalinux", "alpine", "amazon", "arch", "centos", "cloudlinux", "eurolinux",
-                    "fedora", "rhel", "rocky", "suse", "virtuozzo"] %}
+                    "fedora", "openEuler", "rhel", "rocky", "suse", "virtuozzo"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
 {% if variant == "amazon" %}
