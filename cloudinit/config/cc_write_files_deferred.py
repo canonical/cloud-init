@@ -16,15 +16,19 @@ schema = util.mergemanydict([
     {
         'id': 'cc_write_files_deferred',
         'name': 'Write Deferred Files',
-        'title': 'write certain files, whose creation as been deferred, during final stage',
+        'title': dedent("""\
+            write certain files, whose creation as been deferred, during
+            final stage
+        """),
         'description': dedent("""\
-            This module is based on `'Write Files' <write-files>`__, and will handle all
-            files from the write_files list, that have been marked as deferred and thus are
-            not being processed by the write-files module.
-            
-            *Please note that his module is not exposed to the user through its own dedicated
-            top-level directive.*
-        `""")
+            This module is based on `'Write Files' <write-files>`__, and
+            will handle all files from the write_files list, that have been
+            marked as deferred and thus are not being processed by the
+            write-files module.
+
+            *Please note that his module is not exposed to the user through
+            its own dedicated top-level directive.*
+        """)
     },
     write_files_schema
 ])

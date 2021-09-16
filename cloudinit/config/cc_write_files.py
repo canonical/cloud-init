@@ -174,8 +174,9 @@ schema = {
                         'type': 'boolean',
                         'default': DEFAULT_DEFER,
                         'description': dedent("""\
-                            Defer writing the file until 'final' stage, after users
-                            were created, and packages were installed. Default: **{defer}**.
+                            Defer writing the file until 'final' stage, after
+                            users were created, and packages were installed.
+                            Default: **{defer}**.
                         """.format(defer=DEFAULT_DEFER)),
                     },
                 },

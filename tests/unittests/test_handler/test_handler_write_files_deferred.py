@@ -20,18 +20,19 @@ class TestWriteFilesDeferredSchema(CiTestCase):
 
     with_logs = True
 
-    def test_schema_validation_warns_invalid_value(self, m_write_files_deferred):
+    def test_schema_validation_warns_invalid_value(self,
+                                                   m_write_files_deferred):
         """If 'defer' is defined, it must be of type 'bool'."""
 
-        valid_config =  {
+        valid_config = {
             'write_files': [
-                { **VALID_SCHEMA.get('write_files')[0], 'defer': True }
+                {**VALID_SCHEMA.get('write_files')[0], 'defer': True}
             ]
         }
 
         invalid_config = {
             'write_files': [
-                { **VALID_SCHEMA.get('write_files')[0], 'defer': str('no') }
+                {**VALID_SCHEMA.get('write_files')[0], 'defer': str('no')}
             ]
         }
 
@@ -40,7 +41,8 @@ class TestWriteFilesDeferredSchema(CiTestCase):
         self.assertNotIn('Invalid config:', self.logs.getvalue())
         handle('cc_write_files_deferred', invalid_config, cc, LOG, [])
         self.assertIn('Invalid config:', self.logs.getvalue())
-        self.assertIn("defer: 'no' is not of type 'boolean'", self.logs.getvalue())
+        self.assertIn("defer: 'no' is not of type 'boolean'",
+                      self.logs.getvalue())
 
 
 class TestWriteFilesDeferred(FilesystemMockingTestCase):
@@ -57,8 +59,12 @@ class TestWriteFilesDeferred(FilesystemMockingTestCase):
         expected = "hello world\n"
         config = {
             'write_files': [
-                { 'path': '/tmp/deferred.file', 'defer': True, 'content': expected },
-                { 'path': '/tmp/not_deferred.file' }
+                {
+                    'path': '/tmp/deferred.file',
+                    'defer': True,
+                    'content': expected
+                },
+                {'path': '/tmp/not_deferred.file'}
             ]
         }
         cc = self.tmp_cloud('ubuntu')
