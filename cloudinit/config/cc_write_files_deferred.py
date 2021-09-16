@@ -1,6 +1,4 @@
-# Copyright (C) 2021 TODO
-#
-# Author: TODO
+# Copyright (C) 2021 Canonical Ltd.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
