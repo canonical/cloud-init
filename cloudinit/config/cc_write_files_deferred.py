@@ -40,8 +40,9 @@ __doc__ = None
 def handle(name, cfg, _cloud, log, _args):
     validate_cloudconfig_schema(cfg, schema)
     file_list = cfg.get('write_files', [])
-    is_deferred_file = lambda f: f.get('defer', DEFAULT_DEFER) == True
-    filtered_files = list(filter(is_deferred_file, file_list))
+    filtered_files = [
+        f for f in file_list if f.get('defer', DEFAULT_DEFER)
+    ]
     if not filtered_files:
         log.debug(("Skipping module named %s,"
                    " no deferred file defined in configuration"), name)

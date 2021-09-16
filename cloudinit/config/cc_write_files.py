@@ -193,8 +193,9 @@ __doc__ = get_schema_doc(schema)  # Supplement python help()
 def handle(name, cfg, _cloud, log, _args):
     validate_cloudconfig_schema(cfg, schema)
     file_list = cfg.get('write_files', [])
-    is_not_deferred_file = lambda f: f.get('defer', DEFAULT_DEFER) == False
-    filtered_files = list(filter(is_not_deferred_file, file_list))
+    filtered_files = [
+        f for f in file_list if not f.get('defer', DEFAULT_DEFER)
+    ]
     if not filtered_files:
         log.debug(("Skipping module named %s,"
                    " no/empty 'write_files' key in configuration"), name)
