@@ -29,6 +29,5 @@ def test_gpg_no_tty(client: IntegrationInstance):
         "'--keyserver=keyserver.ubuntu.com', '--recv-keys', 'E4D304DF'] "
         "with allowed return codes [0] (shell=False, capture=True)",
         "Imported key 'E4D304DF' from keyserver 'keyserver.ubuntu.com'",
-        "finish: modules-config/config-apt-configure: SUCCESS",
     ]
     verify_ordered_items_in_text(to_verify, log)

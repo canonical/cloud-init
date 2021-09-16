@@ -19,7 +19,7 @@ from .network_state import (
 
 LOG = logging.getLogger(__name__)
 KNOWN_DISTROS = ['almalinux', 'centos', 'cloudlinux', 'eurolinux', 'fedora',
-                 'rhel', 'rocky', 'suse', 'virtuozzo']
+                 'openEuler', 'rhel', 'rocky', 'suse', 'virtuozzo']
 NM_CFG_FILE = "/etc/NetworkManager/NetworkManager.conf"
 
 

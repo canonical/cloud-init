@@ -200,6 +200,15 @@ OS_RELEASE_CLOUDLINUX_8 = dedent("""\
     BUG_REPORT_URL="https://www.cloudlinux.com/support"
 """)
 
+OS_RELEASE_OPENEULER_20 = dedent("""\
+    NAME="openEuler"
+    VERSION="20.03 (LTS-SP2)"
+    ID="openEuler"
+    VERSION_ID="20.03"
+    PRETTY_NAME="openEuler 20.03 (LTS-SP2)"
+    ANSI_COLOR="0;31"
+""")
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
@@ -717,6 +726,14 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('debian', '9', 'stretch'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_openeuler(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on Openeuler."""
+        m_os_release.return_value = OS_RELEASE_OPENEULER_20
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('openEuler', '20.03', 'LTS-SP2'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
