@@ -40,6 +40,7 @@ METADATA_PATTERN = METADATA_ROOT + "{path}/"
 # https://docs.cloud.oracle.com/iaas/Content/Network/Troubleshoot/connectionhang.htm#Overview,
 # indicates that an MTU of 9000 is used within OCI
 MTU = 9000
+V2_HEADERS = {"Authorization": "Bearer Oracle"}
 
 OpcMetadata = namedtuple("OpcMetadata", "version instance_data vnics_data")
 
@@ -134,7 +135,13 @@ class DataSourceOracle(sources.DataSource):
         )
         network_context = noop()
         if not _is_iscsi_root():
-            network_context = dhcp.EphemeralDHCPv4(net.find_fallback_nic())
+            network_context = dhcp.EphemeralDHCPv4(
+                iface=net.find_fallback_nic(),
+                connectivity_url_data={
+                    "url": METADATA_PATTERN.format(version=2, path="instance"),
+                    "headers": V2_HEADERS,
+                }
+            )
         with network_context:
             fetched_metadata = read_opc_metadata(
                 fetch_vnics_data=fetch_vnics_data
@@ -304,11 +311,9 @@ def read_opc_metadata(*, fetch_vnics_data: bool = False):
     retries = 2
 
     def _fetch(metadata_version: int, path: str) -> dict:
-        headers = {
-            "Authorization": "Bearer Oracle"} if metadata_version > 1 else None
         return readurl(
             url=METADATA_PATTERN.format(version=metadata_version, path=path),
-            headers=headers,
+            headers=V2_HEADERS if metadata_version > 1 else None,
             retries=retries,
         )._response.json()
 
