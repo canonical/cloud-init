@@ -622,11 +622,14 @@ class TestEphemeralIPV4Network(CiTestCase):
         params = {
             'interface': 'eth0', 'ip': '192.168.2.2',
             'prefix_or_mask': '255.255.255.0', 'broadcast': '192.168.2.255',
-            'connectivity_url': 'http://example.org/index.html'}
+            'connectivity_url_data': {'url': 'http://example.org/index.html'}
+        }
 
         with net.EphemeralIPv4Network(**params):
-            self.assertEqual([mock.call('http://example.org/index.html',
-                                        timeout=5)], m_readurl.call_args_list)
+            self.assertEqual(
+                [mock.call(url='http://example.org/index.html', timeout=5)],
+                m_readurl.call_args_list
+            )
         # Ensure that no teardown happens:
         m_subp.assert_has_calls([])
 
@@ -850,25 +853,28 @@ class TestHasURLConnectivity(HttprettyTestCase):
     def test_url_timeout_on_connectivity_check(self, m_readurl):
         """A timeout of 5 seconds is provided when reading a url."""
         self.assertTrue(
-            net.has_url_connectivity(self.url), 'Expected True on url connect')
+            net.has_url_connectivity({'url': self.url}),
+            'Expected True on url connect')
 
     def test_true_on_url_connectivity_success(self):
         httpretty.register_uri(httpretty.GET, self.url)
         self.assertTrue(
-            net.has_url_connectivity(self.url), 'Expected True on url connect')
+            net.has_url_connectivity({'url': self.url}),
+            'Expected True on url connect')
 
     @mock.patch('requests.Session.request')
     def test_true_on_url_connectivity_timeout(self, m_request):
         """A timeout raised accessing the url will return False."""
         m_request.side_effect = requests.Timeout('Fake Connection Timeout')
         self.assertFalse(
-            net.has_url_connectivity(self.url),
+            net.has_url_connectivity({'url': self.url}),
             'Expected False on url timeout')
 
     def test_true_on_url_connectivity_failure(self):
         httpretty.register_uri(httpretty.GET, self.url, body={}, status=404)
         self.assertFalse(
-            net.has_url_connectivity(self.url), 'Expected False on url fail')
+            net.has_url_connectivity({'url': self.url}),
+            'Expected False on url fail')
 
 
 def _mk_v1_phys(mac, name, driver, device_id):
