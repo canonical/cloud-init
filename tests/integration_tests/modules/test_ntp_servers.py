@@ -78,6 +78,8 @@ CHRONY_DATA = """\
 ntp:
   enabled: true
   ntp_client: chrony
+  servers:
+      - 172.16.15.14
 """
 
 
@@ -89,7 +91,7 @@ def test_chrony(client: IntegrationInstance):
     else:
         chrony_conf = '/etc/chrony/chrony.conf'
     contents = client.read_from_file(chrony_conf)
-    assert '.pool.ntp.org' in contents
+    assert 'server 172.16.15.14' in contents
 
 
 TIMESYNCD_DATA = """\
@@ -97,6 +99,8 @@ TIMESYNCD_DATA = """\
 ntp:
   enabled: true
   ntp_client: systemd-timesyncd
+  servers:
+      - 172.16.15.14
 """
 
 
@@ -106,7 +110,7 @@ def test_timesyncd(client: IntegrationInstance):
     contents = client.read_from_file(
         '/etc/systemd/timesyncd.conf.d/cloud-init.conf'
     )
-    assert '.pool.ntp.org' in contents
+    assert 'NTP=172.16.15.14' in contents
 
 
 EMPTY_NTP = """\

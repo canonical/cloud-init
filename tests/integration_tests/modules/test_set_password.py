@@ -13,6 +13,8 @@ import crypt
 import pytest
 import yaml
 
+from tests.integration_tests.util import retry
+
 
 COMMON_USER_DATA = """\
 #cloud-config
@@ -129,6 +131,7 @@ class Mixin:
         assert "dick:" not in cloud_init_output
         assert "harry:" not in cloud_init_output
 
+    @retry(tries=30, delay=1)
     def test_random_passwords_emitted_to_serial_console(self, class_client):
         """We should emit passwords to the serial console. (LP: #1918303)"""
         try:
@@ -137,6 +140,15 @@ class Mixin:
             # Assume that an exception here means that we can't use the console
             # log
             pytest.skip("NotImplementedError when requesting console log")
+            return
+        if console_log.lower() == 'no console output':
+            # This test retries because we might not have the full console log
+            # on the first fetch. However, if we have no console output
+            # at all, we don't want to keep retrying as that would trigger
+            # another 5 minute wait on the pycloudlib side, which could
+            # leave us waiting for a couple hours
+            pytest.fail('no console output')
+            return
         assert "dick:" in console_log
         assert "harry:" in console_log
 
