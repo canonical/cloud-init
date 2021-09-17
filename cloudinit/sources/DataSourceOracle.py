@@ -137,7 +137,7 @@ class DataSourceOracle(sources.DataSource):
         if not _is_iscsi_root():
             network_context = dhcp.EphemeralDHCPv4(
                 iface=net.find_fallback_nic(),
-                connectivity_url={
+                connectivity_url_data={
                     "url": METADATA_PATTERN.format(version=2, path="instance"),
                     "headers": V2_HEADERS,
                 }

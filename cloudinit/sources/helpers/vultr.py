@@ -20,7 +20,7 @@ LOG = log.getLogger(__name__)
 def get_metadata(url, timeout, retries, sec_between):
     # Bring up interface
     try:
-        with EphemeralDHCPv4(connectivity_url=url):
+        with EphemeralDHCPv4(connectivity_url_data={"url": url}):
             # Fetch the metadata
             v1 = read_metadata(url, timeout, retries, sec_between)
     except (NoDHCPLeaseError) as exc:

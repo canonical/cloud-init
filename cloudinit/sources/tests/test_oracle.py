@@ -696,7 +696,7 @@ class TestNonIscsiRoot_GetDataBehaviour:
         assert [
             mock.call(
                 iface=m_find_fallback_nic.return_value,
-                connectivity_url={
+                connectivity_url_data={
                     'headers': {
                         'Authorization': 'Bearer Oracle'
                     },
