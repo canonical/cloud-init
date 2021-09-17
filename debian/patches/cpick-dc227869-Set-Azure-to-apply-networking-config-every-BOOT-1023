@@ -1,0 +1,80 @@
+From dc22786980a05129c5971e68ae37b1a9f76f882d Mon Sep 17 00:00:00 2001
+From: James Falcon <therealfalcon@gmail.com>
+Date: Fri, 17 Sep 2021 16:25:22 -0500
+Subject: [PATCH] Set Azure to apply networking config every BOOT (#1023)
+
+In #1006, we set Azure to apply networking config every
+BOOT_NEW_INSTANCE because the BOOT_LEGACY option was causing problems
+applying networking the second time per boot. However,
+BOOT_NEW_INSTANCE is also wrong as Azure needs to apply networking
+once per boot, during init-local phase.
+---
+ cloudinit/sources/DataSourceAzure.py                |  6 +++++-
+ tests/integration_tests/modules/test_user_events.py | 10 ++++++----
+ 2 files changed, 11 insertions(+), 5 deletions(-)
+
+Index: cloud-init/cloudinit/sources/DataSourceAzure.py
+===================================================================
+--- cloud-init.orig/cloudinit/sources/DataSourceAzure.py
++++ cloud-init/cloudinit/sources/DataSourceAzure.py
+@@ -22,7 +22,7 @@ import requests
+ from cloudinit import dmi
+ from cloudinit import log as logging
+ from cloudinit import net
+-from cloudinit.event import EventType
++from cloudinit.event import EventScope, EventType
+ from cloudinit.net import device_driver
+ from cloudinit.net.dhcp import EphemeralDHCPv4
+ from cloudinit import sources
+@@ -339,6 +339,10 @@ def temporary_hostname(temp_hostname, cf
+ class DataSourceAzure(sources.DataSource):
+ 
+     dsname = 'Azure'
++    default_update_events = {EventScope.NETWORK: {
++        EventType.BOOT_NEW_INSTANCE,
++        EventType.BOOT,
++    }}
+     _negotiated = False
+     _metadata_imds = sources.UNSET
+     _ci_pkl_version = 1
+Index: cloud-init/tests/integration_tests/modules/test_user_events.py
+===================================================================
+--- cloud-init.orig/tests/integration_tests/modules/test_user_events.py
++++ cloud-init/tests/integration_tests/modules/test_user_events.py
+@@ -31,7 +31,6 @@ def _add_dummy_bridge_to_netplan(client:
+ @pytest.mark.gce
+ @pytest.mark.oci
+ @pytest.mark.openstack
+-@pytest.mark.not_xenial
+ def test_boot_event_disabled_by_default(client: IntegrationInstance):
+     log = client.read_from_file('/var/log/cloud-init.log')
+     assert 'Applying network configuration' in log
+@@ -66,7 +65,7 @@ def _test_network_config_applied_on_rebo
+     assert 'dummy0' not in client.execute('ls /sys/class/net')
+ 
+     _add_dummy_bridge_to_netplan(client)
+-    client.execute('rm /var/log/cloud-init.log')
++    client.execute('echo "" > /var/log/cloud-init.log')
+     client.restart()
+     log = client.read_from_file('/var/log/cloud-init.log')
+ 
+@@ -81,6 +80,11 @@ def test_boot_event_enabled_by_default(c
+     _test_network_config_applied_on_reboot(client)
+ 
+ 
++@pytest.mark.azure
++def test_boot_event_enabled_by_default(client: IntegrationInstance):
++    _test_network_config_applied_on_reboot(client)
++
++
+ USER_DATA = """\
+ #cloud-config
+ updates:
+@@ -89,7 +93,6 @@ updates:
+ """
+ 
+ 
+-@pytest.mark.not_xenial
+ @pytest.mark.user_data(USER_DATA)
+ def test_boot_event_enabled(client: IntegrationInstance):
+     _test_network_config_applied_on_reboot(client)
