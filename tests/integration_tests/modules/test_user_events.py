@@ -31,8 +31,6 @@ def _add_dummy_bridge_to_netplan(client: IntegrationInstance):
 @pytest.mark.gce
 @pytest.mark.oci
 @pytest.mark.openstack
-@pytest.mark.azure
-@pytest.mark.not_xenial
 def test_boot_event_disabled_by_default(client: IntegrationInstance):
     log = client.read_from_file('/var/log/cloud-init.log')
     if 'network config is disabled' in log:
@@ -77,7 +75,7 @@ def _test_network_config_applied_on_reboot(client: IntegrationInstance):
     assert 'dummy0' not in client.execute('ls /sys/class/net')
 
     _add_dummy_bridge_to_netplan(client)
-    client.execute('rm /var/log/cloud-init.log')
+    client.execute('echo "" > /var/log/cloud-init.log')
     client.restart()
 
     log = client.read_from_file('/var/log/cloud-init.log')
@@ -92,6 +90,11 @@ def _test_network_config_applied_on_reboot(client: IntegrationInstance):
     assert 'dummy0' not in client.execute('ls /sys/class/net')
 
 
+@pytest.mark.azure
+def test_boot_event_enabled_by_default(client: IntegrationInstance):
+    _test_network_config_applied_on_reboot(client)
+
+
 USER_DATA = """\
 #cloud-config
 updates:
@@ -100,7 +103,6 @@ updates:
 """
 
 
-@pytest.mark.not_xenial
 @pytest.mark.user_data(USER_DATA)
 def test_boot_event_enabled(client: IntegrationInstance):
     _test_network_config_applied_on_reboot(client)
