@@ -1,3 +1,10 @@
+cloud-init (21.3-1-g6803368d-0ubuntu3) UNRELEASED; urgency=medium
+
+  * cherry-pick 612e3908: Add connectivity_url to Oracle's
+    EphemeralDHCPv4 (#988) (LP: #1939603)
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 17 Sep 2021 16:48:10 -0600
+
 cloud-init (21.3-1-g6803368d-0ubuntu2) impish; urgency=medium
 
   * cherry-pick 28e56d99: Azure: Retry dhcp on timeouts when polling
