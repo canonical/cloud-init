@@ -853,8 +853,8 @@ class TestHasURLConnectivity(HttprettyTestCase):
     def test_url_timeout_on_connectivity_check(self, m_readurl):
         """A timeout of 5 seconds is provided when reading a url."""
         self.assertTrue(
-                net.has_url_connectivity({'url': self.url}),
-                'Expected True on url connect')
+            net.has_url_connectivity({'url': self.url}),
+            'Expected True on url connect')
 
     def test_true_on_url_connectivity_success(self):
         httpretty.register_uri(httpretty.GET, self.url)
@@ -873,8 +873,8 @@ class TestHasURLConnectivity(HttprettyTestCase):
     def test_true_on_url_connectivity_failure(self):
         httpretty.register_uri(httpretty.GET, self.url, body={}, status=404)
         self.assertFalse(
-             net.has_url_connectivity({'url': self.url}),
-             'Expected False on url fail')
+            net.has_url_connectivity({'url': self.url}),
+            'Expected False on url fail')
 
 
 def _mk_v1_phys(mac, name, driver, device_id):
