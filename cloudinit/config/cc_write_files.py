@@ -194,7 +194,9 @@ def handle(name, cfg, _cloud, log, _args):
     validate_cloudconfig_schema(cfg, schema)
     file_list = cfg.get('write_files', [])
     filtered_files = [
-        f for f in file_list if not f.get('defer', DEFAULT_DEFER)
+        f for f in file_list if not util.get_cfg_option_bool(f,
+                                                             'defer',
+                                                             DEFAULT_DEFER)
     ]
     if not filtered_files:
         log.debug(("Skipping module named %s,"
