@@ -40,6 +40,7 @@ def is_generator(p):
 def pkg_config_read(library, var):
     fallbacks = {
         'systemd': {
+            'systemdsystemconfdir': '/etc/systemd/system',
             'systemdsystemunitdir': '/lib/systemd/system',
             'systemdsystemgeneratordir': '/lib/systemd/system-generators',
         }
@@ -270,7 +271,9 @@ if not platform.system().endswith('BSD'):
         (ETC + '/NetworkManager/dispatcher.d/',
          ['tools/hook-network-manager']),
         (ETC + '/dhcp/dhclient-exit-hooks.d/', ['tools/hook-dhclient']),
-        (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')])
+        (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')]),
+        (ETC + '/systemd/system/sshd-keygen@.service.d/',
+         ['systemd/disable-sshd-keygen-if-cloud-init-active.conf']),
     ])
 # Use a subclass for install that handles
 # adding on the right init system configuration files
