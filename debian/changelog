@@ -1,8 +1,10 @@
 cloud-init (21.3-1-g6803368d-0ubuntu1~18.04.3) UNRELEASED; urgency=medium
 
   * d/cloud-init.templates: Add Oracle datasource support
+  * cherry-pick 612e3908: Add connectivity_url to Oracle's
+    EphemeralDHCPv4 (#988) (LP: #1939603)
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 20 Sep 2021 11:36:07 -0500
+ -- James Falcon <james.falcon@canonical.com>  Mon, 20 Sep 2021 11:37:30 -0500
 
 cloud-init (21.3-1-g6803368d-0ubuntu1~18.04.2) bionic; urgency=medium
 
