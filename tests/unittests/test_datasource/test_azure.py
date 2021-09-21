@@ -912,13 +912,13 @@ scbus-1 on xpt0 bus 0
             'PreprovisionedVMType': None,
             'PreprovisionedVm': False,
             'datasource': {'Azure': {'agent_command': 'my_command'}},
-            'system_info': {'default_user': {'name': u'myuser'}}}
+            'system_info': {'default_user': {'name': 'myuser'}}}
         expected_metadata = {
             'azure_data': {
                 'configurationsettype': 'LinuxProvisioningConfiguration'},
             'imds': NETWORK_METADATA,
             'instance-id': EXAMPLE_UUID,
-            'local-hostname': u'myhost',
+            'local-hostname': 'myhost',
             'random_seed': 'wild'}
 
         crawled_metadata = dsrc.crawl_metadata()
@@ -1385,7 +1385,7 @@ scbus-1 on xpt0 bus 0
 
     def test_ovf_can_include_unicode(self):
         xml = construct_valid_ovf_env(data={})
-        xml = u'\ufeff{0}'.format(xml)
+        xml = '\ufeff{0}'.format(xml)
         dsrc = self._get_ds({'ovfcontent': xml})
         dsrc.get_data()
 

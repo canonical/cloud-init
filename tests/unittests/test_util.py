@@ -604,7 +604,7 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
 class TestMessageFromString(helpers.TestCase):
 
     def test_unicode_not_messed_up(self):
-        roundtripped = util.message_from_string(u'\n').as_string()
+        roundtripped = util.message_from_string('\n').as_string()
         self.assertNotIn('\x00', roundtripped)
 
 

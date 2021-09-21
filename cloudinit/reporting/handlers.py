@@ -137,8 +137,8 @@ class HyperVKvpReportingHandler(ReportingHandler):
         self._event_types = event_types
         self.q = queue.Queue()
         self.incarnation_no = self._get_incarnation_no()
-        self.event_key_prefix = u"{0}|{1}".format(self.EVENT_PREFIX,
-                                                  self.incarnation_no)
+        self.event_key_prefix = "{0}|{1}".format(self.EVENT_PREFIX,
+                                                 self.incarnation_no)
         self.publish_thread = threading.Thread(
             target=self._publish_event_routine
         )
@@ -200,9 +200,9 @@ class HyperVKvpReportingHandler(ReportingHandler):
         CLOUD_INIT|<incarnation number>|<event_type>|<event_name>|<uuid>
         [|subevent_index]
         """
-        return u"{0}|{1}|{2}|{3}".format(self.event_key_prefix,
-                                         event.event_type, event.name,
-                                         uuid.uuid4())
+        return "{0}|{1}|{2}|{3}".format(self.event_key_prefix,
+                                        event.event_type, event.name,
+                                        uuid.uuid4())
 
     def _encode_kvp_item(self, key, value):
         data = struct.pack(
