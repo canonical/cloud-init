@@ -63,11 +63,12 @@ growpart is::
             - "/dev/vdb1"
         ignore_growroot_disabled: <true/false>
 """
-
+import copy
 import os
 import os.path
 import re
 import stat
+from contextlib import suppress
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
@@ -286,12 +287,69 @@ def devent2dev(devent):
     return dev
 
 
+def is_mapped_device(blockdev) -> bool:
+    """
+    Check if a device is a mapped device.
+
+    blockdev should look something like '/dev/mapper/disk1' if True,
+    otherwise something like /dev/vdb1.
+    """
+    is_mapped = blockdev.startswith('/dev/mapper/')
+    LOG.debug("%s is %s a mapped device", blockdev, "" if is_mapped else "not")
+    return is_mapped
+
+
+def is_encrypted(blockdev) -> bool:
+    """
+    Check if a device is an encrypted device.
+
+    Will work for both mapped and raw devices.
+    """
+    is_encrypted = False
+    if not subp.which('cryptsetup'):
+        LOG.debug('cryptsetup not found. Assuming no encrypted partitions')
+        return False
+    with suppress(subp.ProcessExecutionError):
+        subp.subp(['cryptsetup', 'status', blockdev])
+        is_encrypted = True
+    if not is_encrypted:
+        with suppress(subp.ProcessExecutionError):
+            subp.subp(['cryptsetup', 'isLuks', blockdev])
+            is_encrypted = True
+    LOG.debug(
+        "Determined that %s is %s encrypted",
+        blockdev,
+        "" if is_encrypted else "not"
+    )
+    return is_encrypted
+
+
+def get_underlying_partition(blockdev):
+    command = 'dmsetup deps -o devname {}'.format(blockdev)
+    dep = subp.subp(command.split())[0]
+    try:
+        # Returned result should look something like:
+        # 1 dependencies : (vdb1)
+        return '/dev/{}'.format(dep.split(': (')[1].split(')')[0])
+    except IndexError:
+        raise Exception(
+            "Ran `{}`, but received unexpected stdout: `{}`".format(
+                command, dep))
+
+
+def resize_encrypted(blockdev):
+    subp.subp(['cryptsetup', '--key-file', '<keyfile>', 'resize', blockdev])
+
+
 def resize_devices(resizer, devices):
     # returns a tuple of tuples containing (entry-in-devices, action, message)
+    devices = copy.copy(devices)
     info = []
-    for devent in devices:
+
+    while devices:
+        devent = devices.pop(0)  # /mnt  TODO: DELETE ME
         try:
-            blockdev = devent2dev(devent)
+            blockdev = devent2dev(devent)  # /dev/mapper/disk2  TODO: DELETE ME
         except ValueError as e:
             info.append((devent, RESIZE.SKIPPED,
                          "unable to convert to device: %s" % e,))
@@ -313,8 +371,25 @@ def resize_devices(resizer, devices):
         try:
             (disk, ptnum) = device_part_info(blockdev)
         except (TypeError, ValueError) as e:
-            info.append((devent, RESIZE.SKIPPED,
-                         "device_part_info(%s) failed: %s" % (blockdev, e),))
+            if is_mapped_device(blockdev) and is_encrypted(blockdev):
+                # We need to resize the underlying partition first
+                partition = get_underlying_partition(blockdev)
+                if partition not in [x[0] for x in info]:
+                    # We shouldn't attempt to resize this mapped partition
+                    # until the underlying partition is resized, so re-add
+                    # our device to the beginning of the list we're iterating
+                    # over, then add our underlying partition so it can
+                    # get processed first
+                    devices.insert(0, devent)
+                    devices.insert(0, partition)
+                    continue
+                resize_encrypted(blockdev)
+            else:
+                info.append((
+                    devent,
+                    RESIZE.SKIPPED,
+                    "device_part_info(%s) failed: %s" % (blockdev, e),
+                ))
             continue
 
         try:
