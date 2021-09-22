@@ -209,9 +209,9 @@ class TestDataSourceScaleway(HttprettyTestCase):
         self.assertEqual(self.datasource.get_instance_id(),
                          MetadataResponses.FAKE_METADATA['id'])
         self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
         ].sort())
         self.assertEqual(self.datasource.get_hostname(),
                          MetadataResponses.FAKE_METADATA['hostname'])
@@ -242,8 +242,8 @@ class TestDataSourceScaleway(HttprettyTestCase):
         ]
         self.datasource.metadata['ssh_public_keys'] = []
         self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
         ].sort())
 
     def test_ssh_keys_only_conf(self):
@@ -260,9 +260,9 @@ class TestDataSourceScaleway(HttprettyTestCase):
             'fingerprint': '2048 06:ff:...  login2 (RSA)'
         }]
         self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
         ].sort())
 
     def test_ssh_keys_both(self):
@@ -282,9 +282,9 @@ class TestDataSourceScaleway(HttprettyTestCase):
             'fingerprint': '2048 06:ff:...  login2 (RSA)'
         }]
         self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
         ].sort())
 
     @mock.patch('cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4')
