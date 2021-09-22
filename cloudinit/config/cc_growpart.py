@@ -338,7 +338,7 @@ def get_underlying_partition(blockdev):
 
 
 def resize_encrypted(blockdev):
-    subp.subp(['cryptsetup', '--key-file', '<keyfile>', 'resize', blockdev])
+    subp.subp(['cryptsetup', 'resize', blockdev])
 
 
 def resize_devices(resizer, devices):
