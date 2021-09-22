@@ -4,6 +4,8 @@
 import logging
 import os
 import subprocess
+from typing import Tuple, Any
+
 from errno import ENOEXEC
 
 LOG = logging.getLogger(__name__)
@@ -154,20 +156,11 @@ class ProcessExecutionError(IOError):
 
 
 def subp(
-    args,
-    data=None,
-    rcs=None,
-    env=None,
-    capture=True,
-    combine_capture=False,
-    shell=False,
-    logstring=False,
-    decode="replace",
-    target=None,
-    update_env=None,
-    status_cb=None,
-    cwd=None,
-):
+    args, data=None, rcs=None, env=None, capture=True,
+    combine_capture=False, shell=False,
+    logstring=False, decode="replace", target=None, update_env=None,
+    status_cb=None, cwd=None
+) -> Tuple[Any, Any]:
     """Run a subprocess.
 
     :param args: command to run in a list. [cmd, arg1, arg2...]
