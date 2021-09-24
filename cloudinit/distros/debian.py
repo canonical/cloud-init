@@ -7,8 +7,10 @@
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-
+import fcntl
 import os
+import time
+from contextlib import ExitStack
 
 from cloudinit import distros
 from cloudinit import helpers
@@ -22,6 +24,7 @@ from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
+APT_LOCK_WAIT_TIMEOUT = 30
 APT_GET_COMMAND = ('apt-get', '--option=Dpkg::Options::=--force-confold',
                    '--option=Dpkg::options::=--force-unsafe-io',
                    '--assume-yes', '--quiet')
@@ -40,6 +43,12 @@ NETWORK_FILE_HEADER = """\
 
 NETWORK_CONF_FN = "/etc/network/interfaces.d/50-cloud-init"
 LOCALE_CONF_FN = "/etc/default/locale"
+
+APT_LOCK_FILES = [
+    '/var/lib/dpkg/lock',
+    '/var/lib/apt/lists/lock',
+    '/var/cache/apt/archives/lock',
+]
 
 
 class Distro(distros.Distro):
@@ -155,7 +164,72 @@ class Distro(distros.Distro):
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
+    def _is_apt_lock_available(self, lock_files=None):
+        """Determines if another process holds any apt locks.
+
+        If all locks are clear, return True else False.
+        """
+        if lock_files is None:
+            lock_files = APT_LOCK_FILES
+        with ExitStack() as stack:
+            file_handles = []
+            for lock in lock_files:
+                try:
+                    file_handles.append(stack.enter_context(open(lock, 'w')))
+                except FileNotFoundError:
+                    # If the lock file doesn't even exist yet, then we don't
+                    # have to wait for it
+                    pass
+            for handle in file_handles:
+                try:
+                    fcntl.lockf(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except IOError:
+                    return False
+        return True
+
+    def _wait_for_apt_install(
+        self, short_cmd, subp_kwargs, timeout=APT_LOCK_WAIT_TIMEOUT
+    ):
+        """Wait for apt install to complete.
+
+        short_cmd: Name of command like "upgrade" or "install"
+        subp_kwargs: kwargs to pass to subp
+        """
+        start_time = time.time()
+        LOG.debug('Waiting for apt lock')
+        while time.time() - start_time < timeout:
+            if not self._is_apt_lock_available():
+                time.sleep(1)
+                continue
+            LOG.debug('apt lock clear')
+            try:
+                # Allow the output of this to flow outwards (not be captured)
+                log_msg = "apt-%s [%s]" % (
+                    short_cmd,
+                    ' '.join(subp_kwargs['args'])
+                )
+                return util.log_time(
+                    logfunc=LOG.debug,
+                    msg=log_msg,
+                    func=subp.subp,
+                    kwargs=subp_kwargs,
+                )
+            except subp.ProcessExecutionError as e:
+                if e.exit_code == 100 and 'Could not get lock' in e.stderr:
+                    LOG.debug('Could not obtain apt lock')
+                    time.sleep(1)
+        raise TimeoutError('Could not get apt lock')
+
     def package_command(self, command, args=None, pkgs=None):
+        """Run the given package command.
+
+        On Debian, this will run apt-get (unless APT_GET_COMMAND is set).
+
+        command: The command to run, like "upgrade" or "install"
+        args: Arguments passed to apt itself in addition to
+              any specified in APT_GET_COMMAND
+        pkgs: Apt packages that the command will apply to
+        """
         if pkgs is None:
             pkgs = []
 
@@ -185,11 +259,10 @@ class Distro(distros.Distro):
         pkglist = util.expand_package_list('%s=%s', pkgs)
         cmd.extend(pkglist)
 
-        # Allow the output of this to flow outwards (ie not be captured)
-        util.log_time(logfunc=LOG.debug,
-                      msg="apt-%s [%s]" % (command, ' '.join(cmd)),
-                      func=subp.subp,
-                      args=(cmd,), kwargs={'env': e, 'capture': False})
+        self._wait_for_apt_install(
+            short_cmd=command,
+            subp_kwargs={'args': cmd, 'env': e, 'capture': False}
+        )
 
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
