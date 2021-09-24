@@ -2,4 +2,3 @@ openstack-no-network-config.patch
 ec2-dont-apply-full-imds-network-config.patch
 renderer-do-not-prefer-netplan.patch
 cpick-28e56d99-Azure-Retry-dhcp-on-timeouts-when-polling
-cpick-e69a8874-Set-Azure-to-only-update-metadata-on-BOOT_NEW_INSTANCE
