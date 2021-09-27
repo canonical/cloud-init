@@ -21,6 +21,7 @@ CFG_BUILTIN = {
     'datasource_list': [
         'NoCloud',
         'ConfigDrive',
+        'LXD',
         'OpenNebula',
         'DigitalOcean',
         'Azure',

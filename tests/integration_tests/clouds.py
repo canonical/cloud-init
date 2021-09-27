@@ -1,7 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 from abc import ABC, abstractmethod
+import datetime
 import logging
 import os.path
+import random
+import string
 from uuid import UUID
 
 from pycloudlib import (
@@ -309,8 +312,12 @@ class _LxdIntegrationCloud(IntegrationCloud):
         except KeyError:
             profile_list = self._get_or_set_profile_list(release)
 
+        prefix = datetime.datetime.utcnow().strftime("cloudinit-%m%d-%H%M%S")
+        default_name = prefix + "".join(
+            random.choices(string.ascii_lowercase + string.digits, k=8)
+        )
         pycloudlib_instance = self.cloud_instance.init(
-            launch_kwargs.pop('name', None),
+            launch_kwargs.pop('name', default_name),
             release,
             profile_list=profile_list,
             **launch_kwargs
