@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import ASSETS_DIR, verify_clean_log
 
@@ -38,6 +40,14 @@ def test_reboot_without_version_change(client: IntegrationInstance):
     ])
 
 
+@pytest.mark.ec2
+@pytest.mark.gce
+@pytest.mark.oci
+@pytest.mark.openstack
+@pytest.mark.lxd_container
+@pytest.mark.lxd_vm
+# No Azure because the cache gets purged every reboot, so we'll never
+# get to the point where we need to purge cache due to version change
 def test_cache_purged_on_version_change(client: IntegrationInstance):
     # Start by pushing the invalid pickle so we'll hit an error if the
     # cache didn't actually get purged
