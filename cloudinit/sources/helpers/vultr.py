@@ -169,6 +169,10 @@ def generate_public_network_interface(interface):
                 "address": additional['address'],
                 "netmask": additional['netmask']
             }
+
+            if "routes" in additional:
+                add['routes'] = additional['routes']
+
             netcfg['subnets'].append(add)
 
     # Check for additional IPv6's
@@ -181,6 +185,10 @@ def generate_public_network_interface(interface):
                 "address": additional['address'],
                 "netmask": additional['netmask']
             }
+
+            if "routes" in additional:
+                add['routes'] = additional['routes']
+
             netcfg['subnets'].append(add)
 
     # Add config to template
@@ -215,6 +223,9 @@ def generate_private_network_interface(interface):
 
     if "accept-ra" in interface:
         netcfg['accept-ra'] = interface['accept-ra']
+
+    if "routes" in interface:
+        netcfg['subnets'][0]['routes'] = interface['routes']
 
     return netcfg
 
