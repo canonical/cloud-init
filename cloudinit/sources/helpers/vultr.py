@@ -227,7 +227,7 @@ def generate_private_network_interface(interface):
     if "accept-ra" in interface:
         netcfg['accept-ra'] = interface['accept-ra']
 
-    if "routes" in interface['ipv4']:
+    if "routes" in interface:
         netcfg['subnets'][0]['routes'] = interface['routes']
 
     return netcfg
