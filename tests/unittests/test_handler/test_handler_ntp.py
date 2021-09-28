@@ -5,9 +5,8 @@ import shutil
 from functools import partial
 from os.path import dirname
 
-from cloudinit import (distros, helpers, cloud, util)
+from cloudinit import (helpers, util)
 from cloudinit.config import cc_ntp
-from cloudinit.sources import DataSourceNone
 from cloudinit.tests.helpers import (
     CiTestCase, FilesystemMockingTestCase, mock, skipUnlessJsonSchema)
 

@@ -6,7 +6,6 @@ import unittest
 from contextlib import ExitStack
 from unittest import mock
 
-from cloudinit import cloud
 from cloudinit import distros
 from cloudinit.config import cc_ca_certs
 from cloudinit import helpers

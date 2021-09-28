@@ -2,11 +2,10 @@
 from unittest import mock
 
 from cloudinit.config import cc_lxd
-from cloudinit.sources import DataSourceNoCloud
-from cloudinit import (distros, helpers, cloud)
 from cloudinit.tests import helpers as t_help
 
 from tests.unittests.util import get_cloud
+
 
 class TestLxd(t_help.CiTestCase):
 

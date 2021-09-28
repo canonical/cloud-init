@@ -5,12 +5,8 @@ import logging
 import shutil
 import tempfile
 
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
 from cloudinit import util
 from cloudinit.config import cc_debug
-from cloudinit.sources import DataSourceNone
 from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock)
 
 from tests.unittests.util import get_cloud

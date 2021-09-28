@@ -9,15 +9,11 @@ import shutil
 import tempfile
 from unittest import mock
 
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
 from cloudinit import templater
 from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.config import cc_apt_configure
-from cloudinit.sources import DataSourceNone
 
 from cloudinit.distros.debian import Distro
 

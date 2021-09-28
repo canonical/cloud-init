@@ -2,11 +2,9 @@
 import logging
 import os
 import stat
-from functools import partial
 
 from cloudinit.config.cc_runcmd import handle, schema
-from cloudinit.sources import DataSourceNone
-from cloudinit import (distros, helpers, cloud, subp, util)
+from cloudinit import (helpers, subp, util)
 from cloudinit.tests.helpers import (
     CiTestCase, FilesystemMockingTestCase, SchemaTestCaseMixin,
     skipUnlessJsonSchema)

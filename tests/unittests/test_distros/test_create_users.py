@@ -5,7 +5,7 @@ import re
 from cloudinit import distros
 from cloudinit import ssh_util
 from cloudinit.tests.helpers import (CiTestCase, mock)
-from tests.unittests.util import TestingDistro, abstract_to_concrete
+from tests.unittests.util import abstract_to_concrete
 
 
 @mock.patch("cloudinit.distros.util.system_is_snappy", return_value=False)

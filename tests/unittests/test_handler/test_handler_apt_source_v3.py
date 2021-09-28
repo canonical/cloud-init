@@ -14,14 +14,10 @@ import tempfile
 from unittest import TestCase, mock
 from unittest.mock import call
 
-from cloudinit import cloud
-from cloudinit import distros
 from cloudinit import gpg
-from cloudinit import helpers
 from cloudinit import subp
 from cloudinit import util
 from cloudinit.config import cc_apt_configure
-from cloudinit.sources import DataSourceNone
 from cloudinit.tests import helpers as t_help
 
 from tests.unittests.util import get_cloud

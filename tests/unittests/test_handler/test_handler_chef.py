@@ -5,11 +5,7 @@ import json
 import logging
 import os
 
-from cloudinit import cloud
 from cloudinit.config import cc_chef
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit.sources import DataSourceNone
 from cloudinit import util
 
 from cloudinit.tests.helpers import (

@@ -11,12 +11,8 @@ from io import BytesIO
 from configobj import ConfigObj
 from unittest import mock
 
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
 from cloudinit import util
 from cloudinit.config import cc_locale
-from cloudinit.sources import DataSourceNoCloud
 from cloudinit.tests import helpers as t_help
 
 from tests.unittests.util import get_cloud

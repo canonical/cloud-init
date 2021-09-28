@@ -6,12 +6,8 @@
 
 from cloudinit.config import cc_timezone
 
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
 from cloudinit import util
 
-from cloudinit.sources import DataSourceNoCloud
 
 import logging
 import shutil
