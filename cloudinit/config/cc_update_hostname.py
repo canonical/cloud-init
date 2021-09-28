@@ -20,7 +20,7 @@ is set, then the hostname will not be altered.
 
 **Internal name:** ``cc_update_hostname``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 
