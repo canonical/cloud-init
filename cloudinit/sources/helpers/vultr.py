@@ -159,6 +159,9 @@ def generate_public_network_interface(interface):
     if "accept-ra" in interface:
         netcfg['accept-ra'] = interface['accept-ra']
 
+    if "routes" in interface:
+        netcfg['subnets'][0]['routes'] = interface['routes']
+
     # Check for additional IP's
     additional_count = len(interface['ipv4']['additional'])
     if "ipv4" in interface and additional_count > 0:
@@ -224,7 +227,7 @@ def generate_private_network_interface(interface):
     if "accept-ra" in interface:
         netcfg['accept-ra'] = interface['accept-ra']
 
-    if "routes" in interface:
+    if "routes" in interface['ipv4']:
         netcfg['subnets'][0]['routes'] = interface['routes']
 
     return netcfg
