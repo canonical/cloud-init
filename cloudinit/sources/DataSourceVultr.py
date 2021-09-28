@@ -67,7 +67,12 @@ class DataSourceVultr(sources.DataSource):
     # Process metadata
     def get_datasource_data(self, md):
         # Generate network config
-        self.netcfg = vultr.generate_network_config(md['interfaces'])
+        if "cloud_interfaces" in md:
+            # In the future we will just drop pre-configured
+            # network configs into the array. They need names though.
+            self.netcfg = vultr.do_network_interfaces(md['cloud_interfaces'])
+        else:
+            self.netcfg = vultr.generate_network_config(md['interfaces'])
 
         # Grab vendordata
         self.vendordata_raw = md['vendor-data']
