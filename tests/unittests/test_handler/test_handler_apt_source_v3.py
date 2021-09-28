@@ -20,11 +20,11 @@ from cloudinit import gpg
 from cloudinit import helpers
 from cloudinit import subp
 from cloudinit import util
-
 from cloudinit.config import cc_apt_configure
 from cloudinit.sources import DataSourceNone
-
 from cloudinit.tests import helpers as t_help
+
+from tests.unittests.util import get_cloud
 
 EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1
@@ -105,16 +105,6 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
             return self.join(self.tmp, args[0].lstrip("/"), args[1])
         else:
             return self.join(*args, **kwargs)
-
-    def _get_cloud(self, distro, metadata=None):
-        self.patchUtils(self.new_root)
-        paths = helpers.Paths({})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, {}, paths)
-        myds = DataSourceNone.DataSourceNone({}, mydist, paths)
-        if metadata:
-            myds.metadata.update(metadata)
-        return cloud.Cloud(myds, paths, {}, mydist, None)
 
     def _apt_src_basic(self, filename, cfg):
         """_apt_src_basic
@@ -587,7 +577,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         default_mirrors = cc_apt_configure.get_default_mirrors(arch)
         pmir = default_mirrors["PRIMARY"]
         smir = default_mirrors["SECURITY"]
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud()
         mirrors = cc_apt_configure.find_apt_mirror_info({}, mycloud, arch)
 
         self.assertEqual(mirrors['MIRROR'],
@@ -659,7 +649,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         default_mirrors = cc_apt_configure.get_default_mirrors(arch)
         pmir = default_mirrors["PRIMARY"]
         smir = default_mirrors["SECURITY"]
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud()
         cfg = {"primary": [{'arches': ["thisarchdoesntexist_64"],
                             "uri": "notthis"},
                            {'arches': ["thisarchdoesntexist"],
@@ -969,7 +959,7 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main""")
         pmir = "phit"
         smir = "shit"
         arch = 'amd64'
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud('ubuntu')
         cfg = {"primary": [{'arches': ["default"],
                             "search_dns": True}],
                "security": [{'arches': ["default"],

@@ -1,4 +1,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import logging
+import os
+import stat
+from functools import partial
 
 from cloudinit.config.cc_runcmd import handle, schema
 from cloudinit.sources import DataSourceNone
@@ -7,10 +11,7 @@ from cloudinit.tests.helpers import (
     CiTestCase, FilesystemMockingTestCase, SchemaTestCaseMixin,
     skipUnlessJsonSchema)
 
-from unittest.mock import patch
-import logging
-import os
-import stat
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -23,20 +24,13 @@ class TestRuncmd(FilesystemMockingTestCase):
         super(TestRuncmd, self).setUp()
         self.subp = subp.subp
         self.new_root = self.tmp_dir()
-
-    def _get_cloud(self, distro):
         self.patchUtils(self.new_root)
-        paths = helpers.Paths({'scripts': self.new_root})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, {}, paths)
-        myds = DataSourceNone.DataSourceNone({}, mydist, paths)
-        paths.datasource = myds
-        return cloud.Cloud(myds, paths, {}, mydist, None)
+        self.paths = helpers.Paths({'scripts': self.new_root})
 
     def test_handler_skip_if_no_runcmd(self):
         """When the provided config doesn't contain runcmd, skip it."""
         cfg = {}
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud(paths=self.paths)
         handle('notimportant', cfg, mycloud, LOG, None)
         self.assertIn(
             "Skipping module named notimportant, no 'runcmd' key",
@@ -56,7 +50,7 @@ class TestRuncmd(FilesystemMockingTestCase):
     def test_handler_invalid_command_set(self):
         """Commands which can't be converted to shell will raise errors."""
         invalid_config = {'runcmd': 1}
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud(paths=self.paths)
         with self.assertRaises(TypeError) as cm:
             handle('cc_runcmd', invalid_config, cc, LOG, [])
         self.assertIn(
@@ -72,7 +66,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         invalid content.
         """
         invalid_config = {'runcmd': 1}
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud(paths=self.paths)
         with self.assertRaises(TypeError) as cm:
             handle('cc_runcmd', invalid_config, cc, LOG, [])
         self.assertIn(
@@ -89,7 +83,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         """
         invalid_config = {
             'runcmd': ['ls /', 20, ['wget', 'http://stuff/blah'], {'a': 'n'}]}
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud(paths=self.paths)
         with self.assertRaises(TypeError) as cm:
             handle('cc_runcmd', invalid_config, cc, LOG, [])
         expected_warnings = [
@@ -105,7 +99,7 @@ class TestRuncmd(FilesystemMockingTestCase):
     def test_handler_write_valid_runcmd_schema_to_file(self):
         """Valid runcmd schema is written to a runcmd shell script."""
         valid_config = {'runcmd': [['ls', '/']]}
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud(paths=self.paths)
         handle('cc_runcmd', valid_config, cc, LOG, [])
         runcmd_file = os.path.join(
             self.new_root,

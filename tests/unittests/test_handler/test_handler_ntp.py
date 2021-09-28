@@ -1,17 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import copy
+import os
+import shutil
+from functools import partial
+from os.path import dirname
 
+from cloudinit import (distros, helpers, cloud, util)
 from cloudinit.config import cc_ntp
 from cloudinit.sources import DataSourceNone
-from cloudinit import (distros, helpers, cloud, util)
-
 from cloudinit.tests.helpers import (
     CiTestCase, FilesystemMockingTestCase, mock, skipUnlessJsonSchema)
 
+from tests.unittests.util import get_cloud
 
-import copy
-import os
-from os.path import dirname
-import shutil
 
 NTP_TEMPLATE = """\
 ## template: jinja
@@ -39,16 +40,11 @@ class TestNtp(FilesystemMockingTestCase):
         self.m_snappy.return_value = False
         self.add_patch('cloudinit.util.system_info', 'm_sysinfo')
         self.m_sysinfo.return_value = {'dist': ('Distro', '99.1', 'Codename')}
-
-    def _get_cloud(self, distro, sys_cfg=None):
-        self.new_root = self.reRoot(root=self.new_root)
-        paths = helpers.Paths({'templates_dir': self.new_root})
-        cls = distros.fetch(distro)
-        if not sys_cfg:
-            sys_cfg = {}
-        mydist = cls(distro, sys_cfg, paths)
-        myds = DataSourceNone.DataSourceNone(sys_cfg, mydist, paths)
-        return cloud.Cloud(myds, paths, sys_cfg, mydist, None)
+        self.new_root = self.reRoot()
+        self._get_cloud = partial(
+            get_cloud,
+            paths=helpers.Paths({'templates_dir': self.new_root})
+        )
 
     def _get_template_path(self, template_name, distro, basepath=None):
         # ntp.conf.{distro} -> ntp.conf.debian.tmpl

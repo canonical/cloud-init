@@ -15,6 +15,8 @@ from cloudinit import util
 from cloudinit.tests.helpers import (
     HttprettyTestCase, FilesystemMockingTestCase, mock, skipIf)
 
+from tests.unittests.util import get_cloud
+
 LOG = logging.getLogger(__name__)
 
 CLIENT_TEMPL = os.path.sep.join(["templates", "chef_client.rb.tmpl"])
@@ -106,19 +108,12 @@ class TestChef(FilesystemMockingTestCase):
         super(TestChef, self).setUp()
         self.tmp = self.tmp_dir()
 
-    def fetch_cloud(self, distro_kind):
-        cls = distros.fetch(distro_kind)
-        paths = helpers.Paths({})
-        distro = cls(distro_kind, {}, paths)
-        ds = DataSourceNone.DataSourceNone({}, distro, paths, None)
-        return cloud.Cloud(ds, paths, {}, distro, None)
-
     def test_no_config(self):
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
 
         cfg = {}
-        cc_chef.handle('chef', cfg, self.fetch_cloud('ubuntu'), LOG, [])
+        cc_chef.handle('chef', cfg, get_cloud(), LOG, [])
         for d in cc_chef.CHEF_DIRS:
             self.assertFalse(os.path.isdir(d))
 
@@ -163,7 +158,7 @@ class TestChef(FilesystemMockingTestCase):
                     '/etc/chef/encrypted_data_bag_secret'
             },
         }
-        cc_chef.handle('chef', cfg, self.fetch_cloud('ubuntu'), LOG, [])
+        cc_chef.handle('chef', cfg, get_cloud(), LOG, [])
         for d in cc_chef.CHEF_DIRS:
             self.assertTrue(os.path.isdir(d))
         c = util.load_file(cc_chef.CHEF_RB_PATH)
@@ -198,7 +193,7 @@ class TestChef(FilesystemMockingTestCase):
                 }
             },
         }
-        cc_chef.handle('chef', cfg, self.fetch_cloud('ubuntu'), LOG, [])
+        cc_chef.handle('chef', cfg, get_cloud(), LOG, [])
         c = util.load_file(cc_chef.CHEF_FB_PATH)
         self.assertEqual(
             {
@@ -222,7 +217,7 @@ class TestChef(FilesystemMockingTestCase):
                 'show_time': None,
             },
         }
-        cc_chef.handle('chef', cfg, self.fetch_cloud('ubuntu'), LOG, [])
+        cc_chef.handle('chef', cfg, get_cloud(), LOG, [])
         c = util.load_file(cc_chef.CHEF_RB_PATH)
         self.assertNotIn('json_attribs', c)
         self.assertNotIn('Formatter.show_time', c)
@@ -246,7 +241,7 @@ class TestChef(FilesystemMockingTestCase):
                 'validation_cert': v_cert
             },
         }
-        cc_chef.handle('chef', cfg, self.fetch_cloud('ubuntu'), LOG, [])
+        cc_chef.handle('chef', cfg, get_cloud(), LOG, [])
         content = util.load_file(cc_chef.CHEF_RB_PATH)
         self.assertIn(v_path, content)
         util.load_file(v_path)
@@ -271,7 +266,7 @@ class TestChef(FilesystemMockingTestCase):
         }
         util.write_file('/etc/cloud/templates/chef_client.rb.tmpl', tpl_file)
         util.write_file(v_path, expected_cert)
-        cc_chef.handle('chef', cfg, self.fetch_cloud('ubuntu'), LOG, [])
+        cc_chef.handle('chef', cfg, get_cloud(), LOG, [])
         content = util.load_file(cc_chef.CHEF_RB_PATH)
         self.assertIn(v_path, content)
         util.load_file(v_path)
