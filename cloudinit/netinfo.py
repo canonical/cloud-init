@@ -300,6 +300,7 @@ def _netdev_route_info_iproute(iproute_data):
             toks = line.split()
             if toks[0] == "default":
                 entry['destination'] = "::/0"
+                entry['gateway'] = "::"
                 entry['flags'] = "UG"
             else:
                 entry['destination'] = toks[0]
