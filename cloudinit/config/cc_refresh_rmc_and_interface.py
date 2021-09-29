@@ -28,7 +28,7 @@ This module handles
 
 **Internal name:** ``cc_refresh_rmc_and_interface``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** RHEL
 

@@ -16,7 +16,7 @@ entry, the config entry will be skipped.
 
 **Internal name:** ``cc_yum_add_repo``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** almalinux, centos, cloudlinux, eurolinux, fedora,
                        openEuler, photon, rhel, rocky, virtuozzo

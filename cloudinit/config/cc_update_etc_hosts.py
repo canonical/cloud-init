@@ -39,7 +39,7 @@ ping ``127.0.0.1`` or ``127.0.1.1`` or other ip).
 
 **Internal name:** ``cc_update_etc_hosts``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 

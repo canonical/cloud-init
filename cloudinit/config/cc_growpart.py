@@ -50,7 +50,7 @@ growpart is::
 
 **Internal name:** ``cc_growpart``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 
