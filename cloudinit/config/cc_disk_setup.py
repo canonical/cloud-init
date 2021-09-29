@@ -50,15 +50,18 @@ filesystem on may be specified either as a path or as an alias in the format
 ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device.
 The partition can also be specified by setting ``partition`` to the desired
 partition number. The ``partition`` option may also be set to ``auto``, in
-which this module will search for the existance of a filesystem matching the
+which this module will search for the existence of a filesystem matching the
 ``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip
 creating the filesystem if one is found. The ``partition`` option may also be
 set to ``any``, in which case any file system that matches ``type`` and
 ``device`` will cause this module to skip filesystem creation for the
 ``fs_setup`` entry, regardless of ``label`` matching or not. To write a
-filesystem directly to a device, use ``partition: none``. A label can be
-specified for the filesystem using ``label``, and the filesystem type can be
-specified using ``filesystem``.
+filesystem directly to a device, use ``partition: none``. ``partition: none``
+will **always** write the filesystem, even when the ``label`` and
+``filesystem`` are matched, and ``overwrite`` is ``false``.
+
+A label can be specified for the filesystem using
+``label``, and the filesystem type can be specified using ``filesystem``.
 
 .. note::
     If specifying device using the ``<device name>.<partition number>`` format,
@@ -125,9 +128,15 @@ def handle(_name, cfg, cloud, log, _args):
     See doc/examples/cloud-config-disk-setup.txt for documentation on the
     format.
     """
+    device_aliases = cfg.get("device_aliases", {})
+
+    def alias_to_device(cand):
+        name = device_aliases.get(cand)
+        return cloud.device_name_to_device(name or cand) or name
+
     disk_setup = cfg.get("disk_setup")
     if isinstance(disk_setup, dict):
-        update_disk_setup_devices(disk_setup, cloud.device_name_to_device)
+        update_disk_setup_devices(disk_setup, alias_to_device)
         log.debug("Partitioning disks: %s", str(disk_setup))
         for disk, definition in disk_setup.items():
             if not isinstance(definition, dict):
@@ -145,7 +154,7 @@ def handle(_name, cfg, cloud, log, _args):
     fs_setup = cfg.get("fs_setup")
     if isinstance(fs_setup, list):
         log.debug("setting up filesystems: %s", str(fs_setup))
-        update_fs_setup_devices(fs_setup, cloud.device_name_to_device)
+        update_fs_setup_devices(fs_setup, alias_to_device)
         for definition in fs_setup:
             if not isinstance(definition, dict):
                 log.warning("Invalid file system definition: %s" % definition)
@@ -174,7 +183,8 @@ def update_disk_setup_devices(disk_setup, tformer):
             del disk_setup[transformed]
 
         disk_setup[transformed] = disk_setup[origname]
-        disk_setup[transformed]['_origname'] = origname
+        if isinstance(disk_setup[transformed], dict):
+            disk_setup[transformed]['_origname'] = origname
         del disk_setup[origname]
         LOG.debug("updated disk_setup device entry '%s' to '%s'",
                   origname, transformed)

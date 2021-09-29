@@ -133,6 +133,15 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
             disk_path,
             cc_mounts.sanitize_devname(disk_path, None, mock.Mock()))
 
+    def test_device_aliases_remapping(self):
+        disk_path = '/dev/sda'
+        self.mock_existence_of_disk(disk_path)
+        self.assertEqual(disk_path,
+                         cc_mounts.sanitize_devname('mydata',
+                                                    lambda x: None,
+                                                    mock.Mock(),
+                                                    {'mydata': disk_path}))
+
 
 class TestSwapFileCreation(test_helpers.FilesystemMockingTestCase):
 

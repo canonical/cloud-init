@@ -18,7 +18,7 @@ USER_DATA_SSH_AUTHKEY_DISABLE = """\
 no_ssh_fingerprints: true
 """
 
-USER_DATA_SSH_AUTHKEY_ENABLE="""\
+USER_DATA_SSH_AUTHKEY_ENABLE = """\
 #cloud-config
 ssh_genkeytypes:
   - ecdsa

@@ -11,6 +11,7 @@ import ipaddress
 import logging
 import os
 import re
+from typing import Any, Dict
 
 from cloudinit import subp
 from cloudinit import util
@@ -313,11 +314,11 @@ def is_netfail_standby(devname, driver=None):
 def is_renamed(devname):
     """
     /* interface name assignment types (sysfs name_assign_type attribute) */
-    #define NET_NAME_UNKNOWN	0	/* unknown origin (not exposed to user) */
-    #define NET_NAME_ENUM		1	/* enumerated by kernel */
-    #define NET_NAME_PREDICTABLE	2	/* predictably named by the kernel */
-    #define NET_NAME_USER		3	/* provided by user-space */
-    #define NET_NAME_RENAMED	4	/* renamed by user-space */
+    #define NET_NAME_UNKNOWN      0  /* unknown origin (not exposed to user) */
+    #define NET_NAME_ENUM         1  /* enumerated by kernel */
+    #define NET_NAME_PREDICTABLE  2  /* predictably named by the kernel */
+    #define NET_NAME_USER         3  /* provided by user-space */
+    #define NET_NAME_RENAMED      4  /* renamed by user-space */
     """
     name_assign_type = read_sys_net_safe(devname, 'name_assign_type')
     if name_assign_type and name_assign_type in ['3', '4']:
@@ -351,7 +352,7 @@ def device_devid(devname):
 
 
 def get_devicelist():
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return list(get_interfaces_by_mac().values())
 
     try:
@@ -376,7 +377,7 @@ def is_disabled_cfg(cfg):
 
 def find_fallback_nic(blacklist_drivers=None):
     """Return the name of the 'fallback' network device."""
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return find_fallback_nic_on_freebsd(blacklist_drivers)
     elif util.is_NetBSD() or util.is_OpenBSD():
         return find_fallback_nic_on_netbsd_or_openbsd(blacklist_drivers)
@@ -661,6 +662,8 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
         cur['name'] = name
         cur_info[name] = cur
 
+    LOG.debug("Detected interfaces %s", cur_info)
+
     def update_byname(bymac):
         return dict((data['name'], data)
                     for data in cur_info.values())
@@ -816,7 +819,7 @@ def get_ib_interface_hwaddr(ifname, ethernet_format):
 
 
 def get_interfaces_by_mac(blacklist_drivers=None) -> dict:
-    if util.is_FreeBSD():
+    if util.is_FreeBSD() or util.is_DragonFlyBSD():
         return get_interfaces_by_mac_on_freebsd(
             blacklist_drivers=blacklist_drivers)
     elif util.is_NetBSD():
@@ -969,18 +972,33 @@ def get_ib_hwaddrs_by_interface():
     return ret
 
 
-def has_url_connectivity(url):
-    """Return true when the instance has access to the provided URL
+def has_url_connectivity(url_data: Dict[str, Any]) -> bool:
+    """Return true when the instance has access to the provided URL.
 
     Logs a warning if url is not the expected format.
+
+    url_data is a dictionary of kwargs to send to readurl. E.g.:
+
+    has_url_connectivity({
+        "url": "http://example.invalid",
+        "headers": {"some": "header"},
+        "timeout": 10
+    })
     """
+    if 'url' not in url_data:
+        LOG.warning(
+            "Ignoring connectivity check. No 'url' to check in %s", url_data)
+        return False
+    url = url_data['url']
     if not any([url.startswith('http://'), url.startswith('https://')]):
         LOG.warning(
             "Ignoring connectivity check. Expected URL beginning with http*://"
             " received '%s'", url)
         return False
+    if 'timeout' not in url_data:
+        url_data['timeout'] = 5
     try:
-        readurl(url, timeout=5)
+        readurl(**url_data)
     except UrlError:
         return False
     return True
@@ -1023,14 +1041,15 @@ class EphemeralIPv4Network(object):
 
     No operations are performed if the provided interface already has the
     specified configuration.
-    This can be verified with the connectivity_url.
+    This can be verified with the connectivity_url_data.
     If unconnected, bring up the interface with valid ip, prefix and broadcast.
     If router is provided setup a default route for that interface. Upon
     context exit, clean up the interface leaving no configuration behind.
     """
 
     def __init__(self, interface, ip, prefix_or_mask, broadcast, router=None,
-                 connectivity_url=None, static_routes=None):
+                 connectivity_url_data: Dict[str, Any] = None,
+                 static_routes=None):
         """Setup context manager and validate call signature.
 
         @param interface: Name of the network interface to bring up.
@@ -1039,7 +1058,7 @@ class EphemeralIPv4Network(object):
             prefix.
         @param broadcast: Broadcast address for the IPv4 network.
         @param router: Optionally the default gateway IP.
-        @param connectivity_url: Optionally, a URL to verify if a usable
+        @param connectivity_url_data: Optionally, a URL to verify if a usable
            connection already exists.
         @param static_routes: Optionally a list of static routes from DHCP
         """
@@ -1054,7 +1073,7 @@ class EphemeralIPv4Network(object):
                 'Cannot setup network: {0}'.format(e)
             ) from e
 
-        self.connectivity_url = connectivity_url
+        self.connectivity_url_data = connectivity_url_data
         self.interface = interface
         self.ip = ip
         self.broadcast = broadcast
@@ -1064,11 +1083,11 @@ class EphemeralIPv4Network(object):
 
     def __enter__(self):
         """Perform ephemeral network setup if interface is not connected."""
-        if self.connectivity_url:
-            if has_url_connectivity(self.connectivity_url):
+        if self.connectivity_url_data:
+            if has_url_connectivity(self.connectivity_url_data):
                 LOG.debug(
                     'Skip ephemeral network setup, instance has connectivity'
-                    ' to %s', self.connectivity_url)
+                    ' to %s', self.connectivity_url_data['url'])
                 return
 
         self._bringup_device()

@@ -8,11 +8,11 @@ import time
 
 from cloudinit import dmi
 from cloudinit import log as logging
-from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
-
+from cloudinit.event import EventScope, EventType
+from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from cloudinit.sources.helpers import openstack
 from cloudinit.sources import DataSourceOracle as oracle
 
@@ -45,6 +45,13 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
+
+    supported_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY,
+        EventType.HOTPLUG
+    }}
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceOpenStack, self).__init__(sys_cfg, distro, paths)

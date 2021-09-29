@@ -17,7 +17,7 @@ keys.
 Authorized Keys
 ^^^^^^^^^^^^^^^
 
-Authorized keys are a list of public SSH keys that are allowed to connect to a
+Authorized keys are a list of public SSH keys that are allowed to connect to
 a user account on a system. They are stored in `.ssh/authorized_keys` in that
 account's home directory. Authorized keys for the default user defined in
 ``users`` can be specified using ``ssh_authorized_keys``. Keys

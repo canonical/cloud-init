@@ -604,7 +604,7 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
 class TestMessageFromString(helpers.TestCase):
 
     def test_unicode_not_messed_up(self):
-        roundtripped = util.message_from_string(u'\n').as_string()
+        roundtripped = util.message_from_string('\n').as_string()
         self.assertNotIn('\x00', roundtripped)
 
 
@@ -997,6 +997,24 @@ class TestFindDevs:
         ]
         m_subp.side_effect = side_effect_values
         devlist = util.find_devs_with_netbsd(criteria=criteria)
+        assert devlist == expected_devlist
+
+    @pytest.mark.parametrize(
+        'criteria,expected_devlist', (
+            (None, ['/dev/vbd0', '/dev/cd0', '/dev/acd0']),
+            ('TYPE=iso9660', ['/dev/cd0', '/dev/acd0']),
+            ('TYPE=vfat', ['/dev/vbd0']),
+            ('LABEL_FATBOOT=A_LABEL',  # lp: #1841466
+             ['/dev/vbd0', '/dev/cd0', '/dev/acd0']),
+        )
+    )
+    @mock.patch("cloudinit.subp.subp")
+    def test_find_devs_with_dragonflybsd(self, m_subp, criteria,
+                                         expected_devlist):
+        m_subp.return_value = (
+            'md2 md1 cd0 vbd0 acd0 vn3 vn2 vn1 vn0 md0', ''
+        )
+        devlist = util.find_devs_with_dragonflybsd(criteria=criteria)
         assert devlist == expected_devlist
 
 # vi: ts=4 expandtab

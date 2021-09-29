@@ -26,7 +26,7 @@ from cloudinit.sources import DataSourceNone
 
 from cloudinit.tests import helpers as t_help
 
-EXPECTEDKEY = u"""-----BEGIN PGP PUBLIC KEY BLOCK-----
+EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1
 
 mI0ESuZLUgEEAKkqq3idtFP7g9hzOu1a8+v8ImawQN4TrvlygfScMU1TIS1eC7UQ

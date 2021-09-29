@@ -9,7 +9,7 @@ import os
 import pickle
 import sys
 from collections import namedtuple
-from typing import Dict, Set
+from typing import Dict, Set  # noqa: F401
 
 from cloudinit.settings import (
     FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, PER_ONCE, RUN_CLOUD_CONFIG)
@@ -156,7 +156,7 @@ class Init(object):
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, 'def_log_file')
         if log_file:
-            util.ensure_file(log_file, preserve_mode=True)
+            util.ensure_file(log_file, mode=0o640, preserve_mode=True)
             perms = self.cfg.get('syslog_fix_perms')
             if not perms:
                 perms = {}
@@ -241,7 +241,7 @@ class Init(object):
             else:
                 return (None, "cache invalid in datasource: %s" % ds)
 
-    def _get_data_source(self, existing):
+    def _get_data_source(self, existing) -> sources.DataSource:
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
 
@@ -267,7 +267,7 @@ class Init(object):
                                                cfg_list,
                                                pkg_list, self.reporter)
             LOG.info("Loaded datasource %s - %s", dsname, ds)
-        self.datasource = ds
+        self.datasource = ds  # type: sources.DataSource
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
         self._reset()
@@ -1070,6 +1070,8 @@ def _pkl_load(fname):
         return None
     try:
         return pickle.loads(pickle_contents)
+    except sources.DatasourceUnpickleUserDataError:
+        return None
     except Exception:
         util.logexc(LOG, "Failed loading pickled blob from %s", fname)
         return None

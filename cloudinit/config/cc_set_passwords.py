@@ -133,7 +133,7 @@ def handle_ssh_pwauth(pw_auth, service_cmd=None, service_name="ssh"):
 
 
 def handle(_name, cfg, cloud, log, args):
-    if len(args) != 0:
+    if args:
         # if run from command line, and give args, wipe the chpasswd['list']
         password = args[0]
         if 'chpasswd' in cfg and 'list' in cfg['chpasswd']:
