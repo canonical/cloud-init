@@ -27,7 +27,6 @@ class Distro(distros.Distro):
     locale_conf_fn = '/etc/sysconfig/language'
     network_conf_fn = '/etc/sysconfig/network/config'
     network_script_tpl = '/etc/sysconfig/network/ifcfg-%s'
-    resolve_conf_fn = '/etc/resolv.conf'
     route_conf_tpl = '/etc/sysconfig/network/ifroute-%s'
     systemd_hostname_conf_fn = '/etc/hostname'
     systemd_locale_conf_fn = '/etc/locale.conf'
@@ -117,12 +116,6 @@ class Distro(distros.Distro):
         self._runner.run("update-sources", self.package_command,
                          ['refresh'], freq=PER_INSTANCE)
 
-    def _bring_up_interfaces(self, device_names):
-        if device_names and 'all' in device_names:
-            raise RuntimeError(('Distro %s can not translate '
-                                'the device name "all"') % (self.name))
-        return distros.Distro._bring_up_interfaces(self, device_names)
-
     def _read_hostname(self, filename, default=None):
         if self.uses_systemd() and filename.endswith('/previous-hostname'):
             return util.load_file(filename).strip()
@@ -157,9 +150,9 @@ class Distro(distros.Distro):
             host_fn = self.hostname_conf_fn
         return (host_fn, self._read_hostname(host_fn))
 
-    def _write_hostname(self, hostname, out_fn):
-        if self.uses_systemd() and out_fn.endswith('/previous-hostname'):
-            util.write_file(out_fn, hostname)
+    def _write_hostname(self, hostname, filename):
+        if self.uses_systemd() and filename.endswith('/previous-hostname'):
+            util.write_file(filename, hostname)
         elif self.uses_systemd():
             subp.subp(['hostnamectl', 'set-hostname', str(hostname)])
         else:
@@ -167,16 +160,13 @@ class Distro(distros.Distro):
             try:
                 # Try to update the previous one
                 # so lets see if we can read it first.
-                conf = self._read_hostname_conf(out_fn)
+                conf = self._read_hostname_conf(filename)
             except IOError:
                 pass
             if not conf:
                 conf = HostnameConf('')
             conf.set_hostname(hostname)
-            util.write_file(out_fn, str(conf), 0o644)
-
-    def _write_network_config(self, netconfig):
-        return self._supported_write_network_config(netconfig)
+            util.write_file(filename, str(conf), 0o644)
 
     @property
     def preferred_ntp_clients(self):

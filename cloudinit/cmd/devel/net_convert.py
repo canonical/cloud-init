@@ -11,7 +11,7 @@ from cloudinit.sources import DataSourceAzure as azure
 from cloudinit.sources import DataSourceOVF as ovf
 
 from cloudinit import distros, safeyaml
-from cloudinit.net import eni, netplan, network_state, sysconfig
+from cloudinit.net import eni, netplan, networkd, network_state, sysconfig
 from cloudinit import log
 
 NAME = 'net-convert'
@@ -51,7 +51,7 @@ def get_parser(parser=None):
     parser.add_argument("--debug", action='store_true',
                         help='enable debug logging to stderr.')
     parser.add_argument("-O", "--output-kind",
-                        choices=['eni', 'netplan', 'sysconfig'],
+                        choices=['eni', 'netplan', 'networkd', 'sysconfig'],
                         required=True,
                         help="The network config format to emit")
     return parser
@@ -96,9 +96,6 @@ def handle_args(name, args):
         pre_ns = ovf.get_network_config_from_conf(config, False)
 
     ns = network_state.parse_net_config_data(pre_ns)
-    if not ns:
-        raise RuntimeError("No valid network_state object created from"
-                           " input data")
 
     if args.debug:
         sys.stderr.write('\n'.join(
@@ -118,9 +115,14 @@ def handle_args(name, args):
         config['netplan_path'] = config['netplan_path'][1:]
         # enable some netplan features
         config['features'] = ['dhcp-use-domains', 'ipv6-mtu']
-    else:
+    elif args.output_kind == "networkd":
+        r_cls = networkd.Renderer
+        config = distro.renderer_configs.get('networkd')
+    elif args.output_kind == "sysconfig":
         r_cls = sysconfig.Renderer
         config = distro.renderer_configs.get('sysconfig')
+    else:
+        raise RuntimeError("Invalid output_kind")
 
     r = r_cls(config=config)
     sys.stderr.write(''.join([

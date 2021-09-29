@@ -111,32 +111,22 @@ class Distro(distros.Distro):
         self.update_package_sources()
         self.package_command('install', pkgs=pkglist)
 
-    def _write_network_config(self, netconfig):
+    def _write_network_state(self, network_state):
         _maybe_remove_legacy_eth0()
-        return self._supported_write_network_config(netconfig)
+        return super()._write_network_state(network_state)
 
-    def _bring_up_interfaces(self, device_names):
-        use_all = False
-        for d in device_names:
-            if d == 'all':
-                use_all = True
-        if use_all:
-            return distros.Distro._bring_up_interface(self, '--all')
-        else:
-            return distros.Distro._bring_up_interfaces(self, device_names)
-
-    def _write_hostname(self, your_hostname, out_fn):
+    def _write_hostname(self, hostname, filename):
         conf = None
         try:
             # Try to update the previous one
             # so lets see if we can read it first.
-            conf = self._read_hostname_conf(out_fn)
+            conf = self._read_hostname_conf(filename)
         except IOError:
             pass
         if not conf:
             conf = HostnameConf('')
-        conf.set_hostname(your_hostname)
-        util.write_file(out_fn, str(conf), 0o644)
+        conf.set_hostname(hostname)
+        util.write_file(filename, str(conf), 0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)

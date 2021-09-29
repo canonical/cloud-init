@@ -428,22 +428,20 @@ class TestInit_InitializeFilesystem:
         """A fixture which yields a stages.Init instance with paths and cfg set
 
         As it is replaced with a mock, consumers of this fixture can set
-        `init.cfg` if the default empty dict configuration is not appropriate.
+        `init._cfg` if the default empty dict configuration is not appropriate.
         """
-        with mock.patch(
-            "cloudinit.stages.Init.cfg", mock.PropertyMock(return_value={})
-        ):
-            with mock.patch("cloudinit.stages.util.ensure_dirs"):
-                init = stages.Init()
-                init._paths = paths
-                yield init
+        with mock.patch("cloudinit.stages.util.ensure_dirs"):
+            init = stages.Init()
+            init._cfg = {}
+            init._paths = paths
+            yield init
 
     @mock.patch("cloudinit.stages.util.ensure_file")
     def test_ensure_file_not_called_if_no_log_file_configured(
         self, m_ensure_file, init
     ):
         """If no log file is configured, we should not ensure its existence."""
-        init.cfg = {}
+        init._cfg = {}
 
         init._initialize_filesystem()
 
@@ -452,11 +450,13 @@ class TestInit_InitializeFilesystem:
     def test_log_files_existence_is_ensured_if_configured(self, init, tmpdir):
         """If a log file is configured, we should ensure its existence."""
         log_file = tmpdir.join("cloud-init.log")
-        init.cfg = {"def_log_file": str(log_file)}
+        init._cfg = {"def_log_file": str(log_file)}
 
         init._initialize_filesystem()
 
-        assert log_file.exists
+        assert log_file.exists()
+        # Assert we create it 0o640  by default if it doesn't already exist
+        assert 0o640 == stat.S_IMODE(log_file.stat().mode)
 
     def test_existing_file_permissions_are_not_modified(self, init, tmpdir):
         """If the log file already exists, we should not modify its permissions
@@ -469,7 +469,7 @@ class TestInit_InitializeFilesystem:
         log_file = tmpdir.join("cloud-init.log")
         log_file.ensure()
         log_file.chmod(mode)
-        init.cfg = {"def_log_file": str(log_file)}
+        init._cfg = {"def_log_file": str(log_file)}
 
         init._initialize_filesystem()
 

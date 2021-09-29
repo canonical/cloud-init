@@ -1,0 +1,13 @@
+# cloud-init-hotplugd.socket listens on the FIFO file
+# /run/cloud-init/hook-hotplug-cmd which is created during a udev network
+# add or remove event as processed by 10-cloud-init-hook-hotplug.rules.
+
+# Known bug with an enforcing SELinux policy: LP: #1936229
+[Unit]
+Description=cloud-init hotplug hook socket
+
+[Socket]
+ListenFIFO=/run/cloud-init/hook-hotplug-cmd
+
+[Install]
+WantedBy=cloud-init.target

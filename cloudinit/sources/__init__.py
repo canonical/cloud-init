@@ -13,7 +13,7 @@ import copy
 import json
 import os
 from collections import namedtuple
-from typing import Dict, List
+from typing import Dict, List  # noqa: F401
 
 from cloudinit import dmi
 from cloudinit import importer
@@ -23,6 +23,7 @@ from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
+from cloudinit.distros import Distro
 from cloudinit.event import EventScope, EventType
 from cloudinit.filters import launch_index
 from cloudinit.persistence import CloudInitPickleMixin
@@ -73,6 +74,10 @@ CLOUD_ID_REGION_PREFIX_MAP = {
 _NETCFG_SOURCE_NAMES = ('cmdline', 'ds', 'system_cfg', 'fallback', 'initramfs')
 NetworkConfigSource = namedtuple('NetworkConfigSource',
                                  _NETCFG_SOURCE_NAMES)(*_NETCFG_SOURCE_NAMES)
+
+
+class DatasourceUnpickleUserDataError(Exception):
+    """Raised when userdata is unable to be unpickled due to python upgrades"""
 
 
 class DataSourceNotFoundException(Exception):
@@ -133,7 +138,8 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
 
 
 URLParams = namedtuple(
-    'URLParms', ['max_wait_seconds', 'timeout_seconds', 'num_retries'])
+    'URLParms', ['max_wait_seconds', 'timeout_seconds',
+                 'num_retries', 'sec_between_retries'])
 
 
 class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
@@ -170,9 +176,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                               NetworkConfigSource.ds)
 
     # read_url_params
-    url_max_wait = -1   # max_wait < 0 means do not wait
-    url_timeout = 10    # timeout for each metadata url read attempt
-    url_retries = 5     # number of times to retry url upon 404
+    url_max_wait = -1            # max_wait < 0 means do not wait
+    url_timeout = 10             # timeout for each metadata url read attempt
+    url_retries = 5              # number of times to retry url upon 404
+    url_sec_between_retries = 1  # amount of seconds to wait between retries
 
     # The datasource defines a set of supported EventTypes during which
     # the datasource can react to changes in metadata and regenerate
@@ -211,7 +218,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     _ci_pkl_version = 1
 
-    def __init__(self, sys_cfg, distro, paths, ud_proc=None):
+    def __init__(self, sys_cfg, distro: Distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
@@ -239,6 +246,20 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
             self.vendordata2 = None
         if not hasattr(self, 'vendordata2_raw'):
             self.vendordata2_raw = None
+        if hasattr(self, 'userdata') and self.userdata is not None:
+            # If userdata stores MIME data, on < python3.6 it will be
+            # missing the 'policy' attribute that exists on >=python3.6.
+            # Calling str() on the userdata will attempt to access this
+            # policy attribute. This will raise an exception, causing
+            # the pickle load to fail, so cloud-init will discard the cache
+            try:
+                str(self.userdata)
+            except AttributeError as e:
+                LOG.debug(
+                    "Unable to unpickle datasource: %s."
+                    " Ignoring current cache.", e
+                )
+                raise DatasourceUnpickleUserDataError() from e
 
     def __str__(self):
         return type_utils.obj_name(self)
@@ -403,7 +424,18 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG, "Config retries '%s' is not an int, using default '%s'",
                 self.ds_cfg.get('retries'), retries)
 
-        return URLParams(max_wait, timeout, retries)
+        sec_between_retries = self.url_sec_between_retries
+        try:
+            sec_between_retries = int(self.ds_cfg.get(
+                "sec_between_retries",
+                self.url_sec_between_retries))
+        except Exception:
+            util.logexc(
+                LOG, "Config sec_between_retries '%s' is not an int,"
+                     " using default '%s'",
+                self.ds_cfg.get("sec_between_retries"), sec_between_retries)
+
+        return URLParams(max_wait, timeout, retries, sec_between_retries)
 
     def get_userdata(self, apply_filter=False):
         if self.userdata is None:
@@ -660,6 +692,16 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
 
+    def get_supported_events(self, source_event_types: List[EventType]):
+        supported_events = {}  # type: Dict[EventScope, set]
+        for event in source_event_types:
+            for update_scope, update_events in self.supported_update_events.items():  # noqa: E501
+                if event in update_events:
+                    if not supported_events.get(update_scope):
+                        supported_events[update_scope] = set()
+                    supported_events[update_scope].add(event)
+        return supported_events
+
     def update_metadata_if_supported(
         self, source_event_types: List[EventType]
     ) -> bool:
@@ -675,13 +717,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         @return True if the datasource did successfully update cached metadata
             due to source_event_type.
         """
-        supported_events = {}  # type: Dict[EventScope, set]
-        for event in source_event_types:
-            for update_scope, update_events in self.supported_update_events.items():  # noqa: E501
-                if event in update_events:
-                    if not supported_events.get(update_scope):
-                        supported_events[update_scope] = set()
-                    supported_events[update_scope].add(event)
+        supported_events = self.get_supported_events(source_event_types)
         for scope, matched_events in supported_events.items():
             LOG.debug(
                 "Update datasource metadata and %s config due to events: %s",

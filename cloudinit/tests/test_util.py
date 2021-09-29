@@ -124,6 +124,38 @@ OS_RELEASE_ALMALINUX_8 = dedent("""\
     ALMALINUX_MANTISBT_PROJECT_VERSION="8.3"
 """)
 
+OS_RELEASE_EUROLINUX_7 = dedent("""\
+    VERSION="7.9 (Minsk)"
+    ID="eurolinux"
+    ID_LIKE="rhel scientific centos fedora"
+    VERSION_ID="7.9"
+    PRETTY_NAME="EuroLinux 7.9 (Minsk)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:eurolinux:eurolinux:7.9:GA"
+    HOME_URL="http://www.euro-linux.com/"
+    BUG_REPORT_URL="mailto:support@euro-linux.com"
+    REDHAT_BUGZILLA_PRODUCT="EuroLinux 7"
+    REDHAT_BUGZILLA_PRODUCT_VERSION=7.9
+    REDHAT_SUPPORT_PRODUCT="EuroLinux"
+    REDHAT_SUPPORT_PRODUCT_VERSION="7.9"
+""")
+
+OS_RELEASE_EUROLINUX_8 = dedent("""\
+    NAME="EuroLinux"
+    VERSION="8.4 (Vaduz)"
+    ID="eurolinux"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="8.4"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="EuroLinux 8.4 (Vaduz)"
+    ANSI_COLOR="0;34"
+    CPE_NAME="cpe:/o:eurolinux:eurolinux:8"
+    HOME_URL="https://www.euro-linux.com/"
+    BUG_REPORT_URL="https://github.com/EuroLinux/eurolinux-distro-bugs-and-rfc/"
+    REDHAT_SUPPORT_PRODUCT="EuroLinux"
+    REDHAT_SUPPORT_PRODUCT_VERSION="8"
+""")
+
 OS_RELEASE_ROCKY_8 = dedent("""\
     NAME="Rocky Linux"
     VERSION="8.3 (Green Obsidian)"
@@ -140,6 +172,43 @@ OS_RELEASE_ROCKY_8 = dedent("""\
     ROCKY_SUPPORT_PRODUCT_VERSION="8"
 """)
 
+OS_RELEASE_VIRTUOZZO_8 = dedent("""\
+    NAME="Virtuozzo Linux"
+    VERSION="8"
+    ID="virtuozzo"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="Virtuozzo Linux"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:virtuozzoproject:vzlinux:8"
+    HOME_URL="https://www.vzlinux.org"
+    BUG_REPORT_URL="https://bugs.openvz.org"
+""")
+
+OS_RELEASE_CLOUDLINUX_8 = dedent("""\
+    NAME="CloudLinux"
+    VERSION="8.4 (Valery Rozhdestvensky)"
+    ID="cloudlinux"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="8.4"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="CloudLinux 8.4 (Valery Rozhdestvensky)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:cloudlinux:cloudlinux:8.4:GA:server"
+    HOME_URL="https://www.cloudlinux.com/"
+    BUG_REPORT_URL="https://www.cloudlinux.com/support"
+""")
+
+OS_RELEASE_OPENEULER_20 = dedent("""\
+    NAME="openEuler"
+    VERSION="20.03 (LTS-SP2)"
+    ID="openEuler"
+    VERSION_ID="20.03"
+    PRETTY_NAME="openEuler 20.03 (LTS-SP2)"
+    ANSI_COLOR="0;31"
+""")
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
@@ -148,9 +217,14 @@ REDHAT_RELEASE_REDHAT_7 = (
     "Red Hat Enterprise Linux Server release 7.5 (Maipo)")
 REDHAT_RELEASE_ALMALINUX_8 = (
     "AlmaLinux release 8.3 (Purple Manul)")
+REDHAT_RELEASE_EUROLINUX_7 = "EuroLinux release 7.9 (Minsk)"
+REDHAT_RELEASE_EUROLINUX_8 = "EuroLinux release 8.4 (Vaduz)"
 REDHAT_RELEASE_ROCKY_8 = (
     "Rocky Linux release 8.3 (Green Obsidian)")
-
+REDHAT_RELEASE_VIRTUOZZO_8 = (
+    "Virtuozzo Linux release 8")
+REDHAT_RELEASE_CLOUDLINUX_8 = (
+    "CloudLinux release 8.4 (Valery Rozhdestvensky)")
 OS_RELEASE_DEBIAN = dedent("""\
     PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
     NAME="Debian GNU/Linux"
@@ -175,6 +249,17 @@ OS_RELEASE_UBUNTU = dedent("""\
     BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"\n
     VERSION_CODENAME=xenial\n
     UBUNTU_CODENAME=xenial\n
+""")
+
+OS_RELEASE_PHOTON = ("""\
+        NAME="VMware Photon OS"
+        VERSION="4.0"
+        ID=photon
+        VERSION_ID=4.0
+        PRETTY_NAME="VMware Photon OS/Linux"
+        ANSI_COLOR="1;34"
+        HOME_URL="https://vmware.github.io/photon/"
+        BUG_REPORT_URL="https://github.com/vmware/photon/issues"
 """)
 
 
@@ -555,6 +640,38 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('almalinux', '8.3', 'Purple Manul'), dist)
 
     @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_eurolinux7_rhrelease(self, m_os_release, m_path_exists):
+        """Verify eurolinux 7 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_EUROLINUX_7
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('eurolinux', '7.9', 'Minsk'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_eurolinux7_osrelease(self, m_os_release, m_path_exists):
+        """Verify eurolinux 7 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_EUROLINUX_7
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('eurolinux', '7.9', 'Minsk'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_eurolinux8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify eurolinux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_EUROLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('eurolinux', '8.4', 'Vaduz'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_eurolinux8_osrelease(self, m_os_release, m_path_exists):
+        """Verify eurolinux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_EUROLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('eurolinux', '8.4', 'Vaduz'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
     def test_get_linux_rocky8_rhrelease(self, m_os_release, m_path_exists):
         """Verify rocky linux 8 read from redhat-release."""
         m_os_release.return_value = REDHAT_RELEASE_ROCKY_8
@@ -571,12 +688,52 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('rocky', '8.3', 'Green Obsidian'), dist)
 
     @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_virtuozzo8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify virtuozzo linux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_VIRTUOZZO_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('virtuozzo', '8', 'Virtuozzo Linux'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_virtuozzo8_osrelease(self, m_os_release, m_path_exists):
+        """Verify virtuozzo linux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_VIRTUOZZO_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('virtuozzo', '8', 'Virtuozzo Linux'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_cloud8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify cloudlinux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_CLOUDLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('cloudlinux', '8.4', 'Valery Rozhdestvensky'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_cloud8_osrelease(self, m_os_release, m_path_exists):
+        """Verify cloudlinux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_CLOUDLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('cloudlinux', '8.4', 'Valery Rozhdestvensky'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
     def test_get_linux_debian(self, m_os_release, m_path_exists):
         """Verify we get the correct name and release name on Debian."""
         m_os_release.return_value = OS_RELEASE_DEBIAN
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('debian', '9', 'stretch'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_openeuler(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on Openeuler."""
+        m_os_release.return_value = OS_RELEASE_OPENEULER_20
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('openEuler', '20.03', 'LTS-SP2'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
@@ -608,6 +765,15 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(
             ('opensuse-tumbleweed', '20180920', platform.machine()), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_photon_os_release(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on PhotonOS"""
+        m_os_release.return_value = OS_RELEASE_PHOTON
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(
+            ('photon', '4.0', 'VMware Photon OS/Linux'), dist)
 
     @mock.patch('platform.system')
     @mock.patch('platform.dist', create=True)

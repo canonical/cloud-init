@@ -36,14 +36,14 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
 BASIC_MATCHER = re.compile(r'\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)')
-MISSING_JINJA_PREFIX = u'CI_MISSING_JINJA_VAR/'
+MISSING_JINJA_PREFIX = 'CI_MISSING_JINJA_VAR/'
 
 
 class UndefinedJinjaVariable(JUndefined):
     """Class used to represent any undefined jinja template variable."""
 
     def __str__(self):
-        return u'%s%s' % (MISSING_JINJA_PREFIX, self._undefined_name)
+        return '%s%s' % (MISSING_JINJA_PREFIX, self._undefined_name)
 
     def __sub__(self, other):
         other = str(other).replace(MISSING_JINJA_PREFIX, '')

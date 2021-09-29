@@ -14,14 +14,14 @@ cloud_config: |
    # For example the configuration below will have the following section
    # added to puppet.conf:
    # [puppetd]
-   # server=puppetmaster.example.org
+   # server=puppetserver.example.org
    # certname=i-0123456.ip-X-Y-Z.cloud.internal
    #
    # The puppmaster ca certificate will be available in
    # /var/lib/puppet/ssl/certs/ca.pem
    conf:
      agent:
-       server: "puppetmaster.example.org"
+       server: "puppetserver.example.org"
        # certname supports substitutions at runtime:
        #   %i: instanceid
        #       Example: i-0123456
@@ -31,11 +31,11 @@ cloud_config: |
        # NB: the certname will automatically be lowercased as required by puppet
        certname: "%i.%f"
      # ca_cert is a special case. It won't be added to puppet.conf.
-     # It holds the puppetmaster certificate in pem format.
+     # It holds the puppetserver certificate in pem format.
      # It should be a multi-line string (using the | yaml notation for
      # multi-line strings).
-     # The puppetmaster certificate is located in
-     # /var/lib/puppet/ssl/ca/ca_crt.pem on the puppetmaster host.
+     # The puppetserver certificate is located in
+     # /var/lib/puppet/ssl/ca/ca_crt.pem on the puppetserver host.
      #
      ca_cert: |
        -----BEGIN CERTIFICATE-----

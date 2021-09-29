@@ -247,7 +247,7 @@ def _quick_read_instance_id(dirs=None):
         try:
             data = util.pathprefix2dict(d, required=['meta-data'])
             md = util.load_yaml(data['meta-data'])
-            if iid_key in md:
+            if md and iid_key in md:
                 return md[iid_key]
         except ValueError:
             pass
