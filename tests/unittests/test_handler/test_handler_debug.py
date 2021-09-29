@@ -41,7 +41,7 @@ class TestDebug(FilesystemMockingTestCase):
         m_locale.return_value = 'en_US.UTF-8'
         cfg = {
             'abc': '123',
-            'c': u'\u20a0',
+            'c': '\u20a0',
             'debug': {
                 'verbose': True,
                 # Does not actually write here due to mocking...

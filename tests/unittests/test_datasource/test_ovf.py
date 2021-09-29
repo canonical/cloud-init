@@ -518,6 +518,49 @@ class TestDatasourceOVF(CiTestCase):
                         'vmware (%s/seed/ovf-env.xml)' % self.tdir,
                         ds.subplatform)
 
+    def test_get_data_vmware_guestinfo_with_network_config(self):
+        network_config = dedent("""\
+        network:
+           version: 2
+           ethernets:
+              nics:
+                 nameservers:
+                    addresses:
+                    - 127.0.0.53
+                    search:
+                    - vmware.com
+                 match:
+                    name: eth*
+                 gateway4: 10.10.10.253
+                 dhcp4: false
+                 addresses:
+                 - 10.10.10.1/24
+        """)
+        network_config_b64 = base64.b64encode(network_config.encode()).decode()
+        props = {"network-config": network_config_b64,
+                 "password": "passw0rd",
+                 "instance-id": "inst-001"}
+        env = fill_properties(props)
+        paths = Paths({'cloud_dir': self.tdir, 'run_dir': self.tdir})
+        ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
+        with mock.patch(MPATH + 'transport_vmware_guestinfo',
+                        return_value=env):
+            with mock.patch(MPATH + 'transport_iso9660',
+                            return_value=NOT_FOUND):
+                self.assertTrue(ds.get_data())
+                self.assertEqual('inst-001', ds.metadata['instance-id'])
+                self.assertEqual(
+                    {'version': 2, 'ethernets':
+                        {'nics':
+                            {'nameservers':
+                                {'addresses': ['127.0.0.53'],
+                                 'search': ['vmware.com']},
+                             'match': {'name': 'eth*'},
+                             'gateway4': '10.10.10.253',
+                             'dhcp4': False,
+                             'addresses': ['10.10.10.1/24']}}},
+                    ds.network_config)
+
     def test_get_data_cloudinit_metadata_json(self):
         """Test metadata can be loaded to cloud-init metadata and network.
         The metadata format is json.

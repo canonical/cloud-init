@@ -23,17 +23,17 @@ Follow these steps to submit your first pull request to cloud-init:
 
     * ensure that you fill in the GitHub username field.
     * when prompted for 'Project contact' or 'Canonical Project
-      Manager', enter 'Rick Harding'.
+      Manager', enter 'James Falcon'.
 
   * If your company has signed the CLA for you, please contact us to
     help in verifying which Launchpad/GitHub accounts are associated
     with the company.
 
-  * For any questions or help with the process, please email `Rick
-    Harding <mailto:rick.harding@canonical.com>`_ with the subject,
+  * For any questions or help with the process, please email `James
+    Falcon <mailto:james.falcon@canonical.com>`_ with the subject,
     "Cloud-Init CLA"
 
-  * You also may contact user ``rick_h`` in the ``#cloud-init``
+  * You also may contact user ``falcojr`` in the ``#cloud-init``
     channel on the Libera IRC network.
 
 * Configure git with your email and name for commit messages.
