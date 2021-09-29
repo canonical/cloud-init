@@ -50,7 +50,7 @@ growpart is::
 
 **Internal name:** ``cc_growpart``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 
@@ -142,9 +142,11 @@ class ResizeGrowPart(object):
         return False
 
     def resize(self, diskdev, partnum, partdev):
+        myenv = os.environ.copy()
+        myenv['LANG'] = 'C'
         before = get_size(partdev)
         try:
-            subp.subp(["growpart", '--dry-run', diskdev, partnum])
+            subp.subp(["growpart", '--dry-run', diskdev, partnum], env=myenv)
         except subp.ProcessExecutionError as e:
             if e.exit_code != 1:
                 util.logexc(LOG, "Failed growpart --dry-run for (%s, %s)",
@@ -153,7 +155,7 @@ class ResizeGrowPart(object):
             return (before, before)
 
         try:
-            subp.subp(["growpart", diskdev, partnum])
+            subp.subp(["growpart", diskdev, partnum], env=myenv)
         except subp.ProcessExecutionError as e:
             util.logexc(LOG, "Failed: growpart %s %s", diskdev, partnum)
             raise ResizeFailedException(e) from e
