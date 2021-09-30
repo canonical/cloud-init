@@ -10,7 +10,6 @@
 import fcntl
 import os
 import time
-from contextlib import ExitStack
 
 from cloudinit import distros
 from cloudinit import helpers
@@ -171,23 +170,18 @@ class Distro(distros.Distro):
         """
         if lock_files is None:
             lock_files = APT_LOCK_FILES
-        with ExitStack() as stack:
-            file_handles = []
-            for lock in lock_files:
-                try:
-                    file_handles.append(stack.enter_context(open(lock, 'w')))
-                except FileNotFoundError:
-                    # If the lock file doesn't even exist yet, then we don't
-                    # have to wait for it
-                    pass
-            for handle in file_handles:
+        for lock in lock_files:
+            if not os.path.exists(lock):
+                # Only wait for lock files that already exist
+                continue
+            with open(lock, 'w') as handle:
                 try:
                     fcntl.lockf(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 except IOError:
                     return False
         return True
 
-    def _wait_for_apt_install(
+    def _wait_for_apt_command(
         self, short_cmd, subp_kwargs, timeout=APT_LOCK_WAIT_TIMEOUT
     ):
         """Wait for apt install to complete.
@@ -201,7 +195,7 @@ class Distro(distros.Distro):
             if not self._is_apt_lock_available():
                 time.sleep(1)
                 continue
-            LOG.debug('apt lock clear')
+            LOG.debug('apt lock available')
             try:
                 # Allow the output of this to flow outwards (not be captured)
                 log_msg = "apt-%s [%s]" % (
@@ -215,9 +209,13 @@ class Distro(distros.Distro):
                     kwargs=subp_kwargs,
                 )
             except subp.ProcessExecutionError as e:
-                if e.exit_code == 100 and 'Could not get lock' in e.stderr:
-                    LOG.debug('Could not obtain apt lock')
-                    time.sleep(1)
+                if any([
+                    e.exit_code != 100,
+                    'Could not get apt lock' not in e.stderr,
+                ]):
+                    raise e
+                LOG.debug('Could not obtain apt lock')
+                time.sleep(1)
         raise TimeoutError('Could not get apt lock')
 
     def package_command(self, command, args=None, pkgs=None):
@@ -259,7 +257,7 @@ class Distro(distros.Distro):
         pkglist = util.expand_package_list('%s=%s', pkgs)
         cmd.extend(pkglist)
 
-        self._wait_for_apt_install(
+        self._wait_for_apt_command(
             short_cmd=command,
             subp_kwargs={'args': cmd, 'env': e, 'capture': False}
         )

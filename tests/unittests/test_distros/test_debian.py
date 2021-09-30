@@ -132,7 +132,7 @@ class TestPackageCommand:
                 side_effect=[False, False, True])
     @mock.patch("cloudinit.distros.debian.time.sleep")
     def test_wait_for_lock(self, m_sleep, m_apt_avail, m_subp, m_which):
-        self.distro._wait_for_apt_install("stub", {"args": "stub2"})
+        self.distro._wait_for_apt_command("stub", {"args": "stub2"})
         assert m_sleep.call_args_list == [mock.call(1), mock.call(1)]
         assert m_subp.call_args_list == [mock.call(args='stub2')]
 
@@ -144,7 +144,7 @@ class TestPackageCommand:
         self, m_time, m_sleep, m_apt_avail, m_subp, m_which
     ):
         with pytest.raises(TimeoutError):
-            self.distro._wait_for_apt_install("stub", "stub2", timeout=5)
+            self.distro._wait_for_apt_command("stub", "stub2", timeout=5)
         assert m_subp.call_args_list == []
 
     @mock.patch("cloudinit.distros.debian.Distro._is_apt_lock_available",
@@ -155,7 +155,7 @@ class TestPackageCommand:
             exit_code=100, stderr="Could not get apt lock"
         )
         m_subp.side_effect = [exception, exception, "return_thing"]
-        ret = self.distro._wait_for_apt_install("stub", {"args": "stub2"})
+        ret = self.distro._wait_for_apt_command("stub", {"args": "stub2"})
         assert ret == "return_thing"
 
     @mock.patch("cloudinit.distros.debian.Distro._is_apt_lock_available",
@@ -169,6 +169,6 @@ class TestPackageCommand:
             exit_code=100, stderr="Could not get apt lock"
         )
         with pytest.raises(TimeoutError):
-            self.distro._wait_for_apt_install(
+            self.distro._wait_for_apt_command(
                 "stub", {"args": "stub2"}, timeout=5
             )
