@@ -17,7 +17,7 @@ by default.
 
 **Internal name:** ``cc_disable_ec2_metadata``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 
