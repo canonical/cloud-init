@@ -234,7 +234,7 @@ def generate_private_network_interface(interface):
 
 
 # Make required adjustments to the network configs provided
-def add_network_interfaces(interfaces):
+def add_interface_names(interfaces):
     for interface in interfaces:
         interface_name = get_interface_name(interface['mac'])
         if not interface_name:

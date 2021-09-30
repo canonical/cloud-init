@@ -70,7 +70,7 @@ class DataSourceVultr(sources.DataSource):
         if "cloud_interfaces" in md:
             # In the future we will just drop pre-configured
             # network configs into the array. They need names though.
-            self.netcfg = vultr.add_network_interfaces(md['cloud_interfaces'])
+            self.netcfg = vultr.add_interface_names(md['cloud_interfaces'])
         else:
             self.netcfg = vultr.generate_network_config(md['interfaces'])
 
