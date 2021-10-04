@@ -152,6 +152,16 @@ def generate_public_network_interface(interface):
         ]
     }
 
+    # Options that may or may not be used
+    if "mtu" in interface:
+        netcfg['mtu'] = interface['mtu']
+
+    if "accept-ra" in interface:
+        netcfg['accept-ra'] = interface['accept-ra']
+
+    if "routes" in interface:
+        netcfg['subnets'][0]['routes'] = interface['routes']
+
     # Check for additional IP's
     additional_count = len(interface['ipv4']['additional'])
     if "ipv4" in interface and additional_count > 0:
@@ -162,6 +172,10 @@ def generate_public_network_interface(interface):
                 "address": additional['address'],
                 "netmask": additional['netmask']
             }
+
+            if "routes" in additional:
+                add['routes'] = additional['routes']
+
             netcfg['subnets'].append(add)
 
     # Check for additional IPv6's
@@ -174,6 +188,10 @@ def generate_public_network_interface(interface):
                 "address": additional['address'],
                 "netmask": additional['netmask']
             }
+
+            if "routes" in additional:
+                add['routes'] = additional['routes']
+
             netcfg['subnets'].append(add)
 
     # Add config to template
@@ -202,7 +220,30 @@ def generate_private_network_interface(interface):
         ]
     }
 
+    # Options that may or may not be used
+    if "mtu" in interface:
+        netcfg['mtu'] = interface['mtu']
+
+    if "accept-ra" in interface:
+        netcfg['accept-ra'] = interface['accept-ra']
+
+    if "routes" in interface:
+        netcfg['subnets'][0]['routes'] = interface['routes']
+
     return netcfg
+
+
+# Make required adjustments to the network configs provided
+def add_interface_names(interfaces):
+    for interface in interfaces:
+        interface_name = get_interface_name(interface['mac'])
+        if not interface_name:
+            raise RuntimeError(
+                "Interface: %s could not be found on the system" %
+                interface['mac'])
+        interface['name'] = interface_name
+
+    return interfaces
 
 
 # vi: ts=4 expandtab
