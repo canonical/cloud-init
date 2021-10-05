@@ -227,8 +227,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Now try to bring them up
         if bring_up:
+            LOG.debug('Bringing up newly configured network interfaces')
             network_activator = activators.select_activator()
             network_activator.bring_up_all_interfaces(network_state)
+        else:
+            LOG.debug("Not bringing up newly configured network interfaces")
         return False
 
     def apply_network_config_names(self, netconfig):
