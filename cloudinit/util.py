@@ -2031,6 +2031,9 @@ def shellify(cmdlist, add_header=True):
         elif isinstance(args, str):
             content = "%s%s\n" % (content, args)
             cmds_made += 1
+        # Yaml parsing of a comment results in None
+        elif args is None:
+            pass
         else:
             raise TypeError(
                 "Unable to shellify type '%s'. Expected list, string, tuple. "
