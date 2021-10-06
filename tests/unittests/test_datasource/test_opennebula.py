@@ -211,7 +211,8 @@ class TestOpenNebulaDataSource(CiTestCase):
     def test_hostname(self, m_get_phys_by_mac):
         for dev in ('eth0', 'ens3'):
             m_get_phys_by_mac.return_value = {MACADDR: dev}
-            for k in ('SET_HOSTNAME', 'HOSTNAME', 'PUBLIC_IP', 'IP_PUBLIC', 'ETH0_IP'):
+            for k in ('SET_HOSTNAME', 'HOSTNAME', 'PUBLIC_IP', 'IP_PUBLIC',
+                      'ETH0_IP'):
                 my_d = os.path.join(self.tmp, k)
                 populate_context_dir(my_d, {k: PUBLIC_IP})
                 results = ds.read_context_disk_dir(my_d, mock.Mock())
