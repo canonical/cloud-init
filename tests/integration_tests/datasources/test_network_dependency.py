@@ -31,7 +31,10 @@ def test_network_activation_disabled(session_cloud: IntegrationCloud):
     """Test that the network is not activated during init mode."""
     _setup_custom_image(session_cloud)
     with session_cloud.launch() as client:
-        assert client.execute('systemctl is-active google-guest-agent').ok
+        result = client.execute('systemctl is-active google-guest-agent')
+        if not result.ok:
+            raise AssertionError('google-guest-agent is not active:\n%s',
+                                 result.stdout)
         log = client.read_from_file('/var/log/cloud-init.log')
 
     assert "Running command ['netplan', 'apply']" not in log
