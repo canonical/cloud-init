@@ -239,6 +239,12 @@ def purge_cache_on_python_version_change(init):
         util.write_file(python_version_path, current_python_version)
 
 
+def _should_bring_up_interfaces(init, args):
+    if util.get_cfg_option_bool(init.cfg, 'disable_network_activation'):
+        return False
+    return not args.local
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
@@ -348,10 +354,7 @@ def main_init(name, args):
         util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
 
     # Stage 5
-    if util.get_cfg_option_bool(init.cfg, 'disable_network_activation'):
-        bring_up_interfaces = False
-    else:
-        bring_up_interfaces = not args.local
+    bring_up_interfaces = _should_bring_up_interfaces(init, args)
     try:
         init.fetch(existing=existing)
         # if in network mode, and the datasource is local
