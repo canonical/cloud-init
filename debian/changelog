@@ -1,3 +1,10 @@
+cloud-init (21.3-1-g6803368d-0ubuntu1~20.04.3ubuntu1) UNRELEASED; urgency=medium
+
+  * cherry-pick 9c147e83: Allow disabling of network activation (SC-307)
+    (#1048) (LP: #1938299)
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 07 Oct 2021 11:51:28 -0500
+
 cloud-init (21.3-1-g6803368d-0ubuntu1~20.04.3) focal; urgency=medium
 
   * cherry-pick 612e3908: Add connectivity_url to Oracle's
