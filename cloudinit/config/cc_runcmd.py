@@ -65,7 +65,8 @@ schema = {
             'items': {
                 'oneOf': [
                     {'type': 'array', 'items': {'type': 'string'}},
-                    {'type': 'string'}]
+                    {'type': 'string'},
+                    {'type': 'null'}]
             },
             'additionalItems': False,  # Reject items of non-string non-list
             'additionalProperties': False,
@@ -90,7 +91,7 @@ def handle(name, cfg, cloud, log, _args):
     try:
         content = util.shellify(cmd)
         util.write_file(out_fn, content, 0o700)
-    except Exception:
-        util.logexc(log, "Failed to shellify %s into file %s", cmd, out_fn)
+    except Exception as e:
+        raise type(e)('Failed to shellify {} into file {}'.format(cmd, out_fn))
 
 # vi: ts=4 expandtab
