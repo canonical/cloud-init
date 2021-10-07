@@ -1,2 +1,5 @@
 cpick-28e56d99-Azure-Retry-dhcp-on-timeouts-when-polling
 cpick-e69a8874-Set-Azure-to-only-update-metadata-on-BOOT_NEW_INSTANCE
+cpick-612e3908-Add-connectivity_url-to-Oracle-s-EphemeralDHCPv4-988
+cpick-dc227869-Set-Azure-to-apply-networking-config-every-BOOT-1023
+cpick-9c147e83-Allow-disabling-of-network-activation-SC-307-1048

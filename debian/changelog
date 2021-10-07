@@ -1,3 +1,14 @@
+cloud-init (21.3-1-g6803368d-0ubuntu3) impish; urgency=medium
+
+  * cherry-pick 9c147e83: Allow disabling of network activation (SC-307)
+    (#1048) (LP: #1938299)
+  * cherry-pick 612e3908: Add connectivity_url to Oracle's
+    EphemeralDHCPv4 (#988) (LP: #1939603)
+  * cherry-pick dc227869: Set Azure to apply networking config every BOOT
+    (#1023)
+
+ -- James Falcon <james.falcon@canonical.com>  Thu, 07 Oct 2021 11:43:55 -0500
+
 cloud-init (21.3-1-g6803368d-0ubuntu2) impish; urgency=medium
 
   * cherry-pick 28e56d99: Azure: Retry dhcp on timeouts when polling
