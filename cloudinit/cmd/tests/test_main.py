@@ -4,6 +4,9 @@ from collections import namedtuple
 import copy
 import os
 from io import StringIO
+from unittest import mock
+
+import pytest
 
 from cloudinit.cmd import main
 from cloudinit import safeyaml
@@ -161,5 +164,25 @@ class TestMain(FilesystemMockingTestCase):
         ]
         for log in expected_logs:
             self.assertIn(log, self.stderr.getvalue())
+
+
+class TestShouldBringUpInterfaces:
+    @pytest.mark.parametrize('cfg_disable,args_local,expected', [
+        (True, True, False),
+        (True, False, False),
+        (False, True, False),
+        (False, False, True),
+    ])
+    def test_should_bring_up_interfaces(
+        self, cfg_disable, args_local, expected
+    ):
+        init = mock.Mock()
+        init.cfg = {'disable_network_activation': cfg_disable}
+
+        args = mock.Mock()
+        args.local = args_local
+
+        result = main._should_bring_up_interfaces(init, args)
+        assert result == expected
 
 # vi: ts=4 expandtab
