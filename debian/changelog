@@ -1,3 +1,9 @@
+cloud-init (21.3-1-g6803368d-0ubuntu1~21.04.5) UNRELEASED; urgency=medium
+
+  * d/upstream/metadata: Change contact to James Falcon
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 11 Oct 2021 15:37:48 -0500
+
 cloud-init (21.3-1-g6803368d-0ubuntu1~21.04.4) hirsute; urgency=medium
 
   * cherry-pick 9c147e83: Allow disabling of network activation (SC-307)
