@@ -138,7 +138,8 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
 
 
 URLParams = namedtuple(
-    'URLParms', ['max_wait_seconds', 'timeout_seconds', 'num_retries'])
+    'URLParms', ['max_wait_seconds', 'timeout_seconds',
+                 'num_retries', 'sec_between_retries'])
 
 
 class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
@@ -175,9 +176,10 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                               NetworkConfigSource.ds)
 
     # read_url_params
-    url_max_wait = -1   # max_wait < 0 means do not wait
-    url_timeout = 10    # timeout for each metadata url read attempt
-    url_retries = 5     # number of times to retry url upon 404
+    url_max_wait = -1            # max_wait < 0 means do not wait
+    url_timeout = 10             # timeout for each metadata url read attempt
+    url_retries = 5              # number of times to retry url upon 404
+    url_sec_between_retries = 1  # amount of seconds to wait between retries
 
     # The datasource defines a set of supported EventTypes during which
     # the datasource can react to changes in metadata and regenerate
@@ -422,7 +424,18 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
                 LOG, "Config retries '%s' is not an int, using default '%s'",
                 self.ds_cfg.get('retries'), retries)
 
-        return URLParams(max_wait, timeout, retries)
+        sec_between_retries = self.url_sec_between_retries
+        try:
+            sec_between_retries = int(self.ds_cfg.get(
+                "sec_between_retries",
+                self.url_sec_between_retries))
+        except Exception:
+            util.logexc(
+                LOG, "Config sec_between_retries '%s' is not an int,"
+                     " using default '%s'",
+                self.ds_cfg.get("sec_between_retries"), sec_between_retries)
+
+        return URLParams(max_wait, timeout, retries, sec_between_retries)
 
     def get_userdata(self, apply_filter=False):
         if self.userdata is None:

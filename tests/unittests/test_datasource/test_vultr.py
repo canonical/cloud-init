@@ -64,10 +64,8 @@ VULTR_V1_1 = {
     'raid1-script': '',
     'user-data': [
     ],
-    'vendor-data': {
-        'vendor-script': '',
-        'ethtool-script': '',
-        'config': {
+    'vendor-data': [
+        {
             'package_upgrade': 'true',
             'disable_root': 0,
             'ssh_pwauth': 1,
@@ -83,7 +81,7 @@ VULTR_V1_1 = {
                 }
             }
         }
-    }
+    ]
 }
 
 VULTR_V1_2 = {
@@ -155,11 +153,8 @@ VULTR_V1_2 = {
     'user-data': [
     ],
 
-    'vendor-data': {
-        'vendor-script': '',
-        'ethtool-script': '',
-        'raid1-script': '',
-        'config': {
+    'vendor-data': [
+        {
             'package_upgrade': 'true',
             'disable_root': 0,
             'ssh_pwauth': 1,
@@ -175,7 +170,7 @@ VULTR_V1_2 = {
                 }
             }
         }
-    }
+    ]
 }
 
 SSH_KEYS_1 = [
@@ -217,7 +212,7 @@ EXPECTED_VULTR_NETWORK_1 = {
             'accept-ra': 1,
             'subnets': [
                 {'type': 'dhcp', 'control': 'auto'},
-                {'type': 'dhcp6', 'control': 'auto'}
+                {'type': 'ipv6_slaac', 'control': 'auto'}
             ],
         }
     ]
@@ -237,14 +232,13 @@ EXPECTED_VULTR_NETWORK_2 = {
             'accept-ra': 1,
             'subnets': [
                 {'type': 'dhcp', 'control': 'auto'},
-                {'type': 'dhcp6', 'control': 'auto'}
+                {'type': 'ipv6_slaac', 'control': 'auto'}
             ],
         },
         {
             'name': 'eth1',
             'type': 'physical',
             'mac_address': '5a:00:03:1b:4e:ca',
-            'accept-ra': 1,
             'subnets': [
                 {
                     "type": "static",
@@ -270,12 +264,12 @@ class TestDataSourceVultr(CiTestCase):
         super(TestDataSourceVultr, self).setUp()
 
         # Stored as a dict to make it easier to maintain
-        raw1 = json.dumps(VULTR_V1_1['vendor-data']['config'])
-        raw2 = json.dumps(VULTR_V1_2['vendor-data']['config'])
+        raw1 = json.dumps(VULTR_V1_1['vendor-data'][0])
+        raw2 = json.dumps(VULTR_V1_2['vendor-data'][0])
 
         # Make expected format
-        VULTR_V1_1['vendor-data']['config'] = raw1
-        VULTR_V1_2['vendor-data']['config'] = raw2
+        VULTR_V1_1['vendor-data'] = [raw1]
+        VULTR_V1_2['vendor-data'] = [raw2]
 
         self.tmp = self.tmp_dir()
 

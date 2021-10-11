@@ -21,7 +21,7 @@ specified as a jinja template with the following variables set:
 
 **Internal name:** ``cc_final_message``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 
