@@ -149,7 +149,7 @@ apt:
   # security is optional, if not defined it is set to the same value as primary
   security:
     - uri: http://security.ubuntu.com/ubuntu
-    - arches: [default]
+      arches: [default]
   # If search_dns is set for security the searched pattern is:
   #   <distro>-security-mirror
 
