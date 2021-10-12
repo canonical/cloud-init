@@ -115,7 +115,9 @@ class DataSourceOVF(sources.DataSource):
             else:
                 search_paths = (
                     "/usr/lib/vmware-tools", "/usr/lib64/vmware-tools",
-                    "/usr/lib/open-vm-tools", "/usr/lib64/open-vm-tools")
+                    "/usr/lib/open-vm-tools", "/usr/lib64/open-vm-tools",
+                    "/usr/lib/x86_64-linux-gnu/open-vm-tools",
+                    "/usr/lib/aarch64-linux-gnu/open-vm-tools")
 
                 plugin = "libdeployPkgPlugin.so"
                 deployPkgPluginPath = None
