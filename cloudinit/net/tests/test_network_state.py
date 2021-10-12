@@ -52,6 +52,7 @@ network:
     eth1:
       match:
         macaddress: '66:77:88:99:00:11'
+      set-name: "ens92"
       nameservers:
         search: [foo.local, bar.local]
         addresses: [4.4.4.4]

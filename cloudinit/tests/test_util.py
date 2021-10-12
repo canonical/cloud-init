@@ -349,6 +349,11 @@ class TestShellify(CiTestCase):
             util.shellify(["echo hi mom", ["echo", "hi dad"],
                            ('echo', 'hi', 'sis')]))
 
+    def test_supports_comments(self):
+        self.assertEqual(
+            '\n'.join(["#!/bin/sh", "echo start", "echo end", ""]),
+            util.shellify(["echo start", None, "echo end"]))
+
 
 class TestGetHostnameFqdn(CiTestCase):
 
