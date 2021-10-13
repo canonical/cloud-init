@@ -2,6 +2,7 @@
 import logging
 import os
 import stat
+from unittest.mock import patch
 
 from cloudinit.config.cc_runcmd import handle, schema
 from cloudinit import (helpers, subp, util)
@@ -39,7 +40,7 @@ class TestRuncmd(FilesystemMockingTestCase):
         """When shellify fails throw exception"""
         cls.side_effect = TypeError("patched shellify")
         valid_config = {'runcmd': ['echo 42']}
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud(paths=self.paths)
         with self.assertRaises(TypeError) as cm:
             with self.allow_subp(['/bin/sh']):
                 handle('cc_runcmd', valid_config, cc, LOG, None)
