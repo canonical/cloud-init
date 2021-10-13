@@ -360,8 +360,7 @@ class DataSourceOVF(sources.DataSource):
                 if contents:
                     break
             if contents:
-                read_network = ('com.vmware.guestInfo' == name)
-                (md, ud, cfg) = read_ovf_environment(contents, read_network)
+                (md, ud, cfg) = read_ovf_environment(contents, True)
                 self.environment = contents
                 if 'network-config' in md and md['network-config']:
                     self._network_config = md['network-config']
