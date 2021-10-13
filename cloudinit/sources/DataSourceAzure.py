@@ -363,7 +363,9 @@ class DataSourceAzure(sources.DataSource):
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
-        if "iso_dev" not in self.__dict__:
+        if not hasattr(self, "failed_desired_api_version"):
+            self.failed_desired_api_version = False
+        if not hasattr(self, "iso_dev"):
             self.iso_dev = None
 
     def __str__(self):
