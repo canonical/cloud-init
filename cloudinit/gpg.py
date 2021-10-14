@@ -27,6 +27,37 @@ def export_armour(key):
     return armour
 
 
+def dearmor(key):
+    """Dearmor gpg key, dearmored key gets returned
+
+        note: man gpg(1) makes no mention of an --armour spelling, only --armor
+    """
+
+    (stdout, _) = subp.subp(["gpg", "--dearmor"], data=key, decode=False,
+            capture=True)
+    return stdout
+
+
+def list(key_file, human_output=False):
+    """List keys from a keyring with fingerprints. Default to a stable machine
+    parseable format.
+
+    @param key_file: a string containing a filepath to a key
+    @param human_output: return output intended for human parsing
+    """
+
+    cmd = ['gpg', '--with-fingerprint', '--no-default-keyring', '--list-keys',
+            '--keyring']
+    if not human_output:
+        cmd.append('--with-colons')
+
+    cmd.append(key_file)
+    (stdout, stderr) = subp.subp(cmd, capture=True)
+    if stderr:
+        LOG.debug('Failed to export armoured key "%s": %s', key_file, stderr)
+    return stdout
+
+
 def recv_key(key, keyserver, retries=(1, 1)):
     """Receive gpg key from the specified keyserver.
 

@@ -18,6 +18,7 @@ from cloudinit.config.schema import (
 from cloudinit import gpg
 from cloudinit import log as logging
 from cloudinit import subp
+from cloudinit import apt
 from cloudinit import templater
 from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
@@ -714,14 +715,15 @@ def generate_sources_list(cfg, release, mirrors, cloud):
     util.write_file(aptsrc, disabled, mode=0o644)
 
 
-def add_apt_key_raw(key, target=None):
+def add_apt_key_raw(key, file_name, target=None):
     """
     actual adding of a key as defined in key argument
     to the system
     """
     LOG.debug("Adding key:\n'%s'", key)
     try:
-        subp.subp(['apt-key', 'add', '-'], data=key.encode(), target=target)
+        name = file_name if not file_name.endswith('.list') else file_name[:-5]
+        apt.key('add', input_file='-', output_file=name, data=key)
     except subp.ProcessExecutionError:
         LOG.exception("failed to add apt GPG Key to apt keyring")
         raise
@@ -741,7 +743,7 @@ def add_apt_key(ent, target=None):
         ent['key'] = gpg.getkeybyid(ent['keyid'], keyserver)
 
     if 'key' in ent:
-        add_apt_key_raw(ent['key'], target)
+        add_apt_key_raw(ent['key'], ent['filename'], target)
 
 
 def update_packages(cloud):
