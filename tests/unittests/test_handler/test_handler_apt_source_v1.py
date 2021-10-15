@@ -279,16 +279,16 @@ class TestAptSourceConfig(TestCase):
         """
         cfg = self.wrapv1conf(cfg)
 
-        with mock.patch.object(subp, 'subp',
-                               return_value=('fakekey 1234', '')) as mockobj:
+        with mock.patch.object(cc_apt_configure, 'add_apt_key') as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
 
-        # check if it added the right ammount of keys
+        # check if it added the right number of keys
         calls = []
-        for _ in range(keynum):
-            calls.append(call(['apt-key', 'add', '-'],
-                              data=b'fakekey 1234',
-                              target=None))
+        sources = cfg['apt']['sources']
+        for src in sources:
+            print(sources[src])
+            calls.append(call(sources[src], None))
+
         mockobj.assert_has_calls(calls, any_order=True)
 
         self.assertTrue(os.path.isfile(filename))
@@ -364,11 +364,17 @@ class TestAptSourceConfig(TestCase):
         """
         cfg = self.wrapv1conf([cfg])
 
-        with mock.patch.object(subp, 'subp') as mockobj:
+        with mock.patch.object(cc_apt_configure, 'add_apt_key') as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
 
-        mockobj.assert_called_with(['apt-key', 'add', '-'],
-                                   data=b'fakekey 4321', target=None)
+        # check if it added the right amount of keys
+        sources = cfg['apt']['sources']
+        calls = []
+        for src in sources:
+            print(sources[src])
+            calls.append(call(sources[src], None))
+
+        mockobj.assert_has_calls(calls, any_order=True)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -405,12 +411,11 @@ class TestAptSourceConfig(TestCase):
         cfg = {'key': "fakekey 4242",
                'filename': self.aptlistfile}
         cfg = self.wrapv1conf([cfg])
-
-        with mock.patch.object(subp, 'subp') as mockobj:
+        with mock.patch.object(cc_apt_configure, 'apt_key') as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
 
-        mockobj.assert_called_once_with(['apt-key', 'add', '-'],
-                                        data=b'fakekey 4242', target=None)
+        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 4242'),)
+        mockobj.assert_has_calls(calls, any_order=True)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -422,11 +427,13 @@ class TestAptSourceConfig(TestCase):
         cfg = self.wrapv1conf([cfg])
 
         with mock.patch.object(subp, 'subp',
-                               return_value=('fakekey 1212', '')) as mockobj:
-            cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
+                               return_value=('fakekey 1212', '')):
+            with mock.patch.object(cc_apt_configure, 'apt_key') as mockobj:
+                cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
 
-        mockobj.assert_called_with(['apt-key', 'add', '-'],
-                                   data=b'fakekey 1212', target=None)
+        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 1212'),)
+        mockobj.assert_has_calls(calls, any_order=True)
+
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -448,7 +455,7 @@ class TestAptSourceConfig(TestCase):
                                         None, None)
 
         mockgetkey.assert_called_with(key, keyserver)
-        mockkey.assert_called_with(expectedkey, None)
+        mockkey.assert_called_with(expectedkey, self.aptlistfile, None)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))

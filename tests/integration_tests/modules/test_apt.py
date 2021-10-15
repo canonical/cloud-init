@@ -1,8 +1,11 @@
 """Series of integration tests covering apt functionality."""
+import os
 import re
 from tests.integration_tests.clouds import ImageSpecification
 
 import pytest
+from cloudinit.config import cc_apt_configure
+from cloudinit import gpg
 
 from tests.integration_tests.instances import IntegrationInstance
 
@@ -152,7 +155,10 @@ class TestApt:
             'http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu'
         ) in ppa_path_contents
 
-        keys = class_client.execute('apt-key finger')
+        list_keys = []
+        list_keys.extend(gpg.GPG_LIST)
+        list_keys.append(cc_apt_configure.APT_LOCAL_KEYS)
+        keys = class_client.execute(' '.join(list_keys))
         assert TEST_PPA_KEY in keys
 
     def test_key(self, class_client: IntegrationInstance):
@@ -169,7 +175,10 @@ class TestApt:
             'http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu'
         ) in test_archive_contents
 
-        keys = class_client.execute('apt-key finger')
+        list_keys = []
+        list_keys.extend(gpg.GPG_LIST)
+        list_keys.append(cc_apt_configure.APT_LOCAL_KEYS)
+        keys = class_client.execute(' '.join(list_keys))
         assert TEST_KEY in keys
 
     def test_keyserver(self, class_client: IntegrationInstance):
@@ -186,7 +195,10 @@ class TestApt:
             'http://ppa.launchpad.net/cloud-init-raharper/curtin-dev/ubuntu'
         ) in test_keyserver_contents
 
-        keys = class_client.execute('apt-key finger')
+        list_keys = []
+        list_keys.extend(gpg.GPG_LIST)
+        list_keys.append(cc_apt_configure.APT_LOCAL_KEYS)
+        keys = class_client.execute(' '.join(list_keys))
         assert TEST_KEYSERVER_KEY in keys
 
     def test_os_pipelining(self, class_client: IntegrationInstance):

@@ -14,6 +14,8 @@ import time
 
 LOG = logging.getLogger(__name__)
 
+GPG_LIST = ['gpg', '--with-fingerprint', '--no-default-keyring', '--list-keys',
+            '--keyring']
 
 def export_armour(key):
     """Export gpg key, armoured key gets returned"""
@@ -33,6 +35,8 @@ def dearmor(key):
         note: man gpg(1) makes no mention of an --armour spelling, only --armor
     """
 
+    if not key:
+        raise ValueError("invalid attempt to dearmor key")
     (stdout, _) = subp.subp(["gpg", "--dearmor"], data=key, decode=False,
             capture=True)
     return stdout
@@ -46,8 +50,8 @@ def list(key_file, human_output=False):
     @param human_output: return output intended for human parsing
     """
 
-    cmd = ['gpg', '--with-fingerprint', '--no-default-keyring', '--list-keys',
-            '--keyring']
+    cmd = []
+    cmd.extend(GPG_LIST)
     if not human_output:
         cmd.append('--with-colons')
 

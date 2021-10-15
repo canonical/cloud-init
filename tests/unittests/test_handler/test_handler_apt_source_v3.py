@@ -220,16 +220,15 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         """
         params = self._get_default_params()
 
-        with mock.patch("cloudinit.subp.subp",
-                        return_value=('fakekey 1234', '')) as mockobj:
+        with mock.patch.object(cc_apt_configure, 'add_apt_key') as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
 
-        # check if it added the right ammount of keys
+        # check if it added the right number of keys
         calls = []
-        for _ in range(keynum):
-            calls.append(call(['apt-key', 'add', '-'], data=b'fakekey 1234',
-                              target=TARGET))
+        for key in cfg:
+            calls.append(call(cfg[key], TARGET))
+
         mockobj.assert_has_calls(calls, any_order=True)
 
         self.assertTrue(os.path.isfile(filename))
@@ -248,6 +247,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                                              'http://ppa.launchpad.net/'
                                              'smoser/cloud-init-test/ubuntu'
                                              ' xenial main'),
+                                  'filename': self.aptlistfile,
                                   'keyid': "03683F77"}}
         self._apt_src_keyid(self.aptlistfile, cfg, 1)
 
@@ -268,6 +268,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                                               'http://ppa.launchpad.net/'
                                               'smoser/cloud-init-test/ubuntu'
                                               ' xenial multiverse'),
+                                   'filename': self.aptlistfile3,
                                    'keyid': "03683F77"}}
 
         self._apt_src_keyid(self.aptlistfile, cfg, 3)
@@ -293,15 +294,15 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                                              'http://ppa.launchpad.net/'
                                              'smoser/cloud-init-test/ubuntu'
                                              ' xenial main'),
+                                  'filename': self.aptlistfile,
                                   'key': "fakekey 4321"}}
 
-        with mock.patch.object(subp, 'subp') as mockobj:
+        with mock.patch.object(cc_apt_configure, 'apt_key') as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
 
-        mockobj.assert_any_call(['apt-key', 'add', '-'], data=b'fakekey 4321',
-                                target=TARGET)
-
+        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 4321'),)
+        mockobj.assert_has_calls(calls, any_order=True)
         self.assertTrue(os.path.isfile(self.aptlistfile))
 
         contents = util.load_file(self.aptlistfile)
@@ -317,12 +318,13 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         params = self._get_default_params()
         cfg = {self.aptlistfile: {'key': "fakekey 4242"}}
 
-        with mock.patch.object(subp, 'subp') as mockobj:
+
+        with mock.patch.object(cc_apt_configure, 'apt_key') as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
 
-        mockobj.assert_any_call(['apt-key', 'add', '-'], data=b'fakekey 4242',
-                                target=TARGET)
+        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 4242'),)
+        mockobj.assert_has_calls(calls, any_order=True)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -331,14 +333,15 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         """test_apt_v3_src_keyidonly - Test keyid without source"""
         params = self._get_default_params()
         cfg = {self.aptlistfile: {'keyid': "03683F77"}}
-
         with mock.patch.object(subp, 'subp',
-                               return_value=('fakekey 1212', '')) as mockobj:
-            self._add_apt_sources(cfg, TARGET, template_params=params,
-                                  aa_repo_match=self.matcher)
+                               return_value=('fakekey 1212', '')):
+            with mock.patch.object(cc_apt_configure, 'apt_key') as mockobj:
+                self._add_apt_sources(cfg, TARGET, template_params=params,
+                                      aa_repo_match=self.matcher)
 
-        mockobj.assert_any_call(['apt-key', 'add', '-'], data=b'fakekey 1212',
-                                target=TARGET)
+        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 1212'),)
+        mockobj.assert_has_calls(calls, any_order=True)
+
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -361,7 +364,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         mockgetkey.assert_called_with(keycfg['keyid'],
                                       keycfg.get('keyserver',
                                                  'keyserver.ubuntu.com'))
-        mockkey.assert_called_with(expectedkey, TARGET)
+        mockkey.assert_called_with(expectedkey, keycfg['keyfile'], TARGET)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -369,14 +372,16 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
     def test_apt_v3_src_keyid_real(self):
         """test_apt_v3_src_keyid_real - Test keyid including key add"""
         keyid = "03683F77"
-        cfg = {self.aptlistfile: {'keyid': keyid}}
+        cfg = {self.aptlistfile: {'keyid': keyid,
+                                  'keyfile': self.aptlistfile}}
 
         self.apt_src_keyid_real(cfg, EXPECTEDKEY)
 
     def test_apt_v3_src_longkeyid_real(self):
         """test_apt_v3_src_longkeyid_real Test long keyid including key add"""
         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
-        cfg = {self.aptlistfile: {'keyid': keyid}}
+        cfg = {self.aptlistfile: {'keyid': keyid,
+                                  'keyfile': self.aptlistfile}}
 
         self.apt_src_keyid_real(cfg, EXPECTEDKEY)
 
@@ -384,6 +389,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         """test_apt_v3_src_longkeyid_ks_real Test long keyid from other ks"""
         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
         cfg = {self.aptlistfile: {'keyid': keyid,
+                                  'keyfile': self.aptlistfile,
                                   'keyserver': 'keys.gnupg.net'}}
 
         self.apt_src_keyid_real(cfg, EXPECTEDKEY)
@@ -393,6 +399,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         keyid = "03683F77"
         params = self._get_default_params()
         cfg = {self.aptlistfile: {'keyid': keyid,
+                                  'keyfile': self.aptlistfile,
                                   'keyserver': 'test.random.com'}}
 
         # in some test environments only *.ubuntu.com is reachable
@@ -405,7 +412,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                                       aa_repo_match=self.matcher)
 
         mockgetkey.assert_called_with('03683F77', 'test.random.com')
-        mockadd.assert_called_with('fakekey', TARGET)
+        mockadd.assert_called_with('fakekey', self.aptlistfile, TARGET)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -1002,10 +1009,12 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main""")
             'primary': [
                 {'arches': [arch],
                  'uri': 'http://test.ubuntu.com/',
+                 'filename': 'primary',
                  'key': 'fakekey_primary'}],
             'security': [
                 {'arches': [arch],
                  'uri': 'http://testsec.ubuntu.com/',
+                 'filename': 'security',
                  'key': 'fakekey_security'}]
         }
 
@@ -1013,8 +1022,8 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main""")
                                'add_apt_key_raw') as mockadd:
             cc_apt_configure.add_mirror_keys(cfg, TARGET)
         calls = [
-            mock.call('fakekey_primary', TARGET),
-            mock.call('fakekey_security', TARGET),
+            mock.call('fakekey_primary', 'primary', TARGET),
+            mock.call('fakekey_security', 'security', TARGET),
         ]
         mockadd.assert_has_calls(calls, any_order=True)
 

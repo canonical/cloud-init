@@ -18,7 +18,6 @@ from cloudinit.config.schema import (
 from cloudinit import gpg
 from cloudinit import log as logging
 from cloudinit import subp
-from cloudinit import apt
 from cloudinit import templater
 from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
@@ -27,6 +26,10 @@ LOG = logging.getLogger(__name__)
 
 # this will match 'XXX:YYY' (ie, 'cloud-archive:foo' or 'ppa:bar')
 ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
+
+APT_LOCAL_KEYS='/etc/apt/trusted.gpg'
+APT_TRUSTED_DIR='/etc/apt/trusted.gpg.d/'
+APT_CLOUD_INIT_DIR='/etc/apt/cloud-init.gpg.d/'
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
@@ -684,6 +687,8 @@ def add_mirror_keys(cfg, target):
     """Adds any keys included in the primary/security mirror clauses"""
     for key in ('primary', 'security'):
         for mirror in cfg.get(key, []):
+            if 'filename' not in mirror:
+                mirror['filename'] = key
             add_apt_key(mirror, target)
 
 
@@ -723,7 +728,7 @@ def add_apt_key_raw(key, file_name, target=None):
     LOG.debug("Adding key:\n'%s'", key)
     try:
         name = file_name if not file_name.endswith('.list') else file_name[:-5]
-        apt.key('add', input_file='-', output_file=name, data=key)
+        apt_key('add', output_file=name, data=key)
     except subp.ProcessExecutionError:
         LOG.exception("failed to add apt GPG Key to apt keyring")
         raise
@@ -1008,7 +1013,7 @@ def get_arch_mirrorconfig(cfg, mirrortype, arch):
     # select the specification matching the target arch
     default = None
     for mirror_cfg_elem in mirror_cfg_list:
-        arches = mirror_cfg_elem.get("arches")
+        arches = mirror_cfg_elem.get("arches", [])
         if arch in arches:
             return mirror_cfg_elem
         if "default" in arches:
@@ -1089,6 +1094,70 @@ def apply_apt_config(cfg, proxy_fname, config_fname):
     elif os.path.isfile(config_fname):
         util.del_file(config_fname)
         LOG.debug("no apt config configured, removed %s", config_fname)
+
+
+def apt_key(command, output_file=None, data=None, hardened=False,
+            human_output=True):
+    """apt-key replacement
+
+    commands implemented: 'add', 'list', 'finger'
+
+    @param output_file: name of output gpg file (without .gpg or .asc)
+    @param data: key contents
+    @param human_output: list keys formatted for human parsing
+    @param hardened: NOT IMPLEMENTED - write keys to to
+    /etc/apt/cloud-init.gpg.d/ (refered to with [signed-by] in sources file)
+    """
+
+    def _get_key_files():
+        """return all apt keys
+
+        /etc/apt/trusted.gpg (if it exists) and all keyfiles (and symlinks to
+        keyfiles) in /etc/apt/trusted.gpg.d/ are returned
+
+        based on apt-key implementation
+        """
+        key_files = [APT_LOCAL_KEYS] if os.path.isfile(APT_LOCAL_KEYS) else []
+
+        for file in os.listdir(APT_TRUSTED_DIR):
+            print(file)
+            if file.endswith('.gpg') or file.endswith('.asc'):
+                key_files.append(APT_TRUSTED_DIR + file)
+        return key_files if key_files else ''
+
+    def apt_key_add():
+        """apt-key add <file>
+        """
+        if hardened:
+            raise NotImplementedError
+        try:
+            key_dir = APT_CLOUD_INIT_DIR if hardened else APT_TRUSTED_DIR
+            stdout = gpg.dearmor(data)
+            util.write_file(key_dir + '{}.gpg'.format(output_file), stdout)
+        except subp.ProcessExecutionError as error:
+            LOG.debug('Failed to add key "%s": %s', data, error)
+        except UnicodeDecodeError as error:
+            LOG.debug('Invalid key format "%s": %s', data, error)
+
+    def apt_key_list():
+        """apt-key list
+        """
+        key_list = []
+        for key_file in _get_key_files():
+            try:
+                key_list.append(gpg.list(key_file, human_output=human_output))
+            except subp.ProcessExecutionError as error:
+                LOG.debug('Failed to list key "%s": %s', key_file, error)
+        print("apt_key_list:\n{}".format(key_list))
+        return '\n'.join(key_list)
+
+    if command == 'add':
+        return apt_key_add()
+    elif command == 'finger' or command == 'list':
+        return apt_key_list()
+    else:
+        raise ValueError('apt_key() commands add, list, and finger are'
+                'currently supported')
 
 
 CONFIG_CLEANERS = {
