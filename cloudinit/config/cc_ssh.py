@@ -240,6 +240,13 @@ def handle(_name, cfg, cloud, log, _args):
                 try:
                     out, err = subp.subp(cmd, capture=True, env=lang_c)
                     sys.stdout.write(util.decode_binary(out))
+
+                    gid = util.get_group_id("ssh_keys")
+                    if gid != -1:
+                        # perform same "sanitize permissions" as sshd-keygen
+                        os.chown(keyfile, -1, gid)
+                        os.chmod(keyfile, 0o640)
+                        os.chmod(keyfile + ".pub", 0o644)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
                     if (e.exit_code == 1 and
