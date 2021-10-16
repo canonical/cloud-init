@@ -3,6 +3,7 @@
 """ test_apt_custom_sources_list
 Test templating of custom sources list
 """
+from contextlib import ExitStack
 import logging
 import os
 import shutil
@@ -10,18 +11,13 @@ import tempfile
 from unittest import mock
 from unittest.mock import call
 
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
 from cloudinit import subp
 from cloudinit import util
-
 from cloudinit.config import cc_apt_configure
-from cloudinit.sources import DataSourceNone
-
 from cloudinit.distros.debian import Distro
-
 from cloudinit.tests import helpers as t_help
+
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -108,37 +104,29 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         get_arch.return_value = 'amd64'
         self.addCleanup(apatcher.stop)
 
-    def _get_cloud(self, distro, metadata=None):
-        self.patchUtils(self.new_root)
-        paths = helpers.Paths({})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, {}, paths)
-        myds = DataSourceNone.DataSourceNone({}, mydist, paths)
-        if metadata:
-            myds.metadata.update(metadata)
-        return cloud.Cloud(myds, paths, {}, mydist, None)
-
     def _apt_source_list(self, distro, cfg, cfg_on_empty=False):
         """_apt_source_list - Test rendering from template (generic)"""
         # entry at top level now, wrap in 'apt' key
         cfg = {'apt': cfg}
-        mycloud = self._get_cloud(distro)
+        mycloud = get_cloud(distro)
 
-        with mock.patch.object(util, 'write_file') as mock_writefile:
-            with mock.patch.object(util, 'load_file',
-                                   return_value=MOCKED_APT_SRC_LIST
-                                   ) as mock_loadfile:
-                with mock.patch.object(os.path, 'isfile',
-                                       return_value=True) as mock_isfile:
-                    cfg_func = ('cloudinit.config.cc_apt_configure.' +
-                                '_should_configure_on_empty_apt')
-                    with mock.patch(cfg_func,
-                                    return_value=(cfg_on_empty, "test")
-                                    ) as mock_shouldcfg:
-                        cc_apt_configure.handle("test", cfg, mycloud, LOG,
-                                                None)
+        with ExitStack() as stack:
+            mock_writefile = stack.enter_context(mock.patch.object(
+                util, 'write_file'))
+            mock_loadfile = stack.enter_context(mock.patch.object(
+                util, 'load_file', return_value=MOCKED_APT_SRC_LIST))
+            mock_isfile = stack.enter_context(mock.patch.object(
+                os.path, 'isfile', return_value=True))
+            stack.enter_context(mock.patch.object(
+                util, 'del_file'))
+            cfg_func = ('cloudinit.config.cc_apt_configure.'
+                        '_should_configure_on_empty_apt')
+            mock_shouldcfg = stack.enter_context(mock.patch(
+                cfg_func, return_value=(cfg_on_empty, 'test')
+            ))
+            cc_apt_configure.handle("test", cfg, mycloud, LOG, None)
 
-        return mock_writefile, mock_loadfile, mock_isfile, mock_shouldcfg
+            return mock_writefile, mock_loadfile, mock_isfile, mock_shouldcfg
 
     def test_apt_v3_source_list_debian(self):
         """test_apt_v3_source_list_debian - without custom sources or parms"""
@@ -176,7 +164,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         """test_apt_v3_source_list_ubuntu_snappy - without custom sources or
         parms"""
         cfg = {'apt': {}}
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud()
 
         with mock.patch.object(util, 'write_file') as mock_writefile:
             with mock.patch.object(util, 'system_is_snappy',
@@ -219,7 +207,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     def test_apt_v3_srcl_custom(self):
         """test_apt_v3_srcl_custom - Test rendering a custom source template"""
         cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud()
 
         # the second mock restores the original subp
         with mock.patch.object(util, 'write_file') as mockwrite:

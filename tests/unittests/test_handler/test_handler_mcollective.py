@@ -1,17 +1,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
-from cloudinit import (cloud, distros, helpers, util)
-from cloudinit.config import cc_mcollective
-from cloudinit.sources import DataSourceNoCloud
-
-from cloudinit.tests import helpers as t_help
-
 import configobj
 import logging
 import os
 import shutil
 import tempfile
 from io import BytesIO
+
+from cloudinit import (util)
+from cloudinit.config import cc_mcollective
+from cloudinit.tests import helpers as t_help
+
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -128,18 +127,10 @@ class TestConfig(t_help.FilesystemMockingTestCase):
 
 
 class TestHandler(t_help.TestCase):
-    def _get_cloud(self, distro):
-        cls = distros.fetch(distro)
-        paths = helpers.Paths({})
-        d = cls(distro, {}, paths)
-        ds = DataSourceNoCloud.DataSourceNoCloud({}, d, paths)
-        cc = cloud.Cloud(ds, paths, {}, d, None)
-        return cc
-
     @t_help.mock.patch("cloudinit.config.cc_mcollective.subp")
     @t_help.mock.patch("cloudinit.config.cc_mcollective.util")
     def test_mcollective_install(self, mock_util, mock_subp):
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud()
         cc.distro = t_help.mock.MagicMock()
         mock_util.load_file.return_value = b""
         mycfg = {'mcollective': {'conf': {'loglevel': 'debug'}}}
