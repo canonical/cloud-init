@@ -22,6 +22,10 @@ class TestLandscape(FilesystemMockingTestCase):
         self.conf = self.tmp_path('client.conf', self.new_root)
         self.default_file = self.tmp_path('default_landscape', self.new_root)
         self.patchUtils(self.new_root)
+        self.add_patch(
+            'cloudinit.distros.ubuntu.Distro.install_packages',
+            'm_install_packages'
+        )
 
     def test_handler_skips_empty_landscape_cloudconfig(self):
         """Empty landscape cloud-config section does no work."""
