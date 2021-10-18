@@ -1,0 +1,13 @@
+cicd:
+  - .github/*
+  - .github/**/*
+
+documentation:
+  - "**/*.md"
+  - "**/*.adoc"
+  - "docs/**/*"
+
+legal:
+  - LICENSE
+
+
