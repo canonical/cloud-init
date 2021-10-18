@@ -177,7 +177,7 @@ class Distro(distros.Distro):
             with open(lock, 'w') as handle:
                 try:
                     fcntl.lockf(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except IOError:
+                except OSError:
                     return False
         return True
 
