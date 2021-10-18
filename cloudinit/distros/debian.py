@@ -208,7 +208,7 @@ class Distro(distros.Distro):
                     func=subp.subp,
                     kwargs=subp_kwargs,
                 )
-            except subp.ProcessExecutionError as e:
+            except subp.ProcessExecutionError:
                 # Even though we have already waited for the apt lock to be
                 # available, it is possible that the lock was acquired by
                 # another process since the check. Since apt doesn't provide
@@ -220,7 +220,7 @@ class Distro(distros.Distro):
                 # raced us when we tried to acquire it, so raise the apt
                 # error received. If the lock is unavailable, just keep waiting
                 if self._apt_lock_available():
-                    raise e
+                    raise
                 LOG.debug('Another process holds apt lock. Waiting...')
                 time.sleep(1)
         raise TimeoutError('Could not get apt lock')

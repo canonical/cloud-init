@@ -1,5 +1,5 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-from itertools import count
+from itertools import count, cycle
 from unittest import mock
 
 import pytest
@@ -114,7 +114,7 @@ class TestDebianApplyLocale(FilesystemMockingTestCase):
 class TestPackageCommand:
     distro = distros.fetch("debian")("debian", {}, None)
 
-    @mock.patch("cloudinit.distros.debian.Distro._is_apt_lock_available",
+    @mock.patch("cloudinit.distros.debian.Distro._apt_lock_available",
                 return_value=True)
     def test_simple_command(self, m_apt_avail, m_subp, m_which):
         self.distro.package_command('update')
@@ -128,7 +128,7 @@ class TestPackageCommand:
         }
         assert m_subp.call_args == mock.call(**expected_call)
 
-    @mock.patch("cloudinit.distros.debian.Distro._is_apt_lock_available",
+    @mock.patch("cloudinit.distros.debian.Distro._apt_lock_available",
                 side_effect=[False, False, True])
     @mock.patch("cloudinit.distros.debian.time.sleep")
     def test_wait_for_lock(self, m_sleep, m_apt_avail, m_subp, m_which):
@@ -136,7 +136,7 @@ class TestPackageCommand:
         assert m_sleep.call_args_list == [mock.call(1), mock.call(1)]
         assert m_subp.call_args_list == [mock.call(args='stub2')]
 
-    @mock.patch("cloudinit.distros.debian.Distro._is_apt_lock_available",
+    @mock.patch("cloudinit.distros.debian.Distro._apt_lock_available",
                 return_value=False)
     @mock.patch("cloudinit.distros.debian.time.sleep")
     @mock.patch("cloudinit.distros.debian.time.time", side_effect=count())
@@ -147,8 +147,8 @@ class TestPackageCommand:
             self.distro._wait_for_apt_command("stub", "stub2", timeout=5)
         assert m_subp.call_args_list == []
 
-    @mock.patch("cloudinit.distros.debian.Distro._is_apt_lock_available",
-                return_value=True)
+    @mock.patch("cloudinit.distros.debian.Distro._apt_lock_available",
+                side_effect=cycle([True, False]))
     @mock.patch("cloudinit.distros.debian.time.sleep")
     def test_lock_exception_wait(self, m_sleep, m_apt_avail, m_subp, m_which):
         exception = subp.ProcessExecutionError(
@@ -158,8 +158,8 @@ class TestPackageCommand:
         ret = self.distro._wait_for_apt_command("stub", {"args": "stub2"})
         assert ret == "return_thing"
 
-    @mock.patch("cloudinit.distros.debian.Distro._is_apt_lock_available",
-                return_value=True)
+    @mock.patch("cloudinit.distros.debian.Distro._apt_lock_available",
+                side_effect=cycle([True, False]))
     @mock.patch("cloudinit.distros.debian.time.sleep")
     @mock.patch("cloudinit.distros.debian.time.time", side_effect=count())
     def test_lock_exception_timeout(
