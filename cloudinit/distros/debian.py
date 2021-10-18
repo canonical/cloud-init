@@ -163,7 +163,7 @@ class Distro(distros.Distro):
     def set_timezone(self, tz):
         distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
-    def _is_apt_lock_available(self, lock_files=None):
+    def _apt_lock_available(self, lock_files=None):
         """Determines if another process holds any apt locks.
 
         If all locks are clear, return True else False.
@@ -192,7 +192,7 @@ class Distro(distros.Distro):
         start_time = time.time()
         LOG.debug('Waiting for apt lock')
         while time.time() - start_time < timeout:
-            if not self._is_apt_lock_available():
+            if not self._apt_lock_available():
                 time.sleep(1)
                 continue
             LOG.debug('apt lock available')
@@ -209,12 +209,19 @@ class Distro(distros.Distro):
                     kwargs=subp_kwargs,
                 )
             except subp.ProcessExecutionError as e:
-                if any([
-                    e.exit_code != 100,
-                    'Could not get apt lock' not in e.stderr,
-                ]):
+                # Even though we have already waited for the apt lock to be
+                # available, it is possible that the lock was acquired by
+                # another process since the check. Since apt doesn't provide
+                # a meaningful error code to check and checking the error
+                # text is fragile and subject to internationalization, we
+                # can instead check the apt lock again. If the apt lock is
+                # still available, given the length of an average apt
+                # transaction, it is extremely unlikely that another process
+                # raced us when we tried to acquire it, so raise the apt
+                # error received. If the lock is unavailable, just keep waiting
+                if self._apt_lock_available():
                     raise e
-                LOG.debug('Could not obtain apt lock')
+                LOG.debug('Another process holds apt lock. Waiting...')
                 time.sleep(1)
         raise TimeoutError('Could not get apt lock')
 
