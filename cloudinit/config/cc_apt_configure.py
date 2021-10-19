@@ -143,7 +143,7 @@ schema = {
               source1:
                   keyid: 'keyid'
                   keyserver: 'keyserverurl'
-                  source: 'deb http://<url>/ xenial main'
+                  source: 'deb [signed-by=$KEY_FILE] http://<url>/ xenial main'
               source2:
                   source: 'ppa:<ppa-name>'
               source3:
@@ -316,7 +316,8 @@ schema = {
                             - ``$MIRROR``
                             - ``$RELEASE``
                             - ``$PRIMARY``
-                            - ``$SECURITY``""")
+                            - ``$SECURITY``
+                            - ``$KEY_FILE``""")
                 },
                 'conf': {
                     'type': 'string',
@@ -385,7 +386,8 @@ schema = {
                             - ``$MIRROR``
                             - ``$PRIMARY``
                             - ``$SECURITY``
-                            - ``$RELEASE``""")
+                            - ``$RELEASE``
+                            - ``$KEY_FILE``""")
                 }
             }
         }
@@ -720,7 +722,7 @@ def generate_sources_list(cfg, release, mirrors, cloud):
     util.write_file(aptsrc, disabled, mode=0o644)
 
 
-def add_apt_key_raw(key, file_name, target=None):
+def add_apt_key_raw(key, file_name, target=None, hardened=False):
     """
     actual adding of a key as defined in key argument
     to the system
@@ -728,13 +730,13 @@ def add_apt_key_raw(key, file_name, target=None):
     LOG.debug("Adding key:\n'%s'", key)
     try:
         name = file_name if not file_name.endswith('.list') else file_name[:-5]
-        apt_key('add', output_file=name, data=key)
+        return apt_key('add', output_file=name, data=key, hardened=hardened)
     except subp.ProcessExecutionError:
         LOG.exception("failed to add apt GPG Key to apt keyring")
         raise
 
 
-def add_apt_key(ent, target=None):
+def add_apt_key(ent, target=None, hardened=False):
     """
     Add key to the system as defined in ent (if any).
     Supports raw keys or keyid's
@@ -748,7 +750,11 @@ def add_apt_key(ent, target=None):
         ent['key'] = gpg.getkeybyid(ent['keyid'], keyserver)
 
     if 'key' in ent:
-        add_apt_key_raw(ent['key'], ent['filename'], target)
+        return add_apt_key_raw(
+                ent['key'],
+                ent['filename'],
+                target,
+                hardened=hardened)
 
 
 def update_packages(cloud):
@@ -777,11 +783,16 @@ def add_apt_sources(srcdict, cloud, target=None, template_params=None,
         if 'filename' not in ent:
             ent['filename'] = filename
 
-        add_apt_key(ent, target)
+        if 'source' in ent and '$KEY_FILE' in ent['source']:
+            key_file = add_apt_key(ent, target, hardened=True)
+            template_params['KEY_FILE'] = key_file
+        else:
+            key_file = add_apt_key(ent, target)
 
         if 'source' not in ent:
             continue
         source = ent['source']
+        LOG.debug("adding source/template: %s/%s", source, template_params)
         source = templater.render_string(source, template_params)
 
         if not ent['filename'].startswith("/"):
@@ -1127,13 +1138,15 @@ def apt_key(command, output_file=None, data=None, hardened=False,
 
     def apt_key_add():
         """apt-key add <file>
+
+        returns filepath to new keyring
         """
-        if hardened:
-            raise NotImplementedError
         try:
             key_dir = APT_CLOUD_INIT_DIR if hardened else APT_TRUSTED_DIR
             stdout = gpg.dearmor(data)
-            util.write_file(key_dir + '{}.gpg'.format(output_file), stdout)
+            file_name = '{}{}.gpg'.format(key_dir, output_file)
+            util.write_file(file_name, stdout)
+            return file_name
         except subp.ProcessExecutionError as error:
             LOG.debug('Failed to add key "%s": %s', data, error)
         except UnicodeDecodeError as error:
@@ -1141,6 +1154,9 @@ def apt_key(command, output_file=None, data=None, hardened=False,
 
     def apt_key_list():
         """apt-key list
+
+        returns string of all trusted keys (in /etc/apt/trusted.gpg and
+        /etc/apt/trusted.gpg.d/)
         """
         key_list = []
         for key_file in _get_key_files():
