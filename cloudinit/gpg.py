@@ -17,6 +17,7 @@ LOG = logging.getLogger(__name__)
 GPG_LIST = ['gpg', '--with-fingerprint', '--no-default-keyring', '--list-keys',
             '--keyring']
 
+
 def export_armour(key):
     """Export gpg key, armoured key gets returned"""
     try:
@@ -38,7 +39,7 @@ def dearmor(key):
     if not key:
         raise ValueError("invalid attempt to dearmor key")
     (stdout, _) = subp.subp(["gpg", "--dearmor"], data=key, decode=False,
-            capture=True)
+                            capture=True)
     return stdout
 
 

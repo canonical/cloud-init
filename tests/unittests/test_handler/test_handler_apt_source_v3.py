@@ -301,7 +301,10 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
 
-        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 4321'),)
+        calls = (call(
+            'add',
+            output_file=self.aptlistfile[:-5],
+            data='fakekey 4321'),)
         mockobj.assert_has_calls(calls, any_order=True)
         self.assertTrue(os.path.isfile(self.aptlistfile))
 
@@ -318,12 +321,14 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         params = self._get_default_params()
         cfg = {self.aptlistfile: {'key': "fakekey 4242"}}
 
-
         with mock.patch.object(cc_apt_configure, 'apt_key') as mockobj:
             self._add_apt_sources(cfg, TARGET, template_params=params,
                                   aa_repo_match=self.matcher)
 
-        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 4242'),)
+        calls = (call(
+            'add',
+            output_file=self.aptlistfile[:-5],
+            data='fakekey 4242'),)
         mockobj.assert_has_calls(calls, any_order=True)
 
         # filename should be ignored on key only
@@ -339,9 +344,11 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                 self._add_apt_sources(cfg, TARGET, template_params=params,
                                       aa_repo_match=self.matcher)
 
-        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 1212'),)
+        calls = (call(
+            'add',
+            output_file=self.aptlistfile[:-5],
+            data='fakekey 1212'),)
         mockobj.assert_has_calls(calls, any_order=True)
-
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))

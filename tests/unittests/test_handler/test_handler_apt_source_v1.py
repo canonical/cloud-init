@@ -414,7 +414,10 @@ class TestAptSourceConfig(TestCase):
         with mock.patch.object(cc_apt_configure, 'apt_key') as mockobj:
             cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
 
-        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 4242'),)
+        calls = (call(
+            'add',
+            output_file=self.aptlistfile[:-5],
+            data='fakekey 4242'),)
         mockobj.assert_has_calls(calls, any_order=True)
 
         # filename should be ignored on key only
@@ -429,11 +432,18 @@ class TestAptSourceConfig(TestCase):
         with mock.patch.object(subp, 'subp',
                                return_value=('fakekey 1212', '')):
             with mock.patch.object(cc_apt_configure, 'apt_key') as mockobj:
-                cc_apt_configure.handle("test", cfg, self.fakecloud, None, None)
+                cc_apt_configure.handle(
+                    "test",
+                    cfg,
+                    self.fakecloud,
+                    None,
+                    None)
 
-        calls = (call('add', output_file=self.aptlistfile[:-5], data='fakekey 1212'),)
+        calls = (call(
+            'add',
+            output_file=self.aptlistfile[:-5],
+            data='fakekey 1212'),)
         mockobj.assert_has_calls(calls, any_order=True)
-
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))

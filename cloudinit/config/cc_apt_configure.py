@@ -27,9 +27,9 @@ LOG = logging.getLogger(__name__)
 # this will match 'XXX:YYY' (ie, 'cloud-archive:foo' or 'ppa:bar')
 ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 
-APT_LOCAL_KEYS='/etc/apt/trusted.gpg'
-APT_TRUSTED_DIR='/etc/apt/trusted.gpg.d/'
-APT_CLOUD_INIT_DIR='/etc/apt/cloud-init.gpg.d/'
+APT_LOCAL_KEYS = '/etc/apt/trusted.gpg'
+APT_TRUSTED_DIR = '/etc/apt/trusted.gpg.d/'
+APT_CLOUD_INIT_DIR = '/etc/apt/cloud-init.gpg.d/'
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
@@ -1156,8 +1156,8 @@ def apt_key(command, output_file=None, data=None, hardened=False,
     elif command == 'finger' or command == 'list':
         return apt_key_list()
     else:
-        raise ValueError('apt_key() commands add, list, and finger are'
-                'currently supported')
+        raise ValueError(
+            'apt_key() commands add, list, and finger are currently supported')
 
 
 CONFIG_CLEANERS = {
