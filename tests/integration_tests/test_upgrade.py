@@ -84,17 +84,19 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
                 'There were errors/warnings/tracebacks pre-upgrade. '
                 'Any failures may be due to pre-upgrade problem')
 
-        # Upgrade and reboot
+        # Upgrade
         instance.install_new_cloud_init(source, take_snapshot=False)
-        instance.execute('hostname something-else')
-        instance.restart()
-        assert instance.execute('cloud-init status --wait --long').ok
 
         # 'cloud-init init' helps us understand if our pickling upgrade paths
         # have broken across re-constitution of a cached datasource. Some
         # platforms invalidate their datasource cache on reboot, so we run
         # it here to ensure we get a dirty run.
         assert instance.execute('cloud-init init').ok
+
+        # Reboot
+        instance.execute('hostname something-else')
+        instance.restart()
+        assert instance.execute('cloud-init status --wait --long').ok
 
         # get post values
         post_hostname = instance.execute('hostname')
