@@ -1880,6 +1880,20 @@ def chmod(path, mode):
             os.chmod(path, real_mode)
 
 
+def get_group_id(grp_name: str) -> int:
+    """
+    Returns the group id of a group name, or -1 if no group exists
+
+    @param grp_name: the name of the group
+    """
+    gid = -1
+    try:
+        gid = grp.getgrnam(grp_name).gr_gid
+    except KeyError:
+        LOG.debug("Group %s is not a valid group name", grp_name)
+    return gid
+
+
 def get_permissions(path: str) -> int:
     """
     Returns the octal permissions of the file/folder pointed by the path,
