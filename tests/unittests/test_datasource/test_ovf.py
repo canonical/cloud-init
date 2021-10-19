@@ -519,6 +519,12 @@ class TestDatasourceOVF(CiTestCase):
                         ds.subplatform)
 
     def test_get_data_vmware_guestinfo_with_network_config(self):
+        self._test_get_data_with_network_config(guestinfo=False, iso=True)
+
+    def test_get_data_iso9660_with_network_config(self):
+        self._test_get_data_with_network_config(guestinfo=True, iso=False)
+
+    def _test_get_data_with_network_config(self, guestinfo, iso):
         network_config = dedent("""\
         network:
            version: 2
@@ -544,9 +550,9 @@ class TestDatasourceOVF(CiTestCase):
         paths = Paths({'cloud_dir': self.tdir, 'run_dir': self.tdir})
         ds = self.datasource(sys_cfg={}, distro={}, paths=paths)
         with mock.patch(MPATH + 'transport_vmware_guestinfo',
-                        return_value=env):
+                        return_value=env if guestinfo else NOT_FOUND):
             with mock.patch(MPATH + 'transport_iso9660',
-                            return_value=NOT_FOUND):
+                            return_value=env if iso else NOT_FOUND):
                 self.assertTrue(ds.get_data())
                 self.assertEqual('inst-001', ds.metadata['instance-id'])
                 self.assertEqual(
