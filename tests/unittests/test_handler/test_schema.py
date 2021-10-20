@@ -35,7 +35,8 @@ class GetSchemaTest(CiTestCase):
                 'cc_ubuntu_drivers',
                 'cc_write_files',
                 'cc_zypper_add_repo',
-                'cc_chef'
+                'cc_chef',
+                'cc_install_hotplug',
             ],
             [subschema['id'] for subschema in schema['allOf']])
         self.assertEqual('cloud-config-schema', schema['id'])
