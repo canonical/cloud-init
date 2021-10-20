@@ -171,10 +171,10 @@ elif os.path.isfile('/etc/system-release-cpe'):
         cpe_data = f.read().rstrip().split(':')
 
         if cpe_data[1] == "\o":  # noqa: W605
-            # URI formated CPE
+            # URI formatted CPE
             inc = 0
         else:
-            # String formated CPE
+            # String formatted CPE
             inc = 1
         (cpe_vendor, cpe_product, cpe_version) = cpe_data[2+inc:5+inc]
         if cpe_vendor == "amazon":
@@ -238,7 +238,7 @@ class InitsysInstallData(install):
                     continue
                 self.distribution.data_files.append(
                     (INITSYS_ROOTS[k], INITSYS_FILES[k]))
-        # Force that command to reinitalize (with new file list)
+        # Force that command to reinitialize (with new file list)
         self.distribution.reinitialize_command('install_data', True)
 
 
