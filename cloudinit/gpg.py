@@ -59,7 +59,7 @@ def list(key_file, human_output=False):
     cmd.append(key_file)
     (stdout, stderr) = subp.subp(cmd, capture=True)
     if stderr:
-        LOG.debug('Failed to export armoured key "%s": %s', key_file, stderr)
+        LOG.warning('Failed to export armoured key "%s": %s', key_file, stderr)
     return stdout
 
 

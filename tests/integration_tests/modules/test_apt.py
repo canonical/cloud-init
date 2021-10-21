@@ -106,9 +106,9 @@ class TestApt:
         list_cmd = ' '.join(gpg.GPG_LIST) + ' '
         keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
         print(keys)
-        files = class_client.execute('ls ' + cc_apt_configure.APT_TRUSTED_DIR)
+        files = class_client.execute('ls ' + cc_apt_configure.APT_TRUSTED_GPG_DIR)
         for file in files.split():
-            path = cc_apt_configure.APT_TRUSTED_DIR + file
+            path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
             keys += class_client.execute(list_cmd + path) or ''
         return keys
 

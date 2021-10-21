@@ -11,6 +11,7 @@
 import glob
 import os
 import re
+import pathlib
 from textwrap import dedent
 
 from cloudinit.config.schema import (
@@ -28,8 +29,8 @@ LOG = logging.getLogger(__name__)
 ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 
 APT_LOCAL_KEYS = '/etc/apt/trusted.gpg'
-APT_TRUSTED_DIR = '/etc/apt/trusted.gpg.d/'
-APT_CLOUD_INIT_DIR = '/etc/apt/cloud-init.gpg.d/'
+APT_TRUSTED_GPG_DIR = '/etc/apt/trusted.gpg.d/'
+CLOUD_INIT_GPG_DIR = '/etc/apt/cloud-init.gpg.d/'
 
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
@@ -689,9 +690,7 @@ def add_mirror_keys(cfg, target):
     """Adds any keys included in the primary/security mirror clauses"""
     for key in ('primary', 'security'):
         for mirror in cfg.get(key, []):
-            if 'filename' not in mirror:
-                mirror['filename'] = key
-            add_apt_key(mirror, target)
+            add_apt_key(mirror, target, file_name=key)
 
 
 def generate_sources_list(cfg, release, mirrors, cloud):
@@ -722,21 +721,21 @@ def generate_sources_list(cfg, release, mirrors, cloud):
     util.write_file(aptsrc, disabled, mode=0o644)
 
 
-def add_apt_key_raw(key, file_name, target=None, hardened=False):
+def add_apt_key_raw(key, file_name, hardened=False, target=None):
     """
     actual adding of a key as defined in key argument
     to the system
     """
     LOG.debug("Adding key:\n'%s'", key)
     try:
-        name = file_name if not file_name.endswith('.list') else file_name[:-5]
+        name = pathlib.Path(file_name).stem
         return apt_key('add', output_file=name, data=key, hardened=hardened)
     except subp.ProcessExecutionError:
         LOG.exception("failed to add apt GPG Key to apt keyring")
         raise
 
 
-def add_apt_key(ent, target=None, hardened=False):
+def add_apt_key(ent, target=None, hardened=False, file_name=None):
     """
     Add key to the system as defined in ent (if any).
     Supports raw keys or keyid's
@@ -752,8 +751,7 @@ def add_apt_key(ent, target=None, hardened=False):
     if 'key' in ent:
         return add_apt_key_raw(
                 ent['key'],
-                ent['filename'],
-                target,
+                file_name or ent['filename'],
                 hardened=hardened)
 
 
@@ -792,7 +790,6 @@ def add_apt_sources(srcdict, cloud, target=None, template_params=None,
         if 'source' not in ent:
             continue
         source = ent['source']
-        LOG.debug("adding source/template: %s/%s", source, template_params)
         source = templater.render_string(source, template_params)
 
         if not ent['filename'].startswith("/"):
@@ -1116,8 +1113,8 @@ def apt_key(command, output_file=None, data=None, hardened=False,
     @param output_file: name of output gpg file (without .gpg or .asc)
     @param data: key contents
     @param human_output: list keys formatted for human parsing
-    @param hardened: NOT IMPLEMENTED - write keys to to
-    /etc/apt/cloud-init.gpg.d/ (refered to with [signed-by] in sources file)
+    @param hardened: write keys to to /etc/apt/cloud-init.gpg.d/ (referred to
+    with [signed-by] in sources file)
     """
 
     def _get_key_files():
@@ -1130,27 +1127,29 @@ def apt_key(command, output_file=None, data=None, hardened=False,
         """
         key_files = [APT_LOCAL_KEYS] if os.path.isfile(APT_LOCAL_KEYS) else []
 
-        for file in os.listdir(APT_TRUSTED_DIR):
-            print(file)
+        for file in os.listdir(APT_TRUSTED_GPG_DIR):
             if file.endswith('.gpg') or file.endswith('.asc'):
-                key_files.append(APT_TRUSTED_DIR + file)
+                key_files.append(APT_TRUSTED_GPG_DIR + file)
         return key_files if key_files else ''
 
     def apt_key_add():
         """apt-key add <file>
 
-        returns filepath to new keyring
+        returns filepath to new keyring, or '/dev/null' when an error occurs
         """
+        file_name = '/dev/null'
+        if not output_file:
+            util.logexc(LOG, 'Unknown filename for key import'.format(data))
         try:
-            key_dir = APT_CLOUD_INIT_DIR if hardened else APT_TRUSTED_DIR
+            key_dir = CLOUD_INIT_GPG_DIR if hardened else APT_TRUSTED_GPG_DIR
             stdout = gpg.dearmor(data)
             file_name = '{}{}.gpg'.format(key_dir, output_file)
             util.write_file(file_name, stdout)
-            return file_name
-        except subp.ProcessExecutionError as error:
-            LOG.debug('Failed to add key "%s": %s', data, error)
-        except UnicodeDecodeError as error:
-            LOG.debug('Invalid key format "%s": %s', data, error)
+        except subp.ProcessExecutionError:
+            util.logexc(LOG, 'Failed to add key: {}'.format(data))
+        except UnicodeDecodeError:
+            util.logexc(LOG, 'Failed to add key: {}'.format(data))
+        return file_name
 
     def apt_key_list():
         """apt-key list
@@ -1163,7 +1162,7 @@ def apt_key(command, output_file=None, data=None, hardened=False,
             try:
                 key_list.append(gpg.list(key_file, human_output=human_output))
             except subp.ProcessExecutionError as error:
-                LOG.debug('Failed to list key "%s": %s', key_file, error)
+                LOG.warning('Failed to list key "%s": %s', key_file, error)
         print("apt_key_list:\n{}".format(key_list))
         return '\n'.join(key_list)
 
