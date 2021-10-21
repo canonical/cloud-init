@@ -15,8 +15,8 @@ deb-src {{mirror}} {{codename}} main
 
 ## Major bug fix updates produced after the final release of the
 ## distribution.
-deb {{security}} {{codename}}/updates main
-deb-src {{security}} {{codename}}/updates main
+deb {{security}} {{codename}}{% if codename in ('buster', 'stretch') %}/updates{% else %}-security{% endif %} main
+deb-src {{security}} {{codename}}{% if codename in ('buster', 'stretch') %}/updates{% else %}-security{% endif %} main
 deb {{mirror}} {{codename}}-updates main
 deb-src {{mirror}} {{codename}}-updates main
 
