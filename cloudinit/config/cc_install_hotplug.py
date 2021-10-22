@@ -42,7 +42,7 @@ schema = {
                 when: ["hotplug"]
         """),
         dedent("""\
-            # Enalble network hotplug alongside boot event
+            # Enable network hotplug alongside boot event
             updates:
               network:
                 when: ["boot", "hotplug"]
@@ -86,6 +86,7 @@ __doc__ == get_schema_doc(schema)
 
 HOTPLUG_UDEV_PATH = "/etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"
 HOTPLUG_UDEV_RULES = """\
+# Installed by cloud-init due to network hotplug userdata
 ACTION!="add|remove", GOTO="cloudinit_end"
 LABEL="cloudinit_hook"
 SUBSYSTEM=="net", RUN+="/usr/lib/cloud-init/hook-hotplug"
