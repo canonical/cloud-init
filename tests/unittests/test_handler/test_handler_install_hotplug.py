@@ -9,7 +9,7 @@ from cloudinit.config.cc_install_hotplug import (
     HOTPLUG_UDEV_PATH,
     HOTPLUG_UDEV_RULES,
 )
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 
 
 @pytest.yield_fixture()
@@ -42,8 +42,9 @@ class TestInstallHotplug:
         mocks.m_which.return_value = 'udevadm'
         mocks.m_update_enabled.return_value = True
         m_cloud = mock.MagicMock()
-        m_cloud.datasource.get_supported_events.return_value = [
-            EventType.HOTPLUG]
+        m_cloud.datasource.get_supported_events.return_value = {
+            EventScope.NETWORK: {EventType.HOTPLUG}
+        }
 
         handle(None, {}, m_cloud, mock.Mock(), None)
         mocks.m_write.assert_called_once_with(
@@ -58,7 +59,7 @@ class TestInstallHotplug:
     def test_rules_not_installed_when_unsupported(self, mocks):
         mocks.m_update_enabled.return_value = True
         m_cloud = mock.MagicMock()
-        m_cloud.datasource.get_supported_events.return_value = []
+        m_cloud.datasource.get_supported_events.return_value = {}
 
         handle(None, {}, m_cloud, mock.Mock(), None)
         assert mocks.m_write.call_args_list == []
@@ -68,8 +69,9 @@ class TestInstallHotplug:
     def test_rules_not_installed_when_disabled(self, mocks):
         mocks.m_update_enabled.return_value = False
         m_cloud = mock.MagicMock()
-        m_cloud.datasource.get_supported_events.return_value = [
-            EventType.HOTPLUG]
+        m_cloud.datasource.get_supported_events.return_value = {
+            EventScope.NETWORK: {EventType.HOTPLUG}
+        }
 
         handle(None, {}, m_cloud, mock.Mock(), None)
         assert mocks.m_write.call_args_list == []
@@ -80,7 +82,7 @@ class TestInstallHotplug:
         mocks.m_path_exists.return_value = True
         mocks.m_update_enabled.return_value = False
         m_cloud = mock.MagicMock()
-        m_cloud.datasource.get_supported_events.return_value = []
+        m_cloud.datasource.get_supported_events.return_value = {}
 
         handle(None, {}, m_cloud, mock.Mock(), None)
         mocks.m_del.assert_called_with(HOTPLUG_UDEV_PATH)
@@ -92,8 +94,9 @@ class TestInstallHotplug:
     def test_rules_not_installed_when_no_udevadm(self, mocks):
         mocks.m_update_enabled.return_value = True
         m_cloud = mock.MagicMock()
-        m_cloud.datasource.get_supported_events.return_value = [
-            EventType.HOTPLUG]
+        m_cloud.datasource.get_supported_events.return_value = {
+            EventScope.NETWORK: {EventType.HOTPLUG}
+        }
 
         handle(None, {}, m_cloud, mock.Mock(), None)
         assert mocks.m_del.call_args_list == []

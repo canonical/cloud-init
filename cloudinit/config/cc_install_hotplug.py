@@ -102,17 +102,17 @@ def handle(_name, cfg, cloud, log, _args):
         'when' in cfg['updates']['network'] and
         'hotplug' in cfg['updates']['network']['when']
     )
-    if not (
-        EventType.HOTPLUG in cloud.datasource.get_supported_events(
-            [EventType.HOTPLUG]
-        ) and
-        stages.update_event_enabled(
-            datasource=cloud.datasource,
-            cfg=cfg,
-            event_source_type=EventType.HOTPLUG,
-            scope=EventScope.NETWORK,
-        )
-    ):
+    hotplug_supported = EventType.HOTPLUG in (
+        cloud.datasource.get_supported_events(
+            [EventType.HOTPLUG]).get(EventScope.NETWORK, set())
+    )
+    hotplug_enabled = stages.update_event_enabled(
+        datasource=cloud.datasource,
+        cfg=cfg,
+        event_source_type=EventType.HOTPLUG,
+        scope=EventScope.NETWORK,
+    )
+    if not (hotplug_supported and hotplug_enabled):
         if os.path.exists(HOTPLUG_UDEV_PATH):
             log.debug("Uninstalling hotplug, not enabled")
             util.del_file(HOTPLUG_UDEV_PATH)
