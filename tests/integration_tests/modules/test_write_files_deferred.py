@@ -25,7 +25,7 @@ write_files:
     content: |
       export PATH="/var/lib/test/bin:$PATH"
     append: true
-    defer: true
+    defer: false
     owner: '{user}'
 """.format(user=TEST_USER_NAME, file=TEST_USER_FILE_PATH)
 
