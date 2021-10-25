@@ -34,6 +34,7 @@ class GetSchemaTest(CiTestCase):
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
                 'cc_write_files',
+                'cc_write_files_deferred',
                 'cc_zypper_add_repo',
                 'cc_chef'
             ],
