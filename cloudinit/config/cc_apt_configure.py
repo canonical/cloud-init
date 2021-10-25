@@ -1139,16 +1139,20 @@ def apt_key(command, output_file=None, data=None, hardened=False,
         """
         file_name = '/dev/null'
         if not output_file:
-            util.logexc(LOG, 'Unknown filename for key import'.format(data))
-        try:
-            key_dir = CLOUD_INIT_GPG_DIR if hardened else APT_TRUSTED_GPG_DIR
-            stdout = gpg.dearmor(data)
-            file_name = '{}{}.gpg'.format(key_dir, output_file)
-            util.write_file(file_name, stdout)
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, 'Failed to add key: {}'.format(data))
-        except UnicodeDecodeError:
-            util.logexc(LOG, 'Failed to add key: {}'.format(data))
+            util.logexc(LOG, 'Unknown filename, failed to add key: {}'.format(
+                data))
+        else:
+            try:
+                key_dir = CLOUD_INIT_GPG_DIR if hardened else APT_TRUSTED_GPG_DIR
+                stdout = gpg.dearmor(data)
+                file_name = '{}{}.gpg'.format(key_dir, output_file)
+                util.write_file(file_name, stdout)
+            except subp.ProcessExecutionError:
+                util.logexc(LOG, 'Gpg error, failed to add key: {}'.format(
+                    data))
+            except UnicodeDecodeError:
+                util.logexc(LOG, 'Decode error, failed to add key: {}'.format(
+                    data))
         return file_name
 
     def apt_key_list():
@@ -1163,7 +1167,6 @@ def apt_key(command, output_file=None, data=None, hardened=False,
                 key_list.append(gpg.list(key_file, human_output=human_output))
             except subp.ProcessExecutionError as error:
                 LOG.warning('Failed to list key "%s": %s', key_file, error)
-        print("apt_key_list:\n{}".format(key_list))
         return '\n'.join(key_list)
 
     if command == 'add':
