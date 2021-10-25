@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import tempfile
+import pathlib
 from unittest import mock
 from unittest.mock import call
 
@@ -416,8 +417,9 @@ class TestAptSourceConfig(TestCase):
 
         calls = (call(
             'add',
-            output_file=self.aptlistfile[:-5],
-            data='fakekey 4242'),)
+            output_file=pathlib.Path(self.aptlistfile).stem,
+            data='fakekey 4242',
+            hardened=False),)
         mockobj.assert_has_calls(calls, any_order=True)
 
         # filename should be ignored on key only
@@ -441,14 +443,15 @@ class TestAptSourceConfig(TestCase):
 
         calls = (call(
             'add',
-            output_file=self.aptlistfile[:-5],
-            data='fakekey 1212'),)
+            output_file=pathlib.Path(self.aptlistfile).stem,
+            data='fakekey 1212',
+            hardened=False),)
         mockobj.assert_has_calls(calls, any_order=True)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
-    def apt_src_keyid_real(self, cfg, expectedkey):
+    def apt_src_keyid_real(self, cfg, expectedkey, is_hardened=None):
         """apt_src_keyid_real
         Test specification of a keyid without source including
         up to addition of the key (add_apt_key_raw mocked to keep the
@@ -463,9 +466,14 @@ class TestAptSourceConfig(TestCase):
                                    return_value=expectedkey) as mockgetkey:
                 cc_apt_configure.handle("test", cfg, self.fakecloud,
                                         None, None)
-
+        if is_hardened is not None:
+            mockkey.assert_called_with(
+                expectedkey,
+                self.aptlistfile,
+                hardened=is_hardened)
+        else:
+            mockkey.assert_called_with(expectedkey, self.aptlistfile)
         mockgetkey.assert_called_with(key, keyserver)
-        mockkey.assert_called_with(expectedkey, self.aptlistfile, None)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -476,7 +484,7 @@ class TestAptSourceConfig(TestCase):
         cfg = {'keyid': keyid,
                'filename': self.aptlistfile}
 
-        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY, is_hardened=False)
 
     def test_apt_src_longkeyid_real(self):
         """test_apt_src_longkeyid_real - Test long keyid including key add"""
@@ -484,7 +492,7 @@ class TestAptSourceConfig(TestCase):
         cfg = {'keyid': keyid,
                'filename': self.aptlistfile}
 
-        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY, is_hardened=False)
 
     def test_apt_src_longkeyid_ks_real(self):
         """test_apt_src_longkeyid_ks_real - Test long keyid from other ks"""
@@ -493,7 +501,7 @@ class TestAptSourceConfig(TestCase):
                'keyserver': 'keys.gnupg.net',
                'filename': self.aptlistfile}
 
-        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY, is_hardened=False)
 
     def test_apt_src_ppa(self):
         """Test adding a ppa"""

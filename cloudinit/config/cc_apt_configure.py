@@ -750,9 +750,9 @@ def add_apt_key(ent, target=None, hardened=False, file_name=None):
 
     if 'key' in ent:
         return add_apt_key_raw(
-                ent['key'],
-                file_name or ent['filename'],
-                hardened=hardened)
+            ent['key'],
+            file_name or ent['filename'],
+            hardened=hardened)
 
 
 def update_packages(cloud):
@@ -1143,7 +1143,8 @@ def apt_key(command, output_file=None, data=None, hardened=False,
                 data))
         else:
             try:
-                key_dir = CLOUD_INIT_GPG_DIR if hardened else APT_TRUSTED_GPG_DIR
+                key_dir = \
+                    CLOUD_INIT_GPG_DIR if hardened else APT_TRUSTED_GPG_DIR
                 stdout = gpg.dearmor(data)
                 file_name = '{}{}.gpg'.format(key_dir, output_file)
                 util.write_file(file_name, stdout)

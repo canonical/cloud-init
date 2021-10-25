@@ -45,6 +45,10 @@ apt:
       keyid: 441614D8
       keyserver: keyserver.ubuntu.com
       source: "ppa:simplestreams-dev/trunk"
+    test_signed_by:
+      keyid: 3A3EF34DFDEDB3B7F3FDF603F83F77129A5EBD85
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu $RELEASE main"
     test_key:
       source: "deb http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu $RELEASE main"
       key: |
@@ -92,7 +96,8 @@ TEST_KEYSERVER_KEY = "7260 0DB1 5B8E 4C8B 1964  B868 038A CC97 C660 A937"
 
 TEST_PPA_KEY = "3552 C902 B4DD F7BD 3842  1821 015D 28D7 4416 14D8"
 
-TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
+TEST_KEY_1 = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
+TEST_KEY_2 = "3A3E F34D FDED B3B7 F3FD  F603 F83F 7712 9A5E BD85"
 
 
 @pytest.mark.ci
@@ -106,7 +111,8 @@ class TestApt:
         list_cmd = ' '.join(gpg.GPG_LIST) + ' '
         keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
         print(keys)
-        files = class_client.execute('ls ' + cc_apt_configure.APT_TRUSTED_GPG_DIR)
+        files = class_client.execute(
+            'ls ' + cc_apt_configure.APT_TRUSTED_GPG_DIR)
         for file in files.split():
             path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
             keys += class_client.execute(list_cmd + path) or ''
@@ -167,7 +173,26 @@ class TestApt:
             'http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu'
         ) in ppa_path_contents
 
-        assert TEST_KEY in self.get_keys(class_client)
+        assert TEST_KEY_1 in self.get_keys(class_client)
+
+    def test_signed_by(self, class_client: IntegrationInstance):
+        """Test the apt signed-by functionality.
+        """
+        release = ImageSpecification.from_os_image().release
+        source = (
+            "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_signed_by.gpg] "
+            "http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu"
+            " {} main".format(release))
+
+        path_contents = class_client.read_from_file(
+            '/etc/apt/sources.list.d/test_signed_by.list')
+        assert path_contents == source
+
+        key = class_client.execute(
+            'gpg --no-default-keyring --with-fingerprint --list-keys '
+            '--keyring /etc/apt/cloud-init.gpg.d/test_signed_by.gpg')
+
+        assert TEST_KEY_2 in key
 
     def test_key(self, class_client: IntegrationInstance):
         """Test the apt key functionality.
@@ -182,7 +207,7 @@ class TestApt:
         assert (
             'http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu'
         ) in test_archive_contents
-        assert TEST_KEY in self.get_keys(class_client)
+        assert TEST_KEY_1 in self.get_keys(class_client)
 
     def test_keyserver(self, class_client: IntegrationInstance):
         """Test the apt keyserver functionality.
@@ -198,7 +223,7 @@ class TestApt:
             'http://ppa.launchpad.net/cloud-init-raharper/curtin-dev/ubuntu'
         ) in test_keyserver_contents
 
-        assert TEST_KEY in self.get_keys(class_client)
+        assert TEST_KEY_1 in self.get_keys(class_client)
 
     def test_os_pipelining(self, class_client: IntegrationInstance):
         """Test 'os' settings does not write apt config file.

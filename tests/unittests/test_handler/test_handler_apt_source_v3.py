@@ -10,6 +10,7 @@ import re
 import shutil
 import socket
 import tempfile
+import pathlib
 
 from unittest import TestCase, mock
 from unittest.mock import call
@@ -214,7 +215,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                self.aptlistfile3: {'source': 'deb $MIRROR $RELEASE universe'}}
         self._apt_src_replace_tri(cfg)
 
-    def _apt_src_keyid(self, filename, cfg, keynum):
+    def _apt_src_keyid(self, filename, cfg, keynum, is_hardened=None):
         """_apt_src_keyid
         Test specification of a source + keyid
         """
@@ -227,7 +228,10 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         # check if it added the right number of keys
         calls = []
         for key in cfg:
-            calls.append(call(cfg[key], TARGET))
+            if is_hardened is not None:
+                calls.append(call(cfg[key], hardened=is_hardened))
+            else:
+                calls.append(call(cfg[key], TARGET))
 
         mockobj.assert_has_calls(calls, any_order=True)
 
@@ -303,8 +307,9 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
 
         calls = (call(
             'add',
-            output_file=self.aptlistfile[:-5],
-            data='fakekey 4321'),)
+            output_file=pathlib.Path(self.aptlistfile).stem,
+            data='fakekey 4321',
+            hardened=False),)
         mockobj.assert_has_calls(calls, any_order=True)
         self.assertTrue(os.path.isfile(self.aptlistfile))
 
@@ -327,8 +332,9 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
 
         calls = (call(
             'add',
-            output_file=self.aptlistfile[:-5],
-            data='fakekey 4242'),)
+            output_file=pathlib.Path(self.aptlistfile).stem,
+            data='fakekey 4242',
+            hardened=False),)
         mockobj.assert_has_calls(calls, any_order=True)
 
         # filename should be ignored on key only
@@ -346,14 +352,15 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
 
         calls = (call(
             'add',
-            output_file=self.aptlistfile[:-5],
-            data='fakekey 1212'),)
+            output_file=pathlib.Path(self.aptlistfile).stem,
+            data='fakekey 1212',
+            hardened=False),)
         mockobj.assert_has_calls(calls, any_order=True)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
-    def apt_src_keyid_real(self, cfg, expectedkey):
+    def apt_src_keyid_real(self, cfg, expectedkey, is_hardened=None):
         """apt_src_keyid_real
         Test specification of a keyid without source including
         up to addition of the key (add_apt_key_raw mocked to keep the
@@ -371,7 +378,11 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         mockgetkey.assert_called_with(keycfg['keyid'],
                                       keycfg.get('keyserver',
                                                  'keyserver.ubuntu.com'))
-        mockkey.assert_called_with(expectedkey, keycfg['keyfile'], TARGET)
+        if is_hardened is not None:
+            mockkey.assert_called_with(
+                expectedkey,
+                keycfg['keyfile'],
+                hardened=is_hardened)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -382,7 +393,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         cfg = {self.aptlistfile: {'keyid': keyid,
                                   'keyfile': self.aptlistfile}}
 
-        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY, is_hardened=False)
 
     def test_apt_v3_src_longkeyid_real(self):
         """test_apt_v3_src_longkeyid_real Test long keyid including key add"""
@@ -390,7 +401,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         cfg = {self.aptlistfile: {'keyid': keyid,
                                   'keyfile': self.aptlistfile}}
 
-        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY, is_hardened=False)
 
     def test_apt_v3_src_longkeyid_ks_real(self):
         """test_apt_v3_src_longkeyid_ks_real Test long keyid from other ks"""
@@ -419,7 +430,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
                                       aa_repo_match=self.matcher)
 
         mockgetkey.assert_called_with('03683F77', 'test.random.com')
-        mockadd.assert_called_with('fakekey', self.aptlistfile, TARGET)
+        mockadd.assert_called_with('fakekey', self.aptlistfile, hardened=False)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -1029,8 +1040,8 @@ deb http://ubuntu.com/ubuntu/ xenial-proposed main""")
                                'add_apt_key_raw') as mockadd:
             cc_apt_configure.add_mirror_keys(cfg, TARGET)
         calls = [
-            mock.call('fakekey_primary', 'primary', TARGET),
-            mock.call('fakekey_security', 'security', TARGET),
+            mock.call('fakekey_primary', 'primary', hardened=False),
+            mock.call('fakekey_security', 'security', hardened=False),
         ]
         mockadd.assert_has_calls(calls, any_order=True)
 
