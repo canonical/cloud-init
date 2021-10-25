@@ -66,7 +66,7 @@ EXISTING_INSTANCE_ID = None
 #   Install from a PPA. It MUST start with 'ppa:'
 # <file path>
 #   A path to a valid package to be uploaded and installed
-CLOUD_INIT_SOURCE = 'NONE'
+CLOUD_INIT_SOURCE = 'IN_PLACE'
 
 # Before an instance is torn down, we run `cloud-init collect-logs`
 # and transfer them locally. These settings specify when to collect these
