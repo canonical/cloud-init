@@ -33,7 +33,7 @@ jsonpatch
 # For validating cloud-config sections per schema definitions
 jsonschema
 
-# Used by DataSourceVMware to inspect the host's network configuration during
+# Used by DataSourceVMware and DataSourceXen to inspect the host's network configuration during
 # the "setup()" function.
 #
 # This allows a host that uses DHCP to bring up the network during BootLocal

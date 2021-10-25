@@ -42,6 +42,7 @@ KNOWN_CLOUD_NAMES = [
     'UpCloud',
     'VMware',
     'Vultr',
+    'Xen',
     'ZStack',
     'Other'
 ]

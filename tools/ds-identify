@@ -1451,6 +1451,40 @@ dscheck_VMware() {
     return "${DS_NOT_FOUND}"
 }
 
+dscheck_Xen() {
+    if ! xen_xenstore_read; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    if { xenstore_read_xenstore_metadata || \
+         xenstore_read_xenstore_userdata || \
+         xenstore_read_xenstore_vendordata; } >/dev/null 2>&1; then    
+        return "${DS_FOUND}"
+    fi
+
+    return "${DS_NOT_FOUND}"    
+}
+
+xen_xenstore_read() {
+    command -v xenstore-read >/dev/null 2>&1
+}
+
+xenstore_read() {
+    xenstore-read "vm-data/${1}" 2>/dev/null | grep "[[:alnum:]]"
+}
+
+xenstore_read_xenstore_metadata() {
+    xenstore_read "metadata"
+}
+
+xenstore_read_xenstore_userdata() {
+    xenstore_read "userdata"
+}
+
+xenstore_read_xenstore_vendordata() {
+    xenstore_read "vendordata"
+}
+
 collect_info() {
     read_uname_info
     read_virt
