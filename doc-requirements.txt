@@ -5,4 +5,4 @@ sphinx_rtd_theme
 pyyaml
 
 # Indirect dependencies
-docutils<18
+docutils<0.18
