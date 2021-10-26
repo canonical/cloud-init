@@ -1,11 +1,11 @@
 """Series of integration tests covering apt functionality."""
 import re
-from tests.integration_tests.clouds import ImageSpecification
 
 import pytest
+
 from cloudinit.config import cc_apt_configure
 from cloudinit import gpg
-
+from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 
 

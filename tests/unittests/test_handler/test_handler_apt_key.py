@@ -123,7 +123,11 @@ class TestAptKey(helpers.FilesystemMockingTestCase):
                 os,
                 'listdir',
                 return_value=()):
-            keys = cc_apt_configure.apt_key('list')
+            with mock.patch.object(
+                    subp,
+                    'subp',
+                    return_value=('', '')):
+                keys = cc_apt_configure.apt_key('list')
         assert not keys
 
     def test_apt_key_list_fail_no_keys_file(self):
@@ -131,7 +135,11 @@ class TestAptKey(helpers.FilesystemMockingTestCase):
                 os,
                 'listdir',
                 return_value=('file_not_gpg_key.txt')):
-            keys = cc_apt_configure.apt_key('list')
+            with mock.patch.object(
+                    subp,
+                    'subp',
+                    return_value=('', '')):
+                keys = cc_apt_configure.apt_key('list')
         assert not keys
 
     def test_apt_key_list_fail_bad_key_file(self):
