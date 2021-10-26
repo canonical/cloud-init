@@ -9,10 +9,10 @@ from cloudinit import stages
 from cloudinit.config.schema import get_schema_doc, validate_cloudconfig_schema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.event import EventType, EventScope
-from cloudinit.settings import PER_ALWAYS
+from cloudinit.settings import PER_INSTANCE
 
 
-frequency = PER_ALWAYS
+frequency = PER_INSTANCE
 distros = [ALL_DISTROS]
 
 schema = {
