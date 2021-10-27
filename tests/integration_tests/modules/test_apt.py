@@ -106,7 +106,7 @@ TEST_KEY_2 = "3A3E F34D FDED B3B7 F3FD  F603 F83F 7712 9A5E BD85"
 class TestApt:
     def get_keys(self, class_client: IntegrationInstance):
         """Return all keys in /etc/apt/trusted.gpg.d/ and /etc/apt/trusted.gpg
-        in human readable format.
+        in human readable format. Mimics the output of apt-key finger
         """
         list_cmd = ' '.join(gpg.GPG_LIST) + ' '
         keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
@@ -207,7 +207,7 @@ class TestApt:
         assert (
             'http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu'
         ) in test_archive_contents
-        assert TEST_KEY_1 in self.get_keys(class_client)
+        assert TEST_KEYSERVER_KEY in self.get_keys(class_client)
 
     def test_keyserver(self, class_client: IntegrationInstance):
         """Test the apt keyserver functionality.
@@ -223,7 +223,7 @@ class TestApt:
             'http://ppa.launchpad.net/cloud-init-raharper/curtin-dev/ubuntu'
         ) in test_keyserver_contents
 
-        assert TEST_KEY_1 in self.get_keys(class_client)
+        assert TEST_KEYSERVER_KEY in self.get_keys(class_client)
 
     def test_os_pipelining(self, class_client: IntegrationInstance):
         """Test 'os' settings does not write apt config file.
