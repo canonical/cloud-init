@@ -762,9 +762,28 @@ def update_packages(cloud):
 def add_apt_sources(srcdict, cloud, target=None, template_params=None,
                     aa_repo_match=None):
     """
-    add entries in /etc/apt/sources.list.d for each abbreviated
-    sources.list entry in 'srcdict'.  When rendering template, also
-    include the values in dictionary searchList
+    install keys and repo source .list files defined in 'sources'
+
+    for each 'source' entry in the config:
+        1. expand template variables and write source .list file in
+                /etc/apt/sources.list.d/
+        2. install defined keys
+        3. update packages via distro-specific method (i.e. apt-key update)
+
+
+    @param srcdict: a dict containing elements required
+    @param cloud: cloud instance object
+
+    Example srcdict value:
+    {
+    'rio-grande-repo': {
+        'source': 'deb [signed-by=$KEY_FILE] $MIRROR $RELEASE main',
+        'keyid': 'B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77',
+        'keyserver': 'pgp.mit.edu'
+        }
+    }
+
+    Note: Deb822 format is not supported
     """
     if template_params is None:
         template_params = {}
