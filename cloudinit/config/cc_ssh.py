@@ -89,6 +89,10 @@ optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``,
 key types. Not all key types have to be specified, ones left unspecified will
 not be used. If this config option is used, then no keys will be generated.
 
+When host keys are generated the output of the ssh-keygen command(s) can be
+displayed on the console using the ``ssh_quiet_keygen`` configuration key.
+This settings defaults to False which displays the keygen output.
+
 .. note::
     when specifying private host keys in cloud-config, care should be taken to
     ensure that the communication between the data source and the instance is
@@ -151,6 +155,7 @@ config flags are:
     ssh_publish_hostkeys:
         enabled: <true/false> (Defaults to true)
         blacklist: <list of key types> (Defaults to [dsa])
+    ssh_quiet_keygen: <true/false>
 """
 
 import glob
@@ -239,7 +244,9 @@ def handle(_name, cfg, cloud, log, _args):
             with util.SeLinuxGuard("/etc/ssh", recursive=True):
                 try:
                     out, err = subp.subp(cmd, capture=True, env=lang_c)
-                    sys.stdout.write(util.decode_binary(out))
+                    if not util.get_cfg_option_bool(cfg, 'ssh_quiet_keygen',
+                                                    False):
+                        sys.stdout.write(util.decode_binary(out))
 
                     gid = util.get_group_id("ssh_keys")
                     if gid != -1:
