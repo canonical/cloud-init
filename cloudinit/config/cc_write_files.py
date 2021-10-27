@@ -11,7 +11,7 @@ import os
 from textwrap import dedent
 
 from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+    get_meta_doc, validate_cloudconfig_schema)
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
@@ -38,7 +38,7 @@ supported_encoding_types = [
     'gz', 'gzip', 'gz+base64', 'gzip+base64', 'gz+b64', 'gzip+b64', 'b64',
     'base64']
 
-schema = {
+meta = {
     'id': 'cc_write_files',
     'name': 'Write Files',
     'title': 'write arbitrary files',
@@ -111,6 +111,9 @@ schema = {
           defer: true
         """)],
     'frequency': frequency,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'write_files': {
@@ -187,7 +190,7 @@ schema = {
     }
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 def handle(name, cfg, _cloud, log, _args):

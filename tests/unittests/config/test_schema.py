@@ -1,19 +1,66 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-import cloudinit
-from cloudinit.config.schema import (
-    CLOUD_CONFIG_HEADER, SchemaValidationError, annotated_cloudconfig_file,
-    get_schema_doc, get_schema, validate_cloudconfig_file,
-    validate_cloudconfig_schema, main)
-from cloudinit.util import write_file
 
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
+import importlib
+import sys
+import inspect
+import logging
 from copy import copy
 import itertools
 import pytest
 from pathlib import Path
 from textwrap import dedent
 from yaml import safe_load
+
+import cloudinit
+from cloudinit.config.schema import (
+    CLOUD_CONFIG_HEADER, SchemaValidationError, annotated_cloudconfig_file,
+    get_meta_doc, get_schema, validate_cloudconfig_file,
+    validate_cloudconfig_metaschema, validate_cloudconfig_schema, main,
+    MetaSchema)
+from cloudinit.util import write_file
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+
+
+def get_schemas() -> dict:
+    '''Return all module schemas
+
+    Assumes that module schemas have the variable name "schema"
+    '''
+    return get_module_variable('schema')
+
+
+def get_metas() -> dict:
+    '''Return all module metas
+
+    Assumes that module schemas have the variable name "schema"
+    '''
+    return get_module_variable('meta')
+
+
+def get_module_variable(var_name) -> dict:
+    '''Inspect modules and get variable from module matching var_name
+    '''
+    schemas = {}
+
+    files = list(Path('../../cloudinit/config/').glob('cc_*.py'))
+    modules = [mod.stem for mod in files]
+
+    for module in modules:
+        importlib.import_module('cloudinit.config.{}'.format(module))
+
+    for k, v in sys.modules.items():
+        path = Path(k)
+
+        if 'cloudinit.config' == path.stem and path.suffix[1:4] == 'cc_':
+            module_name = path.suffix[1:]
+            members = inspect.getmembers(v)
+            schemas[module_name] = None
+            for name, value in members:
+                if name == var_name:
+                    schemas[module_name] = value
+                    break
+    return schemas
 
 
 class GetSchemaTest(CiTestCase):
@@ -34,25 +81,16 @@ class GetSchemaTest(CiTestCase):
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
                 'cc_write_files',
-                'cc_write_files_deferred',
                 'cc_zypper_add_repo',
                 'cc_chef',
                 'cc_install_hotplug',
             ],
-            [subschema['id'] for subschema in schema['allOf']])
+            [meta['id'] for meta in get_metas().values() if meta is not None])
         self.assertEqual('cloud-config-schema', schema['id'])
         self.assertEqual(
             'http://json-schema.org/draft-04/schema#',
             schema['$schema'])
-        # FULL_SCHEMA is updated by the get_schema call
-        from cloudinit.config.schema import FULL_SCHEMA
-        self.assertCountEqual(['id', '$schema', 'allOf'], FULL_SCHEMA.keys())
-
-    def test_get_schema_returns_global_when_set(self):
-        """When FULL_SCHEMA global is already set, get_schema returns it."""
-        m_schema_path = 'cloudinit.config.schema.FULL_SCHEMA'
-        with mock.patch(m_schema_path, {'here': 'iam'}):
-            self.assertEqual({'here': 'iam'}, get_schema())
+        self.assertCountEqual(['id', '$schema', 'allOf'], get_schema().keys())
 
 
 class SchemaValidationErrorTest(CiTestCase):
@@ -93,7 +131,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
         with mock.patch.dict('sys.modules', **{'jsonschema': ImportError()}):
             validate_cloudconfig_schema({'p1': -1}, schema, strict=True)
         self.assertIn(
-            'Ignoring schema validation. python-jsonschema is not present',
+            'Ignoring schema validation. jsonschema is not present',
             self.logs.getvalue())
 
     @skipUnlessJsonSchema()
@@ -117,14 +155,44 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
             "Cloud config schema errors: p1: '-1' is not a 'email'",
             str(context_mgr.exception))
 
+    @skipUnlessJsonSchema()
+    def test_validateconfig_schema_honors_formats_strict_metaschema(self):
+        """With strict True and strict_metascheam True, ensure errors on format
+        """
+        schema = {
+            'properties': {'p1': {'type': 'string', 'format': 'email'}}}
+        with self.assertRaises(SchemaValidationError) as context_mgr:
+            validate_cloudconfig_schema(
+                {'p1': '-1'}, schema, strict=True, strict_metaschema=True)
+        self.assertEqual(
+            "Cloud config schema errors: p1: '-1' is not a 'email'",
+            str(context_mgr.exception))
+
+    @skipUnlessJsonSchema()
+    def test_validateconfig_strict_metaschema_do_not_raise_exception(self):
+        """With strict_metaschema=True, do not raise exceptions.
+
+        This flag is currently unused, but is intended for run-time validation.
+        This should warn, but not raise.
+        """
+        schema = {
+            'properties': {'p1': {'types': 'string', 'format': 'email'}}}
+        validate_cloudconfig_schema(
+            {'p1': '-1'}, schema, strict_metaschema=True)
+        assert (
+            'Meta-schema validation failed, attempting to validate config'
+            in self.logs.getvalue())
+
 
 class TestCloudConfigExamples:
-    schema = get_schema()
+    schema = get_schemas()
+    metas = get_metas()
     params = [
-        (schema["id"], example)
-        for schema in schema["allOf"] for example in schema["examples"]]
+        (meta['id'], example) for meta in metas.values()
+        if meta and meta.get('examples') for example in meta.get('examples')
+    ]
 
-    @pytest.mark.parametrize("schema_id,example", params)
+    @pytest.mark.parametrize("schema_id, example", params)
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_of_example(self, schema_id, example):
         """ For a given example in a config module we test if it is valid
@@ -201,7 +269,7 @@ class ValidateCloudConfigFileTest(CiTestCase):
 
 
 class GetSchemaDocTest(CiTestCase):
-    """Tests for get_schema_doc."""
+    """Tests for get_meta_doc."""
 
     def setUp(self):
         super(GetSchemaDocTest, self).setUp()
@@ -209,14 +277,26 @@ class GetSchemaDocTest(CiTestCase):
             'title': 'title', 'description': 'description', 'id': 'id',
             'name': 'name', 'frequency': 'frequency',
             'distros': ['debian', 'rhel']}
+        self.meta = MetaSchema({
+            'title': 'title',
+            'description': 'description',
+            'id': 'id',
+            'name': 'name',
+            'frequency': 'frequency',
+            'distros': ['debian', 'rhel'],
+            'examples': [
+                'ex1:\n    [don\'t, expand, "this"]', 'ex2: true'],
+        })
 
-    def test_get_schema_doc_returns_restructured_text(self):
-        """get_schema_doc returns restructured text for a cloudinit schema."""
+    def test_get_meta_doc_returns_restructured_text(self):
+        """get_meta_doc returns restructured text for a cloudinit schema."""
         full_schema = copy(self.required_schema)
         full_schema.update(
             {'properties': {
                 'prop1': {'type': 'array', 'description': 'prop-description',
                           'items': {'type': 'integer'}}}})
+
+        doc = get_meta_doc(self.meta, full_schema)
         self.assertEqual(
             dedent("""
                 name
@@ -232,44 +312,42 @@ class GetSchemaDocTest(CiTestCase):
                 **Supported distros:** debian, rhel
 
                 **Config schema**:
-                    **prop1:** (array of integer) prop-description\n\n"""),
-            get_schema_doc(full_schema))
+                    **prop1:** (array of integer) prop-description
 
-    def test_get_schema_doc_handles_multiple_types(self):
-        """get_schema_doc delimits multiple property types with a '/'."""
-        full_schema = copy(self.required_schema)
-        full_schema.update(
-            {'properties': {
-                'prop1': {'type': ['string', 'integer'],
-                          'description': 'prop-description'}}})
+                **Examples**::
+
+                    ex1:
+                        [don't, expand, "this"]
+                    # --- Example2 ---
+                    ex2: true
+            """), doc)
+
+    def test_get_meta_doc_handles_multiple_types(self):
+        """get_meta_doc delimits multiple property types with a '/'."""
+        schema = {'properties': {
+            'prop1': {'type': ['string', 'integer']}}}
         self.assertIn(
-            '**prop1:** (string/integer) prop-description',
-            get_schema_doc(full_schema))
+            '**prop1:** (string/integer)',
+            get_meta_doc(self.meta, schema))
 
-    def test_get_schema_doc_handles_enum_types(self):
-        """get_schema_doc converts enum types to yaml and delimits with '/'."""
-        full_schema = copy(self.required_schema)
-        full_schema.update(
-            {'properties': {
-                'prop1': {'enum': [True, False, 'stuff'],
-                          'description': 'prop-description'}}})
+    def test_get_meta_doc_handles_enum_types(self):
+        """get_meta_doc converts enum types to yaml and delimits with '/'."""
+        schema = {'properties': {
+            'prop1': {'enum': [True, False, 'stuff']}}}
         self.assertIn(
-            '**prop1:** (true/false/stuff) prop-description',
-            get_schema_doc(full_schema))
+            '**prop1:** (true/false/stuff)',
+            get_meta_doc(self.meta, schema))
 
-    def test_get_schema_doc_handles_nested_oneof_property_types(self):
-        """get_schema_doc describes array items oneOf declarations in type."""
-        full_schema = copy(self.required_schema)
-        full_schema.update(
-            {'properties': {
-                'prop1': {'type': 'array',
-                          'items': {
+    def test_get_meta_doc_handles_nested_oneof_property_types(self):
+        """get_meta_doc describes array items oneOf declarations in type."""
+        schema = {'properties': {
+            'prop1': {'type': 'array',
+                      'items': {
                               'oneOf': [{'type': 'string'},
-                                        {'type': 'integer'}]},
-                          'description': 'prop-description'}}})
+                                        {'type': 'integer'}]}}}}
         self.assertIn(
-            '**prop1:** (array of (string)/(integer)) prop-description',
-            get_schema_doc(full_schema))
+            '**prop1:** (array of (string)/(integer))',
+            get_meta_doc(self.meta, schema))
 
     def test_get_schema_doc_handles_string_examples(self):
         """get_schema_doc properly indented examples as a list of strings."""
@@ -291,13 +369,12 @@ class GetSchemaDocTest(CiTestCase):
                     # --- Example2 ---
                     ex2: true
             """),
-            get_schema_doc(full_schema))
+            get_meta_doc(self.meta, full_schema))
 
-    def test_get_schema_doc_properly_parse_description(self):
-        """get_schema_doc description properly formatted"""
-        full_schema = copy(self.required_schema)
-        full_schema.update(
-            {'properties': {
+    def test_get_meta_doc_properly_parse_description(self):
+        """get_meta_doc description properly formatted"""
+        schema = {
+            'properties': {
                 'p1': {
                     'type': 'string',
                     'description': dedent("""\
@@ -312,8 +389,8 @@ class GetSchemaDocTest(CiTestCase):
                         The default value is
                         option1""")
                 }
-            }}
-        )
+            }
+        }
 
         self.assertIn(
             dedent("""
@@ -325,16 +402,22 @@ class GetSchemaDocTest(CiTestCase):
                             - option3
 
                     The default value is option1
-            """),
-            get_schema_doc(full_schema))
 
-    def test_get_schema_doc_raises_key_errors(self):
-        """get_schema_doc raises KeyErrors on missing keys."""
-        for key in self.required_schema:
-            invalid_schema = copy(self.required_schema)
-            invalid_schema.pop(key)
+            """),
+            get_meta_doc(self.meta, schema))
+
+    def test_get_meta_doc_raises_key_errors(self):
+        """get_meta_doc raises KeyErrors on missing keys."""
+        schema = {'properties': {
+            'prop1': {'type': 'array',
+                  'items': {
+                      'oneOf': [{'type': 'string'},
+                                {'type': 'integer'}]}}}}
+        for key in self.meta:
+            invalid_meta = copy(self.meta)
+            invalid_meta.pop(key)
             with self.assertRaises(KeyError) as context_mgr:
-                get_schema_doc(invalid_schema)
+                get_meta_doc(invalid_meta, schema)
             self.assertIn(key, str(context_mgr.exception))
 
 
@@ -494,7 +577,7 @@ class TestMain:
         assert expected == err
 
 
-def _get_schema_doc_examples():
+def _get_meta_doc_examples():
     examples_dir = Path(
         cloudinit.__file__).parent.parent / 'doc' / 'examples'
     assert examples_dir.is_dir()
@@ -507,9 +590,44 @@ def _get_schema_doc_examples():
 class TestSchemaDocExamples:
     schema = get_schema()
 
-    @pytest.mark.parametrize("example_path", _get_schema_doc_examples())
+    @pytest.mark.parametrize("example_path", _get_meta_doc_examples())
     @skipUnlessJsonSchema()
     def test_schema_doc_examples(self, example_path):
         validate_cloudconfig_file(str(example_path), self.schema)
+
+
+class TestStrictMetaschema:
+    '''Validate that schemas follow a stricter metaschema definition than
+    the default. This disallows arbitrary key/value pairs.
+    '''
+    @skipUnlessJsonSchema()
+    def test_modules(self):
+        '''Validate all modules with a stricter metaschema'''
+        for (name, value) in get_schemas().items():
+            if value:
+                validate_cloudconfig_metaschema(value)
+            else:
+                logging.warning(
+                    "module %s has no schema definition", name)
+
+    @skipUnlessJsonSchema()
+    def test_validate_bad_module(self):
+        """Throw exception by default, don't throw if throw=False
+
+        item should be 'items' and is therefore interpreted as an additional
+        property which is invalid with a strict metaschema
+        """
+        from jsonschema import SchemaError
+        schema = {
+            'type': 'array',
+            'item': {
+                'type': 'object',
+            }
+        }
+        with pytest.raises(SchemaError):
+            validate_cloudconfig_metaschema(schema)
+
+        validate_cloudconfig_metaschema(schema, throw=False)
+
 
 # vi: ts=4 expandtab syntax=python

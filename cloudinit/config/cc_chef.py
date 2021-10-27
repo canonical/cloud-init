@@ -15,7 +15,7 @@ from textwrap import dedent
 
 from cloudinit import subp
 from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+    get_meta_doc, validate_cloudconfig_schema)
 from cloudinit import templater
 from cloudinit import temp_utils
 from cloudinit import url_helper
@@ -89,7 +89,8 @@ CHEF_EXEC_DEF_ARGS = tuple(['-d', '-i', '1800', '-s', '20'])
 
 frequency = PER_ALWAYS
 distros = ["all"]
-schema = {
+
+meta = {
     'id': 'cc_chef',
     'name': 'Chef',
     'title': 'module that configures, starts and installs chef',
@@ -126,6 +127,9 @@ schema = {
           ssl_verify_mode: :verify_peer
           validation_name: yourorg-validator""")],
     'frequency': frequency,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'chef': {
@@ -357,7 +361,7 @@ schema = {
     }
 }
 
-__doc__ = get_schema_doc(schema)
+__doc__ = get_meta_doc(meta, schema)
 
 
 def post_run_chef(chef_cfg, log):

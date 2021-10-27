@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
+import contextlib
 import io
 from collections import namedtuple
 
@@ -217,22 +218,92 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
             'Expected one of --config-file, --system or --docs arguments\n',
             self.stderr.getvalue())
 
-    def test_wb_devel_schema_subcommand_doc_content(self):
-        """Validate that doc content is sane from known examples."""
+    def test_wb_devel_schema_subcommand_doc_all_spot_check(self):
+        """Validate that doc content has correct values from known examples.
+
+        Ensure that schema doc is returned
+        """
+
+        # Note: patchStdoutAndStderr() is convenient for reducing boilerplate,
+        # but inspecting the code for debugging is not ideal
+        # contextlib.redirect_stdout() provides similar behavior as a context
+        # manager
         stdout = io.StringIO()
-        self.patchStdoutAndStderr(stdout=stdout)
-        self._call_main(['cloud-init', 'devel', 'schema', '--docs', 'all'])
-        expected_doc_sections = [
-            '**Supported distros:** all',
-            ('**Supported distros:** almalinux, alpine, centos, cloudlinux, '
-             'debian, eurolinux, fedora, openEuler, opensuse, photon, rhel, '
-             'rocky, sles, ubuntu, virtuozzo'),
-            '**Config schema**:\n    **resize_rootfs:** (true/false/noblock)',
-            '**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n'
-        ]
+        with contextlib.redirect_stdout(stdout):
+            self._call_main(['cloud-init', 'devel', 'schema', '--docs', 'all'])
+            expected_doc_sections = [
+                '**Supported distros:** all',
+                ('**Supported distros:** almalinux, alpine, centos, '
+                    'cloudlinux, debian, eurolinux, fedora, openEuler, '
+                    'opensuse, photon, rhel, rocky, sles, ubuntu, virtuozzo'),
+                '**Config schema**:\n    **resize_rootfs:** '
+                '(true/false/noblock)',
+                '**Examples**::\n\n    runcmd:\n        - [ ls, -l, / ]\n'
+            ]
         stdout = stdout.getvalue()
         for expected in expected_doc_sections:
             self.assertIn(expected, stdout)
+
+    def test_wb_devel_schema_subcommand_single_spot_check(self):
+        """Validate that doc content has correct values from known example.
+
+        Validate 'all' arg
+        """
+
+        # Note: patchStdoutAndStderr() is convenient for reducing boilerplate,
+        # but inspecting the code for debugging is not ideal
+        # contextlib.redirect_stdout() provides similar behavior as a context
+        # manager
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            self._call_main(
+                ['cloud-init', 'devel', 'schema', '--docs', 'cc_runcmd'])
+            expected_doc_sections = [
+                'Runcmd\n------\n**Summary:** Run arbitrary commands'
+            ]
+        stdout = stdout.getvalue()
+        for expected in expected_doc_sections:
+            self.assertIn(expected, stdout)
+
+    def test_wb_devel_schema_subcommand_multiple_spot_check(self):
+        """Validate that doc content has correct values from known example.
+
+        Validate single arg
+        """
+
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            self._call_main(
+                ['cloud-init', 'devel', 'schema', '--docs', 'cc_runcmd',
+                    'cc_resizefs'])
+            expected_doc_sections = [
+                'Runcmd\n------\n**Summary:** Run arbitrary commands',
+                'Resizefs\n--------\n**Summary:** Resize filesystem'
+            ]
+        stdout = stdout.getvalue()
+        for expected in expected_doc_sections:
+            self.assertIn(expected, stdout)
+
+    def test_wb_devel_schema_subcommand_bad_arg_fails(self):
+        """Validate that doc content has correct values from known example.
+
+        Validate multiple args
+        """
+
+        # Note: patchStdoutAndStderr() is convenient for reducing boilerplate,
+        # but inspecting the code for debugging is not ideal
+        # contextlib.redirect_stdout() provides similar behavior as a context
+        # manager
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            self._call_main([
+                'cloud-init', 'devel', 'schema', '--docs', 'garbage_value'])
+            expected_doc_sections = [
+                'Invalid --docs value'
+            ]
+        stderr = stderr.getvalue()
+        for expected in expected_doc_sections:
+            self.assertIn(expected, stderr)
 
     @mock.patch('cloudinit.cmd.main.main_single')
     def test_single_subcommand(self, m_main_single):

@@ -6,7 +6,7 @@ import os
 from textwrap import dedent
 
 from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+    get_meta_doc, validate_cloudconfig_schema)
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import subp
@@ -18,7 +18,7 @@ LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 distros = ['ubuntu']
-schema = {
+meta = {
     'id': 'cc_ubuntu_drivers',
     'name': 'Ubuntu Drivers',
     'title': 'Interact with third party drivers in Ubuntu.',
@@ -32,6 +32,9 @@ schema = {
             license-accepted: true
         """)],
     'frequency': frequency,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'drivers': {
@@ -64,7 +67,7 @@ schema = {
 OLD_UBUNTU_DRIVERS_STDERR_NEEDLE = (
     "ubuntu-drivers: error: argument <command>: invalid choice: 'install'")
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 # Use a debconf template to configure a global debconf variable

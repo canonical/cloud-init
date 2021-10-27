@@ -13,7 +13,7 @@ from cloudinit import temp_utils
 from cloudinit import templater
 from cloudinit import util
 from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+    get_meta_doc, validate_cloudconfig_schema)
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ REPOSITORIES_TEMPLATE = """\
 
 frequency = PER_INSTANCE
 distros = ['alpine']
-schema = {
+meta = {
     'id': 'cc_apk_configure',
     'name': 'APK Configure',
     'title': 'Configure apk repositories file',
@@ -95,6 +95,9 @@ schema = {
         """),
     ],
     'frequency': frequency,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'apk_repos': {
@@ -171,14 +174,13 @@ schema = {
                     """)
                 }
             },
-            'required': [],
             'minProperties': 1,  # Either preserve_repositories or alpine_repo
             'additionalProperties': False,
         }
     }
 }
 
-__doc__ = get_schema_doc(schema)
+__doc__ = get_meta_doc(meta, schema)
 
 
 def handle(name, cfg, cloud, log, _args):

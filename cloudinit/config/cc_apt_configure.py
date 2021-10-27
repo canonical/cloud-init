@@ -15,7 +15,7 @@ import pathlib
 from textwrap import dedent
 
 from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+    get_meta_doc, validate_cloudconfig_schema)
 from cloudinit import gpg
 from cloudinit import log as logging
 from cloudinit import subp
@@ -75,7 +75,8 @@ mirror_property = {
         }
     }
 }
-schema = {
+
+meta = {
     'id': 'cc_apt_configure',
     'name': 'Apt Configure',
     'title': 'Configure apt for the user',
@@ -155,6 +156,9 @@ schema = {
                       <key data>
                       ------END PGP PUBLIC KEY BLOCK-------""")],
     'frequency': frequency,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'apt': {
@@ -398,7 +402,7 @@ schema = {
     }
 }
 
-__doc__ = get_schema_doc(schema)
+__doc__ = get_meta_doc(meta, schema)
 
 
 # place where apt stores cached repository data

@@ -347,7 +347,7 @@ def extract_usergroup(ug_pair):
     return (u, g)
 
 
-def find_modules(root_dir):
+def find_modules(root_dir) -> dict:
     entries = dict()
     for fname in glob.glob(os.path.join(root_dir, "*.py")):
         if not os.path.isfile(fname):

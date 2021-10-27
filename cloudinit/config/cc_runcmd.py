@@ -9,7 +9,7 @@
 """Runcmd: run arbitrary commands at rc.local with output to the console"""
 
 from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+    get_meta_doc, validate_cloudconfig_schema)
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
@@ -26,7 +26,7 @@ from textwrap import dedent
 
 distros = [ALL_DISTROS]
 
-schema = {
+meta = {
     'id': 'cc_runcmd',
     'name': 'Runcmd',
     'title': 'Run arbitrary commands',
@@ -58,6 +58,9 @@ schema = {
             - [ wget, "http://example.org", -O, /tmp/index.html ]
     """)],
     'frequency': PER_INSTANCE,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'runcmd': {
@@ -71,12 +74,11 @@ schema = {
             'additionalItems': False,  # Reject items of non-string non-list
             'additionalProperties': False,
             'minItems': 1,
-            'required': [],
         }
     }
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 def handle(name, cfg, cloud, log, _args):

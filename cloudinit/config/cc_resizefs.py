@@ -14,7 +14,7 @@ import stat
 from textwrap import dedent
 
 from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+    get_meta_doc, validate_cloudconfig_schema)
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import subp
 from cloudinit import util
@@ -24,7 +24,7 @@ NOBLOCK = "noblock"
 frequency = PER_ALWAYS
 distros = ['all']
 
-schema = {
+meta = {
     'id': 'cc_resizefs',
     'name': 'Resizefs',
     'title': 'Resize filesystem',
@@ -42,6 +42,9 @@ schema = {
     'examples': [
         'resize_rootfs: false  # disable root filesystem resize operation'],
     'frequency': PER_ALWAYS,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'resize_rootfs': {
@@ -52,7 +55,7 @@ schema = {
     }
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 def _resize_btrfs(mount_point, devpth):
