@@ -85,11 +85,11 @@ __doc__ = get_schema_doc(schema)
 
 
 HOTPLUG_UDEV_PATH = "/etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"
-HOTPLUG_UDEV_RULES = """\
+HOTPLUG_UDEV_RULES_TEMPLATE = """\
 # Installed by cloud-init due to network hotplug userdata
 ACTION!="add|remove", GOTO="cloudinit_end"
 LABEL="cloudinit_hook"
-SUBSYSTEM=="net", RUN+="/usr/lib/cloud-init/hook-hotplug"
+SUBSYSTEM=="net", RUN+="{libexecdir}/hook-hotplug"
 LABEL="cloudinit_end"
 """
 
@@ -129,8 +129,12 @@ def handle(_name, cfg, cloud, log, _args):
         log.debug("Skipping hotplug install, udevadm not found")
         return
 
+    # This may need to turn into a distro property at some point
+    libexecdir = "/usr/libexec/cloud-init"
+    if not os.path.exists(libexecdir):
+        libexecdir = "/usr/lib/cloud-init"
     util.write_file(
         filename=HOTPLUG_UDEV_PATH,
-        content=HOTPLUG_UDEV_RULES,
+        content=HOTPLUG_UDEV_RULES_TEMPLATE.format(libexecdir=libexecdir),
     )
     subp.subp(["udevadm", "control", "--reload-rules"])
