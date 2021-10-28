@@ -1158,8 +1158,8 @@ def apt_key(command, output_file=None, data=None, hardened=False,
         """
         file_name = '/dev/null'
         if not output_file:
-            util.logexc(LOG, 'Unknown filename, failed to add key: {}'.format(
-                data))
+            util.logexc(
+                LOG, 'Unknown filename, failed to add key: "{}"'.format(data))
         else:
             try:
                 key_dir = \

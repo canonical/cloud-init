@@ -46,9 +46,12 @@ apt:
       keyserver: keyserver.ubuntu.com
       source: "ppa:simplestreams-dev/trunk"
     test_signed_by:
-      keyid: 3A3EF34DFDEDB3B7F3FDF603F83F77129A5EBD85
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
       keyserver: keyserver.ubuntu.com
-      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu $RELEASE main"
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/stable/ubuntu $RELEASE main"
+    test_bad_key:
+      key: ""
+      source: "deb $MIRROR $RELEASE main"
     test_key:
       source: "deb http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu $RELEASE main"
       key: |
@@ -96,8 +99,8 @@ TEST_KEYSERVER_KEY = "7260 0DB1 5B8E 4C8B 1964  B868 038A CC97 C660 A937"
 
 TEST_PPA_KEY = "3552 C902 B4DD F7BD 3842  1821 015D 28D7 4416 14D8"
 
-TEST_KEY_1 = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
-TEST_KEY_2 = "3A3E F34D FDED B3B7 F3FD  F603 F83F 7712 9A5E BD85"
+TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
+TEST_SIGNED_BY_KEY = "A2EB 2DEC 0BD7 519B 7B38  BE38 376A 290E C806 8B11"
 
 
 @pytest.mark.ci
@@ -173,7 +176,7 @@ class TestApt:
             'http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu'
         ) in ppa_path_contents
 
-        assert TEST_KEY_1 in self.get_keys(class_client)
+        assert TEST_PPA_KEY in self.get_keys(class_client)
 
     def test_signed_by(self, class_client: IntegrationInstance):
         """Test the apt signed-by functionality.
@@ -181,9 +184,9 @@ class TestApt:
         release = ImageSpecification.from_os_image().release
         source = (
             "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_signed_by.gpg] "
-            "http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu"
+            "http://ppa.launchpad.net/juju/stable/ubuntu"
             " {} main".format(release))
-
+        print(class_client.execute('cat /var/log/cloud-init.log'))
         path_contents = class_client.read_from_file(
             '/etc/apt/sources.list.d/test_signed_by.list')
         assert path_contents == source
@@ -192,7 +195,14 @@ class TestApt:
             'gpg --no-default-keyring --with-fingerprint --list-keys '
             '--keyring /etc/apt/cloud-init.gpg.d/test_signed_by.gpg')
 
-        assert TEST_KEY_2 in key
+        assert TEST_SIGNED_BY_KEY in key
+
+    def test_bad_key(self, class_client: IntegrationInstance):
+        """Test the apt signed-by functionality.
+        """
+        with pytest.raises(OSError):
+            class_client.read_from_file(
+                '/etc/apt/trusted.list.d/test_bad_key.gpg')
 
     def test_key(self, class_client: IntegrationInstance):
         """Test the apt key functionality.
@@ -207,7 +217,7 @@ class TestApt:
         assert (
             'http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu'
         ) in test_archive_contents
-        assert TEST_KEYSERVER_KEY in self.get_keys(class_client)
+        assert TEST_KEY in self.get_keys(class_client)
 
     def test_keyserver(self, class_client: IntegrationInstance):
         """Test the apt keyserver functionality.

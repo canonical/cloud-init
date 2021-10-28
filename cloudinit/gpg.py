@@ -35,12 +35,7 @@ def dearmor(key):
 
         note: man gpg(1) makes no mention of an --armour spelling, only --armor
     """
-
-    if not key:
-        raise ValueError("invalid attempt to dearmor key")
-    (stdout, _) = subp.subp(["gpg", "--dearmor"], data=key, decode=False,
-                            capture=True)
-    return stdout
+    return subp.subp(["gpg", "--dearmor"], data=key, decode=False)[0]
 
 
 def list(key_file, human_output=False):
@@ -50,7 +45,6 @@ def list(key_file, human_output=False):
     @param key_file: a string containing a filepath to a key
     @param human_output: return output intended for human parsing
     """
-
     cmd = []
     cmd.extend(GPG_LIST)
     if not human_output:

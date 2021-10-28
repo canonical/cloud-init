@@ -1,6 +1,6 @@
+import pytest
 from unittest import mock
 
-from cloudinit.tests import helpers
 from cloudinit import gpg
 from cloudinit import subp
 
@@ -33,33 +33,49 @@ TEST_KEY_FINGERPRINT_MACHINE = \
     '3A3EF34DFDEDB3B7F3FDF603F83F77129A5EBD85'
 
 
-class TestGPGCommands(helpers.CiTestCase):
-    def test_dearmor_empty_value(self):
-        with self.assertRaises(ValueError):
-            gpg.dearmor(None)
-
+class TestGPGCommands:
     def test_dearmor_bad_value(self):
+        """This exception is handled by the callee. Ensure it is not caught
+        internally.
+        """
         with mock.patch.object(
                 subp,
                 'subp',
                 side_effect=subp.ProcessExecutionError):
-            with self.assertRaises(subp.ProcessExecutionError):
+            with pytest.raises(subp.ProcessExecutionError):
                 gpg.dearmor('garbage key value')
 
-    def list_output_helper(self, fingerprint, key):
-        with mock.patch.object(subp, 'subp', return_value=(key, '')):
-            assert fingerprint in gpg.list('/path/to/key.gpg')
+    def test_gpg_list_args(self):
+        """Verify correct command gets called to list keys
+        """
+        no_colons = [
+            'gpg',
+            '--with-fingerprint',
+            '--no-default-keyring',
+            '--list-keys',
+            '--keyring',
+            'key']
+        colons = [
+            'gpg',
+            '--with-fingerprint',
+            '--no-default-keyring',
+            '--list-keys',
+            '--keyring',
+            '--with-colons',
+            'key']
+        with mock.patch.object(subp, 'subp', return_value=('', '')) as m_subp:
+            gpg.list('key')
+            assert mock.call(colons, capture=True) == m_subp.call_args
 
-    def test_list_human_output(self):
-        self.list_output_helper(TEST_KEY_FINGERPRINT_HUMAN, TEST_KEY_HUMAN)
+            gpg.list('key', human_output=True)
+            test_calls = mock.call((no_colons), capture=True)
+            assert test_calls == m_subp.call_args
 
-    def test_list_machine_output(self):
-        self.list_output_helper(TEST_KEY_FINGERPRINT_MACHINE, TEST_KEY_MACHINE)
-
-    def test_list_bad_value(self):
-        with mock.patch.object(
-                subp,
-                'subp',
-                side_effect=subp.ProcessExecutionError):
-            with self.assertRaises(subp.ProcessExecutionError):
-                gpg.list('/path/to/bad/key.gpg')
+    def test_gpg_dearmor_args(self):
+        """Verify correct command gets called to dearmor keys
+        """
+        with mock.patch.object(subp, 'subp', return_value=('', '')) as m_subp:
+            gpg.dearmor('key')
+            test_call = mock.call(
+                ["gpg", "--dearmor"], data='key', decode=False)
+            assert test_call == m_subp.call_args
