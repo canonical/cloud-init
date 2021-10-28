@@ -879,7 +879,7 @@ def _sanitize_mirror_url(url: str):
       * Converts it to its IDN form (see below for details)
       * Replaces any non-Letters/Digits/Hyphen (LDH) characters in it with
         hyphens
-      * TODO: Remove any leading/trailing hyphens from each domain name label
+      * Removes any leading/trailing hyphens from each domain name label
 
     Before we replace any invalid domain name characters, we first need to
     ensure that any valid non-ASCII characters in the hostname will not be
