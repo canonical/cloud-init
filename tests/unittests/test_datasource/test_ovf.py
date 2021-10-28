@@ -518,10 +518,16 @@ class TestDatasourceOVF(CiTestCase):
                         'vmware (%s/seed/ovf-env.xml)' % self.tdir,
                         ds.subplatform)
 
-    def test_get_data_vmware_guestinfo_with_network_config(self):
+    @mock.patch('cloudinit.subp.subp')
+    @mock.patch('cloudinit.sources.DataSource.persist_instance_data')
+    def test_get_data_vmware_guestinfo_with_network_config(
+        self, m_persist, m_subp
+    ):
         self._test_get_data_with_network_config(guestinfo=False, iso=True)
 
-    def test_get_data_iso9660_with_network_config(self):
+    @mock.patch('cloudinit.subp.subp')
+    @mock.patch('cloudinit.sources.DataSource.persist_instance_data')
+    def test_get_data_iso9660_with_network_config(self, m_persist, m_subp):
         self._test_get_data_with_network_config(guestinfo=True, iso=False)
 
     def _test_get_data_with_network_config(self, guestinfo, iso):
