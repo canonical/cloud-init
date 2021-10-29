@@ -7,7 +7,7 @@ import pytest
 from cloudinit.config.cc_install_hotplug import (
     handle,
     HOTPLUG_UDEV_PATH,
-    HOTPLUG_UDEV_RULES,
+    HOTPLUG_UDEV_RULES_TEMPLATE,
 )
 from cloudinit.event import EventScope, EventType
 
@@ -38,7 +38,10 @@ def mocks():
 
 
 class TestInstallHotplug:
-    def test_rules_installed_when_supported_and_enabled(self, mocks):
+    @pytest.mark.parametrize('libexec_exists', [True, False])
+    def test_rules_installed_when_supported_and_enabled(
+        self, mocks, libexec_exists
+    ):
         mocks.m_which.return_value = 'udevadm'
         mocks.m_update_enabled.return_value = True
         m_cloud = mock.MagicMock()
@@ -46,11 +49,17 @@ class TestInstallHotplug:
             EventScope.NETWORK: {EventType.HOTPLUG}
         }
 
-        handle(None, {}, m_cloud, mock.Mock(), None)
-        mocks.m_write.assert_called_once_with(
-            filename=HOTPLUG_UDEV_PATH,
-            content=HOTPLUG_UDEV_RULES,
-        )
+        if libexec_exists:
+            libexecdir = "/usr/libexec/cloud-init"
+        else:
+            libexecdir = "/usr/lib/cloud-init"
+        with mock.patch('os.path.exists', return_value=libexec_exists):
+            handle(None, {}, m_cloud, mock.Mock(), None)
+            mocks.m_write.assert_called_once_with(
+                filename=HOTPLUG_UDEV_PATH,
+                content=HOTPLUG_UDEV_RULES_TEMPLATE.format(
+                    libexecdir=libexecdir),
+            )
         assert mocks.m_subp.call_args_list == [mock.call([
             'udevadm', 'control', '--reload-rules',
         ])]
