@@ -1,5 +1,7 @@
 cloud-init (21.3-1-g6803368d-0ubuntu1~18.04.5) UNRELEASED; urgency=medium
 
+  * d/cloud-init.templates: Add LXD to default datasource_list with
+    translations
   * drop the following cherry-picks now included:
     + cpick-28e56d99-Azure-Retry-dhcp-on-timeouts-when-polling
     + cpick-e69a8874-Set-Azure-to-only-update-metadata-on-BOOT_NEW_INSTANCE
