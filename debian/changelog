@@ -1,6 +1,8 @@
 cloud-init (21.3-1-g6803368d-0ubuntu4) UNRELEASED; urgency=medium
 
   * d/upstream/metadata: Change contact to James Falcon
+  * d/cloud-init.templates: Add LXD to default datasource_list with
+    translations
 
  -- James Falcon <james.falcon@canonical.com>  Mon, 11 Oct 2021 15:32:07 -0500
 
