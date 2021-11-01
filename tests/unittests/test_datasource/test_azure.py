@@ -443,7 +443,7 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
             json.dumps(IMDS_NETWORK_METADATA).encode('utf-8'))
 
         dsaz.get_metadata_from_imds(
-            'eth0', retries=3, md_type=dsaz.metadata_type.compute)
+            'eth0', retries=3, md_type=dsaz.metadata_type.all)
         m_readurl.assert_called_with(
             "http://169.254.169.254/metadata/instance?api-version="
             "2019-06-01", exception_cb=mock.ANY,
