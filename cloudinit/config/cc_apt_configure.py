@@ -36,14 +36,14 @@ frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
 mirror_property = {
     'type': 'array',
-    'item': {
+    'items': {
         'type': 'object',
         'additionalProperties': False,
         'required': ['arches'],
         'properties': {
             'arches': {
                 'type': 'array',
-                'item': {
+                'items': {
                     'type': 'string'
                 },
                 'minItems': 1
@@ -54,7 +54,7 @@ mirror_property = {
             },
             'search': {
                 'type': 'array',
-                'item': {
+                'items': {
                     'type': 'string',
                     'format': 'uri'
                 },
@@ -113,11 +113,12 @@ schema = {
               search:
                 - 'http://cool.but-sometimes-unreachable.com/ubuntu'
                 - 'http://us.archive.ubuntu.com/ubuntu'
-              search_dns: <true/false>
+              search_dns: false
             - arches:
                 - s390x
                 - arm64
               uri: 'http://archive-to-use-for-arm64.example.com/ubuntu'
+
           security:
             - arches:
                 - default
@@ -260,7 +261,8 @@ schema = {
                             ``http://archive.ubuntu.com/ubuntu``.
                             - ``security`` => \
                             ``http://security.ubuntu.com/ubuntu``
-                        """)},
+                        """)
+                },
                 'security': {
                     **mirror_property,
                     'description': dedent("""\
@@ -380,6 +382,7 @@ schema = {
                             - ``key``: a raw PGP key.
                             - ``keyserver``: alternate keyserver to pull \
                                     ``keyid`` key from.
+                            - ``filename``: specify the name of the .list file
 
                         The ``source`` key supports variable
                         replacements for the following strings:
@@ -1040,7 +1043,7 @@ def get_arch_mirrorconfig(cfg, mirrortype, arch):
     # select the specification matching the target arch
     default = None
     for mirror_cfg_elem in mirror_cfg_list:
-        arches = mirror_cfg_elem.get("arches", [])
+        arches = mirror_cfg_elem.get("arches") or []
         if arch in arches:
             return mirror_cfg_elem
         if "default" in arches:
