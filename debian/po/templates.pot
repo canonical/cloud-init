@@ -32,6 +32,12 @@ msgstr ""
 #. Type: multiselect
 #. Choices
 #: ../cloud-init.templates:1001
+msgid "LXD: Reads /dev/lxd/sock representation of instance data"
+msgstr ""
+
+#. Type: multiselect
+#. Choices
+#: ../cloud-init.templates:1001
 msgid "OpenNebula: read from OpenNebula context disk"
 msgstr ""
 
