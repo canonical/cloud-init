@@ -118,8 +118,8 @@ NETWORK_MANAGER_AVAILABLE_CALLS = [
 ]
 
 NETWORKD_AVAILABLE_CALLS = [
-    (('ip',), {'search': ['/usr/bin', '/bin'], 'target': None}),
-    (('systemctl',), {'search': ['/usr/bin', '/bin'], 'target': None}),
+    (('ip',), {'search': ['/usr/sbin', '/bin'], 'target': None}),
+    (('systemctl',), {'search': ['/usr/sbin', '/bin'], 'target': None}),
 ]
 
 

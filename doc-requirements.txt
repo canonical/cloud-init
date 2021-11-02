@@ -3,3 +3,6 @@ m2r
 sphinx<2
 sphinx_rtd_theme
 pyyaml
+
+# Indirect dependencies
+docutils<0.18

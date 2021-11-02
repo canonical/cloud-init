@@ -1205,6 +1205,13 @@ NETWORK_CONFIGS = {
                 USERCTL=no
             """),
         },
+        'expected_networkd': textwrap.dedent("""\
+                [Match]
+                Name=iface0
+                [Network]
+                DHCP=ipv6
+                IPv6AcceptRA=True
+            """).rstrip(' '),
     },
     'dhcpv6_reject_ra': {
         'expected_eni': textwrap.dedent("""\
@@ -1260,6 +1267,13 @@ NETWORK_CONFIGS = {
                 USERCTL=no
             """),
         },
+        'expected_networkd': textwrap.dedent("""\
+                [Match]
+                Name=iface0
+                [Network]
+                DHCP=ipv6
+                IPv6AcceptRA=False
+            """).rstrip(' '),
     },
     'ipv6_slaac': {
         'expected_eni': textwrap.dedent("""\
@@ -5194,6 +5208,66 @@ class TestNetworkdRoundTrip(CiTestCase):
         nwk_fn = '/etc/systemd/network/10-cloud-init-iface0.network'
         entry = NETWORK_CONFIGS['dhcpv6_only']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+
+        actual = files[nwk_fn].splitlines()
+        actual = self.create_conf_dict(actual)
+
+        expected = entry['expected_networkd'].splitlines()
+        expected = self.create_conf_dict(expected)
+
+        self.compare_dicts(actual, expected)
+
+    @mock.patch("cloudinit.net.util.chownbyname", return_value=True)
+    def test_dhcpv6_accept_ra_config_v1(self, m_chown):
+        nwk_fn = '/etc/systemd/network/10-cloud-init-iface0.network'
+        entry = NETWORK_CONFIGS['dhcpv6_accept_ra']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v1']))
+
+        actual = files[nwk_fn].splitlines()
+        actual = self.create_conf_dict(actual)
+
+        expected = entry['expected_networkd'].splitlines()
+        expected = self.create_conf_dict(expected)
+
+        self.compare_dicts(actual, expected)
+
+    @mock.patch("cloudinit.net.util.chownbyname", return_value=True)
+    def test_dhcpv6_accept_ra_config_v2(self, m_chown):
+        nwk_fn = '/etc/systemd/network/10-cloud-init-iface0.network'
+        entry = NETWORK_CONFIGS['dhcpv6_accept_ra']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
+
+        actual = files[nwk_fn].splitlines()
+        actual = self.create_conf_dict(actual)
+
+        expected = entry['expected_networkd'].splitlines()
+        expected = self.create_conf_dict(expected)
+
+        self.compare_dicts(actual, expected)
+
+    @mock.patch("cloudinit.net.util.chownbyname", return_value=True)
+    def test_dhcpv6_reject_ra_config_v1(self, m_chown):
+        nwk_fn = '/etc/systemd/network/10-cloud-init-iface0.network'
+        entry = NETWORK_CONFIGS['dhcpv6_reject_ra']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v1']))
+
+        actual = files[nwk_fn].splitlines()
+        actual = self.create_conf_dict(actual)
+
+        expected = entry['expected_networkd'].splitlines()
+        expected = self.create_conf_dict(expected)
+
+        self.compare_dicts(actual, expected)
+
+    @mock.patch("cloudinit.net.util.chownbyname", return_value=True)
+    def test_dhcpv6_reject_ra_config_v2(self, m_chown):
+        nwk_fn = '/etc/systemd/network/10-cloud-init-iface0.network'
+        entry = NETWORK_CONFIGS['dhcpv6_reject_ra']
+        files = self._render_and_read(network_config=yaml.load(
+            entry['yaml_v2']))
 
         actual = files[nwk_fn].splitlines()
         actual = self.create_conf_dict(actual)

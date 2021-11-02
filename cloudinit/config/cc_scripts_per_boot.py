@@ -17,7 +17,7 @@ module does not accept any config keys.
 
 **Internal name:** ``cc_scripts_per_boot``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 """

@@ -75,6 +75,17 @@ If `Cloud-init`_ 's networking config has not been disabled, and
 no other network information is found, then it will proceed
 to generate a fallback networking configuration.
 
+Disabling Network Activation
+----------------------------
+
+Some datasources may not be initialized until after network has been brought
+up. In this case, cloud-init will attempt to bring up the interfaces specified
+by the datasource metadata.
+
+This behavior can be disabled in the cloud-init configuration dictionary,
+merged from ``/etc/cloud/cloud.cfg`` and ``/etc/cloud/cloud.cfg.d/*``::
+
+  disable_network_activation: true
 
 Fallback Network Configuration
 ==============================

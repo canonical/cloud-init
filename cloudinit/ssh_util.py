@@ -484,7 +484,13 @@ def parse_ssh_config_lines(lines):
         try:
             key, val = line.split(None, 1)
         except ValueError:
-            key, val = line.split('=', 1)
+            try:
+                key, val = line.split('=', 1)
+            except ValueError:
+                LOG.debug(
+                    "sshd_config: option \"%s\" has no key/value pair,"
+                    " skipping it", line)
+                continue
         ret.append(SshdConfigLine(line, key, val))
     return ret
 

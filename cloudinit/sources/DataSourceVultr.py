@@ -8,6 +8,7 @@
 from cloudinit import log as log
 from cloudinit import sources
 from cloudinit import util
+from cloudinit import version
 
 import cloudinit.sources.helpers.vultr as vultr
 
@@ -16,7 +17,11 @@ BUILTIN_DS_CONFIG = {
     'url': 'http://169.254.169.254',
     'retries': 30,
     'timeout': 2,
-    'wait': 2
+    'wait': 2,
+    'user-agent': 'Cloud-Init/%s - OS: %s Variant: %s' %
+                  (version.version_string(),
+                   util.system_info()['system'],
+                   util.system_info()['variant'])
 }
 
 
@@ -40,21 +45,18 @@ class DataSourceVultr(sources.DataSource):
         LOG.debug("Machine is a Vultr instance")
 
         # Fetch metadata
-        md = self.get_metadata()
-
-        self.metadata_full = md
-        self.metadata['instanceid'] = md['instanceid']
-        self.metadata['local-hostname'] = md['hostname']
-        self.metadata['public-keys'] = md["public-keys"]
-        self.userdata_raw = md["user-data"]
+        self.metadata = self.get_metadata()
+        self.metadata['instance-id'] = self.metadata['instanceid']
+        self.metadata['local-hostname'] = self.metadata['hostname']
+        self.userdata_raw = self.metadata["user-data"]
 
         # Generate config and process data
-        self.get_datasource_data(md)
+        self.get_datasource_data(self.metadata)
 
         # Dump some data so diagnosing failures is manageable
         LOG.debug("Vultr Vendor Config:")
-        LOG.debug(md['vendor-data']['config'])
-        LOG.debug("SUBID: %s", self.metadata['instanceid'])
+        LOG.debug(util.json_dumps(self.metadata['vendor-data']))
+        LOG.debug("SUBID: %s", self.metadata['instance-id'])
         LOG.debug("Hostname: %s", self.metadata['local-hostname'])
         if self.userdata_raw is not None:
             LOG.debug("User-Data:")
@@ -64,14 +66,16 @@ class DataSourceVultr(sources.DataSource):
 
     # Process metadata
     def get_datasource_data(self, md):
-        # Grab config
-        config = md['vendor-data']['config']
-
         # Generate network config
-        self.netcfg = vultr.generate_network_config(md['interfaces'])
+        if "cloud_interfaces" in md:
+            # In the future we will just drop pre-configured
+            # network configs into the array. They need names though.
+            self.netcfg = vultr.add_interface_names(md['cloud_interfaces'])
+        else:
+            self.netcfg = vultr.generate_network_config(md['interfaces'])
 
-        # This requires info generated in the vendor config
-        user_scripts = vultr.generate_user_scripts(md, self.netcfg['config'])
+        # Grab vendordata
+        self.vendordata_raw = md['vendor-data']
 
         # Default hostname is "guest" for whitelabel
         if self.metadata['local-hostname'] == "":
@@ -81,18 +85,13 @@ class DataSourceVultr(sources.DataSource):
         if self.userdata_raw == "":
             self.userdata_raw = None
 
-        # Assemble vendor-data
-        # This adds provided scripts and the config
-        self.vendordata_raw = []
-        self.vendordata_raw.extend(user_scripts)
-        self.vendordata_raw.append("#cloud-config\n%s" % config)
-
     # Get the metadata by flag
     def get_metadata(self):
         return vultr.get_metadata(self.ds_cfg['url'],
                                   self.ds_cfg['timeout'],
                                   self.ds_cfg['retries'],
-                                  self.ds_cfg['wait'])
+                                  self.ds_cfg['wait'],
+                                  self.ds_cfg['user-agent'])
 
     # Compare subid as instance id
     def check_instance_id(self, sys_cfg):
@@ -137,11 +136,12 @@ if __name__ == "__main__":
     md = vultr.get_metadata(BUILTIN_DS_CONFIG['url'],
                             BUILTIN_DS_CONFIG['timeout'],
                             BUILTIN_DS_CONFIG['retries'],
-                            BUILTIN_DS_CONFIG['wait'])
-    config = md['vendor-data']['config']
+                            BUILTIN_DS_CONFIG['wait'],
+                            BUILTIN_DS_CONFIG['user-agent'])
+    config = md['vendor-data']
     sysinfo = vultr.get_sysinfo()
 
     print(util.json_dumps(sysinfo))
-    print(config)
+    print(util.json_dumps(config))
 
 # vi: ts=4 expandtab

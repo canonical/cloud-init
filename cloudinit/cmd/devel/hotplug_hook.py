@@ -8,12 +8,14 @@ import time
 
 from cloudinit import log
 from cloudinit import reporting
+from cloudinit import stages
 from cloudinit.event import EventScope, EventType
 from cloudinit.net import activators, read_sys_net_safe
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.reporting import events
 from cloudinit.stages import Init
-from cloudinit.sources import DataSource, DataSourceNotFoundException
+from cloudinit.sources import DataSource  # noqa: F401
+from cloudinit.sources import DataSourceNotFoundException
 
 
 LOG = log.getLogger(__name__)
@@ -163,7 +165,9 @@ def is_enabled(hotplug_init, subsystem):
                 subsystem)
         ) from e
 
-    return hotplug_init.update_event_enabled(
+    return stages.update_event_enabled(
+        datasource=hotplug_init.datasource,
+        cfg=hotplug_init.cfg,
         event_source_type=EventType.HOTPLUG,
         scope=scope
     )
