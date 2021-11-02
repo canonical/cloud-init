@@ -1,3 +1,101 @@
+21.4
+ - Azure: fallback nic needs to be reevaluated during reprovisioning
+   (#1094) [Anh Vo]
+ - azure: pps imds (#1093) [Anh Vo]
+ - testing: Remove calls to 'install_new_cloud_init' (#1092)
+ - Add LXD datasource (#1040)
+ - Fix unhandled apt_configure case. (#1065) [Brett Holman]
+ - Allow libexec for hotplug (#1088)
+ - Add necessary mocks to test_ovf unit tests (#1087)
+ - Remove (deprecated) apt-key (#1068) [Brett Holman] (LP: #1836336)
+ - distros: Remove a completed "TODO" comment (#1086)
+ - cc_ssh.py: Add configuration for controlling ssh-keygen output (#1083)
+   [dermotbradley]
+ - Add "install hotplug" module (SC-476) (#1069) (LP: #1946003)
+ - hosts.alpine.tmpl: rearrange the order of short and long hostnames
+   (#1084) [dermotbradley]
+ - Add max version to docutils
+ - cloudinit/dmi.py: Change warning to debug to prevent console display
+   (#1082) [dermotbradley]
+ - remove unnecessary EOF string in
+   disable-sshd-keygen-if-cloud-init-active.conf (#1075) [Emanuele
+   Giuseppe Esposito]
+ - Add module 'write-files-deferred' executed in stage 'final' (#916)
+   [Lucendio]
+ - Bump pycloudlib to fix CI (#1080)
+ - Remove pin in dependencies for jsonschema (#1078)
+ - Add "Google" as possible system-product-name (#1077) [vteratipally]
+ - Update Debian security suite for bullseye (#1076) [Johann Queuniet]
+ - Leave the details of service management to the distro (#1074)
+   [Andy Fiddaman]
+ - Fix typos in setup.py (#1059) [Christian Clauss]
+ - Update Azure _unpickle (SC-500) (#1067) (LP: #1946644)
+ - cc_ssh.py: fix private key group owner and permissions (#1070)
+   [Emanuele Giuseppe Esposito]
+ - VMware: read network-config from ISO (#1066) [Thomas Weißschuh]
+ - testing: mock sleep in gce unit tests (#1072)
+ - CloudStack: fix data-server DNS resolution (#1004)
+   [Olivier Lemasle] (LP: #1942232)
+ - Fix unit test broken by pyyaml upgrade (#1071)
+ - testing: add get_cloud function (SC-461) (#1038)
+ - Inhibit sshd-keygen@.service if cloud-init is active (#1028)
+   [Ryan Harper]
+ - VMWARE: search the deployPkg plugin in multiarch dir (#1061)
+   [xiaofengw-vmware] (LP: #1944946)
+ - Fix set-name/interface DNS bug (#1058) [Andrew Kutz] (LP: #1946493)
+ - Use specified tmp location for growpart (#1046) [jshen28]
+ - .gitignore: ignore tags file for ctags users (#1057) [Brett Holman]
+ - Allow comments in runcmd and report failed commands correctly (#1049)
+   [Brett Holman] (LP: #1853146)
+ - tox integration: pass the *_proxy, GOOGLE_*, GCP_* env vars (#1050)
+   [Paride Legovini]
+ - Allow disabling of network activation (SC-307) (#1048) (LP: #1938299)
+ - renderer: convert relative imports to absolute (#1052) [Paride Legovini]
+ - Support ETHx_IP6_GATEWAY, SET_HOSTNAME on OpenNebula (#1045)
+   [Vlastimil Holer]
+ - integration-requirements: bump the pycloudlib commit (#1047)
+   [Paride Legovini]
+ - Allow Vultr to set MTU and use as-is configs (#1037) [eb3095]
+ - pin jsonschema in requirements.txt (#1043)
+ - testing: remove cloud_tests (#1020)
+ - Add andgein as contributor (#1042) [Andrew Gein]
+ - Make wording for module frequency consistent (#1039) [Nicolas Bock]
+ - Use ascii code for growpart (#1036) [jshen28]
+ - Add jshen28 as contributor (#1035) [jshen28]
+ - Skip test_cache_purged_on_version_change on Azure (#1033)
+ - Remove invalid ssh_import_id from examples (#1031)
+ - Cleanup Vultr support (#987) [eb3095]
+ - docs: update cc_disk_setup for fs to raw disk (#1017)
+ - HACKING.rst: change contact info to James Falcon (#1030)
+ - tox: bump the pinned flake8 and pylint version (#1029)
+   [Paride Legovini] (LP: #1944414)
+ - Add retries to DataSourceGCE.py when connecting to GCE (#1005)
+   [vteratipally]
+ - Set Azure to apply networking config every BOOT (#1023)
+ - Add connectivity_url to Oracle's EphemeralDHCPv4 (#988) (LP: #1939603)
+ - docs: fix typo and include sudo for report bugs commands (#1022)
+   [Renan Rodrigo] (LP: #1940236)
+ - VMware: Fix typo introduced in #947 and add test (#1019) [PengpengSun]
+ - Update IPv6 entries in /etc/hosts (#1021) [Richard Hansen] (LP: #1943798)
+ - Integration test upgrades for the 21.3-1 SRU (#1001)
+ - Add Jille to tools/.github-cla-signers (#1016) [Jille Timmermans]
+ - Improve ug_util.py (#1013) [Shreenidhi Shedi]
+ - Support openEuler OS (#1012) [zhuzaifangxuele]
+ - ssh_utils.py: ignore when sshd_config options are not key/value pairs
+   (#1007) [Emanuele Giuseppe Esposito]
+ - Set Azure to only update metadata on BOOT_NEW_INSTANCE (#1006)
+ - cc_update_etc_hosts: Use the distribution-defined path for the hosts
+   file (#983) [Andy Fiddaman]
+ - Add CloudLinux OS support (#1003) [Alexandr Kravchenko]
+ - puppet config: add the start_agent option (#1002) [Andrew Bogott]
+ - Fix `make style-check` errors (#1000) [Shreenidhi Shedi]
+ - Make cloud-id copyright year (#991) [Andrii Podanenko]
+ - Add support to accept-ra in networkd renderer (#999) [Shreenidhi Shedi]
+ - Update ds-identify to pass shellcheck (#979) [Andrew Kutz]
+ - Azure: Retry dhcp on timeouts when polling reprovisiondata (#998)
+   [aswinrajamannar]
+ - testing: Fix ssh keys integration test (#992)
+
 21.3
  - Azure: During primary nic detection, check interface status continuously
    before rebinding again (#990) [aswinrajamannar]
