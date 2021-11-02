@@ -498,6 +498,11 @@ class DataSourceAzure(sources.DataSource):
             self.fallback_interface,
             retries=10
         )
+
+        # reset _fallback_interface so that if the code enters reprovisioning
+        # flow, it will force re-evaluation of new fallback nic.
+        self._fallback_interface = None
+
         if not imds_md and not ovf_is_accessible:
             msg = 'No OVF or IMDS available'
             report_diagnostic_event(msg)
