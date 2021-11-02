@@ -434,10 +434,10 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
     @mock.patch(MOCKPATH + 'readurl', autospec=True)
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     @mock.patch(MOCKPATH + 'net.is_up')
-    def test_get_compute_metadata_uses_compute_url(
+    def test_get_metadata_uses_instance_url(
             self, m_net_is_up, m_dhcp, m_readurl):
         """Make sure readurl is called with the correct url when accessing
-        network metadata"""
+        metadata"""
         m_net_is_up.return_value = True
         m_readurl.return_value = url_helper.StringResponse(
             json.dumps(IMDS_NETWORK_METADATA).encode('utf-8'))
@@ -472,10 +472,10 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
     @mock.patch(MOCKPATH + 'readurl', autospec=True)
     @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
     @mock.patch(MOCKPATH + 'net.is_up')
-    def test_get_default_metadata_uses_compute_url(
+    def test_get_default_metadata_uses_instance_url(
             self, m_net_is_up, m_dhcp, m_readurl):
         """Make sure readurl is called with the correct url when accessing
-        network metadata"""
+        metadata"""
         m_net_is_up.return_value = True
         m_readurl.return_value = url_helper.StringResponse(
             json.dumps(IMDS_NETWORK_METADATA).encode('utf-8'))
@@ -485,6 +485,26 @@ class TestGetMetadataFromIMDS(HttprettyTestCase):
         m_readurl.assert_called_with(
             "http://169.254.169.254/metadata/instance?api-version="
             "2019-06-01", exception_cb=mock.ANY,
+            headers=mock.ANY, retries=mock.ANY,
+            timeout=mock.ANY, infinite=False)
+
+    @mock.patch(MOCKPATH + 'readurl', autospec=True)
+    @mock.patch(MOCKPATH + 'EphemeralDHCPv4')
+    @mock.patch(MOCKPATH + 'net.is_up')
+    def test_get_metadata_uses_extended_url(
+            self, m_net_is_up, m_dhcp, m_readurl):
+        """Make sure readurl is called with the correct url when accessing
+        metadata"""
+        m_net_is_up.return_value = True
+        m_readurl.return_value = url_helper.StringResponse(
+            json.dumps(IMDS_NETWORK_METADATA).encode('utf-8'))
+
+        dsaz.get_metadata_from_imds(
+            'eth0', retries=3, md_type=dsaz.metadata_type.all,
+            api_version="2021-08-01")
+        m_readurl.assert_called_with(
+            "http://169.254.169.254/metadata/instance?api-version="
+            "2021-08-01&extended=true", exception_cb=mock.ANY,
             headers=mock.ANY, retries=mock.ANY,
             timeout=mock.ANY, infinite=False)
 
@@ -949,6 +969,43 @@ scbus-1 on xpt0 bus 0
         with self.assertRaises(InvalidMetaDataException) as cm:
             dsrc.crawl_metadata()
         self.assertEqual(str(cm.exception), error_msg)
+
+    def test_crawl_metadata_call_imds_once_no_reprovision(self):
+        """If reprovisioning, report ready at the end"""
+        ovfenv = construct_valid_ovf_env(
+            platform_settings={"PreprovisionedVm": "False"}
+        )
+
+        data = {
+            'ovfcontent': ovfenv,
+            'sys_cfg': {}
+        }
+        dsrc = self._get_ds(data)
+        dsrc.crawl_metadata()
+        self.assertEqual(1, self.m_get_metadata_from_imds.call_count)
+
+    @mock.patch(
+        'cloudinit.sources.DataSourceAzure.EphemeralDHCPv4WithReporting')
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.write_file')
+    @mock.patch(
+        'cloudinit.sources.DataSourceAzure.DataSourceAzure._report_ready')
+    @mock.patch('cloudinit.sources.DataSourceAzure.DataSourceAzure._poll_imds')
+    def test_crawl_metadata_call_imds_twice_with_reprovision(
+        self, poll_imds_func, m_report_ready, m_write, m_dhcp
+    ):
+        """If reprovisioning, imds metadata will be fetched twice"""
+        ovfenv = construct_valid_ovf_env(
+            platform_settings={"PreprovisionedVm": "True"}
+        )
+
+        data = {
+            'ovfcontent': ovfenv,
+            'sys_cfg': {}
+        }
+        dsrc = self._get_ds(data)
+        poll_imds_func.return_value = ovfenv
+        dsrc.crawl_metadata()
+        self.assertEqual(2, self.m_get_metadata_from_imds.call_count)
 
     @mock.patch(
         'cloudinit.sources.DataSourceAzure.EphemeralDHCPv4WithReporting')
@@ -2637,6 +2694,22 @@ class TestPreprovisioningShouldReprovision(CiTestCase):
         isfile.return_value = False
         dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
         self.assertFalse(dsa._should_reprovision((None, None, {}, None)))
+
+    @mock.patch(MOCKPATH + 'util.write_file', autospec=True)
+    def test__should_reprovision_uses_imds_md(self, write_file, isfile):
+        """The _should_reprovision method should be able to
+        retrieve the preprovisioning VM type from imds metadata"""
+        isfile.return_value = False
+        dsa = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
+        self.assertTrue(dsa._should_reprovision(
+            (None, None, {}, None),
+            {'extended': {'compute': {'ppsType': 'Running'}}}))
+        self.assertFalse(dsa._should_reprovision(
+            (None, None, {}, None),
+            {}))
+        self.assertFalse(dsa._should_reprovision(
+            (None, None, {}, None),
+            {'extended': {'compute': {"hasCustomData": False}}}))
 
     @mock.patch(MOCKPATH + 'DataSourceAzure._poll_imds')
     def test_reprovision_calls__poll_imds(self, _poll_imds, isfile):
