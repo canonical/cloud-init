@@ -69,13 +69,21 @@ Datasource mode configuration override. Values: local, net, disabled.
     ETH<x>_NETWORK
     ETH<x>_MASK
     ETH<x>_GATEWAY
+    ETH<x>_GATEWAY6
     ETH<x>_DOMAIN
     ETH<x>_DNS
+    ETH<x>_SEARCH_DOMAIN
+    ETH<x>_MTU
+    ETH<x>_IP6
+    ETH<x>_IP6_ULA
+    ETH<x>_IP6_PREFIX_LENGTH
+    ETH<x>_IP6_GATEWAY
 
 Static `network configuration`_.
 
 ::
 
+    SET_HOSTNAME
     HOSTNAME
 
 Instance hostname.

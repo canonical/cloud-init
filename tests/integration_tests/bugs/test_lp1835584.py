@@ -59,6 +59,9 @@ def _check_iid_insensitive_across_kernel_upgrade(
     result = instance.execute("apt-get install linux-azure --assume-yes")
     if not result.ok:
         pytest.fail("Unable to install linux-azure kernel: {}".format(result))
+    # Remove ubuntu-azure-fips metapkg which mandates FIPS-flavour kernel
+    result = instance.execute("ua disable fips --assume-yes")
+    assert result.ok, "Unable to disable fips: {}".format(result)
     instance.restart()
     new_kernel = instance.execute("uname -r").strip()
     assert orig_kernel != new_kernel

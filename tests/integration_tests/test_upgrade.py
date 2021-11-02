@@ -5,6 +5,7 @@ import pytest
 
 from tests.integration_tests.clouds import ImageSpecification, IntegrationCloud
 from tests.integration_tests.conftest import get_validated_source
+from tests.integration_tests.util import verify_clean_log
 
 
 LOG = logging.getLogger('integration_testing.test_upgrade')
@@ -73,23 +74,29 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         pre_cloud_blame = instance.execute('cloud-init analyze blame')
 
         # Ensure no issues pre-upgrade
+        log = instance.read_from_file('/var/log/cloud-init.log')
         assert not json.loads(pre_result)['v1']['errors']
 
-        log = instance.read_from_file('/var/log/cloud-init.log')
-        assert 'Traceback' not in log
-        assert 'WARN' not in log
+        try:
+            verify_clean_log(log)
+        except AssertionError:
+            LOG.warning(
+                'There were errors/warnings/tracebacks pre-upgrade. '
+                'Any failures may be due to pre-upgrade problem')
 
-        # Upgrade and reboot
+        # Upgrade
         instance.install_new_cloud_init(source, take_snapshot=False)
-        instance.execute('hostname something-else')
-        instance.restart()
-        assert instance.execute('cloud-init status --wait --long').ok
 
         # 'cloud-init init' helps us understand if our pickling upgrade paths
         # have broken across re-constitution of a cached datasource. Some
         # platforms invalidate their datasource cache on reboot, so we run
         # it here to ensure we get a dirty run.
         assert instance.execute('cloud-init init').ok
+
+        # Reboot
+        instance.execute('hostname something-else')
+        instance.restart()
+        assert instance.execute('cloud-init status --wait --long').ok
 
         # get post values
         post_hostname = instance.execute('hostname')
@@ -105,13 +112,21 @@ def test_clean_boot_of_upgraded_package(session_cloud: IntegrationCloud):
         assert not json.loads(pre_result)['v1']['errors']
 
         log = instance.read_from_file('/var/log/cloud-init.log')
-        assert 'Traceback' not in log
-        assert 'WARN' not in log
+        verify_clean_log(log)
 
         # Ensure important things stayed the same
         assert pre_hostname == post_hostname
         assert pre_cloud_id == post_cloud_id
-        assert pre_result == post_result
+        try:
+            assert pre_result == post_result
+        except AssertionError:
+            if instance.settings.PLATFORM == 'azure':
+                pre_json = json.loads(pre_result)
+                post_json = json.loads(post_result)
+                assert pre_json['v1']['datasource'].startswith(
+                    'DataSourceAzure')
+                assert post_json['v1']['datasource'].startswith(
+                    'DataSourceAzure')
         assert pre_network == post_network
 
         # Calculate and log all the boot numbers

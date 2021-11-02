@@ -7,24 +7,17 @@
 #    Based on test_handler_set_hostname.py
 #
 #    This file is part of cloud-init. See LICENSE file for license information.
-
-from cloudinit.config import cc_seed_random
-
 import gzip
+import logging
 import tempfile
 from io import BytesIO
 
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
 from cloudinit import subp
 from cloudinit import util
-
-from cloudinit.sources import DataSourceNone
-
+from cloudinit.config import cc_seed_random
 from cloudinit.tests import helpers as t_help
 
-import logging
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -66,15 +59,6 @@ class TestRandomSeed(t_help.TestCase):
         gz_fh.close()
         return contents.getvalue()
 
-    def _get_cloud(self, distro, metadata=None):
-        paths = helpers.Paths({})
-        cls = distros.fetch(distro)
-        ubuntu_distro = cls(distro, {}, paths)
-        ds = DataSourceNone.DataSourceNone({}, ubuntu_distro, paths)
-        if metadata:
-            ds.metadata = metadata
-        return cloud.Cloud(ds, paths, {}, ubuntu_distro, None)
-
     def test_append_random(self):
         cfg = {
             'random_seed': {
@@ -82,7 +66,7 @@ class TestRandomSeed(t_help.TestCase):
                 'data': 'tiny-tim-was-here',
             }
         }
-        cc_seed_random.handle('test', cfg, self._get_cloud('ubuntu'), LOG, [])
+        cc_seed_random.handle('test', cfg, get_cloud('ubuntu'), LOG, [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("tiny-tim-was-here", contents)
 
@@ -96,7 +80,7 @@ class TestRandomSeed(t_help.TestCase):
             }
         }
         self.assertRaises(IOError, cc_seed_random.handle, 'test', cfg,
-                          self._get_cloud('ubuntu'), LOG, [])
+                          get_cloud('ubuntu'), LOG, [])
 
     def test_append_random_gzip(self):
         data = self._compress(b"tiny-toe")
@@ -107,7 +91,7 @@ class TestRandomSeed(t_help.TestCase):
                 'encoding': 'gzip',
             }
         }
-        cc_seed_random.handle('test', cfg, self._get_cloud('ubuntu'), LOG, [])
+        cc_seed_random.handle('test', cfg, get_cloud('ubuntu'), LOG, [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("tiny-toe", contents)
 
@@ -120,7 +104,7 @@ class TestRandomSeed(t_help.TestCase):
                 'encoding': 'gz',
             }
         }
-        cc_seed_random.handle('test', cfg, self._get_cloud('ubuntu'), LOG, [])
+        cc_seed_random.handle('test', cfg, get_cloud('ubuntu'), LOG, [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("big-toe", contents)
 
@@ -133,7 +117,7 @@ class TestRandomSeed(t_help.TestCase):
                 'encoding': 'base64',
             }
         }
-        cc_seed_random.handle('test', cfg, self._get_cloud('ubuntu'), LOG, [])
+        cc_seed_random.handle('test', cfg, get_cloud('ubuntu'), LOG, [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("bubbles", contents)
 
@@ -146,7 +130,7 @@ class TestRandomSeed(t_help.TestCase):
                 'encoding': 'b64',
             }
         }
-        cc_seed_random.handle('test', cfg, self._get_cloud('ubuntu'), LOG, [])
+        cc_seed_random.handle('test', cfg, get_cloud('ubuntu'), LOG, [])
         contents = util.load_file(self._seed_file)
         self.assertEqual("kit-kat", contents)
 
@@ -157,13 +141,13 @@ class TestRandomSeed(t_help.TestCase):
                 'data': 'tiny-tim-was-here',
             }
         }
-        c = self._get_cloud('ubuntu', {'random_seed': '-so-was-josh'})
+        c = get_cloud('ubuntu', metadata={'random_seed': '-so-was-josh'})
         cc_seed_random.handle('test', cfg, c, LOG, [])
         contents = util.load_file(self._seed_file)
         self.assertEqual('tiny-tim-was-here-so-was-josh', contents)
 
     def test_seed_command_provided_and_available(self):
-        c = self._get_cloud('ubuntu', {})
+        c = get_cloud('ubuntu')
         self.whichdata = {'pollinate': '/usr/bin/pollinate'}
         cfg = {'random_seed': {'command': ['pollinate', '-q']}}
         cc_seed_random.handle('test', cfg, c, LOG, [])
@@ -172,7 +156,7 @@ class TestRandomSeed(t_help.TestCase):
         self.assertIn(['pollinate', '-q'], subp_args)
 
     def test_seed_command_not_provided(self):
-        c = self._get_cloud('ubuntu', {})
+        c = get_cloud('ubuntu')
         self.whichdata = {}
         cc_seed_random.handle('test', {}, c, LOG, [])
 
@@ -180,7 +164,7 @@ class TestRandomSeed(t_help.TestCase):
         self.assertFalse(self.subp_called)
 
     def test_unavailable_seed_command_and_required_raises_error(self):
-        c = self._get_cloud('ubuntu', {})
+        c = get_cloud('ubuntu')
         self.whichdata = {}
         cfg = {'random_seed': {'command': ['THIS_NO_COMMAND'],
                                'command_required': True}}
@@ -188,7 +172,7 @@ class TestRandomSeed(t_help.TestCase):
                           'test', cfg, c, LOG, [])
 
     def test_seed_command_and_required(self):
-        c = self._get_cloud('ubuntu', {})
+        c = get_cloud('ubuntu')
         self.whichdata = {'foo': 'foo'}
         cfg = {'random_seed': {'command_required': True, 'command': ['foo']}}
         cc_seed_random.handle('test', cfg, c, LOG, [])
@@ -196,7 +180,7 @@ class TestRandomSeed(t_help.TestCase):
         self.assertIn(['foo'], [f['args'] for f in self.subp_called])
 
     def test_file_in_environment_for_command(self):
-        c = self._get_cloud('ubuntu', {})
+        c = get_cloud('ubuntu')
         self.whichdata = {'foo': 'foo'}
         cfg = {'random_seed': {'command_required': True, 'command': ['foo'],
                                'file': self._seed_file}}

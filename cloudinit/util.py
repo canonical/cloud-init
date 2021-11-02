@@ -297,7 +297,7 @@ def uniq_merge(*lists):
         if isinstance(a_list, str):
             a_list = a_list.strip().split(",")
             # Kickout the empty ones
-            a_list = [a for a in a_list if len(a)]
+            a_list = [a for a in a_list if a]
         combined_list.extend(a_list)
     return uniq_list(combined_list)
 
@@ -548,8 +548,9 @@ def system_info():
     if system == "linux":
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
-                'almalinux', 'alpine', 'arch', 'centos', 'debian', 'eurolinux',
-                'fedora', 'photon', 'rhel', 'rocky', 'suse', 'virtuozzo'):
+                'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
+                'debian', 'eurolinux', 'fedora', 'openEuler', 'photon',
+                'rhel', 'rocky', 'suse', 'virtuozzo'):
             var = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             var = 'ubuntu'
@@ -1879,6 +1880,20 @@ def chmod(path, mode):
             os.chmod(path, real_mode)
 
 
+def get_group_id(grp_name: str) -> int:
+    """
+    Returns the group id of a group name, or -1 if no group exists
+
+    @param grp_name: the name of the group
+    """
+    gid = -1
+    try:
+        gid = grp.getgrnam(grp_name).gr_gid
+    except KeyError:
+        LOG.debug("Group %s is not a valid group name", grp_name)
+    return gid
+
+
 def get_permissions(path: str) -> int:
     """
     Returns the octal permissions of the file/folder pointed by the path,
@@ -2030,6 +2045,9 @@ def shellify(cmdlist, add_header=True):
         elif isinstance(args, str):
             content = "%s%s\n" % (content, args)
             cmds_made += 1
+        # Yaml parsing of a comment results in None
+        elif args is None:
+            pass
         else:
             raise TypeError(
                 "Unable to shellify type '%s'. Expected list, string, tuple. "

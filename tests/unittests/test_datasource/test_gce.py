@@ -106,6 +106,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         self.m_platform_reports_gce = ppatch.start()
         self.m_platform_reports_gce.return_value = True
         self.addCleanup(ppatch.stop)
+        self.add_patch('time.sleep', 'm_sleep')  # just to speed up tests
         super(TestDataSourceGCE, self).setUp()
 
     def test_connection(self):

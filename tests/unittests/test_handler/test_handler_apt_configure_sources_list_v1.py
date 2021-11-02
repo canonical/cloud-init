@@ -9,19 +9,16 @@ import shutil
 import tempfile
 from unittest import mock
 
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
 from cloudinit import templater
 from cloudinit import subp
 from cloudinit import util
 
 from cloudinit.config import cc_apt_configure
-from cloudinit.sources import DataSourceNone
 
 from cloudinit.distros.debian import Distro
 
 from cloudinit.tests import helpers as t_help
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -80,16 +77,6 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         get_arch.return_value = 'amd64'
         self.addCleanup(apatcher.stop)
 
-    def _get_cloud(self, distro, metadata=None):
-        self.patchUtils(self.new_root)
-        paths = helpers.Paths({})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, {}, paths)
-        myds = DataSourceNone.DataSourceNone({}, mydist, paths)
-        if metadata:
-            myds.metadata.update(metadata)
-        return cloud.Cloud(myds, paths, {}, mydist, None)
-
     def apt_source_list(self, distro, mirror, mirrorcheck=None):
         """apt_source_list
         Test rendering of a source.list from template for a given distro
@@ -102,7 +89,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         else:
             cfg = {'apt_mirror': mirror}
 
-        mycloud = self._get_cloud(distro)
+        mycloud = get_cloud(distro)
 
         with mock.patch.object(util, 'write_file') as mockwf:
             with mock.patch.object(util, 'load_file',
@@ -175,7 +162,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     def test_apt_v1_srcl_custom(self):
         """Test rendering from a custom source.list template"""
         cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud()
 
         # the second mock restores the original subp
         with mock.patch.object(util, 'write_file') as mockwrite:
