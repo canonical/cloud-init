@@ -8,8 +8,10 @@ cloud-init (21.3-1-g6803368d-0ubuntu1~18.04.5) UNRELEASED; urgency=medium
     + cpick-612e3908-Add-connectivity_url-to-Oracle-s-EphemeralDHCPv4-988
     + cpick-dc227869-Set-Azure-to-apply-networking-config-every-BOOT-1023
     + cpick-9c147e83-Allow-disabling-of-network-activation-SC-307-1048
+  * refresh patches:
+   + debian/patches/renderer-do-not-prefer-netplan.patch
 
- -- James Falcon <james.falcon@canonical.com>  Wed, 03 Nov 2021 09:00:51 -0500
+ -- James Falcon <james.falcon@canonical.com>  Wed, 03 Nov 2021 09:00:52 -0500
 
 cloud-init (21.3-1-g6803368d-0ubuntu1~18.04.4) bionic; urgency=medium
 
