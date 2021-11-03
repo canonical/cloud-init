@@ -16,7 +16,7 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
-from typing import Any, Mapping
+from typing import Any, Mapping  # noqa: F401
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -49,8 +49,8 @@ OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
-    'redhat': ['almalinux', 'amazon', 'centos', 'eurolinux', 'fedora',
-               'photon', 'rhel', 'rocky', 'virtuozzo'],
+    'redhat': ['almalinux', 'amazon', 'centos', 'cloudlinux', 'eurolinux',
+               'fedora', 'openEuler', 'photon', 'rhel', 'rocky', 'virtuozzo'],
     'suse': ['opensuse', 'sles'],
 }
 
@@ -227,8 +227,11 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
         # Now try to bring them up
         if bring_up:
+            LOG.debug('Bringing up newly configured network interfaces')
             network_activator = activators.select_activator()
             network_activator.bring_up_all_interfaces(network_state)
+        else:
+            LOG.debug("Not bringing up newly configured network interfaces")
         return False
 
     def apply_network_config_names(self, netconfig):
@@ -795,6 +798,34 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
             args.append(message)
         return args
 
+    def manage_service(self, action, service):
+        """
+        Perform the requested action on a service. This handles the common
+        'systemctl' and 'service' cases and may be overridden in subclasses
+        as necessary.
+        May raise ProcessExecutionError
+        """
+        init_cmd = self.init_cmd
+        if self.uses_systemd() or 'systemctl' in init_cmd:
+            init_cmd = ['systemctl']
+            cmds = {'stop': ['stop', service],
+                    'start': ['start', service],
+                    'enable': ['enable', service],
+                    'restart': ['restart', service],
+                    'reload': ['reload-or-restart', service],
+                    'try-reload': ['reload-or-try-restart', service],
+                    }
+        else:
+            cmds = {'stop': [service, 'stop'],
+                    'start': [service, 'start'],
+                    'enable': [service, 'start'],
+                    'restart': [service, 'restart'],
+                    'reload': [service, 'restart'],
+                    'try-reload': [service, 'restart'],
+                    }
+        cmd = list(init_cmd) + list(cmds[action])
+        return subp.subp(cmd, capture=True)
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
@@ -848,7 +879,7 @@ def _sanitize_mirror_url(url: str):
       * Converts it to its IDN form (see below for details)
       * Replaces any non-Letters/Digits/Hyphen (LDH) characters in it with
         hyphens
-      * TODO: Remove any leading/trailing hyphens from each domain name label
+      * Removes any leading/trailing hyphens from each domain name label
 
     Before we replace any invalid domain name characters, we first need to
     ensure that any valid non-ASCII characters in the hostname will not be

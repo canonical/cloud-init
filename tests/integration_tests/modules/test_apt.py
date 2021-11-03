@@ -1,9 +1,11 @@
 """Series of integration tests covering apt functionality."""
 import re
-from tests.integration_tests.clouds import ImageSpecification
 
 import pytest
 
+from cloudinit.config import cc_apt_configure
+from cloudinit import gpg
+from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 
 
@@ -43,6 +45,13 @@ apt:
       keyid: 441614D8
       keyserver: keyserver.ubuntu.com
       source: "ppa:simplestreams-dev/trunk"
+    test_signed_by:
+      keyid: A2EB2DEC0BD7519B7B38BE38376A290EC8068B11
+      keyserver: keyserver.ubuntu.com
+      source: "deb [signed-by=$KEY_FILE] http://ppa.launchpad.net/juju/stable/ubuntu $RELEASE main"
+    test_bad_key:
+      key: ""
+      source: "deb $MIRROR $RELEASE main"
     test_key:
       source: "deb http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu $RELEASE main"
       key: |
@@ -91,12 +100,27 @@ TEST_KEYSERVER_KEY = "7260 0DB1 5B8E 4C8B 1964  B868 038A CC97 C660 A937"
 TEST_PPA_KEY = "3552 C902 B4DD F7BD 3842  1821 015D 28D7 4416 14D8"
 
 TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
+TEST_SIGNED_BY_KEY = "A2EB 2DEC 0BD7 519B 7B38  BE38 376A 290E C806 8B11"
 
 
 @pytest.mark.ci
 @pytest.mark.ubuntu
 @pytest.mark.user_data(USER_DATA)
 class TestApt:
+    def get_keys(self, class_client: IntegrationInstance):
+        """Return all keys in /etc/apt/trusted.gpg.d/ and /etc/apt/trusted.gpg
+        in human readable format. Mimics the output of apt-key finger
+        """
+        list_cmd = ' '.join(gpg.GPG_LIST) + ' '
+        keys = class_client.execute(list_cmd + cc_apt_configure.APT_LOCAL_KEYS)
+        print(keys)
+        files = class_client.execute(
+            'ls ' + cc_apt_configure.APT_TRUSTED_GPG_DIR)
+        for file in files.split():
+            path = cc_apt_configure.APT_TRUSTED_GPG_DIR + file
+            keys += class_client.execute(list_cmd + path) or ''
+        return keys
+
     def test_sources_list(self, class_client: IntegrationInstance):
         """Integration test for the apt module's `sources_list` functionality.
 
@@ -152,8 +176,33 @@ class TestApt:
             'http://ppa.launchpad.net/simplestreams-dev/trunk/ubuntu'
         ) in ppa_path_contents
 
-        keys = class_client.execute('apt-key finger')
-        assert TEST_PPA_KEY in keys
+        assert TEST_PPA_KEY in self.get_keys(class_client)
+
+    def test_signed_by(self, class_client: IntegrationInstance):
+        """Test the apt signed-by functionality.
+        """
+        release = ImageSpecification.from_os_image().release
+        source = (
+            "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_signed_by.gpg] "
+            "http://ppa.launchpad.net/juju/stable/ubuntu"
+            " {} main".format(release))
+        print(class_client.execute('cat /var/log/cloud-init.log'))
+        path_contents = class_client.read_from_file(
+            '/etc/apt/sources.list.d/test_signed_by.list')
+        assert path_contents == source
+
+        key = class_client.execute(
+            'gpg --no-default-keyring --with-fingerprint --list-keys '
+            '--keyring /etc/apt/cloud-init.gpg.d/test_signed_by.gpg')
+
+        assert TEST_SIGNED_BY_KEY in key
+
+    def test_bad_key(self, class_client: IntegrationInstance):
+        """Test the apt signed-by functionality.
+        """
+        with pytest.raises(OSError):
+            class_client.read_from_file(
+                '/etc/apt/trusted.list.d/test_bad_key.gpg')
 
     def test_key(self, class_client: IntegrationInstance):
         """Test the apt key functionality.
@@ -168,9 +217,7 @@ class TestApt:
         assert (
             'http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu'
         ) in test_archive_contents
-
-        keys = class_client.execute('apt-key finger')
-        assert TEST_KEY in keys
+        assert TEST_KEY in self.get_keys(class_client)
 
     def test_keyserver(self, class_client: IntegrationInstance):
         """Test the apt keyserver functionality.
@@ -186,8 +233,7 @@ class TestApt:
             'http://ppa.launchpad.net/cloud-init-raharper/curtin-dev/ubuntu'
         ) in test_keyserver_contents
 
-        keys = class_client.execute('apt-key finger')
-        assert TEST_KEYSERVER_KEY in keys
+        assert TEST_KEYSERVER_KEY in self.get_keys(class_client)
 
     def test_os_pipelining(self, class_client: IntegrationInstance):
         """Test 'os' settings does not write apt config file.

@@ -4,6 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+from typing import Dict, Any
 import configobj
 import logging
 import os
@@ -38,21 +39,26 @@ class NoDHCPLeaseError(Exception):
 
 
 class EphemeralDHCPv4(object):
-    def __init__(self, iface=None, connectivity_url=None, dhcp_log_func=None):
+    def __init__(
+        self,
+        iface=None,
+        connectivity_url_data: Dict[str, Any] = None,
+        dhcp_log_func=None
+    ):
         self.iface = iface
         self._ephipv4 = None
         self.lease = None
         self.dhcp_log_func = dhcp_log_func
-        self.connectivity_url = connectivity_url
+        self.connectivity_url_data = connectivity_url_data
 
     def __enter__(self):
         """Setup sandboxed dhcp context, unless connectivity_url can already be
         reached."""
-        if self.connectivity_url:
-            if has_url_connectivity(self.connectivity_url):
+        if self.connectivity_url_data:
+            if has_url_connectivity(self.connectivity_url_data):
                 LOG.debug(
                     'Skip ephemeral DHCP setup, instance has connectivity'
-                    ' to %s', self.connectivity_url)
+                    ' to %s', self.connectivity_url_data)
                 return
         return self.obtain_lease()
 
@@ -104,8 +110,8 @@ class EphemeralDHCPv4(object):
         if kwargs['static_routes']:
             kwargs['static_routes'] = (
                 parse_static_routes(kwargs['static_routes']))
-        if self.connectivity_url:
-            kwargs['connectivity_url'] = self.connectivity_url
+        if self.connectivity_url_data:
+            kwargs['connectivity_url_data'] = self.connectivity_url_data
         ephipv4 = EphemeralIPv4Network(**kwargs)
         ephipv4.__enter__()
         self._ephipv4 = ephipv4

@@ -1,14 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
-from cloudinit.config.cc_bootcmd import handle, schema
-from cloudinit.sources import DataSourceNone
-from cloudinit import (distros, helpers, cloud, subp, util)
-from cloudinit.tests.helpers import (
-    CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
-
 import logging
 import tempfile
 
+from cloudinit.config.cc_bootcmd import handle, schema
+from cloudinit import (subp, util)
+from cloudinit.tests.helpers import (
+    CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
+
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -39,18 +38,10 @@ class TestBootcmd(CiTestCase):
         self.subp = subp.subp
         self.new_root = self.tmp_dir()
 
-    def _get_cloud(self, distro):
-        paths = helpers.Paths({})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, {}, paths)
-        myds = DataSourceNone.DataSourceNone({}, mydist, paths)
-        paths.datasource = myds
-        return cloud.Cloud(myds, paths, {}, mydist, None)
-
     def test_handler_skip_if_no_bootcmd(self):
         """When the provided config doesn't contain bootcmd, skip it."""
         cfg = {}
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud()
         handle('notimportant', cfg, mycloud, LOG, None)
         self.assertIn(
             "Skipping module named notimportant, no 'bootcmd' key",
@@ -59,7 +50,7 @@ class TestBootcmd(CiTestCase):
     def test_handler_invalid_command_set(self):
         """Commands which can't be converted to shell will raise errors."""
         invalid_config = {'bootcmd': 1}
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud()
         with self.assertRaises(TypeError) as context_manager:
             handle('cc_bootcmd', invalid_config, cc, LOG, [])
         self.assertIn('Failed to shellify bootcmd', self.logs.getvalue())
@@ -75,7 +66,7 @@ class TestBootcmd(CiTestCase):
         invalid content.
         """
         invalid_config = {'bootcmd': 1}
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud()
         with self.assertRaises(TypeError):
             handle('cc_bootcmd', invalid_config, cc, LOG, [])
         self.assertIn(
@@ -92,7 +83,7 @@ class TestBootcmd(CiTestCase):
         """
         invalid_config = {
             'bootcmd': ['ls /', 20, ['wget', 'http://stuff/blah'], {'a': 'n'}]}
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud()
         with self.assertRaises(TypeError) as context_manager:
             handle('cc_bootcmd', invalid_config, cc, LOG, [])
         expected_warnings = [
@@ -111,7 +102,7 @@ class TestBootcmd(CiTestCase):
 
     def test_handler_creates_and_runs_bootcmd_script_with_instance_id(self):
         """Valid schema runs a bootcmd script with INSTANCE_ID in the env."""
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud()
         out_file = self.tmp_path('bootcmd.out', self.new_root)
         my_id = "b6ea0f59-e27d-49c6-9f87-79f19765a425"
         valid_config = {'bootcmd': [
@@ -125,7 +116,7 @@ class TestBootcmd(CiTestCase):
 
     def test_handler_runs_bootcmd_script_with_error(self):
         """When a valid script generates an error, that error is raised."""
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud()
         valid_config = {'bootcmd': ['exit 1']}  # Script with error
 
         with mock.patch(self._etmpfile_path, FakeExtendedTempFile):

@@ -38,9 +38,15 @@ def common_verify(client, expected_keys):
         # Ensure key is in the key file
         contents = client.read_from_file(filename)
         if user in ['ubuntu', 'root']:
-            # Our personal public key gets added by pycloudlib
             lines = contents.split('\n')
-            assert len(lines) == 2
+            if user == 'root':
+                # Our personal public key gets added by pycloudlib in
+                # addition to the default `ssh_authorized_keys`
+                assert len(lines) == 2
+            else:
+                # Clouds will insert the keys we've added to our accounts
+                # or for our launches
+                assert len(lines) >= 2
             assert keys.public_key.strip() in contents
         else:
             assert contents.strip() == keys.public_key.strip()

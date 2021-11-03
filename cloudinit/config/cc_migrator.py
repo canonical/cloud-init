@@ -17,7 +17,7 @@ false`` in config.
 
 **Internal name:** ``cc_migrator``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 

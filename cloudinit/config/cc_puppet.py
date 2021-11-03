@@ -59,10 +59,13 @@ Additionally it's possible to create a ``csr_attributes.yaml`` file for CSR
 attributes and certificate extension requests.
 See https://puppet.com/docs/puppet/latest/config_file_csr_attributes.html
 
-The puppet service will be automatically enabled after installation. A manual
-run can also be triggered by setting ``exec`` to ``true``, and additional
-arguments can be passed to ``puppet agent`` via the ``exec_args`` key (by
-default the agent will execute with the ``--test`` flag).
+By default, the puppet service will be automatically enabled after installation
+and set to automatically start on boot. To override this in favor of manual
+puppet execution set ``start_service`` to ``false``.
+
+A single manual run can be triggered by setting ``exec`` to ``true``, and
+additional arguments can be passed to ``puppet agent`` via the ``exec_args``
+key (by default the agent will execute with the ``--test`` flag).
 
 **Internal name:** ``cc_puppet``
 
@@ -85,6 +88,7 @@ default the agent will execute with the ``--test`` flag).
         package_name: 'puppet'
         exec: <true/false>
         exec_args: ['--test']
+        start_service: <true/false>
         conf:
             agent:
                 server: "puppetserver.example.org"
@@ -197,6 +201,9 @@ def handle(name, cfg, cloud, log, _args):
         puppet_cfg, 'install_type', 'packages')
     cleanup = util.get_cfg_option_bool(puppet_cfg, 'cleanup', True)
     run = util.get_cfg_option_bool(puppet_cfg, 'exec', default=False)
+    start_puppetd = util.get_cfg_option_bool(puppet_cfg,
+                                             'start_service',
+                                             default=True)
     aio_install_url = util.get_cfg_option_str(
         puppet_cfg, 'aio_install_url', default=AIO_INSTALL_URL)
 
@@ -291,7 +298,8 @@ def handle(name, cfg, cloud, log, _args):
                                   default_flow_style=False))
 
     # Set it up so it autostarts
-    _autostart_puppet(log)
+    if start_puppetd:
+        _autostart_puppet(log)
 
     # Run the agent if needed
     if run:
@@ -312,7 +320,8 @@ def handle(name, cfg, cloud, log, _args):
             cmd.extend(PUPPET_AGENT_DEFAULT_ARGS)
         subp.subp(cmd, capture=False)
 
-    # Start puppetd
-    subp.subp(['service', 'puppet', 'start'], capture=False)
+    if start_puppetd:
+        # Start puppetd
+        subp.subp(['service', 'puppet', 'start'], capture=False)
 
 # vi: ts=4 expandtab

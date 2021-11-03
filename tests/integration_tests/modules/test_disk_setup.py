@@ -6,6 +6,7 @@ from pycloudlib.lxd.instance import LXDInstance
 
 from cloudinit.subp import subp
 from tests.integration_tests.instances import IntegrationInstance
+from tests.integration_tests.util import verify_clean_log
 
 DISK_PATH = '/tmp/test_disk_setup_{}'.format(uuid4())
 
@@ -59,8 +60,7 @@ class TestDeviceAliases:
         ) in log
         assert 'changed my_alias.1 => /dev/sdb1' in log
         assert 'changed my_alias.2 => /dev/sdb2' in log
-        assert 'WARN' not in log
-        assert 'Traceback' not in log
+        verify_clean_log(log)
 
         lsblk = json.loads(client.execute('lsblk --json'))
         sdb = [x for x in lsblk['blockdevices'] if x['name'] == 'sdb'][0]
@@ -120,8 +120,7 @@ class TestPartProbeAvailability:
     """
 
     def _verify_first_disk_setup(self, client, log):
-        assert 'Traceback' not in log
-        assert 'WARN' not in log
+        verify_clean_log(log)
         lsblk = json.loads(client.execute('lsblk --json'))
         sdb = [x for x in lsblk['blockdevices'] if x['name'] == 'sdb'][0]
         assert len(sdb['children']) == 2
@@ -167,8 +166,7 @@ class TestPartProbeAvailability:
         client.restart()
 
         # Assert new setup works as expected
-        assert 'Traceback' not in log
-        assert 'WARN' not in log
+        verify_clean_log(log)
 
         lsblk = json.loads(client.execute('lsblk --json'))
         sdb = [x for x in lsblk['blockdevices'] if x['name'] == 'sdb'][0]
