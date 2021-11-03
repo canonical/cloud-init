@@ -1,8 +1,14 @@
 cloud-init (21.3-1-g6803368d-0ubuntu1~21.04.5) UNRELEASED; urgency=medium
 
   * d/upstream/metadata: Change contact to James Falcon
+  * drop the following cherry-picks now included:
+    + cpick-28e56d99-Azure-Retry-dhcp-on-timeouts-when-polling
+    + cpick-e69a8874-Set-Azure-to-only-update-metadata-on-BOOT_NEW_INSTANCE
+    + cpick-612e3908-Add-connectivity_url-to-Oracle-s-EphemeralDHCPv4-988
+    + cpick-dc227869-Set-Azure-to-apply-networking-config-every-BOOT-1023
+    + cpick-9c147e83-Allow-disabling-of-network-activation-SC-307-1048
 
- -- James Falcon <james.falcon@canonical.com>  Mon, 11 Oct 2021 15:37:48 -0500
+ -- James Falcon <james.falcon@canonical.com>  Wed, 03 Nov 2021 08:56:36 -0500
 
 cloud-init (21.3-1-g6803368d-0ubuntu1~21.04.4) hirsute; urgency=medium
 
