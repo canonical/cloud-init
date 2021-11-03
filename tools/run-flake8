@@ -1,0 +1,17 @@
+#!/bin/bash
+
+CR="
+"
+pycheck_dirs=( "cloudinit/" "tests/" "tools/"  "setup.py" )
+
+set -f
+if [ $# -eq 0 ]; then
+   files=( "${pycheck_dirs[@]}" )
+else
+   files=( "$@" )
+fi
+
+cmd=( "python3" -m "flake8" "${files[@]}" )
+
+echo "Running: " "${cmd[@]}" 1>&2
+exec "${cmd[@]}"

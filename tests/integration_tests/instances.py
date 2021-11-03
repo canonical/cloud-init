@@ -9,11 +9,14 @@ from pycloudlib.instance import BaseInstance
 from pycloudlib.result import Result
 
 from tests.integration_tests import integration_settings
+from tests.integration_tests.util import retry
 
 try:
     from typing import TYPE_CHECKING
     if TYPE_CHECKING:
-        from tests.integration_tests.clouds import IntegrationCloud
+        from tests.integration_tests.clouds import (  # noqa: F401
+            IntegrationCloud
+        )
 except ImportError:
     pass
 
@@ -140,26 +143,31 @@ class IntegrationInstance:
             snapshot_id = self.snapshot()
             self.cloud.snapshot_id = snapshot_id
 
+    # assert with retry because we can compete with apt already running in the
+    # background and get: E: Could not get lock /var/lib/apt/lists/lock - open
+    # (11: Resource temporarily unavailable)
+
+    @retry(tries=30, delay=1)
     def install_proposed_image(self):
         log.info('Installing proposed image')
-        remote_script = (
+        assert self.execute(
             'echo deb "http://archive.ubuntu.com/ubuntu '
-            '$(lsb_release -sc)-proposed main" | '
-            'tee /etc/apt/sources.list.d/proposed.list\n'
-            'apt-get update -q\n'
-            'apt-get install -qy cloud-init'
-        )
-        self.execute(remote_script)
+            '$(lsb_release -sc)-proposed main" >> '
+            '/etc/apt/sources.list.d/proposed.list'
+        ).ok
+        assert self.execute('apt-get update -q').ok
+        assert self.execute('apt-get install -qy cloud-init').ok
 
+    @retry(tries=30, delay=1)
     def install_ppa(self):
         log.info('Installing PPA')
-        remote_script = (
-            'add-apt-repository {repo} -y && '
-            'apt-get update -q && '
-            'apt-get install -qy cloud-init'
-        ).format(repo=self.settings.CLOUD_INIT_SOURCE)
-        self.execute(remote_script)
+        assert self.execute('add-apt-repository {} -y'.format(
+            self.settings.CLOUD_INIT_SOURCE)
+        ).ok
+        assert self.execute('apt-get update -q').ok
+        assert self.execute('apt-get install -qy cloud-init').ok
 
+    @retry(tries=30, delay=1)
     def install_deb(self):
         log.info('Installing deb package')
         deb_path = integration_settings.CLOUD_INIT_SOURCE
@@ -168,13 +176,13 @@ class IntegrationInstance:
         self.push_file(
             local_path=integration_settings.CLOUD_INIT_SOURCE,
             remote_path=remote_path)
-        remote_script = 'dpkg -i {path}'.format(path=remote_path)
-        self.execute(remote_script)
+        assert self.execute('dpkg -i {path}'.format(path=remote_path)).ok
 
+    @retry(tries=30, delay=1)
     def upgrade_cloud_init(self):
         log.info('Upgrading cloud-init to latest version in archive')
-        self.execute("apt-get update -q")
-        self.execute("apt-get install -qy cloud-init")
+        assert self.execute("apt-get update -q").ok
+        assert self.execute("apt-get install -qy cloud-init").ok
 
     def __enter__(self):
         return self

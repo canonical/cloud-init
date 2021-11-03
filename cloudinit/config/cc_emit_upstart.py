@@ -16,7 +16,7 @@ user configuration should be required.
 
 **Internal name:** ``cc_emit_upstart``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** ubuntu, debian
 """

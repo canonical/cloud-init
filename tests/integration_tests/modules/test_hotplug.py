@@ -40,15 +40,22 @@ def _get_ip_addr(client):
 
 
 @pytest.mark.openstack
+# On Bionic, we traceback when attempting to detect the hotplugged
+# device in the updated metadata. This is because Bionic is specifically
+# configured not to provide network metadata.
+@pytest.mark.not_bionic
 @pytest.mark.user_data(USER_DATA)
 def test_hotplug_add_remove(client: IntegrationInstance):
     ips_before = _get_ip_addr(client)
     log = client.read_from_file('/var/log/cloud-init.log')
     assert 'Exiting hotplug handler' not in log
+    assert client.execute(
+        'test -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules'
+    ).ok
 
     # Add new NIC
     added_ip = client.instance.add_network_interface()
-    _wait_till_hotplug_complete(client, expected_runs=2)
+    _wait_till_hotplug_complete(client, expected_runs=1)
     ips_after_add = _get_ip_addr(client)
     new_addition = [ip for ip in ips_after_add if ip.ip4 == added_ip][0]
 
@@ -63,7 +70,7 @@ def test_hotplug_add_remove(client: IntegrationInstance):
 
     # Remove new NIC
     client.instance.remove_network_interface(added_ip)
-    _wait_till_hotplug_complete(client, expected_runs=4)
+    _wait_till_hotplug_complete(client, expected_runs=2)
     ips_after_remove = _get_ip_addr(client)
     assert len(ips_after_remove) == len(ips_before)
     assert added_ip not in [ip.ip4 for ip in ips_after_remove]
@@ -82,12 +89,14 @@ def test_no_hotplug_in_userdata(client: IntegrationInstance):
     ips_before = _get_ip_addr(client)
     log = client.read_from_file('/var/log/cloud-init.log')
     assert 'Exiting hotplug handler' not in log
+    assert client.execute(
+        'test -f /etc/udev/rules.d/10-cloud-init-hook-hotplug.rules'
+    ).failed
 
     # Add new NIC
     client.instance.add_network_interface()
-    _wait_till_hotplug_complete(client)
     log = client.read_from_file('/var/log/cloud-init.log')
-    assert "Event Denied: scopes=['network'] EventType=hotplug" in log
+    assert 'hotplug-hook' not in log
 
     ips_after_add = _get_ip_addr(client)
     if len(ips_after_add) == len(ips_before) + 1:

@@ -50,7 +50,7 @@ growpart is::
 
 **Internal name:** ``cc_growpart``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 
@@ -72,6 +72,7 @@ import stat
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import subp
+from cloudinit import temp_utils
 from cloudinit import util
 
 frequency = PER_ALWAYS
@@ -142,21 +143,32 @@ class ResizeGrowPart(object):
         return False
 
     def resize(self, diskdev, partnum, partdev):
+        myenv = os.environ.copy()
+        myenv['LANG'] = 'C'
         before = get_size(partdev)
-        try:
-            subp.subp(["growpart", '--dry-run', diskdev, partnum])
-        except subp.ProcessExecutionError as e:
-            if e.exit_code != 1:
-                util.logexc(LOG, "Failed growpart --dry-run for (%s, %s)",
-                            diskdev, partnum)
-                raise ResizeFailedException(e) from e
-            return (before, before)
 
-        try:
-            subp.subp(["growpart", diskdev, partnum])
-        except subp.ProcessExecutionError as e:
-            util.logexc(LOG, "Failed: growpart %s %s", diskdev, partnum)
-            raise ResizeFailedException(e) from e
+        # growpart uses tmp dir to store intermediate states
+        # and may conflict with systemd-tmpfiles-clean
+        with temp_utils.tempdir(needs_exe=True) as tmpd:
+            growpart_tmp = os.path.join(tmpd, "growpart")
+            if not os.path.exists(growpart_tmp):
+                os.mkdir(growpart_tmp, 0o700)
+            myenv['TMPDIR'] = growpart_tmp
+            try:
+                subp.subp(["growpart", '--dry-run', diskdev, partnum],
+                          env=myenv)
+            except subp.ProcessExecutionError as e:
+                if e.exit_code != 1:
+                    util.logexc(LOG, "Failed growpart --dry-run for (%s, %s)",
+                                diskdev, partnum)
+                    raise ResizeFailedException(e) from e
+                return (before, before)
+
+            try:
+                subp.subp(["growpart", diskdev, partnum], env=myenv)
+            except subp.ProcessExecutionError as e:
+                util.logexc(LOG, "Failed: growpart %s %s", diskdev, partnum)
+                raise ResizeFailedException(e) from e
 
         return (before, get_size(partdev))
 

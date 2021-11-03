@@ -11,6 +11,7 @@
 import glob
 import os
 import re
+import pathlib
 from textwrap import dedent
 
 from cloudinit.config.schema import (
@@ -27,18 +28,22 @@ LOG = logging.getLogger(__name__)
 # this will match 'XXX:YYY' (ie, 'cloud-archive:foo' or 'ppa:bar')
 ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 
+APT_LOCAL_KEYS = '/etc/apt/trusted.gpg'
+APT_TRUSTED_GPG_DIR = '/etc/apt/trusted.gpg.d/'
+CLOUD_INIT_GPG_DIR = '/etc/apt/cloud-init.gpg.d/'
+
 frequency = PER_INSTANCE
 distros = ["ubuntu", "debian"]
 mirror_property = {
     'type': 'array',
-    'item': {
+    'items': {
         'type': 'object',
         'additionalProperties': False,
         'required': ['arches'],
         'properties': {
             'arches': {
                 'type': 'array',
-                'item': {
+                'items': {
                     'type': 'string'
                 },
                 'minItems': 1
@@ -49,7 +54,7 @@ mirror_property = {
             },
             'search': {
                 'type': 'array',
-                'item': {
+                'items': {
                     'type': 'string',
                     'format': 'uri'
                 },
@@ -108,11 +113,12 @@ schema = {
               search:
                 - 'http://cool.but-sometimes-unreachable.com/ubuntu'
                 - 'http://us.archive.ubuntu.com/ubuntu'
-              search_dns: <true/false>
+              search_dns: false
             - arches:
                 - s390x
                 - arm64
               uri: 'http://archive-to-use-for-arm64.example.com/ubuntu'
+
           security:
             - arches:
                 - default
@@ -139,7 +145,7 @@ schema = {
               source1:
                   keyid: 'keyid'
                   keyserver: 'keyserverurl'
-                  source: 'deb http://<url>/ xenial main'
+                  source: 'deb [signed-by=$KEY_FILE] http://<url>/ xenial main'
               source2:
                   source: 'ppa:<ppa-name>'
               source3:
@@ -255,7 +261,8 @@ schema = {
                             ``http://archive.ubuntu.com/ubuntu``.
                             - ``security`` => \
                             ``http://security.ubuntu.com/ubuntu``
-                        """)},
+                        """)
+                },
                 'security': {
                     **mirror_property,
                     'description': dedent("""\
@@ -312,7 +319,8 @@ schema = {
                             - ``$MIRROR``
                             - ``$RELEASE``
                             - ``$PRIMARY``
-                            - ``$SECURITY``""")
+                            - ``$SECURITY``
+                            - ``$KEY_FILE``""")
                 },
                 'conf': {
                     'type': 'string',
@@ -374,6 +382,7 @@ schema = {
                             - ``key``: a raw PGP key.
                             - ``keyserver``: alternate keyserver to pull \
                                     ``keyid`` key from.
+                            - ``filename``: specify the name of the .list file
 
                         The ``source`` key supports variable
                         replacements for the following strings:
@@ -381,7 +390,8 @@ schema = {
                             - ``$MIRROR``
                             - ``$PRIMARY``
                             - ``$SECURITY``
-                            - ``$RELEASE``""")
+                            - ``$RELEASE``
+                            - ``$KEY_FILE``""")
                 }
             }
         }
@@ -683,7 +693,7 @@ def add_mirror_keys(cfg, target):
     """Adds any keys included in the primary/security mirror clauses"""
     for key in ('primary', 'security'):
         for mirror in cfg.get(key, []):
-            add_apt_key(mirror, target)
+            add_apt_key(mirror, target, file_name=key)
 
 
 def generate_sources_list(cfg, release, mirrors, cloud):
@@ -714,20 +724,21 @@ def generate_sources_list(cfg, release, mirrors, cloud):
     util.write_file(aptsrc, disabled, mode=0o644)
 
 
-def add_apt_key_raw(key, target=None):
+def add_apt_key_raw(key, file_name, hardened=False, target=None):
     """
     actual adding of a key as defined in key argument
     to the system
     """
     LOG.debug("Adding key:\n'%s'", key)
     try:
-        subp.subp(['apt-key', 'add', '-'], data=key.encode(), target=target)
+        name = pathlib.Path(file_name).stem
+        return apt_key('add', output_file=name, data=key, hardened=hardened)
     except subp.ProcessExecutionError:
         LOG.exception("failed to add apt GPG Key to apt keyring")
         raise
 
 
-def add_apt_key(ent, target=None):
+def add_apt_key(ent, target=None, hardened=False, file_name=None):
     """
     Add key to the system as defined in ent (if any).
     Supports raw keys or keyid's
@@ -741,7 +752,10 @@ def add_apt_key(ent, target=None):
         ent['key'] = gpg.getkeybyid(ent['keyid'], keyserver)
 
     if 'key' in ent:
-        add_apt_key_raw(ent['key'], target)
+        return add_apt_key_raw(
+            ent['key'],
+            file_name or ent['filename'],
+            hardened=hardened)
 
 
 def update_packages(cloud):
@@ -751,9 +765,28 @@ def update_packages(cloud):
 def add_apt_sources(srcdict, cloud, target=None, template_params=None,
                     aa_repo_match=None):
     """
-    add entries in /etc/apt/sources.list.d for each abbreviated
-    sources.list entry in 'srcdict'.  When rendering template, also
-    include the values in dictionary searchList
+    install keys and repo source .list files defined in 'sources'
+
+    for each 'source' entry in the config:
+        1. expand template variables and write source .list file in
+                /etc/apt/sources.list.d/
+        2. install defined keys
+        3. update packages via distro-specific method (i.e. apt-key update)
+
+
+    @param srcdict: a dict containing elements required
+    @param cloud: cloud instance object
+
+    Example srcdict value:
+    {
+    'rio-grande-repo': {
+        'source': 'deb [signed-by=$KEY_FILE] $MIRROR $RELEASE main',
+        'keyid': 'B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77',
+        'keyserver': 'pgp.mit.edu'
+        }
+    }
+
+    Note: Deb822 format is not supported
     """
     if template_params is None:
         template_params = {}
@@ -770,7 +803,11 @@ def add_apt_sources(srcdict, cloud, target=None, template_params=None,
         if 'filename' not in ent:
             ent['filename'] = filename
 
-        add_apt_key(ent, target)
+        if 'source' in ent and '$KEY_FILE' in ent['source']:
+            key_file = add_apt_key(ent, target, hardened=True)
+            template_params['KEY_FILE'] = key_file
+        else:
+            key_file = add_apt_key(ent, target)
 
         if 'source' not in ent:
             continue
@@ -1006,7 +1043,7 @@ def get_arch_mirrorconfig(cfg, mirrortype, arch):
     # select the specification matching the target arch
     default = None
     for mirror_cfg_elem in mirror_cfg_list:
-        arches = mirror_cfg_elem.get("arches")
+        arches = mirror_cfg_elem.get("arches") or []
         if arch in arches:
             return mirror_cfg_elem
         if "default" in arches:
@@ -1087,6 +1124,81 @@ def apply_apt_config(cfg, proxy_fname, config_fname):
     elif os.path.isfile(config_fname):
         util.del_file(config_fname)
         LOG.debug("no apt config configured, removed %s", config_fname)
+
+
+def apt_key(command, output_file=None, data=None, hardened=False,
+            human_output=True):
+    """apt-key replacement
+
+    commands implemented: 'add', 'list', 'finger'
+
+    @param output_file: name of output gpg file (without .gpg or .asc)
+    @param data: key contents
+    @param human_output: list keys formatted for human parsing
+    @param hardened: write keys to to /etc/apt/cloud-init.gpg.d/ (referred to
+    with [signed-by] in sources file)
+    """
+
+    def _get_key_files():
+        """return all apt keys
+
+        /etc/apt/trusted.gpg (if it exists) and all keyfiles (and symlinks to
+        keyfiles) in /etc/apt/trusted.gpg.d/ are returned
+
+        based on apt-key implementation
+        """
+        key_files = [APT_LOCAL_KEYS] if os.path.isfile(APT_LOCAL_KEYS) else []
+
+        for file in os.listdir(APT_TRUSTED_GPG_DIR):
+            if file.endswith('.gpg') or file.endswith('.asc'):
+                key_files.append(APT_TRUSTED_GPG_DIR + file)
+        return key_files if key_files else ''
+
+    def apt_key_add():
+        """apt-key add <file>
+
+        returns filepath to new keyring, or '/dev/null' when an error occurs
+        """
+        file_name = '/dev/null'
+        if not output_file:
+            util.logexc(
+                LOG, 'Unknown filename, failed to add key: "{}"'.format(data))
+        else:
+            try:
+                key_dir = \
+                    CLOUD_INIT_GPG_DIR if hardened else APT_TRUSTED_GPG_DIR
+                stdout = gpg.dearmor(data)
+                file_name = '{}{}.gpg'.format(key_dir, output_file)
+                util.write_file(file_name, stdout)
+            except subp.ProcessExecutionError:
+                util.logexc(LOG, 'Gpg error, failed to add key: {}'.format(
+                    data))
+            except UnicodeDecodeError:
+                util.logexc(LOG, 'Decode error, failed to add key: {}'.format(
+                    data))
+        return file_name
+
+    def apt_key_list():
+        """apt-key list
+
+        returns string of all trusted keys (in /etc/apt/trusted.gpg and
+        /etc/apt/trusted.gpg.d/)
+        """
+        key_list = []
+        for key_file in _get_key_files():
+            try:
+                key_list.append(gpg.list(key_file, human_output=human_output))
+            except subp.ProcessExecutionError as error:
+                LOG.warning('Failed to list key "%s": %s', key_file, error)
+        return '\n'.join(key_list)
+
+    if command == 'add':
+        return apt_key_add()
+    elif command == 'finger' or command == 'list':
+        return apt_key_list()
+    else:
+        raise ValueError(
+            'apt_key() commands add, list, and finger are currently supported')
 
 
 CONFIG_CLEANERS = {

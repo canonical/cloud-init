@@ -710,6 +710,10 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
     def _v2_common(self, cfg):
         LOG.debug('v2_common: handling config:\n%s', cfg)
         for iface, dev_cfg in cfg.items():
+            if 'set-name' in dev_cfg:
+                set_name_iface = dev_cfg.get('set-name')
+                if set_name_iface:
+                    iface = set_name_iface
             if 'nameservers' in dev_cfg:
                 search = dev_cfg.get('nameservers').get('search', [])
                 dns = dev_cfg.get('nameservers').get('addresses', [])

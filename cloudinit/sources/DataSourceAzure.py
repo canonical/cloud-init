@@ -84,8 +84,8 @@ DEFAULT_PROVISIONING_ISO_DEV = '/dev/sr0'
 IMDS_TIMEOUT_IN_SECONDS = 2
 IMDS_URL = "http://169.254.169.254/metadata"
 IMDS_VER_MIN = "2019-06-01"
-IMDS_VER_WANT = "2021-01-01"
-
+IMDS_VER_WANT = "2021-08-01"
+IMDS_EXTENDED_VER_MIN = "2021-03-01"
 
 # This holds SSH key data including if the source was
 # from IMDS, as well as the SSH key data itself.
@@ -93,7 +93,7 @@ SSHKeys = namedtuple("SSHKeys", ("keys_from_imds", "ssh_keys"))
 
 
 class metadata_type(Enum):
-    compute = "{}/instance".format(IMDS_URL)
+    all = "{}/instance".format(IMDS_URL)
     network = "{}/instance/network".format(IMDS_URL)
     reprovisiondata = "{}/reprovisiondata".format(IMDS_URL)
 
@@ -339,13 +339,10 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
 class DataSourceAzure(sources.DataSource):
 
     dsname = 'Azure'
-    # Regenerate network config new_instance boot and every boot
     default_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,
         EventType.BOOT,
-        EventType.BOOT_LEGACY
     }}
-
     _negotiated = False
     _metadata_imds = sources.UNSET
     _ci_pkl_version = 1
@@ -366,7 +363,9 @@ class DataSourceAzure(sources.DataSource):
 
     def _unpickle(self, ci_pkl_version: int) -> None:
         super()._unpickle(ci_pkl_version)
-        if "iso_dev" not in self.__dict__:
+        if not hasattr(self, "failed_desired_api_version"):
+            self.failed_desired_api_version = False
+        if not hasattr(self, "iso_dev"):
             self.iso_dev = None
 
     def __str__(self):
@@ -495,10 +494,26 @@ class DataSourceAzure(sources.DataSource):
             "Found provisioning metadata in %s" % metadata_source,
             logger_func=LOG.debug)
 
-        perform_reprovision = reprovision or self._should_reprovision(ret)
+        imds_md = self.get_imds_data_with_api_fallback(
+            self.fallback_interface,
+            retries=10
+        )
+
+        # reset _fallback_interface so that if the code enters reprovisioning
+        # flow, it will force re-evaluation of new fallback nic.
+        self._fallback_interface = None
+
+        if not imds_md and not ovf_is_accessible:
+            msg = 'No OVF or IMDS available'
+            report_diagnostic_event(msg)
+            raise sources.InvalidMetaDataException(msg)
+
+        perform_reprovision = (
+            reprovision or
+            self._should_reprovision(ret, imds_md))
         perform_reprovision_after_nic_attach = (
             reprovision_after_nic_attach or
-            self._should_reprovision_after_nic_attach(ret))
+            self._should_reprovision_after_nic_attach(ret, imds_md))
 
         if perform_reprovision or perform_reprovision_after_nic_attach:
             if util.is_FreeBSD():
@@ -508,15 +523,12 @@ class DataSourceAzure(sources.DataSource):
             if perform_reprovision_after_nic_attach:
                 self._wait_for_all_nics_ready()
             ret = self._reprovision()
+            # fetch metadata again as it has changed after reprovisioning
+            imds_md = self.get_imds_data_with_api_fallback(
+                self.fallback_interface,
+                retries=10
+            )
 
-        imds_md = self.get_imds_data_with_api_fallback(
-            self.fallback_interface,
-            retries=10
-        )
-        if not imds_md and not ovf_is_accessible:
-            msg = 'No OVF or IMDS available'
-            report_diagnostic_event(msg)
-            raise sources.InvalidMetaDataException(msg)
         (md, userdata_raw, cfg, files) = ret
         self.seed = metadata_source
         crawled_data.update({
@@ -692,7 +704,7 @@ class DataSourceAzure(sources.DataSource):
             self,
             fallback_nic,
             retries,
-            md_type=metadata_type.compute,
+            md_type=metadata_type.all,
             exc_cb=retry_on_url_exc,
             infinite=False):
         """
@@ -1317,6 +1329,10 @@ class DataSourceAzure(sources.DataSource):
             except UrlError:
                 # Teardown our EphemeralDHCPv4 context on failure as we retry
                 self._ephemeral_dhcp_ctx.clean_network()
+
+                # Also reset this flag which determines if we should do dhcp
+                # during retries.
+                is_ephemeral_ctx_present = False
             finally:
                 if nl_sock:
                     nl_sock.close()
@@ -1404,7 +1420,17 @@ class DataSourceAzure(sources.DataSource):
                 "connectivity issues: %s" % e, logger_func=LOG.warning)
             return False
 
-    def _should_reprovision_after_nic_attach(self, candidate_metadata) -> bool:
+    def _ppstype_from_imds(self, imds_md: dict = None) -> str:
+        try:
+            return imds_md['extended']['compute']['ppsType']
+        except Exception as e:
+            report_diagnostic_event(
+                "Could not retrieve pps configuration from IMDS: %s" %
+                e, logger_func=LOG.debug)
+            return None
+
+    def _should_reprovision_after_nic_attach(
+            self, ovf_md, imds_md=None) -> bool:
         """Whether or not we should wait for nic attach and then poll
         IMDS for reprovisioning data. Also sets a marker file to poll IMDS.
 
@@ -1416,14 +1442,16 @@ class DataSourceAzure(sources.DataSource):
         the ISO, thus cloud-init needs to have a way of knowing that it should
         jump back into the waiting mode in order to retrieve the ovf_env.
 
-        @param candidate_metadata: Metadata obtained from reading ovf-env.
+        @param ovf_md: Metadata obtained from reading ovf-env.
+        @param imds_md: Metadata obtained from IMDS
         @return: Whether to reprovision after waiting for nics to be attached.
         """
-        if not candidate_metadata:
+        if not ovf_md:
             return False
-        (_md, _userdata_raw, cfg, _files) = candidate_metadata
+        (_md, _userdata_raw, cfg, _files) = ovf_md
         path = REPROVISION_NIC_ATTACH_MARKER_FILE
         if (cfg.get('PreprovisionedVMType', None) == "Savable" or
+            self._ppstype_from_imds(imds_md) == "Savable" or
                 os.path.isfile(path)):
             if not os.path.isfile(path):
                 LOG.info("Creating a marker file to wait for nic attach: %s",
@@ -1433,7 +1461,7 @@ class DataSourceAzure(sources.DataSource):
             return True
         return False
 
-    def _should_reprovision(self, ret):
+    def _should_reprovision(self, ovf_md, imds_md=None):
         """Whether or not we should poll IMDS for reprovisioning data.
         Also sets a marker file to poll IMDS.
 
@@ -1444,12 +1472,13 @@ class DataSourceAzure(sources.DataSource):
         However, since the VM reports ready to the Fabric, we will not attach
         the ISO, thus cloud-init needs to have a way of knowing that it should
         jump back into the polling loop in order to retrieve the ovf_env."""
-        if not ret:
+        if not ovf_md:
             return False
-        (_md, _userdata_raw, cfg, _files) = ret
+        (_md, _userdata_raw, cfg, _files) = ovf_md
         path = REPROVISION_MARKER_FILE
         if (cfg.get('PreprovisionedVm') is True or
-                cfg.get('PreprovisionedVMType', None) == 'Running' or
+            cfg.get('PreprovisionedVMType', None) == 'Running' or
+            self._ppstype_from_imds(imds_md) == "Running" or
                 os.path.isfile(path)):
             if not os.path.isfile(path):
                 LOG.info("Creating a marker file to poll imds: %s",
@@ -2236,7 +2265,7 @@ def _generate_network_config_from_fallback_config() -> dict:
 @azure_ds_telemetry_reporter
 def get_metadata_from_imds(fallback_nic,
                            retries,
-                           md_type=metadata_type.compute,
+                           md_type=metadata_type.all,
                            api_version=IMDS_VER_MIN,
                            exc_cb=retry_on_url_exc,
                            infinite=False):
@@ -2277,11 +2306,16 @@ def get_metadata_from_imds(fallback_nic,
 def _get_metadata_from_imds(
         retries,
         exc_cb,
-        md_type=metadata_type.compute,
+        md_type=metadata_type.all,
         api_version=IMDS_VER_MIN,
         infinite=False):
     url = "{}?api-version={}".format(md_type.value, api_version)
     headers = {"Metadata": "true"}
+
+    # support for extended metadata begins with 2021-03-01
+    if api_version >= IMDS_EXTENDED_VER_MIN and md_type == metadata_type.all:
+        url = url + "&extended=true"
+
     try:
         response = readurl(
             url, timeout=IMDS_TIMEOUT_IN_SECONDS, headers=headers,

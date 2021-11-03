@@ -1,20 +1,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
-
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit.config import cc_ca_certs
-from cloudinit import helpers
-from cloudinit import subp
-from cloudinit import util
-
-from cloudinit.tests.helpers import TestCase
-
 import logging
 import shutil
 import tempfile
 import unittest
 from contextlib import ExitStack
 from unittest import mock
+
+from cloudinit import distros
+from cloudinit.config import cc_ca_certs
+from cloudinit import helpers
+from cloudinit import subp
+from cloudinit import util
+from cloudinit.tests.helpers import TestCase
+
+from tests.unittests.util import get_cloud
 
 
 class TestNoConfig(unittest.TestCase):
@@ -56,10 +55,6 @@ class TestConfig(TestCase):
         paths = helpers.Paths({})
         return cls(kind, {}, paths)
 
-    def _get_cloud(self, kind):
-        distro = self._fetch_distro(kind)
-        return cloud.Cloud(None, self.paths, None, distro, None)
-
     def _mock_init(self):
         self.mocks = ExitStack()
         self.addCleanup(self.mocks.close)
@@ -81,7 +76,7 @@ class TestConfig(TestCase):
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro_name)
+            cloud = get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
@@ -94,7 +89,7 @@ class TestConfig(TestCase):
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro_name)
+            cloud = get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
@@ -107,7 +102,7 @@ class TestConfig(TestCase):
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro_name)
+            cloud = get_cloud(distro_name)
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
@@ -121,7 +116,7 @@ class TestConfig(TestCase):
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro_name)
+            cloud = get_cloud(distro_name)
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
@@ -135,7 +130,7 @@ class TestConfig(TestCase):
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro_name)
+            cloud = get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
@@ -148,7 +143,7 @@ class TestConfig(TestCase):
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro_name)
+            cloud = get_cloud(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 
             self.assertEqual(self.mock_add.call_count, 0)
@@ -161,7 +156,7 @@ class TestConfig(TestCase):
 
         for distro_name in cc_ca_certs.distros:
             self._mock_init()
-            cloud = self._get_cloud(distro_name)
+            cloud = get_cloud(distro_name)
             conf = cc_ca_certs._distro_ca_certs_configs(distro_name)
             cc_ca_certs.handle(self.name, config, cloud, self.log, self.args)
 

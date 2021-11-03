@@ -21,6 +21,7 @@ frequency = PER_INSTANCE
 
 DEFAULT_OWNER = "root:root"
 DEFAULT_PERMS = 0o644
+DEFAULT_DEFER = False
 UNKNOWN_ENC = 'text/plain'
 
 LOG = logging.getLogger(__name__)
@@ -90,6 +91,24 @@ schema = {
         # Create an empty file on the system
         write_files:
         - path: /root/CLOUD_INIT_WAS_HERE
+        """),
+        dedent("""\
+        # Defer writing the file until after the package (Nginx) is
+        # installed and its user is created alongside
+        write_files:
+        - path: /etc/nginx/conf.d/example.com.conf
+          content: |
+            server {
+                server_name example.com;
+                listen 80;
+                root /var/www;
+                location / {
+                    try_files $uri $uri/ $uri.html =404;
+                }
+            }
+          owner: 'nginx:nginx'
+          permissions: '0640'
+          defer: true
         """)],
     'frequency': frequency,
     'type': 'object',
@@ -151,6 +170,15 @@ schema = {
                             ``path`` exists. Default: **false**.
                         """),
                     },
+                    'defer': {
+                        'type': 'boolean',
+                        'default': DEFAULT_DEFER,
+                        'description': dedent("""\
+                            Defer writing the file until 'final' stage, after
+                            users were created, and packages were installed.
+                            Default: **{defer}**.
+                        """.format(defer=DEFAULT_DEFER)),
+                    },
                 },
                 'required': ['path'],
                 'additionalProperties': False
@@ -163,13 +191,18 @@ __doc__ = get_schema_doc(schema)  # Supplement python help()
 
 
 def handle(name, cfg, _cloud, log, _args):
-    files = cfg.get('write_files')
-    if not files:
+    validate_cloudconfig_schema(cfg, schema)
+    file_list = cfg.get('write_files', [])
+    filtered_files = [
+        f for f in file_list if not util.get_cfg_option_bool(f,
+                                                             'defer',
+                                                             DEFAULT_DEFER)
+    ]
+    if not filtered_files:
         log.debug(("Skipping module named %s,"
                    " no/empty 'write_files' key in configuration"), name)
         return
-    validate_cloudconfig_schema(cfg, schema)
-    write_files(name, files)
+    write_files(name, filtered_files)
 
 
 def canonicalize_extraction(encoding_type):
