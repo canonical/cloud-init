@@ -1,4 +1,4 @@
-cloud-init (21.4-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
+cloud-init (21.4-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * d/cloud-init.templates: Add LXD to default datasource_list with
     translations
