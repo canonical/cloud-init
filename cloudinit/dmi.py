@@ -156,8 +156,8 @@ def read_dmi_data(key):
     if dmidecode_path:
         return _call_dmidecode(key, dmidecode_path)
 
-    LOG.warning("did not find either path %s or dmidecode command",
-                DMI_SYS_PATH)
+    LOG.debug("did not find either path %s or dmidecode command",
+              DMI_SYS_PATH)
     return None
 
 # vi: ts=4 expandtab

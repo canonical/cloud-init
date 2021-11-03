@@ -91,8 +91,8 @@ class TestSubp(CiTestCase):
         tmp_file = self.tmp_path('test.out')
         cmd = 'echo HI MOM >> {tmp_file}'.format(tmp_file=tmp_file)
         (out, _err) = subp.subp(cmd.encode('utf-8'), shell=True)
-        self.assertEqual(u'', out)
-        self.assertEqual(u'', _err)
+        self.assertEqual('', out)
+        self.assertEqual('', _err)
         self.assertEqual('HI MOM\n', util.load_file(tmp_file))
 
     def test_subp_handles_strings(self):
@@ -100,8 +100,8 @@ class TestSubp(CiTestCase):
         tmp_file = self.tmp_path('test.out')
         cmd = 'echo HI MOM >> {tmp_file}'.format(tmp_file=tmp_file)
         (out, _err) = subp.subp(cmd, shell=True)
-        self.assertEqual(u'', out)
-        self.assertEqual(u'', _err)
+        self.assertEqual('', out)
+        self.assertEqual('', _err)
         self.assertEqual('HI MOM\n', util.load_file(tmp_file))
 
     def test_subp_handles_utf8(self):

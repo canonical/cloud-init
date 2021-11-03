@@ -15,7 +15,7 @@ class _CustomSafeLoader(yaml.SafeLoader):
 
 
 _CustomSafeLoader.add_constructor(
-    u'tag:yaml.org,2002:python/unicode',
+    'tag:yaml.org,2002:python/unicode',
     _CustomSafeLoader.construct_python_unicode)
 
 

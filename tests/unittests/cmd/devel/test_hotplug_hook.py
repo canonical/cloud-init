@@ -30,6 +30,11 @@ def mocks():
         return_value=FAKE_MAC
     )
 
+    update_event_enabled = mock.patch(
+        'cloudinit.stages.update_event_enabled',
+        return_value=True,
+    )
+
     m_network_state = mock.MagicMock(spec=NetworkState)
     parse_net = mock.patch(
         'cloudinit.cmd.devel.hotplug_hook.parse_net_config_data',
@@ -45,6 +50,7 @@ def mocks():
     sleep = mock.patch('time.sleep')
 
     read_sys_net.start()
+    update_event_enabled.start()
     parse_net.start()
     select_activator.start()
     m_sleep = sleep.start()
@@ -57,6 +63,7 @@ def mocks():
     )
 
     read_sys_net.stop()
+    update_event_enabled.stop()
     parse_net.stop()
     select_activator.stop()
     sleep.stop()
@@ -122,13 +129,16 @@ class TestHotplug:
 
     def test_update_event_disabled(self, mocks, caplog):
         init = mocks.m_init
-        init.update_event_enabled.return_value = False
-        handle_hotplug(
-            hotplug_init=init,
-            devpath='/dev/fake',
-            udevaction='remove',
-            subsystem='net'
-        )
+        with mock.patch(
+            'cloudinit.stages.update_event_enabled',
+            return_value=False
+        ):
+            handle_hotplug(
+                hotplug_init=init,
+                devpath='/dev/fake',
+                udevaction='remove',
+                subsystem='net'
+            )
         assert 'hotplug not enabled for event of type' in caplog.text
         init.datasource.update_metadata_if_supported.assert_not_called()
         mocks.m_activator.bring_up_interface.assert_not_called()

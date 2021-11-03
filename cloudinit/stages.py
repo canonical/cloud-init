@@ -9,7 +9,7 @@ import os
 import pickle
 import sys
 from collections import namedtuple
-from typing import Dict, Set
+from typing import Dict, Set  # noqa: F401
 
 from cloudinit.settings import (
     FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, PER_ONCE, RUN_CLOUD_CONFIG)
@@ -47,6 +47,54 @@ LOG = logging.getLogger(__name__)
 
 NULL_DATA_SOURCE = None
 NO_PREVIOUS_INSTANCE_ID = "NO_PREVIOUS_INSTANCE_ID"
+
+
+def update_event_enabled(
+    datasource: sources.DataSource,
+    cfg: dict,
+    event_source_type: EventType,
+    scope: EventScope = None
+) -> bool:
+    """Determine if a particular EventType is enabled.
+
+    For the `event_source_type` passed in, check whether this EventType
+    is enabled in the `updates` section of the userdata. If `updates`
+    is not enabled in userdata, check if defined as one of the
+    `default_events` on the datasource. `scope` may be used to
+    narrow the check to a particular `EventScope`.
+
+    Note that on first boot, userdata may NOT be available yet. In this
+    case, we only have the data source's `default_update_events`,
+    so an event that should be enabled in userdata may be denied.
+    """
+    default_events = datasource.default_update_events  # type: Dict[EventScope, Set[EventType]]    # noqa: E501
+    user_events = userdata_to_events(cfg.get('updates', {}))  # type: Dict[EventScope, Set[EventType]]  # noqa: E501
+    # A value in the first will override a value in the second
+    allowed = util.mergemanydict([
+        copy.deepcopy(user_events),
+        copy.deepcopy(default_events),
+    ])
+    LOG.debug('Allowed events: %s', allowed)
+
+    if not scope:
+        scopes = allowed.keys()
+    else:
+        scopes = [scope]
+    scope_values = [s.value for s in scopes]
+
+    for evt_scope in scopes:
+        if event_source_type in allowed.get(evt_scope, []):
+            LOG.debug(
+                'Event Allowed: scope=%s EventType=%s',
+                evt_scope.value, event_source_type
+            )
+            return True
+
+    LOG.debug(
+        'Event Denied: scopes=%s EventType=%s',
+        scope_values, event_source_type
+    )
+    return False
 
 
 class Init(object):
@@ -715,46 +763,6 @@ class Init(object):
         return (self.distro.generate_fallback_config(),
                 NetworkConfigSource.fallback)
 
-    def update_event_enabled(
-        self, event_source_type: EventType, scope: EventScope = None
-    ) -> bool:
-        """Determine if a particular EventType is enabled.
-
-        For the `event_source_type` passed in, check whether this EventType
-        is enabled in the `updates` section of the userdata. If `updates`
-        is not enabled in userdata, check if defined as one of the
-        `default_events` on the datasource. `scope` may be used to
-        narrow the check to a particular `EventScope`.
-
-        Note that on first boot, userdata may NOT be available yet. In this
-        case, we only have the data source's `default_update_events`,
-        so an event that should be enabled in userdata may be denied.
-        """
-        default_events = self.datasource.default_update_events  # type: Dict[EventScope, Set[EventType]]    # noqa: E501
-        user_events = userdata_to_events(self.cfg.get('updates', {}))  # type: Dict[EventScope, Set[EventType]]  # noqa: E501
-        # A value in the first will override a value in the second
-        allowed = util.mergemanydict([
-            copy.deepcopy(user_events),
-            copy.deepcopy(default_events),
-        ])
-        LOG.debug('Allowed events: %s', allowed)
-
-        if not scope:
-            scopes = allowed.keys()
-        else:
-            scopes = [scope]
-        scope_values = [s.value for s in scopes]
-
-        for evt_scope in scopes:
-            if event_source_type in allowed.get(evt_scope, []):
-                LOG.debug('Event Allowed: scope=%s EventType=%s',
-                          evt_scope.value, event_source_type)
-                return True
-
-        LOG.debug('Event Denied: scopes=%s EventType=%s',
-                  scope_values, event_source_type)
-        return False
-
     def _apply_netcfg_names(self, netcfg):
         try:
             LOG.debug("applying net config names for %s", netcfg)
@@ -784,8 +792,11 @@ class Init(object):
             return
 
         def event_enabled_and_metadata_updated(event_type):
-            return self.update_event_enabled(
-                event_type, scope=EventScope.NETWORK
+            return update_event_enabled(
+                datasource=self.datasource,
+                cfg=self.cfg,
+                event_source_type=event_type,
+                scope=EventScope.NETWORK
             ) and self.datasource.update_metadata_if_supported([event_type])
 
         def should_run_on_boot_event():

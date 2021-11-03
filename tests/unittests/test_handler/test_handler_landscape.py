@@ -1,14 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
+import logging
+from configobj import ConfigObj
 
 from cloudinit.config import cc_landscape
-from cloudinit import (distros, helpers, cloud, util)
-from cloudinit.sources import DataSourceNone
+from cloudinit import util
 from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock,
                                      wrap_and_call)
 
-from configobj import ConfigObj
-import logging
-
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -22,18 +21,11 @@ class TestLandscape(FilesystemMockingTestCase):
         self.new_root = self.tmp_dir()
         self.conf = self.tmp_path('client.conf', self.new_root)
         self.default_file = self.tmp_path('default_landscape', self.new_root)
-
-    def _get_cloud(self, distro):
         self.patchUtils(self.new_root)
-        paths = helpers.Paths({'templates_dir': self.new_root})
-        cls = distros.fetch(distro)
-        mydist = cls(distro, {}, paths)
-        myds = DataSourceNone.DataSourceNone({}, mydist, paths)
-        return cloud.Cloud(myds, paths, {}, mydist, None)
 
     def test_handler_skips_empty_landscape_cloudconfig(self):
         """Empty landscape cloud-config section does no work."""
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud('ubuntu')
         mycloud.distro = mock.MagicMock()
         cfg = {'landscape': {}}
         cc_landscape.handle('notimportant', cfg, mycloud, LOG, None)
@@ -41,7 +33,7 @@ class TestLandscape(FilesystemMockingTestCase):
 
     def test_handler_error_on_invalid_landscape_type(self):
         """Raise an error when landscape configuraiton option is invalid."""
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud('ubuntu')
         cfg = {'landscape': 'wrongtype'}
         with self.assertRaises(RuntimeError) as context_manager:
             cc_landscape.handle('notimportant', cfg, mycloud, LOG, None)
@@ -52,7 +44,7 @@ class TestLandscape(FilesystemMockingTestCase):
     @mock.patch('cloudinit.config.cc_landscape.subp')
     def test_handler_restarts_landscape_client(self, m_subp):
         """handler restarts lansdscape-client after install."""
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud('ubuntu')
         cfg = {'landscape': {'client': {}}}
         wrap_and_call(
             'cloudinit.config.cc_landscape',
@@ -64,7 +56,7 @@ class TestLandscape(FilesystemMockingTestCase):
 
     def test_handler_installs_client_and_creates_config_file(self):
         """Write landscape client.conf and install landscape-client."""
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud('ubuntu')
         cfg = {'landscape': {'client': {}}}
         expected = {'client': {
             'log_level': 'info',
@@ -91,7 +83,7 @@ class TestLandscape(FilesystemMockingTestCase):
         """Merge and write options from LSC_CLIENT_CFG_FILE with defaults."""
         # Write existing sparse client.conf file
         util.write_file(self.conf, '[client]\ncomputer_title = My PC\n')
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud('ubuntu')
         cfg = {'landscape': {'client': {}}}
         expected = {'client': {
             'log_level': 'info',
@@ -112,7 +104,7 @@ class TestLandscape(FilesystemMockingTestCase):
         """Merge and write options from cloud-config options with defaults."""
         # Write empty sparse client.conf file
         util.write_file(self.conf, '')
-        mycloud = self._get_cloud('ubuntu')
+        mycloud = get_cloud('ubuntu')
         cfg = {'landscape': {'client': {'computer_title': 'My PC'}}}
         expected = {'client': {
             'log_level': 'info',

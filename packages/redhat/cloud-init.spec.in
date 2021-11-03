@@ -119,12 +119,6 @@ version_pys=$(cd "$RPM_BUILD_ROOT" && find . -name version.py -type f)
 ( cd "$RPM_BUILD_ROOT" &&
   sed -i "s,@@PACKAGED_VERSION@@,%{version}-%{release}," $version_pys )
 
-# patch hotplug /usr/libexec script path
-hotplug_file=$(cd "$RPM_BUILD_ROOT" && find . -name 10-cloud-init-hook-hotplug.rules -type f)
-
-( cd "$RPM_BUILD_ROOT" &&
-  sed -i "s,/usr/lib,%{_libexecdir}," $hotplug_file )
-
 %clean
 rm -rf $RPM_BUILD_ROOT
 
@@ -178,10 +172,10 @@ fi
 %files
 
 /lib/udev/rules.d/66-azure-ephemeral.rules
-/lib/udev/rules.d/10-cloud-init-hook-hotplug.rules
 
 %if "%{init_system}" == "systemd"
 /usr/lib/systemd/system-generators/cloud-init-generator
+%{_sysconfdir}/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
 %{_unitdir}/cloud-*
 %else
 %attr(0755, root, root) %{_initddir}/cloud-config

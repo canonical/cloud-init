@@ -160,7 +160,7 @@ class DataSourceCloudStack(sources.DataSource):
 def get_data_server():
     # Returns the metadataserver from dns
     try:
-        addrinfo = getaddrinfo("data-server.", 80)
+        addrinfo = getaddrinfo("data-server", 80)
     except gaierror:
         LOG.debug("DNS Entry data-server not found")
         return None

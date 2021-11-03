@@ -50,15 +50,18 @@ filesystem on may be specified either as a path or as an alias in the format
 ``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device.
 The partition can also be specified by setting ``partition`` to the desired
 partition number. The ``partition`` option may also be set to ``auto``, in
-which this module will search for the existance of a filesystem matching the
+which this module will search for the existence of a filesystem matching the
 ``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip
 creating the filesystem if one is found. The ``partition`` option may also be
 set to ``any``, in which case any file system that matches ``type`` and
 ``device`` will cause this module to skip filesystem creation for the
 ``fs_setup`` entry, regardless of ``label`` matching or not. To write a
-filesystem directly to a device, use ``partition: none``. A label can be
-specified for the filesystem using ``label``, and the filesystem type can be
-specified using ``filesystem``.
+filesystem directly to a device, use ``partition: none``. ``partition: none``
+will **always** write the filesystem, even when the ``label`` and
+``filesystem`` are matched, and ``overwrite`` is ``false``.
+
+A label can be specified for the filesystem using
+``label``, and the filesystem type can be specified using ``filesystem``.
 
 .. note::
     If specifying device using the ``<device name>.<partition number>`` format,

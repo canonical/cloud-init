@@ -126,6 +126,7 @@ version_pys=$(cd "%{buildroot}" && find . -name version.py -type f)
 
 %{_sysconfdir}/dhcp/dhclient-exit-hooks.d/hook-dhclient
 %{_sysconfdir}/NetworkManager/dispatcher.d/hook-network-manager
+%{_sysconfdir}/systemd/system/sshd-keygen@.service.d/disable-sshd-keygen-if-cloud-init-active.conf
 
 # Python code is here...
 %{python_sitelib}/*

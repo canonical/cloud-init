@@ -131,7 +131,7 @@ matrix:
           env: TOXENV=flake8
         - python: 3.6
           env: TOXENV=pylint
-        - python: 3.6
+        - python: 3.7
           env: TOXENV=doc
         # Test all supported Python versions (but at the end, so we schedule
         # longer-running jobs first)

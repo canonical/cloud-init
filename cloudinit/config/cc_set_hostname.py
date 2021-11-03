@@ -34,7 +34,7 @@ based on initial hostname.
 
 **Internal name:** ``cc_set_hostname``
 
-**Module frequency:** per always
+**Module frequency:** always
 
 **Supported distros:** all
 

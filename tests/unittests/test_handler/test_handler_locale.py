@@ -3,26 +3,20 @@
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-
-from cloudinit.config import cc_locale
-
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import util
-
-from cloudinit.sources import DataSourceNoCloud
-
-from cloudinit.tests import helpers as t_help
-
-from configobj import ConfigObj
-
 import logging
 import os
 import shutil
 import tempfile
 from io import BytesIO
+from configobj import ConfigObj
 from unittest import mock
+
+from cloudinit import util
+from cloudinit.config import cc_locale
+from cloudinit.tests import helpers as t_help
+
+from tests.unittests.util import get_cloud
+
 
 LOG = logging.getLogger(__name__)
 
@@ -33,16 +27,7 @@ class TestLocale(t_help.FilesystemMockingTestCase):
         super(TestLocale, self).setUp()
         self.new_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.new_root)
-
-    def _get_cloud(self, distro):
         self.patchUtils(self.new_root)
-        paths = helpers.Paths({})
-
-        cls = distros.fetch(distro)
-        d = cls(distro, {}, paths)
-        ds = DataSourceNoCloud.DataSourceNoCloud({}, d, paths)
-        cc = cloud.Cloud(ds, paths, {}, d, None)
-        return cc
 
     def test_set_locale_arch(self):
         locale = 'en_GB.UTF-8'
@@ -51,7 +36,7 @@ class TestLocale(t_help.FilesystemMockingTestCase):
             'locale': locale,
             'locale_configfile': locale_configfile,
         }
-        cc = self._get_cloud('arch')
+        cc = get_cloud('arch')
 
         with mock.patch('cloudinit.distros.arch.subp.subp') as m_subp:
             with mock.patch('cloudinit.distros.arch.LOG.warning') as m_LOG:
@@ -72,7 +57,7 @@ class TestLocale(t_help.FilesystemMockingTestCase):
         cfg = {
             'locale': 'My.Locale',
         }
-        cc = self._get_cloud('sles')
+        cc = get_cloud('sles')
         cc_locale.handle('cc_locale', cfg, cc, LOG, [])
         if cc.distro.uses_systemd():
             locale_conf = cc.distro.systemd_locale_conf_fn
@@ -87,7 +72,7 @@ class TestLocale(t_help.FilesystemMockingTestCase):
 
     def test_set_locale_sles_default(self):
         cfg = {}
-        cc = self._get_cloud('sles')
+        cc = get_cloud('sles')
         cc_locale.handle('cc_locale', cfg, cc, LOG, [])
 
         if cc.distro.uses_systemd():
@@ -106,7 +91,7 @@ class TestLocale(t_help.FilesystemMockingTestCase):
         locale_conf = os.path.join(self.new_root, "etc/default/locale")
         util.write_file(locale_conf, 'LANG="en_US.UTF-8"\n')
         cfg = {'locale': 'C.UTF-8'}
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud('ubuntu')
         with mock.patch('cloudinit.distros.debian.subp.subp') as m_subp:
             with mock.patch('cloudinit.distros.debian.LOCALE_CONF_FN',
                             locale_conf):
@@ -118,7 +103,7 @@ class TestLocale(t_help.FilesystemMockingTestCase):
     def test_locale_rhel_defaults_en_us_utf8(self):
         """Test cc_locale gets en_US.UTF-8 from distro get_locale fallback"""
         cfg = {}
-        cc = self._get_cloud('rhel')
+        cc = get_cloud('rhel')
         update_sysconfig = 'cloudinit.distros.rhel_util.update_sysconfig_file'
         with mock.patch.object(cc.distro, 'uses_systemd') as m_use_sd:
             m_use_sd.return_value = True

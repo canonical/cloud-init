@@ -28,6 +28,40 @@ def verify_ordered_items_in_text(to_verify: list, text: str):
         assert index > -1, "Expected item not found: '{}'".format(item)
 
 
+def verify_clean_log(log):
+    """Assert no unexpected tracebacks or warnings in logs"""
+    warning_count = log.count('WARN')
+    expected_warnings = 0
+    traceback_count = log.count('Traceback')
+    expected_tracebacks = 0
+
+    warning_texts = [
+        # Consistently on all Azure launches:
+        # azure.py[WARNING]: No lease found; using default endpoint
+        'No lease found; using default endpoint'
+    ]
+    traceback_texts = []
+    if 'oracle' in log:
+        # LP: #1842752
+        lease_exists_text = 'Stderr: RTNETLINK answers: File exists'
+        warning_texts.append(lease_exists_text)
+        traceback_texts.append(lease_exists_text)
+        # LP: #1833446
+        fetch_error_text = (
+            'UrlError: 404 Client Error: Not Found for url: '
+            'http://169.254.169.254/latest/meta-data/')
+        warning_texts.append(fetch_error_text)
+        traceback_texts.append(fetch_error_text)
+
+    for warning_text in warning_texts:
+        expected_warnings += log.count(warning_text)
+    for traceback_text in traceback_texts:
+        expected_tracebacks += log.count(traceback_text)
+
+    assert warning_count == expected_warnings
+    assert traceback_count == expected_tracebacks
+
+
 @contextmanager
 def emit_dots_on_travis():
     """emit a dot every 60 seconds if running on Travis.
