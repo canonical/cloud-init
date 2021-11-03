@@ -211,7 +211,8 @@ class TestOpenNebulaDataSource(CiTestCase):
     def test_hostname(self, m_get_phys_by_mac):
         for dev in ('eth0', 'ens3'):
             m_get_phys_by_mac.return_value = {MACADDR: dev}
-            for k in ('HOSTNAME', 'PUBLIC_IP', 'IP_PUBLIC', 'ETH0_IP'):
+            for k in ('SET_HOSTNAME', 'HOSTNAME', 'PUBLIC_IP', 'IP_PUBLIC',
+                      'ETH0_IP'):
                 my_d = os.path.join(self.tmp, k)
                 populate_context_dir(my_d, {k: PUBLIC_IP})
                 results = ds.read_context_disk_dir(my_d, mock.Mock())
@@ -488,10 +489,11 @@ class TestOpenNebulaNetwork(unittest.TestCase):
         Verify get_gateway6('device') correctly returns IPv6 default gateway
         address.
         """
-        context = {'ETH0_GATEWAY6': IP6_GW}
-        net = ds.OpenNebulaNetwork(context, mock.Mock())
-        val = net.get_gateway6('eth0')
-        self.assertEqual(IP6_GW, val)
+        for k in ('GATEWAY6', 'IP6_GATEWAY'):
+            context = {'ETH0_' + k: IP6_GW}
+            net = ds.OpenNebulaNetwork(context, mock.Mock())
+            val = net.get_gateway6('eth0')
+            self.assertEqual(IP6_GW, val)
 
     def test_get_mask(self):
         """

@@ -97,6 +97,8 @@ class TestDataSource(CiTestCase):
         self.assertEqual(params.max_wait_seconds, self.datasource.url_max_wait)
         self.assertEqual(params.timeout_seconds, self.datasource.url_timeout)
         self.assertEqual(params.num_retries, self.datasource.url_retries)
+        self.assertEqual(params.sec_between_retries,
+                         self.datasource.url_sec_between_retries)
 
     def test_datasource_get_url_params_subclassed(self):
         """Subclasses can override get_url_params defaults."""
@@ -104,7 +106,7 @@ class TestDataSource(CiTestCase):
         distro = 'distrotest'  # generally should be a Distro object
         datasource = DataSourceTestSubclassNet(sys_cfg, distro, self.paths)
         expected = (datasource.url_max_wait, datasource.url_timeout,
-                    datasource.url_retries)
+                    datasource.url_retries, datasource.url_sec_between_retries)
         url_params = datasource.get_url_params()
         self.assertNotEqual(self.datasource.get_url_params(), url_params)
         self.assertEqual(expected, url_params)
@@ -114,14 +116,16 @@ class TestDataSource(CiTestCase):
         sys_cfg = {
             'datasource': {
                 'MyTestSubclass': {
-                    'max_wait': '1', 'timeout': '2', 'retries': '3'}}}
+                    'max_wait': '1', 'timeout': '2',
+                    'retries': '3', 'sec_between_retries': 4
+                }}}
         datasource = DataSourceTestSubclassNet(
             sys_cfg, self.distro, self.paths)
-        expected = (1, 2, 3)
+        expected = (1, 2, 3, 4)
         url_params = datasource.get_url_params()
         self.assertNotEqual(
             (datasource.url_max_wait, datasource.url_timeout,
-             datasource.url_retries),
+             datasource.url_retries, datasource.url_sec_between_retries),
             url_params)
         self.assertEqual(expected, url_params)
 
@@ -130,7 +134,8 @@ class TestDataSource(CiTestCase):
         # Set an override that is below 0 which gets ignored.
         sys_cfg = {'datasource': {'_undef': {'timeout': '-1'}}}
         datasource = DataSource(sys_cfg, self.distro, self.paths)
-        (_max_wait, timeout, _retries) = datasource.get_url_params()
+        (_max_wait, timeout, _retries,
+         _sec_between_retries) = datasource.get_url_params()
         self.assertEqual(0, timeout)
 
     def test_datasource_get_url_uses_defaults_on_errors(self):
@@ -142,7 +147,7 @@ class TestDataSource(CiTestCase):
         datasource = DataSource(sys_cfg, self.distro, self.paths)
         url_params = datasource.get_url_params()
         expected = (datasource.url_max_wait, datasource.url_timeout,
-                    datasource.url_retries)
+                    datasource.url_retries, datasource.url_sec_between_retries)
         self.assertEqual(expected, url_params)
         logs = self.logs.getvalue()
         expected_logs = [

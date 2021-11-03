@@ -5,44 +5,7 @@ import re
 from cloudinit import distros
 from cloudinit import ssh_util
 from cloudinit.tests.helpers import (CiTestCase, mock)
-
-
-class MyBaseDistro(distros.Distro):
-    # MyBaseDistro is here to test base Distro class implementations
-
-    def __init__(self, name="basedistro", cfg=None, paths=None):
-        if not cfg:
-            cfg = {}
-        if not paths:
-            paths = {}
-        super(MyBaseDistro, self).__init__(name, cfg, paths)
-
-    def install_packages(self, pkglist):
-        raise NotImplementedError()
-
-    def _write_network(self, settings):
-        raise NotImplementedError()
-
-    def package_command(self, command, args=None, pkgs=None):
-        raise NotImplementedError()
-
-    def update_package_sources(self):
-        raise NotImplementedError()
-
-    def apply_locale(self, locale, out_fn=None):
-        raise NotImplementedError()
-
-    def set_timezone(self, tz):
-        raise NotImplementedError()
-
-    def _read_hostname(self, filename, default=None):
-        raise NotImplementedError()
-
-    def _write_hostname(self, hostname, filename):
-        raise NotImplementedError()
-
-    def _read_system_hostname(self):
-        raise NotImplementedError()
+from tests.unittests.util import abstract_to_concrete
 
 
 @mock.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
@@ -53,7 +16,9 @@ class TestCreateUser(CiTestCase):
 
     def setUp(self):
         super(TestCreateUser, self).setUp()
-        self.dist = MyBaseDistro()
+        self.dist = abstract_to_concrete(distros.Distro)(
+            name='test', cfg=None, paths=None
+        )
 
     def _useradd2call(self, args):
         # return a mock call for the useradd command in args
