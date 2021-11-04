@@ -85,6 +85,8 @@ DEFAULT_CONFIG = {
     "ignore_growroot_disabled": False,
 }
 
+KEYDATA_PATH = "/cc_growpart_keydata"
+
 
 class RESIZE(object):
     SKIPPED = "SKIPPED"
@@ -293,35 +295,31 @@ def devent2dev(devent):
     return dev
 
 
-def is_mapped_device(blockdev) -> bool:
-    """
-    Check if a device is a mapped device.
+def get_mapped_device(blockdev):
+    """Returns underlying block device for a mapped device.
 
-    blockdev should look something like '/dev/mapper/disk1' if True,
-    otherwise something like /dev/vdb1.
+    If blockdev is a symlink pointing to a /dev/dm-* device, return
+    the device pointed to. Otherwise, return None.
     """
-    is_mapped = blockdev.startswith('/dev/mapper/')
-    LOG.debug("%s is %s a mapped device", blockdev, "" if is_mapped else "not")
-    return is_mapped
+    realpath = os.path.realpath(blockdev)
+    if realpath.startswith("/dev/dm-"):
+        LOG.debug("%s is a mapped device pointing to %s", blockdev, realpath)
+        return realpath
+    return None
 
 
 def is_encrypted(blockdev) -> bool:
     """
-    Check if a device is an encrypted device.
-
-    Will work for both mapped and raw devices.
+    Check if a device is an encrypted device. blockdev should have
+    a /dev/dm-* path.
     """
-    is_encrypted = False
-    if not subp.which('cryptsetup'):
-        LOG.debug('cryptsetup not found. Assuming no encrypted partitions')
+    if not subp.which("cryptsetup"):
+        LOG.debug("cryptsetup not found. Assuming no encrypted partitions")
         return False
+    is_encrypted = False
     with suppress(subp.ProcessExecutionError):
-        subp.subp(['cryptsetup', 'status', blockdev])
+        subp.subp(["cryptsetup", "status", blockdev])
         is_encrypted = True
-    if not is_encrypted:
-        with suppress(subp.ProcessExecutionError):
-            subp.subp(['cryptsetup', 'isLuks', blockdev])
-            is_encrypted = True
     LOG.debug(
         "Determined that %s is %s encrypted",
         blockdev,
@@ -331,20 +329,40 @@ def is_encrypted(blockdev) -> bool:
 
 
 def get_underlying_partition(blockdev):
-    command = 'dmsetup deps -o devname {}'.format(blockdev)
-    dep = subp.subp(command.split())[0]
+    command = ["dmsetup", "deps", "--options=devname", blockdev]
+    dep = subp.subp(command)[0]
     try:
         # Returned result should look something like:
         # 1 dependencies : (vdb1)
-        return '/dev/{}'.format(dep.split(': (')[1].split(')')[0])
+        return "/dev/{}".format(dep.split(": (")[1].split(")")[0])
     except IndexError:
         raise Exception(
             "Ran `{}`, but received unexpected stdout: `{}`".format(
                 command, dep))
 
 
-def resize_encrypted(blockdev):
-    subp.subp(['cryptsetup', 'resize', blockdev])
+def resize_encrypted(blockdev, partition):
+    """Use 'cryptsetup resize' to resize LUKS volume.
+
+    The loaded keyfile is json formatted with 'key' and 'slot' keys.
+    key is base64 encoded. Example:
+    {"key":"XFmCwX2FHIQp0LBWaLEMiHIyfxt1SGm16VvUAVledlY=","slot":5}
+    """
+    try:
+        with open(KEYDATA_PATH) as f:
+            keydata = json.load(f)
+        key = keydata["key"]
+        decoded_key = base64.b64decode(key)
+        slot = keydata["slot"]
+    except Exception as e:
+        raise Exception("Could not load encryption key") from e
+    subp.subp(
+        ["cryptsetup", "--key-file", "-", "resize", blockdev],
+        data=decoded_key,
+    )
+    subp.subp([
+        "cryptsetup", "luksKillSlot", "--batch-mode", partition, str(slot)
+    ])
 
 
 def resize_devices(resizer, devices):
@@ -353,9 +371,9 @@ def resize_devices(resizer, devices):
     info = []
 
     while devices:
-        devent = devices.pop(0)  # /mnt  TODO: DELETE ME
+        devent = devices.pop(0)
         try:
-            blockdev = devent2dev(devent)  # /dev/mapper/disk2  TODO: DELETE ME
+            blockdev = devent2dev(devent)
         except ValueError as e:
             info.append(
                 (
@@ -390,10 +408,9 @@ def resize_devices(resizer, devices):
             )
             continue
 
-        try:
-            (disk, ptnum) = device_part_info(blockdev)
-        except (TypeError, ValueError) as e:
-            if is_mapped_device(blockdev) and is_encrypted(blockdev):
+        underlying_blockdev = get_mapped_device(blockdev)
+        if underlying_blockdev and is_encrypted(underlying_blockdev):
+            try:
                 # We need to resize the underlying partition first
                 partition = get_underlying_partition(blockdev)
                 if partition not in [x[0] for x in info]:
@@ -405,13 +422,20 @@ def resize_devices(resizer, devices):
                     devices.insert(0, devent)
                     devices.insert(0, partition)
                     continue
-                resize_encrypted(blockdev)
-            else:
+                resize_encrypted(blockdev, partition)
+            except Exception as e:
                 info.append((
                     devent,
-                    RESIZE.SKIPPED,
-                    "device_part_info(%s) failed: %s" % (blockdev, e),
+                    RESIZE.FAILED,
+                    "Resizing encrypted device ({}) failed: {}".format(
+                        blockdev, e
+                    )
                 ))
+        try:
+            (disk, ptnum) = device_part_info(blockdev)
+        except (TypeError, ValueError) as e:
+            info.append((devent, RESIZE.SKIPPED,
+                         "device_part_info(%s) failed: %s" % (blockdev, e),))
             continue
 
         try:
