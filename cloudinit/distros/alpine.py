@@ -128,6 +128,9 @@ class Distro(distros.Distro):
         if command:
             cmd.append(command)
 
+        if command == 'upgrade':
+            cmd.extend(["--update-cache", "--available"])
+
         pkglist = util.expand_package_list('%s-%s', pkgs)
         cmd.extend(pkglist)
 
