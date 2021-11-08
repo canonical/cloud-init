@@ -16,6 +16,12 @@ chef:
 
 
 @pytest.mark.adhoc  # Can't be regularly reaching out to chef install script
+@pytest.mark.ec2
+@pytest.mark.gce
+@pytest.mark.azure
+@pytest.mark.oci
+@pytest.mark.lxd_container
+@pytest.mark.lxd_vm
 @pytest.mark.user_data(USERDATA)
 def test_chef_license(client: IntegrationInstance):
     log = client.read_from_file('/var/log/cloud-init.log')
