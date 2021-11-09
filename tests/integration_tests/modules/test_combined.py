@@ -33,8 +33,21 @@ locale: en_GB.UTF-8
 locale_configfile: /etc/default/locale
 ntp:
   servers: ['ntp.ubuntu.com']
+rsyslog:
+  configs:
+    - "*.* @@127.0.0.1"
+    - filename: 0-basic-config.conf
+      content: |
+        module(load="imtcp")
+        input(type="imtcp" port="514")
+        $template RemoteLogs,"/var/tmp/rsyslog.log"
+        *.* ?RemoteLogs
+        & ~
+  remotes:
+    me: "127.0.0.1"
 runcmd:
   - echo 'hello world' > /var/tmp/runcmd_output
+  - logger "My test log"
 """
 
 
@@ -101,6 +114,11 @@ class TestCombined:
             'en_GB.UTF-8',
             'en_US.UTF-8'
         ], locale_gen)
+
+    def test_rsyslog(self, class_client: IntegrationInstance):
+        """Test rsyslog is configured correctly."""
+        client = class_client
+        assert 'My test log' in client.read_from_file('/var/tmp/rsyslog.log')
 
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""

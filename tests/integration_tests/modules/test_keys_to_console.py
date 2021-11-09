@@ -4,6 +4,8 @@
 ``tests/cloud_tests/testcases/modules/keys_to_console.yaml``.)"""
 import pytest
 
+from tests.integration_tests.util import retry
+
 BLACKLIST_USER_DATA = """\
 #cloud-config
 ssh_fp_console_blacklist: [ssh-dss, ssh-dsa, ecdsa-sha2-nistp256]
@@ -30,6 +32,9 @@ class TestKeysToConsoleBlacklist:
         syslog = class_client.read_from_file("/var/log/syslog")
         assert "({})".format(key_type) not in syslog
 
+    # retry decorator here because it can take some time to be reflected
+    # in syslog
+    @retry(tries=30, delay=1)
     @pytest.mark.parametrize("key_type", ["ED25519", "RSA"])
     def test_included_keys(self, class_client, key_type):
         syslog = class_client.read_from_file("/var/log/syslog")
