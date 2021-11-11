@@ -2,6 +2,7 @@ import json
 import pytest
 import yaml
 
+from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import verify_clean_log
 
@@ -53,10 +54,35 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     assert "LXD socket API v. 1.0 (/dev/lxd/sock)" == v1["subplatform"]
     ds_cfg = json.loads(client.execute('cloud-init query ds').stdout)
     assert ["config", "meta_data"] == sorted(list(ds_cfg["1.0"].keys()))
-    assert ["user.meta_data"] == list(ds_cfg["1.0"]["config"].keys())
+    if (
+        client.settings.PLATFORM == "lxd_vm" and
+        ImageSpecification.from_os_image().release in ("xenial", "bionic")
+    ):
+        # pycloudlib injects user.vendor_data for lxd_vm on bionic and xenial
+        # to start the lxd-agent.
+        # https://github.com/canonical/pycloudlib/blob/main/pycloudlib/\
+        #    lxd/defaults.py#L13-L27
+        lxd_config_keys = ["user.meta_data", "user.vendor_data"]
+    else:
+        lxd_config_keys = ["user.meta_data"]
+    assert lxd_config_keys == list(ds_cfg["1.0"]["config"].keys())
     assert {"public-keys": v1["public_ssh_keys"][0]} == (
         yaml.safe_load(ds_cfg["1.0"]["config"]["user.meta_data"])
     )
     assert (
         "#cloud-config\ninstance-id" in ds_cfg["1.0"]["meta_data"]
     )
+    # Assert NoCloud seed data is still present in cloud image metadata
+    # This will start failing if we redact metadata templates from
+    # https://cloud-images.ubuntu.com/daily/server/jammy/current/\
+    #    jammy-server-cloudimg-amd64-lxd.tar.xz
+    nocloud_metadata = yaml.safe_load(
+        client.read_from_file(
+            "/var/lib/cloud/seed/nocloud-net/meta-data"
+        )
+    )
+    assert client.instance.name == nocloud_metadata["instance-id"]
+    assert (
+        nocloud_metadata["instance-id"] == nocloud_metadata["local-hostname"]
+    )
+    assert v1["public_ssh_keys"][0] == nocloud_metadata["public-keys"]
