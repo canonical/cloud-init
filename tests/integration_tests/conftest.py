@@ -190,6 +190,15 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
         integration_settings.LOCAL_LOG_PATH
     ) / session_start_time / node_id_path
     log.info("Writing logs to %s", log_dir)
+
+    # Add a symlink to the latest log output directory
+    last_symlink = Path(integration_settings.LOCAL_LOG_PATH) / 'last'
+    if os.path.islink(last_symlink):
+        os.unlink(last_symlink)
+    os.symlink(
+        Path(integration_settings.LOCAL_LOG_PATH) / session_start_time,
+        last_symlink)
+
     if not log_dir.exists():
         log_dir.mkdir(parents=True)
     tarball_path = log_dir / 'cloud-init.tar.gz'
