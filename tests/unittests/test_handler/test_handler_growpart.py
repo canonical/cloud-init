@@ -130,6 +130,7 @@ class TestConfig(TestCase):
             mockobj.assert_called_once_with(
                 ['growpart', '--help'], env={'LANG': 'C'})
 
+    @mock.patch.dict("os.environ", {'LANG': 'cs_CZ.UTF-8'}, clear=True)
     @mock.patch.dict("os.environ", clear=True)
     def test_mode_auto_falls_back_to_gpart(self):
         with mock.patch.object(
