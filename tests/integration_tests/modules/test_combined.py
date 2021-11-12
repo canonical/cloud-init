@@ -35,6 +35,7 @@ ntp:
   servers: ['ntp.ubuntu.com']
 runcmd:
   - echo 'hello world' > /var/tmp/runcmd_output
+  - #
 """
 
 
