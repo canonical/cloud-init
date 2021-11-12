@@ -24,8 +24,6 @@ NETWORK_V1 = {
         }
     ]
 }
-NETWORK_V1_MANUAL = deepcopy(NETWORK_V1)
-NETWORK_V1_MANUAL["config"][0]["subnets"][0]["control"] = "manual"
 
 
 def _add_network_v1_device(devname) -> dict:
@@ -79,18 +77,15 @@ def lxd_ds(request, paths, lxd_metadata):
 class TestGenerateFallbackNetworkConfig:
 
     @pytest.mark.parametrize(
-        "uname_machine,systemd_detect_virt,network_mode,expected", (
+        "uname_machine,systemd_detect_virt,expected", (
             # None for systemd_detect_virt returns None from which
-            ({}, None, "", NETWORK_V1),
-            ({}, None, "dhcp", NETWORK_V1),
-            # invalid network_mode logs warning
-            ({}, None, "bogus", NETWORK_V1),
-            ({}, None, "link-local", NETWORK_V1_MANUAL),
-            ("anything", "lxc\n", "", NETWORK_V1),
+            ({}, None, NETWORK_V1),
+            ({}, None, NETWORK_V1),
+            ("anything", "lxc\n", NETWORK_V1),
             # `uname -m` on kvm determines devname
-            ("x86_64", "kvm\n", "", _add_network_v1_device("enp5s0")),
-            ("ppc64le", "kvm\n", "", _add_network_v1_device("enp0s5")),
-            ("s390x", "kvm\n", "", _add_network_v1_device("enc9"))
+            ("x86_64", "kvm\n", _add_network_v1_device("enp5s0")),
+            ("ppc64le", "kvm\n", _add_network_v1_device("enp0s5")),
+            ("s390x", "kvm\n", _add_network_v1_device("enc9"))
         )
     )
     @mock.patch(DS_PATH + "util.system_info")
@@ -103,22 +98,14 @@ class TestGenerateFallbackNetworkConfig:
         m_system_info,
         uname_machine,
         systemd_detect_virt,
-        network_mode,
         expected,
-        caplog
     ):
-        """Return network config v2 based on uname -m, systemd-detect-virt.
-
-        LXC config network_mode of "link-local" will determine whether to set
-        "activation-mode: manual", leaving the interface down.
-        """
+        """Return network config v2 based on uname -m, systemd-detect-virt."""
         if systemd_detect_virt is None:
             m_which.return_value = None
         m_system_info.return_value = {"uname": ["", "", "", "", uname_machine]}
         m_subp.return_value = (systemd_detect_virt, "")
-        assert expected == lxd.generate_fallback_network_config(
-            network_mode=network_mode
-        )
+        assert expected == lxd.generate_fallback_network_config()
         if systemd_detect_virt is None:
             assert 0 == m_subp.call_count
             assert 0 == m_system_info.call_count
@@ -130,10 +117,6 @@ class TestGenerateFallbackNetworkConfig:
                 assert 0 == m_system_info.call_count
             else:
                 assert 1 == m_system_info.call_count
-        if network_mode not in ("dhcp", "", "link-local"):
-            assert "Ignoring unexpected value user.network_mode: {}".format(
-                network_mode
-            ) in caplog.text
 
 
 class TestDataSourceLXD:

@@ -43,12 +43,11 @@ LXD_SOCKET_API_VERSION = "1.0"
 CONFIG_KEY_ALIASES = {
     "user.user-data": "user-data",
     "user.network-config": "network-config",
-    "user.network_mode": "network_mode",
     "user.vendor-data": "vendor-data"
 }
 
 
-def generate_fallback_network_config(network_mode: str = "") -> dict:
+def generate_fallback_network_config() -> dict:
     """Return network config V1 dict representing instance network config."""
     network_v1 = {
         "version": 1,
@@ -76,12 +75,6 @@ def generate_fallback_network_config(network_mode: str = "") -> dict:
                 network_v1["config"][0]["name"] = "enc9"
             else:
                 network_v1["config"][0]["name"] = "enp5s0"
-    if network_mode == "link-local":
-        network_v1["config"][0]["subnets"][0]["control"] = "manual"
-    elif network_mode not in ("", "dhcp"):
-        LOG.warning(
-            "Ignoring unexpected value user.network_mode: %s", network_mode
-        )
     return network_v1
 
 
@@ -244,10 +237,7 @@ class DataSourceLXD(sources.DataSource):
                     "network-config"
                 )
             else:
-                network_mode = self._crawled_metadata.get("network_mode", "")
-                self._network_config = generate_fallback_network_config(
-                    network_mode
-                )
+                self._network_config = generate_fallback_network_config()
         return self._network_config
 
 
