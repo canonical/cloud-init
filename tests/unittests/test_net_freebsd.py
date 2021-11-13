@@ -1,8 +1,8 @@
 import os
-import yaml
 
 import cloudinit.net
 import cloudinit.net.network_state
+from cloudinit import safeyaml
 from cloudinit.tests.helpers import (CiTestCase, mock, readResource, dir2dict)
 
 
@@ -65,7 +65,7 @@ class TestFreeBSDRoundTrip(CiTestCase):
         entry = {
             'yaml': V1,
         }
-        network_config = yaml.load(entry['yaml'])
+        network_config = safeyaml.load(entry['yaml'])
         ns = cloudinit.net.network_state.parse_net_config_data(network_config)
         files = self._render_and_read(state=ns)
         assert files == {

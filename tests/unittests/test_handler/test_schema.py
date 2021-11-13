@@ -34,8 +34,10 @@ class GetSchemaTest(CiTestCase):
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
                 'cc_write_files',
+                'cc_write_files_deferred',
                 'cc_zypper_add_repo',
-                'cc_chef'
+                'cc_chef',
+                'cc_install_hotplug',
             ],
             [subschema['id'] for subschema in schema['allOf']])
         self.assertEqual('cloud-config-schema', schema['id'])
@@ -108,11 +110,11 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
     def test_validateconfig_schema_honors_formats(self):
         """With strict True, validate_cloudconfig_schema errors on format."""
         schema = {
-            'properties': {'p1': {'type': 'string', 'format': 'hostname'}}}
+            'properties': {'p1': {'type': 'string', 'format': 'email'}}}
         with self.assertRaises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema({'p1': '-1'}, schema, strict=True)
         self.assertEqual(
-            "Cloud config schema errors: p1: '-1' is not a 'hostname'",
+            "Cloud config schema errors: p1: '-1' is not a 'email'",
             str(context_mgr.exception))
 
 
@@ -189,12 +191,12 @@ class ValidateCloudConfigFileTest(CiTestCase):
     def test_validateconfig_file_sctrictly_validates_schema(self):
         """validate_cloudconfig_file raises errors on invalid schema."""
         schema = {
-            'properties': {'p1': {'type': 'string', 'format': 'hostname'}}}
-        write_file(self.config_file, '#cloud-config\np1: "-1"')
+            'properties': {'p1': {'type': 'string', 'format': 'string'}}}
+        write_file(self.config_file, '#cloud-config\np1: -1')
         with self.assertRaises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_file(self.config_file, schema)
         self.assertEqual(
-            "Cloud config schema errors: p1: '-1' is not a 'hostname'",
+            "Cloud config schema errors: p1: -1 is not of type 'string'",
             str(context_mgr.exception))
 
 

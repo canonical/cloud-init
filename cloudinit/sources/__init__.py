@@ -196,6 +196,7 @@ class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
         EventType.BOOT_NEW_INSTANCE,
         EventType.BOOT,
         EventType.BOOT_LEGACY,
+        EventType.HOTPLUG,
     }}
     default_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,

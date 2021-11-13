@@ -151,6 +151,7 @@ cloud_final_modules:
 {% if variant in ["ubuntu", "unknown"] %}
  - ubuntu-drivers
 {% endif %}
+ - write-files-deferred
  - puppet
  - chef
  - mcollective
@@ -165,6 +166,7 @@ cloud_final_modules:
  - scripts-user
  - ssh-authkey-fingerprints
  - keys-to-console
+ - install-hotplug
  - phone-home
  - final-message
  - power-state-change

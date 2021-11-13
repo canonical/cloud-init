@@ -40,6 +40,7 @@ def is_generator(p):
 def pkg_config_read(library, var):
     fallbacks = {
         'systemd': {
+            'systemdsystemconfdir': '/etc/systemd/system',
             'systemdsystemunitdir': '/lib/systemd/system',
             'systemdsystemgeneratordir': '/lib/systemd/system-generators',
         }
@@ -170,10 +171,10 @@ elif os.path.isfile('/etc/system-release-cpe'):
         cpe_data = f.read().rstrip().split(':')
 
         if cpe_data[1] == "\o":  # noqa: W605
-            # URI formated CPE
+            # URI formatted CPE
             inc = 0
         else:
-            # String formated CPE
+            # String formatted CPE
             inc = 1
         (cpe_vendor, cpe_product, cpe_version) = cpe_data[2+inc:5+inc]
         if cpe_vendor == "amazon":
@@ -237,7 +238,7 @@ class InitsysInstallData(install):
                     continue
                 self.distribution.data_files.append(
                     (INITSYS_ROOTS[k], INITSYS_FILES[k]))
-        # Force that command to reinitalize (with new file list)
+        # Force that command to reinitialize (with new file list)
         self.distribution.reinitialize_command('install_data', True)
 
 
@@ -270,7 +271,9 @@ if not platform.system().endswith('BSD'):
         (ETC + '/NetworkManager/dispatcher.d/',
          ['tools/hook-network-manager']),
         (ETC + '/dhcp/dhclient-exit-hooks.d/', ['tools/hook-dhclient']),
-        (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')])
+        (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')]),
+        (ETC + '/systemd/system/sshd-keygen@.service.d/',
+         ['systemd/disable-sshd-keygen-if-cloud-init-active.conf']),
     ])
 # Use a subclass for install that handles
 # adding on the right init system configuration files

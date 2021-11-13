@@ -189,6 +189,19 @@ class TestWriteFiles(FilesystemMockingTestCase):
             len(gz_aliases + gz_b64_aliases + b64_aliases) * len(datum))
         self.assertEqual(len(expected), flen_expected)
 
+    def test_deferred(self):
+        self.patchUtils(self.tmp)
+        file_path = '/tmp/deferred.file'
+        config = {
+            'write_files': [
+                {'path': file_path, 'defer': True}
+            ]
+        }
+        cc = self.tmp_cloud('ubuntu')
+        handle('cc_write_file', config, cc, LOG, [])
+        with self.assertRaises(FileNotFoundError):
+            util.load_file(file_path)
+
 
 class TestDecodePerms(CiTestCase):
 

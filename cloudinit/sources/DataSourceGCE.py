@@ -257,7 +257,7 @@ def read_md(address=None, url_params=None, platform_check=True):
 
 def platform_reports_gce():
     pname = dmi.read_dmi_data('system-product-name') or "N/A"
-    if pname == "Google Compute Engine":
+    if pname == "Google Compute Engine" or pname == "Google":
         return True
 
     # system-product-name is not always guaranteed (LP: #1674861)
