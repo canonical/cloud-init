@@ -3,6 +3,7 @@
 from cloudinit import cloud
 from cloudinit.config import cc_growpart
 from cloudinit import subp
+from cloudinit import temp_utils
 
 from cloudinit.tests.helpers import TestCase
 
@@ -163,7 +164,6 @@ class TestConfig(TestCase):
 
     @mock.patch.dict("os.environ", {'LANG': 'cs_CZ.UTF-8'}, clear=True)
     @mock.patch.object(temp_utils, 'mkdtemp', return_value='/tmp/much-random')
-    @mock.patch.object(os, 'mkdtemp', return_value='/tmp/much-random')
     @mock.patch.object(stat, 'S_ISDIR', return_value=False)
     @mock.patch.object(os.path, 'samestat', return_value=True)
     @mock.patch.object(os.path, "join", return_value='/tmp')
