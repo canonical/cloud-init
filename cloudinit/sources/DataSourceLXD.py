@@ -10,6 +10,7 @@ Notes:
  * TODO( Hotplug support using websockets API 1.0/events )
 """
 
+from json.decoder import JSONDecodeError
 import os
 
 import requests
@@ -41,6 +42,9 @@ LXD_SOCKET_API_VERSION = "1.0"
 
 # Config key mappings to alias as top-level instance data keys
 CONFIG_KEY_ALIASES = {
+    "cloud-init.user-data": "user-data",
+    "cloud-init.network-config": "network-config",
+    "cloud-init.vendor-data": "vendor-data",
     "user.user-data": "user-data",
     "user.network-config": "network-config",
     "user.vendor-data": "vendor-data"
@@ -284,7 +288,7 @@ def read_metadata(
     with requests.Session() as session:
         session.mount(version_url, LXDSocketAdapter())
         # Raw meta-data as text
-        md_route = "{route}/meta-data".format(route=version_url)
+        md_route = "{route}meta-data".format(route=version_url)
         response = session.get(md_route)
         LOG.debug("[GET] [HTTP:%d] %s", response.status_code, md_route)
         if not response.ok:
@@ -292,7 +296,7 @@ def read_metadata(
                 "Invalid HTTP response [{code}] from {route}: {resp}".format(
                     code=response.status_code,
                     route=md_route,
-                    resp=response.txt
+                    resp=response.text
                 )
             )
 
@@ -300,19 +304,42 @@ def read_metadata(
         if metadata_only:
             return md  # Skip network-data, vendor-data, user-data
 
-        config_url = version_url + "config"
-        # Represent all advertized/available config routes under
-        # the dict path {LXD_SOCKET_API_VERSION: {config: {...}}.
-        LOG.debug("[GET] %s", config_url)
-        config_routes = session.get(config_url).json()
         md[LXD_SOCKET_API_VERSION] = {
             "config": {},
             "meta-data": md["meta-data"]
         }
-        for config_route in config_routes:
+
+        config_url = version_url + "config"
+        # Represent all advertized/available config routes under
+        # the dict path {LXD_SOCKET_API_VERSION: {config: {...}}.
+        response = session.get(config_url)
+        LOG.debug("[GET] [HTTP:%d] %s", response.status_code, config_url)
+        if not response.ok:
+            raise sources.InvalidMetaDataException(
+                "Invalid HTTP response [{code}] from {route}: {resp}".format(
+                    code=response.status_code,
+                    route=config_url,
+                    resp=response.text
+                )
+            )
+        try:
+            config_routes = response.json()
+        except JSONDecodeError as exc:
+            raise sources.InvalidMetaDataException(
+                "Unable to determine cloud-init config from {route}."
+                " Expected JSON but found: {resp}".format(
+                    route=config_url,
+                    resp=response.text
+                )
+            ) from exc
+
+        # Sorting keys to ensure we always process in alphabetical order.
+        # cloud-init.* keys will sort before user.* keys which is preferred
+        # precedence.
+        for config_route in sorted(config_routes):
             url = "http://lxd{route}".format(route=config_route)
-            LOG.debug("[GET] %s", url)
             response = session.get(url)
+            LOG.debug("[GET] [HTTP:%d] %s", response.status_code, url)
             if response.ok:
                 cfg_key = config_route.rpartition("/")[-1]
                 # Leave raw data values/format unchanged to represent it in
@@ -321,9 +348,16 @@ def read_metadata(
                 md[LXD_SOCKET_API_VERSION]["config"][cfg_key] = response.text
                 # Promote common CONFIG_KEY_ALIASES to top-level keys.
                 if cfg_key in CONFIG_KEY_ALIASES:
-                    md[CONFIG_KEY_ALIASES[cfg_key]] = response.text
+                    # Due to sort of config_routes, promote cloud-init.*
+                    # aliases before user.*. This allows user.* keys to act as
+                    # fallback config on old LXD, with new cloud-init images.
+                    if CONFIG_KEY_ALIASES[cfg_key] not in md:
+                        md[CONFIG_KEY_ALIASES[cfg_key]] = response.text
             else:
-                LOG.debug("Skipping %s on invalid response", url)
+                LOG.debug(
+                    "Skipping %s on [HTTP:%d]:%s",
+                    url, response.status_code, response.text
+                )
     return md
 
 
