@@ -52,6 +52,15 @@ def verify_clean_log(log):
             'http://169.254.169.254/latest/meta-data/')
         warning_texts.append(fetch_error_text)
         traceback_texts.append(fetch_error_text)
+        # Oracle has a file in /etc/cloud/cloud.cfg.d that contains
+        # users:
+        # - default
+        # - name: opc
+        #   ssh_redirect_user: true
+        # This can trigger a warning about opc having no public key
+        warning_texts.append(
+            'Unable to disable SSH logins for opc given ssh_redirect_user'
+        )
 
     for warning_text in warning_texts:
         expected_warnings += log.count(warning_text)
