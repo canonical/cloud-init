@@ -10,11 +10,11 @@ from cloudinit.tests.helpers import TestCase
 import errno
 import logging
 import os
+import shutil
 import re
 import unittest
 from contextlib import ExitStack
 from unittest import mock
-import tempfile
 import stat
 
 # growpart:
@@ -173,6 +173,7 @@ class TestConfig(TestCase):
     @mock.patch.object(os, 'rmdir')
     @mock.patch.object(os, 'open', return_value=1)
     @mock.patch.object(os, 'close')
+    @mock.patch.object(shutil, 'rmtree')
     @mock.patch.object(os, 'lseek', return_value=1024)
     @mock.patch.object(os, 'lstat', return_value='interesting metadata')
     def test_force_lang_check_tempfile(self, *args, **kwargs):
