@@ -36,6 +36,7 @@ ntp:
 runcmd:
   - echo 'hello world' > /var/tmp/runcmd_output
   - #
+
 """
 
 
