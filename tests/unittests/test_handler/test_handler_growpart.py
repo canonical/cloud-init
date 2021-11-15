@@ -162,7 +162,8 @@ class TestConfig(TestCase):
                 ['growpart', '--help'], env={'LANG': 'C'})
 
     @mock.patch.dict("os.environ", {'LANG': 'cs_CZ.UTF-8'}, clear=True)
-    @mock.patch.object(tempfile, 'mkdtemp', return_value='/tmp/much-random')
+    @mock.patch.object(temp_utils, 'mkdtemp', return_value='/tmp/much-random')
+    @mock.patch.object(os, 'mkdtemp', return_value='/tmp/much-random')
     @mock.patch.object(stat, 'S_ISDIR', return_value=False)
     @mock.patch.object(os.path, 'samestat', return_value=True)
     @mock.patch.object(os.path, "join", return_value='/tmp')
