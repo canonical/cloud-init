@@ -13,7 +13,7 @@ puppet:
 
 
 @pytest.mark.user_data(SERVICE_DATA)
-def test_pupet_service(client: IntegrationInstance):
+def test_puppet_service(client: IntegrationInstance):
     """Basic test that puppet gets installed and runs."""
     log = client.read_from_file('/var/log/cloud-init.log')
     verify_clean_log(log)
