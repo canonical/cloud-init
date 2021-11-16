@@ -46,7 +46,6 @@ datasource:
       local-hostname: myhost.internal
 
   Azure:
-    agent_command: [service, walinuxagent, start]
     set_hostname: True
     hostname_bounce:
       interface: eth0
