@@ -53,6 +53,8 @@ rsyslog:
     me: "127.0.0.1"
 runcmd:
   - echo 'hello world' > /var/tmp/runcmd_output
+
+  - #
   - logger "My test log"
 snap:
   squashfuse_in_container: true
