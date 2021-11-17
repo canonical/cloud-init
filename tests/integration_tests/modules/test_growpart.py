@@ -1,6 +1,7 @@
 import os
 import pytest
 import pathlib
+import json
 from uuid import uuid4
 from pycloudlib.lxd.instance import LXDInstance
 
@@ -53,3 +54,9 @@ class TestGrowPart:
         log = client.read_from_file('/var/log/cloud-init.log')
         assert ("cc_growpart.py[INFO]: '/dev/sdb1' resized:"
                 " changed (/dev/sdb, 1) from") in log
+
+        lsblk = json.loads(client.execute('lsblk --json'))
+        sdb = [x for x in lsblk['blockdevices'] if x['name'] == 'sdb'][0]
+        assert len(sdb['children']) == 1
+        assert sdb['children'][0]['name'] == 'sdb1'
+        assert sdb['size'] == '16M'
