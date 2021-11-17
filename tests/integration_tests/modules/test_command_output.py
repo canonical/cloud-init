@@ -16,7 +16,6 @@ final_message: "should be last line in cloud-init-test-output file"
 """
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 def test_runcmd(client: IntegrationInstance):
     log = client.read_from_file('/var/log/cloud-init-test-output')

@@ -12,6 +12,7 @@ import re
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
+    retry,
     verify_clean_log,
     verify_ordered_items_in_text,
 )
@@ -33,6 +34,11 @@ locale: en_GB.UTF-8
 locale_configfile: /etc/default/locale
 ntp:
   servers: ['ntp.ubuntu.com']
+package_update: true
+random_seed:
+  data: 'MYUb34023nD:LFDK10913jk;dfnk:Df'
+  encoding: raw
+  file: /root/seed
 rsyslog:
   configs:
     - "*.* @@127.0.0.1"
@@ -48,6 +54,14 @@ rsyslog:
 runcmd:
   - echo 'hello world' > /var/tmp/runcmd_output
   - logger "My test log"
+snap:
+  squashfuse_in_container: true
+  commands:
+    - snap install hello-world
+ssh_import_id:
+  - gh:powersj
+  - lp:smoser
+timezone: US/Aleutian
 """
 
 
@@ -115,6 +129,20 @@ class TestCombined:
             'en_US.UTF-8'
         ], locale_gen)
 
+    def test_random_seed_data(self, class_client: IntegrationInstance):
+        """Integration test for the random seed module.
+
+        This test specifies a command to be executed by the ``seed_random``
+        module, by providing a different data to be used as seed data. We will
+        then check if that seed data was actually used.
+        """
+        client = class_client
+
+        # Only read the first 31 characters, because the rest could be
+        # binary data
+        result = client.execute("head -c 31 < /root/seed")
+        assert result.startswith("MYUb34023nD:LFDK10913jk;dfnk:Df")
+
     def test_rsyslog(self, class_client: IntegrationInstance):
         """Test rsyslog is configured correctly."""
         client = class_client
@@ -124,6 +152,46 @@ class TestCombined:
         """Test runcmd works as expected"""
         client = class_client
         assert 'hello world' == client.read_from_file('/var/tmp/runcmd_output')
+
+    @retry(tries=30, delay=1)
+    def test_ssh_import_id(self, class_client: IntegrationInstance):
+        """Integration test for the ssh_import_id module.
+
+        This test specifies ssh keys to be imported by the ``ssh_import_id``
+        module and then checks that if the ssh keys were successfully imported.
+
+        TODO:
+        * This test assumes that SSH keys will be imported into the
+        /home/ubuntu; this will need modification to run on other OSes.
+        """
+        client = class_client
+        ssh_output = client.read_from_file(
+            "/home/ubuntu/.ssh/authorized_keys")
+
+        assert '# ssh-import-id gh:powersj' in ssh_output
+        assert '# ssh-import-id lp:smoser' in ssh_output
+
+    def test_snap(self, class_client: IntegrationInstance):
+        """Integration test for the snap module.
+
+        This test specifies a command to be executed by the ``snap`` module
+        and then checks that if that command was executed during boot.
+        """
+        client = class_client
+        snap_output = client.execute("snap list")
+        assert "core " in snap_output
+        assert "hello-world " in snap_output
+
+    def test_timezone(self, class_client: IntegrationInstance):
+        """Integration test for the timezone module.
+
+        This test specifies a timezone to be used by the ``timezone`` module
+        and then checks that if that timezone was respected during boot.
+        """
+        client = class_client
+        timezone_output = client.execute(
+            'date "+%Z" --date="Thu, 03 Nov 2016 00:47:00 -0400"')
+        assert timezone_output.strip() == "HDT"
 
     def test_no_problems(self, class_client: IntegrationInstance):
         """Test no errors, warnings, or tracebacks"""

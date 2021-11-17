@@ -97,7 +97,6 @@ TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
 TEST_SIGNED_BY_KEY = "A2EB 2DEC 0BD7 519B 7B38  BE38 376A 290E C806 8B11"
 
 
-@pytest.mark.ci
 @pytest.mark.ubuntu
 @pytest.mark.user_data(USER_DATA)
 class TestApt:

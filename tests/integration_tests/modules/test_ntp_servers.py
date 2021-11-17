@@ -31,7 +31,6 @@ EXPECTED_SERVERS = yaml.safe_load(USER_DATA)["ntp"]["servers"]
 EXPECTED_POOLS = yaml.safe_load(USER_DATA)["ntp"]["pools"]
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(USER_DATA)
 class TestNtpServers:
 
@@ -83,7 +82,6 @@ ntp:
 """
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(CHRONY_DATA)
 def test_chrony(client: IntegrationInstance):
     if client.execute('test -f /etc/chrony.conf').ok:
@@ -104,7 +102,6 @@ ntp:
 """
 
 
-@pytest.mark.ci
 @pytest.mark.user_data(TIMESYNCD_DATA)
 def test_timesyncd(client: IntegrationInstance):
     contents = client.read_from_file(
