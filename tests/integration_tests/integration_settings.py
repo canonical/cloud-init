@@ -76,7 +76,7 @@ CLOUD_INIT_SOURCE = 'NONE'
 #   'ON_ERROR'
 #   'NEVER'
 COLLECT_LOGS = 'ON_ERROR'
-LOCAL_LOG_PATH = '/tmp/cloud_init_test_logs'
+LOCAL_LOG_PATH = '/var/tmp/cloud_init_test_logs'
 
 ##################################################################
 # SSH KEY SETTINGS
