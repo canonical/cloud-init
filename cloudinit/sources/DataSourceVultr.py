@@ -16,8 +16,8 @@ LOG = log.getLogger(__name__)
 BUILTIN_DS_CONFIG = {
     'url': 'http://169.254.169.254',
     'retries': 30,
-    'timeout': 2,
-    'wait': 2,
+    'timeout': 10,
+    'wait': 5,
     'user-agent': 'Cloud-Init/%s - OS: %s Variant: %s' %
                   (version.version_string(),
                    util.system_info()['system'],
