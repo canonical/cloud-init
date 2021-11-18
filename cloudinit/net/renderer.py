@@ -8,8 +8,8 @@
 import abc
 import io
 
-from .network_state import parse_net_config_data
-from .udev import generate_udev_rule
+from cloudinit.net.network_state import parse_net_config_data
+from cloudinit.net.udev import generate_udev_rule
 
 
 def filter_by_type(match_type):
@@ -28,6 +28,8 @@ filter_by_physical = filter_by_type('physical')
 
 
 class Renderer(object):
+    def __init__(self, config=None):
+        pass
 
     @staticmethod
     def _render_persistent_net(network_state):

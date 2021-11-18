@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=2015,2039,2162,2166
+# shellcheck disable=2015,2039,2162,2166,3043
 #
 # ds-identify is configured via /etc/cloud/ds-identify.cfg
 # or on the kernel command line. It takes the following inputs:
@@ -92,7 +92,8 @@ _DI_LOGGED=""
 # set DI_MAIN='noop' in environment to source this file with no main called.
 DI_MAIN=${DI_MAIN:-main}
 
-DI_BLKID_OUTPUT=""
+DI_BLKID_EXPORT_OUT=""
+DI_GEOM_LABEL_STATUS_OUT=""
 DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_DISABLED}"
 DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=all,notfound=${DI_ENABLED}"
 DI_DMI_CHASSIS_ASSET_TAG=""
@@ -122,9 +123,9 @@ DS_MAYBE=2
 DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
-DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
-CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud"
+DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud LXD AltCloud Azure Bigstep \
+CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack \
+OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -140,6 +141,7 @@ error() {
     debug 0 "$@"
     stderr "$@"
 }
+
 warn() {
     set -- "WARN:" "$@"
     debug 0 "$@"
@@ -179,13 +181,43 @@ debug() {
     echo "$@" 1>&3
 }
 
+get_kenv_field() {
+    local sys_field="$1" kenv_field="" val=""
+    command -v kenv >/dev/null 2>&1 || {
+        warn "No kenv program. Cannot read $sys_field."
+        return 1
+    }
+    case "$sys_field" in
+        board_asset_tag) kenv_field="smbios.planar.tag";;
+        board_vendor) kenv_field='smbios.planar.maker';;
+        board_name) kenv_field='smbios.planar.product';;
+        board_serial) kenv_field='smbios.planar.serial';;
+        board_version) kenv_field='smbios.planar.version';;
+        bios_date) kenv_field='smbios.bios.reldate';;
+        bios_vendor) kenv_field='smbios.bios.vendor';;
+        bios_version) kenv_field='smbios.bios.version';;
+        chassis_asset_tag) kenv_field='smbios.chassis.tag';;
+        chassis_vendor) kenv_field='smbios.chassis.maker';;
+        chassis_serial) kenv_field='smbios.chassis.serial';;
+        chassis_version) kenv_field='smbios.chassis.version';;
+        sys_vendor) kenv_field='smbios.system.maker';;
+        product_name) kenv_field='smbios.system.product';;
+        product_serial) kenv_field='smbios.system.serial';;
+        product_uuid) kenv_field='smbios.system.uuid';;
+        *) error "Unknown field $sys_field. Cannot call kenv."
+           return 1;;
+    esac
+    val=$(kenv -q "$kenv_field" 2>/dev/null) || return 1
+    _RET="$val"
+}
+
 dmi_decode() {
     local sys_field="$1" dmi_field="" val=""
     command -v dmidecode >/dev/null 2>&1 || {
         warn "No dmidecode program. Cannot read $sys_field."
         return 1
     }
-    case "$1" in
+    case "$sys_field" in
         sys_vendor) dmi_field="system-manufacturer";;
         product_name) dmi_field="system-product-name";;
         product_uuid) dmi_field="system-uuid";;
@@ -199,8 +231,14 @@ dmi_decode() {
 }
 
 get_dmi_field() {
-    local path="${PATH_SYS_CLASS_DMI_ID}/$1"
     _RET="$UNAVAILABLE"
+
+    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+        get_kenv_field "$1" || _RET="$ERROR"
+        return $?
+    fi
+
+    local path="${PATH_SYS_CLASS_DMI_ID}/$1"
     if [ -d "${PATH_SYS_CLASS_DMI_ID}" ]; then
         if [ -f "$path" ] && [ -r "$path" ]; then
             read _RET < "${path}" || _RET="$ERROR"
@@ -231,8 +269,19 @@ ensure_sane_path() {
     done
 }
 
-read_fs_info() {
-    cached "${DI_BLKID_OUTPUT}" && return 0
+blkid_export() {
+    # call 'blkid -c /dev/null export', set DI_BLKID_EXPORT_OUT
+    cached "$DI_BLKID_EXPORT_OUT" && return 0
+    local out="" ret=0
+    out=$(blkid -c /dev/null -o export) && DI_BLKID_EXPORT_OUT="$out" || {
+        ret=$?
+        error "failed running [$ret]: blkid -c /dev/null -o export"
+        DI_BLKID_EXPORT_OUT="$UNAVAILABLE"
+    }
+    return $ret
+}
+
+read_fs_info_linux() {
     # do not rely on links in /dev/disk which might not be present yet.
     # Note that blkid < 2.22 (centos6, trusty) do not output DEVNAME.
     # that means that DI_ISO9660_DEVS will not be set.
@@ -244,20 +293,23 @@ read_fs_info() {
         return
     fi
     local oifs="$IFS" line="" delim=","
-    local ret=0 out="" labels="" dev="" label="" ftype="" isodevs="" uuids=""
-    out=$(blkid -c /dev/null -o export) || {
-        ret=$?
-        error "failed running [$ret]: blkid -c /dev/null -o export"
+    local ret=0 labels="" dev="" label="" ftype="" isodevs="" uuids=""
+
+    blkid_export
+    ret=$?
+    [ "$DI_BLKID_EXPORT_OUT" = "$UNAVAILABLE" ] && {
         DI_FS_LABELS="$UNAVAILABLE:error"
         DI_ISO9660_DEVS="$UNAVAILABLE:error"
+        DI_FS_UUIDS="$UNAVAILABLE:error"
         return $ret
     }
+
     # 'set --' will collapse multiple consecutive entries in IFS for
     # whitespace characters (\n, tab, " ") so we cannot rely on getting
     # empty lines in "$@" below.
 
     # shellcheck disable=2086
-    { IFS="$CR"; set -- $out; IFS="$oifs"; }
+    { IFS="$CR"; set -- $DI_BLKID_EXPORT_OUT; IFS="$oifs"; }
 
     for line in "$@"; do
         case "${line}" in
@@ -281,10 +333,76 @@ read_fs_info() {
     DI_ISO9660_DEVS="${isodevs#,}"
 }
 
+geom_label_status_as() {
+    # call 'geom label status -as', set DI_GEOM_LABEL_STATUS_OUT
+    cached "$DI_GEOM_LABEL_STATUS_OUT" && return 0
+    local out="" ret=0
+    out=$(geom label status -as) && DI_GEOM_LABEL_STATUS_OUT="$out" || {
+        ret=$?
+        error "failed running [$ret]: geom label status -as"
+        DI_GEOM_LABEL_STATUS_OUT="$UNAVAILABLE"
+    }
+    return $ret
+}
+
+read_fs_info_freebsd() {
+    local oifs="$IFS" line="" delim=","
+    local ret=0 labels="" dev="" label="" ftype="" isodevs=""
+
+    geom_label_status_as
+    ret=$?
+    [ "$DI_GEOM_LABEL_STATUS_OUT" = "$UNAVAILABLE" ] && {
+        DI_FS_LABELS="$UNAVAILABLE:error"
+        DI_ISO9660_DEVS="$UNAVAILABLE:error"
+        return $ret
+    }
+
+    # The expected output looks like this:
+    #   gpt/gptboot0 N/A vtbd1p1
+    #      gpt/swap0 N/A vtbd1p2
+    # iso9660/cidata N/A vtbd2
+
+    # shellcheck disable=2086
+    { IFS="$CR"; set -- $DI_GEOM_LABEL_STATUS_OUT; IFS="$oifs"; }
+
+    for line in "$@"; do
+        # shellcheck disable=2086
+        set -- $line
+        provider=$1
+        ftype="${provider%/*}"
+        label="${provider#*/}"
+        dev=$3
+
+        [ -n "$dev" -a "$ftype" = "iso9660" ] &&
+            isodevs="${isodevs},${dev}=$label"
+
+        labels="${labels}${label}${delim}"
+    done
+
+    DI_FS_LABELS="${labels%${delim}}"
+    DI_ISO9660_DEVS="${isodevs#,}"
+}
+
+read_fs_info() {
+    # After calling its subfunctions, read_fs_info() will set the following
+    # variables:
+    #
+    # - DI_FS_LABELS
+    # - DI_ISO9660_DEVS
+    # - DI_FS_UUIDS
+
+    if [ "$DI_UNAME_KERNEL_NAME" = "FreeBSD" ]; then
+        read_fs_info_freebsd
+        return $?
+    else
+        read_fs_info_linux
+        return $?
+    fi
+}
+
 cached() {
     [ -n "$1" ] && _RET="$1" && return || return 1
 }
-
 
 detect_virt() {
     local virt="${UNAVAILABLE}" r="" out=""
@@ -319,6 +437,11 @@ detect_virt() {
                 *) virt="$out"
             esac
         }
+        out=$(sysctl -qn security.jail.jailed 2>/dev/null) && {
+            if [ "$out" = "1" ]; then
+                virt="jail"
+            fi
+        }
     fi
     _RET="$virt"
 }
@@ -326,12 +449,12 @@ detect_virt() {
 read_virt() {
     cached "$DI_VIRT" && return 0
     detect_virt
-    DI_VIRT=${_RET}
+    DI_VIRT="${_RET}"
 }
 
 is_container() {
     case "${DI_VIRT}" in
-        container-other|lxc|lxc-libvirt|systemd-nspawn|docker|rkt) return 0;;
+        container-other|lxc|lxc-libvirt|systemd-nspawn|docker|rkt|jail) return 0;;
         *) return 1;;
     esac
 }
@@ -492,6 +615,7 @@ read_pid1_product_name() {
 
 dmi_chassis_asset_tag_matches() {
     is_container && return 1
+    # shellcheck disable=2254
     case "${DI_DMI_CHASSIS_ASSET_TAG}" in
         $1) return 0;;
     esac
@@ -500,6 +624,7 @@ dmi_chassis_asset_tag_matches() {
 
 dmi_product_name_matches() {
     is_container && return 1
+    # shellcheck disable=2254
     case "${DI_DMI_PRODUCT_NAME}" in
         $1) return 0;;
     esac
@@ -508,6 +633,7 @@ dmi_product_name_matches() {
 
 dmi_product_serial_matches() {
     is_container && return 1
+    # shellcheck disable=2254
     case "${DI_DMI_PRODUCT_SERIAL}" in
         $1) return 0;;
     esac
@@ -641,7 +767,7 @@ check_config() {
         while read line; do
             line=${line%%#*}
             case "$line" in
-                $key:\ *|$key:)
+                $key:\ *|"${key}":)
                     ret=${line#*:};
                     ret=${ret# };
                     found=$((found+1))
@@ -676,6 +802,12 @@ dscheck_MAAS() {
     return ${DS_NOT_FOUND}
 }
 
+# LXD datasource requires active /dev/lxd/sock
+# https://linuxcontainers.org/lxd/docs/master/dev-lxd
+dscheck_LXD() {
+    [ -S /dev/lxd/sock ] && return ${DS_FOUND} || return ${DS_NOT_FOUND}
+}
+
 dscheck_NoCloud() {
     local fslabel="cidata CIDATA" d=""
     case " ${DI_KERNEL_CMDLINE} " in
@@ -689,6 +821,7 @@ dscheck_NoCloud() {
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
         check_writable_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
     done
+    # shellcheck disable=2086
     if has_fs_with_label $fslabel; then
         return ${DS_FOUND}
     fi
@@ -759,6 +892,11 @@ dscheck_RbxCloud() {
     return ${DS_NOT_FOUND}
 }
 
+dscheck_UpCloud() {
+    dmi_sys_vendor_is UpCloud && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
 ovf_vmware_guest_customization() {
     # vmware guest customization
 
@@ -767,9 +905,14 @@ ovf_vmware_guest_customization() {
 
     # we have to have the plugin to do vmware customization
     local found="" pkg="" pre="${PATH_ROOT}/usr/lib"
+    local x86="x86_64-linux-gnu" aarch="aarch64-linux-gnu"
     local ppath="plugins/vmsvc/libdeployPkgPlugin.so"
     for pkg in vmware-tools open-vm-tools; do
         if [ -f "$pre/$pkg/$ppath" -o -f "${pre}64/$pkg/$ppath" ]; then
+            found="$pkg"; break;
+        fi
+        # search in multiarch dir
+        if [ -f "$pre/$x86/$pkg/$ppath" -o -f "$pre/$aarch/$pkg/$ppath" ]; then
             found="$pkg"; break;
         fi
     done
@@ -1111,11 +1254,11 @@ dscheck_AltCloud() {
         ctype="${DI_DMI_PRODUCT_NAME}"
     fi
     case "$ctype" in
-        ${match_rhev})
+        "${match_rhev}")
             probe_floppy || return ${DS_NOT_FOUND}
             dev="/dev/floppy"
             ;;
-        ${match_vsphere})
+        "${match_vsphere}")
             block_dev_with_label CDROM || return ${DS_NOT_FOUND}
             dev="$_RET"
             ;;
@@ -1181,6 +1324,7 @@ is_ibm_provisioning() {
         msg="config '$pcfg' exists."
         is_prov=true
         if [ -f "$logf" ]; then
+            # shellcheck disable=3013
             if [ "$logf" -nt "$PATH_PROC_1_ENVIRON" ]; then
                 msg="$msg log '$logf' from current boot."
             else
@@ -1196,7 +1340,7 @@ is_ibm_provisioning() {
 }
 
 is_ibm_cloud() {
-    cached "${_IS_IBM_CLOUD}" && return ${_IS_IBM_CLOUD}
+    cached "${_IS_IBM_CLOUD}" && return "${_IS_IBM_CLOUD}"
     local ret=1
     if [ "$DI_VIRT" = "xen" ]; then
         if is_ibm_provisioning; then
@@ -1221,11 +1365,103 @@ dscheck_IBMCloud() {
     return ${DS_NOT_FOUND}
 }
 
+dscheck_Vultr() {
+    dmi_sys_vendor_is Vultr && return $DS_FOUND
+
+    case " $DI_KERNEL_CMDLINE " in
+    *\ vultr\ *) return $DS_FOUND ;;
+    esac
+
+    if [ -f "${PATH_ROOT}/etc/vultr" ]; then
+        return $DS_FOUND
+    fi
+
+    return $DS_NOT_FOUND
+}
+
+vmware_has_envvar_vmx_guestinfo() {
+    [ -n "${VMX_GUESTINFO:-}" ]
+}
+
+vmware_has_envvar_vmx_guestinfo_metadata() {
+    [ -n "${VMX_GUESTINFO_METADATA:-}" ]
+}
+
+vmware_has_envvar_vmx_guestinfo_userdata() {
+    [ -n "${VMX_GUESTINFO_USERDATA:-}" ]
+}
+
+vmware_has_envvar_vmx_guestinfo_vendordata() {
+    [ -n "${VMX_GUESTINFO_VENDORDATA:-}" ]
+}
+
+vmware_has_rpctool() {
+    command -v vmware-rpctool >/dev/null 2>&1
+}
+
+vmware_rpctool_guestinfo() {
+    vmware-rpctool "info-get guestinfo.${1}" 2>/dev/null | grep "[[:alnum:]]"
+}
+
+vmware_rpctool_guestinfo_metadata() {
+    vmware_rpctool_guestinfo "metadata"
+}
+
+vmware_rpctool_guestinfo_userdata() {
+    vmware_rpctool_guestinfo "userdata"
+}
+
+vmware_rpctool_guestinfo_vendordata() {
+    vmware_rpctool_guestinfo "vendordata"
+}
+
+dscheck_VMware() {
+    # Checks to see if there is valid data for the VMware datasource.
+    # The data transports are checked in the following order:
+    #
+    #   * envvars
+    #   * guestinfo
+    #
+    # Please note when updating this function with support for new data
+    # transports, the order should match the order in the _get_data
+    # function from the file DataSourceVMware.py.
+
+    # Check to see if running in a container and the VMware
+    # datasource is configured via environment variables.
+    if vmware_has_envvar_vmx_guestinfo; then
+        if vmware_has_envvar_vmx_guestinfo_metadata || \
+            vmware_has_envvar_vmx_guestinfo_userdata || \
+            vmware_has_envvar_vmx_guestinfo_vendordata; then
+            return "${DS_FOUND}"
+        fi
+    fi
+
+    # Do not proceed unless the detected platform is VMware.
+    if [ ! "${DI_VIRT}" = "vmware" ]; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # Do not proceed if the vmware-rpctool command is not present.
+    if ! vmware_has_rpctool; then
+        return "${DS_NOT_FOUND}"
+    fi
+
+    # Activate the VMware datasource only if any of the fields used
+    # by the datasource are present in the guestinfo table.
+    if { vmware_rpctool_guestinfo_metadata || \
+         vmware_rpctool_guestinfo_userdata || \
+         vmware_rpctool_guestinfo_vendordata; } >/dev/null 2>&1; then
+        return "${DS_FOUND}"
+    fi
+
+    return "${DS_NOT_FOUND}"
+}
+
 collect_info() {
+    read_uname_info
     read_virt
     read_pid1_product_name
     read_kernel_cmdline
-    read_uname_info
     read_config
     read_datasource_list
     read_dmi_sys_vendor
@@ -1420,10 +1656,10 @@ parse_policy() {
     for tok in "$@"; do
         val=${tok#*=}
         case "$tok" in
-            $DI_ENABLED|$DI_DISABLED|search|report) mode=$tok;;
+            "${DI_ENABLED}"|"${DI_DISABLED}"|search|report) mode=$tok;;
             found=all|found=first) found=$val;;
             maybe=all|maybe=none) maybe=$val;;
-            notfound=$DI_ENABLED|notfound=$DI_DISABLED) notfound=$val;;
+            notfound="${DI_ENABLED}"|notfound="${DI_DISABLED}") notfound=$val;;
             found=*)
                parse_warn found "$val" "${_def_found}"
                found=${_def_found};;
@@ -1504,11 +1740,11 @@ _main() {
     fi
 
     case "$DI_MODE" in
-        $DI_DISABLED)
+        "${DI_DISABLED}")
             debug 1 "mode=$DI_DISABLED. returning $ret_dis"
             return $ret_dis
             ;;
-        $DI_ENABLED)
+        "${DI_ENABLED}")
             debug 1 "mode=$DI_ENABLED. returning $ret_en"
             return $ret_en;;
         search|report) :;;
@@ -1548,11 +1784,11 @@ _main() {
         $dscheck_fn
         ret="$?"
         case "$ret" in
-            $DS_FOUND)
+            "${DS_FOUND}")
                 debug 1 "check for '$ds' returned found";
                 exfound_cfg="${exfound_cfg:+${exfound_cfg}${CR}}${_RET_excfg}"
                 found="${found} $ds";;
-            $DS_MAYBE)
+            "${DS_MAYBE}")
                 debug 1 "check for '$ds' returned maybe";
                 exmaybe_cfg="${exmaybe_cfg:+${exmaybe_cfg}${CR}}${_RET_excfg}"
                 maybe="${maybe} $ds";;
@@ -1591,16 +1827,16 @@ _main() {
     local basemsg="No ds found [mode=$DI_MODE, notfound=$DI_ON_NOTFOUND]."
     local msg="" ret=3
     case "$DI_MODE:$DI_ON_NOTFOUND" in
-        report:$DI_DISABLED)
+        report:"${DI_DISABLED}")
             msg="$basemsg Would disable cloud-init [$ret_dis]"
             ret=$ret_en;;
-        report:$DI_ENABLED)
+        report:"${DI_ENABLED}")
             msg="$basemsg Would enable cloud-init [$ret_en]"
             ret=$ret_en;;
-        search:$DI_DISABLED)
+        search:"${DI_DISABLED}")
             msg="$basemsg Disabled cloud-init [$ret_dis]"
             ret=$ret_dis;;
-        search:$DI_ENABLED)
+        search:"${DI_ENABLED}")
             msg="$basemsg Enabled cloud-init [$ret_en]"
             ret=$ret_en;;
         *) error "Unexpected result";;

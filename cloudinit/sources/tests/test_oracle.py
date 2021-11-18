@@ -153,26 +153,30 @@ class TestDataSourceOracle:
 
 
 class TestIsPlatformViable(test_helpers.CiTestCase):
-    @mock.patch(DS_PATH + ".util.read_dmi_data",
+    @mock.patch(DS_PATH + ".dmi.read_dmi_data",
                 return_value=oracle.CHASSIS_ASSET_TAG)
     def test_expected_viable(self, m_read_dmi_data):
         """System with known chassis tag is viable."""
         self.assertTrue(oracle._is_platform_viable())
         m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
 
-    @mock.patch(DS_PATH + ".util.read_dmi_data", return_value=None)
+    @mock.patch(DS_PATH + ".dmi.read_dmi_data", return_value=None)
     def test_expected_not_viable_dmi_data_none(self, m_read_dmi_data):
         """System without known chassis tag is not viable."""
         self.assertFalse(oracle._is_platform_viable())
         m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
 
-    @mock.patch(DS_PATH + ".util.read_dmi_data", return_value="LetsGoCubs")
+    @mock.patch(DS_PATH + ".dmi.read_dmi_data", return_value="LetsGoCubs")
     def test_expected_not_viable_other(self, m_read_dmi_data):
         """System with unnown chassis tag is not viable."""
         self.assertFalse(oracle._is_platform_viable())
         m_read_dmi_data.assert_has_calls([mock.call('chassis-asset-tag')])
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestNetworkConfigFromOpcImds:
     def test_no_secondary_nics_does_not_mutate_input(self, oracle_ds):
         oracle_ds._vnics_data = [{}]
@@ -690,7 +694,15 @@ class TestNonIscsiRoot_GetDataBehaviour:
             assert oracle_ds._get_data()
 
         assert [
-            mock.call(m_find_fallback_nic.return_value)
+            mock.call(
+                iface=m_find_fallback_nic.return_value,
+                connectivity_url_data={
+                    'headers': {
+                        'Authorization': 'Bearer Oracle'
+                    },
+                    'url': 'http://169.254.169.254/opc/v2/instance/'
+                }
+            )
         ] == m_EphemeralDHCPv4.call_args_list
 
 

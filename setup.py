@@ -28,8 +28,10 @@ import subprocess
 RENDERED_TMPD_PREFIX = "RENDERED_TEMPD"
 VARIANT = None
 
+
 def is_f(p):
     return os.path.isfile(p)
+
 
 def is_generator(p):
     return '-generator' in p
@@ -38,6 +40,7 @@ def is_generator(p):
 def pkg_config_read(library, var):
     fallbacks = {
         'systemd': {
+            'systemdsystemconfdir': '/etc/systemd/system',
             'systemdsystemunitdir': '/lib/systemd/system',
             'systemdsystemgeneratordir': '/lib/systemd/system-generators',
         }
@@ -111,6 +114,7 @@ def render_tmpl(template, mode=None):
     # return path relative to setup.py
     return os.path.join(os.path.basename(tmpd), bname)
 
+
 # User can set the variant for template rendering
 if '--distro' in sys.argv:
     idx = sys.argv.index('--distro')
@@ -128,6 +132,7 @@ INITSYS_FILES = {
     'systemd': [render_tmpl(f)
                 for f in (glob('systemd/*.tmpl') +
                           glob('systemd/*.service') +
+                          glob('systemd/*.socket') +
                           glob('systemd/*.target'))
                 if (is_f(f) and not is_generator(f))],
     'systemd.generators': [
@@ -156,7 +161,7 @@ USR = "usr"
 ETC = "etc"
 USR_LIB_EXEC = "usr/lib"
 LIB = "lib"
-if os.uname()[0] == 'FreeBSD':
+if os.uname()[0] in ['FreeBSD', 'DragonFly']:
     USR = "usr/local"
     USR_LIB_EXEC = "usr/local/lib"
 elif os.path.isfile('/etc/redhat-release'):
@@ -165,11 +170,11 @@ elif os.path.isfile('/etc/system-release-cpe'):
     with open('/etc/system-release-cpe') as f:
         cpe_data = f.read().rstrip().split(':')
 
-        if cpe_data[1] == "\o":
-            # URI formated CPE
+        if cpe_data[1] == "\o":  # noqa: W605
+            # URI formatted CPE
             inc = 0
         else:
-            # String formated CPE
+            # String formatted CPE
             inc = 1
         (cpe_vendor, cpe_product, cpe_version) = cpe_data[2+inc:5+inc]
         if cpe_vendor == "amazon":
@@ -215,7 +220,8 @@ class InitsysInstallData(install):
         if self.init_system and isinstance(self.init_system, str):
             self.init_system = self.init_system.split(",")
 
-        if len(self.init_system) == 0 and not platform.system().endswith('BSD'):
+        if (len(self.init_system) == 0 and
+                not platform.system().endswith('BSD')):
             self.init_system = ['systemd']
 
         bad = [f for f in self.init_system if f not in INITSYS_TYPES]
@@ -232,7 +238,7 @@ class InitsysInstallData(install):
                     continue
                 self.distribution.data_files.append(
                     (INITSYS_ROOTS[k], INITSYS_FILES[k]))
-        # Force that command to reinitalize (with new file list)
+        # Force that command to reinitialize (with new file list)
         self.distribution.reinitialize_command('install_data', True)
 
 
@@ -249,6 +255,7 @@ data_files = [
     (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
     (ETC + '/cloud/templates', glob('templates/*')),
     (USR_LIB_EXEC + '/cloud-init', ['tools/ds-identify',
+                                    'tools/hook-hotplug',
                                     'tools/uncloud-init',
                                     'tools/write-ssh-key-fingerprints']),
     (USR + '/share/bash-completion/completions',
@@ -264,7 +271,9 @@ if not platform.system().endswith('BSD'):
         (ETC + '/NetworkManager/dispatcher.d/',
          ['tools/hook-network-manager']),
         (ETC + '/dhcp/dhclient-exit-hooks.d/', ['tools/hook-dhclient']),
-        (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')])
+        (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')]),
+        (ETC + '/systemd/system/sshd-keygen@.service.d/',
+         ['systemd/disable-sshd-keygen-if-cloud-init-active.conf']),
     ])
 # Use a subclass for install that handles
 # adding on the right init system configuration files

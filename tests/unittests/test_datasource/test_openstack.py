@@ -21,7 +21,7 @@ from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
 BASE_URL = "http://169.254.169.254"
-PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
+PUBKEY = 'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
 EC2_META = {
     'ami-id': 'ami-00000001',
     'ami-launch-index': '0',
@@ -39,6 +39,9 @@ EC2_META = {
 USER_DATA = b'#!/bin/sh\necho This is user data\n'
 VENDOR_DATA = {
     'magic': '',
+}
+VENDOR_DATA2 = {
+    'static': {}
 }
 OSTACK_META = {
     'availability_zone': 'nova',
@@ -60,6 +63,7 @@ OS_FILES = {
         {'links': [], 'networks': [], 'services': []}),
     'openstack/latest/user_data': USER_DATA,
     'openstack/latest/vendor_data.json': json.dumps(VENDOR_DATA),
+    'openstack/latest/vendor_data2.json': json.dumps(VENDOR_DATA2),
 }
 EC2_FILES = {
     'latest/user-data': USER_DATA,
@@ -142,6 +146,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
         f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get('vendordata'))
+        self.assertEqual(VENDOR_DATA2, f.get('vendordata2'))
         self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
         self.assertEqual(2, len(f['files']))
@@ -163,6 +168,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, {}, {}, OS_FILES)
         f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get('vendordata'))
+        self.assertEqual(VENDOR_DATA2, f.get('vendordata2'))
         self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
         self.assertEqual(USER_DATA, f.get('userdata'))
@@ -195,6 +201,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         _register_uris(self.VERSION, {}, {}, os_files)
         f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get('vendordata'))
+        self.assertEqual(VENDOR_DATA2, f.get('vendordata2'))
         self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
         self.assertFalse(f.get('userdata'))
@@ -210,10 +217,29 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
         self.assertFalse(f.get('vendordata'))
 
+    def test_vendordata2_empty(self):
+        os_files = copy.deepcopy(OS_FILES)
+        for k in list(os_files.keys()):
+            if k.endswith('vendor_data2.json'):
+                os_files.pop(k, None)
+        _register_uris(self.VERSION, {}, {}, os_files)
+        f = _read_metadata_service()
+        self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
+        self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
+        self.assertFalse(f.get('vendordata2'))
+
     def test_vendordata_invalid(self):
         os_files = copy.deepcopy(OS_FILES)
         for k in list(os_files.keys()):
             if k.endswith('vendor_data.json'):
+                os_files[k] = '{'  # some invalid json
+        _register_uris(self.VERSION, {}, {}, os_files)
+        self.assertRaises(BrokenMetadata, _read_metadata_service)
+
+    def test_vendordata2_invalid(self):
+        os_files = copy.deepcopy(OS_FILES)
+        for k in list(os_files.keys()):
+            if k.endswith('vendor_data2.json'):
                 os_files[k] = '{'  # some invalid json
         _register_uris(self.VERSION, {}, {}, os_files)
         self.assertRaises(BrokenMetadata, _read_metadata_service)
@@ -246,6 +272,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(USER_DATA, ds_os.userdata_raw)
         self.assertEqual(2, len(ds_os.files))
         self.assertEqual(VENDOR_DATA, ds_os.vendordata_pure)
+        self.assertEqual(VENDOR_DATA2, ds_os.vendordata2_pure)
         self.assertIsNone(ds_os.vendordata_raw)
         m_dhcp.assert_not_called()
 
@@ -278,6 +305,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(USER_DATA, ds_os_local.userdata_raw)
         self.assertEqual(2, len(ds_os_local.files))
         self.assertEqual(VENDOR_DATA, ds_os_local.vendordata_pure)
+        self.assertEqual(VENDOR_DATA2, ds_os_local.vendordata2_pure)
         self.assertIsNone(ds_os_local.vendordata_raw)
         m_dhcp.assert_called_with('eth9', None)
 
@@ -401,7 +429,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertIsNone(ds_os.vendordata_raw)
         self.assertEqual(
             ['dsmode', 'ec2-metadata', 'files', 'metadata', 'networkdata',
-             'userdata', 'vendordata', 'version'],
+             'userdata', 'vendordata', 'vendordata2', 'version'],
             sorted(crawled_data.keys()))
         self.assertEqual('local', crawled_data['dsmode'])
         self.assertEqual(EC2_META, crawled_data['ec2-metadata'])
@@ -415,6 +443,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             crawled_data['networkdata'])
         self.assertEqual(USER_DATA, crawled_data['userdata'])
         self.assertEqual(VENDOR_DATA, crawled_data['vendordata'])
+        self.assertEqual(VENDOR_DATA2, crawled_data['vendordata2'])
         self.assertEqual(2, crawled_data['version'])
 
 
@@ -459,7 +488,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(), 'Expected detect_openstack == True')
 
     @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_not_detect_openstack_intel_x86_ec2(self, m_dmi, m_proc_env,
                                                 m_is_x86):
         """Return False on EC2 platforms."""
@@ -479,7 +508,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(), 'Expected detect_openstack == False on EC2')
         m_proc_env.assert_called_with(1)
 
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_intel_product_name_compute(self, m_dmi,
                                                          m_is_x86):
         """Return True on OpenStack compute and nova instances."""
@@ -491,7 +520,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             self.assertTrue(
                 ds.detect_openstack(), 'Failed to detect_openstack')
 
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_opentelekomcloud_chassis_asset_tag(self, m_dmi,
                                                                  m_is_x86):
         """Return True on OpenStack reporting OpenTelekomCloud asset-tag."""
@@ -509,7 +538,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(),
             'Expected detect_openstack == True on OpenTelekomCloud')
 
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_sapccloud_chassis_asset_tag(self, m_dmi,
                                                           m_is_x86):
         """Return True on OpenStack reporting SAP CCloud VM asset-tag."""
@@ -527,7 +556,7 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(),
             'Expected detect_openstack == True on SAP CCloud VM')
 
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_oraclecloud_chassis_asset_tag(self, m_dmi,
                                                             m_is_x86):
         """Return True on OpenStack reporting Oracle cloud asset-tag."""
@@ -548,8 +577,38 @@ class TestDetectOpenStack(test_helpers.CiTestCase):
             ds.detect_openstack(accept_oracle=False),
             'Expected detect_openstack == False.')
 
+    def _test_detect_openstack_nova_compute_chassis_asset_tag(self, m_dmi,
+                                                              m_is_x86,
+                                                              chassis_tag):
+        """Return True on OpenStack reporting generic asset-tag."""
+        m_is_x86.return_value = True
+
+        def fake_dmi_read(dmi_key):
+            if dmi_key == 'system-product-name':
+                return 'Generic OpenStack Platform'
+            if dmi_key == 'chassis-asset-tag':
+                return chassis_tag
+            assert False, 'Unexpected dmi read of %s' % dmi_key
+
+        m_dmi.side_effect = fake_dmi_read
+        self.assertTrue(
+            ds.detect_openstack(),
+            'Expected detect_openstack == True on Generic OpenStack Platform')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
+    def test_detect_openstack_nova_chassis_asset_tag(self, m_dmi,
+                                                     m_is_x86):
+        self._test_detect_openstack_nova_compute_chassis_asset_tag(
+            m_dmi, m_is_x86, 'OpenStack Nova')
+
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
+    def test_detect_openstack_compute_chassis_asset_tag(self, m_dmi,
+                                                        m_is_x86):
+        self._test_detect_openstack_nova_compute_chassis_asset_tag(
+            m_dmi, m_is_x86, 'OpenStack Compute')
+
     @test_helpers.mock.patch(MOCK_PATH + 'util.get_proc_env')
-    @test_helpers.mock.patch(MOCK_PATH + 'util.read_dmi_data')
+    @test_helpers.mock.patch(MOCK_PATH + 'dmi.read_dmi_data')
     def test_detect_openstack_by_proc_1_environ(self, m_dmi, m_proc_env,
                                                 m_is_x86):
         """Return True when nova product_name specified in /proc/1/environ."""
@@ -651,6 +710,7 @@ class TestMetadataReader(test_helpers.HttprettyTestCase):
             'version': 2,
             'metadata': expected_md,
             'vendordata': vendor_data,
+            'vendordata2': vendor_data2,
             'networkdata': network_data,
             'ec2-metadata': mock_read_ec2.return_value,
             'files': {},

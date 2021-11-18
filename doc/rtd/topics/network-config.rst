@@ -75,6 +75,17 @@ If `Cloud-init`_ 's networking config has not been disabled, and
 no other network information is found, then it will proceed
 to generate a fallback networking configuration.
 
+Disabling Network Activation
+----------------------------
+
+Some datasources may not be initialized until after network has been brought
+up. In this case, cloud-init will attempt to bring up the interfaces specified
+by the datasource metadata.
+
+This behavior can be disabled in the cloud-init configuration dictionary,
+merged from ``/etc/cloud/cloud.cfg`` and ``/etc/cloud/cloud.cfg.d/*``::
+
+  disable_network_activation: true
 
 Fallback Network Configuration
 ==============================
@@ -104,6 +115,13 @@ interface given the information it has available.
 Finally after selecting the "right" interface, a configuration is
 generated and applied to the system.
 
+.. note::
+
+   PhotonOS disables fallback networking configuration by default leaving
+   network unrendered when no other network config is provided.
+   If fallback config is still desired on PhotonOS, it can be enabled by
+   providing `disable_fallback_netcfg: false` in
+   `/etc/cloud/cloud.cfg:sys_config` settings.
 
 Network Configuration Sources
 =============================
@@ -143,6 +161,14 @@ The following Datasources optionally provide network configuration:
 - :ref:`datasource_smartos`
 
   - `SmartOS JSON Metadata`_
+
+- :ref:`datasource_upcloud`
+
+  - `UpCloud JSON metadata`_
+
+- :ref:`datasource_vultr`
+
+  - `Vultr JSON metadata`_
 
 For more information on network configuration formats
 
@@ -257,5 +283,7 @@ Example output converting V2 to sysconfig:
 .. _DigitalOcean JSON metadata: https://developers.digitalocean.com/documentation/metadata/#network-interfaces-index
 .. _OpenStack Metadata Service Network: https://specs.openstack.org/openstack/nova-specs/specs/liberty/implemented/metadata-service-network-info.html
 .. _SmartOS JSON Metadata: https://eng.joyent.com/mdata/datadict.html
+.. _UpCloud JSON metadata: https://developers.upcloud.com/1.3/8-servers/#metadata-service
+.. _Vultr JSON metadata: https://www.vultr.com/metadata/
 
 .. vi: textwidth=78

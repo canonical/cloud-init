@@ -4,6 +4,9 @@ from collections import namedtuple
 import copy
 import os
 from io import StringIO
+from unittest import mock
+
+import pytest
 
 from cloudinit.cmd import main
 from cloudinit import safeyaml
@@ -17,6 +20,8 @@ myargs = namedtuple('MyArgs', 'debug files force local reporter subcommand')
 
 
 class TestMain(FilesystemMockingTestCase):
+    with_logs = True
+    allowed_subp = False
 
     def setUp(self):
         super(TestMain, self).setUp()
@@ -127,7 +132,8 @@ class TestMain(FilesystemMockingTestCase):
                  'syslog_fix_perms': [
                      'syslog:adm', 'root:adm', 'root:wheel', 'root:root'
                  ],
-                 'vendor_data': {'enabled': True, 'prefix': []}})
+                 'vendor_data': {'enabled': True, 'prefix': []},
+                 'vendor_data2': {'enabled': True, 'prefix': []}})
             updated_cfg.pop('system_info')
 
             self.assertEqual(updated_cfg, cfg)
@@ -158,5 +164,25 @@ class TestMain(FilesystemMockingTestCase):
         ]
         for log in expected_logs:
             self.assertIn(log, self.stderr.getvalue())
+
+
+class TestShouldBringUpInterfaces:
+    @pytest.mark.parametrize('cfg_disable,args_local,expected', [
+        (True, True, False),
+        (True, False, False),
+        (False, True, False),
+        (False, False, True),
+    ])
+    def test_should_bring_up_interfaces(
+        self, cfg_disable, args_local, expected
+    ):
+        init = mock.Mock()
+        init.cfg = {'disable_network_activation': cfg_disable}
+
+        args = mock.Mock()
+        args.local = args_local
+
+        result = main._should_bring_up_interfaces(init, args)
+        assert result == expected
 
 # vi: ts=4 expandtab

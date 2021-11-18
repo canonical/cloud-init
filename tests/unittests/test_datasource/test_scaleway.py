@@ -87,7 +87,7 @@ class TestOnScaleway(CiTestCase):
 
     @mock.patch('cloudinit.util.get_cmdline')
     @mock.patch('os.path.exists')
-    @mock.patch('cloudinit.util.read_dmi_data')
+    @mock.patch('cloudinit.dmi.read_dmi_data')
     def test_not_on_scaleway(self, m_read_dmi_data, m_file_exists,
                              m_get_cmdline):
         self.install_mocks(
@@ -105,7 +105,7 @@ class TestOnScaleway(CiTestCase):
 
     @mock.patch('cloudinit.util.get_cmdline')
     @mock.patch('os.path.exists')
-    @mock.patch('cloudinit.util.read_dmi_data')
+    @mock.patch('cloudinit.dmi.read_dmi_data')
     def test_on_scaleway_dmi(self, m_read_dmi_data, m_file_exists,
                              m_get_cmdline):
         """
@@ -121,7 +121,7 @@ class TestOnScaleway(CiTestCase):
 
     @mock.patch('cloudinit.util.get_cmdline')
     @mock.patch('os.path.exists')
-    @mock.patch('cloudinit.util.read_dmi_data')
+    @mock.patch('cloudinit.dmi.read_dmi_data')
     def test_on_scaleway_var_run_scaleway(self, m_read_dmi_data, m_file_exists,
                                           m_get_cmdline):
         """
@@ -136,7 +136,7 @@ class TestOnScaleway(CiTestCase):
 
     @mock.patch('cloudinit.util.get_cmdline')
     @mock.patch('os.path.exists')
-    @mock.patch('cloudinit.util.read_dmi_data')
+    @mock.patch('cloudinit.dmi.read_dmi_data')
     def test_on_scaleway_cmdline(self, m_read_dmi_data, m_file_exists,
                                  m_get_cmdline):
         """
@@ -209,9 +209,9 @@ class TestDataSourceScaleway(HttprettyTestCase):
         self.assertEqual(self.datasource.get_instance_id(),
                          MetadataResponses.FAKE_METADATA['id'])
         self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
         ].sort())
         self.assertEqual(self.datasource.get_hostname(),
                          MetadataResponses.FAKE_METADATA['hostname'])
@@ -242,8 +242,8 @@ class TestDataSourceScaleway(HttprettyTestCase):
         ]
         self.datasource.metadata['ssh_public_keys'] = []
         self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
         ].sort())
 
     def test_ssh_keys_only_conf(self):
@@ -260,9 +260,9 @@ class TestDataSourceScaleway(HttprettyTestCase):
             'fingerprint': '2048 06:ff:...  login2 (RSA)'
         }]
         self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
         ].sort())
 
     def test_ssh_keys_both(self):
@@ -282,9 +282,9 @@ class TestDataSourceScaleway(HttprettyTestCase):
             'fingerprint': '2048 06:ff:...  login2 (RSA)'
         }]
         self.assertEqual(self.datasource.get_public_ssh_keys().sort(), [
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
-            u'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABCCCCC',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABDDDDD',
+            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABA',
         ].sort())
 
     @mock.patch('cloudinit.sources.DataSourceScaleway.EphemeralDHCPv4')

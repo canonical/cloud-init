@@ -17,7 +17,7 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import subp
 from cloudinit import util
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
 ETC_HOSTS = '/etc/hosts'
@@ -71,11 +71,13 @@ def gratuitous_arp(items, distro):
 
 
 def get_md():
-    rbx_data = None
+    """Returns False (not found or error) or a dictionary with metadata."""
     devices = set(
         util.find_devs_with('LABEL=CLOUDMD') +
         util.find_devs_with('LABEL=cloudmd')
     )
+    if not devices:
+        return False
     for device in devices:
         try:
             rbx_data = util.mount_cb(
@@ -84,17 +86,17 @@ def get_md():
                 mtype=['vfat', 'fat', 'msdosfs']
             )
             if rbx_data:
-                break
+                return rbx_data
         except OSError as err:
             if err.errno != errno.ENOENT:
                 raise
         except util.MountFailedError:
             util.logexc(LOG, "Failed to mount %s when looking for user "
                              "data", device)
-    if not rbx_data:
-        util.logexc(LOG, "Failed to load metadata and userdata")
-        return False
-    return rbx_data
+
+    LOG.debug("Did not find RbxCloud data, searched devices: %s",
+              ",".join(devices))
+    return False
 
 
 def generate_network_config(netadps):
@@ -204,10 +206,11 @@ def read_user_data_callback(mount_dir):
 
 class DataSourceRbxCloud(sources.DataSource):
     dsname = "RbxCloud"
-    update_events = {'network': [
+    default_update_events = {EventScope.NETWORK: {
         EventType.BOOT_NEW_INSTANCE,
-        EventType.BOOT
-    ]}
+        EventType.BOOT,
+        EventType.BOOT_LEGACY
+    }}
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -223,6 +226,8 @@ class DataSourceRbxCloud(sources.DataSource):
         is used to perform instance configuration.
         """
         rbx_data = get_md()
+        if rbx_data is False:
+            return False
         self.userdata_raw = rbx_data['userdata']
         self.metadata = rbx_data['metadata']
         self.gratuitous_arp = rbx_data['gratuitous_arp']

@@ -5,7 +5,7 @@ import inspect
 import os
 import stat
 
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.helpers import Paths
 from cloudinit import importer
 from cloudinit.sources import (
@@ -97,6 +97,8 @@ class TestDataSource(CiTestCase):
         self.assertEqual(params.max_wait_seconds, self.datasource.url_max_wait)
         self.assertEqual(params.timeout_seconds, self.datasource.url_timeout)
         self.assertEqual(params.num_retries, self.datasource.url_retries)
+        self.assertEqual(params.sec_between_retries,
+                         self.datasource.url_sec_between_retries)
 
     def test_datasource_get_url_params_subclassed(self):
         """Subclasses can override get_url_params defaults."""
@@ -104,7 +106,7 @@ class TestDataSource(CiTestCase):
         distro = 'distrotest'  # generally should be a Distro object
         datasource = DataSourceTestSubclassNet(sys_cfg, distro, self.paths)
         expected = (datasource.url_max_wait, datasource.url_timeout,
-                    datasource.url_retries)
+                    datasource.url_retries, datasource.url_sec_between_retries)
         url_params = datasource.get_url_params()
         self.assertNotEqual(self.datasource.get_url_params(), url_params)
         self.assertEqual(expected, url_params)
@@ -114,14 +116,16 @@ class TestDataSource(CiTestCase):
         sys_cfg = {
             'datasource': {
                 'MyTestSubclass': {
-                    'max_wait': '1', 'timeout': '2', 'retries': '3'}}}
+                    'max_wait': '1', 'timeout': '2',
+                    'retries': '3', 'sec_between_retries': 4
+                }}}
         datasource = DataSourceTestSubclassNet(
             sys_cfg, self.distro, self.paths)
-        expected = (1, 2, 3)
+        expected = (1, 2, 3, 4)
         url_params = datasource.get_url_params()
         self.assertNotEqual(
             (datasource.url_max_wait, datasource.url_timeout,
-             datasource.url_retries),
+             datasource.url_retries, datasource.url_sec_between_retries),
             url_params)
         self.assertEqual(expected, url_params)
 
@@ -130,7 +134,8 @@ class TestDataSource(CiTestCase):
         # Set an override that is below 0 which gets ignored.
         sys_cfg = {'datasource': {'_undef': {'timeout': '-1'}}}
         datasource = DataSource(sys_cfg, self.distro, self.paths)
-        (_max_wait, timeout, _retries) = datasource.get_url_params()
+        (_max_wait, timeout, _retries,
+         _sec_between_retries) = datasource.get_url_params()
         self.assertEqual(0, timeout)
 
     def test_datasource_get_url_uses_defaults_on_errors(self):
@@ -142,7 +147,7 @@ class TestDataSource(CiTestCase):
         datasource = DataSource(sys_cfg, self.distro, self.paths)
         url_params = datasource.get_url_params()
         expected = (datasource.url_max_wait, datasource.url_timeout,
-                    datasource.url_retries)
+                    datasource.url_retries, datasource.url_sec_between_retries)
         self.assertEqual(expected, url_params)
         logs = self.logs.getvalue()
         expected_logs = [
@@ -618,24 +623,29 @@ class TestDataSource(CiTestCase):
         self.assertEqual('himom', getattr(self.datasource, cached_attr_name))
         self.assertEqual('updated', self.datasource.myattr)
 
+    @mock.patch.dict(DataSource.default_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
+    @mock.patch.dict(DataSource.supported_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_update_metadata_only_acts_on_supported_update_events(self):
-        """update_metadata won't get_data on unsupported update events."""
-        self.datasource.update_events['network'].discard(EventType.BOOT)
+        """update_metadata_if_supported wont get_data on unsupported events."""
         self.assertEqual(
-            {'network': set([EventType.BOOT_NEW_INSTANCE])},
-            self.datasource.update_events)
+            {EventScope.NETWORK: set([EventType.BOOT_NEW_INSTANCE])},
+            self.datasource.default_update_events
+        )
 
         def fake_get_data():
             raise Exception('get_data should not be called')
 
         self.datasource.get_data = fake_get_data
         self.assertFalse(
-            self.datasource.update_metadata(
+            self.datasource.update_metadata_if_supported(
                 source_event_types=[EventType.BOOT]))
 
+    @mock.patch.dict(DataSource.supported_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
     def test_update_metadata_returns_true_on_supported_update_event(self):
-        """update_metadata returns get_data response on supported events."""
-
+        """update_metadata_if_supported returns get_data on supported events"""
         def fake_get_data():
             return True
 
@@ -643,14 +653,16 @@ class TestDataSource(CiTestCase):
         self.datasource._network_config = 'something'
         self.datasource._dirty_cache = True
         self.assertTrue(
-            self.datasource.update_metadata(
+            self.datasource.update_metadata_if_supported(
                 source_event_types=[
                     EventType.BOOT, EventType.BOOT_NEW_INSTANCE]))
         self.assertEqual(UNSET, self.datasource._network_config)
+
         self.assertIn(
             "DEBUG: Update datasource metadata and network config due to"
-            " events: New instance first boot",
-            self.logs.getvalue())
+            " events: boot-new-instance",
+            self.logs.getvalue()
+        )
 
 
 class TestRedactSensitiveData(CiTestCase):

@@ -195,7 +195,11 @@ class OpenNebulaNetwork(object):
         return self.get_field(dev, "gateway")
 
     def get_gateway6(self, dev):
-        return self.get_field(dev, "gateway6")
+        # OpenNebula 6.1.80 introduced new context parameter ETHx_IP6_GATEWAY
+        # to replace old ETHx_GATEWAY6. Old ETHx_GATEWAY6 will be removed in
+        # OpenNebula 6.4.0 (https://github.com/OpenNebula/one/issues/5536).
+        return self.get_field(dev, "ip6_gateway",
+                              self.get_field(dev, "gateway6"))
 
     def get_mask(self, dev):
         return self.get_field(dev, "mask", "255.255.255.0")
@@ -350,7 +354,8 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None,
     # exclude vars in bash that change on their own or that we used
     excluded = (
         "EPOCHREALTIME", "EPOCHSECONDS", "RANDOM", "LINENO", "SECONDS", "_",
-        "__v")
+        "SRANDOM", "__v",
+    )
     preset = {}
     ret = {}
     target = None
@@ -439,7 +444,7 @@ def read_context_disk_dir(source_dir, distro, asuser=None):
 
     # custom hostname -- try hostname or leave cloud-init
     # itself create hostname from IP address later
-    for k in ('HOSTNAME', 'PUBLIC_IP', 'IP_PUBLIC', 'ETH0_IP'):
+    for k in ('SET_HOSTNAME', 'HOSTNAME', 'PUBLIC_IP', 'IP_PUBLIC', 'ETH0_IP'):
         if k in context:
             results['metadata']['local-hostname'] = context[k]
             break

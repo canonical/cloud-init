@@ -39,6 +39,7 @@ The following is a list of documents for each supported datasource:
    datasources/exoscale.rst
    datasources/fallback.rst
    datasources/gce.rst
+   datasources/lxd.rst
    datasources/maas.rst
    datasources/nocloud.rst
    datasources/opennebula.rst
@@ -47,8 +48,10 @@ The following is a list of documents for each supported datasource:
    datasources/ovf.rst
    datasources/rbxcloud.rst
    datasources/smartos.rst
+   datasources/upcloud.rst
    datasources/zstack.rst
-
+   datasources/vultr.rst
+   datasources/vmware.rst
 
 Creation
 ========

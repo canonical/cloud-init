@@ -42,6 +42,7 @@ class TestParseDHCPLeasesFile(CiTestCase):
             lease {
               interface "wlp3s0";
               fixed-address 192.168.2.74;
+              filename "http://192.168.2.50/boot.php?mac=${netX}";
               option subnet-mask 255.255.255.0;
               option routers 192.168.2.1;
               renew 4 2017/07/27 18:02:30;
@@ -50,6 +51,7 @@ class TestParseDHCPLeasesFile(CiTestCase):
             lease {
               interface "wlp3s0";
               fixed-address 192.168.2.74;
+              filename "http://192.168.2.50/boot.php?mac=${netX}";
               option subnet-mask 255.255.255.0;
               option routers 192.168.2.1;
             }
@@ -58,8 +60,10 @@ class TestParseDHCPLeasesFile(CiTestCase):
             {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
              'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1',
              'renew': '4 2017/07/27 18:02:30',
-             'expire': '5 2017/07/28 07:08:15'},
+             'expire': '5 2017/07/28 07:08:15',
+             'filename': 'http://192.168.2.50/boot.php?mac=${netX}'},
             {'interface': 'wlp3s0', 'fixed-address': '192.168.2.74',
+             'filename': 'http://192.168.2.50/boot.php?mac=${netX}',
              'subnet-mask': '255.255.255.0', 'routers': '192.168.2.1'}]
         write_file(lease_file, content)
         self.assertCountEqual(expected, parse_dhcp_lease_file(lease_file))
@@ -192,6 +196,11 @@ class TestDHCPParseStaticRoutes(CiTestCase):
     def test_parse_static_routes_default_route(self):
         rfc3442 = "0,130,56,240,1"
         self.assertEqual([('0.0.0.0/0', '130.56.240.1')],
+                         parse_static_routes(rfc3442))
+
+    def test_unspecified_gateway(self):
+        rfc3442 = "32,169,254,169,254,0,0,0,0"
+        self.assertEqual([('169.254.169.254/32', '0.0.0.0')],
                          parse_static_routes(rfc3442))
 
     def test_parse_static_routes_class_c_b_a(self):
@@ -608,7 +617,9 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
         url = 'http://example.org/index.html'
 
         httpretty.register_uri(httpretty.GET, url)
-        with net.dhcp.EphemeralDHCPv4(connectivity_url=url) as lease:
+        with net.dhcp.EphemeralDHCPv4(
+            connectivity_url_data={'url': url},
+        ) as lease:
             self.assertIsNone(lease)
         # Ensure that no teardown happens:
         m_dhcp.assert_not_called()
@@ -626,7 +637,9 @@ class TestEphemeralDhcpNoNetworkSetup(HttprettyTestCase):
         m_subp.return_value = ('', '')
 
         httpretty.register_uri(httpretty.GET, url, body={}, status=404)
-        with net.dhcp.EphemeralDHCPv4(connectivity_url=url) as lease:
+        with net.dhcp.EphemeralDHCPv4(
+            connectivity_url_data={'url': url},
+        ) as lease:
             self.assertEqual(fake_lease, lease)
         # Ensure that dhcp discovery occurs
         m_dhcp.called_once_with()

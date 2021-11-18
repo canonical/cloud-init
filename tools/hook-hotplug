@@ -1,0 +1,22 @@
+#!/bin/bash
+# This file is part of cloud-init. See LICENSE file for license information.
+
+# This script checks if cloud-init has hotplug hooked and if
+# cloud-init has finished; if so invoke cloud-init hotplug-hook
+
+is_finished() {
+    [ -e /run/cloud-init/result.json ]
+}
+
+if is_finished; then
+    # open cloud-init's hotplug-hook fifo rw
+    exec 3<>/run/cloud-init/hook-hotplug-cmd
+    env_params=(
+        --subsystem="${SUBSYSTEM}"
+        handle
+        --devpath="${DEVPATH}"
+        --udevaction="${ACTION}"
+    )
+    # write params to cloud-init's hotplug-hook fifo
+    echo "${env_params[@]}" >&3
+fi

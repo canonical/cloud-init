@@ -24,8 +24,9 @@ LOG = logging.getLogger(__name__)
 frequency = PER_INSTANCE
 NTP_CONF = '/etc/ntp.conf'
 NR_POOL_SERVERS = 4
-distros = ['alpine', 'centos', 'debian', 'fedora', 'opensuse', 'rhel',
-           'sles', 'ubuntu']
+distros = ['almalinux', 'alpine', 'centos', 'cloudlinux', 'debian',
+           'eurolinux', 'fedora', 'openEuler', 'opensuse', 'photon',
+           'rhel', 'rocky', 'sles', 'ubuntu', 'virtuozzo']
 
 NTP_CLIENT_CONFIG = {
     'chrony': {
@@ -80,14 +81,6 @@ DISTRO_CLIENT_CONFIG = {
             'confpath': '/etc/chrony/chrony.conf',
         },
     },
-    'rhel': {
-        'ntp': {
-            'service_name': 'ntpd',
-        },
-        'chrony': {
-            'service_name': 'chronyd',
-        },
-    },
     'opensuse': {
         'chrony': {
             'service_name': 'chronyd',
@@ -98,6 +91,27 @@ DISTRO_CLIENT_CONFIG = {
         },
         'systemd-timesyncd': {
             'check_exe': '/usr/lib/systemd/systemd-timesyncd',
+        },
+    },
+    'photon': {
+        'chrony': {
+            'service_name': 'chronyd',
+        },
+        'ntp': {
+            'service_name': 'ntpd',
+            'confpath': '/etc/ntp.conf'
+        },
+        'systemd-timesyncd': {
+            'check_exe': '/usr/lib/systemd/systemd-timesyncd',
+            'confpath': '/etc/systemd/timesyncd.conf',
+        },
+    },
+    'rhel': {
+        'ntp': {
+            'service_name': 'ntpd',
+        },
+        'chrony': {
+            'service_name': 'chronyd',
         },
     },
     'sles': {
@@ -392,9 +406,9 @@ def generate_server_names(distro):
         # For legal reasons x.pool.sles.ntp.org does not exist,
         # use the opensuse pool
         pool_distro = 'opensuse'
-    elif distro == 'alpine':
+    elif distro == 'alpine' or distro == 'eurolinux':
         # Alpine-specific pool (i.e. x.alpine.pool.ntp.org) does not exist
-        # so use general x.pool.ntp.org instead.
+        # so use general x.pool.ntp.org instead. The same applies to EuroLinux
         pool_distro = ''
 
     for x in range(0, NR_POOL_SERVERS):
@@ -457,21 +471,6 @@ def write_ntp_config_template(distro_name, service_name=None, servers=None,
     # clean up temporary template
     if template:
         util.del_file(template_fn)
-
-
-def reload_ntp(service, systemd=False):
-    """Restart or reload an ntp system service.
-
-    @param service: A string specifying the name of the service to be affected.
-    @param systemd: A boolean indicating if the distro uses systemd, defaults
-    to False.
-    @returns: A tuple of stdout, stderr results from executing the action.
-    """
-    if systemd:
-        cmd = ['systemctl', 'reload-or-restart', service]
-    else:
-        cmd = ['service', service, 'restart']
-    subp.subp(cmd, capture=True)
 
 
 def supplemental_schema_validation(ntp_config):
@@ -551,7 +550,6 @@ def handle(name, cfg, cloud, log, _args):
     # Select which client is going to be used and get the configuration
     ntp_client_config = select_ntp_client(ntp_cfg.get('ntp_client'),
                                           cloud.distro)
-
     # Allow user ntp config to override distro configurations
     ntp_client_config = util.mergemanydict(
         [ntp_client_config, ntp_cfg.get('config', {})], reverse=True)
@@ -583,10 +581,11 @@ def handle(name, cfg, cloud, log, _args):
                        packages=ntp_client_config['packages'],
                        check_exe=ntp_client_config['check_exe'])
     try:
-        reload_ntp(ntp_client_config['service_name'],
-                   systemd=cloud.distro.uses_systemd())
+        cloud.distro.manage_service('reload',
+                                    ntp_client_config.get('service_name'))
     except subp.ProcessExecutionError as e:
         LOG.exception("Failed to reload/start ntp service: %s", e)
         raise
+
 
 # vi: ts=4 expandtab

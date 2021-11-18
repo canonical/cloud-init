@@ -6,20 +6,18 @@
 
 from cloudinit.config import cc_timezone
 
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
 from cloudinit import util
 
-from cloudinit.sources import DataSourceNoCloud
 
-from cloudinit.tests import helpers as t_help
-
-from configobj import ConfigObj
 import logging
 import shutil
 import tempfile
+from configobj import ConfigObj
 from io import BytesIO
+
+from cloudinit.tests import helpers as t_help
+
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -29,25 +27,15 @@ class TestTimezone(t_help.FilesystemMockingTestCase):
         super(TestTimezone, self).setUp()
         self.new_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.new_root)
-
-    def _get_cloud(self, distro):
         self.patchUtils(self.new_root)
         self.patchOS(self.new_root)
-
-        paths = helpers.Paths({})
-
-        cls = distros.fetch(distro)
-        d = cls(distro, {}, paths)
-        ds = DataSourceNoCloud.DataSourceNoCloud({}, d, paths)
-        cc = cloud.Cloud(ds, paths, {}, d, None)
-        return cc
 
     def test_set_timezone_sles(self):
 
         cfg = {
             'timezone': 'Tatooine/Bestine',
         }
-        cc = self._get_cloud('sles')
+        cc = get_cloud('sles')
 
         # Create a dummy timezone file
         dummy_contents = '0123456789abcdefgh'

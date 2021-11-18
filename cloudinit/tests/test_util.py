@@ -107,14 +107,124 @@ OS_RELEASE_REDHAT_7 = dedent("""\
     REDHAT_SUPPORT_PRODUCT_VERSION="7.5"
 """)
 
+OS_RELEASE_ALMALINUX_8 = dedent("""\
+    NAME="AlmaLinux"
+    VERSION="8.3 (Purple Manul)"
+    ID="almalinux"
+    ID_LIKE="rhel centos fedora"
+    VERSION_ID="8.3"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="AlmaLinux 8.3 (Purple Manul)"
+    ANSI_COLOR="0;34"
+    CPE_NAME="cpe:/o:almalinux:almalinux:8.3:GA"
+    HOME_URL="https://almalinux.org/"
+    BUG_REPORT_URL="https://bugs.almalinux.org/"
+
+    ALMALINUX_MANTISBT_PROJECT="AlmaLinux-8"
+    ALMALINUX_MANTISBT_PROJECT_VERSION="8.3"
+""")
+
+OS_RELEASE_EUROLINUX_7 = dedent("""\
+    VERSION="7.9 (Minsk)"
+    ID="eurolinux"
+    ID_LIKE="rhel scientific centos fedora"
+    VERSION_ID="7.9"
+    PRETTY_NAME="EuroLinux 7.9 (Minsk)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:eurolinux:eurolinux:7.9:GA"
+    HOME_URL="http://www.euro-linux.com/"
+    BUG_REPORT_URL="mailto:support@euro-linux.com"
+    REDHAT_BUGZILLA_PRODUCT="EuroLinux 7"
+    REDHAT_BUGZILLA_PRODUCT_VERSION=7.9
+    REDHAT_SUPPORT_PRODUCT="EuroLinux"
+    REDHAT_SUPPORT_PRODUCT_VERSION="7.9"
+""")
+
+OS_RELEASE_EUROLINUX_8 = dedent("""\
+    NAME="EuroLinux"
+    VERSION="8.4 (Vaduz)"
+    ID="eurolinux"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="8.4"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="EuroLinux 8.4 (Vaduz)"
+    ANSI_COLOR="0;34"
+    CPE_NAME="cpe:/o:eurolinux:eurolinux:8"
+    HOME_URL="https://www.euro-linux.com/"
+    BUG_REPORT_URL="https://github.com/EuroLinux/eurolinux-distro-bugs-and-rfc/"
+    REDHAT_SUPPORT_PRODUCT="EuroLinux"
+    REDHAT_SUPPORT_PRODUCT_VERSION="8"
+""")
+
+OS_RELEASE_ROCKY_8 = dedent("""\
+    NAME="Rocky Linux"
+    VERSION="8.3 (Green Obsidian)"
+    ID="rocky"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8.3"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="Rocky Linux 8.3 (Green Obsidian)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:rocky:rocky:8"
+    HOME_URL="https://rockylinux.org/"
+    BUG_REPORT_URL="https://bugs.rockylinux.org/"
+    ROCKY_SUPPORT_PRODUCT="Rocky Linux"
+    ROCKY_SUPPORT_PRODUCT_VERSION="8"
+""")
+
+OS_RELEASE_VIRTUOZZO_8 = dedent("""\
+    NAME="Virtuozzo Linux"
+    VERSION="8"
+    ID="virtuozzo"
+    ID_LIKE="rhel fedora"
+    VERSION_ID="8"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="Virtuozzo Linux"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:virtuozzoproject:vzlinux:8"
+    HOME_URL="https://www.vzlinux.org"
+    BUG_REPORT_URL="https://bugs.openvz.org"
+""")
+
+OS_RELEASE_CLOUDLINUX_8 = dedent("""\
+    NAME="CloudLinux"
+    VERSION="8.4 (Valery Rozhdestvensky)"
+    ID="cloudlinux"
+    ID_LIKE="rhel fedora centos"
+    VERSION_ID="8.4"
+    PLATFORM_ID="platform:el8"
+    PRETTY_NAME="CloudLinux 8.4 (Valery Rozhdestvensky)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:cloudlinux:cloudlinux:8.4:GA:server"
+    HOME_URL="https://www.cloudlinux.com/"
+    BUG_REPORT_URL="https://www.cloudlinux.com/support"
+""")
+
+OS_RELEASE_OPENEULER_20 = dedent("""\
+    NAME="openEuler"
+    VERSION="20.03 (LTS-SP2)"
+    ID="openEuler"
+    VERSION_ID="20.03"
+    PRETTY_NAME="openEuler 20.03 (LTS-SP2)"
+    ANSI_COLOR="0;31"
+""")
+
 REDHAT_RELEASE_CENTOS_6 = "CentOS release 6.10 (Final)"
 REDHAT_RELEASE_CENTOS_7 = "CentOS Linux release 7.5.1804 (Core)"
 REDHAT_RELEASE_REDHAT_6 = (
     "Red Hat Enterprise Linux Server release 6.10 (Santiago)")
 REDHAT_RELEASE_REDHAT_7 = (
     "Red Hat Enterprise Linux Server release 7.5 (Maipo)")
-
-
+REDHAT_RELEASE_ALMALINUX_8 = (
+    "AlmaLinux release 8.3 (Purple Manul)")
+REDHAT_RELEASE_EUROLINUX_7 = "EuroLinux release 7.9 (Minsk)"
+REDHAT_RELEASE_EUROLINUX_8 = "EuroLinux release 8.4 (Vaduz)"
+REDHAT_RELEASE_ROCKY_8 = (
+    "Rocky Linux release 8.3 (Green Obsidian)")
+REDHAT_RELEASE_VIRTUOZZO_8 = (
+    "Virtuozzo Linux release 8")
+REDHAT_RELEASE_CLOUDLINUX_8 = (
+    "CloudLinux release 8.4 (Valery Rozhdestvensky)")
 OS_RELEASE_DEBIAN = dedent("""\
     PRETTY_NAME="Debian GNU/Linux 9 (stretch)"
     NAME="Debian GNU/Linux"
@@ -139,6 +249,17 @@ OS_RELEASE_UBUNTU = dedent("""\
     BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"\n
     VERSION_CODENAME=xenial\n
     UBUNTU_CODENAME=xenial\n
+""")
+
+OS_RELEASE_PHOTON = ("""\
+        NAME="VMware Photon OS"
+        VERSION="4.0"
+        ID=photon
+        VERSION_ID=4.0
+        PRETTY_NAME="VMware Photon OS/Linux"
+        ANSI_COLOR="1;34"
+        HOME_URL="https://vmware.github.io/photon/"
+        BUG_REPORT_URL="https://github.com/vmware/photon/issues"
 """)
 
 
@@ -227,6 +348,11 @@ class TestShellify(CiTestCase):
                        "'echo' 'hi' 'sis'", ""]),
             util.shellify(["echo hi mom", ["echo", "hi dad"],
                            ('echo', 'hi', 'sis')]))
+
+    def test_supports_comments(self):
+        self.assertEqual(
+            '\n'.join(["#!/bin/sh", "echo start", "echo end", ""]),
+            util.shellify(["echo start", None, "echo end"]))
 
 
 class TestGetHostnameFqdn(CiTestCase):
@@ -503,12 +629,116 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('centos', '7', 'Core'), dist)
 
     @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_almalinux8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify almalinux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_ALMALINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('almalinux', '8.3', 'Purple Manul'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_almalinux8_osrelease(self, m_os_release, m_path_exists):
+        """Verify almalinux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_ALMALINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('almalinux', '8.3', 'Purple Manul'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_eurolinux7_rhrelease(self, m_os_release, m_path_exists):
+        """Verify eurolinux 7 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_EUROLINUX_7
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('eurolinux', '7.9', 'Minsk'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_eurolinux7_osrelease(self, m_os_release, m_path_exists):
+        """Verify eurolinux 7 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_EUROLINUX_7
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('eurolinux', '7.9', 'Minsk'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_eurolinux8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify eurolinux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_EUROLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('eurolinux', '8.4', 'Vaduz'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_eurolinux8_osrelease(self, m_os_release, m_path_exists):
+        """Verify eurolinux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_EUROLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('eurolinux', '8.4', 'Vaduz'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_rocky8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify rocky linux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_ROCKY_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('rocky', '8.3', 'Green Obsidian'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_rocky8_osrelease(self, m_os_release, m_path_exists):
+        """Verify rocky linux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_ROCKY_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('rocky', '8.3', 'Green Obsidian'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_virtuozzo8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify virtuozzo linux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_VIRTUOZZO_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('virtuozzo', '8', 'Virtuozzo Linux'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_virtuozzo8_osrelease(self, m_os_release, m_path_exists):
+        """Verify virtuozzo linux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_VIRTUOZZO_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('virtuozzo', '8', 'Virtuozzo Linux'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_cloud8_rhrelease(self, m_os_release, m_path_exists):
+        """Verify cloudlinux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_CLOUDLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('cloudlinux', '8.4', 'Valery Rozhdestvensky'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_cloud8_osrelease(self, m_os_release, m_path_exists):
+        """Verify cloudlinux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_CLOUDLINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('cloudlinux', '8.4', 'Valery Rozhdestvensky'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
     def test_get_linux_debian(self, m_os_release, m_path_exists):
         """Verify we get the correct name and release name on Debian."""
         m_os_release.return_value = OS_RELEASE_DEBIAN
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('debian', '9', 'stretch'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_openeuler(self, m_os_release, m_path_exists):
+        """Verify get the correct name and release name on Openeuler."""
+        m_os_release.return_value = OS_RELEASE_OPENEULER_20
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('openEuler', '20.03', 'LTS-SP2'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
@@ -540,6 +770,15 @@ class TestGetLinuxDistro(CiTestCase):
         dist = util.get_linux_distro()
         self.assertEqual(
             ('opensuse-tumbleweed', '20180920', platform.machine()), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_photon_os_release(self, m_os_release, m_path_exists):
+        """Verify we get the correct name and machine arch on PhotonOS"""
+        m_os_release.return_value = OS_RELEASE_PHOTON
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(
+            ('photon', '4.0', 'VMware Photon OS/Linux'), dist)
 
     @mock.patch('platform.system')
     @mock.patch('platform.dist', create=True)
@@ -730,6 +969,41 @@ class TestMountCb:
         """already_mounted_device_and_mountdict, but return only the device"""
         return already_mounted_device_and_mountdict[0]
 
+    @pytest.mark.parametrize(
+        "mtype,expected",
+        [
+            # While the filesystem is called iso9660, the mount type is cd9660
+            ("iso9660", "cd9660"),
+            # vfat is generally called "msdos" on BSD
+            ("vfat", "msdos"),
+            # judging from man pages, only FreeBSD has this alias
+            ("msdosfs", "msdos"),
+            # Test happy path
+            ("ufs", "ufs")
+        ],
+    )
+    @mock.patch("cloudinit.util.is_Linux", autospec=True)
+    @mock.patch("cloudinit.util.is_BSD", autospec=True)
+    @mock.patch("cloudinit.util.subp.subp")
+    @mock.patch("cloudinit.temp_utils.tempdir", autospec=True)
+    def test_normalize_mtype_on_bsd(
+        self, m_tmpdir, m_subp, m_is_BSD, m_is_Linux, mtype, expected
+    ):
+        m_is_BSD.return_value = True
+        m_is_Linux.return_value = False
+        m_tmpdir.return_value.__enter__ = mock.Mock(
+            autospec=True, return_value="/tmp/fake"
+        )
+        m_tmpdir.return_value.__exit__ = mock.Mock(
+            autospec=True, return_value=True
+        )
+        callback = mock.Mock(autospec=True)
+
+        util.mount_cb('/dev/fake0', callback, mtype=mtype)
+        assert mock.call(
+            ["mount", "-o", "ro", "-t", expected, "/dev/fake0", "/tmp/fake"],
+            update_env=None) in m_subp.call_args_list
+
     @pytest.mark.parametrize("invalid_mtype", [int(0), float(0.0), dict()])
     def test_typeerror_raised_for_invalid_mtype(self, invalid_mtype):
         with pytest.raises(TypeError):
@@ -770,5 +1044,106 @@ class TestMountCb:
             mock.call(mock.ANY, mock.sentinel.data)
         ] == callback.call_args_list
 
+
+@mock.patch("cloudinit.util.write_file")
+class TestEnsureFile:
+    """Tests for ``cloudinit.util.ensure_file``."""
+
+    def test_parameters_passed_through(self, m_write_file):
+        """Test the parameters in the signature are passed to write_file."""
+        util.ensure_file(
+            mock.sentinel.path,
+            mode=mock.sentinel.mode,
+            preserve_mode=mock.sentinel.preserve_mode,
+        )
+
+        assert 1 == m_write_file.call_count
+        args, kwargs = m_write_file.call_args
+        assert (mock.sentinel.path,) == args
+        assert mock.sentinel.mode == kwargs["mode"]
+        assert mock.sentinel.preserve_mode == kwargs["preserve_mode"]
+
+    @pytest.mark.parametrize(
+        "kwarg,expected",
+        [
+            # Files should be world-readable by default
+            ("mode", 0o644),
+            # The previous behaviour of not preserving mode should be retained
+            ("preserve_mode", False),
+        ],
+    )
+    def test_defaults(self, m_write_file, kwarg, expected):
+        """Test that ensure_file defaults appropriately."""
+        util.ensure_file(mock.sentinel.path)
+
+        assert 1 == m_write_file.call_count
+        _args, kwargs = m_write_file.call_args
+        assert expected == kwargs[kwarg]
+
+    def test_static_parameters_are_passed(self, m_write_file):
+        """Test that the static write_files parameters are passed correctly."""
+        util.ensure_file(mock.sentinel.path)
+
+        assert 1 == m_write_file.call_count
+        _args, kwargs = m_write_file.call_args
+        assert "" == kwargs["content"]
+        assert "ab" == kwargs["omode"]
+
+
+@mock.patch("cloudinit.util.grp.getgrnam")
+@mock.patch("cloudinit.util.os.setgid")
+@mock.patch("cloudinit.util.os.umask")
+class TestRedirectOutputPreexecFn:
+    """This tests specifically the preexec_fn used in redirect_output."""
+
+    @pytest.fixture(params=["outfmt", "errfmt"])
+    def preexec_fn(self, request):
+        """A fixture to gather the preexec_fn used by redirect_output.
+
+        This enables simpler direct testing of it, and parameterises any tests
+        using it to cover both the stdout and stderr code paths.
+        """
+        test_string = "| piped output to invoke subprocess"
+        if request.param == "outfmt":
+            args = (test_string, None)
+        elif request.param == "errfmt":
+            args = (None, test_string)
+        with mock.patch("cloudinit.util.subprocess.Popen") as m_popen:
+            util.redirect_output(*args)
+
+        assert 1 == m_popen.call_count
+        _args, kwargs = m_popen.call_args
+        assert "preexec_fn" in kwargs, "preexec_fn not passed to Popen"
+        return kwargs["preexec_fn"]
+
+    def test_preexec_fn_sets_umask(
+        self, m_os_umask, _m_setgid, _m_getgrnam, preexec_fn
+    ):
+        """preexec_fn should set a mask that avoids world-readable files."""
+        preexec_fn()
+
+        assert [mock.call(0o037)] == m_os_umask.call_args_list
+
+    def test_preexec_fn_sets_group_id_if_adm_group_present(
+        self, _m_os_umask, m_setgid, m_getgrnam, preexec_fn
+    ):
+        """We should setgrp to adm if present, so files are owned by them."""
+        fake_group = mock.Mock(gr_gid=mock.sentinel.gr_gid)
+        m_getgrnam.return_value = fake_group
+
+        preexec_fn()
+
+        assert [mock.call("adm")] == m_getgrnam.call_args_list
+        assert [mock.call(mock.sentinel.gr_gid)] == m_setgid.call_args_list
+
+    def test_preexec_fn_handles_absent_adm_group_gracefully(
+        self, _m_os_umask, m_setgid, m_getgrnam, preexec_fn
+    ):
+        """We should handle an absent adm group gracefully."""
+        m_getgrnam.side_effect = KeyError("getgrnam(): name not found: 'adm'")
+
+        preexec_fn()
+
+        assert 0 == m_setgid.call_count
 
 # vi: ts=4 expandtab

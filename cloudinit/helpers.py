@@ -20,6 +20,7 @@ from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
 
 from cloudinit import log as logging
 from cloudinit import type_utils
+from cloudinit import persistence
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -230,6 +231,10 @@ class ConfigMerger(object):
 
         cc_paths = ['cloud_config']
         if self._include_vendor:
+            # the order is important here: we want vendor2
+            #  (dynamic vendor data from OpenStack)
+            #  to override vendor (static data from OpenStack)
+            cc_paths.append('vendor2_cloud_config')
             cc_paths.append('vendor_cloud_config')
 
         for cc_p in cc_paths:
@@ -313,7 +318,9 @@ class ContentHandlers(object):
         return list(self.registered.items())
 
 
-class Paths(object):
+class Paths(persistence.CloudInitPickleMixin):
+    _ci_pkl_version = 1
+
     def __init__(self, path_cfgs, ds=None):
         self.cfgs = path_cfgs
         # Populate all the initial paths
@@ -337,15 +344,30 @@ class Paths(object):
             "obj_pkl": "obj.pkl",
             "cloud_config": "cloud-config.txt",
             "vendor_cloud_config": "vendor-cloud-config.txt",
+            "vendor2_cloud_config": "vendor2-cloud-config.txt",
             "data": "data",
             "vendordata_raw": "vendor-data.txt",
+            "vendordata2_raw": "vendor-data2.txt",
             "vendordata": "vendor-data.txt.i",
+            "vendordata2": "vendor-data2.txt.i",
             "instance_id": ".instance-id",
             "manual_clean_marker": "manual-clean",
             "warnings": "warnings",
         }
         # Set when a datasource becomes active
         self.datasource = ds
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        """Perform deserialization fixes for Paths."""
+        if not hasattr(self, "run_dir"):
+            # On older versions of cloud-init the Paths class do not
+            # have the run_dir attribute. This is problematic because
+            # when loading the pickle object on newer versions of cloud-init
+            # we will rely on this attribute. To fix that, we are now
+            # manually adding that attribute here.
+            self.run_dir = Paths(
+                path_cfgs=self.cfgs,
+                ds=self.datasource).run_dir
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):

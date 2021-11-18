@@ -25,13 +25,14 @@ import requests
 from requests.packages.urllib3.connection import HTTPConnection
 from requests.packages.urllib3.poolmanager import PoolManager
 
+from cloudinit import dmi
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
 from cloudinit import net
+from cloudinit.event import EventScope, EventType
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
-from cloudinit.event import EventType
 
 LOG = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def on_scaleway():
     * the initrd created the file /var/run/scaleway.
     * "scaleway" is in the kernel cmdline.
     """
-    vendor_name = util.read_dmi_data('system-manufacturer')
+    vendor_name = dmi.read_dmi_data('system-manufacturer')
     if vendor_name == 'Scaleway':
         return True
 
@@ -171,7 +172,13 @@ def query_data_api(api_type, api_address, retries, timeout):
 
 class DataSourceScaleway(sources.DataSource):
     dsname = "Scaleway"
-    update_events = {'network': [EventType.BOOT_NEW_INSTANCE, EventType.BOOT]}
+    default_update_events = {
+        EventScope.NETWORK: {
+            EventType.BOOT_NEW_INSTANCE,
+            EventType.BOOT,
+            EventType.BOOT_LEGACY
+        }
+    }
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceScaleway, self).__init__(sys_cfg, distro, paths)

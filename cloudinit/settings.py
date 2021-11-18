@@ -21,6 +21,7 @@ CFG_BUILTIN = {
     'datasource_list': [
         'NoCloud',
         'ConfigDrive',
+        'LXD',
         'OpenNebula',
         'DigitalOcean',
         'Azure',
@@ -30,6 +31,7 @@ CFG_BUILTIN = {
         'GCE',
         'OpenStack',
         'AliYun',
+        'Vultr',
         'Ec2',
         'CloudSigma',
         'CloudStack',
@@ -41,6 +43,8 @@ CFG_BUILTIN = {
         'Oracle',
         'Exoscale',
         'RbxCloud',
+        'UpCloud',
+        'VMware',
         # At the end to act as a 'catch' when none of the above work...
         'None',
     ],
@@ -56,6 +60,7 @@ CFG_BUILTIN = {
         'network': {'renderers': None},
     },
     'vendor_data': {'enabled': True, 'prefix': []},
+    'vendor_data2': {'enabled': True, 'prefix': []},
 }
 
 # Valid frequencies of handlers/modules

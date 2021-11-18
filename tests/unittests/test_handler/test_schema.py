@@ -9,9 +9,8 @@ from cloudinit.util import write_file
 from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 from copy import copy
-import os
+import itertools
 import pytest
-from io import StringIO
 from pathlib import Path
 from textwrap import dedent
 from yaml import safe_load
@@ -35,8 +34,10 @@ class GetSchemaTest(CiTestCase):
                 'cc_ubuntu_advantage',
                 'cc_ubuntu_drivers',
                 'cc_write_files',
+                'cc_write_files_deferred',
                 'cc_zypper_add_repo',
-                'cc_chef'
+                'cc_chef',
+                'cc_install_hotplug',
             ],
             [subschema['id'] for subschema in schema['allOf']])
         self.assertEqual('cloud-config-schema', schema['id'])
@@ -109,11 +110,11 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
     def test_validateconfig_schema_honors_formats(self):
         """With strict True, validate_cloudconfig_schema errors on format."""
         schema = {
-            'properties': {'p1': {'type': 'string', 'format': 'hostname'}}}
+            'properties': {'p1': {'type': 'string', 'format': 'email'}}}
         with self.assertRaises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema({'p1': '-1'}, schema, strict=True)
         self.assertEqual(
-            "Cloud config schema errors: p1: '-1' is not a 'hostname'",
+            "Cloud config schema errors: p1: '-1' is not a 'email'",
             str(context_mgr.exception))
 
 
@@ -190,12 +191,12 @@ class ValidateCloudConfigFileTest(CiTestCase):
     def test_validateconfig_file_sctrictly_validates_schema(self):
         """validate_cloudconfig_file raises errors on invalid schema."""
         schema = {
-            'properties': {'p1': {'type': 'string', 'format': 'hostname'}}}
-        write_file(self.config_file, '#cloud-config\np1: "-1"')
+            'properties': {'p1': {'type': 'string', 'format': 'string'}}}
+        write_file(self.config_file, '#cloud-config\np1: -1')
         with self.assertRaises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_file(self.config_file, schema)
         self.assertEqual(
-            "Cloud config schema errors: p1: '-1' is not a 'hostname'",
+            "Cloud config schema errors: p1: -1 is not of type 'string'",
             str(context_mgr.exception))
 
 
@@ -400,90 +401,97 @@ class AnnotatedCloudconfigFileTest(CiTestCase):
             annotated_cloudconfig_file(parsed_config, content, schema_errors))
 
 
-class MainTest(CiTestCase):
+class TestMain:
 
-    def test_main_missing_args(self):
+    exclusive_combinations = itertools.combinations(
+        ["--system", "--docs all", "--config-file something"], 2
+    )
+
+    @pytest.mark.parametrize("params", exclusive_combinations)
+    def test_main_exclusive_args(self, params, capsys):
+        """Main exits non-zero and error on required exclusive args."""
+        params = list(itertools.chain(*[a.split() for a in params]))
+        with mock.patch('sys.argv', ['mycmd'] + params):
+            with pytest.raises(SystemExit) as context_manager:
+                main()
+        assert 1 == context_manager.value.code
+
+        _out, err = capsys.readouterr()
+        expected = (
+            'Expected one of --config-file, --system or --docs arguments\n'
+        )
+        assert expected == err
+
+    def test_main_missing_args(self, capsys):
         """Main exits non-zero and reports an error on missing parameters."""
         with mock.patch('sys.argv', ['mycmd']):
-            with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
-                with self.assertRaises(SystemExit) as context_manager:
-                    main()
-        self.assertEqual(1, context_manager.exception.code)
-        self.assertEqual(
-            'Expected either --config-file argument or --docs\n',
-            m_stderr.getvalue())
+            with pytest.raises(SystemExit) as context_manager:
+                main()
+        assert 1 == context_manager.value.code
 
-    def test_main_absent_config_file(self):
+        _out, err = capsys.readouterr()
+        expected = (
+            'Expected one of --config-file, --system or --docs arguments\n'
+        )
+        assert expected == err
+
+    def test_main_absent_config_file(self, capsys):
         """Main exits non-zero when config file is absent."""
         myargs = ['mycmd', '--annotate', '--config-file', 'NOT_A_FILE']
         with mock.patch('sys.argv', myargs):
-            with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
-                with self.assertRaises(SystemExit) as context_manager:
-                    main()
-        self.assertEqual(1, context_manager.exception.code)
-        self.assertEqual(
-            'Configfile NOT_A_FILE does not exist\n',
-            m_stderr.getvalue())
+            with pytest.raises(SystemExit) as context_manager:
+                main()
+        assert 1 == context_manager.value.code
+        _out, err = capsys.readouterr()
+        assert 'Configfile NOT_A_FILE does not exist\n' == err
 
-    def test_main_prints_docs(self):
+    def test_main_prints_docs(self, capsys):
         """When --docs parameter is provided, main generates documentation."""
         myargs = ['mycmd', '--docs', 'all']
         with mock.patch('sys.argv', myargs):
-            with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
-                self.assertEqual(0, main(), 'Expected 0 exit code')
-        self.assertIn('\nNTP\n---\n', m_stdout.getvalue())
-        self.assertIn('\nRuncmd\n------\n', m_stdout.getvalue())
+            assert 0 == main(), 'Expected 0 exit code'
+        out, _err = capsys.readouterr()
+        assert '\nNTP\n---\n' in out
+        assert '\nRuncmd\n------\n' in out
 
-    def test_main_validates_config_file(self):
+    def test_main_validates_config_file(self, tmpdir, capsys):
         """When --config-file parameter is provided, main validates schema."""
-        myyaml = self.tmp_path('my.yaml')
-        myargs = ['mycmd', '--config-file', myyaml]
-        write_file(myyaml, b'#cloud-config\nntp:')  # shortest ntp schema
+        myyaml = tmpdir.join('my.yaml')
+        myargs = ['mycmd', '--config-file', myyaml.strpath]
+        myyaml.write(b'#cloud-config\nntp:')  # shortest ntp schema
         with mock.patch('sys.argv', myargs):
-            with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
-                self.assertEqual(0, main(), 'Expected 0 exit code')
-        self.assertIn(
-            'Valid cloud-config file {0}'.format(myyaml), m_stdout.getvalue())
+            assert 0 == main(), 'Expected 0 exit code'
+        out, _err = capsys.readouterr()
+        assert 'Valid cloud-config: {0}\n'.format(myyaml) == out
 
+    @mock.patch('cloudinit.config.schema.read_cfg_paths')
+    @mock.patch('cloudinit.config.schema.os.getuid', return_value=0)
+    def test_main_validates_system_userdata(
+        self, m_getuid, m_read_cfg_paths, capsys, paths
+    ):
+        """When --system is provided, main validates system userdata."""
+        m_read_cfg_paths.return_value = paths
+        ud_file = paths.get_ipath_cur("userdata_raw")
+        write_file(ud_file, b'#cloud-config\nntp:')
+        myargs = ['mycmd', '--system']
+        with mock.patch('sys.argv', myargs):
+            assert 0 == main(), 'Expected 0 exit code'
+        out, _err = capsys.readouterr()
+        assert 'Valid cloud-config: system userdata\n' == out
 
-class CloudTestsIntegrationTest(CiTestCase):
-    """Validate all cloud-config yaml schema provided in integration tests.
-
-    It is less expensive to have unittests validate schema of all cloud-config
-    yaml provided to integration tests, than to run an integration test which
-    raises Warnings or errors on invalid cloud-config schema.
-    """
-
-    @skipUnlessJsonSchema()
-    def test_all_integration_test_cloud_config_schema(self):
-        """Validate schema of cloud_tests yaml files looking for warnings."""
-        schema = get_schema()
-        testsdir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        integration_testdir = os.path.sep.join(
-            [testsdir, 'cloud_tests', 'testcases'])
-        errors = []
-
-        yaml_files = []
-        for root, _dirnames, filenames in os.walk(integration_testdir):
-            yaml_files.extend([os.path.join(root, f)
-                               for f in filenames if f.endswith(".yaml")])
-        self.assertTrue(len(yaml_files) > 0)
-
-        for filename in yaml_files:
-            test_cfg = safe_load(open(filename))
-            cloud_config = test_cfg.get('cloud_config')
-            if cloud_config:
-                cloud_config = safe_load(
-                    cloud_config.replace("#cloud-config\n", ""))
-                try:
-                    validate_cloudconfig_schema(
-                        cloud_config, schema, strict=True)
-                except SchemaValidationError as e:
-                    errors.append(
-                        '{0}: {1}'.format(
-                            filename, e))
-        if errors:
-            raise AssertionError(', '.join(errors))
+    @mock.patch('cloudinit.config.schema.os.getuid', return_value=1000)
+    def test_main_system_userdata_requires_root(self, m_getuid, capsys, paths):
+        """Non-root user can't use --system param"""
+        myargs = ['mycmd', '--system']
+        with mock.patch('sys.argv', myargs):
+            with pytest.raises(SystemExit) as context_manager:
+                main()
+        assert 1 == context_manager.value.code
+        _out, err = capsys.readouterr()
+        expected = (
+            'Unable to read system userdata as non-root user. Try using sudo\n'
+        )
+        assert expected == err
 
 
 def _get_schema_doc_examples():

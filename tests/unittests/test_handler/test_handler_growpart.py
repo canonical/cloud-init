@@ -3,16 +3,19 @@
 from cloudinit import cloud
 from cloudinit.config import cc_growpart
 from cloudinit import subp
+from cloudinit import temp_utils
 
 from cloudinit.tests.helpers import TestCase
 
 import errno
 import logging
 import os
+import shutil
 import re
 import unittest
 from contextlib import ExitStack
 from unittest import mock
+import stat
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'
@@ -58,6 +61,28 @@ usage: gpart add -t type [-a alignment] [-b start] <SNIP> geom
 """
 
 
+class Dir:
+    '''Stub object'''
+    def __init__(self, name):
+        self.name = name
+        self.st_mode = name
+
+    def is_dir(self, *args, **kwargs):
+        return True
+
+    def stat(self, *args, **kwargs):
+        return self
+
+
+class Scanner:
+    '''Stub object'''
+    def __enter__(self):
+        return (Dir(''), Dir(''),)
+
+    def __exit__(self, *args):
+        pass
+
+
 class TestDisabled(unittest.TestCase):
     def setUp(self):
         super(TestDisabled, self).setUp()
@@ -91,6 +116,13 @@ class TestConfig(TestCase):
 
         self.cloud_init = None
         self.handle = cc_growpart.handle
+        self.tmppath = '/tmp/cloudinit-test-file'
+        self.tmpdir = os.scandir('/tmp')
+        self.tmpfile = open(self.tmppath, 'w')
+
+    def tearDown(self):
+        self.tmpfile.close()
+        os.remove(self.tmppath)
 
     @mock.patch.dict("os.environ", clear=True)
     def test_no_resizers_auto_is_fine(self):
@@ -130,7 +162,42 @@ class TestConfig(TestCase):
             mockobj.assert_called_once_with(
                 ['growpart', '--help'], env={'LANG': 'C'})
 
-    @mock.patch.dict("os.environ", clear=True)
+    @mock.patch.dict("os.environ", {'LANG': 'cs_CZ.UTF-8'}, clear=True)
+    @mock.patch.object(temp_utils, 'mkdtemp', return_value='/tmp/much-random')
+    @mock.patch.object(stat, 'S_ISDIR', return_value=False)
+    @mock.patch.object(os.path, 'samestat', return_value=True)
+    @mock.patch.object(os.path, "join", return_value='/tmp')
+    @mock.patch.object(os, 'scandir', return_value=Scanner())
+    @mock.patch.object(os, 'mkdir')
+    @mock.patch.object(os, 'unlink')
+    @mock.patch.object(os, 'rmdir')
+    @mock.patch.object(os, 'open', return_value=1)
+    @mock.patch.object(os, 'close')
+    @mock.patch.object(shutil, 'rmtree')
+    @mock.patch.object(os, 'lseek', return_value=1024)
+    @mock.patch.object(os, 'lstat', return_value='interesting metadata')
+    def test_force_lang_check_tempfile(self, *args, **kwargs):
+        with mock.patch.object(
+                subp,
+                'subp',
+                return_value=(HELP_GROWPART_RESIZE, "")) as mockobj:
+
+            ret = cc_growpart.resizer_factory(mode="auto")
+            self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
+            diskdev = '/dev/sdb'
+            partnum = 1
+            partdev = '/dev/sdb'
+            ret.resize(diskdev, partnum, partdev)
+        mockobj.assert_has_calls([
+            mock.call(
+                ["growpart", '--dry-run', diskdev, partnum],
+                env={'LANG': 'C', 'TMPDIR': '/tmp'}),
+            mock.call(
+                ["growpart", diskdev, partnum],
+                env={'LANG': 'C', 'TMPDIR': '/tmp'}),
+        ])
+
+    @mock.patch.dict("os.environ", {'LANG': 'cs_CZ.UTF-8'}, clear=True)
     def test_mode_auto_falls_back_to_gpart(self):
         with mock.patch.object(
                 subp, 'subp',

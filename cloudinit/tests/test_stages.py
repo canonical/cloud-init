@@ -1,14 +1,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """Tests related to cloudinit.stages module."""
-
 import os
+import stat
+
+import pytest
 
 from cloudinit import stages
 from cloudinit import sources
 from cloudinit.sources import NetworkConfigSource
 
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 from cloudinit.util import write_file
 
 from cloudinit.tests.helpers import CiTestCase, mock
@@ -49,6 +51,8 @@ class TestInit(CiTestCase):
             'distro': 'ubuntu', 'paths': {'cloud_dir': self.tmpdir,
                                           'run_dir': self.tmpdir}}}
         self.init.datasource = FakeDataSource(paths=self.init.paths)
+        self._real_is_new_instance = self.init.is_new_instance
+        self.init.is_new_instance = mock.Mock(return_value=True)
 
     def test_wb__find_networking_config_disabled(self):
         """find_networking_config returns no config when disabled."""
@@ -288,6 +292,7 @@ class TestInit(CiTestCase):
         m_macs.return_value = {'42:42:42:42:42:42': 'eth9'}
 
         self.init._find_networking_config = fake_network_config
+
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_called_with(
@@ -296,6 +301,7 @@ class TestInit(CiTestCase):
     @mock.patch('cloudinit.distros.ubuntu.Distro')
     def test_apply_network_on_same_instance_id(self, m_ubuntu):
         """Only call distro.apply_network_config_names on same instance id."""
+        self.init.is_new_instance = self._real_is_new_instance
         old_instance_id = os.path.join(
             self.init.paths.get_cpath('data'), 'instance-id')
         write_file(old_instance_id, TEST_INSTANCE_ID)
@@ -308,18 +314,19 @@ class TestInit(CiTestCase):
             return net_cfg, NetworkConfigSource.fallback
 
         self.init._find_networking_config = fake_network_config
+
         self.init.apply_network_config(True)
         self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
         self.init.distro.apply_network_config.assert_not_called()
-        self.assertIn(
-            'No network config applied. Neither a new instance'
-            " nor datasource network update on '%s' event" % EventType.BOOT,
-            self.logs.getvalue())
+        assert (
+            "No network config applied. Neither a new instance nor datasource "
+            "network update allowed"
+        ) in self.logs.getvalue()
 
-    @mock.patch('cloudinit.net.get_interfaces_by_mac')
-    @mock.patch('cloudinit.distros.ubuntu.Distro')
-    def test_apply_network_on_datasource_allowed_event(self, m_ubuntu, m_macs):
-        """Apply network if datasource.update_metadata permits BOOT event."""
+    # CiTestCase doesn't work with pytest.mark.parametrize, and moving this
+    # functionality to a separate class is more cumbersome than it'd be worth
+    # at the moment, so use this as a simple setup
+    def _apply_network_setup(self, m_macs):
         old_instance_id = os.path.join(
             self.init.paths.get_cpath('data'), 'instance-id')
         write_file(old_instance_id, TEST_INSTANCE_ID)
@@ -335,10 +342,137 @@ class TestInit(CiTestCase):
 
         self.init._find_networking_config = fake_network_config
         self.init.datasource = FakeDataSource(paths=self.init.paths)
-        self.init.datasource.update_events = {'network': [EventType.BOOT]}
+        self.init.is_new_instance = mock.Mock(return_value=False)
+        return net_cfg
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    @mock.patch('cloudinit.distros.ubuntu.Distro')
+    @mock.patch.dict(sources.DataSource.default_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE, EventType.BOOT}})
+    def test_apply_network_allowed_when_default_boot(
+        self, m_ubuntu, m_macs
+    ):
+        """Apply network if datasource permits BOOT event."""
+        net_cfg = self._apply_network_setup(m_macs)
+
         self.init.apply_network_config(True)
-        self.init.distro.apply_network_config_names.assert_called_with(net_cfg)
+        assert mock.call(
+            net_cfg
+        ) == self.init.distro.apply_network_config_names.call_args_list[-1]
+        assert mock.call(
+            net_cfg, bring_up=True
+        ) == self.init.distro.apply_network_config.call_args_list[-1]
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    @mock.patch('cloudinit.distros.ubuntu.Distro')
+    @mock.patch.dict(sources.DataSource.default_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
+    def test_apply_network_disabled_when_no_default_boot(
+        self, m_ubuntu, m_macs
+    ):
+        """Don't apply network if datasource has no BOOT event."""
+        self._apply_network_setup(m_macs)
+        self.init.apply_network_config(True)
+        self.init.distro.apply_network_config.assert_not_called()
+        assert (
+            "No network config applied. Neither a new instance nor datasource "
+            "network update allowed"
+        ) in self.logs.getvalue()
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    @mock.patch('cloudinit.distros.ubuntu.Distro')
+    @mock.patch.dict(sources.DataSource.default_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
+    def test_apply_network_allowed_with_userdata_overrides(
+        self, m_ubuntu, m_macs
+    ):
+        """Apply network if userdata overrides default config"""
+        net_cfg = self._apply_network_setup(m_macs)
+        self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
+        self.init.apply_network_config(True)
+        self.init.distro.apply_network_config_names.assert_called_with(
+            net_cfg)
         self.init.distro.apply_network_config.assert_called_with(
             net_cfg, bring_up=True)
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    @mock.patch('cloudinit.distros.ubuntu.Distro')
+    @mock.patch.dict(sources.DataSource.supported_update_events, {
+        EventScope.NETWORK: {EventType.BOOT_NEW_INSTANCE}})
+    def test_apply_network_disabled_when_unsupported(
+        self, m_ubuntu, m_macs
+    ):
+        """Don't apply network config if unsupported.
+
+        Shouldn't work even when specified as userdata
+        """
+        self._apply_network_setup(m_macs)
+
+        self.init._cfg = {'updates': {'network': {'when': ['boot']}}}
+        self.init.apply_network_config(True)
+        self.init.distro.apply_network_config.assert_not_called()
+        assert (
+            "No network config applied. Neither a new instance nor datasource "
+            "network update allowed"
+        ) in self.logs.getvalue()
+
+
+class TestInit_InitializeFilesystem:
+    """Tests for cloudinit.stages.Init._initialize_filesystem.
+
+    TODO: Expand these tests to cover all of _initialize_filesystem's behavior.
+    """
+
+    @pytest.yield_fixture
+    def init(self, paths):
+        """A fixture which yields a stages.Init instance with paths and cfg set
+
+        As it is replaced with a mock, consumers of this fixture can set
+        `init._cfg` if the default empty dict configuration is not appropriate.
+        """
+        with mock.patch("cloudinit.stages.util.ensure_dirs"):
+            init = stages.Init()
+            init._cfg = {}
+            init._paths = paths
+            yield init
+
+    @mock.patch("cloudinit.stages.util.ensure_file")
+    def test_ensure_file_not_called_if_no_log_file_configured(
+        self, m_ensure_file, init
+    ):
+        """If no log file is configured, we should not ensure its existence."""
+        init._cfg = {}
+
+        init._initialize_filesystem()
+
+        assert 0 == m_ensure_file.call_count
+
+    def test_log_files_existence_is_ensured_if_configured(self, init, tmpdir):
+        """If a log file is configured, we should ensure its existence."""
+        log_file = tmpdir.join("cloud-init.log")
+        init._cfg = {"def_log_file": str(log_file)}
+
+        init._initialize_filesystem()
+
+        assert log_file.exists()
+        # Assert we create it 0o640  by default if it doesn't already exist
+        assert 0o640 == stat.S_IMODE(log_file.stat().mode)
+
+    def test_existing_file_permissions_are_not_modified(self, init, tmpdir):
+        """If the log file already exists, we should not modify its permissions
+
+        See https://bugs.launchpad.net/cloud-init/+bug/1900837.
+        """
+        # Use a mode that will never be made the default so this test will
+        # always be valid
+        mode = 0o606
+        log_file = tmpdir.join("cloud-init.log")
+        log_file.ensure()
+        log_file.chmod(mode)
+        init._cfg = {"def_log_file": str(log_file)}
+
+        init._initialize_filesystem()
+
+        assert mode == stat.S_IMODE(log_file.stat().mode)
 
 # vi: ts=4 expandtab

@@ -8,9 +8,11 @@ import copy
 import os
 import pickle
 import sys
+from collections import namedtuple
+from typing import Dict, Set  # noqa: F401
 
 from cloudinit.settings import (
-    FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, RUN_CLOUD_CONFIG)
+    FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, PER_ONCE, RUN_CLOUD_CONFIG)
 
 from cloudinit import handlers
 
@@ -21,7 +23,11 @@ from cloudinit.handlers.jinja_template import JinjaTemplatePartHandler
 from cloudinit.handlers.shell_script import ShellScriptPartHandler
 from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
-from cloudinit.event import EventType
+from cloudinit.event import (
+    EventScope,
+    EventType,
+    userdata_to_events,
+)
 from cloudinit.sources import NetworkConfigSource
 
 from cloudinit import cloud
@@ -41,6 +47,54 @@ LOG = logging.getLogger(__name__)
 
 NULL_DATA_SOURCE = None
 NO_PREVIOUS_INSTANCE_ID = "NO_PREVIOUS_INSTANCE_ID"
+
+
+def update_event_enabled(
+    datasource: sources.DataSource,
+    cfg: dict,
+    event_source_type: EventType,
+    scope: EventScope = None
+) -> bool:
+    """Determine if a particular EventType is enabled.
+
+    For the `event_source_type` passed in, check whether this EventType
+    is enabled in the `updates` section of the userdata. If `updates`
+    is not enabled in userdata, check if defined as one of the
+    `default_events` on the datasource. `scope` may be used to
+    narrow the check to a particular `EventScope`.
+
+    Note that on first boot, userdata may NOT be available yet. In this
+    case, we only have the data source's `default_update_events`,
+    so an event that should be enabled in userdata may be denied.
+    """
+    default_events = datasource.default_update_events  # type: Dict[EventScope, Set[EventType]]    # noqa: E501
+    user_events = userdata_to_events(cfg.get('updates', {}))  # type: Dict[EventScope, Set[EventType]]  # noqa: E501
+    # A value in the first will override a value in the second
+    allowed = util.mergemanydict([
+        copy.deepcopy(user_events),
+        copy.deepcopy(default_events),
+    ])
+    LOG.debug('Allowed events: %s', allowed)
+
+    if not scope:
+        scopes = allowed.keys()
+    else:
+        scopes = [scope]
+    scope_values = [s.value for s in scopes]
+
+    for evt_scope in scopes:
+        if event_source_type in allowed.get(evt_scope, []):
+            LOG.debug(
+                'Event Allowed: scope=%s EventType=%s',
+                evt_scope.value, event_source_type
+            )
+            return True
+
+    LOG.debug(
+        'Event Denied: scopes=%s EventType=%s',
+        scope_values, event_source_type
+    )
+    return False
 
 
 class Init(object):
@@ -118,6 +172,7 @@ class Init(object):
 
     def _initial_subdirs(self):
         c_dir = self.paths.cloud_dir
+        run_dir = self.paths.run_dir
         initial_dirs = [
             c_dir,
             os.path.join(c_dir, 'scripts'),
@@ -130,6 +185,7 @@ class Init(object):
             os.path.join(c_dir, 'handlers'),
             os.path.join(c_dir, 'sem'),
             os.path.join(c_dir, 'data'),
+            os.path.join(run_dir, 'sem'),
         ]
         return initial_dirs
 
@@ -148,7 +204,7 @@ class Init(object):
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, 'def_log_file')
         if log_file:
-            util.ensure_file(log_file)
+            util.ensure_file(log_file, mode=0o640, preserve_mode=True)
             perms = self.cfg.get('syslog_fix_perms')
             if not perms:
                 perms = {}
@@ -233,7 +289,7 @@ class Init(object):
             else:
                 return (None, "cache invalid in datasource: %s" % ds)
 
-    def _get_data_source(self, existing):
+    def _get_data_source(self, existing) -> sources.DataSource:
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
 
@@ -259,7 +315,7 @@ class Init(object):
                                                cfg_list,
                                                pkg_list, self.reporter)
             LOG.info("Loaded datasource %s - %s", dsname, ds)
-        self.datasource = ds
+        self.datasource = ds  # type: sources.DataSource
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
         self._reset()
@@ -341,6 +397,11 @@ class Init(object):
         return self._previous_iid
 
     def is_new_instance(self):
+        """Return true if this is a new instance.
+
+        If datasource has already been initialized, this will return False,
+        even on first boot.
+        """
         previous = self.previous_iid()
         ret = (previous == NO_PREVIOUS_INSTANCE_ID or
                previous != self.datasource.get_instance_id())
@@ -360,8 +421,18 @@ class Init(object):
                            reporter=self.reporter)
 
     def update(self):
-        self._store_userdata()
-        self._store_vendordata()
+        self._store_rawdata(self.datasource.get_userdata_raw(),
+                            'userdata')
+        self._store_processeddata(self.datasource.get_userdata(),
+                                  'userdata')
+        self._store_raw_vendordata(self.datasource.get_vendordata_raw(),
+                                   'vendordata')
+        self._store_processeddata(self.datasource.get_vendordata(),
+                                  'vendordata')
+        self._store_raw_vendordata(self.datasource.get_vendordata2_raw(),
+                                   'vendordata2')
+        self._store_processeddata(self.datasource.get_vendordata2(),
+                                  'vendordata2')
 
     def setup_datasource(self):
         with events.ReportEventStack("setup-datasource",
@@ -381,28 +452,28 @@ class Init(object):
                                      is_new_instance=self.is_new_instance())
             self._write_to_cache()
 
-    def _store_userdata(self):
-        raw_ud = self.datasource.get_userdata_raw()
-        if raw_ud is None:
-            raw_ud = b''
-        util.write_file(self._get_ipath('userdata_raw'), raw_ud, 0o600)
-        # processed userdata is a Mime message, so write it as string.
-        processed_ud = self.datasource.get_userdata()
-        if processed_ud is None:
-            raw_ud = ''
-        util.write_file(self._get_ipath('userdata'), str(processed_ud), 0o600)
+    def _store_rawdata(self, data, datasource):
+        # Raw data is bytes, not a string
+        if data is None:
+            data = b''
+        util.write_file(self._get_ipath('%s_raw' % datasource), data, 0o600)
 
-    def _store_vendordata(self):
-        raw_vd = self.datasource.get_vendordata_raw()
-        if raw_vd is None:
-            raw_vd = b''
-        util.write_file(self._get_ipath('vendordata_raw'), raw_vd, 0o600)
-        # processed vendor data is a Mime message, so write it as string.
-        processed_vd = str(self.datasource.get_vendordata())
-        if processed_vd is None:
-            processed_vd = ''
-        util.write_file(self._get_ipath('vendordata'), str(processed_vd),
-                        0o600)
+    def _store_raw_vendordata(self, data, datasource):
+        # Only these data types
+        if data is not None and type(data) not in [bytes, str, list]:
+            raise TypeError("vendordata_raw is unsupported type '%s'" %
+                            str(type(data)))
+        # This data may be a list, convert it to a string if so
+        if isinstance(data, list):
+            data = util.json_dumps(data)
+        self._store_rawdata(data, datasource)
+
+    def _store_processeddata(self, processed_data, datasource):
+        # processed is a Mime message, so write as string.
+        if processed_data is None:
+            processed_data = ''
+        util.write_file(self._get_ipath(datasource),
+                        str(processed_data), 0o600)
 
     def _default_handlers(self, opts=None):
         if opts is None:
@@ -433,6 +504,11 @@ class Init(object):
         return self._default_handlers(
             opts={'script_path': 'vendor_scripts',
                   'cloud_config_path': 'vendor_cloud_config'})
+
+    def _default_vendordata2_handlers(self):
+        return self._default_handlers(
+            opts={'script_path': 'vendor_scripts',
+                  'cloud_config_path': 'vendor2_cloud_config'})
 
     def _do_handlers(self, data_msg, c_handlers_list, frequency,
                      excluded=None):
@@ -555,7 +631,12 @@ class Init(object):
         with events.ReportEventStack("consume-vendor-data",
                                      "reading and applying vendor-data",
                                      parent=self.reporter):
-            self._consume_vendordata(frequency)
+            self._consume_vendordata("vendordata", frequency)
+
+        with events.ReportEventStack("consume-vendor-data2",
+                                     "reading and applying vendor-data2",
+                                     parent=self.reporter):
+            self._consume_vendordata("vendordata2", frequency)
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
@@ -568,46 +649,62 @@ class Init(object):
         # objects before the load of the userdata happened,
         # this is expected.
 
-    def _consume_vendordata(self, frequency=PER_INSTANCE):
+    def _consume_vendordata(self, vendor_source, frequency=PER_INSTANCE):
         """
         Consume the vendordata and run the part handlers on it
         """
+
         # User-data should have been consumed first.
         # So we merge the other available cloud-configs (everything except
         # vendor provided), and check whether or not we should consume
         # vendor data at all. That gives user or system a chance to override.
-        if not self.datasource.get_vendordata_raw():
-            LOG.debug("no vendordata from datasource")
-            return
+        if vendor_source == 'vendordata':
+            if not self.datasource.get_vendordata_raw():
+                LOG.debug("no vendordata from datasource")
+                return
+            cfg_name = 'vendor_data'
+        elif vendor_source == 'vendordata2':
+            if not self.datasource.get_vendordata2_raw():
+                LOG.debug("no vendordata2 from datasource")
+                return
+            cfg_name = 'vendor_data2'
+        else:
+            raise RuntimeError("vendor_source arg must be either 'vendordata'"
+                               " or 'vendordata2'")
 
         _cc_merger = helpers.ConfigMerger(paths=self._paths,
                                           datasource=self.datasource,
                                           additional_fns=[],
                                           base_cfg=self.cfg,
                                           include_vendor=False)
-        vdcfg = _cc_merger.cfg.get('vendor_data', {})
+        vdcfg = _cc_merger.cfg.get(cfg_name, {})
 
         if not isinstance(vdcfg, dict):
             vdcfg = {'enabled': False}
-            LOG.warning("invalid 'vendor_data' setting. resetting to: %s",
-                        vdcfg)
+            LOG.warning("invalid %s setting. resetting to: %s",
+                        cfg_name, vdcfg)
 
         enabled = vdcfg.get('enabled')
         no_handlers = vdcfg.get('disabled_handlers', None)
 
         if not util.is_true(enabled):
-            LOG.debug("vendordata consumption is disabled.")
+            LOG.debug("%s consumption is disabled.", vendor_source)
             return
 
-        LOG.debug("vendor data will be consumed. disabled_handlers=%s",
-                  no_handlers)
+        LOG.debug("%s will be consumed. disabled_handlers=%s",
+                  vendor_source, no_handlers)
 
-        # Ensure vendordata source fetched before activation (just incase)
-        vendor_data_msg = self.datasource.get_vendordata()
+        # Ensure vendordata source fetched before activation (just in case.)
 
-        # This keeps track of all the active handlers, while excluding what the
-        # users doesn't want run, i.e. boot_hook, cloud_config, shell_script
-        c_handlers_list = self._default_vendordata_handlers()
+        # c_handlers_list keeps track of all the active handlers, while
+        # excluding what the users doesn't want run, i.e. boot_hook,
+        # cloud_config, shell_script
+        if vendor_source == 'vendordata':
+            vendor_data_msg = self.datasource.get_vendordata()
+            c_handlers_list = self._default_vendordata_handlers()
+        else:
+            vendor_data_msg = self.datasource.get_vendordata2()
+            c_handlers_list = self._default_vendordata2_handlers()
 
         # Run the handlers
         self._do_handlers(vendor_data_msg, c_handlers_list, frequency,
@@ -673,27 +770,54 @@ class Init(object):
         except Exception as e:
             LOG.warning("Failed to rename devices: %s", e)
 
+    def _get_per_boot_network_semaphore(self):
+        return namedtuple('Semaphore', 'semaphore args')(
+            helpers.FileSemaphores(self.paths.get_runpath('sem')),
+            ('apply_network_config', PER_ONCE)
+        )
+
+    def _network_already_configured(self) -> bool:
+        sem = self._get_per_boot_network_semaphore()
+        return sem.semaphore.has_run(*sem.args)
+
     def apply_network_config(self, bring_up):
-        # get a network config
+        """Apply the network config.
+
+        Find the config, determine whether to apply it, apply it via
+        the distro, and optionally bring it up
+        """
         netcfg, src = self._find_networking_config()
         if netcfg is None:
             LOG.info("network config is disabled by %s", src)
             return
 
-        # request an update if needed/available
-        if self.datasource is not NULL_DATA_SOURCE:
-            if not self.is_new_instance():
-                if not self.datasource.update_metadata([EventType.BOOT]):
-                    LOG.debug(
-                        "No network config applied. Neither a new instance"
-                        " nor datasource network update on '%s' event",
-                        EventType.BOOT)
-                    # nothing new, but ensure proper names
-                    self._apply_netcfg_names(netcfg)
-                    return
-                else:
-                    # refresh netcfg after update
-                    netcfg, src = self._find_networking_config()
+        def event_enabled_and_metadata_updated(event_type):
+            return update_event_enabled(
+                datasource=self.datasource,
+                cfg=self.cfg,
+                event_source_type=event_type,
+                scope=EventScope.NETWORK
+            ) and self.datasource.update_metadata_if_supported([event_type])
+
+        def should_run_on_boot_event():
+            return (not self._network_already_configured() and
+                    event_enabled_and_metadata_updated(EventType.BOOT))
+
+        if (
+            self.datasource is not NULL_DATA_SOURCE and
+            not self.is_new_instance() and
+            not should_run_on_boot_event() and
+            not event_enabled_and_metadata_updated(EventType.BOOT_LEGACY)
+        ):
+            LOG.debug(
+                "No network config applied. Neither a new instance"
+                " nor datasource network update allowed")
+            # nothing new, but ensure proper names
+            self._apply_netcfg_names(netcfg)
+            return
+
+        # refresh netcfg after update
+        netcfg, src = self._find_networking_config()
 
         # ensure all physical devices in config are present
         self.distro.networking.wait_for_physdevs(netcfg)
@@ -704,8 +828,12 @@ class Init(object):
         # rendering config
         LOG.info("Applying network configuration from %s bringup=%s: %s",
                  src, bring_up, netcfg)
+
+        sem = self._get_per_boot_network_semaphore()
         try:
-            return self.distro.apply_network_config(netcfg, bring_up=bring_up)
+            with sem.semaphore.lock(*sem.args):
+                return self.distro.apply_network_config(
+                    netcfg, bring_up=bring_up)
         except net.RendererNotFoundError as e:
             LOG.error("Unable to render networking. Network config is "
                       "likely broken: %s", e)
@@ -953,6 +1081,8 @@ def _pkl_load(fname):
         return None
     try:
         return pickle.loads(pickle_contents)
+    except sources.DatasourceUnpickleUserDataError:
+        return None
     except Exception:
         util.logexc(LOG, "Failed loading pickled blob from %s", fname)
         return None

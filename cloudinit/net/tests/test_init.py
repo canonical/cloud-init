@@ -190,6 +190,28 @@ class TestReadSysNet(CiTestCase):
         self.assertTrue(net.master_is_bridge_or_bond('eth1'))
         self.assertTrue(net.master_is_bridge_or_bond('eth2'))
 
+    def test_master_is_openvswitch(self):
+        ovs_mac = 'bb:cc:aa:bb:cc:aa'
+
+        # No master => False
+        write_file(os.path.join(self.sysdir, 'eth1', 'address'), ovs_mac)
+
+        self.assertFalse(net.master_is_bridge_or_bond('eth1'))
+
+        # masters without ovs-system => False
+        write_file(os.path.join(self.sysdir, 'ovs-system', 'address'), ovs_mac)
+
+        os.symlink('../ovs-system', os.path.join(self.sysdir, 'eth1',
+                   'master'))
+
+        self.assertFalse(net.master_is_openvswitch('eth1'))
+
+        # masters with ovs-system => True
+        os.symlink('../ovs-system', os.path.join(self.sysdir, 'eth1',
+                   'upper_ovs-system'))
+
+        self.assertTrue(net.master_is_openvswitch('eth1'))
+
     def test_is_vlan(self):
         """is_vlan is True when /sys/net/devname/uevent has DEVTYPE=vlan."""
         ensure_file(os.path.join(self.sysdir, 'eth0', 'uevent'))
@@ -369,6 +391,10 @@ class TestGetDeviceList(CiTestCase):
         self.assertCountEqual(['eth0', 'eth1'], net.get_devicelist())
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False),
+)
 class TestGetInterfaceMAC(CiTestCase):
 
     def setUp(self):
@@ -465,11 +491,16 @@ class TestGetInterfaceMAC(CiTestCase):
     ):
         bridge_mac = 'aa:bb:cc:aa:bb:cc'
         bond_mac = 'cc:bb:aa:cc:bb:aa'
+        ovs_mac = 'bb:cc:aa:bb:cc:aa'
+
         write_file(os.path.join(self.sysdir, 'br0', 'address'), bridge_mac)
         write_file(os.path.join(self.sysdir, 'br0', 'bridge'), '')
 
         write_file(os.path.join(self.sysdir, 'bond0', 'address'), bond_mac)
         write_file(os.path.join(self.sysdir, 'bond0', 'bonding'), '')
+
+        write_file(os.path.join(self.sysdir, 'ovs-system', 'address'),
+                   ovs_mac)
 
         write_file(os.path.join(self.sysdir, 'eth1', 'address'), bridge_mac)
         os.symlink('../br0', os.path.join(self.sysdir, 'eth1', 'master'))
@@ -477,8 +508,15 @@ class TestGetInterfaceMAC(CiTestCase):
         write_file(os.path.join(self.sysdir, 'eth2', 'address'), bond_mac)
         os.symlink('../bond0', os.path.join(self.sysdir, 'eth2', 'master'))
 
+        write_file(os.path.join(self.sysdir, 'eth3', 'address'), ovs_mac)
+        os.symlink('../ovs-system', os.path.join(self.sysdir, 'eth3',
+                   'master'))
+        os.symlink('../ovs-system', os.path.join(self.sysdir, 'eth3',
+                   'upper_ovs-system'))
+
         interface_names = [interface[0] for interface in net.get_interfaces()]
-        self.assertEqual(['eth1', 'eth2'], sorted(interface_names))
+        self.assertEqual(['eth1', 'eth2', 'eth3', 'ovs-system'],
+                         sorted(interface_names))
 
 
 class TestInterfaceHasOwnMAC(CiTestCase):
@@ -584,11 +622,14 @@ class TestEphemeralIPV4Network(CiTestCase):
         params = {
             'interface': 'eth0', 'ip': '192.168.2.2',
             'prefix_or_mask': '255.255.255.0', 'broadcast': '192.168.2.255',
-            'connectivity_url': 'http://example.org/index.html'}
+            'connectivity_url_data': {'url': 'http://example.org/index.html'}
+        }
 
         with net.EphemeralIPv4Network(**params):
-            self.assertEqual([mock.call('http://example.org/index.html',
-                                        timeout=5)], m_readurl.call_args_list)
+            self.assertEqual(
+                [mock.call(url='http://example.org/index.html', timeout=5)],
+                m_readurl.call_args_list
+            )
         # Ensure that no teardown happens:
         m_subp.assert_has_calls([])
 
@@ -668,18 +709,22 @@ class TestEphemeralIPV4Network(CiTestCase):
     def test_ephemeral_ipv4_network_with_rfc3442_static_routes(self, m_subp):
         params = {
             'interface': 'eth0', 'ip': '192.168.2.2',
-            'prefix_or_mask': '255.255.255.0', 'broadcast': '192.168.2.255',
-            'static_routes': [('169.254.169.254/32', '192.168.2.1'),
+            'prefix_or_mask': '255.255.255.255', 'broadcast': '192.168.2.255',
+            'static_routes': [('192.168.2.1/32', '0.0.0.0'),
+                              ('169.254.169.254/32', '192.168.2.1'),
                               ('0.0.0.0/0', '192.168.2.1')],
             'router': '192.168.2.1'}
         expected_setup_calls = [
             mock.call(
-                ['ip', '-family', 'inet', 'addr', 'add', '192.168.2.2/24',
+                ['ip', '-family', 'inet', 'addr', 'add', '192.168.2.2/32',
                  'broadcast', '192.168.2.255', 'dev', 'eth0'],
                 capture=True, update_env={'LANG': 'C'}),
             mock.call(
                 ['ip', '-family', 'inet', 'link', 'set', 'dev', 'eth0', 'up'],
                 capture=True),
+            mock.call(
+                ['ip', '-4', 'route', 'add', '192.168.2.1/32',
+                 'dev', 'eth0'], capture=True),
             mock.call(
                 ['ip', '-4', 'route', 'add', '169.254.169.254/32',
                  'via', '192.168.2.1', 'dev', 'eth0'], capture=True),
@@ -694,11 +739,14 @@ class TestEphemeralIPV4Network(CiTestCase):
                 ['ip', '-4', 'route', 'del', '169.254.169.254/32',
                  'via', '192.168.2.1', 'dev', 'eth0'], capture=True),
             mock.call(
+                ['ip', '-4', 'route', 'del', '192.168.2.1/32',
+                 'dev', 'eth0'], capture=True),
+            mock.call(
                 ['ip', '-family', 'inet', 'link', 'set', 'dev',
                  'eth0', 'down'], capture=True),
             mock.call(
                 ['ip', '-family', 'inet', 'addr', 'del',
-                 '192.168.2.2/24', 'dev', 'eth0'], capture=True)
+                 '192.168.2.2/32', 'dev', 'eth0'], capture=True)
         ]
         with net.EphemeralIPv4Network(**params):
             self.assertEqual(expected_setup_calls, m_subp.call_args_list)
@@ -805,25 +853,28 @@ class TestHasURLConnectivity(HttprettyTestCase):
     def test_url_timeout_on_connectivity_check(self, m_readurl):
         """A timeout of 5 seconds is provided when reading a url."""
         self.assertTrue(
-            net.has_url_connectivity(self.url), 'Expected True on url connect')
+            net.has_url_connectivity({'url': self.url}),
+            'Expected True on url connect')
 
     def test_true_on_url_connectivity_success(self):
         httpretty.register_uri(httpretty.GET, self.url)
         self.assertTrue(
-            net.has_url_connectivity(self.url), 'Expected True on url connect')
+            net.has_url_connectivity({'url': self.url}),
+            'Expected True on url connect')
 
     @mock.patch('requests.Session.request')
     def test_true_on_url_connectivity_timeout(self, m_request):
         """A timeout raised accessing the url will return False."""
         m_request.side_effect = requests.Timeout('Fake Connection Timeout')
         self.assertFalse(
-            net.has_url_connectivity(self.url),
+            net.has_url_connectivity({'url': self.url}),
             'Expected False on url timeout')
 
     def test_true_on_url_connectivity_failure(self):
         httpretty.register_uri(httpretty.GET, self.url, body={}, status=404)
         self.assertFalse(
-            net.has_url_connectivity(self.url), 'Expected False on url fail')
+            net.has_url_connectivity({'url': self.url}),
+            'Expected False on url fail')
 
 
 def _mk_v1_phys(mac, name, driver, device_id):
@@ -1188,6 +1239,121 @@ class TestNetFailOver(CiTestCase):
         m_primary.return_value = False
         m_standby.return_value = False
         self.assertFalse(net.is_netfailover(devname, driver))
+
+
+class TestOpenvswitchIsInstalled:
+    """Test cloudinit.net.openvswitch_is_installed.
+
+    Uses the ``clear_lru_cache`` local autouse fixture to allow us to test
+    despite the ``lru_cache`` decorator on the unit under test.
+    """
+
+    @pytest.fixture(autouse=True)
+    def clear_lru_cache(self):
+        net.openvswitch_is_installed.cache_clear()
+
+    @pytest.mark.parametrize(
+        "expected,which_return", [(True, "/some/path"), (False, None)]
+    )
+    @mock.patch("cloudinit.net.subp.which")
+    def test_mirrors_which_result(self, m_which, expected, which_return):
+        m_which.return_value = which_return
+        assert expected == net.openvswitch_is_installed()
+
+    @mock.patch("cloudinit.net.subp.which")
+    def test_only_calls_which_once(self, m_which):
+        net.openvswitch_is_installed()
+        net.openvswitch_is_installed()
+        assert 1 == m_which.call_count
+
+
+@mock.patch("cloudinit.net.subp.subp", return_value=("", ""))
+class TestGetOVSInternalInterfaces:
+    """Test cloudinit.net.get_ovs_internal_interfaces.
+
+    Uses the ``clear_lru_cache`` local autouse fixture to allow us to test
+    despite the ``lru_cache`` decorator on the unit under test.
+    """
+    @pytest.fixture(autouse=True)
+    def clear_lru_cache(self):
+        net.get_ovs_internal_interfaces.cache_clear()
+
+    def test_command_used(self, m_subp):
+        """Test we use the correct command when we call subp"""
+        net.get_ovs_internal_interfaces()
+
+        assert [
+            mock.call(net.OVS_INTERNAL_INTERFACE_LOOKUP_CMD)
+        ] == m_subp.call_args_list
+
+    def test_subp_contents_split_and_returned(self, m_subp):
+        """Test that the command output is appropriately mangled."""
+        stdout = "iface1\niface2\niface3\n"
+        m_subp.return_value = (stdout, "")
+
+        assert [
+            "iface1",
+            "iface2",
+            "iface3",
+        ] == net.get_ovs_internal_interfaces()
+
+    def test_database_connection_error_handled_gracefully(self, m_subp):
+        """Test that the error indicating OVS is down is handled gracefully."""
+        m_subp.side_effect = ProcessExecutionError(
+            stderr="database connection failed"
+        )
+
+        assert [] == net.get_ovs_internal_interfaces()
+
+    def test_other_errors_raised(self, m_subp):
+        """Test that only database connection errors are handled."""
+        m_subp.side_effect = ProcessExecutionError()
+
+        with pytest.raises(ProcessExecutionError):
+            net.get_ovs_internal_interfaces()
+
+    def test_only_runs_once(self, m_subp):
+        """Test that we cache the value."""
+        net.get_ovs_internal_interfaces()
+        net.get_ovs_internal_interfaces()
+
+        assert 1 == m_subp.call_count
+
+
+@mock.patch("cloudinit.net.get_ovs_internal_interfaces")
+@mock.patch("cloudinit.net.openvswitch_is_installed")
+class TestIsOpenVSwitchInternalInterface:
+    def test_false_if_ovs_not_installed(
+        self, m_openvswitch_is_installed, _m_get_ovs_internal_interfaces
+    ):
+        """Test that OVS' absence returns False."""
+        m_openvswitch_is_installed.return_value = False
+
+        assert not net.is_openvswitch_internal_interface("devname")
+
+    @pytest.mark.parametrize(
+        "detected_interfaces,devname,expected_return",
+        [
+            ([], "devname", False),
+            (["notdevname"], "devname", False),
+            (["devname"], "devname", True),
+            (["some", "other", "devices", "and", "ours"], "ours", True),
+        ],
+    )
+    def test_return_value_based_on_detected_interfaces(
+        self,
+        m_openvswitch_is_installed,
+        m_get_ovs_internal_interfaces,
+        detected_interfaces,
+        devname,
+        expected_return,
+    ):
+        """Test that the detected interfaces are used correctly."""
+        m_openvswitch_is_installed.return_value = True
+        m_get_ovs_internal_interfaces.return_value = detected_interfaces
+        assert expected_return == net.is_openvswitch_internal_interface(
+            devname
+        )
 
 
 class TestIsIpAddress:

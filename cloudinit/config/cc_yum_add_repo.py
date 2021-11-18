@@ -16,9 +16,10 @@ entry, the config entry will be skipped.
 
 **Internal name:** ``cc_yum_add_repo``
 
-**Module frequency:** per always
+**Module frequency:** always
 
-**Supported distros:** centos, fedora, rhel
+**Supported distros:** almalinux, centos, cloudlinux, eurolinux, fedora,
+                       openEuler, photon, rhel, rocky, virtuozzo
 
 **Config keys**::
 
@@ -36,7 +37,8 @@ from configparser import ConfigParser
 
 from cloudinit import util
 
-distros = ['centos', 'fedora', 'rhel']
+distros = ['almalinux', 'centos', 'cloudlinux', 'eurolinux', 'fedora',
+           'openEuler', 'photon', 'rhel', 'rocky', 'virtuozzo']
 
 
 def _canonicalize_id(repo_id):

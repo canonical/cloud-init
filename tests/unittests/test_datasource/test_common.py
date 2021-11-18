@@ -18,6 +18,7 @@ from cloudinit.sources import (
     DataSourceGCE as GCE,
     DataSourceHetzner as Hetzner,
     DataSourceIBMCloud as IBMCloud,
+    DataSourceLXD as LXD,
     DataSourceMAAS as MAAS,
     DataSourceNoCloud as NoCloud,
     DataSourceOpenNebula as OpenNebula,
@@ -27,6 +28,9 @@ from cloudinit.sources import (
     DataSourceRbxCloud as RbxCloud,
     DataSourceScaleway as Scaleway,
     DataSourceSmartOS as SmartOS,
+    DataSourceUpCloud as UpCloud,
+    DataSourceVultr as Vultr,
+    DataSourceVMware as VMware,
 )
 from cloudinit.sources import DataSourceNone as DSNone
 
@@ -39,15 +43,19 @@ DEFAULT_LOCAL = [
     DigitalOcean.DataSourceDigitalOcean,
     Hetzner.DataSourceHetzner,
     IBMCloud.DataSourceIBMCloud,
+    LXD.DataSourceLXD,
     NoCloud.DataSourceNoCloud,
     OpenNebula.DataSourceOpenNebula,
     Oracle.DataSourceOracle,
     OVF.DataSourceOVF,
     SmartOS.DataSourceSmartOS,
+    Vultr.DataSourceVultr,
     Ec2.DataSourceEc2Local,
     OpenStack.DataSourceOpenStackLocal,
     RbxCloud.DataSourceRbxCloud,
     Scaleway.DataSourceScaleway,
+    UpCloud.DataSourceUpCloudLocal,
+    VMware.DataSourceVMware,
 ]
 
 DEFAULT_NETWORK = [
@@ -63,6 +71,8 @@ DEFAULT_NETWORK = [
     NoCloud.DataSourceNoCloudNet,
     OpenStack.DataSourceOpenStack,
     OVF.DataSourceOVFNet,
+    UpCloud.DataSourceUpCloud,
+    VMware.DataSourceVMware,
 ]
 
 

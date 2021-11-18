@@ -8,9 +8,11 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import os
 import time
 
+from cloudinit import dmi
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import net
@@ -19,7 +21,7 @@ from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 from cloudinit import warnings
-from cloudinit.event import EventType
+from cloudinit.event import EventScope, EventType
 
 LOG = logging.getLogger(__name__)
 
@@ -73,6 +75,13 @@ class DataSourceEc2(sources.DataSource):
 
     # Whether we want to get network configuration from the metadata service.
     perform_dhcp_setup = False
+
+    supported_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY,
+        EventType.HOTPLUG,
+    }}
 
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceEc2, self).__init__(sys_cfg, distro, paths)
@@ -425,7 +434,12 @@ class DataSourceEc2(sources.DataSource):
             # Non-VPC (aka Classic) Ec2 instances need to rewrite the
             # network config file every boot due to MAC address change.
             if self.is_classic_instance():
-                self.update_events['network'].add(EventType.BOOT)
+                self.default_update_events = copy.deepcopy(
+                    self.default_update_events)
+                self.default_update_events[EventScope.NETWORK].add(
+                    EventType.BOOT)
+                self.default_update_events[EventScope.NETWORK].add(
+                    EventType.BOOT_LEGACY)
         else:
             LOG.warning("Metadata 'network' key not valid: %s.", net_md)
         self._network_config = result
@@ -699,26 +713,26 @@ def _collect_platform_data():
         uuid = util.load_file("/sys/hypervisor/uuid").strip()
         data['uuid_source'] = 'hypervisor'
     except Exception:
-        uuid = util.read_dmi_data('system-uuid')
+        uuid = dmi.read_dmi_data('system-uuid')
         data['uuid_source'] = 'dmi'
 
     if uuid is None:
         uuid = ''
     data['uuid'] = uuid.lower()
 
-    serial = util.read_dmi_data('system-serial-number')
+    serial = dmi.read_dmi_data('system-serial-number')
     if serial is None:
         serial = ''
 
     data['serial'] = serial.lower()
 
-    asset_tag = util.read_dmi_data('chassis-asset-tag')
+    asset_tag = dmi.read_dmi_data('chassis-asset-tag')
     if asset_tag is None:
         asset_tag = ''
 
     data['asset_tag'] = asset_tag.lower()
 
-    vendor = util.read_dmi_data('system-manufacturer')
+    vendor = dmi.read_dmi_data('system-manufacturer')
     data['vendor'] = (vendor if vendor else '').lower()
 
     return data
@@ -764,13 +778,14 @@ def convert_ec2_metadata_network_config(
         netcfg['ethernets'][nic_name] = dev_config
         return netcfg
     # Apply network config for all nics and any secondary IPv4/v6 addresses
+    nic_idx = 0
     for mac, nic_name in sorted(macs_to_nics.items()):
         nic_metadata = macs_metadata.get(mac)
         if not nic_metadata:
             continue  # Not a physical nic represented in metadata
         # device-number is zero-indexed, we want it 1-indexed for the
         # multiplication on the following line
-        nic_idx = int(nic_metadata['device-number']) + 1
+        nic_idx = int(nic_metadata.get('device-number', nic_idx)) + 1
         dhcp_override = {'route-metric': nic_idx * 100}
         dev_config = {'dhcp4': True, 'dhcp4-overrides': dhcp_override,
                       'dhcp6': False,

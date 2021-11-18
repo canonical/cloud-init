@@ -247,6 +247,11 @@ class BaseReader(metaclass=abc.ABCMeta):
                 False,
                 load_json_anytype,
             )
+            files['vendordata2'] = (
+                self._path_join("openstack", version, 'vendor_data2.json'),
+                False,
+                load_json_anytype,
+            )
             files['networkdata'] = (
                 self._path_join("openstack", version, 'network_data.json'),
                 False,
@@ -602,9 +607,15 @@ def convert_net_json(network_json=None, known_macs=None):
             elif network['type'] in ['ipv6_slaac', 'ipv6_dhcpv6-stateless',
                                      'ipv6_dhcpv6-stateful']:
                 subnet.update({'type': network['type']})
-            elif network['type'] in ['ipv4', 'ipv6']:
+            elif network['type'] in ['ipv4', 'static']:
                 subnet.update({
                     'type': 'static',
+                    'address': network.get('ip_address'),
+                })
+            elif network['type'] in ['ipv6', 'static6']:
+                cfg.update({'accept-ra': False})
+                subnet.update({
+                    'type': 'static6',
                     'address': network.get('ip_address'),
                 })
 

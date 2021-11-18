@@ -1,21 +1,15 @@
 # Copyright (C) 2014 Yahoo! Inc.
 #
 # This file is part of cloud-init. See LICENSE file for license information.
-
-from cloudinit.config import cc_debug
-
-from cloudinit import cloud
-from cloudinit import distros
-from cloudinit import helpers
-from cloudinit import util
-
-from cloudinit.sources import DataSourceNone
-
-from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock)
-
 import logging
 import shutil
 import tempfile
+
+from cloudinit import util
+from cloudinit.config import cc_debug
+from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock)
+
+from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
@@ -26,29 +20,20 @@ class TestDebug(FilesystemMockingTestCase):
         super(TestDebug, self).setUp()
         self.new_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.new_root)
-
-    def _get_cloud(self, distro, metadata=None):
         self.patchUtils(self.new_root)
-        paths = helpers.Paths({})
-        cls = distros.fetch(distro)
-        d = cls(distro, {}, paths)
-        ds = DataSourceNone.DataSourceNone({}, d, paths)
-        if metadata:
-            ds.metadata.update(metadata)
-        return cloud.Cloud(ds, paths, {}, d, None)
 
     def test_debug_write(self, m_locale):
         m_locale.return_value = 'en_US.UTF-8'
         cfg = {
             'abc': '123',
-            'c': u'\u20a0',
+            'c': '\u20a0',
             'debug': {
                 'verbose': True,
                 # Does not actually write here due to mocking...
                 'output': '/var/log/cloud-init-debug.log',
             },
         }
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud()
         cc_debug.handle('cc_debug', cfg, cc, LOG, [])
         contents = util.load_file('/var/log/cloud-init-debug.log')
         # Some basic sanity tests...
@@ -66,7 +51,7 @@ class TestDebug(FilesystemMockingTestCase):
                 'output': '/var/log/cloud-init-debug.log',
             },
         }
-        cc = self._get_cloud('ubuntu')
+        cc = get_cloud()
         cc_debug.handle('cc_debug', cfg, cc, LOG, [])
         self.assertRaises(IOError,
                           util.load_file, '/var/log/cloud-init-debug.log')

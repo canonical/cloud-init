@@ -16,13 +16,17 @@ import stat
 import string
 import urllib.parse
 from io import StringIO
+from typing import Any, Mapping  # noqa: F401
 
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
+from cloudinit.net import activators
 from cloudinit.net import eni
 from cloudinit.net import network_state
 from cloudinit.net import renderers
+from cloudinit.net.network_state import parse_net_config_data
+from cloudinit import persistence
 from cloudinit import ssh_util
 from cloudinit import type_utils
 from cloudinit import subp
@@ -45,7 +49,8 @@ OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
-    'redhat': ['amazon', 'centos', 'fedora', 'rhel'],
+    'redhat': ['almalinux', 'amazon', 'centos', 'cloudlinux', 'eurolinux',
+               'fedora', 'openEuler', 'photon', 'rhel', 'rocky', 'virtuozzo'],
     'suse': ['opensuse', 'sles'],
 }
 
@@ -62,7 +67,7 @@ PREFERRED_NTP_CLIENTS = ['chrony', 'systemd-timesyncd', 'ntp', 'ntpdate']
 LDH_ASCII_CHARS = string.ascii_letters + string.digits + "-"
 
 
-class Distro(metaclass=abc.ABCMeta):
+class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
@@ -70,12 +75,16 @@ class Distro(metaclass=abc.ABCMeta):
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
     init_cmd = ['service']  # systemctl, service etc
-    renderer_configs = {}
+    renderer_configs = {}  # type: Mapping[str, Mapping[str, Any]]
     _preferred_ntp_clients = None
     networking_cls = LinuxNetworking
     # This is used by self.shutdown_command(), and can be overridden in
     # subclasses
     shutdown_options_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
+
+    _ci_pkl_version = 1
+    prefer_fqdn = False
+    resolve_conf_fn = "/etc/resolv.conf"
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -83,19 +92,29 @@ class Distro(metaclass=abc.ABCMeta):
         self.name = name
         self.networking = self.networking_cls()
 
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        """Perform deserialization fixes for Distro."""
+        if "networking" not in self.__dict__ or not self.networking.__dict__:
+            # This is either a Distro pickle with no networking attribute OR
+            # this is a Distro pickle with a networking attribute but from
+            # before ``Networking`` had any state (meaning that
+            # Networking.__setstate__ will not be called).  In either case, we
+            # want to ensure that `self.networking` is freshly-instantiated:
+            # either because it isn't present at all, or because it will be
+            # missing expected instance state otherwise.
+            self.networking = self.networking_cls()
+
     @abc.abstractmethod
     def install_packages(self, pkglist):
         raise NotImplementedError()
 
     def _write_network(self, settings):
-        raise RuntimeError(
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
+        raise NotImplementedError(
             "Legacy function '_write_network' was called in distro '%s'.\n"
             "_write_network_config needs implementation.\n" % self.name)
 
-    def _write_network_config(self, settings):
-        raise NotImplementedError()
-
-    def _supported_write_network_config(self, network_config):
+    def _write_network_state(self, network_state):
         priority = util.get_cfg_by_path(
             self._cfg, ('network', 'renderers'), None)
 
@@ -103,8 +122,7 @@ class Distro(metaclass=abc.ABCMeta):
         LOG.debug("Selected renderer '%s' from priority list: %s",
                   name, priority)
         renderer = render_cls(config=self.renderer_configs.get(name))
-        renderer.render_network_config(network_config)
-        return []
+        renderer.render_network_state(network_state)
 
     def _find_tz_file(self, tz):
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
@@ -116,6 +134,9 @@ class Distro(metaclass=abc.ABCMeta):
     def get_option(self, opt_name, default=None):
         return self._cfg.get(opt_name, default)
 
+    def set_option(self, opt_name, value=None):
+        self._cfg[opt_name] = value
+
     def set_hostname(self, hostname, fqdn=None):
         writeable_hostname = self._select_hostname(hostname, fqdn)
         self._write_hostname(writeable_hostname, self.hostname_conf_fn)
@@ -126,7 +147,7 @@ class Distro(metaclass=abc.ABCMeta):
         return uses_systemd()
 
     @abc.abstractmethod
-    def package_command(self, cmd, args=None, pkgs=None):
+    def package_command(self, command, args=None, pkgs=None):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -153,6 +174,7 @@ class Distro(metaclass=abc.ABCMeta):
                                         mirror_info=arch_info)
 
     def apply_network(self, settings, bring_up=True):
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
         # this applies network where 'settings' is interfaces(5) style
         # it is obsolete compared to apply_network_config
         # Write it out
@@ -167,6 +189,7 @@ class Distro(metaclass=abc.ABCMeta):
         return False
 
     def _apply_network_from_network_config(self, netconfig, bring_up=True):
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
         distro = self.__class__
         LOG.warning("apply_network_config is not currently implemented "
                     "for distribution '%s'.  Attempting to use apply_network",
@@ -183,12 +206,20 @@ class Distro(metaclass=abc.ABCMeta):
     def generate_fallback_config(self):
         return net.generate_fallback_config()
 
-    def apply_network_config(self, netconfig, bring_up=False):
-        # apply network config netconfig
+    def apply_network_config(self, netconfig, bring_up=False) -> bool:
+        """Apply the network config.
+
+        If bring_up is True, attempt to bring up the passed in devices. If
+        devices is None, attempt to bring up devices returned by
+        _write_network_config.
+
+        Returns True if any devices failed to come up, otherwise False.
+        """
         # This method is preferred to apply_network which only takes
         # a much less complete network config format (interfaces(5)).
+        network_state = parse_net_config_data(netconfig)
         try:
-            dev_names = self._write_network_config(netconfig)
+            self._write_network_state(network_state)
         except NotImplementedError:
             # backwards compat until all distros have apply_network_config
             return self._apply_network_from_network_config(
@@ -196,7 +227,11 @@ class Distro(metaclass=abc.ABCMeta):
 
         # Now try to bring them up
         if bring_up:
-            return self._bring_up_interfaces(dev_names)
+            LOG.debug('Bringing up newly configured network interfaces')
+            network_activator = activators.select_activator()
+            network_activator.bring_up_all_interfaces(network_state)
+        else:
+            LOG.debug("Not bringing up newly configured network interfaces")
         return False
 
     def apply_network_config_names(self, netconfig):
@@ -244,6 +279,9 @@ class Distro(metaclass=abc.ABCMeta):
     def _select_hostname(self, hostname, fqdn):
         # Prefer the short hostname over the long
         # fully qualified domain name
+        if util.get_cfg_option_bool(self._cfg, "prefer_fqdn_over_hostname",
+                                    self.prefer_fqdn) and fqdn:
+            return fqdn
         if not hostname:
             return fqdn
         return hostname
@@ -369,20 +407,11 @@ class Distro(metaclass=abc.ABCMeta):
         return self._preferred_ntp_clients
 
     def _bring_up_interface(self, device_name):
-        cmd = ['ifup', device_name]
-        LOG.debug("Attempting to run bring up interface %s using command %s",
-                  device_name, cmd)
-        try:
-            (_out, err) = subp.subp(cmd)
-            if len(err):
-                LOG.warning("Running %s resulted in stderr output: %s",
-                            cmd, err)
-            return True
-        except subp.ProcessExecutionError:
-            util.logexc(LOG, "Running interface command %s failed", cmd)
-            return False
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
+        raise NotImplementedError
 
     def _bring_up_interfaces(self, device_names):
+        """Deprecated. Remove if/when arch and gentoo support renderers."""
         am_failed = 0
         for d in device_names:
             if not self._bring_up_interface(d):
@@ -658,7 +687,7 @@ class Distro(metaclass=abc.ABCMeta):
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
-            include_match = re.search(r"^#includedir\s+(.*)$", line)
+            include_match = re.search(r"^[#|@]includedir\s+(.*)$", line)
             if not include_match:
                 continue
             included_dir = include_match.group(1).strip()
@@ -769,6 +798,34 @@ class Distro(metaclass=abc.ABCMeta):
             args.append(message)
         return args
 
+    def manage_service(self, action, service):
+        """
+        Perform the requested action on a service. This handles the common
+        'systemctl' and 'service' cases and may be overridden in subclasses
+        as necessary.
+        May raise ProcessExecutionError
+        """
+        init_cmd = self.init_cmd
+        if self.uses_systemd() or 'systemctl' in init_cmd:
+            init_cmd = ['systemctl']
+            cmds = {'stop': ['stop', service],
+                    'start': ['start', service],
+                    'enable': ['enable', service],
+                    'restart': ['restart', service],
+                    'reload': ['reload-or-restart', service],
+                    'try-reload': ['reload-or-try-restart', service],
+                    }
+        else:
+            cmds = {'stop': [service, 'stop'],
+                    'start': [service, 'start'],
+                    'enable': [service, 'start'],
+                    'restart': [service, 'restart'],
+                    'reload': [service, 'restart'],
+                    'try-reload': [service, 'restart'],
+                    }
+        cmd = list(init_cmd) + list(cmds[action])
+        return subp.subp(cmd, capture=True)
+
 
 def _apply_hostname_transformations_to_url(url: str, transformations: list):
     """
@@ -822,7 +879,7 @@ def _sanitize_mirror_url(url: str):
       * Converts it to its IDN form (see below for details)
       * Replaces any non-Letters/Digits/Hyphen (LDH) characters in it with
         hyphens
-      * TODO: Remove any leading/trailing hyphens from each domain name label
+      * Removes any leading/trailing hyphens from each domain name label
 
     Before we replace any invalid domain name characters, we first need to
     ensure that any valid non-ASCII characters in the hostname will not be

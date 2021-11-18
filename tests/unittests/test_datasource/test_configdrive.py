@@ -15,7 +15,7 @@ from cloudinit import util
 from cloudinit.tests.helpers import CiTestCase, ExitStack, mock, populate_dir
 
 
-PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
+PUBKEY = 'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
 EC2_META = {
     'ami-id': 'ami-00000001',
     'ami-launch-index': 0,
@@ -494,6 +494,10 @@ class TestConfigDriveDataSource(CiTestCase):
         self.assertEqual('config-disk (/dev/anything)', cfg_ds.subplatform)
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestNetJson(CiTestCase):
     def setUp(self):
         super(TestNetJson, self).setUp()
@@ -654,6 +658,10 @@ class TestNetJson(CiTestCase):
             self.assertEqual(out_data, conv_data)
 
 
+@mock.patch(
+    "cloudinit.net.is_openvswitch_internal_interface",
+    mock.Mock(return_value=False)
+)
 class TestConvertNetworkData(CiTestCase):
 
     with_logs = True

@@ -8,7 +8,6 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.distros.parsers.resolv_conf import ResolvConf
 from cloudinit.distros.parsers.sys_conf import SysConf
 
 from cloudinit import log as logging
@@ -49,30 +48,5 @@ def read_sysconfig_file(fn):
     except IOError:
         contents = []
     return (exists, SysConf(contents))
-
-
-# Helper function to update RHEL/SUSE /etc/resolv.conf
-def update_resolve_conf_file(fn, dns_servers, search_servers):
-    try:
-        r_conf = ResolvConf(util.load_file(fn))
-        r_conf.parse()
-    except IOError:
-        util.logexc(LOG, "Failed at parsing %s reverting to an empty "
-                    "instance", fn)
-        r_conf = ResolvConf('')
-        r_conf.parse()
-    if dns_servers:
-        for s in dns_servers:
-            try:
-                r_conf.add_nameserver(s)
-            except ValueError:
-                util.logexc(LOG, "Failed at adding nameserver %s", s)
-    if search_servers:
-        for s in search_servers:
-            try:
-                r_conf.add_search_domain(s)
-            except ValueError:
-                util.logexc(LOG, "Failed at adding search domain %s", s)
-    util.write_file(fn, str(r_conf), 0o644)
 
 # vi: ts=4 expandtab

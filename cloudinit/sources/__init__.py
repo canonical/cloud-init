@@ -13,7 +13,9 @@ import copy
 import json
 import os
 from collections import namedtuple
+from typing import Dict, List  # noqa: F401
 
+from cloudinit import dmi
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
@@ -21,8 +23,10 @@ from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 from cloudinit.atomic_helper import write_json
-from cloudinit.event import EventType
+from cloudinit.distros import Distro
+from cloudinit.event import EventScope, EventType
 from cloudinit.filters import launch_index
+from cloudinit.persistence import CloudInitPickleMixin
 from cloudinit.reporting import events
 
 DSMODE_DISABLED = "disabled"
@@ -70,6 +74,10 @@ CLOUD_ID_REGION_PREFIX_MAP = {
 _NETCFG_SOURCE_NAMES = ('cmdline', 'ds', 'system_cfg', 'fallback', 'initramfs')
 NetworkConfigSource = namedtuple('NetworkConfigSource',
                                  _NETCFG_SOURCE_NAMES)(*_NETCFG_SOURCE_NAMES)
+
+
+class DatasourceUnpickleUserDataError(Exception):
+    """Raised when userdata is unable to be unpickled due to python upgrades"""
 
 
 class DataSourceNotFoundException(Exception):
@@ -130,10 +138,11 @@ def redact_sensitive_keys(metadata, redact_value=REDACT_SENSITIVE_VALUE):
 
 
 URLParams = namedtuple(
-    'URLParms', ['max_wait_seconds', 'timeout_seconds', 'num_retries'])
+    'URLParms', ['max_wait_seconds', 'timeout_seconds',
+                 'num_retries', 'sec_between_retries'])
 
 
-class DataSource(metaclass=abc.ABCMeta):
+class DataSource(CloudInitPickleMixin, metaclass=abc.ABCMeta):
 
     dsmode = DSMODE_NETWORK
     default_locale = 'en_US.UTF-8'
@@ -167,18 +176,31 @@ class DataSource(metaclass=abc.ABCMeta):
                               NetworkConfigSource.ds)
 
     # read_url_params
-    url_max_wait = -1   # max_wait < 0 means do not wait
-    url_timeout = 10    # timeout for each metadata url read attempt
-    url_retries = 5     # number of times to retry url upon 404
+    url_max_wait = -1            # max_wait < 0 means do not wait
+    url_timeout = 10             # timeout for each metadata url read attempt
+    url_retries = 5              # number of times to retry url upon 404
+    url_sec_between_retries = 1  # amount of seconds to wait between retries
 
     # The datasource defines a set of supported EventTypes during which
     # the datasource can react to changes in metadata and regenerate
-    # network configuration on metadata changes.
-    # A datasource which supports writing network config on each system boot
-    # would call update_events['network'].add(EventType.BOOT).
+    # network configuration on metadata changes. These are defined in
+    # `supported_network_events`.
+    # The datasource also defines a set of default EventTypes that the
+    # datasource can react to. These are the event types that will be used
+    # if not overridden by the user.
+    # A datasource requiring to write network config on each system boot
+    # would call default_update_events['network'].add(EventType.BOOT).
 
     # Default: generate network config on new instance id (first boot).
-    update_events = {'network': set([EventType.BOOT_NEW_INSTANCE])}
+    supported_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+        EventType.BOOT,
+        EventType.BOOT_LEGACY,
+        EventType.HOTPLUG,
+    }}
+    default_update_events = {EventScope.NETWORK: {
+        EventType.BOOT_NEW_INSTANCE,
+    }}
 
     # N-tuple listing default values for any metadata-related class
     # attributes cached on an instance by a process_data runs. These attribute
@@ -186,7 +208,8 @@ class DataSource(metaclass=abc.ABCMeta):
     cached_attr_defaults = (
         ('ec2_metadata', UNSET), ('network_json', UNSET),
         ('metadata', {}), ('userdata', None), ('userdata_raw', None),
-        ('vendordata', None), ('vendordata_raw', None))
+        ('vendordata', None), ('vendordata_raw', None),
+        ('vendordata2', None), ('vendordata2_raw', None))
 
     _dirty_cache = False
 
@@ -194,7 +217,9 @@ class DataSource(metaclass=abc.ABCMeta):
     # non-root users
     sensitive_metadata_keys = ('merged_cfg', 'security-credentials',)
 
-    def __init__(self, sys_cfg, distro, paths, ud_proc=None):
+    _ci_pkl_version = 1
+
+    def __init__(self, sys_cfg, distro: Distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
@@ -202,7 +227,9 @@ class DataSource(metaclass=abc.ABCMeta):
         self.metadata = {}
         self.userdata_raw = None
         self.vendordata = None
+        self.vendordata2 = None
         self.vendordata_raw = None
+        self.vendordata2_raw = None
 
         self.ds_cfg = util.get_cfg_by_path(
             self.sys_cfg, ("datasource", self.dsname), {})
@@ -213,6 +240,27 @@ class DataSource(metaclass=abc.ABCMeta):
             self.ud_proc = ud.UserDataProcessor(self.paths)
         else:
             self.ud_proc = ud_proc
+
+    def _unpickle(self, ci_pkl_version: int) -> None:
+        """Perform deserialization fixes for Paths."""
+        if not hasattr(self, 'vendordata2'):
+            self.vendordata2 = None
+        if not hasattr(self, 'vendordata2_raw'):
+            self.vendordata2_raw = None
+        if hasattr(self, 'userdata') and self.userdata is not None:
+            # If userdata stores MIME data, on < python3.6 it will be
+            # missing the 'policy' attribute that exists on >=python3.6.
+            # Calling str() on the userdata will attempt to access this
+            # policy attribute. This will raise an exception, causing
+            # the pickle load to fail, so cloud-init will discard the cache
+            try:
+                str(self.userdata)
+            except AttributeError as e:
+                LOG.debug(
+                    "Unable to unpickle datasource: %s."
+                    " Ignoring current cache.", e
+                )
+                raise DatasourceUnpickleUserDataError() from e
 
     def __str__(self):
         return type_utils.obj_name(self)
@@ -377,7 +425,18 @@ class DataSource(metaclass=abc.ABCMeta):
                 LOG, "Config retries '%s' is not an int, using default '%s'",
                 self.ds_cfg.get('retries'), retries)
 
-        return URLParams(max_wait, timeout, retries)
+        sec_between_retries = self.url_sec_between_retries
+        try:
+            sec_between_retries = int(self.ds_cfg.get(
+                "sec_between_retries",
+                self.url_sec_between_retries))
+        except Exception:
+            util.logexc(
+                LOG, "Config sec_between_retries '%s' is not an int,"
+                     " using default '%s'",
+                self.ds_cfg.get("sec_between_retries"), sec_between_retries)
+
+        return URLParams(max_wait, timeout, retries, sec_between_retries)
 
     def get_userdata(self, apply_filter=False):
         if self.userdata is None:
@@ -390,6 +449,11 @@ class DataSource(metaclass=abc.ABCMeta):
         if self.vendordata is None:
             self.vendordata = self.ud_proc.process(self.get_vendordata_raw())
         return self.vendordata
+
+    def get_vendordata2(self):
+        if self.vendordata2 is None:
+            self.vendordata2 = self.ud_proc.process(self.get_vendordata2_raw())
+        return self.vendordata2
 
     @property
     def fallback_interface(self):
@@ -492,6 +556,9 @@ class DataSource(metaclass=abc.ABCMeta):
 
     def get_vendordata_raw(self):
         return self.vendordata_raw
+
+    def get_vendordata2_raw(self):
+        return self.vendordata2_raw
 
     # the data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config
@@ -626,10 +693,22 @@ class DataSource(metaclass=abc.ABCMeta):
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
 
-    def update_metadata(self, source_event_types):
+    def get_supported_events(self, source_event_types: List[EventType]):
+        supported_events = {}  # type: Dict[EventScope, set]
+        for event in source_event_types:
+            for update_scope, update_events in self.supported_update_events.items():  # noqa: E501
+                if event in update_events:
+                    if not supported_events.get(update_scope):
+                        supported_events[update_scope] = set()
+                    supported_events[update_scope].add(event)
+        return supported_events
+
+    def update_metadata_if_supported(
+        self, source_event_types: List[EventType]
+    ) -> bool:
         """Refresh cached metadata if the datasource supports this event.
 
-        The datasource has a list of update_events which
+        The datasource has a list of supported_update_events which
         trigger refreshing all cached metadata as well as refreshing the
         network configuration.
 
@@ -639,17 +718,12 @@ class DataSource(metaclass=abc.ABCMeta):
         @return True if the datasource did successfully update cached metadata
             due to source_event_type.
         """
-        supported_events = {}
-        for event in source_event_types:
-            for update_scope, update_events in self.update_events.items():
-                if event in update_events:
-                    if not supported_events.get(update_scope):
-                        supported_events[update_scope] = set()
-                    supported_events[update_scope].add(event)
+        supported_events = self.get_supported_events(source_event_types)
         for scope, matched_events in supported_events.items():
             LOG.debug(
                 "Update datasource metadata and %s config due to events: %s",
-                scope, ', '.join(matched_events))
+                scope.value,
+                ', '.join([event.value for event in matched_events]))
             # Each datasource has a cached config property which needs clearing
             # Once cleared that config property will be regenerated from
             # current metadata.
@@ -660,7 +734,7 @@ class DataSource(metaclass=abc.ABCMeta):
             if result:
                 return True
         LOG.debug("Datasource %s not updated for events: %s", self,
-                  ', '.join(source_event_types))
+                  ', '.join([event.value for event in source_event_types]))
         return False
 
     def check_instance_id(self, sys_cfg):
@@ -767,7 +841,9 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
             with myrep:
                 LOG.debug("Seeing if we can get any data from %s", cls)
                 s = cls(sys_cfg, distro, paths)
-                if s.update_metadata([EventType.BOOT_NEW_INSTANCE]):
+                if s.update_metadata_if_supported(
+                    [EventType.BOOT_NEW_INSTANCE]
+                ):
                     myrep.message = "found %s data from %s" % (mode, name)
                     return (s, type_utils.obj_name(cls))
         except Exception:
@@ -809,7 +885,7 @@ def instance_id_matches_system_uuid(instance_id, field='system-uuid'):
     if not instance_id:
         return False
 
-    dmi_value = util.read_dmi_data(field)
+    dmi_value = dmi.read_dmi_data(field)
     if not dmi_value:
         return False
     return instance_id.lower() == dmi_value.lower()

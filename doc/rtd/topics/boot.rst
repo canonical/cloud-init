@@ -150,7 +150,7 @@ Things that run here include
 
  * package installations
  * configuration management plugins (puppet, chef, salt-minion)
- * user-scripts (i.e. shell scripts passed as user-data)
+ * user-defined scripts (i.e. shell scripts passed as user-data)
 
 For scripts external to cloud-init looking to wait until cloud-init is
 finished, the ``cloud-init status`` subcommand can help block external

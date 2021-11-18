@@ -58,38 +58,6 @@ NET_CONFIG_TO_V2 = {
                'bridge_waitport': None}}
 
 
-def parse_net_config_data(net_config, skip_broken=True):
-    """Parses the config, returns NetworkState object
-
-    :param net_config: curtin network config dict
-    """
-    state = None
-    version = net_config.get('version')
-    config = net_config.get('config')
-    if version == 2:
-        # v2 does not have explicit 'config' key so we
-        # pass the whole net-config as-is
-        config = net_config
-
-    if version and config is not None:
-        nsi = NetworkStateInterpreter(version=version, config=config)
-        nsi.parse_config(skip_broken=skip_broken)
-        state = nsi.get_network_state()
-
-    return state
-
-
-def parse_net_config(path, skip_broken=True):
-    """Parses a curtin network configuration file and
-       return network state"""
-    ns = None
-    net_config = util.read_conf(path)
-    if 'network' in net_config:
-        ns = parse_net_config_data(net_config.get('network'),
-                                   skip_broken=skip_broken)
-    return ns
-
-
 def from_state_file(state_file):
     state = util.read_conf(state_file)
     nsi = NetworkStateInterpreter()
@@ -237,6 +205,7 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         self._network_state = copy.deepcopy(self.initial_network_state)
         self._network_state['config'] = config
         self._parsed = False
+        self._interface_dns_map = {}
 
     @property
     def network_state(self):
@@ -310,6 +279,21 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
                     LOG.warning("Skipping invalid command: %s", command,
                                 exc_info=True)
                     LOG.debug(self.dump_network_state())
+        for interface, dns in self._interface_dns_map.items():
+            iface = None
+            try:
+                iface = self._network_state['interfaces'][interface]
+            except KeyError as e:
+                raise ValueError(
+                    'Nameserver specified for interface {0}, '
+                    'but interface {0} does not exist!'.format(interface)
+                ) from e
+            if iface:
+                nameservers, search = dns
+                iface['dns'] = {
+                    'addresses': nameservers,
+                    'search': search,
+                }
 
     def parse_config_v2(self, skip_broken=True):
         for command_type, command in self._config.items():
@@ -369,6 +353,9 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
         accept_ra = command.get('accept-ra', None)
         if accept_ra is not None:
             accept_ra = util.is_true(accept_ra)
+        wakeonlan = command.get('wakeonlan', None)
+        if wakeonlan is not None:
+            wakeonlan = util.is_true(wakeonlan)
         iface.update({
             'name': command.get('name'),
             'type': command.get('type'),
@@ -379,7 +366,8 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
             'address': None,
             'gateway': None,
             'subnets': subnets,
-            'accept-ra': accept_ra
+            'accept-ra': accept_ra,
+            'wakeonlan': wakeonlan,
         })
         self._network_state['interfaces'].update({command.get('name'): iface})
         self.dump_network_state()
@@ -522,21 +510,40 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
     def handle_infiniband(self, command):
         self.handle_physical(command)
 
-    @ensure_command_keys(['address'])
-    def handle_nameserver(self, command):
-        dns = self._network_state.get('dns')
+    def _parse_dns(self, command):
+        nameservers = []
+        search = []
         if 'address' in command:
             addrs = command['address']
             if not type(addrs) == list:
                 addrs = [addrs]
             for addr in addrs:
-                dns['nameservers'].append(addr)
+                nameservers.append(addr)
         if 'search' in command:
             paths = command['search']
             if not isinstance(paths, list):
                 paths = [paths]
             for path in paths:
-                dns['search'].append(path)
+                search.append(path)
+        return nameservers, search
+
+    @ensure_command_keys(['address'])
+    def handle_nameserver(self, command):
+        dns = self._network_state.get('dns')
+        nameservers, search = self._parse_dns(command)
+        if 'interface' in command:
+            self._interface_dns_map[command['interface']] = (
+                nameservers, search
+            )
+        else:
+            dns['nameservers'].extend(nameservers)
+            dns['search'].extend(search)
+
+    @ensure_command_keys(['address'])
+    def _handle_individual_nameserver(self, command, iface):
+        _iface = self._network_state.get('interfaces')
+        nameservers, search = self._parse_dns(command)
+        _iface[iface]['dns'] = {'nameservers': nameservers, 'search': search}
 
     @ensure_command_keys(['destination'])
     def handle_route(self, command):
@@ -702,16 +709,21 @@ class NetworkStateInterpreter(metaclass=CommandHandlerMeta):
 
     def _v2_common(self, cfg):
         LOG.debug('v2_common: handling config:\n%s', cfg)
-        if 'nameservers' in cfg:
-            search = cfg.get('nameservers').get('search', [])
-            dns = cfg.get('nameservers').get('addresses', [])
-            name_cmd = {'type': 'nameserver'}
-            if len(search) > 0:
-                name_cmd.update({'search': search})
-            if len(dns) > 0:
-                name_cmd.update({'addresses': dns})
-            LOG.debug('v2(nameserver) -> v1(nameserver):\n%s', name_cmd)
-            self.handle_nameserver(name_cmd)
+        for iface, dev_cfg in cfg.items():
+            if 'set-name' in dev_cfg:
+                set_name_iface = dev_cfg.get('set-name')
+                if set_name_iface:
+                    iface = set_name_iface
+            if 'nameservers' in dev_cfg:
+                search = dev_cfg.get('nameservers').get('search', [])
+                dns = dev_cfg.get('nameservers').get('addresses', [])
+                name_cmd = {'type': 'nameserver'}
+                if len(search) > 0:
+                    name_cmd.update({'search': search})
+                if len(dns) > 0:
+                    name_cmd.update({'address': dns})
+                self.handle_nameserver(name_cmd)
+                self._handle_individual_nameserver(name_cmd, iface)
 
     def _handle_bond_bridge(self, command, cmd_type=None):
         """Common handler for bond and bridge types"""
@@ -820,7 +832,8 @@ def _normalize_subnet(subnet):
 
     if subnet.get('type') in ('static', 'static6'):
         normal_subnet.update(
-            _normalize_net_keys(normal_subnet, address_keys=('address',)))
+            _normalize_net_keys(normal_subnet, address_keys=(
+                'address', 'ip_address',)))
     normal_subnet['routes'] = [_normalize_route(r)
                                for r in subnet.get('routes', [])]
 
@@ -1045,6 +1058,33 @@ def mask_and_ipv4_to_bcast_addr(mask, ip):
     bcast_str = '.'.join([str(bcast_bin >> (i << 3) & 0xFF)
                           for i in range(4)[::-1]])
     return bcast_str
+
+
+def parse_net_config_data(net_config, skip_broken=True) -> NetworkState:
+    """Parses the config, returns NetworkState object
+
+    :param net_config: curtin network config dict
+    """
+    state = None
+    version = net_config.get('version')
+    config = net_config.get('config')
+    if version == 2:
+        # v2 does not have explicit 'config' key so we
+        # pass the whole net-config as-is
+        config = net_config
+
+    if version and config is not None:
+        nsi = NetworkStateInterpreter(version=version, config=config)
+        nsi.parse_config(skip_broken=skip_broken)
+        state = nsi.get_network_state()
+
+    if not state:
+        raise RuntimeError(
+            "No valid network_state object created from network config. "
+            "Did you specify the correct version?"
+        )
+
+    return state
 
 
 # vi: ts=4 expandtab

@@ -27,6 +27,8 @@ from cloudinit.handlers.upstart_job import UpstartJobPartHandler
 
 from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE)
 
+INSTANCE_DATA_FILE = 'instance-data-sensitive.json'
+
 
 class TestUpstartJobPartHandler(FilesystemMockingTestCase):
 
@@ -145,8 +147,8 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         script_handler = ShellScriptPartHandler(self.paths)
         self.assertEqual(2, script_handler.handler_version)
 
-        # Create required instance-data.json file
-        instance_json = os.path.join(self.run_dir, 'instance-data.json')
+        # Create required instance data json file
+        instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {'topkey': 'echo himom'}
         util.write_file(instance_json, util.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(
@@ -168,7 +170,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         self.assertEqual(3, cloudcfg_handler.handler_version)
 
         # Create required instance-data.json file
-        instance_json = os.path.join(self.run_dir, 'instance-data.json')
+        instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {'topkey': {'sub': 'runcmd: [echo hi]'}}
         util.write_file(instance_json, util.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(
@@ -198,8 +200,9 @@ class TestJinjaTemplatePartHandler(CiTestCase):
         script_file = os.path.join(script_handler.script_dir, 'part01')
         self.assertEqual(
             'Cannot render jinja template vars. Instance data not yet present'
-            ' at {}/instance-data.json'.format(
-                self.run_dir), str(context_manager.exception))
+            ' at {}/{}'.format(self.run_dir, INSTANCE_DATA_FILE),
+            str(context_manager.exception)
+        )
         self.assertFalse(
             os.path.exists(script_file),
             'Unexpected file created %s' % script_file)
@@ -207,7 +210,8 @@ class TestJinjaTemplatePartHandler(CiTestCase):
     def test_jinja_template_handle_errors_on_unreadable_instance_data(self):
         """If instance-data is unreadable, raise an error from handle_part."""
         script_handler = ShellScriptPartHandler(self.paths)
-        instance_json = os.path.join(self.run_dir, 'instance-data.json')
+        instance_json = os.path.join(
+            self.run_dir, INSTANCE_DATA_FILE)
         util.write_file(instance_json, util.json_dumps({}))
         h = JinjaTemplatePartHandler(
             self.paths, sub_handlers=[script_handler])
@@ -221,8 +225,8 @@ class TestJinjaTemplatePartHandler(CiTestCase):
                     frequency='freq', headers='headers')
         script_file = os.path.join(script_handler.script_dir, 'part01')
         self.assertEqual(
-            'Cannot render jinja template vars. No read permission on'
-            " '{rdir}/instance-data.json'. Try sudo".format(rdir=self.run_dir),
+            "Cannot render jinja template vars. No read permission on "
+            "'{}/{}'. Try sudo".format(self.run_dir, INSTANCE_DATA_FILE),
             str(context_manager.exception))
         self.assertFalse(
             os.path.exists(script_file),
@@ -230,9 +234,9 @@ class TestJinjaTemplatePartHandler(CiTestCase):
 
     @skipUnlessJinja()
     def test_jinja_template_handle_renders_jinja_content(self):
-        """When present, render jinja variables from instance-data.json."""
+        """When present, render jinja variables from instance data"""
         script_handler = ShellScriptPartHandler(self.paths)
-        instance_json = os.path.join(self.run_dir, 'instance-data.json')
+        instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {'topkey': {'subkey': 'echo himom'}}
         util.write_file(instance_json, util.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(
@@ -247,8 +251,8 @@ class TestJinjaTemplatePartHandler(CiTestCase):
             frequency='freq', headers='headers')
         script_file = os.path.join(script_handler.script_dir, 'part01')
         self.assertNotIn(
-            'Instance data not yet present at {}/instance-data.json'.format(
-                self.run_dir),
+            'Instance data not yet present at {}/{}'.format(
+                self.run_dir, INSTANCE_DATA_FILE),
             self.logs.getvalue())
         self.assertEqual(
             '#!/bin/bash\necho himom', util.load_file(script_file))
@@ -257,7 +261,7 @@ class TestJinjaTemplatePartHandler(CiTestCase):
     def test_jinja_template_handle_renders_jinja_content_missing_keys(self):
         """When specified jinja variable is undefined, log a warning."""
         script_handler = ShellScriptPartHandler(self.paths)
-        instance_json = os.path.join(self.run_dir, 'instance-data.json')
+        instance_json = os.path.join(self.run_dir, INSTANCE_DATA_FILE)
         instance_data = {'topkey': {'subkey': 'echo himom'}}
         util.write_file(instance_json, util.json_dumps(instance_data))
         h = JinjaTemplatePartHandler(

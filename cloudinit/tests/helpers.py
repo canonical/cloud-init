@@ -171,7 +171,7 @@ class CiTestCase(TestCase):
         if self.with_logs:
             # Remove the handler we setup
             logging.getLogger().handlers = self.old_handlers
-            logging.getLogger().level = None
+            logging.getLogger().setLevel(logging.NOTSET)
         subp.subp = _real_subp
         super(CiTestCase, self).tearDown()
 
@@ -360,6 +360,9 @@ class HttprettyTestCase(CiTestCase):
         httpretty.HTTPretty.allow_net_connect = False
         httpretty.reset()
         httpretty.enable()
+        # Stop the logging from HttpPretty so our logs don't get mixed
+        # up with its logs
+        logging.getLogger('httpretty.core').setLevel(logging.CRITICAL)
 
     def tearDown(self):
         httpretty.disable()

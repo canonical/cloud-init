@@ -41,6 +41,14 @@
         -->
         <Property oe:key="user-data" oe:value="IyEvYmluL3NoCmVjaG8gImhpIHdvcmxkIgo="/>
         <Property oe:key="password" oe:value="passw0rd"/>
+        <!--
+        network-config is optional.
+        The value for network-config is to be base64 encoded.
+        It will be decoded, and then processed normally as network-config.
+        Set ovf-env.xml to VMware guestinfo.ovfEnv by below command:
+        'vmware-rpctool "info-set guestinfo.ovfEnv `cat ./ovf-env.xml`"' 
+        -->
+        <Property oe:key="network-config" oe:value="bmV0d29yazoKICB2ZXJzaW9uOiAyCiAgZXRoZXJuZXRzOgogICAgbmljczoKICAgICAgbWF0Y2g6CiAgICAgICAgbmFtZTogZXRoKgogICAgICBkaGNwNDogeWVz"/>
     </PropertySection>
 
 </Environment>

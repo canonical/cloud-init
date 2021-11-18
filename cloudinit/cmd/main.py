@@ -1,4 +1,3 @@
-#!/usr/bin/python
 #
 # Copyright (C) 2012 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
@@ -20,7 +19,7 @@ import time
 import traceback
 
 from cloudinit import patcher
-patcher.patch()  # noqa
+patcher.patch_logging()
 
 from cloudinit import log as logging
 from cloudinit import netinfo
@@ -211,6 +210,41 @@ def attempt_cmdline_url(path, network=True, cmdline=None):
             (cmdline_name, url, path))
 
 
+def purge_cache_on_python_version_change(init):
+    """Purge the cache if python version changed on us.
+
+    There could be changes not represented in our cache (obj.pkl) after we
+    upgrade to a new version of python, so at that point clear the cache
+    """
+    current_python_version = '%d.%d' % (
+        sys.version_info.major, sys.version_info.minor
+    )
+    python_version_path = os.path.join(
+        init.paths.get_cpath('data'), 'python-version'
+    )
+    if os.path.exists(python_version_path):
+        cached_python_version = open(python_version_path).read()
+        # The Python version has changed out from under us, anything that was
+        # pickled previously is likely useless due to API changes.
+        if cached_python_version != current_python_version:
+            LOG.debug('Python version change detected. Purging cache')
+            init.purge_cache(True)
+            util.write_file(python_version_path, current_python_version)
+    else:
+        if os.path.exists(init.paths.get_ipath_cur('obj_pkl')):
+            LOG.info(
+                'Writing python-version file. '
+                'Cache compatibility status is currently unknown.'
+            )
+        util.write_file(python_version_path, current_python_version)
+
+
+def _should_bring_up_interfaces(init, args):
+    if util.get_cfg_option_bool(init.cfg, 'disable_network_activation'):
+        return False
+    return not args.local
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
@@ -277,6 +311,7 @@ def main_init(name, args):
         util.logexc(LOG, "Failed to initialize, likely bad things to come!")
     # Stage 4
     path_helper = init.paths
+    purge_cache_on_python_version_change(init)
     mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
 
     if mode == sources.DSMODE_NETWORK:
@@ -319,6 +354,7 @@ def main_init(name, args):
         util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
 
     # Stage 5
+    bring_up_interfaces = _should_bring_up_interfaces(init, args)
     try:
         init.fetch(existing=existing)
         # if in network mode, and the datasource is local
@@ -338,7 +374,7 @@ def main_init(name, args):
             util.logexc(LOG, ("No instance datasource found!"
                               " Likely bad things to come!"))
         if not args.force:
-            init.apply_network_config(bring_up=not args.local)
+            init.apply_network_config(bring_up=bring_up_interfaces)
             LOG.debug("[%s] Exiting without datasource", mode)
             if mode == sources.DSMODE_LOCAL:
                 return (None, [])
@@ -359,7 +395,7 @@ def main_init(name, args):
         # dhcp clients to advertize this hostname to any DDNS services
         # LP: #1746455.
         _maybe_set_hostname(init, stage='local', retry_stage='network')
-    init.apply_network_config(bring_up=bool(mode != sources.DSMODE_LOCAL))
+    init.apply_network_config(bring_up=bring_up_interfaces)
 
     if mode == sources.DSMODE_LOCAL:
         if init.datasource.dsmode != mode:

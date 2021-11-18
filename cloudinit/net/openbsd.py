@@ -18,7 +18,7 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                 content = 'dhcp\n'
             elif isinstance(v, dict):
                 try:
-                    content = "inet {address} {netmask}\n".format(
+                    content = "inet {address} {netmask}".format(
                         address=v['address'],
                         netmask=v['netmask']
                     )
@@ -26,12 +26,19 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
                     LOG.error(
                         "Invalid static configuration for %s",
                         device_name)
+                mtu = v.get("mtu")
+                if mtu:
+                    content += (' mtu %d' % mtu)
+                content += "\n"
             util.write_file(fn, content)
 
     def start_services(self, run=False):
         if not self._postcmds:
             LOG.debug("openbsd generate postcmd disabled")
             return
+        subp.subp(['pkill', 'dhclient'], capture=True, rcs=[0, 1])
+        subp.subp(['route', 'del', 'default'], capture=True, rcs=[0, 1])
+        subp.subp(['route', 'flush', 'default'], capture=True, rcs=[0, 1])
         subp.subp(['sh', '/etc/netstart'], capture=True)
 
     def set_route(self, network, netmask, gateway):

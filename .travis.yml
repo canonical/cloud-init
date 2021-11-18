@@ -33,14 +33,17 @@ install:
 script:
     - tox
 
+env:
+  TOXENV=py3
+  PYTEST_ADDOPTS=-v  # List all tests run by pytest
+
 matrix:
     fast_finish: true
     include:
         - python: 3.6
-          env:
-              TOXENV=py3
-              PYTEST_ADDOPTS=-v  # List all tests run by pytest
-        - if: NOT branch =~ /^ubuntu\//
+        - name: "Integration Tests"
+          if: NOT branch =~ /^ubuntu\//
+          env: {}
           cache:
               - directories:
                   - lxd_images
@@ -117,8 +120,8 @@ matrix:
                 fi
             # Use sudo to get a new shell where we're in the sbuild group
             - sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc'
-            # Ubuntu LTS: Integration
-            - sg lxd -c 'tox -e citest -- run --verbose --preserve-data --data-dir results --os-name xenial --test modules/apt_configure_sources_list.yaml --test modules/ntp_servers --test modules/set_password_list --test modules/user_groups --deb cloud-init_*_all.deb'
+            - ssh-keygen -P "" -q -f ~/.ssh/id_rsa
+            - sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls *.deb)" tox -e integration-tests-ci'
         - python: 3.5
           env:
               TOXENV=xenial
@@ -128,5 +131,11 @@ matrix:
           env: TOXENV=flake8
         - python: 3.6
           env: TOXENV=pylint
-        - python: 3.6
+        - python: 3.7
           env: TOXENV=doc
+        # Test all supported Python versions (but at the end, so we schedule
+        # longer-running jobs first)
+        - python: 3.9
+        - python: 3.8
+        - python: 3.7
+        - python: 3.5

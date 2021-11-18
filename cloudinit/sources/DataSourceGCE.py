@@ -7,6 +7,7 @@ import json
 
 from base64 import b64decode
 
+from cloudinit import dmi
 from cloudinit.distros import ug_util
 from cloudinit import log as logging
 from cloudinit import sources
@@ -26,8 +27,10 @@ HEADERS = {'Metadata-Flavor': 'Google'}
 
 class GoogleMetadataFetcher(object):
 
-    def __init__(self, metadata_address):
+    def __init__(self, metadata_address, num_retries, sec_between_retries):
         self.metadata_address = metadata_address
+        self.num_retries = num_retries
+        self.sec_between_retries = sec_between_retries
 
     def get_value(self, path, is_text, is_recursive=False):
         value = None
@@ -35,7 +38,9 @@ class GoogleMetadataFetcher(object):
             url = self.metadata_address + path
             if is_recursive:
                 url += '/?recursive=True'
-            resp = url_helper.readurl(url=url, headers=HEADERS)
+            resp = url_helper.readurl(url=url, headers=HEADERS,
+                                      retries=self.num_retries,
+                                      sec_between=self.sec_between_retries)
         except url_helper.UrlError as exc:
             msg = "url %s raised exception %s"
             LOG.debug(msg, path, exc)
@@ -67,9 +72,11 @@ class DataSourceGCE(sources.DataSource):
         self.metadata_address = self.ds_cfg['metadata_url']
 
     def _get_data(self):
+        url_params = self.get_url_params()
         ret = util.log_time(
             LOG.debug, 'Crawl of GCE metadata service',
-            read_md, kwargs={'address': self.metadata_address})
+            read_md, kwargs={'address': self.metadata_address,
+                             'url_params': url_params})
 
         if not ret['success']:
             if ret['platform_reports_gce']:
@@ -175,7 +182,7 @@ def _parse_public_keys(public_keys_data, default_user=None):
     return public_keys
 
 
-def read_md(address=None, platform_check=True):
+def read_md(address=None, url_params=None, platform_check=True):
 
     if address is None:
         address = MD_V1_URL
@@ -202,8 +209,9 @@ def read_md(address=None, platform_check=True):
         ('instance-data', ('instance/attributes',), False, False, True),
         ('project-data', ('project/attributes',), False, False, True),
     ]
-
-    metadata_fetcher = GoogleMetadataFetcher(address)
+    metadata_fetcher = GoogleMetadataFetcher(address,
+                                             url_params.num_retries,
+                                             url_params.sec_between_retries)
     md = {}
     # Iterate over url_map keys to get metadata items.
     for (mkey, paths, required, is_text, is_recursive) in url_map:
@@ -248,12 +256,12 @@ def read_md(address=None, platform_check=True):
 
 
 def platform_reports_gce():
-    pname = util.read_dmi_data('system-product-name') or "N/A"
-    if pname == "Google Compute Engine":
+    pname = dmi.read_dmi_data('system-product-name') or "N/A"
+    if pname == "Google Compute Engine" or pname == "Google":
         return True
 
     # system-product-name is not always guaranteed (LP: #1674861)
-    serial = util.read_dmi_data('system-serial-number') or "N/A"
+    serial = dmi.read_dmi_data('system-serial-number') or "N/A"
     if serial.startswith("GoogleCloud-"):
         return True
 

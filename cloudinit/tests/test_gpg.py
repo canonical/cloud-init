@@ -49,6 +49,7 @@ class TestReceiveKeys(CiTestCase):
         m_subp.return_value = ('', '')
         gpg.recv_key(key, keyserver, retries=retries)
         m_subp.assert_called_once_with(
-            ['gpg', '--keyserver=%s' % keyserver, '--recv-keys', key],
+            ['gpg', '--no-tty',
+             '--keyserver=%s' % keyserver, '--recv-keys', key],
             capture=True)
         m_sleep.assert_not_called()

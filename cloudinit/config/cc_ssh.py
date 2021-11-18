@@ -17,7 +17,7 @@ keys.
 Authorized Keys
 ^^^^^^^^^^^^^^^
 
-Authorized keys are a list of public SSH keys that are allowed to connect to a
+Authorized keys are a list of public SSH keys that are allowed to connect to
 a user account on a system. They are stored in `.ssh/authorized_keys` in that
 account's home directory. Authorized keys for the default user defined in
 ``users`` can be specified using ``ssh_authorized_keys``. Keys
@@ -83,10 +83,15 @@ enabled by default.
 Host keys can be added using the ``ssh_keys`` configuration key. The argument
 to this config key should be a dictionary entries for the public and private
 keys of each desired key type. Entries in the ``ssh_keys`` config dict should
-have keys in the format ``<key type>_private`` and ``<key type>_public``,
-e.g. ``rsa_private: <key>`` and ``rsa_public: <key>``. See below for supported
+have keys in the format ``<key type>_private``, ``<key type>_public``, and,
+optionally, ``<key type>_certificate``, e.g. ``rsa_private: <key>``,
+``rsa_public: <key>``, and ``rsa_certificate: <key>``. See below for supported
 key types. Not all key types have to be specified, ones left unspecified will
 not be used. If this config option is used, then no keys will be generated.
+
+When host keys are generated the output of the ssh-keygen command(s) can be
+displayed on the console using the ``ssh_quiet_keygen`` configuration key.
+This settings defaults to False which displays the keygen output.
 
 .. note::
     when specifying private host keys in cloud-config, care should be taken to
@@ -94,7 +99,8 @@ not be used. If this config option is used, then no keys will be generated.
     secure
 
 .. note::
-    to specify multiline private host keys, use yaml multiline syntax
+    to specify multiline private host keys and certificates, use yaml
+    multiline syntax
 
 If no host keys are specified using ``ssh_keys``, then keys will be generated
 using ``ssh-keygen``. By default one public/private pair of each supported
@@ -128,12 +134,17 @@ config flags are:
             ...
             -----END RSA PRIVATE KEY-----
         rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+        rsa_certificate: |
+            ssh-rsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
         dsa_private: |
             -----BEGIN DSA PRIVATE KEY-----
             MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
             ...
             -----END DSA PRIVATE KEY-----
         dsa_public: ssh-dsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+        dsa_certificate: |
+            ssh-dsa-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQt ...
+
     ssh_genkeytypes: <key type>
     disable_root: <true/false>
     disable_root_opts: <disable root options string>
@@ -144,6 +155,7 @@ config flags are:
     ssh_publish_hostkeys:
         enabled: <true/false> (Defaults to true)
         blacklist: <list of key types> (Defaults to [dsa])
+    ssh_quiet_keygen: <true/false>
 """
 
 import glob
@@ -169,6 +181,8 @@ for k in GENERATE_KEY_NAMES:
     CONFIG_KEY_TO_FILE.update({"%s_private" % k: (KEY_FILE_TPL % k, 0o600)})
     CONFIG_KEY_TO_FILE.update(
         {"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)})
+    CONFIG_KEY_TO_FILE.update(
+        {"%s_certificate" % k: (KEY_FILE_TPL % k + "-cert.pub", 0o600)})
     PRIV_TO_PUB["%s_private" % k] = "%s_public" % k
 
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
@@ -186,12 +200,18 @@ def handle(_name, cfg, cloud, log, _args):
                 util.logexc(log, "Failed deleting key file %s", f)
 
     if "ssh_keys" in cfg:
-        # if there are keys in cloud-config, use them
+        # if there are keys and/or certificates in cloud-config, use them
         for (key, val) in cfg["ssh_keys"].items():
-            if key in CONFIG_KEY_TO_FILE:
-                tgt_fn = CONFIG_KEY_TO_FILE[key][0]
-                tgt_perms = CONFIG_KEY_TO_FILE[key][1]
-                util.write_file(tgt_fn, val, tgt_perms)
+            # skip entry if unrecognized
+            if key not in CONFIG_KEY_TO_FILE:
+                continue
+            tgt_fn = CONFIG_KEY_TO_FILE[key][0]
+            tgt_perms = CONFIG_KEY_TO_FILE[key][1]
+            util.write_file(tgt_fn, val, tgt_perms)
+            # set server to present the most recently identified certificate
+            if '_certificate' in key:
+                cert_config = {'HostCertificate': tgt_fn}
+                ssh_util.update_ssh_config(cert_config)
 
         for (priv, pub) in PRIV_TO_PUB.items():
             if pub in cfg['ssh_keys'] or priv not in cfg['ssh_keys']:
@@ -224,7 +244,16 @@ def handle(_name, cfg, cloud, log, _args):
             with util.SeLinuxGuard("/etc/ssh", recursive=True):
                 try:
                     out, err = subp.subp(cmd, capture=True, env=lang_c)
-                    sys.stdout.write(util.decode_binary(out))
+                    if not util.get_cfg_option_bool(cfg, 'ssh_quiet_keygen',
+                                                    False):
+                        sys.stdout.write(util.decode_binary(out))
+
+                    gid = util.get_group_id("ssh_keys")
+                    if gid != -1:
+                        # perform same "sanitize permissions" as sshd-keygen
+                        os.chown(keyfile, -1, gid)
+                        os.chmod(keyfile, 0o640)
+                        os.chmod(keyfile + ".pub", 0o644)
                 except subp.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
                     if (e.exit_code == 1 and
