@@ -191,16 +191,15 @@ def _collect_logs(instance: IntegrationInstance, node_id: str,
     ) / session_start_time / node_id_path
     log.info("Writing logs to %s", log_dir)
 
+    if not log_dir.exists():
+        log_dir.mkdir(parents=True)
+
     # Add a symlink to the latest log output directory
     last_symlink = Path(integration_settings.LOCAL_LOG_PATH) / 'last'
     if os.path.islink(last_symlink):
         os.unlink(last_symlink)
-    os.symlink(
-        Path(integration_settings.LOCAL_LOG_PATH) / session_start_time,
-        last_symlink)
+    os.symlink(log_dir.parent, last_symlink)
 
-    if not log_dir.exists():
-        log_dir.mkdir(parents=True)
     tarball_path = log_dir / 'cloud-init.tar.gz'
     instance.pull_file('/var/tmp/cloud-init.tar.gz', tarball_path)
 
@@ -251,7 +250,7 @@ def _client(request, fixture_utils, session_cloud: IntegrationCloud):
     local_launch_kwargs = {}
     if lxd_setup is not None:
         if not isinstance(session_cloud, _LxdIntegrationCloud):
-            pytest.skip('lxd_setup requres LXD')
+            pytest.skip('lxd_setup requires LXD')
         local_launch_kwargs['lxd_setup'] = lxd_setup
 
     with session_cloud.launch(
