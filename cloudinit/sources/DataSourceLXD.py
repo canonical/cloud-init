@@ -353,6 +353,11 @@ def read_metadata(
                     # fallback config on old LXD, with new cloud-init images.
                     if CONFIG_KEY_ALIASES[cfg_key] not in md:
                         md[CONFIG_KEY_ALIASES[cfg_key]] = response.text
+                    else:
+                        LOG.warning(
+                            "Ignoring LXD config %s in favor of %s value.",
+                            cfg_key, cfg_key.replace("user", "cloud-init", 1)
+                        )
             else:
                 LOG.debug(
                     "Skipping %s on [HTTP:%d]:%s",

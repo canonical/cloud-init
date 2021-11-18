@@ -336,6 +336,12 @@ class TestReadMetadata:
                     " http://lxd/1.0/config/cloud-init.user-data",
                     "[GET] [HTTP:200]"
                     " http://lxd/1.0/config/cloud-init.vendor-data",
+                    "Ignoring LXD config user.user-data in favor of"
+                    " cloud-init.user-data value.",
+                    "Ignoring LXD config user.network-config in favor of"
+                    " cloud-init.network-config value.",
+                    "Ignoring LXD config user.vendor-data in favor of"
+                    " cloud-init.vendor-data value.",
                 ],
             ),
         )
