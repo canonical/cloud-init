@@ -815,6 +815,44 @@ class TestGetLinuxDistro(CiTestCase):
         self.assertEqual(('foo', '1.1', 'aarch64'), dist)
 
 
+class TestGetVariant:
+    @pytest.mark.parametrize('info, expected_variant', [
+        ({'system': 'Linux', 'dist': ('almalinux',)}, 'almalinux'),
+        ({'system': 'linux', 'dist': ('alpine',)}, 'alpine'),
+        ({'system': 'linux', 'dist': ('arch',)}, 'arch'),
+        ({'system': 'linux', 'dist': ('centos',)}, 'centos'),
+        ({'system': 'linux', 'dist': ('cloudlinux',)}, 'cloudlinux'),
+        ({'system': 'linux', 'dist': ('debian',)}, 'debian'),
+        ({'system': 'linux', 'dist': ('eurolinux',)}, 'eurolinux'),
+        ({'system': 'linux', 'dist': ('fedora',)}, 'fedora'),
+        ({'system': 'linux', 'dist': ('openEuler',)}, 'openeuler'),
+        ({'system': 'linux', 'dist': ('photon',)}, 'photon'),
+        ({'system': 'linux', 'dist': ('rhel',)}, 'rhel'),
+        ({'system': 'linux', 'dist': ('rocky',)}, 'rocky'),
+        ({'system': 'linux', 'dist': ('suse',)}, 'suse'),
+        ({'system': 'linux', 'dist': ('virtuozzo',)}, 'virtuozzo'),
+        ({'system': 'linux', 'dist': ('ubuntu',)}, 'ubuntu'),
+        ({'system': 'linux', 'dist': ('linuxmint',)}, 'ubuntu'),
+        ({'system': 'linux', 'dist': ('mint',)}, 'ubuntu'),
+        ({'system': 'linux', 'dist': ('redhat',)}, 'rhel'),
+        ({'system': 'linux', 'dist': ('opensuse',)}, 'suse'),
+        ({'system': 'linux', 'dist': ('opensuse-tumbleweed',)}, 'suse'),
+        ({'system': 'linux', 'dist': ('opensuse-leap',)}, 'suse'),
+        ({'system': 'linux', 'dist': ('sles',)}, 'suse'),
+        ({'system': 'linux', 'dist': ('sle_hpc',)}, 'suse'),
+        ({'system': 'linux', 'dist': ('my_distro',)}, 'linux'),
+        ({'system': 'Windows', 'dist': ('dontcare',)}, 'windows'),
+        ({'system': 'Darwin', 'dist': ('dontcare',)}, 'darwin'),
+        ({'system': 'Freebsd', 'dist': ('dontcare',)}, 'freebsd'),
+        ({'system': 'Netbsd', 'dist': ('dontcare',)}, 'netbsd'),
+        ({'system': 'Openbsd', 'dist': ('dontcare',)}, 'openbsd'),
+        ({'system': 'Dragonfly', 'dist': ('dontcare',)}, 'dragonfly'),
+    ])
+    def test_get_variant(self, info, expected_variant):
+        """Verify we get the correct variant name"""
+        assert util._get_variant(info) == expected_variant
+
+
 class TestJsonDumps(CiTestCase):
     def test_is_str(self):
         """json_dumps should return a string."""

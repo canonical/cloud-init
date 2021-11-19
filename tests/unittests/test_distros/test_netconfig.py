@@ -783,7 +783,10 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                 """),
         }
 
-        with mock.patch('cloudinit.util.is_FreeBSD', return_value=False):
+        with mock.patch(
+            'cloudinit.net.netplan.get_devicelist',
+            return_value=[]
+        ):
             self._apply_and_verify(self.distro.apply_network_config,
                                    V1_NET_CFG,
                                    expected_cfgs=expected_cfgs.copy(),

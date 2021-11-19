@@ -486,11 +486,10 @@ class TestConfigDriveDataSource(CiTestCase):
                                           None,
                                           helpers.Paths({}))
         with mock.patch(M_PATH + 'find_candidate_devs') as m_find_devs:
-            with mock.patch(M_PATH + 'util.is_FreeBSD', return_value=False):
-                with mock.patch(M_PATH + 'util.mount_cb'):
-                    with mock.patch(M_PATH + 'on_first_boot'):
-                        m_find_devs.return_value = ['/dev/anything']
-                        self.assertEqual(True, cfg_ds.get_data())
+            with mock.patch(M_PATH + 'util.mount_cb'):
+                with mock.patch(M_PATH + 'on_first_boot'):
+                    m_find_devs.return_value = ['/dev/anything']
+                    self.assertEqual(True, cfg_ds.get_data())
         self.assertEqual('config-disk (/dev/anything)', cfg_ds.subplatform)
 
 

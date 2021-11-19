@@ -5373,21 +5373,20 @@ class TestNetRenderers(CiTestCase):
                           priority=['sysconfig', 'eni'])
 
     @mock.patch("cloudinit.net.sysconfig.available_sysconfig")
-    @mock.patch("cloudinit.util.get_linux_distro")
-    def test_sysconfig_available_uses_variant_mapping(self, m_distro, m_avail):
+    @mock.patch("cloudinit.util.system_info")
+    def test_sysconfig_available_uses_variant_mapping(self, m_info, m_avail):
         m_avail.return_value = True
-        distro_values = [
-            ('opensuse', '', ''),
-            ('opensuse-leap', '', ''),
-            ('opensuse-tumbleweed', '', ''),
-            ('sles', '', ''),
-            ('centos', '', ''),
-            ('eurolinux', '', ''),
-            ('fedora', '', ''),
-            ('redhat', '', ''),
+        variants = [
+            'suse',
+            'centos',
+            'eurolinux',
+            'fedora',
+            'rhel',
         ]
-        for (distro_name, distro_version, flavor) in distro_values:
-            m_distro.return_value = (distro_name, distro_version, flavor)
+        for distro_name in variants:
+            m_info.return_value = {
+                "variant": distro_name
+            }
             if hasattr(util.system_info, "cache_clear"):
                 util.system_info.cache_clear()
             result = sysconfig.available()

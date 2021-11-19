@@ -1789,9 +1789,8 @@ scbus-1 on xpt0 bus 0
             config_driver=True)
 
     @mock.patch(MOCKPATH + 'net.get_interfaces', autospec=True)
-    @mock.patch(MOCKPATH + 'util.is_FreeBSD')
     def test_blacklist_through_distro(
-            self, m_is_freebsd, m_net_get_interfaces):
+            self, m_net_get_interfaces):
         """Verify Azure DS updates blacklist drivers in the distro's
            networking object."""
         odata = {'HostName': "myhost", 'UserName': "myuser"}
@@ -1805,7 +1804,6 @@ scbus-1 on xpt0 bus 0
         self.assertEqual(distro.networking.blacklist_drivers,
                          dsaz.BLACKLIST_DRIVERS)
 
-        m_is_freebsd.return_value = False
         distro.networking.get_interfaces_by_mac()
         m_net_get_interfaces.assert_called_with(
             blacklist_drivers=dsaz.BLACKLIST_DRIVERS)
@@ -3219,7 +3217,6 @@ class TestPreprovisioningPollIMDS(CiTestCase):
 @mock.patch(MOCKPATH + 'DataSourceAzure._report_ready', mock.MagicMock())
 @mock.patch(MOCKPATH + 'subp.subp', mock.MagicMock())
 @mock.patch(MOCKPATH + 'util.write_file', mock.MagicMock())
-@mock.patch(MOCKPATH + 'util.is_FreeBSD')
 @mock.patch('cloudinit.sources.helpers.netlink.'
             'wait_for_media_disconnect_connect')
 @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network', autospec=True)
@@ -3236,10 +3233,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
 
     def test_poll_imds_returns_ovf_env(self, m_request,
                                        m_dhcp, m_net,
-                                       m_media_switch,
-                                       m_is_bsd):
+                                       m_media_switch):
         """The _poll_imds method should return the ovf_env.xml."""
-        m_is_bsd.return_value = False
         m_media_switch.return_value = None
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
@@ -3268,10 +3263,8 @@ class TestAzureDataSourcePreprovisioning(CiTestCase):
 
     def test__reprovision_calls__poll_imds(self, m_request,
                                            m_dhcp, m_net,
-                                           m_media_switch,
-                                           m_is_bsd):
+                                           m_media_switch):
         """The _reprovision method should call poll IMDS."""
-        m_is_bsd.return_value = False
         m_media_switch.return_value = None
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
