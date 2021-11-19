@@ -363,7 +363,7 @@ class Renderer(renderer.Renderer):
                  how-to-set-static-routes-in-ubuntu-server
         """
         content = []
-        up = indent + "post-up route add"
+        up = indent + "post-up route replace"
         down = indent + "pre-down route del"
         or_true = " || true"
         mapping = {
