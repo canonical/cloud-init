@@ -767,8 +767,7 @@ class TestNetCfgDistroArch(TestNetCfgDistroBase):
                                expected_cfgs=expected_cfgs.copy(),
                                with_netplan=False)
 
-    @mock.patch('cloudinit.util.is_DragonFlyBSD', return_value=False)
-    @mock.patch('cloudinit.util.is_FreeBSD', return_value=False)
+    @mock.patch('cloudinit.util.system_info', return_value={'variant': 'bsd'})
     def test_apply_network_config_v1_with_netplan(self, *args):
         expected_cfgs = {
             self.netplan_path(): dedent("""\
