@@ -37,8 +37,6 @@ class TestNtp(FilesystemMockingTestCase):
         self.new_root = self.tmp_dir()
         self.add_patch('cloudinit.util.system_is_snappy', 'm_snappy')
         self.m_snappy.return_value = False
-        self.add_patch('cloudinit.util.system_info', 'm_sysinfo')
-        self.m_sysinfo.return_value = {'dist': ('Distro', '99.1', 'Codename')}
         self.new_root = self.reRoot()
         self._get_cloud = partial(
             get_cloud,
@@ -510,17 +508,18 @@ class TestNtp(FilesystemMockingTestCase):
 
             self.assertEqual(expected_content, util.load_file(confpath))
 
-    def test_opensuse_picks_chrony(self):
+    @mock.patch('cloudinit.util.system_info')
+    def test_opensuse_picks_chrony(self, m_sysinfo):
         """Test opensuse picks chrony or ntp on certain distro versions"""
         #  < 15.0  => ntp
-        self.m_sysinfo.return_value = {'dist':
+        m_sysinfo.return_value = {'dist':
                                        ('openSUSE', '13.2', 'Harlequin')}
         mycloud = self._get_cloud('opensuse')
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual('ntp', expected_client)
 
         #  >= 15.0 and  not openSUSE => chrony
-        self.m_sysinfo.return_value = {'dist':
+        m_sysinfo.return_value = {'dist':
                                        ('SLES', '15.0',
                                         'SUSE Linux Enterprise Server 15')}
         mycloud = self._get_cloud('sles')
@@ -528,17 +527,18 @@ class TestNtp(FilesystemMockingTestCase):
         self.assertEqual('chrony', expected_client)
 
         #  >= 15.0 and  openSUSE and ver != 42  => chrony
-        self.m_sysinfo.return_value = {'dist': ('openSUSE Tumbleweed',
+        m_sysinfo.return_value = {'dist': ('openSUSE Tumbleweed',
                                                 '20180326',
                                                 'timbleweed')}
         mycloud = self._get_cloud('opensuse')
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual('chrony', expected_client)
 
-    def test_ubuntu_xenial_picks_ntp(self):
+    @mock.patch('cloudinit.util.system_info')
+    def test_ubuntu_xenial_picks_ntp(self, m_sysinfo):
         """Test Ubuntu picks ntp on xenial release"""
 
-        self.m_sysinfo.return_value = {'dist': ('Ubuntu', '16.04', 'xenial')}
+        m_sysinfo.return_value = {'dist': ('Ubuntu', '16.04', 'xenial')}
         mycloud = self._get_cloud('ubuntu')
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual('ntp', expected_client)

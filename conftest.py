@@ -212,7 +212,7 @@ def monkeypatch_system_info():
             "release": "invalid",
             "python": "invalid",
             "uname": ["invalid"] * 6,
-            "dist": ("invalid",) * 3,
+            "dist": ("Distro", "-1.1", "Codename"),
             "variant": "ubuntu"
         }
 
