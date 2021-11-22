@@ -1,6 +1,5 @@
-*********************
-Hacking on cloud-init
-*********************
+Contributing to cloud-init
+**************************
 
 This document describes how to contribute changes to cloud-init.
 It assumes you have a `GitHub`_ account, and refers to your GitHub user
@@ -8,6 +7,26 @@ as ``GH_USER`` throughout.
 
 Submitting your first pull request
 ==================================
+
+Summary
+-------
+
+Before any pull request can be accepted, you must do the following:
+
+* Sign the Canonical `contributor license agreement`_
+* Add yourself (alphabetically) to the in-repository list that we use
+  to track CLA signatures:
+  `tools/.github-cla-signers`_
+* Add or update any `unit tests`_ accordingly
+* Add or update any `integration tests`_ (if applicable)
+* Ensure unit tests and linting pass using `tox`_
+* Submit a PR against the `main` branch of the `cloud-init` repository
+
+.. _unit tests: https://cloudinit.readthedocs.io/en/latest/topics/testing.html
+.. _integration tests: https://cloudinit.readthedocs.io/en/latest/topics/integration_tests.html
+
+The detailed instructions
+-------------------------
 
 Follow these steps to submit your first pull request to cloud-init:
 
@@ -78,7 +97,6 @@ Follow these steps to submit your first pull request to cloud-init:
 .. _repository: https://github.com/canonical/cloud-init
 .. _contributor license agreement: https://ubuntu.com/legal/contributors
 .. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
-.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers
 .. _PR #344: https://github.com/canonical/cloud-init/pull/344
 .. _PR #345: https://github.com/canonical/cloud-init/pull/345
 
@@ -123,7 +141,7 @@ Do these things for each feature or bug
 
     git push -u GH_USER my-topic-branch
 
-* Use your browser to create a merge request:
+* Use your browser to create a pull request:
 
   - Open the branch on GitHub
 
@@ -142,20 +160,23 @@ Do these things for each feature or bug
       as footers with syntax as shown here.
 
       The commit message should be one summary line of less than
-      74 characters followed by a blank line, and then one or more
-      paragraphs describing the change and why it was needed.
+      70 characters followed by a blank line, and then one or more
+      paragraphs wrapped at 72 characters describing the change and why
+      it was needed.
 
       This is the message that will be used on the commit when it
-      is sqaushed and merged into trunk.
+      is sqaushed and merged into main. If there is a related launchpad
+      bug, specify it at the bottom of the commit message.
 
-      LP: #1
+      LP: #NNNNNNN (replace with the appropriate bug reference or remove
+      this line entirely if there is no associated bug)
 
     Note that the project continues to use LP: #NNNNN format for closing
     launchpad bugs rather than GitHub Issues.
 
   - Click 'Create Pull Request`
 
-Then, someone in the `Ubuntu Server`_ team will review your changes and
+Then, a cloud-init committer will review your changes and
 follow up in the pull request.  Look at the `Code Review Process`_ doc
 to understand the following steps.
 
@@ -163,7 +184,6 @@ Feel free to ping and/or join ``#cloud-init`` on Libera irc if you
 have any questions.
 
 .. _tox: https://tox.readthedocs.io/en/latest/
-.. _Ubuntu Server: https://github.com/orgs/canonical/teams/ubuntu-server
 .. _Code Review Process: https://cloudinit.readthedocs.io/en/latest/topics/code_review.html
 
 Design
@@ -188,18 +208,9 @@ Type Annotations
 ----------------
 
 The cloud-init codebase uses Python's annotation support for storing
-type annotations in the style specified by `PEP-484`_.  Their use in
-the codebase is encouraged but with one important caveat: types from
-the ``typing`` module cannot be used.
-
-cloud-init still supports Python 3.4, which doesn't have the ``typing``
-module in the stdlib.  This means that the use of any types from the
-``typing`` module in the codebase would require installation of an
-additional Python module on platforms using Python 3.4.  As such
-platforms are generally in maintenance mode, the introduction of a new
-dependency may act as a break in compatibility in practical terms.
-
-Similarly, only function annotations are appropriate for use, as the
+type annotations in the style specified by `PEP-484`_. Their use in
+the codebase is encouraged but with one important caveat: only
+function annotations or comment annotations are supported, as the
 variable annotations specified in `PEP-526`_ were introduced in Python
 3.6.
 
@@ -517,6 +528,7 @@ References
 * `PR #363`_, the discussion which prompted finally starting this
   refactor (and where a lot of the above details were hashed out)
 
+.. _tools/.github-cla-signers: https://github.com/canonical/cloud-init/blob/main/tools/.github-cla-signers
 .. _get_interfaces_by_mac: https://github.com/canonical/cloud-init/blob/961239749106daead88da483e7319e9268c67cde/cloudinit/net/__init__.py#L810-L818
 .. _Mina Galić's email the the cloud-init ML in 2018: https://lists.launchpad.net/cloud-init/msg00185.html
 .. _Mina Galić's email to the cloud-init ML in 2019: https://lists.launchpad.net/cloud-init/msg00237.html
