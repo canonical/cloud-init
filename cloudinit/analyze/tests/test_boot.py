@@ -9,20 +9,11 @@ err_code = (FAIL_CODE, -1, -1, -1)
 
 class TestDistroChecker(CiTestCase):
 
-    @mock.patch('cloudinit.util.system_info', return_value={'dist': ('', '',
-                                                                     ''),
-                                                            'system': ''})
-    @mock.patch('cloudinit.util.get_linux_distro', return_value=('', '', ''))
-    @mock.patch('cloudinit.util.is_FreeBSD', return_value=False)
-    def test_blank_distro(self, m_sys_info, m_get_linux_distro, m_free_bsd):
+    def test_blank_distro(self):
         self.assertEqual(err_code, dist_check_timestamp())
 
-    @mock.patch('cloudinit.util.system_info', return_value={'dist': ('', '',
-                                                                     '')})
-    @mock.patch('cloudinit.util.get_linux_distro', return_value=('', '', ''))
     @mock.patch('cloudinit.util.is_FreeBSD', return_value=True)
-    def test_freebsd_gentoo_cant_find(self, m_sys_info,
-                                      m_get_linux_distro, m_is_FreeBSD):
+    def test_freebsd_gentoo_cant_find(self, m_is_FreeBSD):
         self.assertEqual(err_code, dist_check_timestamp())
 
     @mock.patch('cloudinit.subp.subp', return_value=(0, 1))

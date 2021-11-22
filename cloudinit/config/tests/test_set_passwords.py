@@ -121,13 +121,11 @@ class TestSetPasswordsHandle(CiTestCase):
             m_subp.call_args_list)
 
     @mock.patch(MODPATH + "util.multi_log")
-    @mock.patch(MODPATH + "util.is_BSD")
     @mock.patch(MODPATH + "subp.subp")
     def test_handle_on_chpasswd_list_creates_random_passwords(
-        self, m_subp, m_is_bsd, m_multi_log
+        self, m_subp, m_multi_log
     ):
         """handle parses command set random passwords."""
-        m_is_bsd.return_value = False
         cloud = self.tmp_cloud(distro='ubuntu')
         valid_random_pwds = [
             'root:R',

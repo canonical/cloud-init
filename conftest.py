@@ -12,7 +12,7 @@ from unittest import mock
 
 import pytest
 
-from cloudinit import helpers, subp
+from cloudinit import helpers, subp, util
 
 
 class _FixtureUtils:
@@ -201,3 +201,19 @@ def paths(tmpdir):
         "run_dir": tmpdir.mkdir("run_dir").strpath,
     }
     return helpers.Paths(dirs)
+
+
+@pytest.fixture(autouse=True, scope='session')
+def monkeypatch_system_info():
+    def my_system_info():
+        return {
+            "platform": "invalid",
+            "system": "invalid",
+            "release": "invalid",
+            "python": "invalid",
+            "uname": ["invalid"] * 6,
+            "dist": ("Distro", "-1.1", "Codename"),
+            "variant": "ubuntu"
+        }
+
+    util.system_info = my_system_info
