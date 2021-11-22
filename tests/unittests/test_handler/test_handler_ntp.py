@@ -512,24 +512,25 @@ class TestNtp(FilesystemMockingTestCase):
     def test_opensuse_picks_chrony(self, m_sysinfo):
         """Test opensuse picks chrony or ntp on certain distro versions"""
         #  < 15.0  => ntp
-        m_sysinfo.return_value = {'dist':
-                                       ('openSUSE', '13.2', 'Harlequin')}
+        m_sysinfo.return_value = {
+            'dist': ('openSUSE', '13.2', 'Harlequin')
+        }
         mycloud = self._get_cloud('opensuse')
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual('ntp', expected_client)
 
         #  >= 15.0 and  not openSUSE => chrony
-        m_sysinfo.return_value = {'dist':
-                                       ('SLES', '15.0',
-                                        'SUSE Linux Enterprise Server 15')}
+        m_sysinfo.return_value = {
+            'dist': ('SLES', '15.0', 'SUSE Linux Enterprise Server 15')
+        }
         mycloud = self._get_cloud('sles')
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual('chrony', expected_client)
 
         #  >= 15.0 and  openSUSE and ver != 42  => chrony
-        m_sysinfo.return_value = {'dist': ('openSUSE Tumbleweed',
-                                                '20180326',
-                                                'timbleweed')}
+        m_sysinfo.return_value = {
+            'dist': ('openSUSE Tumbleweed', '20180326', 'timbleweed')
+        }
         mycloud = self._get_cloud('opensuse')
         expected_client = mycloud.distro.preferred_ntp_clients[0]
         self.assertEqual('chrony', expected_client)
