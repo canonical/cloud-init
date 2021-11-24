@@ -79,8 +79,7 @@ class TestSetPasswordsHandle(CiTestCase):
             'ssh_pwauth=None\n',
             self.logs.getvalue())
 
-    @mock.patch(MODPATH + "subp.subp")
-    def test_handle_on_chpasswd_list_parses_common_hashes(self, m_subp):
+    def test_handle_on_chpasswd_list_parses_common_hashes(self):
         """handle parses command password hashes."""
         cloud = self.tmp_cloud(distro='ubuntu')
         valid_hashed_pwds = [
@@ -89,7 +88,7 @@ class TestSetPasswordsHandle(CiTestCase):
             'ubuntu:$6$5hOurLPO$naywm3Ce0UlmZg9gG2Fl9acWCVEoakMMC7dR52q'
             'SDexZbrN9z8yHxhUM2b.sxpguSwOlbOQSW/HpXazGGx3oo1']
         cfg = {'chpasswd': {'list': valid_hashed_pwds}}
-        with mock.patch(MODPATH + 'subp.subp') as m_subp:
+        with mock.patch.object(setpass, 'chpasswd') as chpasswd:
             setpass.handle(
                 'IGNORED', cfg=cfg, cloud=cloud, log=self.logger, args=[])
         self.assertIn(
@@ -98,10 +97,9 @@ class TestSetPasswordsHandle(CiTestCase):
         self.assertIn(
             "DEBUG: Setting hashed password for ['root', 'ubuntu']",
             self.logs.getvalue())
-        self.assertEqual(
-            [mock.call(['chpasswd', '-e'],
-             '\n'.join(valid_hashed_pwds) + '\n')],
-            m_subp.call_args_list)
+        valid = '\n'.join(valid_hashed_pwds) + '\n'
+        called = chpasswd.call_args[0][1]
+        self.assertEqual(valid, called)
 
     @mock.patch(MODPATH + "util.is_BSD")
     @mock.patch(MODPATH + "subp.subp")
@@ -131,22 +129,18 @@ class TestSetPasswordsHandle(CiTestCase):
             'root:R',
             'ubuntu:RANDOM']
         cfg = {'chpasswd': {'expire': 'false', 'list': valid_random_pwds}}
-        with mock.patch(MODPATH + 'subp.subp') as m_subp:
+        with mock.patch.object(setpass, 'chpasswd') as chpasswd:
             setpass.handle(
                 'IGNORED', cfg=cfg, cloud=cloud, log=self.logger, args=[])
         self.assertIn(
             'DEBUG: Handling input for chpasswd as list.',
             self.logs.getvalue())
-
-        self.assertEqual(1, m_subp.call_count)
-        args, _kwargs = m_subp.call_args
-        self.assertEqual(["chpasswd"], args[0])
-
-        stdin = args[1]
+        self.assertEqual(1, chpasswd.call_count)
+        passwords, _ = chpasswd.call_args
         user_pass = {
             user: password
             for user, password
-            in (line.split(":") for line in stdin.splitlines())
+            in (line.split(":") for line in passwords[1].splitlines())
         }
 
         self.assertEqual(1, m_multi_log.call_count)
