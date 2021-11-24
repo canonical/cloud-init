@@ -2,7 +2,7 @@ import pytest
 
 from unittest import mock
 from cloudinit.config.cc_resolv_conf import generate_resolv_conf
-from tests.unittests.util import TestingDistro
+from tests.unittests.util import DistroTester
 
 EXPECTED_HEADER = """\
 # Your system has been configured with 'manage-resolv-conf' set to true.
@@ -14,7 +14,7 @@ EXPECTED_HEADER = """\
 
 class TestGenerateResolvConf:
 
-    dist = TestingDistro()
+    dist = DistroTester()
     tmpl_fn = "templates/resolv.conf.tmpl"
 
     @mock.patch("cloudinit.config.cc_resolv_conf.templater.render_to_file")

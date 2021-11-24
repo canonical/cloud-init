@@ -15,7 +15,7 @@ def get_cloud(distro=None, paths=None, sys_cfg=None, metadata=None):
     """
     paths = paths or helpers.Paths({})
     sys_cfg = sys_cfg or {}
-    cls = distros.fetch(distro) if distro else TestingDistro
+    cls = distros.fetch(distro) if distro else DistroTester
     mydist = cls(distro, sys_cfg, paths)
     myds = DataSourceTesting(sys_cfg, mydist, paths)
     if metadata:
@@ -49,14 +49,14 @@ class DataSourceTesting(DataSourceNone):
         return 'testing'
 
 
-class TestingDistro(distros.Distro):
-    # TestingDistro is here to test base Distro class implementations
+class DistroTester(distros.Distro):
+    # DistroTester is here to test base Distro class implementations
     def __init__(self, name="testingdistro", cfg=None, paths=None):
         if not cfg:
             cfg = {}
         if not paths:
             paths = {}
-        super(TestingDistro, self).__init__(name, cfg, paths)
+        super(DistroTester, self).__init__(name, cfg, paths)
 
     def install_packages(self, pkglist):
         pass
