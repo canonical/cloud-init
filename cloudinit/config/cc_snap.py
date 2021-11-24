@@ -8,8 +8,7 @@ import sys
 from textwrap import dedent
 
 from cloudinit import log as logging
-from cloudinit.config.schema import (
-    get_meta_doc, validate_cloudconfig_schema)
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import prepend_base_command
 from cloudinit import subp

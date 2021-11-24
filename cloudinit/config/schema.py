@@ -34,7 +34,7 @@ SCHEMA_DOC_TMPL = """
 {property_doc}
 {examples}
 """
-SCHEMA_PROPERTY_TMPL = '{prefix}**{prop_name}:** ({prop_type}) {description}'
+SCHEMA_PROPERTY_TMPL = "{prefix}**{prop_name}:** ({prop_type}) {description}"
 SCHEMA_LIST_ITEM_TMPL = (
     '{prefix}Each item in **{prop_name}** list supports the following keys:')
 SCHEMA_EXAMPLES_HEADER = '\n**Examples**::\n\n'
@@ -105,9 +105,7 @@ def get_jsonschema_validator():
     return (cloudinitValidator, FormatChecker, None)
 
 
-def validate_cloudconfig_metaschema(
-        schema: dict,
-        throw=True):
+def validate_cloudconfig_metaschema(schema: dict, throw=True):
     """Validate provided schema meets the metaschema definition. Return strict
     Validator and FormatChecker for use in validation
     @param schema: schema to validate
@@ -121,11 +119,12 @@ def validate_cloudconfig_metaschema(
     """
 
     from jsonschema.exceptions import SchemaError
+
     (cloudinitValidator, FormatChecker, _) = get_jsonschema_validator()
     try:
 
         # disable bottom-level keys
-        cloudinitValidator.META_SCHEMA['additionalProperties'] = False
+        cloudinitValidator.META_SCHEMA["additionalProperties"] = False
         cloudinitValidator.check_schema(schema)
     except SchemaError as e:
         if throw:
@@ -135,10 +134,8 @@ def validate_cloudconfig_metaschema(
 
 
 def validate_cloudconfig_schema(
-        config: dict,
-        schema: dict,
-        strict=False,
-        strict_metaschema=False):
+    config: dict, schema: dict, strict=False, strict_metaschema=False
+):
     """Validate provided config meets the schema definition.
 
     @param config: Dict of cloud configuration settings validated against
@@ -160,13 +157,14 @@ def validate_cloudconfig_schema(
             else validate_cloudconfig_metaschema(schema, throw=False)
         )
     except ImportError:
-        logging.debug(
-            'Ignoring schema validation. jsonschema is not present')
+        logging.debug("Ignoring schema validation. jsonschema is not present")
         return
     if err:
         logging.warning(
-            'Meta-schema validation failed, attempting to validate config'
-            ' anyway: %s', err)
+            "Meta-schema validation failed, attempting to validate config"
+            " anyway: %s",
+            err,
+        )
     validator = cloudinitValidator(schema, format_checker=FormatChecker())
     errors = ()
     for error in sorted(validator.iter_errors(config), key=lambda e: e.path):
@@ -361,10 +359,11 @@ def _get_property_type(property_dict: dict) -> str:
     """Return a string representing a property type from a given
     jsonschema.
     """
-    property_type = property_dict.get('type')
-    if property_type is None and property_dict.get('enum'):
+    property_type = property_dict.get("type")
+    if property_type is None and property_dict.get("enum"):
         property_type = [
-            str(_YAML_MAP.get(k, k)) for k in property_dict['enum']]
+            str(_YAML_MAP.get(k, k)) for k in property_dict["enum"]
+        ]
     if isinstance(property_type, list):
         property_type = '/'.join(property_type)
     items = property_dict.get('items', {})
@@ -375,8 +374,8 @@ def _get_property_type(property_dict: dict) -> str:
             sub_property_type += '/'
         sub_property_type += '(' + _get_property_type(sub_item) + ')'
     if sub_property_type:
-        return '{0} of {1}'.format(property_type, sub_property_type)
-    return property_type or 'UNDEFINED'
+        return "{0} of {1}".format(property_type, sub_property_type)
+    return property_type or "UNDEFINED"
 
 
 def _parse_description(description, prefix) -> str:
@@ -401,7 +400,7 @@ def _parse_description(description, prefix) -> str:
     return description
 
 
-def _get_property_doc(schema: dict, prefix='    ') -> str:
+def _get_property_doc(schema: dict, prefix="    ") -> str:
     """Return restructured text describing the supported schema properties."""
     new_prefix = prefix + '    '
     properties = []
@@ -410,12 +409,15 @@ def _get_property_doc(schema: dict, prefix='    ') -> str:
         description = prop_config.get('description', '')
 
         # Define prop_name and description for SCHEMA_PROPERTY_TMPL
-        properties.append(SCHEMA_PROPERTY_TMPL.format(
-            prefix=prefix,
-            prop_name=prop_key,
-            description=_parse_description(description, prefix),
-            prop_type=_get_property_type(prop_config)))
-        items = prop_config.get('items')
+        properties.append(
+            SCHEMA_PROPERTY_TMPL.format(
+                prefix=prefix,
+                prop_name=prop_key,
+                description=_parse_description(description, prefix),
+                prop_type=_get_property_type(prop_config),
+            )
+        )
+        items = prop_config.get("items")
         if items:
             if isinstance(items, list):
                 for item in items:
@@ -434,7 +436,7 @@ def _get_property_doc(schema: dict, prefix='    ') -> str:
 
 def _get_examples(meta: MetaSchema) -> str:
     """Return restructured text describing the meta examples if present."""
-    examples = meta.get('examples')
+    examples = meta.get("examples")
     if not examples:
         return ''
     rst_content = SCHEMA_EXAMPLES_HEADER
@@ -458,27 +460,31 @@ def get_meta_doc(meta: MetaSchema, schema: dict) -> str:
 
     # Some modules set this to falsy value, exit gracefully
     if not meta or not schema:
-        return ''
+        return ""
     keys = set(meta.keys())
-    expected = set({
-        'id',
-        'title',
-        'examples',
-        'frequency',
-        'distros',
-        'description',
-        'name'})
+    expected = set(
+        {
+            "id",
+            "title",
+            "examples",
+            "frequency",
+            "distros",
+            "description",
+            "name",
+        }
+    )
     if keys != expected:
         raise KeyError(
-            'Missing module metadata key(s) {}'.format(expected - keys))
+            "Missing module metadata key(s) {}".format(expected - keys)
+        )
 
     # cast away type annotation
     meta_copy = dict(deepcopy(meta))
-    meta_copy['property_doc'] = _get_property_doc(schema)
-    meta_copy['examples'] = _get_examples(meta)
-    meta_copy['distros'] = ', '.join(meta['distros'])
+    meta_copy["property_doc"] = _get_property_doc(schema)
+    meta_copy["examples"] = _get_examples(meta)
+    meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name
-    meta_copy['title_underbar'] = re.sub(r'.', '-', meta['name'])
+    meta_copy["title_underbar"] = re.sub(r".", "-", meta["name"])
     template = SCHEMA_DOC_TMPL.format(**meta_copy)
     return template
 
@@ -494,20 +500,24 @@ def error(message):
 
 
 def load_doc(requested_modules: list) -> str:
-    '''Load module docstrings
+    """Load module docstrings
 
     Docstrings are generated on module load. Reduce, reuse, recycle.
-    '''
-    docs = ''
-    all_modules = list(get_modules().values()) + ['all']
+    """
+    docs = ""
+    all_modules = list(get_modules().values()) + ["all"]
     invalid_docs = set(requested_modules).difference(set(all_modules))
     if invalid_docs:
-        error('Invalid --docs value {}. Must be one of: {}'.format(
-            list(invalid_docs), ', '.join(all_modules)))
+        error(
+            "Invalid --docs value {}. Must be one of: {}".format(
+                list(invalid_docs), ", ".join(all_modules)
+            )
+        )
     for mod_name in all_modules:
-        if 'all' in requested_modules or mod_name in requested_modules:
+        if "all" in requested_modules or mod_name in requested_modules:
             (mod_locs, _) = importer.find_module(
-                mod_name, ['cloudinit.config'], ['schema'])
+                mod_name, ["cloudinit.config"], ["schema"]
+            )
             if mod_locs:
                 mod = importer.import_module(mod_locs[0])
                 docs += mod.__doc__ or ""
@@ -517,15 +527,18 @@ def load_doc(requested_modules: list) -> str:
 def get_schema() -> dict:
     """Return jsonschema coalesced from all cc_* cloud-config module."""
     full_schema = {
-        '$schema': 'http://json-schema.org/draft-04/schema#',
-        'id': 'cloud-config-schema', 'allOf': []}
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "id": "cloud-config-schema",
+        "allOf": [],
+    }
 
     for (_, mod_name) in get_modules().items():
         (mod_locs, _) = importer.find_module(
-            mod_name, ['cloudinit.config'], ['schema'])
+            mod_name, ["cloudinit.config"], ["schema"]
+        )
         if mod_locs:
             mod = importer.import_module(mod_locs[0])
-            full_schema['allOf'].append(mod.schema)
+            full_schema["allOf"].append(mod.schema)
     return full_schema
 
 
@@ -534,10 +547,11 @@ def get_meta() -> dict:
     full_meta = dict()
     for (_, mod_name) in get_modules().items():
         mod_locs, _ = importer.find_module(
-            mod_name, ['cloudinit.config'], ['meta'])
+            mod_name, ["cloudinit.config"], ["meta"]
+        )
         if mod_locs:
             mod = importer.import_module(mod_locs[0])
-            full_meta[mod.meta['id']] = mod.meta
+            full_meta[mod.meta["id"]] = mod.meta
     return full_meta
 
 

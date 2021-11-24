@@ -8,8 +8,7 @@
 
 """Runcmd: run arbitrary commands at rc.local with output to the console"""
 
-from cloudinit.config.schema import (
-    get_meta_doc, validate_cloudconfig_schema)
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util

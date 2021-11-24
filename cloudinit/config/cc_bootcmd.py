@@ -12,8 +12,7 @@
 import os
 from textwrap import dedent
 
-from cloudinit.config.schema import (
-    get_meta_doc, validate_cloudconfig_schema)
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import temp_utils
 from cloudinit import subp

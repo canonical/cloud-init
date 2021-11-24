@@ -5,8 +5,7 @@
 import os
 from textwrap import dedent
 
-from cloudinit.config.schema import (
-    get_meta_doc, validate_cloudconfig_schema)
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import subp
