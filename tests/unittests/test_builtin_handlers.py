@@ -287,7 +287,8 @@ class TestConvertJinjaInstanceData(CiTestCase):
         """Replace hyphenated keys with underscores in instance-data."""
         data = {'hyphenated-key': 'hyphenated-val',
                 'underscore_delim_key': 'underscore_delimited_val'}
-        expected_data = {'hyphenated_key': 'hyphenated-val',
+        expected_data = {'hyphenated-key': 'hyphenated-val',
+                         'hyphenated_key': 'hyphenated-val',
                          'underscore_delim_key': 'underscore_delimited_val'}
         self.assertEqual(
             expected_data,
@@ -355,6 +356,7 @@ class TestRenderJinjaPayload(CiTestCase):
             DEBUG: Converted jinja variables
             {
              "hostname": "foo",
+             "instance-id": "iid",
              "instance_id": "iid",
              "v1": {
               "hostname": "foo"

@@ -193,8 +193,8 @@ class TestQuery:
                 m_getuid.return_value = 0
                 assert 0 == query.handle_args('anyname', args)
         expected = (
-            '{\n "my_var": "it worked",\n "userdata": "ud",\n '
-            '"vendordata": "vd"\n}\n'
+            '{\n "my-var": "it worked",\n "my_var": "it worked",\n '
+            '"userdata": "ud",\n "vendordata": "vd"\n}\n'
         )
         out, _err = capsys.readouterr()
         assert expected == out
@@ -211,7 +211,8 @@ class TestQuery:
             m_getuid.return_value = 100
             assert 0 == query.handle_args('anyname', args)
         expected = (
-            '{\n "my_var": "it worked",\n "userdata": "<%s> file:ud",\n'
+            '{\n "my-var": "it worked",\n "my_var": "it worked",\n'
+            ' "userdata": "<%s> file:ud",\n'
             ' "vendordata": "<%s> file:vd"\n}\n' % (
                 REDACT_SENSITIVE_VALUE, REDACT_SENSITIVE_VALUE
             )

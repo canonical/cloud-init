@@ -1,14 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 from errno import EACCES
 import os
 import re
 
 try:
     from jinja2.exceptions import UndefinedError as JUndefinedError
+    from jinja2.lexer import operator_re
 except ImportError:
     # No jinja2 dependency
     JUndefinedError = Exception
+    operator_re = re.compile(r'[-.]')
 
 from cloudinit import handlers
 from cloudinit import log as logging
@@ -127,21 +130,29 @@ def convert_jinja_instance_data(data, prefix='', sep='/', decode_paths=()):
     result = {}
     decode_paths = [path.replace('-', '_') for path in decode_paths]
     for key, value in sorted(data.items()):
-        if '-' in key:
-            # Standardize keys for use in #cloud-config/shell templates
-            key = key.replace('-', '_')
         key_path = '{0}{1}{2}'.format(prefix, sep, key) if prefix else key
         if key_path in decode_paths:
             value = b64d(value)
         if isinstance(value, dict):
             result[key] = convert_jinja_instance_data(
                 value, key_path, sep=sep, decode_paths=decode_paths)
-            if re.match(r'v\d+', key):
+            if re.match(r'v\d+$', key):
                 # Copy values to top-level aliases
                 for subkey, subvalue in result[key].items():
-                    result[subkey] = subvalue
+                    result[subkey] = copy.deepcopy(subvalue)
         else:
             result[key] = value
+        # Provide underscore-delimited key aliases to simplify dot-notation
+        # attribute references for keys which contain operators "." or "-".
+        # This provides for simpler short-hand jinja attribute notation
+        # allowing one to avoid quoting keys which contain operators.
+        # {{ ds.v1_0.config.user_network_config }} instead of
+        # {{ ds['v1.0'].config["user.network-config"] }}.
+        #
+        key_alias_underscores = re.sub(operator_re, '_', key)
+        if key_alias_underscores != key:
+            result[key_alias_underscores] = copy.deepcopy(result[key])
+
     return result
 
 # vi: ts=4 expandtab
