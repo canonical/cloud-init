@@ -190,8 +190,8 @@ class DataSourceLXD(sources.DataSource):
         self.metadata = _raw_instance_data_to_dict(
             "meta-data", self._crawled_metadata.get("meta-data")
         )
-        if LXD_SOCKET_API_VERSION in self._crawled_metadata:
-            config = self._crawled_metadata[LXD_SOCKET_API_VERSION].get(
+        if "v" + LXD_SOCKET_API_VERSION in self._crawled_metadata:
+            config = self._crawled_metadata["v" + LXD_SOCKET_API_VERSION].get(
                 "config", {}
             )
             user_metadata = config.get("user.meta-data", {})
@@ -304,7 +304,7 @@ def read_metadata(
         if metadata_only:
             return md  # Skip network-data, vendor-data, user-data
 
-        md[LXD_SOCKET_API_VERSION] = {
+        md["v" + LXD_SOCKET_API_VERSION] = {
             "config": {},
             "meta-data": md["meta-data"]
         }
@@ -345,7 +345,9 @@ def read_metadata(
                 # Leave raw data values/format unchanged to represent it in
                 # instance-data.json for cloud-init query or jinja template
                 # use.
-                md[LXD_SOCKET_API_VERSION]["config"][cfg_key] = response.text
+                md["v" + LXD_SOCKET_API_VERSION]["config"][cfg_key] = (
+                    response.text
+                )
                 # Promote common CONFIG_KEY_ALIASES to top-level keys.
                 if cfg_key in CONFIG_KEY_ALIASES:
                     # Due to sort of config_routes, promote cloud-init.*

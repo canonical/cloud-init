@@ -42,7 +42,7 @@ LXD_V1_METADATA = {
     "network-config": NETWORK_V1,
     "user-data": "#cloud-config\npackages: [sl]\n",
     "vendor-data": "#cloud-config\nruncmd: ['echo vendor-data']\n",
-    "1.0": {
+    "v1.0": {
         "meta-data": "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
         "config": {
             "user.user-data":
@@ -190,7 +190,7 @@ class TestReadMetadata:
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[]",
                 },
-                {"1.0": {"config": {}, "meta-data": "local-hostname: md\n"},
+                {"v1.0": {"config": {}, "meta-data": "local-hostname: md\n"},
                  "meta-data": "local-hostname: md\n"},
                 ["[GET] [HTTP:200] http://lxd/1.0/meta-data",
                  "[GET] [HTTP:200] http://lxd/1.0/config"],
@@ -211,7 +211,7 @@ class TestReadMetadata:
                     "http://lxd/1.0/config/user.vendor-data": "",  # 404
                 },
                 {
-                    "1.0": {
+                    "v1.0": {
                         "config": {
                             "user.custom1": "custom1",   # Not promoted
                             "user.network-config": "net-config",
@@ -250,7 +250,7 @@ class TestReadMetadata:
                     "http://lxd/1.0/config/user.vendor-data": "vendor-data",
                 },
                 {
-                    "1.0": {
+                    "v1.0": {
                         "config": {
                             "user.custom1": "custom1",   # Not promoted
                             "user.meta-data": "meta-data",
@@ -303,7 +303,7 @@ class TestReadMetadata:
                         "cloud-init.vendor-data",
                 },
                 {
-                    "1.0": {
+                    "v1.0": {
                         "config": {
                             "user.meta-data": "user.meta-data",
                             "user.network-config": "user.network-config",
