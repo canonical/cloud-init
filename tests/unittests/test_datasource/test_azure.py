@@ -652,7 +652,7 @@ scbus-1 on xpt0 bus 0
         ])
         return dsaz
 
-    def _get_ds(self, data, agent_command=None, distro='ubuntu',
+    def _get_ds(self, data, distro='ubuntu',
                 apply_network=None, instance_id=None):
 
         def _wait_for_files(flist, _maxwait=None, _naplen=None):
@@ -722,8 +722,6 @@ scbus-1 on xpt0 bus 0
             distro = distro_cls(distro, data.get('sys_cfg', {}), self.paths)
         dsrc = dsaz.DataSourceAzure(
             data.get('sys_cfg', {}), distro=distro, paths=self.paths)
-        if agent_command is not None:
-            dsrc.ds_cfg['agent_command'] = agent_command
         if apply_network is not None:
             dsrc.ds_cfg['apply_network_config'] = apply_network
 
@@ -921,7 +919,7 @@ scbus-1 on xpt0 bus 0
 
     def test_crawl_metadata_returns_structured_data_and_caches_nothing(self):
         """Return all structured metadata and cache no class attributes."""
-        yaml_cfg = "{agent_command: my_command}\n"
+        yaml_cfg = ""
         odata = {'HostName': "myhost", 'UserName': "myuser",
                  'UserData': {'text': 'FOOBAR', 'encoding': 'plain'},
                  'dscfg': {'text': yaml_cfg, 'encoding': 'plain'}}
@@ -931,7 +929,7 @@ scbus-1 on xpt0 bus 0
         expected_cfg = {
             'PreprovisionedVMType': None,
             'PreprovisionedVm': False,
-            'datasource': {'Azure': {'agent_command': 'my_command'}},
+            'datasource': {'Azure': {}},
             'system_info': {'default_user': {'name': 'myuser'}}}
         expected_metadata = {
             'azure_data': {
@@ -1449,19 +1447,16 @@ scbus-1 on xpt0 bus 0
     def test_dsaz_report_ready_returns_true_when_report_succeeds(
             self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
         self.assertTrue(dsrc._report_ready(lease=mock.MagicMock()))
 
     def test_dsaz_report_ready_returns_false_and_does_not_propagate_exc(
             self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
         self.m_get_metadata_from_fabric.side_effect = Exception
         self.assertFalse(dsrc._report_ready(lease=mock.MagicMock()))
 
     def test_dsaz_report_failure_returns_true_when_report_succeeds(self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
 
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
             # mock crawl metadata failure to cause report failure
@@ -1475,7 +1470,6 @@ scbus-1 on xpt0 bus 0
     def test_dsaz_report_failure_returns_false_and_does_not_propagate_exc(
             self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
 
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
                 mock.patch.object(dsrc, '_ephemeral_dhcp_ctx') \
@@ -1505,7 +1499,6 @@ scbus-1 on xpt0 bus 0
 
     def test_dsaz_report_failure_description_msg(self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
 
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
             # mock crawl metadata failure to cause report failure
@@ -1518,7 +1511,6 @@ scbus-1 on xpt0 bus 0
 
     def test_dsaz_report_failure_no_description_msg(self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
 
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata:
             m_crawl_metadata.side_effect = Exception
@@ -1529,7 +1521,6 @@ scbus-1 on xpt0 bus 0
 
     def test_dsaz_report_failure_uses_cached_ephemeral_dhcp_ctx_lease(self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
 
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
                 mock.patch.object(dsrc, '_ephemeral_dhcp_ctx') \
@@ -1558,7 +1549,6 @@ scbus-1 on xpt0 bus 0
 
     def test_dsaz_report_failure_no_net_uses_new_ephemeral_dhcp_lease(self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
 
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
                 mock.patch.object(dsrc.distro.networking, 'is_up') \
@@ -1584,7 +1574,6 @@ scbus-1 on xpt0 bus 0
     def test_dsaz_report_failure_no_net_and_no_dhcp_uses_fallback_lease(
             self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
 
         with mock.patch.object(dsrc, 'crawl_metadata') as m_crawl_metadata, \
                 mock.patch.object(dsrc.distro.networking, 'is_up') \
@@ -1609,14 +1598,12 @@ scbus-1 on xpt0 bus 0
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
         """Errors communicating with fabric should warn, but return True."""
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
         self.m_get_metadata_from_fabric.side_effect = Exception
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
 
     def test_fabric_data_included_in_metadata(self):
         dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        dsrc.ds_cfg['agent_command'] = '__builtin__'
         self.m_get_metadata_from_fabric.return_value = {'test': 'value'}
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
@@ -1672,7 +1659,6 @@ scbus-1 on xpt0 bus 0
 
     def test_instance_id_from_dmidecode_used_for_builtin(self):
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
-        ds.ds_cfg['agent_command'] = '__builtin__'
         ds.get_data()
         self.assertEqual(self.instance_id, ds.metadata['instance-id'])
 
@@ -2099,13 +2085,11 @@ class TestAzureBounce(CiTestCase):
         self.patches.close()
         super(TestAzureBounce, self).tearDown()
 
-    def _get_ds(self, ovfcontent=None, agent_command=None):
+    def _get_ds(self, ovfcontent=None):
         if ovfcontent is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': ovfcontent})
         dsrc = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        if agent_command is not None:
-            dsrc.ds_cfg['agent_command'] = agent_command
         return dsrc
 
     def _get_and_setup(self, dsrc):
@@ -2161,8 +2145,7 @@ class TestAzureBounce(CiTestCase):
         host_name = 'unchanged-host-name'
         self.get_hostname.return_value = host_name
         cfg = {'hostname_bounce': {'policy': 'force'}}
-        dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg),
-                            agent_command=['not', '__builtin__'])
+        dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(1, perform_hostname_bounce.call_count)
@@ -2171,8 +2154,7 @@ class TestAzureBounce(CiTestCase):
         host_name = 'unchanged-host-name'
         self.get_hostname.return_value = host_name
         cfg = {'hostname_bounce': {'policy': 'force'}}
-        dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg),
-                            agent_command=['not', '__builtin__'])
+        dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
         patch_path = MOCKPATH + 'subp.which'
         with mock.patch(patch_path) as m_which:
             m_which.return_value = None
@@ -2187,8 +2169,7 @@ class TestAzureBounce(CiTestCase):
         expected_hostname = 'azure-expected-host-name'
         self.get_hostname.return_value = 'default-host-name'
         dsrc = self._get_ds(
-            self.get_ovf_env_with_dscfg(expected_hostname, {}),
-            agent_command=['not', '__builtin__'])
+            self.get_ovf_env_with_dscfg(expected_hostname, {}))
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(expected_hostname,
@@ -2200,8 +2181,7 @@ class TestAzureBounce(CiTestCase):
         expected_hostname = 'azure-expected-host-name'
         self.get_hostname.return_value = 'default-host-name'
         dsrc = self._get_ds(
-            self.get_ovf_env_with_dscfg(expected_hostname, {}),
-            agent_command=['not', '__builtin__'])
+            self.get_ovf_env_with_dscfg(expected_hostname, {}))
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(1, perform_hostname_bounce.call_count)
@@ -2210,8 +2190,7 @@ class TestAzureBounce(CiTestCase):
         initial_host_name = 'default-host-name'
         self.get_hostname.return_value = initial_host_name
         dsrc = self._get_ds(
-            self.get_ovf_env_with_dscfg('some-host-name', {}),
-            agent_command=['not', '__builtin__'])
+            self.get_ovf_env_with_dscfg('some-host-name', {}))
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(initial_host_name,
@@ -2224,8 +2203,7 @@ class TestAzureBounce(CiTestCase):
         initial_host_name = 'default-host-name'
         self.get_hostname.return_value = initial_host_name
         dsrc = self._get_ds(
-            self.get_ovf_env_with_dscfg('some-host-name', {}),
-            agent_command=['not', '__builtin__'])
+            self.get_ovf_env_with_dscfg('some-host-name', {}))
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(initial_host_name,
@@ -2240,7 +2218,7 @@ class TestAzureBounce(CiTestCase):
         self.get_hostname.return_value = old_hostname
         cfg = {'hostname_bounce': {'interface': interface, 'policy': 'force'}}
         data = self.get_ovf_env_with_dscfg(hostname, cfg)
-        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
+        dsrc = self._get_ds(data)
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(1, self.subp.call_count)
@@ -2254,7 +2232,7 @@ class TestAzureBounce(CiTestCase):
             self, mock_get_boot_telemetry):
         cfg = {'hostname_bounce': {'policy': 'force'}}
         data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
-        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
+        dsrc = self._get_ds(data)
         ret = self._get_and_setup(dsrc)
         self.assertTrue(ret)
         self.assertEqual(1, self.subp.call_count)
