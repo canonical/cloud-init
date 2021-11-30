@@ -5,6 +5,7 @@
 import copy
 import errno
 import os
+import pytest
 import shutil
 import tempfile
 from textwrap import dedent
@@ -281,18 +282,44 @@ class TestJinjaTemplatePartHandler(CiTestCase):
             self.logs.getvalue())
 
 
-class TestConvertJinjaInstanceData(CiTestCase):
+class TestConvertJinjaInstanceData:
 
-    def test_convert_instance_data_hyphens_to_underscores(self):
-        """Replace hyphenated keys with underscores in instance-data."""
-        data = {'hyphenated-key': 'hyphenated-val',
-                'underscore_delim_key': 'underscore_delimited_val'}
-        expected_data = {'hyphenated-key': 'hyphenated-val',
-                         'hyphenated_key': 'hyphenated-val',
-                         'underscore_delim_key': 'underscore_delimited_val'}
-        self.assertEqual(
-            expected_data,
-            convert_jinja_instance_data(data=data))
+    @pytest.mark.parametrize(
+        "include_key_aliases,data,expected", (
+            (
+                False,
+                {'my-key': 'my-val'},
+                {'my-key': 'my-val'}
+            ),
+            (
+                True,
+                {'my-key': 'my-val'},
+                {'my-key': 'my-val', 'my_key': 'my-val'}
+            ),
+            (
+                False,
+                {'my.key': 'my.val'},
+                {'my.key': 'my.val'}
+            ),
+            (
+                True,
+                {'my.key': 'my.val'},
+                {'my.key': 'my.val', 'my_key': 'my.val'}
+            ),
+            (
+                True,
+                {'my/key': 'my/val'},
+                {'my/key': 'my/val', 'my_key': 'my/val'}
+            ),
+        )
+    )
+    def test_convert_instance_data_operators_to_underscores(
+        self, include_key_aliases, data, expected
+    ):
+        """Replace Jinja operatiors keys with underscores in instance-data."""
+        assert expected == convert_jinja_instance_data(
+            data=data, include_key_aliases=include_key_aliases
+        )
 
     def test_convert_instance_data_promotes_versioned_keys_to_top_level(self):
         """Any versioned keys are promoted as top-level keys
@@ -308,11 +335,10 @@ class TestConvertJinjaInstanceData(CiTestCase):
         expected_data.update({'v1key1': 'v1.1', 'v2key1': 'v2.1'})
 
         converted_data = convert_jinja_instance_data(data=data)
-        self.assertCountEqual(
-            ['ds', 'v1', 'v2', 'v1key1', 'v2key1'], converted_data.keys())
-        self.assertEqual(
-            expected_data,
-            converted_data)
+        assert sorted(['ds', 'v1', 'v2', 'v1key1', 'v2key1']) == sorted(
+            converted_data.keys()
+        )
+        assert expected_data == converted_data
 
     def test_convert_instance_data_most_recent_version_of_promoted_keys(self):
         """The most-recent versioned key value is promoted to top-level."""
@@ -325,9 +351,7 @@ class TestConvertJinjaInstanceData(CiTestCase):
              'key3': 'newer v2 key3'})
 
         converted_data = convert_jinja_instance_data(data=data)
-        self.assertEqual(
-            expected_data,
-            converted_data)
+        assert expected_data == converted_data
 
     def test_convert_instance_data_decodes_decode_paths(self):
         """Any decode_paths provided are decoded by convert_instance_data."""
@@ -337,9 +361,7 @@ class TestConvertJinjaInstanceData(CiTestCase):
 
         converted_data = convert_jinja_instance_data(
             data=data, decode_paths=('key1/subkey1',))
-        self.assertEqual(
-            expected_data,
-            converted_data)
+        assert expected_data == converted_data
 
 
 class TestRenderJinjaPayload(CiTestCase):

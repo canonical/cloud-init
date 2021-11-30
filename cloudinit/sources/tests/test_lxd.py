@@ -187,9 +187,9 @@ class TestReadMetadata:
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[]",
                 },
-                {"_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
-                 "config": {}, "meta-data": "local-hostname: md\n",
-                 "meta-data": "local-hostname: md\n"},
+                {
+                    "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
+                    "config": {}, "meta-data": "local-hostname: md\n"                },
                 ["[GET] [HTTP:200] http://lxd/1.0/meta-data",
                  "[GET] [HTTP:200] http://lxd/1.0/config"],
             ),

@@ -19,7 +19,10 @@ import os
 import sys
 
 from cloudinit.handlers.jinja_template import (
-    convert_jinja_instance_data, render_jinja_payload)
+    convert_jinja_instance_data,
+    get_jinja_variable_alias,
+    render_jinja_payload
+)
 from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
 from cloudinit import log
 from cloudinit.sources import (
@@ -162,17 +165,45 @@ def handle_args(name, args):
             return 0
         return 1
 
-    response = convert_jinja_instance_data(instance_data)
+    jinja_without_aliases = convert_jinja_instance_data(instance_data)
+    jinja_aliases = convert_jinja_instance_data(
+        instance_data, include_key_aliases=True
+    )
+    response = jinja_without_aliases
     if args.varname:
-        try:
-            for var in args.varname.split('.'):
-                response = response[var]
-        except KeyError:
-            LOG.error('Undefined instance-data key %s', args.varname)
-            return 1
+        walked_key_path = ""
+        for key_path_part in args.varname.split('.'):
+            try:
+                # Walk key path using complete aliases dict, yet response
+                # should only contain jinja_without_aliases
+                jinja_aliases = jinja_aliases[key_path_part]
+            except KeyError:
+                if walked_key_path:
+                    msg = "instance-data '{key_path}' has no '{leaf}'".format(
+                        leaf=key_path_part, key_path=walked_key_path
+                    )
+                else:
+                    msg = "Undefined instance-data key '{}'".format(
+                        args.varname
+                    )
+                LOG.error(msg)
+                return 1
+            if key_path_part in response:
+                response = response[key_path_part]
+            else:  # We are an underscore_delimited key alias
+                for key in response:
+                    if get_jinja_variable_alias(key) == key_path_part:
+                        response = response[key]
+                        break
+            if walked_key_path:
+                walked_key_path += "."
+            walked_key_path += key_path_part
         if args.list_keys:
             if not isinstance(response, dict):
-                LOG.error("--list-keys provided but '%s' is not a dict", var)
+                LOG.error(
+                    "--list-keys provided but '%s' is not a dict",
+                    key_path_part
+                )
                 return 1
             response = '\n'.join(sorted(response.keys()))
     elif args.list_keys:
