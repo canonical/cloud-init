@@ -70,7 +70,7 @@ def _pprint_key_entries(user, key_fn, key_entries, hash_meth='sha256',
     if not key_entries:
         message = ("%sno authorized SSH keys fingerprints found for user %s.\n"
                    % (prefix, user))
-        util.multi_log(message)
+        util.multi_log(message, console=True, stderr=False)
         return
     tbl_fields = ['Keytype', 'Fingerprint (%s)' % (hash_meth), 'Options',
                   'Comment']
