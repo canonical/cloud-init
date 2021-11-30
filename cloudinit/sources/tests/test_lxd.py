@@ -42,15 +42,12 @@ LXD_V1_METADATA = {
     "network-config": NETWORK_V1,
     "user-data": "#cloud-config\npackages: [sl]\n",
     "vendor-data": "#cloud-config\nruncmd: ['echo vendor-data']\n",
-    "v1.0": {
-        "meta-data": "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
-        "config": {
-            "user.user-data":
-                "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
-            "user.vendor-data":
-                "#cloud-config\nruncmd: ['echo vendor-data']\n",
-            "user.network-config": yaml.safe_dump(NETWORK_V1),
-        }
+    "config": {
+        "user.user-data":
+            "instance-id: my-lxc\nlocal-hostname: my-lxc\n\n",
+        "user.vendor-data":
+            "#cloud-config\nruncmd: ['echo vendor-data']\n",
+        "user.network-config": yaml.safe_dump(NETWORK_V1),
     }
 }
 
@@ -190,7 +187,8 @@ class TestReadMetadata:
                     "http://lxd/1.0/meta-data": "local-hostname: md\n",
                     "http://lxd/1.0/config": "[]",
                 },
-                {"v1.0": {"config": {}, "meta-data": "local-hostname: md\n"},
+                {"_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
+                 "config": {}, "meta-data": "local-hostname: md\n",
                  "meta-data": "local-hostname: md\n"},
                 ["[GET] [HTTP:200] http://lxd/1.0/meta-data",
                  "[GET] [HTTP:200] http://lxd/1.0/config"],
@@ -211,12 +209,10 @@ class TestReadMetadata:
                     "http://lxd/1.0/config/user.vendor-data": "",  # 404
                 },
                 {
-                    "v1.0": {
-                        "config": {
-                            "user.custom1": "custom1",   # Not promoted
-                            "user.network-config": "net-config",
-                        },
-                        "meta-data": "local-hostname: md\n",
+                    "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
+                    "config": {
+                        "user.custom1": "custom1",   # Not promoted
+                        "user.network-config": "net-config",
                     },
                     "meta-data": "local-hostname: md\n",
                     "network-config": "net-config",
@@ -250,15 +246,13 @@ class TestReadMetadata:
                     "http://lxd/1.0/config/user.vendor-data": "vendor-data",
                 },
                 {
-                    "v1.0": {
-                        "config": {
-                            "user.custom1": "custom1",   # Not promoted
-                            "user.meta-data": "meta-data",
-                            "user.network-config": "net-config",
-                            "user.user-data": "user-data",
-                            "user.vendor-data": "vendor-data",
-                        },
-                        "meta-data": "local-hostname: md\n",
+                    "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
+                    "config": {
+                        "user.custom1": "custom1",   # Not promoted
+                        "user.meta-data": "meta-data",
+                        "user.network-config": "net-config",
+                        "user.user-data": "user-data",
+                        "user.vendor-data": "vendor-data",
                     },
                     "meta-data": "local-hostname: md\n",
                     "network-config": "net-config",
@@ -303,19 +297,17 @@ class TestReadMetadata:
                         "cloud-init.vendor-data",
                 },
                 {
-                    "v1.0": {
-                        "config": {
-                            "user.meta-data": "user.meta-data",
-                            "user.network-config": "user.network-config",
-                            "user.user-data": "user.user-data",
-                            "user.vendor-data": "user.vendor-data",
-                            "cloud-init.network-config":
-                                "cloud-init.network-config",
-                            "cloud-init.user-data": "cloud-init.user-data",
-                            "cloud-init.vendor-data":
-                                "cloud-init.vendor-data",
-                        },
-                        "meta-data": "local-hostname: md\n",
+                    "_metadata_api_version": lxd.LXD_SOCKET_API_VERSION,
+                    "config": {
+                        "user.meta-data": "user.meta-data",
+                        "user.network-config": "user.network-config",
+                        "user.user-data": "user.user-data",
+                        "user.vendor-data": "user.vendor-data",
+                        "cloud-init.network-config":
+                            "cloud-init.network-config",
+                        "cloud-init.user-data": "cloud-init.user-data",
+                        "cloud-init.vendor-data":
+                            "cloud-init.vendor-data",
                     },
                     "meta-data": "local-hostname: md\n",
                     "network-config": "cloud-init.network-config",
