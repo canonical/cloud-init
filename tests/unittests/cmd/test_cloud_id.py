@@ -51,7 +51,7 @@ class TestCloudId(CiTestCase):
                     cloud_id.main()
         self.assertEqual(1, context_manager.exception.code)
         self.assertIn(
-            "ERROR: File not found '%s'" % self.instance_data,
+            "Error:\nFile not found '%s'" % self.instance_data,
             m_stderr.getvalue())
 
     def test_cloud_id_non_json_instance_data(self):
@@ -64,7 +64,7 @@ class TestCloudId(CiTestCase):
                     cloud_id.main()
         self.assertEqual(1, context_manager.exception.code)
         self.assertIn(
-            "ERROR: File '%s' is not valid json." % self.instance_data,
+            "Error:\nFile '%s' is not valid json." % self.instance_data,
             m_stderr.getvalue())
 
     def test_cloud_id_from_cloud_name_in_instance_data(self):
