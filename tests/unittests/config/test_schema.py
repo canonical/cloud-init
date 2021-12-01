@@ -662,7 +662,10 @@ class TestStrictMetaschema:
                 "type": "object",
             },
         }
-        with pytest.raises(SchemaError):
+        with pytest.raises(
+            SchemaError, match=(r"Additional properties are not allowed.*")
+        ):
+
             validate_cloudconfig_metaschema(schema)
 
         validate_cloudconfig_metaschema(schema, throw=False)

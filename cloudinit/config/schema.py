@@ -475,10 +475,19 @@ def get_meta_doc(meta: MetaSchema, schema: dict) -> str:
             "name",
         }
     )
-    if keys != expected:
-        raise KeyError(
-            "Missing module metadata key(s) {}".format(expected - keys)
+    error_message = ""
+    if expected - keys:
+        error_message = "Missing expected keys in module meta: {}".format(
+            expected - keys
         )
+    elif keys - expected:
+        error_message = (
+            "Additional unexpected keys found in module meta: {}".format(
+                keys - expected
+            )
+        )
+    if error_message:
+        raise KeyError(error_message)
 
     # cast away type annotation
     meta_copy = dict(deepcopy(meta))
