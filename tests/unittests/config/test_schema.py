@@ -6,7 +6,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema, main)
 from cloudinit.util import write_file
 
-from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
 
 from copy import copy
 import itertools

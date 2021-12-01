@@ -8,7 +8,7 @@ from unittest import mock
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay
 from cloudinit.sources.DataSourceEc2 import convert_ec2_metadata_network_config
-from cloudinit.tests import helpers as test_helpers
+from tests.unittests import helpers as test_helpers
 
 DEFAULT_METADATA = {
     'instance-id': 'aliyun-test-vm-00',

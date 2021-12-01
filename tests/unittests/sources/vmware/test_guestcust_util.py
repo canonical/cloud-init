@@ -12,7 +12,7 @@ from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
     get_tools_config,
     set_gc_status,
 )
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 
 
 class TestGuestCustUtil(CiTestCase):

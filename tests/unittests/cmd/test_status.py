@@ -8,7 +8,7 @@ from textwrap import dedent
 from cloudinit.atomic_helper import write_json
 from cloudinit.cmd import status
 from cloudinit.util import ensure_file
-from cloudinit.tests.helpers import CiTestCase, wrap_and_call, mock
+from tests.unittests.helpers import CiTestCase, wrap_and_call, mock
 
 mypaths = namedtuple('MyPaths', 'run_dir')
 myargs = namedtuple('MyArgs', 'long wait')

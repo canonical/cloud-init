@@ -2,7 +2,7 @@
 
 
 import cloudinit.util
-from cloudinit.tests.helpers import mock
+from tests.unittests.helpers import mock
 
 
 def test_find_dragonflybsd_part():

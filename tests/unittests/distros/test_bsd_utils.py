@@ -2,7 +2,7 @@
 
 import cloudinit.distros.bsd_utils as bsd_utils
 
-from cloudinit.tests.helpers import (CiTestCase, ExitStack, mock)
+from tests.unittests.helpers import (CiTestCase, ExitStack, mock)
 
 RC_FILE = """
 if something; then

@@ -10,7 +10,7 @@ reimplement the entire library, only the minimal parts we actually use.
 """
 
 from cloudinit.simpletable import SimpleTable
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 
 # Examples rendered by cloud-init using PrettyTable
 NET_DEVICE_FIELDS = (

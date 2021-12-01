@@ -7,7 +7,7 @@ import tempfile
 
 from cloudinit import util
 from cloudinit.config import cc_debug
-from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock)
+from tests.unittests.helpers import (FilesystemMockingTestCase, mock)
 
 from tests.unittests.util import get_cloud
 

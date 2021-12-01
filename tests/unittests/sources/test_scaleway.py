@@ -10,7 +10,7 @@ from cloudinit import settings
 from cloudinit import sources
 from cloudinit.sources import DataSourceScaleway
 
-from cloudinit.tests.helpers import mock, HttprettyTestCase, CiTestCase
+from tests.unittests.helpers import mock, HttprettyTestCase, CiTestCase
 
 
 class DataResponses(object):

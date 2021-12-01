@@ -4,7 +4,7 @@
 
 import cloudinit.config.cc_apt_pipelining as cc_apt_pipelining
 
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 
 
 class TestAptPipelining(CiTestCase):

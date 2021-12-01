@@ -25,7 +25,7 @@ from cloudinit import user_data as ud
 from cloudinit import safeyaml
 from cloudinit import util
 
-from cloudinit.tests import helpers
+from tests.unittests import helpers
 
 
 INSTANCE_ID = "i-testing"

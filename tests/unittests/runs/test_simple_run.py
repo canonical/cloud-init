@@ -7,7 +7,7 @@ import os
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import safeyaml
 from cloudinit import stages
-from cloudinit.tests import helpers
+from tests.unittests import helpers
 from cloudinit import util
 
 

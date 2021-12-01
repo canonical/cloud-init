@@ -11,7 +11,7 @@ import textwrap
 from cloudinit import (cloud, helpers, util)
 
 from cloudinit.config import cc_apk_configure
-from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock)
+from tests.unittests.helpers import (FilesystemMockingTestCase, mock)
 
 REPO_FILE = "/etc/apk/repositories"
 DEFAULT_MIRROR_URL = "https://alpine.global.ssl.fastly.net/alpine"

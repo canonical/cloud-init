@@ -6,7 +6,7 @@ from io import StringIO
 
 from cloudinit.cmd.devel import logs
 from cloudinit.sources import INSTANCE_JSON_SENSITIVE_FILE
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     FilesystemMockingTestCase, mock, wrap_and_call)
 from cloudinit.subp import subp
 from cloudinit.util import ensure_dir, load_file, write_file

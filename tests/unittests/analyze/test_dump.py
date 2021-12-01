@@ -7,7 +7,7 @@ from cloudinit.analyze.dump import (
     dump_events, parse_ci_logline, parse_timestamp)
 from cloudinit.util import write_file
 from cloudinit.subp import which
-from cloudinit.tests.helpers import CiTestCase, mock, skipIf
+from tests.unittests.helpers import CiTestCase, mock, skipIf
 
 
 class TestParseTimestamp(CiTestCase):

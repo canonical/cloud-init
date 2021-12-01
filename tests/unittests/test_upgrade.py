@@ -19,7 +19,7 @@ import pathlib
 import pytest
 
 from cloudinit.stages import _pkl_load
-from cloudinit.tests.helpers import resourceLocation
+from tests.unittests.helpers import resourceLocation
 
 
 class TestUpgrade:

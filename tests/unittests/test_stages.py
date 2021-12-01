@@ -13,7 +13,7 @@ from cloudinit.sources import NetworkConfigSource
 from cloudinit.event import EventScope, EventType
 from cloudinit.util import write_file
 
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 
 TEST_INSTANCE_ID = 'i-testing'
 

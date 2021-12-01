@@ -8,7 +8,7 @@ from cloudinit.config.cc_snap import (
     run_commands, schema)
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import util
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, SchemaTestCaseMixin, mock, wrap_and_call, skipUnlessJsonSchema)
 
 

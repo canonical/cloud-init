@@ -3,7 +3,7 @@
 from unittest import mock
 
 from cloudinit.config import cc_set_passwords as setpass
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 from cloudinit import util
 
 MODPATH = "cloudinit.config.cc_set_passwords."

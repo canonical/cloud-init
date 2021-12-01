@@ -4,7 +4,7 @@ import os.path
 
 from cloudinit.config import cc_ssh
 from cloudinit import ssh_util
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 import logging
 
 LOG = logging.getLogger(__name__)

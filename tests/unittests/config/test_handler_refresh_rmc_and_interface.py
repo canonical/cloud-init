@@ -2,8 +2,8 @@ from cloudinit.config import cc_refresh_rmc_and_interface as ccrmci
 
 from cloudinit import util
 
-from cloudinit.tests import helpers as t_help
-from cloudinit.tests.helpers import mock
+from tests.unittests import helpers as t_help
+from tests.unittests.helpers import mock
 
 from textwrap import dedent
 import logging

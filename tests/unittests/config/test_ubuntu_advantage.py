@@ -4,7 +4,7 @@ from cloudinit.config.cc_ubuntu_advantage import (
     configure_ua, handle, maybe_install_ua_tools, schema)
 from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import subp
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
 
 

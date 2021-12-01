@@ -14,7 +14,7 @@ from cloudinit.sources.helpers.vmware.imc.config_custom_script import (
     PreCustomScript,
     PostCustomScript,
 )
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 
 
 class TestVmwareCustomScript(CiTestCase):

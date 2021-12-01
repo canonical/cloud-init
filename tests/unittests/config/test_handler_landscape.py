@@ -4,7 +4,7 @@ from configobj import ConfigObj
 
 from cloudinit.config import cc_landscape
 from cloudinit import util
-from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock,
+from tests.unittests.helpers import (FilesystemMockingTestCase, mock,
                                      wrap_and_call)
 
 from tests.unittests.util import get_cloud

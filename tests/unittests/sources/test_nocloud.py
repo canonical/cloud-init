@@ -7,7 +7,7 @@ from cloudinit.sources.DataSourceNoCloud import (
     _maybe_remove_top_network,
     parse_cmdline_data)
 from cloudinit import util
-from cloudinit.tests.helpers import CiTestCase, populate_dir, mock, ExitStack
+from tests.unittests.helpers import CiTestCase, populate_dir, mock, ExitStack
 
 import os
 import textwrap

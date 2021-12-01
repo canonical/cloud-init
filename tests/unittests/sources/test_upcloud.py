@@ -10,7 +10,7 @@ from cloudinit import sources
 from cloudinit.sources.DataSourceUpCloud import DataSourceUpCloud, \
     DataSourceUpCloudLocal
 
-from cloudinit.tests.helpers import mock, CiTestCase
+from tests.unittests.helpers import mock, CiTestCase
 
 UC_METADATA = json.loads("""
 {

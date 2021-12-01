@@ -8,7 +8,7 @@ from .test_handler_write_files import (VALID_SCHEMA)
 from cloudinit import log as logging
 from cloudinit import util
 
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, FilesystemMockingTestCase, mock, skipUnlessJsonSchema)
 
 LOG = logging.getLogger(__name__)

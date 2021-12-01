@@ -6,7 +6,7 @@ import pytest
 
 from cloudinit import safeyaml
 from cloudinit.net import network_state
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 
 netstate_path = 'cloudinit.net.network_state'
 

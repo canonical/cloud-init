@@ -8,7 +8,7 @@ from cloudinit import helpers
 from cloudinit import util
 from copy import deepcopy
 
-from cloudinit.tests import helpers as t_help
+from tests.unittests import helpers as t_help
 
 import logging
 import os

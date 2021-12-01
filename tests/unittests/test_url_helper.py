@@ -3,7 +3,7 @@
 from cloudinit.url_helper import (
     NOT_FOUND, UrlError, REDACTED, oauth_headers, read_file_or_url,
     retry_on_url_exc)
-from cloudinit.tests.helpers import CiTestCase, mock, skipIf
+from tests.unittests.helpers import CiTestCase, mock, skipIf
 from cloudinit import util
 from cloudinit import version
 

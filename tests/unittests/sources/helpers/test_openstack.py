@@ -3,7 +3,7 @@
 from unittest import mock
 
 from cloudinit.sources.helpers import openstack
-from cloudinit.tests import helpers as test_helpers
+from tests.unittests import helpers as test_helpers
 
 
 @mock.patch(

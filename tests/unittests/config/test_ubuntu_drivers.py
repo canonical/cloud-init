@@ -3,7 +3,7 @@
 import copy
 import os
 
-from cloudinit.tests.helpers import CiTestCase, skipUnlessJsonSchema, mock
+from tests.unittests.helpers import CiTestCase, skipUnlessJsonSchema, mock
 from cloudinit.config.schema import (
     SchemaValidationError, validate_cloudconfig_schema)
 from cloudinit.config import cc_ubuntu_drivers as drivers

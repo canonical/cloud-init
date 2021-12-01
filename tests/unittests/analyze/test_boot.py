@@ -1,6 +1,6 @@
 import os
 from cloudinit.analyze.__main__ import (analyze_boot, get_parser)
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 from cloudinit.analyze.show import dist_check_timestamp, SystemctlReader, \
     FAIL_CODE, CONTAINER_CODE
 

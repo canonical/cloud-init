@@ -10,7 +10,7 @@ from cloudinit.sources.DataSourceExoscale import (
     get_password,
     PASSWORD_SERVER_PORT,
     read_metadata)
-from cloudinit.tests.helpers import HttprettyTestCase, mock
+from tests.unittests.helpers import HttprettyTestCase, mock
 from cloudinit import util
 
 import httpretty

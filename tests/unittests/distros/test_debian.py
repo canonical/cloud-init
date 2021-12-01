@@ -9,7 +9,7 @@ from cloudinit.distros.debian import (
     APT_GET_COMMAND,
     APT_GET_WRAPPER,
 )
-from cloudinit.tests.helpers import FilesystemMockingTestCase
+from tests.unittests.helpers import FilesystemMockingTestCase
 from cloudinit import subp
 
 

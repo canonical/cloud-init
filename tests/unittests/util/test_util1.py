@@ -11,7 +11,7 @@ import pytest
 import cloudinit.util as util
 from cloudinit import subp
 
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 from textwrap import dedent
 
 LOG = logging.getLogger(__name__)

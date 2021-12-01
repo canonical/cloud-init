@@ -8,7 +8,7 @@ import os
 from cloudinit.config import cc_chef
 from cloudinit import util
 
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     HttprettyTestCase, FilesystemMockingTestCase, mock, skipIf)
 
 from tests.unittests.util import get_cloud

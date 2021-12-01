@@ -13,7 +13,7 @@ from unittest import mock
 
 from cloudinit import subp
 from cloudinit import importer, util
-from cloudinit.tests import helpers
+from tests.unittests import helpers
 
 
 class FakeSelinux(object):

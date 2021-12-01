@@ -2,7 +2,7 @@
 
 from cloudinit.cmd import clean
 from cloudinit.util import ensure_dir, sym_link, write_file
-from cloudinit.tests.helpers import CiTestCase, wrap_and_call, mock
+from tests.unittests.helpers import CiTestCase, wrap_and_call, mock
 from collections import namedtuple
 import os
 from io import StringIO

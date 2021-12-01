@@ -13,7 +13,7 @@ import requests
 
 import cloudinit.net as net
 from cloudinit import safeyaml as yaml
-from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase
+from tests.unittests.helpers import CiTestCase, HttprettyTestCase
 from cloudinit.subp import ProcessExecutionError
 from cloudinit.util import ensure_file, write_file
 

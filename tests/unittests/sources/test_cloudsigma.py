@@ -8,7 +8,7 @@ from cloudinit import helpers
 from cloudinit import sources
 from cloudinit.sources import DataSourceCloudSigma
 
-from cloudinit.tests import helpers as test_helpers
+from tests.unittests import helpers as test_helpers
 
 SERVER_CONTEXT = {
     "cpu": 1000,

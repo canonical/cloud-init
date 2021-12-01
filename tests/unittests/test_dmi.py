@@ -1,4 +1,4 @@
-from cloudinit.tests import helpers
+from tests.unittests import helpers
 from cloudinit import dmi
 from cloudinit import util
 from cloudinit import subp

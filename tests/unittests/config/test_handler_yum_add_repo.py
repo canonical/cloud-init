@@ -7,7 +7,7 @@ import tempfile
 
 from cloudinit import util
 from cloudinit.config import cc_yum_add_repo
-from cloudinit.tests import helpers
+from tests.unittests import helpers
 
 LOG = logging.getLogger(__name__)
 

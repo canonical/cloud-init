@@ -3,7 +3,7 @@
 from cloudinit.config import cc_apt_configure
 from cloudinit import util
 
-from cloudinit.tests.helpers import TestCase
+from tests.unittests.helpers import TestCase
 
 import copy
 import os

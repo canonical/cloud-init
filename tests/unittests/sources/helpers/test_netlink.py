@@ -2,7 +2,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 import socket
 import struct
 import codecs

@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from cloudinit.config.cc_runcmd import handle, schema
 from cloudinit import (helpers, subp, util)
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, FilesystemMockingTestCase, SchemaTestCaseMixin,
     skipUnlessJsonSchema)
 

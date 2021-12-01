@@ -2,7 +2,7 @@
 
 from cloudinit import util
 from cloudinit import atomic_helper
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 from . import _get_distro
 
 

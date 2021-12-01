@@ -4,7 +4,7 @@
 
 import cloudinit.config.cc_disable_ec2_metadata as ec2_meta
 
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 
 import logging
 

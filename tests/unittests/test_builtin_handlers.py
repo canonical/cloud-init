@@ -11,7 +11,7 @@ import tempfile
 from textwrap import dedent
 
 
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     FilesystemMockingTestCase, CiTestCase, mock, skipUnlessJinja)
 
 from cloudinit import handlers

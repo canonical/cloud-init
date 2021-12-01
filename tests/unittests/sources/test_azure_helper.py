@@ -9,7 +9,7 @@ from xml.etree import ElementTree
 from xml.sax.saxutils import escape, unescape
 
 from cloudinit.sources.helpers import azure as azure_helper
-from cloudinit.tests.helpers import CiTestCase, ExitStack, mock, populate_dir
+from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
 
 from cloudinit.util import load_file
 from cloudinit.sources.helpers.azure import WALinuxAgentShim as wa_shim

@@ -12,7 +12,7 @@ from cloudinit.config.cc_write_files import (
 from cloudinit import log as logging
 from cloudinit import util
 
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, FilesystemMockingTestCase, mock, skipUnlessJsonSchema)
 
 LOG = logging.getLogger(__name__)

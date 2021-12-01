@@ -2,7 +2,7 @@
 
 from unittest import mock
 
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 from cloudinit import version
 
 

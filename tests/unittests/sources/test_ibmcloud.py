@@ -2,7 +2,7 @@
 
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceIBMCloud as ibm
-from cloudinit.tests import helpers as test_helpers
+from tests.unittests import helpers as test_helpers
 from cloudinit import util
 
 import base64

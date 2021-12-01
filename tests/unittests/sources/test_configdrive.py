@@ -12,7 +12,7 @@ from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
-from cloudinit.tests.helpers import CiTestCase, ExitStack, mock, populate_dir
+from tests.unittests.helpers import CiTestCase, ExitStack, mock, populate_dir
 
 
 PUBKEY = 'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'

@@ -4,7 +4,7 @@ from unittest import mock
 from cloudinit import gpg
 from cloudinit import subp
 
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 
 TEST_KEY_HUMAN = '''
 /etc/apt/cloud-init.gpg.d/my_key.gpg

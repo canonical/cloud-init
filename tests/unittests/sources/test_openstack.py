@@ -11,7 +11,7 @@ import re
 from io import StringIO
 from urllib.parse import urlparse
 
-from cloudinit.tests import helpers as test_helpers
+from tests.unittests import helpers as test_helpers
 
 from cloudinit import helpers
 from cloudinit import settings

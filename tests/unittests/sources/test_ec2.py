@@ -8,7 +8,7 @@ from unittest import mock
 
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
-from cloudinit.tests import helpers as test_helpers
+from tests.unittests import helpers as test_helpers
 
 
 DYNAMIC_METADATA = {

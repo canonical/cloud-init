@@ -7,8 +7,8 @@ import os
 
 from cloudinit import util
 from cloudinit.config import cc_zypper_add_repo
-from cloudinit.tests import helpers
-from cloudinit.tests.helpers import mock
+from tests.unittests import helpers
+from tests.unittests.helpers import mock
 
 LOG = logging.getLogger(__name__)
 

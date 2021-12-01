@@ -35,7 +35,7 @@ from cloudinit import helpers as c_helpers
 from cloudinit.util import (b64e, write_file)
 from cloudinit.subp import (subp, ProcessExecutionError, which)
 
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, mock, FilesystemMockingTestCase, skipIf)
 
 

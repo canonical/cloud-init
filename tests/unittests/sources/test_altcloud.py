@@ -19,7 +19,7 @@ from cloudinit import helpers
 from cloudinit import subp
 from cloudinit import util
 
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 
 import cloudinit.sources.DataSourceAltCloud as dsac
 

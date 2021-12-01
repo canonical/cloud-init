@@ -2,7 +2,7 @@
 
 
 from cloudinit.config import cc_users_groups
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 
 MODPATH = "cloudinit.config.cc_users_groups"
 

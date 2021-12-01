@@ -7,7 +7,7 @@ from os.path import dirname
 
 from cloudinit import (helpers, util)
 from cloudinit.config import cc_ntp
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, FilesystemMockingTestCase, mock, skipUnlessJsonSchema)
 
 from tests.unittests.util import get_cloud

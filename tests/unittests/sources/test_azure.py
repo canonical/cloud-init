@@ -8,7 +8,7 @@ from cloudinit.sources import (
 from cloudinit.util import (b64e, decode_binary, load_file, write_file,
                             MountFailedError, json_dumps, load_json)
 from cloudinit.version import version_string as vs
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     HttprettyTestCase, CiTestCase, populate_dir, mock, wrap_and_call,
     ExitStack, resourceLocation)
 from cloudinit.sources.helpers import netlink

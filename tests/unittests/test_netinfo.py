@@ -5,7 +5,7 @@
 from copy import copy
 
 from cloudinit.netinfo import netdev_info, netdev_pformat, route_pformat
-from cloudinit.tests.helpers import CiTestCase, mock, readResource
+from tests.unittests.helpers import CiTestCase, mock, readResource
 
 
 # Example ifconfig and route output

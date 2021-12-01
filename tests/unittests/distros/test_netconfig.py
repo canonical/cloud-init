@@ -11,7 +11,7 @@ from cloudinit import distros
 from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit import helpers
 from cloudinit import settings
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     FilesystemMockingTestCase, dir2dict)
 from cloudinit import subp
 from cloudinit import util

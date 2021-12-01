@@ -12,7 +12,7 @@ from cloudinit.sources import (
     EXPERIMENTAL_TEXT, INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE,
     METADATA_UNKNOWN, REDACT_SENSITIVE_VALUE, UNSET, DataSource,
     canonical_cloud_id, redact_sensitive_keys)
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 from cloudinit.user_data import UserDataProcessor
 from cloudinit import util
 

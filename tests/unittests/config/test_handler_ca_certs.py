@@ -11,7 +11,7 @@ from cloudinit.config import cc_ca_certs
 from cloudinit import helpers
 from cloudinit import subp
 from cloudinit import util
-from cloudinit.tests.helpers import TestCase
+from tests.unittests.helpers import TestCase
 
 from tests.unittests.util import get_cloud
 

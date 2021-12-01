@@ -7,7 +7,7 @@ from collections import namedtuple
 from cloudinit.cmd.devel import render
 from cloudinit.helpers import Paths
 from cloudinit.sources import INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE
-from cloudinit.tests.helpers import CiTestCase, mock, skipUnlessJinja
+from tests.unittests.helpers import CiTestCase, mock, skipUnlessJinja
 from cloudinit.util import ensure_dir, write_file
 
 

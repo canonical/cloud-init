@@ -3,7 +3,7 @@
 from cloudinit.config import cc_spacewalk
 from cloudinit import subp
 
-from cloudinit.tests import helpers
+from tests.unittests import helpers
 
 import logging
 from unittest import mock

@@ -15,7 +15,7 @@ import tempfile
 from configobj import ConfigObj
 from io import BytesIO
 
-from cloudinit.tests import helpers as t_help
+from tests.unittests import helpers as t_help
 
 from tests.unittests.util import get_cloud
 

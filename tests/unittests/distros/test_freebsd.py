@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.util import (find_freebsd_part, get_path_dev_freebsd)
-from cloudinit.tests.helpers import (CiTestCase, mock)
+from tests.unittests.helpers import (CiTestCase, mock)
 
 import os
 

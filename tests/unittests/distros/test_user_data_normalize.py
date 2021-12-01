@@ -7,7 +7,7 @@ from cloudinit.distros import ug_util
 from cloudinit import helpers
 from cloudinit import settings
 
-from cloudinit.tests.helpers import TestCase
+from tests.unittests.helpers import TestCase
 
 
 bcfg = {

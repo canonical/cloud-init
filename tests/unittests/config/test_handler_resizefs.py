@@ -8,7 +8,7 @@ from collections import namedtuple
 import logging
 
 from cloudinit.subp import ProcessExecutionError
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, mock, skipUnlessJsonSchema, util, wrap_and_call)
 
 

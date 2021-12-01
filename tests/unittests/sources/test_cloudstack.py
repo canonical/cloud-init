@@ -5,7 +5,7 @@ from cloudinit import util
 from cloudinit.sources.DataSourceCloudStack import (
     DataSourceCloudStack, get_latest_lease)
 
-from cloudinit.tests.helpers import CiTestCase, ExitStack, mock
+from tests.unittests.helpers import CiTestCase, ExitStack, mock
 
 import os
 import time

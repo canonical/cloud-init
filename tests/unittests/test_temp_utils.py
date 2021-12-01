@@ -3,7 +3,7 @@
 """Tests for cloudinit.temp_utils"""
 
 from cloudinit.temp_utils import mkdtemp, mkstemp, tempdir
-from cloudinit.tests.helpers import CiTestCase, wrap_and_call
+from tests.unittests.helpers import CiTestCase, wrap_and_call
 import os
 
 

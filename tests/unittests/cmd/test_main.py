@@ -12,7 +12,7 @@ from cloudinit.cmd import main
 from cloudinit import safeyaml
 from cloudinit.util import (
     ensure_dir, load_file, write_file)
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     FilesystemMockingTestCase, wrap_and_call)
 
 mypaths = namedtuple('MyPaths', 'run_dir')

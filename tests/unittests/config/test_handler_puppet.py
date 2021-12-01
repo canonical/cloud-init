@@ -4,7 +4,7 @@ import textwrap
 
 from cloudinit.config import cc_puppet
 from cloudinit import util
-from cloudinit.tests.helpers import CiTestCase, HttprettyTestCase, mock
+from tests.unittests.helpers import CiTestCase, HttprettyTestCase, mock
 
 from tests.unittests.util import get_cloud
 

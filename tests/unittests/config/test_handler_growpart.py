@@ -5,7 +5,7 @@ from cloudinit.config import cc_growpart
 from cloudinit import subp
 from cloudinit import temp_utils
 
-from cloudinit.tests.helpers import TestCase
+from tests.unittests.helpers import TestCase
 
 import errno
 import logging

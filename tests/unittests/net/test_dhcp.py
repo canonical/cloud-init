@@ -11,7 +11,7 @@ from cloudinit.net.dhcp import (
     parse_dhcp_lease_file, dhcp_discovery, networkd_load_leases,
     parse_static_routes)
 from cloudinit.util import ensure_file, write_file
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, HttprettyTestCase, mock, populate_dir, wrap_and_call)
 
 

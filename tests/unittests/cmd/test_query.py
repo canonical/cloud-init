@@ -13,7 +13,7 @@ from cloudinit.cmd import query
 from cloudinit.helpers import Paths
 from cloudinit.sources import (
     REDACT_SENSITIVE_VALUE, INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE)
-from cloudinit.tests.helpers import mock
+from tests.unittests.helpers import mock
 
 from cloudinit.util import b64e, write_file
 

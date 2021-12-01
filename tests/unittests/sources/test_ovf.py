@@ -12,7 +12,7 @@ from textwrap import dedent
 
 from cloudinit import subp
 from cloudinit import util
-from cloudinit.tests.helpers import CiTestCase, mock, wrap_and_call
+from tests.unittests.helpers import CiTestCase, mock, wrap_and_call
 from cloudinit.helpers import Paths
 from cloudinit.sources import DataSourceOVF as dsovf
 from cloudinit.sources.helpers.vmware.imc.config_custom_script import (

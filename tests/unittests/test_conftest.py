@@ -1,7 +1,7 @@
 import pytest
 
 from cloudinit import subp
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 
 
 class TestDisableSubpUsage:

@@ -3,7 +3,7 @@
 """Tests for cloudinit.dhclient_hook."""
 
 from cloudinit import dhclient_hook as dhc
-from cloudinit.tests.helpers import CiTestCase, dir2dict, populate_dir
+from tests.unittests.helpers import CiTestCase, dir2dict, populate_dir
 
 import argparse
 import json

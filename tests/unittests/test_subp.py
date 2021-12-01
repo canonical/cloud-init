@@ -10,7 +10,7 @@ import stat
 from unittest import mock
 
 from cloudinit import subp, util
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 
 
 BASH = subp.which('bash')

@@ -2,7 +2,7 @@
 
 from cloudinit.distros.parsers import resolv_conf
 
-from cloudinit.tests.helpers import TestCase
+from tests.unittests.helpers import TestCase
 
 import re
 

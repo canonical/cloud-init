@@ -8,7 +8,7 @@ import logging
 from cloudinit.config import cc_rh_subscription
 from cloudinit import subp
 
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 
 SUBMGR = cc_rh_subscription.SubscriptionManager
 SUB_MAN_CLI = 'cloudinit.config.cc_rh_subscription._sub_man_cli'

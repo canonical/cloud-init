@@ -4,7 +4,7 @@ import os
 import shutil
 import tempfile
 
-from cloudinit.tests import helpers
+from tests.unittests import helpers
 
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import safeyaml

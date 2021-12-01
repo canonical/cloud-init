@@ -3,7 +3,7 @@
 import copy
 from itertools import filterfalse
 
-from cloudinit.tests import helpers
+from tests.unittests import helpers
 
 from cloudinit.filters import launch_index
 from cloudinit import user_data as ud

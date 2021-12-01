@@ -8,7 +8,7 @@ from io import StringIO
 
 from cloudinit.cmd import cloud_id
 
-from cloudinit.tests.helpers import CiTestCase, mock
+from tests.unittests.helpers import CiTestCase, mock
 
 
 class TestCloudId(CiTestCase):

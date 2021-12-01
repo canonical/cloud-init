@@ -15,7 +15,7 @@ from io import BytesIO
 from cloudinit import subp
 from cloudinit import util
 from cloudinit.config import cc_seed_random
-from cloudinit.tests import helpers as t_help
+from tests.unittests import helpers as t_help
 
 from tests.unittests.util import get_cloud
 

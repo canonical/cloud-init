@@ -13,7 +13,7 @@ import pytest
 from cloudinit import dmi, helpers, safeyaml
 from cloudinit import settings
 from cloudinit.sources import DataSourceVMware
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     mock,
     CiTestCase,
     FilesystemMockingTestCase,

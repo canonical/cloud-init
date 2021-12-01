@@ -4,7 +4,7 @@ import tempfile
 
 from cloudinit.config.cc_bootcmd import handle, schema
 from cloudinit import (subp, util)
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, mock, SchemaTestCaseMixin, skipUnlessJsonSchema)
 
 from tests.unittests.util import get_cloud

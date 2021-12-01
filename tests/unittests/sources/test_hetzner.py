@@ -8,7 +8,7 @@ from cloudinit.sources import DataSourceHetzner
 import cloudinit.sources.helpers.hetzner as hc_helper
 from cloudinit import util, settings, helpers
 
-from cloudinit.tests.helpers import mock, CiTestCase
+from tests.unittests.helpers import mock, CiTestCase
 
 import base64
 import pytest

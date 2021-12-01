@@ -2,8 +2,8 @@
 
 from . import _get_distro
 from cloudinit import util
-from cloudinit.tests.helpers import mock
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import mock
+from tests.unittests.helpers import CiTestCase
 
 SYSTEM_INFO = {
     'paths': {

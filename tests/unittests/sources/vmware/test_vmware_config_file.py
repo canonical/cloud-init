@@ -19,7 +19,7 @@ from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
 from cloudinit.sources.helpers.vmware.imc.config_nic import gen_subnet
 from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 logger = logging.getLogger(__name__)

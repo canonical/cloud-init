@@ -5,7 +5,7 @@ from unittest import mock
 
 from cloudinit.config import cc_mounts
 
-from cloudinit.tests import helpers as test_helpers
+from tests.unittests import helpers as test_helpers
 
 
 class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
