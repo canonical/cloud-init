@@ -535,6 +535,7 @@ class TestMain:
 
         _out, err = capsys.readouterr()
         expected = (
+            'Error:\n'
             'Expected one of --config-file, --system or --docs arguments\n'
         )
         assert expected == err
@@ -548,6 +549,7 @@ class TestMain:
 
         _out, err = capsys.readouterr()
         expected = (
+            'Error:\n'
             'Expected one of --config-file, --system or --docs arguments\n'
         )
         assert expected == err
@@ -560,7 +562,7 @@ class TestMain:
                 main()
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
-        assert 'Configfile NOT_A_FILE does not exist\n' == err
+        assert 'Error:\nConfigfile NOT_A_FILE does not exist\n' == err
 
     def test_main_prints_docs(self, capsys):
         """When --docs parameter is provided, main generates documentation."""
@@ -606,7 +608,8 @@ class TestMain:
         assert 1 == context_manager.value.code
         _out, err = capsys.readouterr()
         expected = (
-            'Unable to read system userdata as non-root user. Try using sudo\n'
+            'Error:\nUnable to read system userdata as non-root user. '
+            'Try using sudo\n'
         )
         assert expected == err
 

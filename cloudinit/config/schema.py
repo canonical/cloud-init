@@ -4,16 +4,19 @@
 from cloudinit.cmd.devel import read_cfg_paths
 from cloudinit import importer
 from cloudinit.importer import MetaSchema
-from cloudinit.util import find_modules, load_file
+from cloudinit.util import find_modules, load_file, error
 
 import argparse
 from collections import defaultdict
 from copy import deepcopy
+from functools import partial
 import logging
 import os
 import re
 import sys
 import yaml
+
+error = partial(error, sys_exit=True)
 
 _YAML_MAP = {True: 'true', False: 'false', None: 'null'}
 CLOUD_CONFIG_HEADER = b'#cloud-config'
@@ -493,11 +496,6 @@ def get_modules() -> dict:
     return find_modules(configs_dir)
 
 
-def error(message):
-    print(message, file=sys.stderr)
-    sys.exit(1)
-
-
 def load_doc(requested_modules: list) -> str:
     """Load module docstrings
 
@@ -509,7 +507,7 @@ def load_doc(requested_modules: list) -> str:
     if invalid_docs:
         error(
             "Invalid --docs value {}. Must be one of: {}".format(
-                list(invalid_docs), ", ".join(all_modules)
+                list(invalid_docs), ", ".join(all_modules),
             )
         )
     for mod_name in all_modules:

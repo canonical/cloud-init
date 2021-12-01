@@ -11,11 +11,7 @@ import sys
 
 from cloudinit.stages import Init
 from cloudinit.subp import (ProcessExecutionError, subp)
-from cloudinit.util import (del_dir, del_file, get_config_logfiles, is_link)
-
-
-def error(msg):
-    sys.stderr.write("ERROR: " + msg + "\n")
+from cloudinit.util import (del_dir, del_file, get_config_logfiles, is_link, error)
 
 
 def get_parser(parser=None):

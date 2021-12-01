@@ -2751,4 +2751,18 @@ def get_proc_ppid(pid):
         ppid = int(parts[3])
     return ppid
 
+
+def error(msg, rc=1, prepend='Error:\n', sys_exit=False):
+    """
+    Print error to stderr and return or exit
+
+    @param msg: message to print
+    @param rc: return code (default: 1)
+    @param sys_exit: exit when called (default: false)
+    """
+    print(prepend + msg, file=sys.stderr)
+    if sys_exit:
+        sys.exit(rc)
+    return rc
+
 # vi: ts=4 expandtab
