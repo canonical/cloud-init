@@ -375,8 +375,8 @@ class GetSchemaDocTest(CiTestCase):
             get_meta_doc(self.meta, schema),
         )
 
-    def test_get_schema_doc_handles_string_examples(self):
-        """get_schema_doc properly indented examples as a list of strings."""
+    def test_get_meta_doc_handles_string_examples(self):
+        """get_meta_doc properly indented examples as a list of strings."""
         full_schema = copy(self.required_schema)
         full_schema.update(
             {'examples': ['ex1:\n    [don\'t, expand, "this"]', 'ex2: true'],
