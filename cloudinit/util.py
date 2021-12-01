@@ -2752,15 +2752,16 @@ def get_proc_ppid(pid):
     return ppid
 
 
-def error(msg, rc=1, prepend='Error:\n', sys_exit=False):
+def error(msg, rc=1, fmt='Error:\n{}', sys_exit=False):
     """
     Print error to stderr and return or exit
 
     @param msg: message to print
     @param rc: return code (default: 1)
+    @param fmt: format string for putting message in (default: 'Error:\n {}')
     @param sys_exit: exit when called (default: false)
     """
-    print(prepend + msg, file=sys.stderr)
+    print(fmt.format(msg), file=sys.stderr)
     if sys_exit:
         sys.exit(rc)
     return rc
