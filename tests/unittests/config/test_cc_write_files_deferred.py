@@ -4,7 +4,7 @@ import tempfile
 import shutil
 
 from cloudinit.config.cc_write_files_deferred import (handle)
-from .test_handler_write_files import (VALID_SCHEMA)
+from .test_cc_write_files import (VALID_SCHEMA)
 from cloudinit import log as logging
 from cloudinit import util
 
