@@ -94,7 +94,8 @@ class TestGPGCommands:
                 stdout='', stderr='', exit_code=2, cmd=['mycmd'])
             m_subp.side_effect = (my_exc, my_exc, ('', ''))
             gpg.recv_key("ABCD", "keyserver.example.com", retries=retries)
-            self.assertEqual([mock.call(1), mock.call(2)], m_sleep.call_args_list)
+            self.assertEqual(
+                [mock.call(1), mock.call(2)], m_sleep.call_args_list)
 
         def test_raises_error_after_retries(self, m_subp, m_sleep):
             """If the final run fails, error should be raised."""
