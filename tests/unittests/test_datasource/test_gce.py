@@ -368,19 +368,21 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         "cloudinit.sources.DataSourceGCE.DataSourceGCELocal.fallback_interface"
     )
     def test_local_datasource_uses_ephemeral_dhcp(self, _m_fallback, m_dhcp):
+        _set_mock_metadata()
         ds = DataSourceGCE.DataSourceGCELocal(
             sys_cfg={}, distro=None, paths=None
         )
         ds._get_data()
-        m_dhcp.assert_called_once()
+        assert m_dhcp.call_count == 1
 
     @mock.patch(
         "cloudinit.sources.DataSourceGCE.EphemeralDHCPv4",
         autospec=True,
     )
     def test_datasource_doesnt_use_ephemeral_dhcp(self, m_dhcp):
+        _set_mock_metadata()
         ds = DataSourceGCE.DataSourceGCE(sys_cfg={}, distro=None, paths=None)
         ds._get_data()
-        m_dhcp.assert_not_called()
+        assert m_dhcp.call_count == 0
 
 # vi: ts=4 expandtab
