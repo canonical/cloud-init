@@ -19,9 +19,9 @@ runcmd:
 def test_runcmd_with_variable_substitution(client: IntegrationInstance):
     """Test jinja substitution.
 
-    Ensure we can also substitute variables from instance-data-sensitive
-    LP: #1931392 and that underscore-delimited aliases exist for hyphenated
-    keys.
+    Ensure underscore-delimited aliases exist for hyphenated key and
+    we can also substitute variables from instance-data-sensitive
+    LP: #1931392.
     """
     hostname = client.execute('hostname').stdout.strip()
     expected = [

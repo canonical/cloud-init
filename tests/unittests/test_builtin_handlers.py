@@ -316,7 +316,7 @@ class TestConvertJinjaInstanceData:
     def test_convert_instance_data_operators_to_underscores(
         self, include_key_aliases, data, expected
     ):
-        """Replace Jinja operatiors keys with underscores in instance-data."""
+        """Replace Jinja operators keys with underscores in instance-data."""
         assert expected == convert_jinja_instance_data(
             data=data, include_key_aliases=include_key_aliases
         )
