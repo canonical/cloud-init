@@ -110,6 +110,7 @@ class TestResolvConf(t_help.FilesystemMockingTestCase):
             mock.call(mock.ANY, '/etc/resolv.conf', mock.ANY)
         ] not in m_render_to_file.call_args_list
 
+
 class TestGenerateResolvConf:
 
     dist = MockDistro()
