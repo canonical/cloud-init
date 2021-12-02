@@ -209,6 +209,31 @@ class TestCombined:
         log = client.read_from_file('/var/log/cloud-init.log')
         verify_clean_log(log)
 
+    def test_correct_datasource_detected(
+        self, class_client: IntegrationInstance
+    ):
+        """Test datasource is detected at the proper boot stage."""
+        client = class_client
+        status_file = client.read_from_file("/run/cloud-init/status.json")
+
+        platform_datasources = {
+            "azure": "DataSourceAzure [seed=/dev/sr0]",
+            "ec2": "DataSourceEc2Local",
+            "gce": "DataSourceGCELocal",
+            "oci": "DataSourceOracle",
+            "openstack": "DataSourceOpenStackLocal [net,ver=2]",
+            "lxd_container": (
+                "DataSourceNoCloud "
+                "[seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]"
+            ),
+            "lxd_vm": "DataSourceNoCloud [seed=/dev/sr0][dsmode=net]",
+        }
+
+        assert (
+            platform_datasources[client.settings.PLATFORM]
+            == json.loads(status_file)["v1"]["datasource"]
+        )
+
     def _check_common_metadata(self, data):
         assert data['base64_encoded_keys'] == []
         assert data['merged_cfg'] == 'redacted for non-root user'
@@ -277,3 +302,19 @@ class TestCombined:
         assert v1_data['instance_id'] == client.instance.name
         assert v1_data['local_hostname'].startswith('ip-')
         assert v1_data['region'] == client.cloud.cloud_instance.region
+
+    @pytest.mark.gce
+    def test_instance_json_gce(self, class_client: IntegrationInstance):
+        client = class_client
+        instance_json_file = client.read_from_file(
+            "/run/cloud-init/instance-data.json"
+        )
+        data = json.loads(instance_json_file)
+        self._check_common_metadata(data)
+        v1_data = data["v1"]
+        assert v1_data["cloud_name"] == "gce"
+        assert v1_data["platform"] == "gce"
+        assert v1_data["subplatform"].startswith("metadata")
+        assert v1_data["availability_zone"] == client.instance.zone
+        assert v1_data["instance_id"] == client.instance.instance_id
+        assert v1_data["local_hostname"] == client.instance.name

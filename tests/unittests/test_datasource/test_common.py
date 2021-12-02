@@ -41,6 +41,7 @@ DEFAULT_LOCAL = [
     CloudSigma.DataSourceCloudSigma,
     ConfigDrive.DataSourceConfigDrive,
     DigitalOcean.DataSourceDigitalOcean,
+    GCE.DataSourceGCELocal,
     Hetzner.DataSourceHetzner,
     IBMCloud.DataSourceIBMCloud,
     LXD.DataSourceLXD,
