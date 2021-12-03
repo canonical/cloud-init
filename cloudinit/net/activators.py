@@ -16,6 +16,10 @@ from cloudinit.net.sysconfig import NM_CFG_FILE
 LOG = logging.getLogger(__name__)
 
 
+class NoActivatorException(Exception):
+    pass
+
+
 def _alter_interface(cmd, device_name) -> bool:
     LOG.debug("Attempting command %s for device %s", cmd, device_name)
     try:
@@ -271,7 +275,7 @@ def select_activator(priority=None, target=None) -> Type[NetworkActivator]:
         tmsg = ""
         if target and target != "/":
             tmsg = " in target=%s" % target
-        raise RuntimeError(
+        raise NoActivatorException(
             "No available network activators found%s. Searched "
             "through list: %s" % (tmsg, priority))
     selected = found[0]

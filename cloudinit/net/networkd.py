@@ -41,11 +41,11 @@ class CfgParser:
 
     def get_final_conf(self):
         contents = ''
-        for k, v in self.conf_dict.items():
+        for k, v in sorted(self.conf_dict.items()):
             if not v:
                 continue
             contents += '['+k+']\n'
-            for e in v:
+            for e in sorted(v):
                 contents += e + '\n'
             contents += '\n'
 
@@ -242,6 +242,19 @@ class Renderer(renderer.Renderer):
                 name = iface['name']
                 # network state doesn't give dhcp domain info
                 # using ns.config as a workaround here
+
+                # Check to see if this interface matches against an interface
+                # from the network state that specified a set-name directive.
+                # If there is a device with a set-name directive and it has
+                # set-name value that matches the current name, then update the
+                # current name to the device's name. That will be the value in
+                # the ns.config['ethernets'] dict below.
+                for dev_name, dev_cfg in ns.config['ethernets'].items():
+                    if 'set-name' in dev_cfg:
+                        if dev_cfg.get('set-name') == name:
+                            name = dev_name
+                            break
+
                 self.dhcp_domain(ns.config['ethernets'][name], cfg)
 
             ret_dict.update({link: cfg.get_final_conf()})

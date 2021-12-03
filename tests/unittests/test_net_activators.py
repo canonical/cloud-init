@@ -12,7 +12,8 @@ from cloudinit.net.activators import (
     IfUpDownActivator,
     NetplanActivator,
     NetworkManagerActivator,
-    NetworkdActivator
+    NetworkdActivator,
+    NoActivatorException,
 )
 from cloudinit.net.network_state import parse_net_config_data
 from cloudinit.safeyaml import load
@@ -99,7 +100,7 @@ class TestSearchAndSelect:
         resp = search_activator()
         assert resp == []
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(NoActivatorException):
             select_activator()
 
 

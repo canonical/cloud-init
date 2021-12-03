@@ -8,7 +8,7 @@ from uuid import uuid4
 from cloudinit import safeyaml
 from cloudinit import subp
 from cloudinit import util
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, dir2dict, populate_dir, populate_dir_with_ts)
 
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm

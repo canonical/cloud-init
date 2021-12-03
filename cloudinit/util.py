@@ -533,6 +533,34 @@ def get_linux_distro():
     return (distro_name, distro_version, flavor)
 
 
+def _get_variant(info):
+    system = info['system'].lower()
+    variant = 'unknown'
+    if system == "linux":
+        linux_dist = info['dist'][0].lower()
+        if linux_dist in (
+                'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
+                'debian', 'eurolinux', 'fedora', 'openeuler', 'photon',
+                'rhel', 'rocky', 'suse', 'virtuozzo'):
+            variant = linux_dist
+        elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
+            variant = 'ubuntu'
+        elif linux_dist == 'redhat':
+            variant = 'rhel'
+        elif linux_dist in (
+                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap',
+                'sles', 'sle_hpc'):
+            variant = 'suse'
+        else:
+            variant = 'linux'
+    elif system in (
+            'windows', 'darwin', "freebsd", "netbsd",
+            "openbsd", "dragonfly"):
+        variant = system
+
+    return variant
+
+
 @lru_cache()
 def system_info():
     info = {
@@ -543,32 +571,7 @@ def system_info():
         'uname': list(platform.uname()),
         'dist': get_linux_distro()
     }
-    system = info['system'].lower()
-    var = 'unknown'
-    if system == "linux":
-        linux_dist = info['dist'][0].lower()
-        if linux_dist in (
-                'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
-                'debian', 'eurolinux', 'fedora', 'openEuler', 'photon',
-                'rhel', 'rocky', 'suse', 'virtuozzo'):
-            var = linux_dist
-        elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
-            var = 'ubuntu'
-        elif linux_dist == 'redhat':
-            var = 'rhel'
-        elif linux_dist in (
-                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap',
-                'sles', 'sle_hpc'):
-            var = 'suse'
-        else:
-            var = 'linux'
-    elif system in (
-            'windows', 'darwin', "freebsd", "netbsd",
-            "openbsd", "dragonfly"):
-        var = system
-
-    info['variant'] = var
-
+    info['variant'] = _get_variant(info)
     return info
 
 

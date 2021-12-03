@@ -52,8 +52,6 @@ LOG = logging.getLogger(__name__)
 
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
-AGENT_START = ['service', 'walinuxagent', 'start']
-AGENT_START_BUILTIN = "__builtin__"
 BOUNCE_COMMAND_IFUP = [
     'sh', '-xc',
     "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"
@@ -262,7 +260,6 @@ if util.is_FreeBSD():
     PLATFORM_ENTROPY_SOURCE = None
 
 BUILTIN_DS_CONFIG = {
-    'agent_command': AGENT_START_BUILTIN,
     'data_dir': AGENT_SEED_DIR,
     'set_hostname': True,
     'hostname_bounce': {
@@ -1525,8 +1522,7 @@ class DataSourceAzure(sources.DataSource):
                                 dhclient_lease_file,
                                 pubkey_info=pubkey_info)
 
-        LOG.debug("negotiating with fabric via agent command %s",
-                  self.ds_cfg['agent_command'])
+        LOG.debug("negotiating with fabric")
         try:
             fabric_data = metadata_func()
         except Exception as e:
