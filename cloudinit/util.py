@@ -1217,8 +1217,9 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
             continue
         if entry == 'fd0:':
             continue
-        part_id = 'a' if entry.startswith('cd') else 'i'
-        devlist.append(entry[:-1] + part_id)
+        devlist.append(entry[:-1] + 'a')
+        if not entry.startswith('cd'):
+            devlist.append(entry[:-1] + 'i')
     if criteria == "TYPE=iso9660":
         devlist = [i for i in devlist if i.startswith('cd')]
     elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
