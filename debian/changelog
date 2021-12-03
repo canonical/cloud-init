@@ -1,3 +1,42 @@
+cloud-init (21.4-25-g039c40f9-0ubuntu1~22.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Reorganize unit test locations under tests/unittests (#1126)
+      [Brett Holman]
+    - Fix exception when no activator found (#1129) (LP: #1948681)
+    - jinja: provide and document jinja-safe key aliases in instance-data
+      (SC-622) (#1123)
+    - testing: Remove date from final_message test (SC-638) (#1127)
+    - Move GCE metadata fetch to init-local (SC-502) (#1122)
+    - Fix missing metadata routes for vultr (#1125) [eb3095]
+    - cc_ssh_authkey_fingerprints.py: prevent duplicate messages on console
+      (#1081) [dermotbradley]
+    - sources/azure: remove unused remnants related to agent command (#1119)
+      [Chris Patterson]
+    - github: update PR template's contributing URL (#1120) [Chris Patterson]
+    - docs: Rename HACKING.rst to CONTRIBUTING.rst (#1118)
+    - testing: monkeypatch system_info call in unit tests (SC-533) (#1117)
+    - Fix Vultr timeout and wait values (#1113) [eb3095]
+    - lxd: add preference for LXD cloud-init.* config keys over user keys
+      (#1108)
+    - VMware: source /etc/network/interfaces.d/* on Debian
+      [chengcheng-chcheng] (LP: #1950136)
+    - Add cjp256 as contributor (#1109) [Chris Patterson]
+    - integration_tests: Ensure log directory exists before symlinking to it
+      (#1110)
+    - testing: add growpart integration test (#1104) [Brett Holman]
+    - integration_test: Speed up CI run time (#1111)
+    - Some miscellaneous integration test fixes (SC-606) (#1103)
+    - tests: specialize lxd_discovery test for lxd_vm vendordata (#1106)
+    - Add convenience symlink to integration test output (#1105) [Brett Holman]
+    - Fix for set-name bug in networkd renderer (#1100)
+      [Andrew Kutz] (LP: #1949407)
+    - Wait for apt lock (#1034) (LP: #1944611)
+    - testing: stop chef test from running on openstack (#1102)
+    - alpine.py: add options to the apk upgrade command (#1089) [dermotbradley]
+
+ -- Chad Smith <chad.smith@canonical.com>  Fri, 03 Dec 2021 15:44:06 -0700
+
 cloud-init (21.4-0ubuntu1~22.04.1) jammy; urgency=medium
 
   * d/upstream/metadata: Change contact to James Falcon
