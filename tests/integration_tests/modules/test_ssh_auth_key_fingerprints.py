@@ -12,6 +12,8 @@ import re
 
 import pytest
 
+from tests.integration_tests.util import retry
+
 
 USER_DATA_SSH_AUTHKEY_DISABLE = """\
 #cloud-config
@@ -38,6 +40,9 @@ class TestSshAuthkeyFingerprints:
             "Skipping module named ssh-authkey-fingerprints, "
             "logging of SSH fingerprints disabled") in cloudinit_output
 
+    # retry decorator here because it can take some time to be reflected
+    # in syslog
+    @retry(tries=30, delay=1)
     @pytest.mark.user_data(USER_DATA_SSH_AUTHKEY_ENABLE)
     def test_ssh_authkey_fingerprints_enable(self, client):
         syslog_output = client.read_from_file("/var/log/syslog")

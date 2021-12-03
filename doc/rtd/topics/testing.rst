@@ -3,8 +3,7 @@ Testing
 *******
 
 cloud-init has both unit tests and integration tests. Unit tests can
-be found in-tree alongside the source code, as well as
-at ``tests/unittests``. Integration tests can be found at
+be found at ``tests/unittests``. Integration tests can be found at
 ``tests/integration_tests``. Documentation specifically for integration
 tests can be found on the :ref:`integration_tests` page, but
 the guidelines specified below apply to both types of tests.
@@ -35,6 +34,16 @@ Test Layout
     `TestGetPackageMirrorInfo`_), whereas ``TestCase`` classes will
     subclass (indirectly) from ``TestCase`` (e.g.
     `TestPrependBaseCommands`_)
+
+* Unit tests and integration tests are located under cloud-init/tests
+
+  * For consistency, unit test files should have a matching name and
+    directory location under `tests/unittests`
+
+  * For example: the expected test file for code in
+    `cloudinit/path/to/file.py` is
+    `tests/unittests/path/to/test_file.py`
+
 
 ``pytest`` Tests
 ----------------

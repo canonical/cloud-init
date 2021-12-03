@@ -2,7 +2,7 @@
 
 import httpretty as hp
 
-from cloudinit.tests import helpers
+from tests.unittests import helpers
 
 from cloudinit import ec2_utils as eu
 from cloudinit import url_helper as uh
