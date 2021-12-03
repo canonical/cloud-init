@@ -13,7 +13,7 @@ import re
 from unittest import mock
 
 from cloudinit import util
-from cloudinit.tests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase
 from cloudinit.sources.helpers import azure
 
 

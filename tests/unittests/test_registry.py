@@ -2,7 +2,7 @@
 
 from cloudinit.registry import DictRegistry
 
-from cloudinit.tests.helpers import (mock, TestCase)
+from tests.unittests.helpers import (mock, TestCase)
 
 
 class TestDictRegistry(TestCase):
