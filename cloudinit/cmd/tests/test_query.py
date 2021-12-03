@@ -75,6 +75,40 @@ class TestQuery:
         assert 'usage: query' in out
         assert 1 == m_cli_log.call_count
 
+    @pytest.mark.parametrize(
+        "inst_data,varname,expected_error", (
+            (
+                '{"v1": {"key-2": "value-2"}}',
+                'v1.absent_leaf',
+                "instance-data 'v1' has no 'absent_leaf'\n"
+            ),
+            (
+                '{"v1": {"key-2": "value-2"}}',
+                'absent_key',
+                "Undefined instance-data key 'absent_key'\n"
+            ),
+        )
+    )
+    def test_handle_args_error_on_invalid_vaname_paths(
+        self, inst_data, varname, expected_error, caplog, tmpdir
+    ):
+        """Error when varname is not a valid instance-data variable path."""
+        instance_data = tmpdir.join('instance-data')
+        instance_data.write(inst_data)
+        args = self.args(
+            debug=False, dump_all=False, format=None,
+            instance_data=instance_data.strpath,
+            list_keys=False, user_data=None, vendor_data=None, varname=varname
+        )
+        paths, _, _, _ = self._setup_paths(tmpdir)
+        with mock.patch('cloudinit.cmd.query.read_cfg_paths') as m_paths:
+            m_paths.return_value = paths
+            with mock.patch(
+                "cloudinit.cmd.query.addLogHandlerCLI", return_value=""
+            ):
+                assert 1 == query.handle_args('anyname', args)
+        assert expected_error in caplog.text
+
     def test_handle_args_error_on_missing_instance_data(self, caplog, tmpdir):
         """When instance_data file path does not exist, log an error."""
         absent_fn = tmpdir.join('absent')
@@ -166,7 +200,7 @@ class TestQuery:
                 assert 0 == query.handle_args('anyname', args)
         out, _err = capsys.readouterr()
         cmd_output = json.loads(out)
-        assert "it worked" == cmd_output['my_var']
+        assert "it worked" == cmd_output['my-var']
         if ud_expected == "ci-b64:":
             ud_expected = "ci-b64:{}".format(b64e(ud_src))
         if vd_expected == "ci-b64:":
@@ -193,8 +227,8 @@ class TestQuery:
                 m_getuid.return_value = 0
                 assert 0 == query.handle_args('anyname', args)
         expected = (
-            '{\n "my_var": "it worked",\n "userdata": "ud",\n '
-            '"vendordata": "vd"\n}\n'
+            '{\n "my-var": "it worked",\n '
+            '"userdata": "ud",\n "vendordata": "vd"\n}\n'
         )
         out, _err = capsys.readouterr()
         assert expected == out
@@ -211,7 +245,7 @@ class TestQuery:
             m_getuid.return_value = 100
             assert 0 == query.handle_args('anyname', args)
         expected = (
-            '{\n "my_var": "it worked",\n "userdata": "<%s> file:ud",\n'
+            '{\n "my-var": "it worked",\n "userdata": "<%s> file:ud",\n'
             ' "vendordata": "<%s> file:vd"\n}\n' % (
                 REDACT_SENSITIVE_VALUE, REDACT_SENSITIVE_VALUE
             )
@@ -233,21 +267,38 @@ class TestQuery:
         out, _err = capsys.readouterr()
         assert 'it worked\n' == out
 
-    def test_handle_args_returns_nested_varname(self, capsys, tmpdir):
+    @pytest.mark.parametrize(
+        'inst_data,varname,expected',
+        (
+            (
+                '{"v1": {"key-2": "value-2"}, "my-var": "it worked"}',
+                'v1.key_2',
+                'value-2\n'
+            ),
+            # Assert no jinja underscore-delimited aliases are reported on CLI
+            (
+                '{"v1": {"something-hyphenated": {"no.underscores":"x",'
+                ' "no-alias": "y"}}, "my-var": "it worked"}',
+                'v1.something_hyphenated',
+                '{\n "no-alias": "y",\n "no.underscores": "x"\n}\n'
+            ),
+        )
+    )
+    def test_handle_args_returns_nested_varname(
+        self, inst_data, varname, expected, capsys, tmpdir
+    ):
         """If user_data file is a jinja template render instance-data vars."""
         instance_data = tmpdir.join('instance-data')
-        instance_data.write(
-            '{"v1": {"key-2": "value-2"}, "my-var": "it worked"}'
-        )
+        instance_data.write(inst_data)
         args = self.args(
             debug=False, dump_all=False, format=None,
             instance_data=instance_data.strpath, user_data='ud',
-            vendor_data='vd', list_keys=False, varname='v1.key_2')
+            vendor_data='vd', list_keys=False, varname=varname)
         with mock.patch('os.getuid') as m_getuid:
             m_getuid.return_value = 100
             assert 0 == query.handle_args('anyname', args)
         out, _err = capsys.readouterr()
-        assert 'value-2\n' == out
+        assert expected == out
 
     def test_handle_args_returns_standardized_vars_to_top_level_aliases(
         self, capsys, tmpdir

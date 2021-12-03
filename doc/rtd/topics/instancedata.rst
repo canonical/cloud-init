@@ -530,12 +530,18 @@ Both user-data scripts and **#cloud-config** data support jinja template
 rendering.
 When the first line of the provided user-data begins with,
 **## template: jinja** cloud-init will use jinja to render that file.
-Any instance-data-sensitive.json variables are surfaced as dot-delimited
-jinja template variables because cloud-config modules are run as 'root'
-user.
+Any instance-data-sensitive.json variables are surfaced as jinja template
+variables because cloud-config modules are run as 'root' user.
 
+.. note::
+  cloud-init also provides jinja-safe key aliases for any instance-data.json
+  keys which contain jinja operator characters such as +, -, ., /, etc. Any
+  jinja operator will be replaced with underscores in the jinja-safe key
+  alias. This allows for cloud-init templates to use aliased variable
+  references which allow for jinja's dot-notation reference such as
+  ``{{ ds.v1_0.my_safe_key }}`` instead of ``{{ ds["v1.0"]["my/safe-key"] }}``.
 
-Below are some examples of providing these types of user-data:
+Below are some other examples of using jinja templates in user-data:
 
 * Cloud config calling home with the ec2 public hostname and availability-zone
 
