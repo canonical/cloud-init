@@ -1,5 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import platform
+
 import cloudinit.net.bsd
 from cloudinit import log as logging
 from cloudinit import subp, util
@@ -30,13 +32,21 @@ class Renderer(cloudinit.net.bsd.BSDRenderer):
             util.write_file(fn, content)
 
     def start_services(self, run=False):
+        has_dhcpleasectl = bool(int(platform.release().split(".")[0]) > 6)
         if not self._postcmds:
             LOG.debug("openbsd generate postcmd disabled")
             return
-        subp.subp(["pkill", "dhclient"], capture=True, rcs=[0, 1])
-        subp.subp(["route", "del", "default"], capture=True, rcs=[0, 1])
-        subp.subp(["route", "flush", "default"], capture=True, rcs=[0, 1])
-        subp.subp(["sh", "/etc/netstart"], capture=True)
+        if has_dhcpleasectl:  # OpenBSD 7.0+
+            subp.subp(["sh", "/etc/netstart"], capture=True)
+            for interface in self.dhcp_interfaces():
+                subp.subp(
+                    ["dhcpleasectl", "-w", "30", interface], capture=True
+                )
+        else:
+            subp.subp(["pkill", "dhclient"], capture=True, rcs=[0, 1])
+            subp.subp(["route", "del", "default"], capture=True, rcs=[0, 1])
+            subp.subp(["route", "flush", "default"], capture=True, rcs=[0, 1])
+            subp.subp(["sh", "/etc/netstart"], capture=True)
 
     def set_route(self, network, netmask, gateway):
         if network == "0.0.0.0":
