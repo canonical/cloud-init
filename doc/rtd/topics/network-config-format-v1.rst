@@ -62,7 +62,8 @@ structure.
 **mac_address**: *<MAC Address>*
 
 The MAC Address is a device unique identifier that most Ethernet-based network
-devices possess.  Specifying a MAC Address is optional.
+devices possess. Specifying a MAC Address is optional.
+Letters must be lowercase.
 
 .. note::
 
