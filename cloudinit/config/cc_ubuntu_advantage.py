@@ -4,8 +4,7 @@
 
 from textwrap import dedent
 
-from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import subp
@@ -16,7 +15,7 @@ UA_URL = 'https://ubuntu.com/advantage'
 
 distros = ['ubuntu']
 
-schema = {
+meta = {
     'id': 'cc_ubuntu_advantage',
     'name': 'Ubuntu Advantage',
     'title': 'Configure Ubuntu Advantage support services',
@@ -61,6 +60,9 @@ schema = {
           - fips
         """)],
     'frequency': PER_INSTANCE,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'ubuntu_advantage': {
@@ -82,7 +84,7 @@ schema = {
     }
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 LOG = logging.getLogger(__name__)
 

@@ -16,7 +16,7 @@ from cloudinit import templater
 from cloudinit import type_utils
 from cloudinit import subp
 from cloudinit import util
-from cloudinit.config.schema import get_schema_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -140,7 +140,7 @@ DISTRO_CLIENT_CONFIG = {
 # configuration options before actually attempting to deploy with said
 # configuration.
 
-schema = {
+meta = {
     'id': 'cc_ntp',
     'name': 'NTP',
     'title': 'enable and configure ntp',
@@ -190,6 +190,9 @@ schema = {
             - ntp.ubuntu.com
             - 192.168.23.2""")],
     'frequency': PER_INSTANCE,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'ntp': {
@@ -289,12 +292,10 @@ schema = {
                     },
                     # Don't use REQUIRED_NTP_CONFIG_KEYS to allow for override
                     # of builtin client values.
-                    'required': [],
                     'minProperties': 1,  # If we have config, define something
                     'additionalProperties': False
                 },
             },
-            'required': [],
             'additionalProperties': False
         }
     }
@@ -303,7 +304,7 @@ REQUIRED_NTP_CONFIG_KEYS = frozenset([
     'check_exe', 'confpath', 'packages', 'service_name'])
 
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 def distro_ntp_client_configs(distro):
