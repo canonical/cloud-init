@@ -723,13 +723,13 @@ class TestEphemeralIPV4Network(CiTestCase):
                 ['ip', '-family', 'inet', 'link', 'set', 'dev', 'eth0', 'up'],
                 capture=True),
             mock.call(
-                ['ip', '-4', 'route', 'add', '192.168.2.1/32',
+                ['ip', '-4', 'route', 'append', '192.168.2.1/32',
                  'dev', 'eth0'], capture=True),
             mock.call(
-                ['ip', '-4', 'route', 'add', '169.254.169.254/32',
+                ['ip', '-4', 'route', 'append', '169.254.169.254/32',
                  'via', '192.168.2.1', 'dev', 'eth0'], capture=True),
             mock.call(
-                ['ip', '-4', 'route', 'add', '0.0.0.0/0',
+                ['ip', '-4', 'route', 'append', '0.0.0.0/0',
                  'via', '192.168.2.1', 'dev', 'eth0'], capture=True)]
         expected_teardown_calls = [
             mock.call(
