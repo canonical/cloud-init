@@ -19,6 +19,7 @@ from cloudinit.config.schema import (
     annotated_cloudconfig_file,
     get_meta_doc,
     get_schema,
+    get_jsonschema_validator,
     validate_cloudconfig_file,
     validate_cloudconfig_metaschema,
     validate_cloudconfig_schema,
@@ -637,13 +638,14 @@ class TestStrictMetaschema:
     """Validate that schemas follow a stricter metaschema definition than
     the default. This disallows arbitrary key/value pairs.
     """
+    (validator, _) = get_jsonschema_validator()
 
     @skipUnlessJsonSchema()
     def test_modules(self):
         """Validate all modules with a stricter metaschema"""
         for (name, value) in get_schemas().items():
             if value:
-                validate_cloudconfig_metaschema(value)
+                validate_cloudconfig_metaschema(self.validator, value)
             else:
                 logging.warning("module %s has no schema definition", name)
 
@@ -654,8 +656,6 @@ class TestStrictMetaschema:
         item should be 'items' and is therefore interpreted as an additional
         property which is invalid with a strict metaschema
         """
-        from jsonschema import SchemaError
-
         schema = {
             "type": "array",
             "item": {
@@ -663,12 +663,13 @@ class TestStrictMetaschema:
             },
         }
         with pytest.raises(
-            SchemaError, match=(r"Additional properties are not allowed.*")
+            SchemaValidationError,
+            match=(r"Additional properties are not allowed.*")
         ):
 
-            validate_cloudconfig_metaschema(schema)
+            validate_cloudconfig_metaschema(self.validator, schema)
 
-        validate_cloudconfig_metaschema(schema, throw=False)
+        validate_cloudconfig_metaschema(self.validator, schema, throw=False)
 
 
 # vi: ts=4 expandtab syntax=python
