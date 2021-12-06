@@ -43,7 +43,7 @@ get in contact with that distribution and send them our way!
 
 ## To start developing cloud-init
 
-Checkout the [hacking](https://cloudinit.readthedocs.io/en/latest/topics/hacking.html)
+Checkout the [contributing](https://cloudinit.readthedocs.io/en/latest/topics/contributing.html)
 document that outlines the steps necessary to develop, test, and submit code.
 
 ## Daily builds
