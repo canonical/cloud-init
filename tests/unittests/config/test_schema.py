@@ -641,8 +641,8 @@ class TestStrictMetaschema:
 
     @skipUnlessJsonSchema()
     def test_modules(self):
-        (validator, _) = get_jsonschema_validator()
         """Validate all modules with a stricter metaschema"""
+        (validator, _) = get_jsonschema_validator()
         for (name, value) in get_schemas().items():
             if value:
                 validate_cloudconfig_metaschema(validator, value)
