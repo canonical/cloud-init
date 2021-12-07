@@ -9,9 +9,12 @@ from cloudinit import safeyaml
 from cloudinit import subp
 from cloudinit import util
 from tests.unittests.helpers import (
-    CiTestCase, dir2dict, populate_dir, populate_dir_with_ts)
-
-from tests.unittests.helpers import CloudinitDir
+    CiTestCase,
+    dir2dict,
+    populate_dir,
+    populate_dir_with_ts,
+    CloudinitDir,
+)
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
 from cloudinit.sources import DataSourceOracle as ds_oracle

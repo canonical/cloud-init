@@ -45,17 +45,22 @@ class TestCloudinitDir:
         return out
 
     def test_top_level_dir(self):
-        """Assert the location of the top project directory is correct
-        """
-        assert 1 == len(set((
-            self.top_dir,
-            self._get_top_level_dir_alt_implementation(),
-        )))
+        """Assert the location of the top project directory is correct"""
+        assert 1 == len(
+            set(
+                (
+                    self.top_dir,
+                    self._get_top_level_dir_alt_implementation(),
+                )
+            )
+        )
 
     def test_CloudinitDir(self):
-        assert (str(Path(self.top_dir, "test")) ==
-                test_helpers.CloudinitDir("test") ==
-                str(Path(self._get_top_level_dir_alt_implementation(), "test"))
-                )
+        assert (
+            str(Path(self.top_dir, "test"))
+            == test_helpers.CloudinitDir("test")
+            == str(Path(self._get_top_level_dir_alt_implementation(), "test"))
+        )
+
 
 # vi: ts=4 expandtab

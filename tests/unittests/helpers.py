@@ -510,7 +510,7 @@ if not hasattr(mock.Mock, 'assert_not_called'):
 def get_top_level_dir() -> Path:
     """Return the path to the top cloudinit project directory
 
-    @return Path('top-cloudinit-dir>')
+    @return Path('<top-cloudinit-dir>')
     """
     return Path(cloudinit.__file__).parent.parent.resolve()
 
