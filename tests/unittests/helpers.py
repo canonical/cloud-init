@@ -508,7 +508,7 @@ if not hasattr(mock.Mock, 'assert_not_called'):
 
 
 def get_top_level_dir() -> Path:
-    """Return the path to the top cloudinit project directory
+    """Return the absolute path to the top cloudinit project directory
 
     @return Path('<top-cloudinit-dir>')
     """
@@ -516,8 +516,12 @@ def get_top_level_dir() -> Path:
 
 
 def CloudinitDir(sub_path: str) -> str:
-    """Return path within cloudinit project directory"""
-    return str(get_top_level_dir() / sub_path)
+    """Get a path within the cloudinit project directory
 
+    @return str of the combined path
+
+    Example: CloudinitDir("my/path") -> "/path/to/cloud-init/my/path"
+    """
+    return str(get_top_level_dir() / sub_path)
 
 # vi: ts=4 expandtab

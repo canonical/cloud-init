@@ -41,6 +41,12 @@ class TestCloudinitDir:
 
     @staticmethod
     def _get_top_level_dir_alt_implementation():
+        """Alternative implementation for comparing against.
+
+        Note: Recursively searching for .git/ fails during build tests due to
+        .git not existing. This implementation assumes that ../../../ is the
+        relative path to the cloud-init project directory form this file.
+        """
         out = Path(__file__).parent.parent.parent.resolve()
         return out
 
@@ -56,6 +62,10 @@ class TestCloudinitDir:
         )
 
     def test_CloudinitDir(self):
+        """Assert CloudinitDir produces an expected location
+
+        Compare the returned value to an alternate (naive) implementation
+        """
         assert (
             str(Path(self.top_dir, "test"))
             == test_helpers.CloudinitDir("test")

@@ -54,7 +54,8 @@ def get_module_variable(var_name) -> dict:
     """Inspect modules and get variable from module matching var_name"""
     schemas = {}
 
-    files = list(Path("../../cloudinit/config/").glob("cc_*.py"))
+    files = list(Path(CloudinitDir("../../cloudinit/config/")).glob("cc_*.py"))
+
     modules = [mod.stem for mod in files]
 
     for module in modules:
