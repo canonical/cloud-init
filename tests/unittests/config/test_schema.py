@@ -12,7 +12,6 @@ from pathlib import Path
 from textwrap import dedent
 from yaml import safe_load
 
-import cloudinit
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     SchemaValidationError,
@@ -27,7 +26,12 @@ from cloudinit.config.schema import (
     MetaSchema,
 )
 from cloudinit.util import write_file
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    CiTestCase,
+    mock,
+    skipUnlessJsonSchema,
+    CloudinitDir,
+)
 
 
 def get_schemas() -> dict:
@@ -616,8 +620,7 @@ class TestMain:
 
 
 def _get_meta_doc_examples():
-    examples_dir = Path(
-        cloudinit.__file__).parent.parent / 'doc' / 'examples'
+    examples_dir = Path(CloudinitDir('doc/examples'))
     assert examples_dir.is_dir()
 
     all_text_files = (f for f in examples_dir.glob('cloud-config*.txt')

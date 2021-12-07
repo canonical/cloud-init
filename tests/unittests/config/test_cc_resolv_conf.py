@@ -114,7 +114,7 @@ class TestResolvConf(t_help.FilesystemMockingTestCase):
 class TestGenerateResolvConf:
 
     dist = MockDistro()
-    tmpl_fn = "templates/resolv.conf.tmpl"
+    tmpl_fn = t_help.CloudinitDir("templates/resolv.conf.tmpl")
 
     @mock.patch("cloudinit.config.cc_resolv_conf.templater.render_to_file")
     def test_dist_resolv_conf_fn(self, m_render_to_file):

@@ -3,6 +3,8 @@
 """Tests of the built-in user data handlers."""
 
 import os
+from os.path import abspath
+from pathlib import Path
 
 from tests.unittests import helpers as test_helpers
 
@@ -33,5 +35,34 @@ class TestPaths(test_helpers.ResourceUsingTestCase):
         mypaths = self.getCloudPaths(myds)
 
         self.assertIsNone(mypaths.get_ipath())
+
+
+def cmp_abspath(*args):
+    """Ensure arguments have the same abspath"""
+    return 1 == len(set(map(abspath, map(str, args))))
+
+
+class TestCloudinitDir:
+
+    @staticmethod
+    def _get_top_level_dir_alt_implementation():
+        """Recursively walk until .git/ is found, return parent dir"""
+
+        def get_git_dir(path):
+            if os.path.isdir(str(Path(path, ".git"))):
+                return Path(path, ".git").parent
+            # found root dir, not going to find a .git/
+            elif cmp_abspath('/', path):
+                return False
+
+            return get_git_dir(path / "..")
+
+        return get_git_dir(Path("."))
+
+    def test_top_level_dir(self):
+        assert cmp_abspath(
+            test_helpers.get_top_level_dir(),
+            self._get_top_level_dir_alt_implementation(),
+        )
 
 # vi: ts=4 expandtab

@@ -1,12 +1,12 @@
 """Tests for tools/render-cloudcfg"""
 
-import os
 import sys
 
 import pytest
 
 from cloudinit import subp
 from cloudinit import util
+from tests.unittests.helpers import CloudinitDir
 
 # TODO(Look to align with tools.render-cloudcfg or cloudinit.distos.OSFAMILIES)
 DISTRO_VARIANTS = ["amazon", "arch", "centos", "debian", "eurolinux", "fedora",
@@ -17,8 +17,8 @@ DISTRO_VARIANTS = ["amazon", "arch", "centos", "debian", "eurolinux", "fedora",
 @pytest.mark.allow_subp_for(sys.executable)
 class TestRenderCloudCfg:
 
-    cmd = [sys.executable, os.path.realpath('tools/render-cloudcfg')]
-    tmpl_path = os.path.realpath('config/cloud.cfg.tmpl')
+    cmd = [sys.executable, CloudinitDir('tools/render-cloudcfg')]
+    tmpl_path = CloudinitDir('config/cloud.cfg.tmpl')
 
     @pytest.mark.parametrize('variant', (DISTRO_VARIANTS))
     def test_variant_sets_distro_in_cloud_cfg(self, variant, tmpdir):

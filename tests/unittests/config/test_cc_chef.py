@@ -9,13 +9,18 @@ from cloudinit.config import cc_chef
 from cloudinit import util
 
 from tests.unittests.helpers import (
-    HttprettyTestCase, FilesystemMockingTestCase, mock, skipIf)
+    HttprettyTestCase,
+    FilesystemMockingTestCase,
+    mock,
+    skipIf,
+    CloudinitDir,
+)
 
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
-CLIENT_TEMPL = os.path.sep.join(["templates", "chef_client.rb.tmpl"])
+CLIENT_TEMPL = CloudinitDir("templates/chef_client.rb.tmpl")
 
 # This is adjusted to use http because using with https causes issue
 # in some openssl/httpretty combinations.
@@ -138,7 +143,7 @@ class TestChef(FilesystemMockingTestCase):
         Chef::Log::Formatter.show_time = true
         encrypted_data_bag_secret  "/etc/chef/encrypted_data_bag_secret"
         """
-        tpl_file = util.load_file('templates/chef_client.rb.tmpl')
+        tpl_file = util.load_file(CLIENT_TEMPL)
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
 
@@ -200,7 +205,7 @@ class TestChef(FilesystemMockingTestCase):
     @skipIf(not os.path.isfile(CLIENT_TEMPL),
             CLIENT_TEMPL + " is not available")
     def test_template_deletes(self):
-        tpl_file = util.load_file('templates/chef_client.rb.tmpl')
+        tpl_file = util.load_file(CLIENT_TEMPL)
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
 
@@ -222,7 +227,7 @@ class TestChef(FilesystemMockingTestCase):
             CLIENT_TEMPL + " is not available")
     def test_validation_cert_and_validation_key(self):
         # test validation_cert content is written to validation_key path
-        tpl_file = util.load_file('templates/chef_client.rb.tmpl')
+        tpl_file = util.load_file(CLIENT_TEMPL)
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
 
@@ -245,7 +250,7 @@ class TestChef(FilesystemMockingTestCase):
 
     def test_validation_cert_with_system(self):
         # test validation_cert content is not written over system file
-        tpl_file = util.load_file('templates/chef_client.rb.tmpl')
+        tpl_file = util.load_file(CLIENT_TEMPL)
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
 

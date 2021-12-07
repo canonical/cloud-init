@@ -10,7 +10,7 @@ import stat
 from unittest import mock
 
 from cloudinit import subp, util
-from tests.unittests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase, get_top_level_dir
 
 
 BASH = subp.which('bash')
@@ -232,13 +232,17 @@ class TestSubp(CiTestCase):
         the default encoding will be set to ascii.  In such an environment
         Popen(['command', 'non-ascii-arg']) would cause a UnicodeDecodeError.
         """
-        python_prog = '\n'.join([
-            'import json, sys',
-            'from cloudinit.subp import subp',
-            'data = sys.stdin.read()',
-            'cmd = json.loads(data)',
-            'subp(cmd, capture=False)',
-            ''])
+        python_prog = '\n'.join(
+            [
+                'import json, sys',
+                'sys.path.append("{}")'.format(get_top_level_dir()),
+                'from cloudinit.subp import subp',
+                'data = sys.stdin.read()',
+                'cmd = json.loads(data)',
+                'subp(cmd, capture=False)',
+                '',
+            ]
+        )
         cmd = [BASH, '-c', 'echo -n "$@"', '--',
                self.utf8_valid.decode("utf-8")]
         python_subp = [sys.executable, '-c', python_prog]

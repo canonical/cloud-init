@@ -16,13 +16,19 @@ from cloudinit.sources.DataSourceOVF import get_network_config_from_conf
 from cloudinit.sources.DataSourceOVF import read_vmware_imc
 from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
 from cloudinit.sources.helpers.vmware.imc.config import Config
-from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
+from cloudinit.sources.helpers.vmware.imc.config_file import (
+    ConfigFile as WrappedConfigFile,
+)
 from cloudinit.sources.helpers.vmware.imc.config_nic import gen_subnet
 from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
-from tests.unittests.helpers import CiTestCase
+from tests.unittests.helpers import CiTestCase, CloudinitDir
 
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 logger = logging.getLogger(__name__)
+
+
+def ConfigFile(path: str):
+    return WrappedConfigFile(CloudinitDir(path))
 
 
 class TestVmwareConfigFile(CiTestCase):
