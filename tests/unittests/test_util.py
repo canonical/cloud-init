@@ -976,7 +976,7 @@ class TestReadCcFromCmdline:
         "cmdline,expected_cfg",
         [
             # Return None if cmdline has no cc:<YAML>end_cc content.
-            ('cmdline has no cc content', None),
+            pytest.param(CiTestCase.random_string(), None, id="random_string"),
             # Return None if YAML content is empty string.
             ('foo cc: end_cc bar', None),
             # Return expected dictionary without trailing end_cc marker.
