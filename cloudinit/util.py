@@ -540,8 +540,8 @@ def _get_variant(info):
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
                 'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
-                'debian', 'eurolinux', 'fedora', 'openeuler', 'photon',
-                'rhel', 'rocky', 'suse', 'virtuozzo'):
+                'debian', 'eurolinux', 'fedora', 'miraclelinux', 'openeuler',
+                'photon', 'rhel', 'rocky', 'suse', 'virtuozzo'):
             variant = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             variant = 'ubuntu'

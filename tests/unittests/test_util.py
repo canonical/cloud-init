@@ -185,6 +185,25 @@ OS_RELEASE_EUROLINUX_8 = dedent(
 """
 )
 
+OS_RELEASE_MIRACLELINUX_8 = dedent(
+    """\
+    NAME="MIRACLE LINUX"
+    VERSION="8.4 (Peony)"
+    ID="miraclelinux"
+    ID_LIKE="rhel fedora"
+    PLATFORM_ID="platform:el8"
+    VERSION_ID="8"
+    PRETTY_NAME="MIRACLE LINUX 8.4 (Peony)"
+    ANSI_COLOR="0;31"
+    CPE_NAME="cpe:/o:cybertrust_japan:miracle_linux:8"
+    HOME_URL="https://www.cybertrust.co.jp/miracle-linux/"
+    DOCUMENTATION_URL="https://www.miraclelinux.com/support/miraclelinux8"
+    BUG_REPORT_URL="https://bugzilla.asianux.com/"
+    MIRACLELINUX_SUPPORT_PRODUCT="MIRACLE LINUX"
+    MIRACLELINUX_SUPPORT_PRODUCT_VERSION="8"
+"""
+)
+
 OS_RELEASE_ROCKY_8 = dedent(
     """\
     NAME="Rocky Linux"
@@ -255,6 +274,7 @@ REDHAT_RELEASE_REDHAT_7 = "Red Hat Enterprise Linux Server release 7.5 (Maipo)"
 REDHAT_RELEASE_ALMALINUX_8 = "AlmaLinux release 8.3 (Purple Manul)"
 REDHAT_RELEASE_EUROLINUX_7 = "EuroLinux release 7.9 (Minsk)"
 REDHAT_RELEASE_EUROLINUX_8 = "EuroLinux release 8.4 (Vaduz)"
+REDHAT_RELEASE_MIRACLELINUX_8 = "MIRACLE LINUX release 8.4 (Peony)"
 REDHAT_RELEASE_ROCKY_8 = "Rocky Linux release 8.3 (Green Obsidian)"
 REDHAT_RELEASE_VIRTUOZZO_8 = "Virtuozzo Linux release 8"
 REDHAT_RELEASE_CLOUDLINUX_8 = "CloudLinux release 8.4 (Valery Rozhdestvensky)"
@@ -753,6 +773,24 @@ class TestGetLinuxDistro(CiTestCase):
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
         self.assertEqual(('eurolinux', '8.4', 'Vaduz'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_miraclelinux8_rhrelease(self, m_os_release,
+                                               m_path_exists):
+        """Verify miraclelinux 8 read from redhat-release."""
+        m_os_release.return_value = REDHAT_RELEASE_MIRACLELINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.redhat_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('miracle', '8.4', 'Peony'), dist)
+
+    @mock.patch('cloudinit.util.load_file')
+    def test_get_linux_miraclelinux8_osrelease(self, m_os_release,
+                                               m_path_exists):
+        """Verify miraclelinux 8 read from os-release."""
+        m_os_release.return_value = OS_RELEASE_MIRACLELINUX_8
+        m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
+        dist = util.get_linux_distro()
+        self.assertEqual(('miraclelinux', '8', 'Peony'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_rocky8_rhrelease(self, m_os_release, m_path_exists):
