@@ -3,10 +3,8 @@
 """Tests of the built-in user data handlers."""
 
 import os
-from os.path import abspath
 from pathlib import Path
 
-import pytest
 from tests.unittests import helpers as test_helpers
 
 from cloudinit import sources
