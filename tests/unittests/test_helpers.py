@@ -6,6 +6,7 @@ import os
 from os.path import abspath
 from pathlib import Path
 
+import pytest
 from tests.unittests import helpers as test_helpers
 
 from cloudinit import sources
@@ -46,7 +47,9 @@ class TestCloudinitDir:
 
     @staticmethod
     def _get_top_level_dir_alt_implementation():
-        """Recursively walk until .git/ is found, return parent dir"""
+        """Recursively walk until .git/ is found, return parent dir
+
+        """
 
         def get_git_dir(path):
             if os.path.isdir(str(Path(path, ".git"))):
@@ -59,7 +62,10 @@ class TestCloudinitDir:
 
         return get_git_dir(Path("."))
 
+    @pytest.mark.unittest_only
     def test_top_level_dir(self):
+        """.git/ is pruned during package build, don't run in integration test
+        """
         assert cmp_abspath(
             test_helpers.get_top_level_dir(),
             self._get_top_level_dir_alt_implementation(),
