@@ -38,37 +38,26 @@ class TestPaths(test_helpers.ResourceUsingTestCase):
         self.assertIsNone(mypaths.get_ipath())
 
 
-def cmp_abspath(*args):
-    """Ensure arguments have the same abspath"""
-    return 1 == len(set(map(abspath, map(str, args))))
-
-
 class TestCloudinitDir:
+    top_dir = test_helpers.get_top_level_dir()
 
     @staticmethod
     def _get_top_level_dir_alt_implementation():
-        """Recursively walk until .git/ is found, return parent dir
+        out = Path(__file__).parent.parent.parent.resolve()
+        return out
 
-        """
-
-        def get_git_dir(path):
-            if os.path.isdir(str(Path(path, ".git"))):
-                return Path(path, ".git").parent
-            # found root dir, not going to find a .git/
-            elif cmp_abspath('/', path):
-                return False
-
-            return get_git_dir(path / "..")
-
-        return get_git_dir(Path("."))
-
-    @pytest.mark.unittest_only
     def test_top_level_dir(self):
-        """.git/ is pruned during package build, don't run in integration test
+        """Assert the location of the top project directory is correct
         """
-        assert cmp_abspath(
-            test_helpers.get_top_level_dir(),
+        assert 1 == len(set((
+            self.top_dir,
             self._get_top_level_dir_alt_implementation(),
-        )
+        )))
+
+    def test_CloudinitDir(self):
+        assert (str(Path(self.top_dir, "test")) ==
+                test_helpers.CloudinitDir("test") ==
+                str(Path(self._get_top_level_dir_alt_implementation(), "test"))
+                )
 
 # vi: ts=4 expandtab
