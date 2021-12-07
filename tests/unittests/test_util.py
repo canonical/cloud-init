@@ -976,7 +976,7 @@ class TestReadCcFromCmdline:
         random_string = pytest.param(
             CiTestCase.random_string(), None, id="random_string")
     else:
-        random_string = (CiTestCase.random_string(), None),
+        random_string = (CiTestCase.random_string(), None)
 
     @pytest.mark.parametrize(
         "cmdline,expected_cfg",
