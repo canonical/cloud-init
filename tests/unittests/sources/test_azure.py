@@ -2981,7 +2981,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
         m_is_up.side_effect = is_up_mock
 
-        dsa.wait_for_link_up("eth0")
+        with mock.patch('cloudinit.sources.DataSourceAzure.sleep'):
+            dsa.wait_for_link_up("eth0")
         self.assertEqual(2, m_try_set_link_up.call_count)
         self.assertEqual(2, m_is_up.call_count)
 
