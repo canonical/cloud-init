@@ -235,7 +235,7 @@ class TestSubp(CiTestCase):
         python_prog = '\n'.join(
             [
                 'import json, sys',
-                'sys.path.append("{}")'.format(get_top_level_dir()),
+                'sys.path.insert(0, "{}")'.format(get_top_level_dir()),
                 'from cloudinit.subp import subp',
                 'data = sys.stdin.read()',
                 'cmd = json.loads(data)',
