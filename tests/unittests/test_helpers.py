@@ -52,14 +52,8 @@ class Testcloud_init_project_dir:
 
     def test_top_level_dir(self):
         """Assert the location of the top project directory is correct"""
-        assert 1 == len(
-            set(
-                (
-                    self.top_dir,
-                    self._get_top_level_dir_alt_implementation(),
-                )
-            )
-        )
+        assert (self.top_dir ==
+                self._get_top_level_dir_alt_implementation())
 
     def test_cloud_init_project_dir(self):
         """Assert cloud_init_project_dir produces an expected location
