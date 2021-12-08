@@ -30,7 +30,7 @@ from tests.unittests.helpers import (
     CiTestCase,
     mock,
     skipUnlessJsonSchema,
-    CloudinitDir,
+    cloud_init_project_dir,
 )
 
 
@@ -54,7 +54,9 @@ def get_module_variable(var_name) -> dict:
     """Inspect modules and get variable from module matching var_name"""
     schemas = {}
 
-    files = list(Path(CloudinitDir("../../cloudinit/config/")).glob("cc_*.py"))
+    files = list(
+        Path(cloud_init_project_dir("../../cloudinit/config/")).glob("cc_*.py")
+    )
 
     modules = [mod.stem for mod in files]
 
@@ -621,7 +623,7 @@ class TestMain:
 
 
 def _get_meta_doc_examples():
-    examples_dir = Path(CloudinitDir('doc/examples'))
+    examples_dir = Path(cloud_init_project_dir('doc/examples'))
     assert examples_dir.is_dir()
 
     all_text_files = (f for f in examples_dir.glob('cloud-config*.txt')

@@ -13,7 +13,7 @@ from tests.unittests.helpers import (
     dir2dict,
     populate_dir,
     populate_dir_with_ts,
-    CloudinitDir,
+    cloud_init_project_dir,
 )
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
@@ -96,7 +96,7 @@ CallReturn = namedtuple('CallReturn',
 
 
 class DsIdentifyBase(CiTestCase):
-    dsid_path = CloudinitDir('tools/ds-identify')
+    dsid_path = cloud_init_project_dir('tools/ds-identify')
     allowed_subp = ['sh']
 
     def call(self, rootd=None, mocks=None, func="main", args=None, files=None,

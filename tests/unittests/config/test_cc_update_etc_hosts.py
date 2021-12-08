@@ -56,7 +56,7 @@ class TestHostsFile(t_help.FilesystemMockingTestCase):
             'hostname': 'cloud-init.test.us'
         }
         shutil.copytree(
-            t_help.CloudinitDir('templates'),
+            t_help.cloud_init_project_dir('templates'),
             '%s/etc/cloud/templates' % self.tmp,
         )
         distro = self._fetch_distro('sles')

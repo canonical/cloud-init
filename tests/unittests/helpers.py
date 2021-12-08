@@ -464,7 +464,7 @@ def wrap_and_call(prefix, mocks, func, *args, **kwargs):
 
 
 def resourceLocation(subname=None):
-    path = CloudinitDir('tests/data')
+    path = cloud_init_project_dir('tests/data')
     if not subname:
         return path
     return os.path.join(path, subname)
@@ -515,12 +515,12 @@ def get_top_level_dir() -> Path:
     return Path(cloudinit.__file__).parent.parent.resolve()
 
 
-def CloudinitDir(sub_path: str) -> str:
+def cloud_init_project_dir(sub_path: str) -> str:
     """Get a path within the cloudinit project directory
 
     @return str of the combined path
 
-    Example: CloudinitDir("my/path") -> "/path/to/cloud-init/my/path"
+    Example: cloud_init_project_dir("my/path") -> "/path/to/cloud-init/my/path"
     """
     return str(get_top_level_dir() / sub_path)
 

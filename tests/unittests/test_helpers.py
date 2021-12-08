@@ -36,7 +36,7 @@ class TestPaths(test_helpers.ResourceUsingTestCase):
         self.assertIsNone(mypaths.get_ipath())
 
 
-class TestCloudinitDir:
+class Testcloud_init_project_dir:
     top_dir = test_helpers.get_top_level_dir()
 
     @staticmethod
@@ -61,14 +61,14 @@ class TestCloudinitDir:
             )
         )
 
-    def test_CloudinitDir(self):
-        """Assert CloudinitDir produces an expected location
+    def test_cloud_init_project_dir(self):
+        """Assert cloud_init_project_dir produces an expected location
 
         Compare the returned value to an alternate (naive) implementation
         """
         assert (
             str(Path(self.top_dir, "test"))
-            == test_helpers.CloudinitDir("test")
+            == test_helpers.cloud_init_project_dir("test")
             == str(Path(self._get_top_level_dir_alt_implementation(), "test"))
         )
 

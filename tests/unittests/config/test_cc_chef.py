@@ -13,14 +13,14 @@ from tests.unittests.helpers import (
     FilesystemMockingTestCase,
     mock,
     skipIf,
-    CloudinitDir,
+    cloud_init_project_dir,
 )
 
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
-CLIENT_TEMPL = CloudinitDir("templates/chef_client.rb.tmpl")
+CLIENT_TEMPL = cloud_init_project_dir("templates/chef_client.rb.tmpl")
 
 # This is adjusted to use http because using with https causes issue
 # in some openssl/httpretty combinations.

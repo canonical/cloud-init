@@ -21,14 +21,14 @@ from cloudinit.sources.helpers.vmware.imc.config_file import (
 )
 from cloudinit.sources.helpers.vmware.imc.config_nic import gen_subnet
 from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
-from tests.unittests.helpers import CiTestCase, CloudinitDir
+from tests.unittests.helpers import CiTestCase, cloud_init_project_dir
 
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 
 def ConfigFile(path: str):
-    return WrappedConfigFile(CloudinitDir(path))
+    return WrappedConfigFile(cloud_init_project_dir(path))
 
 
 class TestVmwareConfigFile(CiTestCase):
