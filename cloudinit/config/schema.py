@@ -17,6 +17,7 @@ import sys
 import yaml
 
 error = partial(error, sys_exit=True)
+LOG = logging.getLogger(__name__)
 
 _YAML_MAP = {True: 'true', False: 'false', None: 'null'}
 CLOUD_CONFIG_HEADER = b'#cloud-config'
@@ -91,7 +92,14 @@ def get_jsonschema_validator():
     # This allows #cloud-config to provide valid yaml "content: !!binary | ..."
 
     strict_metaschema = deepcopy(Draft4Validator.META_SCHEMA)
-    strict_metaschema['additionalProperties'] = False
+    strict_metaschema["additionalProperties"] = False
+
+    # This additional label allows us to specify a different name
+    # than the property key. This is especially useful when using a
+    # "patternProperties" regex.
+    # http://json-schema.org/understanding-json-schema/reference/object.html#pattern-properties
+    strict_metaschema["properties"]["label"] = {"type": "string"}
+
     if hasattr(Draft4Validator, 'TYPE_CHECKER'):  # jsonschema 3.0+
         type_checker = Draft4Validator.TYPE_CHECKER.redefine(
             'string', is_schema_byte_string)
@@ -140,7 +148,7 @@ def validate_cloudconfig_metaschema(validator, schema: dict, throw=True):
                     ('.'.join([str(p) for p in err.path]), err.message),
                 )
             ) from err
-        logging.warning(
+        LOG.warning(
             "Meta-schema validation failed, attempting to validate config "
             "anyway: %s", err)
 
@@ -168,7 +176,7 @@ def validate_cloudconfig_schema(
             validate_cloudconfig_metaschema(
                 cloudinitValidator, schema, throw=False)
     except ImportError:
-        logging.debug("Ignoring schema validation. jsonschema is not present")
+        LOG.debug("Ignoring schema validation. jsonschema is not present")
         return
 
     validator = cloudinitValidator(schema, format_checker=FormatChecker())
@@ -180,8 +188,8 @@ def validate_cloudconfig_schema(
         if strict:
             raise SchemaValidationError(errors)
         else:
-            messages = ['{0}: {1}'.format(k, msg) for k, msg in errors]
-            logging.warning('Invalid config:\n%s', '\n'.join(messages))
+            messages = ["{0}: {1}".format(k, msg) for k, msg in errors]
+            LOG.warning("Invalid config:\n%s", "\n".join(messages))
 
 
 def annotated_cloudconfig_file(cloudconfig, original_content, schema_errors):
@@ -410,34 +418,53 @@ def _get_property_doc(schema: dict, prefix="    ") -> str:
     """Return restructured text describing the supported schema properties."""
     new_prefix = prefix + '    '
     properties = []
-    for prop_key, prop_config in schema.get('properties', {}).items():
-        # Define prop_name and description for SCHEMA_PROPERTY_TMPL
-        description = prop_config.get('description', '')
+    property_keys = [
+        schema.get("properties", {}),
+        schema.get("patternProperties", {}),
+    ]
 
-        # Define prop_name and description for SCHEMA_PROPERTY_TMPL
-        properties.append(
-            SCHEMA_PROPERTY_TMPL.format(
-                prefix=prefix,
-                prop_name=prop_key,
-                description=_parse_description(description, prefix),
-                prop_type=_get_property_type(prop_config),
-            )
-        )
-        items = prop_config.get("items")
-        if items:
-            if isinstance(items, list):
-                for item in items:
-                    properties.append(
-                        _get_property_doc(item, prefix=new_prefix))
-            elif isinstance(items, dict) and items.get('properties'):
-                properties.append(SCHEMA_LIST_ITEM_TMPL.format(
-                    prefix=new_prefix, prop_name=prop_key))
-                new_prefix += '    '
-                properties.append(_get_property_doc(items, prefix=new_prefix))
-        if 'properties' in prop_config:
+    for props in property_keys:
+        for prop_key, prop_config in props.items():
+            # Define prop_name and description for SCHEMA_PROPERTY_TMPL
+            description = prop_config.get("description", "")
+
+            # Define prop_name and description for SCHEMA_PROPERTY_TMPL
+            label = prop_config.get("label", prop_key)
             properties.append(
-                _get_property_doc(prop_config, prefix=new_prefix))
-    return '\n\n'.join(properties)
+                SCHEMA_PROPERTY_TMPL.format(
+                    prefix=prefix,
+                    prop_name=label,
+                    description=_parse_description(description, prefix),
+                    prop_type=_get_property_type(prop_config),
+                )
+            )
+            items = prop_config.get("items")
+            if items:
+                if isinstance(items, list):
+                    for item in items:
+                        properties.append(
+                            _get_property_doc(item, prefix=new_prefix)
+                        )
+                elif isinstance(items, dict) and (
+                    items.get("properties") or items.get("patternProperties")
+                ):
+                    properties.append(
+                        SCHEMA_LIST_ITEM_TMPL.format(
+                            prefix=new_prefix, prop_name=prop_key
+                        )
+                    )
+                    new_prefix += "    "
+                    properties.append(
+                        _get_property_doc(items, prefix=new_prefix)
+                    )
+            if (
+                "properties" in prop_config
+                or "patternProperties" in prop_config
+            ):
+                properties.append(
+                    _get_property_doc(prop_config, prefix=new_prefix)
+                )
+    return "\n\n".join(properties)
 
 
 def _get_examples(meta: MetaSchema) -> str:
@@ -494,7 +521,11 @@ def get_meta_doc(meta: MetaSchema, schema: dict) -> str:
 
     # cast away type annotation
     meta_copy = dict(deepcopy(meta))
-    meta_copy["property_doc"] = _get_property_doc(schema)
+    try:
+        meta_copy["property_doc"] = _get_property_doc(schema)
+    except AttributeError:
+        LOG.warning("Unable to render property_doc due to invalid schema")
+        meta_copy["property_doc"] = ""
     meta_copy["examples"] = _get_examples(meta)
     meta_copy["distros"] = ", ".join(meta["distros"])
     # Need an underbar of the same length as the name

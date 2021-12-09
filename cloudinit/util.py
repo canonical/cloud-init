@@ -1217,8 +1217,9 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
             continue
         if entry == 'fd0:':
             continue
-        part_id = 'a' if entry.startswith('cd') else 'i'
-        devlist.append(entry[:-1] + part_id)
+        devlist.append(entry[:-1] + 'a')
+        if not entry.startswith('cd'):
+            devlist.append(entry[:-1] + 'i')
     if criteria == "TYPE=iso9660":
         devlist = [i for i in devlist if i.startswith('cd')]
     elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
@@ -1752,8 +1753,10 @@ def mount_cb(device, callback, data=None, mtype=None,
                     mountpoint = tmpd
                     break
                 except (IOError, OSError) as exc:
-                    LOG.debug("Failed mount of '%s' as '%s': %s",
-                              device, mtype, exc)
+                    LOG.debug("Failed to mount device: '%s' with type: '%s' "
+                              "using mount command: '%s', "
+                              "which caused exception: %s",
+                              device, mtype, ' '.join(mountcmd), exc)
                     failure_reason = exc
             if not mountpoint:
                 raise MountFailedError("Failed mounting %s to %s due to: %s" %
