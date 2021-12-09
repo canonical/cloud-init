@@ -1,10 +1,13 @@
 #!/usr/bin/make -f
-INIT_SYSTEM ?= upstart,systemd
+
+include /usr/share/dpkg/pkg-info.mk
+
+INIT_SYSTEM ?= systemd
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 DEB_VERSION := $(shell dpkg-parsechangelog --show-field=Version)
 
 %:
-	dh $@ --with python3,systemd --buildsystem pybuild
+	dh $@ --with python3 --buildsystem pybuild
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
@@ -13,8 +16,8 @@ else
 	@echo check disabled by DEB_BUILD_OPTIONS=$(DEB_BUILD_OPTIONS)
 endif
 
-override_dh_systemd_start:
-	dh_systemd_start --no-restart-on-upgrade --no-start
+override_dh_installsystemd:
+	dh_installsystemd --no-restart-on-upgrade --no-start
 
 override_dh_auto_install:
 	dh_auto_install --destdir=debian/cloud-init
