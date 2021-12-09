@@ -696,9 +696,6 @@ scbus-1 on xpt0 bus 0
         self.apply_patches([
             (dsaz, 'list_possible_azure_ds',
                 self.m_list_possible_azure_ds),
-            (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
-            (dsaz, 'get_hostname', mock.MagicMock()),
-            (dsaz, 'set_hostname', mock.MagicMock()),
             (dsaz, '_is_platform_viable',
                 self.m_is_platform_viable),
             (dsaz, 'get_metadata_from_fabric',
@@ -1794,21 +1791,6 @@ scbus-1 on xpt0 bus 0
         m_net_get_interfaces.assert_called_with(
             blacklist_drivers=dsaz.BLACKLIST_DRIVERS)
 
-    @mock.patch(MOCKPATH + 'subp.subp', autospec=True)
-    def test_get_hostname_with_no_args(self, m_subp):
-        dsaz.get_hostname()
-        m_subp.assert_called_once_with(("hostname",), capture=True)
-
-    @mock.patch(MOCKPATH + 'subp.subp', autospec=True)
-    def test_get_hostname_with_string_arg(self, m_subp):
-        dsaz.get_hostname(hostname_command="hostname")
-        m_subp.assert_called_once_with(("hostname",), capture=True)
-
-    @mock.patch(MOCKPATH + 'subp.subp', autospec=True)
-    def test_get_hostname_with_iterable_arg(self, m_subp):
-        dsaz.get_hostname(hostname_command=("hostname",))
-        m_subp.assert_called_once_with(("hostname",), capture=True)
-
     @mock.patch(
         'cloudinit.sources.helpers.azure.OpenSSLManager.parse_certificates')
     def test_get_public_ssh_keys_with_imds(self, m_parse_certificates):
@@ -2021,251 +2003,6 @@ scbus-1 on xpt0 bus 0
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, userdataOVF.encode('utf-8'))
-
-
-class TestAzureBounce(CiTestCase):
-
-    with_logs = True
-
-    def mock_out_azure_moving_parts(self):
-
-        def _load_possible_azure_ds(seed_dir, cache_dir):
-            yield seed_dir
-            yield dsaz.DEFAULT_PROVISIONING_ISO_DEV
-            if cache_dir:
-                yield cache_dir
-
-        self.patches.enter_context(
-            mock.patch.object(dsaz.util, 'wait_for_files'))
-        self.patches.enter_context(
-            mock.patch.object(
-                dsaz, 'list_possible_azure_ds',
-                mock.MagicMock(side_effect=_load_possible_azure_ds)))
-        self.patches.enter_context(
-            mock.patch.object(dsaz, 'get_metadata_from_fabric',
-                              mock.MagicMock(return_value={})))
-        self.patches.enter_context(
-            mock.patch.object(dsaz, 'get_metadata_from_imds',
-                              mock.MagicMock(return_value={})))
-        self.patches.enter_context(
-            mock.patch.object(dsaz.subp, 'which', lambda x: True))
-        self.patches.enter_context(mock.patch.object(
-            dsaz, '_get_random_seed', return_value='wild'))
-
-        def _dmi_mocks(key):
-            if key == 'system-uuid':
-                return 'D0DF4C54-4ECB-4A4B-9954-5BDF3ED5C3B8'
-            elif key == 'chassis-asset-tag':
-                return '7783-7084-3265-9085-8269-3286-77'
-            raise RuntimeError('should not get here')
-
-        self.patches.enter_context(
-            mock.patch.object(dsaz.dmi, 'read_dmi_data',
-                              mock.MagicMock(side_effect=_dmi_mocks)))
-
-    def setUp(self):
-        super(TestAzureBounce, self).setUp()
-        self.tmp = self.tmp_dir()
-        self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
-        self.paths = helpers.Paths(
-            {'cloud_dir': self.tmp, 'run_dir': self.tmp})
-        dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
-        self.patches = ExitStack()
-        self.mock_out_azure_moving_parts()
-        self.get_hostname = self.patches.enter_context(
-            mock.patch.object(dsaz, 'get_hostname'))
-        self.set_hostname = self.patches.enter_context(
-            mock.patch.object(dsaz, 'set_hostname'))
-        self.subp = self.patches.enter_context(
-            mock.patch(MOCKPATH + 'subp.subp'))
-        self.find_fallback_nic = self.patches.enter_context(
-            mock.patch('cloudinit.net.find_fallback_nic', return_value='eth9'))
-
-    def tearDown(self):
-        self.patches.close()
-        super(TestAzureBounce, self).tearDown()
-
-    def _get_ds(self, ovfcontent=None):
-        if ovfcontent is not None:
-            populate_dir(os.path.join(self.paths.seed_dir, "azure"),
-                         {'ovf-env.xml': ovfcontent})
-        dsrc = dsaz.DataSourceAzure({}, distro=mock.Mock(), paths=self.paths)
-        return dsrc
-
-    def _get_and_setup(self, dsrc):
-        ret = dsrc.get_data()
-        if ret:
-            dsrc.setup(True)
-        return ret
-
-    def get_ovf_env_with_dscfg(self, hostname, cfg):
-        odata = {
-            'HostName': hostname,
-            'dscfg': {
-                'text': b64e(yaml.dump(cfg)),
-                'encoding': 'base64'
-            }
-        }
-        return construct_valid_ovf_env(data=odata)
-
-    def test_disabled_bounce_does_not_change_hostname(self):
-        cfg = {'hostname_bounce': {'policy': 'off'}}
-        ds = self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg))
-        ds.get_data()
-        self.assertEqual(0, self.set_hostname.call_count)
-
-    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
-    def test_disabled_bounce_does_not_perform_bounce(
-            self, perform_hostname_bounce):
-        cfg = {'hostname_bounce': {'policy': 'off'}}
-        ds = self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg))
-        ds.get_data()
-        self.assertEqual(0, perform_hostname_bounce.call_count)
-
-    def test_same_hostname_does_not_change_hostname(self):
-        host_name = 'unchanged-host-name'
-        self.get_hostname.return_value = host_name
-        cfg = {'hostname_bounce': {'policy': 'yes'}}
-        ds = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
-        ds.get_data()
-        self.assertEqual(0, self.set_hostname.call_count)
-
-    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
-    def test_unchanged_hostname_does_not_perform_bounce(
-            self, perform_hostname_bounce):
-        host_name = 'unchanged-host-name'
-        self.get_hostname.return_value = host_name
-        cfg = {'hostname_bounce': {'policy': 'yes'}}
-        ds = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
-        ds.get_data()
-        self.assertEqual(0, perform_hostname_bounce.call_count)
-
-    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
-    def test_force_performs_bounce_regardless(self, perform_hostname_bounce):
-        host_name = 'unchanged-host-name'
-        self.get_hostname.return_value = host_name
-        cfg = {'hostname_bounce': {'policy': 'force'}}
-        dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(1, perform_hostname_bounce.call_count)
-
-    def test_bounce_skipped_on_ifupdown_absent(self):
-        host_name = 'unchanged-host-name'
-        self.get_hostname.return_value = host_name
-        cfg = {'hostname_bounce': {'policy': 'force'}}
-        dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg))
-        patch_path = MOCKPATH + 'subp.which'
-        with mock.patch(patch_path) as m_which:
-            m_which.return_value = None
-            ret = self._get_and_setup(dsrc)
-        self.assertEqual([mock.call('ifup')], m_which.call_args_list)
-        self.assertTrue(ret)
-        self.assertIn(
-            "Skipping network bounce: ifupdown utils aren't present.",
-            self.logs.getvalue())
-
-    def test_different_hostnames_sets_hostname(self):
-        expected_hostname = 'azure-expected-host-name'
-        self.get_hostname.return_value = 'default-host-name'
-        dsrc = self._get_ds(
-            self.get_ovf_env_with_dscfg(expected_hostname, {}))
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(expected_hostname,
-                         self.set_hostname.call_args_list[0][0][0])
-
-    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
-    def test_different_hostnames_performs_bounce(
-            self, perform_hostname_bounce):
-        expected_hostname = 'azure-expected-host-name'
-        self.get_hostname.return_value = 'default-host-name'
-        dsrc = self._get_ds(
-            self.get_ovf_env_with_dscfg(expected_hostname, {}))
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(1, perform_hostname_bounce.call_count)
-
-    def test_different_hostnames_sets_hostname_back(self):
-        initial_host_name = 'default-host-name'
-        self.get_hostname.return_value = initial_host_name
-        dsrc = self._get_ds(
-            self.get_ovf_env_with_dscfg('some-host-name', {}))
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(initial_host_name,
-                         self.set_hostname.call_args_list[-1][0][0])
-
-    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
-    def test_failure_in_bounce_still_resets_host_name(
-            self, perform_hostname_bounce):
-        perform_hostname_bounce.side_effect = Exception
-        initial_host_name = 'default-host-name'
-        self.get_hostname.return_value = initial_host_name
-        dsrc = self._get_ds(
-            self.get_ovf_env_with_dscfg('some-host-name', {}))
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(initial_host_name,
-                         self.set_hostname.call_args_list[-1][0][0])
-
-    @mock.patch.object(dsaz, 'get_boot_telemetry')
-    def test_environment_correct_for_bounce_command(
-            self, mock_get_boot_telemetry):
-        interface = 'int0'
-        hostname = 'my-new-host'
-        old_hostname = 'my-old-host'
-        self.get_hostname.return_value = old_hostname
-        cfg = {'hostname_bounce': {'interface': interface, 'policy': 'force'}}
-        data = self.get_ovf_env_with_dscfg(hostname, cfg)
-        dsrc = self._get_ds(data)
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(1, self.subp.call_count)
-        bounce_env = self.subp.call_args[1]['env']
-        self.assertEqual(interface, bounce_env['interface'])
-        self.assertEqual(hostname, bounce_env['hostname'])
-        self.assertEqual(old_hostname, bounce_env['old_hostname'])
-
-    @mock.patch.object(dsaz, 'get_boot_telemetry')
-    def test_default_bounce_command_ifup_used_by_default(
-            self, mock_get_boot_telemetry):
-        cfg = {'hostname_bounce': {'policy': 'force'}}
-        data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
-        dsrc = self._get_ds(data)
-        ret = self._get_and_setup(dsrc)
-        self.assertTrue(ret)
-        self.assertEqual(1, self.subp.call_count)
-        bounce_args = self.subp.call_args[1]['args']
-        self.assertEqual(
-            dsaz.BOUNCE_COMMAND_IFUP, bounce_args)
-
-    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
-    def test_set_hostname_option_can_disable_bounce(
-            self, perform_hostname_bounce):
-        cfg = {'set_hostname': False, 'hostname_bounce': {'policy': 'force'}}
-        data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
-        self._get_ds(data).get_data()
-
-        self.assertEqual(0, perform_hostname_bounce.call_count)
-
-    def test_set_hostname_option_can_disable_hostname_set(self):
-        cfg = {'set_hostname': False, 'hostname_bounce': {'policy': 'force'}}
-        data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
-        self._get_ds(data).get_data()
-
-        self.assertEqual(0, self.set_hostname.call_count)
-
-    @mock.patch(MOCKPATH + 'perform_hostname_bounce')
-    def test_set_hostname_failed_disable_bounce(
-            self, perform_hostname_bounce):
-        cfg = {'set_hostname': True, 'hostname_bounce': {'policy': 'force'}}
-        self.get_hostname.return_value = "old-hostname"
-        self.set_hostname.side_effect = Exception
-        data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
-        self._get_ds(data).get_data()
-
-        self.assertEqual(0, perform_hostname_bounce.call_count)
 
 
 class TestLoadAzureDsDir(CiTestCase):
@@ -2981,7 +2718,8 @@ class TestPreprovisioningHotAttachNics(CiTestCase):
 
         m_is_up.side_effect = is_up_mock
 
-        dsa.wait_for_link_up("eth0")
+        with mock.patch('cloudinit.sources.DataSourceAzure.sleep'):
+            dsa.wait_for_link_up("eth0")
         self.assertEqual(2, m_try_set_link_up.call_count)
         self.assertEqual(2, m_is_up.call_count)
 

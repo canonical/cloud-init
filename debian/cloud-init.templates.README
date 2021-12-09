@@ -1,0 +1,2 @@
+Oracle DS absent from d/cloud-init.templates to retain the original behavior:
+Oracle(Bionic) == OpenStack detected.

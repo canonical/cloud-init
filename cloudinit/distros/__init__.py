@@ -50,7 +50,8 @@ OSFAMILIES = {
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
     'redhat': ['almalinux', 'amazon', 'centos', 'cloudlinux', 'eurolinux',
-               'fedora', 'openEuler', 'photon', 'rhel', 'rocky', 'virtuozzo'],
+               'fedora', 'miraclelinux', 'openEuler', 'photon', 'rhel',
+               'rocky', 'virtuozzo'],
     'suse': ['opensuse', 'sles'],
 }
 

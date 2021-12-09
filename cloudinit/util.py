@@ -540,8 +540,8 @@ def _get_variant(info):
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
                 'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
-                'debian', 'eurolinux', 'fedora', 'openeuler', 'photon',
-                'rhel', 'rocky', 'suse', 'virtuozzo'):
+                'debian', 'eurolinux', 'fedora', 'miraclelinux', 'openeuler',
+                'photon', 'rhel', 'rocky', 'suse', 'virtuozzo'):
             variant = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             variant = 'ubuntu'
@@ -1753,8 +1753,10 @@ def mount_cb(device, callback, data=None, mtype=None,
                     mountpoint = tmpd
                     break
                 except (IOError, OSError) as exc:
-                    LOG.debug("Failed mount of '%s' as '%s': %s",
-                              device, mtype, exc)
+                    LOG.debug("Failed to mount device: '%s' with type: '%s' "
+                              "using mount command: '%s', "
+                              "which caused exception: %s",
+                              device, mtype, ' '.join(mountcmd), exc)
                     failure_reason = exc
             if not mountpoint:
                 raise MountFailedError("Failed mounting %s to %s due to: %s" %

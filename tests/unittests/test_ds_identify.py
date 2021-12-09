@@ -9,8 +9,12 @@ from cloudinit import safeyaml
 from cloudinit import subp
 from cloudinit import util
 from tests.unittests.helpers import (
-    CiTestCase, dir2dict, populate_dir, populate_dir_with_ts)
-
+    CiTestCase,
+    dir2dict,
+    populate_dir,
+    populate_dir_with_ts,
+    cloud_init_project_dir,
+)
 from cloudinit.sources import DataSourceIBMCloud as ds_ibm
 from cloudinit.sources import DataSourceSmartOS as ds_smartos
 from cloudinit.sources import DataSourceOracle as ds_oracle
@@ -92,7 +96,7 @@ CallReturn = namedtuple('CallReturn',
 
 
 class DsIdentifyBase(CiTestCase):
-    dsid_path = os.path.realpath('tools/ds-identify')
+    dsid_path = cloud_init_project_dir('tools/ds-identify')
     allowed_subp = ['sh']
 
     def call(self, rootd=None, mocks=None, func="main", args=None, files=None,
