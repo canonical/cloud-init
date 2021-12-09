@@ -1,0 +1,79 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ucf_3.003\n"
+"Report-Msgid-Bugs-To: Source: grub@packages.debian.org\n"
+"POT-Creation-Date: 2008-01-28 08:38-0800\n"
+"PO-Revision-Date: 2007-10-30 18:42+0200\n"
+"Last-Translator: Esko Arajärvi <edu@iki.fi>\n"
+"Language-Team: Finnish <debian-l10n-finnish@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Language: Finnish\n"
+"X-Poedit-Country: FINLAND\n"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "install the package maintainer's version"
+msgstr "asenna paketin ylläpitäjän versio"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "keep the local version currently installed"
+msgstr "säilytä tällä hetkellä asennettu paikallinen versio"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "show the differences between the versions"
+msgstr "näytä versioiden väliset erot"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "show a side-by-side difference between the versions"
+msgstr "näytä versioiden väliset erot rinnakkain"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "show a 3-way difference between available versions"
+msgstr "näytä versioiden välinen kolmisuuntainen erotus"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "do a 3-way merge between available versions (experimental)"
+msgstr "tee kolmisuuntainen versioiden yhdistys (kokeellinen)"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "start a new shell to examine the situation"
+msgstr "käynnistä uusi kuori tilanteen tutkimiseksi"
+
+#. Type: select
+#. Description
+#: ../grub.templates:1002
+msgid "What would you like to do about ${BASENAME}?"
+msgstr "Miten käsitellään ${BASENAME}?"
+
+#. Type: select
+#. Description
+#: ../grub.templates:1002
+#, fuzzy
+msgid ""
+"A new version of /boot/grub/menu.lst is available, but the version installed "
+"currently has been locally modified."
+msgstr ""
+"Asetustiedostosta /boot/grub/menu.lst on tarjolla uusi versio, mutta "
+"nykyistä versiota on muokattu paikallisesti."

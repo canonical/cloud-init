@@ -1,0 +1,141 @@
+#! /bin/sh
+
+# Set a default boot entry for GRUB
+#   Copyright (C) 2004 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Initialize some variables.
+PACKAGE=grub-legacy-ec2
+VERSION=0.97-29ubuntu60
+
+rootdir=
+entry=
+
+# Usage: usage
+# Print the usage.
+usage () {
+    cat <<EOF
+Usage: grub-set-default [OPTION] entry
+Set the default boot entry for GRUB.
+
+  -h, --help              print this message and exit
+  -v, --version           print the version information and exit
+  --root-directory=DIR    Use the directory DIR instead of the root directory
+
+ENTRY is a number or the special keyword \`default\'.
+
+Report bugs to <bug-grub@gnu.org>.
+EOF
+}
+
+# Check the arguments.
+for option in "$@"; do
+    case "$option" in
+    -h | --help)
+	usage
+	exit 0 ;;
+    -v | --version)
+	echo "grub-set-default (GNU GRUB ${VERSION})"
+	exit 0 ;;
+    --root-directory=*)
+	rootdir=`echo "$option" | sed 's/--root-directory=//'` ;;
+    -*)
+	echo "Unrecognized option \`$option'" 1>&2
+	usage
+	exit 1
+	;;
+    *)
+	if test "x$entry" != x; then
+	    echo "More than one entries?" 1>&2
+	    usage
+	    exit 1
+	fi
+	# We don't care about what the user specified actually.
+	entry="${option}" ;;
+    esac
+done
+
+if test "x$entry" = x; then
+    echo "entry not specified." 1>&2
+    usage
+    exit 1
+fi
+
+find_grub_dir ()
+{
+        echo  -n "Searching for GRUB installation directory ... " >&2
+
+        for d in $grub_dirs ; do
+                if [ -d "$d" ] ; then
+                        grub_dir="$d"
+                        break
+                fi
+        done
+
+        if [ -z "$grub_dir" ] ; then
+                abort "No GRUB directory found.\n###"
+        else
+                echo "found: $grub_dir" >&2
+        fi
+
+        echo $grub_dir
+}
+
+grub_dirs="/boot/grub /boot/boot/grub"
+
+# Determine the GRUB directory. This is different among OSes.
+# if rootdir has been informed use it or find grubdir otherwise
+if [ -n "${rootdir}" ]; then
+  grubdir=${rootdir}/boot/grub
+  if test -d ${grubdir}; then
+    :
+  else
+    grubdir=${rootdir}/grub
+    if test -d ${grubdir}; then
+        :
+    else
+        echo "No GRUB directory found under ${rootdir}/" 1>&2
+        exit 1
+    fi
+  fi
+else
+  grubdir=$(find_grub_dir)
+fi
+
+file=${grubdir}/default
+if test -f ${file}; then
+    chmod 0600 ${file}
+    rm -f ${file}
+fi
+cat <<EOF > $file
+$entry
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# WARNING: If you want to edit this file directly, do not remove any line
+# from this file, including this warning. Using \`grub-set-default\' is
+# strongly recommended.
+EOF
+
+# Bye.
+exit 0
