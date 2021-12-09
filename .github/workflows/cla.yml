@@ -38,3 +38,21 @@ jobs:
            cat unsigned-cla.txt
            exit 1
         fi
+
+        is_sorted() {
+          file="$1"
+          diff -u "$file" <(sort -f "$file") > /dev/null
+        }
+        sorted_check() {
+          file="$1"
+          if ! is_sorted "$file"; then
+            echo "$file is not alpha-sorted; please fix!"
+            exit 1
+          fi
+        }
+        sorted_check ./tools/.github-cla-signers
+
+        # Strip off the brackets before sort-checking, use the same filename
+        # for the error message.
+        grep -v "[{}]" ./tools/.lp-to-git-user > .lp-to-git-user
+        sorted_check .lp-to-git-user

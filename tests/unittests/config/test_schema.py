@@ -12,7 +12,6 @@ from pathlib import Path
 from textwrap import dedent
 from yaml import safe_load
 
-import cloudinit
 from cloudinit.config.schema import (
     CLOUD_CONFIG_HEADER,
     SchemaValidationError,
@@ -27,7 +26,12 @@ from cloudinit.config.schema import (
     MetaSchema,
 )
 from cloudinit.util import write_file
-from tests.unittests.helpers import CiTestCase, mock, skipUnlessJsonSchema
+from tests.unittests.helpers import (
+    CiTestCase,
+    mock,
+    skipUnlessJsonSchema,
+    cloud_init_project_dir,
+)
 
 
 def get_schemas() -> dict:
@@ -50,7 +54,10 @@ def get_module_variable(var_name) -> dict:
     """Inspect modules and get variable from module matching var_name"""
     schemas = {}
 
-    files = list(Path("../../cloudinit/config/").glob("cc_*.py"))
+    files = list(
+        Path(cloud_init_project_dir("../../cloudinit/config/")).glob("cc_*.py")
+    )
+
     modules = [mod.stem for mod in files]
 
     for module in modules:
@@ -208,12 +215,13 @@ class TestCloudConfigExamples:
     @pytest.mark.parametrize("schema_id, example", params)
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_of_example(self, schema_id, example):
-        """ For a given example in a config module we test if it is valid
+        """For a given example in a config module we test if it is valid
         according to the unified schema of all config modules
         """
         config_load = safe_load(example)
         validate_cloudconfig_schema(
-            config_load, self.schema, strict=True)
+            config_load, self.schema[schema_id], strict=True
+        )
 
 
 class ValidateCloudConfigFileTest(CiTestCase):
@@ -616,13 +624,14 @@ class TestMain:
 
 
 def _get_meta_doc_examples():
-    examples_dir = Path(
-        cloudinit.__file__).parent.parent / 'doc' / 'examples'
+    examples_dir = Path(cloud_init_project_dir('doc/examples'))
     assert examples_dir.is_dir()
 
-    all_text_files = (f for f in examples_dir.glob('cloud-config*.txt')
-                      if not f.name.startswith('cloud-config-archive'))
-    return all_text_files
+    return (
+        str(f)
+        for f in examples_dir.glob("cloud-config*.txt")
+        if not f.name.startswith("cloud-config-archive")
+    )
 
 
 class TestSchemaDocExamples:
@@ -631,7 +640,7 @@ class TestSchemaDocExamples:
     @pytest.mark.parametrize("example_path", _get_meta_doc_examples())
     @skipUnlessJsonSchema()
     def test_schema_doc_examples(self, example_path):
-        validate_cloudconfig_file(str(example_path), self.schema)
+        validate_cloudconfig_file(example_path, self.schema)
 
 
 class TestStrictMetaschema:
