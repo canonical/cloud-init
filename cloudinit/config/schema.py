@@ -93,6 +93,11 @@ def get_jsonschema_validator():
 
     strict_metaschema = deepcopy(Draft4Validator.META_SCHEMA)
     strict_metaschema["additionalProperties"] = False
+
+    # This additional label allows us to specify a different name
+    # than the property key. This is especially useful when using a
+    # "patternProperties" regex.
+    # http://json-schema.org/understanding-json-schema/reference/object.html#pattern-properties
     strict_metaschema["properties"]["label"] = {"type": "string"}
 
     if hasattr(Draft4Validator, 'TYPE_CHECKER'):  # jsonschema 3.0+
