@@ -1,6 +1,4 @@
-#!/bin/sh
-
-set -e
+#!/bin/sh -e
 
 . /usr/share/debconf/confmodule
 
@@ -140,7 +138,7 @@ fix_1336855() {
   [ -r /proc/cmdline ] || return 0
 
   # Don't do anything unless we have grub
-  command -v grub-install > /dev/null 2>&1 || return 0
+  [ -x /usr/sbin/grub-install ] || return 0
 
   # First, identify the kernel device for the parent.
   for parm in $(cat /proc/cmdline); do
@@ -180,7 +178,7 @@ fix_1336855() {
 
   # Find out the parent device for the root device.
   #     example output: sda/sda1
-  block_path=$(udevadm info -q path -n $root_dev | awk '-Fblock/' '{print$NF}') || return 0
+  block_path=$(udevadm info -q path -n $root_dev | awk '-Fblock/' '{print$NF}')
 
   # Extract the parent device name. This works where the device is a block device
   #     example output: /dev/sda
@@ -286,7 +284,7 @@ cleanup_ureadahead() {
 }
 
 fix_lp1889555() {
-    local oldver="$1" last_bad_ver="20.3-2-g371b392c-0ubuntu1"
+    local oldver="$1" last_bad_ver="20.2-45-g5f7825e2-0ubuntu1~18.04.1"
     dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
 
     # if cloud-init's grub module did not run, then it did not break anything.
@@ -329,7 +327,7 @@ fix_lp1889555() {
 
 change_cloud_init_output_log_permissions() {
     # As a consequence of LP: #1918303
-    local oldver="$1" last_bad_ver="21.1-0ubuntu1"
+    local oldver="$1" last_bad_ver="20.4.1-0ubuntu1~18.04.1"
     dpkg --compare-versions "$oldver" le-nl "$last_bad_ver" || return 0
 
     output_file="/var/log/cloud-init-output.log"
