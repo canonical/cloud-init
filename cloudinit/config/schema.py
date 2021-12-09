@@ -95,8 +95,10 @@ def get_jsonschema_validator():
     strict_metaschema["additionalProperties"] = False
 
     # This additional label allows us to specify a different name
-    # than the property key. This is especially useful when using a
-    # "patternProperties" regex.
+    # than the property key when generating docs.
+    # This is especially useful when using a "patternProperties" regex,
+    # otherwise the property label in the generated docs will be a
+    # regular expression.
     # http://json-schema.org/understanding-json-schema/reference/object.html#pattern-properties
     strict_metaschema["properties"]["label"] = {"type": "string"}
 

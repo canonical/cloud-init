@@ -55,7 +55,7 @@ def get_module_variable(var_name) -> dict:
     schemas = {}
 
     files = list(
-        Path(cloud_init_project_dir("../../cloudinit/config/")).glob("cc_*.py")
+        Path(cloud_init_project_dir("cloudinit/config/")).glob("cc_*.py")
     )
 
     modules = [mod.stem for mod in files]
@@ -462,6 +462,32 @@ class GetSchemaDocTest(CiTestCase):
             with self.assertRaises(KeyError) as context_mgr:
                 get_meta_doc(invalid_meta, schema)
             self.assertIn(key, str(context_mgr.exception))
+
+    def test_label_overrides_property_name(self):
+        """get_meta_doc overrides property name with label."""
+        schema = {
+            "properties": {
+                "prop1": {
+                    "type": "string",
+                    "label": "label1",
+                },
+                "prop_no_label": {
+                    "type": "string",
+                }
+            },
+            "patternProperties": {
+                "^.*$": {
+                    "type": "string",
+                    "label": "label2",
+                }
+            }
+        }
+        meta_doc = get_meta_doc(self.meta, schema)
+        assert "**label1:** (string)" in meta_doc
+        assert "**label2:** (string" in meta_doc
+        assert "**prop_no_label:** (string)" in meta_doc
+        assert "prop1" not in meta_doc
+        assert ".*" not in meta_doc
 
 
 class AnnotatedCloudconfigFileTest(CiTestCase):
