@@ -12,10 +12,12 @@ import sys
 import tempfile
 import time
 import unittest
+from pathlib import Path
 from contextlib import ExitStack, contextmanager
 from unittest import mock
 from unittest.util import strclass
 
+import cloudinit
 from cloudinit.config.schema import (
     SchemaValidationError, validate_cloudconfig_schema)
 from cloudinit import cloud
@@ -462,7 +464,7 @@ def wrap_and_call(prefix, mocks, func, *args, **kwargs):
 
 
 def resourceLocation(subname=None):
-    path = os.path.join('tests', 'data')
+    path = cloud_init_project_dir('tests/data')
     if not subname:
         return path
     return os.path.join(path, subname)
@@ -503,5 +505,23 @@ if not hasattr(mock.Mock, 'assert_not_called'):
                    (mmock._mock_name or 'mock', mmock.call_count))
             raise AssertionError(msg)
     mock.Mock.assert_not_called = __mock_assert_not_called
+
+
+def get_top_level_dir() -> Path:
+    """Return the absolute path to the top cloudinit project directory
+
+    @return Path('<top-cloudinit-dir>')
+    """
+    return Path(cloudinit.__file__).parent.parent.resolve()
+
+
+def cloud_init_project_dir(sub_path: str) -> str:
+    """Get a path within the cloudinit project directory
+
+    @return str of the combined path
+
+    Example: cloud_init_project_dir("my/path") -> "/path/to/cloud-init/my/path"
+    """
+    return str(get_top_level_dir() / sub_path)
 
 # vi: ts=4 expandtab

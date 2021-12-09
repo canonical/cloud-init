@@ -1,0 +1,18 @@
+#!/bin/sh
+
+version="$1"
+bootopt=""
+
+# passing the kernel version is required
+[ -z "${version}" ] && exit 0
+
+# avoid running multiple times
+if [ -n "$DEB_MAINT_PARAMS" ]; then
+	eval set -- "$DEB_MAINT_PARAMS"
+	if [ -z "$1" ] || [ "$1" != "remove" ]; then
+		exit 0
+	fi
+fi
+
+update=/usr/sbin/update-grub-legacy-ec2
+[ ! -x "${update}" ] || exec "${update}"
