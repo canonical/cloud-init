@@ -1752,12 +1752,10 @@ def mount_cb(device, callback, data=None, mtype=None,
                     mountpoint = tmpd
                     break
                 except (IOError, OSError) as exc:
-                    stderr = "Stderr: mount: unknown filesystem type 'ntfs'"
-                    if stderr in str(exc):
-                        LOG.debug("No support for mounting ntfs.")
-                    else:
-                        LOG.debug("Failed mount of '%s' as '%s': %s",
-                                  device, mtype, exc)
+                    LOG.debug("Failed to mount device: '%s' with type: '%s' "
+                              "using mount command: '%s', "
+                              "which caused exception: %s",
+                              device, mtype, ' '.join(mountcmd), exc)
                     failure_reason = exc
             if not mountpoint:
                 raise MountFailedError("Failed mounting %s to %s due to: %s" %
