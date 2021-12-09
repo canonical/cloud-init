@@ -4,6 +4,7 @@
 
 import datetime
 import json
+from contextlib import suppress as noop
 
 from base64 import b64decode
 
@@ -13,6 +14,7 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
+from cloudinit.net.dhcp import EphemeralDHCPv4
 
 LOG = logging.getLogger(__name__)
 
@@ -58,6 +60,7 @@ class GoogleMetadataFetcher(object):
 class DataSourceGCE(sources.DataSource):
 
     dsname = 'GCE'
+    perform_dhcp_setup = False
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -73,10 +76,19 @@ class DataSourceGCE(sources.DataSource):
 
     def _get_data(self):
         url_params = self.get_url_params()
-        ret = util.log_time(
-            LOG.debug, 'Crawl of GCE metadata service',
-            read_md, kwargs={'address': self.metadata_address,
-                             'url_params': url_params})
+        network_context = noop()
+        if self.perform_dhcp_setup:
+            network_context = EphemeralDHCPv4(self.fallback_interface)
+        with network_context:
+            ret = util.log_time(
+                LOG.debug,
+                "Crawl of GCE metadata service",
+                read_md,
+                kwargs={
+                    "address": self.metadata_address,
+                    "url_params": url_params,
+                },
+            )
 
         if not ret['success']:
             if ret['platform_reports_gce']:
@@ -115,6 +127,10 @@ class DataSourceGCE(sources.DataSource):
     @property
     def region(self):
         return self.availability_zone.rsplit('-', 1)[0]
+
+
+class DataSourceGCELocal(DataSourceGCE):
+    perform_dhcp_setup = True
 
 
 def _write_host_key_to_guest_attributes(key_type, key_value):
@@ -272,6 +288,7 @@ def platform_reports_gce():
 
 # Used to match classes to dependencies.
 datasources = [
+    (DataSourceGCELocal, (sources.DEP_FILESYSTEM,)),
     (DataSourceGCE, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 

@@ -53,7 +53,9 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
     assert "lxd" == v1["platform"]
     assert "LXD socket API v. 1.0 (/dev/lxd/sock)" == v1["subplatform"]
     ds_cfg = json.loads(client.execute('cloud-init query ds').stdout)
-    assert ["config", "meta_data"] == sorted(list(ds_cfg["1.0"].keys()))
+    assert ["_doc", "_metadata_api_version", "config", "meta-data"] == sorted(
+        list(ds_cfg.keys())
+    )
     if (
         client.settings.PLATFORM == "lxd_vm" and
         ImageSpecification.from_os_image().release in ("xenial", "bionic")
@@ -62,15 +64,18 @@ def test_lxd_datasource_discovery(client: IntegrationInstance):
         # to start the lxd-agent.
         # https://github.com/canonical/pycloudlib/blob/main/pycloudlib/\
         #    lxd/defaults.py#L13-L27
-        lxd_config_keys = ["user.meta_data", "user.vendor_data"]
+        # Underscore-delimited aliases exist for any keys containing hyphens or
+        # dots.
+        lxd_config_keys = ["user.meta-data", "user.vendor-data"]
     else:
-        lxd_config_keys = ["user.meta_data"]
-    assert lxd_config_keys == list(ds_cfg["1.0"]["config"].keys())
+        lxd_config_keys = ["user.meta-data"]
+    assert "1.0" == ds_cfg["_metadata_api_version"]
+    assert lxd_config_keys == list(ds_cfg["config"].keys())
     assert {"public-keys": v1["public_ssh_keys"][0]} == (
-        yaml.safe_load(ds_cfg["1.0"]["config"]["user.meta_data"])
+        yaml.safe_load(ds_cfg["config"]["user.meta-data"])
     )
     assert (
-        "#cloud-config\ninstance-id" in ds_cfg["1.0"]["meta_data"]
+        "#cloud-config\ninstance-id" in ds_cfg["meta-data"]
     )
     # Assert NoCloud seed data is still present in cloud image metadata
     # This will start failing if we redact metadata templates from

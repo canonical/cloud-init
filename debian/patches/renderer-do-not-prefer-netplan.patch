@@ -1,0 +1,35 @@
+Description: Do not reprioritize netplan before eni on stable releases.
+ Retain default network renderer behavior which prioritizes
+ rendering /etc/network/interfaces before /etc/netplan.
+Author: Chad Smith <chad.smith@canonical.com>
+Origin: backport
+Forwarded: not-needed
+Last-Update: 2020-06-01
+Index: cloud-init/config/cloud.cfg.tmpl
+===================================================================
+--- cloud-init.orig/config/cloud.cfg.tmpl
++++ cloud-init/config/cloud.cfg.tmpl
+@@ -160,9 +160,7 @@ system_info:
+      groups: [adm, audio, cdrom, dialout, dip, floppy, lxd, netdev, plugdev, sudo, video]
+      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+      shell: /bin/bash
+-{# SRU_BLOCKER: do not ship network renderers on Xenial, Bionic or Eoan #}
+-   network:
+-     renderers: ['netplan', 'eni', 'sysconfig']
++{# SRU_UPSTREAM_COMMIT: 4fb6fd8a. Do not ship network renderers #}
+    # Automatically discover the best ntp_client
+    ntp_client: auto
+    # Other config here will be given to the distro class and/or path classes
+Index: cloud-init/tests/unittests/test_render_cloudcfg.py
+===================================================================
+--- cloud-init.orig/tests/unittests/test_render_cloudcfg.py
++++ cloud-init/tests/unittests/test_render_cloudcfg.py
+@@ -43,7 +43,7 @@ class TestRenderCloudCfg:
+ 
+     @pytest.mark.parametrize('variant,renderers', (
+         ('freebsd', ['freebsd']), ('netbsd', ['netbsd']),
+-        ('openbsd', ['openbsd']), ('ubuntu', ['netplan', 'eni', 'sysconfig']))
++        ('openbsd', ['openbsd']))
+     )
+     def test_variant_sets_network_renderer_priority_in_cloud_cfg(
+         self, variant, renderers, tmpdir

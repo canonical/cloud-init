@@ -347,7 +347,7 @@ def extract_usergroup(ug_pair):
     return (u, g)
 
 
-def find_modules(root_dir):
+def find_modules(root_dir) -> dict:
     entries = dict()
     for fname in glob.glob(os.path.join(root_dir, "*.py")):
         if not os.path.isfile(fname):
@@ -540,8 +540,8 @@ def _get_variant(info):
         linux_dist = info['dist'][0].lower()
         if linux_dist in (
                 'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
-                'debian', 'eurolinux', 'fedora', 'openeuler', 'photon',
-                'rhel', 'rocky', 'suse', 'virtuozzo'):
+                'debian', 'eurolinux', 'fedora', 'miraclelinux', 'openeuler',
+                'photon', 'rhel', 'rocky', 'suse', 'virtuozzo'):
             variant = linux_dist
         elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
             variant = 'ubuntu'
@@ -2750,5 +2750,20 @@ def get_proc_ppid(pid):
         #  ppid %d     (4) The PID of the parent.
         ppid = int(parts[3])
     return ppid
+
+
+def error(msg, rc=1, fmt='Error:\n{}', sys_exit=False):
+    """
+    Print error to stderr and return or exit
+
+    @param msg: message to print
+    @param rc: return code (default: 1)
+    @param fmt: format string for putting message in (default: 'Error:\n {}')
+    @param sys_exit: exit when called (default: false)
+    """
+    print(fmt.format(msg), file=sys.stderr)
+    if sys_exit:
+        sys.exit(rc)
+    return rc
 
 # vi: ts=4 expandtab

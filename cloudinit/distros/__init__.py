@@ -50,7 +50,8 @@ OSFAMILIES = {
     'freebsd': ['freebsd'],
     'gentoo': ['gentoo'],
     'redhat': ['almalinux', 'amazon', 'centos', 'cloudlinux', 'eurolinux',
-               'fedora', 'openEuler', 'photon', 'rhel', 'rocky', 'virtuozzo'],
+               'fedora', 'miraclelinux', 'openEuler', 'photon', 'rhel',
+               'rocky', 'virtuozzo'],
     'suse': ['opensuse', 'sles'],
 }
 
@@ -228,7 +229,12 @@ class Distro(persistence.CloudInitPickleMixin, metaclass=abc.ABCMeta):
         # Now try to bring them up
         if bring_up:
             LOG.debug('Bringing up newly configured network interfaces')
-            network_activator = activators.select_activator()
+            try:
+                network_activator = activators.select_activator()
+            except activators.NoActivatorException:
+                LOG.warning("No network activator found, not bringing up "
+                            "network interfaces")
+                return True
             network_activator.bring_up_all_interfaces(network_state)
         else:
             LOG.debug("Not bringing up newly configured network interfaces")

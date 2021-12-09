@@ -12,7 +12,7 @@ from cloudinit import subp
 from cloudinit import util
 from cloudinit import safeyaml as yaml
 
-from cloudinit.tests.helpers import (
+from tests.unittests.helpers import (
     CiTestCase, FilesystemMockingTestCase, dir2dict, mock, populate_dir)
 
 import base64

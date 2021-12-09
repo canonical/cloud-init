@@ -190,19 +190,16 @@ class DataSourceLXD(sources.DataSource):
         self.metadata = _raw_instance_data_to_dict(
             "meta-data", self._crawled_metadata.get("meta-data")
         )
-        if LXD_SOCKET_API_VERSION in self._crawled_metadata:
-            config = self._crawled_metadata[LXD_SOCKET_API_VERSION].get(
-                "config", {}
+        config = self._crawled_metadata.get("config", {})
+        user_metadata = config.get("user.meta-data", {})
+        if user_metadata:
+            user_metadata = _raw_instance_data_to_dict(
+                "user.meta-data", user_metadata
             )
-            user_metadata = config.get("user.meta-data", {})
-            if user_metadata:
-                user_metadata = _raw_instance_data_to_dict(
-                    "user.meta-data", user_metadata
-                )
-            if not isinstance(self.metadata, dict):
-                self.metadata = util.mergemanydict(
-                    [util.load_yaml(self.metadata), user_metadata]
-                )
+        if not isinstance(self.metadata, dict):
+            self.metadata = util.mergemanydict(
+                [util.load_yaml(self.metadata), user_metadata]
+            )
         if "user-data" in self._crawled_metadata:
             self.userdata_raw = self._crawled_metadata["user-data"]
         if "network-config" in self._crawled_metadata:
@@ -304,7 +301,8 @@ def read_metadata(
         if metadata_only:
             return md  # Skip network-data, vendor-data, user-data
 
-        md[LXD_SOCKET_API_VERSION] = {
+        md = {
+            "_metadata_api_version": api_version,  # Document API version read
             "config": {},
             "meta-data": md["meta-data"]
         }
@@ -345,7 +343,7 @@ def read_metadata(
                 # Leave raw data values/format unchanged to represent it in
                 # instance-data.json for cloud-init query or jinja template
                 # use.
-                md[LXD_SOCKET_API_VERSION]["config"][cfg_key] = response.text
+                md["config"][cfg_key] = response.text
                 # Promote common CONFIG_KEY_ALIASES to top-level keys.
                 if cfg_key in CONFIG_KEY_ALIASES:
                     # Due to sort of config_routes, promote cloud-init.*
