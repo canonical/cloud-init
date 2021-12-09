@@ -121,7 +121,7 @@ matrix:
             # Use sudo to get a new shell where we're in the sbuild group
             # Don't run integration tests when build fails
             - |
-                sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --verbose --dist=xenial cloud-init_*.dsc' &&
+                sudo -E su $USER -c 'sbuild --nolog --no-run-lintian --no-run-autopkgtest --verbose --dist=xenial cloud-init_*.dsc' &&
                   ssh-keygen -P "" -q -f ~/.ssh/id_rsa                                                         &&
                   sg lxd -c 'CLOUD_INIT_CLOUD_INIT_SOURCE="$(ls *.deb)" tox -e integration-tests-ci'
         - python: 3.5
