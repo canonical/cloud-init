@@ -35,6 +35,9 @@ Usage: ${0##*/} [ options ] [images:]image-ref
                              tested.  Inside container, changes are in
                              local-changes.diff.
       -k | --keep            keep container after tests
+           --pyexe V         python version to use.  Default=auto.
+                             Should be name of an executable.
+                             ('python2' or 'python3')
       -p | --package         build a binary package (.deb or .rpm)
       -s | --source-package  build source package (debuild -S or srpm)
       -u | --unittest        run unit tests
@@ -191,7 +194,7 @@ os_info() {
 
 get_os_info() {
     # run inside container, set OS_NAME, OS_VERSION
-    # example OS_NAME are centos, debian, opensuse, rockylinux
+    # example OS_NAME are centos, debian, opensuse
     [ -n "${OS_NAME:-}" -a -n "${OS_VERSION:-}" ] && return 0
     if [ -f /etc/os-release ]; then
         OS_NAME=$(sh -c '. /etc/os-release; echo $ID')
@@ -247,7 +250,7 @@ apt_install() {
 install_packages() {
     get_os_info || return
     case "$OS_NAME" in
-        centos|rocky*) yum_install "$@";;
+        centos) yum_install "$@";;
         opensuse) zypper_install "$@";;
         debian|ubuntu) apt_install "$@";;
         *) error "Do not know how to install packages on ${OS_NAME}";
@@ -259,23 +262,32 @@ prep() {
     # we need some very basic things not present in the container.
     #  - git
     #  - tar (CentOS 6 lxc container does not have it)
-    #  - python3
+    #  - python-argparse (or python3)
     local needed="" pair="" pkg="" cmd="" needed=""
     local pairs="tar:tar git:git"
+    local pyexe="$1"
     get_os_info
-    local py3pkg="python3"
+    local py2pkg="python2" py3pkg="python3"
     case "$OS_NAME" in
         opensuse)
+            py2pkg="python-base"
             py3pkg="python3-base";;
     esac
 
-    pairs="$pairs python3:$py3pkg"
+    case "$pyexe" in
+        python2) pairs="$pairs python2:$py2pkg";;
+        python3) pairs="$pairs python3:$py3pkg";;
+    esac
 
     for pair in $pairs; do
         pkg=${pair#*:}
         cmd=${pair%%:*}
         command -v "$cmd" >/dev/null 2>&1 || needed="${needed} $pkg"
     done
+    if [ "$OS_NAME" = "centos" -a "$pyexe" = "python2" ]; then
+        python -c "import argparse" >/dev/null 2>&1 ||
+            needed="${needed} python-argparse"
+    fi
     needed=${needed# }
     if [ -z "$needed" ]; then
         error "No prep packages needed"
@@ -287,8 +299,16 @@ prep() {
     install_packages "$@"
 }
 
-pytest() {
-    python3 -m pytest "$@"
+nose() {
+    local pyexe="$1" cmd=""
+    shift
+    get_os_info
+    if [ "$OS_NAME/$OS_VERSION" = "centos/6" ]; then
+        cmd="nosetests"
+    else
+        cmd="$pyexe -m nose"
+    fi
+    ${cmd} "$@"
 }
 
 is_done_cloudinit() {
@@ -347,13 +367,12 @@ wait_for_boot() {
     run_self_inside "$name" wait_inside "$name" "$wtime" "$VERBOSITY" ||
         { errorrc "wait inside $name failed."; return; }
 
-    if [ -n "${http_proxy-}" ]; then
+    if [ ! -z "${http_proxy-}" ]; then
         if [ "$OS_NAME" = "centos" ]; then
             debug 1 "configuring proxy ${http_proxy}"
             inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
             inside "$name" sh -c "sed -i --regexp-extended '/^#baseurl=/s/#// ; /^(mirrorlist|metalink)=/s/^/#/' /etc/yum.repos.d/*.repo"
             inside "$name" sh -c "sed -i 's/download\.fedoraproject\.org/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo"
-            inside "$name" sh -c "sed -i 's/download\.example/dl.fedoraproject.org/g' /etc/yum.repos.d/*.repo"
         else
             debug 1 "do not know how to configure proxy on $OS_NAME"
         fi
@@ -391,7 +410,7 @@ run_self_inside_as_cd() {
 
 main() {
     local short_opts="a:hknpsuv"
-    local long_opts="artifacts:,dirty,help,keep,name:,package,source-package,unittest,verbose"
+    local long_opts="artifacts:,dirty,help,keep,name:,pyexe:,package,source-package,unittest,verbose"
     local getopt_out=""
     getopt_out=$(getopt --name "${0##*/}" \
         --options "${short_opts}" --long "${long_opts}" -- "$@") &&
@@ -400,7 +419,7 @@ main() {
 
     local cur="" next=""
     local package=false srcpackage=false unittest="" name=""
-    local dirty=false artifact_d="."
+    local dirty=false pyexe="auto" artifact_d="."
 
     while [ $# -ne 0 ]; do
         cur="${1:-}"; next="${2:-}";
@@ -410,6 +429,7 @@ main() {
             -h|--help) Usage ; exit 0;;
             -k|--keep) KEEP=true;;
             -n|--name) name="$next"; shift;;
+               --pyexe) pyexe=$next; shift;;
             -p|--package) package=true;;
             -s|--source-package) srcpackage=true;;
             -u|--unittest) unittest=1;;
@@ -449,8 +469,16 @@ main() {
     get_os_info_in "$name" ||
         { errorrc "failed to get os_info in $name"; return; }
 
+    if [ "$pyexe" = "auto" ]; then
+        case "$OS_NAME/$OS_VERSION" in
+            centos/*|opensuse/*) pyexe=python2;;
+            *) pyexe=python3;;
+        esac
+        debug 1 "set pyexe=$pyexe for $OS_NAME/$OS_VERSION"
+    fi
+
     # prep the container (install very basic dependencies)
-    run_self_inside "$name" prep ||
+    run_self_inside "$name" prep "$pyexe" ||
         { errorrc "Failed to prep container $name"; return; }
 
     # add the user
@@ -463,8 +491,9 @@ main() {
         return
     }
 
-    local rdcmd=(python3 tools/read-dependencies "--distro=${OS_NAME}" --install --test-distro)
-    inside_as_cd "$name" root "$cdir" "${rdcmd[@]}" || {
+    inside_as_cd "$name" root "$cdir" \
+        $pyexe ./tools/read-dependencies "--distro=${OS_NAME}" \
+            --test-distro || {
         errorrc "FAIL: failed to install dependencies with read-dependencies"
         return
     }
@@ -477,16 +506,16 @@ main() {
 
     if [ -n "$unittest" ]; then
         debug 1 "running unit tests."
-        run_self_inside_as_cd "$name" "$user" "$cdir" pytest \
+        run_self_inside_as_cd "$name" "$user" "$cdir" nose "$pyexe" \
             tests/unittests cloudinit/ || {
-                errorrc "pytest failed.";
-                errors[${#errors[@]}]="pytest"
+                errorrc "nosetests failed.";
+                errors[${#errors[@]}]="nosetests"
             }
     fi
 
     local build_pkg="" build_srcpkg="" pkg_ext="" distflag=""
     case "$OS_NAME" in
-        centos|rocky) distflag="--distro=redhat";;
+        centos) distflag="--distro=redhat";;
         opensuse) distflag="--distro=suse";;
     esac
 
@@ -495,7 +524,7 @@ main() {
             build_pkg="./packages/bddeb -d" 
             build_srcpkg="./packages/bddeb -S -d"
             pkg_ext=".deb";;
-        centos|opensuse|rocky)
+        centos|opensuse)
             build_pkg="./packages/brpm $distflag"
             build_srcpkg="./packages/brpm $distflag --srpm"
             pkg_ext=".rpm";;
@@ -507,7 +536,7 @@ main() {
         }
         debug 1 "building source package with $build_srcpkg."
         # shellcheck disable=SC2086
-        inside_as_cd "$name" "$user" "$cdir" python3 $build_srcpkg || {
+        inside_as_cd "$name" "$user" "$cdir" $pyexe $build_srcpkg || {
             errorrc "failed: $build_srcpkg";
             errors[${#errors[@]}]="source package"
         }
@@ -520,7 +549,7 @@ main() {
         }
         debug 1 "building binary package with $build_pkg."
         # shellcheck disable=SC2086
-        inside_as_cd "$name" "$user" "$cdir" python3 $build_pkg || {
+        inside_as_cd "$name" "$user" "$cdir" $pyexe $build_pkg || {
             errorrc "failed: $build_pkg";
             errors[${#errors[@]}]="binary package"
         }
@@ -556,7 +585,7 @@ main() {
 }
 
 case "${1:-}" in
-    prep|os_info|wait_inside|pytest) _n=$1; shift; "$_n" "$@";;
+    prep|os_info|wait_inside|nose) _n=$1; shift; "$_n" "$@";;
     *) main "$@";;
 esac
 

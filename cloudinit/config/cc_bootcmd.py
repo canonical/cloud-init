@@ -12,8 +12,7 @@
 import os
 from textwrap import dedent
 
-from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import temp_utils
 from cloudinit import subp
@@ -29,7 +28,7 @@ frequency = PER_ALWAYS
 
 distros = ['all']
 
-schema = {
+meta = {
     'id': 'cc_bootcmd',
     'name': 'Bootcmd',
     'title': 'Run arbitrary commands early in the boot process',
@@ -57,6 +56,9 @@ schema = {
             - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
     """)],
     'frequency': PER_ALWAYS,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'bootcmd': {
@@ -69,12 +71,11 @@ schema = {
             'additionalItems': False,  # Reject items of non-string non-list
             'additionalProperties': False,
             'minItems': 1,
-            'required': [],
         }
     }
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 def handle(name, cfg, cloud, log, _args):

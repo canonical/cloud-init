@@ -11,13 +11,13 @@
 from textwrap import dedent
 
 from cloudinit import util
-from cloudinit.config.schema import get_schema_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
 
 
 frequency = PER_INSTANCE
 distros = ['all']
-schema = {
+meta = {
     'id': 'cc_locale',
     'name': 'Locale',
     'title': 'Set system locale',
@@ -39,6 +39,9 @@ schema = {
             """),
     ],
     'frequency': frequency,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'locale': {
@@ -57,7 +60,7 @@ schema = {
     },
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 
 def handle(name, cfg, cloud, log, args):

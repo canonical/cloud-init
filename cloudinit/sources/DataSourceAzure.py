@@ -6,7 +6,6 @@
 
 import base64
 from collections import namedtuple
-import contextlib
 import crypt
 from functools import partial
 import os
@@ -52,22 +51,10 @@ LOG = logging.getLogger(__name__)
 
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
-AGENT_START = ['service', 'walinuxagent', 'start']
-AGENT_START_BUILTIN = "__builtin__"
-BOUNCE_COMMAND_IFUP = [
-    'sh', '-xc',
-    "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"
-]
-BOUNCE_COMMAND_FREEBSD = [
-    'sh', '-xc',
-    ("i=$interface; x=0; ifconfig down $i || x=$?; "
-     "ifconfig up $i || x=$?; exit $x")
-]
 
 # azure systems will always have a resource disk, and 66-azure-ephemeral.rules
 # ensures that it gets linked to this path.
 RESOURCE_DISK_PATH = '/dev/disk/cloud/azure_resource'
-DEFAULT_PRIMARY_NIC = 'eth0'
 LEASE_FILE = '/var/lib/dhcp/dhclient.eth0.leases'
 DEFAULT_FS = 'ext4'
 # DMI chassis-asset-tag is set static for all azure instances
@@ -249,7 +236,6 @@ def get_resource_disk_on_freebsd(port_id):
 
 # update the FreeBSD specific information
 if util.is_FreeBSD():
-    DEFAULT_PRIMARY_NIC = 'hn0'
     LEASE_FILE = '/var/db/dhclient.leases.hn0'
     DEFAULT_FS = 'freebsd-ufs'
     res_disk = get_resource_disk_on_freebsd(1)
@@ -262,15 +248,7 @@ if util.is_FreeBSD():
     PLATFORM_ENTROPY_SOURCE = None
 
 BUILTIN_DS_CONFIG = {
-    'agent_command': AGENT_START_BUILTIN,
     'data_dir': AGENT_SEED_DIR,
-    'set_hostname': True,
-    'hostname_bounce': {
-        'interface': DEFAULT_PRIMARY_NIC,
-        'policy': True,
-        'command': 'builtin',
-        'hostname_command': 'hostname',
-    },
     'disk_aliases': {'ephemeral0': RESOURCE_DISK_PATH},
     'dhclient_lease_file': LEASE_FILE,
     'apply_network_config': True,  # Use IMDS published network configuration
@@ -294,46 +272,6 @@ DEF_EPHEMERAL_LABEL = 'Temporary Storage'
 # The redacted password fails to meet password complexity requirements
 # so we can safely use this to mask/redact the password in the ovf-env.xml
 DEF_PASSWD_REDACTION = 'REDACTED'
-
-
-def get_hostname(hostname_command='hostname'):
-    if not isinstance(hostname_command, (list, tuple)):
-        hostname_command = (hostname_command,)
-    return subp.subp(hostname_command, capture=True)[0].strip()
-
-
-def set_hostname(hostname, hostname_command='hostname'):
-    subp.subp([hostname_command, hostname])
-
-
-@azure_ds_telemetry_reporter
-@contextlib.contextmanager
-def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
-    """
-    Set a temporary hostname, restoring the previous hostname on exit.
-
-    Will have the value of the previous hostname when used as a context
-    manager, or None if the hostname was not changed.
-    """
-    policy = cfg['hostname_bounce']['policy']
-    previous_hostname = get_hostname(hostname_command)
-    if (not util.is_true(cfg.get('set_hostname')) or
-       util.is_false(policy) or
-       (previous_hostname == temp_hostname and policy != 'force')):
-        yield None
-        return
-    try:
-        set_hostname(temp_hostname, hostname_command)
-    except Exception as e:
-        report_diagnostic_event(
-            'Failed setting temporary hostname: %s' % e,
-            logger_func=LOG.warning)
-        yield None
-        return
-    try:
-        yield previous_hostname
-    finally:
-        set_hostname(previous_hostname, hostname_command)
 
 
 class DataSourceAzure(sources.DataSource):
@@ -371,34 +309,6 @@ class DataSourceAzure(sources.DataSource):
     def __str__(self):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.seed)
-
-    @azure_ds_telemetry_reporter
-    def bounce_network_with_azure_hostname(self):
-        # When using cloud-init to provision, we have to set the hostname from
-        # the metadata and "bounce" the network to force DDNS to update via
-        # dhclient
-        azure_hostname = self.metadata.get('local-hostname')
-        LOG.debug("Hostname in metadata is %s", azure_hostname)
-        hostname_command = self.ds_cfg['hostname_bounce']['hostname_command']
-
-        with temporary_hostname(azure_hostname, self.ds_cfg,
-                                hostname_command=hostname_command) \
-                as previous_hn:
-            if (previous_hn is not None and
-                    util.is_true(self.ds_cfg.get('set_hostname'))):
-                cfg = self.ds_cfg['hostname_bounce']
-
-                # "Bouncing" the network
-                try:
-                    return perform_hostname_bounce(hostname=azure_hostname,
-                                                   cfg=cfg,
-                                                   prev_hostname=previous_hn)
-                except Exception as e:
-                    report_diagnostic_event(
-                        "Failed publishing hostname: %s" % e,
-                        logger_func=LOG.warning)
-                    util.logexc(LOG, "handling set_hostname failed")
-        return False
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
@@ -1505,9 +1415,6 @@ class DataSourceAzure(sources.DataSource):
            On success, returns a dictionary including 'public_keys'.
            On failure, returns False.
         """
-
-        self.bounce_network_with_azure_hostname()
-
         pubkey_info = None
         ssh_keys_and_source = self._get_public_ssh_keys_and_source()
 
@@ -1525,8 +1432,7 @@ class DataSourceAzure(sources.DataSource):
                                 dhclient_lease_file,
                                 pubkey_info=pubkey_info)
 
-        LOG.debug("negotiating with fabric via agent command %s",
-                  self.ds_cfg['agent_command'])
+        LOG.debug("negotiating with fabric")
         try:
             fabric_data = metadata_func()
         except Exception as e:
@@ -1765,42 +1671,6 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH,
         else:
             LOG.debug('%s did not exist.', bmsg)
     return
-
-
-@azure_ds_telemetry_reporter
-def perform_hostname_bounce(hostname, cfg, prev_hostname):
-    # set the hostname to 'hostname' if it is not already set to that.
-    # then, if policy is not off, bounce the interface using command
-    # Returns True if the network was bounced, False otherwise.
-    command = cfg['command']
-    interface = cfg['interface']
-    policy = cfg['policy']
-
-    msg = ("hostname=%s policy=%s interface=%s" %
-           (hostname, policy, interface))
-    env = os.environ.copy()
-    env['interface'] = interface
-    env['hostname'] = hostname
-    env['old_hostname'] = prev_hostname
-
-    if command == "builtin":
-        if util.is_FreeBSD():
-            command = BOUNCE_COMMAND_FREEBSD
-        elif subp.which('ifup'):
-            command = BOUNCE_COMMAND_IFUP
-        else:
-            LOG.debug(
-                "Skipping network bounce: ifupdown utils aren't present.")
-            # Don't bounce as networkd handles hostname DDNS updates
-            return False
-    LOG.debug("pubhname: publishing hostname [%s]", msg)
-    shell = not isinstance(command, (list, tuple))
-    # capture=False, see comments in bug 1202758 and bug 1206164.
-    util.log_time(logfunc=LOG.debug, msg="publishing hostname",
-                  get_uptime=True, func=subp.subp,
-                  kwargs={'args': command, 'shell': shell, 'capture': False,
-                          'env': env})
-    return True
 
 
 @azure_ds_telemetry_reporter

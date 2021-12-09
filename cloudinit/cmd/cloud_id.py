@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 
+from cloudinit.util import error
 from cloudinit.sources import (
     INSTANCE_JSON_FILE, METADATA_UNKNOWN, canonical_cloud_id)
 
@@ -38,11 +39,6 @@ def get_parser(parser=None):
         help=('Path to instance-data.json file. Default is %s' %
               DEFAULT_INSTANCE_JSON))
     return parser
-
-
-def error(msg):
-    sys.stderr.write('ERROR: %s\n' % msg)
-    return 1
 
 
 def handle_args(name, args):

@@ -12,6 +12,7 @@ import re
 from tests.integration_tests.clouds import ImageSpecification
 from tests.integration_tests.instances import IntegrationInstance
 from tests.integration_tests.util import (
+    retry,
     verify_clean_log,
     verify_ordered_items_in_text,
 )
@@ -33,8 +34,36 @@ locale: en_GB.UTF-8
 locale_configfile: /etc/default/locale
 ntp:
   servers: ['ntp.ubuntu.com']
+package_update: true
+random_seed:
+  data: 'MYUb34023nD:LFDK10913jk;dfnk:Df'
+  encoding: raw
+  file: /root/seed
+rsyslog:
+  configs:
+    - "*.* @@127.0.0.1"
+    - filename: 0-basic-config.conf
+      content: |
+        module(load="imtcp")
+        input(type="imtcp" port="514")
+        $template RemoteLogs,"/var/tmp/rsyslog.log"
+        *.* ?RemoteLogs
+        & ~
+  remotes:
+    me: "127.0.0.1"
 runcmd:
   - echo 'hello world' > /var/tmp/runcmd_output
+
+  - #
+  - logger "My test log"
+snap:
+  squashfuse_in_container: true
+  commands:
+    - snap install hello-world
+ssh_import_id:
+  - gh:powersj
+  - lp:smoser
+timezone: US/Aleutian
 """
 
 
@@ -45,23 +74,16 @@ class TestCombined:
         """Test that final_message module works as expected.
 
         Also tests LP 1511485: final_message is silent.
-
-        It's possible that if this test is run within a minute or so of
-        midnight that we'll see a failure because the day in the logs
-        is different from the day specified in the test definition.
         """
         client = class_client
         log = client.read_from_file('/var/log/cloud-init.log')
-        # Get date on host rather than locally as our host could be in a
-        # wildly different timezone (or more likely recording UTC)
-        today = client.execute('date "+%a, %d %b %Y"')
         expected = (
-            'This is my final message!\n'
-            r'\d+\.\d+.*\n'
-            '{}.*\n'
-            'DataSource.*\n'
-            r'\d+\.\d+'
-        ).format(today)
+            "This is my final message!\n"
+            r"\d+\.\d+.*\n"
+            r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} \+\d{4}\n"  # Datetime
+            "DataSource.*\n"
+            r"\d+\.\d+"
+        )
 
         assert re.search(expected, log)
 
@@ -102,10 +124,69 @@ class TestCombined:
             'en_US.UTF-8'
         ], locale_gen)
 
+    def test_random_seed_data(self, class_client: IntegrationInstance):
+        """Integration test for the random seed module.
+
+        This test specifies a command to be executed by the ``seed_random``
+        module, by providing a different data to be used as seed data. We will
+        then check if that seed data was actually used.
+        """
+        client = class_client
+
+        # Only read the first 31 characters, because the rest could be
+        # binary data
+        result = client.execute("head -c 31 < /root/seed")
+        assert result.startswith("MYUb34023nD:LFDK10913jk;dfnk:Df")
+
+    def test_rsyslog(self, class_client: IntegrationInstance):
+        """Test rsyslog is configured correctly."""
+        client = class_client
+        assert 'My test log' in client.read_from_file('/var/tmp/rsyslog.log')
+
     def test_runcmd(self, class_client: IntegrationInstance):
         """Test runcmd works as expected"""
         client = class_client
         assert 'hello world' == client.read_from_file('/var/tmp/runcmd_output')
+
+    @retry(tries=30, delay=1)
+    def test_ssh_import_id(self, class_client: IntegrationInstance):
+        """Integration test for the ssh_import_id module.
+
+        This test specifies ssh keys to be imported by the ``ssh_import_id``
+        module and then checks that if the ssh keys were successfully imported.
+
+        TODO:
+        * This test assumes that SSH keys will be imported into the
+        /home/ubuntu; this will need modification to run on other OSes.
+        """
+        client = class_client
+        ssh_output = client.read_from_file(
+            "/home/ubuntu/.ssh/authorized_keys")
+
+        assert '# ssh-import-id gh:powersj' in ssh_output
+        assert '# ssh-import-id lp:smoser' in ssh_output
+
+    def test_snap(self, class_client: IntegrationInstance):
+        """Integration test for the snap module.
+
+        This test specifies a command to be executed by the ``snap`` module
+        and then checks that if that command was executed during boot.
+        """
+        client = class_client
+        snap_output = client.execute("snap list")
+        assert "core " in snap_output
+        assert "hello-world " in snap_output
+
+    def test_timezone(self, class_client: IntegrationInstance):
+        """Integration test for the timezone module.
+
+        This test specifies a timezone to be used by the ``timezone`` module
+        and then checks that if that timezone was respected during boot.
+        """
+        client = class_client
+        timezone_output = client.execute(
+            'date "+%Z" --date="Thu, 03 Nov 2016 00:47:00 -0400"')
+        assert timezone_output.strip() == "HDT"
 
     def test_no_problems(self, class_client: IntegrationInstance):
         """Test no errors, warnings, or tracebacks"""
@@ -120,6 +201,31 @@ class TestCombined:
 
         log = client.read_from_file('/var/log/cloud-init.log')
         verify_clean_log(log)
+
+    def test_correct_datasource_detected(
+        self, class_client: IntegrationInstance
+    ):
+        """Test datasource is detected at the proper boot stage."""
+        client = class_client
+        status_file = client.read_from_file("/run/cloud-init/status.json")
+
+        platform_datasources = {
+            "azure": "DataSourceAzure [seed=/dev/sr0]",
+            "ec2": "DataSourceEc2Local",
+            "gce": "DataSourceGCELocal",
+            "oci": "DataSourceOracle",
+            "openstack": "DataSourceOpenStackLocal [net,ver=2]",
+            "lxd_container": (
+                "DataSourceNoCloud "
+                "[seed=/var/lib/cloud/seed/nocloud-net][dsmode=net]"
+            ),
+            "lxd_vm": "DataSourceNoCloud [seed=/dev/sr0][dsmode=net]",
+        }
+
+        assert (
+            platform_datasources[client.settings.PLATFORM]
+            == json.loads(status_file)["v1"]["datasource"]
+        )
 
     def _check_common_metadata(self, data):
         assert data['base64_encoded_keys'] == []
@@ -189,3 +295,19 @@ class TestCombined:
         assert v1_data['instance_id'] == client.instance.name
         assert v1_data['local_hostname'].startswith('ip-')
         assert v1_data['region'] == client.cloud.cloud_instance.region
+
+    @pytest.mark.gce
+    def test_instance_json_gce(self, class_client: IntegrationInstance):
+        client = class_client
+        instance_json_file = client.read_from_file(
+            "/run/cloud-init/instance-data.json"
+        )
+        data = json.loads(instance_json_file)
+        self._check_common_metadata(data)
+        v1_data = data["v1"]
+        assert v1_data["cloud_name"] == "gce"
+        assert v1_data["platform"] == "gce"
+        assert v1_data["subplatform"].startswith("metadata")
+        assert v1_data["availability_zone"] == client.instance.zone
+        assert v1_data["instance_id"] == client.instance.instance_id
+        assert v1_data["local_hostname"] == client.instance.name

@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.tests import helpers as test_helpers
+from tests.unittests import helpers as test_helpers
 
 from cloudinit.cs_utils import Cepko
 

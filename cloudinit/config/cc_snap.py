@@ -8,8 +8,7 @@ import sys
 from textwrap import dedent
 
 from cloudinit import log as logging
-from cloudinit.config.schema import (
-    get_schema_doc, validate_cloudconfig_schema)
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_INSTANCE
 from cloudinit.subp import prepend_base_command
 from cloudinit import subp
@@ -21,7 +20,7 @@ frequency = PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
-schema = {
+meta = {
     'id': 'cc_snap',
     'name': 'Snap',
     'title': 'Install, configure and manage snapd and snap packages',
@@ -103,6 +102,9 @@ schema = {
                     signed_assertion_blob_here
     """)],
     'frequency': PER_INSTANCE,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'snap': {
@@ -139,13 +141,12 @@ schema = {
                 }
             },
             'additionalProperties': False,  # Reject keys not in schema
-            'required': [],
             'minProperties': 1
         }
     }
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 SNAP_CMD = "snap"
 ASSERTIONS_FILE = "/var/lib/cloud/instance/snapd.assertions"
