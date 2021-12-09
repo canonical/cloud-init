@@ -863,7 +863,8 @@ NETWORK_CONFIGS = {
                 address 192.168.21.3/24
                 dns-nameservers 8.8.8.8 8.8.4.4
                 dns-search barley.maas sach.maas
-                post-up route add default gw 65.61.151.37 metric 10000 || true
+                post-up route replace default gw 65.61.151.37 metric 10000 \
+|| true
                 pre-down route del default gw 65.61.151.37 metric 10000 || true
         """).rstrip(' '),
         'expected_netplan': textwrap.dedent("""
@@ -1591,7 +1592,7 @@ iface br0 inet static
 # control-alias br0
 iface br0 inet6 static
     address 2001:1::1/64
-    post-up route add -A inet6 default gw 2001:4800:78ff:1b::1 || true
+    post-up route replace -A inet6 default gw 2001:4800:78ff:1b::1 || true
     pre-down route del -A inet6 default gw 2001:4800:78ff:1b::1 || true
 
 auto bond0.200
@@ -1614,7 +1615,7 @@ iface eth0.101 inet static
 iface eth0.101 inet static
     address 192.168.2.10/24
 
-post-up route add -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
+post-up route replace -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
 pre-down route del -net 10.0.0.0/8 gw 11.0.0.1 metric 3 || true
 """),
         'expected_netplan': textwrap.dedent("""
@@ -2199,7 +2200,7 @@ iface bond0 inet static
     bond_miimon 100
     hwaddress aa:bb:cc:dd:e8:ff
     mtu 9000
-    post-up route add -net 10.1.3.0/24 gw 192.168.0.3 || true
+    post-up route replace -net 10.1.3.0/24 gw 192.168.0.3 || true
     pre-down route del -net 10.1.3.0/24 gw 192.168.0.3 || true
 
 # control-alias bond0
@@ -2209,10 +2210,11 @@ iface bond0 inet static
 # control-alias bond0
 iface bond0 inet6 static
     address 2001:1::1/92
-    post-up route add -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 || true
-    pre-down route del -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 || true
-    post-up route add -A inet6 3001:67c:1/32 gw 3001:67c:1562:1 metric 10000 \
+    post-up route replace -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 \
 || true
+    pre-down route del -A inet6 2001:67c:1/32 gw 2001:67c:1562:1 || true
+    post-up route replace -A inet6 3001:67c:1/32 gw 3001:67c:1562:1 \
+metric 10000 || true
     pre-down route del -A inet6 3001:67c:1/32 gw 3001:67c:1562:1 metric 10000 \
 || true
         """),
@@ -4955,19 +4957,19 @@ class TestEniRoundTrip(CiTestCase):
             'iface eth0 inet static',
             '    address 172.23.31.42/26',
             '    gateway 172.23.31.2',
-            ('post-up route add -net 10.0.0.0/12 gw '
+            ('post-up route replace -net 10.0.0.0/12 gw '
              '172.23.31.1 metric 0 || true'),
             ('pre-down route del -net 10.0.0.0/12 gw '
              '172.23.31.1 metric 0 || true'),
-            ('post-up route add -net 192.168.2.0/16 gw '
+            ('post-up route replace -net 192.168.2.0/16 gw '
              '172.23.31.1 metric 0 || true'),
             ('pre-down route del -net 192.168.2.0/16 gw '
              '172.23.31.1 metric 0 || true'),
-            ('post-up route add -net 10.0.200.0/16 gw '
+            ('post-up route replace -net 10.0.200.0/16 gw '
              '172.23.31.1 metric 1 || true'),
             ('pre-down route del -net 10.0.200.0/16 gw '
              '172.23.31.1 metric 1 || true'),
-            ('post-up route add -host 10.0.0.100/32 gw '
+            ('post-up route replace -host 10.0.0.100/32 gw '
              '172.23.31.1 metric 1 || true'),
             ('pre-down route del -host 10.0.0.100/32 gw '
              '172.23.31.1 metric 1 || true'),
@@ -5014,23 +5016,23 @@ class TestEniRoundTrip(CiTestCase):
             '    address fd00::12/64',
             '    dns-nameservers fd00:2::15',
             '    gateway fd00::1',
-            ('    post-up route add -A inet6 fd00:12::/32 gw '
+            ('    post-up route replace -A inet6 fd00:12::/32 gw '
              'fd00::2 || true'),
             ('    pre-down route del -A inet6 fd00:12::/32 gw '
              'fd00::2 || true'),
-            ('    post-up route add -A inet6 fd00:14::/64 gw '
+            ('    post-up route replace -A inet6 fd00:14::/64 gw '
              'fd00::3 || true'),
             ('    pre-down route del -A inet6 fd00:14::/64 gw '
              'fd00::3 || true'),
-            ('    post-up route add -A inet6 fe00:14::/48 gw '
+            ('    post-up route replace -A inet6 fe00:14::/48 gw '
              'fe00::4 metric 500 || true'),
             ('    pre-down route del -A inet6 fe00:14::/48 gw '
              'fe00::4 metric 500 || true'),
-            ('    post-up route add -net 192.168.23.0/24 gw '
+            ('    post-up route replace -net 192.168.23.0/24 gw '
              '192.168.23.1 metric 999 || true'),
             ('    pre-down route del -net 192.168.23.0/24 gw '
              '192.168.23.1 metric 999 || true'),
-            ('    post-up route add -net 10.23.23.0/24 gw '
+            ('    post-up route replace -net 10.23.23.0/24 gw '
              '10.23.23.2 metric 300 || true'),
             ('    pre-down route del -net 10.23.23.0/24 gw '
              '10.23.23.2 metric 300 || true'),

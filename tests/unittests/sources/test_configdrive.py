@@ -714,7 +714,7 @@ class TestConvertNetworkData(CiTestCase):
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
-            self.assertIn("route add default gw 2.2.2.9", eni_rendering)
+            self.assertIn("route replace default gw 2.2.2.9", eni_rendering)
 
     def test_conversion_with_tap(self):
         ncfg = openstack.convert_net_json(NETWORK_DATA_3,
