@@ -1,0 +1,1620 @@
+#!/bin/bash
+#
+# Insert a list of installed kernels in a grub config file
+#   Copyright 2001 Wichert Akkerman <wichert@linux.com>
+#   Copyright 2007, 2008 Canonical Ltd.
+#
+# This file is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Contributors:
+#	Jason Thomas <jason@debian.org>
+#	David B.Harris <dbarclay10@yahoo.ca>
+#	Marc Haber <mh@zugschlus.de>
+#	Crispin Flowerday <crispin@zeus.com>
+#	Steve Langasek <steve.langasek@canonical.com>
+
+# Abort on errors
+set -e
+
+# load debconf first, since this re-execs the script
+. /usr/share/debconf/confmodule
+
+host_os=`uname -s | tr '[A-Z]' '[a-z]'`
+
+abort() {
+	message=$@
+
+	echo >&2
+	printf '%s\n' "$message" >&2
+	echo >&2
+	exit 1
+}
+
+find_grub_dir ()
+{
+	echo  -n "Searching for GRUB installation directory ... " >&2
+
+	for d in $grub_dirs ; do
+		if [ -d "$d" ] ; then
+			grub_dir="$d"
+			break
+		fi
+	done
+	
+	if [ -z "$grub_dir" ] ; then
+		abort "No GRUB directory found.
+ To create a template run 'mkdir /boot/grub' first.
+ To install grub, install it manually or try the 'grub-install' command.
+ ### Warning, grub-install is used to change your MBR. ###"
+	else
+		echo "found: $grub_dir" >&2
+	fi
+
+	echo $grub_dir
+}
+
+find_device ()
+{
+	mount_point=$1
+
+	# Autodetect current root device
+	device=
+	if [ -f /etc/fstab ] ; then
+		device=$(awk '$1!~/^#/{
+		  if ($2 ~ "^/+$") { $2 = "/"; } else { sub("/*$", "", $2); }
+		  if ($2 == "'"$mount_point"'"){
+				print $1;
+			}
+		  }' /etc/fstab | tail -n 1)
+	fi
+
+	if [ -n "$device" ] ; then
+		case "$device" in
+			LABEL=* | UUID=*)
+				device=`readlink -f "$(findfs $device)"`
+			;;
+			*)
+				device=`readlink -f "$device"`
+			;;
+		esac
+	fi
+
+	echo $device
+}
+
+find_root_device ()
+{
+	device=$(find_device "/")
+
+	if [ -z "$device" ]; then
+		echo "Cannot determine root device.  Assuming /dev/hda1" >&2
+		echo "This error is probably caused by an invalid /etc/fstab" >&2
+		device=/dev/hda1
+	fi
+
+	echo $device
+}
+
+# Usage: convert_raid1 os_device
+# Checks if os_device is a software raid1.
+# If so, converts to first physical device in array.
+convert_raid1 ()
+{
+    case $1 in
+        /dev/md[0-9])
+            : ;; # Continue
+        *)
+            return 1 ;;
+    esac
+
+    [ -x /sbin/mdadm ] || return 1
+
+    # Check that the raid device is raid1
+    raidlevel=$(mdadm -D -b $1 | grep "^ARRAY" | \
+            sed "s/^.*level=//" | cut -d" " -f1)
+    [ "$raidlevel" = "raid1" ] || return 1
+    
+    # Take only the first device that makes up the raid
+    raiddev=$(mdadm -D $1 | grep -A1 "Number" | grep "dev" \
+                          | sed "s/^.*\(\/dev\/.*\)$/\1/")
+    [ -n "$raiddev" ] || return 1
+
+    echo $raiddev
+    return 0
+}
+
+# Usage: convert os_device
+# Convert an OS device to the corresponding GRUB drive.
+# This part is OS-specific.
+convert () {
+    # First, check if the device file exists.
+    if test -e "$1"; then
+		:
+    else
+		echo "$1: Not found or not a block device." 1>&2
+		exit 1
+    fi
+
+	host_os=`uname -s | tr '[[:upper:]]' '[[:lower:]]'`
+
+    # Break the device name into the disk part and the partition part.
+    case "$host_os" in
+    linux)
+		tmp_disk=`echo "$1" | sed -e 's%\([sh]d[[:lower:]]\)[0-9]*$%\1%' \
+				  -e 's%\(fd[0-9]*\)$%\1%' \
+				  -e 's%/part[0-9]*$%/disc%' \
+				  -e 's%\(c[0-7]d[0-9]*\).*$%\1%'`
+		tmp_part=`echo "$1" | sed -e 's%.*/[sh]d[[:lower:]]\([0-9]*\)$%\1%' \
+				  -e 's%.*/fd[0-9]*$%%' \
+				  -e 's%.*/floppy/[0-9]*$%%' \
+				  -e 's%.*/\(disc\|part\([0-9]*\)\)$%\2%' \
+				  -e 's%.*c[0-7]d[0-9]*p*%%'`
+	;;
+    gnu)
+		tmp_disk=`echo "$1" | sed 's%\([sh]d[0-9]*\).*%\1%'`
+		tmp_part=`echo "$1" | sed "s%$tmp_disk%%"` ;;
+    freebsd|*/kfreebsd)
+		tmp_disk=`echo "$1" | sed 's%r\{0,1\}\([saw]d[0-9]*\).*$%\1%' \
+			    | sed 's%r\{0,1\}\(da[0-9]*\).*$%\1%'`
+		tmp_part=`echo "$1" \
+	    		| sed "s%.*/r\{0,1\}[saw]d[0-9]\(s[0-9]*[a-h]\)%\1%" \
+       	    	| sed "s%.*/r\{0,1\}da[0-9]\(s[0-9]*[a-h]\)%\1%"`
+	;;
+    netbsd|*/knetbsd)
+		tmp_disk=`echo "$1" | sed 's%r\{0,1\}\([sw]d[0-9]*\).*$%r\1d%' \
+	    		| sed 's%r\{0,1\}\(fd[0-9]*\).*$%r\1a%'`
+		tmp_part=`echo "$1" \
+	    		| sed "s%.*/r\{0,1\}[sw]d[0-9]\([abe-p]\)%\1%"`
+	;;
+    *)
+		echo "update-grub does not support your OS yet." 1>&2
+		exit 1 ;;
+    esac
+
+    # Get the drive name.
+    tmp_drive=`grep -v '^#' $device_map | grep "$tmp_disk *$" \
+			| sed 's%.*\(([hf]d[0-9][a-z0-9,]*)\).*%\1%'`
+
+    # If not found, print an error message and exit.
+    if test "x$tmp_drive" = x; then
+		echo "$1 does not have any corresponding BIOS drive." 1>&2
+		exit 1
+    fi
+
+    if test "x$tmp_part" != x; then
+		# If a partition is specified, we need to translate it into the
+		# GRUB's syntax.
+		case "$host_os" in
+		linux)
+	    	  echo "$tmp_drive" | sed "s%)$%,`expr $tmp_part - 1`)%" ;;
+		gnu)
+	    	  if echo $tmp_part | grep "^s" >/dev/null; then
+				tmp_pc_slice=`echo $tmp_part \
+		    		| sed "s%s\([0-9]*\)[a-z]*$%\1%"`
+				tmp_drive=`echo "$tmp_drive" \
+		    		| sed "s%)%,\`expr "$tmp_pc_slice" - 1\`)%"`
+	    	  fi
+	    	  if echo $tmp_part | grep "[a-z]$" >/dev/null; then
+				tmp_bsd_partition=`echo "$tmp_part" \
+		    		| sed "s%[^a-z]*\([a-z]\)$%\1%"`
+				tmp_drive=`echo "$tmp_drive" \
+		    		| sed "s%)%,$tmp_bsd_partition)%"`
+	    	  fi
+	    	  echo "$tmp_drive" ;;
+		freebsd|*/kfreebsd)
+	    	  if echo $tmp_part | grep "^s" >/dev/null; then
+				tmp_pc_slice=`echo $tmp_part \
+		    		| sed "s%s\([0-9]*\)[a-h]*$%\1%"`
+				tmp_drive=`echo "$tmp_drive" \
+		    		| sed "s%)%,\`expr "$tmp_pc_slice" - 1\`)%"`
+	    	  fi
+	    	  if echo $tmp_part | grep "[a-h]$" >/dev/null; then
+				tmp_bsd_partition=`echo "$tmp_part" \
+		    		| sed "s%s\{0,1\}[0-9]*\([a-h]\)$%\1%"`
+				tmp_drive=`echo "$tmp_drive" \
+		    		| sed "s%)%,$tmp_bsd_partition)%"`
+	    	  fi
+	    	  echo "$tmp_drive" ;;
+		netbsd|*/knetbsd)
+	    	  if echo $tmp_part | grep "^[abe-p]$" >/dev/null; then
+				tmp_bsd_partition=`echo "$tmp_part" \
+		    		| sed "s%\([a-p]\)$%\1%"`
+				tmp_drive=`echo "$tmp_drive" \
+		    		| sed "s%)%,$tmp_bsd_partition)%"`
+	    	  fi
+	    	  echo "$tmp_drive" ;;
+		esac
+    else
+		# If no partition is specified, just print the drive name.
+		echo "$tmp_drive"
+    fi
+}
+
+# Usage: convert_default os_device
+# Convert an OS device to the corresponding GRUB drive.
+# Calls OS-specific convert, and returns a default of
+# (hd0,0) if anything goes wrong
+convert_default () {
+	# Check if device is software raid1 array
+	if tmp_dev=$(convert_raid1 $1 2>/dev/null) ; then
+		: # Use device returned by convert_raid1
+	else
+		tmp_dev=$1
+	fi
+
+	if tmp=$(convert $tmp_dev 2>/dev/null) ; then
+		echo $tmp
+	else
+		echo "${grub_root_device_fallback}"
+	fi
+}
+
+is_removable () {
+	removabledevice="$(echo "$1" | sed -e 's%\([sh]d[a-z]\)[0-9]*$%\1%' -e 's%\(fd[0-9]*\)$%\1%' -e 's%/part[0-9]*$%/disc%' -e 's%\(c[0-7]d[0-9]*\).*$%\1%' -e 's%^/dev/%%g')"
+        if [ -e "/sys/block/$removabledevice/removable" ]; then
+                if [ "$(cat /sys/block/$removabledevice/removable)" != "0" ]; then
+                        echo "/dev/$removabledevice"
+                        return
+                fi
+        fi
+	echo ""
+}
+
+convert_to_uuid()
+{
+	local dev; dev=$1
+
+	convert=false
+	case "$dev" in
+		/dev/disk/*)
+			;;
+		/dev/mapper/*)
+			;;
+		/dev/evms/[hs]d[a-z][0-9]*)
+			convert=:
+			;;
+		/dev/evms/*)
+			;;
+		/dev/md[0-9]*)
+			;;
+		/dev/*)
+			convert=:
+			;;
+	esac
+	if $convert; then
+		if [ -b "$dev" ]; then
+			uuid=$(blkid -o value -s UUID "$dev" || true)
+		fi
+	fi
+
+	echo "$uuid"
+}
+
+convert_kopt_to_uuid()
+{
+	local kopt; kopt=$1
+
+	convert=false
+	root=$(echo "$kopt" | sed 's/.*root=//;s/ .*//')
+	case "$root" in
+		UUID=*|LABEL=*)
+			;;
+		/dev/disk/*)
+			;;
+		/dev/mapper/*)
+			;;
+		/dev/evms/[hs]d[a-z][0-9]*)
+			convert=:
+			;;
+		/dev/evms/*)
+			;;
+		/dev/md[0-9]*)
+			;;
+		/dev/*)
+			convert=:
+			;;
+	esac
+	if $convert; then
+		if [ -L "$DEV" ] && readlink "$DEV" | grep -q "^/dev/mapper/"
+		then
+			:
+		elif [ -b "$root" ]; then
+			uuid=$(blkid -o value -s UUID "$root" || true)
+			if [ -n "$uuid" ]; then
+				kopt=$(echo "$kopt" | sed "s/\(.*root=\)[^ ]*/\1UUID=$uuid/")
+			fi
+		fi
+	fi
+
+	echo "$kopt"
+}
+
+
+## Configuration Options
+# directory's to look for the grub installation and the menu file
+grub_dirs="/boot/grub /boot/boot/grub"
+
+# The grub installation directory
+grub_dir=$(find_grub_dir)
+
+# Full path to the menu.lst
+menu_file_basename=menu.lst
+menu_file=$grub_dir/$menu_file_basename
+
+# Full path to the menu.lst fragment used for ucf management
+ucf_menu_file=/var/run/grub/$menu_file_basename
+
+# Full path to the default file
+default_file_basename=default
+default_file=$grub_dir/$default_file_basename
+
+# the device for the / filesystem
+root_device=$(find_root_device)
+
+# the device for the /boot filesystem
+boot_device=$(find_device "/boot")
+
+# Full path to the device.map
+device_map=$grub_dir/device.map
+
+# Default kernel options, overidden by the kopt statement in the menufile.
+loop_file=""
+if [ -f /etc/fstab ]; then
+   loop_file=$(awk '$2=="/" && $4~"loop" {print $1}' /etc/fstab)
+fi
+if [ -n "$loop_file" ]; then
+	dev_mountpoint=$(awk '"'${loop_file}'"~"^"$2 && $2!="/" {print $1";"$2}' /proc/mounts|tail -n 1)
+	host_device="${dev_mountpoint%;*}"
+	host_mountpoint="${dev_mountpoint#*;}"
+fi
+if [ -n "$host_device" ]; then
+	boot_device=
+	root_device="$host_device"
+	default_kopt="root=$host_device loop=${loop_file#$host_mountpoint} ro"
+else
+	default_kopt="root=$root_device ro"
+fi
+default_kopt="$(convert_kopt_to_uuid "$default_kopt")"
+kopt="$default_kopt"
+
+# Title
+title=$(lsb_release --short --description 2>/dev/null) || title="Ubuntu"
+
+# should update-grub remember the default entry
+updatedefaultentry="false"
+
+# Drive(in GRUB terms) where the kernel is located. Overridden by the
+# kopt statement in menufile.
+# if we don't have a device.map then we can't use the convert function.
+
+# Try to use a UUID instead of the GRUB device name.
+if test -z "$boot_device" ; then
+	uuid=$(convert_to_uuid "$root_device")
+else
+	uuid=$(convert_to_uuid "$boot_device")
+fi
+
+#if [ -n "$uuid" ]; then
+#	grub_root_device="$uuid"
+#fi
+## The ec2 provide pv-grub do not support 'uuid' so we have to use a grub name
+## when presented to grub, the root filesystem is on what grub sees
+## as a bare disk (hd0), rather than what we see it as in user space (sda1).
+grub_root_device_fallback="(hd0)"
+grub_root_device="${grub_root_device_fallback}"
+
+check_removable=""
+if true; then
+	if test -f "$device_map"; then
+		if test -z "$boot_device" ; then
+			grub_root_device=$(convert_default "$root_device")
+			check_removable="$(is_removable "$root_device")"
+		else
+			grub_root_device=$(convert_default "$boot_device")
+			check_removable="$(is_removable "$boot_device")"
+		fi
+	else
+		grub_root_device="${grub_root_device_fallback}"
+	fi
+fi
+
+# If the root/boot device is on a removable target, we need to override
+# the grub_root_device to (hd0,X). This is a requirement since the BIOS
+# will change device mapping dynamically if we switch boot device.
+
+if test -n "$check_removable" ; then
+	grub_root_device="$(echo "$grub_root_device" | sed -e 's/d.*,/d0,/g')"
+fi
+
+# should grub create the alternative boot options in the menu
+	alternative="true"
+
+# should grub lock the alternative boot options in the menu
+	lockalternative="false"
+
+# additional options to use with the default boot option, but not with the
+# alternatives
+	defoptions="console=hvc0"
+
+# should grub lock the old kernels
+	lockold="false"
+
+# Xen hypervisor options to use with the default Xen boot option
+	xenhopt=""
+
+# Xen Linux kernel options to use with the default Xen boot option
+	xenkopt="console=tty0"
+
+# options to use with the alternative boot options
+	altoptions="(recovery mode) single"
+
+# controls howmany kernels are listed in the config file,
+# this does not include the alternative kernels
+	howmany="all"
+
+# should grub create a memtest86 entry
+	memtest86="true"
+
+# should grub add "savedefault" to default boot options
+	savedefault="false"
+
+# is grub running in a domU?
+	indomU="true"
+
+# stores the command line arguments
+	command_line_arguments=$1
+
+# does this version of grub support the quiet option?
+if [ -f ${grub_dir}/installed-version ] && dpkg --compare-versions `cat ${grub_dir}/installed-version` ge 0.97-11ubuntu4; then
+    supports_quiet=true
+else
+    supports_quiet=false
+fi
+
+# read user configuration
+if test -f "/etc/default/grub" ; then
+    . /etc/default/grub
+fi
+
+# Default options to use in a new config file. This will only be used if $menu_file
+# doesn't already exist. Only edit the lines between the two "EOF"s. The others are
+# part of the script.
+newtemplate=$(tempfile)
+cat >> "$newtemplate" <<EOF
+# $menu_file_basename - See: grub(8), info grub, update-grub(8)
+#            grub-install(8), grub-floppy(8),
+#            grub-md5-crypt, /usr/share/doc/grub
+#            and /usr/share/doc/grub-legacy-doc/.
+
+## default num
+# Set the default entry to the entry number NUM. Numbering starts from 0, and
+# the entry number 0 is the default if the command is not used.
+#
+# You can specify 'saved' instead of a number. In this case, the default entry
+# is the entry saved with the command 'savedefault'.
+# WARNING: If you are using dmraid do not use 'savedefault' or your
+# array will desync and will not let you boot your system.
+default		0
+
+## timeout sec
+# Set a timeout, in SEC seconds, before automatically booting the default entry
+# (normally the first entry defined).
+# on ec2, with no console access, there is no reason for a timeout.  set to 0.
+timeout		0
+
+## hiddenmenu
+# Hides the menu by default (press ESC to see the menu)
+hiddenmenu
+
+# Pretty colours
+#color cyan/blue white/blue
+
+## password ['--md5'] passwd
+# If used in the first section of a menu file, disable all interactive editing
+# control (menu entry editor and command-line)  and entries protected by the
+# command 'lock'
+# e.g. password topsecret
+#      password --md5 \$1\$gLhU0/\$aW78kHK1QfV3P2b2znUoe/
+# password topsecret
+
+#
+# examples
+#
+# title		Windows 95/98/NT/2000
+# root		(hd0,0)
+# makeactive
+# chainloader	+1
+#
+# title		Linux
+# root		(hd0,1)
+# kernel	/vmlinuz root=/dev/hda2 ro
+#
+
+#
+# Put static boot stanzas before and/or after AUTOMAGIC KERNEL LIST
+
+EOF
+## End Configuration Options
+
+echo -n "Searching for default file ... " >&2
+if [ -f "$default_file" ] ; then
+  echo "found: $default_file" >&2
+else
+  echo "Generating $default_file file and setting the default boot entry to 0" >&2
+  grub-set-default 0
+fi
+
+# Make sure we use the standard sorting order
+LC_COLLATE=C
+# Magic markers we use
+start="### BEGIN AUTOMAGIC KERNELS LIST"
+end="### END DEBIAN AUTOMAGIC KERNELS LIST"
+
+startopt="## ## Start Default Options ##"
+endopt="## ## End Default Options ##"
+
+# path to grub2
+grub2name="/boot/grub/core.img"
+
+# Extract options from config file
+ExtractMenuOpt()
+{
+	opt=$1
+
+	sed -ne "/^$start\$/,/^$end\$/ {
+		/^$startopt\$/,/^$endopt\$/ {
+			/^# $opt=/ {
+				s/^# $opt=\(.*\)\$/\1/
+				p
+			}
+		}
+	}" $menu
+}
+
+GetMenuOpts()
+{
+	opt=$1
+
+	sed -ne "/^$start\$/,/^$end\$/ {
+		/^$startopt\$/,/^$endopt\$/ {
+			/^# $opt=/ {
+				p
+			}
+		}
+	}" $menu
+}
+
+ExtractMenuOpts()
+{
+	opt=$1
+
+	GetMenuOpts $opt | sed "s/^# $opt=\(.*\)\$/\1=\"\2\"/"
+}
+
+GetMenuOpt()
+{
+	opt=$1
+	value=$2
+
+	[ -z "$(GetMenuOpts "$opt")" ] || value=$(ExtractMenuOpt "$opt")
+
+	echo $value
+}
+
+# Compares two version strings A and B
+# Returns -1 if A<B
+#          0 if A==B
+#          1 if A>B
+# This compares version numbers of the form
+# 2.4.14.2 > 2.4.14
+# 2.4.14random = 2.4.14-random > 2.4.14-ac10 > 2.4.14 > 2.4.14-pre2 > 
+# 2.4.14-pre1 > 2.4.13-ac99
+CompareVersions()
+{  
+    	#Changes the line something-x.y.z into somthing-x.y.z.q
+	#This is to ensure that kernels with a .q is treated as higher than the ones without               
+        #First a space is put after the version number
+        v1=$(echo $1 | sed -e 's!^\(.*-\([0-9]\+\.\)\{2,3\}[0-9]\+\)\(.*\)!\1 \3!g')
+	v2=$(echo $2 | sed -e 's!^\(.*-\([0-9]\+\.\)\{2,3\}[0-9]\+\)\(.*\)!\1 \3!g')
+	#If the version number only has 3 digits then put in another .0
+        v1=$(echo $v1 | sed -e 's!^\(.*-\([0-9]\+\.\)\{2\}[0-9]\+\)\( .*\|$\)!\1.0 \3!g')
+        v2=$(echo $v2 | sed -e 's!^\(.*-\([0-9]\+\.\)\{2\}[0-9]\+\)\( .*\|$\)!\1.0 \3!g')
+          
+	# Then split the version number and remove any '.' 's or dashes
+	v1=$(echo $v1 | sed -e 's![-\.]\+! !g' -e 's!\([0-9]\)\([[:alpha:]]\)!\1 \2!')
+	v2=$(echo $v2 | sed -e 's![-\.]\+! !g' -e 's!\([0-9]\)\([[:alpha:]]\)!\1 \2!')
+
+	# we weight different kernel suffixes here
+	# ac   = 50
+	# pre  = -50
+	# rc   = -40
+	# test = -60
+	# others are given 99
+	v1=$(echo $v1 | sed -e 's! k7! 786 !g' -e 's! ac! 50 !g' -e 's! rc! -40 !g' -e 's! pre! -50 !g' -e 's! test! -60 !g' -e 's![^ ]*[^-0-9 ][^ ]*!99!g')
+
+	v2=$(echo $v2 | sed -e 's! k7! 786 !g' -e 's! ac! 50 !g' -e 's! rc! -40 !g' -e 's! pre! -50 !g' -e 's! test! -60 !g' -e 's![^ ]*[^-0-9 ][^ ]*!99!g')
+
+	result=0; v1finished=0; v2finished=0;
+	while [ $result -eq 0 ] && [ $v1finished -eq 0 ] && [ $v2finished -eq 0 ];
+	do
+		if [ "$v1" = "" ]; then
+			v1comp=0; v1finished=1
+		else
+			set -- $v1; v1comp=$1; shift; v1=$*
+		fi
+
+		if [ "$v2" = "" ]; then
+			v2comp=0; v2finished=1
+		else
+			set -- $v2; v2comp=$1; shift; v2=$*
+		fi
+		
+		set +e
+		result=`expr $v1comp - $v2comp` 
+		result=`expr substr $result 1 2`
+		set -e
+
+		if   [ $result -gt 0 ]; then result=1
+		elif [ $result -lt 0 ]; then result=-1	
+		fi	
+	done
+
+	# finally return the result
+	echo $result
+}
+
+# looks in the directory specified for an initrd image with the version specified
+FindInitrdName()
+{
+	# strip trailing slashes
+	directory=$(echo $1 | sed -e 's#/*$##')
+	version=$2
+
+	# initrd
+	# initrd.img
+	# initrd-lvm
+	# .*.gz
+
+	initrdName=""
+	names="initrd initrd.img initrd-lvm"
+	compressed="gz"
+
+	for n in $names ; do
+		# make sure we haven't already found it
+		if [ -z "$initrdName" ] ; then
+			if [ -f "$directory/$n$version" ] ; then
+				initrdName="$n$version"
+				break
+			else
+				for c in $compressed ; do
+					if [ -f "$directory/$n$version.$c" ] ; then
+						initrdName="$n$version.$c"
+						break
+					fi
+				done
+			fi
+		else
+			break
+		fi
+	done
+
+	# return the result
+	echo $initrdName
+}
+
+FindXenHypervisorVersions ()
+{
+	version=$1
+
+	if [ -f "/var/lib/linux-image-$version/xen-versions" ]; then
+		ret="$(cat /var/lib/linux-image-$version/xen-versions)"
+	fi
+
+	echo $ret
+}
+
+get_kernel_opt()
+{
+	kernel_version=$1
+
+	version=$(echo $kernel_version | sed 's/^[^0-9]*//')
+	version=$(echo $version | sed 's/[-\+\.]/_/g')
+	if [ -n "$version" ] ; then
+		while [ -n "$version" ] ; do
+			currentOpt="$(eval "echo \${kopt_$version}")"
+			if [ -n "$currentOpt" ] ; then
+				break
+			fi
+
+			oldversion="$version"
+			version=$(echo $version | sed 's/_\?[^_]*$//')
+			if [ "$version" = "$oldversion" ] ; then
+				# Break infinite loop, if the version isn't what we expect
+				break
+			fi
+		done
+	fi
+
+	if [ -z "$currentOpt" ] ; then
+			currentOpt=$kopt
+	fi
+
+	echo $currentOpt
+}
+
+write_kernel_entry()
+{
+	local kernel_version; kernel_version=$1; shift
+	local recovery_desc; recovery_desc=$1; shift
+	local lock_alternative; lock_alternative=$1; shift
+	local grub_root_device; grub_root_device=$1; shift
+	local kernel; kernel=$1; shift
+	local kernel_options; kernel_options=$1; shift
+	local recovery_suffix; recovery_suffix=$1; shift
+	local initrd; initrd=$1; shift
+	local savedefault; savedefault=$1; shift
+	local lockold; lockold=$1; shift
+	local dapper_upgrade; dapper_upgrade=$1; shift
+	local hypervisor
+	if [ -n "$1" ]; then
+		# Hypervisor.
+		hypervisor=$1; shift
+		local hypervisor_image; hypervisor_image=$1; shift
+		local hypervisor_version; hypervisor_version=$1; shift
+		local hypervisor_options; hypervisor_options=$1; shift
+	fi
+
+	echo -n "title		" >> $buffer
+
+	if [ -n "$hypervisor" ]; then
+		echo -n "$hypervisor $hypervisor_version / " >> $buffer
+	fi
+
+	echo -n "$title" >> $buffer
+	if [ -n "$kernel_version" ]; then
+		echo -n ", " >> $buffer
+		# memtest86 is not strictly a kernel
+		if ! echo "$kernel_version" | grep -q ^memtest86; then
+			echo -n "kernel " >> $buffer
+		fi
+		echo -n "$kernel_version" >> $buffer
+	fi
+	if [ -n "$recovery_desc" ]; then
+		echo -n " $recovery_desc" >> $buffer
+	fi
+	echo >> $buffer
+
+	# lock the alternative options
+	if test x"$lock_alternative" = x"true" ; then
+		echo "lock" >> $buffer
+	fi
+	# lock the old entries
+	if test x"$lockold" = x"true" ; then
+	echo "lock" >> $buffer
+	fi
+
+	case "$grub_root_device" in
+		[^A-Za-z0-9]*)
+			echo "root		$grub_root_device" >> $buffer
+		;;
+		*)
+			echo "uuid		$grub_root_device" >> $buffer
+		;;
+	esac
+
+	echo -n "kernel		"  >> $buffer
+	if [ -n "$hypervisor" ]; then
+		echo -n "$hypervisor_image" >> $buffer
+		if [ -n "$hypervisor_options" ]; then
+			echo -n " $hypervisor_options"  >> $buffer
+		fi
+		echo >> $buffer
+		echo -n "module		"  >> $buffer
+	fi
+	echo -n "$kernel"  >> $buffer
+	if [ -n "$kernel_options" ]; then
+		echo -n " $kernel_options"  >> $buffer
+	fi
+	if [ -n "$recovery_desc" ]; then
+		echo -n " $recovery_suffix"  >> $buffer
+	fi
+	if [ -n "$dapper_upgrade" -a -z "$kernel_options$recovery_desc" ]; then
+		echo -n " "  >> $buffer
+	fi
+	echo >> $buffer
+
+	if [ -n "$initrd" ]; then
+		if [ -n "$hypervisor" ]; then
+			echo -n "module		" >> $buffer
+		else
+			echo -n "initrd		" >> $buffer
+		fi
+		echo "$initrd" >> $buffer
+	fi
+
+	if [ ! -n "$recovery_desc" -a x"$supports_quiet" = x"true" -a -z "$dapper_upgrade" ]; then
+		echo "quiet" >> $buffer
+	fi
+
+	if test x"$savedefault" = x"true" ; then
+		echo "savedefault" >> $buffer
+	fi
+	if test x"$dapper_upgrade" != x ; then
+		echo "boot" >> $buffer
+	fi
+	echo >> $buffer
+}
+
+## write out the kernel entries
+output_kernel_list() {
+	counter=0
+
+	# Xen entries first.
+	for kern in $xenKernels ; do
+		if test ! x"$howmany" = x"all" ; then
+			if [ $counter -gt $howmany ] ; then
+				break
+			fi
+		fi
+
+		kernelName=$(basename $kern)
+		kernelVersion=$(echo $kernelName | sed -e 's/vmlinuz//')
+
+		initrdName=$(FindInitrdName "/boot" "$kernelVersion")
+		initrd=""
+
+		kernel=$kernel_dir/$kernelName
+		if [ -n "$initrdName" ] ; then
+			initrd=$kernel_dir/$initrdName
+		fi
+
+		kernelVersion=$(echo $kernelVersion | sed -e 's/^-//')
+		currentOpt=$(get_kernel_opt $kernelVersion)
+
+		hypervisorVersions=$(FindXenHypervisorVersions "$kernelVersion")
+
+		found=
+		for hypervisorVersion in $hypervisorVersions; do
+			hypervisor="$kernel_dir/xen-$hypervisorVersion.gz"
+			if [ -e "$hypervisor" ]; then
+				found=1
+
+				echo "Found Xen hypervisor $hypervisorVersion,  kernel: $kernel" >&2
+
+				write_kernel_entry "$kernelVersion" '' '' "$grub_root_device" \
+				  "$kernel" "$currentOpt $xenkopt" '' "$initrd" "$savedefault" '' "$dapper_upgrade" \
+				  Xen "$hypervisor" "$hypervisorVersion" "$xenhopt"
+		        counter=$(($counter + 1))
+			fi
+		done
+
+		if [ -z $found ]; then
+			for hypervisor in $hypervisors; do
+				hypVersion=`basename "$hypervisor" .gz | sed s%xen-%%`
+		
+				echo "Found Xen hypervisor $hypVersion,  kernel: $kernel" >&2
+
+				write_kernel_entry "$kernelVersion" '' '' "$grub_root_device" \
+				  "$kernel" "$currentOpt $xenkopt" '' "$initrd" "$savedefault" '' "$dapper_upgrade" \
+				  Xen "$kernel_dir/$hypervisor" "$hypVersion" "$xenhopt"
+		        counter=$(($counter + 1))
+			done
+		fi
+	done
+
+	for kern in $sortedKernels ; do
+		counter=$(($counter + 1))
+		if test ! x"$howmany" = x"all" ; then
+			if [ $counter -gt $howmany ] ; then 
+				break
+			fi
+		fi
+		kernelName=$(basename $kern)
+		initrdName=""
+		initrd=""
+		extra_opts=""
+
+		if [ "$kern" = "/boot/last-good-boot/vmlinuz" ]; then
+			kernelVersion="Last successful boot"
+			if [ -e "/boot/last-good-boot/initrd.img" ]; then
+				initrdName="last-good-boot/initrd.img"
+			fi
+			kernelName="last-good-boot/vmlinuz"
+			extra_opts="$extra_opts last-good-boot"
+		else
+			kernelVersion=$(echo $kernelName | sed -e 's/vmlinuz//')
+			initrdName=$(FindInitrdName "/boot" "$kernelVersion")
+			if [ -x "/usr/bin/makedumpfile" ] && [ -x "/sbin/kexec" ]; then
+				extra_opts="$extra_opts crashkernel=384M-2G:64M,2G-:128M"
+			fi
+		fi
+
+		kernel=$kernel_dir/$kernelName
+
+		if [ -n "$initrdName" ] ; then
+			initrd=$kernel_dir/$initrdName
+		fi
+
+		echo "Found kernel: $kernel" >&2
+
+		if [ "$kernelName" = "vmlinuz" ]; then
+			if [ -L "/boot/$kernelName" ]; then
+				kernelVersion=`readlink -f "/boot/$kernelName"`
+				kernelVersion=$(echo $kernelVersion | sed -e 's/.*vmlinuz-//')
+				kernelVersion="$kernelVersion Default"
+			else
+				kernelVersion="Default"
+			fi
+		fi
+		if [ "$kernelName" = "vmlinuz.old" ]; then
+			if [ -L "/boot/$kernelName" ]; then
+				kernelVersion=`readlink -f "/boot/$kernelName"`
+				kernelVersion=$(echo $kernelVersion | sed -e 's/.*vmlinuz-//')
+				kernelVersion="$kernelVersion Previous"
+			else
+				kernelVersion="Previous"
+			fi
+		fi
+
+		kernelVersion=$(echo $kernelVersion | sed -e 's/^-//')
+
+		currentOpt=$(get_kernel_opt $kernelVersion)
+
+		do_lockold=$lockold
+		# do not lockold for the first entry
+		[ $counter -eq 1 ] && do_lockold=false
+
+		if [ "$kernelName" = "last-good-boot/vmlinuz" ]; then
+			if [ -e /boot/last-good-boot/cmdline ]; then
+				cmdline="$(cat /boot/last-good-boot/cmdline) last-good-boot"
+			else
+				cmdline="$currentOpt $defoptions $extra_opts"
+			fi
+			write_kernel_entry "$kernelVersion" "" "" "$grub_root_device" "$kernel" \
+				"$cmdline" "" "$initrd" "$savedefault" "$do_lockold" \
+				"$dapper_upgrade"
+		else
+			write_kernel_entry "$kernelVersion" "" "" "$grub_root_device" "$kernel" \
+				"$currentOpt $defoptions $extra_opts" "" "$initrd" "$savedefault" \
+				"$do_lockold" "$dapper_upgrade"
+		fi
+
+		# insert the alternative boot options
+		if test ! x"$alternative" = x"false" && \
+		   test ! x"$kernelName" = x"last-good-boot/vmlinuz"; then
+			# for each altoptions line do this stuff
+			sed -ne 's/# altoptions=\(.*\)/\1/p' $buffer | while read line; do
+				descr=$(echo $line | sed -ne 's/\(([^)]*)\)[[:space:]]\(.*\)/\1/p')
+				suffix=$(echo $line | sed -ne 's/\(([^)]*)\)[[:space:]]\(.*\)/\2/p')
+
+				test x"$lockalternative" = x"true" && do_lockold=false
+				write_kernel_entry "$kernelVersion" "$descr" "$lockalternative" \
+					"$grub_root_device" "$kernel" "$currentOpt $extra_opts" \
+					"$suffix" "$initrd" "false" "$do_lockold" \
+					"$dapper_upgrade"
+			done
+		fi
+	done
+
+## Adding the chainload stanza is simply confusing, and for
+## legacy ec2 grub, it will never be used. LP: #627451
+##
+#	if test -f $grub2name ; then
+#		echo "Found GRUB 2: $grub2name" >&2
+#		cat >> $buffer << EOF
+#title		Chainload into GRUB 2
+#root		$grub_root_device
+#kernel		$grub2name
+#EOF
+#		if test x"$savedefault" = x"true" ; then
+#			echo "savedefault" >> $buffer
+#		fi
+#		echo >> $buffer
+#	fi
+    
+	memtest86names="memtest86 memtest86+"
+
+	if test ! x"$memtest86" = x"false" ; then
+		for name in $memtest86names ; do
+			if test -f "/boot/$name.bin" ; then
+				kernelVersion="$name"
+				kernel="$kernel_dir/$name.bin"
+				currentOpt=
+				initrd=
+
+				echo "Found kernel: $kernel" >&2
+
+				write_kernel_entry "$kernelVersion" "" "" "$grub_root_device" \
+				"$kernel" "$currentOpt" "" "$initrd" "false" "" "$dapper_upgrade"
+			fi
+		done
+	fi
+
+	echo $end >> $buffer
+}
+
+ucf_update_kernels() {
+	local target; target="$1"
+	local buffer; buffer="$2"
+
+	sed -ni -e"/$endopt/,/$end/p" "$buffer"
+
+	if [ "x$initialconfig" = "x" ]; then
+		sed -n -e"/$endopt/,/$end/p" < $menu > $ucf_menu_file
+	else
+		cat $buffer > $ucf_menu_file
+	fi
+
+	db_x_loadtemplatefile "$(dpkg-query --control-path grub-legacy-ec2 templates)" grub
+
+	ucf --debconf-ok \
+		--debconf-template grub/update_grub_changeprompt_threeway \
+		--three-way "$buffer" $ucf_menu_file
+	rm "$buffer"
+
+	# now re-merge the ucf results with the target file
+	sed -i -e "/^$endopt/,/^$end/ {
+		/^$endopt/r $ucf_menu_file
+		d
+	}
+	" $target
+
+	rm -f $ucf_menu_file ${ucf_menu_file}.ucf-old
+}
+
+
+echo -n "Testing for an existing GRUB $menu_file_basename file ... " >&2
+
+# Test if our menu file exists
+if [ -f "$menu_file" ] ; then
+	menu="$menu_file"
+	rm -f $newtemplate
+	unset newtemplate
+	echo "found: $menu_file" >&2
+	cp -f "$menu_file" "$menu_file~"
+else
+	# if not ask user if they want us to create one
+	initialconfig=1
+	menu="$menu_file"
+	echo >&2
+	echo >&2
+	echo -n "Could not find $menu_file file. " >&2
+	if [ "-y" = "$command_line_arguments" ] ; then
+		echo >&2
+		echo "Generating $menu_file" >&2
+		answer=y
+	else
+		echo -n "Would you like $menu_file generated for you? " >&2
+		echo -n "(y/N) " >&2
+		read answer <&2
+	fi
+
+	case "$answer" in
+		y* | Y*)
+		cat "$newtemplate" > $menu_file
+		rm -f $newtemplate
+		unset newtemplate
+		;;
+		*)
+		abort "Not creating $menu_file as you wish"
+		;;
+	esac
+fi
+
+# Extract the kernel options to use
+kopt=$(GetMenuOpt "kopt" "$kopt")
+
+# Extract options for specific kernels
+opts="$(ExtractMenuOpts "\(kopt_[[:alnum:]_]\+\)")"
+test -z "$opts" || eval "$opts"
+CustomKopts=$(GetMenuOpts "\(kopt_[[:alnum:]_]\+\)" | \
+	grep -v "^# kopt_2_6=" || true)
+
+# Set the kernel 2.6 option only for fresh install (but convert it to
+# mount-by-UUID on upgrade)
+test -z "$kopt_2_6" && test -z "$(GetMenuOpt "kopt" "")" && \
+	kopt_2_6="$default_kopt"
+
+# Extract the grub root
+grub_root_device=$(GetMenuOpt "groot" "$grub_root_device")
+groot_cfg=$(GetMenuOpt groot "${grub_root_device_fallback}")
+case "${groot_cfg}" in
+	[^A-Za-z0-9]*) :;;
+	*) 
+		echo "uuid not supported. update 'groot' in ${menu_file}" >&2;
+		abort "groot must be grub root device (ie '(hd0)'). not '${groot_cfg}'" >&2;
+esac
+
+# Extract the old recovery value
+alternative=$(GetMenuOpt "recovery" "$alternative")
+
+# Extract the alternative value
+alternative=$(GetMenuOpt "alternative" "$alternative")
+
+# Extract the lockalternative value
+lockalternative=$(GetMenuOpt "lockalternative" "$lockalternative")
+
+# Extract the additional default options
+# Check nonaltoptions too for compatibility with Ubuntu <= 5.10
+defoptions=$(GetMenuOpt "nonaltoptions" "$defoptions")
+defoptions=$(GetMenuOpt "defoptions" "$defoptions")
+
+# Extract the lockold value
+lockold=$(GetMenuOpt "lockold" "$lockold")
+
+# Extract Xen hypervisor options
+xenhopt=$(GetMenuOpt "xenhopt" "$xenhopt")
+
+# Extract Xen Linux kernel options
+xenkopt=$(GetMenuOpt "xenkopt" "$xenkopt")
+
+# Extract the howmany value
+howmany=$(GetMenuOpt "howmany" "$howmany")
+
+# Extract the memtest86 value
+memtest86=$(GetMenuOpt "memtest86" "$memtest86")
+
+# Extract the indomU value
+indomU=$(GetMenuOpt "indomU" "$indomU")
+ 
+# Extract the updatedefaultentry option
+updatedefaultentry=$(GetMenuOpt "updatedefaultentry" "$updatedefaultentry")
+
+# If "default saved" is in use, set the default to true
+grep -q "^default.*saved" $menu && savedefault=true
+# Extract the savedefault option
+savedefault=$(GetMenuOpt "savedefault" "$savedefault")
+
+# Generate the menu options we want to insert
+buffer=$(tempfile)
+echo $start >> $buffer
+echo "## lines between the AUTOMAGIC KERNELS LIST markers will be modified" >> $buffer
+echo "## by the debian update-grub script except for the default options below" >> $buffer
+echo >> $buffer
+echo "## DO NOT UNCOMMENT THEM, Just edit them to your needs" >> $buffer
+echo >> $buffer
+echo "## ## Start Default Options ##" >> $buffer
+
+echo "## default kernel options" >> $buffer
+echo "## default kernel options for automagic boot options" >> $buffer
+echo "## If you want special options for specific kernels use kopt_x_y_z" >> $buffer
+echo "## where x.y.z is kernel version. Minor versions can be omitted." >> $buffer
+echo "## e.g. kopt=root=/dev/hda1 ro" >> $buffer
+echo "##      kopt_2_6_8=root=/dev/hdc1 ro" >> $buffer
+echo "##      kopt_2_6_8_2_686=root=/dev/hdc2 ro" >> $buffer
+echo "# kopt=$kopt" >> $buffer
+if [ -n "$kopt_2_6" ] && [ "$kopt" != "$kopt_2_6" ]; then
+    echo "# kopt_2_6=$kopt_2_6" >> $buffer
+fi
+if [ -n "$CustomKopts" ] ; then
+    echo "$CustomKopts" >> $buffer
+fi
+echo >> $buffer
+
+echo "## default grub root device" >> $buffer
+echo "## e.g. groot=${grub_root_device_fallback}" >> $buffer
+echo "# groot=$grub_root_device" >> $buffer
+echo >> $buffer
+
+echo "## should update-grub create alternative automagic boot options" >> $buffer
+echo "## e.g. alternative=true" >> $buffer
+echo "##      alternative=false" >> $buffer
+echo "# alternative=$alternative" >> $buffer
+echo >> $buffer
+
+echo "## should update-grub lock alternative automagic boot options" >> $buffer
+echo "## e.g. lockalternative=true" >> $buffer
+echo "##      lockalternative=false" >> $buffer
+echo "# lockalternative=$lockalternative" >> $buffer
+echo >> $buffer
+
+echo "## additional options to use with the default boot option, but not with the" >> $buffer
+echo "## alternatives" >> $buffer
+echo "## e.g. defoptions=vga=791 resume=/dev/hda5" >> $buffer
+echo "# defoptions=$defoptions" >> $buffer
+echo >> $buffer
+
+echo "## should update-grub lock old automagic boot options" >> $buffer
+echo "## e.g. lockold=false" >> $buffer
+echo "##      lockold=true" >> $buffer
+echo "# lockold=$lockold" >> $buffer
+echo >> $buffer
+
+echo "## Xen hypervisor options to use with the default Xen boot option" >> $buffer
+echo "# xenhopt=$xenhopt" >> $buffer
+echo >> $buffer
+
+echo "## Xen Linux kernel options to use with the default Xen boot option" >> $buffer
+echo "# xenkopt=$xenkopt" >> $buffer
+echo >> $buffer
+
+echo "## altoption boot targets option" >> $buffer
+echo "## multiple altoptions lines are allowed" >> $buffer
+echo "## e.g. altoptions=(extra menu suffix) extra boot options" >> $buffer
+echo "##      altoptions=(recovery) single" >> $buffer
+
+if ! grep -q "^# altoptions" $menu ; then
+	echo "# altoptions=$altoptions" >> $buffer
+else
+	grep "^# altoptions" $menu >> $buffer
+fi
+echo >> $buffer
+
+echo "## controls how many kernels should be put into the $menu_file_basename" >> $buffer
+echo "## only counts the first occurence of a kernel, not the" >> $buffer
+echo "## alternative kernel options" >> $buffer
+echo "## e.g. howmany=all" >> $buffer
+echo "##      howmany=7" >> $buffer
+echo "# howmany=$howmany" >> $buffer
+echo >> $buffer
+
+echo "## specify if running in Xen domU or have grub detect automatically" >> $buffer
+echo "## update-grub will ignore non-xen kernels when running in domU and vice versa" >> $buffer
+echo "## e.g. indomU=detect" >> $buffer
+echo "##      indomU=true" >> $buffer
+echo "##      indomU=false" >> $buffer
+echo "# indomU=$indomU" >> $buffer
+echo >> $buffer
+
+echo "## should update-grub create memtest86 boot option" >> $buffer
+echo "## e.g. memtest86=true" >> $buffer
+echo "##      memtest86=false" >> $buffer
+echo "# memtest86=$memtest86" >> $buffer
+echo >> $buffer
+
+echo "## should update-grub adjust the value of the default booted system" >> $buffer
+echo "## can be true or false" >> $buffer
+echo "# updatedefaultentry=$updatedefaultentry" >> $buffer
+echo >> $buffer
+
+echo "## should update-grub add savedefault to the default options" >> $buffer
+echo "## can be true or false" >> $buffer
+echo "# savedefault=$savedefault" >> $buffer
+echo >> $buffer
+
+echo "## ## End Default Options ##" >> $buffer
+echo >> $buffer
+
+echo -n "Searching for splash image ... " >&2
+current_splash=`grep '^splashimage=' ${menu_file} || true`
+splash_root_device=""
+splash_uuid=""
+case "$grub_root_device" in
+	[^A-Za-z0-9]*)
+		splash_root_device=${grub_root_device}
+	;;
+	*)
+		splash_uuid="uuid		$grub_root_device"
+	;;
+esac
+splashimage_path="splashimage=${splash_root_device}${grub_dir##${boot_device:+/boot}}/splash.xpm.gz"
+if [ `sed -e "/^$start/,/^$end/d" $menu_file | grep -c '^splashimage='` != "0" ] ; then
+       #checks for splashscreen defined outside the autoupdated part
+       splashimage=$(grep '^splashimage=' ${menu_file})
+       echo "found: ${splashimage##*=}" >&2
+       echo >&2  
+elif [ -f "${grub_dir}/splash.xpm.gz" ]  && [ "$current_splash" = "" ]; then
+       echo "found: /boot/grub/splash.xpm.gz" >&2
+       echo "$splash_uuid" >> $buffer
+       echo "$splashimage_path" >> $buffer
+       echo >> $buffer
+elif [ -f "${grub_dir}/splash.xpm.gz" ]  && [ "$current_splash" = "$splashimage_path" ]; then
+       echo "found: /boot/grub/splash.xpm.gz" >&2
+       echo "$splash_uuid" >> $buffer
+       echo "$splashimage_path" >> $buffer
+       echo >> $buffer
+elif [ "$current_splash" != "" ] && [ "$current_splash" != "$splashimage_path" ]; then
+       echo "found but preserving previous setting: $(grep '^splashimage=' ${menu_file})" >&2
+       echo "$splash_uuid" >> $buffer
+       echo "$current_splash" >> $buffer
+       echo >> $buffer
+else
+       echo "none found, skipping ..." >&2
+fi
+
+
+hypervisors=""
+for hyp in /boot/xen-*.gz; do
+    if [ ! -h "$hyp" ] && [ -f "$hyp" ]; then
+	hypervisors="$hypervisors `basename "$hyp"`"
+    fi
+done
+
+# figure out where grub looks for the kernels at boot time
+kernel_dir=/boot
+if [ -n "$boot_device" ] ; then
+	kernel_dir=
+fi
+
+
+# We need a static path to use for the ucf registration; since we're not
+# using the full menu.lst file (maybe we should, just copying it around?
+# C.f. discussion with Manoj), create a directory in a fixed location
+# even though we're not treating the file in that location as
+# persistent.
+mkdir -p /var/run/grub
+
+# The first time ucf sees the file, we can only assume any difference
+# between the magic comments and the kernel options is a result of local
+# mods, so this will result in a ucf prompt for anyone whose first
+# invocation of update-grub is as a result of updating the magic comments.
+if ! ucfq grub | grep -q $ucf_menu_file; then
+	otherbuffer=$(tempfile)
+	cat $buffer > $otherbuffer
+
+	sortedKernels=`sed -n -e "
+	/$endopt/,/$end/ {
+		s/^kernel[[:space:]]\+\([^[:space:]]\+\).*/\1/p
+	}" < $menu | grep -vE "memtest86|$grub2name|xen" | uniq`
+	xenKernels=`sed -n -e "
+	/$endopt/,/$end/ {
+		s/^module[[:space:]]\+\([^[:space:]]*vmlinuz[^[:space:]]\+\).*/\1/p
+	}" < $menu | uniq`
+
+	savebuffer="$buffer"
+	buffer="$otherbuffer"
+	savetitle="$title"
+	title="$(sed -n -e "/$endopt/,/$end/ {
+		s/^title[[:space:]]\+\(.*\),.*/\1/p
+	}" < $menu | head -n 1)"
+	if [ -z "$title" ]; then
+		title="$savetitle"
+	fi
+
+	# Hack: the kernel list output in Ubuntu 6.06 was different than
+	# in the current version, so to support smooth upgrades we need to
+	# properly detect a config generated by this old version of
+	# update-grub and mimic it for the initial ucf registration
+	dapper_upgrade=`sed -n -e "
+	/$endopt/,/$end/ {
+		/^boot/p
+	}" < $menu`
+	save_savedefault="$savedefault"
+	if [ -n "$dapper_upgrade" ]; then
+		savedefault=true
+	fi
+
+	output_kernel_list
+
+	savedefault="$save_savedefault"
+	dapper_upgrade=""
+	buffer="$savebuffer"
+	title="$savetitle"
+
+	ucf_update_kernels "$menu" "$otherbuffer"
+
+	# all done, now register it
+	ucfr grub $ucf_menu_file
+fi
+
+
+if ! type is_xen_kernel >/dev/null 2>&1; then
+  check_xen_config_for_kernel() {
+    # input is like /boot/vmlinuz-2.6.35-13-virtual
+    # expected config path is /boot/config-2.6.35-13-virtual
+    local kernel="$1" config="" dir="" bname=""
+    dir=${kernel%/*}
+    [ "$dir" = "$kernel" ] && dir="."
+    bname=${kernel##*/}
+    config="$dir/config-${bname#*-}"
+    [ -f "$config" ] || return 1
+    grep -q CONFIG_XEN=y "$config"
+  }
+
+  is_xen_kernel() {
+    # input is like /boot/vmlinuz-2.6.35-13-virtual
+    # return whether or not this kernel is xen bootable.
+    check_xen_config_for_kernel "$1" && return 0
+
+    # get the version string out of it.
+    local ver_flavor="";
+    ver_flavor="${1##*vmlinuz-}"
+
+    case "${ver_flavor}" in
+       *-aws) return 0;;
+       *-ec2) return 0;;
+       *-virtual)
+         # 10.04 LTS through 12.04 LTS -virtual is the EC2/Xen kernel
+         dpkg --compare-versions ${ver_flavor%-virtual} gt 2.6.35-13 && return 0;;
+       *-generic)
+         # Starting with 12.10, -virtual was merged into -generic
+         dpkg --compare-versions ${ver_flavor%-generic} ge 3.4.0-3 && return 0;;
+    esac
+    return 1;
+  }
+fi
+
+for kern in /boot/vmlinuz-*; do
+  case "$kern" in
+    *.signed) continue;;
+  esac
+  is_xen_kernel "${kern}" &&
+    xen_verlist="${xen_verlist} ${kern#/boot/vmlinuz-}"
+done
+xen_verlist=${xen_verlist# }
+
+xenKernels=""
+for ver in ${xen_verlist}; do
+  # ver is a kernel version
+  kern="/boot/vmlinuz-$ver"
+  if [ -r $kern ] ; then
+       newerKernels=""
+       for i in $xenKernels ; do
+                res=$(CompareVersions "$kern" "$i")
+                if [ "$kern" != "" ] && [ "$res" -gt 0 ] ; then
+                        newerKernels="$newerKernels $kern $i"
+                        kern=""
+                else
+                        newerKernels="$newerKernels $i"
+                fi
+        done
+        if [ "$kern" != "" ] ; then
+                newerKernels="$newerKernels $kern"
+        fi
+        xenKernels="$newerKernels"
+    fi
+done
+xenKernels=" ${xenKernels} "
+
+if [ "$indomU" = "detect" ]; then
+    if [ -e /proc/xen/capabilities ] && ! grep -q "control_d" /proc/xen/capabilities; then
+        indomU="true"
+    else
+        indomU="false"
+    fi
+fi
+
+sortedKernels=""
+for kern in $(/bin/ls -1vr /boot | grep -v "dpkg-*" | grep "^vmlinuz-") ; do
+	if `echo "$xenKernels" | grep -q "$kern "` || `echo "$kern" | grep -q "xen"`; then
+		is_xen=1
+	else
+		is_xen=
+	fi
+
+    if [ "$indomU" = "false" ] && [ "$is_xen" ]; then
+        # We aren't running in a Xen domU, skip xen kernels
+        echo "Ignoring Xen kernel on non-Xen host: $kern"
+        continue
+    elif [ "$indomU" = "true" ] && ! [ "$is_xen" ]; then
+        # We are running in a Xen domU, skip non-xen kernels
+        echo "Ignoring non-Xen Kernel on Xen domU host: $kern"
+        continue
+    fi
+    
+    kern="/boot/$kern"
+	newerKernels=""
+	for i in $sortedKernels ; do
+	    res=$(CompareVersions "$kern" "$i")
+	    if [ "$kern" != "" ] && [ "$res" -gt 0 ] ; then
+		newerKernels="$newerKernels $kern $i"
+	 	kern=""
+	    else
+		newerKernels="$newerKernels $i"
+	    fi
+	done
+	if [ "$kern" != "" ] ; then
+	    newerKernels="$newerKernels $kern"
+	fi
+	sortedKernels="$newerKernels"
+done
+
+if test -f "/boot/vmlinuz.old" ; then
+	sortedKernels="/boot/vmlinuz.old $sortedKernels"
+fi
+if test -f "/boot/vmlinuz" ; then
+	sortedKernels="/boot/vmlinuz $sortedKernels"
+fi
+
+# Add our last-good-boot kernel, second in list. We always add it, because
+# it can appear out of nowhere.
+newerKernels=""
+last_good="/boot/last-good-boot/vmlinuz"
+if [ -e "$last_good" ]; then
+	for i in $sortedKernels ; do
+		if [ "$last_good" != "" ]; then
+			newerKernels="$i $last_good"
+			last_good=""
+		else
+			newerKernels="$newerKernels $i"
+		fi
+	done
+	# Shouldn't happen, unless someone removed all the kernels
+	if [ "$last_good" != "" ]; then
+		newerKernels="$newerKernels $last_good"
+	fi
+	sortedKernels="$newerKernels"
+fi
+
+#Finding the value the default line
+use_grub_set_default="false"
+if test "$updatedefaultentry" = "true" ; then
+	defaultEntryNumber=$(sed -ne 's/^[[:blank:]]*default[[:blank:]]*\(.*\).*/\1/p' $menu)
+
+	if [ "$defaultEntryNumber" = "saved" ] ; then
+	    defaultEntryNumber=$(sed 'q' "$grub_dir/default")
+	    use_grub_set_default="true"	   
+	fi
+	
+	if test -n "$defaultEntryNumber"; then	
+		defaultEntryNumberPlusOne=$(expr $defaultEntryNumber \+ 1);
+		defaultEntry=$(grep "^[[:blank:]]*title" $menu | sed -ne "${defaultEntryNumberPlusOne}p" | sed -ne ";s/^[[:blank:]]*title[[:blank:]]*//p")
+		defaultEntry=$(echo $defaultEntry | sed -e "s/[[:blank:]]*$//") # don't trust trailing blanks	
+	else
+		notChangeDefault="yes"
+	fi
+else
+		notChangeDefault="yes"
+fi
+
+output_kernel_list
+
+otherbuffer=$(tempfile)
+cat $buffer > $otherbuffer
+
+ucf_update_kernels "$buffer" "$otherbuffer"
+
+echo -n "Updating $menu ... " >&2
+# Insert the new options into the menu
+if ! grep -q "^$start" $menu ; then
+    cat $buffer >> $menu
+    rm -f $buffer
+else
+    umask 077
+    sed -e "/^$start/,/^$end/{
+	/^$start/r $buffer
+	d
+	}
+	" $menu > $menu.new
+    cat $menu.new > $menu
+    rm -f $buffer $menu.new
+fi
+
+# Function to update the default value
+set_default_value() {
+    if [ "$use_grub_set_default" = "true" ] ; then
+	grub-set-default $1
+    else
+	value="$1"
+	newmenu=$(tempfile)
+	sed -e "s/^[[:blank:]]*default[[:blank:]]*[[:digit:]]*\(.*\)/default         ${value}\1/;b" $menu > $newmenu
+	cat $newmenu > $menu
+	rm -f $newmenu
+	unset newmenu
+    fi
+}
+
+#Updating the default number
+if test -z "$notChangeDefault"; then
+	newDefaultNumberPlusOne=$(grep "^[[:blank:]]*title[[:blank:]]*" $menu | grep -n "${defaultEntry}" | cut -f1 -d ":" | sed -ne "1p")
+	if test -z "$newDefaultNumberPlusOne"; then
+		echo "Previous default entry removed, resetting to 0">&2
+		set_default_value "0"
+	elif test -z "$defaultEntry"; then
+		echo "Value of default value matches no entry, resetting to 0" >&2
+		set_default_value "0"
+	else
+		if test "$newDefaultNumberPlusOne" = "1"; then
+			newDefaultNumber="0"
+		else
+			newDefaultNumber=$(expr $newDefaultNumberPlusOne - 1)
+		fi
+		echo "Updating the default booting kernel">&2
+		set_default_value "$newDefaultNumber"
+	fi
+fi
+
+echo "done" >&2
+echo >&2
