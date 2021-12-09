@@ -23,6 +23,15 @@ ssh:
   emit_keys_to_console: false
 """
 
+ENABLE_KEYS_TO_CONSOLE_USER_DATA = """\
+#cloud-config
+ssh:
+  emit_keys_to_console: true
+users:
+ - default
+ - name: barfoo
+"""
+
 
 @pytest.mark.user_data(BLACKLIST_USER_DATA)
 class TestKeysToConsoleBlacklist:
@@ -70,3 +79,32 @@ class TestKeysToConsoleDisabled:
     def test_footer_excluded(self, class_client):
         syslog = class_client.read_from_file("/var/log/syslog")
         assert "END SSH HOST KEY FINGERPRINTS" not in syslog
+
+
+@pytest.mark.user_data(ENABLE_KEYS_TO_CONSOLE_USER_DATA)
+@pytest.mark.ec2
+@pytest.mark.lxd_container
+@pytest.mark.oci
+@pytest.mark.openstack
+class TestKeysToConsoleEnabled:
+    """Test that output can be enabled disabled."""
+
+    def test_duplicate_messaging_console_log(self, class_client):
+        class_client.execute('cloud-init status --wait --long').ok
+        try:
+            console_log = class_client.instance.console_log()
+        except NotImplementedError:
+            # Assume that an exception here means that we can't use the console
+            # log
+            pytest.skip("NotImplementedError when requesting console log")
+            return
+        if console_log.lower() == 'no console output':
+            # This test retries because we might not have the full console log
+            # on the first fetch. However, if we have no console output
+            # at all, we don't want to keep retrying as that would trigger
+            # another 5 minute wait on the pycloudlib side, which could
+            # leave us waiting for a couple hours
+            pytest.fail('no console output')
+            return
+        msg = "no authorized SSH keys fingerprints found for user barfoo."
+        assert 1 == console_log.count(msg)

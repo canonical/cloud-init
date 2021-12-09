@@ -6,7 +6,7 @@ from textwrap import dedent
 from cloudinit import util
 from cloudinit import subp
 from cloudinit import stages
-from cloudinit.config.schema import get_schema_doc, validate_cloudconfig_schema
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.distros import ALL_DISTROS
 from cloudinit.event import EventType, EventScope
 from cloudinit.settings import PER_INSTANCE
@@ -15,7 +15,7 @@ from cloudinit.settings import PER_INSTANCE
 frequency = PER_INSTANCE
 distros = [ALL_DISTROS]
 
-schema = {
+meta = {
     "id": "cc_install_hotplug",
     "name": "Install Hotplug",
     "title": "Install hotplug if supported and enabled",
@@ -49,6 +49,9 @@ schema = {
         """),
     ],
     "frequency": frequency,
+}
+
+schema = {
     "type": "object",
     "properties": {
         "updates": {
@@ -81,7 +84,7 @@ schema = {
     }
 }
 
-__doc__ = get_schema_doc(schema)
+__doc__ = get_meta_doc(meta, schema)
 
 
 HOTPLUG_UDEV_PATH = "/etc/udev/rules.d/10-cloud-init-hook-hotplug.rules"

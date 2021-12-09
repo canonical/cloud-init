@@ -347,7 +347,7 @@ def extract_usergroup(ug_pair):
     return (u, g)
 
 
-def find_modules(root_dir):
+def find_modules(root_dir) -> dict:
     entries = dict()
     for fname in glob.glob(os.path.join(root_dir, "*.py")):
         if not os.path.isfile(fname):
@@ -533,6 +533,34 @@ def get_linux_distro():
     return (distro_name, distro_version, flavor)
 
 
+def _get_variant(info):
+    system = info['system'].lower()
+    variant = 'unknown'
+    if system == "linux":
+        linux_dist = info['dist'][0].lower()
+        if linux_dist in (
+                'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
+                'debian', 'eurolinux', 'fedora', 'miraclelinux', 'openeuler',
+                'photon', 'rhel', 'rocky', 'suse', 'virtuozzo'):
+            variant = linux_dist
+        elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
+            variant = 'ubuntu'
+        elif linux_dist == 'redhat':
+            variant = 'rhel'
+        elif linux_dist in (
+                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap',
+                'sles', 'sle_hpc'):
+            variant = 'suse'
+        else:
+            variant = 'linux'
+    elif system in (
+            'windows', 'darwin', "freebsd", "netbsd",
+            "openbsd", "dragonfly"):
+        variant = system
+
+    return variant
+
+
 @lru_cache()
 def system_info():
     info = {
@@ -543,32 +571,7 @@ def system_info():
         'uname': list(platform.uname()),
         'dist': get_linux_distro()
     }
-    system = info['system'].lower()
-    var = 'unknown'
-    if system == "linux":
-        linux_dist = info['dist'][0].lower()
-        if linux_dist in (
-                'almalinux', 'alpine', 'arch', 'centos', 'cloudlinux',
-                'debian', 'eurolinux', 'fedora', 'openEuler', 'photon',
-                'rhel', 'rocky', 'suse', 'virtuozzo'):
-            var = linux_dist
-        elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
-            var = 'ubuntu'
-        elif linux_dist == 'redhat':
-            var = 'rhel'
-        elif linux_dist in (
-                'opensuse', 'opensuse-tumbleweed', 'opensuse-leap',
-                'sles', 'sle_hpc'):
-            var = 'suse'
-        else:
-            var = 'linux'
-    elif system in (
-            'windows', 'darwin', "freebsd", "netbsd",
-            "openbsd", "dragonfly"):
-        var = system
-
-    info['variant'] = var
-
+    info['variant'] = _get_variant(info)
     return info
 
 
@@ -1214,8 +1217,9 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
             continue
         if entry == 'fd0:':
             continue
-        part_id = 'a' if entry.startswith('cd') else 'i'
-        devlist.append(entry[:-1] + part_id)
+        devlist.append(entry[:-1] + 'a')
+        if not entry.startswith('cd'):
+            devlist.append(entry[:-1] + 'i')
     if criteria == "TYPE=iso9660":
         devlist = [i for i in devlist if i.startswith('cd')]
     elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
@@ -1749,8 +1753,10 @@ def mount_cb(device, callback, data=None, mtype=None,
                     mountpoint = tmpd
                     break
                 except (IOError, OSError) as exc:
-                    LOG.debug("Failed mount of '%s' as '%s': %s",
-                              device, mtype, exc)
+                    LOG.debug("Failed to mount device: '%s' with type: '%s' "
+                              "using mount command: '%s', "
+                              "which caused exception: %s",
+                              device, mtype, ' '.join(mountcmd), exc)
                     failure_reason = exc
             if not mountpoint:
                 raise MountFailedError("Failed mounting %s to %s due to: %s" %
@@ -2747,5 +2753,20 @@ def get_proc_ppid(pid):
         #  ppid %d     (4) The PID of the parent.
         ppid = int(parts[3])
     return ppid
+
+
+def error(msg, rc=1, fmt='Error:\n{}', sys_exit=False):
+    """
+    Print error to stderr and return or exit
+
+    @param msg: message to print
+    @param rc: return code (default: 1)
+    @param fmt: format string for putting message in (default: 'Error:\n {}')
+    @param sys_exit: exit when called (default: false)
+    """
+    print(fmt.format(msg), file=sys.stderr)
+    if sys_exit:
+        sys.exit(rc)
+    return rc
 
 # vi: ts=4 expandtab

@@ -8,7 +8,7 @@ from cloudinit import reporting
 from cloudinit.reporting import events
 from cloudinit.reporting import handlers
 
-from cloudinit.tests.helpers import TestCase
+from tests.unittests.helpers import TestCase
 
 
 def _fake_registry():

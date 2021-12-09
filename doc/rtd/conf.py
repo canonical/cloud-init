@@ -1,6 +1,8 @@
 import os
 import sys
 
+from cloudinit import version
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -9,8 +11,6 @@ sys.path.insert(0, os.path.abspath('../'))
 sys.path.insert(0, os.path.abspath('./'))
 sys.path.insert(0, os.path.abspath('.'))
 
-from cloudinit import version
-from cloudinit.config.schema import get_schema_doc
 
 # Supress warnings for docs that aren't used yet
 # unused_docs = [
@@ -66,12 +66,3 @@ html_theme = 'sphinx_rtd_theme'
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_logo = 'static/logo.png'
-
-def generate_docstring_from_schema(app, what, name, obj, options, lines):
-    """Override module docs from schema when present."""
-    if what == 'module' and hasattr(obj, "schema"):
-        del lines[:]
-        lines.extend(get_schema_doc(obj.schema).split('\n'))
-
-def setup(app):
-    app.connect('autodoc-process-docstring', generate_docstring_from_schema)

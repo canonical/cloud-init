@@ -68,7 +68,7 @@ Having trouble? We would like to help!
    :titlesonly:
    :caption: Development
 
-   topics/hacking.rst
+   topics/contributing.rst
    topics/code_review.rst
    topics/security.rst
    topics/debugging.rst
