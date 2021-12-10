@@ -2,46 +2,14 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-CA Certs
---------
-**Summary:** add ca certificates
-
-This module adds CA certificates to ``/etc/ca-certificates.conf`` and updates
-the ssl cert cache using ``update-ca-certificates``. The default certificates
-can be removed from the system with the configuration option
-``remove-defaults``.
-
-.. note::
-    certificates must be specified using valid yaml. in order to specify a
-    multiline certificate, the yaml multiline list syntax must be used
-
-.. note::
-    For Alpine Linux the "remove-defaults" functionality works if the
-    ca-certificates package is installed but not if the
-    ca-certificates-bundle package is installed.
-
-**Internal name:** ``cc_ca_certs``
-
-**Module frequency:** per instance
-
-**Supported distros:** alpine, debian, ubuntu, rhel
-
-**Config keys**::
-
-    ca-certs:
-        remove-defaults: <true/false>
-        trusted:
-            - <single line cert>
-            - |
-              -----BEGIN CERTIFICATE-----
-              YOUR-ORGS-TRUSTED-CA-CERT-HERE
-              -----END CERTIFICATE-----
-"""
+"""CA Certs: Add ca certificates."""
 
 import os
+from textwrap import dedent
 
 from cloudinit import subp, util
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.settings import PER_INSTANCE
 
 DEFAULT_CONFIG = {
     "ca_cert_path": "/usr/share/ca-certificates/",
@@ -60,8 +28,71 @@ DISTRO_OVERRIDES = {
     }
 }
 
+MODULE_DESCRIPTION = """\
+This module adds CA certificates to ``/etc/ca-certificates.conf`` and updates
+the ssl cert cache using ``update-ca-certificates``. The default certificates
+can be removed from the system with the configuration option
+``remove-defaults``.
 
+.. note::
+    certificates must be specified using valid yaml. in order to specify a
+    multiline certificate, the yaml multiline list syntax must be used
+
+.. note::
+    For Alpine Linux the "remove-defaults" functionality works if the
+    ca-certificates package is installed but not if the
+    ca-certificates-bundle package is installed.
+"""
 distros = ["alpine", "debian", "ubuntu", "rhel"]
+
+meta = {
+    "id": "cc_ca_certs",
+    "name": "CA Certificates",
+    "title": "Add ca certificates",
+    "description": MODULE_DESCRIPTION,
+    "distros": distros,
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            ca-certs:
+              remove-defaults: true
+              trusted:
+                - single_line_cert
+                - |
+                  -----BEGIN CERTIFICATE-----
+                  YOUR-ORGS-TRUSTED-CA-CERT-HERE
+                  -----END CERTIFICATE-----
+            """
+        )
+    ],
+}
+
+schema = {
+    "type": "object",
+    "properties": {
+        "ca-certs": {
+            "type": "object",
+            "properties": {
+                "remove-defaults": {
+                    "description": (
+                        "Remove default CA certificates if true. "
+                        "Default: false"
+                    ),
+                    "type": "boolean",
+                },
+                "trusted": {
+                    "description": "List of trusted CA certificates to add.",
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+            },
+            "additionalProperties": False,
+        }
+    },
+}
+
+__doc__ = get_meta_doc(meta, schema)
 
 
 def _distro_ca_certs_configs(distro_name):
@@ -169,6 +200,7 @@ def handle(name, cfg, cloud, log, _args):
             name,
         )
         return
+    validate_cloudconfig_schema(cfg, schema)
 
     ca_cert_cfg = cfg["ca-certs"]
     distro_cfg = _distro_ca_certs_configs(cloud.distro.name)

@@ -86,7 +86,13 @@ class GetSchemaTest(CiTestCase):
             [
                 "cc_apk_configure",
                 "cc_apt_configure",
+                "cc_apt_pipelining",
                 "cc_bootcmd",
+                "cc_byobu",
+                "cc_ca_certs",
+                "cc_debug",
+                "cc_disable_ec2_metadata",
+                "cc_disk_setup",
                 "cc_locale",
                 "cc_ntp",
                 "cc_resizefs",

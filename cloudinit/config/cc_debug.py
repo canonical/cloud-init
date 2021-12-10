@@ -2,37 +2,69 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""
-Debug
------
-**Summary:** helper to debug cloud-init *internal* datastructures.
+"""Debug: Helper to debug cloud-init *internal* datastructures."""
 
+import copy
+from io import StringIO
+from textwrap import dedent
+
+from cloudinit import safeyaml, type_utils, util
+from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
+from cloudinit.distros import ALL_DISTROS
+from cloudinit.settings import PER_INSTANCE
+
+SKIP_KEYS = frozenset(["log_cfgs"])
+
+MODULE_DESCRIPTION = """\
 This module will enable for outputting various internal information that
 cloud-init sources provide to either a file or to the output console/log
 location that this cloud-init has been configured with when running.
 
 .. note::
     Log configurations are not output.
-
-**Internal name:** ``cc_debug``
-
-**Module frequency:** per instance
-
-**Supported distros:** all
-
-**Config keys**::
-
-    debug:
-       verbose: true/false (defaulting to true)
-       output: (location to write output, defaulting to console + log)
 """
 
-import copy
-from io import StringIO
+meta = {
+    "id": "cc_debug",
+    "name": "Debug",
+    "title": "Helper to debug cloud-init *internal* datastructures",
+    "description": MODULE_DESCRIPTION,
+    "distros": [ALL_DISTROS],
+    "frequency": PER_INSTANCE,
+    "examples": [
+        dedent(
+            """\
+            debug:
+              verbose: true
+              output: /tmp/my_debug.log
+            """
+        )
+    ],
+}
 
-from cloudinit import safeyaml, type_utils, util
+schema = {
+    "type": "object",
+    "properties": {
+        "debug": {
+            "additionalProperties": False,
+            "type": "object",
+            "properties": {
+                "verbose": {
+                    "description": "Should always be true for this module",
+                    "type": "boolean",
+                },
+                "output": {
+                    "description": (
+                        "Location to write output. Defaults to console + log"
+                    ),
+                    "type": "string",
+                },
+            },
+        }
+    },
+}
 
-SKIP_KEYS = frozenset(["log_cfgs"])
+__doc__ = get_meta_doc(meta, schema)
 
 
 def _make_header(text):
@@ -53,7 +85,7 @@ def _dumps(obj):
 
 def handle(name, cfg, cloud, log, args):
     """Handler method activated by cloud-init."""
-
+    validate_cloudconfig_schema(cfg, schema)
     verbose = util.get_cfg_by_path(cfg, ("debug", "verbose"), default=True)
     if args:
         # if args are provided (from cmdline) then explicitly set verbose

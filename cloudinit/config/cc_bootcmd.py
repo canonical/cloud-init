@@ -17,13 +17,6 @@ from cloudinit.config.schema import get_meta_doc, validate_cloudconfig_schema
 from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
-
-# The schema definition for each cloud-config module is a strict contract for
-# describing supported configuration parameters for each cloud-config section.
-# It allows cloud-config to validate and alert users to invalid or ignored
-# configuration options before actually attempting to deploy with said
-# configuration.
-
 distros = ["all"]
 
 meta = {
@@ -74,7 +67,6 @@ schema = {
                 ]
             },
             "additionalItems": False,  # Reject items of non-string non-list
-            "additionalProperties": False,
             "minItems": 1,
         }
     },
