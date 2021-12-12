@@ -12,13 +12,19 @@ import copy
 import json
 import os
 import time
+from typing import Tuple, Any, Union, Callable, Mapping, Optional
 from email.utils import parsedate
 from errno import ENOENT
 from functools import partial
 from http.client import NOT_FOUND
 from itertools import count
-from urllib.parse import quote, urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse, quote
+from urllib3.exceptions import InsecureRequestWarning
+from urllib3._collections import RecentlyUsedContainer
+from urllib3.poolmanager import PoolKey, key_fn_by_scheme
+from urllib3.util import Url
 
+import urllib3
 import requests
 from requests import exceptions
 
@@ -151,6 +157,84 @@ class UrlError(IOError):
         if self.headers is None:
             self.headers = {}
         self.url = url
+
+
+class HTTPConnectionPoolEarlyConnect(urllib3.HTTPConnectionPool):
+    """Allow socket connection prior to http request for dual-stack address
+    selection followed by socket reuse.
+
+    A connection pool enables connection reuse to a single host.
+    """
+    def _validate_conn(self, conn) -> None:
+        """
+        Called right before a request is made, after the socket is created.
+        """
+        super()._validate_conn(conn)
+
+        # Force connect early to allow us to validate the connection.
+        if not conn.sock:
+            conn.connect()
+
+        if not conn.is_verified:
+            print(
+                (
+                    "Unverified HTTPS request is being made to host '{}'. "
+                    "Adding certificate verification is strongly advised. See: "
+                    "https://urllib3.readthedocs.io/en/latest/advanced-usage.html"
+                    "#tls-warnings".format(conn.host)
+                ),
+                InsecureRequestWarning,
+            )
+
+    def connect(self):
+        """Create a connection without creating a request
+        """
+        # Make space in the pool and init an HTTPConnection
+        conn = self._get_conn()
+
+        # connect and validate the connection immediately
+        self._validate_conn(conn)
+
+        # insert connection into pool immediately for reuse
+        self._put_conn(conn)
+        return conn
+
+
+# TODO: add https?
+pool_classes_by_scheme = {"http": HTTPConnectionPoolEarlyConnect}
+
+class PoolManagerEarlyConnect(urllib3.PoolManager):
+    """Enable early connection to multiple "hosts" for dual-stack addresses
+    selection.
+
+    Requests and urllib3 expose a high level API wherein the socket connection
+    occurs with the first http request. Allow initializing the connection
+    separately which enables dual stack selection (rfc 6555, aka "happy
+    eyeballs") prior to the http request
+    """
+    proxy: Optional[Url] = None
+    proxy_config: Optional[Any] = None
+
+
+    def __init__(
+        self,
+        num_pools: int = 10,
+        headers: Optional[Mapping[str, str]] = None,
+        **connection_pool_kw: Any,
+    ) -> None:
+        super().__init__(headers)
+        self.connection_pool_kw = connection_pool_kw
+
+        def dispose_func(p: Any) -> None:
+            p.close()
+
+        self.pools: RecentlyUsedContainer[PoolKey, HTTPConnectionPoolEarlyConnect]
+        self.pools = RecentlyUsedContainer(num_pools, dispose_func=dispose_func)
+
+        # Locally set the pool classes and keys so other PoolManagers can
+        # override them.
+        self.pool_classes_by_scheme = pool_classes_by_scheme
+        self.key_fn_by_scheme = key_fn_by_scheme.copy()
 
 
 def _get_ssl_args(url, ssl_details):
@@ -347,18 +431,74 @@ def readurl(
     raise excps[-1]
 
 
-def wait_for_url(
-    urls,
-    max_wait=None,
-    timeout=None,
-    status_cb=None,
-    headers_cb=None,
-    headers_redact=None,
-    sleep_time=1,
-    exception_cb=None,
-    sleep_time_cb=None,
-    request_method=None,
-):
+def dual_stack(
+        func: Callable[..., Any],
+        *addresses: str,
+        stagger_delay: float = 0.150,
+        max_timeout: int = 10) -> Any:
+    """attempt connecting to multiple addresses asynchronously
+
+    Run blocking func against two different addresses staggered with a
+    delay. The first call to return is returned from this function and
+    remaining unfinished calls will be canceled.
+
+    TODO:
+    - replace print() w/logging
+    """
+    return_result = None
+
+    from concurrent.futures import (
+        ThreadPoolExecutor, as_completed, TimeoutError)
+
+    def _run_func(func, addr, delay=None):
+        """Execute func with optional delay
+        """
+        if delay:
+            time.sleep(delay)
+        return func(addr)
+
+    executor = ThreadPoolExecutor(max_workers=len(addresses))
+    try:
+        futures = {
+            executor.submit(
+                _run_func,
+                func=func,
+                addr=addr,
+                delay=(None if i == 0 else stagger_delay)
+            ): addr for i, addr in enumerate(addresses)
+        }
+
+        # handle the first function to complete from the threadpool executor
+        future = next(as_completed(futures, timeout=max_timeout))
+
+        returned_address = futures[future]
+        return_result = future.result()
+        return_exception = future.exception()
+        if return_exception:
+            print("Got exception %s" % return_exception)
+            raise return_exception
+        elif return_result:
+            print("Address {} returned" .format(returned_address))
+        else:
+            print(
+                "Empty result for address: {}".format(returned_address))
+
+    # when max_timeout expires
+    except TimeoutError:
+        print("Timed out waiting for addresses: {}".format(
+            " ".join(map(str, addresses))))
+
+    # Executor doesn't provide kwargs for setting shutdown behavior
+    # in the constructor, otherwise the context manager would be preferred
+    # think they would take a PR implementing that?
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
+    return return_result
+
+
+def wait_for_url(urls, max_wait=None, timeout=None, status_cb=None,
+                 headers_cb=None, headers_redact=None, sleep_time=1,
+                 exception_cb=None, sleep_time_cb=None, request_method=None):
     """
     urls:      a list of urls to try
     max_wait:  roughly the maximum time to wait before giving up

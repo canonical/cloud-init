@@ -5,6 +5,9 @@ import logging
 import httpretty
 import pytest
 import requests
+import pytest
+from functools import partial
+from time import sleep, process_time
 
 from cloudinit import util, version
 from cloudinit.url_helper import (
@@ -249,5 +252,110 @@ class TestRetryOnUrlExc(CiTestCase):
         myerror = UrlError(cause=requests.Timeout("something timed out"))
         self.assertTrue(retry_on_url_exc(msg="", exc=myerror))
 
+
+from typing import Tuple, Callable
+
+
+def _raise(a):
+    raise a
+
+def assert_time(func, max_time=1):
+    """Assert function time is bounded by a max (default=1s)
+
+    The following async tests should canceled in under 1ms and have stagger
+    delay and max_
+    It is possible that this could yield a false positive, but this should
+    basically never happen (esp under normal system load).
+    """
+    start = process_time()
+    try:
+        out = func()
+    finally:
+        diff = (process_time() - start)
+        assert diff < max_time
+    return out
+
+
+class TestDualStack:
+
+    @pytest.mark.parametrize(
+        "func,"
+        "addresses,"
+        "stagger_delay,"
+        "max_timeout,"
+        "expected_val,"
+        "expected_exc",
+        [
+            # Assert order based on timeout
+            (lambda x:x, ("one", "two"), 1, 1, "one", None),
+            (lambda x:sleep(1) if x != "two" else x, ("one", "two"), 0, 1, "two", None),
+            (lambda x:sleep(1) if x != "tri" else x, ("one", "two", "tri"), 0, 1, "tri", None),
+
+            # Assert timeout results in (None, None)
+            (lambda _:sleep(1), ("one", "two"), 1, 0, None, None),
+
+            # Assert that exception in func is raised
+            (lambda _:1/0, ("one", "two"), 1, 1, None, ZeroDivisionError),
+
+            # TODO: add httpretty tests
+        ])
+    def test_dual_stack(
+            self,
+            func,
+            addresses,
+            stagger_delay,
+            max_timeout,
+            expected_val,
+            expected_exc):
+        """Assert various failure modes behave as expected
+        """
+
+        gen = partial(
+            dual_stack,
+            func,
+            *addresses,
+            stagger_delay=stagger_delay,
+            max_timeout=max_timeout)
+        if expected_exc:
+            with pytest.raises(expected_exc):
+                assert expected_val == assert_time(gen)
+        else:
+            assert expected_val == assert_time(gen)
+
+
+class TestHTTPConnectionPoolEarlyConnect:
+    """ TODO: use httpretty, not google.com
+    """
+    def test_instantiate(self):
+        pool = HTTPConnectionPoolEarlyConnect("google.com")
+        out = pool.urlopen("GET", "google.com", assert_same_host=False)
+        assert 200 == out.status
+
+    def test_instantiate_init(self):
+        pool = HTTPConnectionPoolEarlyConnect("google.com")
+        pool.connect()
+        out = (pool.urlopen("GET", "google.com", assert_same_host=False))
+        assert 200 == out.status
+
+
+#class TestHTTPAdapterEarlyConnect:
+#    """ TODO: add tests for adapter class
+#    """
+#    def test_instantiate_dualstack(self):
+#        assert False
+#        pool = HTTPConnectionPoolEarlyConnect("google.com")
+#
+#        # out = (pool.urlopen("GET", "google.com", assert_same_host=False))
+#        first = "google.com"
+#        not_first = "yahoo.com"
+#        gen = partial(
+#            dual_stack,
+#            pool.connect,
+#            first, not_first,
+#            stagger_delay=1,
+#            max_timeout=1)
+#        out = assert_time(gen)
+#        out = pool.urlopen("GET", "google.com", assert_same_host=False)
+#        assert out
 
 # vi: ts=4 expandtab
