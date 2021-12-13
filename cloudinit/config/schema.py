@@ -452,7 +452,7 @@ def _get_property_doc(schema: dict, prefix="    ") -> str:
                 ):
                     properties.append(
                         SCHEMA_LIST_ITEM_TMPL.format(
-                            prefix=new_prefix, prop_name=prop_key
+                            prefix=new_prefix, prop_name=label
                         )
                     )
                     new_prefix += "    "

@@ -473,7 +473,17 @@ class GetSchemaDocTest(CiTestCase):
                 },
                 "prop_no_label": {
                     "type": "string",
-                }
+                },
+                "prop_array": {
+                    "label": 'array_label',
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "some_prop": {"type": "number"},
+                        },
+                    },
+                },
             },
             "patternProperties": {
                 "^.*$": {
@@ -486,6 +496,8 @@ class GetSchemaDocTest(CiTestCase):
         assert "**label1:** (string)" in meta_doc
         assert "**label2:** (string" in meta_doc
         assert "**prop_no_label:** (string)" in meta_doc
+        assert "Each item in **array_label** list" in meta_doc
+
         assert "prop1" not in meta_doc
         assert ".*" not in meta_doc
 
