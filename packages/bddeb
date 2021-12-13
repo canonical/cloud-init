@@ -94,6 +94,8 @@ def write_debian_folder(root, templ_data, cloud_util_deps):
     requires.extend(['python3'] + reqs + test_reqs)
     if templ_data['debian_release'] == 'xenial':
         requires.append('python3-pytest-catchlog')
+    elif templ_data['debian_release'] == 'impish':
+        requires.remove('dh-systemd')
     templater.render_to_file(util.abs_join(find_root(),
                                            'packages', 'debian', 'control.in'),
                              util.abs_join(deb_dir, 'control'),
