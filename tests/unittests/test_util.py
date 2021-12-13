@@ -2336,7 +2336,7 @@ class TestFindDevs:
     def test_find_devs_with_openbsd_with_criteria(self, m_subp):
         m_subp.return_value = ('cd0:,sd0:630d98d32b5d3759,sd1:,fd0:', '')
         devlist = util.find_devs_with_openbsd(criteria="TYPE=iso9660")
-        assert devlist == ['/dev/cd0a']
+        assert devlist == ['/dev/cd0a', '/dev/sd1a', '/dev/sd1i']
 
         # lp: #1841466
         devlist = util.find_devs_with_openbsd(criteria="LABEL_FATBOOT=A_LABEL")

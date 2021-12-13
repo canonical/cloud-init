@@ -1211,7 +1211,7 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
                            tag=None, no_cache=False, path=None):
     out, _err = subp.subp(['sysctl', '-n', 'hw.disknames'], rcs=[0])
     devlist = []
-    for entry in out.split(','):
+    for entry in out.rstrip().split(','):
         if not entry.endswith(':'):
             # ffs partition with a serial, not a config-drive
             continue
@@ -1220,12 +1220,6 @@ def find_devs_with_openbsd(criteria=None, oformat='device',
         devlist.append(entry[:-1] + 'a')
         if not entry.startswith('cd'):
             devlist.append(entry[:-1] + 'i')
-    if criteria == "TYPE=iso9660":
-        devlist = [i for i in devlist if i.startswith('cd')]
-    elif criteria in ["LABEL=CONFIG-2", "TYPE=vfat"]:
-        devlist = [i for i in devlist if not i.startswith('cd')]
-    elif criteria:
-        LOG.debug("Unexpected criteria: %s", criteria)
     return ['/dev/' + i for i in devlist]
 
 
