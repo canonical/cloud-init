@@ -43,10 +43,17 @@ NETWORK_FILE_HEADER = """\
 NETWORK_CONF_FN = "/etc/network/interfaces.d/50-cloud-init"
 LOCALE_CONF_FN = "/etc/default/locale"
 
+# The frontend lock needs to be acquired first followed by the order that
+# apt uses. /var/lib/apt/lists is locked independently of that install chain,
+# and only locked during update, so you can acquire it either order.
+# Also update does not acquire the dpkg frontend lock.
+# More context:
+#   https://github.com/canonical/cloud-init/pull/1034#issuecomment-986971376
 APT_LOCK_FILES = [
+    '/var/lib/dpkg/lock-frontend',
     '/var/lib/dpkg/lock',
-    '/var/lib/apt/lists/lock',
     '/var/cache/apt/archives/lock',
+    '/var/lib/apt/lists/lock',
 ]
 
 
