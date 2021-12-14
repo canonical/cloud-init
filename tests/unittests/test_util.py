@@ -854,7 +854,7 @@ class TestGetLinuxDistro(CiTestCase):
         m_os_release.return_value = OS_RELEASE_OPENEULER_20
         m_path_exists.side_effect = TestGetLinuxDistro.os_release_exists
         dist = util.get_linux_distro()
-        self.assertEqual(('openEuler', '20.03', 'LTS-SP2'), dist)
+        self.assertEqual(('openeuler', '20.03', 'LTS-SP2'), dist)
 
     @mock.patch('cloudinit.util.load_file')
     def test_get_linux_opensuse(self, m_os_release, m_path_exists):
@@ -946,7 +946,7 @@ class TestGetVariant:
             ({'system': 'linux', 'dist': ('debian',)}, 'debian'),
             ({'system': 'linux', 'dist': ('eurolinux',)}, 'eurolinux'),
             ({'system': 'linux', 'dist': ('fedora',)}, 'fedora'),
-            ({'system': 'linux', 'dist': ('openEuler',)}, 'openeuler'),
+            ({'system': 'linux', 'dist': ('openeuler',)}, 'openeuler'),
             ({'system': 'linux', 'dist': ('photon',)}, 'photon'),
             ({'system': 'linux', 'dist': ('rhel',)}, 'rhel'),
             ({'system': 'linux', 'dist': ('rocky',)}, 'rocky'),
