@@ -3,3 +3,6 @@ line-length = 79
 
 [tool.isort]
 profile = "black"
+line_length = 79
+# We patch logging in main.py before certain imports
+skip = ["cloudinit/cmd/main.py", ".tox", "packages", "tools"]
