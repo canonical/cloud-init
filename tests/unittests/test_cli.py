@@ -237,7 +237,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
                 (
                     "**Supported distros:** almalinux, alpine, centos, "
                     "cloudlinux, debian, eurolinux, fedora, miraclelinux, "
-                    "openEuler, opensuse, photon, rhel, rocky, sles, ubuntu, "
+                    "openeuler, opensuse, photon, rhel, rocky, sles, ubuntu, "
                     "virtuozzo"
                 ),
                 "**Config schema**:\n    **resize_rootfs:** "
