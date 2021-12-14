@@ -2,8 +2,9 @@
 
 import errno
 import gzip
-from io import BytesIO
 import json
+import os
+from io import BytesIO
 from textwrap import dedent
 
 import pytest
@@ -51,8 +52,14 @@ class TestQuery:
             vendor_data = None
         run_dir = tmpdir.join('run_dir')
         run_dir.ensure_dir()
+
+        cloud_dir = tmpdir.join('cloud_dir')
+        cloud_dir.ensure_dir()
+
         return (
-            Paths({'run_dir': run_dir.strpath}),
+            Paths(
+                {'cloud_dir': cloud_dir.strpath, 'run_dir': run_dir.strpath}
+            ),
             run_dir,
             user_data,
             vendor_data
@@ -106,7 +113,9 @@ class TestQuery:
             with mock.patch(
                 "cloudinit.cmd.query.addLogHandlerCLI", return_value=""
             ):
-                assert 1 == query.handle_args('anyname', args)
+                with mock.patch('cloudinit.cmd.query.load_userdata') as m_lud:
+                    m_lud.return_value = "ud"
+                    assert 1 == query.handle_args('anyname', args)
         assert expected_error in caplog.text
 
     def test_handle_args_error_on_missing_instance_data(self, caplog, tmpdir):
@@ -207,6 +216,35 @@ class TestQuery:
             vd_expected = "ci-b64:{}".format(b64e(vd_src))
         assert ud_expected == cmd_output['userdata']
         assert vd_expected == cmd_output['vendordata']
+
+    def test_handle_args_user_vendor_data_defaults_to_instance_link(
+        self, capsys, tmpdir
+    ):
+        """When no instance_data argument, root uses sensitive json."""
+        paths, run_dir, _, _ = self._setup_paths(tmpdir)
+        sensitive_file = run_dir.join(INSTANCE_JSON_SENSITIVE_FILE)
+        sensitive_file.write('{"my-var": "it worked"}')
+
+        ud_path = os.path.join(paths.instance_link, "user-data.txt")
+        write_file(ud_path, "instance_link_ud")
+        vd_path = os.path.join(paths.instance_link, "vendor-data.txt")
+        write_file(vd_path, "instance_link_vd")
+
+        args = self.args(
+            debug=False, dump_all=True, format=None, instance_data=None,
+            list_keys=False, user_data=None,
+            vendor_data=None, varname=None)
+        with mock.patch('cloudinit.cmd.query.read_cfg_paths') as m_paths:
+            m_paths.return_value = paths
+            with mock.patch('os.getuid', return_value=0):
+                assert 0 == query.handle_args('anyname', args)
+        expected = (
+            '{\n "my-var": "it worked",\n '
+            '"userdata": "instance_link_ud",\n '
+            '"vendordata": "instance_link_vd"\n}\n'
+        )
+        out, _ = capsys.readouterr()
+        assert expected == out
 
     def test_handle_args_root_uses_instance_sensitive_data(
         self, capsys, tmpdir
