@@ -19,7 +19,7 @@ entry, the config entry will be skipped.
 **Module frequency:** always
 
 **Supported distros:** almalinux, centos, cloudlinux, eurolinux, fedora,
-                       miraclelinux, openEuler, photon, rhel, rocky, virtuozzo
+                       miraclelinux, openeuler, photon, rhel, rocky, virtuozzo
 
 **Config keys**::
 
@@ -38,7 +38,7 @@ from configparser import ConfigParser
 from cloudinit import util
 
 distros = ['almalinux', 'centos', 'cloudlinux', 'eurolinux', 'fedora',
-           'openEuler', 'photon', 'rhel', 'rocky', 'virtuozzo']
+           'openeuler', 'photon', 'rhel', 'rocky', 'virtuozzo']
 
 
 def _canonicalize_id(repo_id):
