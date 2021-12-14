@@ -55,7 +55,7 @@ def get_module_variable(var_name) -> dict:
     schemas = {}
 
     files = list(
-        Path(cloud_init_project_dir("../../cloudinit/config/")).glob("cc_*.py")
+        Path(cloud_init_project_dir("cloudinit/config/")).glob("cc_*.py")
     )
 
     modules = [mod.stem for mod in files]
@@ -215,12 +215,13 @@ class TestCloudConfigExamples:
     @pytest.mark.parametrize("schema_id, example", params)
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_of_example(self, schema_id, example):
-        """ For a given example in a config module we test if it is valid
+        """For a given example in a config module we test if it is valid
         according to the unified schema of all config modules
         """
         config_load = safe_load(example)
         validate_cloudconfig_schema(
-            config_load, self.schema, strict=True)
+            config_load, self.schema[schema_id], strict=True
+        )
 
 
 class ValidateCloudConfigFileTest(CiTestCase):
@@ -462,6 +463,44 @@ class GetSchemaDocTest(CiTestCase):
                 get_meta_doc(invalid_meta, schema)
             self.assertIn(key, str(context_mgr.exception))
 
+    def test_label_overrides_property_name(self):
+        """get_meta_doc overrides property name with label."""
+        schema = {
+            "properties": {
+                "prop1": {
+                    "type": "string",
+                    "label": "label1",
+                },
+                "prop_no_label": {
+                    "type": "string",
+                },
+                "prop_array": {
+                    "label": 'array_label',
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "some_prop": {"type": "number"},
+                        },
+                    },
+                },
+            },
+            "patternProperties": {
+                "^.*$": {
+                    "type": "string",
+                    "label": "label2",
+                }
+            }
+        }
+        meta_doc = get_meta_doc(self.meta, schema)
+        assert "**label1:** (string)" in meta_doc
+        assert "**label2:** (string" in meta_doc
+        assert "**prop_no_label:** (string)" in meta_doc
+        assert "Each item in **array_label** list" in meta_doc
+
+        assert "prop1" not in meta_doc
+        assert ".*" not in meta_doc
+
 
 class AnnotatedCloudconfigFileTest(CiTestCase):
     maxDiff = None
@@ -626,9 +665,11 @@ def _get_meta_doc_examples():
     examples_dir = Path(cloud_init_project_dir('doc/examples'))
     assert examples_dir.is_dir()
 
-    all_text_files = (f for f in examples_dir.glob('cloud-config*.txt')
-                      if not f.name.startswith('cloud-config-archive'))
-    return all_text_files
+    return (
+        str(f)
+        for f in examples_dir.glob("cloud-config*.txt")
+        if not f.name.startswith("cloud-config-archive")
+    )
 
 
 class TestSchemaDocExamples:
@@ -637,7 +678,7 @@ class TestSchemaDocExamples:
     @pytest.mark.parametrize("example_path", _get_meta_doc_examples())
     @skipUnlessJsonSchema()
     def test_schema_doc_examples(self, example_path):
-        validate_cloudconfig_file(str(example_path), self.schema)
+        validate_cloudconfig_file(example_path, self.schema)
 
 
 class TestStrictMetaschema:
