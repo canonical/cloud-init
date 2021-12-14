@@ -26,8 +26,8 @@ Last-Update: 2020-06-01
  
              # RELEASE_BLOCKER: xenial should drop the below if statement,
              # because the issue being addressed doesn't exist pre-netplan.
---- a/tests/unittests/test_datasource/test_ec2.py
-+++ b/tests/unittests/test_datasource/test_ec2.py
+--- a/tests/unittests/sources/test_ec2.py
++++ b/tests/unittests/sources/test_ec2.py
 @@ -447,7 +447,14 @@ class TestEc2(test_helpers.HttprettyTest
          """
          ds = self._setup_ds(
