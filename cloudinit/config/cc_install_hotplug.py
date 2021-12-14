@@ -19,7 +19,8 @@ meta = {
     "id": "cc_install_hotplug",
     "name": "Install Hotplug",
     "title": "Install hotplug if supported and enabled",
-    "description": dedent("""\
+    "description": dedent(
+        """\
         This module will install the udev rules to enable hotplug if
         supported by the datasource and enabled in the userdata. The udev
         rules will be installed as
@@ -32,21 +33,26 @@ meta = {
         network configuration.
 
         Currently supported datasources: Openstack, EC2
-    """),
+    """
+    ),
     "distros": distros,
     "examples": [
-        dedent("""\
+        dedent(
+            """\
             # Enable hotplug of network devices
             updates:
               network:
                 when: ["hotplug"]
-        """),
-        dedent("""\
+        """
+        ),
+        dedent(
+            """\
             # Enable network hotplug alongside boot event
             updates:
               network:
                 when: ["boot", "hotplug"]
-        """),
+        """
+        ),
     ],
     "frequency": frequency,
 }
@@ -74,14 +80,14 @@ schema = {
                                     "boot-legacy",
                                     "boot",
                                     "hotplug",
-                                ]
-                            }
+                                ],
+                            },
                         }
-                    }
+                    },
                 }
-            }
+            },
         }
-    }
+    },
 }
 
 __doc__ = get_meta_doc(meta, schema)
@@ -100,14 +106,15 @@ LABEL="cloudinit_end"
 def handle(_name, cfg, cloud, log, _args):
     validate_cloudconfig_schema(cfg, schema)
     network_hotplug_enabled = (
-        'updates' in cfg and
-        'network' in cfg['updates'] and
-        'when' in cfg['updates']['network'] and
-        'hotplug' in cfg['updates']['network']['when']
+        "updates" in cfg
+        and "network" in cfg["updates"]
+        and "when" in cfg["updates"]["network"]
+        and "hotplug" in cfg["updates"]["network"]["when"]
     )
     hotplug_supported = EventType.HOTPLUG in (
-        cloud.datasource.get_supported_events(
-            [EventType.HOTPLUG]).get(EventScope.NETWORK, set())
+        cloud.datasource.get_supported_events([EventType.HOTPLUG]).get(
+            EventScope.NETWORK, set()
+        )
     )
     hotplug_enabled = stages.update_event_enabled(
         datasource=cloud.datasource,

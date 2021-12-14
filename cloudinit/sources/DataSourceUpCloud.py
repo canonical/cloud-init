@@ -152,7 +152,7 @@ class DataSourceUpCloudLocal(DataSourceUpCloud):
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceUpCloudLocal, (sources.DEP_FILESYSTEM, )),
+    (DataSourceUpCloudLocal, (sources.DEP_FILESYSTEM,)),
     (DataSourceUpCloud, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 

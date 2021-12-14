@@ -12,55 +12,55 @@
 CFG_ENV_NAME = "CLOUD_CFG"
 
 # This is expected to be a yaml formatted file
-CLOUD_CONFIG = '/etc/cloud/cloud.cfg'
+CLOUD_CONFIG = "/etc/cloud/cloud.cfg"
 
-RUN_CLOUD_CONFIG = '/run/cloud-init/cloud.cfg'
+RUN_CLOUD_CONFIG = "/run/cloud-init/cloud.cfg"
 
 # What u get if no config is provided
 CFG_BUILTIN = {
-    'datasource_list': [
-        'NoCloud',
-        'ConfigDrive',
-        'LXD',
-        'OpenNebula',
-        'DigitalOcean',
-        'Azure',
-        'AltCloud',
-        'OVF',
-        'MAAS',
-        'GCE',
-        'OpenStack',
-        'AliYun',
-        'Vultr',
-        'Ec2',
-        'CloudSigma',
-        'CloudStack',
-        'SmartOS',
-        'Bigstep',
-        'Scaleway',
-        'Hetzner',
-        'IBMCloud',
-        'Oracle',
-        'Exoscale',
-        'RbxCloud',
-        'UpCloud',
-        'VMware',
+    "datasource_list": [
+        "NoCloud",
+        "ConfigDrive",
+        "LXD",
+        "OpenNebula",
+        "DigitalOcean",
+        "Azure",
+        "AltCloud",
+        "OVF",
+        "MAAS",
+        "GCE",
+        "OpenStack",
+        "AliYun",
+        "Vultr",
+        "Ec2",
+        "CloudSigma",
+        "CloudStack",
+        "SmartOS",
+        "Bigstep",
+        "Scaleway",
+        "Hetzner",
+        "IBMCloud",
+        "Oracle",
+        "Exoscale",
+        "RbxCloud",
+        "UpCloud",
+        "VMware",
         # At the end to act as a 'catch' when none of the above work...
-        'None',
+        "None",
     ],
-    'def_log_file': '/var/log/cloud-init.log',
-    'log_cfgs': [],
-    'syslog_fix_perms': ['syslog:adm', 'root:adm', 'root:wheel', 'root:root'],
-    'system_info': {
-        'paths': {
-            'cloud_dir': '/var/lib/cloud',
-            'templates_dir': '/etc/cloud/templates/',
+    "def_log_file": "/var/log/cloud-init.log",
+    "log_cfgs": [],
+    "syslog_fix_perms": ["syslog:adm", "root:adm", "root:wheel", "root:root"],
+    "system_info": {
+        "paths": {
+            "cloud_dir": "/var/lib/cloud",
+            "templates_dir": "/etc/cloud/templates/",
         },
-        'distro': 'ubuntu',
-        'network': {'renderers': None},
+        "distro": "ubuntu",
+        "network": {"renderers": None},
     },
-    'vendor_data': {'enabled': True, 'prefix': []},
-    'vendor_data2': {'enabled': True, 'prefix': []},
+    "vendor_data": {"enabled": True, "prefix": []},
+    "vendor_data2": {"enabled": True, "prefix": []},
 }
 
 # Valid frequencies of handlers/modules

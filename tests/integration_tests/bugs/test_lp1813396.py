@@ -23,7 +23,7 @@ apt:
 @pytest.mark.sru_2020_11
 @pytest.mark.user_data(USER_DATA)
 def test_gpg_no_tty(client: IntegrationInstance):
-    log = client.read_from_file('/var/log/cloud-init.log')
+    log = client.read_from_file("/var/log/cloud-init.log")
     to_verify = [
         "Running command ['gpg', '--no-tty', "
         "'--keyserver=keyserver.ubuntu.com', '--recv-keys', 'E4D304DF'] "

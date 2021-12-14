@@ -24,37 +24,44 @@ def create_override(request):
     features and feature_overrides modules to how they were before
     the test started
     """
-    override_path = Path(cloudinit.__file__).parent / 'feature_overrides.py'
+    override_path = Path(cloudinit.__file__).parent / "feature_overrides.py"
     if override_path.exists():
-        raise Exception("feature_overrides.py unexpectedly exists! "
-                        "Remove it to run this test.")
-    with override_path.open('w') as f:
+        raise Exception(
+            "feature_overrides.py unexpectedly exists! "
+            "Remove it to run this test."
+        )
+    with override_path.open("w") as f:
         for key, value in request.param.items():
-            f.write('{} = {}\n'.format(key, value))
+            f.write("{} = {}\n".format(key, value))
 
-    sys.modules.pop('cloudinit.features', None)
+    sys.modules.pop("cloudinit.features", None)
 
     yield
 
     override_path.unlink()
-    sys.modules.pop('cloudinit.feature_overrides', None)
+    sys.modules.pop("cloudinit.feature_overrides", None)
 
 
 class TestFeatures:
     def test_feature_without_override(self):
         from cloudinit.features import ERROR_ON_USER_DATA_FAILURE
+
         assert ERROR_ON_USER_DATA_FAILURE is True
 
-    @pytest.mark.parametrize('create_override',
-                             [{'ERROR_ON_USER_DATA_FAILURE': False}],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "create_override",
+        [{"ERROR_ON_USER_DATA_FAILURE": False}],
+        indirect=True,
+    )
     def test_feature_with_override(self, create_override):
         from cloudinit.features import ERROR_ON_USER_DATA_FAILURE
+
         assert ERROR_ON_USER_DATA_FAILURE is False
 
-    @pytest.mark.parametrize('create_override',
-                             [{'SPAM': True}],
-                             indirect=True)
+    @pytest.mark.parametrize(
+        "create_override", [{"SPAM": True}], indirect=True
+    )
     def test_feature_only_in_override(self, create_override):
         from cloudinit.features import SPAM
+
         assert SPAM is True

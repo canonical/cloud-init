@@ -29,7 +29,6 @@ lxd:
 @pytest.mark.no_container
 @pytest.mark.user_data(USER_DATA)
 class TestLxdBridge:
-
     @pytest.mark.parametrize("binary_name", ["lxc", "lxd"])
     def test_binaries_installed(self, class_client, binary_name):
         """Check that the expected LXD binaries are installed"""

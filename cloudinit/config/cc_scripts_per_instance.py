@@ -33,18 +33,23 @@ from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
-SCRIPT_SUBDIR = 'per-instance'
+SCRIPT_SUBDIR = "per-instance"
 
 
 def handle(name, _cfg, cloud, log, _args):
     # Comes from the following:
     # https://forums.aws.amazon.com/thread.jspa?threadID=96918
-    runparts_path = os.path.join(cloud.get_cpath(), 'scripts', SCRIPT_SUBDIR)
+    runparts_path = os.path.join(cloud.get_cpath(), "scripts", SCRIPT_SUBDIR)
     try:
         subp.runparts(runparts_path)
     except Exception:
-        log.warning("Failed to run module %s (%s in %s)",
-                    name, SCRIPT_SUBDIR, runparts_path)
+        log.warning(
+            "Failed to run module %s (%s in %s)",
+            name,
+            SCRIPT_SUBDIR,
+            runparts_path,
+        )
         raise
+
 
 # vi: ts=4 expandtab

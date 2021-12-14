@@ -33,22 +33,24 @@ class TestTimezone(t_help.FilesystemMockingTestCase):
     def test_set_timezone_sles(self):
 
         cfg = {
-            'timezone': 'Tatooine/Bestine',
+            "timezone": "Tatooine/Bestine",
         }
-        cc = get_cloud('sles')
+        cc = get_cloud("sles")
 
         # Create a dummy timezone file
-        dummy_contents = '0123456789abcdefgh'
-        util.write_file('/usr/share/zoneinfo/%s' % cfg['timezone'],
-                        dummy_contents)
+        dummy_contents = "0123456789abcdefgh"
+        util.write_file(
+            "/usr/share/zoneinfo/%s" % cfg["timezone"], dummy_contents
+        )
 
-        cc_timezone.handle('cc_timezone', cfg, cc, LOG, [])
+        cc_timezone.handle("cc_timezone", cfg, cc, LOG, [])
 
-        contents = util.load_file('/etc/sysconfig/clock', decode=False)
+        contents = util.load_file("/etc/sysconfig/clock", decode=False)
         n_cfg = ConfigObj(BytesIO(contents))
-        self.assertEqual({'TIMEZONE': cfg['timezone']}, dict(n_cfg))
+        self.assertEqual({"TIMEZONE": cfg["timezone"]}, dict(n_cfg))
 
-        contents = util.load_file('/etc/localtime')
+        contents = util.load_file("/etc/localtime")
         self.assertEqual(dummy_contents, contents.strip())
+
 
 # vi: ts=4 expandtab

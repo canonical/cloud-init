@@ -14,8 +14,8 @@ def _get_distro(dtype, system_info=None):
     example: _get_distro("debian")
     """
     if system_info is None:
-        system_info = copy.deepcopy(settings.CFG_BUILTIN['system_info'])
-    system_info['distro'] = dtype
-    paths = helpers.Paths(system_info['paths'])
+        system_info = copy.deepcopy(settings.CFG_BUILTIN["system_info"])
+    system_info["distro"] = dtype
+    paths = helpers.Paths(system_info["paths"])
     distro_cls = distros.fetch(dtype)
     return distro_cls(dtype, system_info, paths)

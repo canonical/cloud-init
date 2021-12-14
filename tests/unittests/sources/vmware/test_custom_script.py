@@ -22,8 +22,7 @@ class TestVmwareCustomScript(CiTestCase):
         self.tmpDir = self.tmp_dir()
         # Mock the tmpDir as the root dir in VM.
         self.execDir = os.path.join(self.tmpDir, ".customization")
-        self.execScript = os.path.join(self.execDir,
-                                       ".customize.sh")
+        self.execScript = os.path.join(self.execDir, ".customize.sh")
 
     def test_prepare_custom_script(self):
         """
@@ -36,23 +35,24 @@ class TestVmwareCustomScript(CiTestCase):
         preCust = PreCustomScript("random-vmw-test", self.tmpDir)
         self.assertEqual("random-vmw-test", preCust.scriptname)
         self.assertEqual(self.tmpDir, preCust.directory)
-        self.assertEqual(self.tmp_path("random-vmw-test", self.tmpDir),
-                         preCust.scriptpath)
+        self.assertEqual(
+            self.tmp_path("random-vmw-test", self.tmpDir), preCust.scriptpath
+        )
         with self.assertRaises(CustomScriptNotFound):
             preCust.prepare_script()
 
         # Custom script exists.
         custScript = self.tmp_path("test-cust", self.tmpDir)
         util.write_file(custScript, "test-CR-strip\r\r")
-        with mock.patch.object(CustomScriptConstant,
-                               "CUSTOM_TMP_DIR",
-                               self.execDir):
-            with mock.patch.object(CustomScriptConstant,
-                                   "CUSTOM_SCRIPT",
-                                   self.execScript):
-                postCust = PostCustomScript("test-cust",
-                                            self.tmpDir,
-                                            self.tmpDir)
+        with mock.patch.object(
+            CustomScriptConstant, "CUSTOM_TMP_DIR", self.execDir
+        ):
+            with mock.patch.object(
+                CustomScriptConstant, "CUSTOM_SCRIPT", self.execScript
+            ):
+                postCust = PostCustomScript(
+                    "test-cust", self.tmpDir, self.tmpDir
+                )
                 self.assertEqual("test-cust", postCust.scriptname)
                 self.assertEqual(self.tmpDir, postCust.directory)
                 self.assertEqual(custScript, postCust.scriptpath)
@@ -84,26 +84,30 @@ class TestVmwareCustomScript(CiTestCase):
         ccScriptDir = self.tmp_dir()
         ccScript = os.path.join(ccScriptDir, "post-customize-guest.sh")
         markerFile = os.path.join(self.tmpDir, ".markerFile")
-        with mock.patch.object(CustomScriptConstant,
-                               "CUSTOM_TMP_DIR",
-                               self.execDir):
-            with mock.patch.object(CustomScriptConstant,
-                                   "CUSTOM_SCRIPT",
-                                   self.execScript):
-                with mock.patch.object(CustomScriptConstant,
-                                       "POST_CUSTOM_PENDING_MARKER",
-                                       markerFile):
-                    postCust = PostCustomScript("test-cust",
-                                                self.tmpDir,
-                                                ccScriptDir)
+        with mock.patch.object(
+            CustomScriptConstant, "CUSTOM_TMP_DIR", self.execDir
+        ):
+            with mock.patch.object(
+                CustomScriptConstant, "CUSTOM_SCRIPT", self.execScript
+            ):
+                with mock.patch.object(
+                    CustomScriptConstant,
+                    "POST_CUSTOM_PENDING_MARKER",
+                    markerFile,
+                ):
+                    postCust = PostCustomScript(
+                        "test-cust", self.tmpDir, ccScriptDir
+                    )
                     postCust.execute()
                     # Check cc_scripts_per_instance and marker file
                     # are created.
                     self.assertTrue(os.path.exists(ccScript))
                     with open(ccScript, "r") as f:
                         content = f.read()
-                    self.assertEqual(content,
-                                     "This is the script to run post cust")
+                    self.assertEqual(
+                        content, "This is the script to run post cust"
+                    )
                     self.assertTrue(os.path.exists(markerFile))
+
 
 # vi: ts=4 expandtab

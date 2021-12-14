@@ -34,12 +34,14 @@ from cloudinit import util
 
 frequency = PER_INSTANCE
 
-distros = ['ubuntu', 'debian']
+distros = ["ubuntu", "debian"]
 
 DEFAULT_FILE = "/etc/apt/apt.conf.d/90cloud-init-pipelining"
 
-APT_PIPE_TPL = ("//Written by cloud-init per 'apt_pipelining'\n"
-                'Acquire::http::Pipeline-Depth "%s";\n')
+APT_PIPE_TPL = (
+    "//Written by cloud-init per 'apt_pipelining'\n"
+    'Acquire::http::Pipeline-Depth "%s";\n'
+)
 
 # Acquire::http::Pipeline-Depth can be a value
 # from 0 to 5 indicating how many outstanding requests APT should send.
@@ -49,7 +51,7 @@ APT_PIPE_TPL = ("//Written by cloud-init per 'apt_pipelining'\n"
 
 def handle(_name, cfg, _cloud, log, _args):
 
-    apt_pipe_value = util.get_cfg_option_str(cfg, "apt_pipelining", 'os')
+    apt_pipe_value = util.get_cfg_option_str(cfg, "apt_pipelining", "os")
     apt_pipe_value_s = str(apt_pipe_value).lower().strip()
 
     if apt_pipe_value_s == "false":
@@ -68,5 +70,6 @@ def write_apt_snippet(setting, log, f_name):
     file_contents = APT_PIPE_TPL % (setting)
     util.write_file(f_name, file_contents)
     log.debug("Wrote %s with apt pipeline depth setting %s", f_name, setting)
+
 
 # vi: ts=4 expandtab

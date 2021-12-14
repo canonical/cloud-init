@@ -21,10 +21,10 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
-    locale_conf_fn = '/etc/locale.gen'
-    network_conf_fn = '/etc/conf.d/net'
-    hostname_conf_fn = '/etc/conf.d/hostname'
-    init_cmd = ['rc-service']  # init scripts
+    locale_conf_fn = "/etc/locale.gen"
+    network_conf_fn = "/etc/conf.d/net"
+    hostname_conf_fn = "/etc/conf.d/hostname"
+    init_cmd = ["rc-service"]  # init scripts
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -32,14 +32,14 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
-        self.osfamily = 'gentoo'
+        self.osfamily = "gentoo"
         # Fix sshd restarts
-        cfg['ssh_svcname'] = '/etc/init.d/sshd'
+        cfg["ssh_svcname"] = "/etc/init.d/sshd"
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
             out_fn = self.locale_conf_fn
-        subp.subp(['locale-gen', '-G', locale], capture=False)
+        subp.subp(["locale-gen", "-G", locale], capture=False)
         # "" provides trailing newline during join
         lines = [
             util.make_header(),
@@ -50,79 +50,97 @@ class Distro(distros.Distro):
 
     def install_packages(self, pkglist):
         self.update_package_sources()
-        self.package_command('', pkgs=pkglist)
+        self.package_command("", pkgs=pkglist)
 
     def _write_network(self, settings):
         entries = net_util.translate_network(settings)
-        LOG.debug("Translated ubuntu style network settings %s into %s",
-                  settings, entries)
+        LOG.debug(
+            "Translated ubuntu style network settings %s into %s",
+            settings,
+            entries,
+        )
         dev_names = entries.keys()
         nameservers = []
 
         for (dev, info) in entries.items():
-            if 'dns-nameservers' in info:
-                nameservers.extend(info['dns-nameservers'])
-            if dev == 'lo':
+            if "dns-nameservers" in info:
+                nameservers.extend(info["dns-nameservers"])
+            if dev == "lo":
                 continue
-            net_fn = self.network_conf_fn + '.' + dev
-            dns_nameservers = info.get('dns-nameservers')
+            net_fn = self.network_conf_fn + "." + dev
+            dns_nameservers = info.get("dns-nameservers")
             if isinstance(dns_nameservers, (list, tuple)):
-                dns_nameservers = str(tuple(dns_nameservers)).replace(',', '')
+                dns_nameservers = str(tuple(dns_nameservers)).replace(",", "")
             # eth0, {'auto': True, 'ipv6': {}, 'bootproto': 'dhcp'}
             # lo, {'dns-nameservers': ['10.0.1.3'], 'ipv6': {}, 'auto': True}
-            results = ''
-            if info.get('bootproto') == 'dhcp':
+            results = ""
+            if info.get("bootproto") == "dhcp":
                 results += 'config_{name}="dhcp"'.format(name=dev)
             else:
                 results += (
                     'config_{name}="{ip_address} netmask {netmask}"\n'
                     'mac_{name}="{hwaddr}"\n'
-                ).format(name=dev, ip_address=info.get('address'),
-                         netmask=info.get('netmask'),
-                         hwaddr=info.get('hwaddress'))
-                results += 'routes_{name}="default via {gateway}"\n'.format(
+                ).format(
                     name=dev,
-                    gateway=info.get('gateway')
+                    ip_address=info.get("address"),
+                    netmask=info.get("netmask"),
+                    hwaddr=info.get("hwaddress"),
                 )
-            if info.get('dns-nameservers'):
+                results += 'routes_{name}="default via {gateway}"\n'.format(
+                    name=dev, gateway=info.get("gateway")
+                )
+            if info.get("dns-nameservers"):
                 results += 'dns_servers_{name}="{dnsservers}"\n'.format(
-                    name=dev,
-                    dnsservers=dns_nameservers)
+                    name=dev, dnsservers=dns_nameservers
+                )
             util.write_file(net_fn, results)
             self._create_network_symlink(dev)
-            if info.get('auto'):
-                cmd = ['rc-update', 'add', 'net.{name}'.format(name=dev),
-                       'default']
+            if info.get("auto"):
+                cmd = [
+                    "rc-update",
+                    "add",
+                    "net.{name}".format(name=dev),
+                    "default",
+                ]
                 try:
                     (_out, err) = subp.subp(cmd)
                     if len(err):
-                        LOG.warning("Running %s resulted in stderr output: %s",
-                                    cmd, err)
+                        LOG.warning(
+                            "Running %s resulted in stderr output: %s",
+                            cmd,
+                            err,
+                        )
                 except subp.ProcessExecutionError:
-                    util.logexc(LOG, "Running interface command %s failed",
-                                cmd)
+                    util.logexc(
+                        LOG, "Running interface command %s failed", cmd
+                    )
 
         if nameservers:
-            util.write_file(self.resolve_conf_fn,
-                            convert_resolv_conf(nameservers))
+            util.write_file(
+                self.resolve_conf_fn, convert_resolv_conf(nameservers)
+            )
 
         return dev_names
 
     @staticmethod
     def _create_network_symlink(interface_name):
-        file_path = '/etc/init.d/net.{name}'.format(name=interface_name)
+        file_path = "/etc/init.d/net.{name}".format(name=interface_name)
         if not util.is_link(file_path):
-            util.sym_link('/etc/init.d/net.lo', file_path)
+            util.sym_link("/etc/init.d/net.lo", file_path)
 
     def _bring_up_interface(self, device_name):
-        cmd = ['/etc/init.d/net.%s' % device_name, 'restart']
-        LOG.debug("Attempting to run bring up interface %s using command %s",
-                  device_name, cmd)
+        cmd = ["/etc/init.d/net.%s" % device_name, "restart"]
+        LOG.debug(
+            "Attempting to run bring up interface %s using command %s",
+            device_name,
+            cmd,
+        )
         try:
             (_out, err) = subp.subp(cmd)
             if len(err):
-                LOG.warning("Running %s resulted in stderr output: %s",
-                            cmd, err)
+                LOG.warning(
+                    "Running %s resulted in stderr output: %s", cmd, err
+                )
             return True
         except subp.ProcessExecutionError:
             util.logexc(LOG, "Running interface command %s failed", cmd)
@@ -131,20 +149,21 @@ class Distro(distros.Distro):
     def _bring_up_interfaces(self, device_names):
         use_all = False
         for d in device_names:
-            if d == 'all':
+            if d == "all":
                 use_all = True
         if use_all:
             # Grab device names from init scripts
-            cmd = ['ls', '/etc/init.d/net.*']
+            cmd = ["ls", "/etc/init.d/net.*"]
             try:
                 (_out, err) = subp.subp(cmd)
                 if len(err):
-                    LOG.warning("Running %s resulted in stderr output: %s",
-                                cmd, err)
+                    LOG.warning(
+                        "Running %s resulted in stderr output: %s", cmd, err
+                    )
             except subp.ProcessExecutionError:
                 util.logexc(LOG, "Running interface command %s failed", cmd)
                 return False
-            devices = [x.split('.')[2] for x in _out.split('  ')]
+            devices = [x.split(".")[2] for x in _out.split("  ")]
             return distros.Distro._bring_up_interfaces(self, devices)
         else:
             return distros.Distro._bring_up_interfaces(self, device_names)
@@ -158,7 +177,7 @@ class Distro(distros.Distro):
         except IOError:
             pass
         if not conf:
-            conf = HostnameConf('')
+            conf = HostnameConf("")
 
         # Many distro's format is the hostname by itself, and that is the
         # way HostnameConf works but gentoo expects it to be in
@@ -194,7 +213,7 @@ class Distro(distros.Distro):
         if pkgs is None:
             pkgs = []
 
-        cmd = list('emerge')
+        cmd = list("emerge")
         # Redirect output
         cmd.append("--quiet")
 
@@ -206,23 +225,28 @@ class Distro(distros.Distro):
         if command:
             cmd.append(command)
 
-        pkglist = util.expand_package_list('%s-%s', pkgs)
+        pkglist = util.expand_package_list("%s-%s", pkgs)
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
         subp.subp(cmd, capture=False)
 
     def update_package_sources(self):
-        self._runner.run("update-sources", self.package_command,
-                         ["-u", "world"], freq=PER_INSTANCE)
+        self._runner.run(
+            "update-sources",
+            self.package_command,
+            ["-u", "world"],
+            freq=PER_INSTANCE,
+        )
 
 
 def convert_resolv_conf(settings):
     """Returns a settings string formatted for resolv.conf."""
-    result = ''
+    result = ""
     if isinstance(settings, list):
         for ns in settings:
-            result += 'nameserver %s\n' % ns
+            result += "nameserver %s\n" % ns
     return result
+
 
 # vi: ts=4 expandtab

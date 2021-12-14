@@ -46,4 +46,5 @@ def handle(name, cfg, cloud, log, args):
     # Let the distro handle settings its timezone
     cloud.distro.set_timezone(timezone)
 
+
 # vi: ts=4 expandtab

@@ -21,15 +21,18 @@ import sys
 from cloudinit.handlers.jinja_template import (
     convert_jinja_instance_data,
     get_jinja_variable_alias,
-    render_jinja_payload
+    render_jinja_payload,
 )
 from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
 from cloudinit import log
 from cloudinit.sources import (
-    INSTANCE_JSON_FILE, INSTANCE_JSON_SENSITIVE_FILE, REDACT_SENSITIVE_VALUE)
+    INSTANCE_JSON_FILE,
+    INSTANCE_JSON_SENSITIVE_FILE,
+    REDACT_SENSITIVE_VALUE,
+)
 from cloudinit import util
 
-NAME = 'query'
+NAME = "query"
 LOG = log.getLogger(NAME)
 
 
@@ -43,41 +46,79 @@ def get_parser(parser=None):
     @returns: ArgumentParser with proper argument configuration.
     """
     if not parser:
-        parser = argparse.ArgumentParser(
-            prog=NAME, description=__doc__)
+        parser = argparse.ArgumentParser(prog=NAME, description=__doc__)
     parser.add_argument(
-        '-d', '--debug', action='store_true', default=False,
-        help='Add verbose messages during template render')
+        "-d",
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Add verbose messages during template render",
+    )
     parser.add_argument(
-        '-i', '--instance-data', type=str,
-        help=('Path to instance-data.json file. Default is /run/cloud-init/%s'
-              % INSTANCE_JSON_FILE))
+        "-i",
+        "--instance-data",
+        type=str,
+        help="Path to instance-data.json file. Default is /run/cloud-init/%s"
+        % INSTANCE_JSON_FILE,
+    )
     parser.add_argument(
-        '-l', '--list-keys', action='store_true', default=False,
-        help=('List query keys available at the provided instance-data'
-              ' <varname>.'))
+        "-l",
+        "--list-keys",
+        action="store_true",
+        default=False,
+        help=(
+            "List query keys available at the provided instance-data"
+            " <varname>."
+        ),
+    )
     parser.add_argument(
-        '-u', '--user-data', type=str,
-        help=('Path to user-data file. Default is'
-              ' /var/lib/cloud/instance/user-data.txt'))
+        "-u",
+        "--user-data",
+        type=str,
+        help=(
+            "Path to user-data file. Default is"
+            " /var/lib/cloud/instance/user-data.txt"
+        ),
+    )
     parser.add_argument(
-        '-v', '--vendor-data', type=str,
-        help=('Path to vendor-data file. Default is'
-              ' /var/lib/cloud/instance/vendor-data.txt'))
+        "-v",
+        "--vendor-data",
+        type=str,
+        help=(
+            "Path to vendor-data file. Default is"
+            " /var/lib/cloud/instance/vendor-data.txt"
+        ),
+    )
     parser.add_argument(
-        'varname', type=str, nargs='?',
-        help=('A dot-delimited specific variable to query from'
-              ' instance-data. For example: v1.local_hostname. If the'
-              ' value is not JSON serializable, it will be base64-encoded and'
-              ' will contain the prefix "ci-b64:". '))
+        "varname",
+        type=str,
+        nargs="?",
+        help=(
+            "A dot-delimited specific variable to query from"
+            " instance-data. For example: v1.local_hostname. If the"
+            " value is not JSON serializable, it will be base64-encoded and"
+            ' will contain the prefix "ci-b64:". '
+        ),
+    )
     parser.add_argument(
-        '-a', '--all', action='store_true', default=False, dest='dump_all',
-        help='Dump all available instance-data')
+        "-a",
+        "--all",
+        action="store_true",
+        default=False,
+        dest="dump_all",
+        help="Dump all available instance-data",
+    )
     parser.add_argument(
-        '-f', '--format', type=str, dest='format',
-        help=('Optionally specify a custom output format string. Any'
-              ' instance-data variable can be specified between double-curly'
-              ' braces. For example -f "{{ v2.cloud_name }}"'))
+        "-f",
+        "--format",
+        type=str,
+        dest="format",
+        help=(
+            "Optionally specify a custom output format string. Any"
+            " instance-data variable can be specified between double-curly"
+            ' braces. For example -f "{{ v2.cloud_name }}"'
+        ),
+    )
     return parser
 
 
@@ -91,7 +132,7 @@ def load_userdata(ud_file_path):
     """
     bdata = util.load_file(ud_file_path, decode=False)
     try:
-        return bdata.decode('utf-8')
+        return bdata.decode("utf-8")
     except UnicodeDecodeError:
         return util.decomp_gzip(bdata, quiet=False, decode=True)
 
@@ -118,13 +159,15 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
         redacted_data_fn = os.path.join(paths.run_dir, INSTANCE_JSON_FILE)
         if uid == 0:
             sensitive_data_fn = os.path.join(
-                paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE)
+                paths.run_dir, INSTANCE_JSON_SENSITIVE_FILE
+            )
             if os.path.exists(sensitive_data_fn):
                 instance_data_fn = sensitive_data_fn
             else:
                 LOG.warning(
-                    'Missing root-readable %s. Using redacted %s instead.',
-                    sensitive_data_fn, redacted_data_fn
+                    "Missing root-readable %s. Using redacted %s instead.",
+                    sensitive_data_fn,
+                    redacted_data_fn,
                 )
                 instance_data_fn = redacted_data_fn
         else:
@@ -132,11 +175,11 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
     if user_data:
         user_data_fn = user_data
     else:
-        user_data_fn = os.path.join(paths.instance_link, 'user-data.txt')
+        user_data_fn = os.path.join(paths.instance_link, "user-data.txt")
     if vendor_data:
         vendor_data_fn = vendor_data
     else:
-        vendor_data_fn = os.path.join(paths.instance_link, 'vendor-data.txt')
+        vendor_data_fn = os.path.join(paths.instance_link, "vendor-data.txt")
 
     try:
         instance_json = util.load_file(instance_data_fn)
@@ -144,24 +187,30 @@ def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
         if e.errno == EACCES:
             LOG.error("No read permission on '%s'. Try sudo", instance_data_fn)
         else:
-            LOG.error('Missing instance-data file: %s', instance_data_fn)
+            LOG.error("Missing instance-data file: %s", instance_data_fn)
         raise
 
     instance_data = util.load_json(instance_json)
     if uid != 0:
-        instance_data['userdata'] = (
-            '<%s> file:%s' % (REDACT_SENSITIVE_VALUE, user_data_fn))
-        instance_data['vendordata'] = (
-            '<%s> file:%s' % (REDACT_SENSITIVE_VALUE, vendor_data_fn))
+        instance_data["userdata"] = "<%s> file:%s" % (
+            REDACT_SENSITIVE_VALUE,
+            user_data_fn,
+        )
+        instance_data["vendordata"] = "<%s> file:%s" % (
+            REDACT_SENSITIVE_VALUE,
+            vendor_data_fn,
+        )
     else:
-        instance_data['userdata'] = load_userdata(user_data_fn)
-        instance_data['vendordata'] = load_userdata(vendor_data_fn)
+        instance_data["userdata"] = load_userdata(user_data_fn)
+        instance_data["vendordata"] = load_userdata(vendor_data_fn)
     return instance_data
 
 
 def _find_instance_data_leaf_by_varname_path(
-    jinja_vars_without_aliases: dict, jinja_vars_with_aliases: dict,
-    varname: str, list_keys: bool
+    jinja_vars_without_aliases: dict,
+    jinja_vars_with_aliases: dict,
+    varname: str,
+    list_keys: bool,
 ):
     """Return the value of the dot-delimited varname path in instance-data
 
@@ -174,7 +223,7 @@ def _find_instance_data_leaf_by_varname_path(
     """
     walked_key_path = ""
     response = jinja_vars_without_aliases
-    for key_path_part in varname.split('.'):
+    for key_path_part in varname.split("."):
         try:
             # Walk key path using complete aliases dict, yet response
             # should only contain jinja_without_aliases
@@ -205,8 +254,9 @@ def handle_args(name, args):
     addLogHandlerCLI(LOG, log.DEBUG if args.debug else log.WARNING)
     if not any([args.list_keys, args.varname, args.format, args.dump_all]):
         LOG.error(
-            'Expected one of the options: --all, --format,'
-            ' --list-keys or varname')
+            "Expected one of the options: --all, --format,"
+            " --list-keys or varname"
+        )
         get_parser().print_help()
         return 1
     try:
@@ -216,11 +266,13 @@ def handle_args(name, args):
     except (IOError, OSError):
         return 1
     if args.format:
-        payload = '## template: jinja\n{fmt}'.format(fmt=args.format)
+        payload = "## template: jinja\n{fmt}".format(fmt=args.format)
         rendered_payload = render_jinja_payload(
-            payload=payload, payload_fn='query commandline',
+            payload=payload,
+            payload_fn="query commandline",
             instance_data=instance_data,
-            debug=True if args.debug else False)
+            debug=True if args.debug else False,
+        )
         if rendered_payload:
             print(rendered_payload)
             return 0
@@ -240,7 +292,7 @@ def handle_args(name, args):
                 jinja_vars_without_aliases=response,
                 jinja_vars_with_aliases=jinja_vars_with_aliases,
                 varname=args.varname,
-                list_keys=args.list_keys
+                list_keys=args.list_keys,
             )
         except (KeyError, ValueError) as e:
             LOG.error(e)
@@ -248,11 +300,10 @@ def handle_args(name, args):
     if args.list_keys:
         if not isinstance(response, dict):
             LOG.error(
-                "--list-keys provided but '%s' is not a dict",
-                args.varname
+                "--list-keys provided but '%s' is not a dict", args.varname
             )
             return 1
-        response = '\n'.join(sorted(response.keys()))
+        response = "\n".join(sorted(response.keys()))
     if not isinstance(response, str):
         response = util.json_dumps(response)
     print(response)
@@ -265,7 +316,7 @@ def main():
     sys.exit(handle_args(NAME, parser.parse_args()))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
 
 # vi: ts=4 expandtab

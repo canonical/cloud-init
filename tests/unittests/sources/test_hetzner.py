@@ -13,7 +13,8 @@ from tests.unittests.helpers import mock, CiTestCase
 import base64
 import pytest
 
-METADATA = util.load_yaml("""
+METADATA = util.load_yaml(
+    """
 hostname: cloudinit-test
 instance-id: 123456
 local-ipv4: ''
@@ -52,7 +53,8 @@ public-keys:
   AAAAC3Nzac1lZdI1NTE5AaaAIaFrcac0yVITsmRrmueq6MD0qYNKlEvW8O1Ib4nkhmWh \
   test-key@workstation
 vendor_data: "test"
-""")
+"""
+)
 
 USERDATA = b"""#cloud-config
 runcmd:
@@ -64,55 +66,59 @@ class TestDataSourceHetzner(CiTestCase):
     """
     Test reading the meta-data
     """
+
     def setUp(self):
         super(TestDataSourceHetzner, self).setUp()
         self.tmp = self.tmp_dir()
 
     def get_ds(self):
         ds = DataSourceHetzner.DataSourceHetzner(
-            settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
+            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+        )
         return ds
 
-    @mock.patch('cloudinit.net.EphemeralIPv4Network')
-    @mock.patch('cloudinit.net.find_fallback_nic')
-    @mock.patch('cloudinit.sources.helpers.hetzner.read_metadata')
-    @mock.patch('cloudinit.sources.helpers.hetzner.read_userdata')
-    @mock.patch('cloudinit.sources.DataSourceHetzner.get_hcloud_data')
-    def test_read_data(self, m_get_hcloud_data, m_usermd, m_readmd,
-                       m_fallback_nic, m_net):
-        m_get_hcloud_data.return_value = (True,
-                                          str(METADATA.get('instance-id')))
+    @mock.patch("cloudinit.net.EphemeralIPv4Network")
+    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.sources.helpers.hetzner.read_metadata")
+    @mock.patch("cloudinit.sources.helpers.hetzner.read_userdata")
+    @mock.patch("cloudinit.sources.DataSourceHetzner.get_hcloud_data")
+    def test_read_data(
+        self, m_get_hcloud_data, m_usermd, m_readmd, m_fallback_nic, m_net
+    ):
+        m_get_hcloud_data.return_value = (
+            True,
+            str(METADATA.get("instance-id")),
+        )
         m_readmd.return_value = METADATA.copy()
         m_usermd.return_value = USERDATA
-        m_fallback_nic.return_value = 'eth0'
+        m_fallback_nic.return_value = "eth0"
 
         ds = self.get_ds()
         ret = ds.get_data()
         self.assertTrue(ret)
 
         m_net.assert_called_once_with(
-            'eth0', '169.254.0.1',
-            16, '169.254.255.255'
+            "eth0", "169.254.0.1", 16, "169.254.255.255"
         )
 
         self.assertTrue(m_readmd.called)
 
-        self.assertEqual(METADATA.get('hostname'), ds.get_hostname())
+        self.assertEqual(METADATA.get("hostname"), ds.get_hostname())
 
-        self.assertEqual(METADATA.get('public-keys'),
-                         ds.get_public_ssh_keys())
+        self.assertEqual(METADATA.get("public-keys"), ds.get_public_ssh_keys())
 
         self.assertIsInstance(ds.get_public_ssh_keys(), list)
         self.assertEqual(ds.get_userdata_raw(), USERDATA)
-        self.assertEqual(ds.get_vendordata_raw(), METADATA.get('vendor_data'))
+        self.assertEqual(ds.get_vendordata_raw(), METADATA.get("vendor_data"))
 
-    @mock.patch('cloudinit.sources.helpers.hetzner.read_metadata')
-    @mock.patch('cloudinit.net.find_fallback_nic')
-    @mock.patch('cloudinit.sources.DataSourceHetzner.get_hcloud_data')
-    def test_not_on_hetzner_returns_false(self, m_get_hcloud_data,
-                                          m_find_fallback, m_read_md):
+    @mock.patch("cloudinit.sources.helpers.hetzner.read_metadata")
+    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.sources.DataSourceHetzner.get_hcloud_data")
+    def test_not_on_hetzner_returns_false(
+        self, m_get_hcloud_data, m_find_fallback, m_read_md
+    ):
         """If helper 'get_hcloud_data' returns False,
-           return False from get_data."""
+        return False from get_data."""
         m_get_hcloud_data.return_value = (False, None)
         ds = self.get_ds()
         ret = ds.get_data()
@@ -132,11 +138,14 @@ class TestMaybeB64Decode:
         with pytest.raises(TypeError):
             hc_helper.maybe_b64decode(invalid_input)
 
-    @pytest.mark.parametrize("in_data,expected", [
-        # If data is not b64 encoded, then return value should be the same.
-        (b"this is my data", b"this is my data"),
-        # If data is b64 encoded, then return value should be decoded.
-        (base64.b64encode(b"data"), b"data"),
-    ])
+    @pytest.mark.parametrize(
+        "in_data,expected",
+        [
+            # If data is not b64 encoded, then return value should be the same.
+            (b"this is my data", b"this is my data"),
+            # If data is b64 encoded, then return value should be decoded.
+            (base64.b64encode(b"data"), b"data"),
+        ],
+    )
     def test_happy_path(self, in_data, expected):
         assert expected == hc_helper.maybe_b64decode(in_data)

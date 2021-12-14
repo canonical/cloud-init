@@ -21,55 +21,54 @@ from cloudinit.settings import PER_INSTANCE
 
 
 class Distro(distros.Distro):
-    clock_conf_fn = '/etc/sysconfig/clock'
-    hostname_conf_fn = '/etc/HOSTNAME'
-    init_cmd = ['service']
-    locale_conf_fn = '/etc/sysconfig/language'
-    network_conf_fn = '/etc/sysconfig/network/config'
-    network_script_tpl = '/etc/sysconfig/network/ifcfg-%s'
-    route_conf_tpl = '/etc/sysconfig/network/ifroute-%s'
-    systemd_hostname_conf_fn = '/etc/hostname'
-    systemd_locale_conf_fn = '/etc/locale.conf'
-    tz_local_fn = '/etc/localtime'
+    clock_conf_fn = "/etc/sysconfig/clock"
+    hostname_conf_fn = "/etc/HOSTNAME"
+    init_cmd = ["service"]
+    locale_conf_fn = "/etc/sysconfig/language"
+    network_conf_fn = "/etc/sysconfig/network/config"
+    network_script_tpl = "/etc/sysconfig/network/ifcfg-%s"
+    route_conf_tpl = "/etc/sysconfig/network/ifroute-%s"
+    systemd_hostname_conf_fn = "/etc/hostname"
+    systemd_locale_conf_fn = "/etc/locale.conf"
+    tz_local_fn = "/etc/localtime"
     renderer_configs = {
-        'sysconfig': {
-            'control': 'etc/sysconfig/network/config',
-            'flavor': 'suse',
-            'iface_templates': '%(base)s/network/ifcfg-%(name)s',
-            'netrules_path': (
-                'etc/udev/rules.d/85-persistent-net-cloud-init.rules'),
-            'route_templates': {
-                'ipv4': '%(base)s/network/ifroute-%(name)s',
-                'ipv6': '%(base)s/network/ifroute-%(name)s',
-            }
+        "sysconfig": {
+            "control": "etc/sysconfig/network/config",
+            "flavor": "suse",
+            "iface_templates": "%(base)s/network/ifcfg-%(name)s",
+            "netrules_path": (
+                "etc/udev/rules.d/85-persistent-net-cloud-init.rules"
+            ),
+            "route_templates": {
+                "ipv4": "%(base)s/network/ifroute-%(name)s",
+                "ipv6": "%(base)s/network/ifroute-%(name)s",
+            },
         }
     }
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
         self._runner = helpers.Runners(paths)
-        self.osfamily = 'suse'
-        cfg['ssh_svcname'] = 'sshd'
+        self.osfamily = "suse"
+        cfg["ssh_svcname"] = "sshd"
         if self.uses_systemd():
-            self.init_cmd = ['systemctl']
-            cfg['ssh_svcname'] = 'sshd.service'
+            self.init_cmd = ["systemctl"]
+            cfg["ssh_svcname"] = "sshd.service"
 
     def apply_locale(self, locale, out_fn=None):
         if self.uses_systemd():
             if not out_fn:
                 out_fn = self.systemd_locale_conf_fn
-            locale_cfg = {'LANG': locale}
+            locale_cfg = {"LANG": locale}
         else:
             if not out_fn:
                 out_fn = self.locale_conf_fn
-            locale_cfg = {'RC_LANG': locale}
+            locale_cfg = {"RC_LANG": locale}
         rhutil.update_sysconfig_file(out_fn, locale_cfg)
 
     def install_packages(self, pkglist):
         self.package_command(
-            'install',
-            args='--auto-agree-with-licenses',
-            pkgs=pkglist
+            "install", args="--auto-agree-with-licenses", pkgs=pkglist
         )
 
     def package_command(self, command, args=None, pkgs=None):
@@ -77,11 +76,11 @@ class Distro(distros.Distro):
             pkgs = []
 
         # No user interaction possible, enable non-interactive mode
-        cmd = ['zypper', '--non-interactive']
+        cmd = ["zypper", "--non-interactive"]
 
         # Command is the operation, such as install
-        if command == 'upgrade':
-            command = 'update'
+        if command == "upgrade":
+            command = "update"
         cmd.append(command)
 
         # args are the arguments to the command, not global options
@@ -90,7 +89,7 @@ class Distro(distros.Distro):
         elif args and isinstance(args, list):
             cmd.extend(args)
 
-        pkglist = util.expand_package_list('%s-%s', pkgs)
+        pkglist = util.expand_package_list("%s-%s", pkgs)
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
@@ -106,21 +105,25 @@ class Distro(distros.Distro):
         else:
             # Adjust the sysconfig clock zone setting
             clock_cfg = {
-                'TIMEZONE': str(tz),
+                "TIMEZONE": str(tz),
             }
             rhutil.update_sysconfig_file(self.clock_conf_fn, clock_cfg)
             # This ensures that the correct tz will be used for the system
             util.copy(tz_file, self.tz_local_fn)
 
     def update_package_sources(self):
-        self._runner.run("update-sources", self.package_command,
-                         ['refresh'], freq=PER_INSTANCE)
+        self._runner.run(
+            "update-sources",
+            self.package_command,
+            ["refresh"],
+            freq=PER_INSTANCE,
+        )
 
     def _read_hostname(self, filename, default=None):
-        if self.uses_systemd() and filename.endswith('/previous-hostname'):
+        if self.uses_systemd() and filename.endswith("/previous-hostname"):
             return util.load_file(filename).strip()
         elif self.uses_systemd():
-            (out, _err) = subp.subp(['hostname'])
+            (out, _err) = subp.subp(["hostname"])
             if len(out):
                 return out
             else:
@@ -151,10 +154,10 @@ class Distro(distros.Distro):
         return (host_fn, self._read_hostname(host_fn))
 
     def _write_hostname(self, hostname, filename):
-        if self.uses_systemd() and filename.endswith('/previous-hostname'):
+        if self.uses_systemd() and filename.endswith("/previous-hostname"):
             util.write_file(filename, hostname)
         elif self.uses_systemd():
-            subp.subp(['hostnamectl', 'set-hostname', str(hostname)])
+            subp.subp(["hostnamectl", "set-hostname", str(hostname)])
         else:
             conf = None
             try:
@@ -164,7 +167,7 @@ class Distro(distros.Distro):
             except IOError:
                 pass
             if not conf:
-                conf = HostnameConf('')
+                conf = HostnameConf("")
             conf.set_hostname(hostname)
             util.write_file(filename, str(conf), 0o644)
 
@@ -174,22 +177,28 @@ class Distro(distros.Distro):
 
         # Allow distro to determine the preferred ntp client list
         if not self._preferred_ntp_clients:
-            distro_info = util.system_info()['dist']
+            distro_info = util.system_info()["dist"]
             name = distro_info[0]
-            major_ver = int(distro_info[1].split('.')[0])
+            major_ver = int(distro_info[1].split(".")[0])
 
             # This is horribly complicated because of a case of
             # "we do not care if versions should be increasing syndrome"
-            if (
-                (major_ver >= 15 and 'openSUSE' not in name) or
-                (major_ver >= 15 and 'openSUSE' in name and major_ver != 42)
+            if (major_ver >= 15 and "openSUSE" not in name) or (
+                major_ver >= 15 and "openSUSE" in name and major_ver != 42
             ):
-                self._preferred_ntp_clients = ['chrony',
-                                               'systemd-timesyncd', 'ntp']
+                self._preferred_ntp_clients = [
+                    "chrony",
+                    "systemd-timesyncd",
+                    "ntp",
+                ]
             else:
-                self._preferred_ntp_clients = ['ntp',
-                                               'systemd-timesyncd', 'chrony']
+                self._preferred_ntp_clients = [
+                    "ntp",
+                    "systemd-timesyncd",
+                    "chrony",
+                ]
 
         return self._preferred_ntp_clients
+
 
 # vi: ts=4 expandtab

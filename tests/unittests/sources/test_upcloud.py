@@ -7,12 +7,15 @@ import json
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit import sources
-from cloudinit.sources.DataSourceUpCloud import DataSourceUpCloud, \
-    DataSourceUpCloudLocal
+from cloudinit.sources.DataSourceUpCloud import (
+    DataSourceUpCloud,
+    DataSourceUpCloudLocal,
+)
 
 from tests.unittests.helpers import mock, CiTestCase
 
-UC_METADATA = json.loads("""
+UC_METADATA = json.loads(
+    """
 {
   "cloud_name": "upcloud",
   "instance_id": "00322b68-0096-4042-9406-faad61922128",
@@ -130,14 +133,17 @@ UC_METADATA = json.loads("""
   "user_data": "",
   "vendor_data": ""
 }
-""")
+"""
+)
 
-UC_METADATA["user_data"] = b"""#cloud-config
+UC_METADATA[
+    "user_data"
+] = b"""#cloud-config
 runcmd:
 - [touch, /root/cloud-init-worked ]
 """
 
-MD_URL = 'http://169.254.169.254/metadata/v1.json'
+MD_URL = "http://169.254.169.254/metadata/v1.json"
 
 
 def _mock_dmi():
@@ -148,25 +154,27 @@ class TestUpCloudMetadata(CiTestCase):
     """
     Test reading the meta-data
     """
+
     def setUp(self):
         super(TestUpCloudMetadata, self).setUp()
         self.tmp = self.tmp_dir()
 
     def get_ds(self, get_sysinfo=_mock_dmi):
         ds = DataSourceUpCloud(
-            settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
+            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+        )
         if get_sysinfo:
             ds._get_sysinfo = get_sysinfo
         return ds
 
-    @mock.patch('cloudinit.sources.helpers.upcloud.read_sysinfo')
+    @mock.patch("cloudinit.sources.helpers.upcloud.read_sysinfo")
     def test_returns_false_not_on_upcloud(self, m_read_sysinfo):
         m_read_sysinfo.return_value = (False, None)
         ds = self.get_ds(get_sysinfo=None)
         self.assertEqual(False, ds.get_data())
         self.assertTrue(m_read_sysinfo.called)
 
-    @mock.patch('cloudinit.sources.helpers.upcloud.read_metadata')
+    @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
     def test_metadata(self, mock_readmd):
         mock_readmd.return_value = UC_METADATA.copy()
 
@@ -178,15 +186,17 @@ class TestUpCloudMetadata(CiTestCase):
 
         self.assertTrue(mock_readmd.called)
 
-        self.assertEqual(UC_METADATA.get('user_data'), ds.get_userdata_raw())
-        self.assertEqual(UC_METADATA.get('vendor_data'),
-                         ds.get_vendordata_raw())
-        self.assertEqual(UC_METADATA.get('region'), ds.availability_zone)
-        self.assertEqual(UC_METADATA.get('instance_id'), ds.get_instance_id())
-        self.assertEqual(UC_METADATA.get('cloud_name'), ds.cloud_name)
+        self.assertEqual(UC_METADATA.get("user_data"), ds.get_userdata_raw())
+        self.assertEqual(
+            UC_METADATA.get("vendor_data"), ds.get_vendordata_raw()
+        )
+        self.assertEqual(UC_METADATA.get("region"), ds.availability_zone)
+        self.assertEqual(UC_METADATA.get("instance_id"), ds.get_instance_id())
+        self.assertEqual(UC_METADATA.get("cloud_name"), ds.cloud_name)
 
-        self.assertEqual(UC_METADATA.get('public_keys'),
-                         ds.get_public_ssh_keys())
+        self.assertEqual(
+            UC_METADATA.get("public_keys"), ds.get_public_ssh_keys()
+        )
         self.assertIsInstance(ds.get_public_ssh_keys(), list)
 
 
@@ -201,24 +211,30 @@ class TestUpCloudNetworkSetup(CiTestCase):
 
     def get_ds(self, get_sysinfo=_mock_dmi):
         ds = DataSourceUpCloudLocal(
-            settings.CFG_BUILTIN, None, helpers.Paths({'run_dir': self.tmp}))
+            settings.CFG_BUILTIN, None, helpers.Paths({"run_dir": self.tmp})
+        )
         if get_sysinfo:
             ds._get_sysinfo = get_sysinfo
         return ds
 
-    @mock.patch('cloudinit.sources.helpers.upcloud.read_metadata')
-    @mock.patch('cloudinit.net.find_fallback_nic')
-    @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
-    @mock.patch('cloudinit.net.dhcp.EphemeralIPv4Network')
-    def test_network_configured_metadata(self, m_net, m_dhcp,
-                                         m_fallback_nic, mock_readmd):
+    @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
+    @mock.patch("cloudinit.net.find_fallback_nic")
+    @mock.patch("cloudinit.net.dhcp.maybe_perform_dhcp_discovery")
+    @mock.patch("cloudinit.net.dhcp.EphemeralIPv4Network")
+    def test_network_configured_metadata(
+        self, m_net, m_dhcp, m_fallback_nic, mock_readmd
+    ):
         mock_readmd.return_value = UC_METADATA.copy()
 
-        m_fallback_nic.return_value = 'eth1'
-        m_dhcp.return_value = [{
-            'interface': 'eth1', 'fixed-address': '10.6.3.27',
-            'routers': '10.6.0.1', 'subnet-mask': '22',
-            'broadcast-address': '10.6.3.255'}
+        m_fallback_nic.return_value = "eth1"
+        m_dhcp.return_value = [
+            {
+                "interface": "eth1",
+                "fixed-address": "10.6.3.27",
+                "routers": "10.6.0.1",
+                "subnet-mask": "22",
+                "broadcast-address": "10.6.3.255",
+            }
         ]
 
         ds = self.get_ds()
@@ -227,33 +243,36 @@ class TestUpCloudNetworkSetup(CiTestCase):
         self.assertTrue(ret)
 
         self.assertTrue(m_dhcp.called)
-        m_dhcp.assert_called_with('eth1', None)
+        m_dhcp.assert_called_with("eth1", None)
 
         m_net.assert_called_once_with(
-            broadcast='10.6.3.255', interface='eth1',
-            ip='10.6.3.27', prefix_or_mask='22',
-            router='10.6.0.1', static_routes=None
+            broadcast="10.6.3.255",
+            interface="eth1",
+            ip="10.6.3.27",
+            prefix_or_mask="22",
+            router="10.6.0.1",
+            static_routes=None,
         )
 
         self.assertTrue(mock_readmd.called)
 
-        self.assertEqual(UC_METADATA.get('region'), ds.availability_zone)
-        self.assertEqual(UC_METADATA.get('instance_id'), ds.get_instance_id())
-        self.assertEqual(UC_METADATA.get('cloud_name'), ds.cloud_name)
+        self.assertEqual(UC_METADATA.get("region"), ds.availability_zone)
+        self.assertEqual(UC_METADATA.get("instance_id"), ds.get_instance_id())
+        self.assertEqual(UC_METADATA.get("cloud_name"), ds.cloud_name)
 
-    @mock.patch('cloudinit.sources.helpers.upcloud.read_metadata')
-    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    @mock.patch("cloudinit.sources.helpers.upcloud.read_metadata")
+    @mock.patch("cloudinit.net.get_interfaces_by_mac")
     def test_network_configuration(self, m_get_by_mac, mock_readmd):
         mock_readmd.return_value = UC_METADATA.copy()
 
-        raw_ifaces = UC_METADATA.get('network').get('interfaces')
+        raw_ifaces = UC_METADATA.get("network").get("interfaces")
         self.assertEqual(4, len(raw_ifaces))
 
         m_get_by_mac.return_value = {
-            raw_ifaces[0].get('mac'): 'eth0',
-            raw_ifaces[1].get('mac'): 'eth1',
-            raw_ifaces[2].get('mac'): 'eth2',
-            raw_ifaces[3].get('mac'): 'eth3',
+            raw_ifaces[0].get("mac"): "eth0",
+            raw_ifaces[1].get("mac"): "eth1",
+            raw_ifaces[2].get("mac"): "eth2",
+            raw_ifaces[3].get("mac"): "eth3",
         }
 
         ds = self.get_ds()
@@ -266,49 +285,50 @@ class TestUpCloudNetworkSetup(CiTestCase):
 
         netcfg = ds.network_config
 
-        self.assertEqual(1, netcfg.get('version'))
+        self.assertEqual(1, netcfg.get("version"))
 
-        config = netcfg.get('config')
+        config = netcfg.get("config")
         self.assertIsInstance(config, list)
         self.assertEqual(5, len(config))
-        self.assertEqual('physical', config[3].get('type'))
+        self.assertEqual("physical", config[3].get("type"))
 
-        self.assertEqual(raw_ifaces[2].get('mac'), config[2]
-                         .get('mac_address'))
-        self.assertEqual(1, len(config[2].get('subnets')))
-        self.assertEqual('ipv6_dhcpv6-stateless', config[2].get('subnets')[0]
-                         .get('type'))
+        self.assertEqual(
+            raw_ifaces[2].get("mac"), config[2].get("mac_address")
+        )
+        self.assertEqual(1, len(config[2].get("subnets")))
+        self.assertEqual(
+            "ipv6_dhcpv6-stateless", config[2].get("subnets")[0].get("type")
+        )
 
-        self.assertEqual(2, len(config[0].get('subnets')))
-        self.assertEqual('static', config[0].get('subnets')[1].get('type'))
+        self.assertEqual(2, len(config[0].get("subnets")))
+        self.assertEqual("static", config[0].get("subnets")[1].get("type"))
 
         dns = config[4]
-        self.assertEqual('nameserver', dns.get('type'))
-        self.assertEqual(2, len(dns.get('address')))
+        self.assertEqual("nameserver", dns.get("type"))
+        self.assertEqual(2, len(dns.get("address")))
         self.assertEqual(
-            UC_METADATA.get('network').get('dns')[1],
-            dns.get('address')[1]
+            UC_METADATA.get("network").get("dns")[1], dns.get("address")[1]
         )
 
 
 class TestUpCloudDatasourceLoading(CiTestCase):
     def test_get_datasource_list_returns_in_local(self):
-        deps = (sources.DEP_FILESYSTEM, )
+        deps = (sources.DEP_FILESYSTEM,)
         ds_list = sources.DataSourceUpCloud.get_datasource_list(deps)
-        self.assertEqual(ds_list,
-                         [DataSourceUpCloudLocal])
+        self.assertEqual(ds_list, [DataSourceUpCloudLocal])
 
     def test_get_datasource_list_returns_in_normal(self):
         deps = (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)
         ds_list = sources.DataSourceUpCloud.get_datasource_list(deps)
-        self.assertEqual(ds_list,
-                         [DataSourceUpCloud])
+        self.assertEqual(ds_list, [DataSourceUpCloud])
 
     def test_list_sources_finds_ds(self):
         found = sources.list_sources(
-            ['UpCloud'], (sources.DEP_FILESYSTEM, sources.DEP_NETWORK),
-            ['cloudinit.sources'])
-        self.assertEqual([DataSourceUpCloud],
-                         found)
+            ["UpCloud"],
+            (sources.DEP_FILESYSTEM, sources.DEP_NETWORK),
+            ["cloudinit.sources"],
+        )
+        self.assertEqual([DataSourceUpCloud], found)
+
 
 # vi: ts=4 expandtab

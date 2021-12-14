@@ -49,4 +49,5 @@ def read_sysconfig_file(fn):
         contents = []
     return (exists, SysConf(contents))
 
+
 # vi: ts=4 expandtab

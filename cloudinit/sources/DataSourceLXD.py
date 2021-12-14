@@ -1,4 +1,3 @@
-
 """Datasource for LXD, reads /dev/lxd/sock representaton of instance data.
 
 Notes:
@@ -47,7 +46,7 @@ CONFIG_KEY_ALIASES = {
     "cloud-init.vendor-data": "vendor-data",
     "user.user-data": "user-data",
     "user.network-config": "network-config",
-    "user.vendor-data": "vendor-data"
+    "user.vendor-data": "vendor-data",
 }
 
 
@@ -57,18 +56,20 @@ def generate_fallback_network_config() -> dict:
         "version": 1,
         "config": [
             {
-                "type": "physical", "name": "eth0",
-                "subnets": [{"type": "dhcp", "control": "auto"}]
+                "type": "physical",
+                "name": "eth0",
+                "subnets": [{"type": "dhcp", "control": "auto"}],
             }
-        ]
+        ],
     }
     if subp.which("systemd-detect-virt"):
         try:
-            virt_type, _ = subp.subp(['systemd-detect-virt'])
+            virt_type, _ = subp.subp(["systemd-detect-virt"])
         except subp.ProcessExecutionError as err:
             LOG.warning(
                 "Unable to run systemd-detect-virt: %s."
-                " Rendering default network config.", err
+                " Rendering default network config.",
+                err,
             )
             return network_v1
         if virt_type.strip() == "kvm":  # instance.type VIRTUAL-MACHINE
@@ -84,7 +85,7 @@ def generate_fallback_network_config() -> dict:
 
 class SocketHTTPConnection(HTTPConnection):
     def __init__(self, socket_path):
-        super().__init__('localhost')
+        super().__init__("localhost")
         self.socket_path = socket_path
 
     def connect(self):
@@ -95,7 +96,7 @@ class SocketHTTPConnection(HTTPConnection):
 class SocketConnectionPool(HTTPConnectionPool):
     def __init__(self, socket_path):
         self.socket_path = socket_path
-        super().__init__('localhost')
+        super().__init__("localhost")
 
     def _new_conn(self):
         return SocketHTTPConnection(self.socket_path)
@@ -118,16 +119,16 @@ def _maybe_remove_top_network(cfg):
     if "network" not in cfg:
         return cfg
     network_val = cfg["network"]
-    bmsg = 'Top level network key in network-config %s: %s'
+    bmsg = "Top level network key in network-config %s: %s"
     if not isinstance(network_val, dict):
         LOG.debug(bmsg, "was not a dict", cfg)
         return cfg
     if len(list(cfg.keys())) != 1:
         LOG.debug(bmsg, "had multiple top level keys", cfg)
         return cfg
-    if network_val.get('config') == "disabled":
+    if network_val.get("config") == "disabled":
         LOG.debug(bmsg, "was config/disabled", cfg)
-    elif not all(('config' in network_val, 'version' in network_val)):
+    elif not all(("config" in network_val, "version" in network_val)):
         LOG.debug(bmsg, "but missing 'config' or 'version'", cfg)
         return cfg
     LOG.debug(bmsg, "fixed by removing shifting network.", cfg)
@@ -165,13 +166,16 @@ def _raw_instance_data_to_dict(metadata_type: str, metadata_value) -> dict:
 
 class DataSourceLXD(sources.DataSource):
 
-    dsname = 'LXD'
+    dsname = "LXD"
 
     _network_config = sources.UNSET
     _crawled_metadata = sources.UNSET
 
     sensitive_metadata_keys = (
-        'merged_cfg', 'user.meta-data', 'user.vendor-data', 'user.user-data',
+        "merged_cfg",
+        "user.meta-data",
+        "user.vendor-data",
+        "user.user-data",
     )
 
     def _is_platform_viable(self) -> bool:
@@ -185,8 +189,10 @@ class DataSourceLXD(sources.DataSource):
             return False
 
         self._crawled_metadata = util.log_time(
-            logfunc=LOG.debug, msg='Crawl of metadata service',
-            func=read_metadata)
+            logfunc=LOG.debug,
+            msg="Crawl of metadata service",
+            func=read_metadata,
+        )
         self.metadata = _raw_instance_data_to_dict(
             "meta-data", self._crawled_metadata.get("meta-data")
         )
@@ -293,7 +299,7 @@ def read_metadata(
                 "Invalid HTTP response [{code}] from {route}: {resp}".format(
                     code=response.status_code,
                     route=md_route,
-                    resp=response.text
+                    resp=response.text,
                 )
             )
 
@@ -304,7 +310,7 @@ def read_metadata(
         md = {
             "_metadata_api_version": api_version,  # Document API version read
             "config": {},
-            "meta-data": md["meta-data"]
+            "meta-data": md["meta-data"],
         }
 
         config_url = version_url + "config"
@@ -317,7 +323,7 @@ def read_metadata(
                 "Invalid HTTP response [{code}] from {route}: {resp}".format(
                     code=response.status_code,
                     route=config_url,
-                    resp=response.text
+                    resp=response.text,
                 )
             )
         try:
@@ -326,8 +332,7 @@ def read_metadata(
             raise sources.InvalidMetaDataException(
                 "Unable to determine cloud-init config from {route}."
                 " Expected JSON but found: {resp}".format(
-                    route=config_url,
-                    resp=response.text
+                    route=config_url, resp=response.text
                 )
             ) from exc
 
@@ -354,12 +359,15 @@ def read_metadata(
                     else:
                         LOG.warning(
                             "Ignoring LXD config %s in favor of %s value.",
-                            cfg_key, cfg_key.replace("user", "cloud-init", 1)
+                            cfg_key,
+                            cfg_key.replace("user", "cloud-init", 1),
                         )
             else:
                 LOG.debug(
                     "Skipping %s on [HTTP:%d]:%s",
-                    url, response.status_code, response.text
+                    url,
+                    response.status_code,
+                    response.text,
                 )
     return md
 

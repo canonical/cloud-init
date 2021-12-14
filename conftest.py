@@ -138,6 +138,7 @@ def disable_subp_usage(request, fixture_utils):
                 " this either by modifying your test code, or by modifying"
                 " disable_subp_usage to handle precedence."
             )
+
     else:
         # Look this up before our patch is in place, so we have access to
         # the real implementation in side_effect
@@ -203,7 +204,7 @@ def paths(tmpdir):
     return helpers.Paths(dirs)
 
 
-@pytest.fixture(autouse=True, scope='session')
+@pytest.fixture(autouse=True, scope="session")
 def monkeypatch_system_info():
     def my_system_info():
         return {
@@ -213,7 +214,7 @@ def monkeypatch_system_info():
             "python": "invalid",
             "uname": ["invalid"] * 6,
             "dist": ("Distro", "-1.1", "Codename"),
-            "variant": "ubuntu"
+            "variant": "ubuntu",
         }
 
     util.system_info = my_system_info

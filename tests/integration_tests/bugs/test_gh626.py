@@ -21,7 +21,9 @@ ethernets:
     wakeonlan: true
     match:
       macaddress: {}
-""".format(MAC_ADDRESS)
+""".format(
+    MAC_ADDRESS
+)
 
 EXPECTED_ENI_END = """\
 iface eth0 inet dhcp
@@ -31,17 +33,19 @@ iface eth0 inet dhcp
 @pytest.mark.sru_2020_11
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
-@pytest.mark.lxd_config_dict({
-    'user.network-config': NETWORK_CONFIG,
-    "volatile.eth0.hwaddr": MAC_ADDRESS,
-})
+@pytest.mark.lxd_config_dict(
+    {
+        "user.network-config": NETWORK_CONFIG,
+        "volatile.eth0.hwaddr": MAC_ADDRESS,
+    }
+)
 def test_wakeonlan(client: IntegrationInstance):
-    if ImageSpecification.from_os_image().release == 'xenial':
-        eni = client.execute('cat /etc/network/interfaces.d/50-cloud-init.cfg')
+    if ImageSpecification.from_os_image().release == "xenial":
+        eni = client.execute("cat /etc/network/interfaces.d/50-cloud-init.cfg")
         assert eni.endswith(EXPECTED_ENI_END)
         return
 
-    netplan_cfg = client.execute('cat /etc/netplan/50-cloud-init.yaml')
+    netplan_cfg = client.execute("cat /etc/netplan/50-cloud-init.yaml")
     netplan_yaml = yaml.safe_load(netplan_cfg)
-    assert 'wakeonlan' in netplan_yaml['network']['ethernets']['eth0']
-    assert netplan_yaml['network']['ethernets']['eth0']['wakeonlan'] is True
+    assert "wakeonlan" in netplan_yaml["network"]["ethernets"]["eth0"]
+    assert netplan_yaml["network"]["ethernets"]["eth0"]["wakeonlan"] is True

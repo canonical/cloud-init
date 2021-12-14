@@ -61,11 +61,11 @@ runcmd:
 
 @pytest.yield_fixture(autouse=True)
 def common_patches():
-    with mock.patch('cloudinit.util.platform.platform', return_value='Linux'):
+    with mock.patch("cloudinit.util.platform.platform", return_value="Linux"):
         with mock.patch.multiple(
-            'cloudinit.dmi',
+            "cloudinit.dmi",
             is_container=mock.Mock(return_value=False),
-            is_FreeBSD=mock.Mock(return_value=False)
+            is_FreeBSD=mock.Mock(return_value=False),
         ):
             yield
 

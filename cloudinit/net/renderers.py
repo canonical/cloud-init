@@ -22,8 +22,15 @@ NAME_TO_RENDERER = {
     "sysconfig": sysconfig,
 }
 
-DEFAULT_PRIORITY = ["eni", "sysconfig", "netplan", "freebsd",
-                    "netbsd", "openbsd", "networkd"]
+DEFAULT_PRIORITY = [
+    "eni",
+    "sysconfig",
+    "netplan",
+    "freebsd",
+    "netbsd",
+    "openbsd",
+    "networkd",
+]
 
 
 def search(
@@ -37,7 +44,8 @@ def search(
     unknown = [i for i in priority if i not in available]
     if unknown:
         raise ValueError(
-            "Unknown renderers provided in priority list: %s" % unknown)
+            "Unknown renderers provided in priority list: %s" % unknown
+        )
 
     found = []
     for name in priority:
@@ -60,8 +68,10 @@ def select(priority=None, target=None) -> Tuple[str, Type[renderer.Renderer]]:
         if target and target != "/":
             tmsg = " in target=%s" % target
         raise RendererNotFoundError(
-            "No available network renderers found%s. Searched "
-            "through list: %s" % (tmsg, priority))
+            "No available network renderers found%s. Searched through list: %s"
+            % (tmsg, priority)
+        )
     return found[0]
+
 
 # vi: ts=4 expandtab

@@ -14,7 +14,7 @@ from cloudinit import util
 
 class DataSourceBigstep(sources.DataSource):
 
-    dsname = 'Bigstep'
+    dsname = "Bigstep"
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -35,7 +35,7 @@ class DataSourceBigstep(sources.DataSource):
 
     def _get_subplatform(self):
         """Return the subplatform metadata source details."""
-        return 'metadata (%s)' % get_url_from_file()
+        return "metadata (%s)" % get_url_from_file()
 
 
 def get_url_from_file():
@@ -60,5 +60,6 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
 
 # vi: ts=4 expandtab

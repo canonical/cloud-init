@@ -26,10 +26,11 @@ from textwrap import dedent
 distros = [ALL_DISTROS]
 
 meta = {
-    'id': 'cc_runcmd',
-    'name': 'Runcmd',
-    'title': 'Run arbitrary commands',
-    'description': dedent("""\
+    "id": "cc_runcmd",
+    "name": "Runcmd",
+    "title": "Run arbitrary commands",
+    "description": dedent(
+        """\
         Run arbitrary commands at a rc.local like level with output to the
         console. Each item can be either a list or a string. If the item is a
         list, it will be properly executed as if passed to ``execve()`` (with
@@ -46,35 +47,41 @@ meta = {
 
           when writing files, do not use /tmp dir as it races with
           systemd-tmpfiles-clean LP: #1707222. Use /run/somedir instead.
-    """),
-    'distros': distros,
-    'examples': [dedent("""\
+    """
+    ),
+    "distros": distros,
+    "examples": [
+        dedent(
+            """\
         runcmd:
             - [ ls, -l, / ]
             - [ sh, -xc, "echo $(date) ': hello world!'" ]
             - [ sh, -c, echo "=========hello world'=========" ]
             - ls -l /root
             - [ wget, "http://example.org", -O, /tmp/index.html ]
-    """)],
-    'frequency': PER_INSTANCE,
+    """
+        )
+    ],
+    "frequency": PER_INSTANCE,
 }
 
 schema = {
-    'type': 'object',
-    'properties': {
-        'runcmd': {
-            'type': 'array',
-            'items': {
-                'oneOf': [
-                    {'type': 'array', 'items': {'type': 'string'}},
-                    {'type': 'string'},
-                    {'type': 'null'}]
+    "type": "object",
+    "properties": {
+        "runcmd": {
+            "type": "array",
+            "items": {
+                "oneOf": [
+                    {"type": "array", "items": {"type": "string"}},
+                    {"type": "string"},
+                    {"type": "null"},
+                ]
             },
-            'additionalItems': False,  # Reject items of non-string non-list
-            'additionalProperties': False,
-            'minItems': 1,
+            "additionalItems": False,  # Reject items of non-string non-list
+            "additionalProperties": False,
+            "minItems": 1,
         }
-    }
+    },
 }
 
 __doc__ = get_meta_doc(meta, schema)  # Supplement python help()
@@ -82,17 +89,19 @@ __doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 def handle(name, cfg, cloud, log, _args):
     if "runcmd" not in cfg:
-        log.debug(("Skipping module named %s,"
-                   " no 'runcmd' key in configuration"), name)
+        log.debug(
+            "Skipping module named %s, no 'runcmd' key in configuration", name
+        )
         return
 
     validate_cloudconfig_schema(cfg, schema)
-    out_fn = os.path.join(cloud.get_ipath('scripts'), "runcmd")
+    out_fn = os.path.join(cloud.get_ipath("scripts"), "runcmd")
     cmd = cfg["runcmd"]
     try:
         content = util.shellify(cmd)
         util.write_file(out_fn, content, 0o700)
     except Exception as e:
-        raise type(e)('Failed to shellify {} into file {}'.format(cmd, out_fn))
+        raise type(e)("Failed to shellify {} into file {}".format(cmd, out_fn))
+
 
 # vi: ts=4 expandtab

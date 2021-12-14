@@ -13,9 +13,9 @@ LOG = logging.getLogger(__name__)
 
 class TestSpacewalk(helpers.TestCase):
     space_cfg = {
-        'spacewalk': {
-            'server': 'localhost',
-            'profile_name': 'test',
+        "spacewalk": {
+            "server": "localhost",
+            "profile_name": "test",
         }
     }
 
@@ -31,12 +31,19 @@ class TestSpacewalk(helpers.TestCase):
 
     @mock.patch("cloudinit.config.cc_spacewalk.subp.subp")
     def test_do_register(self, mock_subp):
-        cc_spacewalk.do_register(**self.space_cfg['spacewalk'])
-        mock_subp.assert_called_with([
-            'rhnreg_ks',
-            '--serverUrl', 'https://localhost/XMLRPC',
-            '--profilename', 'test',
-            '--sslCACert', cc_spacewalk.def_ca_cert_path,
-        ], capture=False)
+        cc_spacewalk.do_register(**self.space_cfg["spacewalk"])
+        mock_subp.assert_called_with(
+            [
+                "rhnreg_ks",
+                "--serverUrl",
+                "https://localhost/XMLRPC",
+                "--profilename",
+                "test",
+                "--sslCACert",
+                cc_spacewalk.def_ca_cert_path,
+            ],
+            capture=False,
+        )
+
 
 # vi: ts=4 expandtab

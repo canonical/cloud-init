@@ -26,17 +26,21 @@ ethernets:
       via: {}
     match:
       macaddress: {}
-""".format(DESTINATION_IP, GATEWAY_IP, MAC_ADDRESS)
+""".format(
+    DESTINATION_IP, GATEWAY_IP, MAC_ADDRESS
+)
 
 EXPECTED_ROUTE = "{} via {}".format(DESTINATION_IP, GATEWAY_IP)
 
 
 @pytest.mark.lxd_container
 @pytest.mark.lxd_vm
-@pytest.mark.lxd_config_dict({
-    "user.network-config": NETWORK_CONFIG,
-    "volatile.eth0.hwaddr": MAC_ADDRESS,
-})
+@pytest.mark.lxd_config_dict(
+    {
+        "user.network-config": NETWORK_CONFIG,
+        "volatile.eth0.hwaddr": MAC_ADDRESS,
+    }
+)
 @pytest.mark.lxd_use_exec
 def test_static_route_to_host(client: IntegrationInstance):
     route = client.execute("ip route | grep {}".format(DESTINATION_IP))

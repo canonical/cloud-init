@@ -460,7 +460,7 @@ def guestinfo_set_value(key, value, vmware_rpctool=VMWARE_RPCTOOL):
         subp(
             [
                 vmware_rpctool,
-                ("info-set %s %s" % (get_guestinfo_key_name(key), value)),
+                "info-set %s %s" % (get_guestinfo_key_name(key), value),
             ]
         )
         return True

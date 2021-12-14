@@ -8,14 +8,14 @@ from cloudinit import subp
 from cloudinit import util
 
 stage_to_description = {
-    'finished': 'finished running cloud-init',
-    'init-local': 'starting search for local datasources',
-    'init-network': 'searching for network datasources',
-    'init': 'searching for network datasources',
-    'modules-config': 'running config modules',
-    'modules-final': 'finalizing modules',
-    'modules': 'running modules for',
-    'single': 'running single module ',
+    "finished": "finished running cloud-init",
+    "init-local": "starting search for local datasources",
+    "init-network": "searching for network datasources",
+    "init": "searching for network datasources",
+    "modules-config": "running config modules",
+    "modules-final": "finalizing modules",
+    "modules": "running modules for",
+    "single": "running single module ",
 }
 
 # logger's asctime format
@@ -34,11 +34,11 @@ def parse_timestamp(timestampstr):
     if timestampstr.split()[0] in months:
         # Aug 29 22:55:26
         FMT = DEFAULT_FMT
-        if '.' in timestampstr:
+        if "." in timestampstr:
             FMT = CLOUD_INIT_JOURNALCTL_FMT
-        dt = datetime.strptime(timestampstr + " " +
-                               str(datetime.now().year),
-                               FMT)
+        dt = datetime.strptime(
+            timestampstr + " " + str(datetime.now().year), FMT
+        )
         timestamp = dt.strftime("%s.%f")
     elif "," in timestampstr:
         # 2016-09-12 14:39:20,839
@@ -52,7 +52,7 @@ def parse_timestamp(timestampstr):
 
 
 def parse_timestamp_from_date(timestampstr):
-    out, _ = subp.subp(['date', '+%s.%3N', '-d', timestampstr])
+    out, _ = subp.subp(["date", "+%s.%3N", "-d", timestampstr])
     timestamp = out.strip()
     return float(timestamp)
 
@@ -79,8 +79,8 @@ def parse_ci_logline(line):
     # Apr 30 19:39:11 cloud-init[2673]: handlers.py[DEBUG]: start: \
     #          init-local/check-cache: attempting to read from cache [check]
 
-    amazon_linux_2_sep = ' cloud-init['
-    separators = [' - ', ' [CLOUDINIT] ', amazon_linux_2_sep]
+    amazon_linux_2_sep = " cloud-init["
+    separators = [" - ", " [CLOUDINIT] ", amazon_linux_2_sep]
     found = False
     for sep in separators:
         if sep in line:
@@ -99,7 +99,7 @@ def parse_ci_logline(line):
     if "," in timehost:
         timestampstr, extra = timehost.split(",")
         timestampstr += ",%s" % extra.split()[0]
-        if ' ' in extra:
+        if " " in extra:
             hostname = extra.split()[-1]
     else:
         hostname = timehost.split()[-1]
@@ -111,11 +111,11 @@ def parse_ci_logline(line):
             eventstr = eventstr.split(maxsplit=1)[1]
         else:
             timestampstr = timehost.split(hostname)[0].strip()
-    if 'Cloud-init v.' in eventstr:
-        event_type = 'start'
-        if 'running' in eventstr:
-            stage_and_timestamp = eventstr.split('running')[1].lstrip()
-            event_name, _ = stage_and_timestamp.split(' at ')
+    if "Cloud-init v." in eventstr:
+        event_type = "start"
+        if "running" in eventstr:
+            stage_and_timestamp = eventstr.split("running")[1].lstrip()
+            event_name, _ = stage_and_timestamp.split(" at ")
             event_name = event_name.replace("'", "").replace(":", "-")
             if event_name == "init":
                 event_name = "init-network"
@@ -128,17 +128,17 @@ def parse_ci_logline(line):
         event_description = eventstr.split(event_name)[1].strip()
 
     event = {
-        'name': event_name.rstrip(":"),
-        'description': event_description,
-        'timestamp': parse_timestamp(timestampstr),
-        'origin': 'cloudinit',
-        'event_type': event_type.rstrip(":"),
+        "name": event_name.rstrip(":"),
+        "description": event_description,
+        "timestamp": parse_timestamp(timestampstr),
+        "origin": "cloudinit",
+        "event_type": event_type.rstrip(":"),
     }
-    if event['event_type'] == "finish":
+    if event["event_type"] == "finish":
         result = event_description.split(":")[0]
-        desc = event_description.split(result)[1].lstrip(':').strip()
-        event['result'] = result
-        event['description'] = desc.strip()
+        desc = event_description.split(result)[1].lstrip(":").strip()
+        event["result"] = result
+        event["description"] = desc.strip()
 
     return event
 
@@ -146,10 +146,10 @@ def parse_ci_logline(line):
 def dump_events(cisource=None, rawdata=None):
     events = []
     event = None
-    CI_EVENT_MATCHES = ['start:', 'finish:', 'Cloud-init v.']
+    CI_EVENT_MATCHES = ["start:", "finish:", "Cloud-init v."]
 
     if not any([cisource, rawdata]):
-        raise ValueError('Either cisource or rawdata parameters are required')
+        raise ValueError("Either cisource or rawdata parameters are required")
 
     if rawdata:
         data = rawdata.splitlines()
@@ -162,7 +162,7 @@ def dump_events(cisource=None, rawdata=None):
                 try:
                     event = parse_ci_logline(line)
                 except ValueError:
-                    sys.stderr.write('Skipping invalid entry\n')
+                    sys.stderr.write("Skipping invalid entry\n")
                 if event:
                     events.append(event)
 

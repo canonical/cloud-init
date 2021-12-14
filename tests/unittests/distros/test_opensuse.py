@@ -6,7 +6,6 @@ from . import _get_distro
 
 
 class TestopenSUSE(CiTestCase):
-
     def test_get_distro(self):
         distro = _get_distro("opensuse")
-        self.assertEqual(distro.osfamily, 'suse')
+        self.assertEqual(distro.osfamily, "suse")

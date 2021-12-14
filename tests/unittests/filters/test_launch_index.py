@@ -20,7 +20,6 @@ def count_messages(root):
 
 
 class TestLaunchFilter(helpers.ResourceUsingTestCase):
-
     def assertCounts(self, message, expected_counts):
         orig_message = copy.deepcopy(message)
         for (index, count) in expected_counts.items():
@@ -54,7 +53,7 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         return True
 
     def testMultiEmailIndex(self):
-        test_data = helpers.readResource('filter_cloud_multipart_2.email')
+        test_data = helpers.readResource("filter_cloud_multipart_2.email")
         ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
         self.assertTrue(count_messages(message) > 0)
@@ -69,7 +68,7 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         self.assertCounts(message, expected_counts)
 
     def testHeaderEmailIndex(self):
-        test_data = helpers.readResource('filter_cloud_multipart_header.email')
+        test_data = helpers.readResource("filter_cloud_multipart_header.email")
         ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
         self.assertTrue(count_messages(message) > 0)
@@ -78,13 +77,13 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         expected_counts = {
             5: 1,
             -1: 0,
-            'c': 1,
+            "c": 1,
             None: 1,
         }
         self.assertCounts(message, expected_counts)
 
     def testConfigEmailIndex(self):
-        test_data = helpers.readResource('filter_cloud_multipart_1.email')
+        test_data = helpers.readResource("filter_cloud_multipart_1.email")
         ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
         self.assertTrue(count_messages(message) > 0)
@@ -98,7 +97,7 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         self.assertCounts(message, expected_counts)
 
     def testNoneIndex(self):
-        test_data = helpers.readResource('filter_cloud_multipart.yaml')
+        test_data = helpers.readResource("filter_cloud_multipart.yaml")
         ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
         start_count = count_messages(message)
@@ -107,7 +106,7 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         self.assertTrue(self.equivalentMessage(message, filtered_message))
 
     def testIndexes(self):
-        test_data = helpers.readResource('filter_cloud_multipart.yaml')
+        test_data = helpers.readResource("filter_cloud_multipart.yaml")
         ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(test_data)
         start_count = count_messages(message)
@@ -126,10 +125,11 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
             # None should just give all back
             None: start_count,
             # Non ints should be ignored
-            'c': start_count,
+            "c": start_count,
             # Strings should be converted
-            '1': 2,
+            "1": 2,
         }
         self.assertCounts(message, expected_counts)
+
 
 # vi: ts=4 expandtab

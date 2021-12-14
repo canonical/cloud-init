@@ -35,22 +35,28 @@ from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
-SCRIPT_SUBDIR = 'vendor'
+SCRIPT_SUBDIR = "vendor"
 
 
 def handle(name, cfg, cloud, log, _args):
     # This is written to by the vendor data handlers
     # any vendor data shell scripts get placed in runparts_path
-    runparts_path = os.path.join(cloud.get_ipath_cur(), 'scripts',
-                                 SCRIPT_SUBDIR)
+    runparts_path = os.path.join(
+        cloud.get_ipath_cur(), "scripts", SCRIPT_SUBDIR
+    )
 
-    prefix = util.get_cfg_by_path(cfg, ('vendor_data', 'prefix'), [])
+    prefix = util.get_cfg_by_path(cfg, ("vendor_data", "prefix"), [])
 
     try:
         subp.runparts(runparts_path, exe_prefix=prefix)
     except Exception:
-        log.warning("Failed to run module %s (%s in %s)",
-                    name, SCRIPT_SUBDIR, runparts_path)
+        log.warning(
+            "Failed to run module %s (%s in %s)",
+            name,
+            SCRIPT_SUBDIR,
+            runparts_path,
+        )
         raise
+
 
 # vi: ts=4 expandtab

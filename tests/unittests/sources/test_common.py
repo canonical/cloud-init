@@ -78,24 +78,27 @@ DEFAULT_NETWORK = [
 
 
 class ExpectedDataSources(test_helpers.TestCase):
-    builtin_list = settings.CFG_BUILTIN['datasource_list']
+    builtin_list = settings.CFG_BUILTIN["datasource_list"]
     deps_local = [sources.DEP_FILESYSTEM]
     deps_network = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     pkg_list = [type_utils.obj_name(sources)]
 
     def test_expected_default_local_sources_found(self):
         found = sources.list_sources(
-            self.builtin_list, self.deps_local, self.pkg_list)
+            self.builtin_list, self.deps_local, self.pkg_list
+        )
         self.assertEqual(set(DEFAULT_LOCAL), set(found))
 
     def test_expected_default_network_sources_found(self):
         found = sources.list_sources(
-            self.builtin_list, self.deps_network, self.pkg_list)
+            self.builtin_list, self.deps_network, self.pkg_list
+        )
         self.assertEqual(set(DEFAULT_NETWORK), set(found))
 
     def test_expected_nondefault_network_sources_found(self):
         found = sources.list_sources(
-            ['AliYun'], self.deps_network, self.pkg_list)
+            ["AliYun"], self.deps_network, self.pkg_list
+        )
         self.assertEqual(set([AliYun.DataSourceAliYun]), set(found))
 
 
@@ -103,19 +106,23 @@ class TestDataSourceInvariants(test_helpers.TestCase):
     def test_data_sources_have_valid_network_config_sources(self):
         for ds in DEFAULT_LOCAL + DEFAULT_NETWORK:
             for cfg_src in ds.network_config_sources:
-                fail_msg = ('{} has an invalid network_config_sources entry:'
-                            ' {}'.format(str(ds), cfg_src))
-                self.assertTrue(hasattr(sources.NetworkConfigSource, cfg_src),
-                                fail_msg)
+                fail_msg = (
+                    "{} has an invalid network_config_sources entry:"
+                    " {}".format(str(ds), cfg_src)
+                )
+                self.assertTrue(
+                    hasattr(sources.NetworkConfigSource, cfg_src), fail_msg
+                )
 
     def test_expected_dsname_defined(self):
         for ds in DEFAULT_LOCAL + DEFAULT_NETWORK:
             fail_msg = (
-                '{} has an invalid / missing dsname property: {}'.format(
+                "{} has an invalid / missing dsname property: {}".format(
                     str(ds), str(ds.dsname)
                 )
             )
             self.assertNotEqual(ds.dsname, DataSource.dsname, fail_msg)
             self.assertIsNotNone(ds.dsname)
+
 
 # vi: ts=4 expandtab

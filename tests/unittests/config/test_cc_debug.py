@@ -7,14 +7,14 @@ import tempfile
 
 from cloudinit import util
 from cloudinit.config import cc_debug
-from tests.unittests.helpers import (FilesystemMockingTestCase, mock)
+from tests.unittests.helpers import FilesystemMockingTestCase, mock
 
 from tests.unittests.util import get_cloud
 
 LOG = logging.getLogger(__name__)
 
 
-@mock.patch('cloudinit.distros.debian.read_system_locale')
+@mock.patch("cloudinit.distros.debian.read_system_locale")
 class TestDebug(FilesystemMockingTestCase):
     def setUp(self):
         super(TestDebug, self).setUp()
@@ -23,37 +23,39 @@ class TestDebug(FilesystemMockingTestCase):
         self.patchUtils(self.new_root)
 
     def test_debug_write(self, m_locale):
-        m_locale.return_value = 'en_US.UTF-8'
+        m_locale.return_value = "en_US.UTF-8"
         cfg = {
-            'abc': '123',
-            'c': '\u20a0',
-            'debug': {
-                'verbose': True,
+            "abc": "123",
+            "c": "\u20a0",
+            "debug": {
+                "verbose": True,
                 # Does not actually write here due to mocking...
-                'output': '/var/log/cloud-init-debug.log',
+                "output": "/var/log/cloud-init-debug.log",
             },
         }
         cc = get_cloud()
-        cc_debug.handle('cc_debug', cfg, cc, LOG, [])
-        contents = util.load_file('/var/log/cloud-init-debug.log')
+        cc_debug.handle("cc_debug", cfg, cc, LOG, [])
+        contents = util.load_file("/var/log/cloud-init-debug.log")
         # Some basic sanity tests...
         self.assertNotEqual(0, len(contents))
         for k in cfg.keys():
             self.assertIn(k, contents)
 
     def test_debug_no_write(self, m_locale):
-        m_locale.return_value = 'en_US.UTF-8'
+        m_locale.return_value = "en_US.UTF-8"
         cfg = {
-            'abc': '123',
-            'debug': {
-                'verbose': False,
+            "abc": "123",
+            "debug": {
+                "verbose": False,
                 # Does not actually write here due to mocking...
-                'output': '/var/log/cloud-init-debug.log',
+                "output": "/var/log/cloud-init-debug.log",
             },
         }
         cc = get_cloud()
-        cc_debug.handle('cc_debug', cfg, cc, LOG, [])
-        self.assertRaises(IOError,
-                          util.load_file, '/var/log/cloud-init-debug.log')
+        cc_debug.handle("cc_debug", cfg, cc, LOG, [])
+        self.assertRaises(
+            IOError, util.load_file, "/var/log/cloud-init-debug.log"
+        )
+
 
 # vi: ts=4 expandtab

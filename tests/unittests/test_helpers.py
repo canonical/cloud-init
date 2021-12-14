@@ -25,8 +25,9 @@ class TestPaths(test_helpers.ResourceUsingTestCase):
         mypaths = self.getCloudPaths(myds)
 
         self.assertEqual(
-            os.path.join(mypaths.cloud_dir, 'instances', safe_iid),
-            mypaths.get_ipath())
+            os.path.join(mypaths.cloud_dir, "instances", safe_iid),
+            mypaths.get_ipath(),
+        )
 
     def test_get_ipath_and_empty_instance_id_returns_none(self):
         myds = MyDataSource(sys_cfg={}, distro=None, paths={})
@@ -52,8 +53,7 @@ class Testcloud_init_project_dir:
 
     def test_top_level_dir(self):
         """Assert the location of the top project directory is correct"""
-        assert (self.top_dir ==
-                self._get_top_level_dir_alt_implementation())
+        assert self.top_dir == self._get_top_level_dir_alt_implementation()
 
     def test_cloud_init_project_dir(self):
         """Assert cloud_init_project_dir produces an expected location
