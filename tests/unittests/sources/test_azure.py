@@ -1289,7 +1289,7 @@ scbus-1 on xpt0 bus 0
                 "subnet-mask": "255.255.255.0",
                 "unknown-245": "624c3620",
             }
-            self.m_ephemeral_dhcpv4_with_reporting.return_value.__enter__.return_value = (
+            self.m_ephemeral_dhcpv4_with_reporting.return_value.__enter__.return_value = (  # noqa: E501
                 lease
             )
             m_media_switch.return_value = None
@@ -1796,7 +1796,7 @@ scbus-1 on xpt0 bus 0
             # setup ephemeral dhcp lease discovery mock
             test_lease_dhcp_option_245 = "test_lease_dhcp_option_245"
             test_lease = {"unknown-245": test_lease_dhcp_option_245}
-            self.m_ephemeral_dhcpv4_with_reporting.return_value.__enter__.return_value = (
+            self.m_ephemeral_dhcpv4_with_reporting.return_value.__enter__.return_value = (  # noqa: E501
                 test_lease
             )
 
@@ -1823,7 +1823,7 @@ scbus-1 on xpt0 bus 0
             m_dsrc_distro_networking_is_up.return_value = False
             # ephemeral dhcp discovery failure,
             # so cannot use a new ephemeral dhcp
-            self.m_ephemeral_dhcpv4_with_reporting.return_value.__enter__.side_effect = (
+            self.m_ephemeral_dhcpv4_with_reporting.return_value.__enter__.side_effect = (  # noqa: E501
                 Exception
             )
 

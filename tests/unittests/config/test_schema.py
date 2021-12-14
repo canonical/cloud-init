@@ -177,7 +177,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
 
     @skipUnlessJsonSchema()
     def test_validateconfig_schema_honors_formats_strict_metaschema(self):
-        """With strict True and strict_metascheam True, ensure errors on format"""
+        """With strict and strict_metaschema True, ensure errors on format"""
         schema = {"properties": {"p1": {"type": "string", "format": "email"}}}
         with self.assertRaises(SchemaValidationError) as context_mgr:
             validate_cloudconfig_schema(

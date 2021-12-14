@@ -4438,7 +4438,7 @@ STARTMODE=auto
     #        }
     #        macs = {'fa:16:3e:ed:9a:59': 'eth0'}
     #        render_dir = self.tmp_dir()
-    #        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
+    #        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)  # noqa: E501
     #        ns = network_state.parse_net_config_data(network_cfg,
     #                                                 skip_broken=False)
     #        renderer = self._get_renderer()
@@ -4476,7 +4476,7 @@ STARTMODE=auto
     #        }
     #        macs = {'fa:16:3e:ed:9a:59': 'eth0'}
     #        render_dir = self.tmp_dir()
-    #        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
+    #        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)  # noqa: E501
     #        ns = network_state.parse_net_config_data(network_cfg,
     #                                                 skip_broken=False)
     #        renderer = self._get_renderer()

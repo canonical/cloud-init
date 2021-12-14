@@ -48,11 +48,11 @@ class TestAptKey:
         assert file == directory + "/my-key.gpg"
 
     def test_apt_key_add_success(self):
-        """Verify the correct directory path gets returned for unhardened case"""
+        """Verify the right directory path gets returned for unhardened case"""
         self._apt_key_add_success_helper("/etc/apt/trusted.gpg.d")
 
     def test_apt_key_add_success_hardened(self):
-        """Verify the correct directory path gets returned for hardened case"""
+        """Verify the right directory path gets returned for hardened case"""
         self._apt_key_add_success_helper(
             "/etc/apt/cloud-init.gpg.d", hardened=True
         )

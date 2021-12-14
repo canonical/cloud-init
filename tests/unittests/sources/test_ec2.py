@@ -1095,13 +1095,17 @@ class TesIdentifyPlatform(test_helpers.CiTestCase):
 
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_zstack(self, m_collect):
-        """zstack should be identified if chassis-asset-tag ends in .zstack.io"""
+        """zstack should be identified if chassis-asset-tag
+        ends in .zstack.io
+        """
         m_collect.return_value = self.collmock(asset_tag="123456.zstack.io")
         self.assertEqual(ec2.CloudNames.ZSTACK, ec2.identify_platform())
 
     @mock.patch("cloudinit.sources.DataSourceEc2._collect_platform_data")
     def test_identify_zstack_full_domain_only(self, m_collect):
-        """zstack asset-tag matching should match only on full domain boundary."""
+        """zstack asset-tag matching should match only on
+        full domain boundary.
+        """
         m_collect.return_value = self.collmock(asset_tag="123456.buzzstack.io")
         self.assertEqual(ec2.CloudNames.UNKNOWN, ec2.identify_platform())
 

@@ -108,7 +108,9 @@ class TestFindEndpoint(CiTestCase):
         self.networkd_leases.return_value = None
 
     def test_missing_file(self):
-        """wa_shim find_endpoint uses default endpoint if leasefile not found"""
+        """wa_shim find_endpoint uses default endpoint if
+        leasefile not found
+        """
         self.assertEqual(wa_shim.find_endpoint(), "168.63.129.16")
 
     def test_missing_special_azure_line(self):
@@ -1277,9 +1279,11 @@ class TestWALinuxAgentShim(CiTestCase):
             container_id=escape(self.test_container_id),
             instance_id=escape(self.test_instance_id),
             health_status=escape("NotReady"),
-            health_detail_subsection=HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
-                health_substatus=escape("ProvisioningFailed"),
-                health_description=escape("TestDesc"),
+            health_detail_subsection=(
+                HEALTH_DETAIL_SUBSECTION_XML_TEMPLATE.format(
+                    health_substatus=escape("ProvisioningFailed"),
+                    health_description=escape("TestDesc"),
+                )
             ),
         )
         posted_document = (
@@ -1295,7 +1299,7 @@ class TestWALinuxAgentShim(CiTestCase):
         shim.register_with_azure_and_fetch_data()
         self.assertEqual(
             1,
-            m_goal_state_health_reporter.return_value.send_ready_signal.call_count,
+            m_goal_state_health_reporter.return_value.send_ready_signal.call_count,  # noqa: E501
         )
 
     @mock.patch.object(azure_helper, "GoalStateHealthReporter", autospec=True)
@@ -1304,7 +1308,7 @@ class TestWALinuxAgentShim(CiTestCase):
     ):
         shim = wa_shim()
         shim.register_with_azure_and_report_failure(description="TestDesc")
-        m_goal_state_health_reporter.return_value.send_failure_signal.assert_called_once_with(
+        m_goal_state_health_reporter.return_value.send_failure_signal.assert_called_once_with(  # noqa: E501
             description="TestDesc"
         )
 
@@ -1415,7 +1419,7 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
     def test_data_from_shim_returned(self):
         ret = azure_helper.get_metadata_from_fabric()
         self.assertEqual(
-            self.m_shim.return_value.register_with_azure_and_fetch_data.return_value,
+            self.m_shim.return_value.register_with_azure_and_fetch_data.return_value,  # noqa: E501
             ret,
         )
 
@@ -1424,7 +1428,7 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
         self.assertEqual(1, self.m_shim.return_value.clean_up.call_count)
 
     def test_failure_in_registration_propagates_exc_and_calls_clean_up(self):
-        self.m_shim.return_value.register_with_azure_and_fetch_data.side_effect = (
+        self.m_shim.return_value.register_with_azure_and_fetch_data.side_effect = (  # noqa: E501
             SentinelException
         )
         self.assertRaises(
@@ -1439,11 +1443,11 @@ class TestGetMetadataGoalStateXMLAndReportReadyToFabric(CiTestCase):
         )
         self.assertEqual(
             1,
-            self.m_shim.return_value.register_with_azure_and_fetch_data.call_count,
+            self.m_shim.return_value.register_with_azure_and_fetch_data.call_count,  # noqa: E501
         )
         self.assertEqual(
             mock.call(iso_dev="/dev/sr0", pubkey_info=m_pubkey_info),
-            self.m_shim.return_value.register_with_azure_and_fetch_data.call_args,
+            self.m_shim.return_value.register_with_azure_and_fetch_data.call_args,  # noqa: E501
         )
 
     def test_instantiates_shim_with_kwargs(self):
@@ -1481,7 +1485,7 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
     def test_failure_in_shim_report_failure_propagates_exc_and_calls_clean_up(
         self,
     ):
-        self.m_shim.return_value.register_with_azure_and_report_failure.side_effect = (
+        self.m_shim.return_value.register_with_azure_and_report_failure.side_effect = (  # noqa: E501
             SentinelException
         )
         self.assertRaises(
@@ -1493,7 +1497,7 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         self,
     ):
         azure_helper.report_failure_to_fabric(description="TestDesc")
-        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(
+        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
             description="TestDesc"
         )
 
@@ -1503,8 +1507,10 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         azure_helper.report_failure_to_fabric()
         # default err message description should be shown to the user
         # if no description is passed in
-        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(
-            description=azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
+            description=(
+                azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+            )
         )
 
     def test_report_failure_to_fabric_empty_desc_calls_shim_report_failure(
@@ -1513,8 +1519,10 @@ class TestGetMetadataGoalStateXMLAndReportFailureToFabric(CiTestCase):
         azure_helper.report_failure_to_fabric(description="")
         # default err message description should be shown to the user
         # if an empty description is passed in
-        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(
-            description=azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+        self.m_shim.return_value.register_with_azure_and_report_failure.assert_called_once_with(  # noqa: E501
+            description=(
+                azure_helper.DEFAULT_REPORT_FAILURE_USER_VISIBLE_MESSAGE
+            )
         )
 
     def test_instantiates_shim_with_kwargs(self):
