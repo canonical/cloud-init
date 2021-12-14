@@ -1,3 +1,11 @@
+cloud-init (21.4-0ubuntu1~18.04.2) UNRELEASED; urgency=medium
+
+  * refresh patches:
+   + debian/patches/ec2-dont-apply-full-imds-network-config.patch
+   + debian/patches/openstack-no-network-config.patch
+
+ -- James Falcon <james.falcon@canonical.com>  Mon, 13 Dec 2021 18:46:17 -0600
+
 cloud-init (21.4-0ubuntu1~18.04.1) bionic; urgency=medium
 
   * d/cloud-init.templates: Add LXD to default datasource_list with
