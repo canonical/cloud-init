@@ -1,8 +1,57 @@
-cloud-init (21.4-0ubuntu1~18.04.2) UNRELEASED; urgency=medium
+cloud-init (21.4-39-ge9634266-0ubuntu1~18.04.1) UNRELEASED; urgency=medium
 
   * refresh patches:
    + debian/patches/ec2-dont-apply-full-imds-network-config.patch
    + debian/patches/openstack-no-network-config.patch
+  * New upstream snapshot. (LP: #SRU_BUG_NUMBER_HERE)
+    - sources/azure: remove unnecessary hostname bounce (#1143)
+      [Chris Patterson]
+    - find_devs/openbsd: accept ISO on disk (#1132) [Gonéri Le Bouder]
+    - Improve error log message when mount failed (#1140) [Ksenija Stanojevic]
+    - add KsenijaS as a contributor (#1145) [Ksenija Stanojevic]
+    - travis - don't run integration tests if no deb (#1139) [Brett Holman]
+    - factor out function for getting top level directory of cloudinit (#1136)
+      [Brett Holman]
+    - testing: Add deterministic test id (#1138) [Brett Holman]
+    - mock sleep() in azure test (#1137) [Brett Holman]
+    - Add miraclelinux support (#1128) [Haruki TSURUMOTO]
+    - docs: Make MACs lowercase in network config (#1135)
+    - Add Strict Metaschema Validation (#1101) [Brett Holman]
+    - update dead link (#1133) [Brett Holman]
+    - cloudinit/net: handle two different routes for the same ip (#1124)
+      [Emanuele Giuseppe Esposito]
+    - docs: pin mistune dependency (#1134)
+    - Reorganize unit test locations under tests/unittests (#1126)
+      [Brett Holman]
+    - Fix exception when no activator found (#1129)
+    - jinja: provide and document jinja-safe key aliases in instance-data
+      (SC-622) (#1123)
+    - testing: Remove date from final_message test (SC-638) (#1127)
+    - Move GCE metadata fetch to init-local (SC-502) (#1122)
+    - Fix missing metadata routes for vultr (#1125) [eb3095]
+    - cc_ssh_authkey_fingerprints.py: prevent duplicate messages on console
+      (#1081) [dermotbradley]
+    - sources/azure: remove unused remnants related to agent command (#1119)
+      [Chris Patterson]
+    - github: update PR template's contributing URL (#1120) [Chris Patterson]
+    - docs: Rename HACKING.rst to CONTRIBUTING.rst (#1118)
+    - testing: monkeypatch system_info call in unit tests (SC-533) (#1117)
+    - Fix Vultr timeout and wait values (#1113) [eb3095]
+    - lxd: add preference for LXD cloud-init.* config keys over user keys
+      (#1108)
+    - VMware: source /etc/network/interfaces.d/* on Debian [chengcheng-chcheng]
+    - Add cjp256 as contributor (#1109) [Chris Patterson]
+    - integration_tests: Ensure log directory exists before symlinking to it
+      (#1110)
+    - testing: add growpart integration test (#1104) [Brett Holman]
+    - integration_test: Speed up CI run time (#1111)
+    - Some miscellaneous integration test fixes (SC-606) (#1103)
+    - tests: specialize lxd_discovery test for lxd_vm vendordata (#1106)
+    - Add convenience symlink to integration test output (#1105) [Brett Holman]
+    - Fix for set-name bug in networkd renderer (#1100) [Andrew Kutz]
+    - Wait for apt lock (#1034)
+    - testing: stop chef test from running on openstack (#1102)
+    - alpine.py: add options to the apk upgrade command (#1089) [dermotbradley]
 
  -- James Falcon <james.falcon@canonical.com>  Mon, 13 Dec 2021 18:46:17 -0600
 
