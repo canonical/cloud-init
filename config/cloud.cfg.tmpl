@@ -33,7 +33,7 @@ disable_root: true
 {% endif %}
 
 {% if variant in ["almalinux", "alpine", "amazon", "centos", "cloudlinux", "eurolinux",
-                  "fedora", "miraclelinux", "openEuler", "rhel", "rocky", "virtuozzo"] %}
+                  "fedora", "miraclelinux", "openeuler", "rhel", "rocky", "virtuozzo"] %}
 mount_default_fields: [~, ~, 'auto', 'defaults,nofail', '0', '2']
 {% if variant == "amazon" %}
 resize_rootfs: noblock
