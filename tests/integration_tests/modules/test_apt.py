@@ -19,10 +19,6 @@ apt:
             Fix-Broken "true";
         }
     }
-  proxy: "http://proxy.internal:3128"
-  http_proxy: "http://squid.internal:3128"
-  ftp_proxy: "ftp://squid.internal:3128"
-  https_proxy: "https://squid.internal:3128"
   primary:
     - arches: [default]
       uri: http://badarchive.ubuntu.com/ubuntu
@@ -38,9 +34,9 @@ apt:
     deb-src $SECURITY $RELEASE-security multiverse
   sources:
     test_keyserver:
-        keyid: 72600DB15B8E4C8B1964B868038ACC97C660A937
-        keyserver: keyserver.ubuntu.com
-        source: "deb http://ppa.launchpad.net/cloud-init-raharper/curtin-dev/ubuntu $RELEASE main"
+      keyid: 110E21D8B0E2A1F0243AF6820856F197B892ACEA
+      keyserver: keyserver.ubuntu.com
+      source: "deb http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu $RELEASE main"
     test_ppa:
       keyid: 441614D8
       keyserver: keyserver.ubuntu.com
@@ -95,15 +91,12 @@ EXPECTED_REGEXES = [
     r"deb-src http://badsecurity.ubuntu.com/ubuntu [a-z]+-security multiverse",
 ]
 
-TEST_KEYSERVER_KEY = "7260 0DB1 5B8E 4C8B 1964  B868 038A CC97 C660 A937"
-
+TEST_KEYSERVER_KEY = "110E 21D8 B0E2 A1F0 243A  F682 0856 F197 B892 ACEA"
 TEST_PPA_KEY = "3552 C902 B4DD F7BD 3842  1821 015D 28D7 4416 14D8"
-
 TEST_KEY = "1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF"
 TEST_SIGNED_BY_KEY = "A2EB 2DEC 0BD7 519B 7B38  BE38 376A 290E C806 8B11"
 
 
-@pytest.mark.ci
 @pytest.mark.ubuntu
 @pytest.mark.user_data(USER_DATA)
 class TestApt:
@@ -148,18 +141,6 @@ class TestApt:
         assert 'Assume-Yes "true";' in apt_config
         assert 'Fix-Broken "true";' in apt_config
 
-    def test_apt_proxy(self, class_client: IntegrationInstance):
-        """Test the apt proxy functionality.
-
-        Ported from tests/cloud_tests/testcases/modules/apt_configure_proxy.py
-        """
-        out = class_client.read_from_file(
-            '/etc/apt/apt.conf.d/90cloud-init-aptproxy')
-        assert 'Acquire::http::Proxy "http://proxy.internal:3128";' in out
-        assert 'Acquire::http::Proxy "http://squid.internal:3128";' in out
-        assert 'Acquire::ftp::Proxy "ftp://squid.internal:3128";' in out
-        assert 'Acquire::https::Proxy "https://squid.internal:3128";' in out
-
     def test_ppa_source(self, class_client: IntegrationInstance):
         """Test the apt ppa functionality.
 
@@ -186,7 +167,6 @@ class TestApt:
             "deb [signed-by=/etc/apt/cloud-init.gpg.d/test_signed_by.gpg] "
             "http://ppa.launchpad.net/juju/stable/ubuntu"
             " {} main".format(release))
-        print(class_client.execute('cat /var/log/cloud-init.log'))
         path_contents = class_client.read_from_file(
             '/etc/apt/sources.list.d/test_signed_by.list')
         assert path_contents == source
@@ -230,7 +210,7 @@ class TestApt:
         )
 
         assert (
-            'http://ppa.launchpad.net/cloud-init-raharper/curtin-dev/ubuntu'
+            'http://ppa.launchpad.net/canonical-kernel-team/ppa/ubuntu'
         ) in test_keyserver_contents
 
         assert TEST_KEYSERVER_KEY in self.get_keys(class_client)
@@ -342,3 +322,25 @@ class TestDisabled:
             '/etc/apt/apt.conf.d/90cloud-init-pipelining'
         )
         assert 'Acquire::http::Pipeline-Depth "0";' in conf
+
+
+APT_PROXY_DATA = """\
+#cloud-config
+apt:
+  proxy: "http://proxy.internal:3128"
+  http_proxy: "http://squid.internal:3128"
+  ftp_proxy: "ftp://squid.internal:3128"
+  https_proxy: "https://squid.internal:3128"
+"""
+
+
+@pytest.mark.ubuntu
+@pytest.mark.user_data(APT_PROXY_DATA)
+def test_apt_proxy(client: IntegrationInstance):
+    """Test the apt proxy data gets written correctly."""
+    out = client.read_from_file(
+        '/etc/apt/apt.conf.d/90cloud-init-aptproxy')
+    assert 'Acquire::http::Proxy "http://proxy.internal:3128";' in out
+    assert 'Acquire::http::Proxy "http://squid.internal:3128";' in out
+    assert 'Acquire::ftp::Proxy "ftp://squid.internal:3128";' in out
+    assert 'Acquire::https::Proxy "https://squid.internal:3128";' in out

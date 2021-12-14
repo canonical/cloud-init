@@ -9,6 +9,8 @@ from cloudinit import url_helper
 from cloudinit import dmi
 from cloudinit import util
 from cloudinit import net
+from cloudinit import netinfo
+from cloudinit import subp
 from cloudinit.net.dhcp import EphemeralDHCPv4, NoDHCPLeaseError
 from functools import lru_cache
 
@@ -21,6 +23,9 @@ def get_metadata(url, timeout, retries, sec_between, agent):
     # Bring up interface
     try:
         with EphemeralDHCPv4(connectivity_url_data={"url": url}):
+            # Set metadata route
+            set_route()
+
             # Fetch the metadata
             v1 = read_metadata(url, timeout, retries, sec_between, agent)
     except (NoDHCPLeaseError) as exc:
@@ -28,6 +33,53 @@ def get_metadata(url, timeout, retries, sec_between, agent):
         raise
 
     return json.loads(v1)
+
+
+# Set route for metadata
+def set_route():
+    # Get routes, confirm entry does not exist
+    routes = netinfo.route_info()
+
+    # If no tools exist and empty dict is returned
+    if 'ipv4' not in routes:
+        return
+
+    # We only care about IPv4
+    routes = routes['ipv4']
+
+    # Searchable list
+    dests = []
+
+    # Parse each route into a more searchable format
+    for route in routes:
+        dests.append(route['destination'])
+
+    gw_present = '100.64.0.0' in dests or '100.64.0.0/10' in dests
+    dest_present = '169.254.169.254' in dests
+
+    # If not IPv6 only (No link local)
+    # or the route is already present
+    if not gw_present or dest_present:
+        return
+
+    # Set metadata route
+    if subp.which('ip'):
+        subp.subp([
+            'ip',
+            'route',
+            'add',
+            '169.254.169.254/32',
+            'dev',
+            net.find_fallback_nic()
+        ])
+    elif subp.which('route'):
+        subp.subp([
+            'route',
+            'add',
+            '-net',
+            '169.254.169.254/32',
+            '100.64.0.1'
+        ])
 
 
 # Read the system information from SMBIOS

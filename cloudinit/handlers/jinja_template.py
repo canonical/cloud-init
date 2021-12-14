@@ -1,14 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 from errno import EACCES
 import os
 import re
+from typing import Optional
 
 try:
     from jinja2.exceptions import UndefinedError as JUndefinedError
+    from jinja2.lexer import operator_re
 except ImportError:
     # No jinja2 dependency
     JUndefinedError = Exception
+    operator_re = re.compile(r'[-.]')
 
 from cloudinit import handlers
 from cloudinit import log as logging
@@ -97,7 +101,9 @@ def render_jinja_payload_from_file(
 def render_jinja_payload(payload, payload_fn, instance_data, debug=False):
     instance_jinja_vars = convert_jinja_instance_data(
         instance_data,
-        decode_paths=instance_data.get('base64-encoded-keys', []))
+        decode_paths=instance_data.get('base64-encoded-keys', []),
+        include_key_aliases=True
+    )
     if debug:
         LOG.debug('Converted jinja variables\n%s',
                   json_dumps(instance_jinja_vars))
@@ -118,7 +124,30 @@ def render_jinja_payload(payload, payload_fn, instance_data, debug=False):
     return rendered_payload
 
 
-def convert_jinja_instance_data(data, prefix='', sep='/', decode_paths=()):
+def get_jinja_variable_alias(orig_name: str) -> Optional[str]:
+    """Return a jinja variable alias, replacing any operators with underscores.
+
+    Provide underscore-delimited key aliases to simplify dot-notation
+    attribute references for keys which contain operators "." or "-".
+    This provides for simpler short-hand jinja attribute notation
+    allowing one to avoid quoting keys which contain operators.
+    {{ ds.v1_0.config.user_network_config }} instead of
+    {{ ds['v1.0'].config["user.network-config"] }}.
+
+    :param orig_name: String representing a jinja variable name to scrub/alias.
+
+    :return: A string with any jinja operators replaced if needed. Otherwise,
+        none if no alias required.
+    """
+    alias_name = re.sub(operator_re, '_', orig_name)
+    if alias_name != orig_name:
+        return alias_name
+    return None
+
+
+def convert_jinja_instance_data(
+    data, prefix='', sep='/', decode_paths=(), include_key_aliases=False
+):
     """Process instance-data.json dict for use in jinja templates.
 
     Replace hyphens with underscores for jinja templates and decode any
@@ -127,21 +156,24 @@ def convert_jinja_instance_data(data, prefix='', sep='/', decode_paths=()):
     result = {}
     decode_paths = [path.replace('-', '_') for path in decode_paths]
     for key, value in sorted(data.items()):
-        if '-' in key:
-            # Standardize keys for use in #cloud-config/shell templates
-            key = key.replace('-', '_')
         key_path = '{0}{1}{2}'.format(prefix, sep, key) if prefix else key
         if key_path in decode_paths:
             value = b64d(value)
         if isinstance(value, dict):
             result[key] = convert_jinja_instance_data(
-                value, key_path, sep=sep, decode_paths=decode_paths)
-            if re.match(r'v\d+', key):
+                value, key_path, sep=sep, decode_paths=decode_paths,
+                include_key_aliases=include_key_aliases
+            )
+            if re.match(r'v\d+$', key):
                 # Copy values to top-level aliases
                 for subkey, subvalue in result[key].items():
-                    result[subkey] = subvalue
+                    result[subkey] = copy.deepcopy(subvalue)
         else:
             result[key] = value
+        if include_key_aliases:
+            alias_name = get_jinja_variable_alias(key)
+            if alias_name:
+                result[alias_name] = copy.deepcopy(result[key])
     return result
 
 # vi: ts=4 expandtab

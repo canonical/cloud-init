@@ -9,14 +9,14 @@ import configobj
 import os
 from textwrap import dedent
 
-from cloudinit.config.schema import get_schema_doc
+from cloudinit.config.schema import get_meta_doc
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import util
 
 distros = ['opensuse', 'sles']
 
-schema = {
+meta = {
     'id': 'cc_zypper_add_repo',
     'name': 'ZypperAddRepo',
     'title': 'Configure zypper behavior and add zypper repositories',
@@ -51,6 +51,9 @@ schema = {
             # any setting in /etc/zypp/zypp.conf
     """)],
     'frequency': PER_ALWAYS,
+}
+
+schema = {
     'type': 'object',
     'properties': {
         'zypper': {
@@ -86,14 +89,13 @@ schema = {
                         /etc/zypp/zypp.conf'""")
                 }
             },
-            'required': [],
             'minProperties': 1,  # Either config or repo must be provided
             'additionalProperties': False,  # only repos and config allowed
         }
     }
 }
 
-__doc__ = get_schema_doc(schema)  # Supplement python help()
+__doc__ = get_meta_doc(meta, schema)  # Supplement python help()
 
 LOG = logging.getLogger(__name__)
 

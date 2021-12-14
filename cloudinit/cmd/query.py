@@ -19,7 +19,10 @@ import os
 import sys
 
 from cloudinit.handlers.jinja_template import (
-    convert_jinja_instance_data, render_jinja_payload)
+    convert_jinja_instance_data,
+    get_jinja_variable_alias,
+    render_jinja_payload
+)
 from cloudinit.cmd.devel import addLogHandlerCLI, read_cfg_paths
 from cloudinit import log
 from cloudinit.sources import (
@@ -93,22 +96,24 @@ def load_userdata(ud_file_path):
         return util.decomp_gzip(bdata, quiet=False, decode=True)
 
 
-def handle_args(name, args):
-    """Handle calls to 'cloud-init query' as a subcommand."""
-    paths = None
-    addLogHandlerCLI(LOG, log.DEBUG if args.debug else log.WARNING)
-    if not any([args.list_keys, args.varname, args.format, args.dump_all]):
-        LOG.error(
-            'Expected one of the options: --all, --format,'
-            ' --list-keys or varname')
-        get_parser().print_help()
-        return 1
+def _read_instance_data(instance_data, user_data, vendor_data) -> dict:
+    """Return a dict of merged instance-data, vendordata and userdata.
 
+    The dict will contain supplemental userdata and vendordata keys sourced
+    from default user-data and vendor-data files.
+
+    Non-root users will have redacted INSTANCE_JSON_FILE content and redacted
+    vendordata and userdata values.
+
+    :raise: IOError/OSError on absence of instance-data.json file or invalid
+        access perms.
+    """
+    paths = None
     uid = os.getuid()
-    if not all([args.instance_data, args.user_data, args.vendor_data]):
+    if not all([instance_data, user_data, vendor_data]):
         paths = read_cfg_paths()
-    if args.instance_data:
-        instance_data_fn = args.instance_data
+    if instance_data:
+        instance_data_fn = instance_data
     else:
         redacted_data_fn = os.path.join(paths.run_dir, INSTANCE_JSON_FILE)
         if uid == 0:
@@ -124,12 +129,12 @@ def handle_args(name, args):
                 instance_data_fn = redacted_data_fn
         else:
             instance_data_fn = redacted_data_fn
-    if args.user_data:
-        user_data_fn = args.user_data
+    if user_data:
+        user_data_fn = user_data
     else:
         user_data_fn = os.path.join(paths.instance_link, 'user-data.txt')
-    if args.vendor_data:
-        vendor_data_fn = args.vendor_data
+    if vendor_data:
+        vendor_data_fn = vendor_data
     else:
         vendor_data_fn = os.path.join(paths.instance_link, 'vendor-data.txt')
 
@@ -140,7 +145,7 @@ def handle_args(name, args):
             LOG.error("No read permission on '%s'. Try sudo", instance_data_fn)
         else:
             LOG.error('Missing instance-data file: %s', instance_data_fn)
-        return 1
+        raise
 
     instance_data = util.load_json(instance_json)
     if uid != 0:
@@ -151,6 +156,65 @@ def handle_args(name, args):
     else:
         instance_data['userdata'] = load_userdata(user_data_fn)
         instance_data['vendordata'] = load_userdata(vendor_data_fn)
+    return instance_data
+
+
+def _find_instance_data_leaf_by_varname_path(
+    jinja_vars_without_aliases: dict, jinja_vars_with_aliases: dict,
+    varname: str, list_keys: bool
+):
+    """Return the value of the dot-delimited varname path in instance-data
+
+    Split a dot-delimited jinja variable name path into components, walk the
+    path components into the instance_data and look up a matching jinja
+    variable name or cloud-init's underscore-delimited key aliases.
+
+    :raises: ValueError when varname represents an invalid key name or path or
+        if list-keys is provided by varname isn't a dict object.
+    """
+    walked_key_path = ""
+    response = jinja_vars_without_aliases
+    for key_path_part in varname.split('.'):
+        try:
+            # Walk key path using complete aliases dict, yet response
+            # should only contain jinja_without_aliases
+            jinja_vars_with_aliases = jinja_vars_with_aliases[key_path_part]
+        except KeyError as e:
+            if walked_key_path:
+                msg = "instance-data '{key_path}' has no '{leaf}'".format(
+                    leaf=key_path_part, key_path=walked_key_path
+                )
+            else:
+                msg = "Undefined instance-data key '{}'".format(varname)
+            raise ValueError(msg) from e
+        if key_path_part in response:
+            response = response[key_path_part]
+        else:  # We are an underscore_delimited key alias
+            for key in response:
+                if get_jinja_variable_alias(key) == key_path_part:
+                    response = response[key]
+                    break
+        if walked_key_path:
+            walked_key_path += "."
+        walked_key_path += key_path_part
+    return response
+
+
+def handle_args(name, args):
+    """Handle calls to 'cloud-init query' as a subcommand."""
+    addLogHandlerCLI(LOG, log.DEBUG if args.debug else log.WARNING)
+    if not any([args.list_keys, args.varname, args.format, args.dump_all]):
+        LOG.error(
+            'Expected one of the options: --all, --format,'
+            ' --list-keys or varname')
+        get_parser().print_help()
+        return 1
+    try:
+        instance_data = _read_instance_data(
+            args.instance_data, args.user_data, args.vendor_data
+        )
+    except (IOError, OSError):
+        return 1
     if args.format:
         payload = '## template: jinja\n{fmt}'.format(fmt=args.format)
         rendered_payload = render_jinja_payload(
@@ -162,20 +226,32 @@ def handle_args(name, args):
             return 0
         return 1
 
+    # If not rendering a structured format above, query output will be either:
+    #  - JSON dump of all instance-data/jinja variables
+    #  - JSON dump of a value at an dict path into the instance-data dict.
+    #  - a list of keys for a specific dict path into the instance-data dict.
     response = convert_jinja_instance_data(instance_data)
     if args.varname:
+        jinja_vars_with_aliases = convert_jinja_instance_data(
+            instance_data, include_key_aliases=True
+        )
         try:
-            for var in args.varname.split('.'):
-                response = response[var]
-        except KeyError:
-            LOG.error('Undefined instance-data key %s', args.varname)
+            response = _find_instance_data_leaf_by_varname_path(
+                jinja_vars_without_aliases=response,
+                jinja_vars_with_aliases=jinja_vars_with_aliases,
+                varname=args.varname,
+                list_keys=args.list_keys
+            )
+        except (KeyError, ValueError) as e:
+            LOG.error(e)
             return 1
-        if args.list_keys:
-            if not isinstance(response, dict):
-                LOG.error("--list-keys provided but '%s' is not a dict", var)
-                return 1
-            response = '\n'.join(sorted(response.keys()))
-    elif args.list_keys:
+    if args.list_keys:
+        if not isinstance(response, dict):
+            LOG.error(
+                "--list-keys provided but '%s' is not a dict",
+                args.varname
+            )
+            return 1
         response = '\n'.join(sorted(response.keys()))
     if not isinstance(response, str):
         response = util.json_dumps(response)

@@ -7,7 +7,7 @@ from functools import partial
 from unittest.mock import patch
 
 from cloudinit import ssh_util
-from cloudinit.tests import helpers as test_helpers
+from tests.unittests import helpers as test_helpers
 from cloudinit import util
 
 # https://stackoverflow.com/questions/11351032/
